@@ -6,6 +6,29 @@ Hi, as a Full Stack Developer there's plenty of things that are repetitive, can 
 
 So I started adapting gpt-engineer to help me coding, speeding developments, improving tests, and teaching me when dealing with techs that I'm rusty.
 
+<img src="blob:chrome-untrusted://media-app/32e3d394-3d7c-4832-9731-5da7a257bbec" alt="Screenshot 2024-09-15 13.56.55.png"/>![image](https://github.com/user-attachments/assets/29123838-1b1b-44c6-a92a-c28968238385)
+
+## Feattures
+
+### Code generation
+Ofc... we are here for this :)
+
+### Codebase knowledge
+codx-junior uses RAG techniques to find revelant parts of the code for your tasks or giving support
+
+### Task managent
+codx-junior is task based. Create task and polish it with codx-junior until your are ready to generate code
+
+### Chat & Support
+Talk with codx-junior to learn about the code base, find ways to improve your code or learn new skills
+
+### Wiki
+Don't write more documentation, codx-junior will do for you
+
+### Personalize
+Define how do you want codx-junior to perform, code styling, ...
+
+
 
 ```           _                 _   _             
           (_)               | | (_)            
