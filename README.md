@@ -6,7 +6,7 @@ Hi, as a Full Stack Developer there's plenty of things that are repetitive, can 
 
 So I started adapting gpt-engineer to help me coding, speeding developments, improving tests, and teaching me when dealing with techs that I'm rusty.
 
-<img src="blob:chrome-untrusted://media-app/32e3d394-3d7c-4832-9731-5da7a257bbec" alt="Screenshot 2024-09-15 13.56.55.png"/>![image](https://github.com/user-attachments/assets/29123838-1b1b-44c6-a92a-c28968238385)
+![image](https://github.com/user-attachments/assets/29123838-1b1b-44c6-a92a-c28968238385)
 
 ## Feattures
 
