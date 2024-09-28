@@ -4,6 +4,8 @@ import MarkdownVue from '@/components/Markdown.vue'
 </script>
 <template>
   <div class="flex flex-col gap-2 h-full">
+    <div class="text-2xl">Project's documentation</div>
+    <div class="badge badge-warning flex gap-1" v-if="!settings.project_wiki">Set <span><strong>project_wiki path</strong></span> to enable.</div>
     <div class="breadcrumbs text-sm shrink-0">
       <ul>
         <li v-for="path in history" :key="path"
@@ -30,6 +32,11 @@ export default {
   },
   created () {
     this.navigate("/home.md")
+  },
+  computed: {
+    settings () {
+      return API.lastSettings
+    }
   },
   methods: {
     navigate (path) {

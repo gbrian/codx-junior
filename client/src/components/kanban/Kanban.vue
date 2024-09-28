@@ -7,7 +7,7 @@ import ChatViewVue from '../../views/ChatView.vue'
 <template>
   <ChatViewVue :openChat="chat" v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
   <div class="flex flex-col gap-2 h-full" v-else>
-    <div class="dropdown">
+    <div class="dropdown" v-if="false">
       <div tabindex="0" class="click text-2xl flex gap-2 items-center">
         {{ board || defBoard }}
         <i class="fa-solid fa-sort-down"></i>
@@ -82,12 +82,21 @@ export default {
     }
   },
   methods: {
+    createNewChat () {
+      return {
+        id: -1,
+        name: "New chat",
+        mode: 'chat',
+        board: this.board,
+        column: "New column",
+        column_index: 10000,
+        chat_index: 0
+      }
+    },
     newChat (column) {
       this.chat = {
-        name: "New chat",
-        board: this.board,
-        column,
-        column_index: 0
+        ...this.createNewChat(),
+        column
       }
     },
     async buildKanba () {
@@ -106,13 +115,7 @@ export default {
         })),
         {
           title: "New column",
-          tasks: [{
-            name: "New chat",
-            board: this.board,
-            column: "New column",
-            column_index: 10000,
-            chat_index: 0
-          }]
+          tasks: [this.createNewChat()]
         }
       ].sort((a, b) => a.tasks[0]?.column_index < b.tasks[0]?.column_index ? -1 : 1)
     },
@@ -137,7 +140,11 @@ export default {
     },
     onColumnsChanged() {},
     async openChat(element) {
-      this.chat = await API.chats.loadChat(element.name)
+      if (element.id === -1) {
+        this.newChat()
+      } else {
+        this.chat = await API.chats.loadChat(element.name)
+      }
     },
     onChatEditDone () {
       this.chat = null

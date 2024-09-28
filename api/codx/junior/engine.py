@@ -109,6 +109,10 @@ def delete_knowledge_source(settings: GPTEngineerSettings, sources: [str]):
     Knowledge(settings=settings).delete_documents(sources=sources)
     return { "ok": 1 }
 
+def delete_knowledge(settings: GPTEngineerSettings):
+    Knowledge(settings=settings).reset()
+    return { "ok": 1 }
+
 def on_project_changed(project_path: str, file_path: str):
     logger.info(f"Project changed {project_path} - {file_path}")
 
@@ -328,7 +332,16 @@ def check_knowledge_status(settings: GPTEngineerSettings):
     knowledge = Knowledge(settings=settings)
     last_update = knowledge.last_update
     status = knowledge.status()
+    
+    def file_info(file_path):
+        d_stats = os.stat(file_path)
+        return {
+            "file_path": file_path,
+            "size": d_stats.st_size
+        }
+
     pending_files = knowledge.detect_changes()
+
     return {
       "last_update": str(last_update),
       "pending_files": pending_files[0:2000],
@@ -706,7 +719,8 @@ def get_keywords(settings: GPTEngineerSettings, query):
 def find_all_projects(detailed: bool = False):
     all_projects = []
     project_path = "/"
-    all_gpteng_path = [str(p) for p in Path(project_path).glob("**/.gpteng")]
+    result = subprocess.run("find / -name .gpteng".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    all_gpteng_path = result.stdout.decode('utf-8').split("\n")
     # logger.exception(f"all_gpteng_path {all_gpteng_path}")
     paths = [p for p in all_gpteng_path if os.path.isfile(f"{p}/project.json")]
     # logger.info(f"find_projects_to_watch: Scanning project paths: {project_path} - {paths}")

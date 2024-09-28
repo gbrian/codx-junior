@@ -1,5 +1,5 @@
 <template>
-  <div class="bg-base-100 shadow rounded pb-5 border border-base-300 flex flex-col gap-2">
+  <div class="bg-base-100 shadow rounded pb-5 border border-base-300 flex flex-col gap-2 click">
     <div class="bg-auto bg-no-repeat bg-center h-28 bg-base-300"
       :style="`background-image: url(${image.src})`"
       v-if="image"
@@ -14,7 +14,7 @@
           <span class="text-info" v-if="task.mode === 'live'">
             <i class="fa-xl fa-brands fa-chromecast"></i>
           </span>
-          <span v-if="task.mode === 'chat'">
+          <span v-if="task.mode === 'chat' || !task.mode">
             <i class="fa-xl fa-regular fa-comments"></i>
           </span>
           <span v-if="task.mode === 'task'">
@@ -23,7 +23,7 @@
 
         </div>
       </div>
-      <p class="text-xs">{{ description  }}</p>
+      <p class="text-xs">{{ description || 'Click to edit...'  }}</p>
       <div class="flex mt-4 justify-between items-center">
         <span class="text-sm text-gray-600">{{task.updated_at}}</span>
         <badge v-if="task.type" :color="badgeColor">{{task.type}}</badge>

@@ -214,6 +214,14 @@ import MarkdownVue from '@/components/Markdown.vue'
         </span>
       </div>
     </div>
+    <button class="btn btn-error flex gap-2 w-full mt-2" @click="deleteKnowledge" >
+      DELETE ALL
+      <div v-if="resetKnowledge">
+        (Really? 
+        <span class="hover:underline">YES</span> / 
+        <span class="hover:underline" @click.stop="resetKnowledge = false">NO</span>)
+      </div>
+    </button>
     <dialog class="modal modal-bottom sm:modal-middle modal-open" v-if="showDoc" @click="showDoc = null">
       <div class="modal-box flex flex-col gap-2 w-full max-w-full">
         <div class="font-bold text-wrap">
@@ -281,7 +289,8 @@ export default {
       showIndexFiles: 0,
       fileFilter: null,
       addToIgnore: null,
-      settings: API.lastSettings
+      settings: API.lastSettings,
+      resetKnowledge: false
     }
   },
   async created() {
@@ -485,6 +494,15 @@ export default {
           ...acc,
           [f]: true
         }), {})
+      }
+    },
+    async deleteKnowledge() {
+      if (this.resetKnowledge) {
+        await API.knowledge.deleteAll()
+        this.reloadStatus()
+        this.resetKnowledge = false
+      } else {
+        this.resetKnowledge = true
       }
     }
   }

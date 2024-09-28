@@ -101,6 +101,9 @@ export const API = {
     delete (sources) {
       return API.post(`/api/knowledge/delete?` + query(), { sources })  
     },
+    deleteAll() {
+      return API.del(`/api/knowledge/delete?` + query())  
+    },
     keywords() {
       return API.get(`/api/knowledge/keywords?` + query())
     },

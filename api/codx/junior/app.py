@@ -61,6 +61,7 @@ from codx.junior.engine import (
     check_project_changes,
     reload_knowledge,
     delete_knowledge_source,
+    delete_knowledge,
     knowledge_search,
     chat_with_project,
     check_project,
@@ -170,6 +171,12 @@ class GPTEngineerAPI:
             settings = request.state.settings
             return delete_knowledge_source(settings=settings, sources=knowledge_delete_sources.sources)
 
+        @app.delete("/api/knowledge/delete")
+        def api_knowledge_reload_all(request: Request):
+            settings = request.state.settings
+            return delete_knowledge(settings=settings)
+
+
         @app.post("/api/knowledge/reload-search")
         def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):
             logger.info("API:knowledge_search_endpoint")
@@ -197,11 +204,11 @@ class GPTEngineerAPI:
             if streaming:
               def doStreaming():
                 data_buffer = DataBuffer()
-                chat = chat_with_project(settings=settings, chat=chat, use_knowledge=True)
+                chat_with_project(settings=settings, chat=chat, use_knowledge=True)
                 ChatManager(settings=settings).save_chat(chat) 
               return StreamingResponse()
             else:
-              chat = chat_with_project(settings=settings, chat=chat, use_knowledge=True)
+              chat_with_project(settings=settings, chat=chat, use_knowledge=True)
               ChatManager(settings=settings).save_chat(chat)
               return chat.messages[-1]
 
