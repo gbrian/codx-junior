@@ -55,14 +55,22 @@ import Markdown from './Markdown.vue'
         </div>
         <pre v-if="srcView">{{ message.content }}</pre>
         <Markdown class="" :text="message.content" v-else></Markdown>
-        <div v-if="message.images">
+        <div v-if="images">
           <div class="grid grid-cols-6">
-            <div class="carousel-item click"
-              v-for="url in message.images" :key="url"
-              @click="$emit('image', url)"
+            <div class="carousel-item click mt-2"
+              v-for="image in images" :key="image.src"
+              @click="$emit('image', image)"
             >
-              <img class="border rounded-md w-20 h-20" :src="url" />
+              <div class="flex flex-col">
+                <div class="bg-auto bg-no-repeat bg-center border rounded-md h-28 w-28" :style="`background-image: url(${image.src})`"></div>
+                <p class="badge badge-xs" v-if="image.alt">{{ image.alt }}</p>
+              </div>
             </div>
+          </div>
+        </div>
+        <div class="grid gap-2 grid-cols-3 mt-2">
+          <div v-for="file in message.files" :key="file" :data-tip="file" class="badge badge-info badge-sm tooltip">
+            {{ file.split("/").reverse()[0] }}
           </div>
         </div>
       </div>
@@ -106,6 +114,17 @@ export default {
     },
     showDocPreview () {
       return md.render("```json\n" + JSON.stringify(this.message, null, 2) + "\n```")
+    },
+    images () {
+      return this.message?.images?.map(i => {
+        try {
+          return JSON.parse(i)
+        } catch {
+          return {
+            src: i
+          }
+        }
+      })
     }
   },
   watch: {

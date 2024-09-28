@@ -1,9 +1,16 @@
 <script setup>
+import { API } from '../../api/api'
 import ChatEntry from '@/components/ChatEntry.vue'
 </script>
 <template>
   <div class="flex flex-col gap-2 grow">
-    <div class="flex flex-col grow">
+    <div class="flex flex-col grow" v-if="livePreview">
+      <div class="flex flex-col w-full grow">
+        <input type="text" class="input input-bordered input-xs w-full" placeholder="http://..." v-model="chat.live_url" />
+        <iframe ref="iframe" :src="chat.live_url" class="w-full h-full bg-base-200"></iframe>
+      </div>
+    </div>
+    <div class="flex flex-col grow" v-else>
       <div class="grow overflow-auto relative">
         <div class="absolute top-0 left-0 w-full h-full scroller">
           <div v-for="message in messages" :key="message.id">
@@ -14,15 +21,10 @@ import ChatEntry from '@/components/ChatEntry.vue'
               @run-edit="runEdit"
               @copy="onCopy(message)"
               @generate-code="onGenerateCode(message, $event)"
-              @image="previewImage = $event"
+              @image="imagePreview = $event"
             />
           </div>
           <div class="anchor" ref="anchor"></div>
-        </div>
-      </div>
-      <div class="absolute top-0 left-0 right-0 bottom-0 z-50" v-if="previewImage">
-        <div class="flex justify-center bg-base-300 p-4">
-          <img :src="previewImage" class="click rounded-md" @click="previewImage = null"/>
         </div>
       </div>
       <div class="badge my-2 animate-pulse" v-if="waiting">typing ...</div>
@@ -55,36 +57,45 @@ import ChatEntry from '@/components/ChatEntry.vue'
           </li>
         </ul>
       </div>
-      <div class="carousel rounded-box">
-        <div class="carousel-item relative" v-for="url, ix in images" :key="url">
-          <img class="w-40 h-40 click" :src="url" @click="previewImage = url" />
-          <button class="btn btn-xs btn-circle btn-error absolute right-2 top-2"
-            @click="removeImage(ix)"
-          >
-            X
-          </button>
+    </div>
+    <div class="carousel rounded-box">
+      <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
+        <div class="bg-auto bg-no-repeat bg-center h-28 w-28 bg-base-300 mr-4"
+          :style="`background-image: url(${image.src})`" @click="imagePreview = image">
         </div>
+        <p class="text-xs">{{ image.alt }}</p>
+        <button class="btn btn-xs btn-circle btn-error absolute right-2 top-2"
+          @click="removeImage(ix)"
+        >
+          X
+        </button>
       </div>
     </div>
     <div :class="['flex gap-2 p-2 bg-base-300 border rounded-md shadow', multiline ? 'flex-col' : '']">
-      <div :class="['max-h-40 grow px-2 py-1 overflow-auto text-wrap focus-visible:outline-none',
+      <div :class="['max-h-40 w-full max-w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none',
         editMessageId !== null ? 'border-error': '',
         editMessageId !== null ? 'border-warning': '',
+        onDraggingOverInput ? 'bg-warning/10': ''
       ]" contenteditable="true"
         ref="editor" @input="onMessageChange"
-        @paste="onContentPaste"
+        @paste.prevent="onContentPaste"
+        @dragover.prevent="onDraggingOverInput = true"
+        @dragleave.prevent="onDraggingOverInput = false"
+        @drop.prevent="onDrop"
         @keydown.esc.stop="onResetEdit"
       >
       </div>
       <div class="flex gap-2 items-center justify-end mt-1">
-        <button class="btn btn btn-sm btn-circle mb-1 btn-outline" @click="sendMessage">
+        <button class="btn btn btn-sm btn-circle mb-1 btn-outline" @click="sendMessage" v-if="!livePreview">
           <i class="fa-solid fa-comment"></i>
         </button>
-        <button class="btn btn-info btn-sm btn-circle mb-1 btn-outline" @click="askKnowledge">
-          <i class="fa-solid fa-file-circle-plus"></i>
-        </button>
-        <button class="btn btn-warning btn-sm mb-1 btn-outline" @click="improveCode">
+        <button class="btn btn-warning btn-sm mb-1 btn-outline" @click="livePreview ? liveEdit() : improveCode()">
           <i class="fa-solid fa-code"></i> Code
+        </button>
+        <button :class="['btn btn-sm mb-1 btn-outline',
+            testError ? 'btn-error' : 'btn-info'
+          ]" @click="testProject" v-if="API.lastSettings.script_test">
+          <i class="fa-solid fa-flask"></i> Test
         </button>
       </div>
     </div>
@@ -101,10 +112,24 @@ import ChatEntry from '@/components/ChatEntry.vue'
         <i class="fa-regular fa-circle-xmark"></i>
       </button>
     </div>
+    <modal v-if="imagePreview">
+      <div class="flex flex-col gap-2">
+        <div class="text-2xl">Upload image</div>
+        <img class="h-30 max-w-full" :src="imagePreview.src" />
+        <input class="input input-bordered" v-model="imagePreview.alt" placeholder="Add image info" />
+        <div class="flex justify-end gap-2">
+          <button class="btn" @click="imagePreview = null">
+            Cancel
+          </button>
+          <button class="btn btn-primary" @click="onAddImage">
+            Ok
+          </button>
+        </div>
+      </div>
+    </modal>
   </div>
 </template>
 <script>
-import { API } from '@/api/api'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
@@ -121,7 +146,10 @@ export default {
       files: [],
       images: [],
       previewImage: null,
-      editorText: ""
+      editorText: "",
+      imagePreview: null,
+      onDraggingOverInput: false,
+      testError: null
     }
   },
   computed: {
@@ -133,6 +161,12 @@ export default {
     },
     multiline () {
       return this.editorText.indexOf("\n") !== -1
+    },
+    allImages () {
+      return this.images
+    },
+    livePreview () {
+      return this.chat?.mode === 'live'
     }
   },
   watch: {
@@ -158,7 +192,13 @@ export default {
       } else {
         this.setEditorText("Please apply this corrections to your message:\n- ")
       }
-      this.images = message.images || []
+      this.images = (message.images || []).map(i => {
+        try {
+          JSON.parse(i)
+        } catch {
+          return { src: i }
+        }
+      })
     },
     toggleHide(message) {
       message.hide = !message.hide 
@@ -172,9 +212,13 @@ export default {
       })
       .catch(console.error);
     },
-    improveCode () {
+    async liveEdit () {
+      await this.sendMessage()
+      this.improveCode()
+    },
+    async improveCode () {
       this.postMyMessage()
-      this.sendApiRequest(
+      await this.sendApiRequest(
         () => API.run.improve(this.chat),
         data => ['### Changes done',
                   data.messages.reverse()[0].content,
@@ -186,6 +230,7 @@ export default {
                   JSON.stringify(data.errors, 2, null)
                 ].join("\n")
       )
+      this.testProject()
     },
     runEdit (codeSnipped) {
       this.sendApiRequest(
@@ -205,15 +250,15 @@ export default {
     },
     postMyMessage () {
       const message = this.editor.innerText
-      if (message) {
+      if (message || this.images?.length) {
         this.addMessage({
           role: 'user',
           content: message,
-          images: this.images
+          images: this.images.map(JSON.stringify)
         })
         this.setEditorText("")
         this.images = []
-        this.$refs.anchor.scrollIntoView()
+        this.$refs.anchor?.scrollIntoView()
       }
     },
     async sendMessage () {
@@ -222,7 +267,7 @@ export default {
         return
       }
       this.postMyMessage()
-      this.sendApiRequest(
+      return this.sendApiRequest(
         () => API.chats.message(this.chat),
         ({ content } = {}) => {
           return `${ content }`
@@ -336,26 +381,44 @@ export default {
       }
     },
     saveChat () {
-      this.$emit('save')
+      return API.chats.save(this.chat)
     },
-    async onContentPaste(pasteEvent) {
-      var items = pasteEvent.clipboardData?.items;
-      if (!items) {
+    onDrop(e) {
+      this.onDraggingOverInput = false
+      if (!e.dataTransfer.files) {
         return
       }
-      for (var i = 0; i < items.length; i++) {
-        if (items[i].type.indexOf("image") == -1) continue;
-        var file = items[i].getAsFile();
-        if (file.type.match('image.*')) {
-          pasteEvent.preventDefault();
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const base64URL = event.target.result;
-            this.images.push(base64URL);
-          };
-          reader.readAsDataURL(file);
-        }
+      var file = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)[0]
+      if (file) {
+        this.onInputImage(file)
       }
+    },
+    async onContentPaste(e) {
+      if (!e.clipboardData?.items) {
+        return
+      }
+      var file = [...e.clipboardData?.items].filter(f => f.type.indexOf("image") !== -1)[0]?.getAsFile()
+      if (file) {
+        this.onInputImage(file)
+      }
+    },
+    onInputImage(file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64URL = event.target.result;
+        this.imagePreview = {
+          src: base64URL,
+          alt: ""
+        }
+      };
+      reader.readAsDataURL(file);
+    },
+    onAddImage () {
+      if (this.imagePreview.ix === undefined) {
+        this.images.push(this.imagePreview)
+        this.imagePreview.ix = this.images.length -1
+      }
+      this.imagePreview = null
     },
     onGenerateCode(message, code) {
       this.setEditorText(`Generate code only for this piece of code:
@@ -368,6 +431,14 @@ export default {
     },
     onMessageChange () {
       this.editorText = this.editor.innerText.trim() || ""
+    },
+    async testProject () {
+      const { data } = await API.project.test()
+      this.testError = data
+      if (this.testError) {
+        this.editMessage = this.testError
+        this.setEditorText(this.editMessage)
+      }
     }
   }
 }

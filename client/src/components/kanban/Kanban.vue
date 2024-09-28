@@ -1,158 +1,148 @@
+<script setup>
+import draggable from "vuedraggable"
+import TaskCard from "./TaskCard.vue"
+import { API } from '../../api/api'
+import ChatViewVue from '../../views/ChatView.vue'
+</script>
 <template>
-  <div class="flex justify-center">
-    <div class="min-h-screen flex overflow-x-scroll py-12">
-      <div
-        v-for="column in columns"
-        :key="column.title"
-        class="bg-gray-100 rounded-lg px-3 py-3 column-width rounded mr-4"
-      >
-        <p class="text-gray-700 font-semibold font-sans tracking-wide text-sm">{{column.title}}</p>
+  <ChatViewVue :openChat="chat" v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
+  <div class="flex flex-col gap-2 h-full" v-else>
+    <div class="dropdown">
+      <div tabindex="0" class="click text-2xl flex gap-2 items-center">
+        {{ board || defBoard }}
+        <i class="fa-solid fa-sort-down"></i>
+      </div>
+      <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-md w-60 z-50">
+        <li v-for="tasksBoard in boards" :key="tasksBoard">
+          <a>{{ tasksBoard }}</a>
+        </li>
+      </ul>
+    </div>
+    <div class="flex justify-center grow overflow-auto">
+      <div class="flex min-h-screen min-w-full overflow-x-scroll">
+        
         <draggable 
-          v-model="column.tasks" 
-          :group="column.title" 
-          @start="drag=true" 
-          @end="drag=false" 
-          :item-key="column.title">
+            v-model="columns"
+            group="columns" 
+            @change="onColumnsChanged()" 
+            item-key="title"
+            class="flex overflow-auto"
+          >
           <template #item="{element}">
-            <task-card
-              :task="element"
-              class="mt-3 cursor-move"
-            ></task-card>
+            <div class="bg-neutral rounded-lg px-3 py-3 column-width rounded mr-4 overflow-auto">
+              <p class="text-neutral-content font-semibold font-sans tracking-wide text-sm flex justify-between items-center">
+                <div class="flex input input-bordered input-sm" v-if="element.editTitle">
+                  <input type="text" v-model="element.newTitle"
+                    @keydown.esc="element.editTitle = false"
+                    @keydown.enter="onColumnTitleChanged(element)"
+                  >
+                </div>
+                <div class="click" @click="onEditColumnTitle(element)" v-else>{{element.title}}</div>
+                <button class="btn btn-sm" @click="newChat (element.title)">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+              </p>
+              <draggable 
+                v-model="element.tasks" 
+                group="tasks" 
+                @change="onColumnTasksChanged(column)" 
+                item-key="title">
+                <template #item="{element}">
+                  <task-card
+                    :task="element"
+                    class="mt-3 cursor-move overflow-hidden"
+                    @click="openChat(element)"
+                  ></task-card>
+                </template>
+              </draggable>
+            </div>
           </template>
         </draggable>
       </div>
     </div>
   </div>
 </template>
-
 <script>
-import draggable from "vuedraggable";
-import TaskCard from "./TaskCard.vue";
+const unassigned = "<none>"
 export default {
-  name: "App",
-  components: {
-    TaskCard,
-    draggable
-  },
   data() {
     return {
-      columns: [
-        {
-          title: "Backlog",
-          tasks: [
-            {
-              id: 1,
-              title: "Add discount code to checkout page",
-              date: "Sep 14",
-              type: "Feature Request"
-            },
-            {
-              id: 2,
-              title: "Provide documentation on integrations",
-              date: "Sep 12"
-            },
-            {
-              id: 3,
-              title: "Design shopping cart dropdown",
-              date: "Sep 9",
-              type: "Design"
-            },
-            {
-              id: 4,
-              title: "Add discount code to checkout page",
-              date: "Sep 14",
-              type: "Feature Request"
-            },
-            {
-              id: 5,
-              title: "Test checkout flow",
-              date: "Sep 15",
-              type: "QA"
-            }
-          ]
-        },
-        {
-          title: "In Progress",
-          tasks: [
-            {
-              id: 6,
-              title: "Design shopping cart dropdown",
-              date: "Sep 9",
-              type: "Design"
-            },
-            {
-              id: 7,
-              title: "Add discount code to checkout page",
-              date: "Sep 14",
-              type: "Feature Request"
-            },
-            {
-              id: 8,
-              title: "Provide documentation on integrations",
-              date: "Sep 12",
-              type: "Backend"
-            }
-          ]
-        },
-        {
-          title: "Review",
-          tasks: [
-            {
-              id: 9,
-              title: "Provide documentation on integrations",
-              date: "Sep 12"
-            },
-            {
-              id: 10,
-              title: "Design shopping cart dropdown",
-              date: "Sep 9",
-              type: "Design"
-            },
-            {
-              id: 11,
-              title: "Add discount code to checkout page",
-              date: "Sep 14",
-              type: "Feature Request"
-            },
-            {
-              id: 12,
-              title: "Design shopping cart dropdown",
-              date: "Sep 9",
-              type: "Design"
-            },
-            {
-              id: 13,
-              title: "Add discount code to checkout page",
-              date: "Sep 14",
-              type: "Feature Request"
-            }
-          ]
-        },
-        {
-          title: "Done",
-          tasks: [
-            {
-              id: 14,
-              title: "Add discount code to checkout page",
-              date: "Sep 14",
-              type: "Feature Request"
-            },
-            {
-              id: 15,
-              title: "Design shopping cart dropdown",
-              date: "Sep 9",
-              type: "Design"
-            },
-            {
-              id: 16,
-              title: "Add discount code to checkout page",
-              date: "Sep 14",
-              type: "Feature Request"
-            }
-          ]
-        }
-      ]
+      chat: null,
+      chats: [],
+      columns: [],
+      board: unassigned
     };
+  },
+  created () {
+    this.buildKanba()
+  },
+  computed: {
+    boards () {
+      return [...new Set(this.chats?.map(c => c.board))]             
+    }
+  },
+  methods: {
+    newChat (column) {
+      this.chat = {
+        name: "New chat",
+        board: this.board,
+        column,
+        column_index: 0
+      }
+    },
+    async buildKanba () {
+      this.chats = await API.chats.list()
+      this.chats = this.chats
+                    .map(c => ({
+                      ...c,
+                      board: c.board || unassigned,
+                      column: c.column || unassigned
+                    }))
+      const columns = [...new Set(this.chats?.map(c => c.column))]
+      this.columns = [...columns.map(col => ({
+          title: col,
+          tasks: this.chats.filter(c => c.column === col)
+            .sort((a, b) => a.chat_index < b.chat_index ? -1 : 1)
+        })),
+        {
+          title: "New column",
+          tasks: [{
+            name: "New chat",
+            board: this.board,
+            column: "New column",
+            column_index: 10000,
+            chat_index: 0
+          }]
+        }
+      ].sort((a, b) => a.tasks[0]?.column_index < b.tasks[0]?.column_index ? -1 : 1)
+    },
+    onColumnTasksChanged(column) {
+      const column_index = this.columns.findIndex(c => c.title === column.title)
+      column.tasks.forEach((task, ix) => {
+        task.column = column.title,
+        task.column_index = column_index
+        task.chat_index = ix
+        task.id && API.chats.save(task, true)
+      })
+      this.buildKanba()
+    },
+    onEditColumnTitle(column) {
+      column.newTitle = column.title
+      column.editTitle = true
+    },
+    onColumnTitleChanged(column) {
+      column.title = column.newTitle
+      column.editTitle = false
+      this.onColumnTasksChanged(column)
+    },
+    onColumnsChanged() {},
+    async openChat(element) {
+      this.chat = await API.chats.loadChat(element.name)
+    },
+    onChatEditDone () {
+      this.chat = null
+      this.buildKanba()
+    }
   }
 };
 </script>

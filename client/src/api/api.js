@@ -1,5 +1,4 @@
 import axios from 'axios'
-import chatManager from './chatManager';
 
 const gpteng_key = window.location.search
                     .slice(1).split("&")
@@ -37,7 +36,6 @@ export const API = {
     .finally(() => API.liveRequests--)
   },
   lastSettings: {},
-  chatManager,
   project: {
     list () {
       return API.get('/api/projects')
@@ -53,6 +51,9 @@ export const API = {
     },
     unwatch () {
       return API.get('/api/project/unwatch?' + query())
+    },
+    test () {
+      return API.get('/api/project/script/test?' + query())
     }
   },
   settings: {
@@ -123,8 +124,11 @@ export const API = {
       chat.messages.push(message)
       return chat
     },
-    save (chat) {
-      return API.put(`/api/chats?` + query(), chat)
+    save (chat, chatInfoOnly) {
+      return API.put(`/api/chats?chatonly=${chatInfoOnly ? 1 : 0}&` + query(), chat)
+    },
+    delete(chatName) {
+      return API.del(`/api/chats?chat_name=${chatName}&` + query())
     }
   },
   run: {
@@ -133,6 +137,9 @@ export const API = {
     },
     edit (chat) {
       return API.post('/api/run/edit?' + query(), chat)
+    },
+    liveEdit ({ chat, html, url, message }) {
+      return API.post('/api/run/live-edit?' + query(), { chat_name: chat.name, html, url, message })
     }
   },
   profiles: {
@@ -161,6 +168,11 @@ export const API = {
   wiki: {
     read (path) {
       return API.get(`/api/wiki?file_path=${path}&` + query())
+    }
+  },
+  engine: {
+    update () {
+      return API.get('/api/update?' + query())
     }
   },
   async init (gpteng_path) {

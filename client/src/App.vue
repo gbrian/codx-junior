@@ -1,6 +1,5 @@
 <script setup>
 import { API } from './api/api'
-import HomeViewVue from "./views/HomeView.vue";
 import ProjectViewVue from "./views/ProjectView.vue";
 import ChatViewVue from "./views/ChatView.vue";
 import LiveEditVue from "./views/LiveEdit.vue";
@@ -9,6 +8,8 @@ import ProfileViewVue from './views/ProfileView.vue';
 import ProjectSettingsVue from "./views/ProjectSettings.vue";
 import KanbanVue from './components/kanban/Kanban.vue'
 import WikiViewVue from './views/WikiView.vue';
+import GlobalSettingsVue from './views/GlobalSettings.vue';
+import ProjectProfileVue from './views/ProjectProfile.vue';
 </script>
 
 <template>
@@ -24,6 +25,7 @@ import WikiViewVue from './views/WikiView.vue';
               :style="`background-image:url('${lastSettings.project_icon}')`"></div>
           <div class="">
             {{ projectName }}
+            ({{ lastSettings.model }})
           </div> 
         </div>
         <div class="dropdown">
@@ -51,14 +53,6 @@ import WikiViewVue from './views/WikiView.vue';
           <img src="https://codx-dev.meetnav.com/only_icon.png" class="h-7" >
           Welcome
       </a>
-      <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'wiki' ? tabActive: tabInactive]"
-        @click="tabIx = 'wiki'" v-if="validProject"
-        >
-          <i class="fa-brands fa-wikipedia-w"></i>
-          wiki
-
-        </a>
-
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'tasks' ? tabActive: tabInactive]"
         @click="tabIx = 'tasks'" v-if="validProject"
       >
@@ -72,6 +66,12 @@ import WikiViewVue from './views/WikiView.vue';
       >
         <i class="fa-solid fa-book"></i>
         Knowledge
+      </a>
+      <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'wiki' ? tabActive: tabInactive]"
+        @click="tabIx = 'wiki'" v-if="validProject"
+        >
+          <i class="fa-brands fa-wikipedia-w"></i>
+          Documentation
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'settings' ? tabActive: tabInactive]"
           @click="tabIx = 'settings'" v-if="validProject"
@@ -93,17 +93,24 @@ import WikiViewVue from './views/WikiView.vue';
           <i class="fa-solid fa-sliders"></i>
           Setting
         </a>
+        <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'global-settings' ? tabActive: tabInactive]"
+          @click="tabIx = 'global-settings'"
+        >
+          <i class="fa-solid fa-gear"></i>
+          Global
+        </a>
       </div>
-      <KanbanVue v-if="tabIx === 'kanban'" />
-      <ChatViewVue v-if="tabIx === 'tasks'" />
+      <KanbanVue v-if="tabIx === 'tasks'" />
+      <ChatViewVue v-if="tabIx === '___tasks'" />
       <LiveEditVue v-if="tabIx === 'live'" />
       <KnowledgeViewVue class="p-2 abolsute top-0 left-0 w-full" v-if="tabIx === 'knowledge'" />
       <WikiViewVue class="p-2" v-if="tabIx == 'wiki'"></WikiViewVue>
 
       <ProjectSettingsVue class="abolsute top-0 left-0 w-full" v-if="tabIx === 'settings'" />
+      <GlobalSettingsVue class="abolsute top-0 left-0 w-full" v-if="tabIx === 'global-settings'" />
       <ProfileViewVue class="abolsute top-0 left-0 w-full" v-if="tabIx === 'profiles'" />
       <iframe v-if="tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
-      <ProjectViewVue class="p-2" v-if="tabIx == 'home'"></ProjectViewVue>
+      <ProjectProfileVue class="p-2" v-if="tabIx == 'home'"></ProjectProfileVue>
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
       <div class="modal-box">

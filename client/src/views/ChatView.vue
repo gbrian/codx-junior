@@ -30,7 +30,7 @@ import PRView from '../views/PRView.vue'
       </button>
     </div>
     <PRView v-if="showPRView"></PRView>
-    <div class="grow flex gap-2 h-full justify-between" v-else>
+    <div class="grow flex gap-2 h-full justify-between" v-if="showChat">
       <div class="flex flex-col  bg-base-300 p-2 overflow-auto" v-if="showChatsTree">
         <ul tabindex="0" class=" p-2 w-52">
           <li class="p-2 click hover:underline flex flex-col"
@@ -44,11 +44,12 @@ import PRView from '../views/PRView.vue'
         <div class="px-2">
         </div>
       </div>
-      <div class="grow flex flex-col gap-2">
+      <div class="grow flex flex-col gap-2 w-full">
         <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
           <div class="flex flex-col sm:flex-row gap-2 w-full">
             <div class="flex gap-2">
-              <button :class="['btn btn-xs hover:btn-info hover:text-white', showChatsTree && 'btn-info text-white']" @click="showChatsTree = !showChatsTree">
+              <button :class="['btn btn-xs hover:btn-info hover:text-white', showChatsTree && 'btn-info text-white']"
+                @click="onShowChats">
                 <i class="fa-solid fa-folder-tree"></i>
               </button>
               <input v-if="editName"
@@ -62,6 +63,9 @@ import PRView from '../views/PRView.vue'
                   <div class="text-xs">{{ moment.utc(chat.updated_at).fromNow() }}</div>
                   <div class="badge badge-sm">
                     {{  chat.id }}
+                    <span v-if="chat.parent_id">
+                      / ({{  chat.parent_id }})
+                    </span>
                   </div>
                 </div>
               </div>
@@ -69,13 +73,18 @@ import PRView from '../views/PRView.vue'
             <div class="grow"></div>
             <div class="flex gap-2">
               <select v-model="chat.mode" class="select select-xs select-bordered">
-                <option selected value="chat">chat</option>
+                <option value="chat">chat</option>
                 <option selected value="task">task</option>
+                <option value="live">live</option>
               </select>
               <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
                 <i class="fa-solid fa-floppy-disk"></i>
               </button>
-              <button class="btn btn-xs hover:btn-error hover:text-white" @click="deleteChat">
+              <button class="btn btn-xs btn-error hover:text-white" @click="deleteChat" v-if="confirmDelete">
+                Comfirm? <span class="hover:underline">YES</span> / <span class="hover:underline" @click.stop="confirmDelete = false">NO</span>
+                <i class="fa-solid fa-trash"></i>
+              </button>
+              <button class="btn btn-xs hover:btn-error hover:text-white" @click="deleteChat" v-else>
                 <i class="fa-solid fa-trash"></i>
               </button>
               
@@ -88,9 +97,16 @@ import PRView from '../views/PRView.vue'
                   <i class="fa-solid fa-eye"></i>
                 </span>
               </button>
-              <button class="btn btn-primary btn-xs" @click="newChat">
-                <i class="fa-solid fa-plus"></i>
-              </button>
+              <div class="dropdown dropdown-end dropdown-bottom -mt-1">
+                <button tabindex="0" class="btn btn-xs">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+                <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
+                  <li @click="newSubChat()">
+                    <a>New sub task</a>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
@@ -149,7 +165,7 @@ import PRView from '../views/PRView.vue'
 </template>
 <script>
 export default {
-  props: ['chatMode'],
+  props: ['chatMode', 'openChat'],
   data() {
     return {
       chat: null,
@@ -162,16 +178,21 @@ export default {
       showSettings: false,
       addNewFile: null,
       showHidden: false,
-      showPRView: false
+      showPRView: false,
+      confirmDelete: false
     }
   },
   async created () {
-    this.chats = await API.chats.list()
-    if (this.chats.length) {
-      this.chat = await API.chats.loadChat(this.chats[0].name)
+    if (this.openChat) {
+      this.chat = this.openChat
     } else {
-      this.chat = await API.chats.newChat()
-      this.chats.push(this.chat.name)
+      this.chats = await API.chats.list()
+      if (this.chats.length) {
+        this.chat = await API.chats.loadChat(this.chats[0].name)
+      } else {
+        this.chat = await API.chats.newChat()
+        this.chats.push(this.chat.name)
+      }
     }
     this.loadProfiles()
   },
@@ -181,6 +202,9 @@ export default {
     },
     messages () {
       return this.chat.messages.filter(m => !m.hide || this.showHidden)
+    },
+    showChat () {
+      return !this.showPRView
     }
   },
   watch: {
@@ -197,8 +221,8 @@ export default {
         this.profiles = data
       } catch {}
     },
-    newChat () {
-      this.chat = API.chatManager.newChat()
+    async newChat () {
+      this.chat = await API.chatManager.newChat()
       this.chat.mode = this.chat.mode || 'task'
     },
     async saveChat () {
@@ -207,9 +231,12 @@ export default {
       this.chats = await API.chats.list()
     },
     async deleteChat () {
-      API.chatManager.deleteChat(this.chat)
-      this.chats = await API.chats.list()
-      this.newChat()
+      if (this.confirmDelete) {
+        await API.chats.delete(this.chat.name)
+        this.onShowChats()
+      } else {
+        this.confirmDelete = true
+      }
     },
     async loadChat (newChat) {
       this.chat = await API.chats.loadChat(newChat)
@@ -244,6 +271,16 @@ export default {
     onRemoveMessage (ix) {
       this.chat.messages = this.chat.messages.filter((m, i) => i !== ix)
       this.saveChat()
+    },
+    onShowChats () {
+      this.$emit('chats')
+    },
+    async newSubChat () {
+      const parent = this.chat
+      await this.newChat()
+      this.chat.parent_id = parent.parent_id
+      this.chat.column = parent.column
+      this.chat.column_ix = parent.column_ix
     }
   }
 }
