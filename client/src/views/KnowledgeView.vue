@@ -56,21 +56,23 @@ import MarkdownVue from '@/components/Markdown.vue'
           v-model="searchTerm" />
         <i class="fa-solid fa-magnifying-glass" @click="onKnowledgeSearch"></i>
       </label>
-      <div class="text-xs">{{ { ...searchResults.settings } }}</div>
-      <span class="alert alert-error alert-sm" v-if="!searchResults?.documents?.length">
-        No results
-      </span>
-      <div class="grid grid-cols-3 gap-2">
-        <span class="border p-2 border-info cursor-pointer rounded-md bg-base-300 indicator"
-            v-for="doc,ix in searchResults?.documents" :key="ix"
-            @click="showDoc = { ...doc, docSelected: 0 }"
-        >
-          <span class="indicator-item badge badge-primary flex gap-2">
-            <i class="fa-solid fa-gauge"></i>
-            {{ doc.metadata.relevance_score }} - {{ doc.metadata.language  }}
-          </span>
-          {{ doc.metadata.source.split("/").reverse().slice(0, 2).join(" ") }}
+      <div class="flex flex-col gap-2" v-if="searchResults">
+        <div class="text-xs">{{ { ...searchResults.settings } }}</div>
+        <span class="alert alert-error alert-sm" v-if="noResults">
+          No results
         </span>
+        <div class="grid grid-cols-3 gap-2">
+          <span class="border p-2 border-info cursor-pointer rounded-md bg-base-300 indicator"
+              v-for="doc,ix in searchResults.documents" :key="ix"
+              @click="showDoc = { ...doc, docSelected: 0 }"
+          >
+            <span class="indicator-item badge badge-primary flex gap-2">
+              <i class="fa-solid fa-gauge"></i>
+              {{ doc.metadata.relevance_score }} - {{ doc.metadata.language  }}
+            </span>
+            {{ doc.metadata.source.split("/").reverse().slice(0, 2).join(" ") }}
+          </span>
+        </div>
       </div>
     </div>
     <div class="stats">
@@ -345,6 +347,9 @@ export default {
         return sub_projects
       }
       return sub_projects?.split(",")
+    },
+    noResults () {
+      return this.searchResults && !Object.keys(this.searchResults.documents).length
     }
   },
   watch: {

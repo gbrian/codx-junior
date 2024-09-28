@@ -134,8 +134,9 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
         messages = ai.next(messages=messages, step_name="ai_validate_context")
         response = parser.invoke(messages[-1].content.strip())
         score = response.score
-    except:
-        pass
+    except Exception as ex:
+        logger.error(f"Error parsing content validation: {ex}")
+
     if score:
         doc.metadata["relevance_score"] = score
         doc.metadata["analysis"] = response.analysis
