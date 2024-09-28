@@ -131,7 +131,7 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
     response = None
     doc.metadata["relevance_score"] = -1
     try:
-        messages = ai.next(messages=messages, step_name="ai_validate_context")
+        messages = ai.chat(messages=messages)
         response = parser.invoke(messages[-1].content.strip())
         score = response.score
     except Exception as ex:
@@ -146,15 +146,13 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
         logger.exception(colored(f"[validate_context] re-trying failed validation\n{prompt}\n{response}", "red"))
         return ai_validate_context(ai, prompt, doc, retry_count=1)
 
-      logger.error(colored(f"[validate_context] failed to validate. prompt: {prompt}\nMessages: {messages}", "red"))
+      logger.error(colored(f"[validate_context] failed to validate. Messages: {messages}\n\nPrompt: {prompt}", "red"))
 
     return doc
 
 def find_relevant_documents (query: str, settings, ignore_documents=[]):
   
-  ai = AI(settings=settings)
-  documents = Knowledge(settings=settings).search(query)
-  logger.info(f"find_relevant_documents: [{settings.project_name}] Knowledge.search doc length: {len(documents)}")
+  knowledge_documents = Knowledge(settings=settings).search(query)
   def is_valid_document(doc):
     source = doc.metadata["source"]
     checks = [check for check in ignore_documents if check in source]
@@ -162,7 +160,13 @@ def find_relevant_documents (query: str, settings, ignore_documents=[]):
       return False
     return True
   
-  documents = [doc for doc in documents if is_valid_document(doc)]
+  documents = [doc for doc in knowledge_documents if is_valid_document(doc)]
+  logger.info(f"""find_relevant_documents: 
+    found {len(documents)} from project '{settings.project_name}' knowledge base.
+    ignore_documents: {ignore_documents}
+    total_valid: {len(documents)}
+    """)
+  
   if documents:
       # Filter out irrelevant documents based on a relevance score
       relevant_documents = [doc for doc in parallel_validate_contexts(

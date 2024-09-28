@@ -79,13 +79,24 @@ def knowledge_search(settings: GPTEngineerSettings, knowledge_search: KnowledgeS
     if knowledge_search.document_cutoff_score:
         settings.knowledge_context_cutoff_relevance_score = knowledge_search.document_cutoff_score
     
-    ai = AI(settings=settings)
     documents = []
+    response = ""
     if knowledge_search.search_type == "embeddings":
-        documents, _ = select_afefcted_documents_from_knowledge(ai=ai, query=knowledge_search.search_term, settings=settings)
+        chat = Chat(messages=[
+            Message(
+                role="user",
+                content=f"Please give me really short answer about: {knowledge_search.search_term}"
+            )
+        ])
+        chat, chat_docs = chat_with_project(settings=settings, chat=chat, use_knowledge=True)
+        documents = chat_docs
+        response = chat.messages[-1].content
     if knowledge_search.search_type == "source":
         documents = Knowledge(settings=settings).search_in_source(knowledge_search.search_term)
+    
+
     return { 
+        "response": response,
         "documents": documents, 
         "settings": {
             "knowledge_search_type": settings.knowledge_search_type,
@@ -147,7 +158,7 @@ def select_afefcted_documents_from_knowledge(ai: AI, query: str, settings: GPTEn
         "QUERY:",
         query
     ])
-    query_messages = ai.next(messages=[HumanMessage(content=rag_queries, role="user")], step_name="select_afefcted_documents_from_knowledge_split_query")
+    query_messages = ai.chat(messages=[HumanMessage(content=rag_queries, role="user")])
     response = query_messages[-1].content
     logger.info(f"select_afefcted_documents_from_knowledge RAG queries: {response}")
     all_docs = {}
@@ -541,7 +552,7 @@ def check_file_for_mentions(settings: GPTEngineerSettings, file_path: str):
 
 
 def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True):
-    chat_mode = chat.mode
+    chat_mode = chat.mode or 'chat'
     is_refine = True if chat_mode == 'task' and len(chat.messages) > 1 else False
     ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
     last_ai_message = ai_messages[-1] if ai_messages else None
@@ -626,10 +637,11 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
     documents = []
     coding_profiles = []
     if use_knowledge:
+        ignore_documents = [f"/{chat.name}"] if chat.name else []
         affected_documents, doc_file_list = select_afefcted_documents_from_knowledge(ai=ai,
                                                         query=query,
                                                         settings=settings,
-                                                        ignore_documents=[f"/{chat.name}"])
+                                                        ignore_documents=ignore_documents)
         if affected_documents:
             documents = affected_documents
             file_list = doc_file_list
@@ -655,7 +667,7 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
 
     messages.append(convert_message(user_message))
     
-    messages = ai.next(messages, step_name=curr_fn(), callback=callback)
+    messages = ai.chat(messages, callback=callback)
     response = messages[-1].content
     if documents and append_references:
         sources = list(set([doc.metadata['source'].replace(settings.project_path, "") \
@@ -673,7 +685,7 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
         for msg in chat.messages[1:]:
           msg.hide = True
     chat.messages.append(response_message)
-    return chat
+    return chat, documents
 
 def check_project(settings: GPTEngineerSettings):
     try:

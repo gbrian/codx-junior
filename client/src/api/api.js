@@ -67,6 +67,10 @@ export const API = {
     },
     write (settings) {
       return API.put('/api/settings?' + query(), settings)
+    },
+    async save() {
+      await API.put('/api/settings?' + query(), API.lastSettings)
+      return API.settings.read()
     }
   },
   knowledge: {

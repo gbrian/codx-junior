@@ -44,14 +44,14 @@ class KnowledgeCodeToDocuments:
       prompter = CodeToChunksPrompt()
       prompt = prompter.get_prompt(source=file_path, language=language, page_content=page_content)
       messages = []
-      messages = self.get_ai().next(messages=[], prompt=prompt, step_name="KnowledgeCodeToDocuments::load") 
+      messages = self.get_ai().chat(messages=[], prompt=prompt) 
       chunks = []
       try:
           chunks = prompter.get_output(messages[-1].content).chunks
       except:
           logger.exception(f"Error parsing document, trying continue for {file_path}")
           # Try continue
-          messages = self.get_ai().next(messages=messages, prompt="Continue!", step_name="KnowledgeCodeToDocuments::load") 
+          messages = self.get_ai().chat(messages=messages, prompt="Continue!") 
       try:
           chunks = chunks if chunks else prompter.get_output(messages[-1].content).chunks
           def doc_from_chunk(ix, chunk):

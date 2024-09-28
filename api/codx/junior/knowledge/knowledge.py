@@ -162,7 +162,7 @@ class Knowledge:
       if self.settings.knowledge_enrich_documents:
         try:
           prompt, system = self.knowledge_prompts.enrich_document_prompt(doc)
-          messages = self.get_ai().start(system, prompt, step_name="enrich_document")
+          messages = self.get_ai().start(system, prompt)
           summary = messages[-1].content.strip()
         except Exception as ex:
           logger.info(f"Error enriching document {source}: {ex}")
@@ -178,7 +178,7 @@ class Knowledge:
       try:
         if not keywords:
             prompt, system = self.knowledge_prompts.extract_document_tags(doc)
-            messages = self.get_ai().start(system, prompt, step_name="extract_document_tags")
+            messages = self.get_ai().chat(messages=[system], prompt=prompt)
             response = messages[-1].content.strip()
             
             blocks = list(extract_blocks(response))
@@ -351,7 +351,7 @@ class Knowledge:
         * LANGUAGE: { doc.metadata['language'] }
         * CONTENT: { doc.page_content }
       """
-      messages = self.get_ai().start("", prompt, step_name="build_doc_summary")
+      messages = self.get_ai().chat("", prompt)
       response = messages[-1].content.strip()
       blocks = list(extract_blocks(response))
       summary = { 
@@ -366,7 +366,7 @@ class Knowledge:
     def extract_query_keywords(self, query):
       try:
         prompt, system = self.knowledge_prompts.extract_query_tags(query)
-        messages = self.get_ai().start(system, prompt, step_name="extract_query_tags")
+        messages = self.get_ai().chat(system, prompt)
         response = messages[-1].content.strip()
         keywords = [f"TAG_{k}" for k in response.split(",")]
         return keywords

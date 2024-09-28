@@ -9,10 +9,9 @@ import MarkdownVue from '@/components/Markdown.vue'
       <div class="grow">
         <div class="text-error text-xs" v-if="!settings?.use_knowledge">Knowledge search is disabled!</div>
       </div>
-      <button class="btn btn-sm" @click="settings.watching = !settings?.watching">
+      <button class="btn btn-sm" @click="toggleWatch()">
         <span class="label-text mr-2">Watch changes</span> 
-        <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="settings?.watching"
-          @change="toggleWatch" :disabled="!settings" />
+        <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="settings.watching" />
       </button>
       
       <div class="stat-desc flex gap-2 items-center btn btn-sm" @click="reloadStatus">
@@ -58,8 +57,13 @@ import MarkdownVue from '@/components/Markdown.vue'
       </label>
       <div class="flex flex-col gap-2" v-if="searchResults">
         <div class="text-xs">{{ { ...searchResults.settings } }}</div>
+        <div class="chat chat-start" v-if="searchResults.response">
+          <div class="chat-bubble chat-bubble-accent">
+            {{ searchResults.response }}
+          </div>
+        </div>
         <span class="alert alert-error alert-sm" v-if="noResults">
-          No results
+          No documents associated...
         </span>
         <div class="grid grid-cols-3 gap-2">
           <span class="border p-2 border-info cursor-pointer rounded-md bg-base-300 indicator"
@@ -75,8 +79,8 @@ import MarkdownVue from '@/components/Markdown.vue'
         </div>
       </div>
     </div>
-    <div class="stats">
-      <div class="stat click" @click="setTab(0)">
+    <div class="stats mt-2">
+      <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
         <div class="stat-figure mt-6">
           <i class="fa-2xl fa-solid fa-file"></i>
         </div>
@@ -85,7 +89,7 @@ import MarkdownVue from '@/components/Markdown.vue'
         <div class="stat-desc"></div>
       </div>
       
-      <div class="stat click" @click="setTab(1)">
+      <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
         <div class="stat-figure mt-6 text-success">
           <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
         </div>
@@ -94,7 +98,7 @@ import MarkdownVue from '@/components/Markdown.vue'
         <div class="stat-desc"></div>
       </div>
 
-      <div class="stat click" @click="setTab(2)">
+      <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
         <div class="stat-figure mt-6 text-warning">
           <i class="fa-2xl fa-solid fa-file"></i>
         </div>
@@ -349,7 +353,9 @@ export default {
       return sub_projects?.split(",")
     },
     noResults () {
-      return this.searchResults && !Object.keys(this.searchResults.documents).length
+      return this.searchResults && 
+            !Object.keys(this.searchResults.documents).length &&
+            this.searchResults.response
     }
   },
   watch: {
@@ -413,6 +419,7 @@ export default {
       await this.reloadStatus()
     },
     async onKnowledgeSearch () {
+      this.searchResults = null
       const { searchTerm,
               searchType,
               documentSearchType,
@@ -458,16 +465,12 @@ export default {
       })
       this.reloadStatus()
     },
-    async toggleWatch () {
+    async toggleWatch (watching) {
       if (!API.lastSettings) {
         return
       }
-      if (API.lastSettings.watching) {
-        await API.project.watch()
-      } else {
-        await API.project.unwatch()
-      }
-      API.settings.read()
+      API.lastSettings.watching = !API.lastSettings.watching 
+      await API.settings.save()
       this.reloadStatus()
     },
     setTab (ix) {
