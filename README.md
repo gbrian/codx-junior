@@ -8,7 +8,23 @@ So I started adapting gpt-engineer to help me coding, speeding developments, imp
 
 ![image](https://github.com/user-attachments/assets/29123838-1b1b-44c6-a92a-c28968238385)
 
-## Feattures
+## Features
+
+### Tasks
+
+### Knowledge
+
+### Mentions
+
+Mentions allow you to reference specific parts of your project or codebase for easier management and collaboration. Below is a demonstration video on how to use mentions effectively:
+
+[![codx-junior Mentions Demo](assets/codx_mentions_demo.webm)](assets/codx_mentions_demo.webm)
+
+To use mentions, simply include the `@codx-processing` tag followed by the specific instruction or note you want to add. For example:
+```markdown
+@codx-processing: --knowledge @codx-junior-api Add a link to webm video from "assets/codx_mentions_demo.webm". And explain about mentions and how to use it
+```
+This will notify the system to process the mention and make the necessary changes or additions.
 
 ### Code generation
 Ofc... we are here for this :)
@@ -27,8 +43,6 @@ Don't write more documentation, codx-junior will do for you
 
 ### Personalize
 Define how do you want codx-junior to perform, code styling, ...
-
-
 
 ```           _                 _   _             
           (_)               | | (_)            

@@ -29,7 +29,8 @@ from codx.junior.model import (
     KnowledgeSearch,
     Document,
     Content,
-    ImageUrl
+    ImageUrl,
+    LiveEdit
 )
 from codx.junior.context import (
   find_relevant_documents,
@@ -208,7 +209,7 @@ def improve_existing_code(settings: GPTEngineerSettings, chat: Chat, apply_chang
     """
     logger.info(f"improve_existing_code prompt: {request}")
     code_generator = None
-    if not chat.messages[-1].improvement:
+    if not chat.messages[-1].hide and not chat.messages[-1].improvement:
         retry_count = 1
         request_msg = Message(role="user", content=request)
         chat.messages.append(request_msg)
@@ -217,6 +218,7 @@ def improve_existing_code(settings: GPTEngineerSettings, chat: Chat, apply_chang
             chat.messages = [msg for msg in chat.messages if msg != request_msg]
             chat.messages[-1].improvement = True
             if chat.mode == 'task':
+                chat.messages[-2].hide = False
                 chat.messages[-1].hide = True
             response = chat.messages[-1].content.strip()
             try:
@@ -232,10 +234,29 @@ def improve_existing_code(settings: GPTEngineerSettings, chat: Chat, apply_chang
         if not apply_changes:
             return code_generator
     else:
-        code_generator = AI_CODE_GENERATOR_PARSER.invoke(response)
+        code_generator = AI_CODE_GENERATOR_PARSER.invoke(chat.messages[-1].content)
 
     apply_improve_code_changes(settings=settings, code_generator=code_generator)
     return code_generator
+
+def project_script_test(settings: GPTEngineerSettings):
+    logger.info(f"project_script_test, test: {settings.script_test} - {settings.script_test_check_regex}")
+    if not settings.script_test:
+        return
+
+    command = settings.script_test.split(" ")
+    result = subprocess.run(command, cwd=settings.project_path,
+                                    stdout = subprocess.PIPE,
+                                    stderr = subprocess.STDOUT,
+                                    text=True)
+    console_out = result.stdout
+    
+    logger.info(f"project_script_test: {console_out} \nOUTPUT DONE")
+
+    test_regex = settings.script_test_check_regex if settings.script_test_check_regex else 'error' 
+    if re.search(test_regex, console_out):
+        return console_out
+    return ""
 
 def apply_improve_code_changes(settings: GPTEngineerSettings, code_generator: AICodeGerator):
     changes = code_generator.code_changes
@@ -332,16 +353,7 @@ def check_knowledge_status(settings: GPTEngineerSettings):
     knowledge = Knowledge(settings=settings)
     last_update = knowledge.last_update
     status = knowledge.status()
-    
-    def file_info(file_path):
-        d_stats = os.stat(file_path)
-        return {
-            "file_path": file_path,
-            "size": d_stats.st_size
-        }
-
     pending_files = knowledge.detect_changes()
-
     return {
       "last_update": str(last_update),
       "pending_files": pending_files[0:2000],
@@ -589,21 +601,24 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
     if chat_mode == 'task':
         task = last_ai_message.content if is_refine and last_ai_message else ""
         if is_refine:
-            query = f"{chat.messages[0].content}\n{query}"
-        instructions = f"""Help me writting a coding task.
-    Here you have details about the project:
+            user_message = Message(role="user", content=
+              f"""Update curren task definition:
+              ```md
+              {task}
+              ```
+              With user comments:
+              ```md
+              {query}
+              ```
+              """)
+        instructions = f"""You are assisting me on coding for this project:
     ```md
     {profile_manager.read_profile("project").content}
     ```
 
-    Details about writting code:
+    Please, when writing code, follow this guidelines:
     ```md
     {profile_manager.read_profile("software_developer").content}
-    ```
-
-    And this is what we have written so far:
-    ```md
-    {task}
     ```
     """
     messages = [
@@ -612,7 +627,13 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
 
     def convert_message(m):
         msg = None
+        def parse_image(image):
+            try:
+                return json.loads(image)
+            except:
+                return  { "src": image, "alt": "" }
         if m.images:
+            images = [parse_image(image) for image in m.images]
             text_content = {
                   "type": "text",
                   "text": m.content 
@@ -622,9 +643,9 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
                   {
                     "type": "image_url",
                     "image_url": {
-                      "url": url
+                      "url": image["src"]
                     }
-                  } for url in m.images]
+                  } for image in images]
 
             logger.info(f"ImageMEssage content: {content}")
             msg = BaseMessage(type="image", content=json.dumps(content))
@@ -672,28 +693,24 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
         logger.info(f"chat_with_project found {doc_length} relevant documents")
 
     
-    messages.append(AIMessage(
-      content=f"""THIS INFORMATION IS COMING FROM PROJECT'S FILES.
-                  HOPE IT HELPS TO ANSWER USER REQUEST.
-                  KEEP FILE SOURCE WHEN WRITTING CODE BLOCKS (EXISTING OR NEWS).
-                  {context}"""))
-
+    if context:
+        user_message = Message(role="user", content=f"""{user_message.content}
+        
+        THIS INFORMATION IS COMING FROM PROJECT'S FILES.
+        HOPE IT HELPS TO ANSWER USER REQUEST.
+        KEEP FILE SOURCE WHEN WRITTING CODE BLOCKS (EXISTING OR NEWS).
+        {context}
+        """)
     messages.append(convert_message(user_message))
     
     messages = ai.chat(messages, callback=callback)
     response = messages[-1].content
+    sources = []
     if documents and append_references:
         sources = list(set([doc.metadata['source'].replace(settings.project_path, "") \
                         for doc in documents]))
-        sources = '\n'.join([f'- {source}' for source in sources])
-        response = f"{messages[-1].content}\n\nRESOURCES:\n{sources}"
-        if coding_profiles:
-            profiles = ""
-            for profile in coding_profiles:
-                profiles = f"* {profile['type']}\n"
-            response = f"{response}\n\nPROFILES:\n{profiles}"
-
-    response_message = Message(role="assistant", content=response)
+        
+    response_message = Message(role="assistant", content=response, files=sources)
     if chat_mode == 'task':
         for msg in chat.messages[1:]:
           msg.hide = True
@@ -702,7 +719,7 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
 
 def check_project(settings: GPTEngineerSettings):
     try:
-        logger.info(f"check_project: {settings}")
+        logger.info(f"check_project")
         loader = KnowledgeLoader(settings=settings)
         loader.fix_repo()
     except Exception as ex:
@@ -744,6 +761,19 @@ def find_all_projects(detailed: bool = False):
         return all_projects
     return projects_with_details() if detailed else all_projects
 
+def update_engine():
+    try:
+      command = ["git", "pull"]
+      result = subprocess.run(command)
+    except Exception as ex:
+      logger.exception(ex)
+      return ex
+
+def run_live_edit(settings: GPTEngineerSettings, live_edit: LiveEdit):
+    chat = ChatManager(settings=settings).load_chat(live_edit.chat_name)
+    chat_with_project(settings=settings, chat=chat, use_knowledge=True)
+    return improve_existing_code(settings=settings, chat=chat, apply_changes=True)
+            
 def update_wiki(settings: GPTEngineerSettings, file_path: str):
     project_wiki_path = settings.get_project_wiki_path()
     if not settings.project_wiki or file_path.startswith(project_wiki_path):

@@ -24,6 +24,7 @@ class Message(BaseModel):
     improvement: bool = Field(default=False)
     created_at: str = Field(default='')
     images: List[str] = Field(default=[])
+    files: List[str] = Field(default=[])
 
 class Chat(BaseModel):
     id: str = Field(default='')
@@ -37,6 +38,11 @@ class Chat(BaseModel):
     created_at: str = Field(default='')
     updated_at: str = Field(default='')
     mode: str = Field(default='chat')
+    board: str = Field(default='')
+    column: str = Field(default='')
+    column_index: int = Field(default=-1)
+    chat_index: int = Field(default=-1)
+    live_url: str = Field(default='')
 
 class Logprobs(BaseModel):
     tokens: List[str]
@@ -83,3 +89,9 @@ class Document(BaseModel):
     id: int = Field(default=None)
     page_content: str
     metadata: dict
+
+class LiveEdit(BaseModel):
+    chat_name: str
+    html: str
+    url: str
+    message: str

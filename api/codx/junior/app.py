@@ -44,7 +44,8 @@ from codx.junior.model import (
     KnowledgeSearch,
     KnowledgeDeleteSources,
     Profile,
-    Document
+    Document,
+    LiveEdit
 )
 
 from codx.junior.settings import GPTEngineerSettings 

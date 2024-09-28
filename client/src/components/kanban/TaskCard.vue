@@ -25,14 +25,17 @@
       </div>
       <p class="text-xs">{{ description || 'Click to edit...'  }}</p>
       <div class="flex mt-4 justify-between items-center">
-        <span class="text-sm text-gray-600">{{task.updated_at}}</span>
+        <span class="text-sm text-gray-600">{{ formattedDate }}</span>
         <badge v-if="task.type" :color="badgeColor">{{task.type}}</badge>
       </div>
     </div>
   </div>
 </template>
+
 <script>
+import moment from 'moment';
 import Badge from "./Badge.vue";
+
 export default {
   components: {
     Badge
@@ -54,21 +57,25 @@ export default {
       };
       return mappings[this.task.type] || mappings.default;
     },
-    description () {
-      return this.task.messages?.length ? this.task.messages[0].content: null
+    description() {
+      return this.task.messages?.length ? this.task.messages[0].content : null;
     },
-    image () {
-      let image = this.task.messages?.length ? (this.task.messages[0].images||[])[0] : null
+    image() {
+      let image = this.task.messages?.length ? (this.task.messages[0].images || [])[0] : null;
       if (image) {
         try {
-          return JSON.parse(image)
+          return JSON.parse(image);
         } catch {
-          image = {
-            src: image
-          }
+          image = { src: image };
         }
       }
-      return image
+      return image;
+    },
+    formattedDate() {
+      const updatedAt = this.task.updated_at;
+      return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
+        ? moment(updatedAt).fromNow()
+        : moment(updatedAt).format('YYYY-MM-DD');
     }
   }
 };
