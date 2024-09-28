@@ -18,7 +18,7 @@ So I started adapting gpt-engineer to help me coding, speeding developments, imp
 
 Mentions allow you to reference specific parts of your project or codebase for easier management and collaboration. Below is a demonstration video on how to use mentions effectively:
 
-[![codx-junior Mentions Demo](assets/codx_mentions_demo.webm)](assets/codx_mentions_demo.webm)
+[codx-junior Mentions Video Demo](assets/codx_mentions_demo.webm)
 
 To use mentions, simply include the `@codx-processing` tag followed by the specific instruction or note you want to add. For example:
 ```markdown
