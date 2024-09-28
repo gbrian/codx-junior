@@ -21,10 +21,10 @@ logger = logging.getLogger(__name__)
 
 KNOWLEDGE_CONTEXT_SCORE_MATCH = re.compile(r".*([0-9]+)%", re.MULTILINE)
 
-def validate_context(ai, dbs, prompt, doc, score):
+def validate_context(ai, prompt, doc, score):
     # This function now handles a single document.
     if '@ai' in doc.metadata.get('user_input', ''):
-        return ai_validate_context(ai, dbs, prompt, doc)
+        return ai_validate_context(ai, prompt, doc)
     score = float(doc.metadata.get('user_input'))
     doc.metadata["relevance_score"] = score
     logger.debug(f"[validate_context] {doc.metadata['source']}: {score}")
@@ -32,17 +32,15 @@ def validate_context(ai, dbs, prompt, doc, score):
         return None
     return doc
 
-def parallel_validate_contexts(dbs, prompt, documents, settings: GPTEngineerSettings):
+def parallel_validate_contexts(prompt, documents, settings: GPTEngineerSettings):
     ai = AI(settings=settings)
     score = float(settings.knowledge_context_cutoff_relevance_score)
     if not score:
       return documents
-    #dbs.input.append(
-    #  HISTORY_PROMPT_FILE, f"\n[[VALIDATE_CONTEXT]]\n{prompt}\nNum docs: {len(documents)}"
-    #)
+
     # This function uses ThreadPoolExecutor to parallelize validation of contexts.
     with ThreadPoolExecutor() as executor:
-        futures = {executor.submit(ai_validate_context, ai=ai, dbs=dbs, prompt=prompt, doc=doc): doc for doc in documents}
+        futures = {executor.submit(ai_validate_context, ai=ai, prompt=prompt, doc=doc): doc for doc in documents}
         valid_documents = []
         for future in as_completed(futures):
             result = future.result()
@@ -110,7 +108,7 @@ class AICodeGerator(BaseModel):
 
 AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGerator)
 
-def ai_validate_context(ai, dbs, prompt, doc, retry_count=0):
+def ai_validate_context(ai, prompt, doc, retry_count=0):
     assert prompt
     parser = PydanticOutputParser(pydantic_object=AIDocValidateResponse)
     validation_prompt = \
@@ -145,17 +143,15 @@ def ai_validate_context(ai, dbs, prompt, doc, retry_count=0):
     else:
       if not retry_count:
         logger.exception(colored(f"[validate_context] re-trying failed validation\n{prompt}\n{response}", "red"))
-        return ai_validate_context(ai, dbs, prompt, doc, retry_count=1)
+        return ai_validate_context(ai, prompt, doc, retry_count=1)
 
       logger.error(colored(f"[validate_context] failed to validate. prompt: {prompt}\nMessages: {messages}", "red"))
 
     return doc
 
 def find_relevant_documents (query: str, settings, ignore_documents=[]):
-  from codx.junior import build_dbs, build_ai
-
+  
   ai = AI(settings=settings)
-  dbs = build_dbs(settings)
   documents = Knowledge(settings=settings).search(query)
   logger.info(f"find_relevant_documents: [{settings.project_name}] Knowledge.search doc length: {len(documents)}")
   def is_valid_document(doc):
@@ -169,7 +165,7 @@ def find_relevant_documents (query: str, settings, ignore_documents=[]):
   if documents:
       # Filter out irrelevant documents based on a relevance score
       relevant_documents = [doc for doc in parallel_validate_contexts(
-          dbs, query, documents, settings) if doc]
+          query, documents, settings) if doc]
       file_list = [str(Path(doc.metadata["source"]).absolute())
                   for doc in relevant_documents]
       file_list = list(dict.fromkeys(file_list))  # Remove duplicates

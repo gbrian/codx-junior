@@ -180,6 +180,9 @@ export const API = {
     if (gpteng_path) {
       const { data } = await API.project.list()
       API.lastSettings = data.find(p => p.gpteng_path === gpteng_path)
+      if (API.lastSettings) {
+        localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
+      }
     } else {
       const settings = localStorage.getItem("API_SETTINGS")
       try {

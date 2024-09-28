@@ -5,7 +5,7 @@ import MarkdownVue from '@/components/Markdown.vue'
 <template>
   <div class="gap-2 h-full justify-between">
     <div class="text-xl font-medium flex justify-between items-center gap-2">
-      Knowledge
+      Knowledge: {{ settings.project_path}}
       <div class="grow">
         <div class="text-error text-xs" v-if="!settings?.use_knowledge">Knowledge search is disabled!</div>
       </div>
@@ -47,7 +47,7 @@ import MarkdownVue from '@/components/Markdown.vue'
         </button>
       </div>
       <label class="input input-bordered flex items-center gap-2">
-        <select class="select select-xs w-20" v-model="searchType">
+        <select class="select select-xs" v-model="searchType">
           <option value="embeddings">Embeddings</option>
           <option value="source">Source</option>
         </select>
@@ -56,7 +56,10 @@ import MarkdownVue from '@/components/Markdown.vue'
           v-model="searchTerm" />
         <i class="fa-solid fa-magnifying-glass" @click="onKnowledgeSearch"></i>
       </label>
-      <div>{{ searchResults?.settings }}</div>
+      <div class="text-xs">{{ { ...searchResults.settings } }}</div>
+      <span class="alert alert-error alert-sm" v-if="!searchResults?.documents?.length">
+        No results
+      </span>
       <div class="grid grid-cols-3 gap-2">
         <span class="border p-2 border-info cursor-pointer rounded-md bg-base-300 indicator"
             v-for="doc,ix in searchResults?.documents" :key="ix"
@@ -71,27 +74,36 @@ import MarkdownVue from '@/components/Markdown.vue'
       </div>
     </div>
     <div class="stats">
-      <div class="stat">
-        <div class="stat-figure text-secondary">
-          <i class="fa-lg fa-solid fa-file"></i>
+      <div class="stat click" @click="setTab(0)">
+        <div class="stat-figure mt-6">
+          <i class="fa-2xl fa-solid fa-file"></i>
         </div>
-        <div class="stat-title">Documents</div>
-        <div class="stat-value">{{ status?.doc_count }}</div>
+        <div class="stat-title">Pending</div>
+        <div class="stat-value">{{ status?.pending_files?.length }}</div>
         <div class="stat-desc"></div>
       </div>
-
-      <div class="stat">
-        <div class="stat-figure text-secondary">
-          <i class="fa-lg fa-solid fa-puzzle-piece"></i>
+      
+      <div class="stat click" @click="setTab(1)">
+        <div class="stat-figure mt-6 text-success">
+          <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
         </div>
-        <div class="stat-title">Indexed files</div>
+        <div class="stat-title">Indexed</div>
         <div class="stat-value">{{ status?.file_count }}</div>
         <div class="stat-desc"></div>
       </div>
 
+      <div class="stat click" @click="setTab(2)">
+        <div class="stat-figure mt-6 text-warning">
+          <i class="fa-2xl fa-solid fa-file"></i>
+        </div>
+        <div class="stat-title">Ignored</div>
+        <div class="stat-value">{{ ignoredFolders?.length }}</div>
+        <div class="stat-desc"></div>
+      </div>
+
       <div class="stat">
-        <div class="stat-figure text-info">
-          <i class="fa-solid fa-book"></i>
+        <div class="stat-figure mt-6 text-info">
+          <i class="fa-2xl fa-solid fa-book"></i>
         </div>
         <div class="stat-title">Keywords</div>
         <div class="stat-value">{{ status?.keyword_count }}</div>
@@ -99,8 +111,8 @@ import MarkdownVue from '@/components/Markdown.vue'
       </div>
 
       <div class="stat">
-        <div class="stat-figure text-secondary">
-          <i class="fa-lg fa-solid fa-clock"></i>
+        <div class="stat-figure mt-6 text-secondary">
+          <i class="fa-2xl fa-solid fa-clock"></i>
         </div>
         <div class="stat-title">Last refresh</div>
         <div class="stat-value text-wrap text-sm">{{ lastRefresh }}</div>
@@ -108,17 +120,6 @@ import MarkdownVue from '@/components/Markdown.vue'
     </div>
 
     <div class="p-4 flex flex-col gap-2 grow">
-      <div role="tablist" class="tabs tabs-lifted">
-        <a role="tab" :class="['tab', showIndexFiles === 0 && 'tab-active text-primary']" @click="setTab(0)">
-          <div class="text-xl font-medium">({{ status?.pending_files?.length }} / {{ status?.total_pending_changes }}) Pending files</div>
-        </a>
-        <a role="tab" :class="['tab', showIndexFiles === 1 && 'tab-active text-primary']" @click="setTab(1)">
-          <div class="text-xl font-medium">({{ status?.files?.length }}) Indexed files</div>
-        </a>
-        <a role="tab" :class="['tab', showIndexFiles === 2 && 'tab-active text-primary']" @click="setTab(2)">
-          <div class="text-xl font-medium">({{ ignoredFolders?.length }}) Ignored folders</div>
-        </a>
-      </div>
       <div>
         <div class="flex gap-2 my-2">
           <button class="btn btn-sm" @click="toggleAllNoneSelection">
@@ -190,14 +191,22 @@ import MarkdownVue from '@/components/Markdown.vue'
         </div>
       </div>
     </div>
-    <div class="text-xs font-bold py-2">
-      <div class="text-xl">Ignored folders:</div>
+    <div class="text-xs font-bold py-2 flex flex-col gap-2">
+      <div class="text-xl">Ignored patterns:</div>
+      <div class="flex input input-sm input-bordered gap-2 max-w-xs items-center">
+        <input type="text" class="grow" v-model="addToIgnore" @keydown.enter="addEntriesToIgnore([addToIgnore])">
+        <div class="btn btn-xs btn-circle btn-warning" @click="addEntriesToIgnore([addToIgnore])">
+          <i class="fa-solid fa-plus"></i>
+        </div>
+      </div>
       <div class="grid grid-cols-4 gap-2">
-        <span class="badge badge-xs badge-warning" v-for="folder, ix in API.lastSettings?.knowledge_file_ignore.split(',')" :key="ix">
+        <span class="px-2 flex gap-2 items-center w-fit rounded-full text-warning-content bg-warning" v-for="folder, ix in ignoredFolders" :key="ix">
           {{ folder }}
+          <div class="btn btn-xs btn-circle" @click="removeEntriesFromIgnore([folder])">
+            <i class="fa-solid fa-minus"></i>
+          </div>
         </span>
       </div>
-      <div class="text-xs">Change this list on settings</div>
     </div>
     <dialog class="modal modal-bottom sm:modal-middle modal-open" v-if="showDoc" @click="showDoc = null">
       <div class="modal-box flex flex-col gap-2 w-full max-w-full">
@@ -264,18 +273,17 @@ export default {
       enableKeywords: API.lastSettings.knowledge_extract_document_tags,
       selectedFiles: {},
       showIndexFiles: 0,
-      fileFilter: null
+      fileFilter: null,
+      addToIgnore: null,
+      settings: API.lastSettings
     }
   },
   async created() {
     this.reloadStatus()
   },
   computed: {
-    settings () {
-      return API.lastSettings
-    },
     projectPath () {
-      return API.lastSettings.project_path
+      return this.settings.project_path
     },
     lastRefresh() {
       if (this.status?.last_update) {
@@ -307,7 +315,8 @@ export default {
       return Object.keys(this.selectedFiles)
     },
     ignoredFolders () {
-      return API.lastSettings?.knowledge_file_ignore.split(',')
+      const files = this.settings?.knowledge_file_ignore?.trim()
+      return files?.split(',').filter(e => e.trim().length)
     },
     showFilesSelected () {
       switch(this.showIndexFiles) {
@@ -343,6 +352,7 @@ export default {
   methods: {
     async reloadStatus() {
       const { data } = await API.knowledge.status()
+      this.settings = { ...API.lastSettings }
       this.status = data
     },
     async reloadFolder (folderToReload) {
@@ -369,14 +379,28 @@ export default {
       this.loading = false
     },
     async ignoreSelectedFiles (ignoreFolder) {
-      const currIgnore = API.lastSettings?.knowledge_file_ignore.split(',') || []
       const ignoreFiles = this.selectedFilePaths.map(file => file.replace(this.projectPath, ""))
       const ignoreFolders = ignoreFiles.map(file => file.split("/").reverse()[1])
-      const newIgnore = [...currIgnore, ...(ignoreFolder ? ignoreFolders : ignoreFiles)]
+      const newIgnore = ignoreFolder ? ignoreFolders : ignoreFiles
+      this.addEntriesToIgnore(newIgnore)
+    },
+    async addEntriesToIgnore(entries) {
+      const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
+      const newIgnore = new Set([...currIgnore, ...entries])
+      API.lastSettings.knowledge_file_ignore = [...newIgnore].join(",")
+      await API.settings.write(API.lastSettings)
+      await this.reloadStatus()
+      this.selectedFiles = {}
+      this.addToIgnore = null
+    },
+    async removeEntriesFromIgnore(entries) {
+      const currIgnore = API.lastSettings?.knowledge_file_ignore?.split(',') || []
+      const newIgnore = currIgnore.filter(e => !entries.includes(e))
       API.lastSettings.knowledge_file_ignore = newIgnore.join(",")
       await API.settings.write(API.lastSettings)
       await this.reloadStatus()
       this.selectedFiles = {}
+      this.addToIgnore = null
     },
     async dropSelectedFiles () {
       await API.knowledge.delete(this.selectedFilePaths)
@@ -427,9 +451,10 @@ export default {
         knowledge_search_document_count: this.documentCount,
         knowledge_extract_document_tags: this.enableKeywords
       })
+      this.reloadStatus()
     },
     async toggleWatch () {
-      if (!API.settings) {
+      if (!API.lastSettings) {
         return
       }
       if (API.lastSettings.watching) {
@@ -438,6 +463,7 @@ export default {
         await API.project.unwatch()
       }
       API.settings.read()
+      this.reloadStatus()
     },
     setTab (ix) {
       this.showIndexFiles = ix

@@ -49,15 +49,14 @@ class KnowledgeLoader:
 
         return False
 
-    def is_valid_file(self, file, last_update=None, path=None, current_sources=None):
+    def is_valid_file(self, file, last_update=None, path=None, current_sources=None, knowledge_file_ignore: [str] =[]):
         if not os.path.isfile(file):
             return False
 
         if path:
             if not (path in file):
                 return False
-        
-        file_errors = [err for err in self.settings.knowledge_file_ignore.split(",") if err in file]
+        file_errors = [err for err in knowledge_file_ignore if err in file]
         if file_errors:
             return False
         
@@ -111,9 +110,13 @@ class KnowledgeLoader:
                 for ext_path in self.settings.knowledge_external_folders.split(","):
                     external_file_paths = [str(file_path) for file_path in pathlib.Path(ext_path).rglob("*")]
                     full_file_paths = full_file_paths + external_file_paths
+
+        knowledge_file_ignore = self.settings.knowledge_file_ignore or ""
+        knowledge_file_ignore = [ignore for ignore in knowledge_file_ignore.split(",") if len(ignore.strip())]
+
         changed_file_paths = [file for file in full_file_paths \
-                            if self.is_valid_file(file, last_update=last_update, path=path, current_sources=current_sources) ]
-        
+                            if self.is_valid_file(file, last_update=last_update, path=path, current_sources=current_sources, knowledge_file_ignore=knowledge_file_ignore) ]
+        logger.info(f"list_repository_files: {len(full_file_paths)} files - changed {len(changed_file_paths)} - ignore paths: {knowledge_file_ignore}")
         return changed_file_paths
 
     def list_repository_folders(self):

@@ -318,11 +318,13 @@ class Knowledge:
       ids = collection_docs["ids"]
       metadatas = collection_docs["metadatas"]
       page_contents = collection_docs.get("documents", [])
-
       documents = []
+      search_query = query.lower()
       for ix, _id in enumerate(ids):
-        if query in metadatas[ix]["source"]:
+        if search_query in metadatas[ix]["source"].lower():
           documents.append(Document(id=ids[ix], page_content=page_contents[ix], metadata=metadatas[ix]))
+      
+      # logger.info(f"search_in_source: query: {query}, total indexed: {len(ids)} total docs {len(documents)}")
       
       return documents
 

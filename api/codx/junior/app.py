@@ -135,9 +135,11 @@ class GPTEngineerAPI:
                         enable_logs(ai_logs)
                     else:
                         disable_logs(ai_logs)
-                except:
-                    pass
-            request.state.settings = settings
+                except Exception as ex:
+                    logger.error(f"Error loading settings {gpteng_path}: {ex}")
+            request.state.settings = settings        
+            if not settings:
+                logger.info("Request without settings")
             return await call_next(request)
 
 
