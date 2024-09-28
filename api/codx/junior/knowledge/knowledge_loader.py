@@ -10,10 +10,10 @@ from langchain.document_loaders.generic import GenericLoader
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import CharacterTextSplitter
 
-from gpt_engineer.utils import calculate_md5
-from gpt_engineer.core.settings import GPTEngineerSettings
-from gpt_engineer.knowledge.knowledge_code_splitter import KnowledgeCodeSplitter
-from gpt_engineer.knowledge.knowledge_code_to_dcouments import KnowledgeCodeToDocuments
+from codx.junior.utils import calculate_md5
+from codx.junior.settings import GPTEngineerSettings
+from codx.junior.knowledge.knowledge_code_splitter import KnowledgeCodeSplitter
+from codx.junior.knowledge.knowledge_code_to_dcouments import KnowledgeCodeToDocuments
 
 logger = logging.getLogger(__name__)
 

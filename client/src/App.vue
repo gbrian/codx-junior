@@ -188,17 +188,8 @@ export default {
     }
   },
   methods: {
-    async init () {
-      this.gptengPath = this.getProjectPath()
-      try {
-        await API.settings.read()
-      } catch {}
-      if (!API.lastSettings ||
-          API.lastSettings.gpteng_path !== this.gptengPath ||
-          !API.lastSettings?.openai_api_key 
-      ) {
-        this.tabIx = 2
-      }
+    async init (path) {
+      await API.init(path || this.gptengPath)
     },
     getProjectPath () {
       return API.lastSettings?.gpteng_path
@@ -211,8 +202,7 @@ export default {
       this.openProject(this.allProjects.find(p => p.project_name === projectName).gpteng_path)
     },
     openProject (path) {
-      API.init(path)
-      this.init()
+      this.init(path)
     },
     async createNewProject () {
       const { data: { gpteng_path } } = await API.project.create(this.getProjectPath())

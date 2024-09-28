@@ -4,14 +4,14 @@ import json
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from langchain.schema.document import Document
 
-from gpt_engineer.utils import extract_json_blocks 
+from codx.junior.utils import extract_json_blocks 
 
-from gpt_engineer.core.ai import AI
-from gpt_engineer.core.settings import GPTEngineerSettings
-from gpt_engineer.knowledge.knowledge_prompts import KnowledgePrompts
-from gpt_engineer.prompts import CodeToChunksPrompt
+from codx.junior.ai import AI
+from codx.junior.settings import GPTEngineerSettings
+from codx.junior.knowledge.knowledge_prompts import KnowledgePrompts
+from codx.junior.prompts import CodeToChunksPrompt
 
-from gpt_engineer.settings import (
+from codx.junior.knowledge.settings import (
     LANGUAGE_FROM_EXTENSION
 )
 
@@ -24,7 +24,7 @@ class KnowledgeCodeToDocuments:
         self.ai = None
 
     def get_ai(self):
-        from gpt_engineer.core import build_ai
+        from codx.junior import build_ai
         if not self.ai:
           self.ai = build_ai(settings=self.settings)
         return self.ai

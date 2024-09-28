@@ -82,11 +82,11 @@ class GPTEngineerSettings:
       return []
 
     def get_dbs(self):
-      from gpt_engineer.core import build_dbs
+      from codx.junior import build_dbs
       return build_dbs(settings=self)
 
     def get_ai(self):
-      from gpt_engineer.core import build_ai
+      from codx.junior import build_ai
       return build_ai(settings=self)
 
     def get_sub_projects(self):

@@ -9,7 +9,7 @@ from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import CharacterTextSplitter
 
 from llama_index.core.node_parser import CodeSplitter
-from gpt_engineer.settings import (
+from codx.junior.knowledge.settings import (
     LANGUAGE_FROM_EXTENSION,
     CODE_PARSER_FROM_EXTENSION
 )

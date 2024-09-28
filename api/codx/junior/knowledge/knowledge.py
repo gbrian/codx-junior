@@ -14,13 +14,13 @@ from langchain_community.vectorstores import Chroma
 from langchain_community.llms import OpenAI
 from langchain.schema.document import Document
 
-from gpt_engineer.utils import calculate_md5
-from gpt_engineer.core.utils import extract_blocks
-from gpt_engineer.core.ai import AI
-from gpt_engineer.core.settings import GPTEngineerSettings
-from gpt_engineer.knowledge.knowledge_loader import KnowledgeLoader
-from gpt_engineer.knowledge.knowledge_prompts import KnowledgePrompts
-from gpt_engineer.knowledge.knowledge_keywords import KnowledgeKeywords
+from codx.junior.utils import calculate_md5
+from codx.junior.utils import extract_blocks
+from codx.junior.ai import AI
+from codx.junior.settings import GPTEngineerSettings
+from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
+from codx.junior.knowledge.knowledge_prompts import KnowledgePrompts
+from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
 
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ class Knowledge:
         self.last_changed_file_paths = []
 
     def get_ai(self):
-      from gpt_engineer.core import build_ai
+      from codx.junior import build_ai
       if not self.ai:
         self.ai = build_ai(settings=self.settings)
       return self.ai

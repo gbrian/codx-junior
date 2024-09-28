@@ -15,13 +15,7 @@ from codx.junior.ai.ai import AI
 from codx.junior.settings import GPTEngineerSettings
 from codx.junior.knowledge.knowledge import Knowledge
 
-from gpt_engineer.settings import (
-  PROMPT_FILE,
-  HISTORY_PROMPT_FILE,
-  KNOWLEDGE_MODEL
-)
-
-from gpt_engineer.utils import extract_json_blocks 
+from codx.junior.utils import extract_json_blocks 
 
 logger = logging.getLogger(__name__)
 
@@ -158,9 +152,9 @@ def ai_validate_context(ai, dbs, prompt, doc, retry_count=0):
     return doc
 
 def find_relevant_documents (query: str, settings, ignore_documents=[]):
-  from gpt_engineer.core import build_dbs, build_ai
+  from codx.junior import build_dbs, build_ai
 
-  ai = build_ai(settings)
+  ai = AI(settings=settings)
   dbs = build_dbs(settings)
   documents = Knowledge(settings=settings).search(query)
   logger.info(f"find_relevant_documents: [{settings.project_name}] Knowledge.search doc length: {len(documents)}")

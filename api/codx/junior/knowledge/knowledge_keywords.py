@@ -2,7 +2,7 @@ import json
 import logging
 import sqlite3
 from slugify import slugify
-from gpt_engineer.core.settings import GPTEngineerSettings
+from codx.junior.settings import GPTEngineerSettings
 
 
 logger = logging.getLogger(__name__)

@@ -11,13 +11,12 @@ from langchain.schema import AIMessage, HumanMessage, SystemMessage, BaseMessage
 from langchain.schema.document import Document
 
 from codx.junior.utils import (
-    curr_fn,
     document_to_context,
     extract_code_blocks,
     extract_json_blocks 
 )
 
-from codx.junior.ai import AI, build_ai
+from codx.junior.ai import AI
 from codx.junior.settings import GPTEngineerSettings
 
 from codx.junior.chat_manager import ChatManager
@@ -80,7 +79,7 @@ def knowledge_search(settings: GPTEngineerSettings, knowledge_search: KnowledgeS
     if knowledge_search.document_cutoff_score:
         settings.knowledge_context_cutoff_relevance_score = knowledge_search.document_cutoff_score
     
-    ai = build_ai(settings=settings)
+    ai = AI(settings=settings)
     documents = []
     if knowledge_search.search_type == "embeddings":
         documents, _ = select_afefcted_documents_from_knowledge(ai=ai, query=knowledge_search.search_term, settings=settings)
@@ -552,7 +551,7 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
     if "@codx-code" in query:
         return improve_existing_code(chat=chat, settings=settings)
 
-    ai = build_ai(settings)
+    ai = AI(settings=settings)
     profile_manager = ProfileManager(settings=settings)
 
     instructions = f"""BEGIN INSTRUCTIONS
@@ -678,7 +677,7 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
 
 def check_project(settings: GPTEngineerSettings):
     try:
-        logger.info(f"check_project")
+        logger.info(f"check_project: {settings}")
         loader = KnowledgeLoader(settings=settings)
         loader.fix_repo()
     except Exception as ex:

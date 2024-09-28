@@ -1,22 +1,13 @@
-Based on the user's comments, the changes to be made are:
-
-1. In line 4, the user has left a comment but hasn't specified what changes need to be made.
-2. In line 5, the user has commented "None", which suggests no changes are required.
-3. In line 9, the user has commented "MULTI_LINE_MENTION_END_PROGRESS = "</codx-processing>"". This suggests that the value of the variable `MULTI_LINE_MENTION_END_PROGRESS` should be changed to `"</codx-processing>"`.
-
-After applying these changes, the updated file content will be:
-
-```python
 import re
 import json
 import logging
 
-SINGLE_LINE_MENTION_START = "@codx-processing:"
-MULTI_LINE_MENTION_START = "<codx-processing"
-MULTI_LINE_MENTION_END = "</codx-processing>"
+SINGLE_LINE_MENTION_START = "@codx:"
+MULTI_LINE_MENTION_START = "<codx"
+MULTI_LINE_MENTION_END = "</codx>"
 
 SINGLE_LINE_MENTION_START_PROGRESS = "@codx-processing:"
-MULTI_LINE_MENTION_START_PROGRESS = "<codx-processing-processing"
+MULTI_LINE_MENTION_START_PROGRESS = "<codx-processing"
 MULTI_LINE_MENTION_END_PROGRESS = "</codx-processing>"
 
 logger = logging.getLogger(__name__)
@@ -96,7 +87,7 @@ def extract_mentions(content):
 def notify_mentions_in_progress(content):
     return content.replace(SINGLE_LINE_MENTION_START, SINGLE_LINE_MENTION_START_PROGRESS) \
               .replace(MULTI_LINE_MENTION_START, MULTI_LINE_MENTION_START_PROGRESS) \
-              .replace(MULTI_LINE_MENTION_END, "</codx-processing>")
+              .replace(MULTI_LINE_MENTION_END, MULTI_LINE_MENTION_END_PROGRESS)
 
 def notify_mentions_error(content, error):
     return content.replace("codx-processing", f"codx-error: {error}")  
@@ -124,6 +115,3 @@ def replace_mentions(content, mentions):
     if last_index < len(content) - 1:
         new_content = new_content + content_lines[last_index:]
     return "\n".join(new_content)
-```
-
-Please note that the changes have been applied to the file content as per the user's comments. However, the user's comment on line 4 was not clear, so no changes were made based on that comment.

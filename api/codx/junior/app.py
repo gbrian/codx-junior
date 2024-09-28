@@ -46,7 +46,6 @@ from codx.junior.model import (
     Profile,
     Document
 )
-from codx.junior.app_service import clarify_business_request
 
 from codx.junior.settings import GPTEngineerSettings 
 
@@ -57,7 +56,6 @@ from codx.junior.engine import (
     select_afected_files_from_knowledge, 
     improve_existing_code,
     check_knowledge_status,
-    run_edits,
     create_project,
     select_afefcted_documents_from_knowledge,
     check_project_changes,
@@ -73,6 +71,7 @@ from codx.junior.engine import (
 
 from codx.junior.scheduler import add_work
 
+STATIC_FOLDER=os.environ.get("STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
@@ -100,7 +99,8 @@ class GPTEngineerAPI:
             ssl_context='adhoc'
         )
 
-        app.mount("/static", StaticFiles(directory="gpt_engineer/api/client_chat", html=True), name="client_chat")
+        if STATIC_FOLDER:
+            app.mount("/static", StaticFiles(directory=STATIC_FOLDER, html=True), name="client_chat")
         app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
 
         @app.on_event("startup")
