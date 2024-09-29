@@ -1,0 +1,6 @@
+{
+    "vue": {
+        "expression": "\\.vue$",
+        "profile": ""
+    }
+}
