@@ -213,7 +213,9 @@ def improve_existing_code(settings: GPTEngineerSettings, chat: Chat, apply_chang
         request_msg = Message(role="user", content=request)
         chat.messages.append(request_msg)
         logger.info(f"improve_existing_code prompt: {request_msg}")
-        def try_chat_code_changes(attempt: int) -> AICodeGerator:
+        def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:
+            if error:
+                chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
             chat_with_project(settings=settings, chat=chat, use_knowledge=False, chat_mode='chat')
             chat.messages = [msg for msg in chat.messages if msg != request_msg]
             chat.messages[-1].improvement = True
@@ -228,7 +230,7 @@ def improve_existing_code(settings: GPTEngineerSettings, chat: Chat, apply_chang
                 attempt = attempt - 1
                 if attempt:
                     chat.messages.pop()
-                    return try_chat_code_changes(attempt)
+                    return try_chat_code_changes(attempt, error=str(ex))
                 raise ex
         code_generator = try_chat_code_changes(retry_count)
         if not apply_changes:

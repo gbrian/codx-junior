@@ -240,12 +240,12 @@ class Knowledge:
                 #    self.extract_doc_keywords(enriched_doc)
                 enriched_doc.metadata["index_date"] = index_date
                 enriched_doc.metadata["file_md5"] = all_sources_with_md5[source]
-                logger.info(f"Indexing document: {enriched_doc}")
+                #logger.info(f"Indexing document: {enriched_doc}")
                 self.db = Chroma.from_documents([enriched_doc],
                   self.embedding,
                   persist_directory=self.db_path,
                 )
-                logger.info(f"Indexing document DONE: {enriched_doc}")
+                #logger.info(f"Indexing document DONE: {enriched_doc}")
                 
             except Exception as ex:
                 logger.exception(f"Error indexing document {enriched_doc.metadata['source']}: {ex}")
