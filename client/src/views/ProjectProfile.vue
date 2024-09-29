@@ -38,8 +38,9 @@ export default {
       settings: API.lastSettings
     };
   },
-  created () {
-    API.project.list()
+  async created () {
+    await API.project.list()
+    this.settings = API.lastSettings
   },
   computed: {
     allProjects () {

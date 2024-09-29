@@ -28,8 +28,8 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
             ({{ lastSettings.model }})
           </div> 
         </div>
-        <div class="dropdown">
-          <div tabindex="0" role="button" class="">
+        <div class="dropdown" @click.stop="">
+          <div tabindex="0" role="button" class="btn btn-xs btn-ghost" @click.stop="">
             <i class="fa-solid fa-angle-down"></i>
           </div>
           <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
