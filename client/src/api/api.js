@@ -51,8 +51,10 @@ export const API = {
   },
   lastSettings: {},
   project: {
-    list () {
-      return API.get('/api/projects')
+    async list () {
+      const res = await API.get('/api/projects')
+      API.lastSettings.projects = res.data
+      return res
     },
     create(projectPath) {
       return API.post('/api/projects?project_path=' + projectPath, {})
@@ -202,21 +204,26 @@ export const API = {
     }
   },
   async init (gpteng_path) {
+    API.liveRequests++
     this.gpteng_path = gpteng_path
     if (gpteng_path) {
-      const { data } = await API.project.list()
-      API.lastSettings = data.find(p => p.gpteng_path === gpteng_path)
+      const { data: projects } = await API.project.list()
+      API.lastSettings = projects.find(p => p.gpteng_path === gpteng_path)
       if (API.lastSettings) {
         localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
       }
+      API.lastSettings.projects = projects
     } else {
       const settings = localStorage.getItem("API_SETTINGS")
       try {
         API.lastSettings = JSON.parse(settings)
+        const { data: projects } = await API.project.list()
+        API.lastSettings.projects = projects
       } catch (ex) {
         console.error("Invalid settings")
       }
     }
+    API.liveRequests--
     console.log("API init", gpteng_path, API.lastSettings)
   }
 }

@@ -1,59 +1,64 @@
+<script setup>
+import { API } from '../api/api';
+</script>
+
 <template>
-  <div class="profile-container flex flex-col items-center p-4">
+  <div class="profile-container flex flex-col items-center p-4 h-full">
     <img :src="projectIcon" alt="Project Icon" class="rounded-full w-36 h-36" />
     <h1 class="text-2xl font-bold mt-4">{{ projectName }}</h1>
     <p class="text-lg mt-2">{{ projectDescription }}</p>
-    <button @click="editProjectSettings" class="btn btn-primary mt-4">
+    <button class="btn btn-primary mt-4" @click="$emit('settings')">
       Edit Project Settings
     </button>
     
-    <div class="projects-list mt-8 w-full">
+    <div class="projects-list mt-8 w-full flex flex-col gap-2">
       <h2 class="text-xl font-bold mb-4">Projects</h2>
-      <ul>
-        <li v-for="project in allProjects" :key="project.gpteng_path" class="mb-2">
-          <div class="flex items-center gap-4 p-2 border rounded-md">
+      <div class="grid grid-cols-4 gap-3">
+        <div v-for="project in allProjects" :key="project.gpteng_path" class="mb-2" @click="setProject(project)">
+          <div class="flex items-center gap-4 p-2 border rounded-md click">
             <img :src="project.project_icon" alt="Project Icon" class="w-12 h-12 rounded-full" />
             <div>
               <h3 class="text-lg font-bold">{{ project.project_name }}</h3>
               <p>{{ project.project_description }}</p>
             </div>
           </div>
-        </li>
-      </ul>
+        </div>
+      </div>
+      <button class="btn btn-primary max-w-xs">
+        New project...
+      </button>
     </div>
   </div>
 </template>
 
 <script>
-import { API } from '../api/api';
-
 export default {
   data() {
     return {
-      allProjects: [] // Initialize empty array
+      settings: API.lastSettings
     };
   },
-  async mounted() {
-    await this.getAllProjects(); // Fetch all projects
-  },
-  methods: {
-    async getAllProjects() {
-      const { data } = await API.project.list();
-      this.allProjects = data; // Update the projects list
-    },
-    editProjectSettings() {
-      // Logic to edit project settings
-    }
+  created () {
+    API.project.list()
   },
   computed: {
+    allProjects () {
+      return API.lastSettings.projects
+    },
     projectName() {
-      return API.lastSettings.project_name;
+      return this.settings.project_name;
     },
     projectIcon() {
-      return API.lastSettings.project_icon;
+      return this.settings.project_icon;
     },
     projectDescription() {
-      return API.lastSettings.project_description;
+      return this.settings.project_description;
+    }
+  },
+  methods: {
+    async setProject(project) {
+      await API.init(project.gpteng_path)
+      this.settings = API.lastSettings
     }
   }
 };

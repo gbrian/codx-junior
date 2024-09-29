@@ -110,7 +110,7 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
       <GlobalSettingsVue class="abolsute top-0 left-0 w-full" v-if="tabIx === 'global-settings'" />
       <ProfileViewVue class="abolsute top-0 left-0 w-full" v-if="tabIx === 'profiles'" />
       <iframe v-if="tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
-      <ProjectProfileVue class="p-2" v-if="tabIx == 'home'"></ProjectProfileVue>
+      <ProjectProfileVue class="p-2 abolsute top-0 left-0 w-full" v-if="tabIx == 'home'" @settings="tabIx = 'settings'"></ProjectProfileVue>
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
       <div class="modal-box">
