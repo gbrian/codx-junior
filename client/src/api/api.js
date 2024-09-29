@@ -6,6 +6,20 @@ const gpteng_key = window.location.search
                     .find(([k]) => k === "gpteng_path")
 
 const query = () => `gpteng_path=${encodeURIComponent(API.lastSettings?.gpteng_path)}`
+const prepareUrl = (url) => {
+  if (url.indexOf("gpteng_path") === -1) {
+    let [path, params] = url.split("?")
+    if (params) {
+      params += "&"
+    }
+    params += query()
+    url =`${path}?${params}`
+    console.log("Prepare url", url)
+    return url
+  }
+  return url
+}
+
 const axiosRequest = axios.create({
 });
 export const API = {
@@ -13,25 +27,25 @@ export const API = {
   liveRequests: 0,
   get (url) {
     API.liveRequests++
-    return axiosRequest.get(url)
+    return axiosRequest.get(prepareUrl(url))
       .catch(console.error)
       .finally(() => API.liveRequests--)
   },
   del (url) {
     API.liveRequests++
-    return axiosRequest.delete(url)
+    return axiosRequest.delete(prepareUrl(url))
       .catch(console.error)
       .finally(() => API.liveRequests--)
   },
   post (url, data) {
     API.liveRequests++
-    return axiosRequest.post(url, data)
+    return axiosRequest.post(prepareUrl(url), data)
     .catch(console.error)
     .finally(() => API.liveRequests--)
   },
   put (url, data) {
     API.liveRequests++
-    return axiosRequest.put(url, data)
+    return axiosRequest.put(prepareUrl(url), data)
     .catch(console.error)
     .finally(() => API.liveRequests--)
   },
@@ -44,21 +58,21 @@ export const API = {
       return API.post('/api/projects?project_path=' + projectPath, {})
     },
     delete() {
-      return API.del('/api/projects?' + query())
+      return API.del('/api/projects?')
     },
     watch () {
-      return API.get('/api/project/watch?' + query())
+      return API.get('/api/project/watch?')
     },
     unwatch () {
-      return API.get('/api/project/unwatch?' + query())
+      return API.get('/api/project/unwatch?')
     },
     test () {
-      return API.get('/api/project/script/test?' + query())
+      return API.get('/api/project/script/test?')
     }
   },
   settings: {
     async read () {
-      const res = await API.get('/api/settings?' + query())
+      const res = await API.get('/api/settings?')
       API.lastSettings = res.data
       if (API.lastSettings) {
         localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
@@ -66,22 +80,22 @@ export const API = {
       return res
     },
     write (settings) {
-      return API.put('/api/settings?' + query(), settings)
+      return API.put('/api/settings?', settings)
     },
     async save() {
-      await API.put('/api/settings?' + query(), API.lastSettings)
+      await API.put('/api/settings?', API.lastSettings)
       return API.settings.read()
     }
   },
   knowledge: {
     status () {
-      return API.get('/api/knowledge/status?' + query())
+      return API.get('/api/knowledge/status?')
     },
     reload () {
-      return API.get('/api/knowledge/reload?' + query())
+      return API.get('/api/knowledge/reload?')
     },
     reloadFolder (path) {
-      return API.post(`/api/knowledge/reload-path?` + query(), { path })
+      return API.post(`/api/knowledge/reload-path?`, { path })
     },
     search ({ 
         searchTerm: search_term,
@@ -90,7 +104,7 @@ export const API = {
         cutoffScore: document_cutoff_score,
         documentCount: document_count
     }) {
-      return API.post(`/api/knowledge/reload-search?` + query(), {
+      return API.post(`/api/knowledge/reload-search?`, {
           search_term,
           search_type,
           document_search_type,
@@ -99,25 +113,25 @@ export const API = {
       })
     },
     delete (sources) {
-      return API.post(`/api/knowledge/delete?` + query(), { sources })  
+      return API.post(`/api/knowledge/delete?`, { sources })  
     },
     deleteAll() {
-      return API.del(`/api/knowledge/delete?` + query())  
+      return API.del(`/api/knowledge/delete?`)  
     },
     keywords() {
-      return API.get(`/api/knowledge/keywords?` + query())
+      return API.get(`/api/knowledge/keywords?`)
     },
     searchKeywords (searchQuery) {
-      return API.get(`/api/knowledge/keywords?query=${searchQuery}&` + query())
+      return API.get(`/api/knowledge/keywords?query=${searchQuery}&`)
     }
   },
   chats: {
     async list () {
-      const { data } = await API.get('/api/chats?' + query())
+      const { data } = await API.get('/api/chats?')
       return data
     },
     async loadChat (name) {
-      const { data } = await API.get(`/api/chats?chat_name=${name}&` + query())
+      const { data } = await API.get(`/api/chats?chat_name=${name}&`)
       return data
     },
     async newChat () {
@@ -127,59 +141,64 @@ export const API = {
       }
     },
     async message (chat) {
-      const { data: message } = await API.post('/api/chats?' + query(), chat)
+      const { data: message } = await API.post('/api/chats?', chat)
       chat.messages.push(message)
       return chat
     },
     save (chat, chatInfoOnly) {
-      return API.put(`/api/chats?chatonly=${chatInfoOnly ? 1 : 0}&` + query(), chat)
+      return API.put(`/api/chats?chatonly=${chatInfoOnly ? 1 : 0}&`, chat)
     },
     delete(chatName) {
-      return API.del(`/api/chats?chat_name=${chatName}&` + query())
+      return API.del(`/api/chats?chat_name=${chatName}&`)
     }
   },
   run: {
     improve (chat) {
-      return API.post('/api/run/improve?' + query(), chat)
+      return API.post('/api/run/improve?', chat)
     },
     edit (chat) {
-      return API.post('/api/run/edit?' + query(), chat)
+      return API.post('/api/run/edit?', chat)
     },
     liveEdit ({ chat, html, url, message }) {
-      return API.post('/api/run/live-edit?' + query(), { chat_name: chat.name, html, url, message })
+      return API.post('/api/run/live-edit?', { chat_name: chat.name, html, url, message })
     }
   },
   profiles: {
     list () {
-      return API.get('/api/profiles?' + query())
+      return API.get('/api/profiles?')
     },
     load (name) {
-      return API.get(`/api/profiles/${name}?` + query())
+      return API.get(`/api/profiles/${name}?`)
     },
     save (profile) {
-      return API.post(`/api/profiles?` + query(), profile)
+      return API.post(`/api/profiles?`, profile)
     },
     async delete (name) {
-      await API.delete(`/api/profiles/${name}?` + query())
+      await API.delete(`/api/profiles/${name}?`)
       API.lastSettings = null
+    }
+  },
+  coder: {
+    openFile(file) {
+      API.get(`/api/code-server/file/open?file_name=${encodeURIComponent(file)}`)
     }
   },
   images: {
     async upload (file) {
       let formData = new FormData();
       formData.append("file", file);
-      const { data: url } = await API.post(`/api/images?` + query(), formData)
+      const { data: url } = await API.post(`/api/images?`, formData)
       return window.location.origin + url
     }
   },
   wiki: {
     read (path) {
-      return API.get(`/api/wiki?file_path=${path}&` + query())
+      return API.get(`/api/wiki?file_path=${path}&`)
     }
   },
   engine: {
     update () {
-      return API.get('/api/update?' + query())
+      return API.get('/api/update?')
     }
   },
   async init (gpteng_path) {

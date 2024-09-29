@@ -1,4 +1,5 @@
 <script setup>
+import { API } from '../api/api'
 import Markdown from './Markdown.vue'
 </script>
 <template>
@@ -70,7 +71,9 @@ import Markdown from './Markdown.vue'
         </div>
         <div class="grid gap-2 grid-cols-3 mt-2">
           <div v-for="file in message.files" :key="file" :data-tip="file"
-            class="badge badge-primary tooltip flex gap-2 items-center">
+            class="badge badge-primary tooltip flex gap-2 items-center click"
+            @click="API.coder.openFile(file)"
+          >
             {{ file.split("/").reverse()[0] }}
             <button class="btn btn-xs btn-circle" @click="$emit('add-file-to-chat', file)">
               <i class="fa-solid fa-file-circle-plus"></i>

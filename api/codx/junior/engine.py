@@ -207,14 +207,14 @@ def improve_existing_code(settings: GPTEngineerSettings, chat: Chat, apply_chang
       * For new files create a file name following best practices of the project coding language
       * Keep content identation; is crucial to find the content to replace and to make new content work
     """
-    logger.info(f"improve_existing_code prompt: {request}")
     code_generator = None
     if not chat.messages[-1].hide and not chat.messages[-1].improvement:
         retry_count = 1
         request_msg = Message(role="user", content=request)
         chat.messages.append(request_msg)
+        logger.info(f"improve_existing_code prompt: {request_msg}")
         def try_chat_code_changes(attempt: int) -> AICodeGerator:
-            chat_with_project(settings=settings, chat=chat, use_knowledge=False)
+            chat_with_project(settings=settings, chat=chat, use_knowledge=False, chat_mode='chat')
             chat.messages = [msg for msg in chat.messages if msg != request_msg]
             chat.messages[-1].improvement = True
             if chat.mode == 'task':
@@ -576,8 +576,8 @@ def check_file_for_mentions(settings: GPTEngineerSettings, file_path: str):
 
 
 
-def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True):
-    chat_mode = chat.mode or 'chat'
+def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
+    chat_mode = chat_mode or chat.mode or 'chat'
     is_refine = True if chat_mode == 'task' and len(chat.messages) > 1 else False
     ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
     last_ai_message = ai_messages[-1] if ai_messages else None
@@ -615,15 +615,15 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
               ```
               """)
         instructions = f"""You are assisting me on coding for this project:
-    ```md
-    {profile_manager.read_profile("project").content}
-    ```
+        ```md
+        {profile_manager.read_profile("project").content}
+        ```
 
-    Please, when writing code, follow this guidelines:
-    ```md
-    {profile_manager.read_profile("software_developer").content}
-    ```
-    """
+        Please, when writing code, follow this guidelines:
+        ```md
+        {profile_manager.read_profile("software_developer").content}
+        ```
+        """
     messages = [
       SystemMessage(content=instructions)
     ]
@@ -657,7 +657,6 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
         else:
             msg = AIMessage(content=m.content)
   
-        logger.info(f"convert_message {m} - {msg}")  
         return msg
 
     if is_refine:

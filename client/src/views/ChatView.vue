@@ -7,7 +7,7 @@ import PRView from '../views/PRView.vue'
 </script>
 <template>
   <div class="flex flex-col gap-1 h-full" v-if="chat">
-    <div class="flex gap-2 items-center">
+    <div class="flex gap-2 items-center hidden">
       <div class="dropdown">
         <div tabindex="0" role="button" class="btn btn-xs m-1"><i class="fa-solid fa-code-branch"></i></div>
         <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-68 p-2 shadow">

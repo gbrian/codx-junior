@@ -88,7 +88,7 @@ class AI:
             response = AIMessage(content=json.loads(self.cache[md5Key])["content"])
 
         if not response:
-            callbacks = [LogginCallbackHandler()] if self.settings.log_ai else []
+            callbacks = []
             if callback:
                 callbacks.append(callback)
             response = self.llm(messages=messages, config={ "callbacks": callbacks })

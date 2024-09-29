@@ -25,7 +25,8 @@ disable_logs([
     'httpcore.connection',
     'chromadb.config',
     'chromadb.auth.registry',
-    'chromadb.api.segment'
+    'chromadb.api.segment',
+    'openai._base_client'
     ])
 
 
@@ -134,10 +135,6 @@ class GPTEngineerAPI:
                 try:
                     settings = GPTEngineerSettings.from_project(gpteng_path)
                     ai_logs = ["openai._base_client"]
-                    if settings.log_ai:
-                        enable_logs(ai_logs)
-                    else:
-                        disable_logs(ai_logs)
                 except Exception as ex:
                     logger.error(f"Error loading settings {gpteng_path}: {ex}")
             request.state.settings = settings        
@@ -241,11 +238,7 @@ class GPTEngineerAPI:
         def api_run_improve(chat: Chat, request: Request):
             settings = request.state.settings
             # Perform search on Knowledge using the input
-            # Return the search results as response
-            if chat.mode == 'live':
-                run_live_edit(chat=chat, settings=settings)
-            else:
-                improve_existing_code(chat=chat, settings=settings)
+            improve_existing_code(chat=chat, settings=settings)
             ChatManager(settings=settings).save_chat(chat)
             return chat
 
@@ -356,8 +349,11 @@ class GPTEngineerAPI:
             doc = extract_tags(settings=settings, doc=doc)
             return doc.__dict__
 
-        @app.get("/code-server/file/open/:file_name")
-        def api_list_chats(file_name: str):
+        @app.get("/api/code-server/file/open")
+        def api_list_chats(request: Request):
+            file_name = request.query_params.get("file_name")
+            if not file_name.startswith(request.state.settings.project_path):
+                file_name = f"{request.state.settings.project_path}{file_name}"
             os.system(f"code-server -r {file_name}")
 
         @app.get("/api/wiki")

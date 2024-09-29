@@ -6,9 +6,11 @@ import ChatEntry from '@/components/ChatEntry.vue'
   <div class="flex flex-col gap-2 grow">
     <div class="grid gap-2 grid-cols-3 mt-2" v-if="chat.file_list?.length">
       <div v-for="file in chat.file_list" :key="file" :data-tip="file"
-        class="group badge badge-secondary tooltip flex gap-2 items-center">
+        class="group badge badge-secondary tooltip flex gap-2 items-center click"
+        @click="API.coder.openFile(file)"
+      >
         {{ file.split("/").reverse()[0] }}
-        <button class="btn btn-xs btn-circle" @click="$emit('remove-file', file)">
+        <button class="btn btn-xs btn-circle" @click.stop="$emit('remove-file', file)">
           <i class="fa-solid fa-trash-can"></i>
         </button>
       </div>
@@ -78,7 +80,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
         </ul>
       </div>
     </div>
-    <div :class="['flex flex-col bg-base-300 border rounded-md shadow', 
+    <div :class="['flex bg-base-300 border rounded-md shadow', 
           multiline ? 'flex-col' : '',
           onDraggingOverInput ? 'bg-warning/10': '']"
         @dragover.prevent="onDraggingOverInput = true"
@@ -90,7 +92,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
         editMessageId !== null ? 'border-warning': ''
       ]" contenteditable="true"
         ref="editor" @input="onMessageChange"
-        @paste.prevent="onContentPaste"
+        @paste="onContentPaste"
         @keydown.esc.stop="onResetEdit"
       >
       </div>
@@ -190,10 +192,16 @@ export default {
       return this.chat?.messages?.filter(m => !m.hide || this.showHidden)
     },
     multiline () {
-      return this.editorText.indexOf("\n") !== -1
+      return this.editorText?.split("\n").length > 1
     },
     allImages () {
       return this.images
+    },
+    messageText () {
+      return this.editorText
+    },
+    canPost () {
+      return this.messageText || this.images?.length
     }
   },
   watch: {
@@ -279,7 +287,7 @@ export default {
     },
     postMyMessage () {
       const message = this.editor.innerText
-      if (message || this.images?.length) {
+      if (this.canPost) {
         this.addMessage({
           role: 'user',
           content: message,
