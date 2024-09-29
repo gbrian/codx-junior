@@ -331,6 +331,15 @@ class Knowledge:
       
       return documents
 
+    def doc_from_project_file(self, file_path):
+        file_path = f"{self.settings.project_path}/{file_path}"
+
+        with open(file_path, 'r') as f:
+            metadata = {
+              "source": file_path
+            }
+            return Document(page_content=f.read(), metadata=metadata)      
+
     def doc_and_summary(self, doc):
       summary = self.build_doc_summary(doc)
       doc.metadata = { **doc.metadata, **summary }

@@ -69,8 +69,12 @@ import Markdown from './Markdown.vue'
           </div>
         </div>
         <div class="grid gap-2 grid-cols-3 mt-2">
-          <div v-for="file in message.files" :key="file" :data-tip="file" class="badge badge-info badge-sm tooltip">
+          <div v-for="file in message.files" :key="file" :data-tip="file"
+            class="badge badge-primary tooltip flex gap-2 items-center">
             {{ file.split("/").reverse()[0] }}
+            <button class="btn btn-xs btn-circle" @click="$emit('add-file-to-chat', file)">
+              <i class="fa-solid fa-file-circle-plus"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -89,7 +93,7 @@ md.use(emoji)
 md.use(highlight)
 
 export default {
-  props: ['message'],
+  props: ['chat', 'message'],
   data () {
     return {
       codeBlocks: [],

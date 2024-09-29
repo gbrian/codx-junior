@@ -86,7 +86,7 @@ export default {
       return {
         id: -1,
         name: "New chat",
-        mode: 'chat',
+        mode: 'task',
         board: this.board,
         column: "New column",
         column_index: 10000,

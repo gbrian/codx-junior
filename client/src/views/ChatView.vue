@@ -72,6 +72,12 @@ import PRView from '../views/PRView.vue'
             </div>
             <div class="grow"></div>
             <div class="flex gap-2 items-center">
+              <button :class="['btn btn-xs flex items-center', livePreview && 'btn-info']"
+                @click="livePreview = !livePreview"
+              >
+                <i class="fa-brands fa-chromecast"></i>
+                Live session
+              </button>
               <div class="dropdown -mt-1">
                 <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chat.mode }}</div>
                 <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -85,12 +91,6 @@ import PRView from '../views/PRView.vue'
                     <a class="flex items-center">
                       <i class="fa-regular fa-file-code"></i>
                       Task definition
-                    </a>
-                  </li>
-                  <li @click="chat.mode = 'live'">
-                    <a class="flex items-center">
-                      <i class="fa-brands fa-chromecast"></i>
-                      Live session
                     </a>
                   </li>
                 </ul>
@@ -149,8 +149,10 @@ import PRView from '../views/PRView.vue'
         </div>
         <Chat :chat="chat"
           :showHidden="showHidden"
+          :livePreview="livePreview"
           @refresh-chat="loadChat(chat.name)"
           @add-file="onAddFile"
+          @remove-file="onRemoveFile"
           @delete-message="onRemoveMessage"
           @save="saveChat"
         v-if="chat"/>
@@ -197,7 +199,8 @@ export default {
       addNewFile: null,
       showHidden: false,
       showPRView: false,
-      confirmDelete: false
+      confirmDelete: false,
+      livePreview: false
     }
   },
   async created () {
@@ -262,8 +265,7 @@ export default {
     },
     async removeFileFromContext () {
       this.chat.profiles = this.chat.profiles?.filter(f => f !== this.showFile) 
-      this.chat.file_list = this.chat.file_list?.filter(f => f !== this.showFile)
-      await this.saveChat()
+      this.onRemoveFile(this.showFile)
       await this.loadChat(this.chat.name)
       this.showFile = null
     },
@@ -274,9 +276,18 @@ export default {
       this.showFile = null
       this.addFile = null
     },
-    onAddFile (file) {
+    async onAddFile (file) {
+      if (this.chat.file_list?.includes(file)) {
+        return
+      }
       this.chat.file_list = [...(this.chat.file_list||[]), file]
       this.addNewFile = null
+      await this.saveChat()
+    },
+    async onRemoveFile (file) {
+      this.chat.file_list = (this.chat.file_list||[]).filter(f => f !== file)
+      this.addNewFile = null
+      await this.saveChat()
     },
     async addProfile (profile) {
       if (this.chat.profiles?.find(f => f.endsWith(profile))) {

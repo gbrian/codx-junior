@@ -673,12 +673,25 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
     context = ""
     documents = []
     coding_profiles = []
+    chat_files = chat.file_list or []
+    ignore_documents = [] + chat_files
+    if chat.name:
+        ignore_documents.append(f"/{chat.name}")
+    
     if use_knowledge:
-        ignore_documents = [f"/{chat.name}"] if chat.name else []
         affected_documents, doc_file_list = select_afefcted_documents_from_knowledge(ai=ai,
                                                         query=query,
                                                         settings=settings,
                                                         ignore_documents=ignore_documents)
+
+        if chat_files:
+            knowledge = Knowledge(settings=settings)
+            chat_documents = [knowledge.doc_from_project_file(file_path) for file_path in chat_files]
+            
+            for doc in documents:
+                doc_context = document_to_context(doc)
+                context = context + f"{doc_context}\n"
+
         if affected_documents:
             documents = affected_documents
             file_list = doc_file_list
@@ -686,11 +699,12 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
             for doc in documents:
                 doc_context = document_to_context(doc)
                 context = context + f"{doc_context}\n"
-
+            """
             coding_profiles = profile_manager.get_coding_profiles(doc_file_list)
             logger.info(f"Coding profgiles: {coding_profiles} - files: {doc_file_list}")
             for profile in coding_profiles:
                 context = context + f"coding profile {profile['content']}\n"
+            """
 
         doc_length = len(documents) if documents else 0
         logger.info(f"chat_with_project found {doc_length} relevant documents")
@@ -773,7 +787,6 @@ def update_engine():
       return ex
 
 def run_live_edit(settings: GPTEngineerSettings, chat: Chat):
-    chat_with_project(settings=settings, chat=chat, use_knowledge=True)
     return improve_existing_code(settings=settings, chat=chat, apply_changes=True)
             
 def update_wiki(settings: GPTEngineerSettings, file_path: str):

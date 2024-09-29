@@ -4,6 +4,15 @@ import ChatEntry from '@/components/ChatEntry.vue'
 </script>
 <template>
   <div class="flex flex-col gap-2 grow">
+    <div class="grid gap-2 grid-cols-3 mt-2" v-if="chat.file_list?.length">
+      <div v-for="file in chat.file_list" :key="file" :data-tip="file"
+        class="group badge badge-secondary tooltip flex gap-2 items-center">
+        {{ file.split("/").reverse()[0] }}
+        <button class="btn btn-xs btn-circle" @click="$emit('remove-file', file)">
+          <i class="fa-solid fa-trash-can"></i>
+        </button>
+      </div>
+    </div>
     <div class="flex flex-col grow" v-if="livePreview">
       <div class="flex flex-col w-full grow p-1 bg-base-300">
         <div class="flex gap-2 items-center justify-between">
@@ -20,7 +29,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
         <iframe ref="iframe" :src="chat.live_url" class="w-full h-full bg-base-200" :style="previewStyle"></iframe>
       </div>
     </div>
-    <div class="flex flex-col grow" v-else>
+    <div class="flex flex-col grow">
       <div class="grow overflow-auto relative">
         <div class="absolute top-0 left-0 w-full h-full scroller">
           <div v-for="message in messages" :key="message.id">
@@ -31,13 +40,14 @@ import ChatEntry from '@/components/ChatEntry.vue'
               @run-edit="runEdit"
               @copy="onCopy(message)"
               @generate-code="onGenerateCode(message, $event)"
+              @add-file-to-chat="$emit('add-file', $event)"
               @image="imagePreview = $event"
             />
           </div>
           <div class="anchor" ref="anchor"></div>
         </div>
       </div>
-      <div class="badge my-2 animate-pulse" v-if="waiting">typing ...</div>
+      <div class="badge text-info my-2 animate-pulse" v-if="waiting">typing ...</div>
       <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
         <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2">
           <div class="flex p-1 items-center text-sky-600">
@@ -99,7 +109,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
           </div>
         </div>
         <div class="flex gap-2 items-center justify-end mt-1">
-          <button class="btn btn btn-sm btn-circle mb-1 btn-outline" @click="sendMessage" v-if="!livePreview">
+          <button class="btn btn btn-sm btn-circle mb-1 btn-outline" @click="sendMessage">
             <i class="fa-solid fa-comment"></i>
           </button>
           <button class="btn btn-warning btn-sm mb-1 btn-outline" @click="improveCode()">
@@ -147,7 +157,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'showHidden'],
+  props: ['chat', 'showHidden', 'livePreview'],
   data () {
     return {
       waiting: false,
@@ -174,16 +184,19 @@ export default {
       return this.$refs.editor
     },
     messages () {
-      return this.chat?.messages?.filter(m => !m.hide || this.showHidden)
+      const messages = this.chat?.messages?.filter(m => !m.hide || this.showHidden)
+      if (this.chat.mode === 'task') {
+        const userMessage = messages.reverse().find(m => !m.hide && m.role === 'user')
+        const taskMessage = messages.reverse().find(m => !m.hide && m.role === 'assistant')
+        return taskMessage ? [taskMessage]: [userMessage]
+      }
+      return messages
     },
     multiline () {
       return this.editorText.indexOf("\n") !== -1
     },
     allImages () {
       return this.images
-    },
-    livePreview () {
-      return this.chat?.mode === 'live'
     }
   },
   watch: {
