@@ -38,13 +38,13 @@ export default {
       settings: API.lastSettings
     };
   },
-  async created () {
+  async mounted () {
     await API.project.list()
     this.settings = API.lastSettings
   },
   computed: {
     allProjects () {
-      return API.lastSettings.projects
+      return this.settings.projects
     },
     projectName() {
       return this.settings.project_name;
