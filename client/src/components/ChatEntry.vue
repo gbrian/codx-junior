@@ -167,7 +167,7 @@ export default {
     toggleExpand(code) {
       const { parentNode } = code
       code._collapsed = !code._collapsed
-      const classes = ["h-20", "overflow-hidden"]
+      const classes = ["h-10", "overflow-hidden"]
       if (code._collapsed) {
         parentNode.classList.add(...classes)
       } else {

@@ -29,7 +29,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
         <iframe ref="iframe" :src="chat.live_url" class="w-full h-full bg-base-200" :style="previewStyle"></iframe>
       </div>
     </div>
-    <div class="flex flex-col grow">
+    <div class="flex flex-col grow" v-if="!livePreview">
       <div class="grow overflow-auto relative">
         <div class="absolute top-0 left-0 w-full h-full scroller">
           <div v-for="message in messages" :key="message.id">
@@ -109,7 +109,10 @@ import ChatEntry from '@/components/ChatEntry.vue'
           </div>
         </div>
         <div class="flex gap-2 items-center justify-end mt-1">
-          <button class="btn btn btn-sm btn-circle mb-1 btn-outline" @click="sendMessage">
+          <button class="btn btn btn-sm btn-circle mb-1 btn-outline" 
+            @click="sendMessage"
+            v-if="!livePreview"
+          >
             <i class="fa-solid fa-comment"></i>
           </button>
           <button class="btn btn-warning btn-sm mb-1 btn-outline" @click="improveCode()">
@@ -184,13 +187,7 @@ export default {
       return this.$refs.editor
     },
     messages () {
-      const messages = this.chat?.messages?.filter(m => !m.hide || this.showHidden)
-      if (this.chat.mode === 'task') {
-        const userMessage = messages.reverse().find(m => !m.hide && m.role === 'user')
-        const taskMessage = messages.reverse().find(m => !m.hide && m.role === 'assistant')
-        return taskMessage ? [taskMessage]: [userMessage]
-      }
-      return messages
+      return this.chat?.messages?.filter(m => !m.hide || this.showHidden)
     },
     multiline () {
       return this.editorText.indexOf("\n") !== -1
