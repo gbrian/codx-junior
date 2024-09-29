@@ -71,12 +71,30 @@ import PRView from '../views/PRView.vue'
               </div>
             </div>
             <div class="grow"></div>
-            <div class="flex gap-2">
-              <select v-model="chat.mode" class="select select-xs select-bordered">
-                <option value="chat">chat</option>
-                <option selected value="task">task</option>
-                <option value="live">live</option>
-              </select>
+            <div class="flex gap-2 items-center">
+              <div class="dropdown -mt-1">
+                <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chat.mode }}</div>
+                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                  <li @click="chat.mode = 'chat'">
+                    <a class="flex items-center">
+                      <i class="fa-regular fa-comments"></i>
+                      Chat
+                    </a>
+                  </li>
+                  <li @click="chat.mode = 'task'">
+                    <a class="flex items-center">
+                      <i class="fa-regular fa-file-code"></i>
+                      Task definition
+                    </a>
+                  </li>
+                  <li @click="chat.mode = 'live'">
+                    <a class="flex items-center">
+                      <i class="fa-brands fa-chromecast"></i>
+                      Live session
+                    </a>
+                  </li>
+                </ul>
+              </div>
               <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
                 <i class="fa-solid fa-floppy-disk"></i>
               </button>

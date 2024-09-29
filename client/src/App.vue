@@ -169,7 +169,7 @@ export default {
       this.liveRequests = API.liveRequests
       this.lastSettings = API.lastSettings
     }, 200)
-    this.getAllProjects()
+    await this.getAllProjects(); // Fetch all projects
   },
   computed: {
     validProject () {

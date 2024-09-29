@@ -68,7 +68,8 @@ from codx.junior.engine import (
     check_project,
     extract_tags,
     get_keywords,
-    find_all_projects
+    find_all_projects,
+    run_live_edit
 )
 
 from codx.junior.scheduler import add_work
@@ -241,7 +242,10 @@ class GPTEngineerAPI:
             settings = request.state.settings
             # Perform search on Knowledge using the input
             # Return the search results as response
-            improve_existing_code(chat=chat, settings=settings)
+            if chat.mode == 'live':
+                run_live_edit(chat=chat, settings=settings)
+            else:
+                improve_existing_code(chat=chat, settings=settings)
             ChatManager(settings=settings).save_chat(chat)
             return chat
 

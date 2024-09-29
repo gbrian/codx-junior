@@ -1,124 +1,76 @@
 <template>
-  <div class="bg-gray-900 text-white">
-    <div class="container mx-auto p-4">
-      <div class="flex flex-col items-center">
-        <img src="http://path/to/project-icon.jpg" alt="Project Icon" class="rounded-full w-36 h-36">
-        <h1 class="text-2xl font-bold mt-4">Gustavo Brian</h1>
-        <p class="text-gray-400">@gbrian</p>
-        <button class="btn btn-primary mt-2">Edit profile</button>
-        <div class="flex mt-4">
-          <span class="mr-4">28 followers</span>
-          <span>15 following</span>
-        </div>
-        <div class="mt-4 text-center">
-          <p>Palma de Mallorca, Spain</p>
-          <p>gustavo.brian@gmail.com</p>
-          <p><a href="https://es.linkedin.com/in/gustavo-brian-núñez-segade-a5710912" class="text-blue-500">LinkedIn</a></p>
-        </div>
-      </div>
-
-      <div class="mt-8">
-        <h2 class="text-xl font-bold">Achievements</h2>
-        <div class="flex justify-around mt-4">
-          <img src="http://path/to/achievement1.jpg" alt="Achievement 1" class="w-12 h-12">
-          <img src="http://path/to/achievement2.jpg" alt="Achievement 2" class="w-12 h-12">
-          <img src="http://path/to/achievement3.jpg" alt="Achievement 3" class="w-12 h-12">
-        </div>
-      </div>
-
-      <div class="mt-8">
-        <h2 class="text-xl font-bold">Popular repositories</h2>
-        <div class="grid grid-cols-2 gap-4 mt-4">
-          <div class="bg-gray-800 p-4 rounded">
-            <h3 class="text-lg font-semibold">grafana-simple-sql-datasource</h3>
-            <p class="text-gray-400">Grafana SQL datasource</p>
-            <div class="flex items-center mt-2">
-              <span class="text-yellow-500">JavaScript</span>
-              <span class="ml-auto">62 stars</span>
-              <span class="ml-2">20 forks</span>
+  <div class="profile-container flex flex-col items-center p-4">
+    <img :src="projectIcon" alt="Project Icon" class="rounded-full w-36 h-36" />
+    <h1 class="text-2xl font-bold mt-4">{{ projectName }}</h1>
+    <p class="text-lg mt-2">{{ projectDescription }}</p>
+    <button @click="editProjectSettings" class="btn btn-primary mt-4">
+      Edit Project Settings
+    </button>
+    
+    <div class="projects-list mt-8 w-full">
+      <h2 class="text-xl font-bold mb-4">Projects</h2>
+      <ul>
+        <li v-for="project in allProjects" :key="project.gpteng_path" class="mb-2">
+          <div class="flex items-center gap-4 p-2 border rounded-md">
+            <img :src="project.project_icon" alt="Project Icon" class="w-12 h-12 rounded-full" />
+            <div>
+              <h3 class="text-lg font-bold">{{ project.project_name }}</h3>
+              <p>{{ project.project_description }}</p>
             </div>
           </div>
-          <div class="bg-gray-800 p-4 rounded">
-            <h3 class="text-lg font-semibold">grafana-echart-panel</h3>
-            <p class="text-gray-400">Grafana plugin panel for Echart</p>
-            <div class="flex items-center mt-2">
-              <span class="text-yellow-500">JavaScript</span>
-              <span class="ml-auto">42 stars</span>
-              <span class="ml-2">18 forks</span>
-            </div>
-          </div>
-          <div class="bg-gray-800 p-4 rounded">
-            <h3 class="text-lg font-semibold">grafana-timelon-datasource</h3>
-            <p class="text-gray-400">ELK Timelion's data source for Grafana</p>
-            <div class="flex items-center mt-2">
-              <span class="text-yellow-500">JavaScript</span>
-              <span class="ml-auto">15 stars</span>
-              <span class="ml-2">12 forks</span>
-            </div>
-          </div>
-          <div class="bg-gray-800 p-4 rounded">
-            <h3 class="text-lg font-semibold">bibot</h3>
-            <p class="text-gray-400">Business Intelligence Bot</p>
-            <div class="flex items-center mt-2">
-              <span class="text-yellow-500">JavaScript</span>
-              <span class="ml-auto">8 stars</span>
-              <span class="ml-2">5 forks</span>
-            </div>
-          </div>
-          <div class="bg-gray-800 p-4 rounded">
-            <h3 class="text-lg font-semibold">grafana-hetzner-datasource</h3>
-            <p class="text-gray-400">Grafana plugin datasource</p>
-            <div class="flex items-center mt-2">
-              <span class="text-yellow-500">JavaScript</span>
-              <span class="ml-auto">6 stars</span>
-              <span class="ml-2">1 fork</span>
-            </div>
-          </div>
-          <div class="bg-gray-800 p-4 rounded">
-            <h3 class="text-lg font-semibold">Travel-aipi</h3>
-            <p class="text-gray-400">AI powered Travel API</p>
-            <div class="flex items-center mt-2">
-              <span class="text-blue-500">Python</span>
-              <span class="ml-auto">2 stars</span>
-              <span class="ml-2">4 forks</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="mt-8">
-        <h2 class="text-xl font-bold">170 contributions in the last year</h2>
-        <div class="bg-gray-800 p-4 rounded mt-4">
-          <!-- Contribution graph implementation -->
-        </div>
-      </div>
-
-      <div class="mt-8">
-        <h2 class="text-xl font-bold">Contribution activity</h2>
-        <div class="bg-gray-800 p-4 rounded mt-4">
-          <!-- Contribution activity implementation -->
-        </div>
-      </div>
+        </li>
+      </ul>
     </div>
   </div>
 </template>
 
 <script>
-import ProfileHeader from '@/components/board/ProfileHeader.vue';
-import Achievements from '@/components/board/Achievements.vue';
-import LinkedProjects from '@/components/board/LinkedProjects.vue';
-import ContributionGraph from '@/components/board/ContributionGraph.vue';
-import ContributionActivity from '@/components/board/ContributionActivity.vue';
-import SettingsAndCustomization from '@/components/board/SettingsAndCustomization.vue';
+import { API } from '../api/api';
 
 export default {
-  components: {
-    ProfileHeader,
-    Achievements,
-    LinkedProjects,
-    ContributionGraph,
-    ContributionActivity,
-    SettingsAndCustomization
+  data() {
+    return {
+      allProjects: [] // Initialize empty array
+    };
+  },
+  async mounted() {
+    await this.getAllProjects(); // Fetch all projects
+  },
+  methods: {
+    async getAllProjects() {
+      const { data } = await API.project.list();
+      this.allProjects = data; // Update the projects list
+    },
+    editProjectSettings() {
+      // Logic to edit project settings
+    }
+  },
+  computed: {
+    projectName() {
+      return API.lastSettings.project_name;
+    },
+    projectIcon() {
+      return API.lastSettings.project_icon;
+    },
+    projectDescription() {
+      return API.lastSettings.project_description;
+    }
   }
-}
+};
 </script>
+
+<style scoped>
+.profile-container {
+  background: #1a202c; /* Dark background */
+  color: white; /* White text */
+  border-radius: 8px; /* Rounded corners */
+  padding: 16px; /* Padding around the content */
+}
+.projects-list ul {
+  list-style-type: none; /* Remove default list styling */
+  padding: 0;
+}
+.projects-list li {
+  margin-bottom: 16px; /* Space between list items */
+}
+</style>

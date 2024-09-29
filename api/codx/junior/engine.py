@@ -602,7 +602,10 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
         task = last_ai_message.content if is_refine and last_ai_message else ""
         if is_refine:
             user_message = Message(role="user", content=
-              f"""Update curren task definition:
+              f"""Update curren task definition based on user's comments and context.
+              We are defining a task so we want to be clear and concise.
+              Avoid adding code examples unless explicitely been asked by user's comment.
+              If you have doubts or lack of context add a "DOUBTS" sections at the end for the user.
               ```md
               {task}
               ```
@@ -769,8 +772,7 @@ def update_engine():
       logger.exception(ex)
       return ex
 
-def run_live_edit(settings: GPTEngineerSettings, live_edit: LiveEdit):
-    chat = ChatManager(settings=settings).load_chat(live_edit.chat_name)
+def run_live_edit(settings: GPTEngineerSettings, chat: Chat):
     chat_with_project(settings=settings, chat=chat, use_knowledge=True)
     return improve_existing_code(settings=settings, chat=chat, apply_changes=True)
             

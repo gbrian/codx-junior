@@ -5,9 +5,19 @@ import ChatEntry from '@/components/ChatEntry.vue'
 <template>
   <div class="flex flex-col gap-2 grow">
     <div class="flex flex-col grow" v-if="livePreview">
-      <div class="flex flex-col w-full grow">
-        <input type="text" class="input input-bordered input-xs w-full" placeholder="http://..." v-model="chat.live_url" />
-        <iframe ref="iframe" :src="chat.live_url" class="w-full h-full bg-base-200"></iframe>
+      <div class="flex flex-col w-full grow p-1 bg-base-300">
+        <div class="flex gap-2 items-center justify-between">
+          <input type="text" class="input input-bordered input-xs w-full" placeholder="http://..." v-model="chat.live_url" />
+          <div class="flex gap-2 items-center justify-between">
+            <button @click="zoomOut" class="btn btn-xs">
+              <i class="fa-solid fa-magnifying-glass-minus"></i>
+            </button>
+            <button @click="zoomIn" class="btn btn-xs">
+              <i class="fa-solid fa-magnifying-glass-plus"></i>
+            </button>
+          </div>
+        </div>
+        <iframe ref="iframe" :src="chat.live_url" class="w-full h-full bg-base-200" :style="previewStyle"></iframe>
       </div>
     </div>
     <div class="flex flex-col grow" v-else>
@@ -58,45 +68,49 @@ import ChatEntry from '@/components/ChatEntry.vue'
         </ul>
       </div>
     </div>
-    <div class="carousel rounded-box">
-      <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
-        <div class="bg-auto bg-no-repeat bg-center h-28 w-28 bg-base-300 mr-4"
-          :style="`background-image: url(${image.src})`" @click="imagePreview = image">
-        </div>
-        <p class="text-xs">{{ image.alt }}</p>
-        <button class="btn btn-xs btn-circle btn-error absolute right-2 top-2"
-          @click="removeImage(ix)"
-        >
-          X
-        </button>
-      </div>
-    </div>
-    <div :class="['flex gap-2 p-2 bg-base-300 border rounded-md shadow', multiline ? 'flex-col' : '']">
-      <div :class="['max-h-40 w-full max-w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none',
-        editMessageId !== null ? 'border-error': '',
-        editMessageId !== null ? 'border-warning': '',
-        onDraggingOverInput ? 'bg-warning/10': ''
-      ]" contenteditable="true"
-        ref="editor" @input="onMessageChange"
-        @paste.prevent="onContentPaste"
+    <div :class="['flex flex-col bg-base-300 border rounded-md shadow', 
+          multiline ? 'flex-col' : '',
+          onDraggingOverInput ? 'bg-warning/10': '']"
         @dragover.prevent="onDraggingOverInput = true"
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop"
+    >
+      <div :class="['max-h-40 w-full max-w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none',
+        editMessageId !== null ? 'border-error': '',
+        editMessageId !== null ? 'border-warning': ''
+      ]" contenteditable="true"
+        ref="editor" @input="onMessageChange"
+        @paste.prevent="onContentPaste"
         @keydown.esc.stop="onResetEdit"
       >
       </div>
-      <div class="flex gap-2 items-center justify-end mt-1">
-        <button class="btn btn btn-sm btn-circle mb-1 btn-outline" @click="sendMessage" v-if="!livePreview">
-          <i class="fa-solid fa-comment"></i>
-        </button>
-        <button class="btn btn-warning btn-sm mb-1 btn-outline" @click="livePreview ? liveEdit() : improveCode()">
-          <i class="fa-solid fa-code"></i> Code
-        </button>
-        <button :class="['btn btn-sm mb-1 btn-outline',
-            testError ? 'btn-error' : 'btn-info'
-          ]" @click="testProject" v-if="API.lastSettings.script_test">
-          <i class="fa-solid fa-flask"></i> Test
-        </button>
+      <div class="flex justify-between items-end px-2">
+        <div class="carousel rounded-box">
+          <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
+            <div class="bg-contain bg-no-repeat bg-center h-20 w-20 bg-base-300 mr-4"
+              :style="`background-image: url(${image.src})`" @click="imagePreview = image">
+            </div>
+            <p class="text-xs">{{ image.alt }}</p>
+            <button class="btn btn-xs btn-circle btn-error absolute right-0 top-0"
+              @click="removeImage(ix)"
+            >
+              X
+            </button>
+          </div>
+        </div>
+        <div class="flex gap-2 items-center justify-end mt-1">
+          <button class="btn btn btn-sm btn-circle mb-1 btn-outline" @click="sendMessage" v-if="!livePreview">
+            <i class="fa-solid fa-comment"></i>
+          </button>
+          <button class="btn btn-warning btn-sm mb-1 btn-outline" @click="improveCode()">
+            <i class="fa-solid fa-code"></i> Code
+          </button>
+          <button :class="['btn btn-sm mb-1 btn-outline',
+              testError ? 'btn-error' : 'btn-info'
+            ]" @click="testProject" v-if="API.lastSettings.script_test">
+            <i class="fa-solid fa-flask"></i> Test
+          </button>
+        </div>
       </div>
     </div>
     <div class="flex mt-2 w-full p-1 rounded-md bg-warning text-neutral" v-if="editMessageId != null">
@@ -115,7 +129,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
     <modal v-if="imagePreview">
       <div class="flex flex-col gap-2">
         <div class="text-2xl">Upload image</div>
-        <img class="h-30 max-w-full" :src="imagePreview.src" />
+        <div class="bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full" :style="`background-image: url(${imagePreview.src})`"></div>
         <input class="input input-bordered" v-model="imagePreview.alt" placeholder="Add image info" />
         <div class="flex justify-end gap-2">
           <button class="btn" @click="imagePreview = null">
@@ -149,7 +163,10 @@ export default {
       editorText: "",
       imagePreview: null,
       onDraggingOverInput: false,
-      testError: null
+      testError: null,
+      previewStyle: {
+        zoom: 0.6
+      }
     }
   },
   computed: {
@@ -179,6 +196,12 @@ export default {
     }
   },
   methods: {
+    zoomIn() {
+      this.previewStyle.zoom += 0.1;
+    },
+    zoomOut() {
+      this.previewStyle.zoom -= 0.1;
+    },
     setEditorText (text) {
       this.editor.innerText = text
       this.onMessageChange()
@@ -211,10 +234,6 @@ export default {
           }
       })
       .catch(console.error);
-    },
-    async liveEdit () {
-      await this.sendMessage()
-      this.improveCode()
     },
     async improveCode () {
       this.postMyMessage()
