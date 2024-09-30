@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field
 
+
 from typing import List, Dict, Union
 
 from codx.junior.settings import GPTEngineerSettings
@@ -95,3 +96,15 @@ class LiveEdit(BaseModel):
     html: str
     url: str
     message: str
+
+class OpenAISettings(BaseModel):
+    openai_api_url: str = Field(default=None)
+    openai_api_key: str = Field(default=None)
+
+class GlobalSettings(BaseModel):
+    openai: OpenAISettings = Field(default=OpenAISettings())
+    log_ai: bool = Field(default=False)
+    projects_root_path: str = Field(default='/codx-junior/projects')
+    ai_model: str = Field(default="gpt4o")
+    ai_temperature: str = Field(default="0.8")
+

@@ -1,18 +1,19 @@
 import axios from 'axios'
 
-const gpteng_key = window.location.search
+const codx_key = window.location.search
                     .slice(1).split("&")
                     .map(p => p.split("="))
-                    .find(([k]) => k === "gpteng_path")
+                    .find(([k]) => k === "codx_path")
 
-const query = () => `gpteng_path=${encodeURIComponent(API.lastSettings?.gpteng_path)}`
+const query = () => `codx_path=${encodeURIComponent(API.lastSettings?.codx_path)}`
 const prepareUrl = (url) => {
-  if (url.indexOf("gpteng_path") === -1) {
+  if (url.indexOf("codx_path") === -1) {
     let [path, params] = url.split("?")
     if (params) {
-      params += "&"
+      params += `&${query()}`
+    } else {
+      params = query()
     }
-    params += query()
     url =`${path}?${params}`
     console.log("Prepare url", url)
     return url
@@ -53,28 +54,32 @@ export const API = {
   project: {
     async list () {
       const res = await API.get('/api/projects')
-      API.lastSettings.projects = res.data
+      if (API.lastSettings) {
+        API.allProjects = res.data
+      }
       return res
     },
     create(projectPath) {
-      return API.post('/api/projects?project_path=' + projectPath, {})
+      return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath), {})
     },
     delete() {
-      return API.del('/api/projects?')
+      localStorage.setItem("API_SETTINGS", "")
+      API.del('/api/projects')
+      API.lastSettings = null
     },
     watch () {
-      return API.get('/api/project/watch?')
+      return API.get('/api/project/watch')
     },
     unwatch () {
-      return API.get('/api/project/unwatch?')
+      return API.get('/api/project/unwatch')
     },
     test () {
-      return API.get('/api/project/script/test?')
+      return API.get('/api/project/script/test')
     }
   },
   settings: {
     async read () {
-      const res = await API.get('/api/settings?')
+      const res = await API.get('/api/settings')
       API.lastSettings = res.data
       if (API.lastSettings) {
         localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
@@ -87,17 +92,25 @@ export const API = {
     async save() {
       await API.put('/api/settings?', API.lastSettings)
       return API.settings.read()
+    },
+    global: {
+      read() {
+        return API.get('/api/global/settings')
+      },
+      write(settings) {
+        return API.post('/api/global/settings', settings)
+      }
     }
   },
   knowledge: {
     status () {
-      return API.get('/api/knowledge/status?')
+      return API.get('/api/knowledge/status')
     },
     reload () {
-      return API.get('/api/knowledge/reload?')
+      return API.get('/api/knowledge/reload')
     },
     reloadFolder (path) {
-      return API.post(`/api/knowledge/reload-path?`, { path })
+      return API.post(`/api/knowledge/reload-path`, { path })
     },
     search ({ 
         searchTerm: search_term,
@@ -106,7 +119,7 @@ export const API = {
         cutoffScore: document_cutoff_score,
         documentCount: document_count
     }) {
-      return API.post(`/api/knowledge/reload-search?`, {
+      return API.post(`/api/knowledge/reload-search`, {
           search_term,
           search_type,
           document_search_type,
@@ -115,25 +128,25 @@ export const API = {
       })
     },
     delete (sources) {
-      return API.post(`/api/knowledge/delete?`, { sources })  
+      return API.post(`/api/knowledge/delete`, { sources })  
     },
     deleteAll() {
-      return API.del(`/api/knowledge/delete?`)  
+      return API.del(`/api/knowledge/delete`)  
     },
     keywords() {
-      return API.get(`/api/knowledge/keywords?`)
+      return API.get(`/api/knowledge/keywords`)
     },
     searchKeywords (searchQuery) {
-      return API.get(`/api/knowledge/keywords?query=${searchQuery}&`)
+      return API.get(`/api/knowledge/keywords?query=${searchQuery}`)
     }
   },
   chats: {
     async list () {
-      const { data } = await API.get('/api/chats?')
+      const { data } = await API.get('/api/chats')
       return data
     },
     async loadChat (name) {
-      const { data } = await API.get(`/api/chats?chat_name=${name}&`)
+      const { data } = await API.get(`/api/chats?chat_name=${name}`)
       return data
     },
     async newChat () {
@@ -148,10 +161,10 @@ export const API = {
       return chat
     },
     save (chat, chatInfoOnly) {
-      return API.put(`/api/chats?chatonly=${chatInfoOnly ? 1 : 0}&`, chat)
+      return API.put(`/api/chats?chatonly=${chatInfoOnly ? 1 : 0}`, chat)
     },
     delete(chatName) {
-      return API.del(`/api/chats?chat_name=${chatName}&`)
+      return API.del(`/api/chats?chat_name=${chatName}`)
     }
   },
   run: {
@@ -167,16 +180,16 @@ export const API = {
   },
   profiles: {
     list () {
-      return API.get('/api/profiles?')
+      return API.get('/api/profiles')
     },
     load (name) {
-      return API.get(`/api/profiles/${name}?`)
+      return API.get(`/api/profiles/${name}`)
     },
     save (profile) {
-      return API.post(`/api/profiles?`, profile)
+      return API.post(`/api/profiles`, profile)
     },
     async delete (name) {
-      await API.delete(`/api/profiles/${name}?`)
+      await API.delete(`/api/profiles/${name}`)
       API.lastSettings = null
     }
   },
@@ -189,44 +202,45 @@ export const API = {
     async upload (file) {
       let formData = new FormData();
       formData.append("file", file);
-      const { data: url } = await API.post(`/api/images?`, formData)
+      const { data: url } = await API.post(`/api/images`, formData)
       return window.location.origin + url
     }
   },
   wiki: {
     read (path) {
-      return API.get(`/api/wiki?file_path=${path}&`)
+      return API.get(`/api/wiki?file_path=${path}`)
     }
   },
   engine: {
     update () {
-      return API.get('/api/update?')
+      return API.get('/api/update')
     }
   },
-  async init (gpteng_path) {
+  async init (codx_path) {
     API.liveRequests++
-    this.gpteng_path = gpteng_path
-    if (gpteng_path) {
+    this.codx_path = codx_path
+    if (codx_path) {
       const { data: projects } = await API.project.list()
-      API.lastSettings = projects.find(p => p.gpteng_path === gpteng_path)
+      API.lastSettings = projects.find(p => p.codx_path === codx_path)
       if (API.lastSettings) {
-        localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
+        localStorage.setItem("API_CODX_PATH", API.lastSettings.codx_path)
       }
-      API.lastSettings.projects = projects
+      API.allProjects = projects
     } else {
-      const settings = localStorage.getItem("API_SETTINGS")
+      const codx_path = localStorage.getItem("API_CODX_PATH")
       try {
-        API.lastSettings = JSON.parse(settings)
         const { data: projects } = await API.project.list()
-        API.lastSettings.projects = projects
+        API.allProjects = projects
+        API.lastSettings = projects.find(p => p.codx_path === codx_path) ||
+                              projects[0]
       } catch (ex) {
         console.error("Invalid settings")
       }
     }
     API.liveRequests--
-    console.log("API init", gpteng_path, API.lastSettings)
+    console.log("API init", codx_path, API.lastSettings)
   }
 }
-const gpteng_path = decodeURIComponent(gpteng_key ? gpteng_key[1] : "")
-API.init(gpteng_path)
+const codx_path = decodeURIComponent(codx_key ? codx_key[1] : "")
+API.init(codx_path)
 window.API = API

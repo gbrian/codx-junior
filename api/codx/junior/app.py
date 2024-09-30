@@ -48,7 +48,8 @@ from codx.junior.model import (
     KnowledgeDeleteSources,
     Profile,
     Document,
-    LiveEdit
+    LiveEdit,
+    GlobalSettings
 )
 
 from codx.junior.settings import GPTEngineerSettings 
@@ -72,7 +73,9 @@ from codx.junior.engine import (
     extract_tags,
     get_keywords,
     find_all_projects,
-    run_live_edit
+    run_live_edit,
+    read_global_settings,
+    write_global_settings,
 )
 
 from codx.junior.scheduler import add_work
@@ -87,7 +90,7 @@ def process_projects_changes():
         try:
             check_project_changes(settings=settings)
         except Exception as ex:
-            logger.exception(f"Processing {gpteng_path} error: {ex}")
+            logger.exception(f"Processing {codx_path} error: {ex}")
             pass
 
 logger.info("Starting process_projects_changes job")
@@ -132,14 +135,25 @@ class GPTEngineerAPI:
         async def add_gpt_engineer_settings(request: Request, call_next):
             logger.info("FASTAPI::add_process_time_header")
             logger.info(f"Request {request.url}")
-            gpteng_path = request.query_params.get("gpteng_path")
+            codx_path = request.query_params.get("codx_path")
             settings = None
-            if gpteng_path:
+            if codx_path:
                 try:
-                    settings = GPTEngineerSettings.from_project(gpteng_path)
+                    settings = GPTEngineerSettings.from_project(codx_path)
+                    global_settings = read_global_settings()
+                    if global_settings:
+                        if not settings.openai_api_base:
+                            settings.openai_api_base = global_settings.openai.openai_api_url
+                        if not settings.openai_api_key:
+                            settings.openai_api_key = global_settings.openai.openai_api_key
+                        if not settings.model:
+                            settings.model = global_settings.ai_model
+                        if not settings.temperature:
+                            settings.model = global_settings.ai_temperature
+
                     ai_logs = ["openai._base_client"]
                 except Exception as ex:
-                    logger.error(f"Error loading settings {gpteng_path}: {ex}")
+                    logger.error(f"Error loading settings {codx_path}: {ex}")
             request.state.settings = settings        
             if not settings:
                 logger.info("Request without settings")
@@ -273,18 +287,6 @@ class GPTEngineerAPI:
             
             return api_settings_check(request)
 
-        @app.get("/api/project/create")
-        def api_project_create(request: Request):
-            project_path = request.query_params.get("project_path")
-            if not project_path or not os.path.isdir(project_path):
-                return
-            settings = GPTEngineerSettings()
-            settings.gpteng_path = f"{project_path}/.gpteng"
-            settings.project_path = project_path
-            logger.info(f"/api/project/create project_path: {project_path}")
-            create_project(settings=settings)
-            return settings
-
         @app.get("/api/profiles")
         def api_list_profile(request: Request):
             settings = request.state.settings
@@ -320,19 +322,13 @@ class GPTEngineerAPI:
             try:
                 settings = GPTEngineerSettings.from_project(project_path)
             except:
-                settings = GPTEngineerSettings()
-                settings.project_path = project_path
-                settings.project_name = settings.project_path.split("/")[-1] 
-                settings.gpteng_path = f"{settings.project_path}/.gpteng"
-                settings.save_project()
-                settings = GPTEngineerSettings.from_project(settings.gpteng_path)
-            return settings
+                return create_project(project_path=project_path)
         
         @app.delete("/api/projects")
         def api_project_delete(request: Request):
             settings = request.state.settings
-            shutil.rmtree(settings.gpteng_path)
-            logger.error(f"PROJECT REMOVED {settings.gpteng_path}")
+            shutil.rmtree(settings.codx_path)
+            logger.error(f"PROJECT REMOVED {settings.codx_path}")
             return { "ok": 1 }
         
         @app.get("/api/project/unwatch")
@@ -371,6 +367,14 @@ class GPTEngineerAPI:
                   return Response(content=f.read(), media_type="text/html")
             except:
                 return Response(content="# No project wiki...yet!", media_type="text/html")
+
+        @app.get("/api/global/settings")
+        def api_read_global_settings():
+            return read_global_settings()
+        
+        @app.post("/api/global/settings")
+        def api_write_global_settings(global_settings: GlobalSettings):
+            return write_global_settings(global_settings=global_settings)
 
         return app
             

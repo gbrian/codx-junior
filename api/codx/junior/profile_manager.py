@@ -10,7 +10,7 @@ from codx.junior.profiles.coding import get_coding_profiles
 class ProfileManager:
     def __init__(self, settings: GPTEngineerSettings):
         self.settings = settings
-        self.profiles_path = f"{settings.gpteng_path}/profiles"
+        self.profiles_path = f"{settings.codx_path}/profiles"
         os.makedirs(self.profiles_path, exist_ok=True)
 
         current_file_path = os.path.abspath(__file__)

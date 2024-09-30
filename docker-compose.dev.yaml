@@ -1,0 +1,12 @@
+services:
+  codx-junior:
+    container_name: codx-junior
+    image: codx-junior:latest
+    build: .
+    env_file:
+      - .env.dev
+    volumes:
+      - $PWD:/projects/codx-junior
+    ports:
+      - "9999:9080"
+      - "8083:8083"

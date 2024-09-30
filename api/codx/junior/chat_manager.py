@@ -10,7 +10,7 @@ from codx.junior.model import Chat, Message
 class ChatManager:
     def __init__(self, settings: GPTEngineerSettings):
         self.settings = settings
-        self.chat_path = f"{settings.gpteng_path}/tasks"
+        self.chat_path = f"{settings.codx_path}/tasks"
         os.makedirs(self.chat_path, exist_ok=True)
 
     def list_chats(self):

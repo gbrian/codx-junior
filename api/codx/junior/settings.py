@@ -18,7 +18,7 @@ class GPTEngineerSettings:
         self.temperature = 0.7
         self.model = None
         self.knowledge_file_ignore = None
-        self.gpteng_path = "./.gpteng"
+        self.codx_path = "./.codx"
         self.knowledge_enrich_documents = False
         self.knowledge_context_cutoff_relevance_score = 0.9
         self.knowledge_external_folders = ""
@@ -43,16 +43,16 @@ class GPTEngineerSettings:
       return base
 
     @classmethod
-    def from_project(cls, gpteng_path: str):
+    def from_project(cls, codx_path: str):
         base = GPTEngineerSettings()
-        base.gpteng_path = gpteng_path
-        base.project_path = gpteng_path
-        with open(f"{gpteng_path}/project.json", 'r') as f:
+        base.codx_path = codx_path
+        base.project_path = codx_path
+        with open(f"{codx_path}/project.json", 'r') as f:
           settings = json.loads(f.read())
-          gpt_settings = GPTEngineerSettings(**{ **base.__dict__, **settings })
-          if not gpt_settings.project_name:
-              gpt_settings.project_name = gpt_settings.project_path.split("/")[-1]
-          return gpt_settings
+          settings = GPTEngineerSettings(**{ **base.__dict__, **settings })
+          if not settings.project_name:
+              settings.project_name = settings.project_path.split("/")[-1]
+          return settings
     
     @classmethod
     def from_json(cls, settings: dict):
@@ -66,16 +66,16 @@ class GPTEngineerSettings:
 
     def save_project(self):
       settings = self.__dict__
-      path = f"{self.gpteng_path}/project.json"
-      os.makedirs(self.gpteng_path, exist_ok=True)
+      path = f"{self.codx_path}/project.json"
+      os.makedirs(self.codx_path, exist_ok=True)
       logging.info(f"Saving project {path} {settings}")
       with open(path, 'w') as f:
         f.write(json.dumps(settings, indent=2))
 
     def detect_sub_projects(self):
       try:
-        return [str(project_path).replace("/.gpteng/project.json", "") for project_path in \
-          pathlib.Path(self.project_path).rglob("./*/.gpteng/project.json")]
+        return [str(project_path).replace("/.codx/project.json", "") for project_path in \
+          pathlib.Path(self.project_path).rglob("./*/.codx/project.json")]
       except Exception as ex:
         log.debug(f"Error {ex}")
 

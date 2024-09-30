@@ -30,7 +30,8 @@ from codx.junior.model import (
     Document,
     Content,
     ImageUrl,
-    LiveEdit
+    LiveEdit,
+    GlobalSettings
 )
 from codx.junior.context import (
   find_relevant_documents,
@@ -117,11 +118,34 @@ def delete_knowledge(settings: GPTEngineerSettings):
 def on_project_changed(project_path: str, file_path: str):
     logger.info(f"Project changed {project_path} - {file_path}")
 
-def create_project(settings=GPTEngineerSettings):
-    logger.info(f"Create new project {settings.gpteng_path}")
-    os.makedirs(settings.gpteng_path, exist_ok=True)
+def create_project(project_path: str):
+    logger.info(f"Create new project {project_path}")
+    if project_path.startswith("http"):
+        # Clone git repo into global settings
+        global_settings = read_global_settings()
+        os.makedirs(global_settings.projects_root_path, exist_ok=True)
+        url = project_path
+        repo_name = url.split("/")[-1].split(".")[0]
+        project_path = f"{global_settings.projects_root_path}/{repo_name}"
+        command = f"git clone {url} {project_path}"
+        logger.info(f"Cloning repo {url} {repo_name} {project_path}")
+        exec_command(command=command)
+            
+    os.makedirs(project_path, exist_ok=True)
+     
+    settings = GPTEngineerSettings()
+    settings.project_path = project_path
+    settings.project_name = settings.project_path.split("/")[-1] 
+    settings.codx_path = f"{settings.project_path}/.codx"
     settings.save_project()
+    return settings
 
+def exec_command(command: str, cmd: str=None):
+    result = subprocess.run(command.split(" "), cwd=cmd,
+                                    stdout = subprocess.PIPE,
+                                    stderr = subprocess.STDOUT,
+                                    text=True)
+    return result.stdout, result.stderr
 
 def select_afefcted_documents_from_knowledge(ai: AI, query: str, settings: GPTEngineerSettings, ignore_documents=[]):
     # Extract mentions from the query
@@ -754,15 +778,15 @@ def get_keywords(settings: GPTEngineerSettings, query):
 def find_all_projects(detailed: bool = False):
     all_projects = []
     project_path = "/"
-    result = subprocess.run("find / -name .gpteng".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    all_gpteng_path = result.stdout.decode('utf-8').split("\n")
-    # logger.exception(f"all_gpteng_path {all_gpteng_path}")
-    paths = [p for p in all_gpteng_path if os.path.isfile(f"{p}/project.json")]
+    result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    all_codx_path = result.stdout.decode('utf-8').split("\n")
+    # logger.exception(f"all_codx_path {all_codx_path}")
+    paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
     # logger.info(f"find_projects_to_watch: Scanning project paths: {project_path} - {paths}")
     for project_settings in paths:
         try:
-            settings = GPTEngineerSettings.from_project(gpteng_path=str(project_settings))
-            if settings.gpteng_path not in all_projects:
+            settings = GPTEngineerSettings.from_project(codx_path=str(project_settings))
+            if settings.codx_path not in all_projects:
                 all_projects.append(settings)
                 # logger.info(f"find_projects_to_watch: project found {str(project_settings)}")
         except Exception as ex:
@@ -833,3 +857,17 @@ def update_wiki(settings: GPTEngineerSettings, file_path: str):
             logger.info(f"update_wiki file_path: {file_path}, wiki changes: {wiki_changes}")
             if wiki_changes:
                 apply_improve_code_changes(settings=settings, code_generator=AICodeGerator(code_changes=wiki_changes))
+
+def read_global_settings():
+    try:
+        with open(f"global_settings.json") as f:
+            return GlobalSettings(**json.loads(f.read()))
+    except:
+        return GlobalSettings()
+
+def write_global_settings(global_settings: GlobalSettings):
+    try:
+        with open(f"global_settings.json", 'w') as f:
+            return f.write(json.dumps(global_settings.dict()))
+    except:
+        pass
