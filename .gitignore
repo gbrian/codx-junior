@@ -3,3 +3,4 @@ node_modules
 .gpteng
 __pycache__
 *egg-*
+client/.vite
