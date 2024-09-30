@@ -78,35 +78,37 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
         <i class="fa-solid fa-gear"></i>
       </a>
     </div>
-    <div class="grow relative overflow-auto bg-base-100 p-2">
-      <div role="tablist" class="tabs tabs-lifted bg-base-100 rounded-md mt-2" v-if="['profiles', 'settings'].includes(tabIx)">
-        <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'profiles' ? tabActive: tabInactive]"
-        @click="tabIx = 'profiles'"
-        >
-        <i class="fa-solid fa-id-card-clip"></i>
-          Profiles
-        </a>
-        <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'settings' ? tabActive: tabInactive]"
-          @click="tabIx = 'settings'"
-        >
-          <i class="fa-solid fa-sliders"></i>
-          Setting
-        </a>
-        <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'global-settings' ? tabActive: tabInactive]"
-          @click="tabIx = 'global-settings'"
-        >
-          <i class="fa-solid fa-gear"></i>
-          Global
-        </a>
-      </div>
-      <KanbanVue v-if="tabIx === 'tasks'" />
-      <ChatViewVue v-if="tabIx === '___tasks'" />
-      <LiveEditVue v-if="tabIx === 'live'" />
+    <div role="tablist" class="tabs tabs-lifted bg-base-100 rounded-md mt-2" v-if="['profiles', 'settings'].includes(tabIx)">
+      <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'profiles' ? tabActive: tabInactive]"
+      @click="tabIx = 'profiles'"
+      >
+      <i class="fa-solid fa-id-card-clip"></i>
+        Profiles
+      </a>
+      <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'settings' ? tabActive: tabInactive]"
+        @click="tabIx = 'settings'"
+      >
+        <i class="fa-solid fa-sliders"></i>
+        Setting
+      </a>
+      <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'global-settings' ? tabActive: tabInactive]"
+        @click="tabIx = 'global-settings'"
+      >
+        <i class="fa-solid fa-gear"></i>
+        Global
+      </a>
+    </div>
+    <div class="grow relative overflow-auto bg-base-100">
+      <KanbanVue class="p-2" v-if="tabIx === 'tasks'" />
+      <ChatViewVue class="p-2" v-if="tabIx === '___tasks'" />
+      <LiveEditVue class="p-2" v-if="tabIx === 'live'" />
       <KnowledgeViewVue class="p-2 abolsute top-0 left-0 w-full" v-if="tabIx === 'knowledge'" />
       <WikiViewVue class="p-2" v-if="tabIx == 'wiki'"></WikiViewVue>
 
-      <ProjectSettingsVue class="abolsute top-0 left-0 w-full" v-if="tabIx === 'settings'" />
-      <GlobalSettingsVue class="abolsute top-0 left-0 w-full" v-if="tabIx === 'global-settings'" />
+      <ProjectSettingsVue class="abolsute top-0 left-0 w-full" 
+        @delete="deleteProject"
+        v-if="tabIx === 'settings'" />
+      <GlobalSettingsVue class="abolsute top-0 left-0 w-full p-2" v-if="tabIx === 'global-settings'" />
       <ProfileViewVue class="abolsute top-0 left-0 w-full" v-if="tabIx === 'profiles'" />
       <iframe v-if="tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
       <ProjectProfileVue class="p-2 abolsute top-0 left-0 w-full" v-if="tabIx == 'home'" @settings="tabIx = 'settings'"></ProjectProfileVue>
@@ -217,6 +219,10 @@ export default {
     async onShowOpenProjectModal () {
       this.getAllProjects()
       this.showOpenProjectModal = true
+    },
+    async deleteProject () {
+      await API.project.delete()
+      this.tabIx = 'home'
     }
   }
 }

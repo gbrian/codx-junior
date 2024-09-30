@@ -62,7 +62,9 @@ export const API = {
       return API.post('/api/projects?project_path=' + projectPath, {})
     },
     delete() {
-      return API.del('/api/projects?')
+      localStorage.setItem("API_SETTINGS", "")
+      API.del('/api/projects?')
+      API.lastSettings = null
     },
     watch () {
       return API.get('/api/project/watch?')
