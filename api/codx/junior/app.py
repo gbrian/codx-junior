@@ -30,9 +30,11 @@ disable_logs([
     ])
 
 
+from flask import send_file
+
 from fastapi import FastAPI, Request, Response, UploadFile
 from fastapi.staticfiles import StaticFiles
-from flask import send_file
+from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -107,12 +109,13 @@ class GPTEngineerAPI:
         )
 
         if STATIC_FOLDER:
+            logger.info(f"API Static folder: {STATIC_FOLDER}")
             app.mount("/static", StaticFiles(directory=STATIC_FOLDER, html=True), name="client_chat")
         app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
 
         @app.on_event("startup")
         def startup_event():
-            logger.info("Creating FASTAPI")
+            logger.info(f"Creating FASTAPI: {app.__dict__}")
         
         @app.exception_handler(Exception)
         async def my_exception_handler(request: Request, ex: Exception):
@@ -156,6 +159,9 @@ class GPTEngineerAPI:
                 logger.info("Request without settings")
             return await call_next(request)
 
+        @app.get("/")
+        def index():
+            return RedirectResponse(url="/index.html")
 
         @app.get("/api/health")
         def api_health_check():

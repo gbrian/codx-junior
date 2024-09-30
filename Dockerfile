@@ -46,7 +46,7 @@ RUN chmod +x /projects/codx-junior/run_client.sh
 RUN cd /projects/codx-junior && \
     bash ./install.sh
 
-ENV PYTHONPATH=/usr/local/codx-cli/codx-junior/api
+ENV PYTHONPATH=/projects/codx-junior/api
 
 EXPOSE 6080
 EXPOSE 9080

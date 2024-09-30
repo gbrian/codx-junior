@@ -1,6 +1,8 @@
 #!/bin/bash
 . .env.dev
 
+export STATIC_FOLDER=$PWD/client/dist
+
 # Navigate to the directory where your FastAPI application is located
 cd api
 

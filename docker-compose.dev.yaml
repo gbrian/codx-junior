@@ -9,4 +9,4 @@ services:
       - $PWD:/projects/codx-junior
     ports:
       - "9999:9080"
-      - "8083:8083"
+      - "8084:8084"
