@@ -17,6 +17,6 @@ fi
 
 # Install Client
 echo "Installing Client..."
-(cd client && npm install)
+(cd client && npm install && npm run build)
 
 echo "Installation completed successfully!"
