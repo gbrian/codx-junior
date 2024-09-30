@@ -95,3 +95,13 @@ class LiveEdit(BaseModel):
     html: str
     url: str
     message: str
+
+class OpenAISettings(BaseModel):
+    openai_api_url: str = Field(default=None)
+    openai_api_key: str = Field(default=None)
+    openai__model: str = Field(default=None)
+    openai_temperature: str = Field(default=None)
+
+class GlobalSettings(BaseModel):
+    openai: OpenAISettings = Field(default=OpenAISettings())
+    log_ai: bool = Field(default=False)

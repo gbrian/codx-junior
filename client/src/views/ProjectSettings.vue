@@ -36,7 +36,7 @@ import { API } from '../api/api'
 export default {
   data() {
     return {
-      settings: null,
+      settings: API.lastSettings,
       confirmDelete: false
     };
   },
@@ -53,7 +53,7 @@ export default {
   },
   methods: {
     async reloadSettings() {
-      const { data: settings } = await API.settings.read()
+      const { data: settings } = await API.init()
       this.settings = settings
     },
     async saveSettings() {

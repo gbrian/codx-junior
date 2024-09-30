@@ -63,22 +63,22 @@ export const API = {
     },
     delete() {
       localStorage.setItem("API_SETTINGS", "")
-      API.del('/api/projects?')
+      API.del('/api/projects')
       API.lastSettings = null
     },
     watch () {
-      return API.get('/api/project/watch?')
+      return API.get('/api/project/watch')
     },
     unwatch () {
-      return API.get('/api/project/unwatch?')
+      return API.get('/api/project/unwatch')
     },
     test () {
-      return API.get('/api/project/script/test?')
+      return API.get('/api/project/script/test')
     }
   },
   settings: {
     async read () {
-      const res = await API.get('/api/settings?')
+      const res = await API.get('/api/settings')
       API.lastSettings = res.data
       if (API.lastSettings) {
         localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
@@ -91,17 +91,25 @@ export const API = {
     async save() {
       await API.put('/api/settings?', API.lastSettings)
       return API.settings.read()
+    },
+    global: {
+      read() {
+        return API.get('/api/global/settings')
+      },
+      write(settings) {
+        return API.post('/api/global/settings', settings)
+      }
     }
   },
   knowledge: {
     status () {
-      return API.get('/api/knowledge/status?')
+      return API.get('/api/knowledge/status')
     },
     reload () {
-      return API.get('/api/knowledge/reload?')
+      return API.get('/api/knowledge/reload')
     },
     reloadFolder (path) {
-      return API.post(`/api/knowledge/reload-path?`, { path })
+      return API.post(`/api/knowledge/reload-path`, { path })
     },
     search ({ 
         searchTerm: search_term,
@@ -110,7 +118,7 @@ export const API = {
         cutoffScore: document_cutoff_score,
         documentCount: document_count
     }) {
-      return API.post(`/api/knowledge/reload-search?`, {
+      return API.post(`/api/knowledge/reload-search`, {
           search_term,
           search_type,
           document_search_type,
@@ -119,13 +127,13 @@ export const API = {
       })
     },
     delete (sources) {
-      return API.post(`/api/knowledge/delete?`, { sources })  
+      return API.post(`/api/knowledge/delete`, { sources })  
     },
     deleteAll() {
-      return API.del(`/api/knowledge/delete?`)  
+      return API.del(`/api/knowledge/delete`)  
     },
     keywords() {
-      return API.get(`/api/knowledge/keywords?`)
+      return API.get(`/api/knowledge/keywords`)
     },
     searchKeywords (searchQuery) {
       return API.get(`/api/knowledge/keywords?query=${searchQuery}&`)
@@ -133,7 +141,7 @@ export const API = {
   },
   chats: {
     async list () {
-      const { data } = await API.get('/api/chats?')
+      const { data } = await API.get('/api/chats')
       return data
     },
     async loadChat (name) {
@@ -171,16 +179,16 @@ export const API = {
   },
   profiles: {
     list () {
-      return API.get('/api/profiles?')
+      return API.get('/api/profiles')
     },
     load (name) {
-      return API.get(`/api/profiles/${name}?`)
+      return API.get(`/api/profiles/${name}`)
     },
     save (profile) {
-      return API.post(`/api/profiles?`, profile)
+      return API.post(`/api/profiles`, profile)
     },
     async delete (name) {
-      await API.delete(`/api/profiles/${name}?`)
+      await API.delete(`/api/profiles/${name}`)
       API.lastSettings = null
     }
   },
@@ -193,7 +201,7 @@ export const API = {
     async upload (file) {
       let formData = new FormData();
       formData.append("file", file);
-      const { data: url } = await API.post(`/api/images?`, formData)
+      const { data: url } = await API.post(`/api/images`, formData)
       return window.location.origin + url
     }
   },
@@ -204,7 +212,7 @@ export const API = {
   },
   engine: {
     update () {
-      return API.get('/api/update?')
+      return API.get('/api/update')
     }
   },
   async init (gpteng_path) {

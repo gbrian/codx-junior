@@ -46,7 +46,8 @@ from codx.junior.model import (
     KnowledgeDeleteSources,
     Profile,
     Document,
-    LiveEdit
+    LiveEdit,
+    GlobalSettings
 )
 
 from codx.junior.settings import GPTEngineerSettings 
@@ -365,6 +366,22 @@ class GPTEngineerAPI:
                   return Response(content=f.read(), media_type="text/html")
             except:
                 return Response(content="# No project wiki...yet!", media_type="text/html")
+
+        @app.get("/api/global/settings")
+        def api_read_global_settings():
+            try:
+                with open(f"global_settings.json") as f:
+                    return f.read()
+            except:
+                return GlobalSettings()
+        
+        @app.post("/api/global/settings")
+        def api_write_global_settings(global_settings: GlobalSettings):
+            try:
+                with open(f"global_settings.json", 'w') as f:
+                    return f.write(json.dumps(global_settings))
+            except:
+                pass
 
         return app
             

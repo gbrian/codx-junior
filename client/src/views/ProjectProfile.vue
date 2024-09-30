@@ -25,11 +25,11 @@ import { API } from '../api/api';
         </div>
       </div>
       <div class="text-xl">
-        Create new project
+        New project
       </div>
-      <p class="text-sm">Copy the absolute project's path to create a new project</p>
+      <p class="text-sm">Copy the repository git url to create a new project</p>
       <div class="input input-bordered flex gap-1 items-center">
-        <input type="text" class="grow" v-model="newProjectPath" placeholder="/project/path">
+        <input type="text" class="grow" v-model="newProjectPath" placeholder="https://github.com/gbrian/codx-junior">
         <button class="btn btn-sm" @click="createNewProject">
           <i class="fa-solid fa-plus"></i>
         </button>
