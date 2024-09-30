@@ -7,6 +7,7 @@ services:
       - .env.dev
     volumes:
       - $PWD:/projects/codx-junior
+      - "${HOST_PROJECTS_ROOT_PATH}:${HOST_PROJECTS_ROOT_PATH}"
     ports:
       - "9999:9080"
-      - "8084:8084"
+      - "8083:8083"

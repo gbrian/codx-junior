@@ -37,7 +37,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
-from fastapi.staticfiles import StaticFiles
+
 
 from codx.junior.model import (
     Chat,
@@ -110,7 +110,7 @@ class GPTEngineerAPI:
 
         if STATIC_FOLDER:
             logger.info(f"API Static folder: {STATIC_FOLDER}")
-            app.mount("/static", StaticFiles(directory=STATIC_FOLDER, html=True), name="client_chat")
+            app.mount("/", StaticFiles(directory=STATIC_FOLDER, html=True), name="client_chat")
         app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
 
         @app.on_event("startup")

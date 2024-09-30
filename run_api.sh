@@ -17,4 +17,4 @@ fi
 source .venv/bin/activate
 
 # Run the FastAPI application using uvicorn
-uvicorn codx.junior.main:app --reload --port $API_PORT
+uvicorn codx.junior.main:app --reload --host 0.0.0.0 --port $API_PORT
