@@ -136,7 +136,7 @@ def create_project(project_path: str):
     settings = GPTEngineerSettings()
     settings.project_path = project_path
     settings.project_name = settings.project_path.split("/")[-1] 
-    settings.gpteng_path = f"{settings.project_path}/.gpteng"
+    settings.codx_path = f"{settings.project_path}/.codx"
     settings.save_project()
     return settings
 
@@ -778,15 +778,15 @@ def get_keywords(settings: GPTEngineerSettings, query):
 def find_all_projects(detailed: bool = False):
     all_projects = []
     project_path = "/"
-    result = subprocess.run("find / -name .gpteng".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    all_gpteng_path = result.stdout.decode('utf-8').split("\n")
-    # logger.exception(f"all_gpteng_path {all_gpteng_path}")
-    paths = [p for p in all_gpteng_path if os.path.isfile(f"{p}/project.json")]
+    result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    all_codx_path = result.stdout.decode('utf-8').split("\n")
+    # logger.exception(f"all_codx_path {all_codx_path}")
+    paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
     # logger.info(f"find_projects_to_watch: Scanning project paths: {project_path} - {paths}")
     for project_settings in paths:
         try:
-            settings = GPTEngineerSettings.from_project(gpteng_path=str(project_settings))
-            if settings.gpteng_path not in all_projects:
+            settings = GPTEngineerSettings.from_project(codx_path=str(project_settings))
+            if settings.codx_path not in all_projects:
                 all_projects.append(settings)
                 # logger.info(f"find_projects_to_watch: project found {str(project_settings)}")
         except Exception as ex:

@@ -1,6 +1,6 @@
 .venv
 node_modules
-.gpteng
+.codx
 __pycache__
 *egg-*
 client/.vite

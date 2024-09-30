@@ -1,13 +1,13 @@
 import axios from 'axios'
 
-const gpteng_key = window.location.search
+const codx_key = window.location.search
                     .slice(1).split("&")
                     .map(p => p.split("="))
-                    .find(([k]) => k === "gpteng_path")
+                    .find(([k]) => k === "codx_path")
 
-const query = () => `gpteng_path=${encodeURIComponent(API.lastSettings?.gpteng_path)}`
+const query = () => `codx_path=${encodeURIComponent(API.lastSettings?.codx_path)}`
 const prepareUrl = (url) => {
-  if (url.indexOf("gpteng_path") === -1) {
+  if (url.indexOf("codx_path") === -1) {
     let [path, params] = url.split("?")
     if (params) {
       params += `&${query()}`
@@ -216,30 +216,31 @@ export const API = {
       return API.get('/api/update')
     }
   },
-  async init (gpteng_path) {
+  async init (codx_path) {
     API.liveRequests++
-    this.gpteng_path = gpteng_path
-    if (gpteng_path) {
+    this.codx_path = codx_path
+    if (codx_path) {
       const { data: projects } = await API.project.list()
-      API.lastSettings = projects.find(p => p.gpteng_path === gpteng_path)
+      API.lastSettings = projects.find(p => p.codx_path === codx_path)
       if (API.lastSettings) {
-        localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
+        localStorage.setItem("API_CODX_PATH", API.lastSettings.codx_path)
       }
       API.allProjects = projects
     } else {
-      const settings = localStorage.getItem("API_SETTINGS")
+      const codx_path = localStorage.getItem("API_CODX_PATH")
       try {
-        API.lastSettings = JSON.parse(settings)
         const { data: projects } = await API.project.list()
         API.allProjects = projects
+        API.lastSettings = projects.find(p => p.codx_path === codx_path) ||
+                              projects[0]
       } catch (ex) {
         console.error("Invalid settings")
       }
     }
     API.liveRequests--
-    console.log("API init", gpteng_path, API.lastSettings)
+    console.log("API init", codx_path, API.lastSettings)
   }
 }
-const gpteng_path = decodeURIComponent(gpteng_key ? gpteng_key[1] : "")
-API.init(gpteng_path)
+const codx_path = decodeURIComponent(codx_key ? codx_key[1] : "")
+API.init(codx_path)
 window.API = API

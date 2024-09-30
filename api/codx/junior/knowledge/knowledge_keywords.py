@@ -12,7 +12,7 @@ class KnowledgeKeywords:
         self.settings = settings
         self.path = self.settings.project_path
         self.index_name = slugify(str(self.path))
-        self.db_path = f"{settings.gpteng_path}/db/{self.index_name}"
+        self.db_path = f"{settings.codx_path}/db/{self.index_name}"
         self.db_keywords_file = f"{self.db_path}/keywords.json"
         
     def get_keywords(self, query: str = None):

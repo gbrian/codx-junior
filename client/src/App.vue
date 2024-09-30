@@ -35,7 +35,7 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
             </div>
             <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
               <li v-for="project in allProjects" :key="project.project_name">
-                <a @click="openProject(project.gpteng_path)">
+                <a @click="openProject(project.codx_path)">
                   <div class="rounded-full font-bold flex gap-2 flex gap-2 items-center">
                     <div class="w-4 h-4 bg-cover bg-center rounded-full bg-primay"
                         :style="`background-image:url('${project.project_icon}')`"></div>
@@ -117,11 +117,11 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
       <div class="modal-box">
         <h3 class="font-bold text-lg">Open project</h3>
         <input type="text" class="input input-bordered w-full hidden"
-          :placeholder="gptengPath || 'Project\'s absolute path'" v-model="newProject" />
+          :placeholder="codxPath || 'Project\'s absolute path'" v-model="newProject" />
         <div class="flex gap-2 items-center">
           Existing projects:
           <select class="select" v-model="newProject">
-            <option v-for="project in allProjects" :value="project.gpteng_path" :key="project.project_name">
+            <option v-for="project in allProjects" :value="project.codx_path" :key="project.project_name">
               {{ project.project_name }}
             </option>
           </select>
@@ -148,7 +148,7 @@ export default {
     return {
       tabIx: 'home',
       newProject: null,
-      gptengPath: null,
+      codxPath: null,
       showOpenProjectModal: false,
       liveRequests: null,
       lastSettings: {},
@@ -193,24 +193,24 @@ export default {
   },
   methods: {
     async init (path) {
-      await API.init(path || this.gptengPath)
+      await API.init(path || this.codxPath)
     },
     getProjectPath () {
-      return API.lastSettings?.gpteng_path
+      return API.lastSettings?.codx_path
     },
     onOpenProject (path) {
       this.openProject(path)
     },
     async openSubProject (projectName) {
       await this.getAllProjects()
-      this.openProject(this.allProjects.find(p => p.project_name === projectName).gpteng_path)
+      this.openProject(this.allProjects.find(p => p.project_name === projectName).codx_path)
     },
     openProject (path) {
       this.init(path)
     },
     async createNewProject () {
-      const { data: { gpteng_path } } = await API.project.create(this.getProjectPath())
-      this.openProject(gpteng_path)
+      const { data: { codx_path } } = await API.project.create(this.getProjectPath())
+      this.openProject(codx_path)
     },
     async getAllProjects () {
       await API.project.list()

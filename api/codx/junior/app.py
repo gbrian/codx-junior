@@ -88,7 +88,7 @@ def process_projects_changes():
         try:
             check_project_changes(settings=settings)
         except Exception as ex:
-            logger.exception(f"Processing {gpteng_path} error: {ex}")
+            logger.exception(f"Processing {codx_path} error: {ex}")
             pass
 
 logger.info("Starting process_projects_changes job")
@@ -132,11 +132,11 @@ class GPTEngineerAPI:
         async def add_gpt_engineer_settings(request: Request, call_next):
             logger.info("FASTAPI::add_process_time_header")
             logger.info(f"Request {request.url}")
-            gpteng_path = request.query_params.get("gpteng_path")
+            codx_path = request.query_params.get("codx_path")
             settings = None
-            if gpteng_path:
+            if codx_path:
                 try:
-                    settings = GPTEngineerSettings.from_project(gpteng_path)
+                    settings = GPTEngineerSettings.from_project(codx_path)
                     global_settings = read_global_settings()
                     if global_settings:
                         if not settings.openai_api_base:
@@ -150,7 +150,7 @@ class GPTEngineerAPI:
 
                     ai_logs = ["openai._base_client"]
                 except Exception as ex:
-                    logger.error(f"Error loading settings {gpteng_path}: {ex}")
+                    logger.error(f"Error loading settings {codx_path}: {ex}")
             request.state.settings = settings        
             if not settings:
                 logger.info("Request without settings")
@@ -321,8 +321,8 @@ class GPTEngineerAPI:
         @app.delete("/api/projects")
         def api_project_delete(request: Request):
             settings = request.state.settings
-            shutil.rmtree(settings.gpteng_path)
-            logger.error(f"PROJECT REMOVED {settings.gpteng_path}")
+            shutil.rmtree(settings.codx_path)
+            logger.error(f"PROJECT REMOVED {settings.codx_path}")
             return { "ok": 1 }
         
         @app.get("/api/project/unwatch")

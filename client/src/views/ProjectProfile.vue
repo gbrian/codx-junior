@@ -14,7 +14,7 @@ import { API } from '../api/api';
     <div class="projects-list mt-8 w-full flex flex-col gap-2">
       <h2 class="text-xl font-bold mb-4">Projects</h2>
       <div class="grid grid-cols-4 gap-3">
-        <div v-for="project in allProjects" :key="project.gpteng_path" class="mb-2" @click="setProject(project)">
+        <div v-for="project in allProjects" :key="project.codx_path" class="mb-2" @click="setProject(project)">
           <div class="flex items-center gap-4 p-2 border rounded-md click h-20 overflow-hidden text-ellipsis">
             <img :src="project.project_icon" alt="Project Icon" class="w-8 h-8 rounded-full" />
             <div>
@@ -66,12 +66,12 @@ export default {
       const { data: projects } = await API.project.list()
       this.allProjects = projects
       if (!API.lastSettings && projects.length) {
-        await API.init(projects[0].gpteng_path)
+        await API.init(projects[0].codx_path)
       } 
       this.settings =  API.lastSettings || {}
     },
     async setProject(project) {
-      await API.init(project.gpteng_path)
+      await API.init(project.codx_path)
       this.settings = API.lastSettings
     },
     async createNewProject () {

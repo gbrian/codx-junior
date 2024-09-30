@@ -1,0 +1,23 @@
+{
+  "project_name": "views",
+  "project_path": "/projects/codx-junior/client/src/views",
+  "project_wiki": null,
+  "openai_api_key": null,
+  "openai_api_base": null,
+  "knowledge_extract_document_tags": false,
+  "knowledge_search_type": "similarity",
+  "knowledge_search_document_count": 10,
+  "temperature": 0.7,
+  "model": null,
+  "knowledge_file_ignore": null,
+  "codx_path": "/projects/codx-junior/client/src/views/.codx",
+  "knowledge_enrich_documents": false,
+  "knowledge_context_cutoff_relevance_score": 0.9,
+  "knowledge_external_folders": "",
+  "knowledge_query_subprojects": true,
+  "watching": false,
+  "use_knowledge": true,
+  "log_ai": false,
+  "knowledge_hnsw_M": 1024,
+  "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s"
+}
