@@ -16,45 +16,44 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
   <div class="w-full h-screen max-w-screen flex flex-col bg-base-300 dark relative" data-theme="dark">
     <progress :class="['progress progress-success w-full', liveRequests ? '': 'opacity-0']"></progress>
     <div role="tablist" class="tabs tabs-lifted bg-base-100 rounded-md">
-      <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'home' ? tabActive: tabInactive]"
+      <a role="tab" :class="['tab', tabIx === 'home' ? tabActive: tabInactive]"
         @click="tabIx = 'home'"
-        v-if="validProject"
       >
-        <div class="rounded-full font-bold flex gap-2 flex gap-2 items-center">
-          <div class="w-4 h-4 bg-cover bg-center rounded-full bg-primay"
-              :style="`background-image:url('${lastSettings.project_icon}')`"></div>
-          <div class="">
-            {{ projectName }}
-            ({{ lastSettings.model }})
-          </div> 
-        </div>
-        <div class="dropdown" @click.stop="">
-          <div tabindex="0" role="button" class="btn btn-xs btn-ghost" @click.stop="">
-            <i class="fa-solid fa-angle-down"></i>
+        <div class="flex items-center gap-2" v-if="lastSettings">
+          <div class="rounded-full font-bold flex gap-2 flex gap-2 items-center">
+            <div class="w-4 h-4 bg-cover bg-center rounded-full bg-primay"
+                :style="`background-image:url('${lastSettings.project_icon}')`"></div>
+            <div class="">
+              {{ projectName }}
+              ({{ lastSettings?.model }})
+            </div> 
           </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-            <li v-for="project in allProjects" :key="project.project_name">
-              <a @click="openProject(project.gpteng_path)">
-                <div class="rounded-full font-bold flex gap-2 flex gap-2 items-center">
-                  <div class="w-4 h-4 bg-cover bg-center rounded-full bg-primay"
-                      :style="`background-image:url('${project.project_icon}')`"></div>
-                  <div class="">
-                    {{ project.project_name }}
-                  </div> 
-                </div>
 
-
-              </a>
-            </li>
-          </ul>
+          <div class="dropdown" @click.stop="">
+            <div tabindex="0" role="button" class="btn btn-xs btn-ghost" @click.stop="">
+              <i class="fa-solid fa-angle-down"></i>
+            </div>
+            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+              <li v-for="project in allProjects" :key="project.project_name">
+                <a @click="openProject(project.gpteng_path)">
+                  <div class="rounded-full font-bold flex gap-2 flex gap-2 items-center">
+                    <div class="w-4 h-4 bg-cover bg-center rounded-full bg-primay"
+                        :style="`background-image:url('${project.project_icon}')`"></div>
+                    <div class="">
+                      {{ project.project_name }}
+                    </div> 
+                  </div>
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
-      </a>
-      <a role="tab" :class="['tab flex items-center gap-2']" v-else>
-          <img src="https://codx-dev.meetnav.com/only_icon.png" class="h-7" >
-          Welcome
+        <div v-else>
+          codx-junior: welcome
+        </div>
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'tasks' ? tabActive: tabInactive]"
-        @click="tabIx = 'tasks'" v-if="validProject"
+        @click="tabIx = 'tasks'" v-if="lastSettings"
       >
         <div class="font-medium flex gap-2 items-center">
           <i class="fa-solid fa-clipboard-list"></i>
@@ -62,24 +61,24 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
         </div>
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'knowledge' ? tabActive: tabInactive]"
-        @click="tabIx = 'knowledge'" v-if="validProject"
+        @click="tabIx = 'knowledge'" v-if="lastSettings"
       >
         <i class="fa-solid fa-book"></i>
         Knowledge
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'wiki' ? tabActive: tabInactive]"
-        @click="tabIx = 'wiki'" v-if="validProject"
+        @click="tabIx = 'wiki'" v-if="lastSettings"
         >
           <i class="fa-brands fa-wikipedia-w"></i>
           Documentation
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'settings' ? tabActive: tabInactive]"
-          @click="tabIx = 'settings'" v-if="validProject"
+          @click="tabIx = 'settings'" v-if="lastSettings"
         >
         <i class="fa-solid fa-gear"></i>
       </a>
     </div>
-    <div class="grow relative overflow-auto bg-base-100 p-2" v-if="validProject">
+    <div class="grow relative overflow-auto bg-base-100 p-2">
       <div role="tablist" class="tabs tabs-lifted bg-base-100 rounded-md mt-2" v-if="['profiles', 'settings'].includes(tabIx)">
         <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'profiles' ? tabActive: tabInactive]"
         @click="tabIx = 'profiles'"
@@ -145,12 +144,12 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
 export default {
   data () {
     return {
-      tabIx: 'tasks',
+      tabIx: 'home',
       newProject: null,
       gptengPath: null,
       showOpenProjectModal: false,
       liveRequests: null,
-      lastSettings: null,
+      lastSettings: {},
       tabActive: 'text-info bg-base-100',
       tabInactive: 'text-warning bg-base-300 opacity-50 hover:opacity-100',
       lastError: null,
@@ -161,7 +160,7 @@ export default {
     API.axiosRequest.interceptors.response.use(
       (response) => response,
       (error) => {
-        this.lastError = error.response.data.join("\n")
+        this.lastError = error.response.data
         console.error("API ERROR:", this.lastError);
       });
     await this.init()
@@ -172,10 +171,6 @@ export default {
     await this.getAllProjects(); // Fetch all projects
   },
   computed: {
-    validProject () {
-      return this.lastSettings?.gpteng_path &&
-        this.lastSettings?.project_path
-    },
     subProjects () {
       if (!Array.isArray(this.lastSettings?.sub_projects)) {
         return this.lastSettings?.sub_projects?.split(",")
@@ -216,8 +211,8 @@ export default {
       this.openProject(gpteng_path)
     },
     async getAllProjects () {
-      const { data } = await API.project.list()
-      this.allProjects = data
+      await API.project.list()
+      this.allProjects = API.lastSettings?.projects
     },
     async onShowOpenProjectModal () {
       this.getAllProjects()

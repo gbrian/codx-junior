@@ -21,10 +21,6 @@ RUN mkdir -p ~/.vnc && \
     echo "password" | vncpasswd -f > ~/.vnc/passwd && \
     chmod 600 ~/.vnc/passwd
 
-RUN curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
-RUN codx python_311
-RUN codx codx-junior
-
 # Install code-server latest version
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
@@ -40,9 +36,17 @@ ENV API_URL="http://0.0.0.0:${API_PORT}"
 
 COPY supervisor.conf $SUPERVISOR_DIR
 
-ENV PYTHONPATH=/usr/local/codx-cli/codx-junior/api
 
-RUN mkdir /projects
+RUN mkdir -p /projects
+
+COPY . /projects/codx-junior
+RUN chmod +x /projects/codx-junior/run_api.sh
+RUN chmod +x /projects/codx-junior/run_client.sh
+
+RUN cd /projects/codx-junior && \
+    bash ./install.sh
+
+ENV PYTHONPATH=/usr/local/codx-cli/codx-junior/api
 
 EXPOSE 6080
 EXPOSE 9080

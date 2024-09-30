@@ -4,12 +4,17 @@ import { API } from '../api/api';
 
 <template>
   <div class="profile-container flex flex-col items-center p-4 h-full">
-    <img :src="projectIcon" alt="Project Icon" class="rounded-full w-36 h-36" />
-    <h1 class="text-2xl font-bold mt-4">{{ projectName }}</h1>
-    <p class="text-lg mt-2">{{ projectDescription }}</p>
-    <button class="btn btn-primary mt-4" @click="$emit('settings')">
-      Edit Project Settings
-    </button>
+    <div v-if="settings.project_name">
+      <img :src="projectIcon" alt="Project Icon" class="rounded-full w-36 h-36" />
+      <h1 class="text-2xl font-bold mt-4">{{ projectName }}</h1>
+      <p class="text-lg mt-2">{{ projectDescription }}</p>
+      <button class="btn btn-primary mt-4" @click="$emit('settings')">
+        Edit Project Settings
+      </button>
+    </div>
+    <div v-else>
+      
+    </div>
     
     <div class="projects-list mt-8 w-full flex flex-col gap-2">
       <h2 class="text-xl font-bold mb-4">Projects</h2>
@@ -24,9 +29,12 @@ import { API } from '../api/api';
           </div>
         </div>
       </div>
-      <button class="btn btn-primary max-w-xs">
-        New project...
-      </button>
+      <div class="input input-bordered flex gap-1 items-center">
+        <input type="text" class="grow" v-model="newProjectPath" placeholder="/project/path">
+        <button class="btn btn-sm" @click="createNewProject">
+          New
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -35,12 +43,12 @@ import { API } from '../api/api';
 export default {
   data() {
     return {
-      settings: API.lastSettings
+      settings: API.lastSettings || {},
+      newProjectPath: null
     };
   },
-  async mounted () {
-    await API.project.list()
-    this.settings = API.lastSettings
+  mounted () {
+    this.load()
   },
   computed: {
     allProjects () {
@@ -57,9 +65,21 @@ export default {
     }
   },
   methods: {
+    async load () {
+      const { data: projects } = await API.project.list()
+      if (!API.lastSettings && projects.length) {
+        await API.init(projects[0].gpteng_path)
+      } 
+      this.settings = API.lastSettings || {}
+    },
     async setProject(project) {
       await API.init(project.gpteng_path)
       this.settings = API.lastSettings
+    },
+    async createNewProject () {
+      await API.projects.new(this.newProjectPath)
+      this.newProjectPath = null
+      this.load()
     }
   }
 };

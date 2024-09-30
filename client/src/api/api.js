@@ -53,7 +53,9 @@ export const API = {
   project: {
     async list () {
       const res = await API.get('/api/projects')
-      API.lastSettings.projects = res.data
+      if (API.lastSettings) {
+        API.lastSettings.projects = res.data
+      }
       return res
     },
     create(projectPath) {
