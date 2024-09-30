@@ -49,10 +49,10 @@ class GPTEngineerSettings:
         base.project_path = gpteng_path
         with open(f"{gpteng_path}/project.json", 'r') as f:
           settings = json.loads(f.read())
-          gpt_settings = GPTEngineerSettings(**{ **base.__dict__, **settings })
-          if not gpt_settings.project_name:
-              gpt_settings.project_name = gpt_settings.project_path.split("/")[-1]
-          return gpt_settings
+          settings = GPTEngineerSettings(**{ **base.__dict__, **settings })
+          if not settings.project_name:
+              settings.project_name = settings.project_path.split("/")[-1]
+          return settings
     
     @classmethod
     def from_json(cls, settings: dict):

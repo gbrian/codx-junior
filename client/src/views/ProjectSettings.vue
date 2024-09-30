@@ -53,8 +53,7 @@ export default {
   },
   methods: {
     async reloadSettings() {
-      const { data: settings } = await API.init()
-      this.settings = settings
+      this.settings = API.lastSettings
     },
     async saveSettings() {
       await API.settings.write(this.settings)

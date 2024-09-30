@@ -71,7 +71,9 @@ from codx.junior.engine import (
     extract_tags,
     get_keywords,
     find_all_projects,
-    run_live_edit
+    run_live_edit,
+    read_global_settings,
+    write_global_settings,
 )
 
 from codx.junior.scheduler import add_work
@@ -135,6 +137,17 @@ class GPTEngineerAPI:
             if gpteng_path:
                 try:
                     settings = GPTEngineerSettings.from_project(gpteng_path)
+                    global_settings = read_global_settings()
+                    if global_settings:
+                        if not settings.openai_api_base:
+                            settings.openai_api_base = global_settings.openai.openai_api_url
+                        if not settings.openai_api_key:
+                            settings.openai_api_key = global_settings.openai.openai_api_key
+                        if not settings.model:
+                            settings.model = global_settings.ai_model
+                        if not settings.temperature:
+                            settings.model = global_settings.ai_temperature
+
                     ai_logs = ["openai._base_client"]
                 except Exception as ex:
                     logger.error(f"Error loading settings {gpteng_path}: {ex}")
@@ -268,18 +281,6 @@ class GPTEngineerAPI:
             
             return api_settings_check(request)
 
-        @app.get("/api/project/create")
-        def api_project_create(request: Request):
-            project_path = request.query_params.get("project_path")
-            if not project_path or not os.path.isdir(project_path):
-                return
-            settings = GPTEngineerSettings()
-            settings.gpteng_path = f"{project_path}/.gpteng"
-            settings.project_path = project_path
-            logger.info(f"/api/project/create project_path: {project_path}")
-            create_project(settings=settings)
-            return settings
-
         @app.get("/api/profiles")
         def api_list_profile(request: Request):
             settings = request.state.settings
@@ -315,13 +316,7 @@ class GPTEngineerAPI:
             try:
                 settings = GPTEngineerSettings.from_project(project_path)
             except:
-                settings = GPTEngineerSettings()
-                settings.project_path = project_path
-                settings.project_name = settings.project_path.split("/")[-1] 
-                settings.gpteng_path = f"{settings.project_path}/.gpteng"
-                settings.save_project()
-                settings = GPTEngineerSettings.from_project(settings.gpteng_path)
-            return settings
+                return create_project(project_path=project_path)
         
         @app.delete("/api/projects")
         def api_project_delete(request: Request):
@@ -369,19 +364,11 @@ class GPTEngineerAPI:
 
         @app.get("/api/global/settings")
         def api_read_global_settings():
-            try:
-                with open(f"global_settings.json") as f:
-                    return f.read()
-            except:
-                return GlobalSettings()
+            return read_global_settings()
         
         @app.post("/api/global/settings")
         def api_write_global_settings(global_settings: GlobalSettings):
-            try:
-                with open(f"global_settings.json", 'w') as f:
-                    return f.write(json.dumps(global_settings))
-            except:
-                pass
+            return write_global_settings(global_settings=global_settings)
 
         return app
             

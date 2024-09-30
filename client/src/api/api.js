@@ -10,9 +10,10 @@ const prepareUrl = (url) => {
   if (url.indexOf("gpteng_path") === -1) {
     let [path, params] = url.split("?")
     if (params) {
-      params += "&"
+      params += `&${query()}`
+    } else {
+      params = query()
     }
-    params += query()
     url =`${path}?${params}`
     console.log("Prepare url", url)
     return url
@@ -54,12 +55,12 @@ export const API = {
     async list () {
       const res = await API.get('/api/projects')
       if (API.lastSettings) {
-        API.lastSettings.projects = res.data
+        API.allProjects = res.data
       }
       return res
     },
     create(projectPath) {
-      return API.post('/api/projects?project_path=' + projectPath, {})
+      return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath), {})
     },
     delete() {
       localStorage.setItem("API_SETTINGS", "")
@@ -136,7 +137,7 @@ export const API = {
       return API.get(`/api/knowledge/keywords`)
     },
     searchKeywords (searchQuery) {
-      return API.get(`/api/knowledge/keywords?query=${searchQuery}&`)
+      return API.get(`/api/knowledge/keywords?query=${searchQuery}`)
     }
   },
   chats: {
@@ -145,7 +146,7 @@ export const API = {
       return data
     },
     async loadChat (name) {
-      const { data } = await API.get(`/api/chats?chat_name=${name}&`)
+      const { data } = await API.get(`/api/chats?chat_name=${name}`)
       return data
     },
     async newChat () {
@@ -160,10 +161,10 @@ export const API = {
       return chat
     },
     save (chat, chatInfoOnly) {
-      return API.put(`/api/chats?chatonly=${chatInfoOnly ? 1 : 0}&`, chat)
+      return API.put(`/api/chats?chatonly=${chatInfoOnly ? 1 : 0}`, chat)
     },
     delete(chatName) {
-      return API.del(`/api/chats?chat_name=${chatName}&`)
+      return API.del(`/api/chats?chat_name=${chatName}`)
     }
   },
   run: {
@@ -207,7 +208,7 @@ export const API = {
   },
   wiki: {
     read (path) {
-      return API.get(`/api/wiki?file_path=${path}&`)
+      return API.get(`/api/wiki?file_path=${path}`)
     }
   },
   engine: {
@@ -224,13 +225,13 @@ export const API = {
       if (API.lastSettings) {
         localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
       }
-      API.lastSettings.projects = projects
+      API.allProjects = projects
     } else {
       const settings = localStorage.getItem("API_SETTINGS")
       try {
         API.lastSettings = JSON.parse(settings)
         const { data: projects } = await API.project.list()
-        API.lastSettings.projects = projects
+        API.allProjects = projects
       } catch (ex) {
         console.error("Invalid settings")
       }
