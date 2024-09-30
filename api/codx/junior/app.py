@@ -108,11 +108,6 @@ class GPTEngineerAPI:
             ssl_context='adhoc'
         )
 
-        if STATIC_FOLDER:
-            logger.info(f"API Static folder: {STATIC_FOLDER}")
-            app.mount("/", StaticFiles(directory=STATIC_FOLDER, html=True), name="client_chat")
-        app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
-
         @app.on_event("startup")
         def startup_event():
             logger.info(f"Creating FASTAPI: {app.__dict__}")
@@ -375,6 +370,12 @@ class GPTEngineerAPI:
         @app.post("/api/global/settings")
         def api_write_global_settings(global_settings: GlobalSettings):
             return write_global_settings(global_settings=global_settings)
+
+
+        if STATIC_FOLDER:
+            logger.info(f"API Static folder: {STATIC_FOLDER}")
+            app.mount("/", StaticFiles(directory=STATIC_FOLDER, html=True), name="client_chat")
+        app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
 
         return app
             
