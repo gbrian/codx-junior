@@ -49,6 +49,7 @@ from langchain.schema import (
 
 from codx.junior.settings import GPTEngineerSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
+from codx.junior.ai.anthropic import Anthropic_AI
 
 # Type hint for a chat message
 Message = Union[AIMessage, HumanMessage, SystemMessage]
@@ -128,6 +129,8 @@ class AI:
 
 
     def create_chat_model(self) -> BaseChatModel:
+        if self.settings.ai_provider == "anthropic":
+            return Anthropic_AI(settings=self.settings).chat_completions    
         return OpenAI_AI(settings=self.settings).chat_completions
 
 

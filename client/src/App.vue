@@ -25,7 +25,6 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
                 :style="`background-image:url('${lastSettings.project_icon}')`"></div>
             <div class="">
               {{ projectName }}
-              ({{ lastSettings?.model }})
             </div> 
           </div>
 

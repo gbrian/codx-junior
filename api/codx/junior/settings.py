@@ -7,11 +7,14 @@ logger = logging.getLogger(__name__)
 
 class GPTEngineerSettings:
     def __init__(self, **kwrgs):
+        self.ai_provider = "openai"
         self.project_name = None
         self.project_path = "."
         self.project_wiki = None
         self.openai_api_key = None
         self.openai_api_base = None
+        self.anthropic_api_key = None
+        self.anthropic_model = None
         self.knowledge_extract_document_tags = False
         self.knowledge_search_type = "similarity"
         self.knowledge_search_document_count = 10

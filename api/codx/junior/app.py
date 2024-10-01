@@ -137,6 +137,8 @@ class GPTEngineerAPI:
                     settings = GPTEngineerSettings.from_project(codx_path)
                     global_settings = read_global_settings()
                     if global_settings:
+                        if global_settings.log_ai:
+                            settings.log_ai = True 
                         if not settings.openai_api_base:
                             settings.openai_api_base = global_settings.openai.openai_api_url
                         if not settings.openai_api_key:
@@ -145,6 +147,10 @@ class GPTEngineerAPI:
                             settings.model = global_settings.ai_model
                         if not settings.temperature:
                             settings.model = global_settings.ai_temperature
+                        if not settings.anthropic_api_key:
+                            settings.anthropic_api_key = global_settings.anthropic_ai.anthropic_api_key
+                        if not settings.anthropic_model:
+                            settings.anthropic_model = global_settings.anthropic_ai.anthropic_model
 
                     ai_logs = ["openai._base_client"]
                 except Exception as ex:

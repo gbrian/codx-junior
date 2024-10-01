@@ -100,11 +100,17 @@ class LiveEdit(BaseModel):
 class OpenAISettings(BaseModel):
     openai_api_url: str = Field(default=None)
     openai_api_key: str = Field(default=None)
+    openai_model: str = Field(default="gpt4o")
+    
+
+class AnthropicAISettings(BaseModel):
+    anthropic_api_key: str = Field(default=None)
+    anthropic_model: str = Field(default="claude-3-5-sonnet-20240620")
 
 class GlobalSettings(BaseModel):
     openai: OpenAISettings = Field(default=OpenAISettings())
+    anthropic_ai: AnthropicAISettings = Field(default=AnthropicAISettings())
     log_ai: bool = Field(default=False)
     projects_root_path: str = Field(default='/codx-junior/projects')
-    ai_model: str = Field(default="gpt4o")
     ai_temperature: str = Field(default="0.8")
 

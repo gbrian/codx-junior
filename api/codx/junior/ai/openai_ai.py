@@ -56,10 +56,10 @@ class OpenAI_AI:
             "content": gpt_message.content
         }
 
-    def chat_completions(self, messages, config={}):
+    def chat_completions(self, messages, config: dict = {}):
         openai_messages = [self.convert_message(msg) for msg in messages]
-        model = config.get("model", self.settings.model)
-        temperature = float(config.get("temperature", self.settings.temperature))
+        model = self.settings.model
+        temperature = float(self.settings.temperature)
         
         if self.settings.log_ai:
             logger.info(f"openai_messages: {openai_messages}")
@@ -78,7 +78,7 @@ class OpenAI_AI:
             #tool_calls = self.process_tool_calls(chunk.choices[0].message)
             #if tool_calls:
             #    messages.append(HumanMessage(content=tool_calls))
-            #    return self.chat_completions(messages=messages, config=config)
+            #    return self.chat_completions(messages=messages)
 
             chunk_content = chunk.choices[0].delta.content
             if not chunk_content:

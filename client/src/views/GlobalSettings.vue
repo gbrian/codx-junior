@@ -36,6 +36,13 @@
             <input v-model="settings.openai.openai_api_key" type="text" class="input input-bordered flex-grow" />
           </div>
         </div>
+        <div class="flex flex-col gap-2 text-xs">
+          <div class="text-base pl-4">AnthropicAI</div>
+          <div class="flex items-center">
+            <span class="w-1/4 pl-4">API Key:</span>
+            <input v-model="settings.anthropic_ai.anthropic_api_key" type="text" class="input input-bordered flex-grow" />
+          </div>
+        </div>
       </div>
       <div class="flex justify-end gap-2">
         <button class="btn btn-sm btn-primary" @click="saveSettings">Save</button>
