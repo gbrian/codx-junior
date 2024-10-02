@@ -24,7 +24,9 @@ Default setup will run a docker container with codx-junior and will map codx-jun
   ## It's important have same path between 
   ## host project's and container 
   ###########################################
-  HOST_PROJECTS_ROOT_PATH="$(dirname $PWD)" docker-compose -f docker-compose.dev.yaml up -d
+  HOST_PROJECTS_ROOT_PATH="$(dirname $PWD)" \
+  HOST_USER="$(id -u):$(id -g)" \
+  docker-compose -f docker-compose.dev.yaml up -d
 ```
 
 #### bash

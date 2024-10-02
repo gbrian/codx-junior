@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from codx.junior.settings import GPTEngineerSettings
 
 from codx.junior.model import Chat, Message
+from codx.junior.utils import write_file
 
 class ChatManager:
     def __init__(self, settings: GPTEngineerSettings):
@@ -35,9 +36,7 @@ class ChatManager:
         chat.updated_at = datetime.now().isoformat()
         if not chat.created_at:
             chat.created_at = chat.updated_at
-        with open(chat_file, 'w') as f:
-            chat_content = self.serialize_chat(chat)
-            f.write(chat_content)
+        write_file(chat_file, self.serialize_chat(chat))
 
     def load_chat(self, chat_name):
         chat_file = f"{self.chat_path}/{chat_name}"

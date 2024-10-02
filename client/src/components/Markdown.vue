@@ -50,7 +50,13 @@ export default {
       return md.render("```json\n" + JSON.stringify(this.text, null, 2) + "\n```")
     },
     sanitizedText () {
-      return this.text?.replace("```thymeleaf", "```html")
+      let text = ""
+      if (this.text) {
+        text = this.text
+                    .replace("```thymeleaf", "```html")
+                    .replace("```md", "")
+      }
+      return text
     }
   },
   watch: {
@@ -68,8 +74,9 @@ export default {
       })
     },
     updateCodeBlocks () {
+      return
       setInterval(() => {
-        const codeBlocks = [...this.$el.querySelectorAll('code[class^="language"]')]
+        const codeBlocks = [...this.$el.querySelectorAll('code[class*="language-"]')]
                             .filter(cb => !this.codeBlocks.find(ccb => ccb === cb))
         if (codeBlocks.length) {
           this.codeBlocks = [...this.codeBlocks, ...codeBlocks]

@@ -6,6 +6,7 @@ import logging
 from codx.junior.settings import GPTEngineerSettings
 from codx.junior.model import Profile
 from codx.junior.profiles.coding import get_coding_profiles
+from codx.junior.utils import write_file
 
 class ProfileManager:
     def __init__(self, settings: GPTEngineerSettings):
@@ -42,8 +43,7 @@ class ProfileManager:
                 return Profile(name=profile_name, content=content)
 
     def create_profile(self, profile: Profile):
-        with open(os.path.join(self.profiles_path, profile.name), 'w') as f:
-            f.write(profile.content)
+        write_file(os.path.join(self.profiles_path, profile.name), profile.content)
 
     def delete_profile(self, profile_name):
         _, project_profiles = self.get_profiles()

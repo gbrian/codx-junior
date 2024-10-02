@@ -36,7 +36,7 @@ import PRView from '../views/PRView.vue'
           <li class="p-2 click hover:underline flex flex-col"
             v-for="openChat in chats" :key="openChat"
             @click="loadChat(openChat.name)" >
-            <div class="text-xs">{{ moment.utc(openChat.updated_at).fromNow() }}</div>
+            <div class="text-xs">{{ chatUpdatedDate }}</div>
             <a>{{ openChat.name }}</a>
           </li>
         </ul>
@@ -226,6 +226,12 @@ export default {
     },
     showChat () {
       return !this.showPRView
+    },
+    chatUpdatedDate () {
+      const updatedAt = this.chat.updated_at;
+      return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
+        ? moment(updatedAt).fromNow()
+        : moment(updatedAt).format('YYYY-MM-DD');
     }
   },
   watch: {

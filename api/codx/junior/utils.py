@@ -1,7 +1,11 @@
+import os
 import inspect
+import subprocess
 from pathlib import Path
 import json, re
 import hashlib
+
+HOST_USER = os.environ.get("HOST_USER")
 
 def extract_code_blocks(content):
     in_fence = False
@@ -68,3 +72,20 @@ def extract_blocks(content):
       if add_line:
           content_lines.append(line)
           continue
+
+def exec_command(command: str, cmd: str=None):
+    result = subprocess.run(command.split(" "), cwd=cmd,
+                                    stdout = subprocess.PIPE,
+                                    stderr = subprocess.STDOUT,
+                                    text=True)
+    return result.stdout, result.stderr
+
+def set_file_permissions(file_path: str):
+    if HOST_USER:
+        exec_command(f"chown {HOST_USER} {file_path}")
+
+def write_file(file_path: str, content: str):
+    with open(file_path, 'w') as f:
+        f.write(content)
+    set_file_permissions(file_path)
+    

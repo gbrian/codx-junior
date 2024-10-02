@@ -3,6 +3,8 @@ import json
 import logging
 import pathlib
 
+from codx.junior.utils import write_file
+
 logger = logging.getLogger(__name__)
 
 class GPTEngineerSettings:
@@ -72,8 +74,7 @@ class GPTEngineerSettings:
       path = f"{self.codx_path}/project.json"
       os.makedirs(self.codx_path, exist_ok=True)
       logging.info(f"Saving project {path} {settings}")
-      with open(path, 'w') as f:
-        f.write(json.dumps(settings, indent=2))
+      write_file(path, json.dumps(settings, indent=2))
 
     def detect_sub_projects(self):
       try:

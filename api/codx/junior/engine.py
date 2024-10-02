@@ -13,7 +13,8 @@ from langchain.schema.document import Document
 from codx.junior.utils import (
     document_to_context,
     extract_code_blocks,
-    extract_json_blocks 
+    extract_json_blocks,
+    exec_command
 )
 
 from codx.junior.ai import AI
@@ -139,13 +140,6 @@ def create_project(project_path: str):
     settings.codx_path = f"{settings.project_path}/.codx"
     settings.save_project()
     return settings
-
-def exec_command(command: str, cmd: str=None):
-    result = subprocess.run(command.split(" "), cwd=cmd,
-                                    stdout = subprocess.PIPE,
-                                    stderr = subprocess.STDOUT,
-                                    text=True)
-    return result.stdout, result.stderr
 
 def select_afefcted_documents_from_knowledge(ai: AI, query: str, settings: GPTEngineerSettings, ignore_documents=[]):
     # Extract mentions from the query
@@ -313,8 +307,7 @@ def apply_improve_code_changes(settings: GPTEngineerSettings, code_generator: AI
         new_content = change_file_with_instructions(settings=settings, instruction_list=instruction_list, file_path=file_path, content=content)
         if new_content and new_content != content:
             os.makedirs(os.path.dirname(file_path), exist_ok=True)
-            with open(file_path, 'w') as f:
-                f.write(new_content)
+            write_file(file_path, new_content)
         else:
             logger.error(f"Error applying changes to {file_path}. New content: {new_content}")
 
@@ -371,8 +364,7 @@ def improve_existing_code_gpt_blocks(settings: GPTEngineerSettings, chat: Chat):
         with open(file_path) as f:
           content = f.read()
         new_content = change_file(context_documents=[], query=changes, file_path=file_path, org_content=content, settings=settings)
-        with open(file_path, 'w') as f:
-          content = f.write(new_content)
+        write_file(file_path, new_content)
 
 
 def check_knowledge_status(settings: GPTEngineerSettings):
@@ -543,8 +535,7 @@ def check_file_for_mentions(settings: GPTEngineerSettings, file_path: str):
         content = f.read()
 
     def save_file (new_content):
-        with open(file_path, 'w') as f:
-            f.write(new_content)
+        write_file(file_path, new_content)
 
     mentions = extract_mentions(content)
     #logger.info(f"EXTRACT MENTIONS: {mentions[0]}")
@@ -628,9 +619,9 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
         task = last_ai_message.content if is_refine and last_ai_message else ""
         if is_refine:
             user_message = Message(role="user", content=
-              f"""Update curren task definition based on user's comments and context.
+              f"""Update current task definition based on user's comments and context.
               We are defining a task so we want to be clear and concise.
-              Avoid adding code examples unless explicitely been asked by user's comment.
+              When adding code examples keep them close to the task and avoid unncesary extra code that can distract the reader.
               If you have doubts or lack of context add a "DOUBTS" sections at the end for the user.
               ```md
               {task}
@@ -744,7 +735,6 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
         {context}
         """)
     messages.append(convert_message(user_message))
-    
     messages = ai.chat(messages, callback=callback)
     response = messages[-1].content
     sources = []

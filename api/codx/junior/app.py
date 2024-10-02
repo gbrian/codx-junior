@@ -379,6 +379,7 @@ class GPTEngineerAPI:
 
 
         if STATIC_FOLDER:
+            os.makedirs(STATIC_FOLDER, exist_ok=True)
             logger.info(f"API Static folder: {STATIC_FOLDER}")
             app.mount("/", StaticFiles(directory=STATIC_FOLDER, html=True), name="client_chat")
         app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")

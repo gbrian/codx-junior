@@ -55,7 +55,7 @@ import Markdown from './Markdown.vue'
           </div>
         </div>
         <pre v-if="srcView">{{ message.content }}</pre>
-        <Markdown class="" :text="message.content" v-else></Markdown>
+        <Markdown :text="message.content" v-else />
         <div v-if="images">
           <div class="grid grid-cols-6">
             <div class="carousel-item click mt-2"
@@ -99,14 +99,12 @@ export default {
   props: ['chat', 'message'],
   data () {
     return {
-      codeBlocks: [],
       showDoc: false,
       srcView: false
     }
   },
   mounted () {
     this.message.collapse = this.message.hide
-    // this.updateCodeBlocks()
   },
   computed: {
     html () {
@@ -132,11 +130,6 @@ export default {
           }
         }
       })
-    }
-  },
-  watch: {
-    message () {
-      this.codeBlocks = []
     }
   },
   methods: {
@@ -176,16 +169,6 @@ export default {
       } else {
         parentNode.classList.remove(...classes)
       }
-    },
-    updateCodeBlocks () {
-      setInterval(() => {
-        const codeBlocks = [...this.$el.querySelectorAll('code[class^="language"]')]
-                            .filter(cb => !this.codeBlocks.find(ccb => ccb === cb))
-        if (codeBlocks.length) {
-          this.codeBlocks = [...this.codeBlocks, ...codeBlocks]
-          console.log("Code blocks", codeBlocks)
-        }
-      }, 500)      
     }
   }
 }

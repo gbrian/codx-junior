@@ -4,6 +4,7 @@ import sqlite3
 from slugify import slugify
 from codx.junior.settings import GPTEngineerSettings
 
+from codx.junior.utils import write_file
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +38,10 @@ class KnowledgeKeywords:
     def add_keywords(self, file_path, file_keywords):
         keywords = self.get_keywords()
         keywords[file_path] = [word.strip() for word in file_keywords.split(",")]
-        with open(self.db_keywords_file, 'w') as f:
-            f.write(json.dumps(keywords, indent=2))
+        write_file(self.db_keywords_file, json.dumps(keywords, indent=2))
 
     def remove_keywords(self, file_path):
         keywords = self.get_keywords()
         if file_path in keywords:
             del keywords[file_path]
-            with open(self.db_keywords_file, 'w') as f:
-                f.write(json.dumps(keywords, indent=2))
+            write_file(self.db_keywords_file, json.dumps(keywords, indent=2))

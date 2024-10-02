@@ -213,7 +213,7 @@ export default {
     },
     async getAllProjects () {
       await API.project.list()
-      this.allProjects = API.lastSettings?.projects
+      this.allProjects = API.allProjects
     },
     async onShowOpenProjectModal () {
       this.getAllProjects()

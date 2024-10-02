@@ -7,9 +7,9 @@ services:
       - .env.dev
     environment:
       - DEBUG=1
+      # HOST_USER to fix permissions from files generated
+      - HOST_USER
     volumes:
       - $PWD:/projects/codx-junior
       - "${HOST_PROJECTS_ROOT_PATH}:${HOST_PROJECTS_ROOT_PATH}"
-    ports:
-      - "9999:9080"
-      - "8083:8083"
+    network_mode: host

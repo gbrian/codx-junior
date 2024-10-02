@@ -61,8 +61,6 @@ class OpenAI_AI:
         model = self.settings.model
         temperature = float(self.settings.temperature)
         
-        if self.settings.log_ai:
-            logger.info(f"openai_messages: {openai_messages}")
         response_stream = self.client.chat.completions.create(
             model=model,
             temperature=temperature,
