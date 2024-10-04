@@ -68,7 +68,9 @@ codx-junior is agile and task based. Create task and polish it with codx-junior 
 ![image](https://github.com/user-attachments/assets/64aa5c7c-6c40-41bc-abdc-2f93a84b60c0)
 
 ### Wiki
-Don't write more documentation, codx-junior will do for you
+Documentation is always the first part that gets oudated... not anymore. codx-junior will take care and keep it updated for you.
+
+![image](https://github.com/user-attachments/assets/0e29b06f-94af-4177-bf31-038370e910c3)
 
 ### Personalize
 Define how do you want codx-junior to perform, code styling, ...
