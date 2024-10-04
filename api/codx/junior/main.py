@@ -2,6 +2,6 @@ import sys
 import re
 import logging
 
-from codx.junior.app import GPTEngineerAPI
+from codx.junior.app import CODXJuniorAPI
 
-app = GPTEngineerAPI().start()
+app = CODXJuniorAPI().start()
