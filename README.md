@@ -55,22 +55,34 @@ Default setup will run a docker container with codx-junior and will map codx-jun
 After you should be able to access codx-junior at: 
 http://localhost:9983
 
-
 ## codx-junior builtin features
 
 ### Knowledge
+codx-junior uses RAG techniques to find revelant parts of the code for your tasks or giving support
+
+![image](https://github.com/user-attachments/assets/fbbd1591-586b-47dc-9991-b7e392b8d38f)
 
 ### Tasks
+codx-junior is agile and task based. Create task and polish it with codx-junior until your are ready to generate code
 
-### Mentions
+![image](https://github.com/user-attachments/assets/64aa5c7c-6c40-41bc-abdc-2f93a84b60c0)
+
+### Wiki
+Don't write more documentation, codx-junior will do for you
+
+### Personalize
+Define how do you want codx-junior to perform, code styling, ...
+
+#### Settings
+![image](https://github.com/user-attachments/assets/d767b29b-f014-4d65-b351-c83aed40d622)
+
+#### Profiles
+![image](https://github.com/user-attachments/assets/60911bd2-d26f-4e82-bc32-a77c1b0c105e)
+
+
+### Mentions (aka copilot)
 
 Mentions allow you to reference specific parts of your project or codebase for easier management and collaboration. Below is a demonstration video on how to use mentions effectively:
-
-[![YouTube](http://i.ytimg.com/vi/CDZzE4Ea6DA/hqdefault.jpg)](https://www.youtube.com/watch?v=CDZzE4Ea6DA)
-
-
-
-
 
 To use mentions, simply include the `@codx-processing` tag followed by the specific instruction or note you want to add. For example:
 ```markdown
@@ -79,22 +91,8 @@ To use mentions, simply include the `@codx-processing` tag followed by the speci
 This will notify the system to process the mention and make the necessary changes or additions.
 
 ### Code generation
-Ofc... we are here for this :)
+Ofc... we are here for this :) so just press "code" button or use mentions to creat code
 
-### Codebase knowledge
-codx-junior uses RAG techniques to find revelant parts of the code for your tasks or giving support
-
-### Task managent
-codx-junior is task based. Create task and polish it with codx-junior until your are ready to generate code
-
-### Chat & Support
-Talk with codx-junior to learn about the code base, find ways to improve your code or learn new skills
-
-### Wiki
-Don't write more documentation, codx-junior will do for you
-
-### Personalize
-Define how do you want codx-junior to perform, code styling, ...
 
 ```           _                 _   _             
           (_)               | | (_)            
