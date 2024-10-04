@@ -56,11 +56,11 @@ After you should be able to access codx-junior at:
 http://localhost:9983
 
 
-## Features
-
-### Tasks
+## codx-junior builtin features
 
 ### Knowledge
+
+### Tasks
 
 ### Mentions
 
