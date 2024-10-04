@@ -15,17 +15,18 @@ import Markdown from './Markdown.vue'
     >
       <div>
         <div class="flex gap-2 items-center">
-          <div class="btn btn-xs flex gap-2 items-center font-bold text-xs bg-base-300 group-hover:bg-base-100 rounded-md">
-            <button class="btn btn-xs" @click="$emit('hide')">
+          <div :class="['btn btn-sm btn-outline flex gap-2 items-center font-bold text-xs rounded-md',
+            message.role ==='user' ? 'bg-base-300' :'bg-secondary/80 text-secondary-content' ]">
+            <div class="click" @click="$emit('hide')">
               <span class="text-warning" v-if="message.hide">
                 <i class="fa-solid fa-eye-slash"></i>
               </span>
               <span v-else>
                 <i class="fa-solid fa-eye"></i>
               </span>
-            </button>
-            <div v-if="message.role ==='user'">You ({{ message.role }})</div>
-            <div v-else>gpt-engineer ({{ message.role }})</div>
+            </div>
+            <div v-if="message.role ==='user'">You</div>
+            <div v-else>codx-junior</div>
           </div>
           <div class="hidden group-hover:flex gap-2">
             <button class="btn btn-xs" @click="message.collapse = !message.collapse">
