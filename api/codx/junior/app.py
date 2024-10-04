@@ -97,11 +97,11 @@ def process_projects_changes():
 logger.info("Starting process_projects_changes job")
 add_work(process_projects_changes)
 
-class GPTEngineerAPI:
+class CODXJuniorAPI:
     def start(self):
         app = FastAPI(
-            title="GPTEngineerAPI",
-            description="API for GPTEngineer",
+            title="CODXJuniorAPI",
+            description="API for CODXJunior",
             version="1.0",
             openapi_url="/api/openapi.json",
             docs_url="/api/docs",
