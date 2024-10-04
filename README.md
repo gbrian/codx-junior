@@ -2,11 +2,11 @@
 Your junior assistant for Full Stack Developers
 
 ## Motivation
-Hi, as a Full Stack Developer there's plenty of things that are repetitive, can be automated or just I don't know!
 
-So I started adapting gpt-engineer to help me coding, speeding developments, improving tests, and teaching me when dealing with techs that I'm rusty.
+As a Full Stack Developer, we are supposed to deal with everything, know everything, and fix everything—from front, to back, to database, cloud, DevOps... and I like it, but it's a titan task. I'm developing codx-junior to have an AI that can manage all tedious and repetitive tasks in software development and IT. I want codx-junior to help me deal with projects I don't know and situations where "the last developer left yesterday and there's no doc." I want codx-junior to write better code than me, better tests than me, and, of course, keep documentation updated.
 
 ![image](https://github.com/user-attachments/assets/29123838-1b1b-44c6-a92a-c28968238385)
+
 
 ## PNRL: Play now read later
 
@@ -95,4 +95,4 @@ Define how do you want codx-junior to perform, code styling, ...
 ```
 This project come from my fork of https://github.com/gpt-engineer-org/gpt-engineer - such a great project! ❤️- ...but that work was never merged to main branch because I followed different approach and ended up rewriting everything. Please try gpt-engineer as well, worth it!
 
-Nowadays codx branch has nothing in common with gpt-enginner master so it's time to create a new project for it. 
+Nowadays codx branch has nothing in common with gpt-enginner master so it's time to create a new project for it.
