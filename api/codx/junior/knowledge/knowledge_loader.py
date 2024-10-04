@@ -11,7 +11,7 @@ from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import CharacterTextSplitter
 
 from codx.junior.utils import calculate_md5
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_code_splitter import KnowledgeCodeSplitter
 from codx.junior.knowledge.knowledge_code_to_dcouments import KnowledgeCodeToDocuments
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class KnowledgeLoader:
-    def __init__(self, settings: GPTEngineerSettings):
+    def __init__(self, settings: CODXJuniorSettings):
         self.path = settings.project_path
         self.settings = settings
         self.text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
@@ -116,6 +116,7 @@ class KnowledgeLoader:
 
         changed_file_paths = [file for file in full_file_paths \
                             if self.is_valid_file(file, last_update=last_update, path=path, current_sources=current_sources, knowledge_file_ignore=knowledge_file_ignore) ]
+        
         # logger.info(f"list_repository_files: {len(full_file_paths)} files - changed {len(changed_file_paths)} - ignore paths: {knowledge_file_ignore}")
         return changed_file_paths
 

@@ -1,36 +1,9 @@
-"""
-This module provides an interface to interact with AI models.
-It leverages the OpenAI GPT models and allows for integration with Azure-based instances of the same.
-The AI class encapsulates the chat functionalities, allowing to start, advance, and manage a conversation with the model.
-
-Key Features:
-- Integration with Azure-based OpenAI instances through the LangChain AzureChatOpenAI class.
-- Token usage logging to monitor the number of tokens consumed during a conversation.
-- Seamless fallback to default models in case the desired model is unavailable.
-- Serialization and deserialization of chat messages for easier transmission and storage.
-
-Classes:
-- AI: Main class providing chat functionalities.
-
-Dependencies:
-- langchain: For chat models and message schemas.
-- openai: For the core GPT models interaction.
-- backoff: For handling rate limits and retries.
-- typing: For type hints.
-
-For more specific details, refer to the docstrings within each class and function.
-"""
-
-from __future__ import annotations
 
 import json
 import logging
 import os
 
 from typing import List, Optional, Union
-
-import backoff
-import openai
 
 import hashlib
 
@@ -47,8 +20,9 @@ from langchain.schema import (
     messages_to_dict,
 )
 
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
+from codx.junior.ai.anthropic import Anthropic_AI
 
 # Type hint for a chat message
 Message = Union[AIMessage, HumanMessage, SystemMessage]
@@ -62,7 +36,7 @@ class LogginCallbackHandler(StreamingStdOutCallbackHandler):
 
 class AI:
     def __init__(
-        self, settings: GPTEngineerSettings
+        self, settings: CODXJuniorSettings
     ):
         self.settings = settings
         self.llm = self.create_chat_model()
@@ -104,7 +78,15 @@ class AI:
 
         messages.append(response)
         if self.settings.log_ai:
-            logger.debug(f"Chat completion finished: {messages}")
+            def format_messages():
+              return "\n".join([f"""############################################
+              ### ROLE: {msg.type}
+              ############################################
+
+              {msg.content}
+              """
+              for msg in messages])
+            logger.debug(f"Chat completion finished: {format_messages()}")
 
         return messages
 
@@ -128,6 +110,8 @@ class AI:
 
 
     def create_chat_model(self) -> BaseChatModel:
+        if self.settings.ai_provider == "anthropic":
+            return Anthropic_AI(settings=self.settings).chat_completions    
         return OpenAI_AI(settings=self.settings).chat_completions
 
 

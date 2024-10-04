@@ -1,8 +1,8 @@
 import os
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 
 class KnowledgePrompts:
-  def __init__(self, settings: GPTEngineerSettings):
+  def __init__(self, settings: CODXJuniorSettings):
     self.settings = settings
     self.preprompts_path = f"{os.path.dirname(__file__)}/prepromts"
     

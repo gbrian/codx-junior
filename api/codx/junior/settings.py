@@ -3,20 +3,23 @@ import json
 import logging
 import pathlib
 
+from codx.junior.utils import write_file
+
 logger = logging.getLogger(__name__)
 
-class GPTEngineerSettings:
+class CODXJuniorSettings:
     def __init__(self, **kwrgs):
+        self.ai_provider = "openai"
         self.project_name = None
         self.project_path = "."
         self.project_wiki = None
-        self.openai_api_key = None
-        self.openai_api_base = None
+        self.ai_api_key = None
+        self.ai_api_url = None
+        self.ai_model = None
         self.knowledge_extract_document_tags = False
         self.knowledge_search_type = "similarity"
         self.knowledge_search_document_count = 10
         self.temperature = 0.7
-        self.model = None
         self.knowledge_file_ignore = None
         self.codx_path = "./.codx"
         self.knowledge_enrich_documents = False
@@ -29,13 +32,13 @@ class GPTEngineerSettings:
         self.knowledge_hnsw_M = 1024
         self.project_icon = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s"
         if kwrgs:
-            keys = GPTEngineerSettings().__dict__.keys()
+            keys = CODXJuniorSettings().__dict__.keys()
             for key in kwrgs.keys():
               self.__dict__[key] = kwrgs.get(key)
 
     @classmethod
     def from_env(cls):
-      base = GPTEngineerSettings()
+      base = CODXJuniorSettings()
       gpt_envs = [env for env in os.environ if env.startswith("GPTARG_")]
       envs = [(env.replace("GPTARG_", ""), os.environ[env]) for env in gpt_envs]
       for k, v in envs:
@@ -44,20 +47,20 @@ class GPTEngineerSettings:
 
     @classmethod
     def from_project(cls, codx_path: str):
-        base = GPTEngineerSettings()
+        base = CODXJuniorSettings()
         base.codx_path = codx_path
         base.project_path = codx_path
         with open(f"{codx_path}/project.json", 'r') as f:
           settings = json.loads(f.read())
-          settings = GPTEngineerSettings(**{ **base.__dict__, **settings })
+          settings = CODXJuniorSettings(**{ **base.__dict__, **settings })
           if not settings.project_name:
               settings.project_name = settings.project_path.split("/")[-1]
           return settings
     
     @classmethod
     def from_json(cls, settings: dict):
-      base = GPTEngineerSettings.from_env()
-      return GPTEngineerSettings(**{ **base.__dict__, **settings })
+      base = CODXJuniorSettings.from_env()
+      return CODXJuniorSettings(**{ **base.__dict__, **settings })
 
     def to_env(self) -> [str]:
       keys = self.__dict__.keys()
@@ -69,8 +72,7 @@ class GPTEngineerSettings:
       path = f"{self.codx_path}/project.json"
       os.makedirs(self.codx_path, exist_ok=True)
       logging.info(f"Saving project {path} {settings}")
-      with open(path, 'w') as f:
-        f.write(json.dumps(settings, indent=2))
+      write_file(path, json.dumps(settings, indent=2))
 
     def detect_sub_projects(self):
       try:

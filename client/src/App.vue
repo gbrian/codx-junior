@@ -13,7 +13,7 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
 </script>
 
 <template>
-  <div class="w-full h-screen max-w-screen flex flex-col bg-base-300 dark relative" data-theme="dark">
+  <div class="w-full h-full flex flex-col bg-base-300 dark relative" data-theme="dark">
     <progress :class="['progress progress-success w-full', liveRequests ? '': 'opacity-0']"></progress>
     <div role="tablist" class="tabs tabs-lifted bg-base-100 rounded-md">
       <a role="tab" :class="['tab', tabIx === 'home' ? tabActive: tabInactive]"
@@ -25,7 +25,6 @@ import ProjectProfileVue from './views/ProjectProfile.vue';
                 :style="`background-image:url('${lastSettings.project_icon}')`"></div>
             <div class="">
               {{ projectName }}
-              ({{ lastSettings?.model }})
             </div> 
           </div>
 
@@ -214,7 +213,7 @@ export default {
     },
     async getAllProjects () {
       await API.project.list()
-      this.allProjects = API.lastSettings?.projects
+      this.allProjects = API.allProjects
     },
     async onShowOpenProjectModal () {
       this.getAllProjects()

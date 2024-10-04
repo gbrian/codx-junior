@@ -7,7 +7,7 @@ from openai import OpenAI
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 from langchain.schema import (
     AIMessage,
     HumanMessage,
@@ -37,11 +37,11 @@ tools = [
 ]
 
 class OpenAI_AI:
-    def __init__(self, settings: GPTEngineerSettings):
+    def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.client = OpenAI(
-            api_key=settings.openai_api_key,
-            base_url=settings.openai_api_base
+            api_key=settings.ai_api_key,
+            base_url=settings.ai_api_url
         )
 
     def log(self, msg):
@@ -56,13 +56,11 @@ class OpenAI_AI:
             "content": gpt_message.content
         }
 
-    def chat_completions(self, messages, config={}):
+    def chat_completions(self, messages, config: dict = {}):
         openai_messages = [self.convert_message(msg) for msg in messages]
-        model = config.get("model", self.settings.model)
-        temperature = float(config.get("temperature", self.settings.temperature))
+        model = self.settings.ai_model
+        temperature = float(self.settings.temperature)
         
-        if self.settings.log_ai:
-            logger.info(f"openai_messages: {openai_messages}")
         response_stream = self.client.chat.completions.create(
             model=model,
             temperature=temperature,
@@ -78,7 +76,7 @@ class OpenAI_AI:
             #tool_calls = self.process_tool_calls(chunk.choices[0].message)
             #if tool_calls:
             #    messages.append(HumanMessage(content=tool_calls))
-            #    return self.chat_completions(messages=messages, config=config)
+            #    return self.chat_completions(messages=messages)
 
             chunk_content = chunk.choices[0].delta.content
             if not chunk_content:

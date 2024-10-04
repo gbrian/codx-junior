@@ -34,6 +34,11 @@
       </div>
       <div class="flex justify-between items-center">
         <span class="text-sm text-gray-600">{{ formattedDate }}</span>
+        <div class="flex gap-1 justify-end">
+          <div class="badge badge-sm badge-info flex gap-2" v-for="tag in task.tags" :key="tag">
+            {{ tag }}
+          </div>
+        </div>
       </div>
     </div>
   </div>

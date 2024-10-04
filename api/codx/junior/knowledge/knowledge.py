@@ -17,7 +17,7 @@ from langchain.schema.document import Document
 from codx.junior.utils import calculate_md5
 from codx.junior.utils import extract_blocks
 from codx.junior.ai import AI
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
 from codx.junior.knowledge.knowledge_prompts import KnowledgePrompts
 from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
@@ -38,7 +38,7 @@ class Knowledge:
     db: Chroma = None
     ai: AI
 
-    def __init__(self, settings: GPTEngineerSettings):
+    def __init__(self, settings: CODXJuniorSettings):
         self.ai = None
         self.settings = settings
 
@@ -51,8 +51,8 @@ class Knowledge:
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
         self.embedding = OpenAIEmbeddings(
-            openai_api_key=settings.openai_api_key,
-            openai_api_base=settings.openai_api_base,
+            openai_api_key=settings.ai_api_key,
+            openai_api_base=settings.ai_api_url,
             disallowed_special=()
         )
         self.last_update = None

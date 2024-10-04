@@ -53,4 +53,6 @@ EXPOSE 9080
 EXPOSE $API_PORT
 EXPOSE $WEB_PORT
 
+RUN git config --global --add safe.directory '*'
+
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord/supervisor.conf"]

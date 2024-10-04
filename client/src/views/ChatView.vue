@@ -36,7 +36,7 @@ import PRView from '../views/PRView.vue'
           <li class="p-2 click hover:underline flex flex-col"
             v-for="openChat in chats" :key="openChat"
             @click="loadChat(openChat.name)" >
-            <div class="text-xs">{{ moment.utc(openChat.updated_at).fromNow() }}</div>
+            <div class="text-xs">{{ chatUpdatedDate }}</div>
             <a>{{ openChat.name }}</a>
           </li>
         </ul>
@@ -59,14 +59,31 @@ import PRView from '../views/PRView.vue'
                 v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else> 
                 <div class="click" @click="editName = true">{{ chat.name }}</div>
-                <div class="flex gap-2">
+                <div class="flex gap-2 items-center">
                   <div class="text-xs">{{ moment.utc(chat.updated_at).fromNow() }}</div>
-                  <div class="badge badge-sm">
-                    {{  chat.id }}
-                    <span v-if="chat.parent_id">
-                      / ({{  chat.parent_id }})
-                    </span>
+                  <div class="badge badge-sm badge-info flex gap-2" v-for="tag in chat.tags" :key="tag">
+                    {{ tag }}
+                    <button class="btn btn-xs btn-ghost" @click="removeTag(tag)">
+                      x
+                    </button>
                   </div>
+                  <button class="btn btn-xs" @click="newTag = ''">
+                      + tag
+                  </button>
+                  <modal v-if="newTag !== null">
+                    <div class="flex flex-col gap-2">
+                      <div class="text-xl">New tag</div>
+                      <input type="text" class="input input-sm input-bordered" v-model="newTag" />
+                      <div class="flex gap-2 justify-end">
+                        <button class="btn btn-error" @click="newTag = null">
+                            Cancel
+                        </button>
+                        <button class="btn" @click="addNewTag" :disabled="newTag.length === 0">
+                            Add
+                        </button>
+                      </div>
+                    </div>
+                  </modal>
                 </div>
               </div>
             </div>
@@ -200,7 +217,8 @@ export default {
       showHidden: false,
       showPRView: false,
       confirmDelete: false,
-      livePreview: false
+      livePreview: false,
+      newTag: null
     }
   },
   async created () {
@@ -226,6 +244,12 @@ export default {
     },
     showChat () {
       return !this.showPRView
+    },
+    chatUpdatedDate () {
+      const updatedAt = this.chat.updated_at;
+      return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
+        ? moment(updatedAt).fromNow()
+        : moment(updatedAt).format('YYYY-MM-DD');
     }
   },
   watch: {
@@ -310,6 +334,15 @@ export default {
       this.chat.parent_id = parent.parent_id
       this.chat.column = parent.column
       this.chat.column_ix = parent.column_ix
+    },
+    addNewTag () {
+      this.chat.tags = [...new Set([...this.chat.tags||[], this.newTag])]
+      this.newTag = null
+      this.saveChat()
+    },
+    removeNewTag (tag) {
+      this.chat.tags = this.chat.tags.filter(t => t !== tag)
+      this.saveChat()
     }
   }
 }

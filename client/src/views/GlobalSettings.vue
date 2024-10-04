@@ -18,15 +18,11 @@
       <div class="flex flex-col gap-2 text-xs">
         <div class="text-base">AI</div>
         <div class="flex items-center">
-          <span class="w-1/4">Model:</span>
-          <input v-model="settings.ai_model" type="text" class="input input-bordered flex-grow" />
-        </div>
-        <div class="flex items-center">
           <span class="w-1/4">Temperature:</span>
           <input v-model="settings.ai_temperature" type="text" class="input input-bordered flex-grow" />
         </div>
         <div class="flex flex-col gap-2 text-xs">
-          <div class="text-base pl-4">OpenAI</div>
+          <div class="text-base pl-2 font-bold">OpenAI</div>
           <div class="flex items-center">
             <span class="w-1/4 pl-4">API URL:</span>
             <input v-model="settings.openai.openai_api_url" type="text" class="input input-bordered flex-grow" />
@@ -34,6 +30,21 @@
           <div class="flex items-center">
             <span class="w-1/4 pl-4">API Key:</span>
             <input v-model="settings.openai.openai_api_key" type="text" class="input input-bordered flex-grow" />
+          </div>
+          <div class="flex items-center">
+            <span class="w-1/4 pl-4">Model:</span>
+            <input v-model="settings.openai.openai_model" type="text" class="input input-bordered flex-grow" />
+          </div>  
+        </div>
+        <div class="flex flex-col gap-2 text-xs">
+          <div class="text-base pl-2 font-bold">AnthropicAI</div>
+          <div class="flex items-center">
+            <span class="w-1/4 pl-4">API Key:</span>
+            <input v-model="settings.anthropic_ai.anthropic_api_key" type="text" class="input input-bordered flex-grow" />
+          </div>
+          <div class="flex items-center">
+            <span class="w-1/4 pl-4">Model:</span>
+            <input v-model="settings.anthropic_ai.anthropic_model" type="text" class="input input-bordered flex-grow" />
           </div>
         </div>
       </div>

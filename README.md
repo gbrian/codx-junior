@@ -8,6 +8,42 @@ So I started adapting gpt-engineer to help me coding, speeding developments, imp
 
 ![image](https://github.com/user-attachments/assets/29123838-1b1b-44c6-a92a-c28968238385)
 
+## PNRL: Play now read later
+
+Default setup will run a docker container with codx-junior and will map codx-junior repor parent's path to connect with host's projects. 
+
+### dev environment
+
+#### docker
+```sh
+  git clone https://github.com/gbrian/codx-junior.git
+  cd codx-junior
+  # change `.env.dev` as needed
+  # Set HOST_PROJECTS_ROOT_PATH to yor host project's path
+  ########################################### 
+  ## It's important have same path between 
+  ## host project's and container 
+  ###########################################
+  HOST_PROJECTS_ROOT_PATH="$(dirname $PWD)" \
+  HOST_USER="$(id -u):$(id -g)" \
+  docker-compose -f docker-compose.dev.yaml up -d
+```
+
+#### bash
+```sh
+  git clone https://github.com/gbrian/codx-junior.git
+  cd codx-junior
+  # change `.env.dev` as needed
+  source .env.dev
+  bash installer.sh
+  bash run_client.sh &
+  bash run_api.sh &
+```
+
+After you should be able to access codx-junior at: 
+http://localhost:9983
+
+
 ## Features
 
 ### Tasks
@@ -57,7 +93,6 @@ Define how do you want codx-junior to perform, code styling, ...
               __/ |                       __/ |
              |___/                       |___/ 
 ```
-This project started by adding new features to https://github.com/gpt-engineer-org/gpt-engineer ...but was never merged.
-Nowadays codx branch has nothing in common with gpt-enginner master so it's time to create a new project for it. 
+This project come from my fork of https://github.com/gpt-engineer-org/gpt-engineer - such a great project! ❤️- ...but that work was never merged to main branch because I followed different approach and ended up rewriting everything. Please try gpt-engineer as well, worth it!
 
-> Migrating from https://github.com/gbrian/gpt-engineer/tree/codx
+Nowadays codx branch has nothing in common with gpt-enginner master so it's time to create a new project for it. 

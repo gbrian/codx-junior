@@ -31,55 +31,57 @@ import ChatEntry from '@/components/ChatEntry.vue'
         <iframe ref="iframe" :src="chat.live_url" class="w-full h-full bg-base-200" :style="previewStyle"></iframe>
       </div>
     </div>
-    <div class="flex flex-col grow" v-if="!livePreview">
-      <div class="grow overflow-auto relative">
-        <div class="absolute top-0 left-0 w-full h-full scroller">
-          <div v-for="message in messages" :key="message.id">
-            <ChatEntry :message="message"
-              @edit="onEditMessage(message)"
-              @remove="removeMessage(message)"
-              @hide="toggleHide(message)"
-              @run-edit="runEdit"
-              @copy="onCopy(message)"
-              @generate-code="onGenerateCode(message, $event)"
-              @add-file-to-chat="$emit('add-file', $event)"
-              @image="imagePreview = $event"
-            />
-          </div>
-          <div class="anchor" ref="anchor"></div>
+    <div class="grow relative" v-if="!livePreview">
+      <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden">
+        <div class="flex flex-col gap-2" 
+          v-for="message in messages" :key="message.id">
+          <ChatEntry :class="['mb-4 rounded-md bg-base-300',
+            message.hide ? 'opacity-60' : '']"
+            :message="message"
+            @edit="onEditMessage(message)"
+            @remove="removeMessage(message)"
+            @hide="toggleHide(message)"
+            @run-edit="runEdit"
+            @copy="onCopy(message)"
+            @generate-code="onGenerateCode(message, $event)"
+            @add-file-to-chat="$emit('add-file', $event)"
+            @image="imagePreview = $event"
+          />
         </div>
-      </div>
-      <div class="badge text-info my-2 animate-pulse" v-if="waiting">typing ...</div>
-      <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
-        <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2">
-          <div class="flex p-1 items-center text-sky-600">
-            <i class="fa-solid fa-at"></i>
-            <input type="text" v-model="termSearchQuery"
-              ref="termSearcher"
-              class="-ml-1 input input-xs text-lg bg-transparent" placeholder="search term..."
-              @keydown.down.stop="onSelNext"
-              @keydown.up.stop="onSelPrev"
-              @keydown.enter.stop="addSerchTerm(searchTerms[searchTermSelIx])"
-              @keydown.esc="closeTermSearch"
-            />
-            <button class="btn btn-xs btn-circle btn-outline btn-error"
-              @click="termSearchQuery = null"            
-              v-if="termSearchQuery">
-              <i class="fa-solid fa-circle-xmark"></i>
-            </button>
-          </div>
-        </div>
-        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit" v-if="searchTerms">
-          <li v-for="term, ix in searchTerms" :key="term.key">
-            <a @click="addSerchTerm(term)">
-              <div :class="[searchTermSelIx === ix ? 'underline':'']">
-                <span class="text-sky-600 font-bold">@{{ term.key }}</span> <span class="text-xs">({{ term.file.split("/").reverse()[0] }})</span>
-              </div>
-            </a>
-          </li>
-        </ul>
+        <div class="anchor" ref="anchor"></div>
       </div>
     </div>
+    <div class="badge text-info my-2 animate-pulse" v-if="waiting">typing ...</div>
+    <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
+      <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2">
+        <div class="flex p-1 items-center text-sky-600">
+          <i class="fa-solid fa-at"></i>
+          <input type="text" v-model="termSearchQuery"
+            ref="termSearcher"
+            class="-ml-1 input input-xs text-lg bg-transparent" placeholder="search term..."
+            @keydown.down.stop="onSelNext"
+            @keydown.up.stop="onSelPrev"
+            @keydown.enter.stop="addSerchTerm(searchTerms[searchTermSelIx])"
+            @keydown.esc="closeTermSearch"
+          />
+          <button class="btn btn-xs btn-circle btn-outline btn-error"
+            @click="termSearchQuery = null"            
+            v-if="termSearchQuery">
+            <i class="fa-solid fa-circle-xmark"></i>
+          </button>
+        </div>
+      </div>
+      <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit" v-if="searchTerms">
+        <li v-for="term, ix in searchTerms" :key="term.key">
+          <a @click="addSerchTerm(term)">
+            <div :class="[searchTermSelIx === ix ? 'underline':'']">
+              <span class="text-sky-600 font-bold">@{{ term.key }}</span> <span class="text-xs">({{ term.file.split("/").reverse()[0] }})</span>
+            </div>
+          </a>
+        </li>
+      </ul>
+    </div>
+
     <div :class="['flex bg-base-300 border rounded-md shadow', 
           multiline ? 'flex-col' : '',
           onDraggingOverInput ? 'bg-warning/10': '']"
@@ -228,11 +230,7 @@ export default {
       this.editMessage = message
       this.editMessageId = this.chat.messages.findIndex(m => m === message)
 
-      if (this.editMessage.role == 'user') {
-        this.setEditorText(this.editMessage.content)
-      } else {
-        this.setEditorText("Please apply this corrections to your message:\n- ")
-      }
+      this.setEditorText(this.editMessage.content)
       this.images = (message.images || []).map(i => {
         try {
           JSON.parse(i)
@@ -326,12 +324,8 @@ export default {
       }
       // this.postMyMessage()
       const { data: { documents } } = await API.knowledge.search(knowledgeSearch)
-      documents.map(doc => this.addMessage({
-          role: 'assistant',
-          content: `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``
-        }) 
-      )
-      this.saveChat()
+      const docs = documents.map(doc => `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``) 
+      this.editor.innerText = docs.join("\n")
     },
     async sendApiRequest (apiCall, formater = defFormater) {
       try {

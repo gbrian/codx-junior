@@ -12,7 +12,7 @@ from langchain.schema import (
 )
 from codx.junior.utils import document_to_context
 from codx.junior.ai.ai import AI
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge import Knowledge
 
 from codx.junior.utils import extract_json_blocks 
@@ -32,7 +32,7 @@ def validate_context(ai, prompt, doc, score):
         return None
     return doc
 
-def parallel_validate_contexts(prompt, documents, settings: GPTEngineerSettings):
+def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
     ai = AI(settings=settings)
     score = float(settings.knowledge_context_cutoff_relevance_score)
     if not score:

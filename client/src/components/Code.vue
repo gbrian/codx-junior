@@ -2,6 +2,7 @@
 import hljs from 'highlight.js';
 import CodeEditor from 'simple-code-editor';
 import MermaidViewerVue from './MermaidViewer.vue'
+import Markdown from './Markdown.vue';
 </script>
 <template>
   <div>
@@ -24,7 +25,8 @@ import MermaidViewerVue from './MermaidViewer.vue'
       theme="github-dark"
       v-if="showCode"
     ></CodeEditor>
-    <div class="" v-html="this.codeText" v-if="htmlPreview"></div>
+    <div class="prose" :html="markdownText" v-if="markdownText"></div>
+    <div class="" v-html="codeText" v-if="htmlPreview"></div>
   </div>
 </template>
 <script>
@@ -57,6 +59,12 @@ export default {
     },
     showCode () {
       return !this.showMermaid && ! this.htmlPreview
+    },
+    markdownText () {
+      if (this.language === 'md' && false) {
+        return this.codeText
+      }
+      return null
     }
   }
 }

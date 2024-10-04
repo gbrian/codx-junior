@@ -1,0 +1,1 @@
+codx: Create a responsive left bar menu with header, options: (tasks, knowledge, Documentation) and a footer with: settings and account 

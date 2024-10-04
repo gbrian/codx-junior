@@ -3,19 +3,20 @@ import pathlib
 import logging
 
 
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 from codx.junior.model import Profile
 from codx.junior.profiles.coding import get_coding_profiles
+from codx.junior.utils import write_file
 
 class ProfileManager:
-    def __init__(self, settings: GPTEngineerSettings):
+    def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.profiles_path = f"{settings.codx_path}/profiles"
         os.makedirs(self.profiles_path, exist_ok=True)
 
         current_file_path = os.path.abspath(__file__)
         current_directory = os.path.dirname(current_file_path)
-        self.base_profiles_path = f"{current_directory}/profiles"
+        self.base_profiles_path = f"{current_directory}/roles"
 
     def get_profiles (self):
         def _files (file_gen):
@@ -42,8 +43,7 @@ class ProfileManager:
                 return Profile(name=profile_name, content=content)
 
     def create_profile(self, profile: Profile):
-        with open(os.path.join(self.profiles_path, profile.name), 'w') as f:
-            f.write(profile.content)
+        write_file(os.path.join(self.profiles_path, profile.name), profile.content)
 
     def delete_profile(self, profile_name):
         _, project_profiles = self.get_profiles()
