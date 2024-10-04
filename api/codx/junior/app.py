@@ -55,7 +55,7 @@ from codx.junior.model import (
 
 from codx.junior.settings import GPTEngineerSettings 
 
-from codx.junior.profile_manager import ProfileManager
+from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.chat_manager import ChatManager
 
 from codx.junior.engine import (

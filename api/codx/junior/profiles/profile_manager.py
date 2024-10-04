@@ -16,7 +16,7 @@ class ProfileManager:
 
         current_file_path = os.path.abspath(__file__)
         current_directory = os.path.dirname(current_file_path)
-        self.base_profiles_path = f"{current_directory}/profiles"
+        self.base_profiles_path = f"{current_directory}/roles"
 
     def get_profiles (self):
         def _files (file_gen):

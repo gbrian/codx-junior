@@ -23,7 +23,7 @@ from codx.junior.settings import GPTEngineerSettings
 
 from codx.junior.chat_manager import ChatManager
 
-from codx.junior.profile_manager import ProfileManager
+from codx.junior.profiles.profile_manager import ProfileManager
 
 from codx.junior.model import (
     Chat,
@@ -596,7 +596,7 @@ def check_file_for_mentions(settings: GPTEngineerSettings, file_path: str):
 
 def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
     chat_mode = chat_mode or chat.mode or 'chat'
-    is_refine = True if chat_mode == 'task' and len(chat.messages) > 1 else False
+    is_refine = True if chat_mode == 'task' else False
     ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
     last_ai_message = ai_messages[-1] if ai_messages else None
         
@@ -617,31 +617,33 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
     """
     
     if chat_mode == 'task':
-        task = last_ai_message.content if is_refine and last_ai_message else ""
+        task = last_ai_message.content if is_refine and last_ai_message \
+                          else "No task defined yet, create it following the instructions"
         if is_refine:
             user_message = Message(role="user", content=
-              f"""Update current task definition based on user's comments and context.
-              We are defining a task so we want to be clear and concise.
-              When adding code examples keep them close to the task and avoid unncesary extra code that can distract the reader.
-              If you have doubts or lack of context add a "DOUBTS" sections at the end for the user.
-              ```md
+              f"""
+              UPDATE OR CREATE THE TASK:
               {task}
-              ```
-              With user comments:
-              ```md
+              
+              USER COMMENTS:
               {query}
-              ```
               """)
-        instructions = f"""You are assisting me on coding for this project:
-        ```md
-        {profile_manager.read_profile("project").content}
-        ```
-
-        Please, when writing code, follow this guidelines:
-        ```md
-        {profile_manager.read_profile("software_developer").content}
-        ```
+        instructions = f"""
+        {profile_manager.read_profile("analyst").content}
+        
+        # About the project:
+        {profile_manager.read_profile("project").content}        
         """
+    chat.messages.append(
+      Message(role="system", 
+              hide=True, 
+              content=f"""# INSTRUCTIONS:
+              
+              {instructions}
+
+              # REQUEST
+              {user_message.content}
+              """))
     messages = [
       SystemMessage(content=instructions)
     ]
