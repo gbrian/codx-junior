@@ -53,7 +53,7 @@ from codx.junior.model import (
     GlobalSettings
 )
 
-from codx.junior.settings import GPTEngineerSettings 
+from codx.junior.settings import CODXJuniorSettings 
 
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.chat_manager import ChatManager
@@ -138,7 +138,7 @@ class GPTEngineerAPI:
             global_settings = read_global_settings()
             if codx_path:
                 try:
-                    settings = GPTEngineerSettings.from_project(codx_path)
+                    settings = CODXJuniorSettings.from_project(codx_path)
                     if global_settings:
                         if global_settings.log_ai:
                             settings.log_ai = True 
@@ -297,7 +297,7 @@ class GPTEngineerAPI:
         @app.put("/api/settings")
         async def api_save_settings(request: Request):
             settings = await request.json()
-            GPTEngineerSettings.from_json(settings).save_project()
+            CODXJuniorSettings.from_json(settings).save_project()
             
             return api_settings_check(request)
 
@@ -334,7 +334,7 @@ class GPTEngineerAPI:
             project_path = request.query_params.get("project_path")
             settings = None
             try:
-                settings = GPTEngineerSettings.from_project(project_path)
+                settings = CODXJuniorSettings.from_project(project_path)
             except:
                 return create_project(project_path=project_path)
         

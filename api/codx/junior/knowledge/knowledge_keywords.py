@@ -2,14 +2,14 @@ import json
 import logging
 import sqlite3
 from slugify import slugify
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.utils import write_file
 
 logger = logging.getLogger(__name__)
 
 class KnowledgeKeywords:
-    def __init__(self, settings: GPTEngineerSettings):
+    def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.path = self.settings.project_path
         self.index_name = slugify(str(self.path))

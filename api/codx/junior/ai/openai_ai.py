@@ -7,7 +7,7 @@ from openai import OpenAI
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 from langchain.schema import (
     AIMessage,
     HumanMessage,
@@ -37,7 +37,7 @@ tools = [
 ]
 
 class OpenAI_AI:
-    def __init__(self, settings: GPTEngineerSettings):
+    def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.client = OpenAI(
             api_key=settings.ai_api_key,

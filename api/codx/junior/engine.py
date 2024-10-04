@@ -19,7 +19,7 @@ from codx.junior.utils import (
 )
 
 from codx.junior.ai import AI
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.chat_manager import ChatManager
 
@@ -58,7 +58,7 @@ from codx.junior.mention_manager import (
 
 logger = logging.getLogger(__name__)
 
-def reload_knowledge(settings: GPTEngineerSettings, path: str = None):
+def reload_knowledge(settings: CODXJuniorSettings, path: str = None):
     knowledge = Knowledge(settings=settings)
     logger.info(f"***** reload_knowledge: {path}")
     documents = None
@@ -75,7 +75,7 @@ def reload_knowledge(settings: GPTEngineerSettings, path: str = None):
             pass
     return { "doc_count": len(documents) if documents else 0 }
 
-def knowledge_search(settings: GPTEngineerSettings, knowledge_search: KnowledgeSearch):
+def knowledge_search(settings: CODXJuniorSettings, knowledge_search: KnowledgeSearch):
     if knowledge_search.document_search_type:
         settings.knowledge_search_type = knowledge_search.document_search_type
     if knowledge_search.document_count:
@@ -109,11 +109,11 @@ def knowledge_search(settings: GPTEngineerSettings, knowledge_search: KnowledgeS
         }
     }
 
-def delete_knowledge_source(settings: GPTEngineerSettings, sources: [str]):
+def delete_knowledge_source(settings: CODXJuniorSettings, sources: [str]):
     Knowledge(settings=settings).delete_documents(sources=sources)
     return { "ok": 1 }
 
-def delete_knowledge(settings: GPTEngineerSettings):
+def delete_knowledge(settings: CODXJuniorSettings):
     Knowledge(settings=settings).reset()
     return { "ok": 1 }
 
@@ -135,14 +135,14 @@ def create_project(project_path: str):
             
     os.makedirs(project_path, exist_ok=True)
      
-    settings = GPTEngineerSettings()
+    settings = CODXJuniorSettings()
     settings.project_path = project_path
     settings.project_name = settings.project_path.split("/")[-1] 
     settings.codx_path = f"{settings.project_path}/.codx"
     settings.save_project()
     return settings
 
-def select_afefcted_documents_from_knowledge(ai: AI, query: str, settings: GPTEngineerSettings, ignore_documents=[]):
+def select_afefcted_documents_from_knowledge(ai: AI, query: str, settings: CODXJuniorSettings, ignore_documents=[]):
     # Extract mentions from the query
     mentions = re.findall(r'@\S+', query)
     logger.info(f"Extracted mentions: {mentions}")
@@ -197,7 +197,7 @@ def select_afefcted_documents_from_knowledge(ai: AI, query: str, settings: GPTEn
     return all_docs, all_files 
       
 
-def select_afected_files_from_knowledge(ai: AI, query: str, settings: GPTEngineerSettings):
+def select_afected_files_from_knowledge(ai: AI, query: str, settings: CODXJuniorSettings):
     relevant_documents, file_list = select_afefcted_documents_from_knowledge(ai=ai, query=query, settings=settings)
     file_list = [str(Path(doc.metadata["source"]).absolute())
                   for doc in relevant_documents]
@@ -206,7 +206,7 @@ def select_afected_files_from_knowledge(ai: AI, query: str, settings: GPTEnginee
     return file_list
 
 
-def improve_existing_code(settings: GPTEngineerSettings, chat: Chat, apply_changes: bool=None):
+def improve_existing_code(settings: CODXJuniorSettings, chat: Chat, apply_changes: bool=None):
     knowledge = Knowledge(settings=settings)
     profile_manager = ProfileManager(settings=settings)
     if apply_changes is None:
@@ -260,7 +260,7 @@ def improve_existing_code(settings: GPTEngineerSettings, chat: Chat, apply_chang
     apply_improve_code_changes(settings=settings, code_generator=code_generator)
     return code_generator
 
-def project_script_test(settings: GPTEngineerSettings):
+def project_script_test(settings: CODXJuniorSettings):
     logger.info(f"project_script_test, test: {settings.script_test} - {settings.script_test_check_regex}")
     if not settings.script_test:
         return
@@ -279,7 +279,7 @@ def project_script_test(settings: GPTEngineerSettings):
         return console_out
     return ""
 
-def apply_improve_code_changes(settings: GPTEngineerSettings, code_generator: AICodeGerator):
+def apply_improve_code_changes(settings: CODXJuniorSettings, code_generator: AICodeGerator):
     changes = code_generator.code_changes
     logger.info(f"improve_existing_code total changes: {len(changes)}")
     changes_by_file_path = {}
@@ -312,7 +312,7 @@ def apply_improve_code_changes(settings: GPTEngineerSettings, code_generator: AI
         else:
             logger.error(f"Error applying changes to {file_path}. New content: {new_content}")
 
-def change_file_with_instructions(settings: GPTEngineerSettings, instruction_list: [str], file_path: str, content: str):
+def change_file_with_instructions(settings: CODXJuniorSettings, instruction_list: [str], file_path: str, content: str):
     chat = Chat(name=f"changes_at_{file_path}",messages=[])
 
     content_instructions = f"EXISTING CONTENT:\n{content}" if content else ""
@@ -330,7 +330,7 @@ def change_file_with_instructions(settings: GPTEngineerSettings, instruction_lis
     chat_with_project(settings=settings, chat=chat, use_knowledge=False, append_references=False)
     return chat.messages[-1].content
 
-def improve_existing_code_gpt_blocks(settings: GPTEngineerSettings, chat: Chat):
+def improve_existing_code_gpt_blocks(settings: CODXJuniorSettings, chat: Chat):
     request = \
     """Create a list of files to be modified with this structure:
       <GPT_CODE_CHANGE>
@@ -368,7 +368,7 @@ def improve_existing_code_gpt_blocks(settings: GPTEngineerSettings, chat: Chat):
         write_file(file_path, new_content)
 
 
-def check_knowledge_status(settings: GPTEngineerSettings):
+def check_knowledge_status(settings: CODXJuniorSettings):
     knowledge = Knowledge(settings=settings)
     last_update = knowledge.last_update
     status = knowledge.status()
@@ -380,10 +380,10 @@ def check_knowledge_status(settings: GPTEngineerSettings):
       **status
     }
 
-def save_chat(chat: Chat, settings: GPTEngineerSettings):
+def save_chat(chat: Chat, settings: CODXJuniorSettings):
     ChatManager(settings=settings).save_chat(chat)
 
-def check_project_changes(settings: GPTEngineerSettings):
+def check_project_changes(settings: CODXJuniorSettings):
     knowledge = Knowledge(settings=settings)
     knowledge.clean_deleted_documents()
     new_files = knowledge.detect_changes()
@@ -401,10 +401,15 @@ def check_project_changes(settings: GPTEngineerSettings):
 
     for file_path in new_files:
         try:
+            update_project_profile(settings=settings, file_path=file_path)
+        except Exception as ex:
+            logger.exception(f"Update project's PROFILE error '{file_path}': {ex}")
+
+        try:
             update_wiki(settings=settings, file_path=file_path)
             logger.info(f"Update wiki done for {file_path}")
-        except:
-            logger.exception(f"Update wiki ERROR for {file_path}")
+        except Exception as ex:
+            logger.exception(f"Update project's WIKI error '{file_path}': {ex}")
 
 def extract_changes(content):
     for block in extract_json_blocks(content):
@@ -529,7 +534,7 @@ def change_file(context_documents, query, file_path, org_content, settings, save
             save_chat(chat=chat, settings=settings)
 
 
-def check_file_for_mentions(settings: GPTEngineerSettings, file_path: str):
+def check_file_for_mentions(settings: CODXJuniorSettings, file_path: str):
     chat_manager = ChatManager(settings=settings)
     content = None
     with open(file_path, 'r') as f:
@@ -594,7 +599,7 @@ def check_file_for_mentions(settings: GPTEngineerSettings, file_path: str):
 
 
 
-def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
+def chat_with_project(settings: CODXJuniorSettings, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
     chat_mode = chat_mode or chat.mode or 'chat'
     is_refine = True if chat_mode == 'task' else False
     ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
@@ -752,7 +757,7 @@ def chat_with_project(settings: GPTEngineerSettings, chat: Chat, use_knowledge: 
     chat.messages.append(response_message)
     return chat, documents
 
-def check_project(settings: GPTEngineerSettings):
+def check_project(settings: CODXJuniorSettings):
     try:
         logger.info(f"check_project")
         loader = KnowledgeLoader(settings=settings)
@@ -760,12 +765,12 @@ def check_project(settings: GPTEngineerSettings):
     except Exception as ex:
         logger.exception(str(ex))
 
-def extract_tags(settings: GPTEngineerSettings, doc):
+def extract_tags(settings: CODXJuniorSettings, doc):
     knowledge = Knowledge(settings=settings)
     knowledge.extract_doc_keywords(doc)
     return doc
 
-def get_keywords(settings: GPTEngineerSettings, query):
+def get_keywords(settings: CODXJuniorSettings, query):
     return KnowledgeKeywords(settings=settings).get_keywords(query)
 
 def find_all_projects(detailed: bool = False):
@@ -778,7 +783,7 @@ def find_all_projects(detailed: bool = False):
     # logger.info(f"find_projects_to_watch: Scanning project paths: {project_path} - {paths}")
     for project_settings in paths:
         try:
-            settings = GPTEngineerSettings.from_project(codx_path=str(project_settings))
+            settings = CODXJuniorSettings.from_project(codx_path=str(project_settings))
             if settings.codx_path not in all_projects:
                 all_projects.append(settings)
                 # logger.info(f"find_projects_to_watch: project found {str(project_settings)}")
@@ -804,10 +809,10 @@ def update_engine():
       logger.exception(ex)
       return ex
 
-def run_live_edit(settings: GPTEngineerSettings, chat: Chat):
+def run_live_edit(settings: CODXJuniorSettings, chat: Chat):
     return improve_existing_code(settings=settings, chat=chat, apply_changes=True)
             
-def update_wiki(settings: GPTEngineerSettings, file_path: str):
+def update_wiki(settings: CODXJuniorSettings, file_path: str):
     project_wiki_path = settings.get_project_wiki_path()
     if not settings.project_wiki or file_path.startswith(project_wiki_path):
         return
@@ -864,3 +869,39 @@ def write_global_settings(global_settings: GlobalSettings):
             return f.write(json.dumps(global_settings.dict()))
     except:
         pass
+
+def update_project_profile(settings: CODXJuniorSettings, file_path:str):
+  ai = AI(settings=settings)
+  file_content = None
+  with open(file_path) as f:
+    file_content = f.read()
+
+  ai_messages = ai.chat(messages=[
+              HumanMessage(content=f"""Summarize in a business way the content of this file.
+              It will then be used to update the project's main document that serves as an overview of this project.
+              Extract keywords and important concepts and explain in a business language but using real names for future reference and searches.
+
+              FILE: 
+              {file_content}
+              """)
+            ])
+  file_summary = ai_messages[-1].content
+
+  profile_manager = ProfileManager(settings=settings)
+  project = profile_manager.read_profile("project")
+
+  ai_messages = ai.chat(messages=[
+              HumanMessage(content=f"""Update the project's main document that serves as an overview of this project with the new information.
+              PROJECT:
+              {project.content}
+
+
+
+              NEW INFORMATION: 
+              {file_summary}
+              """)
+            ])
+  project.content = ai_messages[-1].content
+  profile_manager.create_profile(project)
+  
+  

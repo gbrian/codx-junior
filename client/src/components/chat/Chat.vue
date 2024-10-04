@@ -113,9 +113,6 @@ import ChatEntry from '@/components/ChatEntry.vue'
           </div>
         </div>
         <div class="flex gap-2 items-center justify-end mt-1">
-          <button class="btn btn-info btn-circle btn-sm mb-1 btn-outline" @click="askKnowledge">
-            <i class="fa-solid fa-magnifying-glass"></i>
-          </button>
           <button class="btn btn btn-sm btn-circle mb-1 btn-outline" 
             @click="sendMessage"
             v-if="!livePreview"

@@ -20,7 +20,7 @@ from langchain.schema import (
     messages_to_dict,
 )
 
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
 from codx.junior.ai.anthropic import Anthropic_AI
 
@@ -36,7 +36,7 @@ class LogginCallbackHandler(StreamingStdOutCallbackHandler):
 
 class AI:
     def __init__(
-        self, settings: GPTEngineerSettings
+        self, settings: CODXJuniorSettings
     ):
         self.settings = settings
         self.llm = self.create_chat_model()

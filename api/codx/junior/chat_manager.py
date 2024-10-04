@@ -3,13 +3,13 @@ import pathlib
 import os
 import json
 from datetime import datetime, timezone
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.model import Chat, Message
 from codx.junior.utils import write_file
 
 class ChatManager:
-    def __init__(self, settings: GPTEngineerSettings):
+    def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.chat_path = f"{settings.codx_path}/tasks"
         os.makedirs(self.chat_path, exist_ok=True)

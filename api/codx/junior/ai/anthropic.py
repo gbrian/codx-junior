@@ -4,7 +4,7 @@ from datetime import datetime
 
 from typing import Union
 
-from codx.junior.settings import GPTEngineerSettings
+from codx.junior.settings import CODXJuniorSettings
 from langchain.schema import (
     AIMessage,
     HumanMessage,
@@ -18,7 +18,7 @@ import anthropic
 
 
 class Anthropic_AI:
-    def __init__(self, settings: GPTEngineerSettings):
+    def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.client = anthropic.Anthropic(
             api_key=settings.ai_api_key,
