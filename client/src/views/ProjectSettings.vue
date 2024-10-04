@@ -1,7 +1,7 @@
 <template>
   <div class="flex flex-col gap-2 h-full">
     <div class="text-xl font-medium my-2 flex justify-between px-2">
-      GPT Settings
+      Settings
       <div class="grow"></div>
       <div class="flex gap-2 justify-end">
         <button type="button" @click="reloadSettings" class="btn btn-sm btn-outline btn-accent">Reload</button>
