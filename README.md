@@ -16,7 +16,8 @@ I want codx-junior to write better `code` than me, better `tests` than me, and, 
 
 ### Hello codx-junior
 
-![image](https://github.com/user-attachments/assets/29123838-1b1b-44c6-a92a-c28968238385)
+![image](https://github.com/user-attachments/assets/025b7177-3db8-4d6b-886d-4bb9fb037f77)
+
 
 
 ## PNRL: Play now read later
