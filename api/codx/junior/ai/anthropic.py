@@ -21,7 +21,7 @@ class Anthropic_AI:
     def __init__(self, settings: GPTEngineerSettings):
         self.settings = settings
         self.client = anthropic.Anthropic(
-            api_key=settings.anthropic_api_key,
+            api_key=settings.ai_api_key,
         )
 
 
@@ -46,7 +46,7 @@ class Anthropic_AI:
             else:
                 messages.append(m)
 
-        model = self.settings.anthropic_model
+        model = self.settings.ai_model
         # temperature = float(self.settings.temperature)
         
         self.log(f"anthropic_messages: {anthropic_messages}")

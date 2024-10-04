@@ -51,8 +51,8 @@ class Knowledge:
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
         self.embedding = OpenAIEmbeddings(
-            openai_api_key=settings.openai_api_key,
-            openai_api_base=settings.openai_api_base,
+            openai_api_key=settings.ai_api_key,
+            openai_api_base=settings.ai_api_url,
             disallowed_special=()
         )
         self.last_update = None

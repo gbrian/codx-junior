@@ -26,8 +26,9 @@ disable_logs([
     'chromadb.config',
     'chromadb.auth.registry',
     'chromadb.api.segment',
+    'openai._base_client',
     'openai._base_client'
-    ])
+])
 
 
 from flask import send_file
@@ -37,7 +38,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
-
+from fastapi_socketio import SocketManager
 
 from codx.junior.model import (
     Chat,
@@ -108,6 +109,8 @@ class GPTEngineerAPI:
             ssl_context='adhoc'
         )
 
+        socket_manager = SocketManager(app=app)
+
         @app.on_event("startup")
         def startup_event():
             logger.info(f"Creating FASTAPI: {app.__dict__}")
@@ -132,32 +135,42 @@ class GPTEngineerAPI:
             logger.info(f"Request {request.url}")
             codx_path = request.query_params.get("codx_path")
             settings = None
+            global_settings = read_global_settings()
             if codx_path:
                 try:
                     settings = GPTEngineerSettings.from_project(codx_path)
-                    global_settings = read_global_settings()
                     if global_settings:
                         if global_settings.log_ai:
                             settings.log_ai = True 
-                        if not settings.openai_api_base:
-                            settings.openai_api_base = global_settings.openai.openai_api_url
-                        if not settings.openai_api_key:
-                            settings.openai_api_key = global_settings.openai.openai_api_key
-                        if not settings.model:
-                            settings.model = global_settings.ai_model
+                        
+                        if not settings.ai_api_url:
+                            if settings.ai_provider == 'openai':
+                              settings.ai_api_url = global_settings.openai.openai_api_url
+                            if settings.ai_provider == 'anthropic_ai':
+                              settings.ai_api_url = global_settings.anthropic_ai.anthropic_api_url
+                        
+                        if not settings.ai_api_key:
+                            if settings.ai_provider == 'openai':
+                              settings.ai_api_key = global_settings.openai.openai_api_key
+                            if settings.ai_provider == 'anthropic_ai':
+                              settings.ai_api_key = global_settings.anthropic_ai.anthropic_api_key
+
+                        if not settings.ai_model:
+                            if settings.ai_provider == 'openai':
+                              settings.ai_model = global_settings.openai.openai_model
+                            if settings.ai_provider == 'anthropic_ai':
+                              settings.ai_model = global_settings.anthropic_ai.anthropic_ai_model
+                        
                         if not settings.temperature:
                             settings.model = global_settings.ai_temperature
                         if not settings.anthropic_api_key:
                             settings.anthropic_api_key = global_settings.anthropic_ai.anthropic_api_key
                         if not settings.anthropic_model:
                             settings.anthropic_model = global_settings.anthropic_ai.anthropic_model
-
-                    ai_logs = ["openai._base_client"]
                 except Exception as ex:
                     logger.error(f"Error loading settings {codx_path}: {ex}")
             request.state.settings = settings        
-            if not settings:
-                logger.info("Request without settings")
+            logger.info(f"Request settings: {settings.__dict__ if settings else {}}\nGlobal: {global_settings.__dict__}")
             return await call_next(request)
 
         @app.get("/")
@@ -376,6 +389,12 @@ class GPTEngineerAPI:
         @app.post("/api/global/settings")
         def api_write_global_settings(global_settings: GlobalSettings):
             return write_global_settings(global_settings=global_settings)
+
+        # socket_handlers
+
+        @app.sio.on('join')
+        async def handle_join(sid, *args, **kwargs):
+            await app.sio.emit('lobby', 'User joined')
 
 
         if STATIC_FOLDER:

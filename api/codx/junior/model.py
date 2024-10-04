@@ -100,10 +100,11 @@ class LiveEdit(BaseModel):
 class OpenAISettings(BaseModel):
     openai_api_url: str = Field(default=None)
     openai_api_key: str = Field(default=None)
-    openai_model: str = Field(default="gpt4o")
+    openai_model: str = Field(default="gpt-4o")
     
 
 class AnthropicAISettings(BaseModel):
+    anthropic_api_url: str = Field(default=None)
     anthropic_api_key: str = Field(default=None)
     anthropic_model: str = Field(default="claude-3-5-sonnet-20240620")
 
