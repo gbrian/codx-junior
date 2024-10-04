@@ -1,9 +1,20 @@
 # codx-junior
-Your junior assistant for Full Stack Developers
+Your junior assistant for Full Stack Developers... without too much time to loose ;)
 
 ## Motivation
 
-As a Full Stack Developer, we are supposed to deal with everything, know everything, and fix everything—from front, to back, to database, cloud, DevOps... and I like it, but it's a titan task. I'm developing codx-junior to have an AI that can manage all tedious and repetitive tasks in software development and IT. I want codx-junior to help me deal with projects I don't know and situations where "the last developer left yesterday and there's no doc." I want codx-junior to write better code than me, better tests than me, and, of course, keep documentation updated.
+As a Full Stack Developer working for different custmers, I'm supposed to be able to deal with everything, know everything, and fix everything... ASAP!
+> From front, to back, to database, cloud, DevOps...
+
+and don't get me wrong, I love it! but it's a titan task, don't you? 
+
+So I started developing codx-junior to have an AI that can manage all tedious and repetitive tasks in software development and IT. 
+
+I want codx-junior to help me deal with projects I don't know and situations where `"the last developer left yesterday and there's no doc."` 
+
+I want codx-junior to write better `code` than me, better `tests` than me, and, of course, keep `documentation` updated.
+
+### Hello codx-junior
 
 ![image](https://github.com/user-attachments/assets/29123838-1b1b-44c6-a92a-c28968238385)
 
