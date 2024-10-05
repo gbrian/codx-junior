@@ -6,7 +6,7 @@ import moment from 'moment'
 import PRView from '../views/PRView.vue'
 </script>
 <template>
-  <div class="flex flex-col gap-1 h-full" v-if="chat">
+  <div class="flex flex-col h-full" v-if="chat">
     <div class="flex gap-2 items-center hidden">
       <div class="dropdown">
         <div tabindex="0" role="button" class="btn btn-xs m-1"><i class="fa-solid fa-code-branch"></i></div>

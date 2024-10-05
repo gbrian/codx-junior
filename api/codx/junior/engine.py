@@ -387,6 +387,7 @@ def check_project_changes(settings: CODXJuniorSettings):
     knowledge = Knowledge(settings=settings)
     knowledge.clean_deleted_documents()
     new_files = knowledge.detect_changes()
+    # logger.info(f"[check_project_changes] project {settings.project_name} changed {len(new_files)}")
     if not new_files:
         return
     logger.info(f"check_file_for_mentions {new_files}")

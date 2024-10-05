@@ -72,13 +72,13 @@ import Markdown from './Markdown.vue'
         </div>
         <div class="grid gap-2 grid-cols-3 mt-2">
           <div v-for="file in message.files" :key="file" :title="file"
-            class="badge badge-primary flex gap-2 items-center click"
+            class="badge badge-primary text-xs flex gap-2 items-center click"
             @click="API.coder.openFile(file)"
           >
             <button class="btn btn-xs btn-circle" @click="$emit('add-file-to-chat', file)">
               <i class="fa-solid fa-file-circle-plus"></i>
             </button>
-            <div class="w-40 overflow-hidden">
+            <div class="overflow-hidden">
               {{ file.split("/").reverse()[0] }}
             </div>
           </div>

@@ -3,10 +3,10 @@ import { API } from '../../api/api'
 import ChatEntry from '@/components/ChatEntry.vue'
 </script>
 <template>
-  <div class="flex flex-col gap-2 grow">
-    <div class="grid gap-2 grid-cols-3 mt-2" v-if="chat.file_list?.length">
+  <div class="flex flex-col gap-1 grow">
+    <div class="grid grid-cols-3 mt-2" v-if="chat.file_list?.length">
       <div v-for="file in chat.file_list" :key="file" :data-tip="file"
-        class="group badge badge-secondary tooltip flex gap-2 items-center click"
+        class="group badge badge-xs badge-secondary tooltip flex gap-2 items-center click text-xs"
         @click="API.coder.openFile(file)"
       >
         {{ file.split("/").reverse()[0] }}
@@ -194,7 +194,7 @@ export default {
       return this.chat?.messages?.filter(m => !m.hide || this.showHidden)
     },
     multiline () {
-      return this.editorText?.split("\n").length > 1
+      return this.editorText?.split("\n").length > 1 || this.images?.length
     },
     allImages () {
       return this.images

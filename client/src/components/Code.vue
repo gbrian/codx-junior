@@ -6,7 +6,7 @@ import Markdown from './Markdown.vue';
 </script>
 <template>
   <div>
-    <div class="flex gap-2 w-full justify-center" ref="toolbar">
+    <div class="flex gap-2 w-full justify-center hidden" ref="toolbar">
       <button class="btn btn-xs tooltip" data-tip="Generate code" @click="$emit('generate-code', code.innerText)">
         <i class="fa-solid fa-file-code"></i>
       </button>
@@ -21,8 +21,10 @@ import Markdown from './Markdown.vue';
       line-nums 
       :value="codeText"
       :languages="languages"
+      font-size="0.75rem"
       width="100%"
       theme="github-dark"
+      :header="false"
       v-if="showCode"
     ></CodeEditor>
     <div class="prose" :html="markdownText" v-if="markdownText"></div>

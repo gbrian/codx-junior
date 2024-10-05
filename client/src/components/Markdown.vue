@@ -6,7 +6,7 @@ import highlight  from 'markdown-it-highlightjs'
 </script>
 <template>
   <div>
-    <div class="text-md text-wrap mt-2 max-w-full w-full overflow-y-auto prose" v-html="html"></div>
+    <div class="text-md text-wrap mt-2 max-w-full w-full overflow-y-auto prose prose-sm leading-tight" v-html="html"></div>
     <Code v-for="code in codeBlocks" :key="code.id"
       :code="code"
       ref="codeSection"
@@ -62,7 +62,10 @@ export default {
   watch: {
     text () {
       this.codeBlocks = []
-      requestAnimationFrame(() => this.captureLinks())
+      requestAnimationFrame(() => {
+        this.captureLinks()
+        this.updateCodeBlocks()
+      })
     }
   },
   methods: {
@@ -74,15 +77,14 @@ export default {
       })
     },
     updateCodeBlocks () {
-      return
-      setInterval(() => {
+      //setInterval(() => {
         const codeBlocks = [...this.$el.querySelectorAll('code[class*="language-"]')]
                             .filter(cb => !this.codeBlocks.find(ccb => ccb === cb))
         if (codeBlocks.length) {
           this.codeBlocks = [...this.codeBlocks, ...codeBlocks]
           console.log("Code blocks", codeBlocks)
         }
-      }, 500)      
+      //}, 500)      
     }
   }
 }

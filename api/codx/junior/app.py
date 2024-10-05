@@ -85,14 +85,51 @@ STATIC_FOLDER=os.environ.get("STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
+def add_global_settings(settings: CODXJuniorSettings):
+    global_settings = read_global_settings()
+    try:
+        if global_settings:
+            if global_settings.log_ai:
+                settings.log_ai = True 
+            
+            if not settings.ai_api_url:
+                if settings.ai_provider == 'openai':
+                  settings.ai_api_url = global_settings.openai.openai_api_url
+                if settings.ai_provider == 'anthropic_ai':
+                  settings.ai_api_url = global_settings.anthropic_ai.anthropic_api_url
+            
+            if not settings.ai_api_key:
+                if settings.ai_provider == 'openai':
+                  settings.ai_api_key = global_settings.openai.openai_api_key
+                if settings.ai_provider == 'anthropic_ai':
+                  settings.ai_api_key = global_settings.anthropic_ai.anthropic_api_key
+
+            if not settings.ai_model:
+                if settings.ai_provider == 'openai':
+                  settings.ai_model = global_settings.openai.openai_model
+                if settings.ai_provider == 'anthropic_ai':
+                  settings.ai_model = global_settings.anthropic_ai.anthropic_ai_model
+            
+            if not settings.temperature:
+                settings.model = global_settings.ai_temperature
+            if not settings.anthropic_api_key:
+                settings.anthropic_api_key = global_settings.anthropic_ai.anthropic_api_key
+            if not settings.anthropic_model:
+                settings.anthropic_model = global_settings.anthropic_ai.anthropic_model
+    except:
+      pass
+    return settings
+
 def process_projects_changes():
-    check_projects = [settings for settings in find_all_projects() if settings.watching]
-    for settings in check_projects:
+    projects_to_check = [settings for settings in find_all_projects() if settings.watching]
+    # logger.info(f"[process_projects_changes]: {[p.project_name for p in projects_to_check]}") 
+    
+    for ix, settings in enumerate(projects_to_check):
+        # logger.info(f"[process_projects_changes]: check {settings.project_name} - {ix}")
         try:
-            check_project_changes(settings=settings)
+            check_project_changes(settings=add_global_settings(settings))
         except Exception as ex:
-            logger.exception(f"Processing {codx_path} error: {ex}")
-            pass
+            logger.error(f"Processing {settings.project_name} error: {ex}")
 
 logger.info("Starting process_projects_changes job")
 add_work(process_projects_changes)
@@ -138,35 +175,7 @@ class CODXJuniorAPI:
             global_settings = read_global_settings()
             if codx_path:
                 try:
-                    settings = CODXJuniorSettings.from_project(codx_path)
-                    if global_settings:
-                        if global_settings.log_ai:
-                            settings.log_ai = True 
-                        
-                        if not settings.ai_api_url:
-                            if settings.ai_provider == 'openai':
-                              settings.ai_api_url = global_settings.openai.openai_api_url
-                            if settings.ai_provider == 'anthropic_ai':
-                              settings.ai_api_url = global_settings.anthropic_ai.anthropic_api_url
-                        
-                        if not settings.ai_api_key:
-                            if settings.ai_provider == 'openai':
-                              settings.ai_api_key = global_settings.openai.openai_api_key
-                            if settings.ai_provider == 'anthropic_ai':
-                              settings.ai_api_key = global_settings.anthropic_ai.anthropic_api_key
-
-                        if not settings.ai_model:
-                            if settings.ai_provider == 'openai':
-                              settings.ai_model = global_settings.openai.openai_model
-                            if settings.ai_provider == 'anthropic_ai':
-                              settings.ai_model = global_settings.anthropic_ai.anthropic_ai_model
-                        
-                        if not settings.temperature:
-                            settings.model = global_settings.ai_temperature
-                        if not settings.anthropic_api_key:
-                            settings.anthropic_api_key = global_settings.anthropic_ai.anthropic_api_key
-                        if not settings.anthropic_model:
-                            settings.anthropic_model = global_settings.anthropic_ai.anthropic_model
+                    settings = add_global_settings(CODXJuniorSettings.from_project(codx_path))
                 except Exception as ex:
                     logger.error(f"Error loading settings {codx_path}: {ex}")
             request.state.settings = settings        
