@@ -45,7 +45,7 @@ class AI:
     
     def chat(
         self,
-        messages: List[Message],
+        messages: List[Message] = [],
         prompt: Optional[str] = None,
         *,
         max_response_length: Optional[int] = None,

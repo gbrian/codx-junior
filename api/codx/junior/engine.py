@@ -6,6 +6,7 @@ import time
 import subprocess
 from pathlib import Path
 from datetime import datetime
+from threading import Thread
 
 from langchain.schema import AIMessage, HumanMessage, SystemMessage, BaseMessage
 from langchain.schema.document import Document
@@ -401,16 +402,8 @@ def check_project_changes(settings: CODXJuniorSettings):
     reload_knowledge(settings=settings)
 
     for file_path in new_files:
-        try:
-            update_project_profile(settings=settings, file_path=file_path)
-        except Exception as ex:
-            logger.exception(f"Update project's PROFILE error '{file_path}': {ex}")
-
-        try:
-            update_wiki(settings=settings, file_path=file_path)
-            logger.info(f"Update wiki done for {file_path}")
-        except Exception as ex:
-            logger.exception(f"Update project's WIKI error '{file_path}': {ex}")
+        Thread(target=update_project_profile, args=(settings, file_path)).start()
+        Thread(target=update_wiki, args=(settings, file_path)).start()
 
 def extract_changes(content):
     for block in extract_json_blocks(content):
@@ -537,6 +530,8 @@ def change_file(context_documents, query, file_path, org_content, settings, save
 
 def check_file_for_mentions(settings: CODXJuniorSettings, file_path: str):
     chat_manager = ChatManager(settings=settings)
+    ai = AI(settings=settings)
+
     content = None
     with open(file_path, 'r') as f:
         content = f.read()
@@ -553,18 +548,37 @@ def check_file_for_mentions(settings: CODXJuniorSettings, file_path: str):
     save_file(new_content=new_content)
 
     org_content = strip_mentions(content=content, mentions=mentions)
+
+    use_knowledge = True
+    
+    using_chat = True if [m for m in mentions if m.flags.chat_id] else False
+    skip_knowledge_search = False if [m for m in mentions if m.flags.knowledge] else True
+
+    if using_chat or skip_knowledge_search:
+      use_knowledge = False       
+      logger.info(f"Skip KNOWLEDGE seach for processing, using_chat={using_chat}")
     
     def mention_info(mention):
-      chat = chat_manager.find_by_id(mention.flags.chat_id) if mention.flags.chat_id else None
-      if chat:
-        logger.info(f"using CHAT for processing ention: {mention.mention}")
-        return f"""Based on this conversation:
-        ```markdown
-        {chat_manager.serialize_chat(chat)}
-        ```
-        User commented in line {mention.start_line}: {mention.mention}
-        """
-      return f"User commented in line {mention.start_line}: {mention.mention}"
+        chat = chat_manager.find_by_id(mention.flags.chat_id) if mention.flags.chat_id else None
+        if chat:
+            logger.info(f"using CHAT for processing ention: {mention.mention}")
+            return f"""Based on this conversation:
+            ```markdown
+            {chat_manager.serialize_chat(chat)}
+            ```
+            User commented in line {mention.start_line}: {mention.mention}
+            """
+        elif use_knowledge:
+            return ai.chat(prompt=f"""Return a search query string from user's request using the context. 
+            CONTEXT:
+            ```{file_path}
+            {org_content}
+            ```
+
+            User commented in line {mention.start_line}: {mention.mention}
+            """)[-1].content
+
+        return f"User commented in line {mention.start_line}: {mention.mention}"
     
     query = "\n  *".join([mention_info(mention) for mention in mentions])
 
@@ -578,15 +592,7 @@ def check_file_for_mentions(settings: CODXJuniorSettings, file_path: str):
       {new_content}
       """)
     ])
-    use_knowledge = True
-    
-    using_chat = True if [m for m in mentions if m.flags.chat_id] else False
-    skip_knowledge_search = False if [m for m in mentions if m.flags.knowledge] else True
-    
-    if using_chat or skip_knowledge_search:
-      use_knowledge = False       
-      logger.info(f"Skip KNOWLEDGE seach for processing, using_chat={using_chat}: {query}")
-    
+        
     chat_with_project(settings=settings, chat=chat, use_knowledge=use_knowledge)
     chat.messages.append(Message(role="user", content=f""""
     Rewrite full file content replacing codx instructions by requiered changes.
@@ -614,11 +620,26 @@ def chat_with_project(settings: CODXJuniorSettings, chat: Chat, use_knowledge: b
     ai = AI(settings=settings)
     profile_manager = ProfileManager(settings=settings)
 
+    project_context = ai.chat(prompt=f"""
+    Extract all relevant parts from the project profile that can help answering user's request.
+    PROJECT:
+    ```
+    {profile_manager.read_profile("project").content}
+    ```
+
+    USER REQUEST:
+    ```
+    {query}
+    ```
+    """)[-1].content
+
     instructions = f"""BEGIN INSTRUCTIONS
     This is a converation between you and the user about the project {settings.project_name}.
     Please always keep your answers short and simple unless a more detailed answer has been requested.
-    {profile_manager.read_profile("project").content}
-
+    PROJECT CONTEXT:
+    ```
+    {project_context}
+    ```
     END INSTRUCTIONS
     """
     
