@@ -620,26 +620,10 @@ def chat_with_project(settings: CODXJuniorSettings, chat: Chat, use_knowledge: b
     ai = AI(settings=settings)
     profile_manager = ProfileManager(settings=settings)
 
-    project_context = ai.chat(prompt=f"""
-    Extract all relevant parts from the project profile that can help answering user's request.
-    PROJECT:
-    ```
-    {profile_manager.read_profile("project").content}
-    ```
-
-    USER REQUEST:
-    ```
-    {query}
-    ```
-    """)[-1].content
-
+    
     instructions = f"""BEGIN INSTRUCTIONS
     This is a converation between you and the user about the project {settings.project_name}.
     Please always keep your answers short and simple unless a more detailed answer has been requested.
-    PROJECT CONTEXT:
-    ```
-    {project_context}
-    ```
     END INSTRUCTIONS
     """
     
@@ -658,8 +642,6 @@ def chat_with_project(settings: CODXJuniorSettings, chat: Chat, use_knowledge: b
         instructions = f"""
         {profile_manager.read_profile("analyst").content}
         
-        # About the project:
-        {profile_manager.read_profile("project").content}        
         """
     chat.messages.append(
       Message(role="system", 
