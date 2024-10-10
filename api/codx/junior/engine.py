@@ -69,11 +69,6 @@ def reload_knowledge(settings: CODXJuniorSettings, path: str = None):
     else:    
         documents = knowledge.reload()
     all_files = set([doc.metadata["source"] for doc in documents])
-    for file_path in all_files:
-        try:
-            update_wiki(settings=settings, file_path=file_path)
-        except:
-            pass
     return { "doc_count": len(documents) if documents else 0 }
 
 def knowledge_search(settings: CODXJuniorSettings, knowledge_search: KnowledgeSearch):
@@ -882,9 +877,10 @@ def update_project_profile(settings: CODXJuniorSettings, file_path:str):
 
   ai_messages = ai.chat(messages=[
               HumanMessage(content=f"""Summarize in a business way the content of this file.
+              Keep it really small summary, avoid any text decoration or formality. Use telegraphic style.
               It will then be used to update the project's main document that serves as an overview of this project.
               Extract keywords and important concepts and explain in a business language but using real names for future reference and searches.
-
+              !IMPORTAN: PROJECT CONTENT MUST BE BE LARGER THAN 64KB!
               FILE: 
               {file_content}
               """)
