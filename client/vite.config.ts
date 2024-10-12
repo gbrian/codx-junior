@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 
 const { API_URL, NOTEBOOKS_URL, CODER_PORT } = process.env
+const coderUrl = `http://0.0.0.0:${CODER_PORT || 9909}`
 console.log("API_URL", API_URL)
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -15,13 +16,13 @@ export default defineConfig({
         changeOrigin: true,
       },
       '/coder': {
-        target: "http://0.0.0.0:9909",
+        target: coderUrl,
         changeOrigin: true,
         ws: true,
         rewrite: (path) => path.replace(/^\/coder/, ''),
       },
       '^/stable.*': {
-        target: "http://0.0.0.0:9909",
+        target: coderUrl,
         changeOrigin: true,
         ws: true,
       },
@@ -35,6 +36,7 @@ export default defineConfig({
   plugins: [
     vue(),
     vueJsx(),
+    
   ],
   resolve: {
     alias: {

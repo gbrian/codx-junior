@@ -12,7 +12,7 @@ import ProjectProfileVue from './ProjectProfile.vue';
 </script>
 
 <template>
-  <div class="flex flex-col bg-base-300 dark relative" data-theme="dark">
+  <div class="flex flex-col bg-base-300 relative">
     <progress :class="['progress progress-success w-full', liveRequests ? '': 'opacity-0']"></progress>
     <div role="tablist" class="tabs tabs-lifted bg-base-100 rounded-md">
       <a role="tab" :class="['tab', tabIx === 'home' ? tabActive: tabInactive]"
@@ -20,7 +20,7 @@ import ProjectProfileVue from './ProjectProfile.vue';
       >
         <div class="btn btn-xs" @click="$emit('toggle-coder')">
           <i class="fa-solid fa-code"></i>
-        </div>    
+        </div>
         <div class="flex items-center gap-2" v-if="lastSettings">
           <div class="rounded-full font-bold flex gap-2 flex gap-2 items-center">
             <div class="w-4 h-4 bg-cover bg-center rounded-full bg-primay"

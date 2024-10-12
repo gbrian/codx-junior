@@ -107,6 +107,8 @@ def knowledge_search(settings: CODXJuniorSettings, knowledge_search: KnowledgeSe
 
 def delete_knowledge_source(settings: CODXJuniorSettings, sources: [str]):
     Knowledge(settings=settings).delete_documents(sources=sources)
+    settings.watching = False
+    settings.save_project()
     return { "ok": 1 }
 
 def delete_knowledge(settings: CODXJuniorSettings):

@@ -22,6 +22,7 @@ RUN mkdir -p ~/.vnc && \
     chmod 600 ~/.vnc/passwd
 
 # Install code-server latest version
+RUN curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
 # Install supervisor
@@ -40,6 +41,7 @@ COPY supervisor.conf $SUPERVISOR_DIR
 RUN mkdir -p /projects
 
 COPY . /projects/codx-junior
+RUN rm -rf /projects/codx-junior/api/.venv
 RUN chmod +x /projects/codx-junior/run_api.sh
 RUN chmod +x /projects/codx-junior/run_client.sh
 
