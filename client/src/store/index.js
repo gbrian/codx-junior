@@ -2,6 +2,7 @@ import { createStore, Store } from 'vuex'
 import {
   useAccessor,
 } from 'typed-vuex'
+import { API } from '../api/api'
 
 import * as session from './session'
 import * as project from './project'
@@ -22,4 +23,5 @@ $storex.init = async () => {
 }
 $storex.store = new Store()
 window.$storex = $storex
+$storex.api = API
 export default store

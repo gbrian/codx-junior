@@ -20,9 +20,9 @@ import { API } from '../api/api';
 
 
     <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4">
-      <h2 class="text-xl font-bold mb-4">More projects</h2>
+      <h2 class="text-xl font-bold mb-4">All projects</h2>
       <div class="grid grid-cols-2 gap-3">
-        <div v-for="project in otherProjects" :key="project.codx_path"
+        <div v-for="project in $project.allProjects" :key="project.codx_path"
           :class="['mb-2']"
           @click="setProject(project)">
           <div class="flex flex-col gap-2 p-4 border rounded-md click overflow-hidden text-ellipsis">
@@ -61,9 +61,6 @@ export default {
       newProjectPath: null
     };
   },
-  mounted () {
-    this.load()
-  },
   computed: {
     projectName() {
       return this.$project.project_name;
@@ -73,24 +70,19 @@ export default {
     },
     projectDescription() {
       return this.$project.project_description;
-    },
-    otherProjects () {
-      return this.$project.allProjects.filter(project => this.$project.activeProject?.codx_path != project.codx_path)
     }
   },
   methods: {
-    async load () {
-    },
     async setProject(project) {
       this.$project.setActiveProject(project)
     },
     async createNewProject () {
       await API.project.create(this.newProjectPath)
-      await this.load()
-      const project = this.allProjects.find(p => p.project_path === this.newProjectPath)
+      const project = this.$project.allProjects.find(p => p.project_path === this.newProjectPath)
       this.newProjectPath = null
-      this.$emit('settings')
+      await this.$project.init()
+      this.setProject(project)
     }
   }
-};
+}
 </script>

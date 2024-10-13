@@ -140,6 +140,9 @@ export default {
             .sort((a, b) => a.chat_index < b.chat_index ? -1 : 1)
 
         })).sort((a, b) => a.tasks[0]?.column_index < b.tasks[0]?.column_index ? -1 : 1)
+      if (!this.columns.length) {
+        this.addColumn()
+      }
     },
     onColumnTasksChanged(column) {
       const column_index = this.columns.findIndex(c => c.title === column.title)
@@ -174,7 +177,7 @@ export default {
     },
     addColumn () {
       this.columns = [...this.columns, {
-        name: "new column"
+        title: "new column"
       }]
     }
   }

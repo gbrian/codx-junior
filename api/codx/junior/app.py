@@ -377,9 +377,7 @@ class CODXJuniorAPI:
         @app.get("/api/code-server/file/open")
         def api_list_chats(request: Request):
             file_name = request.query_params.get("file_name")
-            if not file_name.startswith(request.state.settings.project_path):
-                file_name = f"{request.state.settings.project_path}{file_name}"
-            os.system(f"code-server -r {file_name}")
+            coder_open_file(settings=request.state.settings, file_name=file_path)
 
         @app.get("/api/wiki")
         def api_get_wiki(request: Request):

@@ -120,6 +120,7 @@ def on_project_changed(project_path: str, file_path: str):
 
 def create_project(project_path: str):
     logger.info(f"Create new project {project_path}")
+    open_readme = False
     if project_path.startswith("http"):
         # Clone git repo into global settings
         global_settings = read_global_settings()
@@ -130,6 +131,7 @@ def create_project(project_path: str):
         command = f"git clone {url} {project_path}"
         logger.info(f"Cloning repo {url} {repo_name} {project_path}")
         exec_command(command=command)
+        open_readme = True
             
     os.makedirs(project_path, exist_ok=True)
      
@@ -138,6 +140,7 @@ def create_project(project_path: str):
     settings.project_name = settings.project_path.split("/")[-1] 
     settings.codx_path = f"{settings.project_path}/.codx"
     settings.save_project()
+    coder_open_file(settings=settings, file_name=f"{settings.project_path}/README.md")
     return settings
 
 def select_afefcted_documents_from_knowledge(ai: AI, query: str, settings: CODXJuniorSettings, ignore_documents=[]):
@@ -907,3 +910,7 @@ def update_project_profile(settings: CODXJuniorSettings, file_path:str):
   profile_manager.create_profile(project)
   
   
+def coder_open_file(settings: CODXJuniorSettings, file_name: str):
+    if not file_name.startswith(settings.project_path):
+        file_name = f"{settings.project_path}{file_name}"
+    os.system(f"code-server -r {file_name}")

@@ -72,8 +72,7 @@ export default {
       showOpenProjectModal: false,
       tabActive: 'text-info bg-base-100',
       tabInactive: 'text-warning bg-base-300 opacity-50 hover:opacity-100',
-      lastError: null,
-      allProjects: null
+      lastError: null
     }
   },
   async created () {
@@ -108,7 +107,7 @@ export default {
     },
     async openSubProject (projectName) {
       await this.getAllProjects()
-      this.openProject(this.allProjects.find(p => p.project_name === projectName).codx_path)
+      this.openProject(this.$project.allProjects.find(p => p.project_name === projectName).codx_path)
     },
     openProject (path) {
       this.init(path)
@@ -118,8 +117,7 @@ export default {
       this.openProject(codx_path)
     },
     async getAllProjects () {
-      await API.project.list()
-      this.allProjects = API.allProjects
+      await this.$project.init()
     },
     async onShowOpenProjectModal () {
       this.getAllProjects()

@@ -113,6 +113,6 @@ class GlobalSettings(BaseModel):
     openai: OpenAISettings = Field(default=OpenAISettings())
     anthropic_ai: AnthropicAISettings = Field(default=AnthropicAISettings())
     log_ai: bool = Field(default=False)
-    projects_root_path: str = Field(default='/codx-junior/projects')
+    projects_root_path: str = Field(default='/projects')
     ai_temperature: str = Field(default="0.8")
 
