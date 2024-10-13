@@ -210,7 +210,7 @@ class Knowledge:
     def index_documents (self, documents, raiseIfError=False):
         self.delete_documents(documents)
         # remove empty documents
-        documents = [doc for doc in documents is doc.page_content]
+        documents = [doc for doc in documents if doc.page_content]
         index_date = datetime.now().strftime("%m/%d/%YT%H:%M:%S")
         all_sources = list(set([doc.metadata["source"] for doc in documents]))
         all_sources_with_md5 = dict([(source, calculate_md5(source)) for source in all_sources])
