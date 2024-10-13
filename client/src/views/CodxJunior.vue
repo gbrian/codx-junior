@@ -16,7 +16,7 @@ import ProjectProfileVue from './ProjectProfile.vue';
     <progress :class="['progress progress-success w-full', liveRequests ? '': 'opacity-0']"></progress>
     <div role="tablist" class="tabs tabs-lifted bg-base-100 rounded-md">
       <a role="tab" :class="['tab', tabIx === 'home' ? tabActive: tabInactive]"
-        @click="tabIx = 'home'"
+        @click="setActiveTab('home')"
       >
         <div class="btn btn-xs" @click="$emit('toggle-coder')">
           <i class="fa-solid fa-code"></i>
@@ -54,7 +54,7 @@ import ProjectProfileVue from './ProjectProfile.vue';
         </div>
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'tasks' ? tabActive: tabInactive]"
-        @click="tabIx = 'tasks'" v-if="lastSettings"
+        @click="setActiveTab('tasks')" v-if="lastSettings"
       >
         <div class="font-medium flex gap-2 items-center">
           <i class="fa-solid fa-clipboard-list"></i>
@@ -62,38 +62,38 @@ import ProjectProfileVue from './ProjectProfile.vue';
         </div>
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'knowledge' ? tabActive: tabInactive]"
-        @click="tabIx = 'knowledge'" v-if="lastSettings"
+        @click="setActiveTab('knowledge')" v-if="lastSettings"
       >
         <i class="fa-solid fa-book"></i>
         Knowledge
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'wiki' ? tabActive: tabInactive]"
-        @click="tabIx = 'wiki'" v-if="lastSettings"
+        @click="setActiveTab('wiki')" v-if="lastSettings"
         >
           <i class="fa-brands fa-wikipedia-w"></i>
           Documentation
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'settings' ? tabActive: tabInactive]"
-          @click="tabIx = 'settings'" v-if="lastSettings"
+          @click="setActiveTab('settings')" v-if="lastSettings"
         >
         <i class="fa-solid fa-gear"></i>
       </a>
     </div>
     <div role="tablist" class="tabs tabs-lifted bg-base-100 rounded-md mt-2" v-if="['profiles', 'settings'].includes(tabIx)">
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'profiles' ? tabActive: tabInactive]"
-      @click="tabIx = 'profiles'"
+      @click="setActiveTab('profiles')"
       >
       <i class="fa-solid fa-id-card-clip"></i>
         Profiles
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'settings' ? tabActive: tabInactive]"
-        @click="tabIx = 'settings'"
+        @click="setActiveTab('settings')"
       >
         <i class="fa-solid fa-sliders"></i>
         Setting
       </a>
       <a role="tab" :class="['tab flex items-center gap-2', tabIx === 'global-settings' ? tabActive: tabInactive]"
-        @click="tabIx = 'global-settings'"
+        @click="setActiveTab('global-settings')"
       >
         <i class="fa-solid fa-gear"></i>
         Global
@@ -112,7 +112,7 @@ import ProjectProfileVue from './ProjectProfile.vue';
       <GlobalSettingsVue class="abolsute top-0 left-0 w-full p-2" v-if="tabIx === 'global-settings'" />
       <ProfileViewVue class="abolsute top-0 left-0 w-full" v-if="tabIx === 'profiles'" />
       <iframe v-if="tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
-      <ProjectProfileVue class="p-2 abolsute top-0 left-0 w-full" v-if="tabIx == 'home'" @settings="tabIx = 'settings'"></ProjectProfileVue>
+      <ProjectProfileVue class="p-2 abolsute top-0 left-0 w-full" v-if="tabIx == 'home'" @settings="setActiveTab('settings')"></ProjectProfileVue>
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
       <div class="modal-box">
@@ -223,7 +223,11 @@ export default {
     },
     async deleteProject () {
       await API.project.delete()
-      this.tabIx = 'home'
+      this.setActiveTab('home')
+    },
+    setActiveTab(tabIx) {
+      console.log("Set tab active", tabIx)
+      this.tabIx = tabIx
     }
   }
 }

@@ -12,7 +12,7 @@ import VueSplitter from '@rmp135/vue-splitter'
       v-model:percent="splitterPercent" 
     >
       <template #left-pane>
-        <div :class="['h-full relative grow']" v-if="showCoder" :disabled="splitterDragging" >
+        <div :class="['h-full relative grow']" v-if="showCoder">
           <iframe ref="iframe" :src="coderUrl" :class="[
               'h-full w-full border-0 bg-base-300'
             ]"
@@ -35,13 +35,9 @@ import VueSplitter from '@rmp135/vue-splitter'
       </template>
       <template #right-pane>
         <div class="w-full h-full relative">
-          <div :class="['h-full flex']" :disabled="splitterDragging" v-if="showCodxJunior">
-            <CodxJuniorVue class="grow"
-              @toggle-coder="toggleCoder"
-              @toggle-codx-junior="showCodxJunior = !showCodxJunior"
-              v-if="showCodxJunior"
-            />
-          </div>
+          <CodxJuniorVue class="w-full h-full"
+            @mousedown.stop=""
+          />
           <div class="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
             <div class="flex items-end gap-2">
             </div>

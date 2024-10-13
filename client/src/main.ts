@@ -16,5 +16,4 @@ app.mount('#app')
 
 store.app = app;
 $storex.app = app;
-app.$.appContext.config.globalProperties.$storex = $storex
 $storex.init()
