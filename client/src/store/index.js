@@ -4,8 +4,10 @@ import {
 } from 'typed-vuex'
 
 import * as session from './session'
+import * as project from './project'
+import * as ui from './ui'
 
-const modules = { session }
+const modules = { session, project, ui }
 const storePattern = {
   modules,
 }
@@ -14,7 +16,9 @@ const store = createStore(storePattern)
 
 export const $storex = useAccessor(store, storePattern)
 $storex.init = async () => {
-  await $storex.session.init()
+  Object.keys(modules).forEach(async m => {
+    await $storex[m].init()
+  })
 }
 $storex.store = new Store()
 window.$storex = $storex

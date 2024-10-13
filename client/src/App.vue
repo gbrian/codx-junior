@@ -9,10 +9,11 @@ import VueSplitter from '@rmp135/vue-splitter'
       @mousedown="splitterDragging = true"
       @mouseup="onEndSplitting"
       :initial-percent="splitterPercent"
-      v-model:percent="splitterPercent" 
+      v-model:percent="splitterPercent"
+      v-if="splitView"
     >
       <template #left-pane>
-        <div :class="['h-full relative grow']" v-if="showCoder">
+        <div :class="['h-full relative grow']">
           <iframe ref="iframe" :src="coderUrl" :class="[
               'h-full w-full border-0 bg-base-300'
             ]"
@@ -20,12 +21,25 @@ import VueSplitter from '@rmp135/vue-splitter'
             title="coder"
             allow="camera *;microphone *;clipboard-read; clipboard-write;"
             :key="iframeKey"
+            v-if="$storex.ui.showCoder"
             >
           </iframe>
-          <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300 flex flex-col items-center justify-center z-50" v-if="showCoder && !iframeLoaded">
+          <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300 flex flex-col items-center justify-center z-50" v-if="$storex.ui.showCoder && !iframeLoaded">
             <div class="flex items-end gap-2">
               LOADING CODER <span class="loading loading-dots loading-sm"></span>
             </div>
+          </div>
+          <div class="h-full relative grow flex flex-col p-1" v-if="$storex.ui.showPreview">
+            <label class="grow input input-sm input-bordered flex items-center gap-2">
+              <input type="text" class="grow" :value="preViewUrl" placeholder="Enter url..." @keydown.enter="preViewUrl = $event.target.value" />
+              <i class="fa-solid fa-magnifier"></i>
+            </label>  
+            <iframe ref="iframe" :src="preViewUrl" class="h-full w-full border-0 bg-base-300"
+              title="preview"
+              allow="camera *;microphone *;clipboard-read; clipboard-write;"
+              :key="iframeKey"
+              >
+            </iframe>
           </div>
           <div class="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
             <div class="flex items-end gap-2">
@@ -45,11 +59,7 @@ import VueSplitter from '@rmp135/vue-splitter'
         </div>
       </template>
     </vue-splitter>
-    <div class="bg-base-300 w-10 h-full p-2" v-if="!showCodxJunior">
-      <div class="btn btn-xs" @click="showCodxJunior = true">
-        <i class="fa-solid fa-chevron-left"></i>
-      </div>
-    </div>
+    <CodxJuniorVue class="w-full h-full" v-else></CodxJuniorVue>
   </div>
 </template>
 <script>
@@ -57,8 +67,7 @@ export default {
   data () {
     return {
       url: "/coder",
-      showCoder: true,
-      showCodxJunior: true,
+      preViewUrl: "_blank_",
       iframeLoaded: false,
       codxJuniorPanelWidth: 2,
       maxcodxJuniorPanelWidth: 6,
@@ -72,19 +81,18 @@ export default {
       parseFloat(localStorage.getItem("SPLITTER_PERCENT") || this.splitterPercent)
   },
   computed: {
+    splitView () {
+      return this.$storex.ui.spliView
+    },
     coderUrl () {
       return `${window.location.origin}${this.url}`
-    },
-    codxJuniorWidth () {
-      const {
-        showCoder,
-        codxJuniorPanelWidth,
-        maxcodxJuniorPanelWidth
-      } = this
-      if (!showCoder) {
-        return "grow"
+    }
+  },
+  watch: {
+    splitView (newVal) {
+      if (newVal) {
+        this.iframeLoaded = false
       }
-      return `w-${codxJuniorPanelWidth}/${maxcodxJuniorPanelWidth}`
     }
   },
   methods: {
@@ -98,12 +106,6 @@ export default {
         setTimeout(() => this.checkCoderLoader(), 1000)
       }
       console.log("IFRAME URL", this.url)
-    },
-    toggleCoder() {
-      this.showCoder = !this.showCoder
-      if (this.showCoder) {
-        this.iframeLoaded = false
-      }
     },
     onEndSplitting () {
       this.splitterDragging = false
@@ -133,7 +135,7 @@ export default {
 </script>
 <style>
   .vue-splitter.vertical>.splitter {
-    width: 3px;
+    width: 2px;
     background-color: #4c4c4c;
   }
 </style>

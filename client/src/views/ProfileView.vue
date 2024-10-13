@@ -1,5 +1,4 @@
 <script setup>
-import MarkdownVue from '../components/Markdown.vue'
 </script>
 <template lang="pug">
 <div class="flex flex-col h-full justify-between">

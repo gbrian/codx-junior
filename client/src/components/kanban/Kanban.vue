@@ -5,61 +5,77 @@ import { API } from '../../api/api'
 import ChatViewVue from '../../views/ChatView.vue'
 </script>
 <template>
-  <ChatViewVue :openChat="chat" v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
-  <div class="flex flex-col gap-2 h-full" v-else>
-    <div class="dropdown" v-if="false">
-      <div tabindex="0" class="click text-2xl flex gap-2 items-center">
-        {{ board || defBoard }}
-        <i class="fa-solid fa-sort-down"></i>
-      </div>
-      <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-md w-60 z-50">
-        <li v-for="tasksBoard in boards" :key="tasksBoard">
-          <a>{{ tasksBoard }}</a>
-        </li>
-      </ul>
-    </div>
-    <div class="flex justify-center grow overflow-auto">
-      <div class="flex min-h-screen min-w-full overflow-x-scroll">
-        
-        <draggable 
-            v-model="columns"
-            group="columns" 
-            @change="onColumnsChanged()" 
-            item-key="title"
-            class="flex overflow-auto"
-          >
-          <template #item="{element}">
-            <div class="bg-neutral rounded-lg px-3 py-3 column-width rounded mr-4 overflow-auto">
-              <p class="text-neutral-content font-semibold font-sans tracking-wide text-sm flex justify-between items-center">
-                <div class="flex input input-bordered input-sm" v-if="element.editTitle">
-                  <input type="text" v-model="element.newTitle"
-                    @keydown.esc="element.editTitle = false"
-                    @keydown.enter="onColumnTitleChanged(element)"
-                  >
-                </div>
-                <div class="click" @click="onEditColumnTitle(element)" v-else>{{element.title}}</div>
-                <button class="btn btn-sm" @click="newChat (element.title)">
-                  <i class="fa-solid fa-plus"></i>
-                </button>
-              </p>
-              <draggable 
-                v-model="element.tasks" 
-                group="tasks" 
-                @change="onColumnTasksChanged(column)" 
-                item-key="title">
-                <template #item="{element}">
-                  <task-card
-                    :task="element"
-                    class="mt-3 cursor-move overflow-hidden"
-                    @click="openChat(element)"
-                  ></task-card>
-                </template>
-              </draggable>
-            </div>
-          </template>
-        </draggable>
+  <div class="flex flex-col gap-2 h-full">
+    <div class="text-2xl flex gap-4 items-end justify-between">
+      Kanban board
+      <div class="flex gap-2">
+        <label class="grow input input-sm input-bordered flex items-center gap-2">
+          <input type="text" v-model="filter" class="grow" placeholder="Search" />
+          <span class="click" v-if="filter" @click.stop="filter = null">
+            <i class="fa-regular fa-circle-xmark"></i>
+          </span>
+          <span v-else><i class="fa-solid fa-filter"></i></span>
+        </label>
+        <button class="btn btn-sm" @click="addColumn">
+          <i class="fa-solid fa-plus"></i>
+          Column
+        </button>
       </div>
     </div>
+    <ChatViewVue :openChat="chat" v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
+    <div class="flex flex-col gap-2 grow overflow-auto pb-2" v-else>
+      <div class="dropdown" v-if="false">
+        <div tabindex="0" class="click text-2xl flex gap-2 items-center">
+          {{ board || defBoard }}
+          <i class="fa-solid fa-sort-down"></i>
+        </div>
+        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-md w-60 z-50">
+          <li v-for="tasksBoard in boards" :key="tasksBoard">
+            <a>{{ tasksBoard }}</a>
+          </li>
+        </ul>
+      </div>
+        <div class="flex grow min-w-full overflow-x-scroll">
+          
+          <draggable 
+              v-model="columns"
+              group="columns" 
+              @change="onColumnsChanged()" 
+              item-key="title"
+              class="flex overflow-auto"
+            >
+            <template #item="{element}">
+              <div class="bg-neutral rounded-lg px-3 py-3 column-width rounded mr-4 overflow-auto">
+                <p class="text-neutral-content font-semibold font-sans tracking-wide text-sm flex justify-between items-center">
+                  <div class="flex input input-bordered input-sm" v-if="element.editTitle">
+                    <input type="text" v-model="element.newTitle"
+                      @keydown.esc="element.editTitle = false"
+                      @keydown.enter="onColumnTitleChanged(element)"
+                    >
+                  </div>
+                  <div class="click" @click="onEditColumnTitle(element)" v-else>{{element.title}}</div>
+                  <button class="btn btn-sm" @click="newChat (element.title)">
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                </p>
+                <draggable 
+                  v-model="element.tasks" 
+                  group="tasks" 
+                  @change="onColumnTasksChanged(column)" 
+                  item-key="title">
+                  <template #item="{element}">
+                    <task-card
+                      :task="element"
+                      class="mt-3 cursor-move overflow-hidden"
+                      @click="openChat(element)"
+                    ></task-card>
+                  </template>
+                </draggable>
+              </div>
+            </template>
+          </draggable>
+        </div>
+      </div>
   </div>
 </template>
 <script>
@@ -70,7 +86,8 @@ export default {
       chat: null,
       chats: [],
       columns: [],
-      board: unassigned
+      board: unassigned,
+      filter: null
     };
   },
   created () {
@@ -79,6 +96,13 @@ export default {
   computed: {
     boards () {
       return [...new Set(this.chats?.map(c => c.board))]             
+    }
+  },
+  watch: {
+    filter (newValue, oldValue) {
+      if ((!newValue && oldValue) || newValue?.length > 3) {
+        this.buildKanba()
+      }
     }
   },
   methods: {
@@ -108,16 +132,14 @@ export default {
                       column: c.column || unassigned
                     }))
       const columns = [...new Set(this.chats?.map(c => c.column))]
-      this.columns = [...columns.map(col => ({
+      this.columns = columns.map(col => ({
           title: col,
-          tasks: this.chats.filter(c => c.column === col)
+          tasks: this.chats.filter(c => c.column === col &&
+              (!this.filter || c.name.toLowerCase().indexOf(this.filter.toLowerCase()) !== -1)
+            )
             .sort((a, b) => a.chat_index < b.chat_index ? -1 : 1)
-        })),
-        {
-          title: "New column",
-          tasks: [this.createNewChat()]
-        }
-      ].sort((a, b) => a.tasks[0]?.column_index < b.tasks[0]?.column_index ? -1 : 1)
+
+        })).sort((a, b) => a.tasks[0]?.column_index < b.tasks[0]?.column_index ? -1 : 1)
     },
     onColumnTasksChanged(column) {
       const column_index = this.columns.findIndex(c => c.title === column.title)
@@ -149,6 +171,11 @@ export default {
     onChatEditDone () {
       this.chat = null
       this.buildKanba()
+    },
+    addColumn () {
+      this.columns = [...this.columns, {
+        name: "new column"
+      }]
     }
   }
 };

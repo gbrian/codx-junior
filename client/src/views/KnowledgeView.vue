@@ -3,9 +3,9 @@ import { API } from '../api/api'
 import MarkdownVue from '@/components/Markdown.vue'
 </script>
 <template>
-  <div class="gap-2 h-full justify-between">
-    <div class="text-xl font-medium flex justify-between items-center gap-2">
-      Knowledge: {{ settings.project_path}}
+  <div class="flex flex-col gap-2 h-full justify-between">
+    <div class="text-2xl font-medium flex justify-between items-center gap-2">
+      Knowledge
       <div class="grow">
         <div class="text-error text-xs" v-if="!settings?.use_knowledge">Knowledge search is disabled!</div>
       </div>
@@ -79,50 +79,51 @@ import MarkdownVue from '@/components/Markdown.vue'
         </div>
       </div>
     </div>
-    <div class="stats mt-2">
-      <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
-        <div class="stat-figure mt-6">
-          <i class="fa-2xl fa-solid fa-file"></i>
+    <div>
+      <div class="stats">
+        <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
+          <div class="stat-figure mt-6">
+            <i class="fa-2xl fa-solid fa-file"></i>
+          </div>
+          <div class="stat-title">Pending</div>
+          <div class="stat-value">{{ status?.pending_files?.length }}</div>
+          <div class="stat-desc"></div>
         </div>
-        <div class="stat-title">Pending</div>
-        <div class="stat-value">{{ status?.pending_files?.length }}</div>
-        <div class="stat-desc"></div>
-      </div>
-      
-      <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
-        <div class="stat-figure mt-6 text-success">
-          <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
+        
+        <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
+          <div class="stat-figure mt-6 text-success">
+            <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
+          </div>
+          <div class="stat-title">Indexed</div>
+          <div class="stat-value">{{ status?.file_count }}</div>
+          <div class="stat-desc"></div>
         </div>
-        <div class="stat-title">Indexed</div>
-        <div class="stat-value">{{ status?.file_count }}</div>
-        <div class="stat-desc"></div>
-      </div>
 
-      <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
-        <div class="stat-figure mt-6 text-warning">
-          <i class="fa-2xl fa-solid fa-file"></i>
+        <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
+          <div class="stat-figure mt-6 text-warning">
+            <i class="fa-2xl fa-solid fa-file"></i>
+          </div>
+          <div class="stat-title">Ignored</div>
+          <div class="stat-value">{{ ignoredFolders?.length }}</div>
+          <div class="stat-desc"></div>
         </div>
-        <div class="stat-title">Ignored</div>
-        <div class="stat-value">{{ ignoredFolders?.length }}</div>
-        <div class="stat-desc"></div>
-      </div>
 
-      <div class="stat">
-        <div class="stat-figure mt-6 text-info">
-          <i class="fa-2xl fa-solid fa-book"></i>
+        <div class="stat">
+          <div class="stat-figure mt-6 text-info">
+            <i class="fa-2xl fa-solid fa-book"></i>
+          </div>
+          <div class="stat-title">Keywords</div>
+          <div class="stat-value">{{ status?.keyword_count }}</div>
+          <div class="stat-desc"></div>
         </div>
-        <div class="stat-title">Keywords</div>
-        <div class="stat-value">{{ status?.keyword_count }}</div>
-        <div class="stat-desc"></div>
       </div>
-
-      <div class="stat">
-        <div class="stat-figure mt-6 text-secondary">
-          <i class="fa-2xl fa-solid fa-clock"></i>
-        </div>
-        <div class="stat-title">Last refresh</div>
-        <div class="stat-value text-wrap text-sm">{{ lastRefresh }}</div>
+    </div>
+    <div class="flex gap-2 items-center">
+      <div class="text-secondary">
+        <i class="fa-solid fa-clock"></i>
       </div>
+      <div class="stat-title">Last refresh</div>
+      <div class="stat-value text-wrap text-sm">{{ lastRefresh }}</div>
     </div>
 
     <div class="p-4 flex flex-col gap-2 grow">
@@ -214,14 +215,16 @@ import MarkdownVue from '@/components/Markdown.vue'
         </span>
       </div>
     </div>
-    <button class="btn btn-error flex gap-2 w-full mt-2" @click="deleteKnowledge" >
-      DELETE ALL
-      <div v-if="resetKnowledge">
-        (Really? 
-        <span class="hover:underline">YES</span> / 
-        <span class="hover:underline" @click.stop="resetKnowledge = false">NO</span>)
-      </div>
-    </button>
+    <div class="pb-2">
+      <button class="btn btn-error flex gap-2 w-full mt-2" @click="deleteKnowledge" >
+        DELETE ALL
+        <div v-if="resetKnowledge">
+          (Really? 
+          <span class="hover:underline">YES</span> / 
+          <span class="hover:underline" @click.stop="resetKnowledge = false">NO</span>)
+        </div>
+      </button>
+    </div>
     <dialog class="modal modal-bottom sm:modal-middle modal-open" v-if="showDoc" @click="showDoc = null">
       <div class="modal-box flex flex-col gap-2 w-full max-w-full">
         <div class="font-bold text-wrap">

@@ -5,8 +5,31 @@ import io from 'socket.io-client';
 
 export const namespaced = true
 
+
+import { API } from '../api/api'
+// Add a request interceptor
+API.axiosRequest.interceptors.request.use(function (config) {
+    $storex.session.incApiCalls()
+    return config;
+  }, function (error) {
+    $storex.session.decApiCalls()
+    return Promise.reject(error);
+  });
+
+API.axiosRequest.interceptors.response.use(
+  (response) => {
+    $storex.session.decApiCalls()
+    return response
+  },
+  (error) => {
+    $storex.session.decApiCalls()
+    console.error("API ERROR:", this.lastError);
+  });
+
+
 export const state = () => ({
-  socket: null
+  socket: null,
+  apiCalls: 0
 })
 
 const session = {
@@ -20,6 +43,12 @@ export const getters = getterTree(state, {
 export const mutations = mutationTree(state, {
   setSocket (state, socket) {
     state.socket = socket
+  },
+  incApiCalls(state) {
+    state.apiCalls = state.apiCalls + 1
+  },
+  decApiCalls(state) {
+    state.apiCalls = state.apiCalls - 1
   }
 })
 
