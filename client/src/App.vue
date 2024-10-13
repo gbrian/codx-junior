@@ -27,7 +27,7 @@ import VueSplitter from '@rmp135/vue-splitter'
               LOADING CODER <span class="loading loading-dots loading-sm"></span>
             </div>
           </div>
-          <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300/20 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
+          <div class="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
             <div class="flex items-end gap-2">
             </div>
           </div>
@@ -42,7 +42,7 @@ import VueSplitter from '@rmp135/vue-splitter'
               v-if="showCodxJunior"
             />
           </div>
-          <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300/20 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
+          <div class="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
             <div class="flex items-end gap-2">
             </div>
           </div>
