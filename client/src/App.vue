@@ -1,41 +1,55 @@
 <script setup>
 import CodxJuniorVue from './views/CodxJunior.vue'
+import VueSplitter from '@rmp135/vue-splitter'
 </script>
 
 <template>
   <div class="w-full h-full flex bg-base-300 relative" data-theme="dark">
-    <div :class="['h-full relative grow']" v-if="showCoder">
-      <iframe ref="iframe" :src="coderUrl" :class="[
-          'h-full w-full border-0 bg-base-300']"
-        @load="onCoderLoaded"
-        title="coder"
-        allow="camera *;microphone *;clipboard-read; clipboard-write;"
-        :key="iframeKey"
-        >
-      </iframe>
-      <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300 flex flex-col items-center justify-center z-50" v-if="showCoder && !iframeLoaded">
-        <div class="flex items-end gap-2">
-          LOADING CODER <span class="loading loading-dots loading-sm"></span>
+    <vue-splitter
+      @mousedown="splitterDragging = true"
+      @mouseup="onEndSplitting"
+      :initial-percent="splitterPercent"
+      v-model:percent="splitterPercent" 
+    >
+      <template #left-pane>
+        <div :class="['h-full relative grow']" v-if="showCoder" :disabled="splitterDragging" >
+          <iframe ref="iframe" :src="coderUrl" :class="[
+              'h-full w-full border-0 bg-base-300'
+            ]"
+            @load="onCoderLoaded"
+            title="coder"
+            allow="camera *;microphone *;clipboard-read; clipboard-write;"
+            :key="iframeKey"
+            >
+          </iframe>
+          <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300 flex flex-col items-center justify-center z-50" v-if="showCoder && !iframeLoaded">
+            <div class="flex items-end gap-2">
+              LOADING CODER <span class="loading loading-dots loading-sm"></span>
+            </div>
+          </div>
+          <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300/20 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
+            <div class="flex items-end gap-2">
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-
-    <div :class="['flex', showCoder ? `${codxJuniorWidth} shrink-0`: 'grow']" v-if="showCodxJunior">
-      <div class="w-fit h-full flex flex-col justify-between bg-base-100" v-if="showCoder">
-        <div class="text-xs py-2 px-1 click" @click="increaseSplit">
-          <i class="fa-solid fa-chevron-left"></i>
+      </template>
+      <template #right-pane>
+        <div class="w-full h-full relative">
+          <div :class="['h-full flex']" :disabled="splitterDragging" v-if="showCodxJunior">
+            <CodxJuniorVue class="grow"
+              @toggle-coder="toggleCoder"
+              @toggle-codx-junior="showCodxJunior = !showCodxJunior"
+              v-if="showCodxJunior"
+            />
+          </div>
+          <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300/20 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
+            <div class="flex items-end gap-2">
+            </div>
+          </div>
         </div>
-        <div class="text-xs py-2 px-1 click" @click="decreaseSplit">
-          <i class="fa-solid fa-chevron-right"></i>
-        </div>
-      </div>
-      <CodxJuniorVue class="grow"
-        @toggle-coder="toggleCoder"
-        @toggle-codx-junior="showCodxJunior = !showCodxJunior"
-        v-if="showCodxJunior"
-      />
-    </div>
-    <div class="bg-base-300 w-10 h-full p-2" v-else>
+      </template>
+    </vue-splitter>
+    <div class="bg-base-300 w-10 h-full p-2" v-if="!showCodxJunior">
       <div class="btn btn-xs" @click="showCodxJunior = true">
         <i class="fa-solid fa-chevron-left"></i>
       </div>
@@ -52,8 +66,14 @@ export default {
       iframeLoaded: false,
       codxJuniorPanelWidth: 2,
       maxcodxJuniorPanelWidth: 6,
-      iframeKey: 0
+      iframeKey: 0,
+      splitterDragging: false,
+      splitterPercent: 75
     }
+  },
+  created () {
+    this.splitterPercent =
+      parseFloat(localStorage.getItem("SPLITTER_PERCENT") || this.splitterPercent)
   },
   computed: {
     coderUrl () {
@@ -83,28 +103,15 @@ export default {
       }
       console.log("IFRAME URL", this.url)
     },
-    increaseSplit () {
-      this.codxJuniorPanelWidth = this.codxJuniorPanelWidth + 1
-      if (!this.showCodxJunior) {
-        this.showCodxJunior = true
-      }
-      if (this.codxJuniorPanelWidth >= this.maxcodxJuniorPanelWidth) {
-        this.codxJuniorPanelWidth = 2
-        this.showCoder = false
-      }
-    },
-    decreaseSplit () {
-      this.codxJuniorPanelWidth = this.codxJuniorPanelWidth - 1
-      if (this.codxJuniorPanelWidth < 1) {
-        this.showCodxJunior = false
-        this.codxJuniorPanelWidth = 2
-      }
-    },
     toggleCoder() {
       this.showCoder = !this.showCoder
       if (this.showCoder) {
         this.iframeLoaded = false
       }
+    },
+    onEndSplitting () {
+      this.splitterDragging = false
+      localStorage.setItem("SPLITTER_PERCENT", this.splitterPercent.toString())
     },
     checkCoderLoader () {
       let checkCount = 30 
@@ -128,3 +135,9 @@ export default {
   }
 }
 </script>
+<style>
+  .vue-splitter.vertical>.splitter {
+    width: 3px;
+    background-color: #4c4c4c;
+  }
+</style>

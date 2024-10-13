@@ -13,6 +13,7 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@rmp135/vue-splitter": "^2.0.2",
     "@tailwindcss/typography": "^0.5.10",
     "axios": "^1.6.8",
     "highlight.js": "11.8.0",

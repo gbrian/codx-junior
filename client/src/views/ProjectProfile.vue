@@ -84,24 +84,3 @@ export default {
   }
 };
 </script>
-
-<style scoped>
-.profile-container {
-  background: #1a202c; /* Dark background */
-  color: white; /* White text */
-  border-radius: 8px; /* Rounded corners */
-  padding: 16px; /* Padding around the content */
-}
-.projects-list ul {
-  list-style-type: none; /* Remove default list styling */
-  padding: 0;
-}
-.projects-list li {
-  margin-bottom: 16px; /* Space between list items */
-}
-.hero-section {
-  background-color: #2d3748; /* Slightly lighter dark background */
-  padding: 24px; /* More padding for hero section */
-  border-radius: 8px; /* Rounded corners for hero section */
-}
-</style>
