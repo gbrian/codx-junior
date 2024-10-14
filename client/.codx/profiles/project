@@ -1,0 +1,90 @@
+## Project Overview (Updated)
+
+This project enhances project management through a sophisticated Vue.js-based web application, utilizing both Vue.js and Svelte frameworks. The platform offers a modular dashboard with multiple views to streamline workflow management. Key features include a Kanban board, KnowledgeView, Wiki, ProjectSettings, GlobalSettings, ProfileView, and ProjectProfile.
+
+## Codx-Junior Platform Overview
+
+Codx-Junior is an AI-driven assistant tailored for full-stack developers managing open-source projects. The platform enhances project management by providing functionalities such as listing all projects, viewing details of active projects, and creating new projects using a Git repository URL. It leverages Vue.js for structural organization and APIs for backend operations, emphasizing project management, AI assistance, Git integration, and a user-friendly interface with project icons and descriptions.
+
+### New Information Integration
+
+- **Codx-Junior AI Assistant Features**:
+  - Designed to aid full-stack developers in efficiently managing open-source projects.
+  - Displays active projects, lists all projects, and allows setting active projects.
+  - Provides an interface for creating new projects using repository URLs.
+  - Features a user interface with a profile container showing project details, a hero section for a welcome message, and a new project input form.
+  - Utilizes APIs for seamless project creation and management.
+
+- **Project Management Dashboard Implementation**:
+  - Comprises components like NavigationBar, Kanban, KnowledgeView, WikiView, ProjectSettings, GlobalSettings, ProfileView, and ProjectProfile.
+  - Enables project creation, deletion, retrieval, and sub-project management.
+  - Utilizes a tab-based navigation system for easy access to different sections.
+  - Integrates with APIs for seamless operations and error handling.
+
+- **Kanban Board Interface Using Vue.js**:
+  - Key components include draggable columns and tasks, task management, and chat integration.
+  - Allows adding, editing, and searching columns and tasks.
+  - Utilizes API for task management with real-time updates, enhancing dynamic UI updates.
+  - Chat feature linked to tasks for enhanced collaboration.
+  - Integrates `vuedraggable`, `TaskCard.vue`, and `ChatView.vue` for robust functionality.
+
+- **Sidebar Navigation Component for Project Management**:
+  - Includes navigation tabs for functionalities like Home, Kanban board, Knowledge, Docs, Coder, and Preview.
+  - Offers options to toggle coder and preview views, providing a customizable interface.
+  - Features a settings dropdown with access to Profiles, Project Settings, and Global Settings for enhanced navigation.
+  - Utilizes Vue.js for state management and dynamic tab activation.
+
+- **Vuex Store Setup for State Management**:
+  - Implements a modular architecture with session, project, and UI modules.
+  - Facilitates backend communication and dynamic project management via API integration.
+  - Follows an initialization pattern for modules for streamlined setup.
+  - Provides global access to application state and API interactions through `$storex`.
+
+- **State Management Module for Vuex**:
+  - Implements project handling with key functionalities such as initializing projects via API, setting active projects, and managing project state.
+  - Utilizes `getterTree`, `mutationTree`, and `actionTree` for state, mutations, and actions management.
+  - Enhances project state management through `activeProject` and `allProjects` handling.
+
+- **Vue-based Project with CodxJuniorVue and VueSplitter Integration**:
+  - Implements a split view interface allowing users to toggle between coder and preview modes.
+  - Utilizes iframes for dynamic content loading.
+  - Key functionalities include adjustable splitter percentage, persistent state via localStorage, and iframe event handling for URL updates and loading checks.
+
+- **Vuex Store Module for UI State Management**:
+  - Key features include toggles for 'showCoder' and 'showPreview'.
+  - Implements mutually exclusive display logic: activating one hides the other.
+  - State persistence in localStorage via 'save_state' mutation.
+  - Loads initial state during 'init' action.
+
+## Key Components
+
+- **Vue.js Components**: Icons, Modals, Toolbars, Boards, Chat, Kanban.
+- **API & Chat Management**: API integration, chat functionalities.
+- **Configuration**: ESLint, TypeScript, Tailwind CSS, Vite, PostCSS.
+- **Store Management**: Session, Project, UI states.
+- **Views & Pages**: Home, Profile, Project, Settings, Knowledge, Chat.
+
+## Important Files
+
+- Configuration Files: `.eslintrc.cjs`, `tsconfig.json`, `vite.config.ts`, `postcss.config.js`, `package.json`.
+- Vue Files: `App.vue`, `Kanban.vue`, `NavigationBar.vue`, `Chat.vue`.
+- JSON Configurations: `.prettierrc.json`, `.codx/project.json`.
+
+## Business Concepts
+
+- Modular architecture with reusable components.
+- Emphasis on UI/UX with interactive elements.
+- Strong focus on configuration management and development tooling.
+- Project scalability through structured file organization and state management.
+
+## Main User Interface
+
+The main UI includes a Kanban board with draggable columns and chat integration, live editing, a knowledge base, wiki, user profiles, project/global settings, a sidebar menu, and a split-screen layout. Icons from Font Awesome enhance the user experience.
+
+## Keywords
+
+Vue.js, Svelte, project management, UI navigation, active tab, settings, tasks, knowledge, wiki, Vue Router, Vuex, API, global mixin, application initialization, App.vue, Modal.vue, router, Vuex, Typed-Vuex, KanbanVue, KnowledgeViewVue, WikiViewVue, ProjectSettingsVue, GlobalSettingsVue, ProfileViewVue, ProjectProfileVue, Navigation, Real-time Updates, Error Handling, Modular Interface, Responsive Design, Dynamic View Management, API Integration, Tab Navigation, Sidebar Navigation, Dynamic Tab Management, Dropdown Menu, Condition-Based Styling, Responsive UI Elements, Drag-and-Drop Resizing, Local Storage, Component-Based Architecture, Dynamic URL Management, User Interface Optimization, Loading Indicators, Toggle Functionality, State Management, Tabs, Web Application, Tabbed Interface, Icons, Sidebar, Project Initialization, Global Store Access, Active Projects, All Projects, globalMixin, Profile Management, CRUD Operations, Markdown Handling, Codx-Junior, AI assistant, full-stack development, open-source, project management, repository, Git URL, project creation, API integration, project details, hero section, project grid, interactive UI, asynchronous initialization, session management, document indexing, knowledge management, search capabilities, keyword extraction, file management, UI/UX, dynamic tab activation, hover effects, avatar display, computed properties, HTML5, TypeScript, responsive design, app initialization, viewport settings, Tailwind CSS, responsive design, breakpoints, DaisyUI, typography, configuration, content paths, theme, plugins, active project highlighting, dynamic project handling, seamless project switching, Kanban board, draggable, TaskCard, dynamic UI, chat feature, column/task management, `vuedraggable`, `ChatViewVue`, dynamic board management, state, mutations, actions, error handling, toast notifications, socket.io, UUID, API interceptors, session management, real-time communication, Axios, API call tracking, AI assistant for full-stack developers, open-source project management, task filtering, column addition, chat integration, scoped CSS, Knowledge management, document search, indexing, keyword extraction, API integration, file management, Vuex, toggle functionality, typed-vuex, UI toggle, coder visibility, preview interface, vue-splitter, split-view, iframe, dynamic URL management, CodxJuniorVue, dark theme UI, split-view interface, dynamic panel adjustment, local storage, user interaction, Vuex store setup, modular architecture, session module, project module, UI module, global access, $storex, project dashboard, project creation, deletion, retrieval, sub-project management, error handling, state management module, project handling, getterTree, mutationTree, actionTree, activeProject, allProjects, UI state management, showCoder, showPreview, toggle logic, save_state mutation, init action.
+
+---
+
+This document now includes the latest details about Codx-Junior, emphasizing its AI capabilities for full-stack developers in open-source project management, as well as the new Vuex store module for UI state management.

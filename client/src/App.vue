@@ -138,4 +138,7 @@ export default {
     width: 2px;
     background-color: #4c4c4c;
   }
+  .vue-splitter.vertical>.splitter:hover {
+    width: 3px;
+  }
 </style>

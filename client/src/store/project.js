@@ -27,7 +27,7 @@ export const actions = actionTree(
         state.activeProject = API.lastSettings
     },
     async setActiveProject ({ state }, project) {
-      API.init(project?.codx_path)
+      await API.init(project?.codx_path)
       state.activeProject = API.lastSettings
     },
   },

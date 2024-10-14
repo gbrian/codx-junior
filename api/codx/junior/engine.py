@@ -128,7 +128,7 @@ def create_project(project_path: str):
         url = project_path
         repo_name = url.split("/")[-1].split(".")[0]
         project_path = f"{global_settings.projects_root_path}/{repo_name}"
-        command = f"git clone {url} {project_path}"
+        command = f"git clone --depth=1 {url} {project_path}"
         logger.info(f"Cloning repo {url} {repo_name} {project_path}")
         exec_command(command=command)
         open_readme = True

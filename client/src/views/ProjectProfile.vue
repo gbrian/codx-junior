@@ -28,11 +28,9 @@ import { API } from '../api/api';
           <div class="flex flex-col gap-2 p-4 border rounded-md click overflow-hidden text-ellipsis">
             <div class="flex gap-2">
               <img :src="project.project_icon" alt="Project Icon" class="w-10 h-10 rounded-full" />
-              <div>
-                <h3 class="text-lg font-bold">{{ project.project_name }}</h3>
-                <p>{{ project.project_description }}</p>
-              </div>
+              <h3 class="text-lg font-bold">{{ project.project_name }}</h3>
             </div>
+            <p class="text-xs">{{ project.project_path }}</p>
           </div>
         </div>
       </div>
