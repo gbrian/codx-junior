@@ -73,6 +73,12 @@ import PRView from '../views/PRView.vue'
                   <modal v-if="newTag !== null">
                     <div class="flex flex-col gap-2">
                       <div class="text-xl">New tag</div>
+                      <select class="select select-sm select-bordered"
+                        @change="newTag = $event.target.value"
+                      >
+                        <option value="" selected>New</option>
+                        <option v-for="t in $project.allTags" :key="t" :value="t">{{t}}</option>
+                      </select>
                       <input type="text" class="input input-sm input-bordered" v-model="newTag" />
                       <div class="flex gap-2 justify-end">
                         <button class="btn btn-error" @click="newTag = null">
@@ -206,7 +212,6 @@ export default {
   data() {
     return {
       chat: null,
-      chats: [],
       profiles: null,
       showFile: null,
       addFile: null,
@@ -225,12 +230,10 @@ export default {
     if (this.openChat) {
       this.chat = this.openChat
     } else {
-      this.chats = await API.chats.list()
       if (this.chats.length) {
-        this.chat = await API.chats.loadChat(this.chats[0].name)
+        this.chat = await this.$project.loadChat(this.chats[0].name)
       } else {
-        this.chat = await API.chats.newChat()
-        this.chats.push(this.chat.name)
+        this.chat = await this.$project.newChat()
       }
     }
     this.loadProfiles()
@@ -250,14 +253,12 @@ export default {
       return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
         ? moment(updatedAt).fromNow()
         : moment(updatedAt).format('YYYY-MM-DD');
+    },
+    chats () {
+      return this.$project.chats
     }
   },
   watch: {
-    async showChatsTree(newVal) {
-      if (newVal) {
-        this.chats = await API.chats.list()
-      }
-    }
   },
   methods: {
     async loadProfiles () {
@@ -272,12 +273,11 @@ export default {
     },
     async saveChat () {
       this.editName = false
-      API.chats.save(this.chat)
-      this.chats = await API.chats.list()
+      await this.$project.saveChat(this.chat)
     },
     async deleteChat () {
       if (this.confirmDelete) {
-        await API.chats.delete(this.chat.name)
+        await this.$project.deleteChat(this.chat.name)
         this.onShowChats()
       } else {
         this.confirmDelete = true

@@ -61,7 +61,7 @@ import ChatViewVue from '../../views/ChatView.vue'
                 <draggable 
                   v-model="element.tasks" 
                   group="tasks" 
-                  @change="onColumnTasksChanged(column)" 
+                  @change="onColumnTaskListChanged(element)" 
                   item-key="title">
                   <template #item="{element}">
                     <task-card
@@ -84,10 +84,9 @@ export default {
   data() {
     return {
       chat: null,
-      chats: [],
-      columns: [],
       board: unassigned,
-      filter: null
+      filter: null,
+      columns: []
     };
   },
   created () {
@@ -96,7 +95,14 @@ export default {
   computed: {
     boards () {
       return [...new Set(this.chats?.map(c => c.board))]             
-    }
+    },
+    chats () {
+      return this.$project.chats.map(c => ({
+              ...c,
+              board: c.board || unassigned,
+              column: c.column || unassigned
+            }))
+    },
   },
   watch: {
     filter (newValue, oldValue) {
@@ -124,35 +130,37 @@ export default {
       }
     },
     async buildKanba () {
-      this.chats = await API.chats.list()
-      this.chats = this.chats
-                    .map(c => ({
-                      ...c,
-                      board: c.board || unassigned,
-                      column: c.column || unassigned
-                    }))
-      const columns = [...new Set(this.chats?.map(c => c.column))]
-      this.columns = columns.map(col => ({
-          title: col,
-          tasks: this.chats.filter(c => c.column === col &&
+      const columnName = [...new Set(this.chats?.map(c => c.column))]
+      const columns = columnName.map(columnName => ({
+          title: columnName,
+          tasks: this.chats.filter(c => c.column === columnName &&
               (!this.filter || c.name.toLowerCase().indexOf(this.filter.toLowerCase()) !== -1)
             )
             .sort((a, b) => a.chat_index < b.chat_index ? -1 : 1)
 
         })).sort((a, b) => a.tasks[0]?.column_index < b.tasks[0]?.column_index ? -1 : 1)
+      this.columns = columns
       if (!this.columns.length) {
         this.addColumn()
       }
     },
-    onColumnTasksChanged(column) {
-      const column_index = this.columns.findIndex(c => c.title === column.title)
-      column.tasks.forEach((task, ix) => {
-        task.column = column.title,
-        task.column_index = column_index
-        task.chat_index = ix
-        task.id && API.chats.save(task, true)
-      })
+    async onColumnTaskListChanged() {
+      await Promise.all(this.columns.map(column =>
+        this.updateColumnTaskList(column )))
       this.buildKanba()
+    },
+    async updateColumnTaskList(column) {
+      const column_index = this.columns.findIndex(c => c.title === column.title)
+      await Promise.all(column.tasks
+        .filter(t => t.column !== column.title)
+        .map(async (task, ix) => {
+          task.column = column.title,
+          task.column_index = column_index
+          task.chat_index = ix
+          if (task.id) {
+            await this.$project.saveChatInfo(task)
+          }
+        }))
     },
     onEditColumnTitle(column) {
       column.newTitle = column.title
@@ -161,7 +169,7 @@ export default {
     onColumnTitleChanged(column) {
       column.title = column.newTitle
       column.editTitle = false
-      this.onColumnTasksChanged(column)
+      this.onColumnTaskListChanged(column)
     },
     onColumnsChanged() {},
     async openChat(element) {
@@ -176,9 +184,12 @@ export default {
       this.buildKanba()
     },
     addColumn () {
-      this.columns = [...this.columns, {
-        title: "new column"
-      }]
+      this.columns = [
+        ...this.columns,
+        {
+          title: "new column",
+          tasks: []
+        }]
     }
   }
 };

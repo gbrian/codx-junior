@@ -875,6 +875,7 @@ def write_global_settings(global_settings: GlobalSettings):
         pass
 
 def update_project_profile(settings: CODXJuniorSettings, file_path:str):
+  return #deprecated
   ai = AI(settings=settings)
   file_content = None
   with open(file_path) as f:

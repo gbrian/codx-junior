@@ -82,7 +82,7 @@ export default {
   },
   computed: {
     splitView () {
-      return this.$storex.ui.spliView
+      return this.$storex.ui.splitView
     },
     coderUrl () {
       return `${window.location.origin}${this.url}`

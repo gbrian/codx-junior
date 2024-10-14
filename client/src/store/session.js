@@ -23,13 +23,15 @@ API.axiosRequest.interceptors.response.use(
   },
   (error) => {
     $storex.session.decApiCalls()
-    console.error("API ERROR:", this.lastError);
+    $storex.session.setLastError(error)
+    console.error("API ERROR:", error);
   });
 
 
 export const state = () => ({
   socket: null,
-  apiCalls: 0
+  apiCalls: 0,
+  lastError: null
 })
 
 const session = {
@@ -49,6 +51,9 @@ export const mutations = mutationTree(state, {
   },
   decApiCalls(state) {
     state.apiCalls = state.apiCalls - 1
+  },
+  setLastError(state, error) {
+    state.setLastError = error
   }
 })
 

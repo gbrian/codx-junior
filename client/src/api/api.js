@@ -160,8 +160,11 @@ export const API = {
       chat.messages.push(message)
       return chat
     },
-    save (chat, chatInfoOnly) {
-      return API.put(`/api/chats?chatonly=${chatInfoOnly ? 1 : 0}`, chat)
+    save (chat) {
+      return API.put(`/api/chats?chatonly=0`, chat)
+    },
+    saveChatInfo(chat) {
+      return API.put(`/api/chats?chatonly=1`, chat)
     },
     delete(chatName) {
       return API.del(`/api/chats?chat_name=${chatName}`)
@@ -189,7 +192,7 @@ export const API = {
       return API.post(`/api/profiles`, profile)
     },
     async delete (name) {
-      await API.delete(`/api/profiles/${name}`)
+      await API.del(`/api/profiles/${name}`)
       API.lastSettings = null
     }
   },

@@ -38,6 +38,13 @@ class ChatManager:
             chat.created_at = chat.updated_at
         write_file(chat_file, self.serialize_chat(chat))
 
+    def delete_chat(self, chat_name: str):
+        chat_file = f"{self.chat_path}/{chat_name}"
+        if not chat_file.endswith(".md"):
+            chat_file = chat_file + ".md"
+        if os.path.isfile(chat_file):
+            os.remove(chat_file)
+
     def load_chat(self, chat_name):
         chat_file = f"{self.chat_path}/{chat_name}"
         if not chat_file.endswith(".md"):

@@ -1,34 +1,51 @@
 <script setup>
+import Markdown from '@/components/Markdown.vue'
 </script>
-<template lang="pug">
-<div class="flex flex-col h-full justify-between">
+<template>
+<div class="flex flex-col gap-2 h-full justify-between p-4">
   <div class="text-xl flex gap-2 items-center">
     Profiles
     <input type="text" class="text text-xs text-bordered" v-model="newProfile" v-if="newProfile" />
     <select class="select select-xs select-bordered" v-model="profileName" @change="loadProfile" v-else>
       <option :value="p" v-for="p in profiles" :key="p">{{ p }}</option>
     </select>
-    <button class="btn btn-sm" @click="reloadProfile" v-if="profile && !newProfile">
-      <i class="fa-solid fa-rotate"></i>
-    </button>
     <button class="btn btn-sm" @click="createNewProfile" v-if="!newProfile">
       <i class="fa-solid fa-plus"></i>
     </button>
     <div class="grow"></div>
-    <button class="btn btn-sm" @click="editProfile = !editProfile" v-if="profile">
+    <button class="btn btn-sm" @click="reloadProfile" v-if="profile && !newProfile">
+      <i class="fa-solid fa-rotate"></i>
+    </button>
+    <button class="btn btn-sm" @click="editProfile = !editProfile" v-if="profile && !editProfile">
       <i class="fa-solid fa-edit"></i>
     </button>
-    <button class="btn btn-sm" @click="saveProfile" v-if="editProfile">
+    <button class="btn btn-sm btn-info" @click="saveProfile" v-if="editProfile">
       <i class="fa-solid fa-save"></i>
     </button>
     <button class="btn btn-error btn-sm" @click="deleteProfile" v-if="profile && !newProfile">
       <i class="fa-solid fa-trash"></i>
+      <span v-if="isDeleteProfile">
+        Sure? <span class="hover:underline">YES</span> / 
+        <span class="hover:underline" @click.stop="isDeleteProfile = false">CANCEL</span>
+      </span>
     </button>
   </div>
   <div class="mt-2 grow relative" v-if="profile">
     <div :class="['absolute top-0 left-0 right-0 bottom-0 border-slate-200 p-2 rounded-md overflow-auto', editProfile && 'bg-neutral text-neutral-content']">
-      <pre class="text-wrap min-h-40" contenteditable="true" ref="profileContentEditor" v-if="editProfile">{{ profile.content }}</pre>
-      <MarkdownVue :text="profile.content" v-else />
+      <Markdown :text="profile.content" />
+    </div>
+  </div>
+  <div v-if="editProfile" class="flex flex-col gap-2 items-cinput input-bordered w-full">
+    <label class="form-control w-full">
+      <div class="label">
+        <span class="label-text">Add your comments</span>
+      </div>
+      <textarea class="textarea textarea-bordered h-24 w-full"
+        v-model="changeInput"
+        placeholder="Change ..."></textarea>
+    </label>
+    <div class="flex justify-end">
+      <button class="btn btn-primary btn-sm" @click="sendChat">Send</button>
     </div>
   </div>
 </div>
@@ -44,14 +61,24 @@ export default {
       profiles: null,
       newProfile: null,
       editProfile: false,
-      advanced: false
+      advanced: false,
+      chat: {
+        messages: []
+      },
+      changeInput: '',
+      isDeleteProfile: false
     }
   },
   async mounted () {
-    this.loadProfiles()
-    this.loadProfile()
+    this.init()
   },
   methods: {
+    async init() {
+      await this.loadProfiles()
+      this.loadProfile()
+      this.editProfile = false
+      this.isDeleteProfile = false
+    },
     async loadProfiles () {
       const { data } = await API.profiles.list()
       this.profiles = data
@@ -72,6 +99,7 @@ export default {
     async reloadProfile () {
       const { data } = await API.profiles.load(this.profile.name)
       this.profile = data
+      this.editProfile = false
     },
     async saveProfile () {
       this.profile.content = this.$refs.profileContentEditor.innerText
@@ -79,6 +107,20 @@ export default {
       this.profileName = this.profile.name
       await this.loadProfiles()
       this.loadProfile()
+    },
+    async deleteProfile () {
+      if (this.isDeleteProfile) {
+        await API.profiles.delete(this.profileName)
+        this.init()
+      } else  {
+        this.isDeleteProfile = true
+      }
+    },
+    sendChat() {
+      if (this.chatInput.trim()) {
+        this.chat.messages.push(this.chatInput);
+        this.chatInput = '';
+      }
     }
   }
 }

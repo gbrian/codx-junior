@@ -259,6 +259,12 @@ class CODXJuniorAPI:
             settings = request.state.settings
             ChatManager(settings=settings).save_chat(chat)
 
+        @app.delete("/api/chats")
+        def api_delete_chat(request: Request):
+            settings = request.state.settings
+            chat_name = request.query_params.get("chat_name")
+            ChatManager(settings=settings).delete_chat(chat_name)
+
         @app.post("/api/images")
         def api_image_upload(file: UploadFile):
             if file.filename == '':

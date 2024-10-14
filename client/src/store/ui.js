@@ -14,37 +14,37 @@ export const mutations = mutationTree(state, {
     if (state.showCoder && state.showPreview) {
       state.showPreview = false
     }
-    this.commit('save_state')
+    $storex.ui.saveState()
   },
   togglePreview(state) {
     state.showPreview = !state.showPreview
     if (state.showCoder && state.showPreview) {
       state.showCoder = false
     }
-    this.commit('save_state')
+    $storex.ui.saveState()
   },
-  save_state(state) {
-    localStorage.setItem('uiState', JSON.stringify(state))
+  loadState(state) {
+    const savedState = localStorage.getItem('uiState')
+    if (savedState) {
+      const parsedState = JSON.parse(savedState)
+      state.showCoder = parsedState.showCoder
+      state.showPreview = parsedState.showPreview
+    }
   }
 })
 
 export const getters = getterTree(state, {
-  spliView: () => $storex.ui.showCoder || $storex.ui.showPreview
+  splitView: () => $storex.ui.showCoder || $storex.ui.showPreview
 })
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init ({ state, commit }) {
-      commit('load_state')
+    async init () {
+      $storex.ui.loadState()
     },
-    load_state({ state }) {
-      const savedState = localStorage.getItem('uiState')
-      if (savedState) {
-        const parsedState = JSON.parse(savedState)
-        state.showCoder = parsedState.showCoder
-        state.showPreview = parsedState.showPreview
-      }
+    saveState({ state }) {
+      localStorage.setItem('uiState', JSON.stringify(state))
     }
   },
 )

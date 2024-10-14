@@ -56,8 +56,8 @@ import NavigationBar from '../components/NavigationBar.vue'
     </div>
     <div class="toast toast-end">
       <div class="bg-error text-white overflow-auto rounded-md  max-w-96 max-h-60 text-xs"
-        v-if="lastError" @click="lastError = null">
-        <pre><code>ERROR: {{ lastError }}</code></pre>
+        v-if="lastError" @click="$session.lastError = null">
+        <pre><code>ERROR: {{ $session.lastError }}</code></pre>
       </div>
     </div>
   </div>
