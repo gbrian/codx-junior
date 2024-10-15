@@ -58,6 +58,16 @@ class Mention():
 
         return line
 
+"""
+def is_line_start(line):
+    match = re.match(r"(\s+)[^@]+@codx\:")
+    if match:
+        return match.group(1)
+    return None
+
+def is_line_in_codx_block(line, line_start);
+    return line.startswith(line_start)
+"""
 def extract_mentions(content):
     content_lines = content.split("\n")
     mentions = []
