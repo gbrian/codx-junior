@@ -6,7 +6,7 @@ import moment from 'moment'
 import PRView from '../views/PRView.vue'
 </script>
 <template>
-  <div class="flex flex-col h-full" v-if="chat">
+  <div class="flex flex-col h-full pb-2" v-if="chat">
     <div class="flex gap-2 items-center hidden">
       <div class="dropdown">
         <div tabindex="0" role="button" class="btn btn-xs m-1"><i class="fa-solid fa-code-branch"></i></div>
@@ -40,17 +40,16 @@ import PRView from '../views/PRView.vue'
             <a>{{ openChat.name }}</a>
           </li>
         </ul>
-      <div class="grow"></div>
-        <div class="px-2">
-        </div>
+        <div class="grow"></div>
+        <div class="px-2"></div>
       </div>
       <div class="grow flex flex-col gap-2 w-full">
         <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
           <div class="flex flex-col sm:flex-row gap-2 w-full">
-            <div class="flex gap-2">
-              <button :class="['btn btn-xs hover:btn-info hover:text-white', showChatsTree && 'btn-info text-white']"
+            <div class="flex gap-2 items-start">
+              <button :class="['btn btn-xs btn-info text-white', showChatsTree && 'btn-info text-white']"
                 @click="onShowChats">
-                <i class="fa-solid fa-folder-tree"></i>
+                <i class="fa-solid fa-arrow-left"></i>
               </button>
               <input v-if="editName"
                 type="text" class="input input-xs input-bordered"
@@ -94,13 +93,7 @@ import PRView from '../views/PRView.vue'
               </div>
             </div>
             <div class="grow"></div>
-            <div class="flex gap-2 items-center">
-              <button :class="['btn btn-xs flex items-center', livePreview && 'btn-info']"
-                @click="livePreview = !livePreview"
-              >
-                <i class="fa-brands fa-chromecast"></i>
-                Live session
-              </button>
+            <div class="flex gap-2 items-end">
               <div class="dropdown -mt-1">
                 <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chat.mode }}</div>
                 <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -172,7 +165,6 @@ import PRView from '../views/PRView.vue'
         </div>
         <Chat :chat="chat"
           :showHidden="showHidden"
-          :livePreview="livePreview"
           @refresh-chat="loadChat(chat.name)"
           @add-file="onAddFile"
           @remove-file="onRemoveFile"
@@ -222,13 +214,16 @@ export default {
       showHidden: false,
       showPRView: false,
       confirmDelete: false,
-      livePreview: false,
       newTag: null
     }
   },
   async created () {
     if (this.openChat) {
-      this.chat = this.openChat
+      if (this.openChat.id) {
+        this.chat = await this.$project.loadChat(this.openChat.name)
+      } else {
+        this.chat = this.openChat
+      }
     } else {
       if (this.chats.length) {
         this.chat = await this.$project.loadChat(this.chats[0].name)
@@ -322,6 +317,10 @@ export default {
       await this.loadChat(this.chat.name)
     },
     onRemoveMessage (ix) {
+      const message = this.chat.messages[ix]
+      if (this.chat.mode == 'task' && message.role === "assistant") {
+        this.chat.messages[ix-1].hide = false
+      }
       this.chat.messages = this.chat.messages.filter((m, i) => i !== ix)
       this.saveChat()
     },
@@ -340,7 +339,7 @@ export default {
       this.newTag = null
       this.saveChat()
     },
-    removeNewTag (tag) {
+    removeTag (tag) {
       this.chat.tags = this.chat.tags.filter(t => t !== tag)
       this.saveChat()
     }

@@ -6,24 +6,24 @@ import ChatViewVue from '../../views/ChatView.vue'
 </script>
 <template>
   <div class="flex flex-col gap-2 h-full">
-    <div class="text-2xl flex gap-4 items-end justify-between">
-      Kanban board
-      <div class="flex gap-2">
-        <label class="grow input input-sm input-bordered flex items-center gap-2">
-          <input type="text" v-model="filter" class="grow" placeholder="Search" />
-          <span class="click" v-if="filter" @click.stop="filter = null">
-            <i class="fa-regular fa-circle-xmark"></i>
-          </span>
-          <span v-else><i class="fa-solid fa-filter"></i></span>
-        </label>
-        <button class="btn btn-sm" @click="addColumn">
-          <i class="fa-solid fa-plus"></i>
-          Column
-        </button>
-      </div>
-    </div>
     <ChatViewVue :openChat="chat" v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
     <div class="flex flex-col gap-2 grow overflow-auto pb-2" v-else>
+      <div class="text-2xl flex gap-4 items-end justify-between">
+        Kanban board
+        <div class="flex gap-2">
+          <label class="grow input input-sm input-bordered flex items-center gap-2">
+            <input type="text" v-model="filter" class="grow" placeholder="Search" />
+            <span class="click" v-if="filter" @click.stop="filter = null">
+              <i class="fa-regular fa-circle-xmark"></i>
+            </span>
+            <span v-else><i class="fa-solid fa-filter"></i></span>
+          </label>
+          <button class="btn btn-sm" @click="addColumn">
+            <i class="fa-solid fa-plus"></i>
+            Column
+          </button>
+        </div>
+      </div>  
       <div class="dropdown" v-if="false">
         <div tabindex="0" class="click text-2xl flex gap-2 items-center">
           {{ board || defBoard }}
@@ -54,7 +54,7 @@ import ChatViewVue from '../../views/ChatView.vue'
                     >
                   </div>
                   <div class="click" @click="onEditColumnTitle(element)" v-else>{{element.title}}</div>
-                  <button class="btn btn-sm" @click="newChat (element.title)">
+                  <button class="btn btn-sm" @click="newChat(element.title)">
                     <i class="fa-solid fa-plus"></i>
                   </button>
                 </p>
@@ -114,9 +114,9 @@ export default {
   methods: {
     createNewChat () {
       return {
-        id: -1,
+        id: 0,
         name: "New chat",
-        mode: 'task',
+        mode: 'chat',
         board: this.board,
         column: "New column",
         column_index: 10000,
@@ -130,6 +130,7 @@ export default {
       }
     },
     async buildKanba () {
+      await this.$project.loadChats()
       const columnName = [...new Set(this.chats?.map(c => c.column))]
       const columns = columnName.map(columnName => ({
           title: columnName,

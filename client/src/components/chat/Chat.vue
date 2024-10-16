@@ -15,23 +15,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
         </button>
       </div>
     </div>
-    <div class="flex flex-col grow" v-if="livePreview">
-      <div class="flex flex-col w-full grow p-1 bg-base-300">
-        <div class="flex gap-2 items-center justify-between">
-          <input type="text" class="input input-bordered input-xs w-full" placeholder="http://..." v-model="chat.live_url" />
-          <div class="flex gap-2 items-center justify-between">
-            <button @click="zoomOut" class="btn btn-xs">
-              <i class="fa-solid fa-magnifying-glass-minus"></i>
-            </button>
-            <button @click="zoomIn" class="btn btn-xs">
-              <i class="fa-solid fa-magnifying-glass-plus"></i>
-            </button>
-          </div>
-        </div>
-        <iframe ref="iframe" :src="chat.live_url" class="w-full h-full bg-base-200" :style="previewStyle"></iframe>
-      </div>
-    </div>
-    <div class="grow relative" v-if="!livePreview">
+    <div class="grow relative">
       <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden">
         <div class="flex flex-col gap-2" 
           v-for="message in messages" :key="message.id">
@@ -113,13 +97,16 @@ import ChatEntry from '@/components/ChatEntry.vue'
           </div>
         </div>
         <div class="flex gap-2 items-center justify-end mt-1">
-          <button class="btn btn btn-sm btn-circle mb-1 btn-outline" 
-            @click="sendMessage"
-            v-if="!livePreview"
-          >
+          <button class="btn btn btn-sm btn-info btn-circle mb-1 btn-outline" @click="sendMessage" v-if="editMessage">
+            <i class="fa-solid fa-save"></i>
+          </button>
+          <button class="btn btn btn-sm btn-info btn-error mb-1 btn-outline" @click="onResetEdit" v-if="editMessage">
+            <i class="fa-regular fa-circle-xmark"></i>
+          </button>
+          <button class="btn btn btn-sm btn-circle mb-1 btn-outline" @click="sendMessage" v-if="!editMessage">
             <i class="fa-solid fa-comment"></i>
           </button>
-          <button class="btn btn-warning btn-sm mb-1 btn-outline" @click="improveCode()">
+          <button class="btn btn-warning btn-sm mb-1 btn-outline" @click="improveCode()" v-if="!editMessage">
             <i class="fa-solid fa-code"></i> Code
           </button>
           <button :class="['btn btn-sm mb-1 btn-outline',
@@ -164,7 +151,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'showHidden', 'livePreview'],
+  props: ['chat', 'showHidden'],
   data () {
     return {
       waiting: false,
@@ -229,6 +216,9 @@ export default {
     onEditMessage (message) {
       this.editMessage = message
       this.editMessageId = this.chat.messages.findIndex(m => m === message)
+      try {
+        this.images = JSON.parse(message.images)
+      } catch {}
 
       this.setEditorText(this.editMessage.content)
       this.images = (message.images || []).map(i => {
@@ -344,6 +334,7 @@ export default {
     onUpdateMessage () {
       if (this.editMessage.role === 'user') {
         this.editMessage.content = this.editor.innerText
+        this.editMessage.images = this.images.map(JSON.stringify)
       }
       this.onResetEdit()
       this.saveChat()

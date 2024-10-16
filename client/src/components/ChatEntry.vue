@@ -13,7 +13,7 @@ import Markdown from './Markdown.vue'
       message.hide ? 'text-slate-200/20': ''
     ]"
     >
-      <div>
+      <div @copy.stop="onMessageCopy">
         <div class="flex gap-2 items-center">
           <div :class="['btn btn-sm btn-outline flex gap-2 items-center font-bold text-xs rounded-md',
             message.role ==='user' ? 'bg-base-300' :'bg-secondary/80 text-secondary-content' ]">
@@ -171,6 +171,23 @@ export default {
         parentNode.classList.add(...classes)
       } else {
         parentNode.classList.remove(...classes)
+      }
+    },
+    getSelectionText() {
+        if (window.getSelection) {
+            return window.getSelection().toString();
+        }  
+        if (document.selection && document.selection.type != "Control") {
+            return document.selection.createRange().text;
+        }
+        return null;
+    },
+    onMessageCopy(ev) {
+      const text = this.getSelectionText()
+      if (text) {
+        this.copyTextToClipboard(text)
+        ev.preventDefault()
+        window.navigator.clipboard.read().then(console.log)
       }
     }
   }

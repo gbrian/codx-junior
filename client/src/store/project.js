@@ -46,7 +46,7 @@ export const actions = actionTree(
     },
     async loadChat({ state }, name) {
       const chat = await API.chats.loadChat(name)
-      state.chats = [...stat.chats.filter(c => c.name !== name), chat]
+      state.chats = [...state.chats.filter(c => c.name !== name), chat]
       return chat 
     },
     async newChat() {

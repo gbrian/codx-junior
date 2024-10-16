@@ -68,7 +68,8 @@ class Knowledge:
     def get_db(self):
       try:
           if not self.db:
-            self.db = Chroma(
+              os.makedirs(self.db_path, exist_ok=True)
+              self.db = Chroma(
                       persist_directory=self.db_path, 
                       embedding_function=self.embedding)
           return self.db
@@ -84,7 +85,9 @@ class Knowledge:
       current_sources = self.get_all_sources()
       changes = self.loader.list_repository_files(last_update=self.last_update if current_sources else None,
                           current_sources=current_sources)
-      return changes
+      def is_empty(file_path):
+          return False if os.stat(file_path).st_size else True
+      return [file_path for file_path in changes if not is_empty(file_path)]
 
     def reload(self, full: bool = False):
         if not self.settings.use_knowledge:
@@ -259,7 +262,7 @@ class Knowledge:
 
     def build_summary(self):
         try:
-          os.mkdir(self.db_path, exist_ok=True)
+          os.makedirs(self.db_path, exist_ok=True)
         except:
           pass
         current_files = [f"{doc.metadata['source']} {doc.metadata.get('language')}" for doc in self.get_all_documents()]
@@ -293,7 +296,6 @@ class Knowledge:
 
     def reset(self):
         logger.info('Reseting retriever')
-        self.db = None
         self.last_update = None
         if os.path.exists(self.db_path):
             shutil.rmtree(self.db_path)
@@ -409,6 +411,8 @@ class Knowledge:
         ids = collection_docs["ids"]
         metadatas = collection_docs["metadatas"]
         documents = collection_docs["documents"]
+        
+        corrupted_docs = [ix for ix, doc in enumerate(documents) if not doc]
 
         doc_count = len(ids)
         doc_sources = list(dict.fromkeys([metadata["source"] for metadata in metadatas]))
@@ -428,6 +432,7 @@ class Knowledge:
           "file_count": file_count,
           "folders": folders,
           "empty": len(documents) - len(metadatas),
+          "corrupted_docs": corrupted_docs,
           "keyword_count": keyword_count,
           "files": doc_sources
         }

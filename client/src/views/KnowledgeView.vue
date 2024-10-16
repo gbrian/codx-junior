@@ -4,6 +4,9 @@ import MarkdownVue from '@/components/Markdown.vue'
 </script>
 <template>
   <div class="flex flex-col gap-2 h-full justify-between">
+    <div class="alert alert-error" v-if="status?.corrupted_docs.length">
+      DB is corrupted and won't work. Delete and rebuild.
+    </div>
     <div class="text-2xl font-medium flex justify-between items-center gap-2">
       Knowledge
       <div class="grow">

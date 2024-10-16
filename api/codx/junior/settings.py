@@ -16,16 +16,18 @@ class CODXJuniorSettings:
         self.ai_api_key = None
         self.ai_api_url = None
         self.ai_model = None
+        
         self.knowledge_extract_document_tags = False
         self.knowledge_search_type = "similarity"
         self.knowledge_search_document_count = 10
-        self.temperature = 0.7
-        self.knowledge_file_ignore = None
-        self.codx_path = "./.codx"
         self.knowledge_enrich_documents = False
         self.knowledge_context_cutoff_relevance_score = 0.9
         self.knowledge_external_folders = ""
         self.knowledge_query_subprojects = True
+        self.knowledge_file_ignore = ".codx"
+        
+        self.temperature = 0.7
+        self.codx_path = "./.codx"
         self.watching = False
         self.use_knowledge = True
         self.log_ai = False

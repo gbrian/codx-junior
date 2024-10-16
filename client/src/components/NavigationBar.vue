@@ -19,7 +19,7 @@
 			<li :class="['hover:bg-base-100 click', (tabIx == 'tasks') ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Kanban board"
           @click="setActiveTab('tasks')">
-          <i class="fa-solid fa-clipboard-list"></i>
+          <i class="fa-solid fa-list-check"></i>
 				</a>
 			</li>
 			<li :class="['hover:bg-base-100 click', (tabIx == 'knowledge') ? 'bg-base-100': '']">

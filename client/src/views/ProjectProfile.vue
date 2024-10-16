@@ -18,21 +18,49 @@ import { API } from '../api/api';
       </div>
     </div>
 
+    <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4">
+      <h2 class="text-xl font-bold mb-4">Recent activity</h2>
+      <div class="grid grid-cols-2 gap-3">
+      </div>
+    </div>
 
     <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4">
       <h2 class="text-xl font-bold mb-4">All projects</h2>
-      <div class="grid grid-cols-2 gap-3">
-        <div v-for="project in $project.allProjects" :key="project.codx_path"
-          :class="['mb-2']"
-          @click="setProject(project)">
-          <div class="flex flex-col gap-2 p-4 border rounded-md click overflow-hidden text-ellipsis">
-            <div class="flex gap-2">
-              <img :src="project.project_icon" alt="Project Icon" class="w-10 h-10 rounded-full" />
-              <h3 class="text-lg font-bold">{{ project.project_name }}</h3>
-            </div>
-            <p class="text-xs">{{ project.project_path }}</p>
-          </div>
-        </div>
+      <div class="rounded-md p-1 bg-base-200">
+        <table class="table">
+          <thead>
+            <tr>
+              <th class="px-4 py-2">Name</th>
+              <th class="px-4 py-2">Path</th>
+              <th class="px-4 py-2 tooltip" data-tip="Tasks">
+                <i class="fa-solid fa-list-check"></i>
+              </th>
+              <th class="px-4 py-2 tooltip" data-tip="Docs indexed">
+                <i class="fa-solid fa-puzzle-piece"></i>
+              </th>
+              <th class="px-4 py-2 tooltip" data-tip="Last Update">
+                <i class="fa-regular fa-clock"></i>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="project in $project.allProjects" :key="project.codx_path" @click="setProject(project)"
+              class="cursor-pointer hover:bg-base-100">
+              <td class="px-4 py-2 flex items-center">
+                <img :src="project.project_icon" alt="Project Icon" class="w-6 h-6 rounded-full mr-2" />
+                <span class="text-xs font-bold">{{ project.project_name }}</span>
+              </td>
+              <td class="px-4 py-2">
+                <div class="text-nowrap text-xs overflow-hidden tooltip text-left" :title="project.project_path" :data-tip="project.project_path">
+                  {{ project.project_path.split("/").reverse().slice(0, 3).reverse().join(" / ") }}
+                </div>
+              </td>
+              <td class="px-4 py-2">{{ project.tasks }}</td>
+              <td class="px-4 py-2">{{ project.docs }}</td>
+              <td class="px-4 py-2">{{ project.last_update }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
