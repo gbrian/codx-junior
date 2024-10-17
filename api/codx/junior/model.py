@@ -109,9 +109,15 @@ class AnthropicAISettings(BaseModel):
     anthropic_api_key: str = Field(default=None)
     anthropic_model: str = Field(default="claude-3-5-sonnet-20240620")
 
+class GitSettings(BaseModel):
+    username: str = Field(default="")
+    email: str = Field(default="")
+
 class GlobalSettings(BaseModel):
     openai: OpenAISettings = Field(default=OpenAISettings())
     anthropic_ai: AnthropicAISettings = Field(default=AnthropicAISettings())
+    git: GitSettings = Field(default=GitSettings())
+
     log_ai: bool = Field(default=False)
     projects_root_path: str = Field(default='/projects')
     ai_temperature: str = Field(default="0.8")

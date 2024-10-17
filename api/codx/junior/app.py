@@ -77,6 +77,8 @@ from codx.junior.engine import (
     run_live_edit,
     read_global_settings,
     write_global_settings,
+    add_global_settings,
+    coder_open_file
 )
 
 from codx.junior.scheduler import add_work
@@ -84,41 +86,6 @@ from codx.junior.scheduler import add_work
 STATIC_FOLDER=os.environ.get("STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
-
-def add_global_settings(settings: CODXJuniorSettings):
-    global_settings = read_global_settings()
-    try:
-        if global_settings:
-            if global_settings.log_ai:
-                settings.log_ai = True 
-            
-            if not settings.ai_api_url:
-                if settings.ai_provider == 'openai':
-                  settings.ai_api_url = global_settings.openai.openai_api_url
-                if settings.ai_provider == 'anthropic_ai':
-                  settings.ai_api_url = global_settings.anthropic_ai.anthropic_api_url
-            
-            if not settings.ai_api_key:
-                if settings.ai_provider == 'openai':
-                  settings.ai_api_key = global_settings.openai.openai_api_key
-                if settings.ai_provider == 'anthropic_ai':
-                  settings.ai_api_key = global_settings.anthropic_ai.anthropic_api_key
-
-            if not settings.ai_model:
-                if settings.ai_provider == 'openai':
-                  settings.ai_model = global_settings.openai.openai_model
-                if settings.ai_provider == 'anthropic_ai':
-                  settings.ai_model = global_settings.anthropic_ai.anthropic_ai_model
-            
-            if not settings.temperature:
-                settings.model = global_settings.ai_temperature
-            if not settings.anthropic_api_key:
-                settings.anthropic_api_key = global_settings.anthropic_ai.anthropic_api_key
-            if not settings.anthropic_model:
-                settings.anthropic_model = global_settings.anthropic_ai.anthropic_model
-    except:
-      pass
-    return settings
 
 def process_projects_changes():
     projects_to_check = [settings for settings in find_all_projects() if settings.watching]
@@ -383,7 +350,7 @@ class CODXJuniorAPI:
         @app.get("/api/code-server/file/open")
         def api_list_chats(request: Request):
             file_name = request.query_params.get("file_name")
-            coder_open_file(settings=request.state.settings, file_name=file_path)
+            coder_open_file(settings=request.state.settings, file_name=file_name)
 
         @app.get("/api/wiki")
         def api_get_wiki(request: Request):

@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-2 h-full">
+  <div class="flex flex-col gap-2 h-full p-4 overflow-auto">
     <div class="text-xl font-medium my-2 flex justify-between">
       Global Settings
     </div>
@@ -13,6 +13,17 @@
         <div class="flex items-center">
           <span class="w-1/4">Projects Root Path:</span>
           <input v-model="settings.projects_root_path" type="text" class="input input-bordered flex-grow" />
+        </div>
+      </div>
+      <div class="flex flex-col gap-2 text-xs">
+        <div class="text-base">Git</div>
+        <div class="flex items-center">
+          <span class="w-1/4">Username:</span>
+          <input v-model="settings.git.username" type="text" class="input input-bordered flex-grow" />
+        </div>
+        <div class="flex items-center">
+          <span class="w-1/4">Email:</span>
+          <input v-model="settings.git.email" type="text" class="input input-bordered flex-grow" />
         </div>
       </div>
       <div class="flex flex-col gap-2 text-xs">

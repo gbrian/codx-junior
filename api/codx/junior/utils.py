@@ -1,4 +1,5 @@
 import os
+import logging
 import inspect
 import subprocess
 from pathlib import Path
@@ -6,6 +7,8 @@ import json, re
 import hashlib
 
 HOST_USER = os.environ.get("HOST_USER")
+logger = logging.getLogger(__name__)
+
 
 def extract_code_blocks(content):
     in_fence = False
@@ -74,6 +77,7 @@ def extract_blocks(content):
           continue
 
 def exec_command(command: str, cmd: str=None):
+    logger.info(f"exec_command# {command}")
     result = subprocess.run(command.split(" "), cwd=cmd,
                                     stdout = subprocess.PIPE,
                                     stderr = subprocess.STDOUT,

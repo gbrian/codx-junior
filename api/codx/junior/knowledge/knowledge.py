@@ -50,14 +50,18 @@ class Knowledge:
         self.db_file_list = f"{self.db_path}/file_list"
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
-        self.embedding = OpenAIEmbeddings(
-            openai_api_key=settings.ai_api_key,
-            openai_api_base=settings.ai_api_url,
-            disallowed_special=()
-        )
         self.last_update = None
         self.refresh_last_update()        
         self.last_changed_file_paths = []
+        self.embedding = None
+
+    def get_embedding(self):
+        if not self.embedding:
+            self.embedding = OpenAIEmbeddings(
+                openai_api_key=self.settings.ai_api_key,
+                openai_api_base=self.settings.ai_api_url,
+                disallowed_special=())
+        return self.embedding
 
     def get_ai(self):
       from codx.junior import build_ai
@@ -71,7 +75,7 @@ class Knowledge:
               os.makedirs(self.db_path, exist_ok=True)
               self.db = Chroma(
                       persist_directory=self.db_path, 
-                      embedding_function=self.embedding)
+                      embedding_function=self.get_embedding())
           return self.db
       except Exception as ex:
           logger.exception(f"Error opening Knowledge DB: {self.db_path}")
@@ -247,7 +251,7 @@ class Knowledge:
                 enriched_doc.metadata["file_md5"] = all_sources_with_md5[source]
                 #logger.info(f"Indexing document: {enriched_doc}")
                 self.db = Chroma.from_documents([enriched_doc],
-                  self.embedding,
+                  self.get_embedding(),
                   persist_directory=self.db_path,
                 )
                 #logger.info(f"Indexing document DONE: {enriched_doc}")

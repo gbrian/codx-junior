@@ -1,5 +1,6 @@
 <script setup>
 import { API } from '../api/api';
+import moment from 'moment';
 </script>
 
 <template>
@@ -21,6 +22,7 @@ import { API } from '../api/api';
     <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4">
       <h2 class="text-xl font-bold mb-4">Recent activity</h2>
       <div class="grid grid-cols-2 gap-3">
+        
       </div>
     </div>
 
@@ -29,17 +31,28 @@ import { API } from '../api/api';
       <div class="rounded-md p-1 bg-base-200">
         <table class="table">
           <thead>
-            <tr>
+            <tr class="">
               <th class="px-4 py-2">Name</th>
               <th class="px-4 py-2">Path</th>
-              <th class="px-4 py-2 tooltip" data-tip="Tasks">
-                <i class="fa-solid fa-list-check"></i>
+              <th class="px-4 py-2">
+                <div class="tooltip" data-tip="Tasks">
+                  <i class="fa-solid fa-list-check"></i>
+                </div>
               </th>
-              <th class="px-4 py-2 tooltip" data-tip="Docs indexed">
-                <i class="fa-solid fa-puzzle-piece"></i>
+              <th>
+                <div class="px-4 py-2 tooltip" data-tip="Docs indexed">
+                  <i class="fa-solid fa-puzzle-piece"></i>
+                </div>
               </th>
-              <th class="px-4 py-2 tooltip" data-tip="Last Update">
-                <i class="fa-regular fa-clock"></i>
+              <th> 
+                <div class="px-4 py-2 tooltip" data-tip="Last Update">
+                  <i class="fa-regular fa-clock"></i>
+                </div>
+              </th>
+              <th>
+                  <div class="px-4 py-2 tooltip" data-tip="Checking for mentions">
+                    <i class="fa-solid fa-at"></i>
+                  </div>
               </th>
             </tr>
           </thead>
@@ -55,9 +68,14 @@ import { API } from '../api/api';
                   {{ project.project_path.split("/").reverse().slice(0, 3).reverse().join(" / ") }}
                 </div>
               </td>
-              <td class="px-4 py-2">{{ project.tasks }}</td>
-              <td class="px-4 py-2">{{ project.docs }}</td>
-              <td class="px-4 py-2">{{ project.last_update }}</td>
+              <td class="px-4 py-2 text-center">{{ project.metrics.number_of_chats }}</td>
+              <td class="px-4 py-2 text-center">{{ project.metrics.files.length }}</td>
+              <td class="px-4 py-2 text-center">{{ lastRefresh(project.metrics.last_update) }}</td>
+              <td class="px-4 py-2 text-center">
+                <span v-if="project.watching">
+                  <i class="fa-solid fa-check"></i>
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -108,6 +126,13 @@ export default {
       this.newProjectPath = null
       await this.$project.init()
       this.setProject(project)
+    },
+    lastRefresh(last_update) {
+      if (last_update) {
+        const ts = parseInt(last_update, 10) * 1000
+        return moment(new Date(ts)).fromNow()
+      }
+      return null
     }
   }
 }

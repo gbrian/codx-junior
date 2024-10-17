@@ -5,7 +5,7 @@ import json
 import time
 import subprocess
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Thread
 
 from langchain.schema import AIMessage, HumanMessage, SystemMessage, BaseMessage
@@ -58,6 +58,41 @@ from codx.junior.mention_manager import (
 )
 
 logger = logging.getLogger(__name__)
+
+def add_global_settings(settings: CODXJuniorSettings):
+    global_settings = read_global_settings()
+    try:
+        if global_settings:
+            if global_settings.log_ai:
+                settings.log_ai = True 
+            
+            if not settings.ai_api_url:
+                if settings.ai_provider == 'openai':
+                  settings.ai_api_url = global_settings.openai.openai_api_url
+                if settings.ai_provider == 'anthropic_ai':
+                  settings.ai_api_url = global_settings.anthropic_ai.anthropic_api_url
+            
+            if not settings.ai_api_key:
+                if settings.ai_provider == 'openai':
+                  settings.ai_api_key = global_settings.openai.openai_api_key
+                if settings.ai_provider == 'anthropic_ai':
+                  settings.ai_api_key = global_settings.anthropic_ai.anthropic_api_key
+
+            if not settings.ai_model:
+                if settings.ai_provider == 'openai':
+                  settings.ai_model = global_settings.openai.openai_model
+                if settings.ai_provider == 'anthropic_ai':
+                  settings.ai_model = global_settings.anthropic_ai.anthropic_ai_model
+            
+            if not settings.temperature:
+                settings.model = global_settings.ai_temperature
+            if not settings.anthropic_api_key:
+                settings.anthropic_api_key = global_settings.anthropic_ai.anthropic_api_key
+            if not settings.anthropic_model:
+                settings.anthropic_model = global_settings.anthropic_ai.anthropic_model
+    except:
+      pass
+    return settings
 
 def reload_knowledge(settings: CODXJuniorSettings, path: str = None):
     knowledge = Knowledge(settings=settings)
@@ -147,10 +182,10 @@ def select_afefcted_documents_from_knowledge(ai: AI, query: str, settings: CODXJ
     # Extract mentions from the query
     mentions = re.findall(r'@\S+', query)
     logger.info(f"Extracted mentions: {mentions}")
-    settings_sub_projects = settings.get_sub_projects()
+    settings_sub_projects = settings.get_sub_projects() if settings.knowledge_query_subprojects else []
     sub_projects = set(settings_sub_projects + [mention[1:].lower() for mention in mentions])
     all_projects = find_all_projects()
-    search_projects = [settings for settings in all_projects if settings.project_name.lower() in sub_projects]
+    search_projects = [add_global_settings(settings) for settings in all_projects if settings.project_name.lower() in sub_projects]
     logger.info(f"select_afefcted_documents_from_knowledge query subprojects {sub_projects} - {search_projects}")
     for search_project in search_projects:
         mention = [mention[1:] for mention in mentions if mention.lower() == search_project.project_name.lower()]
@@ -801,7 +836,7 @@ def find_all_projects(detailed: bool = False):
               project.__dict__["current_git_branch"] = result.stdout.decode('utf-8')
             except Exception as ex:
                 project.__dict__["current_git_branch"] = f"Error: {ex}"
-                pass
+            project.__dict__["metrics"] = get_project_metrics(settings=project)
         return all_projects
     return projects_with_details() if detailed else all_projects
 
@@ -869,10 +904,16 @@ def read_global_settings():
 
 def write_global_settings(global_settings: GlobalSettings):
     try:
+        old_settings = read_global_settings()
         with open(f"global_settings.json", 'w') as f:
-            return f.write(json.dumps(global_settings.dict()))
-    except:
-        pass
+            f.write(json.dumps(global_settings.dict()))
+
+        if old_settings.git.username != global_settings.git.username:
+            exec_command(f'git config --global user.name "{global_settings.git.username}"')
+        if old_settings.git.email != global_settings.git.email:
+            exec_command(f'git config --global user.email "{global_settings.git.email}"')
+    except Exception as ex:
+        logger.exception(f"Error saving global settings: {ex}")
 
 def update_project_profile(settings: CODXJuniorSettings, file_path:str):
   return #deprecated
@@ -915,3 +956,30 @@ def coder_open_file(settings: CODXJuniorSettings, file_name: str):
     if not file_name.startswith(settings.project_path):
         file_name = f"{settings.project_path}{file_name}"
     os.system(f"code-server -r {file_name}")
+
+def get_project_metrics(settings: CODXJuniorSettings):
+    add_global_settings(settings=settings)
+    # Helper function to check if a chat was changed in the last 24 hours
+    def chat_changed_last_24h(chat):
+        last_modified = datetime.fromisoformat(chat['updated_at']).astimezone()
+        return last_modified >= (datetime.now() - timedelta(days=1)).astimezone()
+
+    # Use ChatManager to load chats
+    chat_manager = ChatManager(settings)
+    chats = chat_manager.list_chats()
+
+    # Calculate number of chats
+    number_of_chats = len(chats)
+
+    # Calculate chats changed in the last 24 hours
+    chats_changed_last_24h = [chat for chat in chats if chat_changed_last_24h(chat)]
+    
+    # Use KnowledgeLoader to determine the number of indexed files
+    status = check_knowledge_status(settings=settings)
+    
+    # Return the metrics in a dictionary
+    return {
+        "number_of_chats": number_of_chats,
+        "chats_changed_last_24h": chats_changed_last_24h,
+        **status
+    }

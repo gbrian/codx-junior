@@ -13,6 +13,8 @@ class CODXJuniorSettings:
         self.project_name = None
         self.project_path = "."
         self.project_wiki = None
+        self.project_dependencies = None
+
         self.ai_api_key = None
         self.ai_api_url = None
         self.ai_model = None
@@ -95,7 +97,8 @@ class CODXJuniorSettings:
 
     def get_sub_projects(self):
         try:
-            return self.sub_projects.split(",") if self.sub_projects else []
+            dependencies = self.project_dependencies.split(",") if self.project_dependencies else []
+            return [dep.strip() for dep in dependencies]
         except:
             pass
         return []

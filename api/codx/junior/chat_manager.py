@@ -87,7 +87,10 @@ class ChatManager:
                 chat_message.content = ""
                 chat.messages.append(chat_message)
                 continue
-            chat_message.content = line if not chat_message.content else f"{chat_message.content}\n{line}"
+            if chat_message:
+                    chat_message.content = line \
+                        if not chat_message.content \
+                        else f"{chat_message.content}\n{line}"
         return chat
 
     def find_by_id(self, id):
