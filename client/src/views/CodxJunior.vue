@@ -22,11 +22,8 @@ import ProjectIconVue from '../components/ProjectIcon.vue'
       @toggle-coder="$emit('toggle-coder')"
     />
     <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 sm:px-4 pt-2 overflow-auto">
-      <div class="flex gap-2 items-center reltive">
-        <button class="btn btn-ghost mt-1 sm:hidden" @click="showBar = true">
-          <i class="fa-solid fa-bars"></i>
-        </button>
-        <div class="absolute left-0 top-0 right-0 bottom-0 bg-base-100/50 z-50 flex" @click="showBar = false" v-if="showBar">
+      <div class="flex gap-2 items-center reltive justify-between">
+        <div class="absolute left-0 top-0 right-0 bottom-0 bg-base-100/50 z-50 flex justify-end" @click="showBar = false" v-if="showBar">
           <NavigationBar class="bg-base-300 shadow"
           @click.stop=""
           :tabIx="tabIx"
@@ -36,11 +33,22 @@ import ProjectIconVue from '../components/ProjectIcon.vue'
           />
         </div>
         <div class="flex flex-col" v-if="$project.activeProject">
-          <h3 class="text-2xl sm:text-4xl font-bold">{{ $project.activeProject.project_name }}</h3>
+          <h3 class="text-2xl sm:text-4xl font-bold flex items-center gap-2">
+            <div class="avatar sm:hidden">
+              <div class="w-6 rounded-full">
+                  <img :src="$project.activeProject?.project_icon || '/only_icon.png'" />
+              </div>
+            </div>
+            {{ $project.activeProject.project_name }}
+          </h3>
           <div class="text-xs">
             {{ $project.activeProject.project_path }}
           </div>
         </div>
+        <button class="btn btn-ghost mt-1 sm:hidden" @click="showBar = true">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        
       </div>
       <div class="grow relative w-full">
         <KanbanVue class="overflow-auto" v-if="tabIx === 'tasks'" />

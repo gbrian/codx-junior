@@ -28,7 +28,7 @@ import Markdown from './Markdown.vue'
             <div v-if="message.role ==='user'">You</div>
             <div v-else>codx-junior</div>
           </div>
-          <div class="hidden group-hover:flex gap-2">
+          <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2">
             <button class="btn btn-xs" @click="message.collapse = !message.collapse">
               <span v-if="message.collapse">
                 <i class="fa-solid fa-chevron-up"></i>
@@ -58,13 +58,13 @@ import Markdown from './Markdown.vue'
         <pre v-if="srcView">{{ message.content }}</pre>
         <Markdown :text="message.content" v-else />
         <div v-if="images">
-          <div class="grid grid-cols-6">
+          <div class="carousel gap-2">
             <div class="carousel-item click mt-2"
               v-for="image in images" :key="image.src"
               @click="$emit('image', image)"
             >
               <div class="flex flex-col">
-                <div class="bg-auto bg-no-repeat bg-center border rounded-md h-28 w-28" :style="`background-image: url(${image.src})`"></div>
+                <div class="bg-auto bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
                 <p class="badge badge-xs" v-if="image.alt">{{ image.alt }}</p>
               </div>
             </div>

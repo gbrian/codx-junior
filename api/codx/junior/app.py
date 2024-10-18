@@ -78,7 +78,8 @@ from codx.junior.engine import (
     read_global_settings,
     write_global_settings,
     add_global_settings,
-    coder_open_file
+    coder_open_file,
+    api_image_to_text
 )
 
 from codx.junior.scheduler import add_work
@@ -370,8 +371,13 @@ class CODXJuniorAPI:
         def api_write_global_settings(global_settings: GlobalSettings):
             return write_global_settings(global_settings=global_settings)
 
-        # socket_handlers
+        @app.post("/api/image-to-text")
+        async def api_image_to_text_endpoint(file: UploadFile):
+            file_bytes = await file.read()            
+            return api_image_to_text(file_bytes)
 
+
+        # socket_handlers
         @app.sio.on('join')
         async def handle_join(sid, *args, **kwargs):
             await app.sio.emit('lobby', 'User joined')

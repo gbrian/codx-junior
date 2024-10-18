@@ -5,7 +5,10 @@ import ProjectIconVue from './ProjectIcon.vue'
 <template>
   <aside
 		class="flex flex-col items-center shadow h-full">
-		<ProjectIconVue :tabIx="tabIx" @click="setActiveTab('home')" />
+		<ProjectIconVue 
+      :class="tabIx == 'home' && 'bg-base-100'"
+      :project="$project.activeProject"
+      @click="setActiveTab('home')" />
 		<ul>
 			<li :class="['hover:bg-base-100 click', (tabIx == 'tasks') ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Kanban board"
@@ -27,6 +30,14 @@ import ProjectIconVue from './ProjectIcon.vue'
 			</li>
       <li class="flex justify-center">
         <div class="h-1 border-t-2 w-2/3 opacity-40"></div>
+      </li>
+      <li>
+        <div class="h-60 overflow-auto flex flex-col gap-2">
+          <ProjectIconVue :project="project"
+            v-for="project in $project.allProjects" :key="project.codx_path"
+            @click="setActiveProject(project)"
+          />
+        </div>
       </li>
       <li :class="['hover:bg-base-100 click', showCoder ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Show coder"
@@ -80,6 +91,10 @@ export default {
   methods: {
     setActiveTab (tab) {
       this.$emit('set-active', tab)
+    },
+    async setActiveProject(project) {
+      await this.$project.setActiveProject(project)
+      this.setActiveTab(this.tabIx)
     }
   }
 };

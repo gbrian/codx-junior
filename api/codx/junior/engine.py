@@ -991,3 +991,16 @@ def get_project_metrics(settings: CODXJuniorSettings):
         "chats_changed_last_24h": chats_changed_last_24h,
         **status
     }
+
+from PIL import Image
+import pytesseract
+import io
+
+def api_image_to_text(image_bytes):
+    # Convert bytes data to a PIL Image
+    image = Image.open(io.BytesIO(image_bytes))
+    
+    # Extract text from image using pytesseract
+    text = pytesseract.image_to_string(image)
+    
+    return text

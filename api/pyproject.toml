@@ -47,7 +47,9 @@ dependencies = [
   'langchain-anthropic',
   'anthropic',
   'jupyterlab',
-  'fastapi_socketio'
+  'fastapi_socketio',
+  'pytesseract',
+  'PIL'
 ]
 
 # chromadb 0.3.29 for compatibility with Ubuntu and lower Sqlite3

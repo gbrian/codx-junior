@@ -8,8 +8,10 @@ import ChatViewVue from '../../views/ChatView.vue'
   <div class="flex flex-col gap-2 h-full">
     <ChatViewVue :openChat="chat" v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
     <div class="flex flex-col gap-2 grow overflow-auto pb-2" v-else>
-      <div class="text-2xl flex gap-4 items-end justify-between">
-        Kanban board
+      <div class="md:text-2xl flex gap-4 items-center justify-between">
+        <div class="flex gap-1">
+          Kanban <span class="hidden md:block">board</span>
+        </div>
         <div class="flex gap-2">
           <label class="grow input input-sm input-bordered flex items-center gap-2">
             <input type="text" v-model="filter" class="grow" placeholder="Search" />
@@ -20,7 +22,7 @@ import ChatViewVue from '../../views/ChatView.vue'
           </label>
           <button class="btn btn-sm" @click="addColumn">
             <i class="fa-solid fa-plus"></i>
-            Column
+            <span class="hidden md:block">Column</span>
           </button>
         </div>
       </div>  

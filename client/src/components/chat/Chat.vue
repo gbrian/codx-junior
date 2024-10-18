@@ -85,7 +85,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
       <div class="flex justify-between items-end px-2">
         <div class="carousel rounded-box">
           <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
-            <div class="bg-contain bg-no-repeat bg-center h-20 w-20 bg-base-300 mr-4"
+            <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
               :style="`background-image: url(${image.src})`" @click="imagePreview = image">
             </div>
             <p class="text-xs">{{ image.alt }}</p>
@@ -96,24 +96,38 @@ import ChatEntry from '@/components/ChatEntry.vue'
             </button>
           </div>
         </div>
-        <div class="flex gap-2 items-center justify-end mt-1">
-          <button class="btn btn btn-sm btn-info btn-circle mb-1 btn-outline" @click="sendMessage" v-if="editMessage">
+        <div class="flex gap-1 items-center justify-end py-2">
+          <button class="btn btn btn-sm btn-info btn-circle btn-outline" @click="sendMessage" v-if="editMessage">
             <i class="fa-solid fa-save"></i>
           </button>
-          <button class="btn btn btn-sm btn-info btn-error mb-1 btn-outline" @click="onResetEdit" v-if="editMessage">
+          <button class="btn btn btn-sm btn-info btn-error btn-outline" @click="onResetEdit" v-if="editMessage">
             <i class="fa-regular fa-circle-xmark"></i>
           </button>
-          <button class="btn btn btn-sm btn-circle mb-1 btn-outline" @click="sendMessage" v-if="!editMessage">
+          <button class="btn btn btn-sm btn-circle btn-outline" @click="sendMessage" v-if="!editMessage">
             <i class="fa-solid fa-comment"></i>
           </button>
-          <button class="btn btn-warning btn-sm mb-1 btn-outline" @click="improveCode()" v-if="!editMessage">
-            <i class="fa-solid fa-code"></i> Code
-          </button>
-          <button :class="['btn btn-sm mb-1 btn-outline',
-              testError ? 'btn-error' : 'btn-info'
-            ]" @click="testProject" v-if="API.lastSettings.script_test">
-            <i class="fa-solid fa-flask"></i> Test
-          </button>
+          <div class="dropdown dropdown-top dropdown-end">
+            <div tabindex="0" role="button" class="btn btn-sm m-1">
+              <i class="fa-solid fa-ellipsis-vertical"></i>
+            </div>
+            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow gap-2">
+              <li class="btn btn-sm btn-warning" @click="improveCode()" v-if="!editMessage">
+                <a>
+                  <i class="fa-solid fa-code"></i>
+                  Code
+                </a>
+              </li>
+              <li class="btn btn-sm" @click="selectFile = true">
+                <a><i class="fa-solid fa-paperclip"></i> Attach files</a>
+              </li>
+              <li class="btn btn-sm" @click="testProject" v-if="API.lastSettings.script_test">
+                <a>
+                  <i class="fa-solid fa-flask"></i>
+                  Test
+                </a>
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
@@ -145,6 +159,17 @@ import ChatEntry from '@/components/ChatEntry.vue'
         </div>
       </div>
     </modal>
+    <modal v-if="selectFile">
+      <label class="file-select">
+      <div class="select-button">
+        <span>Select File(s)</span>
+      </div>
+      <input type="file" accept="image/*" multiple @change="handleFileChange"/>
+      <button class="btn btn-sm btn-error" @click="selectFile = false">
+        Cancel
+      </button>
+    </label>
+    </modal>
   </div>
 </template>
 <script>
@@ -170,7 +195,8 @@ export default {
       testError: null,
       previewStyle: {
         zoom: 0.6
-      }
+      },
+      selectFile: false
     }
   },
   computed: {
@@ -424,16 +450,22 @@ export default {
         this.onInputImage(file)
       }
     },
-    onInputImage(file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64URL = event.target.result;
-        this.imagePreview = {
-          src: base64URL,
-          alt: ""
-        }
-      };
-      reader.readAsDataURL(file);
+    getFileImageUrl(file) {
+      return new Promise(ok => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64URL = event.target.result;
+          ok(base64URL)
+        };
+        reader.readAsDataURL(file);
+      })
+    },
+    async onInputImage(file) {
+      const base64URL = await this.getFileImageUrl(file)
+      this.imagePreview = {
+            src: base64URL,
+            alt: ""
+          }
     },
     onAddImage () {
       if (this.imagePreview.ix === undefined) {
@@ -441,6 +473,14 @@ export default {
         this.imagePreview.ix = this.images.length -1
       }
       this.imagePreview = null
+    },
+    async handleFileChange ({ target: { files }}) {
+      const allUrls = await Promise.all([...files].map(file => this.getFileImageUrl(file)))
+      console.log("handleFileChange", allUrls)
+      this.images = [
+        ...this.images, 
+        ...allUrls.map((src, ix) => ({ src, alt: "", ix: this.images.length + 1 + ix }))]
+      this.selectFile = false
     },
     onGenerateCode(message, code) {
       this.setEditorText(`Generate code only for this piece of code:
