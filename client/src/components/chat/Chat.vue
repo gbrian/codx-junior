@@ -148,10 +148,10 @@ import ChatEntry from '@/components/ChatEntry.vue'
       <div class="flex flex-col gap-2">
         <div class="text-2xl">Upload image</div>
         <div class="bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full" :style="`background-image: url(${imagePreview.src})`"></div>
-        Image alt:
-        <div class="alert alert-xs h-20 overflow-auto" v-if="imagePreview.readonly">
-          {{ imagePreview.alt }}
+        <div>
+            Image alt: <span class="text-xs" v-if="imagePreview.alt?.length">{{ imagePreview.alt?.length }} chars.</span>
         </div>
+        <pre class="alert alert-xs h-20 overflow-auto" v-if="imagePreview.readonly">{{ imagePreview.alt }}</pre>
         <div class="textarea input-bordered" v-else>
           <textarea class="w-full bg-transparent" v-model="imagePreview.alt" placeholder="Image content">
           </textarea>
@@ -456,6 +456,8 @@ export default {
       var file = [...e.clipboardData?.items].filter(f => f.type.indexOf("image") !== -1)[0]?.getAsFile()
       if (file) {
         this.onInputImage(file)
+        e.preventDefault()
+        return false
       }
     },
     getFileImageUrl(file) {

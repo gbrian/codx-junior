@@ -47,7 +47,7 @@ import PRView from '../views/PRView.vue'
         <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
           <div class="flex flex-col sm:flex-row gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <button :class="['btn btn-xs btn-info text-white', showChatsTree && 'btn-info text-white']"
+              <button :class="['btn btn-xs btn-circle mt-1', showChatsTree && 'btn-info text-white']"
                 @click="onShowChats">
                 <i class="fa-solid fa-arrow-left"></i>
               </button>

@@ -1,6 +1,6 @@
 <template>
-    <div :class="['h-16 sm:w-full shrink-0 flex flex-col gap-1 items-center items-center hover:bg-base-100 click']">
-        <a class="h-6 w-6 mt-4 tooltip tooltip-right" data-tip="Projects">
+    <div :class="['h-16 sm:w-full shrink-0 flex flex-col gap-1 items-center items-center hover:bg-base-300 hover:shadow hover:border rounded-md click']">
+        <a class="h-6 w-6 mt-4 tooltip z-50" :class="right ? 'tooltip-top' : 'tooltip-right'" :data-tip="project.project_name">
             <div class="avatar">
                 <div class="w-6 rounded-full">
                     <img :src="project?.project_icon || '/only_icon.png'" />
@@ -14,6 +14,6 @@
 </template>
 <script>
 export default {
-    props: ['tabIx', 'project']
+    props: ['project', 'right']
 }
 </script>
