@@ -9,11 +9,12 @@ import GlobalSettingsVue from './GlobalSettings.vue';
 import ProjectProfileVue from './ProjectProfile.vue';
 import NavigationBar from '../components/NavigationBar.vue'
 import ProjectIconVue from '../components/ProjectIcon.vue'
+import TabNavigationVue from '../components/TabNavigation.vue'
 
 </script>
 
 <template>
-  <div class="w-full h-full flex relative">
+  <div class="w-screen h-screen flex relative">
     <progress :class="['absolute top-0 left-0 right-0 z-50 progress w-full', $session.apiCalls ? 'opacity-50': 'opacity-0']"></progress>      
     <NavigationBar class="shrink-0 hidden md:flex"
       :tabIx="tabIx"
@@ -25,8 +26,9 @@ import ProjectIconVue from '../components/ProjectIcon.vue'
       <div class="flex gap-2 items-center reltive justify-between">
         <div class="absolute left-0 top-0 right-0 bottom-0 bg-base-100/50 z-50 flex justify-end" @click="showBar = false" v-if="showBar">
           <NavigationBar class="bg-base-300 shadow"
-          @click.stop=""
           :tabIx="tabIx"
+          :right="true"
+          @click.stop=""
           @tabIx="tabIx"
           @set-active="setActiveTab"
           @toggle-coder="$emit('toggle-coder')"
@@ -50,11 +52,11 @@ import ProjectIconVue from '../components/ProjectIcon.vue'
         </button>
         
       </div>
+      <TabNavigationVue :tabIx="tabIx" @tab="setActiveTab" />
       <div class="grow relative w-full">
         <KanbanVue class="overflow-auto" v-if="tabIx === 'tasks'" />
         <KnowledgeViewVue class="" v-if="tabIx === 'knowledge'" />
         <WikiViewVue class="" v-if="tabIx == 'wiki'"></WikiViewVue>
-
         <ProjectSettingsVue class="absolute top-0 left-0 w-full" 
           @delete="deleteProject"
           v-if="tabIx === 'settings'" />

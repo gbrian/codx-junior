@@ -1,4 +1,3 @@
-
 <script setup>
 import ProjectIconVue from './ProjectIcon.vue'
 </script>
@@ -8,56 +7,44 @@ import ProjectIconVue from './ProjectIcon.vue'
 		<ProjectIconVue 
       :class="tabIx == 'home' && 'bg-base-100'"
       :project="$project.activeProject"
-      @click="setActiveTab('home')" />
-		<div class="flex flex-col">
-			<div :class="['hover:bg-base-100 click', (tabIx == 'tasks') ? 'bg-base-100': '']">
-				<a class="h-16 px-6 flex flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Kanban board"
-          @click="setActiveTab('tasks')">
-          <i class="fa-brands fa-trello"></i>
-				</a>
-			</div>
-			<div :class="['hover:bg-base-100 click', (tabIx == 'knowledge') ? 'bg-base-100': '']">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Knowledge"
-					 @click="setActiveTab('knowledge')">
-					<i class="fa-solid fa-book"></i>
-				</a>
-			</div>
-      <div :class="['hover:bg-base-100 click', (tabIx == 'wiki') ? 'bg-base-100': '']">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Docs"
-					 @click="setActiveTab('wiki')">
-           <i class="fa-brands fa-wikipedia-w"></i>
-				</a>
-			</div>
-      <div class="flex justify-center">
-        <div class="h-1 border-t-2 w-2/3 opacity-40"></div>
-      </div>
-      <div>
-        <div class="h-60">
+      :right="right"
+      @click="setActiveTab('home')"
+    />
+		
+    <div class="grow overflow-auto border-b border-slate-700 py-1 text-center">
+        <div class="over">
           <div class="h-full overflow-auto flex flex-col gap-2">
-            <ProjectIconVue :project="project"
+            <ProjectIconVue 
+              :project="project"
+              :right="right"
               v-for="project in $project.allProjects" :key="project.codx_path"
+              class="opacity-50 hover:opacity-100"
               @click="setActiveProject(project)"
             />
           </div>
         </div>
       </div>
+
+    <div class="flex flex-col mt-4">
       <div :class="['hover:bg-base-100 click', showCoder ? 'bg-base-100': '']">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Show coder"
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
 					 @click="$storex.ui.toggleCoder()">
            <i class="fa-solid fa-code"></i>
 				</a>
 			</div>
       <div :class="['hover:bg-base-100 click', $global.ui.showPreview ? 'bg-base-100': '']">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Show preview"
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show preview"
 					 @click="$storex.ui.togglePreview()">
            <i class="fa-solid fa-display"></i>
 				</a>
 			</div>
     </div>
-    <div class="grow"></div>
+    
     <div>
-      <div :class="['hover:bg-base-100 dropdown dropdown-right dropdown-end click', isSettings ? 'bg-base-100': '']">
-				<a tabindex="0" class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Projects">
+      <div :class="['hover:bg-base-100 dropdown dropdown-end click',
+        right ? 'dropdown-left' : 'dropdown-right',
+        isSettings ? 'bg-base-100': '']">
+				<a tabindex="0" class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Projects">
            <i class="fa-solid fa-gear"></i>
 				</a>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
@@ -67,12 +54,13 @@ import ProjectIconVue from './ProjectIcon.vue'
         </ul>
 			</div>
     </div>
+
   </aside>
 </template>
 
 <script>
 export default {
-  props: ['tabIx'],
+  props: ['tabIx', 'right'],
   data() {
     return {
       isCollapsed: false,
