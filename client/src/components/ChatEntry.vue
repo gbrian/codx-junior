@@ -62,10 +62,12 @@ import Markdown from './Markdown.vue'
             <div class="carousel-item click mt-2"
               v-for="image in images" :key="image.src"
               @click="$emit('image', image)"
+              :alt="image.alt"
+              :title="image.alt"
             >
               <div class="flex flex-col">
                 <div class="bg-auto bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
-                <p class="badge badge-xs" v-if="image.alt">{{ image.alt }}</p>
+                <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 10) }}</p>
               </div>
             </div>
           </div>

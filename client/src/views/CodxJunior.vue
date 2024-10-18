@@ -15,13 +15,13 @@ import ProjectIconVue from '../components/ProjectIcon.vue'
 <template>
   <div class="w-full h-full flex relative">
     <progress :class="['absolute top-0 left-0 right-0 z-50 progress w-full', $session.apiCalls ? 'opacity-50': 'opacity-0']"></progress>      
-    <NavigationBar class="shrink-0 hidden sm:flex"
+    <NavigationBar class="shrink-0 hidden md:flex"
       :tabIx="tabIx"
       @tabIx="tabIx"
       @set-active="setActiveTab"
       @toggle-coder="$emit('toggle-coder')"
     />
-    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 sm:px-4 pt-2 overflow-auto">
+    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto">
       <div class="flex gap-2 items-center reltive justify-between">
         <div class="absolute left-0 top-0 right-0 bottom-0 bg-base-100/50 z-50 flex justify-end" @click="showBar = false" v-if="showBar">
           <NavigationBar class="bg-base-300 shadow"
@@ -33,8 +33,8 @@ import ProjectIconVue from '../components/ProjectIcon.vue'
           />
         </div>
         <div class="flex flex-col" v-if="$project.activeProject">
-          <h3 class="text-2xl sm:text-4xl font-bold flex items-center gap-2">
-            <div class="avatar sm:hidden">
+          <h3 class="text-2xl md:text-4xl font-bold flex items-center gap-2">
+            <div class="avatar md:hidden">
               <div class="w-6 rounded-full">
                   <img :src="$project.activeProject?.project_icon || '/only_icon.png'" />
               </div>
@@ -45,7 +45,7 @@ import ProjectIconVue from '../components/ProjectIcon.vue'
             {{ $project.activeProject.project_path }}
           </div>
         </div>
-        <button class="btn btn-ghost mt-1 sm:hidden" @click="showBar = true">
+        <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>
         

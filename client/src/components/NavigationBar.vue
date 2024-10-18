@@ -9,52 +9,54 @@ import ProjectIconVue from './ProjectIcon.vue'
       :class="tabIx == 'home' && 'bg-base-100'"
       :project="$project.activeProject"
       @click="setActiveTab('home')" />
-		<ul>
-			<li :class="['hover:bg-base-100 click', (tabIx == 'tasks') ? 'bg-base-100': '']">
+		<div class="flex flex-col">
+			<div :class="['hover:bg-base-100 click', (tabIx == 'tasks') ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Kanban board"
           @click="setActiveTab('tasks')">
-          <i class="fa-solid fa-list-check"></i>
+          <i class="fa-brands fa-trello"></i>
 				</a>
-			</li>
-			<li :class="['hover:bg-base-100 click', (tabIx == 'knowledge') ? 'bg-base-100': '']">
+			</div>
+			<div :class="['hover:bg-base-100 click', (tabIx == 'knowledge') ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Knowledge"
 					 @click="setActiveTab('knowledge')">
 					<i class="fa-solid fa-book"></i>
 				</a>
-			</li>
-      <li :class="['hover:bg-base-100 click', (tabIx == 'wiki') ? 'bg-base-100': '']">
+			</div>
+      <div :class="['hover:bg-base-100 click', (tabIx == 'wiki') ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Docs"
 					 @click="setActiveTab('wiki')">
            <i class="fa-brands fa-wikipedia-w"></i>
 				</a>
-			</li>
-      <li class="flex justify-center">
+			</div>
+      <div class="flex justify-center">
         <div class="h-1 border-t-2 w-2/3 opacity-40"></div>
-      </li>
-      <li>
-        <div class="h-60 overflow-auto flex flex-col gap-2">
-          <ProjectIconVue :project="project"
-            v-for="project in $project.allProjects" :key="project.codx_path"
-            @click="setActiveProject(project)"
-          />
+      </div>
+      <div>
+        <div class="h-60">
+          <div class="h-full overflow-auto flex flex-col gap-2">
+            <ProjectIconVue :project="project"
+              v-for="project in $project.allProjects" :key="project.codx_path"
+              @click="setActiveProject(project)"
+            />
+          </div>
         </div>
-      </li>
-      <li :class="['hover:bg-base-100 click', showCoder ? 'bg-base-100': '']">
+      </div>
+      <div :class="['hover:bg-base-100 click', showCoder ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Show coder"
 					 @click="$storex.ui.toggleCoder()">
            <i class="fa-solid fa-code"></i>
 				</a>
-			</li>
-      <li :class="['hover:bg-base-100 click', $global.ui.showPreview ? 'bg-base-100': '']">
+			</div>
+      <div :class="['hover:bg-base-100 click', $global.ui.showPreview ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Show preview"
 					 @click="$storex.ui.togglePreview()">
            <i class="fa-solid fa-display"></i>
 				</a>
-			</li>
-    </ul>
+			</div>
+    </div>
     <div class="grow"></div>
-    <ul>
-      <li :class="['hover:bg-base-100 dropdown dropdown-right dropdown-end click', isSettings ? 'bg-base-100': '']">
+    <div>
+      <div :class="['hover:bg-base-100 dropdown dropdown-right dropdown-end click', isSettings ? 'bg-base-100': '']">
 				<a tabindex="0" class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Projects">
            <i class="fa-solid fa-gear"></i>
 				</a>
@@ -63,8 +65,8 @@ import ProjectIconVue from './ProjectIcon.vue'
           <li><a @click="setActiveTab('settings')">Project settings</a></li>
           <li><a @click="setActiveTab('global-settings')">Gobal settings</a></li>
         </ul>
-			</li>
-    </ul>
+			</div>
+    </div>
   </aside>
 </template>
 

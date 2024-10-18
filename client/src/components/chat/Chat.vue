@@ -29,7 +29,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
             @copy="onCopy(message)"
             @generate-code="onGenerateCode(message, $event)"
             @add-file-to-chat="$emit('add-file', $event)"
-            @image="imagePreview = $event"
+            @image="imagePreview = { ...$event, readonly: true }"
           />
         </div>
         <div class="anchor" ref="anchor"></div>
@@ -88,7 +88,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
             <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
               :style="`background-image: url(${image.src})`" @click="imagePreview = image">
             </div>
-            <p class="text-xs">{{ image.alt }}</p>
+            <p class="text-xs">{{ image.alt.slice(0, 10) }}</p>
             <button class="btn btn-xs btn-circle btn-error absolute right-0 top-0"
               @click="removeImage(ix)"
             >
@@ -148,7 +148,21 @@ import ChatEntry from '@/components/ChatEntry.vue'
       <div class="flex flex-col gap-2">
         <div class="text-2xl">Upload image</div>
         <div class="bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full" :style="`background-image: url(${imagePreview.src})`"></div>
-        <input class="input input-bordered" v-model="imagePreview.alt" placeholder="Add image info" />
+        Image alt:
+        <div class="alert alert-xs h-20 overflow-auto" v-if="imagePreview.readonly">
+          {{ imagePreview.alt }}
+        </div>
+        <div class="textarea input-bordered" v-else>
+          <textarea class="w-full bg-transparent" v-model="imagePreview.alt" placeholder="Image content">
+          </textarea>
+          <div class="flex justify-end">
+            <button class="btn btn-sm bg-purple-600 text-white tooltip"
+              data-tip="Extract text"
+              @click="onExtractTextImage(imagePreview)">
+              <i class="fa-regular fa-closed-captioning"></i>
+            </button>
+          </div>
+        </div>
         <div class="flex justify-end gap-2">
           <button class="btn" @click="imagePreview = null">
             Cancel
@@ -240,20 +254,14 @@ export default {
       this.onMessageChange()
     },
     onEditMessage (message) {
+      console.log("onEditMessage", message)
       this.editMessage = message
       this.editMessageId = this.chat.messages.findIndex(m => m === message)
       try {
-        this.images = JSON.parse(message.images)
+        this.images = message.images.map(JSON.parse)
       } catch {}
 
       this.setEditorText(this.editMessage.content)
-      this.images = (message.images || []).map(i => {
-        try {
-          JSON.parse(i)
-        } catch {
-          return { src: i }
-        }
-      })
     },
     toggleHide(message) {
       message.hide = !message.hide 
@@ -473,6 +481,22 @@ export default {
         this.imagePreview.ix = this.images.length -1
       }
       this.imagePreview = null
+    },
+    async onExtractTextImage(image) {
+      function base64ToFile(base64Data, filename) {
+        const byteString = atob(base64Data.split(',')[1]);
+        const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
+        const byteArray = new Uint8Array(byteString.length);
+        for (let i = 0; i < byteString.length; i++) {
+          byteArray[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([byteArray], { type: mimeString });
+        return new File([blob], filename, { type: mimeString });
+      }
+
+      const file = base64ToFile(image.src, "image")
+      const text = await API.tools.imageToText(file)
+      image.alt = text
     },
     async handleFileChange ({ target: { files }}) {
       const allUrls = await Promise.all([...files].map(file => this.getFileImageUrl(file)))

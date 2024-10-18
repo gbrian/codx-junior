@@ -95,6 +95,9 @@ export default {
     this.buildKanba()
   },
   computed: {
+    project () {
+      return this.$project.activeProject
+    },
     boards () {
       return [...new Set(this.chats?.map(c => c.board))]             
     },
@@ -111,6 +114,9 @@ export default {
       if ((!newValue && oldValue) || newValue?.length > 3) {
         this.buildKanba()
       }
+    },
+    project () {
+      this.buildKanba()
     }
   },
   methods: {

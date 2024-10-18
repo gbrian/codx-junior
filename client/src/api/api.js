@@ -218,6 +218,13 @@ export const API = {
       return API.get('/api/update')
     }
   },
+  tools: {
+    async imageToText (file) {
+      const formData = new FormData();
+      formData.append("file", file);
+      return (await API.post(`/api/image-to-text`, formData)).data
+    }
+  },
   async init (codx_path) {
     API.liveRequests++
     this.codx_path = codx_path
