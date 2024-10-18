@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col gap-2 h-full p-4 overflow-auto">
+  <div class="flex flex-col gap-2 p-4 overflow-auto">
     <div class="text-xl font-medium my-2 flex justify-between">
       Global Settings
     </div>
