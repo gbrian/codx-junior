@@ -9,6 +9,9 @@ import router from './router'
 
 const globalMixin = {
   computed: {
+    $global () {
+      return this.$storex.$parent || this.$storex
+    },
     $storex () {
       return $storex
     },
@@ -32,6 +35,6 @@ const app = createApp(App)
               .mount('#app')
 
 
-store.app = app;
-$storex.app = app;
-$storex.init()
+store.app = app
+$storex.app = app
+$storex.$router = router

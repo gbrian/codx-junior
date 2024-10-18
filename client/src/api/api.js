@@ -15,7 +15,6 @@ const prepareUrl = (url) => {
       params = query()
     }
     url =`${path}?${params}`
-    console.log("Prepare url", url)
     return url
   }
   return url

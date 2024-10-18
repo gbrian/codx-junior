@@ -8,30 +8,53 @@ import WikiViewVue from './WikiView.vue';
 import GlobalSettingsVue from './GlobalSettings.vue';
 import ProjectProfileVue from './ProjectProfile.vue';
 import NavigationBar from '../components/NavigationBar.vue'
+import ProjectIconVue from '../components/ProjectIcon.vue'
 
 </script>
 
 <template>
-  <div class="flex relative">
+  <div class="w-full h-full flex relative">
     <progress :class="['absolute top-0 left-0 right-0 z-50 progress w-full', $session.apiCalls ? 'opacity-50': 'opacity-0']"></progress>      
-    <NavigationBar class="shrink-0"
+    <NavigationBar class="shrink-0 hidden sm:flex"
       :tabIx="tabIx"
       @tabIx="tabIx"
       @set-active="setActiveTab"
       @toggle-coder="$emit('toggle-coder')"
     />
-    <div class="grow flex flex-col relative bg-base-100 px-2 pt-2 overflow-auto">
-      <KanbanVue class="overflow-auto" v-if="tabIx === 'tasks'" />
-      <KnowledgeViewVue class="" v-if="tabIx === 'knowledge'" />
-      <WikiViewVue class="" v-if="tabIx == 'wiki'"></WikiViewVue>
+    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 sm:px-4 pt-2 overflow-auto">
+      <div class="flex gap-2 items-center reltive">
+        <button class="btn btn-ghost mt-1 sm:hidden" @click="showBar = true">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <div class="absolute left-0 top-0 right-0 bottom-0 bg-base-100/50 z-50 flex" @click="showBar = false" v-if="showBar">
+          <NavigationBar class="bg-base-300 shadow"
+          @click.stop=""
+          :tabIx="tabIx"
+          @tabIx="tabIx"
+          @set-active="setActiveTab"
+          @toggle-coder="$emit('toggle-coder')"
+          />
+        </div>
+        <div class="flex flex-col" v-if="$project.activeProject">
+          <h3 class="text-2xl sm:text-4xl font-bold">{{ $project.activeProject.project_name }}</h3>
+          <div class="text-xs">
+            {{ $project.activeProject.project_path }}
+          </div>
+        </div>
+      </div>
+      <div class="grow relative w-full">
+        <KanbanVue class="overflow-auto" v-if="tabIx === 'tasks'" />
+        <KnowledgeViewVue class="" v-if="tabIx === 'knowledge'" />
+        <WikiViewVue class="" v-if="tabIx == 'wiki'"></WikiViewVue>
 
-      <ProjectSettingsVue class="absolute top-0 left-0 w-full" 
-        @delete="deleteProject"
-        v-if="tabIx === 'settings'" />
-      <GlobalSettingsVue class="absolute top-0 left-0 w-full " v-if="tabIx === 'global-settings'" />
-      <ProfileViewVue class="absolute top-0 left-0 w-full" v-if="tabIx === 'profiles'" />
-      <iframe v-if="tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
-      <ProjectProfileVue class=" absolute top-0 left-0 w-full" v-if="tabIx == 'home'" @settings="setActiveTab('settings')"></ProjectProfileVue>
+        <ProjectSettingsVue class="absolute top-0 left-0 w-full" 
+          @delete="deleteProject"
+          v-if="tabIx === 'settings'" />
+        <GlobalSettingsVue class="absolute top-0 left-0 w-full " v-if="tabIx === 'global-settings'" />
+        <ProfileViewVue class="absolute top-0 left-0 w-full" v-if="tabIx === 'profiles'" />
+        <iframe v-if="tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
+        <ProjectProfileVue class=" absolute top-0 left-0 w-full" v-if="tabIx == 'home'" @settings="setActiveTab('settings')"></ProjectProfileVue>
+      </div>
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
       <div class="modal-box">
@@ -72,7 +95,8 @@ export default {
       showOpenProjectModal: false,
       tabActive: 'text-info bg-base-100',
       tabInactive: 'text-warning bg-base-300 opacity-50 hover:opacity-100',
-      lastError: null
+      lastError: null,
+      showBar: false
     }
   },
   async created () {
@@ -130,6 +154,7 @@ export default {
     setActiveTab(tabIx) {
       console.log("Set active", tabIx)
       this.tabIx = tabIx
+      this.showBar = false
     }
   }
 }

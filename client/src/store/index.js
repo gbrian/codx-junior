@@ -10,6 +10,16 @@ import * as ui from './ui'
 
 const modules = { session, project, ui }
 const storePattern = {
+  state () {
+    return {
+      $parent: null
+    }
+  },
+  mutations: {
+    setParent (state, parent) {
+      state.$parent = parent
+    }
+  },
   modules,
 }
 
@@ -21,7 +31,9 @@ $storex.init = async () => {
     await $storex[m].init()
   })
 }
-$storex.store = new Store()
+
+$storex.$id = new Date().getTime()
+$storex.store = store
 window.$storex = $storex
 $storex.api = API
 export default store

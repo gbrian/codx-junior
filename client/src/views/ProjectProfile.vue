@@ -5,13 +5,6 @@ import moment from 'moment';
 
 <template>
   <div class="profile-container flex flex-col items-center h-full">
-    <div class="px-4 py-2 w-full flex flex-col" v-if="$project.activeProject">
-      <h3 class="text-4xl font-bold">{{ $project.activeProject.project_name }}</h3>
-      <div class="text-xs">
-        {{ $project.activeProject.project_path }}
-      </div>
-    </div>
-
     <div class="p-4">
       <div class="hero-section text-center p-4 bg-gray-800 text-white rounded-lg">
         <h1 class="text-3xl font-bold mb-2">Welcome to codx-junior</h1>

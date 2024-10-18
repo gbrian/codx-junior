@@ -1,28 +1,17 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
-
 export const namespaced = true
 
 export const state = () => ({
-  showCoder: false,
-  showPreview: false
+})
+
+export const getters = getterTree(state, {
+  $$storex: () => ($storex.$parent || $storex),
+  showCoder: () => ($storex.$parent || $storex).app.$route.path === '/split/coder',
+  showPreview: () => ($storex.$parent || $storex).app.$route.path === '/split/preview'
 })
 
 export const mutations = mutationTree(state, {
-  toggleCoder(state) {
-    state.showCoder = !state.showCoder
-    if (state.showCoder && state.showPreview) {
-      state.showPreview = false
-    }
-    $storex.ui.saveState()
-  },
-  togglePreview(state) {
-    state.showPreview = !state.showPreview
-    if (state.showCoder && state.showPreview) {
-      state.showCoder = false
-    }
-    $storex.ui.saveState()
-  },
   loadState(state) {
     const savedState = localStorage.getItem('uiState')
     if (savedState) {
@@ -33,18 +22,35 @@ export const mutations = mutationTree(state, {
   }
 })
 
-export const getters = getterTree(state, {
-  splitView: () => $storex.ui.showCoder || $storex.ui.showPreview
-})
+function setPath(path) {
+  ($storex.$parent || $storex).ui.navigate(path)
+}
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init () {
+    async init ({ state }) {
       $storex.ui.loadState()
     },
     saveState({ state }) {
       localStorage.setItem('uiState', JSON.stringify(state))
+    },
+    toggleCoder() {
+      if ($storex.ui.showCoder) {
+        setPath("/")
+      } else {
+        setPath("/split/coder")
+      }
+    },
+    togglePreview() {
+      if ($storex.ui.showPreview) {
+        setPath("/")
+      } else {
+        setPath("/split/preview")
+      }
+    },
+    navigate(_, path) {
+      window.location = path
     }
   },
 )

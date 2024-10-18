@@ -1,20 +1,11 @@
+
+<script setup>
+import ProjectIconVue from './ProjectIcon.vue'
+</script>
 <template>
   <aside
 		class="flex flex-col items-center shadow h-full">
-		<div :class="['h-16 w-full shrink-0 flex flex-col gap-1 items-center items-center hover:bg-base-100 click',
-      tabIx == 'home' && 'bg-base-100'
-    ]" @click="setActiveTab('home')">
-			<a class="h-6 w-6 mt-4 tooltip tooltip-right" data-tip="Projects">
-        <div class="avatar">
-          <div class="w-6 rounded-full">
-            <img :src="$project.activeProject?.project_icon || '/only_icon.png'" />
-          </div>
-        </div>
-      </a>
-      <div class="text-xs w-16 text-center overflow-hidden text-nowrap px-1 font-bold">
-        {{ $project.activeProject?.project_name  }}
-      </div>
-		</div>
+		<ProjectIconVue :tabIx="tabIx" @click="setActiveTab('home')" />
 		<ul>
 			<li :class="['hover:bg-base-100 click', (tabIx == 'tasks') ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Kanban board"
@@ -37,13 +28,13 @@
       <li class="flex justify-center">
         <div class="h-1 border-t-2 w-2/3 opacity-40"></div>
       </li>
-      <li :class="['hover:bg-base-100 click', $storex.ui.showCoder ? 'bg-base-100': '']">
+      <li :class="['hover:bg-base-100 click', showCoder ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Show coder"
 					 @click="$storex.ui.toggleCoder()">
            <i class="fa-solid fa-code"></i>
 				</a>
 			</li>
-      <li :class="['hover:bg-base-100 click', $storex.ui.showPreview ? 'bg-base-100': '']">
+      <li :class="['hover:bg-base-100 click', $global.ui.showPreview ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-right" data-tip="Show preview"
 					 @click="$storex.ui.togglePreview()">
            <i class="fa-solid fa-display"></i>
@@ -79,6 +70,11 @@ export default {
   computed: {
     isSettings () {
       return ['settings', 'profiles', 'global-settings'].includes(this.tabIx)
+    },
+    showCoder () {
+      const $storex = this.$storex.$parent || this.$storex
+      return $storex.ui.showCoder
+
     }
   },
   methods: {

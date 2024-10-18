@@ -279,7 +279,7 @@ def improve_existing_code(settings: CODXJuniorSettings, chat: Chat, apply_change
                 chat.messages[-1].hide = True
             response = chat.messages[-1].content.strip()
             try:
-                return AI_CODE_GENERATOR_PARSER.invoke(response)
+                return get_ai_code_generator_changes(settings=settings, response=response)
             except Exception as ex:
                 logger.error(f"Error parsing response: {response}")
                 attempt = attempt - 1
@@ -291,9 +291,17 @@ def improve_existing_code(settings: CODXJuniorSettings, chat: Chat, apply_change
         if not apply_changes:
             return code_generator
     else:
-        code_generator = AI_CODE_GENERATOR_PARSER.invoke(chat.messages[-1].content)
+        code_generator = get_ai_code_generator_changes(settings=settings, response=chat.messages[-1].content)
 
     apply_improve_code_changes(settings=settings, code_generator=code_generator)
+    return code_generator
+
+def get_ai_code_generator_changes(settings:CODXJuniorSettings, response: str):
+    code_generator = AI_CODE_GENERATOR_PARSER.invoke(response)
+    for change in code_generator.code_changes:
+        file_path = change.file_path
+        if not file_path.startswith(settings.project_path):
+            change.file_path = os.path.join(settings.project_path, file_path)
     return code_generator
 
 def project_script_test(settings: CODXJuniorSettings):
