@@ -828,14 +828,14 @@ def find_all_projects(detailed: bool = False):
     # logger.exception(f"all_codx_path {all_codx_path}")
     paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
     # logger.info(f"find_projects_to_watch: Scanning project paths: {project_path} - {paths}")
-    for project_settings in paths:
+    for project_path in paths:
         try:
-            settings = CODXJuniorSettings.from_project(codx_path=str(project_settings))
-            if settings.codx_path not in all_projects:
+            settings = CODXJuniorSettings.from_project(codx_path=str(project_path))
+            if settings.codx_path not in all_projects and project_path == settings.codx_path:
                 all_projects.append(settings)
-                # logger.info(f"find_projects_to_watch: project found {str(project_settings)}")
+                # logger.info(f"find_projects_to_watch: project found {str(project_path)}")
         except Exception as ex:
-            logger.exception(f"Error loading project {str(project_settings)}")
+            logger.exception(f"Error loading project {str(project_path)}")
     def projects_with_details():
         for project in all_projects:
             try:

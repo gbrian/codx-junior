@@ -1,5 +1,6 @@
 <script setup>
 import VueSplitter from '@rmp135/vue-splitter'
+import NoVNCVue from '../components/NoVNC.vue'
 </script>
 
 <template>
@@ -27,20 +28,22 @@ import VueSplitter from '@rmp135/vue-splitter'
             </div>
             </div>
             <div class="h-full relative grow flex flex-col p-1" v-if="$storex.ui.showPreview">
-            <label class="grow input input-sm input-bordered flex items-center gap-2">
-                <input type="text" class="grow" :value="preViewUrl" placeholder="Enter url..." @keydown.enter="preViewUrl = $event.target.value" />
-                <i class="fa-solid fa-magnifier"></i>
-            </label>  
-            <iframe ref="iframe" :src="preViewUrl" class="h-full w-full border-0 bg-base-300"
-                title="preview"
-                allow="camera *;microphone *;clipboard-read; clipboard-write;"
-                :key="iframeKey"
-                >
-            </iframe>
-            </div>
-            <div class="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
-            <div class="flex items-end gap-2">
-            </div>
+              <NoVNCVue />
+              <!--              <label class="grow input input-sm input-bordered flex items-center gap-2">
+                  <input type="text" class="grow" :value="preViewUrl" placeholder="Enter url..." @keydown.enter="preViewUrl = $event.target.value" />
+                  <i class="fa-solid fa-magnifier"></i>
+              </label>  
+              <iframe ref="iframe" :src="preViewUrl" class="h-full w-full border-0 bg-base-300"
+                  title="preview"
+                  allow="camera *;microphone *;clipboard-read; clipboard-write;"
+                  :key="iframeKey"
+                  >
+              </iframe>
+              </div>
+              <div class="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
+              <div class="flex items-end gap-2">
+              </div>
+              -->
             </div>
         </div>
         </template>

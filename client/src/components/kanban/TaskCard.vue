@@ -63,15 +63,8 @@ export default {
   },
   computed: {
     image() {
-      let image = this.task.messages?.length ? (this.task.messages[0].images || [])[0] : null;
-      if (image) {
-        try {
-          return JSON.parse(image);
-        } catch {
-          image = { src: image };
-        }
-      }
-      return image;
+      let image = this.task.messages?.find(m => m.images.length)?.images[0]
+      return image ? JSON.parse(image): null
     },
     formattedDate() {
       const updatedAt = this.task.updated_at;

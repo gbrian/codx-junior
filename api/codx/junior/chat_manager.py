@@ -20,7 +20,7 @@ class ChatManager:
         def chat_info(file_path):
           name = os.path.basename(file_path).split(".")[0]
           chat = self.load_chat(chat_name=name)
-          chat.messages = chat.messages[0:1]
+          chat.messages = [c for c in chat.messages if not c.hide][0:1]
           return {
             **chat.__dict__,
             "file_path": file_path

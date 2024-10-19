@@ -4,15 +4,17 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 
-const { API_URL, NOTEBOOKS_URL, CODER_PORT } = process.env
-const coderUrl = `http://0.0.0.0:${CODER_PORT || 9909}`
-console.log("API_URL", API_URL)
+const { API_PORT, NOTEBOOKS_URL, CODER_PORT, NOVNC_PORT } = process.env
+const apiUrl = `http://0.0.0.0:${API_PORT}`
+const coderUrl = `http://0.0.0.0:${CODER_PORT}`
+const noVNCUrl = `http://0.0.0.0:${NOVNC_PORT}`
+console.log("API_URL", { apiUrl, coderUrl, noVNCUrl })
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: API_URL,
+        target: apiUrl,
         changeOrigin: true,
       },
       '/coder': {
@@ -20,6 +22,12 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
         rewrite: (path) => path.replace(/^\/coder/, ''),
+      },
+      '/novnc': {
+        target: noVNCUrl,
+        changeOrigin: true,
+        ws: true,
+        rewrite: (path) => path.replace(/^\/novnc/, ''),
       },
       '^/stable.*': {
         target: coderUrl,

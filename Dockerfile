@@ -2,7 +2,9 @@ FROM debian:latest
 
 # Install novnc, VNC server, locales, and any necessary dependencies
 RUN apt-get update && \
-    apt-get install -y curl wget novnc websockify supervisor tigervnc-standalone-server locales python3 python3-venv procps nodejs git npm sudo && \
+    apt-get install -y curl wget novnc websockify supervisor \
+        tigervnc-standalone-server locales python3 python3-venv \
+        procps nodejs git npm sudo tesseract-ocr && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -31,12 +33,7 @@ ENV SUPERVISOR_DIR=/etc/supervisord
 # Create supervisord directory
 RUN mkdir -p $SUPERVISOR_DIR
 
-ENV API_PORT=9451
-ENV WEB_PORT=9452
-ENV API_URL="http://0.0.0.0:${API_PORT}"
-
 COPY supervisor.conf $SUPERVISOR_DIR
-
 
 RUN mkdir -p /projects
 
@@ -49,11 +46,6 @@ RUN cd /projects/codx-junior && \
     bash ./install.sh
 
 ENV PYTHONPATH=/projects/codx-junior/api
-
-EXPOSE 6080
-EXPOSE 9080
-EXPOSE $API_PORT
-EXPOSE $WEB_PORT
 
 RUN git config --global --add safe.directory '*'
 

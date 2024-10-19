@@ -13,6 +13,8 @@
     "format": "prettier --write src/"
   },
   "dependencies": {
+    "@novnc/novnc": "^1.5.0",
+    "@replit/novnc": "^2.2.0",
     "@rmp135/vue-splitter": "^2.0.2",
     "@tailwindcss/typography": "^0.5.10",
     "axios": "^1.6.8",
