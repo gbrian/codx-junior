@@ -94,10 +94,11 @@ def process_projects_changes():
     
     for ix, settings in enumerate(projects_to_check):
         # logger.info(f"[process_projects_changes]: check {settings.project_name} - {ix}")
-        try:
-            check_project_changes(settings=add_global_settings(settings))
-        except Exception as ex:
-            logger.error(f"Processing {settings.project_name} error: {ex}")
+        if settings.watching:
+            try:
+                check_project_changes(settings=add_global_settings(settings))
+            except Exception as ex:
+                logger.error(f"Processing {settings.project_name} error: {ex}")
 
 logger.info("Starting process_projects_changes job")
 add_work(process_projects_changes)

@@ -32,6 +32,9 @@ import Markdown from './Markdown.vue';
   </div>
 </template>
 <script>
+const languageMapping = {
+  "vue": "html"
+}
 export default {
   props: ['code'],
   data () {
@@ -42,7 +45,7 @@ export default {
     }
   },
   created () {
-    const language = this.language
+    const language = languageMapping[this.language] || this.language
     this.languages = [[ language, language.toUpperCase() ]]
     this.codeText = this.code.innerText
     console.log("Code block created", language)

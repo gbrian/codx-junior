@@ -1,10 +1,12 @@
 FROM debian:latest
 
-# Install novnc, VNC server, locales, and any necessary dependencies
+ENV DEBIAN_FRONTEND=noninteractive
+
 RUN apt-get update && \
-    apt-get install -y curl wget novnc websockify supervisor \
+    apt-get install -y curl wget novnc websockify supervisor nodejs npm \
         tigervnc-standalone-server locales python3 python3-venv \
-        procps nodejs git npm sudo tesseract-ocr && \
+        procps git sudo tesseract-ocr \
+        kde-plasma-desktop dbus-x11 x11-xserver-utils && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -42,11 +44,11 @@ RUN rm -rf /projects/codx-junior/api/.venv
 RUN chmod +x /projects/codx-junior/run_api.sh
 RUN chmod +x /projects/codx-junior/run_client.sh
 
-RUN cd /projects/codx-junior && \
-    bash ./install.sh
-
 ENV PYTHONPATH=/projects/codx-junior/api
 
 RUN git config --global --add safe.directory '*'
+
+COPY kde/pam.d.kde /etc/pam.d/kde
+COPY kde/pam.d.sddm /etc/pam.d/sddm
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord/supervisor.conf"]

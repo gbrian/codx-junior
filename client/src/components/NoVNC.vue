@@ -2,7 +2,9 @@
 import RFB from '@novnc/novnc'
 </script>
 <template>
-  <div ref="vncContainer" class="vnc-container w-full h-full"></div>
+  <div ref="vncContainer" class="vnc-container w-full h-full"
+    @copy="onVNCCopy"
+  ></div>
 </template>
 <script>
 export default {
@@ -15,6 +17,12 @@ export default {
   mounted() {
     window.$noVNC = this
     this.connect()
+
+    this.rfb.addEventListener('clipboard', (event) => {
+      navigator.clipboard.writeText(event.detail.text)
+        .then(() => console.log('Clipboard synced from NoVNC'))
+        .catch(err => console.error('Could not sync clipboard:', err));
+    });
   },
   beforeDestroy() {
     if (this.rfb) {
@@ -27,7 +35,8 @@ export default {
       const options = {
         credentials: {
           password: "password"
-        }
+        },
+        resizeSession: true
       };
 
       this.rfb = new RFB(this.$refs.vncContainer, url, options);
@@ -40,6 +49,11 @@ export default {
         console.log('Disconnected from the NoVNC server');
       });
 
+    },
+    onVNCCopy() {
+      navigator.clipboard.readText().then(text => {
+        this.rfb.clipboardPasteFrom(text);
+      });
     }
   }
 };

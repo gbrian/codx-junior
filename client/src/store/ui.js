@@ -3,12 +3,13 @@ import { $storex } from '.'
 export const namespaced = true
 
 export const state = () => ({
+  showCoder: false,
+  showPreview: false,
 })
 
 export const getters = getterTree(state, {
   $$storex: () => ($storex.$parent || $storex),
-  showCoder: () => ($storex.$parent || $storex).app.$route.path === '/split/coder',
-  showPreview: () => ($storex.$parent || $storex).app.$route.path === '/split/preview'
+  isSplitView: () => ($storex.$parent || $storex).app.$route.path.startsWith('/split'),
 })
 
 export const mutations = mutationTree(state, {
@@ -19,6 +20,12 @@ export const mutations = mutationTree(state, {
       state.showCoder = parsedState.showCoder
       state.showPreview = parsedState.showPreview
     }
+  },
+  setShowCoder(state, show) {
+    state.showCoder = show
+  },
+  setShowPreview(state, show) {
+    state.showPreview = show
   }
 })
 
@@ -36,17 +43,23 @@ export const actions = actionTree(
       localStorage.setItem('uiState', JSON.stringify(state))
     },
     toggleCoder() {
-      if ($storex.ui.showCoder) {
-        setPath("/")
-      } else {
-        setPath("/split/coder")
+      const { ui } = $storex.ui.$$storex
+      ui.setShowCoder(!ui.showCoder)
+      if (ui.showCoder) {
+        ui.setShowPreview(false)
+        if (!$storex.ui.isSplitView) {
+          setPath("/split/coder")
+        }
       }
     },
     togglePreview() {
-      if ($storex.ui.showPreview) {
-        setPath("/")
-      } else {
-        setPath("/split/preview")
+      const { ui } = $storex.ui.$$storex
+      ui.setShowPreview(!ui.showPreview)
+      if (ui.showPreview) {
+        ui.setShowCoder(false)
+        if (!$storex.ui.isSplitView) {
+          setPath("/split/preview")
+        }
       }
     },
     navigate(_, path) {
