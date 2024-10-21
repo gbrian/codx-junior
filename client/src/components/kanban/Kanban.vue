@@ -6,7 +6,7 @@ import ChatViewVue from '../../views/ChatView.vue'
 </script>
 <template>
   <div class="flex flex-col gap-2 h-full">
-    <ChatViewVue :openChat="chat" v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
+    <ChatViewVue v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
     <div class="flex flex-col gap-2 grow overflow-auto pb-2" v-else>
       <div class="md:text-2xl flex gap-4 items-center justify-between">
         <div class="flex gap-1">
@@ -47,7 +47,7 @@ import ChatViewVue from '../../views/ChatView.vue'
               class="flex overflow-auto"
             >
             <template #item="{element}">
-              <div class="bg-neutral rounded-lg px-3 py-3 column-width rounded mr-4 overflow-auto">
+              <div class="bg-neutral rounded-lg px-3 py-3 column-width rounded mr-8 overflow-auto">
                 <p class="text-neutral-content font-semibold font-sans tracking-wide text-sm flex justify-between items-center">
                   <div class="flex input input-bordered input-sm" v-if="element.editTitle">
                     <input type="text" v-model="element.newTitle"
@@ -85,7 +85,6 @@ const unassigned = "<none>"
 export default {
   data() {
     return {
-      chat: null,
       board: unassigned,
       filter: null,
       columns: []
@@ -95,6 +94,9 @@ export default {
     this.buildKanba()
   },
   computed: {
+    chat () {
+      return this.$project.activeChat
+    },
     project () {
       return this.$project.activeProject
     },
@@ -132,10 +134,7 @@ export default {
       }
     },
     newChat (column) {
-      this.chat = {
-        ...this.createNewChat(),
-        column
-      }
+      this.$project.newChat(column)
     },
     async buildKanba () {
       await this.$project.loadChats()
@@ -185,11 +184,11 @@ export default {
       if (element.id === -1) {
         this.newChat()
       } else {
-        this.chat = await API.chats.loadChat(element.name)
+        await this.$project.setActiveChat(element.name)
       }
     },
     onChatEditDone () {
-      this.chat = null
+      this.$project.setActiveChat()
       this.buildKanba()
     },
     addColumn () {

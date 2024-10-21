@@ -54,16 +54,23 @@ import TabNavigationVue from '../components/TabNavigation.vue'
       </div>
       <TabNavigationVue :tabIx="tabIx" @tab="setActiveTab" />
       <div class="grow relative w-full">
-        <KanbanVue class="overflow-auto" v-if="tabIx === 'tasks'" />
-        <KnowledgeViewVue class="" v-if="tabIx === 'knowledge'" />
-        <WikiViewVue class="" v-if="tabIx == 'wiki'"></WikiViewVue>
-        <ProjectSettingsVue class="absolute top-0 left-0 w-full" 
-          @delete="deleteProject"
-          v-if="tabIx === 'settings'" />
-        <GlobalSettingsVue class="absolute top-0 left-0 w-full " v-if="tabIx === 'global-settings'" />
-        <ProfileViewVue class="absolute top-0 left-0 w-full" v-if="tabIx === 'profiles'" />
-        <iframe v-if="tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
-        <ProjectProfileVue class=" absolute top-0 left-0 w-full" v-if="tabIx == 'home'" @settings="setActiveTab('settings')"></ProjectProfileVue>
+        <div class="absolute top-0 left-0 right-0 bottom-0 overflow-auto">
+          <!-- Existing components -->
+          <EditorViewVue v-if="tabIx === 'editor'" />
+          <KanbanVue class="overflow-auto" v-if="tabIx === 'tasks'" />
+          <KnowledgeViewVue class="" v-if="tabIx === 'knowledge'" />
+          <WikiViewVue class="" v-if="tabIx == 'wiki'"></WikiViewVue>
+          <ProjectSettingsVue class="absolute top-0 left-0 w-full" 
+            @delete="deleteProject"
+            v-if="tabIx === 'settings'" />
+          <GlobalSettingsVue class="absolute top-0 left-0 w-full " v-if="tabIx === 'global-settings'" />
+          <ProfileViewVue class="absolute top-0 left-0 w-full" 
+            v-if="tabIx === 'profiles'" />
+          <iframe v-if="tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
+          <ProjectProfileVue class="absolute top-0 left-0 w-full"
+            @open-task="openTask"
+            v-if="tabIx == 'home'" @settings="setActiveTab('settings')"></ProjectProfileVue>
+        </div>
       </div>
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
@@ -165,6 +172,10 @@ export default {
       console.log("Set active", tabIx)
       this.tabIx = tabIx
       this.showBar = false
+    },
+    openTask(task) {
+      this.setActiveTab('tasks')
+      this.$project.setActiveChat(task.name)
     }
   }
 }

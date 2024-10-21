@@ -45,7 +45,7 @@ import PRView from '../views/PRView.vue'
       </div>
       <div class="grow flex flex-col gap-2 w-full">
         <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
-          <div class="flex flex-col sm:flex-row gap-2 w-full">
+          <div class="flex items-start lg:items-end gap-2 w-full">
             <div class="flex gap-2 items-start">
               <button :class="['btn btn-xs btn-circle mt-1', showChatsTree && 'btn-info text-white']"
                 @click="onShowChats">
@@ -93,53 +93,58 @@ import PRView from '../views/PRView.vue'
               </div>
             </div>
             <div class="grow"></div>
-            <div class="flex gap-2 items-end">
-              <div class="dropdown -mt-1">
-                <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chat.mode }}</div>
-                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                  <li @click="chat.mode = 'chat'">
-                    <a class="flex items-center">
-                      <i class="fa-regular fa-comments"></i>
-                      Chat
-                    </a>
-                  </li>
-                  <li @click="chat.mode = 'task'">
-                    <a class="flex items-center">
-                      <i class="fa-regular fa-file-code"></i>
-                      Task definition
-                    </a>
-                  </li>
-                </ul>
-              </div>
-              <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
-                <i class="fa-solid fa-floppy-disk"></i>
-              </button>
-              <button class="btn btn-xs btn-error hover:text-white" @click="deleteChat" v-if="confirmDelete">
-                Comfirm? <span class="hover:underline">YES</span> / <span class="hover:underline" @click.stop="confirmDelete = false">NO</span>
-                <i class="fa-solid fa-trash"></i>
-              </button>
-              <button class="btn btn-xs hover:btn-error hover:text-white" @click="deleteChat" v-else>
-                <i class="fa-solid fa-trash"></i>
-              </button>
-              
-              <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
-                <div class="flex items-center gap-2" v-if="!showHidden">
-                  ({{ hiddenCount }})
-                  <i class="fa-solid fa-eye-slash"></i>
+            <div class="group reltive flex">
+              <div class="hidden sm:flex group-hover:flex gap-2 bg-base-300 p-1 sm:bg-transparent sm:p-0 items-end absolute right-10 lg:block">
+                <div class="dropdown -mt-1">
+                  <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chat.mode }}</div>
+                  <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                    <li @click="chat.mode = 'chat'">
+                      <a class="flex items-center">
+                        <i class="fa-regular fa-comments"></i>
+                        Chat
+                      </a>
+                    </li>
+                    <li @click="chat.mode = 'task'">
+                      <a class="flex items-center">
+                        <i class="fa-regular fa-file-code"></i>
+                        Task definition
+                      </a>
+                    </li>
+                  </ul>
                 </div>
-                <span class="text-warning" v-else>
-                  <i class="fa-solid fa-eye"></i>
-                </span>
-              </button>
-              <div class="dropdown dropdown-end dropdown-bottom -mt-1">
-                <button tabindex="0" class="btn btn-xs">
-                  <i class="fa-solid fa-plus"></i>
+                <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
+                  <i class="fa-solid fa-floppy-disk"></i>
                 </button>
-                <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
-                  <li @click="newSubChat()">
-                    <a>New sub task</a>
-                  </li>
-                </ul>
+                <button class="btn btn-xs btn-error hover:text-white" @click="deleteChat" v-if="confirmDelete">
+                  Comfirm? <span class="hover:underline">YES</span> / <span class="hover:underline" @click.stop="confirmDelete = false">NO</span>
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+                <button class="btn btn-xs hover:btn-error hover:text-white" @click="deleteChat" v-else>
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+                
+                <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
+                  <div class="flex items-center gap-2" v-if="!showHidden">
+                    ({{ hiddenCount }})
+                    <i class="fa-solid fa-eye-slash"></i>
+                  </div>
+                  <span class="text-warning" v-else>
+                    <i class="fa-solid fa-eye"></i>
+                  </span>
+                </button>
+                <div class="dropdown dropdown-end dropdown-bottom -mt-1">
+                  <button tabindex="0" class="btn btn-xs">
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                  <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
+                    <li @click="newSubChat()">
+                      <a>New sub task</a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <div class="lg:hidden btn btn-sm btn-ghost ml-6" @click.stop="">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
               </div>
             </div>
           </div>
@@ -203,7 +208,6 @@ export default {
   props: ['chatMode', 'openChat'],
   data() {
     return {
-      chat: null,
       profiles: null,
       showFile: null,
       addFile: null,
@@ -218,19 +222,6 @@ export default {
     }
   },
   async created () {
-    if (this.openChat) {
-      if (this.openChat.id) {
-        this.chat = await this.$project.loadChat(this.openChat.name)
-      } else {
-        this.chat = this.openChat
-      }
-    } else {
-      if (this.chats.length) {
-        this.chat = await this.$project.loadChat(this.chats[0].name)
-      } else {
-        this.chat = await this.$project.newChat()
-      }
-    }
     this.loadProfiles()
   },
   computed: {
@@ -251,6 +242,9 @@ export default {
     },
     chats () {
       return this.$project.chats
+    },
+    chat () {
+      return this.$project.activeChat
     }
   },
   watch: {
@@ -261,10 +255,6 @@ export default {
         const { data } = await API.profiles.list()
         this.profiles = data
       } catch {}
-    },
-    async newChat () {
-      this.chat = await API.chatManager.newChat()
-      this.chat.mode = this.chat.mode || 'task'
     },
     async saveChat () {
       this.editName = false
@@ -278,8 +268,8 @@ export default {
         this.confirmDelete = true
       }
     },
-    async loadChat (newChat) {
-      this.chat = await API.chats.loadChat(newChat)
+    async loadChat (chatName) {
+      await this.project.setActiveChat(chatName)
       this.showChatsTree = false
     },
     async removeFileFromContext () {

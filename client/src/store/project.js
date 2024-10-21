@@ -7,12 +7,14 @@ export const namespaced = true
 export const state = () => ({
   activeProject: null,
   allProjects: [],
-  chats: null
+  chats: null,
+  activeChat: null
 })
 
 export const mutations = mutationTree(state, {
   setAllProjects(state, allProjects) {
     state.allProjects = allProjects
+    state.activeChat = null
   }
 })
 
@@ -32,6 +34,7 @@ export const actions = actionTree(
       await API.init(project?.codx_path)
       state.activeProject = API.lastSettings
       await $storex.project.loadChats()
+      state.activeChat = null
     },
     async loadChats({ state }) {
       state.chats = await API.chats.list()
@@ -49,12 +52,28 @@ export const actions = actionTree(
       state.chats = [...state.chats.filter(c => c.name !== name), chat]
       return chat 
     },
-    async newChat() {
-      return await API.chats.newChat()
+    async newChat({ state }, column) {
+      const chat = {
+        column,
+        name: "New chat " + (state.chats.length + 1) 
+      }
+      state.activeChat = chat
     },
     async deleteChat(_, name) {
       await API.chats.delete(name)
       await $storex.project.loadChats()
+    },
+    async setActiveChat({ state }, chatName) {
+      if (chatName) {
+        const chat = await API.chats.loadChat(chatName)
+        const existingChat = state.chats.find(c => c.name === chatName)
+        if (existingChat) {
+          existingChat.messages = chat.messages
+        } else {
+          state.chats = [...state.chats, chat]
+        }
+      }
+      state.activeChat = state.chats.find(c => c.name === chatName)
     }
   }
 )

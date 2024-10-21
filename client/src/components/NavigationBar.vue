@@ -6,7 +6,6 @@ import ProjectIconVue from './ProjectIcon.vue'
 		class="flex flex-col items-center shadow h-full">
 		<ProjectIconVue 
       :class="tabIx == 'home' && 'bg-base-100'"
-      :project="$project.activeProject"
       :right="right"
       @click="setActiveTab('home')"
     />

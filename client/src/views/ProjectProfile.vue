@@ -14,8 +14,28 @@ import moment from 'moment';
 
     <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4">
       <h2 class="text-xl font-bold mb-4">Recent activity</h2>
-      <div class="grid grid-cols-2 gap-3">
-        
+      <div class="">
+        <div class="flex flex-col gap-1 text-xs">
+          <div class="">
+            <table class="table">
+              <thead>
+                <th>Project</th>
+                <th>Task</th>
+                <th>Type</th>
+                <th>Last update</th>
+              </thead>
+              <tbody class="">
+                <tr class="click" @click="loadTask(task)" 
+                  v-for="task in lastModifiedProjects" :key="task.name + task.project.project_name">
+                  <td><div class="font-bold">{{ task.project.project_name }}</div></td>
+                  <td>{{  task.name  }}</td>
+                  <td>{{ task.mode }}</td>
+                  <td>{{ task.fromNow }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -107,6 +127,12 @@ export default {
     },
     projectDescription() {
       return this.$project.project_description;
+    },
+    lastModifiedProjects () {
+      const lastProjects = this.$project.allProjects.filter(p => p.metrics.chats_changed_last_24h.length)
+      return lastProjects.reduce((acc, project) =>
+          acc.concat(...project.metrics.chats_changed_last_24h.map(c => ({ ...c, project, fromNow: moment(c.updated_at).fromNow() }))), [])
+        .sort((a, b) => a.updated_at > b.updated_at ? -1 : 1) 
     }
   },
   methods: {
@@ -126,6 +152,14 @@ export default {
         return moment(new Date(ts)).fromNow()
       }
       return null
+    },
+    async loadTask(task) {
+      if (this.$project.activeProject?.codx_path !=
+        task.project.codx_path
+      ) {
+        await this.$project.setActiveProject(task.project)
+      }
+      this.$emit('open-task', task)
     }
   }
 }

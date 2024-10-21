@@ -1,6 +1,7 @@
 <script setup>
 import VueSplitter from '@rmp135/vue-splitter'
 import NoVNCVue from '../components/NoVNC.vue'
+import CoderVue from '../components/apps/Coder.vue'
 </script>
 
 <template>
@@ -14,17 +15,7 @@ import NoVNCVue from '../components/NoVNC.vue'
         <div :class="['h-full relative grow']">
             <div class="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
             </div>
-
-            <iframe ref="iframe" :src="coderUrl" :class="[
-                'h-full w-full border-0 bg-base-300'
-            ]"
-            @load="onCoderLoaded"
-            title="coder"
-            allow="camera *;microphone *;clipboard-read; clipboard-write;"
-            :key="iframeKey"
-            v-if="$storex.ui.showCoder"
-            >
-            </iframe>
+            <CoderVue />
             <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300 flex flex-col items-center justify-center z-50" v-if="$storex.ui.showCoder && !iframeLoaded">
             <div class="flex items-end gap-2">
                 LOADING CODER <span class="loading loading-dots loading-sm"></span>

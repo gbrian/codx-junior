@@ -248,6 +248,14 @@ export const API = {
     }
     API.liveRequests--
     console.log("API init", codx_path, API.lastSettings)
+  },
+  logs: {
+    async read(logName) {
+      return API.get(`/api/logs/${logName}`);
+    },
+    async getLogNames() {
+      return API.get('/api/logs');  // Endpoint to fetch log names
+    }
   }
 }
 const codx_path = decodeURIComponent(codx_key ? codx_key[1] : "")
