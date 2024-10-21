@@ -9,32 +9,27 @@ import router from './router'
 
 const globalMixin = {
   computed: {
-    $global () {
-      return this.$storex.$parent || this.$storex
-    },
     $storex () {
       return $storex
+    },
+    $ui () {
+      return $storex.ui
     },
     $project () {
       return $storex.project
     },
     $session () {
       return $storex.session
-    },
-    lastSettings () {
-      return $storex.project.lastSettings
     }
   }
 }
 
 const app = createApp(App)
               .mixin(globalMixin)
-              .provide('$storex', $storex)
+              .use(store)
               .use(router)
               .component('modal', Modal)
               .mount('#app')
 
-
-store.app = app
 $storex.app = app
 $storex.$router = router

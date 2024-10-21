@@ -8,9 +8,8 @@ import WikiViewVue from './WikiView.vue';
 import GlobalSettingsVue from './GlobalSettings.vue';
 import ProjectProfileVue from './ProjectProfile.vue';
 import NavigationBar from '../components/NavigationBar.vue'
-import ProjectIconVue from '../components/ProjectIcon.vue'
 import TabNavigationVue from '../components/TabNavigation.vue'
-
+import CodeEditorVue from '@/components/CodeEditor.vue';
 </script>
 
 <template>
@@ -56,7 +55,7 @@ import TabNavigationVue from '../components/TabNavigation.vue'
       <div class="grow relative w-full">
         <div class="absolute top-0 left-0 right-0 bottom-0 overflow-auto">
           <!-- Existing components -->
-          <EditorViewVue v-if="tabIx === 'editor'" />
+          <CodeEditorVue v-if="tabIx === 'editor'" />
           <KanbanVue class="overflow-auto" v-if="tabIx === 'tasks'" />
           <KnowledgeViewVue class="" v-if="tabIx === 'knowledge'" />
           <WikiViewVue class="" v-if="tabIx == 'wiki'"></WikiViewVue>

@@ -12,28 +12,25 @@ const modules = { session, project, ui }
 const storePattern = {
   state () {
     return {
-      $parent: null
-    }
-  },
-  mutations: {
-    setParent (state, parent) {
-      state.$parent = parent
     }
   },
   modules,
 }
 
-const store = createStore(storePattern)
-
-export const $storex = useAccessor(store, storePattern)
-$storex.init = async () => {
+let store = null
+let storex = null
+store = createStore(storePattern)
+storex = useAccessor(store, storePattern)
+storex.init = async () => {
   Object.keys(modules).forEach(async m => {
-    await $storex[m].init()
+    await storex[m].init(storex)
   })
 }
+storex.store = store
+storex.api = API
+storex.init(storex)
 
-$storex.$id = new Date().getTime()
-$storex.store = store
-window.$storex = $storex
-$storex.api = API
+window.$storex = storex
+
 export default store
+export const $storex = storex

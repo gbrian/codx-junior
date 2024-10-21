@@ -60,4 +60,13 @@ RUN echo "DISPLAY=:1 xhost local: " >> /usr/bin/start-firefox
 RUN echo "DISPLAY=:1 su firefox /usr/bin/firefox" >> /usr/bin/start-firefox
 RUN chmod +x /usr/bin/start-firefox
 
+# codx-junior API port
+ENV API_PORT=9984
+# codx-junior WEB port
+ENV WEB_PORT=9983
+# codx-junior code-server port
+ENV CODER_PORT=9909
+# codx-junior NOVNC port
+ENV NOVNC_PORT=9986
+
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord/supervisor.conf"]

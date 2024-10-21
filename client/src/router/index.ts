@@ -7,18 +7,13 @@ const router = createRouter({
   routes: [
     {
       path: '/',
+      name: 'codx-junior-split',
+      component: SplitView
+    },
+    {
+      path: '/codx-junior',
       name: 'codx-junior',
       component: CodxJuniorVue
-    },
-    {
-      path: '/split/coder',
-      name: 'codx-junior-coder',
-      component: SplitView
-    },
-    {
-      path: '/split/preview',
-      name: 'codx-junior-preview',
-      component: SplitView
     },    
   ]
 })

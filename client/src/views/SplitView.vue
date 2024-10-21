@@ -2,6 +2,7 @@
 import VueSplitter from '@rmp135/vue-splitter'
 import NoVNCVue from '../components/NoVNC.vue'
 import CoderVue from '../components/apps/Coder.vue'
+import EmbeddedCodxJuniorVue from '@/components/EmbeddedCodxJunior.vue'
 </script>
 
 <template>
@@ -12,44 +13,19 @@ import CoderVue from '../components/apps/Coder.vue'
         v-model:percent="splitterPercent"
     >
         <template #left-pane>
-        <div :class="['h-full relative grow']">
+          <div :class="['h-full relative grow']" v-if="leftPanel">
             <div class="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
             </div>
-            <CoderVue />
-            <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300 flex flex-col items-center justify-center z-50" v-if="$storex.ui.showCoder && !iframeLoaded">
-            <div class="flex items-end gap-2">
-                LOADING CODER <span class="loading loading-dots loading-sm"></span>
-            </div>
-            </div>
-            <div class="h-full relative grow flex flex-col p-1" v-if="$storex.ui.isShowPreview">
-              <NoVNCVue />
-              <!--              <label class="grow input input-sm input-bordered flex items-center gap-2">
-                  <input type="text" class="grow" :value="preViewUrl" placeholder="Enter url..." @keydown.enter="preViewUrl = $event.target.value" />
-                  <i class="fa-solid fa-magnifier"></i>
-              </label>  
-              <iframe ref="iframe" :src="preViewUrl" class="h-full w-full border-0 bg-base-300"
-                  title="preview"
-                  allow="camera *;microphone *;clipboard-read; clipboard-write;"
-                  :key="iframeKey"
-                  >
-              </iframe>
-              </div>
-              -->
-            </div>
-        </div>
+            <CoderVue class="h-full grow" v-if="$storex.ui.showCoder" />
+            <NoVNCVue class="h-full grow" v-if="$ui.showPreview" />
+          </div>
         </template>
         <template #right-pane>
-        <div class="w-full h-full relative">
-          <iframe :src="codxJuniorUrl" class="h-full w-full border-0 bg-base-300"
-                title="codx-junior"
-                allow="camera *;microphone *;clipboard-read; clipboard-write;"
-                key="codx-junior"
-                @load="onCodxJuniorLoad"
-                >
-            </iframe>
+          <div class="w-full h-full relative">
+            <EmbeddedCodxJuniorVue />
             <div class="absolute top-0 left-0 right-0 bottom-0 flex flex-col items-center justify-center z-50" v-if="splitterDragging">
             </div>
-        </div>
+          </div>
         </template>
     </vue-splitter>
 </template>
@@ -66,15 +42,19 @@ export default {
       maxcodxJuniorPanelWidth: 6,
       iframeKey: 0,
       splitterDragging: false,
-      splitterPercent: 75,
-      e$storex: null
+      splitterPercent: 0,
+      e$storex: null,
     }
   },
   created () {
-    this.splitterPercent =
-      parseFloat(localStorage.getItem("SPLITTER_PERCENT") || this.splitterPercent)
+    if (this.leftPanel) {
+      this.readSplitPercent()
+    }
   },
   computed: {
+    leftPanel () {
+      return this.$ui.showApp
+    },
     splitView () {
       return this.$storex.ui.splitView
     },
@@ -86,17 +66,26 @@ export default {
     }
   },
   watch: {
+    leftPanel (newVal) {
+      if (newVal) {
+        this.readSplitPercent ()
+      } else {
+        this.splitterPercent = 0
+      }
+    },
     splitView (newVal) {
       if (newVal) {
         this.iframeLoaded = false
       }
     },
     splitterPercent () {
-      if (this.splitterPercent > MAX_CODER_PANEL_SIZE) {
-        this.splitterPercent = MAX_CODER_PANEL_SIZE
-      }
-      if (this.splitterPercent < MIN_CODER_PANEL_SIZE) {
-        this.splitterPercent = MIN_CODER_PANEL_SIZE
+      if (this.leftPanel) {
+        if (this.splitterPercent > MAX_CODER_PANEL_SIZE) {
+          this.splitterPercent = MAX_CODER_PANEL_SIZE
+        }
+        if (this.splitterPercent < MIN_CODER_PANEL_SIZE) {
+          this.splitterPercent = MIN_CODER_PANEL_SIZE
+        }
       }
     }
   },
@@ -141,6 +130,10 @@ export default {
       }
       this.e$storex = target.contentWindow.$storex
       this.e$storex.setParent(this.$storex)
+    },
+    readSplitPercent () {
+      this.splitterPercent =
+        parseFloat(localStorage.getItem("SPLITTER_PERCENT") || MAX_CODER_PANEL_SIZE)
     }
   }
 }

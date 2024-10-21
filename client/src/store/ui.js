@@ -1,16 +1,17 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
+
 export const namespaced = true
 
+const getParentStorex = () => window.$parentStorex
+
 export const state = () => ({
-  showCoder: false,
-  showPreview: false,
+  showApp: null,
 })
 
 export const getters = getterTree(state, {
-  $$storex: () => ($storex.$parent || $storex),
-  isSplitView: () => ($storex.$parent || $storex).app.$route.path.startsWith('/split'),
-  isShowPreview: () => ($storex.$parent || $storex).app.$route.path.startsWith('/split/preview'),
+  showCoder: state => state.showApp === 'coder',
+  showPreview: state => state.showApp === 'preview'
 })
 
 export const mutations = mutationTree(state, {
@@ -18,53 +19,44 @@ export const mutations = mutationTree(state, {
     const savedState = localStorage.getItem('uiState')
     if (savedState) {
       const parsedState = JSON.parse(savedState)
-      state.showCoder = parsedState.showCoder
-      state.showPreview = parsedState.showPreview
+      Object.keys(parsedState).forEach(k => state[k] = parsedState[k])
     }
   },
-  setShowCoder(state, show) {
-    state.showCoder = show
+  toggleCoder(state) {
+    if (getParentStorex()) {
+      getParentStorex().ui.toggleApp('coder')
+      state.showApp = getParentStorex().ui.showApp
+    } else {
+      $storex.toggleApp('coder')
+    }
   },
-  setShowPreview(state, show) {
-    state.showPreview = show
-  }
+  togglePreview(state) {
+    if (getParentStorex()) {
+      getParentStorex().ui.toggleApp('preview')
+      state.showApp = getParentStorex().ui.showApp
+    } else {
+      $storex.toggleApp('preview')
+    }
+  },
+  toggleApp(state, app) {
+    if (getParentStorex()) {
+      getParentStorex().ui.toggleCoder()
+      state.showApp = getParentStorex().ui.showApp
+    } else {
+      state.showApp = state.showApp === app ? null: app
+      $storex.ui.saveState()
+    }
+  },
 })
-
-function setPath(path) {
-  ($storex.$parent || $storex).ui.navigate(path)
-}
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init ({ state }) {
+    async init ({ state }, $storex) {
       $storex.ui.loadState()
     },
     saveState({ state }) {
       localStorage.setItem('uiState', JSON.stringify(state))
-    },
-    toggleCoder() {
-      const { ui } = $storex.ui.$$storex
-      ui.setShowCoder(!ui.showCoder)
-      if (ui.showCoder) {
-        ui.setShowPreview(false)
-        if (!$storex.ui.isSplitView) {
-          setPath("/split/coder")
-        }
-      }
-    },
-    togglePreview() {
-      const { ui } = $storex.ui.$$storex
-      ui.setShowPreview(!ui.showPreview)
-      if (ui.showPreview) {
-        ui.setShowCoder(false)
-        if (!$storex.ui.isSplitView) {
-          setPath("/split/preview")
-        }
-      }
-    },
-    navigate(_, path) {
-      window.location = path
     }
   },
 )

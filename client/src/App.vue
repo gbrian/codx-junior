@@ -13,7 +13,6 @@ export default {
     }
   },
   created () {
-    this.$storex.init()
   },
   computed: {
   },

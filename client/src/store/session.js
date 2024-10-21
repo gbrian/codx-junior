@@ -31,13 +31,11 @@ API.axiosRequest.interceptors.response.use(
 export const state = () => ({
   socket: null,
   apiCalls: 0,
-  lastError: null
-})
-
-const session = {
+  lastError: null,
   id: uuidv4(),
-  ts: new Date().getTime()
-}
+  ts: new Date().getTime(),
+  $childCodxJuior: null
+})
 
 export const getters = getterTree(state, {
 })
@@ -54,6 +52,9 @@ export const mutations = mutationTree(state, {
   },
   setLastError(state, error) {
     state.setLastError = error
+  },
+  set$childCodxJuior(state, $childCodxJuior) {
+    state.$childCodxJuior = $childCodxJuior
   }
 })
 

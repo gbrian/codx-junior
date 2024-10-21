@@ -25,13 +25,13 @@ import ProjectIconVue from './ProjectIcon.vue'
       </div>
 
     <div class="flex flex-col mt-4">
-      <div :class="['hover:bg-base-100 click', showCoder ? 'bg-base-100': '']">
+      <div :class="['hover:bg-base-100 click', $ui.showCoder ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
 					 @click="$storex.ui.toggleCoder()">
            <i class="fa-solid fa-code"></i>
 				</a>
 			</div>
-      <div :class="['hover:bg-base-100 click', $global.ui.showPreview ? 'bg-base-100': '']">
+      <div :class="['hover:bg-base-100 click', $ui.showPreview ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show preview"
 					 @click="$storex.ui.togglePreview()">
            <i class="fa-solid fa-display"></i>
@@ -70,11 +70,6 @@ export default {
   computed: {
     isSettings () {
       return ['settings', 'profiles', 'global-settings'].includes(this.tabIx)
-    },
-    showCoder () {
-      const $storex = this.$storex.$parent || this.$storex
-      return $storex.ui.showCoder
-
     }
   },
   methods: {

@@ -47,23 +47,23 @@ import moment from 'moment';
             <tr class="">
               <th class="px-4 py-2">Name</th>
               <th class="px-4 py-2">Path</th>
-              <th class="px-4 py-2">
+              <th class="px-4 py-2 text-center">
                 <div class="tooltip" data-tip="Tasks">
                   <i class="fa-solid fa-list-check"></i>
                 </div>
               </th>
-              <th>
-                <div class="px-4 py-2 tooltip" data-tip="Docs indexed">
+              <th class="px-4 py-2 text-center">
+                <div class="tooltip" data-tip="Docs indexed">
                   <i class="fa-solid fa-puzzle-piece"></i>
                 </div>
               </th>
-              <th> 
-                <div class="px-4 py-2 tooltip" data-tip="Last Update">
+              <th class="px-4 py-2 text-center">
+                <div class="tooltip" data-tip="Last Update">
                   <i class="fa-regular fa-clock"></i>
                 </div>
               </th>
-              <th>
-                  <div class="px-4 py-2 tooltip" data-tip="Checking for mentions">
+              <th class="px-4 py-2 text-center">
+                <div class="tooltip" data-tip="Checking for mentions">
                     <i class="fa-solid fa-at"></i>
                   </div>
               </th>
