@@ -6,7 +6,7 @@ RUN apt-get update && \
     apt-get install -y curl wget novnc websockify supervisor nodejs npm \
         tigervnc-standalone-server locales python3 python3-venv \
         procps git sudo tesseract-ocr \
-        kde-plasma-desktop dbus-x11 x11-xserver-utils && \
+        firefox-esr && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -48,7 +48,16 @@ ENV PYTHONPATH=/projects/codx-junior/api
 
 RUN git config --global --add safe.directory '*'
 
-COPY kde/pam.d.kde /etc/pam.d/kde
-COPY kde/pam.d.sddm /etc/pam.d/sddm
+ARG UID=1000
+ARG GID=1000
+
+RUN groupadd -g ${GID} firefox && \
+       useradd --create-home --uid ${UID} --gid ${GID} --comment="Firefox User" firefox && \
+       mkdir -p /home/firefox && chown firefox:firefox /home/firefox && ln -s /root/.Xauthority /home/firefox/.Xauthority
+
+RUN echo "#!/bin/bash" > /usr/bin/start-firefox
+RUN echo "DISPLAY=:1 xhost local: " >> /usr/bin/start-firefox
+RUN echo "DISPLAY=:1 su firefox /usr/bin/firefox" >> /usr/bin/start-firefox
+RUN chmod +x /usr/bin/start-firefox
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord/supervisor.conf"]

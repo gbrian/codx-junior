@@ -36,7 +36,7 @@ export default {
         credentials: {
           password: "password"
         },
-        resizeSession: true
+        scaleViewport: true
       };
 
       this.rfb = new RFB(this.$refs.vncContainer, url, options);

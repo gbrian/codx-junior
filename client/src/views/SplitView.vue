@@ -21,7 +21,7 @@ import CoderVue from '../components/apps/Coder.vue'
                 LOADING CODER <span class="loading loading-dots loading-sm"></span>
             </div>
             </div>
-            <div class="h-full relative grow flex flex-col p-1" v-if="$storex.ui.showPreview">
+            <div class="h-full relative grow flex flex-col p-1" v-if="$storex.ui.isShowPreview">
               <NoVNCVue />
               <!--              <label class="grow input input-sm input-bordered flex items-center gap-2">
                   <input type="text" class="grow" :value="preViewUrl" placeholder="Enter url..." @keydown.enter="preViewUrl = $event.target.value" />

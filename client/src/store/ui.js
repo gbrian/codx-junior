@@ -10,6 +10,7 @@ export const state = () => ({
 export const getters = getterTree(state, {
   $$storex: () => ($storex.$parent || $storex),
   isSplitView: () => ($storex.$parent || $storex).app.$route.path.startsWith('/split'),
+  isShowPreview: () => ($storex.$parent || $storex).app.$route.path.startsWith('/split/preview'),
 })
 
 export const mutations = mutationTree(state, {
