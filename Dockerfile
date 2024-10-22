@@ -63,6 +63,10 @@ RUN chmod +x /usr/bin/start-firefox
 RUN mkdir -p /home/codx-junior/.mozilla/firefox/profile.default/extensions
 RUN chown -R codx-junior:codx-junior /home/codx-junior/.mozilla/firefox/profile.default
     
+COPY preferences.js /usr/lib/firefox/mozilla.cfg
+COPY autoconfig.js /usr/lib/firefox/defaults/pref/autoconfig.js
+COPY policies.json /usr/lib/firefox/distribution/policies.json
+COPY --chown=codx-junior profiles.ini /home/codx-junior/.mozilla/firefox/profiles.ini
 
 # codx-junior API port
 ENV API_PORT=9984
