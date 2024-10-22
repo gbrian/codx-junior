@@ -1,4 +1,4 @@
-// firefox config for neko
+// firefox config for codx-junior
 lockPref("browser.tabs.closeWindowWithLastTab", false);
 lockPref("app.update.auto", false);
 lockPref("app.update.enabled", false);

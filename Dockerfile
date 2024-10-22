@@ -55,18 +55,16 @@ RUN groupadd -g ${GID} codx-junior && \
        useradd --create-home --uid ${UID} --gid ${GID} --comment="codx-junior User" codx-junior && \
        mkdir -p /home/codx-junior && chown codx-junior:codx-junior /home/codx-junior && ln -s /root/.Xauthority /home/codx-junior/.Xauthority
 
-RUN echo "#!/bin/bash" > /usr/bin/start-firefox
-RUN echo "DISPLAY=:1 xhost local: " >> /usr/bin/start-firefox
-RUN echo "DISPLAY=:1 su firefox /usr/bin/firefox" >> /usr/bin/start-firefox
-RUN chmod +x /usr/bin/start-firefox
-
 RUN mkdir -p /home/codx-junior/.mozilla/firefox/profile.default/extensions
 RUN chown -R codx-junior:codx-junior /home/codx-junior/.mozilla/firefox/profile.default
     
-COPY preferences.js /usr/lib/firefox/mozilla.cfg
-COPY autoconfig.js /usr/lib/firefox/defaults/pref/autoconfig.js
-COPY policies.json /usr/lib/firefox/distribution/policies.json
-COPY --chown=codx-junior profiles.ini /home/codx-junior/.mozilla/firefox/profiles.ini
+COPY firefox/preferences.js /usr/lib/firefox/mozilla.cfg
+COPY firefox/autoconfig.js /usr/lib/firefox/defaults/pref/autoconfig.js
+COPY firefox/policies.json /usr/lib/firefox/distribution/policies.json
+COPY firefox/start-firefox.sh /start-firefox.sh
+COPY --chown=codx-junior firefox/profiles.ini /home/codx-junior/.mozilla/firefox/profiles.ini
+
+ENV DISPLAY=:1
 
 # codx-junior API port
 ENV API_PORT=9984
