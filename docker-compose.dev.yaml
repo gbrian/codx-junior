@@ -2,14 +2,16 @@ services:
   codx-junior:
     container_name: codx-junior
     image: codx-junior:latest
-    build: .
-    env_file:
-      - .env.dev
+    build:
+      context: .
     environment:
       - DEBUG=1
       # HOST_USER to fix permissions from files generated
-      - HOST_USER
+      - HOST_USER=${USER:-root}
+      - ANONYMIZED_TELEMETRY=False
     volumes:
-      - $PWD:/projects/codx-junior
-      - "${HOST_PROJECTS_ROOT_PATH}:${HOST_PROJECTS_ROOT_PATH}"
-    network_mode: host
+      - ${HOST_PROJECTS_ROOT_PATH}/code-server/extensions:/root/.local/share/code-server/extensions
+      - ${HOST_PROJECTS_ROOT_PATH}/code-server/User:/root/.local/share/code-server/User
+      - ${HOST_PROJECTS_ROOT_PATH}:${HOST_PROJECTS_ROOT_PATH}
+    ports:
+      - 9983:9983
