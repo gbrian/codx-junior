@@ -51,14 +51,18 @@ RUN git config --global --add safe.directory '*'
 ARG UID=1000
 ARG GID=1000
 
-RUN groupadd -g ${GID} firefox && \
-       useradd --create-home --uid ${UID} --gid ${GID} --comment="Firefox User" firefox && \
-       mkdir -p /home/firefox && chown firefox:firefox /home/firefox && ln -s /root/.Xauthority /home/firefox/.Xauthority
+RUN groupadd -g ${GID} codx-junior && \
+       useradd --create-home --uid ${UID} --gid ${GID} --comment="codx-junior User" codx-junior && \
+       mkdir -p /home/codx-junior && chown codx-junior:codx-junior /home/codx-junior && ln -s /root/.Xauthority /home/codx-junior/.Xauthority
 
 RUN echo "#!/bin/bash" > /usr/bin/start-firefox
 RUN echo "DISPLAY=:1 xhost local: " >> /usr/bin/start-firefox
 RUN echo "DISPLAY=:1 su firefox /usr/bin/firefox" >> /usr/bin/start-firefox
 RUN chmod +x /usr/bin/start-firefox
+
+RUN mkdir -p /home/codx-junior/.mozilla/firefox/profile.default/extensions
+RUN chown -R codx-junior:codx-junior /home/codx-junior/.mozilla/firefox/profile.default
+    
 
 # codx-junior API port
 ENV API_PORT=9984
