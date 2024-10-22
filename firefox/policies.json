@@ -1,0 +1,107 @@
+{
+  "policies": {
+    "BlockAboutAddons": false,
+    "BlockAboutConfig": false,
+    "BlockAboutProfiles": false,
+    "BlockAboutSupport": false,
+    "Bookmarks": [
+      {
+        "Title": "codx-junior",
+        "URL": "https://github.com/gbrian/codx-junior",
+        "Favicon": "https://avatars.githubusercontent.com/u/767180?s=48&v=4",
+        "Folder": "Pages",
+        "Placement": "toolbar"
+      }
+    ],
+    "CaptivePortal": false,
+    "DisableAppUpdate": true,
+    "DisableBuiltinPDFViewer": false,
+    "DisableDeveloperTools": false,
+    "DisableFeedbackCommands": true,
+    "DisableFirefoxAccounts": false,
+    "DisableFirefoxScreenshots": false,
+    "DisableFirefoxStudies": true,
+    "DisableForgetButton": true,
+    "DisableMasterPasswordCreation": true,
+    "DisablePocket": true,
+    "DisablePrivateBrowsing": false,
+    "DisableProfileImport": true,
+    "DisableProfileRefresh": true,
+    "DisableSafeMode": true,
+    "DisableSetDesktopBackground": true,
+    "DisableSystemAddonUpdate": true,
+    "DisableTelemetry": true,
+    "DisplayBookmarksToolbar": false,
+    "DontCheckDefaultBrowser": true,
+    "EnableTrackingProtection": {
+      "Cryptomining": true,
+      "Fingerprinting": true,
+      "Value": true
+    },
+    "ExtensionSettings": {
+      "*": {
+        "installation_mode": "allowed"
+      }
+    },
+    "ExtensionUpdate": false,
+    "FirefoxHome": {
+      "Highlights": false,
+      "Pocket": false,
+      "Search": true,
+      "Snippets": false,
+      "TopSites": true
+    },
+    "FlashPlugin": {},
+    "HardwareAcceleration": false,
+    "Homepage": {
+      "Additional": [],
+      "StartPage": "home"
+    },
+    "NewTabPage": true,
+    "NoDefaultBookmarks": true,
+    "OfferToSaveLogins": false,
+    "OfferToSaveLoginsDefault": false,
+    "OverrideFirstRunPage": "",
+    "OverridePostUpdatePage": "",
+    "PasswordManagerEnabled": false,
+    "Permissions": {
+      "Camera": {
+        "BlockNewRequests": true
+      },
+      "Location": {
+        "BlockNewRequests": true
+      },
+      "Microphone": {
+        "BlockNewRequests": true
+      },
+      "Notifications": {
+        "BlockNewRequests": true
+      }
+    },
+    "Preferences": {
+      "browser.tabs.warnOnClose": false,
+      "browser.urlbar.suggest.bookmark": false,
+      "browser.urlbar.suggest.history": false,
+      "browser.urlbar.suggest.openpage": false,
+      "datareporting.policy.dataSubmissionPolicyBypassNotification": true,
+      "dom.disable_window_flip": true,
+      "dom.disable_window_move_resize": true,
+      "dom.event.contextmenu.enabled": true,
+      "extensions.getAddons.showPane": false,
+      "places.history.enabled": false,
+      "privacy.file_unique_origin": true,
+      "ui.key.menuAccessKeyFocuses": false
+    },
+    "PromptForDownloadLocation": false,
+    "SanitizeOnShutdown": {
+      "Cache": false,
+      "Cookies": false,
+      "Downloads": false,
+      "FormData": false,
+      "History": false,
+      "OfflineApps": false,
+      "Sessions": false,
+      "SiteSettings": false
+    }
+  }
+}
