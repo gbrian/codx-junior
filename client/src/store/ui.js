@@ -7,6 +7,7 @@ const getParentStorex = () => window.$parentStorex
 
 export const state = () => ({
   showApp: null,
+  rfb: null
 })
 
 export const getters = getterTree(state, {
@@ -47,6 +48,9 @@ export const mutations = mutationTree(state, {
       $storex.ui.saveState()
     }
   },
+  setNoVNC(state, rfb) {
+    state.rfb = rfb
+  }
 })
 
 export const actions = actionTree(

@@ -2,7 +2,7 @@
 import ProjectIconVue from './ProjectIcon.vue'
 </script>
 <template>
-  <aside
+  <div
 		class="flex flex-col items-center shadow h-full">
 		<ProjectIconVue 
       :class="tabIx == 'home' && 'bg-base-100'"
@@ -54,7 +54,7 @@ import ProjectIconVue from './ProjectIcon.vue'
 			</div>
     </div>
 
-  </aside>
+  </div>
 </template>
 
 <script>

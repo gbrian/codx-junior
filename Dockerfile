@@ -48,23 +48,11 @@ ENV PYTHONPATH=/projects/codx-junior/api
 
 RUN git config --global --add safe.directory '*'
 
-ARG UID=1000
-ARG GID=1000
-
-RUN groupadd -g ${GID} codx-junior && \
-       useradd --create-home --uid ${UID} --gid ${GID} --comment="codx-junior User" codx-junior && \
-       mkdir -p /home/codx-junior && chown codx-junior:codx-junior /home/codx-junior && ln -s /root/.Xauthority /home/codx-junior/.Xauthority
-
-RUN mkdir -p /home/codx-junior/.mozilla/firefox/profile.default/extensions
-RUN chown -R codx-junior:codx-junior /home/codx-junior/.mozilla/firefox/profile.default
-    
-COPY firefox/preferences.js /usr/lib/firefox/mozilla.cfg
-COPY firefox/autoconfig.js /usr/lib/firefox/defaults/pref/autoconfig.js
-COPY firefox/policies.json /usr/lib/firefox/distribution/policies.json
 COPY firefox/start-firefox.sh /start-firefox.sh
-COPY --chown=codx-junior firefox/profiles.ini /home/codx-junior/.mozilla/firefox/profiles.ini
 
 ENV DISPLAY=:1
+ENV DISPLAY_WIDTH=1920
+ENV DISPLAY_HEIGHT=1080
 
 # codx-junior API port
 ENV API_PORT=9984

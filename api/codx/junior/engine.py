@@ -357,10 +357,13 @@ def apply_improve_code_changes(settings: CODXJuniorSettings, code_generator: AIC
             logger.error(f"Error applying changes to {file_path}. New content: {new_content}")
 
 def change_file_with_instructions(settings: CODXJuniorSettings, instruction_list: [str], file_path: str, content: str):
+    profile_manager = ProfileManager(settings=settings)
     chat = Chat(name=f"changes_at_{file_path}",messages=[])
 
     content_instructions = f"EXISTING CONTENT:\n{content}" if content else ""
     chat.messages.append(Message(role="user", content=f""""
+    { profile_manager.read_profile("software_developer").content }
+
     Rewrite full file content replacing codx instructions by requiered changes.
     Return only the file content without any further decoration or comments.
     Do not sorround response with '```' marks, just content.
@@ -369,7 +372,7 @@ def change_file_with_instructions(settings: CODXJuniorSettings, instruction_list
     INSTRUCTIONS:
     { "- ".join(instruction_list) }
 
-    {content_instructions}
+    { content_instructions }
     """))
     chat_with_project(settings=settings, chat=chat, use_knowledge=False, append_references=False)
     return chat.messages[-1].content
@@ -572,6 +575,7 @@ def change_file(context_documents, query, file_path, org_content, settings, save
 
 
 def check_file_for_mentions(settings: CODXJuniorSettings, file_path: str):
+    profile_manager = ProfileManager(settings=settings)
     chat_manager = ChatManager(settings=settings)
     ai = AI(settings=settings)
 
@@ -627,6 +631,7 @@ def check_file_for_mentions(settings: CODXJuniorSettings, file_path: str):
 
     chat = Chat(name=f"changes_at_{file_path}",messages=[
       Message(role="user", content=f"""
+      { profile_manager.read_profile("software_developer").content }
       Find all information needed to apply all changes to file: {file_path}
       Changes:
         {query}

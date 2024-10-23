@@ -15,13 +15,13 @@ import CodeEditorVue from '@/components/CodeEditor.vue';
 <template>
   <div class="w-screen h-screen flex relative">
     <progress :class="['absolute top-0 left-0 right-0 z-50 progress w-full', $session.apiCalls ? 'opacity-50': 'opacity-0']"></progress>      
-    <NavigationBar class="shrink-0 hidden md:flex"
+    <NavigationBar class=""
       :tabIx="tabIx"
       @tabIx="tabIx"
       @set-active="setActiveTab"
       @toggle-coder="$emit('toggle-coder')"
     />
-    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto">
+    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto shrink-0 hidden md:flex">
       <div class="flex gap-2 items-center reltive justify-between">
         <div class="absolute left-0 top-0 right-0 bottom-0 bg-base-100/50 z-50 flex justify-end" @click="showBar = false" v-if="showBar">
           <NavigationBar class="bg-base-300 shadow"

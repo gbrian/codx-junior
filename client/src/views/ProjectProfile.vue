@@ -129,8 +129,8 @@ export default {
       return this.$project.project_description;
     },
     lastModifiedProjects () {
-      const lastProjects = this.$project.allProjects.filter(p => p.metrics.chats_changed_last_24h.length)
-      return lastProjects.reduce((acc, project) =>
+      const lastProjects = this.$project.allProjects?.filter(p => p.metrics.chats_changed_last_24h.length)
+      return lastProjects?.reduce((acc, project) =>
           acc.concat(...project.metrics.chats_changed_last_24h.map(c => ({ ...c, project, fromNow: moment(c.updated_at).fromNow() }))), [])
         .sort((a, b) => a.updated_at > b.updated_at ? -1 : 1) 
     }
