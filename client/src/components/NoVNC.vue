@@ -26,7 +26,6 @@ export default {
     if (this.rfb) {
       this.rfb.disconnect();
     }
-    this.$ui.setNoVNC(null)
   },
   methods: {
     connect () {
@@ -58,8 +57,6 @@ export default {
             this.syncNoVNCToHostClipboard()
         }
       }
-
-      this.$ui.setNoVNC(this.rfb)
     },
     syncHostClipboardToNoVNC () {
       navigator.clipboard.readText().then(text => {

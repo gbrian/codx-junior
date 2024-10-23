@@ -2,12 +2,13 @@
 import ProjectIconVue from './ProjectIcon.vue'
 </script>
 <template>
-  <div
-		class="flex flex-col items-center shadow h-full">
+  <div class="flex flex-col items-center shadow h-full"
+    :class="$ui.showApp && 'click'"
+  >
 		<ProjectIconVue 
       :class="tabIx == 'home' && 'bg-base-100'"
       :right="right"
-      @click="setActiveTab('home')"
+      @click.stop="setActiveTab('home')"
     />
 		
     <div class="grow overflow-auto border-b border-slate-700 py-1 text-center">
@@ -18,7 +19,7 @@ import ProjectIconVue from './ProjectIcon.vue'
               :right="right"
               v-for="project in $project.allProjects" :key="project.codx_path"
               class="opacity-50 hover:opacity-100"
-              @click="setActiveProject(project)"
+              @click.stop="setActiveProject(project)"
             />
           </div>
         </div>
@@ -27,13 +28,13 @@ import ProjectIconVue from './ProjectIcon.vue'
     <div class="flex flex-col mt-4">
       <div :class="['hover:bg-base-100 click', $ui.showCoder ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
-					 @click="$storex.ui.toggleCoder()">
+					 @click.stop="$storex.ui.toggleCoder()">
            <i class="fa-solid fa-code"></i>
 				</a>
 			</div>
       <div :class="['hover:bg-base-100 click', $ui.showPreview ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show preview"
-					 @click="$storex.ui.togglePreview()">
+					 @click.stop="$storex.ui.togglePreview()">
            <i class="fa-solid fa-display"></i>
 				</a>
 			</div>
@@ -47,9 +48,9 @@ import ProjectIconVue from './ProjectIcon.vue'
            <i class="fa-solid fa-gear"></i>
 				</a>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
-          <li><a @click="setActiveTab('profiles')">Profiles</a></li>
-          <li><a @click="setActiveTab('settings')">Project settings</a></li>
-          <li><a @click="setActiveTab('global-settings')">Gobal settings</a></li>
+          <li><a @click.stop="setActiveTab('profiles')">Profiles</a></li>
+          <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
+          <li><a @click.stop="setActiveTab('global-settings')">Gobal settings</a></li>
         </ul>
 			</div>
     </div>

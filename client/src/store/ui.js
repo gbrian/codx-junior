@@ -3,11 +3,9 @@ import { $storex } from '.'
 
 export const namespaced = true
 
-const getParentStorex = () => window.$parentStorex
-
 export const state = () => ({
   showApp: null,
-  rfb: null
+  expandCodxJunior: false
 })
 
 export const getters = getterTree(state, {
@@ -23,33 +21,26 @@ export const mutations = mutationTree(state, {
       Object.keys(parsedState).forEach(k => state[k] = parsedState[k])
     }
   },
-  toggleCoder(state) {
-    if (getParentStorex()) {
-      getParentStorex().ui.toggleApp('coder')
-      state.showApp = getParentStorex().ui.showApp
-    } else {
-      $storex.toggleApp('coder')
-    }
+  toggleCoder() {
+    $storex.ui.toggleApp('coder')
   },
-  togglePreview(state) {
-    if (getParentStorex()) {
-      getParentStorex().ui.toggleApp('preview')
-      state.showApp = getParentStorex().ui.showApp
-    } else {
-      $storex.toggleApp('preview')
-    }
+  togglePreview() {
+    $storex.ui.toggleApp('preview')
   },
   toggleApp(state, app) {
-    if (getParentStorex()) {
-      getParentStorex().ui.toggleCoder()
-      state.showApp = getParentStorex().ui.showApp
-    } else {
-      state.showApp = state.showApp === app ? null: app
-      $storex.ui.saveState()
+    state.showApp = state.showApp === app ? null: app
+    if (app) {
+      state.expandCodxJunior = false
     }
+    $storex.ui.saveState()
   },
-  setNoVNC(state, rfb) {
-    state.rfb = rfb
+  toggleCodxJunior(state) {
+    if (state.showApp) {
+      state.expandCodxJunior = !state.expandCodxJunior
+    } else {
+      state.expandCodxJunior = true
+    }
+    $storex.ui.saveState()
   }
 })
 
