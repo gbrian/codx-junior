@@ -15,24 +15,9 @@ import CodeEditorVue from '@/components/CodeEditor.vue';
 <template>
   <div class="flex">
     <progress :class="['absolute top-0 left-0 right-0 z-50 progress w-full', $session.apiCalls ? 'opacity-50': 'opacity-0']"></progress>      
-    <NavigationBar class=""
-      :tabIx="tabIx"
-      @tabIx="tabIx"
-      @set-active="setActiveTab"
-      @click="$ui.toggleCodxJunior()"
-    />
+    <NavigationBar />
     <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto shrink-0 hidden md:flex">
       <div class="flex gap-2 items-center reltive justify-between">
-        <div class="absolute left-0 top-0 right-0 bottom-0 bg-base-100/50 z-50 flex justify-end" @click="showBar = false" v-if="showBar">
-          <NavigationBar class="bg-base-300 shadow"
-          :tabIx="tabIx"
-          :right="true"
-          @click.stop=""
-          @tabIx="tabIx"
-          @set-active="setActiveTab"
-          @toggle-coder="$emit('toggle-coder')"
-          />
-        </div>
         <div class="flex flex-col" v-if="$project.activeProject">
           <h3 class="text-2xl md:text-4xl font-bold flex items-center gap-2">
             <div class="avatar md:hidden">
@@ -51,24 +36,24 @@ import CodeEditorVue from '@/components/CodeEditor.vue';
         </button>
         
       </div>
-      <TabNavigationVue :tabIx="tabIx" @tab="setActiveTab" />
+      <TabNavigationVue />
       <div class="grow relative w-full">
         <div class="absolute top-0 left-0 right-0 bottom-0 overflow-auto">
           <!-- Existing components -->
-          <CodeEditorVue v-if="tabIx === 'editor'" />
-          <KanbanVue class="overflow-auto" v-if="tabIx === 'tasks'" />
-          <KnowledgeViewVue class="" v-if="tabIx === 'knowledge'" />
-          <WikiViewVue class="" v-if="tabIx == 'wiki'"></WikiViewVue>
+          <CodeEditorVue v-if="$ui.tabIx === 'editor'" />
+          <KanbanVue class="overflow-auto" v-if="$ui.tabIx === 'tasks'" />
+          <KnowledgeViewVue class="" v-if="$ui.tabIx === 'knowledge'" />
+          <WikiViewVue class="" v-if="$ui.tabIx == 'wiki'"></WikiViewVue>
           <ProjectSettingsVue class="absolute top-0 left-0 w-full" 
             @delete="deleteProject"
-            v-if="tabIx === 'settings'" />
-          <GlobalSettingsVue class="absolute top-0 left-0 w-full " v-if="tabIx === 'global-settings'" />
+            v-if="$ui.tabIx === 'settings'" />
+          <GlobalSettingsVue class="absolute top-0 left-0 w-full " v-if="$ui.tabIx === 'global-settings'" />
           <ProfileViewVue class="absolute top-0 left-0 w-full" 
-            v-if="tabIx === 'profiles'" />
-          <iframe v-if="tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
+            v-if="$ui.tabIx === 'profiles'" />
+          <iframe v-if="$ui.tabIx === 4" src="/notebooks" class="absolute top-0 left-0 w-full h-full"></iframe>
           <ProjectProfileVue class="absolute top-0 left-0 w-full"
             @open-task="openTask"
-            v-if="tabIx == 'home'" @settings="setActiveTab('settings')"></ProjectProfileVue>
+            v-if="$ui.tabIx == 'home'" @settings="setActiveTab('settings')"></ProjectProfileVue>
         </div>
       </div>
     </div>
@@ -105,7 +90,6 @@ import CodeEditorVue from '@/components/CodeEditor.vue';
 export default {
   data () {
     return {
-      tabIx: 'home',
       newProject: null,
       codxPath: null,
       showOpenProjectModal: false,
@@ -127,13 +111,6 @@ export default {
     },
     projectName () {
       return this.lastSettings?.project_name
-    }
-  },
-  watch: {
-    tabIx (newValue) {
-      if (newValue === 'home') {
-        this.getAllProjects()
-      }
     }
   },
   methods: {
@@ -166,11 +143,6 @@ export default {
     async deleteProject () {
       await API.project.delete()
       this.setActiveTab('home')
-    },
-    setActiveTab(tabIx) {
-      console.log("Set active", tabIx)
-      this.tabIx = tabIx
-      this.showBar = false
     },
     openTask(task) {
       this.setActiveTab('tasks')

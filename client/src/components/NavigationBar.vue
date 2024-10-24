@@ -4,11 +4,12 @@ import ProjectIconVue from './ProjectIcon.vue'
 <template>
   <div class="flex flex-col items-center shadow h-full"
     :class="$ui.showApp && 'click'"
+    @click="$ui.showApp && $ui.toggleCodxJunior()"
   >
-		<ProjectIconVue 
-      :class="tabIx == 'home' && 'bg-base-100'"
+
+    <ProjectIconVue
       :right="right"
-      @click.stop="setActiveTab('home')"
+      @click.stop="$ui.sideBarMode ? setActiveTab('home') : $ui.toggleCodxJunior()"
     />
 		
     <div class="grow overflow-auto border-b border-slate-700 py-1 text-center">
@@ -26,15 +27,23 @@ import ProjectIconVue from './ProjectIcon.vue'
       </div>
 
     <div class="flex flex-col mt-4">
+      <div class="hover:bg-base-100 click" v-if="$ui.showApp">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
+            :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Toggle floating"
+					  @click.stop="$ui.toggleFloating()">
+            <span v-if="$ui.floatingCodxJunior"><i class="fa-solid fa-window-maximize"></i></span>
+            <span v-else><i class="fa-solid fa-window-restore"></i></span>
+				</a>
+			</div>
       <div :class="['hover:bg-base-100 click', $ui.showCoder ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
-					 @click.stop="$storex.ui.toggleCoder()">
+					 @click.stop="$ui.toggleCoder()">
            <i class="fa-solid fa-code"></i>
 				</a>
 			</div>
       <div :class="['hover:bg-base-100 click', $ui.showPreview ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show preview"
-					 @click.stop="$storex.ui.togglePreview()">
+					 @click.stop="$ui.togglePreview()">
            <i class="fa-solid fa-display"></i>
 				</a>
 			</div>
@@ -60,7 +69,7 @@ import ProjectIconVue from './ProjectIcon.vue'
 
 <script>
 export default {
-  props: ['tabIx', 'right'],
+  props: ['right'],
   data() {
     return {
       isCollapsed: false,
@@ -70,16 +79,15 @@ export default {
   },
   computed: {
     isSettings () {
-      return ['settings', 'profiles', 'global-settings'].includes(this.tabIx)
+      return ['settings', 'profiles', 'global-settings'].includes(this.$ui.tabIx)
     }
   },
   methods: {
     setActiveTab (tab) {
-      this.$emit('set-active', tab)
+      this.$ui.setActiveTab(tab)
     },
     async setActiveProject(project) {
       await this.$project.setActiveProject(project)
-      this.setActiveTab(this.tabIx)
     }
   }
 };

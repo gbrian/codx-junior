@@ -5,12 +5,15 @@ export const namespaced = true
 
 export const state = () => ({
   showApp: null,
-  expandCodxJunior: false
+  expandCodxJunior: false,
+  tabIx: null,
+  floatingCodxJunior: false
 })
 
 export const getters = getterTree(state, {
   showCoder: state => state.showApp === 'coder',
-  showPreview: state => state.showApp === 'preview'
+  showPreview: state => state.showApp === 'preview',
+  sideBarMode: state => state.showApp && !state.expandCodxJunior
 })
 
 export const mutations = mutationTree(state, {
@@ -41,6 +44,15 @@ export const mutations = mutationTree(state, {
       state.expandCodxJunior = true
     }
     $storex.ui.saveState()
+  },
+  setActiveTab(state, tabIx) {
+    state.tabIx = tabIx
+    if (state.showApp && !state.expandCodxJunior) {
+      state.expandCodxJunior = true
+    }
+  },
+  toggleFloating(state) {
+    state.floatingCodxJunior = !state.floatingCodxJunior
   }
 })
 
