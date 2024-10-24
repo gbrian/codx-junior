@@ -250,17 +250,24 @@ def improve_existing_code(settings: CODXJuniorSettings, chat: Chat, apply_change
 
     request = \
     f"""
-    {profile_manager.read_profile("software_developer").content}
-    Project name: {settings.project_name}
-    Root path: {settings.project_path}
-    Files tree view: {generate_markdown_tree(knowledge.get_all_sources())}
+    Assist the user on generating file changes for the project "{settings.project_name}" based on the comments below.
+    Make sure that all propsed changes follow strictly the best practices.
     
+    Best practices:
+    ```markdown
+    {profile_manager.read_profile("software_developer").content}
+    ```
+    Info about the project:
+     - Root path: {settings.project_path}
+     - Files tree view: {generate_markdown_tree(knowledge.get_all_sources())}
+    Use this information for generating file paths and understanding the project's folder structure.
+
     Create a list of find&replace intructions for each change needed:
     INSTRUCTIONS:
       { AI_CODE_GENERATOR_PARSER.get_format_instructions() }
       
-      * For new files create a file name following best practices of the project coding language
-      * Keep content identation; is crucial to find the content to replace and to make new content work
+      * For new files create a absolute paths
+      * Keep content identation; It is crucial to find the content to replace and to make new content work
     """
     code_generator = None
     if not chat.messages[-1].hide and not chat.messages[-1].improvement:
@@ -662,8 +669,6 @@ def chat_with_project(settings: CODXJuniorSettings, chat: Chat, use_knowledge: b
         
     user_message = chat.messages[-1]
     query = user_message.content
-    if "@codx-code" in query:
-        return improve_existing_code(chat=chat, settings=settings)
 
     ai = AI(settings=settings)
     profile_manager = ProfileManager(settings=settings)
@@ -860,9 +865,6 @@ def update_engine():
     except Exception as ex:
       logger.exception(ex)
       return ex
-
-def run_live_edit(settings: CODXJuniorSettings, chat: Chat):
-    return improve_existing_code(settings=settings, chat=chat, apply_changes=True)
             
 def update_wiki(settings: CODXJuniorSettings, file_path: str):
     project_wiki_path = settings.get_project_wiki_path()
