@@ -5,8 +5,21 @@
     <link rel="icon" href="/only_icon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>codx-junior</title>
+    <style>
+      html, body {
+        width: 100%;
+        height: 100%;
+      }
+      body {
+        background-color: rgb(32 30 30);
+        background-image: url('/only_icon.png');
+        background-repeat: no-repeat;
+        background-position: center;
+        backdrop-filter: brightness(0.4);
+      }
+    </style>
   </head>
-  <body class="h-full" style="background-color: rgb(24, 22, 22);">
+  <body class="h-full">
     <div id="app" class="h-full"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
