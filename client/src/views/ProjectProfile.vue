@@ -118,6 +118,9 @@ export default {
       newProjectPath: null
     };
   },
+  created () {
+    this.$project.loadAllProjects()
+  },
   computed: {
     projectName() {
       return this.$project.project_name;
