@@ -3,17 +3,21 @@ import { $storex } from '.'
 
 export const namespaced = true
 
+const CODX_JUNIOR_UI_SIZES = ['w-1/6','w-2/6','w-3/6','w-4/6','w-5/6']
+
 export const state = () => ({
   showApp: null,
   expandCodxJunior: false,
   tabIx: null,
-  floatingCodxJunior: false
+  floatingCodxJunior: false,
+  codxJuniorWidthIndex: 3
 })
 
 export const getters = getterTree(state, {
   showCoder: state => state.showApp === 'coder',
   showPreview: state => state.showApp === 'preview',
-  sideBarMode: state => state.showApp && !state.expandCodxJunior
+  sideBarMode: state => state.showApp && !state.expandCodxJunior,
+  codxJuniorWidth: state => CODX_JUNIOR_UI_SIZES[state.codxJuniorWidthIndex]
 })
 
 export const mutations = mutationTree(state, {
@@ -53,6 +57,19 @@ export const mutations = mutationTree(state, {
   },
   toggleFloating(state) {
     state.floatingCodxJunior = !state.floatingCodxJunior
+    if (state.floatingCodxJunior) {
+      state.expandCodxJunior = false
+    }
+    $storex.ui.saveState()
+  },
+  incrementCodxJuniorWidth(state) {
+    state.codxJuniorWidthIndex = Math.min(state.codxJuniorWidthIndex + 1, CODX_JUNIOR_UI_SIZES.length-1)
+    $storex.ui.saveState()
+  }
+  ,
+  decrementCodxJuniorWidth(state) {
+    state.codxJuniorWidthIndex = Math.max(state.codxJuniorWidthIndex - 1, 0)
+    $storex.ui.saveState()
   }
 })
 

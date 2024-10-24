@@ -25,10 +25,13 @@ export const getters = getterTree(state, {
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init ({ state }) {
-        await API.init()
-        $storex.project.setAllProjects(API.allProjects)
-        $storex.project.setActiveProject(API.lastSettings)
+    async init () {
+      $storex.project.loadAllProjects()
+    },
+    async loadAllProjects() {
+      await API.init()
+      $storex.project.setAllProjects(API.allProjects)
+      $storex.project.setActiveProject(API.lastSettings)
     },
     async setActiveProject ({ state }, project) {
       await API.init(project?.codx_path)

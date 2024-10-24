@@ -87,6 +87,9 @@ export default {
       this.$ui.setActiveTab(tab)
     },
     async setActiveProject(project) {
+      if (this.$ui.showApp && !this.$ui.expandCodxJunior) {
+        this.$ui.toggleCodxJunior()
+      }
       await this.$project.setActiveProject(project)
     }
   }

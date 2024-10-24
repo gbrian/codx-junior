@@ -8,7 +8,11 @@ import CodxJuniorVue from './CodxJunior.vue'
   <div class="w-full h-full relative flex">
     <CoderVue class="h-full grow" v-if="$ui.showCoder" />
     <NoVNCVue class="h-full grow" v-if="$ui.showPreview" />
-    <div class="shrink-0 w-16" v-if="leftPanel && $ui.floatingCodxJunior">
+    <div class="splitter h-full w-3" v-if="leftPanel && !$ui.floatingCodxJunior"
+    >
+    @codx-processing: Add dragging loggic to "splitter" to modify right-side when not floating using w-1/6, w-2/6,... and read and store it in $ui.setRightPanelWidth and $ui.rightPanelWidth
+    </div>
+    <div class="right-side shrink-0 w-16" v-if="leftPanel && $ui.floatingCodxJunior">
       <div class="absolute top-0 right-0 bottom-0 bg-base-300/30 flex justify-end z-50 click"
         :class="$ui.expandCodxJunior && 'w-full'"
         @click.stop="$ui.toggleCodxJunior()">
@@ -18,7 +22,7 @@ import CodxJuniorVue from './CodxJunior.vue'
         />
       </div>
     </div>
-    <CodxJuniorVue class="h-full" :class="leftPanel ? 'w-1/3' : 'w-full'" v-else />
+    <CodxJuniorVue class="right-side h-full" :class="leftPanel ? 'w-1/3' : 'w-full'" v-else />
   </div>
 </template>
 <script>
