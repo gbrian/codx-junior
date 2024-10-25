@@ -1,5 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import CodxJuniorVue from '../views/CodxJunior.vue'
 import SplitView from '../views/SplitView.vue'
 import HomeView from '@/views/HomeView.vue'
 

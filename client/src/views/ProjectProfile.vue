@@ -16,12 +16,12 @@ import moment from 'moment';
       <h2 class="text-xl font-bold mb-4">Recent activity</h2>
       <div class="">
         <div class="flex flex-col gap-1 text-xs">
-          <div class="">
+          <div class="h-96 overflow-auto bg-base-200">
             <table class="table">
-              <thead>
+              <thead class="sticky top-0 bg-base-200">
                 <th>Project</th>
                 <th>Task</th>
-                <th>Type</th>
+                <th class="hidden md:block">Type</th>
                 <th>Last update</th>
               </thead>
               <tbody class="">
@@ -29,7 +29,7 @@ import moment from 'moment';
                   v-for="task in lastModifiedProjects" :key="task.name + task.project.project_name">
                   <td><div class="font-bold">{{ task.project.project_name }}</div></td>
                   <td>{{  task.name  }}</td>
-                  <td>{{ task.mode }}</td>
+                  <td class="hidden md:block">{{ task.mode }}</td>
                   <td>{{ task.fromNow }}</td>
                 </tr>
               </tbody>
@@ -41,12 +41,12 @@ import moment from 'moment';
 
     <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4">
       <h2 class="text-xl font-bold mb-4">All projects</h2>
-      <div class="rounded-md p-1 bg-base-200">
+      <div class="rounded-md p-1 bg-base-200 h-96 overflow-auto">
         <table class="table">
-          <thead>
+          <thead class="sticky top-0 bg-base-200">
             <tr class="">
               <th class="px-4 py-2">Name</th>
-              <th class="px-4 py-2">Path</th>
+              <th class="px-4 py-2 hidden md:block">Path</th>
               <th class="px-4 py-2 text-center">
                 <div class="tooltip" data-tip="Tasks">
                   <i class="fa-solid fa-list-check"></i>
@@ -57,7 +57,7 @@ import moment from 'moment';
                   <i class="fa-solid fa-puzzle-piece"></i>
                 </div>
               </th>
-              <th class="px-4 py-2 text-center">
+              <th class="px-4 py-2 text-center hidden md:block">
                 <div class="tooltip" data-tip="Last Update">
                   <i class="fa-regular fa-clock"></i>
                 </div>
@@ -76,18 +76,23 @@ import moment from 'moment';
                 <img :src="project.project_icon" alt="Project Icon" class="w-6 h-6 rounded-full mr-2" />
                 <span class="text-xs font-bold">{{ project.project_name }}</span>
               </td>
-              <td class="px-4 py-2">
+              <td class="px-4 py-2 hidden md:block">
                 <div class="text-nowrap text-xs overflow-hidden tooltip text-left" :title="project.project_path" :data-tip="project.project_path">
                   {{ project.project_path.split("/").reverse().slice(0, 3).reverse().join(" / ") }}
                 </div>
               </td>
               <td class="px-4 py-2 text-center">{{ project.metrics.number_of_chats }}</td>
-              <td class="px-4 py-2 text-center">{{ project.metrics.files.length }}</td>
-              <td class="px-4 py-2 text-center">{{ lastRefresh(project.metrics.last_update) }}</td>
+              <td class="px-4 py-2 text-center">{{ project.metrics.files?.length }}</td>
+              <td class="px-4 py-2 text-center hidden md:block">{{ lastRefresh(project.metrics.last_update) }}</td>
               <td class="px-4 py-2 text-center">
-                <span v-if="project.watching">
-                  <i class="fa-solid fa-check"></i>
+                <span class="badge bagde-sm badge-error" v-if="project.metrics.error">
+                  Err! Review settings
                 </span>
+                <div v-else>
+                  <span v-if="project.watching">
+                    <i class="fa-solid fa-check"></i>
+                  </span>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -123,18 +128,18 @@ export default {
   },
   computed: {
     projectName() {
-      return this.$projects.project_name;
+      return this.$project.project_name;
     },
     projectIcon() {
-      return this.$projects.project_icon;
+      return this.$project.project_icon;
     },
     projectDescription() {
-      return this.$projects.project_description;
+      return this.$project.project_description;
     },
     lastModifiedProjects () {
-      const lastProjects = this.$projects.allProjects?.filter(p => p.metrics.chats_changed_last_24h.length)
+      const lastProjects = this.$projects.allProjects?.filter(p => p.metrics.chats_changed_last.length)
       return lastProjects?.reduce((acc, project) =>
-          acc.concat(...project.metrics.chats_changed_last_24h.map(c => ({ ...c, project, fromNow: moment(c.updated_at).fromNow() }))), [])
+          acc.concat(...project.metrics.chats_changed_last.map(c => ({ ...c, project, fromNow: moment(c.updated_at).fromNow() }))), [])
         .sort((a, b) => a.updated_at > b.updated_at ? -1 : 1) 
     }
   },
@@ -162,7 +167,7 @@ export default {
       ) {
         await this.$projects.setActiveProject(task.project)
       }
-      this.$emit('open-task', task)
+      this.$ui.loadTask(task)
     }
   }
 }

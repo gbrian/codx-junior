@@ -19,6 +19,6 @@ import NoVNCVue from "./NoVNC.vue";
   <GlobalSettingsVue v-if="$ui.tabIx === 'global-settings'" />
   <ProfileViewVue v-if="$ui.tabIx === 'profiles'" />
   <ProjectProfileVue v-if="$ui.tabIx == 'home'" />
-  <CoderVue v-bind="$attrs" v-if="$ui.tabIx == 'coder'" />
-  <NoVNCVue v-if="$ui.tabIx == 'preview'" />    
+  <CoderVue v-bind="$attrs" v-if="$ui.showApp == 'coder'" />
+  <NoVNCVue v-if="$ui.showApp == 'preview'" />    
 </template>

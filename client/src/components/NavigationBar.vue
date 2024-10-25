@@ -26,7 +26,7 @@ import ProjectIconVue from './ProjectIcon.vue'
         </div>
       </div>
 
-    <div class="flex flex-col mt-4">
+    <div class="flex flex-col mt-4 hidden md:flex">
       <div class="hover:bg-base-100 click" v-if="$ui.showApp">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
             :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Toggle floating"
@@ -37,13 +37,13 @@ import ProjectIconVue from './ProjectIcon.vue'
 			</div>
       <div :class="['hover:bg-base-100 click', $ui.showCoder ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
-					 @click.stop="$ui.toggleCoder()">
+					 @click.stop="$ui.toggleApp('coder')">
            <i class="fa-solid fa-code"></i>
 				</a>
 			</div>
       <div :class="['hover:bg-base-100 click', $ui.showPreview ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show preview"
-					 @click.stop="$ui.togglePreview()">
+					 @click.stop="$ui.toggleApp('preview')">
            <i class="fa-solid fa-display"></i>
 				</a>
 			</div>

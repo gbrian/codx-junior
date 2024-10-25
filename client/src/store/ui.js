@@ -32,14 +32,11 @@ export const mutations = mutationTree(state, {
       Object.keys(parsedState).forEach(k => state[k] = parsedState[k])
     }
   },
-  toggleCoder() {
-    $storex.ui.setActiveApp('coder')
-  },
-  togglePreview() {
-    $storex.ui.setActiveApp('preview')
+  toggleApp(state, app) {
+    $storex.ui.setActiveApp(state.showApp === app ? null : app)
   },
   setActiveApp(state, app) {
-    state.showApp = state.showApp === app ? null: app
+    state.showApp = app
     if (app) {
       state.expandCodxJunior = false
     }
@@ -55,8 +52,8 @@ export const mutations = mutationTree(state, {
   },
   setActiveTab(state, tabIx) {
     state.tabIx = tabIx
-    if (state.showApp && !state.expandCodxJunior) {
-      state.expandCodxJunior = true
+    if (state.tabIx !== 'app') {
+      state.showApp = null
     }
   },
   toggleFloating(state) {
@@ -83,12 +80,8 @@ export const actions = actionTree(
       $storex.ui.loadState()
       $storex.ui.handleResize()
       window.addEventListener('resize', () => $storex.ui.handleResize())
-      if (state.isMobile) {
-        state.showApp = null
-      }
-      if (!state.tabIx) {
-        state.tabIx = 'home'
-      }
+      state.tabIx = 'home'
+      state.showApp = null
     },
     saveState({ state }) {
       localStorage.setItem('uiState', JSON.stringify(state))
@@ -96,10 +89,14 @@ export const actions = actionTree(
     handleResize({ state }) {
       const width = window.innerWidth
       const height = window.innerHeight
-      const isMobile = width <= 768
+      const isMobile = width <= 1024
       const orientation = width > height ? 'landscape' : 'portrait'
       state.isMobile = isMobile
       state.orientation = orientation  
+    },
+    loadTask (_, task) {
+      $storex.ui.setActiveTab('tasks')
+      $storex.projects.loadChat(task.name)
     }
   },
 )

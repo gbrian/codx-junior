@@ -973,29 +973,20 @@ def coder_open_file(settings: CODXJuniorSettings, file_name: str):
     os.system(f"code-server -r {file_name}")
 
 def get_project_metrics(settings: CODXJuniorSettings):
-    add_global_settings(settings=settings)
-    # Helper function to check if a chat was changed in the last 24 hours
-    def chat_changed_last_24h(chat):
-        last_modified = datetime.fromisoformat(chat['updated_at']).astimezone()
-        return last_modified >= (datetime.now() - timedelta(days=1)).astimezone()
-
-    # Use ChatManager to load chats
+    
     chat_manager = ChatManager(settings)
     chats = chat_manager.list_chats()
 
-    # Calculate number of chats
     number_of_chats = len(chats)
 
-    # Calculate chats changed in the last 24 hours
-    chats_changed_last_24h = [chat for chat in chats if chat_changed_last_24h(chat)]
+    chats.sort(key=lambda c: c["updated_at"])
+    chat_changed_last = chats[0:2]
     
-    # Use KnowledgeLoader to determine the number of indexed files
     status = check_knowledge_status(settings=settings)
     
-    # Return the metrics in a dictionary
     return {
         "number_of_chats": number_of_chats,
-        "chats_changed_last_24h": chats_changed_last_24h,
+        "chats_changed_last": chat_changed_last,
         **status
     }
 

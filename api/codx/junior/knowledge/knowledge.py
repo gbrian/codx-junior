@@ -79,13 +79,15 @@ class Knowledge:
           return self.db
       except Exception as ex:
           logger.exception(f"Error opening Knowledge DB: {self.db_path}")
-          raise ex
 
     def refresh_last_update(self):
       if os.path.isfile(self.db_file):
           self.last_update = os.path.getmtime(self.db_file)
 
     def detect_changes(self):
+      if not self.get_db():
+          return []
+
       current_sources = self.get_all_sources()
       changes = self.loader.list_repository_files(last_update=self.last_update if current_sources else None,
                           current_sources=current_sources)
@@ -412,7 +414,12 @@ class Knowledge:
     
 
     def status (self):
-        collection = self.get_db()._collection
+        db = self.get_db()
+        if not db:
+            return {
+              "error": "No data indexed yet"
+            }
+        collection = db._collection
         collection_docs = collection.get(include=['metadatas', 'documents'])
         
         ids = collection_docs["ids"]

@@ -1,8 +1,10 @@
 <script setup>
-import NavigationBarVue from '../components/NavigationBar.vue'
-import LogoVue from '../components/Logo.vue'
-import TabNavigationVue from '../components/TabNavigation.vue'
-import TabViewVue from '../components/TabView.vue'
+import { ref, onMounted, onUnmounted } from 'vue';
+import NavigationBarVue from '../components/NavigationBar.vue';
+import LogoVue from '../components/Logo.vue';
+import TabNavigationVue from '../components/TabNavigation.vue';
+import TabViewVue from '../components/TabView.vue';
+
 </script>
 <template>
   <div class="drawer drawer-end">
@@ -10,7 +12,7 @@ import TabViewVue from '../components/TabView.vue'
     <div class="w-full h-full flex flex-col justify-center items-center bg-base-100/30" v-if="$projects.allProjects === null">
       <div class="text-2xl">LOADING <span class="loading loading-dots loading-xs"></span></div>
     </div>
-    <div ref="content" class="drawer-content p-2 flex flex-col gap-2 overflow-auto bg-base-100" v-else>
+    <div ref="contentRef" class="drawer-content p-2 flex flex-col gap-2 overflow-auto bg-base-100" v-else>
       <div class="flex justify-between">
         <div class="flex flex-col">
           <div class="font-bold">{{ $project.project_name }}</div>
@@ -21,14 +23,7 @@ import TabViewVue from '../components/TabView.vue'
         </label>
       </div>
       <TabNavigationVue />
-      <div class="relative min-h-screen overflow-auto">
-        <div class="sticky top-0 right-0 z-50">
-          <button class="btn btn-xs mt-8" @click="scrollToTop">
-            <i class="fa-solid fa-angles-up"></i>
-          </button>
-        </div>
-        <TabViewVue class="min-h-screen" />
-      </div>
+      <TabViewVue />
     </div>
     <div class="drawer-side">
       <label for="my-drawer-4" aria-label="close sidebar" class="drawer-overlay"></label>

@@ -20,7 +20,7 @@ import CodxJuniorVue from './CodxJunior.vue'
           />
         </div>
       </div>
-      <CodxJuniorVue class="w-2/6 h-full" v-else />
+      <CodxJuniorVue class="h-full" :class="$ui.showApp ? 'w-3/6' : 'w-full'" v-else />
     </div>
   </div>
 </template>
