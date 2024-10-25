@@ -33,12 +33,12 @@ export const mutations = mutationTree(state, {
     }
   },
   toggleCoder() {
-    $storex.ui.toggleApp('coder')
+    $storex.ui.setActiveApp('coder')
   },
   togglePreview() {
-    $storex.ui.toggleApp('preview')
+    $storex.ui.setActiveApp('preview')
   },
-  toggleApp(state, app) {
+  setActiveApp(state, app) {
     state.showApp = state.showApp === app ? null: app
     if (app) {
       state.expandCodxJunior = false

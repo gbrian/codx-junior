@@ -1,5 +1,5 @@
 <template>
-  <div class="relative">
+  <div class="w-full h-full relative">
     <iframe ref="iframe" :src="coderUrl" class="h-full w-full border-0 bg-base-300"
         @load="onCoderLoaded"
         title="coder"

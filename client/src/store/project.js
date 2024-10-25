@@ -5,8 +5,8 @@ import { API } from '../api/api'
 export const namespaced = true
 
 export const state = () => ({
-  activeProject: null,
-  allProjects: [],
+  activeProject: {},
+  allProjects: null,
   chats: null,
   activeChat: null
 })
@@ -35,9 +35,9 @@ export const actions = actionTree(
     },
     async setActiveProject ({ state }, project) {
       await API.init(project?.codx_path)
-      state.activeProject = API.lastSettings
-      await $storex.projects.loadChats()
+      state.activeProject = project ? API.lastSettings : null
       state.activeChat = null
+      project && await $storex.projects.loadChats()
     },
     async loadChats({ state }) {
       state.chats = await API.chats.list()

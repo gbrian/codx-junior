@@ -7,7 +7,10 @@ import TabViewVue from '../components/TabView.vue'
 <template>
   <div class="drawer drawer-end">
     <input id="my-drawer-4" type="checkbox" class="drawer-toggle opacity-0" />
-    <div class="drawer-content p-2 flex flex-col gap-2 overflow-auto" v-if="$project">
+    <div class="w-full h-full flex flex-col justify-center items-center bg-base-100/30" v-if="$projects.allProjects === null">
+      <div class="text-2xl">LOADING <span class="loading loading-dots loading-xs"></span></div>
+    </div>
+    <div ref="content" class="drawer-content p-2 flex flex-col gap-2 overflow-auto bg-base-100" v-else>
       <div class="flex justify-between">
         <div class="flex flex-col">
           <div class="font-bold">{{ $project.project_name }}</div>
@@ -18,18 +21,27 @@ import TabViewVue from '../components/TabView.vue'
         </label>
       </div>
       <TabNavigationVue />
-      <TabViewVue />
-    </div>
-    <div v-else>
-      LOADING....
+      <div class="relative min-h-screen overflow-auto">
+        <div class="sticky top-0 right-0 z-50">
+          <button class="btn btn-xs mt-8" @click="scrollToTop">
+            <i class="fa-solid fa-angles-up"></i>
+          </button>
+        </div>
+        <TabViewVue class="min-h-screen" />
+      </div>
     </div>
     <div class="drawer-side">
       <label for="my-drawer-4" aria-label="close sidebar" class="drawer-overlay"></label>
-      <NavigationBarVue :right="true" />
+      <NavigationBarVue class="bg-base-300" :right="true" />
     </div>
   </div>
 </template>
 <script>
 export default {
+  methods: {
+    scrollToTop() {
+      this.$refs.content.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
 }
 </script>
