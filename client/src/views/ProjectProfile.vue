@@ -70,7 +70,7 @@ import moment from 'moment';
             </tr>
           </thead>
           <tbody>
-            <tr v-for="project in $project.allProjects" :key="project.codx_path" @click="setProject(project)"
+            <tr v-for="project in $projects.allProjects" :key="project.codx_path" @click="setProject(project)"
               class="cursor-pointer hover:bg-base-100">
               <td class="px-4 py-2 flex items-center">
                 <img :src="project.project_icon" alt="Project Icon" class="w-6 h-6 rounded-full mr-2" />
@@ -119,20 +119,20 @@ export default {
     };
   },
   created () {
-    this.$project.loadAllProjects()
+    this.$projects.loadAllProjects()
   },
   computed: {
     projectName() {
-      return this.$project.project_name;
+      return this.$projects.project_name;
     },
     projectIcon() {
-      return this.$project.project_icon;
+      return this.$projects.project_icon;
     },
     projectDescription() {
-      return this.$project.project_description;
+      return this.$projects.project_description;
     },
     lastModifiedProjects () {
-      const lastProjects = this.$project.allProjects?.filter(p => p.metrics.chats_changed_last_24h.length)
+      const lastProjects = this.$projects.allProjects?.filter(p => p.metrics.chats_changed_last_24h.length)
       return lastProjects?.reduce((acc, project) =>
           acc.concat(...project.metrics.chats_changed_last_24h.map(c => ({ ...c, project, fromNow: moment(c.updated_at).fromNow() }))), [])
         .sort((a, b) => a.updated_at > b.updated_at ? -1 : 1) 
@@ -140,13 +140,13 @@ export default {
   },
   methods: {
     async setProject(project) {
-      this.$project.setActiveProject(project)
+      this.$projects.setActiveProject(project)
     },
     async createNewProject () {
       await API.project.create(this.newProjectPath)
-      const project = this.$project.allProjects.find(p => p.project_path === this.newProjectPath)
+      const project = this.$projects.allProjects.find(p => p.project_path === this.newProjectPath)
       this.newProjectPath = null
-      await this.$project.init()
+      await this.$projects.init()
       this.setProject(project)
     },
     lastRefresh(last_update) {
@@ -157,10 +157,10 @@ export default {
       return null
     },
     async loadTask(task) {
-      if (this.$project.activeProject?.codx_path !=
+      if (this.$projects.activeProject?.codx_path !=
         task.project.codx_path
       ) {
-        await this.$project.setActiveProject(task.project)
+        await this.$projects.setActiveProject(task.project)
       }
       this.$emit('open-task', task)
     }

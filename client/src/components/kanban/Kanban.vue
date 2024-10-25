@@ -95,16 +95,16 @@ export default {
   },
   computed: {
     chat () {
-      return this.$project.activeChat
+      return this.$projects.activeChat
     },
     project () {
-      return this.$project.activeProject
+      return this.$projects.activeProject
     },
     boards () {
       return [...new Set(this.chats?.map(c => c.board))]             
     },
     chats () {
-      return this.$project.chats.map(c => ({
+      return this.$projects.chats.map(c => ({
               ...c,
               board: c.board || unassigned,
               column: c.column || unassigned
@@ -134,10 +134,10 @@ export default {
       }
     },
     newChat (column) {
-      this.$project.newChat(column)
+      this.$projects.newChat(column)
     },
     async buildKanba () {
-      await this.$project.loadChats()
+      await this.$projects.loadChats()
       const columnName = [...new Set(this.chats?.map(c => c.column))]
       const columns = columnName.map(columnName => ({
           title: columnName,
@@ -166,7 +166,7 @@ export default {
           task.column_index = column_index
           task.chat_index = ix
           if (task.id) {
-            await this.$project.saveChatInfo(task)
+            await this.$projects.saveChatInfo(task)
           }
         }))
     },
@@ -184,11 +184,11 @@ export default {
       if (element.id === -1) {
         this.newChat()
       } else {
-        await this.$project.setActiveChat(element.name)
+        await this.$projects.setActiveChat(element.name)
       }
     },
     onChatEditDone () {
-      this.$project.setActiveChat()
+      this.$projects.setActiveChat()
       this.buildKanba()
     },
     addColumn () {

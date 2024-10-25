@@ -15,20 +15,20 @@ import CodeEditorVue from '@/components/CodeEditor.vue';
 <template>
   <div class="flex">
     <progress :class="['absolute top-0 left-0 right-0 z-50 progress w-full', $session.apiCalls ? 'opacity-50': 'opacity-0']"></progress>      
-    <NavigationBar />
-    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto shrink-0 hidden md:flex">
+    <NavigationBar v-if="$ui.isLandscape" />
+    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto shrink-0">
       <div class="flex gap-2 items-center reltive justify-between">
-        <div class="flex flex-col" v-if="$project.activeProject">
+        <div class="flex flex-col" v-if="$projects.activeProject">
           <h3 class="text-2xl md:text-4xl font-bold flex items-center gap-2">
             <div class="avatar md:hidden">
               <div class="w-6 rounded-full">
-                  <img :src="$project.activeProject?.project_icon || '/only_icon.png'" />
+                  <img :src="$projects.activeProject?.project_icon || '/only_icon.png'" />
               </div>
             </div>
-            {{ $project.activeProject.project_name }}
+            {{ $projects.activeProject.project_name }}
           </h3>
           <div class="text-xs">
-            {{ $project.activeProject.project_path }}
+            {{ $projects.activeProject.project_path }}
           </div>
         </div>
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
@@ -124,7 +124,7 @@ export default {
     },
     async openSubProject (projectName) {
       await this.getAllProjects()
-      this.openProject(this.$project.allProjects.find(p => p.project_name === projectName).codx_path)
+      this.openProject(this.$projects.allProjects.find(p => p.project_name === projectName).codx_path)
     },
     openProject (path) {
       this.init(path)
@@ -134,7 +134,7 @@ export default {
       this.openProject(codx_path)
     },
     async getAllProjects () {
-      await this.$project.init()
+      await this.$projects.init()
     },
     async onShowOpenProjectModal () {
       this.getAllProjects()
@@ -146,7 +146,7 @@ export default {
     },
     openTask(task) {
       this.setActiveTab('tasks')
-      this.$project.setActiveChat(task.name)
+      this.$projects.setActiveChat(task.name)
     }
   }
 }

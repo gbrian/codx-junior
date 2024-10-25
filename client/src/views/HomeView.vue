@@ -1,56 +1,35 @@
 <script setup>
-import { API } from '../api/api'
-import MarkdownVue from '@/components/Markdown.vue'
+import NavigationBarVue from '../components/NavigationBar.vue'
+import LogoVue from '../components/Logo.vue'
+import TabNavigationVue from '../components/TabNavigation.vue'
+import TabViewVue from '../components/TabView.vue'
 </script>
 <template>
-  <div class="flex flex-col gap-2 h-full">
-    <div class="breadcrumbs text-sm shrink-0">
-      <ul>
-        <li v-for="path in history" :key="path"
-          @click="onBack(path)"
-        >
-          <a>{{ path }}</a>
-        </li>
-      </ul>
+  <div class="drawer drawer-end">
+    <input id="my-drawer-4" type="checkbox" class="drawer-toggle opacity-0" />
+    <div class="drawer-content p-2 flex flex-col gap-2 overflow-auto" v-if="$project">
+      <div class="flex justify-between">
+        <div class="flex flex-col">
+          <div class="font-bold">{{ $project.project_name }}</div>
+          <div class="text-xs">{{ $project.project_path }}</div>
+        </div>
+        <label for="my-drawer-4" class="drawer-button btn btn-sm">
+          <LogoVue />
+        </label>
+      </div>
+      <TabNavigationVue />
+      <TabViewVue />
     </div>
-    <MarkdownVue
-      class="grow w-full overflow-auto" :text="homeContent"
-      @link="onLink"
-    ></MarkdownVue>
+    <div v-else>
+      LOADING....
+    </div>
+    <div class="drawer-side">
+      <label for="my-drawer-4" aria-label="close sidebar" class="drawer-overlay"></label>
+      <NavigationBarVue :right="true" />
+    </div>
   </div>
 </template>
 <script>
 export default {
-  props: ['showEditor'],
-  data () {
-    return {
-      history: [],
-      homeContent: ""
-    }
-  },
-  created () {
-    this.navigate("/home.md")
-  },
-  methods: {
-    navigate (path) {
-      this.history.push(path)
-      API.wiki.read(path)
-      .then(({ data }) => this.homeContent = data)
-      .catch(() => this.homeContent = "## No project wiki yet!" )
-    },
-    onBack (path) {
-      const ix = this.history.indexOf(path)
-      this.history.splice(ix)
-      this.navigate(path)
-    },
-    onLink (link) {
-      console.log("On markdown link", link)
-      let { url } = link
-      if (!url.startsWith("/")) {
-        url = "/" + url
-      } 
-      this.navigate(url)
-    }
-  }
 }
 </script>

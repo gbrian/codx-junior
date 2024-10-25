@@ -76,7 +76,7 @@ import PRView from '../views/PRView.vue'
                         @change="newTag = $event.target.value"
                       >
                         <option value="" selected>New</option>
-                        <option v-for="t in $project.allTags" :key="t" :value="t">{{t}}</option>
+                        <option v-for="t in $projects.allTags" :key="t" :value="t">{{t}}</option>
                       </select>
                       <input type="text" class="input input-sm input-bordered" v-model="newTag" />
                       <div class="flex gap-2 justify-end">
@@ -241,10 +241,10 @@ export default {
         : moment(updatedAt).format('YYYY-MM-DD');
     },
     chats () {
-      return this.$project.chats
+      return this.$projects.chats
     },
     chat () {
-      return this.$project.activeChat
+      return this.$projects.activeChat
     }
   },
   watch: {
@@ -258,11 +258,11 @@ export default {
     },
     async saveChat () {
       this.editName = false
-      await this.$project.saveChat(this.chat)
+      await this.$projects.saveChat(this.chat)
     },
     async deleteChat () {
       if (this.confirmDelete) {
-        await this.$project.deleteChat(this.chat.name)
+        await this.$projects.deleteChat(this.chat.name)
         this.onShowChats()
       } else {
         this.confirmDelete = true

@@ -15,8 +15,11 @@ const globalMixin = {
     $ui () {
       return $storex.ui
     },
+    $projects () {
+      return $storex.projects
+    },
     $project () {
-      return $storex.project
+      return $storex.projects.activeProject
     },
     $session () {
       return $storex.session

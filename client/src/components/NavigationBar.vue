@@ -18,7 +18,7 @@ import ProjectIconVue from './ProjectIcon.vue'
             <ProjectIconVue 
               :project="project"
               :right="right"
-              v-for="project in $project.allProjects" :key="project.codx_path"
+              v-for="project in $projects.allProjects" :key="project.codx_path"
               class="opacity-50 hover:opacity-100"
               @click.stop="setActiveProject(project)"
             />
@@ -90,7 +90,7 @@ export default {
       if (this.$ui.showApp && !this.$ui.expandCodxJunior) {
         this.$ui.toggleCodxJunior()
       }
-      await this.$project.setActiveProject(project)
+      await this.$projects.setActiveProject(project)
     }
   }
 };

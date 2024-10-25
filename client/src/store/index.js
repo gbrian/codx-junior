@@ -5,10 +5,10 @@ import {
 import { API } from '../api/api'
 
 import * as session from './session'
-import * as project from './project'
+import * as projects from './project'
 import * as ui from './ui'
 
-const modules = { session, project, ui }
+const modules = { session, projects, ui }
 const storePattern = {
   state () {
     return {

@@ -5,33 +5,28 @@ import CodxJuniorVue from './CodxJunior.vue'
 </script>
 
 <template>
-  <div class="w-full h-full relative flex">
-    <CoderVue class="h-full grow" v-if="$ui.showCoder" />
-    <NoVNCVue class="h-full grow" v-if="$ui.showPreview" />
-    <div class="h-full w-1 hover:w-fit group cursor-ew-resize bg-slate-600 flex flex-col justify-center"
-      v-if="leftPanel && !$ui.floatingCodxJunior">
-      <span class="click hidden group-hover:block" @click="$ui.incrementCodxJuniorWidth()"><i class="fa-solid fa-angle-left"></i></span>
-      <span class="click hidden group-hover:block" @click="$ui.decrementCodxJuniorWidth()"><i class="fa-solid fa-angle-right"></i></span>
-    </div>
-    <div class="right-side shrink-0 w-16" v-if="leftPanel && $ui.floatingCodxJunior">
-      <div class="absolute top-0 right-0 bottom-0 bg-base-300/30 flex justify-end z-50 click"
-        :class="$ui.expandCodxJunior && 'w-full'"
-        @click.stop="$ui.toggleCodxJunior()">
-        <CodxJuniorVue class="h-full bg-base-300"
-          @click.stop=""
-          :class="$ui.expandCodxJunior ? 'w-2/3' : 'w-16'"
-        />
+  <div class="w-full h-full relative"> 
+    <CodxJuniorVue class="right-side h-full" v-if="$ui.isMobile" />
+    <div class="w-full h-full flex" v-else>
+      <CoderVue class="h-full grow" v-if="$ui.showCoder" />
+      <NoVNCVue class="h-full grow p-1" v-if="$ui.showPreview" />
+      <div class="right-side shrink-0 w-16" v-if="$ui.isSplitView && $ui.floatingCodxJunior">
+        <div class="absolute top-0 right-0 bottom-0 bg-base-300/30 flex justify-end z-50 click"
+          :class="$ui.expandCodxJunior && 'w-full'"
+          @click.stop="$ui.toggleCodxJunior()">
+          <CodxJuniorVue class="h-full bg-base-300"
+            @click.stop=""
+            :class="$ui.expandCodxJunior ? 'w-2/3' : 'w-16'"
+          />
+        </div>
       </div>
+      <CodxJuniorVue class="w-2/6 h-full" v-else />
     </div>
-    <CodxJuniorVue class="right-side h-full" :class="leftPanel ? $ui.codxJuniorWidth : 'w-full'" v-else />
   </div>
 </template>
 <script>
 export default {
   computed: {
-    leftPanel () {
-      return !!this.$ui.showApp
-    },
   },
   watch: {
   },

@@ -25,18 +25,18 @@ export const getters = getterTree(state, {
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init () {
-      $storex.project.loadAllProjects()
+    async init (_, $storex) {
+      $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
       await API.init()
-      $storex.project.setAllProjects(API.allProjects)
-      $storex.project.setActiveProject(API.lastSettings)
+      $storex.projects.setAllProjects(API.allProjects)
+      $storex.projects.setActiveProject(API.lastSettings)
     },
     async setActiveProject ({ state }, project) {
       await API.init(project?.codx_path)
       state.activeProject = API.lastSettings
-      await $storex.project.loadChats()
+      await $storex.projects.loadChats()
       state.activeChat = null
     },
     async loadChats({ state }) {
@@ -44,11 +44,11 @@ export const actions = actionTree(
     },
     async saveChat (_, chat) {
       await API.chats.save(chat)
-      await $storex.project.loadChats()
+      await $storex.projects.loadChats()
     },
     async saveChatInfo (_, chat) {
       await API.chats.saveChatInfo(chat)
-      await $storex.project.loadChats()
+      await $storex.projects.loadChats()
     },
     async loadChat({ state }, name) {
       const chat = await API.chats.loadChat(name)
@@ -64,7 +64,7 @@ export const actions = actionTree(
     },
     async deleteChat(_, name) {
       await API.chats.delete(name)
-      await $storex.project.loadChats()
+      await $storex.projects.loadChats()
     },
     async setActiveChat({ state }, chatName) {
       if (chatName) {

@@ -1,11 +1,7 @@
 <template>
   <div role="tablist" class="tabs tabs-bordered">
     <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'home') ? 'tab-active font-bold' : '']" @click="setActiveTab('home')">
-      <div class="avatar">
-          <div class="w-6 rounded-full">
-              <img src="/only_icon.png" />
-          </div>
-      </div>
+      <i class="fa-solid fa-house"></i>
       <span class="hidden lg:inline">Projects</span>
     </a>
     <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'tasks') ? 'tab-active font-bold' : '']" @click="setActiveTab('tasks')">

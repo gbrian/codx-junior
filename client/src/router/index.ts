@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import CodxJuniorVue from '../views/CodxJunior.vue'
 import SplitView from '../views/SplitView.vue'
+import HomeView from '@/views/HomeView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,7 +14,7 @@ const router = createRouter({
     {
       path: '/codx-junior',
       name: 'codx-junior',
-      component: CodxJuniorVue
+      component: HomeView
     },    
   ]
 })

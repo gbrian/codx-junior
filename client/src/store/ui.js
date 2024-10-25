@@ -8,16 +8,20 @@ const CODX_JUNIOR_UI_SIZES = ['w-1/6','w-2/6','w-3/6','w-4/6','w-5/6']
 export const state = () => ({
   showApp: null,
   expandCodxJunior: false,
-  tabIx: null,
+  tabIx: 'home',
   floatingCodxJunior: false,
-  codxJuniorWidthIndex: 3
+  codxJuniorWidthIndex: 3,
+  isMobile: false,
+  orientation: 'portrait'
 })
 
 export const getters = getterTree(state, {
   showCoder: state => state.showApp === 'coder',
   showPreview: state => state.showApp === 'preview',
   sideBarMode: state => state.showApp && !state.expandCodxJunior,
-  codxJuniorWidth: state => CODX_JUNIOR_UI_SIZES[state.codxJuniorWidthIndex]
+  codxJuniorWidth: state => CODX_JUNIOR_UI_SIZES[state.codxJuniorWidthIndex],
+  isSplitView: state => !!state.showApp,
+  isLandscape: state => state.orientation !== 'portrait'
 })
 
 export const mutations = mutationTree(state, {
@@ -65,8 +69,7 @@ export const mutations = mutationTree(state, {
   incrementCodxJuniorWidth(state) {
     state.codxJuniorWidthIndex = Math.min(state.codxJuniorWidthIndex + 1, CODX_JUNIOR_UI_SIZES.length-1)
     $storex.ui.saveState()
-  }
-  ,
+  },
   decrementCodxJuniorWidth(state) {
     state.codxJuniorWidthIndex = Math.max(state.codxJuniorWidthIndex - 1, 0)
     $storex.ui.saveState()
@@ -78,9 +81,25 @@ export const actions = actionTree(
   {
     async init ({ state }, $storex) {
       $storex.ui.loadState()
+      $storex.ui.handleResize()
+      window.addEventListener('resize', () => $storex.ui.handleResize())
+      if (state.isMobile) {
+        state.showApp = null
+      }
+      if (!state.tabIx) {
+        state.tabIx = 'home'
+      }
     },
     saveState({ state }) {
       localStorage.setItem('uiState', JSON.stringify(state))
+    },
+    handleResize({ state }) {
+      const width = window.innerWidth
+      const height = window.innerHeight
+      const isMobile = width <= 768
+      const orientation = width > height ? 'landscape' : 'portrait'
+      state.isMobile = isMobile
+      state.orientation = orientation  
     }
   },
 )
