@@ -8,7 +8,7 @@ cd api
 
 API_VENV="/tmp/.venv_codx_junior"
 
-if [ ! -d $API_VENV ]; then
+if [ ! -d "$API_VENV/bin" ]; then
   echo "Installing codx-junior at $API_VENV"
   python3 -m venv $API_VENV
   source ${API_VENV}/bin/activate
