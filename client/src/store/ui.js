@@ -3,14 +3,10 @@ import { $storex } from '.'
 
 export const namespaced = true
 
-const CODX_JUNIOR_UI_SIZES = [...new Array(12)].map((_, ix) => `w-${ix+1}/12`)
-
 export const state = () => ({
   showApp: null,
-  expandCodxJunior: false,
   tabIx: 'home',
-  floatingCodxJunior: false,
-  codxJuniorWidthIndex: 3,
+  codxJuniorWidth: 30,
   isMobile: false,
   orientation: 'portrait'
 })
@@ -18,8 +14,6 @@ export const state = () => ({
 export const getters = getterTree(state, {
   showCoder: state => state.showApp === 'coder',
   showPreview: state => state.showApp === 'preview',
-  sideBarMode: state => state.showApp && !state.expandCodxJunior,
-  codxJuniorWidth: state => CODX_JUNIOR_UI_SIZES[state.codxJuniorWidthIndex],
   isSplitView: state => !!state.showApp,
   isLandscape: state => state.orientation !== 'portrait'
 })
@@ -37,38 +31,16 @@ export const mutations = mutationTree(state, {
   },
   setActiveApp(state, app) {
     state.showApp = app
-    if (app) {
-      state.expandCodxJunior = false
-    }
-    $storex.ui.saveState()
-  },
-  toggleCodxJunior(state) {
-    if (state.showApp) {
-      state.expandCodxJunior = !state.expandCodxJunior
-    } else {
-      state.expandCodxJunior = true
-    }
     $storex.ui.saveState()
   },
   setActiveTab(state, tabIx) {
     state.tabIx = tabIx
-    if (state.tabIx !== 'app') {
+    if (state.tabIx !== 'app' && state.isMobile) {
       state.showApp = null
     }
   },
-  toggleFloating(state) {
-    state.floatingCodxJunior = !state.floatingCodxJunior
-    if (state.floatingCodxJunior) {
-      state.expandCodxJunior = false
-    }
-    $storex.ui.saveState()
-  },
-  incrementCodxJuniorWidth(state) {
-    state.codxJuniorWidthIndex = Math.min(state.codxJuniorWidthIndex + 1, CODX_JUNIOR_UI_SIZES.length-1)
-    $storex.ui.saveState()
-  },
-  decrementCodxJuniorWidth(state) {
-    state.codxJuniorWidthIndex = Math.max(state.codxJuniorWidthIndex - 1, 0)
+  setCodxJuniorWidth(state, width) {
+    state.codxJuniorWidth = width
     $storex.ui.saveState()
   }
 })

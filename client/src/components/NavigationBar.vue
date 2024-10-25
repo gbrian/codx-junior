@@ -27,14 +27,6 @@ import ProjectIconVue from './ProjectIcon.vue'
       </div>
 
     <div class="flex flex-col mt-4 hidden md:flex">
-      <div class="hover:bg-base-100 click" v-if="$ui.showApp">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
-            :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Toggle floating"
-					  @click.stop="$ui.toggleFloating()">
-            <span v-if="$ui.floatingCodxJunior"><i class="fa-solid fa-window-maximize"></i></span>
-            <span v-else><i class="fa-solid fa-window-restore"></i></span>
-				</a>
-			</div>
       <div :class="['hover:bg-base-100 click', $ui.showCoder ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
 					 @click.stop="$ui.toggleApp('coder')">

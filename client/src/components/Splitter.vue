@@ -25,8 +25,10 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
       />
       <SplitterPanel
         id="splitter-group-1-panel-2"
-        :min-size="20"
-        class="flex items-center justify-center"
+        :min-size="3"
+        :defaultSize="$ui.codxJuniorWidth"
+        class="flex items-center justify-center border-l border-sky-500/40"
+        @resize="size => $ui.setCodxJuniorWidth(size)"
       >
         <CodxJuniorVue class="w-full h-full" />
       </SplitterPanel>
