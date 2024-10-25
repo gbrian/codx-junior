@@ -3,7 +3,7 @@ import { $storex } from '.'
 
 export const namespaced = true
 
-const CODX_JUNIOR_UI_SIZES = ['w-1/6','w-2/6','w-3/6','w-4/6','w-5/6']
+const CODX_JUNIOR_UI_SIZES = [...new Array(12)].map((_, ix) => `w-${ix+1}/12`)
 
 export const state = () => ({
   showApp: null,
