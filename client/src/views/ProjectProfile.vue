@@ -10,9 +10,26 @@ import moment from 'moment';
         <h1 class="text-3xl font-bold mb-2">Welcome to codx-junior</h1>
         <p class="text-lg">codx-junior is your AI assistant helping full stack developers to maintain their open source projects.</p>
       </div>
+      <div v-if="!$projects.allProjects?.length" class="p-6">
+        <div class="font-semibold mb-4">Get Started with codx-junior</div>
+        <ol class="list-decimal list-inside flex flex-col gap-2 ml-4">
+          <li>Clone your repo
+            <div class="ml-6 text-xs">Copy paste the repo url and press "Create new"</div>
+          </li>
+          <li>Add your settings
+            <div class="ml-6 text-xs">Review important settings like AI provider settings 😉</div>
+          </li>
+          <li>Initialize the project's Knowledge
+            <div class="ml-6 text-xs">Go to knowled and review settings. Set "watching" to catch codx mentions "@"</div>
+          </li>
+          <li>Create your first task and chat with codx-junior to solve a problem!</li>
+          <li>Happy co-AI-ding!! 🤩</li>
+          <li>Oh, don't forget to <span class="text-yellow-600"><i class="fa-solid fa-star"></i></span> us <a href="https://github.com/gbrian/codx-junior" target="_blank" class="text-blue-500 underline">github.com/gbrian/codx-junior</a></li>
+        </ol>
+      </div>
     </div>
 
-    <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4">
+    <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4" v-if="$projects.allProjects?.length">
       <h2 class="text-xl font-bold mb-4">Recent activity</h2>
       <div class="">
         <div class="flex flex-col gap-1 text-xs">
@@ -39,7 +56,7 @@ import moment from 'moment';
       </div>
     </div>
 
-    <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4">
+    <div class="projects-list mt-8 w-full flex flex-col gap-2 p-4"  v-if="$projects.allProjects?.length">
       <h2 class="text-xl font-bold mb-4">All projects</h2>
       <div class="rounded-md p-1 bg-base-200 h-96 overflow-auto">
         <table class="table">
@@ -101,16 +118,18 @@ import moment from 'moment';
     </div>
 
     <div class="grow"></div>
-    <div class="w-full flex flex-col gap-2 bg-base-300 p-4">
-      <div class="text-xl">
-        Create new project
-      </div>
-      <p class="text-sm">Copy the repository git url to create a new project</p>
-      <div class="input input-bordered flex gap-1 items-center">
-        <input type="text" class="grow" v-model="newProjectPath" placeholder="https://github.com/gbrian/codx-junior">
-        <button class="btn btn-sm" @click="createNewProject">
-          <i class="fa-solid fa-plus"></i>
-        </button>
+    <div class="w-full pb-4">
+      <div class="flex flex-col gap-2 alert bg-primary/30 p-2 rounded-md">
+        <div class="text-xl">
+          Create new project
+        </div>
+        <p class="text-sm">Copy the repository git url to create a new project</p>
+        <div class="input input-bordered flex gap-1 items-center">
+          <input type="text" class="grow" v-model="newProjectPath" placeholder="https://github.com/gbrian/codx-junior">
+          <button class="btn btn-sm" @click="createNewProject">
+            Create new
+          </button>
+        </div>
       </div>
     </div>
   </div>

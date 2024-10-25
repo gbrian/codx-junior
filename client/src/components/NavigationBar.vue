@@ -9,7 +9,7 @@ import ProjectIconVue from './ProjectIcon.vue'
 
     <ProjectIconVue
       :right="right"
-      @click.stop="$ui.sideBarMode ? setActiveTab('home') : $ui.toggleCodxJunior()"
+      @click.stop="setActiveTab('home')"
     />
 		
     <div class="grow overflow-auto border-b border-slate-700 py-1 text-center">
@@ -89,11 +89,8 @@ export default {
     setActiveTab (tab) {
       this.$ui.setActiveTab(tab)
     },
-    async setActiveProject(project) {
-      if (this.$ui.showApp && !this.$ui.expandCodxJunior) {
-        this.$ui.toggleCodxJunior()
-      }
-      await this.$projects.setActiveProject(project)
+    setActiveProject(project) {
+      this.$projects.setActiveProject(project)
     }
   }
 };

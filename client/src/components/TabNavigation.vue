@@ -35,7 +35,6 @@ export default {
   methods: {
     setActiveTab(tabName) {
       this.$ui.setActiveTab(tabName);
-      this.$ui.setActiveApp()
     },
     setActiveApp(appName) {
       this.$ui.setActiveTab('app');

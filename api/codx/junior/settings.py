@@ -35,6 +35,8 @@ class CODXJuniorSettings:
         self.log_ai = False
         self.knowledge_hnsw_M = 1024
         self.project_icon = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s"
+
+        self.urls = []
         if kwrgs:
             keys = CODXJuniorSettings().__dict__.keys()
             for key in kwrgs.keys():

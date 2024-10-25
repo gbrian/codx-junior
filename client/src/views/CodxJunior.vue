@@ -20,7 +20,7 @@ import CodeEditorVue from '@/components/CodeEditor.vue';
       <div class="flex gap-2 items-center reltive justify-between">
         <div class="flex flex-col" v-if="$projects.activeProject">
           <h3 class="text-2xl md:text-4xl font-bold flex items-center gap-2">
-            <div class="avatar md:hidden">
+            <div class="avatar">
               <div class="w-6 rounded-full">
                   <img :src="$projects.activeProject?.project_icon || '/only_icon.png'" />
               </div>
