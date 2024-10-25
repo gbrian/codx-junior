@@ -22,10 +22,13 @@ import moment from 'moment';
           <li>Initialize the project's Knowledge
             <div class="ml-6 text-xs">Go to knowled and review settings. Set "watching" to catch codx mentions "@"</div>
           </li>
-          <li>Create your first task and chat with codx-junior to solve a problem!</li>
-          <li>Happy co-AI-ding!! 🤩</li>
-          <li>Oh, don't forget to <span class="text-yellow-600"><i class="fa-solid fa-star"></i></span> us <a href="https://github.com/gbrian/codx-junior" target="_blank" class="text-blue-500 underline">github.com/gbrian/codx-junior</a></li>
+          <li>Create your first task! 
+            <div class="ml-6 text-xs">Chat with codx-junior to solve a problem!</div>
+          </li>
         </ol>
+        
+        <div class="mt-2">Happy co-AI-ding!! 🤩</div>
+        And don't forget to <span class="text-yellow-600"><i class="fa-solid fa-star"></i></span> us <a href="https://github.com/gbrian/codx-junior" target="_blank" class="text-blue-500 underline">github.com/gbrian/codx-junior</a>
       </div>
     </div>
 

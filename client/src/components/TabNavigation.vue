@@ -4,16 +4,24 @@
       <i class="fa-solid fa-house"></i>
       <span class="hidden lg:inline">Projects</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'tasks') ? 'tab-active font-bold' : '']" @click="setActiveTab('tasks')">
+    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'tasks') ? 'tab-active font-bold' : '']"
+      :disabled="!$project"
+      @click="setActiveTab('tasks')">
       <i class="fa-brands fa-trello"></i> <span class="hidden lg:inline">Tasks</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'knowledge') ? 'tab-active font-bold' : '']" @click="setActiveTab('knowledge')">
+    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'knowledge') ? 'tab-active font-bold' : '']" 
+      :disabled="!$project"
+      @click="setActiveTab('knowledge')">
       <i class="fa-solid fa-book"></i> <span class="hidden lg:inline">Knowledge</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'wiki') ? 'tab-active font-bold' : '']" @click="setActiveTab('wiki')">
+    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'wiki') ? 'tab-active font-bold' : '']" 
+      :disabled="!$project"
+      @click="setActiveTab('wiki')">
       <i class="fa-brands fa-wikipedia-w"></i> <span class="hidden lg:inline">Docs</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'app') ? 'tab-active font-bold' : '']" v-if="$ui.isMobile">
+    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'app') ? 'tab-active font-bold' : '']" 
+      :disabled="!$project"
+      v-if="$ui.isMobile">
       <div class="dropdown dropdown-end">
         <div tabindex="0" role="button" class="flex items-center gap-2">
           <i class="fa-solid fa-ellipsis"></i>
