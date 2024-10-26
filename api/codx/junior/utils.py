@@ -89,6 +89,7 @@ def set_file_permissions(file_path: str):
         exec_command(f"chown {HOST_USER} {file_path}")
 
 def write_file(file_path: str, content: str):
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w') as f:
         f.write(content)
     set_file_permissions(file_path)

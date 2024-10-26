@@ -5,7 +5,7 @@ import { API } from '../api/api'
 export const namespaced = true
 
 export const state = () => ({
-  activeProject: {},
+  activeProject: null,
   allProjects: null,
   chats: null,
   activeChat: null
@@ -25,7 +25,7 @@ export const getters = getterTree(state, {
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init (_, $storex) {
+    async init () {
       $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
@@ -34,6 +34,9 @@ export const actions = actionTree(
       $storex.projects.setActiveProject(API.lastSettings)
     },
     async setActiveProject ({ state }, project) {
+      if (project?.codx_path === state.activeProject?.codx_path) {
+        return
+      }
       await API.init(project?.codx_path)
       state.activeProject = project ? API.lastSettings : null
       state.activeChat = null
@@ -50,33 +53,29 @@ export const actions = actionTree(
       await API.chats.saveChatInfo(chat)
       await $storex.projects.loadChats()
     },
-    async loadChat({ state }, name) {
-      const chat = await API.chats.loadChat(name)
+    async loadChat({ state }, { board, name }) {
+      const chat = await API.chats.loadChat({ board, name })
       state.chats = [...state.chats.filter(c => c.name !== name), chat]
       return chat 
     },
-    async newChat({ state }, column) {
-      const chat = {
-        column,
-        name: "New chat " + (state.chats.length + 1) 
-      }
+    async newChat({ state }, chat) {
       state.activeChat = chat
     },
     async deleteChat(_, name) {
       await API.chats.delete(name)
       await $storex.projects.loadChats()
     },
-    async setActiveChat({ state }, chatName) {
-      if (chatName) {
-        const chat = await API.chats.loadChat(chatName)
-        const existingChat = state.chats.find(c => c.name === chatName)
+    async setActiveChat({ state }, { board, name } = {}) {
+      if (name) {
+        const chat = await API.chats.loadChat({ board, name })
+        const existingChat = state.chats.find(c => c.name === name)
         if (existingChat) {
           existingChat.messages = chat.messages
         } else {
           state.chats = [...state.chats, chat]
         }
       }
-      state.activeChat = state.chats.find(c => c.name === chatName)
+      state.activeChat = state.chats.find(c => c.name === name)
     }
   }
 )

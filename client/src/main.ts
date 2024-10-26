@@ -27,6 +27,8 @@ const globalMixin = {
   }
 }
 
+$storex.init($storex)
+
 const app = createApp(App)
               .mixin(globalMixin)
               .use(store)

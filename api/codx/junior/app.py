@@ -27,7 +27,7 @@ disable_logs([
     'chromadb.auth.registry',
     'chromadb.api.segment',
     'openai._base_client',
-    'openai._base_client'
+    'openai._base_client',
 ])
 
 
@@ -78,7 +78,8 @@ from codx.junior.engine import (
     write_global_settings,
     add_global_settings,
     coder_open_file,
-    api_image_to_text
+    api_image_to_text,
+    save_profile
 )
 
 from codx.junior.scheduler import add_work
@@ -202,9 +203,10 @@ class CODXJuniorAPI:
         def api_list_chats(request: Request):
             settings = request.state.settings
             chat_name = request.query_params.get("chat_name")
+            board = request.query_params.get("board")
             chat_manager = ChatManager(settings=settings)
             if chat_name:
-                return chat_manager.load_chat(chat_name=chat_name)
+                return chat_manager.load_chat(board=board, chat_name=chat_name)
             return chat_manager.list_chats()
 
         @app.post("/api/chats")
@@ -292,7 +294,7 @@ class CODXJuniorAPI:
         @app.post("/api/profiles")
         def api_create_profile(profile: Profile, request: Request):
             settings = request.state.settings
-            return ProfileManager(settings=settings).create_profile(profile)
+            return save_profile(settings=settings, profile=profile)
             
         @app.get("/api/profiles/{profile_name}")
         def api_read_profile(profile_name, request: Request):

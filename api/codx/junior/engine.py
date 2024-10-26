@@ -34,7 +34,8 @@ from codx.junior.model import (
     Content,
     ImageUrl,
     LiveEdit,
-    GlobalSettings
+    GlobalSettings,
+    Profile
 )
 from codx.junior.context import (
   find_relevant_documents,
@@ -1002,3 +1003,27 @@ def api_image_to_text(image_bytes):
     text = pytesseract.image_to_string(image)
     
     return text
+
+def save_profile(settings: CODXJuniorSettings, profile: Profile):
+    if profile.user_comment:
+        prompt = f"""Update this document applying user comments.
+        Generate a markdown document. Below it's an XML with the information you need:
+        ```xml
+        <xml>
+            <CURRENT_DOCUMENT>
+            { profile.content }
+            </CURRENT_DOCUMENT>
+            <USER_COMMENT>
+            { profile.user_comment}
+            </USER_COMMENT>
+        </xml>
+        ```
+        Return only the document without any further decoration or comments.
+        Do not sorround response with '```' marks, just content
+        """
+        ai = AI(settings=settings)
+        profile.content = ai.chat(prompt=prompt)[-1].content
+
+    profile_manager = ProfileManager(settings=settings)
+    profile_manager.create_profile(profile)
+    return profile_manager.read_profile(profile.name)

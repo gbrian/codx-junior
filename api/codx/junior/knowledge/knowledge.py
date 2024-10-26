@@ -73,9 +73,12 @@ class Knowledge:
       try:
           if not self.db:
               os.makedirs(self.db_path, exist_ok=True)
-              self.db = Chroma(
-                      persist_directory=self.db_path, 
-                      embedding_function=self.get_embedding())
+              db_file = f"{self.db_path}/chroma.sqlite3"
+              db_exists = os.path.isfile(db_file)
+              if db_exists:
+                  self.db = Chroma(
+                          persist_directory=self.db_path, 
+                          embedding_function=self.get_embedding())
           return self.db
       except Exception as ex:
           logger.exception(f"Error opening Knowledge DB: {self.db_path}")
@@ -85,9 +88,6 @@ class Knowledge:
           self.last_update = os.path.getmtime(self.db_file)
 
     def detect_changes(self):
-      if not self.get_db():
-          return []
-
       current_sources = self.get_all_sources()
       changes = self.loader.list_repository_files(last_update=self.last_update if current_sources else None,
                           current_sources=current_sources)
@@ -218,8 +218,8 @@ class Knowledge:
   
     def index_documents (self, documents, raiseIfError=False):
         self.delete_documents(documents)
-        # remove empty documents
-        documents = [doc for doc in documents if doc.page_content]
+        # logger.info(f"Indexing documents. {documents}")
+        
         index_date = datetime.now().strftime("%m/%d/%YT%H:%M:%S")
         all_sources = list(set([doc.metadata["source"] for doc in documents]))
         all_sources_with_md5 = dict([(source, calculate_md5(source)) for source in all_sources])
@@ -251,12 +251,12 @@ class Knowledge:
                 #    self.extract_doc_keywords(enriched_doc)
                 enriched_doc.metadata["index_date"] = index_date
                 enriched_doc.metadata["file_md5"] = all_sources_with_md5[source]
-                #logger.info(f"Indexing document: {enriched_doc}")
+                # logger.info(f"Indexing document: {enriched_doc}")
                 self.db = Chroma.from_documents([enriched_doc],
                   self.get_embedding(),
                   persist_directory=self.db_path,
                 )
-                #logger.info(f"Indexing document DONE: {enriched_doc}")
+                # logger.info(f"Indexing document DONE: {enriched_doc}")
                 
             except Exception as ex:
                 logger.exception(f"Error indexing document {enriched_doc.metadata['source']}: {ex}")
@@ -279,6 +279,9 @@ class Knowledge:
         
 
     def delete_documents (self, documents=None, sources=None):
+        if not self.get_db():
+            return
+
         logger.info('Removing old documents')
         ids_to_delete = []
         collection = self.get_db()._collection
@@ -404,7 +407,10 @@ class Knowledge:
         self.index_documents(documents)
 
     def get_all_sources (self):
-        collection = self.get_db()._collection
+        db = self.get_db()
+        if not db:
+          return []
+        collection = db._collection
         collection_docs = collection.get(include=['metadatas'])
         
         metadatas = collection_docs["metadatas"]
@@ -415,16 +421,16 @@ class Knowledge:
 
     def status (self):
         db = self.get_db()
-        if not db:
-            return {
-              "error": "No data indexed yet"
-            }
-        collection = db._collection
-        collection_docs = collection.get(include=['metadatas', 'documents'])
-        
-        ids = collection_docs["ids"]
-        metadatas = collection_docs["metadatas"]
-        documents = collection_docs["documents"]
+        ids = []
+        metadatas = []
+        documents = []
+        if db:
+            collection = db._collection
+            collection_docs = collection.get(include=['metadatas', 'documents'])
+            
+            ids = collection_docs["ids"]
+            metadatas = collection_docs["metadatas"]
+            documents = collection_docs["documents"]
         
         corrupted_docs = [ix for ix, doc in enumerate(documents) if not doc]
 

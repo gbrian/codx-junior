@@ -81,8 +81,12 @@ class KnowledgeLoader:
                 documents = documents + new_docs
             except Exception as ex:
                 logging.exception(f"Error loading file {file_path}")  
-        logger.debug(f"Loaded {len(documents)} documents from {len(files)} files")
-        return documents
+
+        bad_docs = [doc for doc in documents if not doc.page_content]
+        good_docs = [doc for doc in documents if doc.page_content]
+        if bad_docs:
+            logger.debug(f"Loaded {len(documents)} documents from {len(files)} files. OK: {len(good_docs)} ERROR: {len(bad_docs)}")
+        return good_docs
 
     def run_command(self, command):
         result = subprocess.run(command, cwd=self.path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

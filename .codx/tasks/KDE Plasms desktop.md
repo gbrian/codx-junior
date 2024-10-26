@@ -1,4 +1,4 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "KDE Plasms desktop", "created_at": "2024-10-19T21:46:54.377726", "updated_at": "2024-10-20T09:10:56.553643", "mode": "chat", "board": "<none>", "column": "Infrastructure", "column_index": 2, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "KDE Plasms desktop", "created_at": "2024-10-19T21:46:54.377726", "updated_at": "2024-10-20T09:10:56.553643", "mode": "chat", "board": "", "column": "Infrastructure", "column_index": 2, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-19T22:28:58.380268", "images": [], "files": []}]]
 Allow login for root without a password
 ```ssdm

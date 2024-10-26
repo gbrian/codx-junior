@@ -1,0 +1,1 @@
+# [[{"id": "", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Chat in a board", "created_at": "2024-10-26T18:01:47.939458", "updated_at": "2024-10-26T18:01:47.939458", "mode": "chat", "board": "", "column": "new column", "column_index": -1, "chat_index": -1, "live_url": "", "branch": ""}]]

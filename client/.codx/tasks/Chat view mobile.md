@@ -1,4 +1,4 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": ["/src/views/ChatView.vue"], "profiles": [], "name": "Chat view mobile", "created_at": "2024-10-20T07:40:05.348747", "updated_at": "2024-10-20T07:41:57.782993", "mode": "task", "board": "<none>", "column": "UI", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": ["/src/views/ChatView.vue"], "profiles": [], "name": "Chat view mobile", "created_at": "2024-10-20T07:40:05.348747", "updated_at": "2024-10-20T07:41:57.782993", "mode": "task", "board": "", "column": "UI", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-20T07:40:05.348830", "images": [], "files": []}]]
 In mobile view move the chat mode selector and other elements like save, delete,... into a dropdown
 ## [[{"role": "system", "hide": true, "improvement": false, "created_at": "2024-10-20T07:40:05.348866", "images": [], "files": []}]]

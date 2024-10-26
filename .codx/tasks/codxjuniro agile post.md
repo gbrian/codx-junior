@@ -1,4 +1,4 @@
-# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "codxjuniro agile post", "created_at": "2024-10-08T07:59:49.999138", "updated_at": "2024-10-08T08:01:34.562836", "mode": "task", "board": "<none>", "column": "Linkedin", "column_index": 0, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "codxjuniro agile post", "created_at": "2024-10-08T07:59:49.999138", "updated_at": "2024-10-08T08:01:34.562836", "mode": "task", "board": "", "column": "Linkedin", "column_index": 0, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-08T07:59:49.999349", "images": [], "files": []}]]
 Create a linkedin post from this text:
 

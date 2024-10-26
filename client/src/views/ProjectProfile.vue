@@ -38,7 +38,7 @@ import moment from 'moment';
         <div class="flex flex-col gap-1 text-xs">
           <div class="h-96 overflow-auto bg-base-200">
             <table class="table">
-              <thead class="sticky top-0 bg-base-200">
+              <thead class="">
                 <th>Project</th>
                 <th>Task</th>
                 <th class="hidden md:block">Type</th>
@@ -63,27 +63,27 @@ import moment from 'moment';
       <h2 class="text-xl font-bold mb-4">All projects</h2>
       <div class="rounded-md p-1 bg-base-200 h-96 overflow-auto">
         <table class="table">
-          <thead class="sticky top-0 bg-base-200">
+          <thead class="">
             <tr class="">
               <th class="px-4 py-2">Name</th>
-              <th class="px-4 py-2 hidden md:block">Path</th>
+              <th class="px-4 py-2" v-if="!$ui.mobile">Path</th>
               <th class="px-4 py-2 text-center">
-                <div class="tooltip" data-tip="Tasks">
+                <div class="tooltip tooltip-bottom" data-tip="Tasks">
                   <i class="fa-solid fa-list-check"></i>
                 </div>
               </th>
               <th class="px-4 py-2 text-center">
-                <div class="tooltip" data-tip="Docs indexed">
+                <div class="tooltip tooltip-bottom" data-tip="Docs indexed">
                   <i class="fa-solid fa-puzzle-piece"></i>
                 </div>
               </th>
               <th class="px-4 py-2 text-center hidden md:block">
-                <div class="tooltip" data-tip="Last Update">
+                <div class="tooltip tooltip-bottom" data-tip="Last Update">
                   <i class="fa-regular fa-clock"></i>
                 </div>
               </th>
               <th class="px-4 py-2 text-center">
-                <div class="tooltip" data-tip="Checking for mentions">
+                <div class="tooltip tooltip-bottom" data-tip="Checking for mentions">
                     <i class="fa-solid fa-at"></i>
                   </div>
               </th>
@@ -96,8 +96,8 @@ import moment from 'moment';
                 <img :src="project.project_icon" alt="Project Icon" class="w-6 h-6 rounded-full mr-2" />
                 <span class="text-xs font-bold">{{ project.project_name }}</span>
               </td>
-              <td class="px-4 py-2 hidden md:block">
-                <div class="text-nowrap text-xs overflow-hidden tooltip text-left" :title="project.project_path" :data-tip="project.project_path">
+              <td class="px-4 py-2" v-if="!$ui.mobile">
+                <div class="text-nowrap text-xs overflow-hidden tooltip tooltip-bottom text-left" :title="project.project_path" :data-tip="project.project_path">
                   {{ project.project_path.split("/").reverse().slice(0, 3).reverse().join(" / ") }}
                 </div>
               </td>
@@ -108,11 +108,9 @@ import moment from 'moment';
                 <span class="badge bagde-sm badge-error" v-if="project.metrics.error">
                   Err! Review settings
                 </span>
-                <div v-else>
-                  <span v-if="project.watching">
-                    <i class="fa-solid fa-check"></i>
-                  </span>
-                </div>
+                <span v-if="project.watching">
+                  <i class="fa-solid fa-check"></i>
+                </span>
               </td>
             </tr>
           </tbody>
@@ -146,7 +144,6 @@ export default {
     };
   },
   created () {
-    this.$projects.loadAllProjects()
   },
   computed: {
     projectName() {

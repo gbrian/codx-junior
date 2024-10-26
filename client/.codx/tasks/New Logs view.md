@@ -1,4 +1,4 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": ["api", "component"], "file_list": ["/src/api/api.js"], "profiles": [], "name": "New Logs view", "created_at": "2024-10-20T05:44:49.028222", "updated_at": "2024-10-20T06:08:17.070522", "mode": "task", "board": "<none>", "column": "UI", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "0", "parent_id": "", "status": "", "tags": ["api", "component"], "file_list": ["/src/api/api.js"], "profiles": [], "name": "New Logs view", "created_at": "2024-10-20T05:44:49.028222", "updated_at": "2024-10-20T06:08:17.070522", "mode": "task", "board": "", "column": "UI", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-20T05:44:49.028311", "images": [], "files": []}]]
 Create new vue component to view logs
 Will have a header with a "logs" selector: "web, api, kde, vnc" and a auto-refresh toggle tgo referseh logs every 10secs

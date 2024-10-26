@@ -1,4 +1,4 @@
-# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Console component", "created_at": "2024-10-03T07:12:21.128987", "updated_at": "2024-10-20T12:30:24.664647", "mode": "task", "board": "<none>", "column": "Components", "column_index": 2, "chat_index": 1, "live_url": "", "branch": ""}]]
+# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Console component", "created_at": "2024-10-03T07:12:21.128987", "updated_at": "2024-10-20T12:30:24.664647", "mode": "task", "board": "", "column": "Components", "column_index": 2, "chat_index": 1, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-03T07:12:21.129042", "images": [], "files": []}]]
 ConsoleViewer will show last messages from API by pulling them every 5 seconds. Create an interval for it and clear on component unlod.
 We need a new endpoint in the API lastLogs that will call "/api/lastLogs"

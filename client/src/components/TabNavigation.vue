@@ -4,23 +4,27 @@
       <i class="fa-solid fa-house"></i>
       <span class="hidden lg:inline">Projects</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'tasks') ? 'tab-active font-bold' : '']"
-      :disabled="!$project"
+    <a role="tab" :class="['tab flex items-center gap-2', 
+      disableProjectTabs && 'tab-disabled',
+      ($ui.tabIx === 'tasks') ? 'tab-active font-bold' : '']"
       @click="setActiveTab('tasks')">
       <i class="fa-brands fa-trello"></i> <span class="hidden lg:inline">Tasks</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'knowledge') ? 'tab-active font-bold' : '']" 
-      :disabled="!$project"
+    <a role="tab" :class="['tab flex items-center gap-2', 
+      disableProjectTabs && 'tab-disabled',
+      ($ui.tabIx === 'knowledge') ? 'tab-active font-bold' : '']" 
       @click="setActiveTab('knowledge')">
       <i class="fa-solid fa-book"></i> <span class="hidden lg:inline">Knowledge</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'wiki') ? 'tab-active font-bold' : '']" 
-      :disabled="!$project"
+    <a role="tab" :class="['tab flex items-center gap-2', 
+      disableProjectTabs && 'tab-disabled',
+      ($ui.tabIx === 'wiki') ? 'tab-active font-bold' : '']" 
       @click="setActiveTab('wiki')">
       <i class="fa-brands fa-wikipedia-w"></i> <span class="hidden lg:inline">Docs</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'app') ? 'tab-active font-bold' : '']" 
-      :disabled="!$project"
+    <a role="tab" :class="['tab flex items-center gap-2', 
+      disableProjectTabs && 'tab-disabled',
+      ($ui.tabIx === 'app') ? 'tab-active font-bold' : '']" 
       v-if="$ui.isMobile">
       <div class="dropdown dropdown-end">
         <div tabindex="0" role="button" class="flex items-center gap-2">
@@ -40,13 +44,22 @@
 </template>
 <script>
 export default {
+  computed: {
+    disableProjectTabs () {
+      return !this.$project?.codx_path
+    }
+  },
   methods: {
     setActiveTab(tabName) {
-      this.$ui.setActiveTab(tabName);
+      if (!this.disableProjectTabs || tabName === 'home') {
+        this.$ui.setActiveTab(tabName);
+      }
     },
     setActiveApp(appName) {
-      this.$ui.setActiveTab('app');
-      this.$ui.setActiveApp(appName)
+      if (!this.disableProjectTabs) {
+        this.$ui.setActiveTab('app');
+        this.$ui.setActiveApp(appName)
+      }
     }
   }
 }

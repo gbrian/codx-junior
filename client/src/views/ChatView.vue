@@ -35,7 +35,7 @@ import PRView from '../views/PRView.vue'
         <ul tabindex="0" class=" p-2 w-52">
           <li class="p-2 click hover:underline flex flex-col"
             v-for="openChat in chats" :key="openChat"
-            @click="loadChat(openChat.name)" >
+            @click="loadChat(openChat)" >
             <div class="text-xs">{{ chatUpdatedDate }}</div>
             <a>{{ openChat.name }}</a>
           </li>
@@ -45,7 +45,7 @@ import PRView from '../views/PRView.vue'
       </div>
       <div class="grow flex flex-col gap-2 w-full">
         <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
-          <div class="flex items-start lg:items-end gap-2 w-full">
+          <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
               <button :class="['btn btn-xs btn-circle mt-1', showChatsTree && 'btn-info text-white']"
                 @click="onShowChats">
@@ -170,7 +170,7 @@ import PRView from '../views/PRView.vue'
         </div>
         <Chat :chat="chat"
           :showHidden="showHidden"
-          @refresh-chat="loadChat(chat.name)"
+          @refresh-chat="loadChat(chat)"
           @add-file="onAddFile"
           @remove-file="onRemoveFile"
           @delete-message="onRemoveMessage"
@@ -268,20 +268,20 @@ export default {
         this.confirmDelete = true
       }
     },
-    async loadChat (chatName) {
-      await this.project.setActiveChat(chatName)
+    async loadChat (chat) {
+      await this.project.setActiveChat(chat)
       this.showChatsTree = false
     },
     async removeFileFromContext () {
       this.chat.profiles = this.chat.profiles?.filter(f => f !== this.showFile) 
       this.onRemoveFile(this.showFile)
-      await this.loadChat(this.chat.name)
+      await this.loadChat(this.chat)
       this.showFile = null
     },
     async addFileToContext () {
       this.onAddFile(this.addFile)
       await this.saveChat()
-      await this.loadChat(this.chat.name)
+      await this.loadChat(this.chat)
       this.showFile = null
       this.addFile = null
     },
@@ -304,7 +304,7 @@ export default {
       }
       this.chat.profiles = [...this.chat.profiles||[], profile]
       await this.saveChat()
-      await this.loadChat(this.chat.name)
+      await this.loadChat(this.chat)
     },
     onRemoveMessage (ix) {
       const message = this.chat.messages[ix]

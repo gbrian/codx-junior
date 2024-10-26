@@ -11,14 +11,14 @@ import KanbanVue from "./kanban/Kanban.vue";
 import NoVNCVue from "./NoVNC.vue";
 </script>
 <template>
-  <CodeEditorVue v-if="$ui.tabIx === 'editor'" />
-  <KanbanVue v-if="$ui.tabIx === 'tasks'" />
-  <KnowledgeViewVue v-if="$ui.tabIx === 'knowledge'" />
-  <WikiViewVue v-if="$ui.tabIx == 'wiki'"></WikiViewVue>
-  <ProjectSettingsVue  v-if="$ui.tabIx === 'settings'" />
-  <GlobalSettingsVue v-if="$ui.tabIx === 'global-settings'" />
-  <ProfileViewVue v-if="$ui.tabIx === 'profiles'" />
-  <ProjectProfileVue v-if="$ui.tabIx == 'home'" />
-  <CoderVue v-bind="$attrs" v-if="$ui.showApp == 'coder'" />
-  <NoVNCVue v-if="$ui.showApp == 'preview'" />    
+  <CodeEditorVue v-bind="$attrs" v-if="$ui.tabIx === 'editor'" />
+  <KanbanVue v-bind="$attrs" v-if="$ui.tabIx === 'tasks'" />
+  <CoderVue v-bind="$attrs" v-if="$ui.tabIx === 'apps' && $ui.showApp == 'coder'" />
+  <NoVNCVue v-bind="$attrs" v-if="$ui.tabIx === 'apps' && $ui.showApp == 'preview'" />
+  <KnowledgeViewVue v-bind="$attrs" v-if="$ui.tabIx === 'knowledge'" />
+  <WikiViewVue v-bind="$attrs" v-if="$ui.tabIx == 'wiki'"></WikiViewVue>
+  <ProjectSettingsVue  v-bind="$attrs" v-if="$ui.tabIx === 'settings'" />
+  <GlobalSettingsVue v-bind="$attrs" v-if="$ui.tabIx === 'global-settings'" />
+  <ProfileViewVue v-bind="$attrs" v-if="$ui.tabIx === 'profiles'" />
+  <ProjectProfileVue v-bind="$attrs" v-if="$ui.tabIx == 'home'" />
 </template>

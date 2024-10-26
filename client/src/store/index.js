@@ -28,7 +28,6 @@ storex.init = async () => {
 }
 storex.store = store
 storex.api = API
-storex.init(storex)
 
 window.$storex = storex
 

@@ -1,3 +1,3 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "gnome desktop", "created_at": "2024-10-19T20:34:19.132477", "updated_at": "2024-10-20T06:09:21.631196", "mode": "chat", "board": "<none>", "column": "todo", "column_index": 1, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "gnome desktop", "created_at": "2024-10-19T20:34:19.132477", "updated_at": "2024-10-20T06:09:21.631196", "mode": "chat", "board": "", "column": "todo", "column_index": 1, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-19T21:44:00.784847", "images": [], "files": []}]]
 Review supervisor.conf

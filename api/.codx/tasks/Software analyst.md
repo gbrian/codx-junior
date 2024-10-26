@@ -1,4 +1,4 @@
-# [[{"id": "-1", "parent_id": "", "status": "", "tags": ["profile"], "file_list": [], "profiles": [], "name": "Software analyst", "created_at": "2024-10-03T07:27:52.414418", "updated_at": "2024-10-04T12:32:23.848412", "mode": "task", "board": "<none>", "column": "Profiles", "column_index": 0, "chat_index": 0, "live_url": ""}]]
+# [[{"id": "-1", "parent_id": "", "status": "", "tags": ["profile"], "file_list": [], "profiles": [], "name": "Software analyst", "created_at": "2024-10-03T07:27:52.414418", "updated_at": "2024-10-04T12:32:23.848412", "mode": "task", "board": "", "column": "Profiles", "column_index": 0, "chat_index": 0, "live_url": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-04T07:29:40.673853", "images": [], "files": []}]]
 Help me defining the "software analyst" assistant profile
 - We'll use Agile methodology for software development.

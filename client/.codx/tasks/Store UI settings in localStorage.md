@@ -1,4 +1,4 @@
-# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Store UI settings in localStorage", "created_at": "2024-10-14T06:25:40.603083", "updated_at": "2024-10-14T06:35:33.561102", "mode": "task", "board": "<none>", "column": "UI", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Store UI settings in localStorage", "created_at": "2024-10-14T06:25:40.603083", "updated_at": "2024-10-14T06:35:33.561102", "mode": "task", "board": "", "column": "UI", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": true, "improvement": false, "created_at": "2024-10-14T06:25:40.603131", "images": [], "files": []}]]
 At store ui instead of using "this.commit" use $storex.ui to call save_state and load_state. Rename "load_state" by "loadState" and "save_state" by saveState.
 

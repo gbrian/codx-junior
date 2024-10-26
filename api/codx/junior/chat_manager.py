@@ -8,18 +8,28 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.model import Chat, Message
 from codx.junior.utils import write_file
 
+logger = logging.getLogger(__name__)
+
 class ChatManager:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.chat_path = f"{settings.codx_path}/tasks"
         os.makedirs(self.chat_path, exist_ok=True)
 
+    def get_chat_file(self, chat: Chat):
+        chat_file = f"{self.chat_path}/{chat.board}/{chat.name}" if chat.board else f"{self.chat_path}/{chat.name}"
+        if not chat_file.endswith(".md"):
+            chat_file = chat_file + ".md"
+        return chat_file
+
     def list_chats(self):
-        path = self.chat_path
-        file_paths = [str(file_path) for file_path in pathlib.Path(path).rglob("*.md")]
+        file_paths = [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.md")]
         def chat_info(file_path):
-          name = os.path.basename(file_path).split(".")[0]
-          chat = self.load_chat(chat_name=name)
+          chat_parts = file_path.replace(self.chat_path, "").split("/")[1:]       
+          name = chat_parts[-1].replace(".md", "")
+          board = chat_parts[0] if len(chat_parts) == 2 else ""
+          # logger.info(f"list_chats file_path: {file_path} chat_parts: {chat_parts} name: {name} board: {board}")
+          chat = self.load_chat(board=board, chat_name=name)
           chat.messages = [c for c in chat.messages if not c.hide][0:1]
           return {
             **chat.__dict__,
@@ -30,25 +40,19 @@ class ChatManager:
             reverse=True)
 
     def save_chat(self, chat: Chat):
-        chat_file = f"{self.chat_path}/{chat.name}"
-        if not chat_file.endswith(".md"):
-            chat_file = chat_file + ".md"
+        chat_file = self.get_chat_file(chat)
         chat.updated_at = datetime.now().isoformat()
         if not chat.created_at:
             chat.created_at = chat.updated_at
         write_file(chat_file, self.serialize_chat(chat))
 
     def delete_chat(self, chat_name: str):
-        chat_file = f"{self.chat_path}/{chat_name}"
-        if not chat_file.endswith(".md"):
-            chat_file = chat_file + ".md"
+        chat_file = self.get_chat_file(chat)
         if os.path.isfile(chat_file):
             os.remove(chat_file)
 
-    def load_chat(self, chat_name):
-        chat_file = f"{self.chat_path}/{chat_name}"
-        if not chat_file.endswith(".md"):
-            chat_file += ".md"
+    def load_chat(self, board, chat_name):
+        chat_file = self.get_chat_file(Chat(board=board or "", name=chat_name))
         with open(chat_file, 'r') as f:
             chat = self.deserialize_chat(content=f.read())
             if not chat.created_at:
@@ -96,5 +100,5 @@ class ChatManager:
     def find_by_id(self, id):
         for chat in self.list_chats():
           if chat["id"] == id:
-              return self.load_chat(chat_name=chat["name"])
+              return self.load_chat(board=chat["board"], chat_name=chat["name"])
         return None

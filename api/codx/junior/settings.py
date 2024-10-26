@@ -10,14 +10,14 @@ logger = logging.getLogger(__name__)
 class CODXJuniorSettings:
     def __init__(self, **kwrgs):
         self.ai_provider = "openai"
-        self.project_name = None
+        self.project_name = ""
         self.project_path = "."
-        self.project_wiki = None
-        self.project_dependencies = None
+        self.project_wiki = ""
+        self.project_dependencies = ""
 
-        self.ai_api_key = None
-        self.ai_api_url = None
-        self.ai_model = None
+        self.ai_api_key = ""
+        self.ai_api_url = ""
+        self.ai_model = ""
         
         self.knowledge_extract_document_tags = False
         self.knowledge_search_type = "similarity"
@@ -75,10 +75,15 @@ class CODXJuniorSettings:
 
     def save_project(self):
       settings = self.__dict__
+      valid_keys = CODXJuniorSettings().__dict__.keys()
       path = f"{self.codx_path}/project.json"
       os.makedirs(self.codx_path, exist_ok=True)
       logging.info(f"Saving project {path} {settings}")
-      write_file(path, json.dumps(settings, indent=2))
+      data = {}
+      for key in valid_keys:
+          data[key] = settings[key]
+      logger.info(f"Saving project {valid_keys}: {data}")
+      write_file(path, json.dumps(data, indent=2))
 
     def detect_sub_projects(self):
       try:

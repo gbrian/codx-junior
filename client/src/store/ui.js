@@ -68,7 +68,7 @@ export const actions = actionTree(
     },
     loadTask (_, task) {
       $storex.ui.setActiveTab('tasks')
-      $storex.projects.loadChat(task.name)
+      $storex.projects.loadChat(task)
     }
   },
 )

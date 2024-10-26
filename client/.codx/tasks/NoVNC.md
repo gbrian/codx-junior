@@ -1,4 +1,4 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "NoVNC", "created_at": "2024-10-18T18:06:17.627643", "updated_at": "2024-10-19T09:15:42.315634", "mode": "chat", "board": "<none>", "column": "UI", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "NoVNC", "created_at": "2024-10-18T18:06:17.627643", "updated_at": "2024-10-19T09:15:42.315634", "mode": "chat", "board": "", "column": "UI", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "system", "hide": true, "improvement": false, "created_at": "2024-10-18T18:06:17.627693", "images": [], "files": []}]]
 # INSTRUCTIONS:
               

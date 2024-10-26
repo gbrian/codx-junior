@@ -1,4 +1,4 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Logs api endpoint", "created_at": "2024-10-20T06:10:18.336736", "updated_at": "2024-10-20T06:40:00.569853", "mode": "task", "board": "<none>", "column": "API endpoints", "column_index": 2, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Logs api endpoint", "created_at": "2024-10-20T06:10:18.336736", "updated_at": "2024-10-20T06:40:00.569853", "mode": "task", "board": "", "column": "API endpoints", "column_index": 2, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": true, "improvement": false, "created_at": "2024-10-20T06:18:18.644302", "images": [], "files": []}]]
 Create new endpoints:
 /api/logs : return a list of logs (web, api, kde)

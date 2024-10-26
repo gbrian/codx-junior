@@ -1,4 +1,4 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Imnage to text", "created_at": "2024-10-18T08:25:47.953831", "updated_at": "2024-10-18T10:47:15.005670", "mode": "chat", "board": "<none>", "column": "<none>", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Imnage to text", "created_at": "2024-10-18T08:25:47.953831", "updated_at": "2024-10-18T10:47:15.005670", "mode": "chat", "board": "", "column": "", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "system", "hide": true, "improvement": false, "created_at": "2024-10-18T08:25:47.953970", "images": [], "files": []}]]
 # INSTRUCTIONS:
               

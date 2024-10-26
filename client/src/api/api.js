@@ -144,8 +144,8 @@ export const API = {
       const { data } = await API.get('/api/chats')
       return data
     },
-    async loadChat (name) {
-      const { data } = await API.get(`/api/chats?chat_name=${name}`)
+    async loadChat ({ board, name }) {
+      const { data } = await API.get(`/api/chats?board=${board}&chat_name=${name}`)
       return data
     },
     async newChat () {
@@ -258,6 +258,4 @@ export const API = {
     }
   }
 }
-const codx_path = decodeURIComponent(codx_key ? codx_key[1] : "")
-API.init(codx_path)
 window.API = API

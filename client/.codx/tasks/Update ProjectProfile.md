@@ -1,4 +1,4 @@
-# [[{"id": "", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Update ProjectProfile", "created_at": "2024-10-20T09:24:35.450944", "updated_at": "2024-10-20T12:29:46.027734", "mode": "chat", "board": "", "column": "<none>", "column_index": -1, "chat_index": -1, "live_url": "", "branch": ""}]]
+# [[{"id": "", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Update ProjectProfile", "created_at": "2024-10-20T09:24:35.450944", "updated_at": "2024-10-20T12:29:46.027734", "mode": "chat", "board": "", "column": "", "column_index": -1, "chat_index": -1, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-20T12:27:15.650205", "images": [], "files": []}]]
 Remove chat mode column from ProjectProfile vuecomponent last activity
 ## [[{"role": "assistant", "hide": false, "improvement": false, "created_at": "2024-10-20T12:29:33.379151", "images": [], "files": ["/src/views/ProjectProfile.vue"]}]]

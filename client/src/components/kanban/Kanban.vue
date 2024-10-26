@@ -9,8 +9,17 @@ import ChatViewVue from '../../views/ChatView.vue'
     <ChatViewVue v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
     <div class="flex flex-col gap-2 grow overflow-auto pb-2" v-else>
       <div class="md:text-2xl flex gap-4 items-center justify-between">
-        <div class="flex gap-1">
-          Kanban <span class="hidden md:block">board</span>
+        <div class="dropdown">
+          <button tabindex="0" class="btn m-1 dropdown-toggle" @click="toggleDropdown">
+            {{ board || 'Kanban' }} <i class="fa-solid fa-sort-down"></i>
+          </button>
+          <ul v-if="isDropdownOpen" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+            <li class="flex gap-2" @click="showModal = true"><a>New board ...</a></li>
+            <hr>
+            <li v-for="tasksBoard in boards" :key="tasksBoard" @click="selectBoard(tasksBoard)">
+              <a>{{ tasksBoard || 'Kanban board' }}</a>
+            </li>
+          </ul>
         </div>
         <div class="flex gap-2">
           <label class="grow input input-sm input-bordered flex items-center gap-2">
@@ -26,68 +35,69 @@ import ChatViewVue from '../../views/ChatView.vue'
           </button>
         </div>
       </div>  
-      <div class="dropdown" v-if="false">
-        <div tabindex="0" class="click text-2xl flex gap-2 items-center">
-          {{ board || defBoard }}
-          <i class="fa-solid fa-sort-down"></i>
+      <modal v-if="showModal">
+        <div class="modal-box">
+          <h2 class="font-bold text-lg">Add New Board</h2>
+          <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
+          <div class="modal-action">
+            <button class="btn" @click="addBoard">OK</button>
+            <button class="btn" @click="showModal = false">Cancel</button>
+          </div>
         </div>
-        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-md w-60 z-50">
-          <li v-for="tasksBoard in boards" :key="tasksBoard">
-            <a>{{ tasksBoard }}</a>
-          </li>
-        </ul>
+      </modal>
+      <div class="flex grow w-full overflow-x-scroll relative">
+        <draggable 
+            v-model="columns"
+            group="columns" 
+            @change="onColumnsChanged()" 
+            item-key="title"
+            class="flex overflow-auto absolute top-0 left-0 right-0 bottom-0"
+          >
+          <template #item="{element}">
+            <div class="bg-neutral rounded-lg px-3 py-3 column-width rounded mr-8 overflow-auto">
+              <p class="text-neutral-content font-semibold font-sans tracking-wide text-sm flex justify-between items-center">
+                <div class="flex input input-bordered input-sm" v-if="element.editTitle">
+                  <input type="text" v-model="element.newTitle"
+                    @keydown.esc="element.editTitle = false"
+                    @keydown.enter="onColumnTitleChanged(element)"
+                  >
+                </div>
+                <div class="click" @click="onEditColumnTitle(element)" v-else>{{element.title}}</div>
+                <button class="btn btn-sm" @click="newChat(element.title)">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+              </p>
+              <draggable 
+                v-model="element.tasks" 
+                group="tasks" 
+                @change="onColumnTaskListChanged(element)" 
+                item-key="title">
+                <template #item="{element}">
+                  <task-card
+                    :task="element"
+                    class="mt-3 cursor-move overflow-hidden"
+                    @click="openChat(element)"
+                  ></task-card>
+                </template>
+              </draggable>
+            </div>
+          </template>
+        </draggable>
       </div>
-        <div class="flex grow min-w-full overflow-x-scroll">
-          
-          <draggable 
-              v-model="columns"
-              group="columns" 
-              @change="onColumnsChanged()" 
-              item-key="title"
-              class="flex overflow-auto"
-            >
-            <template #item="{element}">
-              <div class="bg-neutral rounded-lg px-3 py-3 column-width rounded mr-8 overflow-auto">
-                <p class="text-neutral-content font-semibold font-sans tracking-wide text-sm flex justify-between items-center">
-                  <div class="flex input input-bordered input-sm" v-if="element.editTitle">
-                    <input type="text" v-model="element.newTitle"
-                      @keydown.esc="element.editTitle = false"
-                      @keydown.enter="onColumnTitleChanged(element)"
-                    >
-                  </div>
-                  <div class="click" @click="onEditColumnTitle(element)" v-else>{{element.title}}</div>
-                  <button class="btn btn-sm" @click="newChat(element.title)">
-                    <i class="fa-solid fa-plus"></i>
-                  </button>
-                </p>
-                <draggable 
-                  v-model="element.tasks" 
-                  group="tasks" 
-                  @change="onColumnTaskListChanged(element)" 
-                  item-key="title">
-                  <template #item="{element}">
-                    <task-card
-                      :task="element"
-                      class="mt-3 cursor-move overflow-hidden"
-                      @click="openChat(element)"
-                    ></task-card>
-                  </template>
-                </draggable>
-              </div>
-            </template>
-          </draggable>
-        </div>
-      </div>
+    </div>
   </div>
 </template>
 <script>
-const unassigned = "<none>"
+const unassigned = ""
 export default {
   data() {
     return {
       board: unassigned,
       filter: null,
-      columns: []
+      columns: [],
+      showModal: false,
+      newBoardName: '',
+      isDropdownOpen: false,
     };
   },
   created () {
@@ -101,10 +111,12 @@ export default {
       return this.$projects.activeProject
     },
     boards () {
-      return [...new Set(this.chats?.map(c => c.board))]             
+      return [...new Set(this.$projects.chats?.map(c => c.board))] 
     },
     chats () {
-      return this.$projects.chats.map(c => ({
+      return this.$projects.chats
+            .filter(({ board }) => this.board === board)
+            .map(c => ({
               ...c,
               board: c.board || unassigned,
               column: c.column || unassigned
@@ -119,22 +131,32 @@ export default {
     },
     project () {
       this.buildKanba()
+    },
+    board () {
+      this.buildKanba()
     }
   },
   methods: {
-    createNewChat () {
+    toggleDropdown() {
+      this.isDropdownOpen = !this.isDropdownOpen;
+    },
+    selectBoard(board) {
+      this.board = board;
+      this.isDropdownOpen = false;
+    },
+    createNewChat (column) {
       return {
         id: 0,
-        name: "New chat",
+        name: "New chat " + this.chats.length + 1,
         mode: 'chat',
         board: this.board,
-        column: "New column",
+        column: column,
         column_index: 10000,
         chat_index: 0
       }
     },
     newChat (column) {
-      this.$projects.newChat(column)
+      this.$projects.newChat(this.createNewChat(column))
     },
     async buildKanba () {
       await this.$projects.loadChats()
@@ -184,7 +206,7 @@ export default {
       if (element.id === -1) {
         this.newChat()
       } else {
-        await this.$projects.setActiveChat(element.name)
+        await this.$projects.setActiveChat(element)
       }
     },
     onChatEditDone () {
@@ -198,6 +220,13 @@ export default {
           title: "new column",
           tasks: []
         }]
+    },
+    addBoard() {
+      if (this.newBoardName.trim()) {
+        this.board = this.newBoardName;
+      }
+      this.newBoardName = '';
+      this.showModal = false;
     }
   }
 };

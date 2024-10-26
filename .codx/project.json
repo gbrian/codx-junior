@@ -4,9 +4,6 @@
   "project_path": "/projects/codx-junior",
   "project_wiki": null,
   "project_dependencies": null,
-  "ai_api_key": "sk-aSf8l1WyNlmz7Fnsi-codx",
-  "ai_api_url": "https://api-codx-dev.meetnav.com/api/llm-proxies/llm",
-  "ai_model": "gpt-4o",
   "knowledge_extract_document_tags": false,
   "knowledge_search_type": "similarity",
   "knowledge_search_document_count": 10,
@@ -17,69 +14,10 @@
   "knowledge_file_ignore": "api/,client/,.codx,assets,/.gitignore",
   "temperature": 0.7,
   "codx_path": "/projects/codx-junior/.codx",
-  "watching": true,
+  "watching": false,
   "use_knowledge": true,
   "log_ai": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
-  "current_git_branch": "main\n",
-  "metrics": {
-    "number_of_chats": 6,
-    "chats_changed_last_24h": [
-      {
-        "id": "0",
-        "parent_id": "",
-        "status": "",
-        "tags": [],
-        "file_list": [],
-        "profiles": [],
-        "name": "KDE Plasms desktop",
-        "messages": [
-          {
-            "role": "user",
-            "content": "Allow login for root without a password\n```ssdm\n\n#%PAM-1.0\n\n\n# Block login if they are globally disabled\nauth    requisite       pam_nologin.so\nauth    required        pam_succeed_if.so user != root quiet_success\n\n\n# auth    sufficient      pam_succeed_if.so user ingroup nopasswdlogin\n@include common-auth\n# gnome_keyring breaks QProcess\n-auth   optional        pam_gnome_keyring.so\n-auth   optional        pam_kwallet5.so\n\n\n@include common-account\n\n\n# SELinux needs to be the first session rule.  This ensures that any\n# lingering context has been cleared.  Without this it is possible that a\n# module could execute code in the wrong domain.\nsession [success=ok ignore=ignore module_unknown=ignore default=bad] pam_selinux.so close\n# Create a new session keyring.\nsession optional        pam_keyinit.so force revoke\nsession required        pam_limits.so\nsession required        pam_loginuid.so\n@include common-session\n# SELinux needs to intervene at login time to ensure that the process starts\n# in the proper default security context.  Only sessions which are intended\n# to run in the user's context should be run after this.\nsession [success=ok ignore=ignore module_unknown=ignore default=bad] pam_selinux.so open\n-session optional       pam_gnome_keyring.so auto_start\n-session optional       pam_kwallet5.so auto_start\n\n\n@include common-password\n\n\n# From the pam_env man page\n# Since setting of PAM environment variables can have side effects to other modules, this module should be the last one on the stack.\n\n\n# Load environment from /etc/environment\nsession required        pam_env.so\n\n\n# Load environment from /etc/default/locale and ~/.pam_environment\nsession required        pam_env.so envfile=/etc/default/locale user_readenv=1\n```",
-            "hide": false,
-            "improvement": false,
-            "created_at": "2024-10-19T22:28:58.380268",
-            "images": [],
-            "files": []
-          }
-        ],
-        "created_at": "2024-10-19T21:46:54.377726",
-        "updated_at": "2024-10-19T22:28:58.380138",
-        "mode": "chat",
-        "board": "<none>",
-        "column": "<none>",
-        "column_index": 10000,
-        "chat_index": 0,
-        "live_url": "",
-        "branch": "",
-        "file_path": "/projects/codx-junior/.codx/tasks/KDE Plasms desktop.md"
-      }
-    ],
-    "last_update": "1729374372.7860713",
-    "pending_files": [
-      "/projects/codx-junior/Dockerfile",
-      "/projects/codx-junior/kde/pam.d.kde",
-      "/projects/codx-junior/kde/pam.d.sddm"
-    ],
-    "total_pending_changes": 3,
-    "doc_count": 12,
-    "file_count": 7,
-    "folders": [
-      "/projects/codx-junior"
-    ],
-    "empty": 0,
-    "corrupted_docs": [],
-    "keyword_count": 0,
-    "files": [
-      "/projects/codx-junior/docker-compose.dev.yaml",
-      "/projects/codx-junior/run_client.sh",
-      "/projects/codx-junior/Dockerfile",
-      "/projects/codx-junior/run_api.sh",
-      "/projects/codx-junior/supervisor.conf",
-      "/projects/codx-junior/.env.dev",
-      "/projects/codx-junior/README.md"
-    ]
-  }
+  "urls": []
 }

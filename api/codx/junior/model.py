@@ -45,6 +45,8 @@ class Chat(BaseModel):
     chat_index: int = Field(default=-1)
     live_url: str = Field(default='')
     branch: str = Field(default='')
+    board: str = Field(default='')
+
 
 class Logprobs(BaseModel):
     tokens: List[str]
@@ -81,8 +83,9 @@ class KnowledgeSearch(BaseModel):
     document_cutoff_score: float = Field(default=None)
 
 class Profile(BaseModel):
-    name: str
-    content: str
+    name: str = Field(default="")
+    content: str = Field(default="")
+    user_comment: str = Field(default="")
 
 class Settings(BaseModel, CODXJuniorSettings):
   pass

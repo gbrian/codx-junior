@@ -49,17 +49,6 @@ import ProjectIconVue from './ProjectIcon.vue'
            <i class="fa-solid fa-gear"></i>
 				</a>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
-          <li>
-            <div class="flex justify-between">
-              <button class="btn btn-sm" @click="$ui.incrementCodxJuniorWidth()">
-                <i class="fa-solid fa-chevron-left"></i>
-              </button>
-              <i class="fa-regular fa-window-maximize"></i>
-              <button class="btn btn-sm" @click="$ui.decrementCodxJuniorWidth()">
-                <i class="fa-solid fa-chevron-right"></i>
-              </button>
-            </div>
-          </li>
           <li><a @click.stop="setActiveTab('profiles')">Profiles</a></li>
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Gobal settings</a></li>

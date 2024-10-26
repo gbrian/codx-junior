@@ -1,4 +1,4 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Image to text", "created_at": "2024-10-18T10:21:08.742639", "updated_at": "2024-10-20T06:18:45.099971", "mode": "chat", "board": "<none>", "column": "Profiles", "column_index": 0, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Image to text", "created_at": "2024-10-18T10:21:08.742639", "updated_at": "2024-10-20T06:18:45.099971", "mode": "chat", "board": "", "column": "Profiles", "column_index": 0, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-18T10:21:08.742716", "images": [], "files": []}]]
 create api_image_to_text() in engine.py will receive a file form the fastapi request body at app.py
 Then will extract text from the image using pytesseract

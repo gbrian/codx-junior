@@ -1,4 +1,4 @@
-# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "codx linkedin post code-server", "created_at": "2024-10-09T19:35:53.333402", "updated_at": "2024-10-20T12:30:24.636394", "mode": "task", "board": "<none>", "column": "Components", "column_index": 2, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "codx linkedin post code-server", "created_at": "2024-10-09T19:35:53.333402", "updated_at": "2024-10-20T12:30:24.636394", "mode": "task", "board": "", "column": "Components", "column_index": 2, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-09T19:35:53.333502", "images": [], "files": []}]]
 Let's create a motivating, brief and funny Linledin post about codx-junior:
 codx-junior now integrates code-server. code-server is the perfect online IDE to work remotely with codx-junior AI

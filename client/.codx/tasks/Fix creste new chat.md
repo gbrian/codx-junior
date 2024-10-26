@@ -1,4 +1,4 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": ["/src/store/project.js", "/src/components/kanban/Kanban.vue"], "profiles": [], "name": "Fix creste new chat", "created_at": "2024-10-18T08:25:47.953831", "updated_at": "2024-10-20T09:19:40.036899", "mode": "task", "board": "<none>", "column": "<none>", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
+# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": ["/src/store/project.js", "/src/components/kanban/Kanban.vue"], "profiles": [], "name": "Fix creste new chat", "created_at": "2024-10-18T08:25:47.953831", "updated_at": "2024-10-20T09:19:40.036899", "mode": "task", "board": "", "column": "", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
 ## [[{"role": "system", "hide": true, "improvement": false, "created_at": "2024-10-18T08:25:47.953970", "images": [], "files": []}]]
 # INSTRUCTIONS:
               

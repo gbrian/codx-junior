@@ -1,4 +1,4 @@
-# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Schedule wiki update", "created_at": "2024-10-09T13:04:38.442289", "updated_at": "2024-10-20T09:10:56.561234", "mode": "task", "board": "<none>", "column": "Infrastructure", "column_index": 2, "chat_index": 1, "live_url": "", "branch": ""}]]
+# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Schedule wiki update", "created_at": "2024-10-09T13:04:38.442289", "updated_at": "2024-10-20T09:10:56.561234", "mode": "task", "board": "", "column": "Infrastructure", "column_index": 2, "chat_index": 1, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-09T13:04:38.442343", "images": [], "files": []}]]
 update_wiki must be scheduled and have an on-demand command triggered from the KnowledgeView.
 Currently we can have a list of changed files but do not process until X amount of time since last update 

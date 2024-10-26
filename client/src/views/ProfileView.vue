@@ -13,14 +13,8 @@ import Markdown from '@/components/Markdown.vue'
       <i class="fa-solid fa-plus"></i>
     </button>
     <div class="grow"></div>
-    <button class="btn btn-sm" @click="reloadProfile" v-if="profile && !newProfile">
-      <i class="fa-solid fa-rotate"></i>
-    </button>
     <button class="btn btn-sm" @click="editProfile = !editProfile" v-if="profile && !editProfile">
       <i class="fa-solid fa-edit"></i>
-    </button>
-    <button class="btn btn-sm btn-info" @click="saveProfile" v-if="editProfile">
-      <i class="fa-solid fa-save"></i>
     </button>
     <button class="btn btn-error btn-sm" @click="deleteProfile" v-if="profile && !newProfile">
       <i class="fa-solid fa-trash"></i>
@@ -38,14 +32,19 @@ import Markdown from '@/components/Markdown.vue'
   <div v-if="editProfile" class="flex flex-col gap-2 items-cinput input-bordered w-full">
     <label class="form-control w-full">
       <div class="label">
-        <span class="label-text">Add your comments</span>
+        <span class="label-text">Add your comments to update the profile</span>
       </div>
       <textarea class="textarea textarea-bordered h-24 w-full"
         v-model="changeInput"
         placeholder="Change ..."></textarea>
     </label>
-    <div class="flex justify-end">
-      <button class="btn btn-primary btn-sm" @click="sendChat">Send</button>
+    <div class="flex justify-end gap-2">
+      <button class="btn btn-sm" @click="reloadProfile" v-if="profile && !newProfile">
+        <i class="fa-solid fa-rotate"></i> Cancel
+      </button>  
+      <button class="btn btn-primary btn-sm" @click="sendChat">
+        <i class="fa-solid fa-edit"></i> Update
+      </button>
     </div>
   </div>
 </div>
@@ -62,9 +61,6 @@ export default {
       newProfile: null,
       editProfile: false,
       advanced: false,
-      chat: {
-        messages: []
-      },
       changeInput: '',
       isDeleteProfile: false
     }
@@ -116,10 +112,12 @@ export default {
         this.isDeleteProfile = true
       }
     },
-    sendChat() {
-      if (this.chatInput.trim()) {
-        this.chat.messages.push(this.chatInput);
-        this.chatInput = '';
+    async sendChat() {
+      if (this.changeInput?.trim()) {
+        this.profile.user_comment = this.changeInput
+        const { data:profile }= await API.profiles.save(this.profile)
+        this.profile = profile
+        this.changeInput = '';
       }
     }
   }

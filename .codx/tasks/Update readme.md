@@ -1,4 +1,4 @@
-# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Update readme", "created_at": "2024-10-04T13:45:36.278284", "updated_at": "2024-10-08T08:00:05.006367", "mode": "task", "board": "<none>", "column": "Linkedin", "column_index": 0, "chat_index": 1, "live_url": "", "branch": ""}]]
+# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Update readme", "created_at": "2024-10-04T13:45:36.278284", "updated_at": "2024-10-08T08:00:05.006367", "mode": "task", "board": "", "column": "Linkedin", "column_index": 0, "chat_index": 1, "live_url": "", "branch": ""}]]
 ## [[{"role": "user", "hide": false, "improvement": false, "created_at": "2024-10-04T13:45:36.278324", "images": [], "files": []}]]
 I want to update motivation in README with this comments:
 
