@@ -40,8 +40,8 @@ class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.client = OpenAI(
-            api_key=settings.ai_api_key,
-            base_url=settings.ai_api_url
+            api_key=settings.get_ai_api_key(),
+            base_url=settings.get_ai_api_url()
         )
 
     def log(self, msg):
@@ -58,7 +58,7 @@ class OpenAI_AI:
 
     def chat_completions(self, messages, config: dict = {}):
         openai_messages = [self.convert_message(msg) for msg in messages]
-        model = self.settings.ai_model
+        model = self.settings.get_ai_model()
         temperature = float(self.settings.temperature)
         
         response_stream = self.client.chat.completions.create(

@@ -4,20 +4,46 @@ import logging
 import pathlib
 
 from codx.junior.utils import write_file
+from codx.junior.model import GlobalSettings
 
 logger = logging.getLogger(__name__)
+
+ROOT_PATH=os.path.dirname(__file__)
+
+def read_global_settings():
+    try:
+        with open(f"global_settings.json") as f:
+            return GlobalSettings(**json.loads(f.read()))
+    except:
+        return GlobalSettings()
+
+def write_global_settings(global_settings: GlobalSettings):
+    try:
+        old_settings = read_global_settings()
+        with open(f"global_settings.json", 'w') as f:
+            f.write(json.dumps(global_settings.dict()))
+
+        if old_settings.git.username != global_settings.git.username:
+            exec_command(f'git config --global user.name "{global_settings.git.username}"')
+        if old_settings.git.email != global_settings.git.email:
+            exec_command(f'git config --global user.email "{global_settings.git.email}"')
+
+        GLOBAL_SETTINGS=global_settings
+    except Exception as ex:
+        logger.exception(f"Error saving global settings: {ex}")
+
+
+GLOBAL_SETTINGS=read_global_settings()
 
 class CODXJuniorSettings:
     def __init__(self, **kwrgs):
         self.ai_provider = "openai"
+        self.ai_model = "gpt-4o"
+        
         self.project_name = ""
         self.project_path = "."
         self.project_wiki = ""
         self.project_dependencies = ""
-
-        self.ai_api_key = ""
-        self.ai_api_url = ""
-        self.ai_model = ""
         
         self.knowledge_extract_document_tags = False
         self.knowledge_search_type = "similarity"
@@ -41,6 +67,30 @@ class CODXJuniorSettings:
             keys = CODXJuniorSettings().__dict__.keys()
             for key in kwrgs.keys():
               self.__dict__[key] = kwrgs.get(key)
+
+    
+    def get_ai_api_key(self):
+        if self.ai_provider == 'openai':
+            return GLOBAL_SETTINGS.openai.openai_api_key
+        if self.ai_provider == 'anthropic':
+            return GLOBAL_SETTINGS.anthropic_ai.anthropic_api_key
+        return None
+
+    def get_ai_api_url(self):
+        if self.ai_provider == 'openai':
+            return GLOBAL_SETTINGS.openai.openai_api_url
+        if self.ai_provider == 'anthropic':
+            return GLOBAL_SETTINGS.anthropic_ai.anthropic_api_url
+        return None
+
+    def get_ai_model(self):
+        if self.ai_model:
+            return self.ai_model
+        if self.ai_provider == 'openai':
+            return GLOBAL_SETTINGS.openai.openai_model
+        if self.ai_provider == 'anthropic':
+            return GLOBAL_SETTINGS.anthropic_ai.anthropic_model
+        return None
 
     @classmethod
     def from_env(cls):

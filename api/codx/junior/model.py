@@ -4,8 +4,6 @@ from pydantic import BaseModel, Field
 
 from typing import List, Dict, Union
 
-from codx.junior.settings import CODXJuniorSettings
-
 class ImageUrl(BaseModel):
     url: str = Field(default="")
 
@@ -86,9 +84,6 @@ class Profile(BaseModel):
     name: str = Field(default="")
     content: str = Field(default="")
     user_comment: str = Field(default="")
-
-class Settings(BaseModel, CODXJuniorSettings):
-  pass
 
 class Document(BaseModel):
     id: int = Field(default=None)

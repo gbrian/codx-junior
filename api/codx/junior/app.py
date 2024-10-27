@@ -43,7 +43,6 @@ from fastapi_socketio import SocketManager
 from codx.junior.model import (
     Chat,
     Message,
-    Settings,
     KnowledgeReloadPath,
     KnowledgeSearch,
     KnowledgeDeleteSources,
@@ -53,7 +52,7 @@ from codx.junior.model import (
     GlobalSettings
 )
 
-from codx.junior.settings import CODXJuniorSettings 
+from codx.junior.settings import CODXJuniorSettings, read_global_settings, write_global_settings
 
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.chat_manager import ChatManager
@@ -74,8 +73,6 @@ from codx.junior.engine import (
     extract_tags,
     get_keywords,
     find_all_projects,
-    read_global_settings,
-    write_global_settings,
     add_global_settings,
     coder_open_file,
     api_image_to_text,

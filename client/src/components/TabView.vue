@@ -5,7 +5,7 @@ import ProjectProfileVue from "../views/ProjectProfile.vue";
 import ProjectSettingsVue from "../views/ProjectSettings.vue";
 import WikiViewVue from "../views/WikiView.vue";
 import CoderVue from "./apps/Coder.vue";
-import GlobalSettingsVue from "./board/GlobalSettings.vue";
+import GlobalSettingsVue from "../views/GlobalSettings.vue";
 import CodeEditorVue from "./CodeEditor.vue";
 import KanbanVue from "./kanban/Kanban.vue";
 import NoVNCVue from "./NoVNC.vue";

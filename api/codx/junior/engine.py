@@ -20,7 +20,11 @@ from codx.junior.utils import (
 )
 
 from codx.junior.ai import AI
-from codx.junior.settings import CODXJuniorSettings
+from codx.junior.settings import (
+  CODXJuniorSettings,
+  read_global_settings,
+  write_global_settings
+)
 
 from codx.junior.chat_manager import ChatManager
 
@@ -910,26 +914,6 @@ def update_wiki(settings: CODXJuniorSettings, file_path: str):
             logger.info(f"update_wiki file_path: {file_path}, wiki changes: {wiki_changes}")
             if wiki_changes:
                 apply_improve_code_changes(settings=settings, code_generator=AICodeGerator(code_changes=wiki_changes))
-
-def read_global_settings():
-    try:
-        with open(f"global_settings.json") as f:
-            return GlobalSettings(**json.loads(f.read()))
-    except:
-        return GlobalSettings()
-
-def write_global_settings(global_settings: GlobalSettings):
-    try:
-        old_settings = read_global_settings()
-        with open(f"global_settings.json", 'w') as f:
-            f.write(json.dumps(global_settings.dict()))
-
-        if old_settings.git.username != global_settings.git.username:
-            exec_command(f'git config --global user.name "{global_settings.git.username}"')
-        if old_settings.git.email != global_settings.git.email:
-            exec_command(f'git config --global user.email "{global_settings.git.email}"')
-    except Exception as ex:
-        logger.exception(f"Error saving global settings: {ex}")
 
 def update_project_profile(settings: CODXJuniorSettings, file_path:str):
   return #deprecated

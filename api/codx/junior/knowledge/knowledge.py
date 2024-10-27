@@ -58,8 +58,8 @@ class Knowledge:
     def get_embedding(self):
         if not self.embedding:
             self.embedding = OpenAIEmbeddings(
-                openai_api_key=self.settings.ai_api_key,
-                openai_api_base=self.settings.ai_api_url,
+                openai_api_key=self.settings.get_ai_api_key(),
+                openai_api_base=self.settings.get_ai_api_url(),
                 disallowed_special=())
         return self.embedding
 
