@@ -23,29 +23,35 @@ const prepareUrl = (url) => {
 const axiosRequest = axios.create({
 });
 export const API = {
+  sid: "",
   axiosRequest,
   liveRequests: 0,
+  get headers () {
+    return {
+      "x-sid": API.sid
+    }
+  },
   get (url) {
     API.liveRequests++
-    return axiosRequest.get(prepareUrl(url))
+    return axiosRequest.get(prepareUrl(url), { headers: API.headers })
       .catch(console.error)
       .finally(() => API.liveRequests--)
   },
   del (url) {
     API.liveRequests++
-    return axiosRequest.delete(prepareUrl(url))
+    return axiosRequest.delete(prepareUrl(url), { headers: API.headers })
       .catch(console.error)
       .finally(() => API.liveRequests--)
   },
   post (url, data) {
     API.liveRequests++
-    return axiosRequest.post(prepareUrl(url), data)
+    return axiosRequest.post(prepareUrl(url), data, { headers: API.headers })
     .catch(console.error)
     .finally(() => API.liveRequests--)
   },
   put (url, data) {
     API.liveRequests++
-    return axiosRequest.put(prepareUrl(url), data)
+    return axiosRequest.put(prepareUrl(url), data, { headers: API.headers })
     .catch(console.error)
     .finally(() => API.liveRequests--)
   },

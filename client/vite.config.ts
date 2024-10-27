@@ -17,6 +17,11 @@ export default defineConfig({
         target: apiUrl,
         changeOrigin: true,
       },
+      '/socket.io': {
+        target: apiUrl,
+        changeOrigin: true,
+        ws: true,
+      },
       '/coder': {
         target: coderUrl,
         changeOrigin: true,

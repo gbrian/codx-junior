@@ -3,6 +3,8 @@ import uuid
 import shutil
 import time
 import logging
+import socketio
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
@@ -38,7 +40,6 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
-from fastapi_socketio import SocketManager
 
 from codx.junior.model import (
     Chat,
@@ -112,8 +113,6 @@ class CODXJuniorAPI:
             ssl_context='adhoc'
         )
 
-        socket_manager = SocketManager(app=app)
-
         @app.on_event("startup")
         def startup_event():
             logger.info(f"Creating FASTAPI: {app.__dict__}")
@@ -146,6 +145,10 @@ class CODXJuniorAPI:
                     logger.error(f"Error loading settings {codx_path}: {ex}")
             request.state.settings = settings        
             logger.info(f"Request settings: {settings.__dict__ if settings else {}}\nGlobal: {global_settings.__dict__}")
+            user_sid = request.headers.get("x-sid")
+            logger.info(f"Client request with sid: {user_sid}")
+            if user_sid:
+                await sio.emit('codx-junior', {'data': 'foobar'}, to=user_sid)
             return await call_next(request)
 
         @app.get("/")
@@ -376,11 +379,24 @@ class CODXJuniorAPI:
             return api_image_to_text(file_bytes)
 
 
-        # socket_handlers
-        @app.sio.on('join')
-        async def handle_join(sid, *args, **kwargs):
-            await app.sio.emit('lobby', 'User joined')
+        #Socket io (sio) create a Socket.IO server
+        sio = socketio.AsyncServer(cors_allowed_origins='*',async_mode='asgi')
+        #wrap with ASGI application
+        socket_app = socketio.ASGIApp(sio)
+        app.mount("/", socket_app)
 
+
+        @sio.on("error")
+        async def error():
+            logger.error(f"Socket error")
+
+        @sio.on("connect")
+        async def connect(sid, env):
+            logger.info("New Client Connected to This id :"+" "+str(sid))
+        
+        @sio.on("disconnect")
+        async def disconnect(sid):
+            logger.info("Client Disconnected: "+" "+str(sid))
 
         if STATIC_FOLDER:
             os.makedirs(STATIC_FOLDER, exist_ok=True)

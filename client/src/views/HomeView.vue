@@ -12,7 +12,7 @@ import TabViewVue from '../components/TabView.vue';
     <div class="w-full h-full flex flex-col justify-center items-center bg-base-100/30" v-if="$projects.allProjects === null">
       <div class="text-2xl">LOADING <span class="loading loading-dots loading-xs"></span></div>
     </div>
-    <div ref="contentRef" class="drawer-content p-2 flex flex-col gap-2 overflow-auto bg-base-100" v-else>
+    <div ref="contentRef" class="drawer-content p-2 flex flex-col gap-2 overflow-auto bg-base-100" v-if="$project?.project_name">
       <div class="flex justify-between">
         <div class="flex flex-col">
           <div class="font-bold">{{ $project.project_name }}</div>

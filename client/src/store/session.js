@@ -62,10 +62,24 @@ export const actions = actionTree(
   { state, getters, mutations },
   {
     async init () {
+      $storex.session.connect()
     },
-    login ({ commit }, { username, password }) {
-      const socket = io('/');
+    connect () {
+      const socket = io();
+      socket.on("connect_error", (err) => {
+        console.log(`connect_error due to ${err.message}`);
+      });
+      socket.on("connect", () => {
+        console.log("Socket connected", socket.id)
+        API.sid = socket.id
+      });
+      socket.on("disconnect", console.error)
       $storex.session.setSocket(socket);
+      socket.on('codx-junior', (...args) => $storex.session.onNewMessage(...args))
+      socket.emit('login', { username: 'user', password: 'pwd' })
+    },
+    onNewMessage({ state }, message) {
+      console.log("On server message", message)
     }
   },
 )
