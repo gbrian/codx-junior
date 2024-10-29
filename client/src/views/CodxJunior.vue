@@ -9,7 +9,7 @@ import TabViewVue from '@/components/TabView.vue'
   <div class="flex">
     <progress :class="['absolute top-0 left-0 right-0 z-50 progress w-full h-3', $session.apiCalls ? 'opacity-50': 'opacity-0']"></progress>      
     <NavigationBar v-if="$ui.isLandscape" />
-    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto shrink-0">
+    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto">
       <div class="flex gap-2 items-center relative justify-between">
         <div class="dropdown flex flex-col h-full" v-if="$project">
           <div tabindex="0" role="button" class="flex flex-col gap-2 text-2xl">

@@ -73,7 +73,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop"
     >
-      <div :class="['max-h-40 w-full max-w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none',
+      <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none',
         editMessageId !== null ? 'border-error': '',
         editMessageId !== null ? 'border-warning': ''
       ]" contenteditable="true"
