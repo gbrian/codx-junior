@@ -259,8 +259,8 @@ export const API = {
     async read(logName) {
       return API.get(`/api/logs/${logName}`);
     },
-    async getLogNames() {
-      return API.get('/api/logs');  // Endpoint to fetch log names
+    async list() {
+      return API.get('/api/logs');
     }
   }
 }
