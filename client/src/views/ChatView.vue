@@ -31,24 +31,12 @@ import PRView from '../views/PRView.vue'
     </div>
     <PRView v-if="showPRView"></PRView>
     <div class="grow flex gap-2 h-full justify-between" v-if="showChat">
-      <div class="flex flex-col  bg-base-300 p-2 overflow-auto" v-if="showChatsTree">
-        <ul tabindex="0" class=" p-2 w-52">
-          <li class="p-2 click hover:underline flex flex-col"
-            v-for="openChat in chats" :key="openChat"
-            @click="loadChat(openChat)" >
-            <div class="text-xs">{{ chatUpdatedDate }}</div>
-            <a>{{ openChat.name }}</a>
-          </li>
-        </ul>
-        <div class="grow"></div>
-        <div class="px-2"></div>
-      </div>
       <div class="grow flex flex-col gap-2 w-full">
         <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <button :class="['btn btn-xs btn-circle mt-1', showChatsTree && 'btn-info text-white']"
-                @click="onShowChats">
+              <button class="btn btn-xs btn-circle mt-1 text-white"
+                @click="navigateToChats">
                 <i class="fa-solid fa-arrow-left"></i>
               </button>
               <input v-if="editName"
@@ -93,8 +81,8 @@ import PRView from '../views/PRView.vue'
               </div>
             </div>
             <div class="grow"></div>
-            <div class="group reltive flex">
-              <div class="hidden sm:flex group-hover:flex gap-2 bg-base-300 p-1 sm:bg-transparent sm:p-0 items-end absolute right-10 lg:block">
+            <div class="group relative bg-base-100">
+              <div class="bg-base-300 p-2 rounded hidden group-hover:flex gap-2 p-1 items-end absolute right-8 -top-1">
                 <div class="dropdown -mt-1">
                   <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chat.mode }}</div>
                   <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -143,30 +131,11 @@ import PRView from '../views/PRView.vue'
                   </ul>
                 </div>
               </div>
-              <div class="lg:hidden btn btn-sm btn-ghost ml-6" @click.stop="">
+              <div class="btn btn-sm btn-ghost ml-6" @click.stop="">
                 <i class="fa-solid fa-ellipsis-vertical"></i>
               </div>
             </div>
           </div>
-        </div>
-        <div v-if="false">
-          <span class="cursor-pointer mr-2 hover:underline group text-primary"
-            v-for="file in chat.profiles" :key="file" :title="file"
-            @click="showFile = file"
-          >
-            <i class="fa-solid fa-user-doctor"></i>
-            {{ file.split("/").reverse()[0] }}
-          </span>
-          <span class="cursor-pointer mr-2 hover:underline group text-secondary"
-            v-for="file in chat.file_list" :key="file" :title="file"
-            @click="showFile = file"
-          >
-            <i class="fa-solid fa-file"></i>
-            {{ file.split("/").reverse()[0] }}
-          </span>
-          <button class="btn btn-circle btn-xs" @click="addNewFile = true">
-            <i class="fa-solid fa-plus"></i>
-          </button>
         </div>
         <Chat :chat="chat"
           :showHidden="showHidden"
@@ -263,7 +232,7 @@ export default {
     async deleteChat () {
       if (this.confirmDelete) {
         await this.$projects.deleteChat(this.chat.name)
-        this.onShowChats()
+        this.navigateToChats()
       } else {
         this.confirmDelete = true
       }
@@ -314,7 +283,7 @@ export default {
       this.chat.messages = this.chat.messages.filter((m, i) => i !== ix)
       this.saveChat()
     },
-    onShowChats () {
+    navigateToChats () {
       this.$emit('chats')
     },
     async newSubChat () {
