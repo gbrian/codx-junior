@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4">
+  <div class="flex flex-col gap-2 h-2/3 w-full max-w-full">
     <header class="flex justify-between items-center mb-4">
       <select v-model="selectedLog" @change="onLogChange" class="border rounded px-3 py-2">
         <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
@@ -9,8 +9,8 @@
         <span>Auto-refresh</span>
       </label>
     </header>
-    <div class="log-view max-h-96 overflow-y-auto bg-gray-100 p-4 border rounded" ref="logView">
-      <pre>{{ logs }}</pre>
+    <div class="grow overflow-auto" ref="logView">
+      <pre class="w-96">{{ logs }}</pre>
     </div>
   </div>
 </template>
@@ -29,7 +29,7 @@ export default {
   methods: {
     async fetchLogNames() {
       try {
-        const response = await API.logs.getLogNames();
+        const response = await API.logs.list();
         this.logNames = response.data;
         if (this.logNames.length) {
           this.selectedLog = this.logNames[0];
@@ -43,7 +43,7 @@ export default {
       API.logs.read(this.selectedLog)
         .then((response) => {
           this.logs += response.data;
-          this.scrollToBottom();
+          requestAnimationFrame(() =>  this.scrollToBottom());
         })
         .catch(console.error);
     },

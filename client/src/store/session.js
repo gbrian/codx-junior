@@ -34,7 +34,7 @@ export const state = () => ({
   lastError: null,
   id: uuidv4(),
   ts: new Date().getTime(),
-  $childCodxJuior: null
+  notifications: []
 })
 
 export const getters = getterTree(state, {
@@ -55,6 +55,14 @@ export const mutations = mutationTree(state, {
   },
   set$childCodxJuior(state, $childCodxJuior) {
     state.$childCodxJuior = $childCodxJuior
+  },
+  addNotification(state, notification) {
+    notification.id = new Date().getTime()
+    state.notifications = [...state.notifications, notification]
+    setTimeout(() => $storex.session.removeNotification(notification), 15000)
+  },
+  removeNotification(state, notification) {
+    state.notifications = state.notifications.filter(n => n.id !== notification.id)
   }
 })
 
@@ -80,6 +88,24 @@ export const actions = actionTree(
     },
     onNewMessage({ state }, message) {
       console.log("On server message", message)
+    },
+    onInfo(_, notification) {
+      if (typeof(notification) === 'string') {
+        notification = { text: notification }
+      }
+      $storex.session.addNotification({ ...notification, type: 'info' })
+    },
+    onWarning(_, notification) {
+      if (typeof(notification) === 'string') {
+        notification = { text: notification }
+      }
+      $storex.session.addNotification({ ...notification, type: 'warning' })
+    },
+    onError(_, notification) {
+      if (typeof(notification) === 'string') {
+        notification = { text: notification }
+      }
+      $storex.session.addNotification({ ...notification, type: 'error' })
     }
   },
 )

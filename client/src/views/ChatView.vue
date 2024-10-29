@@ -269,7 +269,7 @@ export default {
       }
     },
     async loadChat (chat) {
-      await this.project.setActiveChat(chat)
+      await this.$projects.setActiveChat(chat)
       this.showChatsTree = false
     },
     async removeFileFromContext () {

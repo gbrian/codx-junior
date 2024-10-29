@@ -52,6 +52,7 @@ import ProjectIconVue from './ProjectIcon.vue'
           <li><a @click.stop="setActiveTab('profiles')">Profiles</a></li>
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Gobal settings</a></li>
+          <li><a @click.stop="setActiveTab('logs')">Logs</a></li>
         </ul>
 			</div>
     </div>

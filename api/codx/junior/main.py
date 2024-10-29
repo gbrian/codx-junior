@@ -2,6 +2,6 @@ import sys
 import re
 import logging
 
-from codx.junior.app import CODXJuniorAPI
+from codx.junior.app import app
 
-app = CODXJuniorAPI().start()
+app = app
