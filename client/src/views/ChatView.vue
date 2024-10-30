@@ -45,7 +45,11 @@ import PRView from '../views/PRView.vue'
                 @keydown.esc="editName = false"
                 v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else> 
-                <div class="click" @click="editName = true">{{ chat.name }}</div>
+                <div class="click" @click="editName = true">
+                  <span v-if="chat.mode === 'task'"><i class="fa-regular fa-file-lines"></i></span>
+                  <span v-else><i class="fa-regular fa-comments"></i></span>
+                  {{ chat.name }}
+                </div>
                 <div class="flex gap-2 items-center">
                   <div class="text-xs">{{ moment.utc(chat.updated_at).fromNow() }}</div>
                   <div class="badge badge-sm badge-info flex gap-2" v-for="tag in chat.tags" :key="tag">

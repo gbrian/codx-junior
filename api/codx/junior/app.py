@@ -62,7 +62,8 @@ from codx.junior.engine import (
     create_project,
     coder_open_file,
     find_all_projects,
-    CODXJuniorSession
+    CODXJuniorSession,
+    SessionChannel
 )
 
 from codx.junior.utils import (
@@ -125,15 +126,16 @@ async def add_gpt_engineer_settings(request: Request, call_next):
     codx_path = request.query_params.get("codx_path")
     if codx_path:
         try:
-            request.state.codx_junior_session =  CODXJuniorSession(codx_path=codx_path, app=app)
+            user_sid = request.headers.get("x-sid")
+            channel = SessionChannel(sid=user_sid, sio=sio)
+            request.state.codx_junior_session =  CODXJuniorSession(
+                                                    codx_path=codx_path,
+                                                    app=app,
+                                                    channel=channel)
             settings = request.state.codx_junior_session.settings
             logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:
             logger.error(f"Error loading settings {codx_path}: {ex}")
-    user_sid = request.headers.get("x-sid")
-    logger.info(f"Client request with sid: {user_sid}")
-    if user_sid:
-        await sio.emit('codx-junior', {'data': 'foobar'}, to=user_sid)
     return await call_next(request)
 
 @app.get("/")

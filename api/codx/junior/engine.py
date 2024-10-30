@@ -5,6 +5,7 @@ import json
 import time
 import subprocess
 import shutil
+import asyncio
 from pathlib import Path
 from datetime import datetime, timedelta
 from threading import Thread
@@ -129,11 +130,39 @@ def update_engine():
         return ex
                 
 
+async def send_io_message(sio, sid, event, data):
+    logger.info("SENDING MESSAGE BY SIO!")
+    await sio.emit(event, data)
+    logger.info("MESSAGE SENT BY SIO!")
+
+class SessionChannel:
+    def __init__(self, sid=None, sio=None):
+        self.sid = sid
+        self.sio = sio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+    def send_event(self, event, data):
+        args = (self.sio, self.sid, event, data)
+        # Thread(target=send_io_message, args=args).start()
+        asyncio.get_event_loop().create_task(
+          send_io_message(self.sio, self.sid, event, data)
+        )
+
+    def chat_event(self, message: str):
+        self.send_event('chat-event', { 'text': message })
+        logger.info(f"SEND MESSAGE {message}- SENT!")
+
 
 class CODXJuniorSession:
-    def __init__(self, settings: CODXJuniorSettings = None, codx_path: str = None, app=None):
+    def __init__(self,
+        settings: CODXJuniorSettings = None,
+        codx_path: str = None,
+        app=None,
+        channel: SessionChannel = SessionChannel()):
         self.app = app
         self.settings = settings or CODXJuniorSettings.from_project(codx_path)
+        self.channel = channel
 
     def delete_project(self):
         shutil.rmtree(self.settings.codx_path)
@@ -152,6 +181,7 @@ class CODXJuniorSession:
         return self.get_chat_manager().list_chats()
 
     def save_chat(self, chat):
+        self.channel.chat_event(f'Saving {chat.name}')
         return self.get_chat_manager().save_chat(chat)
 
     def delete_chat(self, chat_name):
@@ -445,9 +475,6 @@ class CODXJuniorSession:
             "total_pending_changes": len(pending_files),
             **status
         }
-
-    def save_chat(self, chat: Chat):
-        ChatManager(settings=self.settings).save_chat(chat)
 
     def check_project_changes(self):
         knowledge = Knowledge(settings=self.settings)

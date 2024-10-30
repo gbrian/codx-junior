@@ -84,6 +84,7 @@ export const actions = actionTree(
       socket.on("disconnect", console.error)
       $storex.session.setSocket(socket);
       socket.on('codx-junior', (...args) => $storex.session.onNewMessage(...args))
+      socket.on('codx-event', ({ text }) => $storex.session.onInfo(text)) 
       socket.emit('login', { username: 'user', password: 'pwd' })
     },
     onNewMessage({ state }, message) {

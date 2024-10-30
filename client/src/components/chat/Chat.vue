@@ -4,15 +4,17 @@ import ChatEntry from '@/components/ChatEntry.vue'
 </script>
 <template>
   <div class="flex flex-col gap-1 grow">
-    <div class="grid grid-cols-3 mt-2" v-if="chat.file_list?.length">
-      <div v-for="file in chat.file_list" :key="file" :data-tip="file"
-        class="group badge badge-xs badge-secondary tooltip flex gap-2 items-center click text-xs"
-        @click="API.coder.openFile(file)"
-      >
-        {{ file.split("/").reverse()[0] }}
-        <button class="btn btn-xs btn-circle" @click.stop="$emit('remove-file', file)">
-          <i class="fa-solid fa-trash-can"></i>
-        </button>
+    <div class="w-full overflow-auto">
+      <div class="my-2 text-xs" v-if="chat.file_list?.length">
+        <a v-for="file in chat.file_list" :key="file" :data-tip="file"
+          class="group text-nowrap mr-2 hover:underline hover:bg-base-300 click"
+          @click="API.coder.openFile(file)"
+        >
+          <span>{{ file.split("/").reverse()[0] }}</span>
+          <span class="ml-2 click" @click.stop="$emit('remove-file', file)">
+            <i class="fa-regular fa-circle-xmark"></i>
+          </span>
+        </a>
       </div>
     </div>
     <div class="grow relative">
