@@ -143,6 +143,7 @@ class SessionChannel:
         asyncio.set_event_loop(loop)
 
     def send_event(self, event, data):
+        return # Disabled, not working
         args = (self.sio, self.sid, event, data)
         # Thread(target=send_io_message, args=args).start()
         asyncio.get_event_loop().create_task(
