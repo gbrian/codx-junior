@@ -87,10 +87,18 @@ class Knowledge:
       if os.path.isfile(self.db_file):
           self.last_update = os.path.getmtime(self.db_file)
 
+    def get_sub_projects_paths(self):
+        sub_projects = self.settings.get_sub_projects()
+        return [project.project_path for project in sub_projects]
+
+
     def detect_changes(self):
       current_sources = self.get_all_sources()
-      changes = self.loader.list_repository_files(last_update=self.last_update if current_sources else None,
-                          current_sources=current_sources)
+      changes = self.loader.list_repository_files(
+                          last_update=self.last_update if current_sources else None,
+                          current_sources=current_sources,
+                          ignore_paths=self.get_sub_projects_paths())
+      
       def is_empty(file_path):
           return False if os.stat(file_path).st_size else True
       return [file_path for file_path in changes if not is_empty(file_path)]
@@ -105,8 +113,10 @@ class Knowledge:
             logger.info('Reloading knowledge')
             # Load the knowledge from the filesystem
             current_sources = self.get_all_sources()
-            documents = self.loader.load(last_update=self.last_update if current_sources else None,
-                                current_sources=current_sources)
+            documents = self.loader.load(
+                                last_update=self.last_update if current_sources else None,
+                                current_sources=current_sources,
+                                ignore_paths=self.get_sub_projects_paths())
             if documents:
                 self.index_documents(documents)
 

@@ -65,12 +65,14 @@ class KnowledgeLoader:
     
         return True
 
-    def load(self, last_update: datetime = None, path: str = None, current_sources=None):
+    def load(self, last_update: datetime = None, path: str = None, current_sources=None, ignore_paths=[]):
         documents = []
         code_splitter = KnowledgeCodeSplitter()
         #code_splitter = KnowledgeCodeToDocuments(settings=self.settings)
         files = self.list_repository_files(
-            last_update=last_update, path=path, current_sources=current_sources
+            last_update=last_update, path=path,
+            current_sources=current_sources,
+            ignore_paths=ignore_paths
         )
         for file_path in files:
             try:
@@ -94,7 +96,7 @@ class KnowledgeLoader:
         error = result.stderr.decode('utf-8') if result.stderr else None
         return file_paths, error
 
-    def list_repository_files(self, last_update = None, path: str = None, current_sources=None):        
+    def list_repository_files(self, last_update = None, path: str = None, current_sources=None, ignore_paths=[]):        
         full_file_paths = None
         if path:
             if os.path.isfile(path):
@@ -116,12 +118,15 @@ class KnowledgeLoader:
                     full_file_paths = full_file_paths + external_file_paths
 
         knowledge_file_ignore = self.settings.knowledge_file_ignore or ""
-        knowledge_file_ignore = [ignore for ignore in knowledge_file_ignore.split(",") if len(ignore.strip())]
-
+        knowledge_file_ignore = ignore_paths + [ignore for ignore in knowledge_file_ignore.split(",") if len(ignore.strip())]
+        logger.info(f"knowledge ignore files {knowledge_file_ignore}")
         changed_file_paths = [file for file in full_file_paths \
-                            if self.is_valid_file(file, last_update=last_update, path=path, current_sources=current_sources, knowledge_file_ignore=knowledge_file_ignore) ]
+                            if self.is_valid_file(file,
+                                last_update=last_update,
+                                path=path,
+                                current_sources=current_sources,
+                                knowledge_file_ignore=knowledge_file_ignore) ]
         
-        # logger.info(f"list_repository_files: {len(full_file_paths)} files - changed {len(changed_file_paths)} - ignore paths: {knowledge_file_ignore}")
         return changed_file_paths
 
     def list_repository_folders(self):

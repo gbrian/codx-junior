@@ -106,7 +106,10 @@ class CODXJuniorSettings:
         base = CODXJuniorSettings()
         base.codx_path = codx_path
         base.project_path = codx_path
-        with open(f"{codx_path}/project.json", 'r') as f:
+        project_file = codx_path
+        if not project_file.endswith("/project.json"):
+            project_file = f"{codx_path}/project.json" 
+        with open(project_file, 'r') as f:
           settings = json.loads(f.read())
           settings = CODXJuniorSettings(**{ **base.__dict__, **settings })
           if not settings.project_name:
@@ -135,12 +138,18 @@ class CODXJuniorSettings:
       logger.info(f"Saving project {valid_keys}: {data}")
       write_file(path, json.dumps(data, indent=2))
 
-    def detect_sub_projects(self):
+    def get_sub_projects(self):
       try:
-        return [str(project_path).replace("/.codx/project.json", "") for project_path in \
-          pathlib.Path(self.project_path).rglob("./*/.codx/project.json")]
+            sub_projects = [
+                CODXJuniorSettings.from_project(str(project_file_path)) \
+                    for project_file_path in \
+                        pathlib.Path(self.project_path).rglob("**/project.json")]
+
+            logger.info(f"get_sub_projects {[p.project_path for p in sub_projects]}")
+            return [sub_project for sub_project in sub_projects \
+                    if sub_project.codx_path != self.codx_path]
       except Exception as ex:
-        log.debug(f"Error {ex}")
+            logger.debug(f"Error get_sub_projects {ex}")
 
       return []
 
@@ -151,14 +160,6 @@ class CODXJuniorSettings:
     def get_ai(self):
       from codx.junior import build_ai
       return build_ai(settings=self)
-
-    def get_sub_projects(self):
-        try:
-            dependencies = self.project_dependencies.split(",") if self.project_dependencies else []
-            return [dep.strip() for dep in dependencies]
-        except:
-            pass
-        return []
 
     def get_project_wiki_path(self):
         if not self.project_wiki: 

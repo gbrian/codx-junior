@@ -15,7 +15,7 @@ import LogViewerVue from "./LogViewer.vue";
   <CodeEditorVue v-bind="$attrs" v-if="$ui.tabIx === 'editor'" />
   <KanbanVue v-bind="$attrs" v-if="$ui.tabIx === 'tasks'" />
   <CoderVue v-bind="$attrs" v-if="showCoder" />
-  <NoVNCVue v-bind="$attrs" v-if="showPreview" />
+  <NoVNCVue v-bind="$attrs" v-if="showBrowsor" />
   <KnowledgeViewVue v-bind="$attrs" v-if="$ui.tabIx === 'knowledge'" />
   <WikiViewVue v-bind="$attrs" v-if="$ui.tabIx == 'wiki'"></WikiViewVue>
   <ProjectSettingsVue  v-bind="$attrs" v-if="$ui.tabIx === 'settings'" />
@@ -28,12 +28,12 @@ import LogViewerVue from "./LogViewer.vue";
 export default {
   computed: {
     showCoder () {
-      const { isMobile, tabIx, showApp } = this.$ui
-      return isMobile && tabIx === 'app' && showApp == 'coder'
+      const { isMobile, tabIx, showCoder } = this.$ui
+      return isMobile && tabIx === 'app' && showCoder
     },
-    showPreview () {
-      const { isMobile, tabIx, showApp } = this.$ui
-      return isMobile && tabIx === 'app' && showApp == 'preview'
+    showBrowser () {
+      const { isMobile, tabIx, showBrowser } = this.$ui
+      return isMobile && tabIx === 'app' && showBrowser
     }
   }
 }

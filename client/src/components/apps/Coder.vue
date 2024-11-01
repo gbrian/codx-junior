@@ -1,5 +1,5 @@
 <template>
-  <div class="w-full h-full relative">
+  <div class="relative">
     <iframe ref="iframe" :src="coderUrl" class="h-full w-full border-0 bg-base-300"
         @load="onCoderLoaded"
         title="coder"
@@ -45,6 +45,9 @@ export default {
     checkCoderLoader () {
       let checkCount = 30 
       let interval = setInterval(() => {
+        if (!this.$refs.iframe) {
+          return
+        }
         const { contentWindow } = this.$refs.iframe
         if (!checkCount) {
           this.iframeKey = this.iframeKey + 1

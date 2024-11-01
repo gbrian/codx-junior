@@ -4,6 +4,4 @@ __pycache__
 *egg-*
 client/.vite
 global_settings.json
-client/.codx/db
-api/.codx/db
-.codx/db
+**/.codx/db

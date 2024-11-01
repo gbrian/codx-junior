@@ -3,6 +3,9 @@
     <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'home') ? 'tab-active font-bold' : '']" @click="setActiveTab('home')">
       <i class="fa-solid fa-house"></i>
       <span class="hidden lg:inline">Projects</span>
+      <span class="click" @click="$projects.loadAllProjects()">
+        <i class="fa-solid fa-arrows-rotate"></i>
+      </span>
     </a>
     <a role="tab" :class="['tab flex items-center gap-2', 
       disableProjectTabs && 'tab-disabled',

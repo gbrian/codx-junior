@@ -4,7 +4,8 @@ import { $storex } from '.'
 export const namespaced = true
 
 export const state = () => ({
-  showApp: null,
+  showCoder: false,
+  showBrowser: false,
   tabIx: 'home',
   codxJuniorWidth: 30,
   isMobile: false,
@@ -12,9 +13,7 @@ export const state = () => ({
 })
 
 export const getters = getterTree(state, {
-  showCoder: state => state.showApp === 'coder',
-  showPreview: state => state.showApp === 'preview',
-  isSplitView: state => !!state.showApp,
+  showApp: state => state.showBrowser || state.showCoder,
   isLandscape: state => state.orientation !== 'portrait'
 })
 
@@ -26,11 +25,12 @@ export const mutations = mutationTree(state, {
       Object.keys(parsedState).forEach(k => state[k] = parsedState[k])
     }
   },
-  toggleApp(state, app) {
-    $storex.ui.setActiveApp(state.showApp === app ? null : app)
+  toggleCoder(state) {
+    state.showCoder = !state.showCoder
+    $storex.ui.saveState()
   },
-  setActiveApp(state, app) {
-    state.showApp = app
+  toggleBrowser(state) {
+    state.showBrowser = !state.showBrowser
     $storex.ui.saveState()
   },
   setActiveTab(state, tabIx) {

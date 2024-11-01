@@ -6,8 +6,9 @@ import ChatEntry from '@/components/ChatEntry.vue'
   <div class="flex flex-col gap-1 grow">
     <div class="w-full overflow-auto">
       <div class="my-2 text-xs" v-if="chat.file_list?.length">
+        
         <a v-for="file in chat.file_list" :key="file" :data-tip="file"
-          class="group text-nowrap mr-2 hover:underline hover:bg-base-300 click"
+          class="group text-nowrap mr-2 hover:underline hover:bg-base-300 click text-accent"
           @click="API.coder.openFile(file)"
         >
           <span>{{ file.split("/").reverse()[0] }}</span>

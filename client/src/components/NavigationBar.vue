@@ -29,13 +29,13 @@ import ProjectIconVue from './ProjectIcon.vue'
     <div class="flex flex-col mt-4 hidden md:flex">
       <div :class="['hover:bg-base-100 click', $ui.showCoder ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
-					 @click.stop="$ui.toggleApp('coder')">
+					 @click.stop="$ui.toggleCoder()">
            <i class="fa-solid fa-code"></i>
 				</a>
 			</div>
-      <div :class="['hover:bg-base-100 click', $ui.showPreview ? 'bg-base-100': '']">
+      <div :class="['hover:bg-base-100 click', $ui.showBrowser ? 'bg-base-100': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show preview"
-					 @click.stop="$ui.toggleApp('preview')">
+					 @click.stop="$ui.toggleBrowser()">
            <i class="fa-solid fa-display"></i>
 				</a>
 			</div>

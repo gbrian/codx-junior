@@ -1,4 +1,4 @@
-<script setup lang="ts">
+<script setup>
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 import NoVNCVue from '../components/NoVNC.vue'
 import CoderVue from '../components/apps/Coder.vue'
@@ -16,8 +16,26 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
         :min-size="20"
         class="flex items-center justify-center"
       >
-        <CoderVue class="h-full grow" v-if="$ui.showCoder" />
-        <NoVNCVue class="h-full grow p-1" v-if="$ui.showPreview" />
+        <div class="flex flex-col justify-start w-full h-full">
+          <div role="tablist" class="tabs tabs-lifted">
+            <a role="tab" class="tab" @click="appActiveTab = 0"
+              :class="appActiveTab === 0 ? 'tab-active' : '' " 
+              v-if="$ui.showCoder"
+            >
+              Coder</a>
+            <a role="tab" class="tab" @click="appActiveTab = 1"
+              :class="appActiveTab === 1 ? 'tab-active' : '' " 
+              v-if="$ui.showBrowser"
+            >
+              Browser</a>
+          </div>
+          <CoderVue class="h-full w-full"
+            :class="appActiveTab === 0 ? '' : 'hidden' " 
+            v-if="$ui.showCoder" />
+          <NoVNCVue class="h-full w-full p-1"
+            :class="appActiveTab === 1 ? '' : 'hidden' "
+            v-if="$ui.showBrowser" />
+        </div>
       </SplitterPanel>
       <SplitterResizeHandle
         id="splitter-group-1-resize-handle-1"
@@ -35,3 +53,12 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
     </SplitterGroup>
   </div>
 </template>
+<script>
+export default {
+  data () {
+    return {
+      appActiveTab: 0
+    }
+  }
+}
+</script>

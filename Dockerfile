@@ -5,8 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y curl wget novnc websockify supervisor nodejs npm \
         tigervnc-standalone-server locales python3 python3-venv \
-        procps git sudo tesseract-ocr \
-        firefox-esr && \
+        procps git sudo tesseract-ocr && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -48,11 +47,12 @@ ENV PYTHONPATH=/projects/codx-junior/api
 
 RUN git config --global --add safe.directory '*'
 
-COPY firefox/start-firefox.sh /start-firefox.sh
-
 ENV DISPLAY=:1
 ENV DISPLAY_WIDTH=1920
 ENV DISPLAY_HEIGHT=1080
+
+RUN codx chrome
+RUN codx docker
 
 # codx-junior API port
 ENV API_PORT=9984
@@ -63,4 +63,7 @@ ENV CODER_PORT=9909
 # codx-junior NOVNC port
 ENV NOVNC_PORT=9986
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord/supervisor.conf"]
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+CMD ["/entrypoint.sh"]
