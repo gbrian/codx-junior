@@ -22,7 +22,13 @@ export const mutations = mutationTree(state, {
     const savedState = localStorage.getItem('uiState')
     if (savedState) {
       const parsedState = JSON.parse(savedState)
-      Object.keys(parsedState).forEach(k => state[k] = parsedState[k])
+      Object.keys(parsedState)
+        .forEach(k => state[k] = parsedState[k])
+    }
+    $storex.ui.handleResize()
+    if (state.isMobile && state.tabIx !== 'app') {
+      state.showCoder = false
+      state.showBrowser = false
     }
   },
   toggleCoder(state) {
@@ -36,8 +42,23 @@ export const mutations = mutationTree(state, {
   setActiveTab(state, tabIx) {
     state.tabIx = tabIx
     if (state.tabIx !== 'app' && state.isMobile) {
-      state.showApp = null
+      state.showCoder = false
+      state.showBrowser = false
     }
+  },
+  setShowCoder(state, show) {
+    state.showCoder = show
+    if (show && state.showBrowser && state.isMobile) {
+      state.showBrowser = false
+    }
+    $storex.ui.saveState()
+  },
+  setShowBrowser(state, show) {
+    state.showBrowser = show
+    if (show && state.showCoder && state.isMobile) {
+      state.showCoder = false
+    }
+    $storex.ui.saveState()
   },
   setCodxJuniorWidth(state, width) {
     state.codxJuniorWidth = width
@@ -52,8 +73,9 @@ export const actions = actionTree(
       $storex.ui.loadState()
       $storex.ui.handleResize()
       window.addEventListener('resize', () => $storex.ui.handleResize())
-      state.tabIx = 'home'
-      state.showApp = null
+      if (!state.tabIx) {
+        state.tabIx = 'home'
+      }
     },
     saveState({ state }) {
       localStorage.setItem('uiState', JSON.stringify(state))

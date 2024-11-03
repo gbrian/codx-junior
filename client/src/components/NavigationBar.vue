@@ -3,9 +3,7 @@ import ProjectIconVue from './ProjectIcon.vue'
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
-    :class="$ui.showApp && 'click'"
-    @click="$ui.showApp && $ui.toggleCodxJunior()"
-  >
+    :class="$ui.showApp && 'click'">
 
     <ProjectIconVue
       :right="right"

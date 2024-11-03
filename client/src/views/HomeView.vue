@@ -23,7 +23,7 @@ import TabViewVue from '../components/TabView.vue';
         </label>
       </div>
       <TabNavigationVue />
-      <TabViewVue />
+      <TabViewVue class="grow" />
     </div>
     <div class="drawer-side">
       <label for="my-drawer-4" aria-label="close sidebar" class="drawer-overlay"></label>

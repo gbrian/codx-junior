@@ -35,9 +35,9 @@
           <span class="hidden lg:inline">App</span>
         </div>
         <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-          <li @click="setActiveApp('coder')">
+          <li @click="showCoder()">
             <a><i class="fa-solid fa-code"></i> Coder</a></li>
-          <li @click="setActiveApp('preview')">
+          <li @click="showBrowser()">
             <a><i class="fa-solid fa-display"></i> Prefiew</a>
           </li>
         </ul>
@@ -58,11 +58,13 @@ export default {
         this.$ui.setActiveTab(tabName);
       }
     },
-    setActiveApp(appName) {
-      if (!this.disableProjectTabs) {
-        this.$ui.setActiveTab('app');
-        this.$ui.setActiveApp(appName)
-      }
+    showCoder() {
+      this.$ui.setActiveTab('app');
+      this.$ui.setShowCoder(true)
+    },
+    showBrowser() {
+      this.$ui.setActiveTab('app');
+      this.$ui.setShowBrowser(true)
     }
   }
 }

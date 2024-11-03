@@ -2,13 +2,13 @@ import re
 import json
 import logging
 
-SINGLE_LINE_MENTION_START = "@codx:"
-MULTI_LINE_MENTION_START = "<codx"
-MULTI_LINE_MENTION_END = "</codx>"
+SINGLE_LINE_MENTION_START = "@" + "codx:"
+MULTI_LINE_MENTION_START = "<" + "codx"
+MULTI_LINE_MENTION_END = "</" + "codx>"
 
-SINGLE_LINE_MENTION_START_PROGRESS = "@codx-processing:"
-MULTI_LINE_MENTION_START_PROGRESS = "<codx-processing"
-MULTI_LINE_MENTION_END_PROGRESS = "</codx-processing>"
+SINGLE_LINE_MENTION_START_PROGRESS = "@" + "codx-processing:"
+MULTI_LINE_MENTION_START_PROGRESS = "<" + "codx-processing"
+MULTI_LINE_MENTION_END_PROGRESS = "<" + "/codx-processing>"
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +16,14 @@ class MentionFlags():
     knowledge: bool = False
     model: str = None
     chat_id: str = None
+    image: bool = False
 
 class Mention():
     mention: str = None
     start_line: int = 0
     end_line: int = 0
     flags: MentionFlags = MentionFlags()
+    new_content: str = None
 
     def __str__(self):
         data = {
@@ -120,7 +122,8 @@ def replace_mentions(content, mentions):
     last_index = 0
     for mention in mentions:
         new_content = new_content + content_lines[last_index:mention.start_line]
-        new_content = new_content + mention.diff().split("\n")
+        if mention.new_content:
+            new_content = new_content + mention.new_content.split("\n")
         last_index = (mention.end_line if mention.end_line else mention.start_line) + 1
     if last_index < len(content) - 1:
         new_content = new_content + content_lines[last_index:]

@@ -5,10 +5,10 @@ import { API } from '../api/api'
 export const namespaced = true
 
 export const state = () => ({
-  activeProject: null,
   allProjects: null,
   chats: null,
-  activeChat: null
+  activeChat: null,
+  activeProject: null
 })
 
 export const mutations = mutationTree(state, {
@@ -19,7 +19,7 @@ export const mutations = mutationTree(state, {
 })
 
 export const getters = getterTree(state, {
-  allTags: state => new Set(state.chats?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || [])
+  allTags: state => new Set(state.chats?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
 })
 
 export const actions = actionTree(
@@ -38,7 +38,7 @@ export const actions = actionTree(
         return
       }
       await API.init(project?.codx_path)
-      state.activeProject = project ? API.lastSettings : null
+      state.activeProject = API.lastSettings
       state.activeChat = null
       project && await $storex.projects.loadChats()
     },
@@ -76,6 +76,26 @@ export const actions = actionTree(
         }
       }
       state.activeChat = state.chats.find(c => c.name === name)
+    },
+    async addLogIgnore({ state }, ignore) {
+      let ignores = state.activeProject.log_ignore?.split(",") || []
+      if (!ignores.includes(ignore)) {
+        ignores.push(ignore.trim())
+        state.activeProject.log_ignore = ignores.filter(i => i.trim().length).join(",")
+        $storex.project.saveSettings()
+      }
+    },
+    async removeLogIgnore({ state }, ignore) {
+      let ignores = state.activeProject.log_ignore?.split(",") || []
+      if (ignores.includes(ignore)) {
+        ignores = ignores.filter(i => i !== ignore)
+        state.activeProject.log_ignore = ignores.filter(i => i.trim().length).join(",")
+        $storex.project.saveSettings()
+      }
+    },
+    async saveSettings({ state}) {
+      await API.settings.save()
+      state.activeProject = API.lastSettings
     }
   }
 )

@@ -262,6 +262,20 @@ export const API = {
     async list() {
       return API.get('/api/logs');
     }
+  },
+  files: {
+    list (path) {
+      return API.get(`/api/files?path=${path}`)
+    },
+    read (path) {
+      return API.get(`/api/files/read?path=${path}`)
+    },
+    search (search) {
+      return API.get(`/api/files/find?search=${search}`)
+    },
+    write (source, page_content) {
+      return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } } )
+    }
   }
 }
 window.API = API

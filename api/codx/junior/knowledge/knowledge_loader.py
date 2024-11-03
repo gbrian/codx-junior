@@ -119,7 +119,7 @@ class KnowledgeLoader:
 
         knowledge_file_ignore = self.settings.knowledge_file_ignore or ""
         knowledge_file_ignore = ignore_paths + [ignore for ignore in knowledge_file_ignore.split(",") if len(ignore.strip())]
-        logger.info(f"knowledge ignore files {knowledge_file_ignore}")
+        # logger.info(f"knowledge ignore files {knowledge_file_ignore}")
         changed_file_paths = [file for file in full_file_paths \
                             if self.is_valid_file(file,
                                 last_update=last_update,

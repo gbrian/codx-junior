@@ -62,6 +62,8 @@ class CODXJuniorSettings:
         self.knowledge_hnsw_M = 1024
         self.project_icon = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s"
 
+        self.log_ignore = ""
+        
         self.urls = []
         if kwrgs:
             keys = CODXJuniorSettings().__dict__.keys()
@@ -145,7 +147,7 @@ class CODXJuniorSettings:
                     for project_file_path in \
                         pathlib.Path(self.project_path).rglob("**/project.json")]
 
-            logger.info(f"get_sub_projects {[p.project_path for p in sub_projects]}")
+            # logger.info(f"get_sub_projects {[p.project_path for p in sub_projects]}")
             return [sub_project for sub_project in sub_projects \
                     if sub_project.codx_path != self.codx_path]
       except Exception as ex:

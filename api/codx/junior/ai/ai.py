@@ -42,6 +42,9 @@ class AI:
         self.llm = self.create_chat_model()
         self.cache = False
 
+
+    def image(self, prompt):
+        return self.llm.generate_image(prompt)
     
     def chat(
         self,

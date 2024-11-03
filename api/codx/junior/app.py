@@ -244,7 +244,7 @@ def api_settings_check(request: Request):
     logger.info("/api/settings")
     codx_junior_session = request.state.codx_junior_session
     codx_junior_session.check_project()
-    return settings
+    return codx_junior_session.settings
 
 @app.put("/api/settings")
 async def api_save_settings(request: Request):
@@ -331,6 +331,31 @@ def api_get_wiki(request: Request):
             return Response(content=f.read(), media_type="text/html")
     except:
         return Response(content="# No project wiki...yet!", media_type="text/html")
+
+@app.get("/api/files")
+def api_get_files(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    path = request.query_params.get("path")
+    return codx_junior_session.read_directory(path=path)
+
+@app.get("/api/files/read")
+def api_get_file(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    path = request.query_params.get("path")
+    return codx_junior_session.read_file(path=path)
+
+@app.post("/api/files/write")
+def api_post_file(doc: Document, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    path = request.query_params.get("path")
+    return codx_junior_session.write_file(path=path, content=doc.page_content)
+
+@app.get("/api/files/find")
+def api_get_file(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    search = request.query_params.get("search")
+    return codx_junior_session.search_files(search=search)
+
 
 @app.get("/api/global/settings")
 def api_read_global_settings():

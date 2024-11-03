@@ -1,5 +1,6 @@
 {
   "ai_provider": "openai",
+  "ai_model": "gpt-4o",
   "project_name": "codx-UI",
   "project_path": "/projects/codx-junior/client",
   "project_wiki": null,
@@ -19,5 +20,6 @@
   "log_ai": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
+  "log_ignore": "",
   "urls": []
 }

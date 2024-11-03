@@ -175,6 +175,12 @@ class CODXJuniorSession:
     def get_profile_manager(self):
         return ProfileManager(settings=self.settings)
 
+    def get_ai(self):
+        return AI(settings=self.settings)
+
+    def get_knowledge(self):
+        return Knowledge(settings=self.settings)
+
     def load_chat(self, board, chat_name):
         return self.get_chat_manager().load_chat(board=board, chat_name=chat_name)
     
@@ -202,7 +208,7 @@ class CODXJuniorSession:
         return self.get_profile_manager().delete_profile(profile_name)
 
     def reload_knowledge(self, path: str = None):
-        knowledge = Knowledge(settings=self.settings)
+        knowledge = self.get_knowledge()
         logger.info(f"***** reload_knowledge: {path}")
         documents = None
         if path:
@@ -608,24 +614,33 @@ class CODXJuniorSession:
             if save_changes:
                 self.save_chat(chat=chat)
 
-    def check_file_for_mentions(self, file_path: str):
+    def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False):
         profile_manager = ProfileManager(settings=self.settings)
         chat_manager = ChatManager(settings=self.settings)
         ai = AI(settings=self.settings)
-
-        content = None
-        with open(file_path, 'r') as f:
-            content = f.read()
+        mentions = None
+        def read_file():
+            with open(file_path, 'r') as f:
+                return f.read()
 
         def save_file(new_content):
             write_file(file_path, new_content)
 
+        if not content:
+            content = read_file()
         mentions = extract_mentions(content)
         
         if not mentions:
-            return
+            return False
+            
         new_content = notify_mentions_in_progress(content)
-        save_file(new_content=new_content)
+        if not silent:
+            save_file(new_content=new_content)
+
+        image_mentions = [m for m in mentions if m.flags.image]
+        if image_mentions:
+            new_content = self.process_image_mention(image_mentions, file_path, content)
+            return self.check_file_for_mentions(file_path=file_path, content=new_content, silent=True)
 
         org_content = strip_mentions(content=content, mentions=mentions)
 
@@ -633,6 +648,7 @@ class CODXJuniorSession:
         
         using_chat = any(m.flags.chat_id for m in mentions)
         skip_knowledge_search = not any(m.flags.knowledge for m in mentions)
+        
 
         if using_chat or skip_knowledge_search:
             use_knowledge = False       
@@ -684,6 +700,16 @@ class CODXJuniorSession:
         self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
         response = chat.messages[-1].content
         save_file(new_content=response)
+
+        return True
+
+    def process_image_mention(self, image_mentions, file_path: str, content: str):
+        ai = self.get_ai()
+        for image_mention in image_mentions:
+            image_mention.new_content = ai.image(image_mention.content)
+        return replace_mentions(content, image_mentions)
+
+        
 
     def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
         chat_mode = chat_mode or chat.mode or 'chat'
@@ -930,3 +956,37 @@ class CODXJuniorSession:
         profile_manager = ProfileManager(settings=self.settings)
         profile_manager.create_profile(profile)
         return profile_manager.read_profile(profile.name)
+    
+    def parse_file_line(self, file, base_path):
+        file_path = os.path.join(base_path, file)
+        is_dir = os.path.isdir(file_path)
+        return {
+          "name": file,
+          "file_path": file_path,
+          "is_dir": is_dir,
+          "children": [] if is_dir else None
+        }
+    
+    def read_directory(self, path: str):
+        base_path = path
+        files = os.listdir(base_path)
+        return {
+          "path": path,
+          "full_path": base_path,
+          "files": [self.parse_file_line(file, base_path) for file in sorted(files)]
+        }
+
+    def read_file(self, path: str):
+        with open(path) as f:
+            return f.read()
+      
+    def write_file(self, path: str, content: str):
+        if not self.check_file_for_mentions(file_path=path, content=content, silent=True):
+            with open(path, 'w') as f:
+                return f.write(content)
+
+    def search_files(self, search: str):
+        all_sources = [s for s in self.get_knowledge().get_all_sources().keys() if search in s]
+        base_path = self.settings.project_path
+        return [self.parse_file_line(file.replace(base_path, ""), base_path) for file in sorted(all_sources)]
+

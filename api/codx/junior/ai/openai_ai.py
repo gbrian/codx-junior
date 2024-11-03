@@ -115,3 +115,13 @@ class OpenAI_AI:
         with open(file_path, 'r') as f:
             return f.read()
             
+    def generate_image(self, prompt):
+        response = self.client.images.generate(
+            model="dall-e-3",
+            prompt=prompt,
+            size="1024x1024",
+            quality="standard",
+            n=1,
+        )
+
+        return response.data[0].url
