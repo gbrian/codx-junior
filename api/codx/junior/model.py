@@ -122,3 +122,20 @@ class GlobalSettings(BaseModel):
     projects_root_path: str = Field(default='/projects')
     ai_temperature: str = Field(default="0.8")
 
+class Screen(BaseModel):
+    resolution: str = Field(default='')
+    resolutions: List[str] = Field(default=[
+      "1920x1080",
+      "1920x1200",
+      "1600x1200",
+      "1680x1050",
+      "1400x1050",
+      "1360x768",
+      "1280x1024",
+      "1280x960",
+      "1280x800",
+      "1280x720",
+      "1024x768",
+      "800x600",
+      "640x480"
+    ])

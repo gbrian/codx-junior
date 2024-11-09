@@ -100,11 +100,6 @@ import ChatEntry from '@/components/ChatEntry.vue'
           </div>
         </div>
         <div class="flex gap-1 items-center justify-end py-2">
-          <button class="btn btn btn-sm btn-outline tooltip" 
-            :class="isVoiceSession && 'btn-info animate-pulse'"
-            :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" @click="toggleVoiceSession" v-if="!editMessage">
-            <i class="fa-solid fa-microphone-lines"></i>
-          </button>
           <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
             <i class="fa-solid fa-save"></i>
             <div class="text-xs" v-if="editMessage">Edit</div>
@@ -114,6 +109,11 @@ import ChatEntry from '@/components/ChatEntry.vue'
           </button>
           <button class="btn btn btn-sm btn-circle btn-outline" @click="sendMessage" v-if="!editMessage">
             <i class="fa-solid fa-comment"></i>
+          </button>
+          <button class="btn btn btn-sm btn-outline tooltip" 
+            :class="isVoiceSession && 'btn-info animate-pulse'"
+            :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" @click="toggleVoiceSession" v-if="!editMessage">
+            <i class="fa-solid fa-microphone-lines"></i>
           </button>
           <div class="dropdown dropdown-top dropdown-end">
             <div tabindex="0" role="button" class="btn btn-sm m-1">

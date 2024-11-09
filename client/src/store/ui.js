@@ -1,5 +1,6 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
+import { API } from '../api/api'
 
 export const namespaced = true
 
@@ -18,7 +19,8 @@ export const state = () => ({
     "en-US": "English",
     "es-SP": "Español"
   },
-  appActives: []
+  appActives: [],
+  appDivided: 'none'
 })
 
 export const getters = getterTree(state, {
@@ -82,10 +84,13 @@ export const mutations = mutationTree(state, {
   },
   toggleLogs(state) {
     state.showLogs = !state.showLogs
-    $storex.ui.saveState()
   },
   setVoiceLanguage(state, voiceLanguage) {
     state.voiceLanguage = voiceLanguage
+    $storex.ui.saveState()
+  },
+  setAppDivided(state, divided) {
+    state.appDivided = divided
     $storex.ui.saveState()
   }
 })
@@ -100,6 +105,7 @@ export const actions = actionTree(
       if (!state.tabIx) {
         state.tabIx = 'home'
       }
+      state.showLogs = false
     },
     saveState({ state }) {
       localStorage.setItem('uiState', JSON.stringify(state))
@@ -124,6 +130,9 @@ export const actions = actionTree(
         await API.coder.openFile(file)
       }
       state.showCoder = true
+    },
+    setScreenResolution(_, resolution) {
+      API.screen.setScreenResolution(resolution)
     }
   },
 )

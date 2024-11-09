@@ -254,6 +254,7 @@ export const API = {
       } catch (ex) {
         console.error("Invalid settings")
       }
+      API.screen.getScreenResolution()
     }
     API.liveRequests--
     console.log("API init", codx_path, API.lastSettings)
@@ -278,6 +279,18 @@ export const API = {
     },
     write (source, page_content) {
       return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } } )
+    }
+  },
+  screen: {
+    display: null,
+    async setScreenResolution (resolution) {
+      await API.post('/api/screen', { resolution })
+      return API.screen.getScreenResolution()
+    },
+    async getScreenResolution () {
+      const { data: display } = await API.get('/api/screen') 
+      API.screen.display = display
+      return API.screen.display
     }
   },
   async restart () {

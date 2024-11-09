@@ -2,11 +2,14 @@ import logging
 
 from helium import *
 
+from selenium import *
 from selenium.webdriver import ChromeOptions
+from selenium.webdriver.common.by import By
 
 from codx.junior.engine import CODXJuniorSession
 from codx.junior.model import Chat
 from codx.junior.utils import exec_command
+from langchain.schema import AIMessage
 
 logger = logging.getLogger(__name__)
 
@@ -15,13 +18,9 @@ from langchain.output_parsers import PydanticOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
 from typing import List, Dict, Any
 
-class Instruction(BaseModel):
-    instruction: str
-    args: List[Any]
-
 class TaskModel(BaseModel):
     task: str
-    instructions: List[Instruction]
+    instructions: List[str]
 
 # Create the PydanticOutputParser
 TaskModelParser = PydanticOutputParser(pydantic_object=TaskModel)
@@ -61,7 +60,13 @@ class Browser:
         # Prepare prompt
         url = driver.current_url
         current_page_content = self.get_current_page()
-        
+
+        def parse_response(response):
+            if "```json" in response:
+                json_obj = response.split("```json")[1]
+                json_obj = json_obj.split("```")[0]
+                return TaskModelParser.invoke(json_obj)
+            return None
 
         prompt = f"""
         Profile: {profile}
@@ -73,39 +78,39 @@ class Browser:
         messages = chat.messages
         json_obj = None
         try:
-            if "```json" in last_user_message:
-                json_obj = last_user_message.split("```json")[1]
-                json_obj = json_obj.split("```")[0]
-                task = TaskModelParser.invoke(json_obj)
+            task = parse_response(last_user_message)
         except Exception as ex:
             logger.error(f"No tasks found {json_obj} - {ex}")
             return
             pass
+
         if not task:
             # Call AI for navigation instructions
             messages = self.session.get_ai().chat(prompt=prompt)
-            task = TaskModelParser.invoke(messages[-1].content)
+            task = parse_response(messages[-1].content)
         
         def func_not_found():
             return None
         logger.info(f"TASK: {task}")
-        return
-        for instruction in task.instructions:
-            cmd = instruction.instruction
-            args = instruction.args
-            try:
-                eval(f"{cmd}({','.join(args)})")
-            except Exception as ex:
-                logger.error(f"Error processing {cmd}({args}): {ex}")
-        
-        return
-        prompt = f"""
-        Given this web page content
-        ```html
-        {self.get_current_page()}
-        ```
-        Answer user question: {last_user_message}"""
-        messages = self.session.get_ai().chat(messages=messages, prompt=prompt)
+        errors = []
+        if task:
+            for instruction in task.instructions:
+                try:
+                    eval(instruction)
+                except Exception as ex:
+                    error = f"Error processing {instruction}: {ex}"
+                    logger.exception(error)
+                    errors.append(error)
+            if errors:
+                chat.messages.append(AIMessage(content="\n".join(errors)))
+
+        #prompt = f"""
+        #Given this web page content
+        #```html
+        #{self.get_current_page()}
+        #```
+        #Answer user question: {last_user_message}"""
+        #messages = self.session.get_ai().chat(messages=messages, prompt=prompt)
         chat.messages.append(messages[-1])
 
 

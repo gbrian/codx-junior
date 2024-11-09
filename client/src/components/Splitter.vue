@@ -16,14 +16,41 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
         :min-size="20"
         class=""
       >
+      <SplitterGroup
+        id="splitter-group-2"
+        :direction="isHorizontal ? 'horizontal' : 'vertical'"
+        v-if="$ui.appDivided !== 'none'"
+      >
+        <SplitterPanel
+          id="splitter-group-2-panel-1"
+          :min-size="20"
+          class=""
+          v-if="$ui.showCoder"
+        >
+          <CoderVue class="h-full w-full border-2 border-r broder-b border-slate-700" />
+        </SplitterPanel>
+        <SplitterResizeHandle
+          id="splitter-group-2-resize-handle-1"
+        />   
+        <SplitterPanel
+          id="splitter-group-2-panel-2"
+          :min-size="20"
+          class=""
+          v-if="$ui.showBrowser"
+        >
+          <BrowserVue class="h-full w-full p-1 border-r broder-b border-slate-700" />
+        </SplitterPanel>
+      </SplitterGroup>
+      <div class="h-full w-full" v-else>
         <CoderVue class="h-full w-full"
-          :class="$ui.appActives[0] == 'coder' ? '' : 'hidden' " />
+          :class="$ui.appActives[0] === 'coder' ? '': 'hidden'" />
         <BrowserVue class="h-full w-full p-1"
-          :class="$ui.appActives[0] == 'browser' ? '' : 'hidden' " />
+          :class="$ui.appActives[0] === 'browser' ? '': 'hidden'"/>
+      </div>
       </SplitterPanel>
       <SplitterResizeHandle
         id="splitter-group-1-resize-handle-1"
-        class="w-2"
+        class=""
       />
       <SplitterPanel
         id="splitter-group-1-panel-2"
@@ -41,7 +68,11 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
 export default {
   data () {
     return {
-      appActiveTab: 0
+    }
+  },
+  computed: {
+    isHorizontal () {
+      return this.$ui.appDivided === 'horizontal'
     }
   }
 }

@@ -64,12 +64,35 @@ import ProjectIconVue from './ProjectIcon.vue'
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('profiles')">Profiles</a></li>
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
-          <li><a @click.stop="setActiveTab('global-settings')">Gobal settings</a></li>
+          <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li><a @click.stop="$ui.toggleLogs()">Logs</a></li>
+          <li class="border"></li>
+          <li>
+            <a>
+              <i class="fa-solid fa-table-columns"></i>
+              <select class="select select-sm overflow-auto" @change="$ui.setAppDivided($event.target.value)">
+                <option v-for="divider in ['none', 'horizontal', 'vertical']" :key="divider" :value="divider">
+                  {{ divider }}
+                </option>
+              </select>
+            </a>
+          </li>
+          <li>
+            <a>
+              <span class="click" @click="$storex.api.screen.getScreenResolution()"><i class="fa-solid fa-display"></i></span>
+              <select class="select select-sm overflow-auto" @change="$storex.api.screen.setScreenResolution($event.target.value)">
+                <option disabled selected>Select Resolution</option>
+                <option v-for="resolution in $storex.api.screen.display?.resolutions" :key="resolution" :value="resolution"
+                  :selected="$storex.api.screen.display?.resolution === resolution"
+                >
+                  {{ resolution }}
+                </option>
+              </select>
+            </a>
+          </li>
         </ul>
 			</div>
     </div>
-
   </div>
 </template>
 
@@ -82,6 +105,9 @@ export default {
       tabActive: 'text-info bg-base-100',
       tabInactive: 'text-warning bg-base-300 opacity-50 hover:opacity-100'
     };
+  },
+  created () {
+    this.$storex.api.screen.getScreenResolution()
   },
   computed: {
     isSettings () {

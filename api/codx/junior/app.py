@@ -50,7 +50,8 @@ from codx.junior.model import (
     Profile,
     Document,
     LiveEdit,
-    GlobalSettings
+    GlobalSettings,
+    Screen
 )
 
 from codx.junior.settings import (
@@ -364,7 +365,7 @@ def api_read_global_settings():
 
 @app.get("/api/logs")
 def api_logs_list():
-    return ['codx-junior-api', 'codx-junior-web', 'firefox', 'novnc', 'vncserver']
+    return ['codx-junior-api', 'codx-junior-web', 'firefox', 'novnc', 'vncserver', 'supervisord']
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
@@ -377,6 +378,18 @@ def api_logs_tail(log_name: str, request: Request):
 @app.post("/api/global/settings")
 def api_write_global_settings(global_settings: GlobalSettings):
     return write_global_settings(global_settings=global_settings)
+
+@app.post("/api/screen")
+def api_screen_set(screen: Screen):
+    return exec_command(f"xrandr -s {screen.resolution}")
+
+@app.get("/api/screen")
+def api_screen_get():
+    screen = Screen()
+    res, _ = exec_command(f"xrandr --current")
+    # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
+    screen.resolution = res.split("\n")[0].split("current ")[1].split(",")[0].replace(" ", "")
+    return screen
 
 @app.post("/api/image-to-text")
 async def api_image_to_text_endpoint(file: UploadFile):
