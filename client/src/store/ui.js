@@ -9,7 +9,16 @@ export const state = () => ({
   tabIx: 'home',
   codxJuniorWidth: 30,
   isMobile: false,
-  orientation: 'portrait'
+  orientation: 'portrait',
+  openedFile: null,
+  kanban: null,
+  showLogs: false,
+  voiceLanguage: 'en-US',
+  voiceLanguages: {
+    "en-US": "English",
+    "es-SP": "Español"
+  },
+  appActives: []
 })
 
 export const getters = getterTree(state, {
@@ -32,12 +41,10 @@ export const mutations = mutationTree(state, {
     }
   },
   toggleCoder(state) {
-    state.showCoder = !state.showCoder
-    $storex.ui.saveState()
+    $storex.ui.setShowCoder(!state.showCoder)
   },
   toggleBrowser(state) {
-    state.showBrowser = !state.showBrowser
-    $storex.ui.saveState()
+    $storex.ui.setShowBrowser(!state.showBrowser)
   },
   setActiveTab(state, tabIx) {
     state.tabIx = tabIx
@@ -45,23 +52,40 @@ export const mutations = mutationTree(state, {
       state.showCoder = false
       state.showBrowser = false
     }
+    $storex.ui.saveState()
   },
   setShowCoder(state, show) {
     state.showCoder = show
-    if (show && state.showBrowser && state.isMobile) {
-      state.showBrowser = false
+    if (state.showCoder) {
+      state.appActives = ['coder', ...state.appActives]
+    } else {
+      state.appActives = state.appActives.filter(a => a !== 'coder')
     }
     $storex.ui.saveState()
   },
   setShowBrowser(state, show) {
     state.showBrowser = show
-    if (show && state.showCoder && state.isMobile) {
-      state.showCoder = false
+    if (state.showBrowser) {
+      state.appActives = ['browser', ...state.appActives]
+    } else {
+      state.appActives = state.appActives.filter(a => a !== 'browser')
     }
     $storex.ui.saveState()
   },
   setCodxJuniorWidth(state, width) {
     state.codxJuniorWidth = width
+    $storex.ui.saveState()
+  },
+  setKanban(state, kanban) {
+    state.kanban = kanban
+    $storex.ui.saveState()
+  },
+  toggleLogs(state) {
+    state.showLogs = !state.showLogs
+    $storex.ui.saveState()
+  },
+  setVoiceLanguage(state, voiceLanguage) {
+    state.voiceLanguage = voiceLanguage
     $storex.ui.saveState()
   }
 })
@@ -91,6 +115,15 @@ export const actions = actionTree(
     loadTask (_, task) {
       $storex.ui.setActiveTab('tasks')
       $storex.projects.loadChat(task)
+    },
+    async openFile({ state }, file) {
+      if (state.isMobile) {
+        state.tabIx = 'app'
+        state.openedFile = file
+      } else {
+        await API.coder.openFile(file)
+      }
+      state.showCoder = true
     }
   },
 )

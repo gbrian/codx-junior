@@ -1,6 +1,5 @@
 import logging
 import re
-from termcolor import colored
 from pathlib import Path
 from typing import Union, List, Optional
 
@@ -21,23 +20,12 @@ logger = logging.getLogger(__name__)
 
 KNOWLEDGE_CONTEXT_SCORE_MATCH = re.compile(r".*([0-9]+)%", re.MULTILINE)
 
-def validate_context(ai, prompt, doc, score):
-    # This function now handles a single document.
-    if '@ai' in doc.metadata.get('user_input', ''):
-        return ai_validate_context(ai, prompt, doc)
-    score = float(doc.metadata.get('user_input'))
-    doc.metadata["relevance_score"] = score
-    logger.debug(f"[validate_context] {doc.metadata['source']}: {score}")
-    if score < score:
-        return None
-    return doc
-
 def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
     ai = AI(settings=settings)
     score = float(settings.knowledge_context_cutoff_relevance_score)
     if not score:
       return documents
-
+    
     # This function uses ThreadPoolExecutor to parallelize validation of contexts.
     with ThreadPoolExecutor() as executor:
         futures = {executor.submit(ai_validate_context, ai=ai, prompt=prompt, doc=doc): doc for doc in documents}
@@ -47,18 +35,10 @@ def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
             if result is not None:
                 valid_documents.append(result)
 
-        def colored_result(doc):
-          res_str = f"{doc.metadata['source']}: {doc.metadata['relevance_score']}"
-          if doc.metadata['relevance_score'] >= score:
-            return colored(res_str, "green")
-          return colored(res_str, "red")
-
-        print("\n".join([
-          "",
-          colored(f"[VALIDATE WITH CONTEXT]: {prompt}", "green"),
-          "\n".join([colored_result(doc) for doc in valid_documents if doc]),
-          ""
-        ]))
+        doc_validation = '\n'.join([f"{doc.metadata['source']}: {doc.metadata['relevance_score']}" for doc in valid_documents if doc])
+        logger.info(f"""[VALIDATE WITH CONTEXT]: {prompt}"
+          {doc_validation}
+          """)
         return [doc for doc in valid_documents \
           if doc and doc.metadata.get('relevance_score', 0) >= score]
 
@@ -137,16 +117,16 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
     except Exception as ex:
         logger.error(f"Error parsing content validation: {ex}")
 
-    if score:
+    if score is not None:
         doc.metadata["relevance_score"] = score
         doc.metadata["analysis"] = response.analysis
         logger.debug(f"[validate_context] {doc.metadata.get('source')}: {score}")
     else:
       if not retry_count:
-        logger.exception(colored(f"[validate_context] re-trying failed validation\n{prompt}\n{response}", "red"))
+        logger.exception(f"[validate_context] re-trying failed validation\n{prompt}\n{response}")
         return ai_validate_context(ai, prompt, doc, retry_count=1)
 
-      logger.error(colored(f"[validate_context] failed to validate. Messages: {messages}\n\nPrompt: {prompt}", "red"))
+      logger.error(f"[validate_context] failed to validate. Messages: {messages}")
 
     return doc
 

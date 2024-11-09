@@ -1,7 +1,7 @@
 {
   "ai_provider": "openai",
-  "ai_model": "gpt-4o",
-  "project_name": "api",
+  "ai_model": "",
+  "project_name": "codx-api",
   "project_path": "/projects/codx-junior/api",
   "project_wiki": null,
   "project_dependencies": null,
@@ -15,10 +15,10 @@
   "knowledge_file_ignore": ".codx,assets,public",
   "temperature": 0.7,
   "codx_path": "/projects/codx-junior/api/.codx",
-  "watching": false,
+  "watching": true,
   "use_knowledge": true,
-  "log_ai": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
+  "log_ignore": "",
   "urls": []
 }

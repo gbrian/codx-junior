@@ -24,8 +24,7 @@ from codx.junior.utils import (
 from codx.junior.ai import AI
 from codx.junior.settings import (
     CODXJuniorSettings,
-    read_global_settings,
-    write_global_settings
+    read_global_settings
 )
 
 from codx.junior.chat_manager import ChatManager
@@ -181,6 +180,10 @@ class CODXJuniorSession:
     def get_knowledge(self):
         return Knowledge(settings=self.settings)
 
+    def get_browser(self):
+        from codx.junior.browser import Browser
+        return Browser(session=self)
+
     def load_chat(self, board, chat_name):
         return self.get_chat_manager().load_chat(board=board, chat_name=chat_name)
     
@@ -191,8 +194,8 @@ class CODXJuniorSession:
         self.channel.chat_event(f'Saving {chat.name}')
         return self.get_chat_manager().save_chat(chat)
 
-    def delete_chat(self, chat_name):
-        self.get_chat_manager().delete_chat(chat_name)
+    def delete_chat(self, board, chat_name):
+        self.get_chat_manager().delete_chat(board, chat_name)
 
 
     def list_profiles(self):
@@ -219,12 +222,9 @@ class CODXJuniorSession:
         return {"doc_count": len(documents) if documents else 0}
 
     def knowledge_search(self, knowledge_search: KnowledgeSearch):
-        if knowledge_search.document_search_type:
-            self.settings.knowledge_search_type = knowledge_search.document_search_type
-        if knowledge_search.document_count:
-            self.settings.knowledge_search_document_count = knowledge_search.document_count
-        if knowledge_search.document_cutoff_score:
-            self.settings.knowledge_context_cutoff_relevance_score = knowledge_search.document_cutoff_score
+        self.settings.knowledge_search_type = knowledge_search.document_search_type
+        self.settings.knowledge_search_document_count = knowledge_search.document_count
+        self.settings.knowledge_context_cutoff_relevance_score = knowledge_search.document_cutoff_score
         
         documents = []
         response = ""
@@ -262,15 +262,20 @@ class CODXJuniorSession:
         return {"ok": 1}
 
     def select_afefcted_documents_from_knowledge(self, ai: AI, query: str, ignore_documents=[]):
+        all_projects = find_all_projects()
+        
         mentions = re.findall(r'@\S+', query)
         logger.info(f"Extracted mentions: {mentions}")
+        
         settings_sub_projects = self.settings.get_sub_projects() if self.settings.knowledge_query_subprojects else []
-        sub_projects = set(settings_sub_projects + [mention[1:].lower() for mention in mentions])
-        all_projects = find_all_projects()
-        search_projects = [self.add_global_settings() for settings in all_projects if self.settings.project_name.lower() in sub_projects]
+        settings_sub_projects = [p.project_name for p in settings_sub_projects]
+        project_dependencies = self.settings.get_project_dependencies()
+        sub_projects = set(settings_sub_projects + [mention[1:] for mention in mentions] + project_dependencies)
+        search_projects = [settings for settings in all_projects if settings.project_name in sub_projects]
         logger.info(f"select_afefcted_documents_from_knowledge query subprojects {sub_projects} - {search_projects}")
+        
         for search_project in search_projects:
-            mention = [mention[1:] for mention in mentions if mention.lower() == search_project.project_name.lower()]
+            mention = [mention[1:] for mention in mentions if mention == search_project.project_name]
             query = query.replace(f"@{mention}", "")
 
         def process_rag_query(rag_query):
@@ -278,11 +283,12 @@ class CODXJuniorSession:
             if not docs:
                 docs = []
                 file_list = []
-            logger.info(f"select_afefcted_documents_from_knowledge doc length: {len(docs)}")
+            logger.info(f"select_afefcted_documents_from_knowledge doc length: {len(docs)} - cutoff score {self.settings.knowledge_context_cutoff_relevance_score}")
             if search_projects and self.settings.knowledge_query_subprojects:
                 logger.info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
                 for sub_settings in search_projects:
                     sub_docs, sub_file_list = find_relevant_documents(query=rag_query, settings=sub_settings, ignore_documents=ignore_documents)
+                    logger.info(f"select_afefcted_documents_from_knowledge search subproject {sub_settings.project_name} docs: {len(sub_docs)}") 
                     if sub_docs:
                         docs = docs + sub_docs
                     if sub_file_list:
@@ -710,10 +716,12 @@ class CODXJuniorSession:
         return replace_mentions(content, image_mentions)
 
         
-
     def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
+        if chat.mode == 'browser':
+            logger.info(f"chat_with_project browser mode")
+            return self.get_browser().chat_with_browser(chat)
+
         chat_mode = chat_mode or chat.mode or 'chat'
-        is_refine = chat_mode == 'task'
         ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
         last_ai_message = ai_messages[-1] if ai_messages else None
             
@@ -729,19 +737,6 @@ class CODXJuniorSession:
         END INSTRUCTIONS
         """
         
-        if chat_mode == 'task':
-            task = last_ai_message.content if is_refine and last_ai_message else "No task defined yet, create it following the instructions"
-            if is_refine:
-                user_message = Message(role="user", content=f"""
-                  UPDATE OR CREATE THE TASK:
-                  {task}
-                  
-                  USER COMMENTS:
-                  {query}
-                  """)
-            instructions = f"""
-            {profile_manager.read_profile("analyst").content}
-            """
         chat.messages.append(
             Message(role="system", hide=True, content=f"""# INSTRUCTIONS:
                   {instructions}
@@ -782,15 +777,11 @@ class CODXJuniorSession:
       
             return msg
 
-        if is_refine:
-            msg = convert_message(chat.messages[0])
+        for m in chat.messages[0:-1]:
+            if m.hide or m.improvement:
+                continue
+            msg = convert_message(m)
             messages.append(msg)
-        else:
-            for m in chat.messages[0:-1]:
-                if m.hide or m.improvement:
-                    continue
-                msg = convert_message(m)
-                messages.append(msg)
 
         context = ""
         documents = []
@@ -814,12 +805,11 @@ class CODXJuniorSession:
             if affected_documents:
                 documents = affected_documents
                 file_list = doc_file_list
-                documents = affected_documents
                 for doc in documents:
                     doc_context = document_to_context(doc)
                     context += f"{doc_context}\n"
 
-            doc_length = len(documents) if documents else 0
+            doc_length = len(documents or [])
             logger.info(f"chat_with_project found {doc_length} relevant documents")
 
         if context:
@@ -833,13 +823,10 @@ class CODXJuniorSession:
         messages = ai.chat(messages, callback=callback)
         response = messages[-1].content
         sources = []
-        if documents and append_references:
+        if documents:
             sources = list(set([doc.metadata['source'].replace(self.settings.project_path, "") for doc in documents]))
             
         response_message = Message(role="assistant", content=response, files=sources)
-        if chat_mode == 'task':
-            for msg in chat.messages[1:]:
-                msg.hide = True
         chat.messages.append(response_message)
         return chat, documents
 
@@ -858,6 +845,15 @@ class CODXJuniorSession:
 
     def get_keywords(self, query):
         return KnowledgeKeywords(settings=self.settings).get_keywords(query)
+
+    def get_wiki_file(self, file_path:str):
+        project_wiki_path = self.settings.get_project_wiki_path()
+        wiki_file = f"{project_wiki_path}{file_path}"
+        try:
+          with open(wiki_file) as f:
+              return f.read()
+        except:
+          return f"{wiki_file} not found"
 
     def update_wiki(self, file_path: str):
         project_wiki_path = self.settings.get_project_wiki_path()
@@ -959,9 +955,11 @@ class CODXJuniorSession:
     
     def parse_file_line(self, file, base_path):
         file_path = os.path.join(base_path, file)
+        if not file_path.startswith(self.settings.project_path):
+            file_path = f"{self.settings.project_path}/{file_path}"
         is_dir = os.path.isdir(file_path)
         return {
-          "name": file,
+          "name": file.split("/")[-1],
           "file_path": file_path,
           "is_dir": is_dir,
           "children": [] if is_dir else None
@@ -988,5 +986,4 @@ class CODXJuniorSession:
     def search_files(self, search: str):
         all_sources = [s for s in self.get_knowledge().get_all_sources().keys() if search in s]
         base_path = self.settings.project_path
-        return [self.parse_file_line(file.replace(base_path, ""), base_path) for file in sorted(all_sources)]
-
+        return [self.parse_file_line(file, base_path) for file in sorted(all_sources)]

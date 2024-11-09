@@ -26,7 +26,7 @@ class Anthropic_AI:
 
 
     def log(self, msg):
-        if self.settings.log_ai:
+        if self.settings.get_log_ai():
             logger.info(msg)
 
     def convert_message(self, gpt_message: Union[AIMessage, HumanMessage, BaseMessage]): 

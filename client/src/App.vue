@@ -15,6 +15,13 @@ import SplitViewVue from './views/SplitView.vue'
         </button>
       </div>
     </div>
+    <div class="absolute right-0 top-1 z-50 py-1 px-2 rounded-l text-white"
+       v-if="$session.apiCalls">
+       <div class="flex gap-2 items-center">
+        <span class="loading loading-sm loading-spinner text-secondary"></span>
+        <span class="animate-pulse"> thinking....</span>
+      </div>
+    </div>
   </div>
 </template>
 <script>

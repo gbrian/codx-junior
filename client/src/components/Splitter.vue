@@ -1,6 +1,6 @@
 <script setup>
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
-import NoVNCVue from '../components/NoVNC.vue'
+import BrowserVue from './browser/Browser.vue'
 import CoderVue from '../components/apps/Coder.vue'
 import CodxJuniorVue from '../views/CodxJunior.vue'
 </script>
@@ -14,28 +14,12 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
       <SplitterPanel
         id="splitter-group-1-panel-1"
         :min-size="20"
-        class="flex items-center justify-center"
+        class=""
       >
-        <div class="flex flex-col justify-start w-full h-full">
-          <div role="tablist" class="tabs tabs-lifted">
-            <a role="tab" class="tab" @click="appActiveTab = 0"
-              :class="appActiveTab === 0 ? 'tab-active' : '' " 
-              v-if="$ui.showCoder"
-            >
-              Coder</a>
-            <a role="tab" class="tab" @click="appActiveTab = 1"
-              :class="appActiveTab === 1 ? 'tab-active' : '' " 
-              v-if="$ui.showBrowser"
-            >
-              Browser</a>
-          </div>
-          <CoderVue class="h-full w-full"
-            :class="appActiveTab === 0 ? '' : 'hidden' " 
-            v-if="$ui.showCoder" />
-          <NoVNCVue class="h-full w-full p-1"
-            :class="appActiveTab === 1 ? '' : 'hidden' "
-            v-if="$ui.showBrowser" />
-        </div>
+        <CoderVue class="h-full w-full"
+          :class="$ui.appActives[0] == 'coder' ? '' : 'hidden' " />
+        <BrowserVue class="h-full w-full p-1"
+          :class="$ui.appActives[0] == 'browser' ? '' : 'hidden' " />
       </SplitterPanel>
       <SplitterResizeHandle
         id="splitter-group-1-resize-handle-1"

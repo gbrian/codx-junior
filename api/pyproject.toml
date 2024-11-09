@@ -41,7 +41,8 @@ dependencies = [
   'anthropic',
   'fastapi_socketio',
   'pytesseract',
-  'pillow'
+  'pillow',
+  'pyppeteer>=2.0.0'
 ]
 
 # chromadb 0.3.29 for compatibility with Ubuntu and lower Sqlite3

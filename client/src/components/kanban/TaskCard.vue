@@ -1,3 +1,8 @@
+<script setup>
+import moment from 'moment';
+import Badge from "./Badge.vue";
+import ChatIcon from '../chat/ChatIcon.vue';
+</script>
 <template>
   <div class="bg-base-100 shadow rounded border border-base-300 flex flex-col gap-2 click">
     <div class="bg-auto bg-no-repeat bg-center h-28 bg-base-300"
@@ -9,15 +14,7 @@
       <div class="flex justify-between">
         <div class="font-semibold font-sans tracking-wide text-sm flex gap-2">
           <div class="rounded-full border-1 bg-base-300">
-            <span class="text-info" v-if="task.mode === 'live'">
-              <i class="fa-brands fa-chromecast"></i>
-            </span>
-            <span v-if="task.mode === 'chat' || !task.mode">
-              <i class="fa-regular fa-comments"></i>
-            </span>
-            <span v-if="task.mode === 'task'">
-              <i class="fa-regular fa-file-code"></i>
-            </span>
+            <ChatIcon :chat="task" />
           </div>
           <div class="overflow-hidden">{{task.name}}</div>
         </div>
@@ -45,12 +42,10 @@
 </template>
 
 <script>
-import moment from 'moment';
-import Badge from "./Badge.vue";
-
 export default {
   components: {
-    Badge
+    Badge,
+    ChatIcon
   },
   props: ['task'],
   data () {

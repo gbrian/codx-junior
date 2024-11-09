@@ -6,12 +6,11 @@ import ChatEntry from '@/components/ChatEntry.vue'
   <div class="flex flex-col gap-1 grow">
     <div class="w-full overflow-auto">
       <div class="my-2 text-xs" v-if="chat.file_list?.length">
-        
         <a v-for="file in chat.file_list" :key="file" :data-tip="file"
           class="group text-nowrap mr-2 hover:underline hover:bg-base-300 click text-accent"
-          @click="API.coder.openFile(file)"
+          @click="$ui.openFile(file)"
         >
-          <span>{{ file.split("/").reverse()[0] }}</span>
+          <span>{{ file.split('/').reverse()[0] }}</span>
           <span class="ml-2 click" @click.stop="$emit('remove-file', file)">
             <i class="fa-regular fa-circle-xmark"></i>
           </span>
@@ -23,10 +22,13 @@ import ChatEntry from '@/components/ChatEntry.vue'
         <div class="flex flex-col gap-2" 
           v-for="message in messages" :key="message.id">
           <ChatEntry :class="['mb-4 rounded-md bg-base-300',
+            editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
             message.hide ? 'opacity-60' : '']"
+            :chat="chat"
             :message="message"
             @edit="onEditMessage(message)"
             @remove="removeMessage(message)"
+            @remove-file="removeFileFromMessage(message, $event)"
             @hide="toggleHide(message)"
             @run-edit="runEdit"
             @copy="onCopy(message)"
@@ -62,24 +64,22 @@ import ChatEntry from '@/components/ChatEntry.vue'
         <li v-for="term, ix in searchTerms" :key="term.key">
           <a @click="addSerchTerm(term)">
             <div :class="[searchTermSelIx === ix ? 'underline':'']">
-              <span class="text-sky-600 font-bold">@{{ term.key }}</span> <span class="text-xs">({{ term.file.split("/").reverse()[0] }})</span>
+              <span class="text-sky-600 font-bold">@{{ term.key }}</span> <span class="text-xs">({{ term.file.split('/').reverse()[0] }})</span>
             </div>
           </a>
         </li>
       </ul>
     </div>
-
     <div :class="['flex bg-base-300 border rounded-md shadow', 
           multiline ? 'flex-col' : '',
+          isTask && !editMessage && 'hidden',
+          editMessage && 'border-warning',
           onDraggingOverInput ? 'bg-warning/10': '']"
         @dragover.prevent="onDraggingOverInput = true"
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop"
     >
-      <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none',
-        editMessageId !== null ? 'border-error': '',
-        editMessageId !== null ? 'border-warning': ''
-      ]" contenteditable="true"
+      <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']" contenteditable="true"
         ref="editor" @input="onMessageChange"
         @paste="onContentPaste"
         @keydown.esc.stop="onResetEdit"
@@ -100,10 +100,16 @@ import ChatEntry from '@/components/ChatEntry.vue'
           </div>
         </div>
         <div class="flex gap-1 items-center justify-end py-2">
-          <button class="btn btn btn-sm btn-info btn-circle btn-outline" @click="sendMessage" v-if="editMessage">
-            <i class="fa-solid fa-save"></i>
+          <button class="btn btn btn-sm btn-outline tooltip" 
+            :class="isVoiceSession && 'btn-info animate-pulse'"
+            :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" @click="toggleVoiceSession" v-if="!editMessage">
+            <i class="fa-solid fa-microphone-lines"></i>
           </button>
-          <button class="btn btn btn-sm btn-info btn-error btn-outline" @click="onResetEdit" v-if="editMessage">
+          <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
+            <i class="fa-solid fa-save"></i>
+            <div class="text-xs" v-if="editMessage">Edit</div>
+          </button>
+          <button class="btn btn btn-sm btn-outline" @click="onResetEdit" v-if="editMessage">
             <i class="fa-regular fa-circle-xmark"></i>
           </button>
           <button class="btn btn btn-sm btn-circle btn-outline" @click="sendMessage" v-if="!editMessage">
@@ -129,23 +135,20 @@ import ChatEntry from '@/components/ChatEntry.vue'
                   Test
                 </a>
               </li>
+              <li>
+                <a> 
+                  <i class="fa-solid fa-microphone-lines"></i>
+                  <select class="select select-sm" @change="setVoiceLanguage($event.target.value)">
+                    <option v-for="key, lang in $ui.voiceLanguages"
+                      :key="lang"
+                      :selected="$ui.voiceLanguage === lang" :value="lang">{{ key }}</option>
+                  </select>
+                </a>
+              </li>
             </ul>
           </div>
         </div>
       </div>
-    </div>
-    <div class="flex mt-2 w-full p-1 rounded-md bg-warning text-neutral" v-if="editMessageId != null">
-      <div class="font-bold">
-        <span v-if="editMessage.role === 'user'">Edit message: </span>
-        <span v-else>Request corrections: </span>
-      </div>
-      <span class="italic">
-        {{ chat.messages[editMessageId].content.slice(0, 50)  }}...
-      </span>
-      <div class="grow"></div>
-      <button class="click hover:shadow" @click="editMessageId = null">
-        <i class="fa-regular fa-circle-xmark"></i>
-      </button>
     </div>
     <modal v-if="imagePreview">
       <div class="flex flex-col gap-2">
@@ -213,14 +216,17 @@ export default {
       previewStyle: {
         zoom: 0.6
       },
-      selectFile: false
+      selectFile: false,
+      taskMessages: null,
+      isVoiceSession: false,
+      recognition: null
     }
   },
+  created () {
+    this.initTasks()
+  },
   computed: {
-    editor () {
-      return this.$refs.editor
-    },
-    messages () {
+     messages () {
       return this.chat?.messages?.filter(m => !m.hide || this.showHidden)
     },
     multiline () {
@@ -234,6 +240,18 @@ export default {
     },
     canPost () {
       return this.messageText || this.images?.length
+    },
+    taskItems () {
+      return ['issue', 'test', 'fix', 'result']
+    },
+    taskParts () {
+      return this.taskItems.reduce((acc, k) => ({
+        ...acc,
+        [k]: this.messages?.find(m => !m.hide && m.task_item === k)
+      }), {})
+    },
+    isTask () {
+      return this.chat.mode === 'task'
     }
   },
   watch: {
@@ -243,9 +261,27 @@ export default {
       } else {
         this.searchTerms = null
       }
-    }
+    },
+    chat () {
+      this.initTasks()
+    },
+    isTask () {
+      this.initTasks()
+    },
   },
   methods: {
+    initTasks () {
+      if (this.isTask) {
+        this.chat.messages = 
+          this.taskItems.map(t => this.taskParts[t] || ({
+              task_item: t,
+              role: "user",
+              content: ""
+            }))
+      } else {
+        this.chat.messages = this.chat.messages?.filter(m => m.content)
+      }
+    },
     zoomIn() {
       this.previewStyle.zoom += 0.1;
     },
@@ -253,7 +289,7 @@ export default {
       this.previewStyle.zoom -= 0.1;
     },
     setEditorText (text) {
-      this.editor.innerText = text
+      this.$refs.editor.innerText = text
       this.onMessageChange()
     },
     onEditMessage (message) {
@@ -263,8 +299,9 @@ export default {
       try {
         this.images = message.images.map(JSON.parse)
       } catch {}
-
-      this.setEditorText(this.editMessage.content)
+      if (!this.isTask) {
+       this.setEditorText(this.editMessage.content)
+      }
     },
     toggleHide(message) {
       message.hide = !message.hide 
@@ -311,7 +348,7 @@ export default {
       ]
     },
     postMyMessage () {
-      const message = this.editor.innerText
+      const message = this.$refs.editor.innerText
       if (this.canPost) {
         this.addMessage({
           role: 'user',
@@ -324,24 +361,22 @@ export default {
       }
     },
     async sendMessage () {
-      if (this.editMessageId !== null) {
-        this.onUpdateMessage()
-        return
+      if (this.editMessage !== null) {
+        this.updateMessage()
+      } else {
+        this.postMyMessage()
+        const { data } = await this.sendChatMessage(this.chat)
+        const response = data.messages.reverse()[0]
+        this.chat.messages = [...this.chat.messages, response]
       }
-      this.postMyMessage()
-      return this.sendApiRequest(
-        () => API.chats.message(this.chat),
-        ({ content } = {}) => {
-          return `${ content }`
-        }
-      )
+      this.saveChat()
     },
     getSendMessage() {
       return this.editMessage ||
                 this.chat.messages[this.chat.messages.length - 1].content
     },
     async askKnowledge () {
-      const searchTerm = this.editor.innerText 
+      const searchTerm = this.$refs.editor.innerText 
       const knowledgeSearch = {
           searchTerm,
           searchType: 'embeddings',
@@ -352,7 +387,7 @@ export default {
       // this.postMyMessage()
       const { data: { documents } } = await API.knowledge.search(knowledgeSearch)
       const docs = documents.map(doc => `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``) 
-      this.editor.innerText = docs.join("\n")
+      this.$refs.editor.innerText = docs.join("\n")
     },
     async sendApiRequest (apiCall, formater = defFormater) {
       try {
@@ -368,13 +403,39 @@ export default {
       }
       this.waiting = false
     },
-    onUpdateMessage () {
-      if (this.editMessage.role === 'user') {
-        this.editMessage.content = this.editor.innerText
-        this.editMessage.images = this.images.map(JSON.stringify)
+    async sendChatMessage(chat) {
+      this.waiting = true
+      try {
+        return await API.chats.message(chat)
+      } finally {
+        this.waiting = false
       }
+    },
+    async updateMessage () {
+      const { innerText } = this.$refs.editor
+      const images = this.images.map(JSON.stringify)
+      if (this.isTask) {
+        const { task_item } = this.editMessage
+        const taskMessages = this.taskItems.filter(t => t.task_item !== task_item)
+                                          .map(t => this.taskParts[t])
+        const { data } = await this.sendChatMessage({
+            ...this.chat,
+            messages: [
+                ...taskMessages,
+                this.editMessage,
+                { role: 'user', content: innerText, images }
+            ]
+          }, false)
+        const response = data.messages.reverse()[0]
+        this.editMessage.content = response.content
+        this.editMessage.files = [...this.editMessage.files || [], ...response.files]
+        this.editMessage.images = [...this.editMessage.images || [], ...images] 
+      } else  if (this.editMessage.role === 'user') {
+        this.editMessage.content = innerText
+        this.editMessage.images = images
+      }
+      this.editMessage.updated_at = new Date().toISOString()
       this.onResetEdit()
-      this.saveChat()
     },
     onResetEdit() {
       if (this.editMessageId !== null) {
@@ -385,8 +446,16 @@ export default {
       }
     },
     removeMessage(message) {
-      const ix = this.chat.messages.findIndex(m => m === message)
-      this.$emit("delete-message", ix)
+      if (this.isTask) {
+        message.content = ""
+        message.files = []
+        message.images = []
+        message.updated_at = new Date().toISOString()
+        this.saveChat()
+      } else {
+        const ix = this.chat.messages.findIndex(m => m === message)
+        this.$emit("delete-message", ix)
+      }
     },
     async searchKeywords () {
       const { data } = await API.knowledge.searchKeywords(this.termSearchQuery)
@@ -521,7 +590,7 @@ export default {
       this.images = this.images.filter((i, imx) => imx !== ix)
     },
     onMessageChange () {
-      this.editorText = this.editor.innerText.trim() || ""
+      this.editorText = this.$refs.editor.innerText.trim() || ""
     },
     async testProject () {
       const { data } = await API.project.test()
@@ -530,6 +599,44 @@ export default {
         this.editMessage = this.testError
         this.setEditorText(this.editMessage)
       }
+    },
+    removeFileFromMessage(message, file) {
+      message.files = message.files.filter(f => f !== file)
+      this.saveChat()
+    },
+    toggleVoiceSession () {
+      if (this.isVoiceSession) {
+        return this.stopVoiceSession()
+      }
+      let silents = 5
+      this.isVoiceSession = true;
+
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = this.$ui.voiceLanguage;
+      recognition.interimResults = false;
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        this.$refs.editor.innerText += transcript
+      };
+
+      recognition.onend = () => {
+        if (this.isVoiceSession && silents--) {
+          recognition.start();
+        } else {
+          this.stopVoiceSession()
+        }
+      };
+
+      recognition.start();
+      this.recognition = recognition
+    },
+    stopVoiceSession() {
+      this.isVoiceSession = false
+      this.recognition?.stop()
+    },
+    setVoiceLanguage(language) {
+      this.$ui.setVoiceLanguage(language)
     }
   }
 }

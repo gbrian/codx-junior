@@ -5,6 +5,9 @@ import pathlib
 
 from codx.junior.utils import write_file
 from codx.junior.model import GlobalSettings
+from codx.junior.utils import (
+    exec_command
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +26,9 @@ def write_global_settings(global_settings: GlobalSettings):
         with open(f"global_settings.json", 'w') as f:
             f.write(json.dumps(global_settings.dict()))
 
-        if old_settings.git.username != global_settings.git.username:
+        if global_settings.git.username:
             exec_command(f'git config --global user.name "{global_settings.git.username}"')
-        if old_settings.git.email != global_settings.git.email:
+        if global_settings.git.email:
             exec_command(f'git config --global user.email "{global_settings.git.email}"')
 
         GLOBAL_SETTINGS=global_settings
@@ -58,7 +61,6 @@ class CODXJuniorSettings:
         self.codx_path = "./.codx"
         self.watching = False
         self.use_knowledge = True
-        self.log_ai = False
         self.knowledge_hnsw_M = 1024
         self.project_icon = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s"
 
@@ -165,5 +167,15 @@ class CODXJuniorSettings:
 
     def get_project_wiki_path(self):
         if not self.project_wiki: 
-            return f"{self.project_path}/wiki"
-        return self.project_wiki
+            return None
+        if self.project_wiki[0] == "/":
+            return self.project_wiki
+        return os.path.join(self.project_path, self.project_wiki)
+
+    def get_project_dependencies(self):
+        if self.project_dependencies:
+            return [d for d in self.project_dependencies.split(",") if d]
+        return []
+
+    def get_log_ai(self):
+        return GLOBAL_SETTINGS.log_ai

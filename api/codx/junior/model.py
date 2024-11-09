@@ -18,10 +18,12 @@ class ChatMessage(BaseModel):
 
 class Message(BaseModel):
     role: str = Field(default='')
+    task_item: str = Field(default='')
     content: str = Field(default='')
     hide: bool = Field(default=False)
     improvement: bool = Field(default=False)
     created_at: str = Field(default='')
+    updated_at: str = Field(default='')
     images: List[str] = Field(default=[])
     files: List[str] = Field(default=[])
 

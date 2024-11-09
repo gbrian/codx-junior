@@ -1,6 +1,6 @@
 {
   "ai_provider": "openai",
-  "ai_model": "gpt-4o",
+  "ai_model": "",
   "project_name": "codx-UI",
   "project_path": "/projects/codx-junior/client",
   "project_wiki": null,

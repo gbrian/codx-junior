@@ -101,6 +101,9 @@ export default {
     };
   },
   created () {
+    if (this.boards.includes(this.$ui.kanban)) {
+      this.board = this.$ui.kanban
+    }
     this.buildKanba()
   },
   computed: {
@@ -173,6 +176,7 @@ export default {
       if (!this.columns.length) {
         this.addColumn()
       }
+      this.$ui.setKanban(this.board)
     },
     async onColumnTaskListChanged() {
       await Promise.all(this.columns.map(column =>

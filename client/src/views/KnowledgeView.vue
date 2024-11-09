@@ -68,17 +68,21 @@ import MarkdownVue from '@/components/Markdown.vue'
         <span class="alert alert-error alert-sm" v-if="noResults">
           No documents associated...
         </span>
-        <div class="grid grid-cols-3 gap-2">
-          <span class="border p-2 border-info cursor-pointer rounded-md bg-base-300 indicator"
+        <div class="grid grid-cols-2 gap-2">
+          <div class="border p-2 border-info cursor-pointer rounded-md bg-base-300 flex flex-col text-xs"
               v-for="doc,ix in searchResults.documents" :key="ix"
               @click="showDoc = { ...doc, docSelected: 0 }"
           >
-            <span class="indicator-item badge badge-primary flex gap-2">
+            <div class="flex gap-2 text-xs p-1 rounded items-center"
+              :class="doc.metadata.relevance_score >= cutoffScore ? 'badge-primary' : 'badge-error'"
+            >
               <i class="fa-solid fa-gauge"></i>
               {{ doc.metadata.relevance_score }} - {{ doc.metadata.language  }}
-            </span>
+              <i class="fa-solid fa-file-lines"></i>
+              x {{ doc.docs.length }}
+            </div>
             {{ doc.metadata.source.split("/").reverse().slice(0, 2).join(" ") }}
-          </span>
+          </div>
         </div>
       </div>
     </div>
@@ -142,7 +146,7 @@ import MarkdownVue from '@/components/Markdown.vue'
           </label>
         </div>
         <div class="flex my-2">
-            <div class="badge click" v-for="count, extension in extensions" :key="extension"
+            <div class="badge badge-xs click" v-for="count, extension in extensions" :key="extension"
                 @click="fileFilter = '.' + extension"
             >
                 {{ extension }} ({{ count }})
@@ -210,7 +214,7 @@ import MarkdownVue from '@/components/Markdown.vue'
         </div>
       </div>
       <div class="grid grid-cols-4 gap-2">
-        <span class="px-2 flex gap-2 items-center w-fit rounded-full text-warning-content bg-warning" v-for="folder, ix in ignoredFolders" :key="ix">
+        <span class="badge badge-xs flex gap-2 items-center w-fit rounded-full text-warning-content bg-warning" v-for="folder, ix in ignoredFolders" :key="ix">
           {{ folder }}
           <div class="btn btn-xs btn-circle" @click="removeEntriesFromIgnore([folder])">
             <i class="fa-solid fa-minus"></i>
@@ -228,7 +232,7 @@ import MarkdownVue from '@/components/Markdown.vue'
         </div>
       </button>
     </div>
-    <dialog class="modal modal-bottom sm:modal-middle modal-open" v-if="showDoc" @click="showDoc = null">
+    <dialog class="modal modal-bottom sm:modal-middle modal-open" v-if="showDoc">
       <div class="modal-box flex flex-col gap-2 w-full max-w-full">
         <div class="font-bold text-wrap">
           {{ showDoc.metadata.source.split("/").reverse()[0] }}
@@ -438,13 +442,12 @@ export default {
       const { searchTerm,
               searchType,
               documentSearchType,
-              cutoffScore,
               documentCount
       } = this
       const { data } = await API.knowledge.search({ searchTerm,
                                                     searchType,
                                                     documentSearchType,
-                                                    cutoffScore,
+                                                    cutoffScore: 0.1,
                                                     documentCount
                                                   })
       data.documents = data.documents.reduce((acc, doc) => {

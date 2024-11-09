@@ -25,6 +25,9 @@
           <input type="checkbox" v-model="autoRefresh" @change="toggleAutoRefresh" class="form-checkbox" />
           <span>Auto-refresh</span>
         </label>
+        <button class="btn btn-sm" @click="$ui.toggleLogs">
+          Close
+        </button>
       </div>
     </header>
     <div class="" v-if="ignorePatterns.length">
@@ -122,7 +125,7 @@ export default {
   mounted() {
     this.fetchLogNames();
   },
-  beforeDestroy() {
+  beforeUnmount() {
     if (this.refreshInterval) {
       clearInterval(this.refreshInterval);
     }

@@ -4,6 +4,7 @@ import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
 import moment from 'moment'
 import PRView from '../views/PRView.vue'
+import ChatIconVue from '@/components/chat/ChatIcon.vue'
 </script>
 <template>
   <div class="flex flex-col h-full pb-2" v-if="chat">
@@ -46,8 +47,7 @@ import PRView from '../views/PRView.vue'
                 v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else> 
                 <div class="click" @click="editName = true">
-                  <span v-if="chat.mode === 'task'"><i class="fa-regular fa-file-lines"></i></span>
-                  <span v-else><i class="fa-regular fa-comments"></i></span>
+                  <ChatIconVue :chat="chat" />
                   {{ chat.name }}
                 </div>
                 <div class="flex gap-2 items-center">
@@ -100,6 +100,12 @@ import PRView from '../views/PRView.vue'
                       <a class="flex items-center">
                         <i class="fa-regular fa-file-code"></i>
                         Task definition
+                      </a>
+                    </li>
+                    <li @click="chat.mode = 'browser'">
+                      <a class="flex items-center">
+                        <i class="fa-brands fa-chrome"></i>
+                        Browse the web
                       </a>
                     </li>
                   </ul>
@@ -235,7 +241,7 @@ export default {
     },
     async deleteChat () {
       if (this.confirmDelete) {
-        await this.$projects.deleteChat(this.chat.name)
+        await this.$projects.deleteChat(this.chat)
         this.navigateToChats()
       } else {
         this.confirmDelete = true

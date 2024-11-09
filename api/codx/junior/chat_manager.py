@@ -46,8 +46,8 @@ class ChatManager:
             chat.created_at = chat.updated_at
         write_file(chat_file, self.serialize_chat(chat))
 
-    def delete_chat(self, chat_name: str):
-        chat_file = self.get_chat_file(chat)
+    def delete_chat(self, board, chat_name):
+        chat_file = self.get_chat_file(Chat(board=board or "", name=chat_name))
         if os.path.isfile(chat_file):
             os.remove(chat_file)
 

@@ -8,7 +8,6 @@ from datetime import datetime
 
 from langchain.document_loaders.generic import GenericLoader
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain.text_splitter import CharacterTextSplitter
 
 from codx.junior.utils import calculate_md5
 from codx.junior.settings import CODXJuniorSettings
@@ -22,9 +21,6 @@ class KnowledgeLoader:
     def __init__(self, settings: CODXJuniorSettings):
         self.path = settings.project_path
         self.settings = settings
-        self.text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
-            chunk_size=500, chunk_overlap=0
-        )
 
     def should_index_doc(self, file_path, last_update, current_sources):
         if not last_update:

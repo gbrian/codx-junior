@@ -4,9 +4,9 @@ import TreeViewVue from './TreeView.vue'
 </script>
 
 <template>
-  <div class="flex flex-col relative h-full">
+  <div class="flex flex-col gap-1 relative h-full">
     <div class="h-12"> 
-      <div class="flex items-center">
+      <div class="flex items-center gap-2">
         <summary class="btn btn-sm" @click="openMenu = !openMenu">
           <i class="fa-solid fa-bars"></i>
         </summary>
@@ -24,26 +24,24 @@ import TreeViewVue from './TreeView.vue'
           </button>
         </div>
       </div>
-      <div class="absolute top-10 left-0 bottom-0 right-0 z-50 bg-base-100/20 click" @click="openMenu = false" v-if="openMenu">
-        <div class="w-56 h-full flex flex-col p-2 bg-base-200 rounded" @click.stop="">
-          <div class="input input-sm input-bordered flex items-center gap-2 w-full">
+      <div class="absolute top-8 left-0 bottom-0 right-0 z-50 bg-base-100/20 click" @click="openMenu = false" v-if="openMenu">
+        <div class="h-full flex flex-col p-2 bg-base-200 rounded w-72" @click.stop="">
+          <div class="input input-sm input-bordered flex items-center gap-2">
             <button class="click" @click="clearSearch" :class="findFile?.length > 3 ? 'block': 'hidden'">
               <i class="fa-regular fa-circle-xmark"></i>
             </button>
             <input v-model="findFile" type="text" class="grow" placeholder="Search" @keydown.enter.stop="onSearchFiles" />
+            <button class="click" @click="onSearchFiles" :class="findFile?.length > 3 ? 'block': 'hidden'">
+              <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
           </div>
-          <TreeViewVue :items="treeItems" class="grow overflow-auto"
+          <TreeViewVue :items="treeItems" class="grow overflow-auto w-72"
             @open="onOpenItem"
           />
         </div>
       </div>
     </div>
-    <CodeEditor v-model="fileContent"
-      class="grow"
-      width="100%"
-      :header="false"
-    />
-    <div class="absolute bottom-20 right-0 z-50" v-if="aiAssistant">
+    <div class="" v-if="aiAssistant">
       <div class="chat chat-end">
         <div class="chat-bubble w-80 p-1 flex flex-col gap-1">
           <CodeEditor v-model="aiChanges"
@@ -51,14 +49,26 @@ import TreeViewVue from './TreeView.vue'
             :header="false"
             :languages="[['markdown', 'AI']]"
           />
-          <div class="flex gap-2 justify-end">
-            <button class="btn btn-xs" @click="applyAiChanges">
+          <div class="flex gap-2 justify-between items-center px-1">
+            <div class="flex gap-2">
+              <button class="btn btn-xs" :class="useKnowledge && 'btn-info'"
+                @click="useKnowledge = !useKnowledge">
+                <i class="fa-solid fa-book"></i>
+              </button>
+            </div>
+            <button class="btn btn-xs" :class="saving && 'animate-pulse bg-purple-500'" @click="applyAiChanges">
               <i class="fa-solid fa-paper-plane"></i>
             </button>
           </div>
         </div>
       </div>
     </div>
+    <CodeEditor v-model="fileContent"
+      class="grow"
+      width="100%"
+      font-size="12px"
+      :header="false"
+    />
   </div>
 </template>
 
@@ -74,19 +84,28 @@ export default {
       searchResults: null,
       aiAssistant: false,
       aiChanges: null,
-      saving: false
+      saving: false,
+      useKnowledge: false
     }
   },
   async created () {
     const { data: { files } } = await this.$storex.api.files.list(this.$project.project_path)
     this.items = files
+    if (this.$ui.openedFile) {
+      this.item = {
+        "name": this.$ui.openedFile.split("/").reverse()[0],
+        "file_path": `${this.$project.project_path}/${this.$ui.openedFile}`,
+        "is_dir": false
+      }
+      this.onOpenItem(this.item)
+    }
   },
   computed: {
     fileName() {
       return this.item?.name
     },
     treeItems () {
-      return this.searchResults?.length ? this.searchResults : this.items
+      return this.searchResults ? this.searchResults : this.items
     }
   },
   watch: {
@@ -123,7 +142,11 @@ export default {
     async applyAiChanges () {
       this.saving = true
       try {
-        const content = "<" + `codx>\n${this.aiChanges}</codx>\n${this.fileContent}`
+        const flags = []
+        if (this.useKnowledge) {
+          flags.push("--knowledge")
+        }
+        const content = "<" + `codx>${flags.join(" ")}\n${this.aiChanges}</codx>\n${this.fileContent}`
         await this.$storex.api.files.write(this.item.file_path, content)
         this.onOpenItem(this.item)
       } finally {

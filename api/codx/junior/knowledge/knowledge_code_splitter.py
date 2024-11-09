@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class KnowledgeCodeSplitter:
     def __init__(self):
         self.text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
-            chunk_size=500, chunk_overlap=0
+            chunk_size=5000, chunk_overlap=0
         )
 
     def load(self, file_path):

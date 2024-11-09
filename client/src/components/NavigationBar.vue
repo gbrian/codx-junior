@@ -13,6 +13,9 @@ import ProjectIconVue from './ProjectIcon.vue'
     <div class="grow overflow-auto border-b border-slate-700 py-1 text-center">
         <div class="over">
           <div class="h-full overflow-auto flex flex-col gap-2">
+            <button class="btn btn-ghost" @click="$projects.loadAllProjects()">
+              <i class="fa-solid fa-arrows-rotate"></i>
+            </button>
             <ProjectIconVue 
               :project="project"
               :right="right"
@@ -25,16 +28,28 @@ import ProjectIconVue from './ProjectIcon.vue'
       </div>
 
     <div class="flex flex-col mt-4 hidden md:flex">
-      <div :class="['hover:bg-base-100 click', $ui.showCoder ? 'bg-base-100': '']">
+      <div :class="['hover:bg-base-100 click relative', $ui.appActives[0] === 'coder' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
-					 @click.stop="$ui.toggleCoder()">
-           <i class="fa-solid fa-code"></i>
+					 @click.stop="$ui.setShowCoder(true)">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-code"></i>
+            <span class="text-xs text-error hover:underline opacity-50 hover:opacity-100 absolute top-2 right-2 tooltip" data-tip="close" 
+              @click.stop="$ui.setShowCoder(false)" v-if="$ui.showCoder">
+              <i class="fa-solid fa-power-off"></i>
+            </span>
+          </div>
 				</a>
 			</div>
-      <div :class="['hover:bg-base-100 click', $ui.showBrowser ? 'bg-base-100': '']">
+      <div :class="['hover:bg-base-100 click', $ui.appActives[0] === 'browser' ? 'bg-base-100 text-primary': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show preview"
-					 @click.stop="$ui.toggleBrowser()">
-           <i class="fa-solid fa-display"></i>
+					 @click.stop="$ui.setShowBrowser(true)">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-display"></i>
+            <span class="text-xs text-error hover:underline opacity-50 hover:opacity-100 absolute top-2 right-2 tooltip" data-tip="close" 
+              @click.stop="$ui.setShowBrowser(false)" v-if="$ui.showBrowser">
+              <i class="fa-solid fa-power-off"></i>
+            </span>
+          </div>
 				</a>
 			</div>
     </div>
@@ -50,7 +65,7 @@ import ProjectIconVue from './ProjectIcon.vue'
           <li><a @click.stop="setActiveTab('profiles')">Profiles</a></li>
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Gobal settings</a></li>
-          <li><a @click.stop="setActiveTab('logs')">Logs</a></li>
+          <li><a @click.stop="$ui.toggleLogs()">Logs</a></li>
         </ul>
 			</div>
     </div>

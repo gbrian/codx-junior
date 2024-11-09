@@ -53,7 +53,11 @@ from codx.junior.model import (
     GlobalSettings
 )
 
-from codx.junior.settings import CODXJuniorSettings, read_global_settings, write_global_settings
+from codx.junior.settings import (
+  CODXJuniorSettings,
+  read_global_settings,
+  write_global_settings
+)
 
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.chat_manager import ChatManager
@@ -198,10 +202,8 @@ def api_list_chats(request: Request):
 @app.post("/api/chats")
 def api_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    streaming = request.query_params.get("streaming")
     codx_junior_session.chat_with_project(chat=chat, use_knowledge=True)
-    codx_junior_session.save_chat(chat)
-    return chat.messages[-1]
+    return chat
 
 @app.put("/api/chats")
 def api_save_chat(chat: Chat, request: Request):
@@ -212,7 +214,8 @@ def api_save_chat(chat: Chat, request: Request):
 def api_delete_chat(request: Request):
     codx_junior_session = request.state.codx_junior_session
     chat_name = request.query_params.get("chat_name")
-    codx_junior_session.delete_chat(chat_name)
+    board = request.query_params.get("board")
+    codx_junior_session.delete_chat(board, chat_name)
 
 @app.post("/api/images")
 def api_image_upload(file: UploadFile):
@@ -326,11 +329,8 @@ def api_list_chats(request: Request):
 def api_get_wiki(request: Request):
     codx_junior_session = request.state.codx_junior_session
     file_path = request.query_params.get("file_path")
-    try:
-        with open(f"{settings.project_wiki}{file_path}") as f:
-            return Response(content=f.read(), media_type="text/html")
-    except:
-        return Response(content="# No project wiki...yet!", media_type="text/html")
+    document = codx_junior_session.get_wiki_file(file_path)
+    return Response(content=document or "> Not found", media_type="text/html")
 
 @app.get("/api/files")
 def api_get_files(request: Request):
@@ -367,9 +367,10 @@ def api_logs_list():
     return ['codx-junior-api', 'codx-junior-web', 'firefox', 'novnc', 'vncserver']
 
 @app.get("/api/logs/{log_name}")
-def api_logs_tail(log_name: str):
+def api_logs_tail(log_name: str, request: Request):
     log_file = f"/var/log/supervisor/{log_name}.log"
-    logs, _ = exec_command(f"tail -n 500 {log_file}")
+    log_size = request.query_params.get("log_size") or "1000"
+    logs, _ = exec_command(f"tail -n {log_size} {log_file}")
     return logs
 
 
@@ -382,6 +383,9 @@ async def api_image_to_text_endpoint(file: UploadFile):
     file_bytes = await file.read()            
     return api_image_to_text(file_bytes)
 
+@app.post("/api/restart")
+def api_restart():
+    logger.info(f"****************** API RESTART... NOT WORKING...")
 
 #Socket io (sio) create a Socket.IO server
 sio = socketio.AsyncServer(cors_allowed_origins='*',async_mode='asgi')

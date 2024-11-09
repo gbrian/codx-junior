@@ -45,7 +45,7 @@ class OpenAI_AI:
         )
 
     def log(self, msg):
-        if self.settings.log_ai:
+        if self.settings.get_log_ai():
             logger.info(msg)
 
     def convert_message(self, gpt_message: Union[AIMessage, HumanMessage, BaseMessage]): 
@@ -69,7 +69,7 @@ class OpenAI_AI:
         )
         callbacks = config.get("callbacks", None)
         content_parts = []
-        if self.settings.log_ai:
+        if self.settings.get_log_ai():
             self.log(f"AI response: {response_stream}")
         for chunk in response_stream:
             # Check for tools
@@ -88,7 +88,7 @@ class OpenAI_AI:
                     cb.on_llm_new_token(chunk_content)
 
         response_content = "".join(content_parts)
-        if self.settings.log_ai:
+        if self.settings.get_log_ai():
             logger.debug("\n\n".join(
                 [f"[{datetime.now().isoformat()}] model: {model}, temperature: {temperature}"] +
                 [f"[{message.type}]\n{message.content}" for message in messages] +

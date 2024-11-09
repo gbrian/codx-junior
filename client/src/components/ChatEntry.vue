@@ -25,10 +25,30 @@ import Markdown from './Markdown.vue'
                 <i class="fa-solid fa-eye"></i>
               </span>
             </div>
-            <div v-if="message.role ==='user'">You</div>
-            <div v-else>codx-junior</div>
+            <div v-if="chat.mode === 'chat'">
+              <div v-if="message.role ==='user'">You</div>
+              <div v-else>codx-junior</div>
+            </div>
+            <div v-if="chat.mode === 'task'">
+              <div class="dropdown">
+                <div tabindex="0" role="button" class="click">
+                  {{ message.task_item || '...' }}
+                </div>
+                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 text-neutral-content w-52 p-2 shadow">
+                  <li @click="message.task_item = 'issue'">
+                    <a><i class="fa-solid fa-microscope"></i> Observe</a>
+                  </li>
+                  <li @click="message.task_item = 'test'">
+                    <a><i class="fa-solid fa-flask-vial"></i> Test</a>
+                  </li>
+                  <li @click="message.task_item = 'Fix'">
+                    <a><i class="fa-solid fa-code"></i> Fix</a>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
-          <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2">
+          <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2 flex w-full">
             <button class="btn btn-xs" @click="message.collapse = !message.collapse">
               <span v-if="message.collapse">
                 <i class="fa-solid fa-chevron-up"></i>
@@ -37,7 +57,7 @@ import Markdown from './Markdown.vue'
                 <i class="fa-solid fa-chevron-down"></i>
               </span>
             </button>
-            <button class="hidden btn btn-xs bg-base-100" @click="copyMessageToClipboard">
+            <button class="btn btn-xs bg-base-100" @click="copyMessageToClipboard">
               <i class="fa-solid fa-copy"></i>
             </button>      
             <button class="btn btn-xs " @click="srcView = !srcView">
@@ -46,17 +66,18 @@ import Markdown from './Markdown.vue'
             <button class="btn btn-xs bg-success" @click="$emit('edit')">
               <i class="fa-solid fa-pencil"></i>
             </button>
-            <button class="btn bg-purple-600 text-white btn-xs" @click="$emit('enhance')">
-              <i class="fa-solid fa-wand-magic-sparkles"></i>
-            </button>
-            <button class="ml-4 btn btn-error btn-xs" @click="$emit('remove')">
+            <div class="grow"></div>
+            <button class="ml-4 btn btn-error btn-xs hidden group-hover:block" @click="onRemove">
               <i class="fa-solid fa-trash"></i>
+              <span v-if="isRemove"> Confirm 
+                <span class="hover:underline">Yes</span>/<span class="hover:underline" @click.stop="isRemove = false">No</span>
+              </span>
             </button>
             
           </div>
         </div>
         <pre v-if="srcView">{{ message.content }}</pre>
-        <Markdown :text="message.content" v-else />
+        <Markdown :text="messageContent" v-else />
         <div v-if="images">
           <div class="carousel gap-2">
             <div class="carousel-item click mt-2"
@@ -72,16 +93,21 @@ import Markdown from './Markdown.vue'
             </div>
           </div>
         </div>
-        <div class="grid gap-2 grid-cols-3 mt-2">
+        <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="message.files?.length">
+          Linked files:
           <div v-for="file in message.files" :key="file" :title="file"
-            class="badge badge-primary text-xs flex gap-2 items-center click"
-            @click="API.coder.openFile(file)"
+            class="flex gap-2 items-center click"
           >
-            <button class="btn btn-xs btn-circle" @click="$emit('add-file-to-chat', file)">
-              <i class="fa-solid fa-file-circle-plus"></i>
-            </button>
-            <div class="overflow-hidden">
-              {{ file.split("/").reverse()[0] }}
+            <div class="flex gap-2 click hover:underline" @click="$ui.openFile(file)">
+              <div class="click" @click="$ui.openFile(file)">
+                <i class="fa-solid fa-up-right-from-square"></i>
+              </div>
+              <div class="overflow-hidden">
+                {{ file.split("/").reverse()[0] }}
+              </div>
+            </div>
+            <div class="click hover:text-error" @click.stop="$emit('remove-file', file)">
+              <i class="fa-regular fa-circle-xmark"></i>
             </div>
           </div>
         </div>
@@ -105,7 +131,8 @@ export default {
   data () {
     return {
       showDoc: false,
-      srcView: false
+      srcView: false,
+      isRemove: false
     }
   },
   mounted () {
@@ -135,6 +162,13 @@ export default {
           }
         }
       })
+    },
+    messageContent () {
+      const { task_item, content } = this.message
+      if (task_item) {
+        return `### \`${task_item}\`\n\n${content}`
+      }
+      return content
     }
   },
   methods: {
@@ -190,6 +224,13 @@ export default {
         this.copyTextToClipboard(text)
         ev.preventDefault()
         window.navigator.clipboard.read().then(console.log)
+      }
+    },
+    onRemove () {
+      if (this.isRemove) {
+        this.$emit('remove')
+      } else {
+        this.isRemove = true
       }
     }
   }

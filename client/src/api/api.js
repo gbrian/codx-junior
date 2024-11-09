@@ -161,9 +161,7 @@ export const API = {
       }
     },
     async message (chat) {
-      const { data: message } = await API.post('/api/chats?', chat)
-      chat.messages.push(message)
-      return chat
+      return API.post('/api/chats?', chat)
     },
     save (chat) {
       return API.put(`/api/chats?chatonly=0`, chat)
@@ -171,8 +169,8 @@ export const API = {
     saveChatInfo(chat) {
       return API.put(`/api/chats?chatonly=1`, chat)
     },
-    delete(chatName) {
-      return API.del(`/api/chats?chat_name=${chatName}`)
+    delete(board, chatName) {
+      return API.del(`/api/chats?board=${board}&chat_name=${chatName}`)
     }
   },
   run: {
@@ -223,6 +221,11 @@ export const API = {
     update () {
       return API.get('/api/update')
     }
+  },
+  browser: {
+    message (chat) {
+      return API.post('/api/browser', chat)
+    },
   },
   tools: {
     async imageToText (file) {
@@ -276,6 +279,24 @@ export const API = {
     write (source, page_content) {
       return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } } )
     }
+  },
+  async restart () {
+    await API.post("/api/restart")
+    let waitTime = 3
+    return new Promise((ok, ko) => {
+      const ix = setInterval(async () => {
+        if (--waitTime) {
+          try {
+            await API.init()
+            clearInterval(ix)
+            ok()
+          } catch {}
+        } else {
+          clearInterval(ix)
+          ko()
+        }
+      }, 5000)
+    })
   }
 }
 window.API = API
