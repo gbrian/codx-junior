@@ -1,6 +1,6 @@
 <template>
   <div class="relative">
-    <iframe ref="iframe" :src="coderUrl" class="h-full w-full border-0 bg-base-300"
+    <iframe ref="iframe" :src="coderUrl" class="h-full w-full bg-base-300"
         @load="onCoderLoaded"
         title="coder"
         allow="camera *;microphone *;clipboard-read; clipboard-write;"

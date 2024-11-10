@@ -5,7 +5,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y curl wget novnc websockify supervisor nodejs npm \
         tigervnc-standalone-server locales python3 python3-venv \
-        procps git sudo tesseract-ocr lxde-core && \
+        procps git sudo tesseract-ocr lxde-core
+
+RUN apt-get remove -y xscreensaver && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

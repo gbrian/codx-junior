@@ -27,10 +27,11 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
           class=""
           v-if="$ui.showCoder"
         >
-          <CoderVue class="h-full w-full border-2 border-r broder-b border-slate-700" />
+          <CoderVue class="h-full w-full" />
         </SplitterPanel>
         <SplitterResizeHandle
           id="splitter-group-2-resize-handle-1"
+          class="bg-slate-600" :class="isHorizontal ? 'w-1' : 'h-1'"
         />   
         <SplitterPanel
           id="splitter-group-2-panel-2"
@@ -38,7 +39,7 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
           class=""
           v-if="$ui.showBrowser"
         >
-          <BrowserVue class="h-full w-full p-1 border-r broder-b border-slate-700" />
+          <BrowserVue class="h-full w-full p-1" />
         </SplitterPanel>
       </SplitterGroup>
       <div class="h-full w-full" v-else>
@@ -50,13 +51,13 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
       </SplitterPanel>
       <SplitterResizeHandle
         id="splitter-group-1-resize-handle-1"
-        class=""
+        class="bg-slate-600 w-1"
       />
       <SplitterPanel
         id="splitter-group-1-panel-2"
         :min-size="3"
         :defaultSize="$ui.codxJuniorWidth"
-        class="flex items-center justify-center border-l border-sky-500/40"
+        class="flex items-center justify-center"
         @resize="size => $ui.setCodxJuniorWidth(size)"
       >
         <CodxJuniorVue class="w-full h-full" />

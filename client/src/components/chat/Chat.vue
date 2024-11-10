@@ -430,7 +430,7 @@ export default {
         this.editMessage.content = response.content
         this.editMessage.files = [...this.editMessage.files || [], ...response.files]
         this.editMessage.images = [...this.editMessage.images || [], ...images] 
-      } else  if (this.editMessage.role === 'user') {
+      } else {
         this.editMessage.content = innerText
         this.editMessage.images = images
       }

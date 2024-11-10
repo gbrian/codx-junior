@@ -5,7 +5,8 @@ import time
 import logging
 import socketio
 
-logging.basicConfig(level=logging.DEBUG)
+import logging
+logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
 logger = logging.getLogger(__name__)
 
 from pathlib import Path
@@ -117,7 +118,6 @@ async def my_exception_handler(request: Request, ex: Exception):
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
-    logger.info("FASTAPI::add_process_time_header")
     start_time = time.time()
     response = await call_next(request)
     process_time = time.time() - start_time
@@ -126,7 +126,6 @@ async def add_process_time_header(request: Request, call_next):
 
 @app.middleware("http")
 async def add_gpt_engineer_settings(request: Request, call_next):
-    logger.info("FASTAPI::add_process_time_header")
     logger.info(f"Request {request.url}")
     codx_path = request.query_params.get("codx_path")
     if codx_path:

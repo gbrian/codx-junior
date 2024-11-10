@@ -42,7 +42,9 @@ dependencies = [
   'fastapi_socketio',
   'pytesseract',
   'pillow',
-  'helium'
+  'helium',
+  'beautifulsoup4',
+  'markdownify',
 ]
 
 # chromadb 0.3.29 for compatibility with Ubuntu and lower Sqlite3
