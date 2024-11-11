@@ -32,6 +32,7 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
         <SplitterResizeHandle
           id="splitter-group-2-resize-handle-1"
           class="bg-slate-600" :class="isHorizontal ? 'w-1' : 'h-1'"
+          v-if="$ui.showBrowser && $ui.showCoder"
         />   
         <SplitterPanel
           id="splitter-group-2-panel-2"

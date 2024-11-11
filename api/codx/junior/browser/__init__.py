@@ -96,7 +96,7 @@ class Browser:
 
     def chat_with_browser(self, chat: Chat):
         logger.info(f"New browser request")
-        self.get_session()
+        driver = self.get_session()
 
         maxIterations = 5
         profile = self.session.get_profile_manager().read_profile("browser").content
@@ -138,6 +138,8 @@ class Browser:
                     if "read_page_content" in instruction:
                         read_and_ask_ai_again = True
                         break
+                    if 'execute_script' in instruction:
+                        instruction = f"driver.{instruction}"
                     try:
                         eval(instruction)
                         if "go_to" in instruction:
@@ -166,15 +168,6 @@ class Browser:
                     continue
                 # Done
                 break
-
-        prompt = f"""
-        Given this web page content
-        ```html
-        {self.get_current_page()}
-        ```
-        Answer user question: {last_user_message}"""
-        messages = self.session.get_ai().chat(messages=messages, prompt=prompt)
-        chat.messages.append(messages[-1])
 
 
     def take_screenshot(self, name):

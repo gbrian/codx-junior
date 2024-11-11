@@ -117,7 +117,9 @@ def find_all_projects(detailed: bool=False):
             except Exception as ex:
                 project.__dict__["current_git_branch"] = f"Error: {ex}"
             project.__dict__["metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
+            project.__dict__["sub_projects"] = [sp.codx_path for sp in project.get_sub_projects()]
         return all_projects
+    
     return projects_with_details() if detailed else all_projects
 
 def update_engine():

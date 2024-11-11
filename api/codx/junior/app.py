@@ -137,7 +137,7 @@ async def add_gpt_engineer_settings(request: Request, call_next):
                                                     app=app,
                                                     channel=channel)
             settings = request.state.codx_junior_session.settings
-            logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
+            # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:
             logger.error(f"Error loading settings {codx_path}: {ex}")
     return await call_next(request)

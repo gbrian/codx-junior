@@ -25,16 +25,18 @@ After you will receive the HTML content of the page and produce next steps or re
 ```
 
 ## List of available instructions
-> Important: This is are the only valid instructions you can use:
- 
+> Important: 
+> * This is are the only valid instructions you can use:
+> * Always escape double quotes inside commands arguments 
+
 ### Go to URL. After a go_to instructions you'll receive the page content in HTML to continue processing the request
-go_to('https://www.example.com')
+go_to("https://www.example.com")
 
 ### Wait Until Condition. (Better wait longer than fail)
-wait_until(S('.download').exists, timeout_secs=30, interval_secs=0.5)
+wait_until(S(".download").exists, timeout_secs=5, interval_secs=0.5)
 
 ### Execute javascript script in the page. You can execute async scripts as well
-execute_script('document.query_selector(".social").click()')
+execute_script("document.query_selector(\".social\").click()")
 
 ### Call read_page_content if you need to read page content to continue processing user request. 
 read_page_content()

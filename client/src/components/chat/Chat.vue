@@ -104,11 +104,14 @@ import ChatEntry from '@/components/ChatEntry.vue'
             <i class="fa-solid fa-save"></i>
             <div class="text-xs" v-if="editMessage">Edit</div>
           </button>
-          <button class="btn btn btn-sm btn-outline" @click="onResetEdit" v-if="editMessage">
+          <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit" v-if="editMessage">
             <i class="fa-regular fa-circle-xmark"></i>
           </button>
-          <button class="btn btn btn-sm btn-circle btn-outline" @click="sendMessage" v-if="!editMessage">
+          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-junior" @click="sendMessage" v-if="!editMessage">
             <i class="fa-solid fa-comment"></i>
+          </button>
+          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Browse the web" @click="navigate" v-if="!editMessage">
+            <i class="fa-brands fa-chrome"></i>
           </button>
           <button class="btn btn btn-sm btn-outline tooltip" 
             :class="isVoiceSession && 'btn-info animate-pulse'"
@@ -347,18 +350,25 @@ export default {
         msg
       ]
     },
-    postMyMessage () {
+    getUserMessage() {
       const message = this.$refs.editor.innerText
-      if (this.canPost) {
-        this.addMessage({
-          role: 'user',
-          content: message,
-          images: this.images.map(JSON.stringify)
-        })
-        this.setEditorText("")
-        this.images = []
-        this.$refs.anchor?.scrollIntoView()
+      return {
+        role: 'user',
+        content: message,
+        images: this.images.map(JSON.stringify)
       }
+    },
+    postMyMessage () {
+      if (this.canPost) {
+        this.addMessage(this.getUserMessage())
+        this.cleanUserInputAndWaitAnswer()
+      }
+    },
+    cleanUserInputAndWaitAnswer() {
+      this.setEditorText("")
+      this.images = []
+      this.$refs.anchor?.scrollIntoView()
+
     },
     async sendMessage () {
       if (this.editMessage !== null) {
@@ -370,6 +380,16 @@ export default {
         this.chat.messages = [...this.chat.messages, response]
       }
       this.saveChat()
+    },
+    async navigate () {
+      const message = this.getUserMessage()
+      const { data } = await this.sendChatMessage({ mode: 'browser', messages: [
+        ...this.chat.messages,
+        message
+      ] })
+      const response = data.messages.reverse()[0]
+      this.chat.messages = [...this.chat.messages, response]
+      this.cleanUserInputAndWaitAnswer()
     },
     getSendMessage() {
       return this.editMessage ||
