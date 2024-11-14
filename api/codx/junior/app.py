@@ -4,6 +4,7 @@ import shutil
 import time
 import logging
 import socketio
+import threading
 
 import logging
 logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
@@ -82,18 +83,35 @@ STATIC_FOLDER=os.environ.get("STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
-def process_projects_changes():
-    projects_to_check = [settings for settings in find_all_projects() if settings.watching]
-    # logger.info(f"[process_projects_changes]: {[p.project_name for p in projects_to_check]}") 
-    
-    for ix, settings in enumerate(projects_to_check):
-        # logger.info(f"[process_projects_changes]: check {settings.project_name} - {ix}")
-        if settings.watching:
-            try:
-                CODXJuniorSession(settings=settings).check_project_changes()
-            except Exception as ex:
-                logger.error(f"Processing {settings.project_name} error: {ex}")
+WATCHING_PROJECTS = {}
 
+def async_check_project(settings):
+    WATCHING_PROJECTS[settings.codx_path] = True
+    def check_changes():
+        try:
+            CODXJuniorSession(settings=settings).check_project_changes()
+        except Exception as ex:
+            logger.error(f"Processing {settings.project_name} error: {ex}")        
+    thread = threading.Thread(target=check_changes)
+    thread.start()
+    thread.join(timeout=60)
+    if thread.is_alive():
+        logger.warning(f"Timeout: {settings.project_name} check took too long.")
+    WATCHING_PROJECTS[settings.codx_path] = False
+
+
+def process_projects_changes():
+    try:
+        projects_to_check = [settings for settings in find_all_projects() if settings.watching]
+        watching_projects = [p for p in projects_to_check if p.watching]
+        # logger.info(f"[process_projects_changes]: {[p.project_name for p in watching_projects]}") 
+        for ix, settings in enumerate(watching_projects):
+            if WATCHING_PROJECTS.get(settings.codx_path):
+                continue
+            # logger.info(f"[process_projects_changes]: check {settings.project_name} - {ix}")
+            threading.Thread(target=async_check_project, args=(settings,))
+    except Exception as ex:
+        logger.exception("Error processing watching projects {ex}")        
 logger.info("Starting process_projects_changes job")
 add_work(process_projects_changes)
 
@@ -118,15 +136,18 @@ async def my_exception_handler(request: Request, ex: Exception):
 
 @app.middleware("http")
 async def add_process_time_header(request: Request, call_next):
+    process_time = None
     start_time = time.time()
-    response = await call_next(request)
-    process_time = time.time() - start_time
-    response.headers["X-Process-Time"] = str(process_time)
-    return response
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+    finally:
+        logger.info(f"Request {request.url} - {time.time() - start_time} ms")
 
 @app.middleware("http")
 async def add_gpt_engineer_settings(request: Request, call_next):
-    logger.info(f"Request {request.url}")
     codx_path = request.query_params.get("codx_path")
     if codx_path:
         try:
@@ -152,7 +173,8 @@ def api_health_check():
 
 @app.get("/api/projects")
 def api_find_all_projects():
-    return find_all_projects(detailed=True)
+    all_projects = find_all_projects(detailed=True)
+    return all_projects
 
 @app.get("/api/knowledge/reload")
 def api_knowledge_reload(request: Request):

@@ -20,6 +20,13 @@ logger = logging.getLogger(__name__)
 
 from langchain.output_parsers import PydanticOutputParser
 
+# Global instructions
+def navigate(url):
+    go_to(url)
+
+def execute_script(script):
+    return get_driver().execute_script(script)
+
 class Browser:
     def __init__(self, session: CODXJuniorSession):
         self.session = session
@@ -39,12 +46,13 @@ class Browser:
         return get_driver()
 
     def new_session(self):
-        try:
-            exec_command("ps aux | grep chrome | awk ' { print $2 } ' | xargs kill -9")
-        except:
-            pass
         logger.info(f"Start new browser request")
-        return self.start_firefox()
+        old_driver = get_driver()
+        driver = self.start_firefox()
+        if old_driver:
+            driver.session_id = old_driver.session_id
+        logger.info(f"[Browser] Create new driver {driver} - old driver: {old_driver}")
+        return driver
 
     def get_session(self):
         driver = None
@@ -80,12 +88,13 @@ class Browser:
                 pass
         return ""
 
-    def parse_response(self, response):
-        content = response.replace("```json", "").replace("```", "")
-        try:
-            return json.loads(content)
-        except:
-            pass
+    def parse_response_script(self, response):
+        fence_start = "```python"
+        fence_end = "```"
+        if fence_start in response:
+            response = response.split(fence_start)[1]
+            response = response.split(fence_end)[0]
+            return response
         return None
 
     def get_current_screenshot(slef):
@@ -102,72 +111,41 @@ class Browser:
         profile = self.session.get_profile_manager().read_profile("browser").content
         last_user_message = chat.messages[-1].content
         
-        
-        task = self.parse_response(last_user_message)
-        messages = chat.messages
-        prompt = f"""
-        Profile: {profile}
-        Current Page HTML: {self.get_current_page()}
-        Last User Request: {last_user_message}
-        """
-
+        last_command_output = ""
+        messages = [m for m in chat.messages if not m.hide]
+        prompt = None
         while True:
-            if not maxIterations:
-                break
             maxIterations -= 1
-            if not task:
-                # Call AI for navigation instructions
-                messages = self.session.get_ai().chat(prompt=prompt)
-                chat.messages.append(messages[-1])
-                task = self.parse_response(messages[-1].content)
-                logger.info(f"""
-                AI RESPONSE: {messages[-1].content}
-
-                TASK: {task}
-                """)
             
-            logger.info(f"Browser request {prompt}")
+            browser_request =  f"Last User Request: {last_user_message}" if maxIterations \
+                else "Ops, seems like we have ran out of attempts to make this work :( Should we ask user for help?" 
+                
+            prompt = f"""
+            Profile: {profile}
+            Current Page HTML: {self.get_current_page()}
+            {browser_request}
+            Last command output: {last_command_output}
+            """
             
-            errors = []
-            read_and_ask_ai_again = False
-            if task:
-                if task.get("response"):
-                    chat.messages.append(AIMessage(content=task["response"]))
-                    break
-                for instruction in task["instructions"]:
-                    if "read_page_content" in instruction:
-                        read_and_ask_ai_again = True
-                        break
-                    if 'execute_script' in instruction:
-                        instruction = f"driver.{instruction}"
-                    try:
-                        eval(instruction)
-                        if "go_to" in instruction:
-                            read_and_ask_ai_again = True
-                            break
-                    except Exception as ex:
-                        error = f"Error processing {instruction}: {ex}"
-                        logger.exception(error)
-                        errors.append(error)
-                if errors:
-                    chat.messages.append(AIMessage(content="\n".join(errors)))
+            logger.info(f"[Browser] agent prompt: {prompt}")
+            # Call AI for navigation instructions
+            self.session.chat_with_project(chat_mode="chat", chat=chat, use_knowledge=False)
+            
+            response = chat.messages[-1].content
+            logger.info(f"[Browser] agent response: {response}")
+            pyscript = self.parse_response_script(response)
+            if maxIterations and pyscript:
+                try:
+                    last_command_output = str(eval(pyscript))
+                except Exception as ex:
+                    last_command_output = f"ERROR: {ex}"
+                continue
+            else:
+                chat.messages.append(AIMessage(content=f"""About {last_user_message}
 
-                if read_and_ask_ai_again:
-                    prompt = f"""
-                    {profile}
-                    
-                    PAGE CONTENT: ```html
-                    {self.get_current_page()}
-                    ```
-                    
-                    CONTINUE PROCESSING USER REQUEST:
-                    {last_user_message}
-                    """
-                    task = None
-                    
-                    continue
-                # Done
-                break
+                {response}
+                """))
+                break            
 
 
     def take_screenshot(self, name):

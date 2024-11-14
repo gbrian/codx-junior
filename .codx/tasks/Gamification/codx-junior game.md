@@ -1,0 +1,5 @@
+# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "codx-junior game", "created_at": "2024-11-11T16:14:17.228303", "updated_at": "2024-11-11T16:30:50.601809", "mode": "chat", "board": "Gamification", "column": "new column", "column_index": 10000, "chat_index": 0, "live_url": "", "branch": ""}]]
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-11-11T16:30:50.601855", "updated_at": "", "images": [], "files": []}]]
+okay probando
+## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-11-11T16:30:50.601874", "updated_at": "", "images": [], "files": ["/browser/server.js", "/api/codx/junior/profiles/roles/software_developer", "/client/vite.config.ts", "/api/codx/junior/app.py", "/run_api.sh"]}]]
+¡Hola! ¿En qué puedo ayudarte con el proyecto codx-junior?

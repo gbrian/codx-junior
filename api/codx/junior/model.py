@@ -122,6 +122,8 @@ class GlobalSettings(BaseModel):
     projects_root_path: str = Field(default='/projects')
     ai_temperature: str = Field(default="0.8")
 
+    log_ignore: List[str] = Field(default=[])
+
 class Screen(BaseModel):
     resolution: str = Field(default='')
     resolutions: List[str] = Field(default=[

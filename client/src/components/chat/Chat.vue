@@ -72,7 +72,6 @@ import ChatEntry from '@/components/ChatEntry.vue'
     </div>
     <div :class="['flex bg-base-300 border rounded-md shadow', 
           multiline ? 'flex-col' : '',
-          isTask && !editMessage && 'hidden',
           editMessage && 'border-warning',
           onDraggingOverInput ? 'bg-warning/10': '']"
         @dragover.prevent="onDraggingOverInput = true"
@@ -220,13 +219,11 @@ export default {
         zoom: 0.6
       },
       selectFile: false,
-      taskMessages: null,
       isVoiceSession: false,
       recognition: null
     }
   },
   created () {
-    this.initTasks()
   },
   computed: {
      messages () {
@@ -244,15 +241,6 @@ export default {
     canPost () {
       return this.messageText || this.images?.length
     },
-    taskItems () {
-      return ['issue', 'test', 'fix', 'result']
-    },
-    taskParts () {
-      return this.taskItems.reduce((acc, k) => ({
-        ...acc,
-        [k]: this.messages?.find(m => !m.hide && m.task_item === k)
-      }), {})
-    },
     isTask () {
       return this.chat.mode === 'task'
     }
@@ -265,26 +253,8 @@ export default {
         this.searchTerms = null
       }
     },
-    chat () {
-      this.initTasks()
-    },
-    isTask () {
-      this.initTasks()
-    },
   },
   methods: {
-    initTasks () {
-      if (this.isTask) {
-        this.chat.messages = 
-          this.taskItems.map(t => this.taskParts[t] || ({
-              task_item: t,
-              role: "user",
-              content: ""
-            }))
-      } else {
-        this.chat.messages = this.chat.messages?.filter(m => m.content)
-      }
-    },
     zoomIn() {
       this.previewStyle.zoom += 0.1;
     },
@@ -302,9 +272,7 @@ export default {
       try {
         this.images = message.images.map(JSON.parse)
       } catch {}
-      if (!this.isTask) {
-       this.setEditorText(this.editMessage.content)
-      }
+      this.setEditorText(this.editMessage.content)
     },
     toggleHide(message) {
       message.hide = !message.hide 
@@ -359,7 +327,7 @@ export default {
       }
     },
     postMyMessage () {
-      if (this.canPost) {
+      if (this.canPost) {      
         this.addMessage(this.getUserMessage())
         this.cleanUserInputAndWaitAnswer()
       }
@@ -434,26 +402,8 @@ export default {
     async updateMessage () {
       const { innerText } = this.$refs.editor
       const images = this.images.map(JSON.stringify)
-      if (this.isTask) {
-        const { task_item } = this.editMessage
-        const taskMessages = this.taskItems.filter(t => t.task_item !== task_item)
-                                          .map(t => this.taskParts[t])
-        const { data } = await this.sendChatMessage({
-            ...this.chat,
-            messages: [
-                ...taskMessages,
-                this.editMessage,
-                { role: 'user', content: innerText, images }
-            ]
-          }, false)
-        const response = data.messages.reverse()[0]
-        this.editMessage.content = response.content
-        this.editMessage.files = [...this.editMessage.files || [], ...response.files]
-        this.editMessage.images = [...this.editMessage.images || [], ...images] 
-      } else {
-        this.editMessage.content = innerText
-        this.editMessage.images = images
-      }
+      this.editMessage.content = innerText
+      this.editMessage.images = images
       this.editMessage.updated_at = new Date().toISOString()
       this.onResetEdit()
     },
@@ -466,16 +416,8 @@ export default {
       }
     },
     removeMessage(message) {
-      if (this.isTask) {
-        message.content = ""
-        message.files = []
-        message.images = []
-        message.updated_at = new Date().toISOString()
-        this.saveChat()
-      } else {
-        const ix = this.chat.messages.findIndex(m => m === message)
-        this.$emit("delete-message", ix)
-      }
+      const ix = this.chat.messages.findIndex(m => m === message)
+      this.$emit("delete-message", ix)
     },
     async searchKeywords () {
       const { data } = await API.knowledge.searchKeywords(this.termSearchQuery)
@@ -638,6 +580,7 @@ export default {
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript;
         this.$refs.editor.innerText += transcript
+        this.onMessageChange()
       };
 
       recognition.onend = () => {

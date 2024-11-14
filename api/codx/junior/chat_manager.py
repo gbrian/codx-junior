@@ -2,7 +2,7 @@ import logging
 import pathlib
 import os
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.model import Chat, Message
@@ -22,19 +22,26 @@ class ChatManager:
             chat_file = chat_file + ".md"
         return chat_file
 
+    def chat_paths(self):
+        return [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.md")]
+
+    def chat_board_name_from_path(self, file_path):
+        chat_parts = file_path.replace(self.chat_path, "").split("/")[1:]       
+        name = chat_parts[-1].replace(".md", "")
+        board = chat_parts[0] if len(chat_parts) == 2 else ""
+        return board, name
+          
     def list_chats(self):
-        file_paths = [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.md")]
+        file_paths = self.chat_paths() 
         def chat_info(file_path):
-          chat_parts = file_path.replace(self.chat_path, "").split("/")[1:]       
-          name = chat_parts[-1].replace(".md", "")
-          board = chat_parts[0] if len(chat_parts) == 2 else ""
-          # logger.info(f"list_chats file_path: {file_path} chat_parts: {chat_parts} name: {name} board: {board}")
-          chat = self.load_chat(board=board, chat_name=name)
-          chat.messages = [c for c in chat.messages if not c.hide][0:1]
-          return {
+            board, name = self.chat_board_name_from_path(file_path)
+            # logger.info(f"list_chats file_path: {file_path} chat_parts: {chat_parts} name: {name} board: {board}")
+            chat = self.load_chat(board=board, chat_name=name)
+            chat.messages = [c for c in chat.messages if not c.hide][0:1]
+            return {
             **chat.__dict__,
             "file_path": file_path
-          }
+            }
         return sorted([chat_info(file_path) for file_path in file_paths],
             key=lambda x: x["updated_at"],
             reverse=True)
@@ -96,6 +103,26 @@ class ChatManager:
                         if not chat_message.content \
                         else f"{chat_message.content}\n{line}"
         return chat
+
+    def chat_count(self):
+        return len(self.chat_paths())
+
+    def last_chats(self):
+        last_days = (datetime.now() - timedelta(days=2)).timestamp()
+        chat_paths = [{
+            "chat_path": chat_path,
+            "updated_at": os.stat(chat_path).st_ctime
+        } for chat_path in self.chat_paths()]
+        chat_paths = [c for c in chat_paths if c["updated_at"] > last_days] 
+        last_updated_chats = sorted(
+                                chat_paths,
+                                key=lambda x: x["updated_at"])
+        last_updated_chats.reverse()
+        last_updated_chats = last_updated_chats[0:3]
+        def load_chat(file_path):
+            board, name = self.chat_board_name_from_path(file_path)
+            return self.load_chat(board=board, chat_name=name)
+        return [load_chat(c["chat_path"]) for c in last_updated_chats]
 
     def find_by_id(self, id):
         for chat in self.list_chats():

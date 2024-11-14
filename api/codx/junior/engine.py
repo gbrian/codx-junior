@@ -119,7 +119,7 @@ def find_all_projects(detailed: bool=False):
             project.__dict__["metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
             project.__dict__["sub_projects"] = [sp.codx_path for sp in project.get_sub_projects()]
         return all_projects
-    
+
     return projects_with_details() if detailed else all_projects
 
 def update_engine():
@@ -719,11 +719,12 @@ class CODXJuniorSession:
 
         
     def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
-        if chat.mode == 'browser':
+        chat_mode = chat_mode or chat.mode or 'chat'
+        if chat_mode == 'browser':
             logger.info(f"chat_with_project browser mode")
             return self.get_browser().chat_with_browser(chat)
 
-        chat_mode = chat_mode or chat.mode or 'chat'
+        is_refine = chat_mode == 'task'
         ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
         last_ai_message = ai_messages[-1] if ai_messages else None
             
@@ -738,7 +739,19 @@ class CODXJuniorSession:
         Please always keep your answers short and simple unless a more detailed answer has been requested.
         END INSTRUCTIONS
         """
-        
+        if chat_mode == 'task':
+            task = last_ai_message.content if is_refine and last_ai_message else "No task defined yet, create it following the instructions"
+            if is_refine:
+                user_message = Message(role="user", content=f"""
+                  UPDATE OR CREATE THE TASK:
+                  {task}
+                  
+                  USER COMMENTS:
+                  {query}
+                  """)
+            instructions = f"""
+            {profile_manager.read_profile("analyst").content}
+            """
         chat.messages.append(
             Message(role="system", hide=True, content=f"""# INSTRUCTIONS:
                   {instructions}
@@ -779,11 +792,15 @@ class CODXJuniorSession:
       
             return msg
 
-        for m in chat.messages[0:-1]:
-            if m.hide or m.improvement:
-                continue
-            msg = convert_message(m)
+        if is_refine:
+            msg = convert_message(chat.messages[0])
             messages.append(msg)
+        else:
+            for m in chat.messages[0:-1]:
+                if m.hide or m.improvement:
+                    continue
+                msg = convert_message(m)
+                messages.append(msg)
 
         context = ""
         documents = []
@@ -829,6 +846,9 @@ class CODXJuniorSession:
             sources = list(set([doc.metadata['source'].replace(self.settings.project_path, "") for doc in documents]))
             
         response_message = Message(role="assistant", content=response, files=sources)
+        if chat_mode == 'task':
+            for msg in chat.messages:
+                msg.hide = True
         chat.messages.append(response_message)
         return chat, documents
 
@@ -906,12 +926,9 @@ class CODXJuniorSession:
 
     def get_project_metrics(self):
         chat_manager = ChatManager(settings=self.settings)
-        chats = chat_manager.list_chats()
 
-        number_of_chats = len(chats)
-
-        chats.sort(key=lambda c: c["updated_at"])
-        chat_changed_last = chats[0:2]
+        number_of_chats = chat_manager.chat_count()
+        chat_changed_last = chat_manager.last_chats()
         
         status = self.check_knowledge_status()
         

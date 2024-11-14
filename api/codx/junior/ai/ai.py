@@ -68,7 +68,12 @@ class AI:
             callbacks = []
             if callback:
                 callbacks.append(callback)
-            response = self.llm(messages=messages, config={ "callbacks": callbacks })
+            try:
+                response = self.llm(messages=messages, config={ "callbacks": callbacks })
+            except Exception as ex:
+                logger.exception(f"Error processing AI request: {ex}")
+                raise ex
+
             if self.cache:
                 self.cache[md5Key] = json.dumps(
                     {
@@ -76,7 +81,7 @@ class AI:
                         "content": response.content,
                     }
                 )
-        else:
+        elif self.settings.get_log_ai():
             logger.debug(f"Response from cache: {messages} {response}")
 
         messages.append(response)
@@ -90,8 +95,8 @@ class AI:
               """
               for msg in messages])
             logger.debug(f"Chat completion finished: {format_messages()}")
-        
-        logger.info(f"[AI] chat messages {len(messages)}")
+            logger.info(f"[AI] chat messages {len(messages)}")
+
         return messages
 
     @staticmethod
