@@ -88,6 +88,7 @@ WATCHING_PROJECTS = {}
 def async_check_project(settings):
     WATCHING_PROJECTS[settings.codx_path] = True
     def check_changes():
+        # logger.info(f"[async_check_project]: check {settings.project_name}")
         try:
             CODXJuniorSession(settings=settings).check_project_changes()
         except Exception as ex:
@@ -109,7 +110,7 @@ def process_projects_changes():
             if WATCHING_PROJECTS.get(settings.codx_path):
                 continue
             # logger.info(f"[process_projects_changes]: check {settings.project_name} - {ix}")
-            threading.Thread(target=async_check_project, args=(settings,))
+            threading.Thread(target=async_check_project, args=(settings,)).start()
     except Exception as ex:
         logger.exception("Error processing watching projects {ex}")        
 logger.info("Starting process_projects_changes job")
