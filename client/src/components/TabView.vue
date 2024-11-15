@@ -21,7 +21,7 @@ import LogViewerVue from "./LogViewer.vue";
   <ProfileViewVue v-bind="$attrs" v-if="$ui.tabIx === 'profiles'" />
   <ProjectProfileVue v-bind="$attrs" v-if="$ui.tabIx == 'home'" />
   <modal v-if="$ui.showLogs">
-    <LogViewerVue class="bg-base-300 p-10" v-bind="$attrs" />
+    <LogViewerVue class="text-xs 2xl:text-md bg-base-300 p-2 2xl:p-10" v-bind="$attrs" />
   </modal>
 </template>
 <script>

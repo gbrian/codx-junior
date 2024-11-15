@@ -113,11 +113,11 @@ def find_all_projects(detailed: bool=False):
             try:
                 command = ["git", "branch", "--show-current"]
                 result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                project.__dict__["current_git_branch"] = result.stdout.decode('utf-8')
+                project.__dict__["_current_git_branch"] = result.stdout.decode('utf-8')
             except Exception as ex:
-                project.__dict__["current_git_branch"] = f"Error: {ex}"
-            project.__dict__["metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
-            project.__dict__["sub_projects"] = [sp.codx_path for sp in project.get_sub_projects()]
+                project.__dict__["_current_git_branch"] = f"Error: {ex}"
+            project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
+            project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]
         return all_projects
 
     return projects_with_details() if detailed else all_projects

@@ -344,8 +344,7 @@ export default {
       } else {
         this.postMyMessage()
         const { data } = await this.sendChatMessage(this.chat)
-        const response = data.messages.reverse()[0]
-        this.chat.messages = [...this.chat.messages, response]
+        this.chat.messages = data.messages
       }
       this.saveChat()
     },

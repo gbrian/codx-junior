@@ -1,0 +1,23 @@
+# v1.0 Hello codx-junior
+This will be our first release of codx-junior
+
+## Motivation
+We want to introduce codx-junior to the dev community
+
+## Goals
+With this release we expect a developer to be able to install and run codx-junior easily and make their first fix in minutes
+
+I think the best way to explain the goals is with an example
+
+### Fixing a repo issue with codx-junior from scratch
+In this example we'll fix a repo issue using codx-junior. 
+We'll use this issue as an example: **TODO: Find simple repo with few stars and select an issue**
+
+Steps:
+ - Clone codx-junior repo and install
+ - Connect to cox-junior port at http://localhost:XXXX
+ - Go to create new project and paste the git project url to fix
+ - ....
+
+
+ 

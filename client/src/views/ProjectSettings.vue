@@ -45,10 +45,12 @@ export default {
   },
   computed: {
     projectSettings () {
-      return this.settings ? Object.keys(this.settings).sort().reduce((acc, key) => ({
-        ...acc,
-        [key]: this.settings[key]
-      }), {}) : null
+      return this.settings ? Object.keys(this.settings)
+        .filter(k => !k.startsWith("_"))
+        .sort().reduce((acc, key) => ({
+          ...acc,
+          [key]: this.settings[key]
+        }), {}) : null
     }
   },
   methods: {

@@ -1,20 +1,23 @@
 <template>
-  <div class="flex flex-col gap-2 h-2/3 w-full max-w-full">
-    <header class="flex justify-between items-center mb-4">
-      <select v-model="selectedLog" @change="onLogChange" class="border rounded px-3 py-2">
-        <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
-      </select>
-      <label class="input input-sm input-bordered flex items-center gap-2">
-        <input type="text" class="grow" placeholder="Search" v-model="filter" />
-        <span class="click" @click="filter = null" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
-        <span v-else>
-          <i class="fa-solid fa-magnifying-glass"></i>
-        </span>
-        <span class="click" @click="ignorePattern">
-          <i class="fa-regular fa-eye-slash"></i>
-        </span>
-      </label>
-      <div class="flex gap-2 justify-end">
+  <div class="flex flex-col gap-2 h-full 2xl:h-2/3 w-full max-w-full">
+    <header class="flex flex-col 2xl:flex-row justify-between items-center">
+      <div class="flex gap-1">
+        <select v-model="selectedLog" @change="onLogChange"
+          class="border select-xs 2xl:select-md rounded">
+          <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
+        </select>
+        <label class="input input-xs 2xl:input-md input-bordered flex items-center gap-2">
+          <input type="text" class="grow" placeholder="Search" v-model="filter" />
+          <span class="click" @click="filter = null" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
+          <span v-else>
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </span>
+          <span class="click" @click="ignorePattern">
+            <i class="fa-regular fa-eye-slash"></i>
+          </span>
+        </label>
+      </div>
+      <div class="flex gap-2">
         <button class="btn btn-sm" @click="logs = null">
           Clear
         </button>
@@ -25,6 +28,7 @@
           <input type="checkbox" v-model="autoRefresh" @change="toggleAutoRefresh" class="form-checkbox" />
           <span>Auto-refresh</span>
         </label>
+        <div class="grow"></div>
         <button class="btn btn-sm" @click="$ui.toggleLogs">
           Close
         </button>
