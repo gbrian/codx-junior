@@ -144,14 +144,16 @@ class CODXJuniorSettings:
 
     def get_sub_projects(self):
       try:
+            all_project_files = pathlib.Path(self.project_path).rglob("**/.codx/project.json")
             sub_projects = [
                 CODXJuniorSettings.from_project(str(project_file_path)) \
                     for project_file_path in \
-                        pathlib.Path(self.project_path).rglob("**/project.json")]
+                        all_project_files]
 
-            # logger.info(f"get_sub_projects {[p.project_path for p in sub_projects]}")
-            return [sub_project for sub_project in sub_projects \
-                    if sub_project.codx_path != self.codx_path]
+            sub_projects = [sub_project for sub_project in sub_projects \
+                                if sub_project.codx_path != self.codx_path]
+            # logger.info(f"get_sub_projects for {self.project_name}: {[p.project_name for p in sub_projects]}")
+            return sub_projects
       except Exception as ex:
             logger.debug(f"Error get_sub_projects {ex}")
 

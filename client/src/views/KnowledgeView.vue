@@ -304,7 +304,6 @@ export default {
     }
   },
   async created() {
-    this.reloadStatus()
   },
   computed: {
     projectPath () {

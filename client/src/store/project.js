@@ -20,6 +20,19 @@ export const mutations = mutationTree(state, {
 
 export const getters = getterTree(state, {
   allTags: state => new Set(state.chats?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
+  projectDependencies: state => {
+    const { project_dependencies } = state.activeProject
+    return project_dependencies?.split(",")
+        .map(project_name => state.allProjects
+        .find(p => p.project_name === project_name))
+        .filter(f => !!f)
+  },
+  childProjects: state => {
+    const { _sub_projects } = state.activeProject
+    return _sub_projects?.map(project_name => state.allProjects
+        .find(p => p.project_name === project_name))
+        .filter(f => !!f)
+  }
 })
 
 export const actions = actionTree(
@@ -97,6 +110,8 @@ export const actions = actionTree(
     async saveSettings({ state}) {
       await API.settings.save()
       state.activeProject = API.lastSettings
+      state.allProjects = (state.allProjects||[])
+        .map(p => p.project.codx_path === state.activeProject.codx_path ? state.activeProject : p)
     }
   }
 )

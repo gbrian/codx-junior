@@ -5,7 +5,7 @@ import moment from 'moment';
 
 <template>
   <div class="profile-container flex flex-col items-center h-full">
-    <div class="p-4">
+    <div class="p-4 w-full">
       <div class="hero-section text-center p-4 bg-gray-800 text-white rounded-lg">
         <h1 class="text-3xl font-bold mb-2">Welcome to codx-junior</h1>
         <p class="text-lg">codx-junior is your AI assistant helping full stack developers to maintain their open source projects.</p>
@@ -101,11 +101,11 @@ import moment from 'moment';
                   {{ project.project_path.split("/").reverse().slice(0, 3).reverse().join(" / ") }}
                 </div>
               </td>
-              <td class="px-4 py-2 text-center">{{ project.metrics.number_of_chats }}</td>
-              <td class="px-4 py-2 text-center">{{ project.metrics.files?.length }}</td>
-              <td class="px-4 py-2 text-center hidden md:block">{{ lastRefresh(project.metrics.last_update) }}</td>
+              <td class="px-4 py-2 text-center">{{ project._metrics.number_of_chats }}</td>
+              <td class="px-4 py-2 text-center">{{ project._metrics.files?.length }}</td>
+              <td class="px-4 py-2 text-center hidden md:block">{{ lastRefresh(project._metrics.last_update) }}</td>
               <td class="px-4 py-2 text-center">
-                <span class="badge bagde-sm badge-error" v-if="project.metrics.error">
+                <span class="badge bagde-sm badge-error" v-if="project._metrics.error">
                   Err! Review settings
                 </span>
                 <span v-if="project.watching">
@@ -156,9 +156,9 @@ export default {
       return this.$project.project_description;
     },
     lastModifiedProjects () {
-      const lastProjects = this.$projects.allProjects?.filter(p => p.metrics.chats_changed_last.length)
+      const lastProjects = this.$projects.allProjects?.filter(p => p._metrics.chats_changed_last.length)
       return lastProjects?.reduce((acc, project) =>
-          acc.concat(...project.metrics.chats_changed_last.map(c => ({ ...c, project, fromNow: moment(c.updated_at).fromNow() }))), [])
+          acc.concat(...project._metrics.chats_changed_last.map(c => ({ ...c, project, fromNow: moment(c.updated_at).fromNow() }))), [])
         .sort((a, b) => a.updated_at > b.updated_at ? -1 : 1) 
     }
   },

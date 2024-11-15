@@ -11,6 +11,13 @@ I think the best way to explain the goals is with an example
 
 ### Fixing a repo issue with codx-junior from scratch
 In this example we'll fix a repo issue using codx-junior. 
-We'll use this issue as an example: 
-@codx-processing: Tell me a popular repository for coding not too big  
-A good choice would be the [Rails](https://github.com/rails/rails) repository. It has a manageable size for new contributors and is well-documented.
+We'll use this issue as an example: **TODO: Find simple repo with few stars and select an issue**
+
+Steps:
+ - Clone codx-junior repo and install
+ - Connect to cox-junior port at http://localhost:XXXX
+ - Go to create new project and paste the git project url to fix
+ - ....
+
+
+ 
