@@ -152,6 +152,8 @@ class Knowledge:
         return documents
         
     def clean_deleted_documents(self):
+        if not self.get_db():
+          return False
         ids_to_delete = []
         collection = self.get_db()._collection
         documents = self.get_all_documents()
@@ -342,6 +344,8 @@ class Knowledge:
       return []
 
     def search_in_source(self, query):
+      if not self.get_db():
+          return []
       collection = self.get_db()._collection
       collection_docs = collection.get(include=['metadatas', 'documents'])      
       ids = collection_docs["ids"]

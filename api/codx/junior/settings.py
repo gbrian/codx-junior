@@ -12,15 +12,19 @@ from codx.junior.utils import (
 logger = logging.getLogger(__name__)
 
 ROOT_PATH=os.path.dirname(__file__)
+GLOBAL_SETTINGS=None
 
 def read_global_settings():
+    global GLOBAL_SETTINGS
     try:
         with open(f"global_settings.json") as f:
-            return GlobalSettings(**json.loads(f.read()))
+            GLOBAL_SETTINGS = GlobalSettings(**json.loads(f.read()))
     except:
-        return GlobalSettings()
+        GLOBAL_SETTINGS = GlobalSettings()
+    return GLOBAL_SETTINGS
 
 def write_global_settings(global_settings: GlobalSettings):
+    global GLOBAL_SETTINGS
     try:
         old_settings = read_global_settings()
         with open(f"global_settings.json", 'w') as f:
@@ -31,12 +35,13 @@ def write_global_settings(global_settings: GlobalSettings):
         if global_settings.git.email:
             exec_command(f'git config --global user.email "{global_settings.git.email}"')
 
-        GLOBAL_SETTINGS=global_settings
+        GLOBAL_SETTINGS = global_settings
     except Exception as ex:
         logger.exception(f"Error saving global settings: {ex}")
 
 
-GLOBAL_SETTINGS=read_global_settings()
+read_global_settings()
+logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
 
 class CODXJuniorSettings:
     def __init__(self, **kwrgs):
