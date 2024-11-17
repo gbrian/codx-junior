@@ -164,6 +164,9 @@ class CODXJuniorSettings:
 
       return []
 
+    def is_valid_project(self):
+        return True if self.get_ai_api_key() else False
+
     def get_dbs(self):
       from codx.junior import build_dbs
       return build_dbs(settings=self)

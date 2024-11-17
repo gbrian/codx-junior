@@ -85,6 +85,7 @@ def create_project(project_path: str):
     settings.project_name = settings.project_path.split("/")[-1]
     settings.codx_path = f"{settings.project_path}/.codx"
     settings.save_project()
+    find_all_projects()
     coder_open_file(settings=settings, file_name=f"{settings.project_path}/README.md")
     return settings
 
@@ -94,33 +95,42 @@ def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     logger.info(f"coder_open_file {file_name}")
     os.system(f"code-server -r {file_name}")
 
-def find_all_projects(detailed: bool=False):
-    all_projects = []
-    project_path = "/"
-    result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    all_codx_path = result.stdout.decode('utf-8').split("\n")
-    paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
-    for project_path in paths:
-        try:
-            settings = CODXJuniorSettings.from_project(str(project_path))
-            if settings.codx_path not in all_projects \
-                  and project_path == settings.codx_path:
-                all_projects.append(settings)
-        except Exception as ex:
-            logger.exception(f"Error loading project {str(project_path)}")
-    def projects_with_details():
-        for project in all_projects:
+GLOBAL_ALL_PROJECTS = []
+def find_all_projects():
+    def update_all_projects():
+        all_projects = []
+        project_path = "/"
+        result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        all_codx_path = result.stdout.decode('utf-8').split("\n")
+        paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
+        for project_path in paths:
             try:
-                command = ["git", "branch", "--show-current"]
-                result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                project.__dict__["_current_git_branch"] = result.stdout.decode('utf-8')
+                settings = CODXJuniorSettings.from_project(str(project_path))
+                if settings.codx_path not in all_projects \
+                        and project_path == settings.codx_path:
+                    all_projects.append(settings)
             except Exception as ex:
-                project.__dict__["_current_git_branch"] = f"Error: {ex}"
-            project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
-            project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]
-        return all_projects
+                logger.exception(f"Error loading project {str(project_path)}")
+        def update_projects_with_details():
+            for project in all_projects:
+                try:
+                    command = ["git", "branch", "--show-current"]
+                    result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    project.__dict__["_current_git_branch"] = result.stdout.decode('utf-8')
+                except Exception as ex:
+                    project.__dict__["_current_git_branch"] = f"Error: {ex}"
+                project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
+                project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]
+            return all_projects
+        update_projects_with_details()
+        global GLOBAL_ALL_PROJECTS
+        GLOBAL_ALL_PROJECTS = all_projects
 
-    return projects_with_details() if detailed else all_projects
+    t = Thread(target=update_all_projects)
+    t.start()
+    if not GLOBAL_ALL_PROJECTS:
+        t.join()
+    return GLOBAL_ALL_PROJECTS
 
 def update_engine():
     try:
@@ -257,6 +267,7 @@ class CODXJuniorSession:
         Knowledge(settings=self.settings).delete_documents(sources=sources)
         self.settings.watching = False
         self.settings.save_project()
+        find_all_projects()
         return {"ok": 1}
 
     def delete_knowledge(self):
@@ -492,6 +503,8 @@ class CODXJuniorSession:
         }
 
     def check_project_changes(self):
+        if not self.settings.is_valid_project():
+            return
         knowledge = Knowledge(settings=self.settings)
         knowledge.clean_deleted_documents()
         new_files = knowledge.detect_changes()

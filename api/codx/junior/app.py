@@ -116,6 +116,9 @@ def process_projects_changes():
 logger.info("Starting process_projects_changes job")
 add_work(process_projects_changes)
 
+# Init all projects
+find_all_projects()
+
 app = FastAPI(
     title="CODXJuniorAPI",
     description="API for CODXJunior",
@@ -174,7 +177,7 @@ def api_health_check():
 
 @app.get("/api/projects")
 def api_find_all_projects():
-    all_projects = find_all_projects(detailed=True)
+    all_projects = find_all_projects()
     return all_projects
 
 @app.get("/api/knowledge/reload")
@@ -276,7 +279,7 @@ def api_settings_check(request: Request):
 async def api_save_settings(request: Request):
     settings = await request.json()
     CODXJuniorSettings.from_json(settings).save_project()
-    
+    find_all_projects()
     return api_settings_check(request)
 
 @app.get("/api/profiles")
@@ -305,6 +308,7 @@ def api_project_watch(request: Request):
     codx_junior_session = request.state.codx_junior_session
     settings.watching = True
     settings.save_project()
+    find_all_projects()
     return { "OK": 1 }
 
 @app.post("/api/projects")
@@ -327,6 +331,7 @@ def api_project_unwatch(request: Request):
     codx_junior_session = request.state.codx_junior_session
     settings.watching = False
     settings.save_project()
+    find_all_projects()
     return { "OK": 1 }
 
 @app.get("/api/knowledge/keywords")
