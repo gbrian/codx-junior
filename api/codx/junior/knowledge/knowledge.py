@@ -470,7 +470,6 @@ class Knowledge:
           "keyword_count": keyword_count,
           "files": doc_sources
         }
-        logger.info(f"Knowledge self.last_update: {self.last_update}")
         return status_info
     
     @classmethod
