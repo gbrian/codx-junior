@@ -58,7 +58,7 @@ export default {
       this.settings = API.lastSettings
     },
     async saveSettings() {
-      await API.settings.write(this.settings)
+      this.$projects.saveSettings(this.settings)
       this.reloadSettings()
     },
     deleteProject () {
