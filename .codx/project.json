@@ -15,7 +15,7 @@
   "knowledge_file_ignore": "api/,client/,.codx,assets,/.gitignore",
   "temperature": 0.7,
   "codx_path": "/projects/codx-junior/.codx",
-  "watching": true,
+  "watching": false,
   "use_knowledge": true,
   "log_ai": true,
   "knowledge_hnsw_M": 1024,

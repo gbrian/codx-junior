@@ -128,10 +128,8 @@ def find_all_projects():
         #logger.info(f"[find_all_projects] all_projects: {[p.codx_path for p in all_projects]}")
         GLOBAL_ALL_PROJECTS = all_projects
 
-    t = Thread(target=update_all_projects)
-    t.start()
-    if not GLOBAL_ALL_PROJECTS:
-        t.join()
+    t = Thread(target=update_all_projects).start()
+    t.join()
     return GLOBAL_ALL_PROJECTS
 
 def update_engine():

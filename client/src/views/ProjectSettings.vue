@@ -55,7 +55,7 @@ export default {
   },
   methods: {
     async reloadSettings() {
-      this.settings = API.lastSettings
+      this.settings = await this.$projects.realoadProject()
     },
     async saveSettings() {
       this.$projects.saveSettings(this.settings)
