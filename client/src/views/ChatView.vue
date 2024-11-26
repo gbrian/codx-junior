@@ -285,8 +285,8 @@ export default {
       await this.saveChat()
       await this.loadChat(this.chat)
     },
-    onRemoveMessage (ix) {
-      const message = this.chat.messages[ix]
+    onRemoveMessage (message) {
+      const ix = this.chat.messages.findIndex(m => m === message)
       if (this.chat.mode == 'task' && message.role === "assistant") {
         this.chat.messages[ix-1].hide = false
       }

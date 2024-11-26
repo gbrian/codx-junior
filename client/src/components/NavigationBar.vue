@@ -13,7 +13,7 @@ import ProjectIconVue from './ProjectIcon.vue'
     <div class="grow overflow-auto border-b border-slate-700 py-1 text-center">
         <div class="over">
           <div class="h-full overflow-auto flex flex-col gap-2">
-            <button class="btn btn-ghost" @click="$projects.loadAllProjects()">
+            <!-- button class="btn btn-ghost" @click="$projects.loadAllProjects()">
               <i class="fa-solid fa-arrows-rotate"></i>
             </button>
             <ProjectIconVue 
@@ -22,7 +22,7 @@ import ProjectIconVue from './ProjectIcon.vue'
               v-for="project in $projects.allProjects" :key="project.codx_path"
               class="opacity-50 hover:opacity-100"
               @click.stop="setActiveProject(project)"
-            />
+            /-->
           </div>
         </div>
       </div>

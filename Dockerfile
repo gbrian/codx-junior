@@ -45,6 +45,7 @@ RUN rm -rf /projects/codx-junior/api/.venv
 RUN chmod +x /projects/codx-junior/run_api.sh
 RUN chmod +x /projects/codx-junior/run_client.sh
 
+ENV CODX_JUNIOR_HOME=/projects/codx-junior
 ENV PYTHONPATH=/projects/codx-junior/api
 
 RUN git config --global --add safe.directory '*'
@@ -53,9 +54,12 @@ ENV DISPLAY=:1
 ENV DISPLAY_WIDTH=1920
 ENV DISPLAY_HEIGHT=1080
 
+
 RUN codx chrome
 RUN codx docker
 
+# API virtual env
+ENV API_VENV=/tmp/.venv_codx_junior
 # codx-junior API port
 ENV API_PORT=9984
 # codx-junior WEB port
@@ -64,6 +68,10 @@ ENV WEB_PORT=9983
 ENV CODER_PORT=9909
 # codx-junior NOVNC port
 ENV NOVNC_PORT=9986
+
+WORKDIR /projects/codx-junior
+
+RUN bash ./install_api.sh
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

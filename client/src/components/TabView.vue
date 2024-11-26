@@ -20,9 +20,7 @@ import LogViewerVue from "./LogViewer.vue";
   <GlobalSettingsVue v-bind="$attrs" v-if="$ui.tabIx === 'global-settings'" />
   <ProfileViewVue v-bind="$attrs" v-if="$ui.tabIx === 'profiles'" />
   <ProjectProfileVue v-bind="$attrs" v-if="$ui.tabIx == 'home'" />
-  <modal v-if="$ui.showLogs">
-    <LogViewerVue class="text-xs 2xl:text-md bg-base-300 p-2 2xl:p-10" v-bind="$attrs" />
-  </modal>
+  <LogViewerVue class="text-xs bg-base-300 p-2 absolute top-0 left-0 right-0 bottom-0" v-bind="$attrs" v-if="$ui.showLogs" />
 </template>
 <script>
 export default {

@@ -227,6 +227,11 @@ export default {
   },
   computed: {
      messages () {
+      if (this.isTask) {
+        const msgs = [...this.chat?.messages ||[]].filter(m => !m.hide).reverse()
+        return [msgs.find(m => m.role === 'user'),
+                msgs.find(m => m.role === 'assistant')].filter(m => !!m)
+      }
       return this.chat?.messages?.filter(m => !m.hide || this.showHidden)
     },
     multiline () {
@@ -415,8 +420,7 @@ export default {
       }
     },
     removeMessage(message) {
-      const ix = this.chat.messages.findIndex(m => m === message)
-      this.$emit("delete-message", ix)
+      this.$emit("delete-message", message)
     },
     async searchKeywords () {
       const { data } = await API.knowledge.searchKeywords(this.termSearchQuery)

@@ -6,7 +6,7 @@ import TabViewVue from '@/components/TabView.vue'
 </script>
 
 <template>
-  <div class="codx-junior relative flex">
+  <div class="codx-junior relative flex min-h-full">
     <NavigationBar v-if="$ui.isLandscape" />
     <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto">
       <div class="flex gap-2 items-center relative justify-between">

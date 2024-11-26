@@ -103,7 +103,7 @@ def find_all_projects():
         result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         all_codx_path = result.stdout.decode('utf-8').split("\n")
         paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
-        logger.info(f"[find_all_projects] paths: {paths}")
+        #logger.info(f"[find_all_projects] paths: {paths}")
         for project_path in paths:
             try:
                 settings = CODXJuniorSettings.from_project(str(project_path))
@@ -125,7 +125,7 @@ def find_all_projects():
             return all_projects
         update_projects_with_details()
         global GLOBAL_ALL_PROJECTS
-        logger.info(f"[find_all_projects] all_projects: {[p.codx_path for p in all_projects]}")
+        #logger.info(f"[find_all_projects] all_projects: {[p.codx_path for p in all_projects]}")
         GLOBAL_ALL_PROJECTS = all_projects
 
     t = Thread(target=update_all_projects)
@@ -754,25 +754,6 @@ class CODXJuniorSession:
         Please always keep your answers short and simple unless a more detailed answer has been requested.
         END INSTRUCTIONS
         """
-        if chat_mode == 'task':
-            task = last_ai_message.content if is_refine and last_ai_message else "No task defined yet, create it following the instructions"
-            if is_refine:
-                user_message = Message(role="user", content=f"""
-                  UPDATE OR CREATE THE TASK:
-                  {task}
-                  
-                  USER COMMENTS:
-                  {query}
-                  """)
-            instructions = f"""
-            {profile_manager.read_profile("analyst").content}
-            """
-        chat.messages.append(
-            Message(role="system", hide=True, content=f"""# INSTRUCTIONS:
-                  {instructions}
-                  # REQUEST
-                  {user_message.content}
-                  """))
         messages = [
             SystemMessage(content=instructions)
         ]
@@ -807,15 +788,11 @@ class CODXJuniorSession:
       
             return msg
 
-        if is_refine:
-            msg = convert_message(chat.messages[0])
+        for m in chat.messages[0:-1]:
+            if m.hide or m.improvement:
+                continue
+            msg = convert_message(m)
             messages.append(msg)
-        else:
-            for m in chat.messages[0:-1]:
-                if m.hide or m.improvement:
-                    continue
-                msg = convert_message(m)
-                messages.append(msg)
 
         context = ""
         documents = []
@@ -861,9 +838,6 @@ class CODXJuniorSession:
             sources = list(set([doc.metadata['source'].replace(self.settings.project_path, "") for doc in documents]))
             
         response_message = Message(role="assistant", content=response, files=sources)
-        if chat_mode == 'task':
-            for msg in chat.messages:
-                msg.hide = True
         chat.messages.append(response_message)
         return chat, documents
 

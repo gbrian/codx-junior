@@ -143,7 +143,8 @@ export default {
       newProjectPath: null
     };
   },
-  created () {
+  mounted () {
+    this.$projects.loadAllProjects()
   },
   computed: {
     projectName() {

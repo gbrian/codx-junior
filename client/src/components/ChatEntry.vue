@@ -1,11 +1,13 @@
 <script setup>
 import { API } from '../api/api'
 import Markdown from './Markdown.vue'
+import moment from 'moment'
 </script>
 <template>
   <div :class="['relative w-full relative p-2 hover:rounded-md',
       message.role === 'user' ? 'chat-start': 'chat-end',
     ]" >
+    <div class="text-xs font-bold">{{ moment(message.updated_at).format('DD/MMM HH:mm') }}</div>
     <div :class="['px-2 max-w-full group w-full -mx-2 prose-xs',
       message.improvement ? 'border-green-300/20 bg-green-900' : 'border-slate-300/20',
       message.role === 'user' ? '': '',
@@ -25,27 +27,9 @@ import Markdown from './Markdown.vue'
                 <i class="fa-solid fa-eye"></i>
               </span>
             </div>
-            <div v-if="chat.mode === 'chat'">
+            <div>
               <div v-if="message.role ==='user'">You</div>
               <div v-else>codx-junior</div>
-            </div>
-            <div v-if="chat.mode === 'task'">
-              <div class="dropdown">
-                <div tabindex="0" role="button" class="click">
-                  {{ message.task_item || '...' }}
-                </div>
-                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 text-neutral-content w-52 p-2 shadow">
-                  <li @click="message.task_item = 'issue'">
-                    <a><i class="fa-solid fa-microscope"></i> Observe</a>
-                  </li>
-                  <li @click="message.task_item = 'test'">
-                    <a><i class="fa-solid fa-flask-vial"></i> Test</a>
-                  </li>
-                  <li @click="message.task_item = 'Fix'">
-                    <a><i class="fa-solid fa-code"></i> Fix</a>
-                  </li>
-                </ul>
-              </div>
             </div>
           </div>
           <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2 flex w-full">

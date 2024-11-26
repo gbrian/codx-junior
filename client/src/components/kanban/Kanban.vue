@@ -151,7 +151,7 @@ export default {
       return {
         id: 0,
         name: "New chat " + this.chats.length + 1,
-        mode: 'chat',
+        mode: 'task',
         board: this.board,
         column: column,
         column_index: 10000,

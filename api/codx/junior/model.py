@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pydantic import BaseModel, Field
+from datetime import datetime
 
 
 from typing import List, Dict, Union
@@ -22,8 +23,8 @@ class Message(BaseModel):
     content: str = Field(default='')
     hide: bool = Field(default=False)
     improvement: bool = Field(default=False)
-    created_at: str = Field(default='')
-    updated_at: str = Field(default='')
+    created_at: str = Field(default=str(datetime.now()))
+    updated_at: str = Field(default=str(datetime.now()))
     images: List[str] = Field(default=[])
     files: List[str] = Field(default=[])
 

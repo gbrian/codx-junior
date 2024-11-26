@@ -17,9 +17,6 @@ from markdownify import markdownify as md
 
 logger = logging.getLogger(__name__)
 
-
-from langchain.output_parsers import PydanticOutputParser
-
 # Global instructions
 def navigate(url):
     go_to(url)

@@ -1,12 +1,12 @@
 <template>
-  <div class="flex flex-col gap-2 h-full 2xl:h-2/3 w-full max-w-full">
+  <div class="flex flex-col gap-2 h-full w-full max-w-full">
     <header class="flex flex-col 2xl:flex-row justify-between items-center">
       <div class="flex gap-1">
         <select v-model="selectedLog" @change="onLogChange"
-          class="border select-xs 2xl:select-md rounded">
+          class="border select-xs rounded">
           <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
         </select>
-        <label class="input input-xs 2xl:input-md input-bordered flex items-center gap-2">
+        <label class="input input-xs input-bordered flex items-center gap-2">
           <input type="text" class="grow" placeholder="Search" v-model="filter" />
           <span class="click" @click="filter = null" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
           <span v-else>
