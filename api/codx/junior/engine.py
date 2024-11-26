@@ -95,42 +95,32 @@ def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     logger.info(f"coder_open_file {file_name}")
     os.system(f"code-server -r {file_name}")
 
-GLOBAL_ALL_PROJECTS = []
 def find_all_projects():
-    def update_all_projects():
-        all_projects = []
-        project_path = "/"
-        result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        all_codx_path = result.stdout.decode('utf-8').split("\n")
-        paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
-        #logger.info(f"[find_all_projects] paths: {paths}")
-        for project_path in paths:
+    all_projects = []
+    project_path = "/"
+    result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    all_codx_path = result.stdout.decode('utf-8').split("\n")
+    paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
+    #logger.info(f"[find_all_projects] paths: {paths}")
+    for project_path in paths:
+        try:
+            settings = CODXJuniorSettings.from_project(str(project_path))
+            if settings.codx_path not in all_projects \
+                    and project_path == settings.codx_path:
+                all_projects.append(settings)
+        except Exception as ex:
+            logger.exception(f"Error loading project {str(project_path)}")
+    def update_projects_with_details():
+        for project in all_projects:
             try:
-                settings = CODXJuniorSettings.from_project(str(project_path))
-                if settings.codx_path not in all_projects \
-                        and project_path == settings.codx_path:
-                    all_projects.append(settings)
+                command = ["git", "branch", "--show-current"]
+                result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                project.__dict__["_current_git_branch"] = result.stdout.decode('utf-8')
             except Exception as ex:
-                logger.exception(f"Error loading project {str(project_path)}")
-        def update_projects_with_details():
-            for project in all_projects:
-                try:
-                    command = ["git", "branch", "--show-current"]
-                    result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    project.__dict__["_current_git_branch"] = result.stdout.decode('utf-8')
-                except Exception as ex:
-                    project.__dict__["_current_git_branch"] = f"Error: {ex}"
-                project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
-                project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]
-            return all_projects
-        update_projects_with_details()
-        global GLOBAL_ALL_PROJECTS
-        #logger.info(f"[find_all_projects] all_projects: {[p.codx_path for p in all_projects]}")
-        GLOBAL_ALL_PROJECTS = all_projects
-
-    t = Thread(target=update_all_projects).start()
-    t.join()
-    return GLOBAL_ALL_PROJECTS
+                project.__dict__["_current_git_branch"] = f"Error: {ex}"
+            project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
+            project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]
+    return all_projects
 
 def update_engine():
     try:

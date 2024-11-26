@@ -101,11 +101,11 @@ import moment from 'moment';
                   {{ project.project_path.split("/").reverse().slice(0, 3).reverse().join(" / ") }}
                 </div>
               </td>
-              <td class="px-4 py-2 text-center">{{ project._metrics.number_of_chats }}</td>
-              <td class="px-4 py-2 text-center">{{ project._metrics.files?.length }}</td>
-              <td class="px-4 py-2 text-center hidden md:block">{{ lastRefresh(project._metrics.last_update) }}</td>
+              <td class="px-4 py-2 text-center">{{ project._metrics?.number_of_chats }}</td>
+              <td class="px-4 py-2 text-center">{{ project._metrics?.files?.length }}</td>
+              <td class="px-4 py-2 text-center hidden md:block">{{ lastRefresh(project._metrics?.last_update) }}</td>
               <td class="px-4 py-2 text-center">
-                <span class="badge bagde-sm badge-error" v-if="project._metrics.error">
+                <span class="badge bagde-sm badge-error" v-if="project._metrics?.error">
                   Err! Review settings
                 </span>
                 <span v-if="project.watching">
@@ -157,9 +157,9 @@ export default {
       return this.$project.project_description;
     },
     lastModifiedProjects () {
-      const lastProjects = this.$projects.allProjects?.filter(p => p._metrics.chats_changed_last.length)
+      const lastProjects = this.$projects.allProjects?.filter(p => p._metrics?.chats_changed_last.length)
       return lastProjects?.reduce((acc, project) =>
-          acc.concat(...project._metrics.chats_changed_last.map(c => ({ ...c, project, fromNow: moment(c.updated_at).fromNow() }))), [])
+          acc.concat(...project._metrics?.chats_changed_last.map(c => ({ ...c, project, fromNow: moment(c.updated_at).fromNow() }))), [])
         .sort((a, b) => a.updated_at > b.updated_at ? -1 : 1) 
     }
   },
