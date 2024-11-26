@@ -112,6 +112,13 @@ export const actions = actionTree(
       state.activeProject = API.lastSettings
       state.allProjects = (state.allProjects||[])
         .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p)
+    },
+    async realoadProject({ state }) {
+      await API.settings.read()
+      state.activeProject = API.lastSettings
+      state.allProjects = (state.allProjects||[])
+        .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p)
+      return state.activeProject
     }
   }
 )

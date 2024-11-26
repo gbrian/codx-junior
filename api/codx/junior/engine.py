@@ -103,7 +103,7 @@ def find_all_projects():
         result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         all_codx_path = result.stdout.decode('utf-8').split("\n")
         paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
-        logger.info(f"[find_all_projects] paths: {paths}")
+        # logger.info(f"[find_all_projects] paths: {paths}")
         for project_path in paths:
             try:
                 settings = CODXJuniorSettings.from_project(str(project_path))
@@ -125,13 +125,11 @@ def find_all_projects():
             return all_projects
         update_projects_with_details()
         global GLOBAL_ALL_PROJECTS
-        logger.info(f"[find_all_projects] all_projects: {[p.codx_path for p in all_projects]}")
+        # logger.info(f"[find_all_projects] all_projects: {[p.codx_path for p in all_projects]}")
         GLOBAL_ALL_PROJECTS = all_projects
 
-    t = Thread(target=update_all_projects)
-    t.start()
-    if not GLOBAL_ALL_PROJECTS:
-        t.join()
+    t = Thread(target=update_all_projects).start()
+    t.join()
     return GLOBAL_ALL_PROJECTS
 
 def update_engine():

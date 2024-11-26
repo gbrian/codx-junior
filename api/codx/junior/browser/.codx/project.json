@@ -15,7 +15,7 @@
   "knowledge_file_ignore": ".codx",
   "temperature": 0.7,
   "codx_path": "/shared/onwaytransfers.com/dev/owt/codx-junior/api/codx/junior/browser/.codx",
-  "watching": true,
+  "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://avatars.githubusercontent.com/u/60474196?s=48&v=4",

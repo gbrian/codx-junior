@@ -85,9 +85,9 @@ export const API = {
   settings: {
     async read () {
       const res = await API.get('/api/settings')
-      API.lastSettings = res.data
+      API.lastSettings = { ...API.lastSettings || {}, ...res.data }
       if (API.lastSettings) {
-        localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
+        localStorage.setItem("API_SETTINGS", JSON.stringify(res.data))
       }
       return res
     },
@@ -241,6 +241,7 @@ export const API = {
       const { data: projects } = await API.project.list()
       API.lastSettings = projects.find(p => p.codx_path === codx_path)
       if (API.lastSettings) {
+        await API.settings.read()
         localStorage.setItem("API_CODX_PATH", API.lastSettings.codx_path)
       }
       API.allProjects = projects
