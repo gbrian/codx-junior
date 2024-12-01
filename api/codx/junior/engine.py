@@ -491,8 +491,16 @@ class CODXJuniorSession:
             "total_pending_changes": len(pending_files),
             **status
         }
-
     def check_project_changes(self):
+        if not self.settings.is_valid_project():
+            return
+        knowledge = Knowledge(settings=self.settings)
+        new_files = knowledge.detect_changes()
+        if not new_files:
+            return False
+        return True
+
+    def process_project_changes(self):
         if not self.settings.is_valid_project():
             return
         knowledge = Knowledge(settings=self.settings)
@@ -511,8 +519,8 @@ class CODXJuniorSession:
         self.reload_knowledge()
 
         for file_path in new_files:
-            Thread(target=self.update_project_profile, args=(file_path,)).start()
-            Thread(target=self.update_wiki, args=(file_path,)).start()
+            self.update_project_profile(file_path)
+            self.update_wiki(file_path)
 
     def extract_changes(self, content):
         for block in extract_json_blocks(content):

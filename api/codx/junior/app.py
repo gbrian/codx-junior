@@ -85,34 +85,43 @@ os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
 WATCHING_PROJECTS = {}
 
-def async_check_project(settings):
+def check_project_changes(settings):
+    try:
+        return CODXJuniorSession(settings=settings).check_project_changes()
+    except Exception as ex:
+        logger.error(f"Processing {settings.project_name} error: {ex}")        
+    return False
+
+def process_project_changes(settings):
     WATCHING_PROJECTS[settings.codx_path] = True
-    def check_changes():
-        # logger.info(f"[async_check_project]: check {settings.project_name}")
-        try:
-            CODXJuniorSession(settings=settings).check_project_changes()
-        except Exception as ex:
-            logger.error(f"Processing {settings.project_name} error: {ex}")        
-    thread = threading.Thread(target=check_changes)
-    thread.start()
-    thread.join(timeout=60)
-    if thread.is_alive():
-        logger.warning(f"Timeout: {settings.project_name} check took too long.")
+    # logger.info(f"[check_project_changes]: check {settings.project_name}")
+    try:
+        CODXJuniorSession(settings=settings).process_project_changes()
+    except Exception as ex:
+        logger.error(f"Processing {settings.project_name} error: {ex}")        
     WATCHING_PROJECTS[settings.codx_path] = False
 
 
+PROCESSING_CHANGES = False
 def process_projects_changes():
+    global PROCESSING_CHANGES
+    if PROCESSING_CHANGES:
+        return
+    PROCESSING_CHANGES = True
     try:
         projects_to_check = [settings for settings in find_all_projects() if settings.watching]
         watching_projects = [p for p in projects_to_check if p.watching]
         # logger.info(f"[process_projects_changes]: {[p.project_name for p in watching_projects]}") 
         for ix, settings in enumerate(watching_projects):
-            if WATCHING_PROJECTS.get(settings.codx_path):
-                continue
-            # logger.info(f"[process_projects_changes]: check {settings.project_name} - {ix}")
-            threading.Thread(target=async_check_project, args=(settings,)).start()
+            if not check_project_changes(settings=settings):
+              continue
+            t = threading.Thread(target=process_project_changes, args=(settings,))
+            t.start()
+            t.join(timeout=60)
     except Exception as ex:
         logger.exception("Error processing watching projects {ex}")        
+    PROCESSING_CHANGES = False
+
 logger.info("Starting process_projects_changes job")
 add_work(process_projects_changes)
 
