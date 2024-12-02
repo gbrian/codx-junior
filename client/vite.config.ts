@@ -4,11 +4,18 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 
-const { API_PORT, NOTEBOOKS_URL, CODER_PORT, NOVNC_PORT } = process.env
+const {
+  API_PORT,
+  NOTEBOOKS_URL,
+  CODER_PORT,
+  NOVNC_PORT,
+  FILEBROWSER_PORT
+} = process.env
 const apiUrl = `http://0.0.0.0:${API_PORT}`
 const coderUrl = `http://0.0.0.0:${CODER_PORT}`
 const noVNCUrl = `http://0.0.0.0:${NOVNC_PORT}`
-console.log("API_URL", { apiUrl, coderUrl, noVNCUrl })
+const filebrowserUrl = `http://0.0.0.0:${FILEBROWSER_PORT}`
+
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
@@ -44,6 +51,10 @@ export default defineConfig({
         changeOrigin: false,
         ws: true,
       },
+      'filebrowser': {
+        target: filebrowserUrl,
+        changeOrigin: false
+      }
     }
   },
   plugins: [

@@ -31,12 +31,10 @@ RUN curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | 
 RUN curl -fsSL https://code-server.dev/install.sh | sh
 
 # Install supervisor
-ENV SUPERVISOR_DIR=/etc/supervisord
-
 # Create supervisord directory
-RUN mkdir -p $SUPERVISOR_DIR
+RUN mkdir -p /etc/supervisord
 
-COPY supervisor.conf $SUPERVISOR_DIR
+COPY supervisor.conf /etc/supervisord/codx-junior.conf
 
 RUN mkdir -p /projects
 
@@ -54,9 +52,11 @@ ENV DISPLAY=:1
 ENV DISPLAY_WIDTH=1920
 ENV DISPLAY_HEIGHT=1080
 
-
 RUN codx chrome
 RUN codx docker
+RUN codx filebrowser
+
+RUN mkdir -p /root/Downloads
 
 # API virtual env
 ENV API_VENV=/tmp/.venv_codx_junior
@@ -68,6 +68,8 @@ ENV WEB_PORT=9983
 ENV CODER_PORT=9909
 # codx-junior NOVNC port
 ENV NOVNC_PORT=9986
+# Filebrowser port
+ENV FILEBROWSER_PORT=9987
 
 WORKDIR /projects/codx-junior
 

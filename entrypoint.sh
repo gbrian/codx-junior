@@ -9,4 +9,4 @@ fi
 
 # Run supervisor
 echo "Running supervisor"
-/usr/bin/supervisord -c /etc/supervisord/supervisor.conf
+/usr/bin/supervisord -c /etc/supervisord/codx-junior.conf
