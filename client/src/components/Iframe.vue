@@ -15,8 +15,8 @@ export default {
       }
       const { pathname, search } = iframe.contentWindow.location
       if (pathname.indexOf(this.url) === -1) {
-        this.url = `${this.url}${pathname.slice(1)}${search}`
-        iframe.attributes.src.value = this.url
+        const url = `${this.url}${pathname.slice(1)}${search}`
+        iframe.attributes.src.value = url
       } else {
         this.$emit('loaded', iframe)
       }

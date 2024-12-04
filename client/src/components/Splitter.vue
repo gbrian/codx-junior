@@ -3,18 +3,36 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 import BrowserVue from './browser/Browser.vue'
 import CoderVue from '../components/apps/Coder.vue'
 import CodxJuniorVue from '../views/CodxJunior.vue'
+import NavigationBar from '../components/NavigationBar.vue'
 </script>
 
 <template>
-  <div class="bg-base-300">
+  <div class="bg-base-300 flex">
+    <NavigationBar v-if="$ui.isLandscape" />
     <SplitterGroup
       id="splitter-group-1"
       direction="horizontal"
     >
       <SplitterPanel
+        id="splitter-group-1-panel-2"
+        :min-size="$ui.showApp ? 3 : 100"
+        :defaultSize="$ui.codxJuniorWidth"
+        class="flex items-center justify-center"
+        @resize="size => $ui.setCodxJuniorWidth(size)"
+      >
+        <CodxJuniorVue class="w-full h-full" />
+      </SplitterPanel>
+      <SplitterResizeHandle
+        id="splitter-group-1-resize-handle-1"
+        class="bg-slate-600 w-1"
+        v-if="$ui.showApp"
+      />
+
+      <SplitterPanel
         id="splitter-group-1-panel-1"
         :min-size="20"
         class=""
+        v-if="$ui.showApp"
       >
       <SplitterGroup
         id="splitter-group-2"
@@ -23,7 +41,7 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
       >
         <SplitterPanel
           id="splitter-group-2-panel-1"
-          :min-size="20"
+          :min-size="40"
           class=""
           v-if="$ui.showCoder"
         >
@@ -49,19 +67,6 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
         <BrowserVue class="h-full w-full p-1"
           :class="$ui.appActives[0] === 'browser' ? '': 'hidden'"/>
       </div>
-      </SplitterPanel>
-      <SplitterResizeHandle
-        id="splitter-group-1-resize-handle-1"
-        class="bg-slate-600 w-1"
-      />
-      <SplitterPanel
-        id="splitter-group-1-panel-2"
-        :min-size="3"
-        :defaultSize="$ui.codxJuniorWidth"
-        class="flex items-center justify-center"
-        @resize="size => $ui.setCodxJuniorWidth(size)"
-      >
-        <CodxJuniorVue class="w-full h-full" />
       </SplitterPanel>
     </SplitterGroup>
   </div>
