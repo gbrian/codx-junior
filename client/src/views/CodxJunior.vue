@@ -60,7 +60,7 @@ import TabViewVue from '@/components/TabView.vue'
         </button>
       </div>
       <TabNavigationVue />
-      <TabViewVue class="grow" :key="$project?.codx_path || 'no-project'" />
+      <TabViewVue :key="$project?.codx_path || 'no-project'" />
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
       <div class="modal-box">

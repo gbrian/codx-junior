@@ -16,12 +16,20 @@
       @click="setActiveTab('knowledge')">
       <i class="fa-solid fa-book"></i> <span class="hidden lg:inline">Knowledge</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', 
+    <a role="tab" :class="['hidden tab flex items-center gap-2', 
       disableProjectTabs && 'tab-disabled',
       ($ui.tabIx === 'wiki') ? 'tab-active font-bold' : '']" 
       @click="setActiveTab('wiki')">
       <i class="fa-brands fa-wikipedia-w"></i> <span class="hidden lg:inline">Docs</span>
     </a>
+    <a role="tab" :class="['tab flex items-center gap-2', 
+      disableProjectTabs && 'tab-disabled',
+      ($ui.tabIx === 'files') ? 'tab-active font-bold' : '']" 
+      @click="setActiveTab('files')">
+      <i class="fa-solid fa-folder"></i> 
+      <span class="hidden lg:inline">Files</span>
+    </a>
+    
     <a role="tab" :class="['tab flex items-center gap-2', 
       disableProjectTabs && 'tab-disabled',
       ($ui.tabIx === 'app') ? 'tab-active font-bold' : '']" 

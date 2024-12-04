@@ -14,8 +14,9 @@ const {
 const apiUrl = `http://0.0.0.0:${API_PORT}`
 const coderUrl = `http://0.0.0.0:${CODER_PORT}`
 const noVNCUrl = `http://0.0.0.0:${NOVNC_PORT}`
-const filebrowserUrl = `http://0.0.0.0:${FILEBROWSER_PORT}`
+const filebrowserUrl = `http://0.0.0.0:${FILEBROWSER_PORT}/filebrowser`
 
+console.log("filebrowserUrl", filebrowserUrl)
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
@@ -28,6 +29,11 @@ export default defineConfig({
         target: apiUrl,
         changeOrigin: true,
         ws: true,
+      },
+      '/filebrowser': {
+        target: filebrowserUrl,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/filebrowser/, ''),
       },
       '/coder': {
         target: coderUrl,
@@ -50,10 +56,6 @@ export default defineConfig({
         target: NOTEBOOKS_URL,
         changeOrigin: false,
         ws: true,
-      },
-      'filebrowser': {
-        target: filebrowserUrl,
-        changeOrigin: false
       }
     }
   },
