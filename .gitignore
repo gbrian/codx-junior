@@ -5,3 +5,4 @@ __pycache__
 client/.vite
 global_settings.json
 **/.codx/db
+filebrowser.db
