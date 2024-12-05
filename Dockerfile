@@ -52,14 +52,12 @@ ENV DISPLAY=:1
 ENV DISPLAY_WIDTH=1920
 ENV DISPLAY_HEIGHT=1080
 
-RUN codx chrome
-RUN codx docker
-RUN codx filebrowser
-
 RUN mkdir -p /root/Downloads
 
 # API virtual env
-ENV API_VENV=/tmp/.venv_codx_junior
+ENV API_VENV=/tmp/.venv_codx_junior_api
+# Browser virtual env
+ENV BROWSER_VENV=/tmp/.venv_codx_junior_browser
 # codx-junior API port
 ENV API_PORT=9984
 # codx-junior WEB port
@@ -70,6 +68,8 @@ ENV CODER_PORT=9909
 ENV NOVNC_PORT=9986
 # Filebrowser port
 ENV FILEBROWSER_PORT=9987
+# Browser-use port
+ENV BROWSER_PORT=9988
 
 WORKDIR /projects/codx-junior
 
@@ -77,5 +77,12 @@ RUN bash ./install_api.sh
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+# codx APPS
+RUN codx chrome
+RUN codx docker
+RUN codx filebrowser
+
+COPY code-server/User/settings /root/.local/share/code-server/User/settings
 
 CMD ["/entrypoint.sh"]

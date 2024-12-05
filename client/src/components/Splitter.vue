@@ -8,26 +8,10 @@ import NavigationBar from '../components/NavigationBar.vue'
 
 <template>
   <div class="bg-base-300 flex">
-    <NavigationBar v-if="$ui.isLandscape" />
     <SplitterGroup
       id="splitter-group-1"
       direction="horizontal"
     >
-      <SplitterPanel
-        id="splitter-group-1-panel-2"
-        :min-size="$ui.showApp ? 3 : 100"
-        :defaultSize="$ui.codxJuniorWidth"
-        class="flex items-center justify-center"
-        @resize="size => $ui.setCodxJuniorWidth(size)"
-      >
-        <CodxJuniorVue class="w-full h-full" />
-      </SplitterPanel>
-      <SplitterResizeHandle
-        id="splitter-group-1-resize-handle-1"
-        class="bg-slate-600 w-1"
-        v-if="$ui.showApp"
-      />
-
       <SplitterPanel
         id="splitter-group-1-panel-1"
         :min-size="20"
@@ -49,7 +33,8 @@ import NavigationBar from '../components/NavigationBar.vue'
         </SplitterPanel>
         <SplitterResizeHandle
           id="splitter-group-2-resize-handle-1"
-          class="bg-slate-600" :class="isHorizontal ? 'w-1' : 'h-1'"
+          class="bg-stone-800"
+          :style="`${isHorizontal ? 'width' : 'height'}: 2px`"
           v-if="$ui.showBrowser && $ui.showCoder"
         />   
         <SplitterPanel
@@ -58,7 +43,7 @@ import NavigationBar from '../components/NavigationBar.vue'
           class=""
           v-if="$ui.showBrowser"
         >
-          <BrowserVue class="h-full w-full p-1" />
+          <BrowserVue class="h-full w-full" />
         </SplitterPanel>
       </SplitterGroup>
       <div class="h-full w-full" v-else>
@@ -68,18 +53,46 @@ import NavigationBar from '../components/NavigationBar.vue'
           :class="$ui.appActives[0] === 'browser' ? '': 'hidden'"/>
       </div>
       </SplitterPanel>
+
+      <SplitterResizeHandle
+        id="splitter-group-1-resize-handle-1"
+        class="bg-stone-800"
+        style="width: 2px;"
+        v-if="$ui.showApp"
+      />
+
+      <SplitterPanel
+        id="splitter-group-1-panel-2"
+        :min-size="$ui.showApp ? 0 : 100"
+        :defaultSize="$ui.codxJuniorWidth"
+        class="flex items-center justify-center"
+        @resize="size => $ui.setCodxJuniorWidth(size)"
+        v-if="!$ui.showApp || showCodxJunior">
+        
+        <CodxJuniorVue class="w-full h-full" />
+      </SplitterPanel>
+
     </SplitterGroup>
+    <NavigationBar :right="true" v-if="$ui.isLandscape" />
+
   </div>
 </template>
 <script>
 export default {
   data () {
     return {
+      showCodxJunior: true
     }
   },
   computed: {
     isHorizontal () {
       return this.$ui.appDivided === 'horizontal'
+    }
+  },
+  methods: {
+    onDblclickCodxJunior () {
+      console.log("onDblclickCodxJunior")
+      // this.showCodxJunior = !this.showCodxJunior
     }
   }
 }

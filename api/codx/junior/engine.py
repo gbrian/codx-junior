@@ -493,7 +493,7 @@ class CODXJuniorSession:
         }
     def check_project_changes(self):
         if not self.settings.is_valid_project():
-            return
+            return False
         knowledge = Knowledge(settings=self.settings)
         new_files = knowledge.detect_changes()
         if not new_files:
