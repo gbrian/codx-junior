@@ -7,6 +7,4 @@ if [ ! -d "$API_VENV/bin" ]; then
   pip3 install wheel 
   
   pip3 install .  
-else
-  source ${API_VENV}/bin/activate
 fi

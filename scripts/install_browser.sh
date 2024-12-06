@@ -6,6 +6,4 @@ if [ ! -d "$BROWSER_VENV/bin" ]; then
   
   pip3 install wheel
   pip3 install .  
-else
-  source ${BROWSER_VENV}/bin/activate
 fi

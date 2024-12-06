@@ -1,58 +1,45 @@
-FROM debian:latest
+FROM debian:latest AS API
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV CODX_JUNIOR_HOME=/projects/codx-junior
+# API virtual env
+ENV API_VENV=/tmp/.venv_codx_junior_api
 
 RUN apt-get update && \
-    apt-get install -y curl wget novnc websockify supervisor nodejs npm \
-        tigervnc-standalone-server locales python3 python3-venv \
-        procps git sudo tesseract-ocr lxde-core
-
-RUN apt-get remove -y xscreensaver && \
+    apt-get install -y python3 python3-venv && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Generate the required locale
-# Set the locale
-RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
-    locale-gen
-ENV LANG en_US.UTF-8  
-ENV LANGUAGE en_US:en  
-ENV LC_ALL en_US.UTF-8
+COPY api /projects/codx-junior/api
+COPY scripts /projects/codx-junior/scripts
 
-ENV VNC_NO_PASSWORD=1
+RUN chmod +x /projects/codx-junior/scripts/install_api.sh
+RUN bash /projects/codx-junior/scripts/install_api.sh
 
-# Install VNC and setup without password
-RUN mkdir -p ~/.vnc && \
-    echo "password" | vncpasswd -f > ~/.vnc/passwd && \
-    chmod 600 ~/.vnc/passwd
 
-# Install code-server latest version
-RUN curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
-RUN curl -fsSL https://code-server.dev/install.sh | sh
+FROM debian:latest
 
-# Install supervisor
-# Create supervisord directory
-RUN mkdir -p /etc/supervisord
+# User
+ARG USER_ID=1000
+ARG USER_GROUP=1000
+ENV USER=codxuser
+ENV HOME=/home/${USER}
 
-COPY supervisor.conf /etc/supervisord/codx-junior.conf
+ENV DEBIAN_FRONTEND=noninteractive
 
-RUN mkdir -p /projects
+# API
+ENV CODX_JUNIOR_HOME=${HOME}/projects/codx-junior
+ENV PYTHONPATH=${CODX_JUNIOR_HOME}/api
 
-COPY . /projects/codx-junior
-RUN rm -rf /projects/codx-junior/api/.venv
-RUN chmod +x /projects/codx-junior/run_api.sh
-RUN chmod +x /projects/codx-junior/run_client.sh
-
-ENV CODX_JUNIOR_HOME=/projects/codx-junior
-ENV PYTHONPATH=/projects/codx-junior/api
-
-RUN git config --global --add safe.directory '*'
-
+# VNC 
 ENV DISPLAY=:1
 ENV DISPLAY_WIDTH=1920
 ENV DISPLAY_HEIGHT=1080
+ENV VNC_NO_PASSWORD=1
 
-RUN mkdir -p /root/Downloads
+# Locales
+ENV LANG en_US.UTF-8  
+ENV LANGUAGE en_US:en  
+ENV LC_ALL en_US.UTF-8
 
 # API virtual env
 ENV API_VENV=/tmp/.venv_codx_junior_api
@@ -70,19 +57,70 @@ ENV NOVNC_PORT=9986
 ENV FILEBROWSER_PORT=9987
 # Browser-use port
 ENV BROWSER_PORT=9988
+# Serving client from API
+ENV STATIC_FOLDER=${CODX_JUNIOR_HOME}/client/dist
 
-WORKDIR /projects/codx-junior
+# Install packages
+RUN apt-get update && \
+    apt-get install -y curl wget novnc websockify supervisor nodejs npm \
+        tigervnc-standalone-server locales python3 python3-venv \
+        procps git sudo tesseract-ocr lxde-core && \
+    apt-get remove -y xscreensaver && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN bash ./install_api.sh
+# Generate the required locale
+# Set the locale
+RUN sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen && \
+    locale-gen
 
+# Install supervisor
+# Create supervisord directory
+RUN mkdir -p /etc/supervisord
+COPY supervisor.conf /etc/supervisord/codx-junior.conf
+
+# Entrypoint
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Install VNC and setup without password
+RUN mkdir -p /root/.vnc && \
+    echo "password" | vncpasswd -f > /root/.vnc/passwd && \
+    chmod 600 /root/.vnc/passwd
+
+# Create USER
+RUN groupadd -g ${USER_GROUP} ${USER} && \
+    useradd -m -u ${USER_ID} -g ${USER_GROUP} -s /bin/bash ${USER} && \
+    echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+USER ${USER}
+WORKDIR ${CODX_JUNIOR_HOME}
+
+RUN touch ${HOME}/.Xauthority
+RUN mkdir -p ${HOME}/projects
+
+COPY --chown=${USER} api ${CODX_JUNIOR_HOME}/api
+COPY --chown=${USER} client ${CODX_JUNIOR_HOME}/client
+COPY --chown=${USER} browser ${CODX_JUNIOR_HOME}/browser
+COPY --chown=${USER} scripts ${CODX_JUNIOR_HOME}/scripts
+
+RUN chmod +x ${CODX_JUNIOR_HOME}/scripts/run_api.sh
+RUN chmod +x ${CODX_JUNIOR_HOME}/scripts/run_client.sh
+
+
+RUN git config --global --add safe.directory '*'
+
 # codx APPS
+RUN curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
 RUN codx chrome
 RUN codx docker
 RUN codx filebrowser
+RUN codx coder
 
-COPY code-server/User/settings /root/.local/share/code-server/User/settings
+COPY --chown=${USER} code-server/User/settings.json ${HOME}/.local/share/code-server/User/settings.json
 
+# Copy API venv
+COPY --from=API --chown=${USER} $API_VENV $API_VENV
+
+USER root
 CMD ["/entrypoint.sh"]
