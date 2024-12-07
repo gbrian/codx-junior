@@ -88,6 +88,8 @@ RUN mkdir -p /root/.vnc && \
     echo "password" | vncpasswd -f > /root/.vnc/passwd && \
     chmod 600 /root/.vnc/passwd
 
+RUN touch /root/.Xauthority
+
 # Create USER
 RUN groupadd -g ${USER_GROUP} ${USER} && \
     useradd -m -u ${USER_ID} -g ${USER_GROUP} -s /bin/bash ${USER} && \
@@ -96,7 +98,6 @@ RUN groupadd -g ${USER_GROUP} ${USER} && \
 USER ${USER}
 WORKDIR ${CODX_JUNIOR_HOME}
 
-RUN touch ${HOME}/.Xauthority
 RUN mkdir -p ${HOME}/projects
 
 COPY --chown=${USER} api ${CODX_JUNIOR_HOME}/api

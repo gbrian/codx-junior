@@ -20,12 +20,15 @@ export const state = () => ({
     "es-SP": "Español"
   },
   appActives: [],
-  appDivided: 'none'
+  appDivided: 'none',
+  resolution: API.screen.display?.resolution,
+  resolutions: API.screen.display?.resolutions
+
 })
 
 export const getters = getterTree(state, {
   showApp: state => state.showBrowser || state.showCoder,
-  isLandscape: state => state.orientation !== 'portrait'
+  isLandscape: state => state.orientation !== 'portrait',
 })
 
 export const mutations = mutationTree(state, {
@@ -105,7 +108,7 @@ export const actions = actionTree(
       if (!state.tabIx) {
         state.tabIx = 'home'
       }
-      state.showLogs = false
+      state.showLogs = false    
     },
     saveState({ state }) {
       localStorage.setItem('uiState', JSON.stringify(state))
@@ -133,6 +136,11 @@ export const actions = actionTree(
     },
     setScreenResolution(_, resolution) {
       API.screen.setScreenResolution(resolution)
+    },
+    async readScreenResolutions ({ state }) {
+      await API.screen.getScreenResolution()
+      state.resolution = API.screen.display?.resolution,
+      state.resolutions = API.screen.display?.resolutions
     }
   },
 )

@@ -58,7 +58,9 @@ import ProjectIconVue from './ProjectIcon.vue'
       <div :class="['hover:bg-base-100 dropdown dropdown-end click',
         right ? 'dropdown-left' : 'dropdown-right',
         isSettings ? 'bg-base-100': '']">
-				<a tabindex="0" class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Projects">
+				<a tabindex="0" class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
+          :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Projects"
+          @click="$ui.readScreenResolutions()">
            <i class="fa-solid fa-gear"></i>
 				</a>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
@@ -80,10 +82,11 @@ import ProjectIconVue from './ProjectIcon.vue'
           <li>
             <a>
               <span class="click" @click="$storex.api.screen.getScreenResolution()"><i class="fa-solid fa-display"></i></span>
-              <select class="select select-sm overflow-auto" @change="$storex.api.screen.setScreenResolution($event.target.value)">
+              <select class="select select-sm overflow-auto"
+                @change="$ui.setScreenResolution($event.target.value)">
                 <option disabled selected>Select Resolution</option>
-                <option v-for="resolution in $storex.api.screen.display?.resolutions" :key="resolution" :value="resolution"
-                  :selected="$storex.api.screen.display?.resolution === resolution"
+                <option v-for="resolution in $ui.resolutions" :key="resolution" :value="resolution"
+                  :selected="$ui.resolution === resolution"
                 >
                   {{ resolution }}
                 </option>

@@ -2,7 +2,7 @@
   "ai_provider": "openai",
   "ai_model": "gpt-4o",
   "project_name": "browser",
-  "project_path": "/home/codxuser/projects/browser",
+  "project_path": " /home/codxuser/projects/codx-junior/browser",
   "project_wiki": "",
   "project_dependencies": "",
   "knowledge_extract_document_tags": false,
@@ -14,11 +14,11 @@
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx",
   "temperature": 0.7,
-  "codx_path": "/home/codxuser/projects/browser/.codx",
-  "watching": true,
+  "codx_path": " /home/codxuser/projects/codx-junior/browser/.codx",
+  "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
-  "project_icon": "https://avatars.githubusercontent.com/u/36313686?s=48&v=4",
+  "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
   "log_ignore": "",
   "urls": []
 }

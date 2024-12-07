@@ -414,12 +414,12 @@ def api_write_global_settings(global_settings: GlobalSettings):
 
 @app.post("/api/screen")
 def api_screen_set(screen: Screen):
-    return exec_command(f"xrandr -s {screen.resolution}")
+    return exec_command(f"sudo xrandr -s {screen.resolution}")
 
 @app.get("/api/screen")
 def api_screen_get():
     screen = Screen()
-    res, _ = exec_command(f"xrandr --current")
+    res, _ = exec_command(f"sudo xrandr --current")
     # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
     screen.resolution = res.split("\n")[0].split("current ")[1].split(",")[0].replace(" ", "")
     return screen

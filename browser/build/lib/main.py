@@ -44,5 +44,3 @@ async def run_browser():
 
 # To run the FastAPI server, use:
 # uvicorn main:app --reload
-
-@codx: to keep browse running all the time we need a browser_context. Check browser docs --knowledge

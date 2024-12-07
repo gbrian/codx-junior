@@ -22,8 +22,10 @@ import TabViewVue from '@/components/TabView.vue'
             </div>
           </div>
           <div class="text-xs flex gap-2 items-center">
-            <i class="fa-solid fa-folder"></i>
-            {{ $project.project_path }}
+            <div class="text-xs flex gap-1 items-center">
+              <i class="fa-solid fa-folder"></i>
+              {{ $project.project_path }}
+            </div>
             <span v-if="$projects.childProjects?.length"><i class="fa-solid fa-folder-tree"></i></span>
             <div class="badge badge-xs badge-secondary click hover:underline"
                 v-for="child in $projects.childProjects" :key="child.project_name"
