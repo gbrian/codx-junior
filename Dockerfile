@@ -90,6 +90,9 @@ RUN mkdir -p /root/.vnc && \
 
 RUN touch /root/.Xauthority
 
+# We need to fix browser automation and avoid disabling security :(
+RUN xhost +
+
 # Create USER
 RUN groupadd -g ${USER_GROUP} ${USER} && \
     useradd -m -u ${USER_ID} -g ${USER_GROUP} -s /bin/bash ${USER} && \

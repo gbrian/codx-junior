@@ -183,7 +183,7 @@ class CODXJuniorSession:
         return Knowledge(settings=self.settings)
 
     def get_browser(self):
-        from codx.junior.browser import Browser
+        from codx.junior.browser.browser import Browser
         return Browser(session=self)
 
     def load_chat(self, board, chat_name):

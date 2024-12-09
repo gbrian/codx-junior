@@ -1,6 +1,7 @@
 <script setup>
 import { API } from '../../api/api'
 import ChatEntry from '@/components/ChatEntry.vue'
+import Browser from '@/components/browser/Browser.vue'
 </script>
 <template>
   <div class="flex flex-col gap-1 grow">
@@ -19,6 +20,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
     </div>
     <div class="grow relative">
       <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden">
+        <Browser v-if="isBrowser" />
         <div class="flex flex-col gap-2" 
           v-for="message in messages" :key="message.id">
           <ChatEntry :class="['mb-4 rounded-md bg-base-300',
@@ -106,10 +108,10 @@ import ChatEntry from '@/components/ChatEntry.vue'
           <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit" v-if="editMessage">
             <i class="fa-regular fa-circle-xmark"></i>
           </button>
-          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-junior" @click="sendMessage" v-if="!editMessage">
+          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-junior" @click="sendMessage" v-if="!editMessage && !isBrowser">
             <i class="fa-solid fa-comment"></i>
           </button>
-          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Browse the web" @click="navigate" v-if="!editMessage">
+          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-browser" @click="navigate" v-if="!editMessage">
             <i class="fa-brands fa-chrome"></i>
           </button>
           <button class="btn btn btn-sm btn-outline tooltip" 
@@ -227,6 +229,9 @@ export default {
   },
   computed: {
      messages () {
+      if (this.isBrowser) {
+        return []
+      }
       if (this.isTask) {
         const msgs = [...this.chat?.messages ||[]].filter(m => !m.hide).reverse()
         return [msgs.find(m => m.role === 'user'),
@@ -248,6 +253,9 @@ export default {
     },
     isTask () {
       return this.chat.mode === 'task'
+    },
+    isBrowser () {
+      return this.chat.mode === 'browser'
     }
   },
   watch: {

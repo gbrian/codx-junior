@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 import traceback
 
+from codx.junior.browser import start_broswser
+start_broswser()
+
 def disable_logs(logs):
   for logger_id in logs:
       logging.getLogger(logger_id).setLevel(logging.WARNING)
