@@ -90,8 +90,8 @@ RUN mkdir -p /root/.vnc && \
 
 RUN touch /root/.Xauthority
 
-# VNC
-COPY xstartup /root/.vnc/xstartup
+# X init
+RUN echo "@xhost +" >> /etc/xdg/lxsession/LXDE/autostart
 
 # Create USER
 RUN groupadd -g ${USER_GROUP} ${USER} && \

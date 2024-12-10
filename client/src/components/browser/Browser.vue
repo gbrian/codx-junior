@@ -2,7 +2,7 @@
 import NoVNC from '../NoVNC.vue';
 </script>
 <template>
-  <NoVNC class=""/>
+  <NoVNC class="m-8"/>
 </template>
 
 <script>

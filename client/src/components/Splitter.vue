@@ -49,7 +49,7 @@ import NavigationBar from '../components/NavigationBar.vue'
       <div class="h-full w-full" v-else>
         <CoderVue class="h-full w-full"
           :class="$ui.appActives[0] === 'coder' ? '': 'hidden'" />
-        <BrowserVue class="h-full w-full p-1"
+        <BrowserVue class="h-full w-full"
           :class="$ui.appActives[0] === 'browser' ? '': 'hidden'"/>
       </div>
       </SplitterPanel>
