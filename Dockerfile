@@ -90,8 +90,8 @@ RUN mkdir -p /root/.vnc && \
 
 RUN touch /root/.Xauthority
 
-# We need to fix browser automation and avoid disabling security :(
-RUN xhost +
+# VNC
+COPY xstartup /root/.vnc/xstartup
 
 # Create USER
 RUN groupadd -g ${USER_GROUP} ${USER} && \
