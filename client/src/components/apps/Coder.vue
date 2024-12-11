@@ -29,7 +29,7 @@ export default {
   },
   methods: {
     onCoderLoaded (iframe) {
-      if (!iframe) {
+      if (!iframe?.contentWindow) {
         return
       }
       const { pathname, search } = iframe.contentWindow.location
@@ -45,7 +45,7 @@ export default {
     checkCoderLoader (iframe) {
       let checkCount = 30 
       let interval = setInterval(() => {
-        if (!iframe) {
+        if (!iframe?.contentWindow) {
           return
         }
         const { contentWindow } = iframe

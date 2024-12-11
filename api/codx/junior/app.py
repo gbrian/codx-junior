@@ -401,7 +401,7 @@ def api_read_global_settings():
 
 @app.get("/api/logs")
 def api_logs_list():
-    return ['codx-junior-api', 'codx-junior-web', 'firefox', 'novnc', 'vncserver', 'supervisord']
+    return ['codx-junior-api', 'codx-junior-web', 'lxde', 'novnc', 'firefox', 'vncserver', 'vncserver-shared', 'supervisord']
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):

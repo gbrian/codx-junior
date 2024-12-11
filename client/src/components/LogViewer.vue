@@ -42,7 +42,7 @@
     </div>
     <div class="grow overflow-auto" ref="logView">
       <code>
-        <pre class="w-96" :class="logClass(log)" v-for="log, ix in logs?.split('\n')">{{ log }}</pre>
+        <pre class="w-96" v-html="formattedLog(log)" :class="logClass(log)" v-for="(log, ix) in logs?.split('\n')" :key="ix"></pre>
       </code>
     </div>
   </div>
@@ -60,14 +60,35 @@ export default {
       filter: null,
     };
   },
-  computed: {
-    ignorePatterns () {
-      return this.$project?.log_ignore?.split(",").filter(i => i.trim().length)
-        || []
-    },
-    allIgnorePatterns () {
-      return ["api/logs", "/var/log/", ...this.ignorePatterns]
+  mounted() {
+    this.fetchLogNames();
+  },
+  beforeUnmount() {
+    if (this.refreshInterval) {
+      clearInterval(this.refreshInterval);
     }
+  },
+  computed: {
+    ignorePatterns() {
+      return this.$project?.log_ignore?.split(",").filter(i => i.trim().length) || [];
+    },
+    allIgnorePatterns() {
+      return ["api/logs", "/var/log/", ...this.ignorePatterns];
+    },
+    colorMap() {
+      const modules = new Set();
+      this.logs?.split('\n').forEach(log => {
+        const moduleMatch = this.extractModule(log);
+        if (moduleMatch) {
+          modules.add(moduleMatch);
+        }
+      });
+      const colors = {};
+      modules.forEach(module => {
+        colors[module] = `#${Math.floor(Math.random()*16777215).toString(16)}`; // Random color
+      });
+      return colors;
+    },
   },
   methods: {
     async fetchLogNames() {
@@ -86,7 +107,7 @@ export default {
       API.logs.read(this.selectedLog)
         .then((response) => {
           this.logs = response.data;
-          requestAnimationFrame(() =>  this.scrollToBottom());
+          requestAnimationFrame(() => this.scrollToBottom());
         })
         .catch(console.error);
     },
@@ -103,7 +124,7 @@ export default {
     },
     scrollToBottom() {
       const logView = this.$refs.logView;
-      logView.scrollTop = logView.scrollHeight;navigation
+      logView.scrollTop = logView.scrollHeight;
     },
     logClass(log) {
       const classes = []
@@ -121,20 +142,21 @@ export default {
       }
       return classes
     },
-    ignorePattern () {
+    ignorePattern() {
       this.$projects.addLogIgnore(this.filter?.toLowerCase())
       this.filter = null
     },
     removeIgnore(ignore) {
       this.$projects.removeLogIgnore(ignore)
-    }
-  },
-  mounted() {
-    this.fetchLogNames();
-  },
-  beforeUnmount() {
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
+    },
+    formattedLog(log) {
+      const module = this.extractModule(log); // Use the new method
+      const color = this.colorMap[module] || 'white';
+      return log.replace(module, `<span style="color: ${color};">${module}</span>`);
+    },
+    extractModule(log) {
+      const moduleMatch = log?.match(/\[([\w\.\:]+)\]/);
+      return moduleMatch ? moduleMatch[1].split(":")[0] : ""
     }
   }
 };

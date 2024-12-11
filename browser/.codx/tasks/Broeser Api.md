@@ -1,3 +1,0 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Broeser Api", "created_at": "2024-12-05T08:35:47.194615", "updated_at": "2024-12-05T13:10:25.587603", "mode": "task", "board": "", "column": "TODO", "column_index": 0, "chat_index": 2, "live_url": "", "branch": ""}]]
-## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-05 07:28:39.416152", "updated_at": "2024-12-05 07:28:39.416177", "images": [], "files": []}]]
-Create a main fastapi api with the enpoint browse that will receive a payload with ai settings and a chat, check @codx-api

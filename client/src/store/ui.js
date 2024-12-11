@@ -22,13 +22,18 @@ export const state = () => ({
   appActives: [],
   appDivided: 'none',
   resolution: API.screen.display?.resolution,
-  resolutions: API.screen.display?.resolutions
-
+  resolutions: API.screen.display?.resolutions,
+  monitor: "preview",
+  monitors: {
+    "preview": "CODX-SCREEN-PREVIEW",
+    "shared": "CODX-SCREEN-SHARED"
+  }
 })
 
 export const getters = getterTree(state, {
   showApp: state => state.showBrowser || state.showCoder,
   isLandscape: state => state.orientation !== 'portrait',
+  monitorToken: state => state.monitors[state.monitor]
 })
 
 export const mutations = mutationTree(state, {
@@ -95,6 +100,9 @@ export const mutations = mutationTree(state, {
   setAppDivided(state, divided) {
     state.appDivided = divided
     $storex.ui.saveState()
+  },
+  setMonitor(state, monitor) {
+    state.monitor = monitor
   }
 })
 

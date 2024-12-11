@@ -21,13 +21,15 @@ logger = logging.getLogger(__name__)
 
 class BrowserManager:
     def __init__(self):
-        self.user_data_dir = f"{os.environ['HOME']}/chrome-data"
-        os.makedirs(self.user_data_dir, exist_ok=True)
+        self.user_data_dir_chrome = f"{os.environ['HOME']}/chrome-data"
+        os.makedirs(self.user_data_dir_chrome, exist_ok=True)
+        
+        self.user_data_dir_firefox = f"{os.environ['HOME']}/firefox-data"
+        os.makedirs(self.user_data_dir_firefox, exist_ok=True)
 
         self.check_browser_thread = threading.Thread(target=self.run_browser_check)
         self.check_browser_thread.daemon = True  # Daemon thread will exit when the program does
         self.check_browser_thread.start()
-        logger.info(f"BrowserManager starting new instance. Data dir: {self.user_data_dir}")
 
     def run_browser_check(self):
         while True:
@@ -38,15 +40,16 @@ class BrowserManager:
 
     def start_firefox_browser(self):
         options = FirefoxOptions()
-        options.add_argument("--width=1920")
-        options.add_argument("--height=1080")
+        options.add_argument('--start-fullscreen')
+        options.add_argument(f'--user-data-dir={self.user_data_dir_firefox}')
         start_firefox(options=options)
 
     def start_chrome_browser(self):
         options = ChromeOptions()
         options.add_argument('--no-sandbox')
         options.add_argument('--start-fullscreen')
-        options.add_argument(f'--user-data-dir={self.user_data_dir}')
+        options.add_argument('-P')
+        options.add_argument(f'{os.environ["USER"]}_profile')
         options.add_experimental_option('excludeSwitches', ['enable-automation'])
         start_chrome(headless=False, options=options)
 
@@ -63,7 +66,8 @@ class BrowserManager:
     def start_browser(self):
         if not self.check_browser():
             logger.info("Browser is not running or unresponsive; starting a new browser.")
-            self.start_chrome_browser()
+            # self.start_chrome_browser()
+            self.start_firefox_browser()
             go_to("https://www.google.com")
         else:
             logger.info("Browser is already running.")

@@ -32,6 +32,7 @@ ENV PYTHONPATH=${CODX_JUNIOR_HOME}/api
 
 # VNC 
 ENV DISPLAY=:1
+ENV DISPLAY_SHARED=:2
 ENV DISPLAY_WIDTH=1920
 ENV DISPLAY_HEIGHT=1080
 ENV VNC_NO_PASSWORD=1
@@ -64,7 +65,7 @@ ENV STATIC_FOLDER=${CODX_JUNIOR_HOME}/client/dist
 RUN apt-get update && \
     apt-get install -y curl wget novnc websockify supervisor nodejs npm \
         tigervnc-standalone-server locales python3 python3-venv \
-        procps git sudo tesseract-ocr lxde-core && \
+        procps git sudo tesseract-ocr lxde-core firefox-esr && \
     apt-get remove -y xscreensaver && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -89,6 +90,7 @@ RUN mkdir -p /root/.vnc && \
     chmod 600 /root/.vnc/passwd
 
 RUN touch /root/.Xauthority
+COPY websockify-token.cfg /etc/websockify-token.cfg
 
 # X init
 RUN echo "@xhost +" >> /etc/xdg/lxsession/LXDE/autostart
@@ -125,6 +127,14 @@ COPY --chown=${USER} code-server/User/settings.json ${HOME}/.local/share/code-se
 
 # Copy API venv
 COPY --from=API --chown=${USER} $API_VENV $API_VENV
+
+# Firefix profile
+RUN mkdir -p ${HOME}/.mozilla/firefox/${USER}_profile
+RUN echo "[Profile0] \
+Name=${USER}_profile \
+IsRelative=0 \
+Path=${HOME}/.mozilla/firefox/${USER}_profile \
+Default=1" > ${HOME}/.mozilla/firefox/profiles.ini
 
 USER root
 CMD ["/entrypoint.sh"]
