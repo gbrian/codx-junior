@@ -64,6 +64,9 @@ export default {
     ignorePatterns () {
       return this.$project?.log_ignore?.split(",").filter(i => i.trim().length)
         || []
+    },
+    allIgnorePatterns () {
+      return ["api/logs", "/var/log/", ...this.ignorePatterns]
     }
   },
   methods: {
@@ -113,7 +116,7 @@ export default {
             classes.push('font-bold')
           }
       }
-      if (this.ignorePatterns.find(i => loweLog.indexOf(i) !== -1)) {
+      if (this.allIgnorePatterns.find(i => loweLog.indexOf(i) !== -1)) {
         classes.push('hidden')
       }
       return classes
