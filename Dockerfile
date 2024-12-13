@@ -61,7 +61,7 @@ ENV BROWSER_PORT=9988
 # Serving client from API
 ENV STATIC_FOLDER=${CODX_JUNIOR_HOME}/client/dist
 
-# Install packages
+# Install package
 RUN apt-get update && \
     apt-get install -y curl wget novnc websockify supervisor nodejs npm \
         tigervnc-standalone-server locales python3 python3-venv \
@@ -92,8 +92,8 @@ RUN mkdir -p /root/.vnc && \
 RUN touch /root/.Xauthority
 COPY websockify-token.cfg /etc/websockify-token.cfg
 
-# X init
-RUN echo "@xhost +" >> /etc/xdg/lxsession/LXDE/autostart
+# xdg
+COPY lxde/xdg /etc/xdg
 
 # Create USER
 RUN groupadd -g ${USER_GROUP} ${USER} && \
@@ -135,6 +135,8 @@ Name=${USER}_profile \
 IsRelative=0 \
 Path=${HOME}/.mozilla/firefox/${USER}_profile \
 Default=1" > ${HOME}/.mozilla/firefox/profiles.ini
+
+RUN mkdir ${HOME}/FileSync
 
 USER root
 CMD ["/entrypoint.sh"]

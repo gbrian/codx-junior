@@ -7,7 +7,7 @@ import SharedView from '@/views/SharedView.vue'
 
 <template>
   <div class="w-full h-full flex relative bg-transparent relative" data-theme="dark">
-    <SharedView v-if="isSharedScreen && false" />
+    <SharedView v-if="isSharedScreen" />
     <HomeViewVue v-if="isMobileScreen" />
     <SplitViewVue v-if="isSplitterScreen" />
     <div class="toast toast-top toast-end">
