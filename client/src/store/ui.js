@@ -33,7 +33,8 @@ export const state = () => ({
 export const getters = getterTree(state, {
   showApp: state => state.showBrowser || state.showCoder,
   isLandscape: state => state.orientation !== 'portrait',
-  monitorToken: state => state.monitors[state.monitor]
+  monitorToken: state => state.monitors[state.monitor],
+  isSharedScreen: () => window.location.pathname === '/shared'
 })
 
 export const mutations = mutationTree(state, {

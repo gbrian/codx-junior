@@ -129,6 +129,9 @@ export default {
   computed: {
     isSettings () {
       return ['settings', 'profiles', 'global-settings'].includes(this.$ui.tabIx)
+    },
+    isSharedScreen () {
+      return this.$route.name === 'codx-junior-shared'
     }
   },
   methods: {

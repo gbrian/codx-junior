@@ -1,12 +1,15 @@
 <script setup>
-import HomeViewVue from './views/HomeView.vue'
-import SplitViewVue from './views/SplitView.vue'
+import HomeViewVue from '@/views/HomeView.vue'
+import SplitViewVue from '@/views/SplitView.vue'
+import SharedView from '@/views/SharedView.vue'
+
 </script>
 
 <template>
   <div class="w-full h-full flex relative bg-transparent relative" data-theme="dark">
-    <HomeViewVue v-if="$ui.isMobile" />
-    <SplitViewVue v-else />
+    <SharedView v-if="isSharedScreen && false" />
+    <HomeViewVue v-if="isMobileScreen" />
+    <SplitViewVue v-if="isSplitterScreen" />
     <div class="toast toast-top toast-end">
       <div :class="`alert alert-${n.type}`" v-for="n in $session.notifications" :key="n.id">
         <span>{{ n.text }}</span>
@@ -33,6 +36,15 @@ export default {
   created () {
   },
   computed: {
+    isSharedScreen () {
+      return this.$route.name === 'codx-junior-shared'
+    },
+    isMobileScreen () {
+      return !this.isSharedScreen && this.$ui.isMobile
+    },
+    isSplitterScreen () {
+      return !this.isSharedScreen && !this.$ui.isMobile
+    }
   },
   watch: {
   },
