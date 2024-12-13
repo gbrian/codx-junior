@@ -8,7 +8,7 @@ from selenium import *
 from selenium.webdriver import ChromeOptions, FirefoxOptions
 
 from codx.junior.engine import CODXJuniorSession
-from codx.junior.model import Chat
+from codx.junior.model import Chat, Message
 from codx.junior.utils import exec_command
 from langchain.schema import AIMessage, HumanMessage
 
@@ -123,7 +123,7 @@ class Browser:
                     last_command_output = f"ERROR: {ex}"
                 continue
             else:
-                chat.messages.append(AIMessage(content=f"""About {last_user_message}
+                chat.messages.append(Message(role="assistant", content=f"""About {last_user_message}
 
                 {response}
                 """))

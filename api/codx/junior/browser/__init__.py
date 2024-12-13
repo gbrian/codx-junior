@@ -66,8 +66,8 @@ class BrowserManager:
     def start_browser(self):
         if not self.check_browser():
             logger.info("Browser is not running or unresponsive; starting a new browser.")
-            # self.start_chrome_browser()
-            self.start_firefox_browser()
+            self.start_chrome_browser()
+            # self.start_firefox_browser()
             go_to("https://www.google.com")
         else:
             logger.info("Browser is already running.")

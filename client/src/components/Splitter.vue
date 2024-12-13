@@ -43,13 +43,13 @@ import NavigationBar from '../components/NavigationBar.vue'
           class=""
           v-if="$ui.showBrowser"
         >
-          <BrowserVue class="h-full w-full" />
+          <BrowserVue class="h-full w-full" :token="$ui.monitorToken"  />
         </SplitterPanel>
       </SplitterGroup>
       <div class="h-full w-full" v-else>
         <CoderVue class="h-full w-full"
           :class="$ui.appActives[0] === 'coder' ? '': 'hidden'" />
-        <BrowserVue class="h-full w-full"
+        <BrowserVue class="h-full w-full" :token="$ui.monitorToken"
           :class="$ui.appActives[0] === 'browser' ? '': 'hidden'"/>
       </div>
       </SplitterPanel>

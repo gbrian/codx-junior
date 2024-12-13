@@ -20,7 +20,7 @@ import Browser from '@/components/browser/Browser.vue'
     </div>
     <div class="grow relative">
       <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden">
-        <Browser v-if="isBrowser" />
+        <Browser v-if="isBrowser" :token="$ui.monitors['preview']" />
         <div class="flex flex-col gap-2" 
           v-for="message in messages" :key="message.id">
           <ChatEntry :class="['mb-4 rounded-md bg-base-300',
@@ -43,6 +43,16 @@ import Browser from '@/components/browser/Browser.vue'
       </div>
     </div>
     <div class="badge text-info my-2 animate-pulse" v-if="waiting">typing ...</div>
+    <div class="chat chat-end" v-if="isBrowser && lastAIMessage">
+      <div class="chat-image avatar">
+        <div class="w-10 rounded-full">
+          <img
+            src="/only_icon.png" />
+        </div>
+      </div>
+      <div class="chat-bubble">{{ lastAIMessage.content }}</div>
+    </div>
+    
     <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
       <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2">
         <div class="flex p-1 items-center text-sky-600">
@@ -256,6 +266,9 @@ export default {
     },
     isBrowser () {
       return this.chat.mode === 'browser'
+    },
+    lastAIMessage() {
+      return this.chat?.messages.reverse().find(m => !m.hide && m.role === 'assistant')
     }
   },
   watch: {
@@ -369,6 +382,7 @@ export default {
       ] })
       const response = data.messages.reverse()[0]
       this.chat.messages = [...this.chat.messages, response]
+      this.saveChat()
       this.cleanUserInputAndWaitAnswer()
     },
     getSendMessage() {

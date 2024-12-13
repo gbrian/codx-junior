@@ -5,7 +5,7 @@ ENV CODX_JUNIOR_HOME=/projects/codx-junior
 ENV API_VENV=/tmp/.venv_codx_junior_api
 
 RUN apt-get update && \
-    apt-get install -y python3 python3-venv && \
+    apt-get install -y python3 python3-venv nano && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 

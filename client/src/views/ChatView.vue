@@ -8,7 +8,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
 </script>
 <template>
   <div class="flex flex-col h-full pb-2" v-if="chat">
-    <div class="flex gap-2 items-center hidden">
+    <div class="hidden gap-2 items-center">
       <div class="dropdown">
         <div tabindex="0" role="button" class="btn btn-xs m-1"><i class="fa-solid fa-code-branch"></i></div>
         <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-68 p-2 shadow">
@@ -86,7 +86,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             </div>
             <div class="grow"></div>
             <div class="group relative bg-base-100">
-              <div class="bg-base-300 p-2 rounded hidden group-hover:flex gap-2 p-1 items-end absolute right-8 -top-1">
+              <div class="bg-base-300 lg:bg-transparent p-2 rounded hidden lg:flex group-hover:flex gap-2 p-1 items-end absolute right-8 -top-1">
                 <div class="dropdown -mt-1">
                   <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chat.mode }}</div>
                   <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
