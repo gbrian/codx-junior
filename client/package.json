@@ -30,6 +30,7 @@
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0",
     "typed-vuex": "^0.3.1",
+    "uuid": "^11.0.3",
     "uuidv4": "^6.2.13",
     "vue": "^3.4.21",
     "vue-mermaid-string": "^6.0.0",

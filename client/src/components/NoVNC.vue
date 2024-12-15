@@ -51,14 +51,10 @@ export default {
 
       this.rfb.addEventListener('clipboard', (event) => {
         this.noVNClipboard = event.detail.text
+        this.syncNoVNCToHostClipboard()
       });
 
       this.canvas.onfocus = this.syncHostClipboardToNoVNC.bind(this)
-      this.canvas.onkeyup = e => {
-        if (['c', 'x'].includes(e.key) && e.ctrlKey) {
-            this.syncNoVNCToHostClipboard()
-        }
-      }
     },
     syncHostClipboardToNoVNC () {
       navigator.clipboard.readText().then(text => {

@@ -2,6 +2,8 @@ import logging
 import pathlib
 import os
 import json
+import uuid
+
 from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
@@ -49,6 +51,8 @@ class ChatManager:
     def save_chat(self, chat: Chat):
         chat_file = self.get_chat_file(chat)
         chat.updated_at = datetime.now().isoformat()
+        if not chat.id:
+            chat.id = str(uuid.uuid4())
         if not chat.created_at:
             chat.created_at = chat.updated_at
         write_file(chat_file, self.serialize_chat(chat))

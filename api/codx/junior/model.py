@@ -42,12 +42,18 @@ class Chat(BaseModel):
     mode: str = Field(default='chat')
     board: str = Field(default='')
     column: str = Field(default='')
-    column_index: int = Field(default=-1)
     chat_index: int = Field(default=-1)
     live_url: str = Field(default='')
     branch: str = Field(default='')
-    board: str = Field(default='')
 
+class Column(BaseModel):
+    name: str = Field(default='')
+    chats: List[Chat] = Field(default=[])
+
+class Board(BaseModel):
+    name: str = Field(default='')
+    description: str = Field(default='')
+    columns: List[Column] = Field(default=[])
 
 class Logprobs(BaseModel):
     tokens: List[str]
