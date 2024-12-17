@@ -3,59 +3,16 @@ import { API } from '../api/api'
 import NavigationBar from '../components/NavigationBar.vue'
 import TabNavigationVue from '../components/TabNavigation.vue'
 import TabViewVue from '@/components/TabView.vue'
+import ProjectDropdown from '@/components/ProjectDropdown.vue'
 </script>
 
 <template>
   <div class="codx-junior relative flex min-h-full">
     <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto">
       <div class="flex gap-2 items-center relative justify-between">
-        <div class="dropdown flex flex-col h-full" v-if="$project">
-          <div tabindex="0" role="button" class="flex flex-col gap-2 text-2xl">
-            <div class="flex gap-2 items-center">
-              <div class="avatar">
-                <div class="w-6 h-6 rounded-full">
-                    <img :src="$projects.activeProject?.project_icon" />
-                </div>
-              </div>
-              <span class="mr-2">{{ $project.project_name }}</span>
-              <i class="fa-solid fa-caret-down"></i>
-            </div>
-          </div>
-          <div class="text-xs flex gap-2 items-center">
-            <div class="text-xs flex gap-1 items-center">
-              <i class="fa-solid fa-folder"></i>
-              {{ $project.project_path }}
-            </div>
-            <span v-if="$projects.childProjects?.length"><i class="fa-solid fa-folder-tree"></i></span>
-            <div class="badge badge-xs badge-secondary click hover:underline"
-                v-for="child in $projects.childProjects" :key="child.project_name"
-                @click.stop="$projects.setActiveProject(child)"
-            >
-              {{ child.project_name }}
-            </div>
-            <span v-if="$projects.projectDependencies?.length">
-              <i class="fa-solid fa-link"></i>
-            </span>
-            <div class="badge badge-xs badge-primary click hover:underline"
-                v-for="child in $projects.projectDependencies" :key="child.project_name"
-                @click.stop="$projects.setActiveProject(child)"
-            >
-              {{ child.project_name }}
-            </div>
-          </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-            <li v-for="project in $projects.allProjects" :key="project.codx_path" @click.stop="$projects.setActiveProject(project)">
-              <a class="flex gap-2">
-                <div class="avatar">
-                  <div class="w-6 h-6 rounded-full">
-                    <img :src="project.project_icon" alt="Project Icon" />
-                  </div>
-                </div>
-                {{ project.project_name }}
-              </a>
-            </li>
-          </ul>
-        </div>
+        
+        <ProjectDropdown />
+        
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>

@@ -73,6 +73,7 @@ export const actions = actionTree(
     },
     async newChat({ state }, chat) {
       state.activeChat = chat
+      return chat
     },
     async deleteChat(_, {  board, name }) {
       await API.chats.delete(board, name)

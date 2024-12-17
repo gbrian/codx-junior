@@ -33,6 +33,7 @@ services:
     cap_add:
       - SYS_ADMIN
       - NET_ADMIN
+    shm_size: 2gb
     depends_on:
       - codx-junior-build
     environment:

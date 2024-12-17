@@ -1,16 +1,20 @@
 <script setup>
 import draggable from "vuedraggable"
 import TaskCard from "./TaskCard.vue"
-import { API } from '../../api/api'
 import ChatViewVue from '../../views/ChatView.vue'
+import { v4 as uuidv4 } from 'uuid'
 </script>
 <template>
   <div class="flex flex-col gap-2 h-full">
-    <ChatViewVue v-if="chat" @chats="onChatEditDone" ></ChatViewVue>
+    <ChatViewVue v-if="chat" 
+      @chats="onChatEditDone"
+      @sub-task="createSubTask"
+      @chat="$projects.setActiveChat($event)"
+    ></ChatViewVue>
     <div class="flex flex-col gap-2 grow overflow-auto pb-2" v-else>
       <div class="md:text-2xl flex gap-4 items-center justify-between">
         <div class="dropdown">
-          <button tabindex="0" class="btn m-1 dropdown-toggle" @click="toggleDropdown">
+          <button tabindex="0" class="btn mt-1 dropdown-toggle" @click="toggleDropdown">
             {{ board || 'Kanban' }} <i class="fa-solid fa-sort-down"></i>
           </button>
           <ul v-if="isDropdownOpen" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -22,7 +26,7 @@ import ChatViewVue from '../../views/ChatView.vue'
           </ul>
         </div>
         <div class="flex gap-2">
-          <label class="grow input input-sm input-bordered flex items-center gap-2">
+          <label class="hidden grow input input-sm input-bordered flex items-center gap-2">
             <input type="text" v-model="filter" class="grow" placeholder="Search" />
             <span class="click" v-if="filter" @click.stop="filter = null">
               <i class="fa-regular fa-circle-xmark"></i>
@@ -31,7 +35,7 @@ import ChatViewVue from '../../views/ChatView.vue'
           </label>
           <button class="btn btn-sm" @click="addColumn">
             <i class="fa-solid fa-plus"></i>
-            <span class="hidden md:block">Column</span>
+            <span class="text-xs md:text-md">Column</span>
           </button>
         </div>
       </div>  
@@ -46,43 +50,27 @@ import ChatViewVue from '../../views/ChatView.vue'
         </div>
       </modal>
       <div class="flex grow w-full overflow-x-scroll relative">
-        <draggable 
-            v-model="columns"
-            group="columns" 
-            @change="onColumnsChanged()" 
-            item-key="title"
-            class="flex overflow-auto absolute top-0 left-0 right-0 bottom-0"
-          >
-          <template #item="{element}">
-            <div class="bg-neutral rounded-lg px-3 py-3 column-width rounded mr-8 overflow-auto">
-              <p class="text-neutral-content font-semibold font-sans tracking-wide text-sm flex justify-between items-center">
-                <div class="flex input input-bordered input-sm" v-if="element.editTitle">
-                  <input type="text" v-model="element.newTitle"
-                    @keydown.esc="element.editTitle = false"
-                    @keydown.enter="onColumnTitleChanged(element)"
-                  >
-                </div>
-                <div class="click" @click="onEditColumnTitle(element)" v-else>{{element.title}}</div>
-                <button class="btn btn-sm" @click="newChat(element.title)">
-                  <i class="fa-solid fa-plus"></i>
-                </button>
-              </p>
-              <draggable 
-                v-model="element.tasks" 
-                group="tasks" 
-                @change="onColumnTaskListChanged(element)" 
-                item-key="title">
-                <template #item="{element}">
-                  <task-card
-                    :task="element"
-                    class="mt-3 cursor-move overflow-hidden"
-                    @click="openChat(element)"
-                  ></task-card>
-                </template>
-              </draggable>
+        <div class="bg-neutral rounded-lg px-3 py-3 column-width rounded mr-8 overflow-auto"
+          v-for="column in columns" :key="column.name">
+          <div class="text-neutral-content font-semibold font-sans tracking-wide text-sm flex justify-between items-center">
+            <div class="flex input input-bordered input-sm" v-if="column.editTitle">
+              <input type="text" v-model="column.newTitle"
+                @keydown.esc="column.editTitle = false"
+                @keydown.enter="onColumnTitleChanged(column)"
+              >
             </div>
-          </template>
-        </draggable>
+            <div class="click" @click="onEditColumnTitle(column)" v-else>{{column.title}}</div>
+            <button class="btn btn-sm" @click="newChat(column.title)">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+          </div>
+            <task-card
+              v-for="task in column.tasks" :key="task.name"
+              :task="task"
+              class="mt-3 cursor-move overflow-hidden"
+              @click="openChat(task)"
+            ></task-card>
+        </div>
       </div>
     </div>
   </div>
@@ -149,7 +137,7 @@ export default {
     },
     createNewChat (column) {
       return {
-        id: 0,
+        id: uuidv4(),
         name: "New chat " + this.chats.length + 1,
         mode: 'task',
         board: this.board,
@@ -216,6 +204,16 @@ export default {
     onChatEditDone () {
       this.$projects.setActiveChat()
       this.buildKanba()
+    },
+    async createSubTask(parent) {
+      const chat = this.createNewChat(parent.column)
+      if (!parent.id) {
+        parent.id = uuidv4() // Legacy...
+      }
+      chat.parent_id = parent.id
+      chat.column = parent.column
+      chat.column_ix = parent.column_ix
+      this.$projects.newChat(chat)
     },
     addColumn () {
       this.columns = [

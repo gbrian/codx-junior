@@ -2,6 +2,7 @@
 import { API } from '../../api/api'
 import ChatEntry from '@/components/ChatEntry.vue'
 import Browser from '@/components/browser/Browser.vue'
+import Markdown from '@/components/Markdown.vue'
 </script>
 <template>
   <div class="flex flex-col gap-1 grow">
@@ -43,14 +44,21 @@ import Browser from '@/components/browser/Browser.vue'
       </div>
     </div>
     <div class="badge text-info my-2 animate-pulse" v-if="waiting">typing ...</div>
-    <div class="chat chat-end" v-if="isBrowser && lastAIMessage">
+    <div class="chat chat-end" v-if="isBrowser">
       <div class="chat-image avatar">
         <div class="w-10 rounded-full">
           <img
             src="/only_icon.png" />
         </div>
       </div>
-      <div class="chat-bubble">{{ lastAIMessage.content }}</div>
+      <div class="chat-bubble">
+        <Markdown class="max-h-40 overflow-auto" :text="lastAIMessage.content" v-if="lastAIMessage" />
+        <div v-else>
+          <span class="font-bold">Let's navigate together:</span>
+          Use browser to navigate any web or try:
+          <span class="italic text-info">Find top 5 results for ....</span>
+        </div>
+      </div>
     </div>
     
     <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
@@ -121,7 +129,10 @@ import Browser from '@/components/browser/Browser.vue'
           <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-junior" @click="sendMessage" v-if="!editMessage && !isBrowser">
             <i class="fa-solid fa-comment"></i>
           </button>
-          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-browser" @click="navigate" v-if="!editMessage">
+          <button class="btn btn btn-sm btn-circle btn-outline tooltip"
+            :class="isBrowser && 'btn-warning'"
+            data-tip="Ask codx-browser" @click="navigate"
+            v-if="!editMessage">
             <i class="fa-brands fa-chrome"></i>
           </button>
           <button class="btn btn btn-sm btn-outline tooltip" 
@@ -232,7 +243,8 @@ export default {
       },
       selectFile: false,
       isVoiceSession: false,
-      recognition: null
+      recognition: null,
+      isBrowser: false
     }
   },
   created () {
@@ -264,11 +276,19 @@ export default {
     isTask () {
       return this.chat.mode === 'task'
     },
-    isBrowser () {
-      return this.chat.mode === 'browser'
-    },
     lastAIMessage() {
-      return this.chat?.messages.reverse().find(m => !m.hide && m.role === 'assistant')
+      if (this.chat) {
+        const { messages } = this.chat
+        for(var c = messages.length - 1; c >= 0; --c) {
+          const m = messages[c]
+          if (!m.hide 
+                && m.role === 'assistant'
+                && m.task_item === 'browser') {
+            return m
+          }
+        }
+      }
+      return null
     }
   },
   watch: {
@@ -375,13 +395,20 @@ export default {
       this.saveChat()
     },
     async navigate () {
+      if (!this.editorText) {
+        if (this.isBrowser = !this.isBrowser) {
+          if (this.lastAIMessage) {
+            this.lastAIMessage.hide
+          }
+        }
+        return
+      }
       const message = this.getUserMessage()
       const { data } = await this.sendChatMessage({ mode: 'browser', messages: [
         ...this.chat.messages,
         message
       ] })
-      const response = data.messages.reverse()[0]
-      this.chat.messages = [...this.chat.messages, response]
+      this.chat.messages = data.messages
       this.saveChat()
       this.cleanUserInputAndWaitAnswer()
     },

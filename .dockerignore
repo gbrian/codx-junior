@@ -4,6 +4,6 @@ node_modules
 __pycache__
 *egg-*
 client/.vite
-global_settings.json
+**/global_settings.json
 **/.codx/db
 filebrowser.db

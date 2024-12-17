@@ -46,6 +46,11 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                 @keydown.esc="editName = false"
                 v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else> 
+                <div class="mt-1 text-xs hover:underline click font-bold text-primary"
+                  @click="$emit('chat', parentChat)"
+                  v-if="parentChat">
+                  {{ parentChat.name }}
+                </div>
                 <div class="click" @click="editName = true">
                   <ChatIconVue :chat="chat" />
                   {{ chat.name }}
@@ -100,12 +105,6 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                       <a class="flex items-center">
                         <i class="fa-regular fa-file-code"></i>
                         Task definition
-                      </a>
-                    </li>
-                    <li @click="chat.mode = 'browser'">
-                      <a class="flex items-center">
-                        <i class="fa-brands fa-chrome"></i>
-                        Browse the web
                       </a>
                     </li>
                   </ul>
@@ -224,6 +223,10 @@ export default {
     },
     chat () {
       return this.$projects.activeChat
+    },
+    parentChat () {
+      const parentId = this.$projects.activeChat.parent_id
+      return parentId ? this.chats.find(c => c.id && c.id === parentId) : null
     }
   },
   watch: {
@@ -297,11 +300,7 @@ export default {
       this.$emit('chats')
     },
     async newSubChat () {
-      const parent = this.chat
-      await this.newChat()
-      this.chat.parent_id = parent.parent_id
-      this.chat.column = parent.column
-      this.chat.column_ix = parent.column_ix
+      this.$emit('sub-task', this.chat)
     },
     addNewTag () {
       this.chat.tags = [...new Set([...this.chat.tags||[], this.newTag])]

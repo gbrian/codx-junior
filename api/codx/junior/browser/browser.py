@@ -15,6 +15,8 @@ from langchain.schema import AIMessage, HumanMessage
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
 
+from codx.junior.browser import browser_manager
+
 logger = logging.getLogger(__name__)
 
 # Global instructions
@@ -22,30 +24,14 @@ def navigate(url):
     go_to(url)
 
 def execute_script(script):
-    return get_driver().execute_script(script)
+    return browser_manager.get_driver().execute_script(script)
         
 class Browser:
     def __init__(self, session: CODXJuniorSession):
         self.session = session
 
-    def new_session(self):
-        logger.info(f"Start new browser request")
-        old_driver = get_driver()
-        if old_driver:
-            driver.session_id = old_driver.session_id
-        logger.info(f"[Browser] Create new driver {driver} - old driver: {old_driver}")
-        return driver
-
     def get_session(self):
-        driver = None
-        try:
-            driver = get_driver()
-            if driver and driver.current_url:
-                return driver
-        except Exception as ex:
-            logger.exception(f"driver not working! creating new session")
-            driver = None
-        return driver or self.new_session()
+        return browser_manager.get_driver()
 
     def clean_html(self, html_doc):
         soup = BeautifulSoup(html_doc, 'html.parser')
@@ -97,22 +83,35 @@ class Browser:
         messages = [m for m in chat.messages if not m.hide]
         prompt = None
         while True:
+            last_output = ""
+            if last_command_output:
+                last_output = f"### Last command output:\n{last_command_output}"
+
             maxIterations -= 1
             
             browser_request =  f"Last User Request: {last_user_message}" if maxIterations \
                 else "Ops, seems like we have ran out of attempts to make this work :( Should we ask user for help?" 
                 
-            prompt = f"""
-            Profile: {profile}
-            Current Page HTML: {self.get_current_page()}
+            prompt = f"""{profile}
+            ## Current Page HTML
+            {self.get_current_page()}
+            
+            {last_output}
+            
+            ## User request 
             {browser_request}
-            Last command output: {last_command_output}
             """
             
             logger.info(f"[Browser] agent prompt: {prompt}")
+            browser_request_message = Message(role="assistant",
+                                            task_item="browser",
+                                            content=prompt)
+
+            chat.messages.append(browser_request_message)
             # Call AI for navigation instructions
             self.session.chat_with_project(chat_mode="chat", chat=chat, use_knowledge=False)
-            
+            browser_request_message.hide = True
+
             response = chat.messages[-1].content
             logger.info(f"[Browser] agent response: {response}")
             pyscript = self.parse_response_script(response)
@@ -121,12 +120,16 @@ class Browser:
                     last_command_output = str(eval(pyscript))
                 except Exception as ex:
                     last_command_output = f"ERROR: {ex}"
+                chat.messages.append(
+                    Message(role="assistant",
+                            task_item="browser",
+                            hide=True,
+                            content=f"Browser automation: \n```\n{pyscript}\n```\n\nresult: {last_command_output}"
+                    ))    
                 continue
             else:
-                chat.messages.append(Message(role="assistant", content=f"""About {last_user_message}
-
-                {response}
-                """))
+                chat.messages.append(
+                    Message(role="assistant", task_item="browser", content=response))
                 break            
 
 

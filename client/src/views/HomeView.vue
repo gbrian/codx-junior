@@ -1,10 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
 import NavigationBarVue from '../components/NavigationBar.vue';
 import LogoVue from '../components/Logo.vue';
 import TabNavigationVue from '../components/TabNavigation.vue';
 import TabViewVue from '../components/TabView.vue';
-
+import ProjectDropdown from '@/components/ProjectDropdown.vue';
 </script>
 <template>
   <div class="drawer drawer-end">
@@ -14,10 +13,7 @@ import TabViewVue from '../components/TabView.vue';
     </div>
     <div ref="contentRef" class="drawer-content p-2 flex flex-col gap-2 overflow-auto bg-base-100">
       <div class="flex justify-between">
-        <div class="flex flex-col">
-          <div class="font-bold">{{ $project?.project_name }}</div>
-          <div class="text-xs">{{ $project?.project_path }}</div>
-        </div>
+        <ProjectDropdown class="flex flex-col" />
         <label for="my-drawer-4" class="drawer-button btn btn-sm">
           <LogoVue />
         </label>
