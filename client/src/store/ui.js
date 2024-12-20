@@ -27,7 +27,8 @@ export const state = () => ({
   monitors: {
     "preview": "CODX-SCREEN-PREVIEW",
     "shared": "CODX-SCREEN-SHARED"
-  }
+  },
+  colorsMap: {}
 })
 
 export const getters = getterTree(state, {
@@ -104,6 +105,11 @@ export const mutations = mutationTree(state, {
   },
   setMonitor(state, monitor) {
     state.monitor = monitor
+    $storex.ui.saveState()
+  },
+  setColorsMap(state, colorsMap) {
+    state.colorsMap = colorsMap
+    $storex.ui.saveState()
   }
 })
 

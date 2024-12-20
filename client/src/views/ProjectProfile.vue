@@ -72,7 +72,7 @@ import moment from 'moment';
               <th class="px-4 py-2">Name</th>
               <th class="px-4 py-2" v-if="!$ui.mobile">Path</th>
               <th class="px-4 py-2 text-center">
-                <div class="tooltip tooltip-bottom" data-tip="Tasks">
+                <div class="tooltip tooltip-bottom" data-tip="Wiki">
                   <i class="fa-solid fa-list-check"></i>
                 </div>
               </th>
@@ -105,7 +105,11 @@ import moment from 'moment';
                   {{ project.project_path.split("/").reverse().slice(0, 3).reverse().join(" / ") }}
                 </div>
               </td>
-              <td class="px-4 py-2 text-center">{{ project._metrics?.number_of_chats }}</td>
+              <td class="px-4 py-2 text-center">
+                <span v-if="!!project.project_wiki">
+                  <i class="fa-solid fa-check"></i>
+                </span>
+              </td>
               <td class="px-4 py-2 text-center">{{ project._metrics?.files?.length }}</td>
               <td class="px-4 py-2 text-center hidden md:block">{{ lastRefresh(project._metrics?.last_update) }}</td>
               <td class="px-4 py-2 text-center">
