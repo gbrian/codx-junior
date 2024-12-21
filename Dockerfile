@@ -60,6 +60,7 @@ ENV FILEBROWSER_PORT=9987
 ENV BROWSER_PORT=9988
 # Serving client from API
 ENV STATIC_FOLDER=${CODX_JUNIOR_HOME}/client/dist
+ENV CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-supervisor
 
 # Install package
 RUN apt-get update && \
