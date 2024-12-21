@@ -863,6 +863,7 @@ class CODXJuniorSession:
           return f"{wiki_file} not found"
 
     def update_wiki(self, file_path: str):
+        return
         project_wiki_path = self.settings.get_project_wiki_path()
         if not self.settings.project_wiki or file_path.startswith(project_wiki_path):
             return

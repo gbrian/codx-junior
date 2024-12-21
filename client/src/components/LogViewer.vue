@@ -75,6 +75,8 @@ export default {
     allIgnorePatterns() {
       return ["api/logs", "/var/log/", ...this.ignorePatterns];
     },
+  },
+  methods: {
     colorMap() {
       const modules = new Set();
       this.logs?.split('\n').forEach(log => {
@@ -83,14 +85,16 @@ export default {
           modules.add(moduleMatch);
         }
       });
-      const colors = {};
-      modules.forEach(module => {
-        colors[module] = `#${Math.floor(Math.random()*16777215).toString(16)}`; // Random color
-      });
-      return colors;
+      const colors = this.$ui.colorsMap;
+      const newModules = [...modules].filter(m => !colors[m])
+      if (newModules) {
+        newModules.forEach(module => {
+          colors[module] = `#${Math.floor(Math.random()*16777215).toString(16)}`; // Random color
+        });
+        this.$ui.setColorsMap(colors)
+      }
+      return this.$ui.colorsMap;
     },
-  },
-  methods: {
     async fetchLogNames() {
       try {
         const response = await API.logs.list();
@@ -150,8 +154,9 @@ export default {
       this.$projects.removeLogIgnore(ignore)
     },
     formattedLog(log) {
+      const colorsMap = this.colorMap()
       const module = this.extractModule(log); // Use the new method
-      const color = this.colorMap[module] || 'white';
+      const color = colorsMap[module] || 'white';
       return log.replace(module, `<span style="color: ${color};">${module}</span>`);
     },
     extractModule(log) {
