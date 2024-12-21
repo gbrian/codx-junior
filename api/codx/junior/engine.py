@@ -102,14 +102,14 @@ def find_all_projects():
     all_codx_path = result.stdout.decode('utf-8').split("\n")
     paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
     #logger.info(f"[find_all_projects] paths: {paths}")
-    for project_path in paths:
+    for codx_path in paths:
         try:
-            settings = CODXJuniorSettings.from_project(str(project_path))
-            if settings.codx_path not in all_projects \
-                    and project_path == settings.codx_path:
-                all_projects.append(settings)
+            project_file_path = f"{codx_path}/project.json"
+            settings = CODXJuniorSettings.from_project_file(project_file_path)
+            all_projects.append(settings)
         except Exception as ex:
-            logger.exception(f"Error loading project {str(project_path)}")
+            logger.exception(f"Error loading project {str(codx_path)}")
+    
     def update_projects_with_details():
         for project in all_projects:
             try:
@@ -163,7 +163,7 @@ class CODXJuniorSession:
         app=None,
         channel: SessionChannel = SessionChannel()):
         self.app = app
-        self.settings = settings or CODXJuniorSettings.from_project(codx_path)
+        self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
         self.channel = channel
 
     def delete_project(self):

@@ -323,9 +323,8 @@ def api_project_watch(request: Request):
 @app.post("/api/projects")
 def api_project_create(request: Request):
     project_path = request.query_params.get("project_path")
-    settings = None
     try:
-        settings = CODXJuniorSettings.from_project(project_path)
+        return CODXJuniorSettings.from_project_file(f"${project_path}/.codx/project.json")
     except:
         return create_project(project_path=project_path)
 
