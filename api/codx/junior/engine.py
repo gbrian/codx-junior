@@ -638,7 +638,22 @@ class CODXJuniorSession:
         chat_manager = ChatManager(settings=self.settings)
         ai = AI(settings=self.settings)
         mentions = None
+        
         def read_file():
+            def prepare_ipynb_for_llm():
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    notebook_data = json.loads(file.read())
+                
+                    # Remove outputs from each cell
+                    for cell in notebook_data.get('cells', []):
+                        if 'outputs' in cell:
+                            del cell['outputs']
+                
+                    return json.dumps(notebook_data)
+
+            if  file_path.endswith(".ipynb"):
+                return prepare_ipynb_for_llm()
+        
             with open(file_path, 'r') as f:
                 return f.read()
 
@@ -647,6 +662,7 @@ class CODXJuniorSession:
 
         if not content:
             content = read_file()
+            
         mentions = extract_mentions(content)
         
         if not mentions:
