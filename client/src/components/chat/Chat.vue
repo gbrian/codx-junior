@@ -24,7 +24,7 @@ import Markdown from '@/components/Markdown.vue'
         <Browser v-if="isBrowser" :token="$ui.monitors['preview']" />
         <div class="flex flex-col gap-2" 
           v-for="message in messages" :key="message.id">
-          <ChatEntry :class="['mb-4 rounded-md bg-base-300',
+          <ChatEntry :class="['mb-4 rounded-md',
             editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
             message.hide ? 'opacity-60' : '']"
             :chat="chat"

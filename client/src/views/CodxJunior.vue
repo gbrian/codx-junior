@@ -8,16 +8,16 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
 
 <template>
   <div class="codx-junior relative flex min-h-full">
-    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 md:px-4 pt-2 overflow-auto">
+    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 pt-2 overflow-auto">
       <div class="flex gap-2 items-center relative justify-between">
         
-        <ProjectDropdown />
+        <ProjectDropdown v-if="!compactView" />
         
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
-      <TabNavigationVue />
+      <TabNavigationVue v-if="!compactView" />
       <TabViewVue :key="$project?.codx_path || 'no-project'" />
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
@@ -74,6 +74,9 @@ export default {
     },
     projectName () {
       return this.lastSettings?.project_name
+    },
+    compactView () {
+      return !!this.$storex.projects.activeChat
     }
   },
   methods: {

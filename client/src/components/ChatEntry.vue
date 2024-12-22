@@ -4,11 +4,11 @@ import Markdown from './Markdown.vue'
 import moment from 'moment'
 </script>
 <template>
-  <div :class="['relative w-full relative p-2 hover:rounded-md',
+  <div :class="['relative w-full relative hover:rounded-md',
       message.role === 'user' ? 'chat-start': 'chat-end',
     ]" >
     <div class="text-xs font-bold">{{ moment(message.updated_at).format('DD/MMM HH:mm') }}</div>
-    <div :class="['px-2 max-w-full group w-full -mx-2 prose-xs',
+    <div :class="['max-w-full group w-full prose-xs',
       message.improvement ? 'border-green-300/20 bg-green-900' : 'border-slate-300/20',
       message.role === 'user' ? '': '',
       message.collapse ? 'max-h-40 overflow-hidden': 'h-fit',
