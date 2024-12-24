@@ -42,7 +42,7 @@
     </div>
     <div class="grow overflow-auto" ref="logView">
       <code>
-        <pre class="w-96" v-html="formattedLog(log)" :class="logClass(log)" v-for="(log, ix) in logs?.split('\n')" :key="ix"></pre>
+        <pre class="w-96" v-html="log" :class="logClass(log)" v-for="(log, ix) in formattedLogs" :key="ix"></pre>
       </code>
     </div>
   </div>
@@ -54,6 +54,7 @@ export default {
     return {
       selectedLog: '',
       logs: '',
+      formattedLogs: null,
       autoRefresh: false,
       refreshInterval: null,
       logNames: [],
@@ -110,7 +111,8 @@ export default {
     fetchLogs() {
       API.logs.read(this.selectedLog)
         .then((response) => {
-          this.logs = response.data;
+          this.logs = response.data
+          this.formattedLogs = this.logs?.split('\n').map(log => this.formattedLog(log));
           requestAnimationFrame(() => this.scrollToBottom());
         })
         .catch(console.error);
