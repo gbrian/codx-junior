@@ -7,9 +7,10 @@
           <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
         </select>
         <label class="input input-xs input-bordered flex items-center gap-2">
-          <input type="text" class="grow" placeholder="Search" v-model="filter" />
-          <span class="click" @click="filter = null" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
-          <span v-else>
+          <input type="text" class="grow" placeholder="Search" v-model="filter" @keydown.enter="applyFilter" />
+          <span v-if="filterMatchCount">{{ filterMatchCount }}</span>
+          <span class="click" @click="clearFilter" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
+          <span @click="applyFilter" v-else>
             <i class="fa-solid fa-magnifying-glass"></i>
           </span>
           <span class="click" @click="ignorePattern">
@@ -42,7 +43,7 @@
     </div>
     <div class="grow overflow-auto" ref="logView">
       <code>
-        <pre class="w-96" v-html="log" :class="logClass(log)" v-for="(log, ix) in formattedLogs" :key="ix"></pre>
+        <pre class="w-96" v-html="flog.log" :class="flog.styleClasses" v-for="(flog, ix) in formatedLogs" :key="ix"></pre>
       </code>
     </div>
   </div>
@@ -54,85 +55,87 @@ export default {
     return {
       selectedLog: '',
       logs: '',
-      formattedLogs: null,
+      formatedLogs: null,
       autoRefresh: false,
       refreshInterval: null,
       logNames: [],
       filter: null,
-    };
+      filterMatchCount: 0
+    }
   },
   mounted() {
-    this.fetchLogNames();
+    this.fetchLogNames()
   },
   beforeUnmount() {
     if (this.refreshInterval) {
-      clearInterval(this.refreshInterval);
+      clearInterval(this.refreshInterval)
     }
   },
   computed: {
     ignorePatterns() {
-      return this.$project?.log_ignore?.split(",").filter(i => i.trim().length) || [];
+      return this.$project?.log_ignore?.split(",").filter(i => i.trim().length) || []
     },
     allIgnorePatterns() {
-      return ["api/logs", "/var/log/", ...this.ignorePatterns];
-    },
+      return ["api/logs", "/var/log/", ...this.ignorePatterns]
+    }
   },
   methods: {
     colorMap() {
-      const modules = new Set();
+      const modules = new Set()
       this.logs?.split('\n').forEach(log => {
-        const moduleMatch = this.extractModule(log);
+        const moduleMatch = this.extractModule(log)
         if (moduleMatch) {
-          modules.add(moduleMatch);
+          modules.add(moduleMatch)
         }
-      });
-      const colors = this.$ui.colorsMap;
+      })
+      const colors = this.$ui.colorsMap
       const newModules = [...modules].filter(m => !colors[m])
       if (newModules) {
         newModules.forEach(module => {
-          colors[module] = `#${Math.floor(Math.random()*16777215).toString(16)}`; // Random color
-        });
+          colors[module] = `#${Math.floor(Math.random()*16777215).toString(16)}` // Random color
+        })
         this.$ui.setColorsMap(colors)
       }
-      return this.$ui.colorsMap;
+      return this.$ui.colorsMap
     },
     async fetchLogNames() {
       try {
-        const response = await API.logs.list();
-        this.logNames = response.data;
+        const response = await API.logs.list()
+        this.logNames = response.data
         if (this.logNames.length) {
-          this.selectedLog = this.logNames[0];
-          this.fetchLogs();
+          this.selectedLog = this.logNames[0]
+          this.fetchLogs()
         }
       } catch (error) {
-        console.error('Error fetching log names:', error);
+        console.error('Error fetching log names:', error)
       }
     },
     fetchLogs() {
       API.logs.read(this.selectedLog)
         .then((response) => {
           this.logs = response.data
-          this.formattedLogs = this.logs?.split('\n').map(log => this.formattedLog(log));
-          requestAnimationFrame(() => this.scrollToBottom());
+          this.formatedLogs = this.logs?.split('\n').map(log => ({ log: this.formattedLog(log) }))
+          this.applyFilter()
+          requestAnimationFrame(() => this.scrollToBottom())
         })
-        .catch(console.error);
+        .catch(console.error)
     },
     onLogChange() {
-      this.logs = '';  // Clear log output
-      this.fetchLogs();
+      this.logs = ''  // Clear log output
+      this.fetchLogs()
     },
     toggleAutoRefresh() {
       if (this.autoRefresh) {
-        this.refreshInterval = setInterval(this.fetchLogs, 2000);
+        this.refreshInterval = setInterval(this.fetchLogs, 2000)
       } else {
-        clearInterval(this.refreshInterval);
+        clearInterval(this.refreshInterval)
       }
     },
     scrollToBottom() {
-      const logView = this.$refs.logView;
-      logView.scrollTop = logView.scrollHeight;
+      const logView = this.$refs.logView
+      logView.scrollTop = logView.scrollHeight
     },
-    logClass(log) {
+    logClasses(log) {
       const classes = []
       const loweLog = log.toLowerCase() 
       const filter = this.filter?.toLowerCase()
@@ -141,6 +144,7 @@ export default {
             classes.push('opacity-30')
           } else {
             classes.push('font-bold')
+            classes.push('match')
           }
       }
       if (this.allIgnorePatterns.find(i => loweLog.indexOf(i) !== -1)) {
@@ -157,14 +161,22 @@ export default {
     },
     formattedLog(log) {
       const colorsMap = this.colorMap()
-      const module = this.extractModule(log); // Use the new method
-      const color = colorsMap[module] || 'white';
-      return log.replace(module, `<span style="color: ${color};">${module}</span>`);
+      const module = this.extractModule(log) // Use the new method
+      const color = colorsMap[module] || 'white'
+      return log.replace(module, `<span style="color: ${color}">${module}</span>`)
     },
     extractModule(log) {
-      const moduleMatch = log?.match(/\[([\w\.\:]+)\]/);
+      const moduleMatch = log?.match(/\[([\w\.\:]+)\]/)
       return moduleMatch ? moduleMatch[1].split(":")[0] : ""
+    },
+    applyFilter() {
+      this.formatedLogs?.forEach(flog => flog.styleClasses = this.logClasses(flog.log))
+      this.filterMatchCount = this.formatedLogs?.filter(({ styleClasses }) => styleClasses.includes('match')).length
+    },
+    clearFilter() {
+      this.filter = null
+      this.applyFilter()
     }
   }
-};
+}
 </script>
