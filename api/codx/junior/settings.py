@@ -80,6 +80,9 @@ class CODXJuniorSettings:
             for key in kwrgs.keys():
                 self.__dict__[key] = kwrgs.get(key)
 
+    def __str__(self):
+        return json.dumps(self.__dict__)
+
     def get_ai_api_key(self):
         if self.ai_provider == "openai":
             return GLOBAL_SETTINGS.openai.openai_api_key
@@ -120,6 +123,9 @@ class CODXJuniorSettings:
         with open(project_file_path, "r") as f:
             settings = json.loads(f.read())
             settings = CODXJuniorSettings(**{**base.__dict__, **settings})
+            # Avoid override
+            settings.codx_path = base.codx_path
+            settings.project_path = base.project_path
             return settings
 
     @classmethod
