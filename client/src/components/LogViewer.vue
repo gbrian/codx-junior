@@ -163,7 +163,12 @@ export default {
       const colorsMap = this.colorMap()
       const module = this.extractModule(log) // Use the new method
       const color = colorsMap[module] || 'white'
-      return log.replace(module, `<span style="color: ${color}">${module}</span>`)
+      return log.replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/'/g, "&#39;")
+              .replace(/"/g, "&quot;")
+              .replace(module, `<span style="color: ${color}">${module}</span>`)
     },
     extractModule(log) {
       const moduleMatch = log?.match(/\[([\w\.\:]+)\]/)
