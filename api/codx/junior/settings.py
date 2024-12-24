@@ -165,10 +165,8 @@ class CODXJuniorSettings:
             sub_projects = [
                 CODXJuniorSettings.from_project_file(str(project_file_path))
                 for project_file_path in all_project_files
-                if project_file_path != f"{self.codx_path}/project.json"
             ]
-            # logger.info(f"get_sub_projects for {self.project_name}: {[p.project_name for p in sub_projects]}")
-            return sub_projects
+            return [sp for sb in sub_projects if sb.codx_path != self.codx_path]
         except Exception as ex:
             logger.debug(f"Error get_sub_projects {ex}")
 
