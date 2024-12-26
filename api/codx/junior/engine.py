@@ -67,27 +67,25 @@ logger = logging.getLogger(__name__)
 def create_project(project_path: str):
     logger.info(f"Create new project {project_path}")
     open_readme = False
+    projects_root_path = f"{os.environ['HOME']}/projects"
+    os.makedirs(projects_root_path, exist_ok=True)
+        
     if project_path.startswith("http"):
         global_settings = read_global_settings()
-        os.makedirs(global_settings.projects_root_path, exist_ok=True)
         url = project_path
         repo_name = url.split("/")[-1].split(".")[0]
-        project_path = f"{global_settings.projects_root_path}/{repo_name}"
+        project_path = f"{projects_root_path}/{repo_name}"
         command = f"git clone --depth=1 {url} {project_path}"
         logger.info(f"Cloning repo {url} {repo_name} {project_path}")
         exec_command(command=command)
         open_readme = True
-
-    os.makedirs(project_path, exist_ok=True)
     
     settings = CODXJuniorSettings()
-    settings.project_path = project_path
-    settings.project_name = settings.project_path.split("/")[-1]
-    settings.codx_path = f"{settings.project_path}/.codx"
+    settings.project_name = project_path.split("/")[-1]
+    settings.codx_path = f"{project_path}/.codx"
     settings.save_project()
-    find_all_projects()
-    coder_open_file(settings=settings, file_name=f"{settings.project_path}/README.md")
-    return settings
+    exec_command("git init", cwd=project_path)
+    return CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
 
 def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     if not file_name.startswith(settings.project_path):

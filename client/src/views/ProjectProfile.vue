@@ -132,9 +132,10 @@ import moment from 'moment';
         <div class="text-xl">
           Create new project
         </div>
-        <p class="text-sm">Copy the repository git url to create a new project</p>
-        <div class="input input-bordered flex gap-1 items-center">
-          <input type="text" class="grow" v-model="newProjectPath" placeholder="https://github.com/gbrian/codx-junior">
+        <p class="text-sm">Paste a git repository url to create a new project</p>
+        <div class="group input input-bordered flex gap-1 items-center">
+          <i class="fa-solid fa-i-cursor group-hover:animate-pulse"></i>
+          <input type="text" class="grow" v-model="newProjectPath">
           <button class="btn btn-sm" @click="createNewProject">
             Create new
           </button>
@@ -176,11 +177,8 @@ export default {
       this.$projects.setActiveProject(project)
     },
     async createNewProject () {
-      await API.project.create(this.newProjectPath)
-      const project = this.$projects.allProjects.find(p => p.project_path === this.newProjectPath)
+      await this.$projects.createNewProject(this.newProjectPath)
       this.newProjectPath = null
-      await this.$projects.init()
-      this.setProject(project)
     },
     lastRefresh(last_update) {
       if (last_update) {

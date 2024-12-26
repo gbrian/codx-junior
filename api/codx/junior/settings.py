@@ -166,7 +166,7 @@ class CODXJuniorSettings:
                 CODXJuniorSettings.from_project_file(str(project_file_path))
                 for project_file_path in all_project_files
             ]
-            return [sp for sb in sub_projects if sb.codx_path != self.codx_path]
+            return [sb for sb in sub_projects if sb.codx_path != self.codx_path]
         except Exception as ex:
             logger.debug(f"Error get_sub_projects {ex}")
 

@@ -97,7 +97,7 @@ export const actions = actionTree(
       if (!ignores.includes(ignore)) {
         ignores.push(ignore.trim())
         state.activeProject.log_ignore = ignores.filter(i => i.trim().length).join(",")
-        $storex.project.saveSettings()
+        $storex.projects.saveSettings()
       }
     },
     async removeLogIgnore({ state }, ignore) {
@@ -105,7 +105,7 @@ export const actions = actionTree(
       if (ignores.includes(ignore)) {
         ignores = ignores.filter(i => i !== ignore)
         state.activeProject.log_ignore = ignores.filter(i => i.trim().length).join(",")
-        $storex.project.saveSettings()
+        $storex.projects.saveSettings()
       }
     },
     async saveSettings({ state }, settings) {
@@ -120,6 +120,16 @@ export const actions = actionTree(
       state.allProjects = (state.allProjects||[])
         .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p)
       return state.activeProject
+    },
+    async createNewProject(_, projectPath) {
+      const { data: newProject } = await API.project.create(projectPath)
+      if (!newProject) {
+        return null
+      }
+      await $storex.projects.loadAllProjects()
+      const project = $storex.projects.allProjects.find(p => p.project_path === newProject.project_path)
+      $storex.projects.setActiveProject(project)
+      $storex.ui.coderOpenPath(project.project_path)
     }
   }
 )
