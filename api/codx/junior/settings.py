@@ -125,7 +125,8 @@ class CODXJuniorSettings:
             settings = CODXJuniorSettings(**{**base.__dict__, **settings})
             # Avoid override
             settings.codx_path = base.codx_path
-            settings.project_path = base.project_path
+            if not settings.project_path or settings.project_path[0] != "/":
+                settings.project_path = base.project_path
             return settings
 
     @classmethod
