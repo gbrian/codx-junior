@@ -1,7 +1,8 @@
 {
   "ai_provider": "openai",
   "ai_model": "",
-  "project_name": "codx-junior-dev",
+  "project_name": "codx-junior",
+  "project_path": null,
   "project_wiki": null,
   "project_dependencies": null,
   "knowledge_extract_document_tags": false,

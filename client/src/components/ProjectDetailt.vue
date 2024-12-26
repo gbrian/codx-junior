@@ -12,8 +12,12 @@
       </div>
     </div>
     <div class="text-xs flex gap-2 items-center">
-      <div class="text-xs hidden md:flex gap-1 items-center" @click="$ui.coderOpenPath($project.project_path)">
-        <i class="fa-solid fa-folder"></i>
+      <div class="text-xs hidden md:flex gap-1 items-center click hover:underline hover:text-warning tooltip"
+        :class="$ui.coderPath == $project.project_path && 'text-warning'"
+        data-tip="Open in coder" @click="$ui.coderOpenPath($project.project_path)">
+        <span v-if="$ui.coderPath == $project.project_path"><i class="fa-solid fa-folder-open"></i></span>
+        <span v-else><i class="fa-solid fa-folder"></i></span>
+        
         {{ $project.project_path }}
       </div>
       <span v-if="$projects.childProjects?.length"><i class="fa-solid fa-folder-tree"></i></span>
