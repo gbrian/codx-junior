@@ -414,7 +414,7 @@ class CODXJuniorSession:
             else:
                 content = ""
                 if os.path.isfile(file_path):
-                    with open(file_path, 'r') as f:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
                 instruction_list = [json.dumps(change.__dict__) for change in changes]
                 logger.info(f"Applying {len(changes)} changes to {file_path}")
@@ -475,7 +475,7 @@ class CODXJuniorSession:
             logger.info(f"improve_existing_code instruction file: {file_path}")
             logger.info(f"improve_existing_code instruction changes: {changes}")
             chat.messages.append(Message(role="assistant", content="\n".join(instruction)))
-            with open(file_path) as f:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
             new_content = self.change_file(context_documents=[], query=changes, file_path=file_path, org_content=content)
             write_file(file_path, new_content)
@@ -508,13 +508,15 @@ class CODXJuniorSession:
         new_files = knowledge.detect_changes()
         if not new_files:
             return
-        logger.info(f"check_file_for_mentions {new_files}")
-        file_path = new_files[0]
-        try:
-            self.check_file_for_mentions(file_path=file_path)
-        except:
-            logger.exception(f"Error checking changes in file {file_path}")
-
+        logger.info(f"check_file_for_mentions files: {new_files}")
+            
+        for file_path in new_files:
+            logger.info(f"check_file_for_mentions {file_path}")
+            try:
+                self.check_file_for_mentions(file_path=file_path)
+            except:
+                logger.exception(f"Error checking changes in file {file_path}")
+    
         logger.info(f"Reload knowledge files {new_files}")
         self.reload_knowledge()
 
@@ -641,7 +643,7 @@ class CODXJuniorSession:
         
         def read_file():
             def prepare_ipynb_for_llm():
-                with open(file_path, 'r', encoding='utf-8') as file:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
                     notebook_data = json.loads(file.read())
                 
                     # Remove outputs from each cell
@@ -654,7 +656,7 @@ class CODXJuniorSession:
             if  file_path.endswith(".ipynb"):
                 return prepare_ipynb_for_llm()
         
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 return f.read()
 
         def save_file(new_content):
@@ -666,6 +668,7 @@ class CODXJuniorSession:
         mentions = extract_mentions(content)
         
         if not mentions:
+            logger.info(f"No mentions found for {file_path}")
             return False
             
         new_content = notify_mentions_in_progress(content)
@@ -873,7 +876,7 @@ class CODXJuniorSession:
         project_wiki_path = self.settings.get_project_wiki_path()
         wiki_file = f"{project_wiki_path}{file_path}"
         try:
-          with open(wiki_file) as f:
+          with open(wiki_file, 'r', encoding='utf-8', errors='ignore') as f:
               return f.read()
         except:
           return f"{wiki_file} not found"
@@ -888,10 +891,10 @@ class CODXJuniorSession:
 
         home_content = f"# {self.settings.project_name}"
         if os.path.isfile(project_wiki_home):
-            with open(project_wiki_home, 'r') as f:
+            with open(project_wiki_home, 'r', encoding='utf-8', errors='ignore') as f:
                 home_content = f.read()
 
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             file_content = f.read()
             logger.info(f"update_wiki file_path: {file_path}, project_wiki: {project_wiki_path}")
             chat = Chat(messages=[
@@ -996,7 +999,7 @@ class CODXJuniorSession:
         }
 
     def read_file(self, path: str):
-        with open(path) as f:
+        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
       
     def write_file(self, path: str, content: str):

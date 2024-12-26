@@ -8,7 +8,6 @@ import GlobalSettingsVue from "../views/GlobalSettings.vue"
 import CodeEditorVue from "./CodeEditor.vue"
 import KanbanVue from "./kanban/Kanban.vue"
 import NoVNCVue from "./NoVNC.vue"
-import LogViewerVue from "./LogViewer.vue"
 import Files from "./apps/Files.vue"
 </script>
 <template>
@@ -22,7 +21,6 @@ import Files from "./apps/Files.vue"
   <ProfileViewVue v-bind="$attrs" v-if="$ui.tabIx === 'profiles'" />
   <ProjectProfileVue v-bind="$attrs" v-if="$ui.tabIx == 'home'" />
   <Files class="w-full h-full" v-if="$ui.tabIx == 'files'" />
-  <LogViewerVue class="text-xs bg-base-300 p-2 absolute top-0 left-0 right-0 bottom-0" v-bind="$attrs" v-if="$ui.showLogs" />
 </template>
 <script>
 export default {

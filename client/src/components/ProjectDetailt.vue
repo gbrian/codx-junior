@@ -12,7 +12,7 @@
       </div>
     </div>
     <div class="text-xs flex gap-2 items-center">
-      <div class="text-xs hidden md:flex gap-1 items-center">
+      <div class="text-xs hidden md:flex gap-1 items-center" @click="$ui.coderOpenPath($project.project_path)">
         <i class="fa-solid fa-folder"></i>
         {{ $project.project_path }}
       </div>

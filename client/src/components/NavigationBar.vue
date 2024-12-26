@@ -52,6 +52,14 @@ import ProjectIconVue from './ProjectIcon.vue'
           </div>
 				</a>
 			</div>
+      <div :class="['hover:bg-base-100 click', $ui.showLogs ? 'bg-base-100 text-primary': '']">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show logs"
+					 @click.stop="$ui.toggleLogs()">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-file-lines"></i>
+          </div>
+				</a>
+			</div>    
     </div>
     
     <div>
@@ -67,7 +75,6 @@ import ProjectIconVue from './ProjectIcon.vue'
           <li><a @click.stop="setActiveTab('profiles')">Profiles</a></li>
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
-          <li><a @click.stop="$ui.toggleLogs()">Logs</a></li>
           <li class="border"></li>
           <li>
             <a>

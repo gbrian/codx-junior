@@ -24,7 +24,10 @@ export default {
   },
   computed: {
     coderUrl () {
-      return `/coder`
+      if (this.$ui.coderPath) {
+        return `/coder?folder=${this.$ui.coderPath}`
+      }
+      return "/coder"
     }
   },
   methods: {

@@ -28,7 +28,8 @@ export const state = () => ({
     "preview": "CODX-SCREEN-PREVIEW",
     "shared": "CODX-SCREEN-SHARED"
   },
-  colorsMap: {}
+  colorsMap: {},
+  coderPath: null
 })
 
 export const getters = getterTree(state, {
@@ -110,7 +111,10 @@ export const mutations = mutationTree(state, {
   setColorsMap(state, colorsMap) {
     state.colorsMap = colorsMap
     $storex.ui.saveState()
-  }
+  },
+  coderOpenPath(state, path) {
+    state.coderPath = path
+  } 
 })
 
 export const actions = actionTree(

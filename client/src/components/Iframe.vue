@@ -14,8 +14,9 @@ export default {
         return setTimeout(() => this.onIframeLoaded, 2000)
       }
       const { pathname, search } = iframe.contentWindow.location
-      if (pathname.indexOf(this.url) === -1) {
-        const url = `${this.url}${pathname.slice(1)}${search}`
+      const thisPathName = this.url.split("?")[0]
+      if (pathname.indexOf(thisPathName) === -1) {
+        const url = `${thisPathName}${pathname.slice(1)}${search}`
         iframe.attributes.src.value = url
       } else {
         this.$emit('loaded', iframe)
