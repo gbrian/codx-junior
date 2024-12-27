@@ -7,6 +7,10 @@
       <div class="flex flex-col gap-2 text-xs">
         <div class="text-base">Global</div>
         <div class="flex items-center">
+          <span class="w-1/4">codx-junior Avatar:</span>
+          <input v-model="settings.codx_junior_avatar" type="text" class="input input-bordered flex-grow" />
+        </div>
+        <div class="flex items-center">
           <span class="w-1/4">Log AI:</span>
           <input v-model="settings.log_ai" type="checkbox" class="checkbox" />
         </div>

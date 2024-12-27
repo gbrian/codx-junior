@@ -131,6 +131,8 @@ class GlobalSettings(BaseModel):
 
     log_ignore: List[str] = Field(default=[])
 
+    codx_junior_avatar: str = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
+
 class Screen(BaseModel):
     resolution: str = Field(default='')
     resolutions: List[str] = Field(default=[

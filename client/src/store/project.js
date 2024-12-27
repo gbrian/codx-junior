@@ -42,7 +42,6 @@ export const actions = actionTree(
       $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
-      await API.init()
       $storex.projects.setAllProjects(API.allProjects)
       $storex.projects.setActiveProject(API.lastSettings)
     },
@@ -130,6 +129,12 @@ export const actions = actionTree(
       const project = $storex.projects.allProjects.find(p => p.project_path === newProject.project_path)
       $storex.projects.setActiveProject(project)
       $storex.ui.coderOpenPath(project.project_path)
+    },
+    getProjectDependencies({ state }, project) {
+      const { project_dependencies } = project
+      return `${project_dependencies}`.split(",").map(dep => 
+        state.allProjects.find(({ project_name }) => project_name === dep.trim()))
+                          .filter(p => !!p)
     }
   }
 )

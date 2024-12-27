@@ -1,5 +1,6 @@
 <script setup>
 import ProjectIconVue from './ProjectIcon.vue'
+import UserList from './UserList.vue';
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
@@ -9,6 +10,8 @@ import ProjectIconVue from './ProjectIcon.vue'
       :right="right"
       @click.stop="setActiveTab('home')"
     />
+
+    <UserList v-if="false" />
 		
     <div class="grow overflow-auto border-b border-slate-700 py-1 text-center">
         <div class="over">

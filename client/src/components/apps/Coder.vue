@@ -23,9 +23,14 @@ export default {
     }
   },
   computed: {
+    openProject () {
+      return this.$projects.allProjects?.find(({ codx_path }) => codx_path === this.$ui.coderProjectCodxPath)
+    },
     coderUrl () {
-      if (this.$ui.coderPath) {
-        return `/coder?folder=${this.$ui.coderPath}`
+      const { openProject } = this
+      if (openProject) {
+        const folders = [openProject.project_path].map(f => `folder=${f}`).join("&")
+        return `/coder?${folders}`
       }
       return "/coder"
     }

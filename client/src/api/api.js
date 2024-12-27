@@ -99,11 +99,14 @@ export const API = {
       return API.settings.read()
     },
     global: {
-      read() {
-        return API.get('/api/global/settings')
+      async read() {
+        const { data } = await API.get('/api/global/settings')
+        API.globalSettings = data
+        return { data }
       },
-      write(settings) {
-        return API.post('/api/global/settings', settings)
+      async write(settings) {
+        await API.post('/api/global/settings', settings)
+        return API.global.read()
       }
     }
   },
@@ -258,7 +261,8 @@ export const API = {
       API.screen.getScreenResolution()
     }
     API.liveRequests--
-    console.log("API init", codx_path, API.lastSettings)
+    await API.settings.global.read()
+    console.log("API init", codx_path, API)
   },
   logs: {
     async read(logName) {
