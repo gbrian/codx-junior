@@ -1,0 +1,179 @@
+# [[{"id": "32e2fd7f-2368-4c1d-82a6-702d0ca73c07", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Profile editor", "created_at": "2024-12-29T08:39:17.057755", "updated_at": "2024-12-29T08:39:17.057755", "mode": "task", "board": "Profiles", "column": "new column", "chat_index": 0, "live_url": "", "branch": ""}]]
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:29:43.117175", "updated_at": "2024-12-29 08:29:43.117201", "images": [], "files": []}]]
+Create a new component to edit a profile
+This is the model:
+```py
+
+class Profile(BaseModel):
+    name: str = Field(default="")
+    description: str = Field(default="")
+    category: str = Field(default="", description="Profile category: global, file, coding, ...")
+    file_match: str = Field(default="",
+        description="Optional regex to apply profiles based on file absolute path.")
+    content: str = Field(default="")
+```
+## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:29:43.117175", "updated_at": "2024-12-29 08:29:43.117201", "images": [], "files": ["/src/views/ProfileView.vue"]}]]
+To create a new component for editing a profile, you can extend or refactor the existing `ProfileView.vue` component. Here's a simple approach to creating a new component named `EditProfile.vue`:
+
+### EditProfile.vue
+
+```vue
+<template>
+  <div class="flex flex-col gap-2 p-4">
+    <h2 class="text-xl">Edit Profile</h2>
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Name</span>
+      </label>
+      <input type="text" class="input input-bordered" v-model="profile.name" />
+    </div>
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Description</span>
+      </label>
+      <textarea class="textarea textarea-bordered" v-model="profile.description"></textarea>
+    </div>
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Category</span>
+      </label>
+      <input type="text" class="input input-bordered" v-model="profile.category" />
+    </div>
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">File Match</span>
+      </label>
+      <input type="text" class="input input-bordered" v-model="profile.file_match" />
+    </div>
+    <div class="form-control">
+      <label class="label">
+        <span class="label-text">Content</span>
+      </label>
+      <textarea class="textarea textarea-bordered" v-model="profile.content"></textarea>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button class="btn btn-primary" @click="saveProfile">Save</button>
+      <button class="btn" @click="cancelEdit">Cancel</button>
+    </div>
+  </div>
+</template>
+
+<script>
+import { ref } from 'vue'
+import { API } from '../api/api'
+
+export default {
+  props: {
+    initialProfile: Object
+  },
+  setup(props) {
+    const profile = ref({ ...props.initialProfile })
+
+    const saveProfile = async () => {
+      await API.profiles.save(profile.value)
+      // Handle success, maybe emit an event or navigate away
+    }
+
+    const cancelEdit = () => {
+      // Handle cancel, maybe emit an event or navigate away
+    }
+
+    return { profile, saveProfile, cancelEdit }
+  }
+}
+</script>
+
+<style scoped>
+/* Add any styles you need */
+</style>
+```
+
+### Key Points:
+- **Props**: The `initialProfile` prop allows this component to be reusable by passing in different profiles to edit.
+- **Reactive Data**: Uses Vue's `ref` to make the `profile` reactive.
+- **Methods**: `saveProfile` to save the profile changes, and `cancelEdit` to handle cancellation.
+- **Styling**: Add any custom styles as needed.
+
+This component can be integrated into your application wherever profile editing is needed. You may need to adjust or extend its functionality based on your specific requirements.
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": []}]]
+check ProfileView component a reference on how structuring components
+## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": []}]]
+To structure your new `EditProfile.vue` component similarly to the `ProfileView.vue` component, you'll want to ensure consistent practices in terms of layout, data handling, and possibly styling. Below is an example of how you might structure the `EditProfile.vue` component:
+
+### EditProfile.vue
+
+```vue
+<template>
+  <div class="edit-profile">
+    <h1>Edit Profile</h1>
+    <form @submit.prevent="onSubmit">
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input id="name" v-model="profile.name" type="text" />
+      </div>
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" v-model="profile.description"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="category">Category</label>
+        <input id="category" v-model="profile.category" type="text" />
+      </div>
+      <div class="form-group">
+        <label for="fileMatch">File Match</label>
+        <input id="fileMatch" v-model="profile.file_match" type="text" />
+      </div>
+      <div class="form-group">
+        <label for="content">Content</label>
+        <textarea id="content" v-model="profile.content"></textarea>
+      </div>
+      <button type="submit">Save</button>
+      <button type="button" @click="cancelEdit">Cancel</button>
+    </form>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    initialProfile: {
+      type: Object,
+      required: true
+    }
+  },
+  data() {
+    return {
+      profile: { ...this.initialProfile }
+    }
+  },
+  methods: {
+    onSubmit() {
+      // Handle save logic here
+      this.$emit('save', this.profile)
+    },
+    cancelEdit() {
+      // Handle cancel logic here
+      this.$emit('cancel')
+    }
+  }
+}
+</script>
+
+<style scoped>
+.edit-profile {
+  /* Add consistent styling as needed */
+}
+.form-group {
+  margin-bottom: 1rem;
+}
+</style>
+```
+
+### Key Considerations:
+- **Props**: Use `initialProfile` as a prop to initialize the component's data, ensuring the component is reusable.
+- **Data**: Use the `data` function to create a local copy of the profile for editing.
+- **Methods**: Include `onSubmit` for saving changes and `cancelEdit` for canceling the edit.
+- **Events**: Use `$emit` to communicate with parent components, following a similar pattern as `ProfileView.vue`.
+- **Styling**: Add classes and styles that match the overall look and feel of your application. 
+
+This structure should align with the practices you observed in `ProfileView.vue`, making your component cohesive with the rest of your project.

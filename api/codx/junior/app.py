@@ -109,8 +109,7 @@ def process_projects_changes():
     while True:
         try:
             projects_to_check = [settings for settings in find_all_projects() if settings.watching]
-            watching_projects = [p for p in projects_to_check if p.watching]
-            for ix, settings in enumerate(watching_projects):
+            for ix, settings in enumerate(projects_to_check):
                 has_changes = check_project_changes(settings=settings)
                 if not has_changes:
                     continue

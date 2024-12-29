@@ -12,26 +12,33 @@ import UserList from './UserList.vue';
     />
 
     <UserList v-if="false" />
-		
-    <div class="grow overflow-auto border-b border-slate-700 py-1 text-center">
-        <div class="over">
-          <div class="h-full overflow-auto flex flex-col gap-2">
-            <!-- button class="btn btn-ghost" @click="$projects.loadAllProjects()">
-              <i class="fa-solid fa-arrows-rotate"></i>
-            </button>
-            <ProjectIconVue 
-              :project="project"
-              :right="right"
-              v-for="project in $projects.allProjects" :key="project.codx_path"
-              class="opacity-50 hover:opacity-100"
-              @click.stop="setActiveProject(project)"
-            /-->
+    <div class="flex w-full flex-col mt-4 hidden md:flex">
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'tasks' ? 'bg-base-100 text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="My TO DO"
+          @click="$ui.setActiveTab('tasks')">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-list-check"></i>
           </div>
-        </div>
-      </div>
+				</a>
+			</div>
 
-    <div class="flex flex-col mt-4 hidden md:flex">
-      <div :class="['hover:bg-base-100 click relative', $ui.appActives[0] === 'coder' ? 'bg-base-100 text-primary': '',]">
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'profiles' ? 'bg-base-100 text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Project profiles"
+          @click="$ui.setActiveTab('profiles')">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-circle-user"></i>
+          </div>
+				</a>
+			</div>
+    </div>
+
+		<div class="grow"></div>
+    <div class="divider"></div>
+      
+    <div class="flex w-full flex-col mt-4 hidden md:flex">
+      <div :class="['hover:bg-base-100 click relative', $ui.appActives[0] === 'coder' ? 'text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
 					 @click.stop="$ui.setShowCoder(true)">
            <div class="flex flex-col gap-4">
@@ -43,7 +50,7 @@ import UserList from './UserList.vue';
           </div>
 				</a>
 			</div>
-      <div :class="['hover:bg-base-100 click', $ui.appActives[0] === 'browser' ? 'bg-base-100 text-primary': '']">
+      <div :class="['hover:bg-base-100 click', $ui.appActives[0] === 'browser' ? 'text-primary': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show preview"
 					 @click.stop="$ui.setShowBrowser(true)">
            <div class="flex flex-col gap-4">
@@ -55,29 +62,21 @@ import UserList from './UserList.vue';
           </div>
 				</a>
 			</div>
-      <div :class="['hover:bg-base-100 click', $ui.showLogs ? 'bg-base-100 text-primary': '']">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show logs"
-					 @click.stop="$ui.toggleLogs()">
-           <div class="flex flex-col gap-4">
-            <i class="fa-solid fa-file-lines"></i>
-          </div>
-				</a>
-			</div>    
     </div>
     
     <div>
-      <div :class="['hover:bg-base-100 dropdown dropdown-end click',
-        right ? 'dropdown-left' : 'dropdown-right',
-        isSettings ? 'bg-base-100': '']">
+      <div :class="['dropdown dropdown-end click',
+        right ? 'dropdown-left' : 'dropdown-right']">
 				<a tabindex="0" class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
-          :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Projects"
+          :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="More settings"
           @click="$ui.readScreenResolutions()">
            <i class="fa-solid fa-gear"></i>
 				</a>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
-          <li><a @click.stop="setActiveTab('profiles')">Profiles</a></li>
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
+          <li><a @click.stop="setActiveTab('knowledge')"><i class="fa-solid fa-book"></i> Knowledge</a></li>
+          <li><a @click.stop="$ui.toggleLogs()"><i class="fa-solid fa-file-lines"></i> Logs</a></li>
           <li class="border"></li>
           <li>
             <a>

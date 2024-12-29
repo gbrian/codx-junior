@@ -91,8 +91,11 @@ class KnowledgeSearch(BaseModel):
 
 class Profile(BaseModel):
     name: str = Field(default="")
+    description: str = Field(default="")
+    category: str = Field(default="", description="Profile category: global, file, coding, ...")
+    file_match: str = Field(default="",
+        description="Optional regex to apply profiles based on file absolute path.")
     content: str = Field(default="")
-    user_comment: str = Field(default="")
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -132,6 +135,8 @@ class GlobalSettings(BaseModel):
     log_ignore: List[str] = Field(default=[])
 
     codx_junior_avatar: str = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
+
+    enable_file_manager: bool = Field(default=False)
 
 class Screen(BaseModel):
     resolution: str = Field(default='')

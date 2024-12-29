@@ -83,6 +83,7 @@ def create_project(project_path: str):
     settings = CODXJuniorSettings()
     settings.project_name = project_path.split("/")[-1]
     settings.codx_path = f"{project_path}/.codx"
+    settings.watching = True
     settings.save_project()
     exec_command("git init", cwd=project_path)
     return CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
@@ -515,12 +516,13 @@ class CODXJuniorSession:
             except:
                 logger.exception(f"Error checking changes in file {file_path}")
     
-        logger.info(f"Reload knowledge files {new_files}")
-        self.reload_knowledge()
+        if self.settings.watching:
+            logger.info(f"Reload knowledge files {new_files}")
+            self.reload_knowledge()
 
-        for file_path in new_files:
-            self.update_project_profile(file_path)
-            self.update_wiki(file_path)
+            for file_path in new_files:
+                self.update_project_profile(file_path)
+                self.update_wiki(file_path)
 
     def extract_changes(self, content):
         for block in extract_json_blocks(content):

@@ -17,7 +17,7 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
-      <TabNavigationVue v-if="!compactView" />
+      <TabNavigationVue v-if="false && !compactView" />
       <TabViewVue :key="$project?.codx_path || 'no-project'" />
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
