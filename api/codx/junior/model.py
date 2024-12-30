@@ -96,6 +96,7 @@ class Profile(BaseModel):
     file_match: str = Field(default="",
         description="Optional regex to apply profiles based on file absolute path.")
     content: str = Field(default="")
+    path: str = Field(default="")
 
 class Document(BaseModel):
     id: int = Field(default=None)

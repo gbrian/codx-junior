@@ -29,7 +29,8 @@ export const state = () => ({
     "shared": "CODX-SCREEN-SHARED"
   },
   colorsMap: {},
-  coderProjectCodxPath: null
+  coderProjectCodxPath: null,
+  uiReady: false
 })
 
 export const getters = getterTree(state, {
@@ -115,7 +116,10 @@ export const mutations = mutationTree(state, {
   },
   coderOpenPath(state, project) {
     state.coderProjectCodxPath = project.codx_path
-  } 
+  },
+  setUIready(state) {
+    state.uiReady = true
+  }
 })
 
 export const actions = actionTree(
@@ -131,7 +135,8 @@ export const actions = actionTree(
       state.showLogs = false    
     },
     saveState({ state }) {
-      localStorage.setItem('uiState', JSON.stringify(state))
+      const data = { ...state, uiReady: false }
+      localStorage.setItem('uiState', JSON.stringify(data))
     },
     handleResize({ state }) {
       const width = window.innerWidth

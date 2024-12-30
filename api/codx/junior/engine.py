@@ -954,25 +954,6 @@ class CODXJuniorSession:
         return text
 
     def save_profile(self, profile: Profile):
-        if profile.user_comment:
-            prompt = f"""Update this document applying user comments.
-            Generate a markdown document. Below it's an XML with the information you need:
-            ```xml
-            <xml>
-                <CURRENT_DOCUMENT>
-                {profile.content}
-                </CURRENT_DOCUMENT>
-                <USER_COMMENT>
-                {profile.user_comment}
-                </USER_COMMENT>
-            </xml>
-            ```
-            Return only the document without any further decoration or comments.
-            Do not surround response with '```' marks, just content
-            """
-            ai = AI(settings=self.settings)
-            profile.content = ai.chat(prompt=prompt)[-1].content
-
         profile_manager = ProfileManager(settings=self.settings)
         profile_manager.create_profile(profile)
         return profile_manager.read_profile(profile.name)

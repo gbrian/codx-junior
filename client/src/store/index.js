@@ -24,11 +24,12 @@ store = createStore(storePattern)
 storex = useAccessor(store, storePattern)
 storex.init = async () => {
   await API.init()
-  Object.keys(modules).forEach(async m => {
+  await Promise.all(Object.keys(modules).map(async m => {
     if (storex[m].init) {
       await storex[m].init(storex)
     }
-  })
+  }))
+  $storex.ui.setUIready()
 }
 storex.store = store
 storex.api = API

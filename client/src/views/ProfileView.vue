@@ -1,125 +1,72 @@
 <script setup>
-import Markdown from '@/components/Markdown.vue'
+import EditProfile from '@/components/EditProfile.vue';
 </script>
 <template>
-<div class="flex flex-col gap-2 h-full justify-between p-4">
-  <div class="text-xl flex gap-2 items-center">
-    Profiles
-    <input type="text" class="text text-xs text-bordered" v-model="newProfile" v-if="newProfile" />
-    <select class="select select-xs select-bordered" v-model="profileName" @change="loadProfile" v-else>
-      <option :value="p" v-for="p in profiles" :key="p">{{ p }}</option>
-    </select>
-    <button class="btn btn-sm" @click="createNewProfile" v-if="!newProfile">
-      <i class="fa-solid fa-plus"></i>
-    </button>
-    <div class="grow"></div>
-    <button class="btn btn-sm" @click="editProfile = !editProfile" v-if="profile && !editProfile">
-      <i class="fa-solid fa-edit"></i>
-    </button>
-    <button class="btn btn-error btn-sm" @click="deleteProfile" v-if="profile && !newProfile">
-      <i class="fa-solid fa-trash"></i>
-      <span v-if="isDeleteProfile">
-        Sure? <span class="hover:underline">YES</span> / 
-        <span class="hover:underline" @click.stop="isDeleteProfile = false">CANCEL</span>
-      </span>
-    </button>
-  </div>
-  <div class="mt-2 grow relative" v-if="profile">
-    <div :class="['absolute top-0 left-0 right-0 bottom-0 border-slate-200 p-2 rounded-md overflow-auto', editProfile && 'bg-neutral text-neutral-content']">
-      <Markdown :text="profile.content" />
-    </div>
-  </div>
-  <div v-if="editProfile" class="flex flex-col gap-2 items-cinput input-bordered w-full">
-    <label class="form-control w-full">
-      <div class="label">
-        <span class="label-text">Add your comments to update the profile</span>
+  <div class="p-6">
+    <EditProfile :profile="selectedProfile"
+        @save="saveSelectedProfile"
+       @cancel="selectedProfile = null"
+       v-if="selectedProfile" />
+    <div v-else>
+      <h1 class="text-2xl font-bold mb-4">Profiles</h1>
+      <p class="mb-6">
+        With the profiles you can define the behavior of codx-junior when managing your tasks and files. Use it to define how you like the chatting style, coding best practices, architectural constraints, security restrictions, preferred development tools, and collaboration settings.
+      </p>  
+      <div class="flex items-center justify-between mb-4">
+        <input type="text" placeholder="Search profiles" v-model="searchQuery" class="input input-bordered w-full max-w-xs" />
+        <button class="btn btn-primary ml-4">Create New</button>
       </div>
-      <textarea class="textarea textarea-bordered h-24 w-full"
-        v-model="changeInput"
-        placeholder="Change ..."></textarea>
-    </label>
-    <div class="flex justify-end gap-2">
-      <button class="btn btn-sm" @click="reloadProfile" v-if="profile && !newProfile">
-        <i class="fa-solid fa-rotate"></i> Cancel
-      </button>  
-      <button class="btn btn-primary btn-sm" @click="sendChat">
-        <i class="fa-solid fa-edit"></i> Update
-      </button>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div v-for="profile in filteredProfiles" :key="profile.name" class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg" @click="openEditProfile(profile)">
+          <div class="card-body p-4 click hover:shadow-xl overflow-hidden">
+            <h2 class="card-title text-xl font-semibold mb-2">{{ profile.name }}</h2>
+            <p class="mb-2 text-xs">{{ profile.description?.substring(0, 100) }}</p>
+            <div class="badge badge-accent badge-outline">{{ profile.category }}</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
-</div>
 </template>
-<script>
-import { API } from '../api/api'
 
+<script>
 export default {
-  data () {
+  data() {
     return {
-      profileName: 'project',
-      profile: null,
-      profiles: null,
-      newProfile: null,
-      editProfile: false,
-      advanced: false,
-      changeInput: '',
-      isDeleteProfile: false
-    }
+      searchQuery: '',
+      profiles: [],
+      selectedProfile: null
+    };
   },
-  async mounted () {
-    this.init()
+  created() {
+    this.fetchProfiles();
+  },
+  computed: {
+    filteredProfiles() {
+      return this.profiles.filter(profile =>
+        profile.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
+        profile.category.toLowerCase().includes(this.searchQuery.toLowerCase())
+      ).sort((a, b) => a.name > b.name ? 1 : -1);
+    }
   },
   methods: {
-    async init() {
-      await this.loadProfiles()
-      this.loadProfile()
-      this.editProfile = false
-      this.isDeleteProfile = false
+    async fetchProfiles() {
+      const { data: profiles } = await this.$storex.api.profiles.list();
+      this.profiles = profiles
     },
-    async loadProfiles () {
-      const { data } = await API.profiles.list()
-      this.profiles = data
+    openEditProfile(selectedProfile) {
+      this.selectedProfile = selectedProfile
     },
-    createNewProfile () {
-      this.newProfile = "new_profile"
-      this.profile = {
-        name: this.newProfile
+    async saveSelectedProfile(profile) {
+      const { data } = await this.$storex.api.profiles.save(profile)
+      if (this.selectedProfile.name) {
+        Object.assign(this.selectedProfile, data)
+      } else {
+        this.profiles = [...this.profiles, data]
       }
-      this.editProfile = true
-    },
-    async loadProfile () {
-      const { data } = await API.profiles.load(this.profileName)
-      this.profile = data
-      this.editProfile = false
-      this.newProfile = null
-    },
-    async reloadProfile () {
-      const { data } = await API.profiles.load(this.profile.name)
-      this.profile = data
-      this.editProfile = false
-    },
-    async saveProfile () {
-      this.profile.content = this.$refs.profileContentEditor.innerText
-      await API.profiles.save(this.profile)
-      this.profileName = this.profile.name
-      await this.loadProfiles()
-      this.loadProfile()
-    },
-    async deleteProfile () {
-      if (this.isDeleteProfile) {
-        await API.profiles.delete(this.profileName)
-        this.init()
-      } else  {
-        this.isDeleteProfile = true
-      }
-    },
-    async sendChat() {
-      if (this.changeInput?.trim()) {
-        this.profile.user_comment = this.changeInput
-        const { data:profile }= await API.profiles.save(this.profile)
-        this.profile = profile
-        this.changeInput = '';
-      }
+      this.selectedProfile = null
     }
   }
-}
+};
 </script>
+
