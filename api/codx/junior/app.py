@@ -403,7 +403,7 @@ def api_logs_list():
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
-    log_file = f"/var/log/supervisor/{log_name}.log"
+    log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
     log_size = request.query_params.get("log_size") or "1000"
     logs, _ = exec_command(f"tail -n {log_size} {log_file}")
     return logs
