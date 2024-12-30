@@ -60,6 +60,7 @@ class ProfileManager:
 
     def delete_profile(self, profile_name):
         _, project_profiles = self.get_profiles()
-        profile_path = [file_path for file_path in project_profiles if file_path.endswith(profile_name)]
+        profile_file_name = f"{profile_name}.profile"
+        profile_path = [file_path for file_path in project_profiles if file_path.endswith(profile_file_name)]
         if profile_path:
-            os.remove(profile_path[0])
+            os.remove(profile_path)

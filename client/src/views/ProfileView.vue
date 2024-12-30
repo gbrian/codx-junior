@@ -4,17 +4,19 @@ import EditProfile from '@/components/EditProfile.vue';
 <template>
   <div class="p-6">
     <EditProfile :profile="selectedProfile"
-        @save="saveSelectedProfile"
-       @cancel="selectedProfile = null"
-       v-if="selectedProfile" />
+      :allProfiles="profiles"
+      @save="saveSelectedProfile"
+      @cancel="selectedProfile = null"
+      @delete="deleteSelectedProfile"
+      v-if="selectedProfile" />
     <div v-else>
       <h1 class="text-2xl font-bold mb-4">Profiles</h1>
       <p class="mb-6">
         With the profiles you can define the behavior of codx-junior when managing your tasks and files. Use it to define how you like the chatting style, coding best practices, architectural constraints, security restrictions, preferred development tools, and collaboration settings.
       </p>  
       <div class="flex items-center justify-between mb-4">
-        <input type="text" placeholder="Search profiles" v-model="searchQuery" class="input input-bordered w-full max-w-xs" />
-        <button class="btn btn-primary ml-4">Create New</button>
+        <input type="text" placeholder="Search profiles" v-model="searchQuery" class="input input-sm input-bordered w-full max-w-xs" />
+        <button class="btn btn-sm btn-primary ml-4" @click="selectedProfile = {}">Create New</button>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div v-for="profile in filteredProfiles" :key="profile.name" class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg" @click="openEditProfile(profile)">
@@ -56,6 +58,11 @@ export default {
     },
     openEditProfile(selectedProfile) {
       this.selectedProfile = selectedProfile
+    },
+    async deleteSelectedProfile() {
+      await this.$storex.api.profiles.delete(this.selectedProfile.name)
+      this.profiles = this.profiles.filter(p => p.name !== this.selectedProfile.name)
+      this.selectedProfile = null
     },
     async saveSelectedProfile(profile) {
       const { data } = await this.$storex.api.profiles.save(profile)
