@@ -203,7 +203,9 @@ class CODXJuniorSession:
         return self.get_profile_manager().list_profiles()
 
     def save_profile(self, profile):
-        return self.get_profile_manager().save_profile(profile=profile)
+        profile = self.get_profile_manager().save_profile(profile=profile)
+        self.check_file_for_mentions(file_path=profile.path)
+        return self.read_profile(profile_name=profile.name)
 
     def read_profile(self, profile_name):
         return self.get_profile_manager().read_profile(profile_name)
@@ -702,16 +704,6 @@ class CODXJuniorSession:
                 ```
                 User commented in line {mention.start_line}: {mention.mention}
                 """
-            elif use_knowledge:
-                return ai.chat(prompt=f"""Return a search query string from user's request using the context. 
-                CONTEXT:
-                ```{file_path}
-                {org_content}
-                ```
-
-                User commented in line {mention.start_line}: {mention.mention}
-                """)[-1].content
-
             return f"User commented in line {mention.start_line}: {mention.mention}"
         
         query = "\n  *".join([mention_info(mention) for mention in mentions])
@@ -952,11 +944,6 @@ class CODXJuniorSession:
         text = pytesseract.image_to_string(image)
         
         return text
-
-    def save_profile(self, profile: Profile):
-        profile_manager = ProfileManager(settings=self.settings)
-        profile_manager.create_profile(profile)
-        return profile_manager.read_profile(profile.name)
     
     def parse_file_line(self, file, base_path):
         file_path = os.path.join(base_path, file)

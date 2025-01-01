@@ -3,8 +3,10 @@ import EditProfile from '@/components/EditProfile.vue';
 </script>
 <template>
   <div class="p-6">
-    <EditProfile :profile="selectedProfile"
+    <EditProfile 
+      :profile="selectedProfile"
       :allProfiles="profiles"
+      :loading="loadingProfile"
       @save="saveSelectedProfile"
       @cancel="selectedProfile = null"
       @delete="deleteSelectedProfile"
@@ -37,7 +39,8 @@ export default {
     return {
       searchQuery: '',
       profiles: [],
-      selectedProfile: null
+      selectedProfile: null,
+      loadingProfile: false
     };
   },
   created() {
@@ -65,13 +68,18 @@ export default {
       this.selectedProfile = null
     },
     async saveSelectedProfile(profile) {
-      const { data } = await this.$storex.api.profiles.save(profile)
-      if (this.selectedProfile.name) {
-        Object.assign(this.selectedProfile, data)
-      } else {
-        this.profiles = [...this.profiles, data]
-      }
-      this.selectedProfile = null
+      this.loadingProfile = true
+      try {
+        const { data } = await this.$storex.api.profiles.save(profile)
+        if (this.selectedProfile.name) {
+          const ix = this.profiles.findIndex(p => p.name === data.name)
+          this.profiles.splice(ix, 1, data)
+          this.selectedProfile = data
+        } else {
+          this.profiles = [...this.profiles, data]
+        }
+      } catch{}
+      this.loadingProfile = false
     }
   }
 };

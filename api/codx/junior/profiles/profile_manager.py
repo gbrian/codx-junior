@@ -50,13 +50,14 @@ class ProfileManager:
             profile.path = profile_path
             return profile
 
-    def create_profile(self, profile: Profile):
+    def save_profile(self, profile: Profile):
         if not profile.name:
             raise 'Invalid profie'
         profile_path = f"{os.path.join(self.profiles_path, profile.name)}.profile"
         logger.info(f"Save profile {profile_path}")
         with open(profile_path, 'w') as f:
             f.write(json.dumps(profile.__dict__))
+        return self.read_profile(profile_name=profile.name)
 
     def delete_profile(self, profile_name):
         _, project_profiles = self.get_profiles()
