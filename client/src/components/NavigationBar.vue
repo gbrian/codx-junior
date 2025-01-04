@@ -32,16 +32,29 @@ import UserList from './UserList.vue';
           </div>
 				</a>
 			</div>
+
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'help' ? 'bg-base-100 text-primary': '',]">
+        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Project profiles"
+          @click="$ui.setActiveTab('help')">
+            <div class="flex flex-col gap-4">
+            <i class="fa-regular fa-circle-question"></i>
+          </div>
+        </a>
+      </div>
+
     </div>
 
-		<div class="grow"></div>
+
+
+    <div class="grow"></div>
     <div class="divider"></div>
       
     <div class="flex w-full flex-col mt-4 hidden md:flex">
       <div :class="['hover:bg-base-100 click relative', $ui.appActives[0] === 'coder' ? 'text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
-					 @click.stop="$ui.setShowCoder(true)">
-           <div class="flex flex-col gap-4">
+        @click.stop="$ui.setShowCoder(true)">
+          <div class="flex flex-col gap-4">
             <i class="fa-solid fa-code"></i>
             <span class="text-xs text-error hover:underline opacity-50 hover:opacity-100 absolute top-2 right-2 tooltip" data-tip="close" 
               @click.stop="$ui.setShowCoder(false)" v-if="$ui.showCoder">
@@ -51,7 +64,8 @@ import UserList from './UserList.vue';
 				</a>
 			</div>
       <div :class="['hover:bg-base-100 click', $ui.appActives[0] === 'browser' ? 'text-primary': '']">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show preview"
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" 
+          data-tip="Show preview"
 					 @click.stop="$ui.setShowBrowser(true)">
            <div class="flex flex-col gap-4">
             <i class="fa-solid fa-display"></i>
@@ -59,6 +73,15 @@ import UserList from './UserList.vue';
               @click.stop="$ui.setShowBrowser(false)" v-if="$ui.showBrowser">
               <i class="fa-solid fa-power-off"></i>
             </span>
+          </div>
+				</a>
+			</div>
+      <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" 
+          data-tip="Show logs"
+					 @click.stop="$ui.toggleLogs()">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-file-lines"></i>
           </div>
 				</a>
 			</div>
@@ -76,7 +99,6 @@ import UserList from './UserList.vue';
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li><a @click.stop="setActiveTab('knowledge')"><i class="fa-solid fa-book"></i> Knowledge</a></li>
-          <li><a @click.stop="$ui.toggleLogs()"><i class="fa-solid fa-file-lines"></i> Logs</a></li>
           <li class="border"></li>
           <li>
             <a>

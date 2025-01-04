@@ -38,7 +38,8 @@ export const getters = getterTree(state, {
   isLandscape: state => state.orientation !== 'portrait',
   monitorToken: state => state.monitors[state.monitor],
   isSharedScreen: () => window.location.pathname === '/shared',
-  enableFileManger: () => API.globalSettings?.enable_file_manager
+  enableFileManger: () => API.globalSettings?.enable_file_manager,
+  activeTab: state => state.tabIx
 })
 
 export const mutations = mutationTree(state, {
@@ -62,7 +63,11 @@ export const mutations = mutationTree(state, {
     $storex.ui.setShowBrowser(!state.showBrowser)
   },
   setActiveTab(state, tabIx) {
-    state.tabIx = tabIx
+    if (state.tabIx === tabIx) {
+      state.tabIx = null
+    } else {
+      state.tabIx = tabIx
+    }
     if (state.tabIx !== 'app' && state.isMobile) {
       state.showCoder = false
       state.showBrowser = false
@@ -119,6 +124,10 @@ export const mutations = mutationTree(state, {
   },
   setUIready(state) {
     state.uiReady = true
+    // If no user projects, go to help
+    if (!$storex.projects.allProjects.find(p => p.project_path.indexOf("codx-junior") === -1)) {
+      $storex.ui.setActiveTab('help')
+    }
   }
 })
 

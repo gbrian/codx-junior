@@ -11,7 +11,7 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
     <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 pt-2 overflow-auto">
       <div class="flex gap-2 items-center relative justify-between">
         
-        <ProjectDropdown v-if="!compactView" />
+        <ProjectDropdown v-if="!compactView && $ui.activeTab !== 'help'" />
         
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
