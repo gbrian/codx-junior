@@ -227,10 +227,9 @@ def api_knowledge_status(request: Request):
 @app.get("/api/chats")
 def api_list_chats(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    chat_name = request.query_params.get("chat_name")
-    board = request.query_params.get("board")
-    if chat_name:
-        return codx_junior_session.load_chat(board=board, chat_name=chat_name)
+    file_path = request.query_params.get("file_path")
+    if file_path:
+        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
     return codx_junior_session.list_chats()
 
 @app.post("/api/chats")
@@ -250,6 +249,18 @@ def api_delete_chat(request: Request):
     chat_name = request.query_params.get("chat_name")
     board = request.query_params.get("board")
     codx_junior_session.delete_chat(board, chat_name)
+
+@app.get("/api/boards")
+def api_boards(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_chat_manager().load_boards()
+
+@app.post("/api/boards")
+async def api_set_boards(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    boards = await request.json()
+    codx_junior_session.get_chat_manager().save_boards(boards)
+
 
 @app.post("/api/images")
 def api_image_upload(file: UploadFile):

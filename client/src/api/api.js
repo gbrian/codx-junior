@@ -153,8 +153,8 @@ export const API = {
       const { data } = await API.get('/api/chats')
       return data
     },
-    async loadChat ({ board, name }) {
-      const { data } = await API.get(`/api/chats?board=${board}&chat_name=${name}`)
+    async loadChat ({ file_path }) {
+      const { data } = await API.get(`/api/chats?file_path=${file_path}`)
       return data
     },
     async newChat () {
@@ -174,6 +174,15 @@ export const API = {
     },
     delete(board, chatName) {
       return API.del(`/api/chats?board=${board}&chat_name=${chatName}`)
+    },
+    boards: {
+      async load() {
+        const { data: boards } = await API.get('/api/boards')
+        return boards
+      },
+      async save(boards) {
+        API.post('/api/boards', boards)
+      }
     }
   },
   run: {

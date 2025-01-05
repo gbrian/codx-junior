@@ -42,13 +42,14 @@ class Chat(BaseModel):
     mode: str = Field(default='chat')
     board: str = Field(default='')
     column: str = Field(default='')
-    chat_index: int = Field(default=-1)
+    chat_index: int = Field(default=None)
     live_url: str = Field(default='')
     branch: str = Field(default='')
+    file_path: str = Field(default='')
 
 class Column(BaseModel):
     name: str = Field(default='')
-    chats: List[Chat] = Field(default=[])
+    chat_ids: List[str] = Field(default=[])
 
 class Board(BaseModel):
     name: str = Field(default='')

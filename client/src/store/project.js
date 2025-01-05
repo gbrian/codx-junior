@@ -78,17 +78,12 @@ export const actions = actionTree(
       await API.chats.delete(board, name)
       await $storex.projects.loadChats()
     },
-    async setActiveChat({ state }, { board, name } = {}) {
-      if (name) {
-        const chat = await API.chats.loadChat({ board, name })
-        const existingChat = state.chats.find(c => c.name === name)
-        if (existingChat) {
-          existingChat.messages = chat.messages
-        } else {
-          state.chats = [...state.chats, chat]
-        }
+    async setActiveChat({ state }, chat) {
+      if (chat) {
+        const loadedChat = await API.chats.loadChat(chat)
+        state.chats = [...state.chats.filter(c => c.id !== loadedChat.id), loadedChat]
       }
-      state.activeChat = state.chats.find(c => c.name === name)
+      state.activeChat = state.chats.find(c => c.id === chat?.id)
       $storex.ui.setKanban(state.activeChat?.board)
     },
     async addLogIgnore({ state }, ignore) {
