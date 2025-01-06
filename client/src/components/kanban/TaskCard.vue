@@ -13,28 +13,28 @@ import ChatIcon from '../chat/ChatIcon.vue';
     <div class="p-2 flex flex-col gap-2">
       <div class="flex justify-between">
         <div class="font-semibold font-sans tracking-wide text-sm flex gap-2">
-          <div class="rounded-full border-1 bg-base-300">
+          <div class="rounded-full border-1">
             <ChatIcon :chat="task" />
           </div>
           <div class="overflow-hidden">{{task.name}}</div>
         </div>
-        <div class="flex gap-1 items-center">
-          <div :class="`badge badge-${badgeColor[task.mode]}`">
+        <div class="flex gap-2 items-center">
+          <div :class="`badge badge-outline badge-${badgeColor[task.mode]}`">
             {{ task.mode }}
           </div>
-          <span class="badge badge-secondary text-xs tooltip"
-            :data-tip="`${task.file_list?.length} files`"
-            v-if="task.file_list?.length">
-            <i class="fa-solid fa-paperclip"></i>
-          </span>
         </div>
       </div>
       <div class="flex justify-between items-center">
         <span class="text-sm text-gray-600">{{ formattedDate }}</span>
         <div class="flex gap-1 justify-end">
-          <div class="badge badge-sm badge-info flex gap-2" v-for="tag in task.tags" :key="tag">
-            {{ tag }}
+          <div class="font-bold text-xs text-info flex gap-2" v-for="tag in task.tags" :key="tag">
+            #{{ tag }}
           </div>
+          <span class="text-xs tooltip"
+            :data-tip="`${task.file_list?.length} files`"
+            v-if="task.file_list?.length">
+            <i class="fa-solid fa-paperclip"></i>
+          </span>
         </div>
       </div>
     </div>
@@ -52,7 +52,7 @@ export default {
     return {
       badgeColor: {
         task: "primary",
-        chat: "success"
+        chat: "accent"
       }
     }
   },

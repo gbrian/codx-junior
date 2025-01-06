@@ -23,9 +23,7 @@ class ChatManager:
         os.makedirs(f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}", exist_ok=True)
 
     def get_chat_file(self, chat: Chat):
-        chat_file = f"{self.chat_path}/{chat.board or 'kanban'}/{chat.column or 'tasks'}/{chat.name}" if chat.board else f"{self.chat_path}/{chat.name}"
-        if not chat_file.endswith(".md"):
-            chat_file = chat_file + ".md"
+        chat_file = f"{self.chat_path}/{chat.board}/{chat.column}/{chat.name}.{chat.id}.md"
         return chat_file
 
     def chat_paths(self):
@@ -51,30 +49,42 @@ class ChatManager:
             key=lambda x: str(x.chat_index or x.updated_at),
             reverse=True)
 
-    def save_chat(self, chat: Chat):
+    def save_chat(self, chat: Chat, chat_only = False):
         if not chat.board:
             chat.board = "kanban"
         if not chat.column:
             chat.column = tasks
-        chat_file = self.get_chat_file(chat)
-        chat.updated_at = datetime.now().isoformat()
         if not chat.id:
             chat.id = str(uuid.uuid4())
         if not chat.created_at:
             chat.created_at = chat.updated_at
-        logger.info(f"Save chat at {chat_file}")
-        write_file(chat_file, self.serialize_chat(chat))
+        chat.updated_at = datetime.now().isoformat()
+        
+        current_chat = self.find_by_id(chat.id)
+        if chat_only:
+            chat.messages = current_chat.messages
 
-    def delete_chat(self, board, chat_name):
-        chat_file = self.get_chat_file(Chat(board=board or "", name=chat_name))
-        if os.path.isfile(chat_file):
-            os.remove(chat_file)
+        chat_file = self.get_chat_file(chat)
+        logger.info(f"Save chat {chat.id} at {chat_file}")
+        write_file(chat_file, self.serialize_chat(chat))
+        # remove old chat
+        if current_chat:
+            logger.info(f"Save chat, curren_chat {current_chat.id} at {current_chat.file_path}")
+            if chat_file != current_chat.file_path:
+                self.delete_chat(current_chat.file_path)
+
+    def delete_chat(self, file_path):
+        if os.path.isfile(file_path) \
+            and file_path.startswith(self.chat_path):
+            logger.info(f"Removing chat at {file_path}")
+            os.remove(file_path)
 
     def load_chat(self, board, column, chat_name):
         chat = Chat(board=board, column=column, name=chat_name)
         chat_file = self.get_chat_file(chat)
         if not os.path.isfile(chat_file):
-            chat
+            chat.file_path = chat_file
+            return chat
         return self.load_chat_from_path(chat_file=chat_file)
 
     def load_chat_from_path(self, chat_file):
@@ -173,15 +183,16 @@ class ChatManager:
             if not boards.get(board):
                 boards[board] = {}
             if not boards[board].get("columns"):
-                boards[board]["columns"] = {}
+                boards[board]["columns"] = []
 
             all_board_columns = [col for col in os.listdir(f"{self.chat_path}/{board}") \
                         if os.path.isdir(f"{self.chat_path}/{board}/{col}") ]
+            board_columns = boards[board]["columns"]
             for col in set([chat.column for chat in all_chats if chat.board == board]
                             +
                             all_board_columns):
-                if not boards[board]["columns"].get(col):
-                    boards[board]["columns"][col] = {}
+                if col not in board_columns:
+                    board_columns.append({ "title" :col })
 
         return boards
 

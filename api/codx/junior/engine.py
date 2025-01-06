@@ -191,12 +191,12 @@ class CODXJuniorSession:
     def list_chats(self):
         return self.get_chat_manager().list_chats()
 
-    def save_chat(self, chat):
+    def save_chat(self, chat, chat_only):
         self.channel.chat_event(f'Saving {chat.name}')
-        return self.get_chat_manager().save_chat(chat)
+        return self.get_chat_manager().save_chat(chat, chat_only)
 
-    def delete_chat(self, board, chat_name):
-        self.get_chat_manager().delete_chat(board, chat_name)
+    def delete_chat(self, file_path):
+        self.get_chat_manager().delete_chat(file_path)
 
 
     def list_profiles(self):

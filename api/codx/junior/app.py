@@ -241,14 +241,14 @@ def api_chat(chat: Chat, request: Request):
 @app.put("/api/chats")
 def api_save_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.save_chat(chat)
+    chat_only = request.query_params.get("chatOnly")
+    codx_junior_session.save_chat(chat, chat_only=chat_only)
 
 @app.delete("/api/chats")
 def api_delete_chat(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    chat_name = request.query_params.get("chat_name")
-    board = request.query_params.get("board")
-    codx_junior_session.delete_chat(board, chat_name)
+    file_path = request.query_params.get("file_path")
+    codx_junior_session.delete_chat(file_path)
 
 @app.get("/api/boards")
 def api_boards(request: Request):
