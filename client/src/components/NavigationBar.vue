@@ -33,6 +33,16 @@ import UserList from './UserList.vue';
 				</a>
 			</div>
 
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'knowledge' ? 'bg-base-100 text-primary': '',]">
+        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Knowledge"
+          @click="$ui.setActiveTab('knowledge')">
+            <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-book"></i>
+          </div>
+        </a>
+      </div>
+
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'help' ? 'bg-base-100 text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Project profiles"

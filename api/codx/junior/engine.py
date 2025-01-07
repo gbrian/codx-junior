@@ -421,8 +421,7 @@ class CODXJuniorSession:
                 logger.info(f"Applying {len(changes)} changes to {file_path}")
                 new_content = self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)
                 if new_content and new_content != content:
-                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                    write_file(file_path, new_content)
+                    self.write_project_file(file_path=file_path, content=new_content)
                 else:
                     logger.error(f"Error applying changes to {file_path}. New content: {new_content}")
 
@@ -446,40 +445,6 @@ class CODXJuniorSession:
         """))
         self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
         return chat.messages[-1].content
-
-    def improve_existing_code_gpt_blocks(self, chat: Chat):
-        request = """Create a list of files to be modified with this structure:
-          <GPT_CODE_CHANGE>
-          FILE: file_path
-          CHANGES: Explain which changes do we need to apply to this file
-          </GPT_CODE_CHANGE>
-          <GPT_CODE_CHANGE>
-          FILE: file_path
-          CHANGES: Explain which changes do we need to apply to this file
-          </GPT_CODE_CHANGE>
-          Repeat for as many files we have to change
-        """
-        if not chat.messages[-1].improvement:
-            request_chat = Chat(messages=chat.messages + [Message(role="user", content=request)])
-            request_chat = self.chat_with_project(chat=request_chat, use_knowledge=True)
-            chat.messages.append(request_chat.messages[-1])
-            chat.messages[-1].improvement = True
-            return
-        response = chat.messages[-1].content
-        instructions = list(self.split_blocks_by_gt_lt(response))
-        logger.info(f"improve_existing_code: {instructions}")
-        if not instructions:
-            logger.error(f"improve_existing_code ERROR no instructions at: {response} {chat.messages[-1]}")
-        for instruction in instructions:
-            file_path = instruction[0].split(":")[1].strip()
-            changes = "\n".join(instruction[1:])
-            logger.info(f"improve_existing_code instruction file: {file_path}")
-            logger.info(f"improve_existing_code instruction changes: {changes}")
-            chat.messages.append(Message(role="assistant", content="\n".join(instruction)))
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-            new_content = self.change_file(context_documents=[], query=changes, file_path=file_path, org_content=content)
-            write_file(file_path, new_content)
 
     def check_knowledge_status(self):
         knowledge = Knowledge(settings=self.settings)
@@ -662,7 +627,7 @@ class CODXJuniorSession:
                 return f.read()
 
         def save_file(new_content):
-            write_file(file_path, new_content)
+            self.write_project_file(file_path=file_path, content=new_content)
 
         if not content:
             content = read_file()
@@ -673,9 +638,10 @@ class CODXJuniorSession:
             logger.info(f"No mentions found for {file_path}")
             return False
             
+        logger.info(f"{len(mentions)} mentions found for {file_path}")
         new_content = notify_mentions_in_progress(content)
         if not silent:
-            save_file(new_content=new_content)
+            write_file(file_path=file_path, content=new_content)
 
         image_mentions = [m for m in mentions if m.flags.image]
         if image_mentions:
@@ -970,12 +936,42 @@ class CODXJuniorSession:
         with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
       
-    def write_file(self, path: str, content: str):
-        if not self.check_file_for_mentions(file_path=path, content=content, silent=True):
-            with open(path, 'w') as f:
-                return f.write(content)
+    def process_project_file_before_saving(self, file_path: str, content: str):
+        file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)
+        if file_profiles:
+            logger.info(f"Applying file profiles {[p.name for p in file_profiles]} to {file_path}")
+            for profile in file_profiles:
+                content = self.apply_file_profile(file_path=file_path, content=content, profile=profile)
+        return content
+    
+    def apply_file_profile(self, file_path: str, content: str, profile: Profile):
+        content_message = Message(role="user", content=f"""FILE {file_path}
+        ```
+        {content}
+        ```
+        
+        BEST PRACTICES FOR {file_path}:
+        ```
+        {profile.content}
+        ```
+        
+        INSTRUCTIONS:
+        Make sure file content follows this best practices and apply all changes needed to it.
+        Return the final content without any kind of decoration or extra comments. 
+        Avoid surronding your response with fences (```), just return the final content.
+        """)
+
+        chat = Chat(name=f"Improve file with profile {profile.name}", messages=[content_message])
+        self.chat_with_project(chat=chat, use_knowledge=False)
+        return chat.messages[-1].content
+
+    def write_project_file(self, file_path: str, content: str):
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        content = self.process_project_file_before_saving(file_path=file_path, content=content)
+        write_file(file_path=file_path, content=content)
 
     def search_files(self, search: str):
         all_sources = [s for s in self.get_knowledge().get_all_sources().keys() if search in s]
         base_path = self.settings.project_path
         return [self.parse_file_line(file, base_path) for file in sorted(all_sources)]
+

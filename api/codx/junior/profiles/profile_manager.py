@@ -2,7 +2,7 @@ import os
 import json
 import pathlib
 import logging
-
+import re
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.model import Profile
@@ -52,7 +52,8 @@ class ProfileManager:
 
     def save_profile(self, profile: Profile):
         if not profile.name:
-            raise 'Invalid profie'
+            raise Exception('Invalid profie')
+
         profile_path = f"{os.path.join(self.profiles_path, profile.name)}.profile"
         logger.info(f"Save profile {profile_path}")
         with open(profile_path, 'w') as f:
@@ -64,4 +65,11 @@ class ProfileManager:
         profile_file_name = f"{profile_name}.profile"
         profile_path = [file_path for file_path in project_profiles if file_path.endswith(profile_file_name)]
         if profile_path:
-            os.remove(profile_path)
+            os.remove(profile_path[0])
+
+    def is_profile_match(slef, profile: Profile, file_path: str):
+        return profile.file_match and re.search(profile.file_match, file_path)
+
+    def get_file_profiles(self, file_path: str):
+        return [profile for profile in self.list_profiles() \
+          if self.is_profile_match(profile=profile, file_path=file_path)]

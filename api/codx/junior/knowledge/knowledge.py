@@ -333,14 +333,17 @@ class Knowledge:
       if not self.settings.use_knowledge:
         logging.error(f"Knowledge::search use_knowledge is DISABLED {self.settings.use_knowledge}")
         return []
-      try:
-          retriever = self.as_retriever()
-          HNSW_M = self.settings.knowledge_hnsw_M
-          documents = retriever.get_relevant_documents(query, **{ "M": HNSW_M })
-          logger.debug(f"[Knowledge::search] {query} docs: {len(documents)}")
-          return documents
-      except Exception as ex:
-          logger.exception(f"Error knowledge search {ex}")
+      attemps = 3
+      while attemps >= 0:
+          try:
+              retriever = self.as_retriever()
+              HNSW_M = self.settings.knowledge_hnsw_M
+              documents = retriever.get_relevant_documents(query, **{ "M": HNSW_M })
+              logger.debug(f"[Knowledge::search] {query} docs: {len(documents)}")
+              return documents
+          except Exception as ex:
+              logger.exception(f"Error knowledge search {ex}")
+          attemps -= 1
       return []
 
     def search_in_source(self, query):
