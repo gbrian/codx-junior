@@ -19,14 +19,14 @@
         </label>
       </div>
       <div class="flex gap-2">
-        <button class="btn btn-sm" @click="logs = null">
-          Clear
+        <button class="btn btn-sm" @click="clearLogs">
+          <i class="fa-solid fa-trash-can"></i>
         </button>
         <button class="btn btn-sm" @click="fetchLogs">
-          Refresh
+          <i class="fa-solid fa-rotate"></i>
         </button>
         <label class="flex items-center space-x-2">
-          <input type="checkbox" v-model="autoRefresh" @change="toggleAutoRefresh" class="form-checkbox" />
+          <input type="checkbox" v-model="autoRefresh" class="checkbox checkbox-xs" />
           <span>Auto-refresh</span>
         </label>
         <div class="grow"></div>
@@ -57,7 +57,6 @@ export default {
       logs: '',
       formatedLogs: null,
       autoRefresh: false,
-      refreshInterval: null,
       logNames: [],
       filter: null,
       filterMatchCount: 0
@@ -67,9 +66,7 @@ export default {
     this.fetchLogNames()
   },
   beforeUnmount() {
-    if (this.refreshInterval) {
-      clearInterval(this.refreshInterval)
-    }
+    this.autoRefresh = false
   },
   computed: {
     ignorePatterns() {
@@ -77,6 +74,13 @@ export default {
     },
     allIgnorePatterns() {
       return ["api/logs", "/var/log/", ...this.ignorePatterns]
+    }
+  },
+  watch: {
+    autoRefresh () {
+      if (this.autoRefresh) {
+        this.fetchLogs()
+      }
     }
   },
   methods: {
@@ -114,22 +118,32 @@ export default {
       API.logs.read(this.selectedLog)
         .then((response) => {
           this.logs = response.data
-          this.formatedLogs = this.logs?.split('\n').map(log => ({ log: this.formattedLog(log) }))
+          this.formatedLogs = []
+          this.formatFetchedLogs(this.logs?.split('\n'))
           this.applyFilter()
           requestAnimationFrame(() => this.scrollToBottom())
+          if (this.autoRefresh) {
+            setTimeout(() => this.fetchLogs(), 3000)
+          }
         })
         .catch(console.error)
+    },
+    formatFetchedLogs(logs) {
+      const bucket = 50
+      if (logs?.length) {
+        logs.slice(0, bucket).forEach(log => 
+          this.formatedLogs.push({ log: this.formattedLog(log) }))
+        requestAnimationFrame(() => this.formatFetchedLogs(logs.slice(bucket - 1)))
+      }
+      this.scrollToBottom()
+    },
+    clearLogs() {
+      this.logs = null
+      this.formatedLogs = null
     },
     onLogChange() {
       this.logs = ''  // Clear log output
       this.fetchLogs()
-    },
-    toggleAutoRefresh() {
-      if (this.autoRefresh) {
-        this.refreshInterval = setInterval(this.fetchLogs, 2000)
-      } else {
-        clearInterval(this.refreshInterval)
-      }
     },
     scrollToBottom() {
       const logView = this.$refs.logView
@@ -161,7 +175,7 @@ export default {
     },
     formattedLog(log) {
       const colorsMap = this.colorMap()
-      const module = this.extractModule(log) // Use the new method
+      const module = this.extractModule(log)
       const color = colorsMap[module] || 'white'
       return log.replace(/&/g, "&amp;")
               .replace(/</g, "&lt;")

@@ -140,4 +140,6 @@ Default=1" > ${HOME}/.mozilla/firefox/profiles.ini
 RUN mkdir ${HOME}/FileSync
 
 USER root
+RUN mkdir -p ${CODX_SUPERVISOR_LOG_FOLDER}
+
 CMD ["/entrypoint.sh"]

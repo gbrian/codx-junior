@@ -29,14 +29,17 @@ export const state = () => ({
     "shared": "CODX-SCREEN-SHARED"
   },
   colorsMap: {},
-  coderPath: null
+  coderProjectCodxPath: null,
+  uiReady: false
 })
 
 export const getters = getterTree(state, {
   showApp: state => state.showBrowser || state.showCoder,
   isLandscape: state => state.orientation !== 'portrait',
   monitorToken: state => state.monitors[state.monitor],
-  isSharedScreen: () => window.location.pathname === '/shared'
+  isSharedScreen: () => window.location.pathname === '/shared',
+  enableFileManger: () => API.globalSettings?.enable_file_manager,
+  activeTab: state => state.tabIx
 })
 
 export const mutations = mutationTree(state, {
@@ -60,7 +63,11 @@ export const mutations = mutationTree(state, {
     $storex.ui.setShowBrowser(!state.showBrowser)
   },
   setActiveTab(state, tabIx) {
-    state.tabIx = tabIx
+    if (state.tabIx === tabIx) {
+      state.tabIx = null
+    } else {
+      state.tabIx = tabIx
+    }
     if (state.tabIx !== 'app' && state.isMobile) {
       state.showCoder = false
       state.showBrowser = false
@@ -112,9 +119,16 @@ export const mutations = mutationTree(state, {
     state.colorsMap = colorsMap
     $storex.ui.saveState()
   },
-  coderOpenPath(state, path) {
-    state.coderPath = path
-  } 
+  coderOpenPath(state, project) {
+    state.coderProjectCodxPath = project.codx_path
+  },
+  setUIready(state) {
+    state.uiReady = true
+    // If no user projects, go to help
+    if (!$storex.projects.allProjects.find(p => p.project_path.indexOf("codx-junior") === -1)) {
+      $storex.ui.setActiveTab('help')
+    }
+  }
 })
 
 export const actions = actionTree(
@@ -130,7 +144,8 @@ export const actions = actionTree(
       state.showLogs = false    
     },
     saveState({ state }) {
-      localStorage.setItem('uiState', JSON.stringify(state))
+      const data = { ...state, uiReady: false }
+      localStorage.setItem('uiState', JSON.stringify(data))
     },
     handleResize({ state }) {
       const width = window.innerWidth

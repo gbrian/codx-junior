@@ -42,7 +42,6 @@ export const actions = actionTree(
       $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
-      await API.init()
       $storex.projects.setAllProjects(API.allProjects)
       $storex.projects.setActiveProject(API.lastSettings)
     },
@@ -79,17 +78,12 @@ export const actions = actionTree(
       await API.chats.delete(board, name)
       await $storex.projects.loadChats()
     },
-    async setActiveChat({ state }, { board, name } = {}) {
-      if (name) {
-        const chat = await API.chats.loadChat({ board, name })
-        const existingChat = state.chats.find(c => c.name === name)
-        if (existingChat) {
-          existingChat.messages = chat.messages
-        } else {
-          state.chats = [...state.chats, chat]
-        }
+    async setActiveChat({ state }, chat) {
+      if (chat) {
+        const loadedChat = await API.chats.loadChat(chat)
+        state.chats = [...state.chats.filter(c => c.id !== loadedChat.id), loadedChat]
       }
-      state.activeChat = state.chats.find(c => c.name === name)
+      state.activeChat = state.chats.find(c => c.id === chat?.id)
       $storex.ui.setKanban(state.activeChat?.board)
     },
     async addLogIgnore({ state }, ignore) {
@@ -130,6 +124,12 @@ export const actions = actionTree(
       const project = $storex.projects.allProjects.find(p => p.project_path === newProject.project_path)
       $storex.projects.setActiveProject(project)
       $storex.ui.coderOpenPath(project.project_path)
+    },
+    getProjectDependencies({ state }, project) {
+      const { project_dependencies } = project
+      return `${project_dependencies}`.split(",").map(dep => 
+        state.allProjects.find(({ project_name }) => project_name === dep.trim()))
+                          .filter(p => !!p)
     }
   }
 )

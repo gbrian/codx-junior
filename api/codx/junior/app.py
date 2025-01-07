@@ -109,8 +109,7 @@ def process_projects_changes():
     while True:
         try:
             projects_to_check = [settings for settings in find_all_projects() if settings.watching]
-            watching_projects = [p for p in projects_to_check if p.watching]
-            for ix, settings in enumerate(watching_projects):
+            for ix, settings in enumerate(projects_to_check):
                 has_changes = check_project_changes(settings=settings)
                 if not has_changes:
                     continue
@@ -228,10 +227,9 @@ def api_knowledge_status(request: Request):
 @app.get("/api/chats")
 def api_list_chats(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    chat_name = request.query_params.get("chat_name")
-    board = request.query_params.get("board")
-    if chat_name:
-        return codx_junior_session.load_chat(board=board, chat_name=chat_name)
+    file_path = request.query_params.get("file_path")
+    if file_path:
+        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
     return codx_junior_session.list_chats()
 
 @app.post("/api/chats")
@@ -243,14 +241,26 @@ def api_chat(chat: Chat, request: Request):
 @app.put("/api/chats")
 def api_save_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.save_chat(chat)
+    chat_only = request.query_params.get("chatOnly")
+    codx_junior_session.save_chat(chat, chat_only=chat_only)
 
 @app.delete("/api/chats")
 def api_delete_chat(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    chat_name = request.query_params.get("chat_name")
-    board = request.query_params.get("board")
-    codx_junior_session.delete_chat(board, chat_name)
+    file_path = request.query_params.get("file_path")
+    codx_junior_session.delete_chat(file_path)
+
+@app.get("/api/boards")
+def api_boards(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_chat_manager().load_boards()
+
+@app.post("/api/boards")
+async def api_set_boards(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    boards = await request.json()
+    codx_junior_session.get_chat_manager().save_boards(boards)
+
 
 @app.post("/api/images")
 def api_image_upload(file: UploadFile):
@@ -404,7 +414,7 @@ def api_logs_list():
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
-    log_file = f"/var/log/supervisor/{log_name}.log"
+    log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
     log_size = request.query_params.get("log_size") or "1000"
     logs, _ = exec_command(f"tail -n {log_size} {log_file}")
     return logs

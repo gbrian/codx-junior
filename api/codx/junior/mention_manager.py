@@ -114,7 +114,7 @@ def strip_mentions(content, mentions):
         last_index = (mention.end_line if mention.end_line else mention.start_line) + 1
     if last_index < len(content) - 1:
         new_content = new_content + content_lines[last_index:]
-    return "\n".join(new_content)
+    return "\n".join(new_content).strip()
 
 def replace_mentions(content, mentions):
     content_lines = content.split("\n")

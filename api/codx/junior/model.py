@@ -42,13 +42,14 @@ class Chat(BaseModel):
     mode: str = Field(default='chat')
     board: str = Field(default='')
     column: str = Field(default='')
-    chat_index: int = Field(default=-1)
+    chat_index: int = Field(default=None)
     live_url: str = Field(default='')
     branch: str = Field(default='')
+    file_path: str = Field(default='')
 
 class Column(BaseModel):
     name: str = Field(default='')
-    chats: List[Chat] = Field(default=[])
+    chat_ids: List[str] = Field(default=[])
 
 class Board(BaseModel):
     name: str = Field(default='')
@@ -91,8 +92,12 @@ class KnowledgeSearch(BaseModel):
 
 class Profile(BaseModel):
     name: str = Field(default="")
+    description: str = Field(default="")
+    category: str = Field(default="", description="Profile category: global, file, coding, ...")
+    file_match: str = Field(default="",
+        description="Optional regex to apply profiles based on file absolute path.")
     content: str = Field(default="")
-    user_comment: str = Field(default="")
+    path: str = Field(default="")
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -130,6 +135,10 @@ class GlobalSettings(BaseModel):
     ai_temperature: str = Field(default="0.8")
 
     log_ignore: List[str] = Field(default=[])
+
+    codx_junior_avatar: str = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
+
+    enable_file_manager: bool = Field(default=False)
 
 class Screen(BaseModel):
     resolution: str = Field(default='')
