@@ -128,3 +128,13 @@ class OpenAI_AI:
         )
 
         return response.data[0].url
+
+    def embeddings(self, content: str):
+        response = self.client.embeddings.create(
+            input=content,
+            model=self.settings.get_ai_embeddings_model()
+        )
+        embeddings = []
+        for data in response.data:
+            embeddings = embeddings + data.embedding
+        return embeddings

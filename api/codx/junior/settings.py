@@ -106,6 +106,12 @@ class CODXJuniorSettings:
             return GLOBAL_SETTINGS.anthropic_ai.anthropic_model
         return None
 
+    def get_ai_embeddings_model(self):
+        return "text-embedding-3-small"
+
+    def get_ai_embeddings_vector_size(self):
+        return 1536
+
     @classmethod
     def from_env(cls):
         base = CODXJuniorSettings()

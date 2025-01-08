@@ -40,6 +40,7 @@ class AI:
     ):
         self.settings = settings
         self.llm = self.create_chat_model()
+        self.embeddings = self.create_embeddings_model()
         self.cache = False
 
 
@@ -99,6 +100,9 @@ class AI:
 
         return messages
 
+    def embeddings(self, content: str):
+        return self.embeddings(content=content)
+
     @staticmethod
     def serialize_messages(messages: List[Message]) -> str:
         try:
@@ -122,6 +126,9 @@ class AI:
         if self.settings.ai_provider == "anthropic":
             return Anthropic_AI(settings=self.settings).chat_completions    
         return OpenAI_AI(settings=self.settings).chat_completions
+
+    def create_embeddings_model(self):
+        return OpenAI_AI(settings=self.settings).embeddings
 
 
 def serialize_messages(messages: List[Message]) -> str:
