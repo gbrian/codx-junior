@@ -1,5 +1,0 @@
-# [[{"id": "cebcbecb-83f1-45e0-9445-b4ff1309c4a1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Allow relative paths for settings", "created_at": "2024-12-19T14:46:38.755326", "updated_at": "2024-12-19T14:46:38.755326", "mode": "task", "board": "codx-junior-1.0", "column": "new column", "chat_index": 0, "live_url": "", "branch": ""}]]
-## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-19 08:38:03.102632", "updated_at": "2024-12-19 08:38:03.102662", "images": [], "files": []}]]
-We must allow relative paths for project_path and codx_path settings
-## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-19 08:38:03.102632", "updated_at": "2024-12-19 08:38:03.102662", "images": [], "files": []}]]
-Sure, allowing relative paths for `project_path` and `codx_path` can make the setup more flexible. You can implement this by resolving these paths at runtime using a method like `os.path.abspath()` in Python, which converts a relative path to an absolute path. Do you need guidance on how to implement this?
