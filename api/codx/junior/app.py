@@ -105,24 +105,24 @@ def process_project_changes(settings):
     WATCHING_PROJECTS[settings.codx_path] = False
 
 
-def process_projects_changes():
+def check_all_projects_loop():
     while True:
         try:
-            projects_to_check = [settings for settings in find_all_projects() if settings.watching]
+            projects_to_check = find_all_projects()
             for ix, settings in enumerate(projects_to_check):
                 has_changes = check_project_changes(settings=settings)
                 if not has_changes:
                     continue
-                logger.info(f"[process_projects_changes]: {settings.project_name} has_changes: {has_changes}")
+                logger.info(f"[check_all_projects_loop]: {settings.project_name} has_changes: {has_changes}")
                 process_project_changes(settings=settings)
         except Exception as ex:
             logger.exception("Error processing watching projects {ex}")        
     time.sleep(5)
 
-logger.info("Starting process_projects_changes job")
+logger.info("Starting check_all_projects_loop job")
 
 # Background changes loop
-threading.Thread(target=process_projects_changes).start()
+threading.Thread(target=check_all_projects_loop).start()
 
 # Init all projects
 find_all_projects()

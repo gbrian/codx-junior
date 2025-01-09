@@ -12,7 +12,7 @@ from langchain.schema import (
 from codx.junior.utils import document_to_context
 from codx.junior.ai.ai import AI
 from codx.junior.settings import CODXJuniorSettings
-from codx.junior.knowledge.knowledge import Knowledge
+from codx.junior.knowledge.knowledge_milvus import Knowledge
 
 from codx.junior.utils import extract_json_blocks 
 
@@ -130,7 +130,7 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
 
     return doc
 
-def find_relevant_documents (query: str, settings, ignore_documents=[]):
+def find_relevant_documents (query: str, settings, ignore_documents=[], ai_validate=True):
   
   knowledge_documents = Knowledge(settings=settings).search(query)
   def is_valid_document(doc):
@@ -149,8 +149,12 @@ def find_relevant_documents (query: str, settings, ignore_documents=[]):
   
   if documents:
       # Filter out irrelevant documents based on a relevance score
-      relevant_documents = [doc for doc in parallel_validate_contexts(
-          query, documents, settings) if doc]
+      relevant_documents = documents
+      if ai_validate:
+            relevant_documents = [doc for doc in \
+                                parallel_validate_contexts(query, 
+                                                    documents, 
+                                                    settings) if doc]
       file_list = [str(Path(doc.metadata["source"]).absolute())
                   for doc in relevant_documents]
       file_list = list(dict.fromkeys(file_list))  # Remove duplicates

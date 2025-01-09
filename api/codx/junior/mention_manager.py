@@ -88,7 +88,7 @@ def extract_mentions(content):
             mention.start_line = ix
             mentions.append(mention)
     
-        elif MULTI_LINE_MENTION_END in line:
+        elif mention and MULTI_LINE_MENTION_END in line:
             mention.end_line = ix
             mention = None
     

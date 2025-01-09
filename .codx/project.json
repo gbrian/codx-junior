@@ -12,7 +12,7 @@
   "knowledge_context_cutoff_relevance_score": 0.9,
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
-  "knowledge_file_ignore": "api/,client/,.codx,assets,/.gitignore",
+  "knowledge_file_ignore": "api/,client/,.codx,assets,/.gitignore,xdg,browser",
   "temperature": 0.7,
   "watching": false,
   "use_knowledge": true,

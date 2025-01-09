@@ -43,7 +43,7 @@
     </div>
     <div class="grow overflow-auto" ref="logView">
       <code>
-        <pre class="w-full text-wrap" v-html="flog.log" :class="flog.styleClasses" v-for="(flog, ix) in formatedLogs" :key="ix"></pre>
+        <pre class="w-full" v-html="flog.log" :class="flog.styleClasses" v-for="(flog, ix) in formatedLogs" :key="ix"></pre>
       </code>
     </div>
   </div>

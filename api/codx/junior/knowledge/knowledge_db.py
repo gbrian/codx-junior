@@ -161,12 +161,15 @@ class KnowledgeDB:
             output_fields=["id", "page_content", "metadata"]
         )
         documents = []
-        for hit in res:
-            doc = Document(id=hit["id"],
-                        page_content=hit["page_content"], 
-                        metadata=hit["metadada"])
-            documents.append(doc)
-
+        # logger.info(f"search results: {list(res)}")
+        for level0 in list(res):
+            for level1 in level0:
+                _id = level1["id"]
+                entity = level1["entity"]
+                documents.append(
+                    Document(id=_id,
+                        page_content=entity["page_content"], 
+                        metadata=entity["metadata"]))
         return documents
 
     def get_all_sources(self):

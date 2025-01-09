@@ -232,14 +232,24 @@ class CODXJuniorSession:
         documents = []
         response = ""
         if knowledge_search.search_type == "embeddings":
-            chat = Chat(messages=[
-                Message(
-                    role="user",
-                    content=f"Please give me really short answer about: {knowledge_search.search_term}"
+            documents, file_list = find_relevant_documents(query=knowledge_search.search_term,
+                                                    settings=self.settings, 
+                                                    ignore_documents=[],
+                                                    ai_validate=False)
+            
+            chat = Chat(messages=
+                [
+                    Message(
+                        role="user",
+                        content=doc.page_content)
+                    for doc in documents] +  
+                [
+                    Message(
+                        role="user",
+                        content=f"Based on previos messages, give me really short answer about: {knowledge_search.search_term}"
                 )
             ])
-            chat, chat_docs = self.chat_with_project(chat=chat, use_knowledge=True)
-            documents = chat_docs
+            chat, _ = self.chat_with_project(chat=chat, use_knowledge=False)
             response = chat.messages[-1].content
         elif knowledge_search.search_type == "source":
             documents = Knowledge(settings=self.settings).search_in_source(knowledge_search.search_term)
@@ -458,10 +468,12 @@ class CODXJuniorSession:
         }
     def check_project_changes(self):
         if not self.settings.is_valid_project():
+            logger.error(f"check_project_changes invalid project {self.settings}")
             return False
         knowledge = Knowledge(settings=self.settings)
         new_files = knowledge.detect_changes()
         if not new_files:
+            logger.info(f"check_project_changes {self.settings.project_name} no changes")
             return False
         return True
 
@@ -470,10 +482,10 @@ class CODXJuniorSession:
             return
         knowledge = Knowledge(settings=self.settings)
         knowledge.clean_deleted_documents()
-        new_files = knowledge.detect_changes()
+        new_files, _ = knowledge.detect_changes()
         if not new_files:
             return
-    
+        
         for file_path in new_files:
             try:
                 self.check_file_for_mentions(file_path=file_path)
@@ -604,6 +616,7 @@ class CODXJuniorSession:
         chat_manager = ChatManager(settings=self.settings)
         ai = AI(settings=self.settings)
         mentions = None
+        file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)
         
         def read_file():
             def prepare_ipynb_for_llm():
@@ -624,7 +637,7 @@ class CODXJuniorSession:
                 return f.read()
 
         def save_file(new_content):
-            self.write_project_file(file_path=file_path, content=new_content)
+            write_file(file_path=file_path, content=new_content)
 
         if not content:
             content = read_file()
@@ -670,17 +683,27 @@ class CODXJuniorSession:
         
         query = "\n  *".join([mention_info(mention) for mention in mentions])
 
-        chat = Chat(name=f"changes_at_{file_path}", messages=[
-            Message(role="user", content=f"""
-            {profile_manager.read_profile("software_developer").content}
-            Find all information needed to apply all changes to file: {file_path}
-            Changes:
-              {query}
+        chat = Chat(name=f"changes_at_{file_path}", messages=
+            [
+                Message(
+                    role="user", 
+                    content=f"""Please consider this best practices when writing this file
+                    {profile.content}
+                    """
+                ) for profile in file_profiles
+            ] 
+            + 
+            [
+                Message(role="user", content=f"""
+                {profile_manager.read_profile("software_developer").content}
+                Find all information needed to apply all changes to file: {file_path}
+                Changes:
+                {query}
 
-            File content:
-            {new_content}
-            """)
-        ])
+                File content:
+                {new_content}
+                """)
+            ])
             
         self.chat_with_project(chat=chat, use_knowledge=use_knowledge)
         chat.messages.append(Message(role="user", content=f"""
