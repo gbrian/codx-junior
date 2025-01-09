@@ -16,6 +16,7 @@ class MentionFlags():
     knowledge: bool = False
     model: str = None
     chat_id: str = None
+    code: bool = None
     image: bool = False
 
 class Mention():

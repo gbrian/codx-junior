@@ -396,12 +396,13 @@ export default {
     },
     async reloadKnowledge () {
       this.loading = true
-      try {
-        this.selectedFilePaths.forEach(async filePath => {
+      while(this.selectedFilePaths.length) {
+        const filePath = this.selectedFilePaths[0]
+        try {
           await this.reloadPath(filePath)
-          delete this.selectedFiles[filePath]
-        })
-      } catch{}
+        } catch {}
+        delete this.selectedFiles[filePath]
+      } 
       this.reloadStatus()
       this.loading = false
     },

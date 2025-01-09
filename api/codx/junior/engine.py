@@ -664,6 +664,7 @@ class CODXJuniorSession:
         using_chat = any(m.flags.chat_id for m in mentions)
         skip_knowledge_search = not any(m.flags.knowledge for m in mentions)
         
+        run_code = any(m.flags.code for m in mentions)
 
         if using_chat or skip_knowledge_search:
             use_knowledge = False       
@@ -706,15 +707,19 @@ class CODXJuniorSession:
             ])
             
         self.chat_with_project(chat=chat, use_knowledge=use_knowledge)
-        chat.messages.append(Message(role="user", content=f"""
-        Rewrite full file content replacing codx instructions by required changes.
-        Return only the file content without any further decoration or comments.
-        Do not surround response with '```' marks, just content:
-        {new_content}
-        """))
-        self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
-        response = chat.messages[-1].content
-        save_file(new_content=response)
+        if run_code:
+            self.improve_existing_code(chat=chat, apply_changes=True)
+        else:
+            chat.messages.append(Message(role="user", content=f"""
+            Rewrite full file content replacing codx instructions by required changes.
+            Return only the file content without any further decoration or comments.
+            Do not surround response with '```' marks, just content:
+            {new_content}
+            """))
+            
+            self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
+            response = chat.messages[-1].content
+            save_file(new_content=response)
 
         return True
 
