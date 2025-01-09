@@ -1,6 +1,8 @@
 import os
+import re
 import logging
 import shutil
+import json
 
 from slugify import slugify
 from pathlib import Path
@@ -9,6 +11,8 @@ from langchain.schema.document import Document
 
 from codx.junior.ai import AI
 from codx.junior.settings import CODXJuniorSettings
+
+from codx.junior.utils import calculate_md5
 
 logger = logging.getLogger(__name__)
 
@@ -24,35 +28,52 @@ class KnowledgeDB:
     index_name: str
     db: MilvusClient = None
     ai: AI
-    db_file_list: str
+    last_update = None
 
     def __init__(self, settings: CODXJuniorSettings):
         self.ai = None
         self.settings = settings
 
         self.path = self.settings.project_path
-        self.index_name = slugify(str(self.path))
+        self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(str(self.path)))
         self.db_path = f"{settings.codx_path}/db/{self.index_name}"
         os.makedirs(self.db_path, exist_ok=True)
         
         self.db_file = f"{self.db_path}/milvus.db"
-        self.db_file_list = f"{self.db_path}/{index_name}_file.json"
+        self.db_file_list = f"{self.db_path}/{self.index_name}_file.json"
         self.embedding = None
 
         self.db = MilvusClient(self.db_file)
         self.init_collection()
+        self.refresh_last_update()
 
-    def init_collection(self):
-        self.db.create_collection(
-            collection_name=self.index_name,
-            dimension=self.settings.get_ai_embeddings_vector_size()
-        )
+    def get_ai(self):
+        if not self.ai:
+            self.ai = AI(settings=self.settings)
+        return self.ai
+
+
+    def refresh_last_update(self):
+        if os.path.isfile(self.db_file_list):
+            self.last_update = os.path.getmtime(self.db_file_list)
+
+    def init_collection(self):  
+        collections = self.db.list_collections()
+        if self.index_name not in collections:
+            self.db.create_collection(
+                collection_name=self.index_name,
+                dimension=self.settings.get_ai_embeddings_vector_size(),
+                auto_id=True
+            )
 
     def get_all_files(self):
         all_files = {}
-        if os.path.isfile(self.self.db_file_list):
-            with open(self.db_file_list, 'r') as f:
-              all_files = json.loads(f.read())
+        try:
+            if os.path.isfile(self.db_file_list):
+                with open(self.db_file_list, 'r') as f:
+                    all_files = json.loads(f.read())
+        except Exception as ex:
+            logger.error(f"Error reading db files {ex}: {self.db_file_list}")
         return all_files
 
     def save_all_files(self, all_files):
@@ -62,75 +83,91 @@ class KnowledgeDB:
     def get_all_documents (self, include=[]) -> [Document]:
         all_files = self.get_all_files()
         documents = []
-        for file, docs in all_files.items():
-            documents = documents + [Document(**doc) for doc in docs] 
+        for file, file_info in all_files.items():
+            documents = documents + [Document(id=doc["id"], page_content="", metadata=doc["metadata"]) \
+                                        for doc in file_info["documents"]] 
         return documents
 
-    def update_documents (self, documents: [Document]):
+    def update_all_file (self, documents: [Document]):
         all_files = self.get_all_files()
-        sources = [doc.metadata["source"] for doc in documents]
+        sources = [doc["metadata"]["source"] for doc in documents]
 
         for file in sources:
-            all_files[file] = [doc.__dict__ for doc in documents if doc.metadata["source"] == file]
-
+            all_files[file] = {
+                "file_md5": calculate_md5(file),
+                "documents": [doc for doc in documents if doc["metadata"]["source"] == file]
+            }
         self.save_all_files(all_files)
 
     def index_documents(self, documents: [Document]):
         data = []
         for doc in documents:
-            vector = self.ai.embeddings(content=doc.page_content)
-            data.append({
+            vector = self.get_ai().embeddings(content=doc.page_content)
+            doc_data = {
               "vector": vector,
-              **doc.metadata
-            })
-        res = self.db.insert(data)
-        for ix, _id in enumerate(res["ids"]):
-            documents[ix].id = _id
+              "page_content": doc.page_content,
+              "metadata": doc.metadata
+            }
+            data.append(doc_data)
 
-        self.update_documents(documents=documents)
+        res = self.db.insert(
+                collection_name=self.index_name,
+                data=data
+            )
+        new_docs = []
+        for ix, _id in enumerate(res["ids"]):
+            doc = documents[ix]
+            new_docs.append({
+                "id": _id,
+                "metadata": doc.metadata
+            })
+
+        self.update_all_file(documents=new_docs)
         
     def delete_documents (self, sources: [str]):
         logger.info('Removing old documents')
         ids_to_delete = []
         all_files = self.get_all_files()
 
-        for _id, files in all_files.items:
-            if [f for f in files if f["source"] in sources]:
-                ids_to_delete.append(_id)
+        for file, file_info in all_files.items():
+            if file in sources:
+             ids_to_delete =  ids_to_delete + [str(doc["id"]) for doc in file_info["documents"]]
                 
-        logger.info(f"Document ids to delete: {ids_to_delete}: {sources}")
-        
-        self.db.delete(
-            collection_name=self.index_name,
-            filter=f"id in [{','.join(ids_to_delete)}]"
-        )
-
-        self.save_all_files(all_files)
+        if ids_to_delete:
+            logger.info(f"Document ids to delete: {ids_to_delete}: {sources}")
+            self.db.delete(
+                collection_name=self.index_name,
+                filter=f"id in [{','.join(ids_to_delete)}]"
+            )
+            for source in sources:
+                del all_files[source]
+            self.save_all_files(all_files)
 
     def reset(self):    
         self.db.drop_collection(
             collection_name=self.index_name
         )
+        if os.path.isfile(self.db_file_list):
+            os.remove(self.db_file_list)
+        self.last_update = None
         self.init_collection()
 
     def search(self, query: str):
-      query_vector = self.ai.embeddings(content=query)
-      res = self.db.search(
-          collection_name=self.index_name,
-          data=[query_vector],
-          limit=20,
-          output_fields=["id", "source"]
-      )
-      all_files = self.get_all_files()
-      documents = []
-      for hit in res:
-          source = hit["source"]
-          files = all_files[source]
-          for file in files:
-            doc = [Document(**_doc) for _doc in files if _doc["id"] == hit["id"]][0]
+        query_vector = self.get_ai().embeddings(content=query)
+        res = self.db.search(
+            collection_name=self.index_name,
+            data=[query_vector],
+            limit=self.settings.knowledge_search_document_count,
+            output_fields=["id", "page_content", "metadata"]
+        )
+        documents = []
+        for hit in res:
+            doc = Document(id=hit["id"],
+                        page_content=hit["page_content"], 
+                        metadata=hit["metadada"])
             documents.append(doc)
 
-      return documents
+        return documents
 
     def get_all_sources(self):
-        return self.get_all_files().keys()
+        return self.get_all_files()

@@ -36,27 +36,23 @@ class Knowledge:
         self.knowledge_prompts = KnowledgePrompts(settings=settings)
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
-        self.last_update = None
-        self.refresh_last_update()        
         self.last_changed_file_paths = []
 
     def get_ai(self):
-      from codx.junior import build_ai
-      if not self.ai:
-        self.ai = build_ai(settings=self.settings)
-      return self.ai
+        if not self.ai:
+          self.ai = AI(settings=self.settings)
+        return self.ai
 
     def get_db(self):
-      try:
-          if not self.db:
-            self.db = KnowledgeDB(settings=self.settings)
-          return self.db
-      except Exception as ex:
-          logger.exception(f"Error opening Knowledge DB: {ex}")
+        try:
+            if not self.db:
+              self.db = KnowledgeDB(settings=self.settings)
+            return self.db
+        except Exception as ex:
+            logger.exception(f"Error opening Knowledge DB: {ex}")
 
     def refresh_last_update(self):
-      if os.path.isfile(self.db_file):
-          self.last_update = os.path.getmtime(self.db_file)
+        self.get_db().refresh_last_update()
 
     def get_sub_projects_paths(self):
         sub_projects = self.settings.get_sub_projects()
@@ -66,13 +62,13 @@ class Knowledge:
     def detect_changes(self):
       current_sources = self.get_all_sources()
       changes = self.loader.list_repository_files(
-                          last_update=self.last_update if current_sources else None,
+                          last_update=self.get_db().last_update if current_sources else None,
                           current_sources=current_sources,
                           ignore_paths=self.get_sub_projects_paths())
       
       def is_empty(file_path):
           return False if os.stat(file_path).st_size else True
-      return [file_path for file_path in changes if not is_empty(file_path)]
+      return [file_path for file_path in changes if not is_empty(file_path)], self.get_db().last_update
 
     def reload(self, full: bool = False):
         if not self.settings.use_knowledge:
@@ -85,7 +81,7 @@ class Knowledge:
             # Load the knowledge from the filesystem
             current_sources = self.get_all_sources()
             documents = self.loader.load(
-                                last_update=self.last_update if current_sources else None,
+                                last_update=self.get_db().last_update if current_sources else None,
                                 current_sources=current_sources,
                                 ignore_paths=self.get_sub_projects_paths())
             if documents:
@@ -102,7 +98,6 @@ class Knowledge:
 
     def reload_path(self, path: str):
         documents = self.loader.load(last_update=None, path=path)
-        logger.info(f"reload_path {path}: {documents}")
         if documents:
             self.index_documents(documents, raiseIfError=True)
         logger.info(f"reload_path DONE {path} {len(documents)} documents")
@@ -114,6 +109,7 @@ class Knowledge:
     def clean_deleted_documents(self):
         documents = self.get_all_documents()
         sources = []
+        ids_to_delete = []
         for doc in documents:
           source = doc.metadata["source"]
           if not self.loader.is_valid_file(source):
@@ -217,13 +213,12 @@ class Knowledge:
 
     def delete_documents (self, documents=None, sources=None):
         sources = set(sources or [doc.metadata["source"] for doc in documents])
-        self.get_db().delete_documents(self, sources=sources)
+        self.get_db().delete_documents(sources=sources)
         for source in sources:
             self.knowledge_keywords.remove_keywords(source)
 
     def reset(self):
         logger.info('Reseting retriever')
-        self.last_update = None
         self.get_db().reset()
 
     def search(self, query):

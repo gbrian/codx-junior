@@ -50,7 +50,7 @@ from codx.junior.context import (
     AICodeGerator
 )
 
-from codx.junior.knowledge.knowledge import Knowledge
+from codx.junior.knowledge.knowledge_milvus import Knowledge
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
 from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
 
@@ -448,9 +448,8 @@ class CODXJuniorSession:
 
     def check_knowledge_status(self):
         knowledge = Knowledge(settings=self.settings)
-        last_update = knowledge.last_update
         status = knowledge.status()
-        pending_files = knowledge.detect_changes()
+        pending_files, last_update = knowledge.detect_changes()
         return {
             "last_update": str(last_update),
             "pending_files": pending_files[0:2000],
@@ -474,10 +473,8 @@ class CODXJuniorSession:
         new_files = knowledge.detect_changes()
         if not new_files:
             return
-        logger.info(f"check_file_for_mentions files: {new_files}")
-            
+    
         for file_path in new_files:
-            logger.info(f"check_file_for_mentions {file_path}")
             try:
                 self.check_file_for_mentions(file_path=file_path)
             except:
@@ -635,7 +632,6 @@ class CODXJuniorSession:
         mentions = extract_mentions(content)
         
         if not mentions:
-            logger.info(f"No mentions found for {file_path}")
             return False
             
         logger.info(f"{len(mentions)} mentions found for {file_path}")

@@ -41,7 +41,6 @@ class OpenAI_AI:
         self.settings = settings
         api_key=settings.get_ai_api_key()
         base_url=settings.get_ai_api_url()
-        logger.info(f"OPENAI api_key: {api_key} , base_url: {base_url}")
         self.client = OpenAI(
             api_key=api_key,
             base_url=base_url

@@ -93,6 +93,7 @@ class KnowledgeLoader:
         return file_paths, error
 
     def list_repository_files(self, last_update = None, path: str = None, current_sources=None, ignore_paths=[]):        
+        logger.info(f"list_repository_files current_sources: {current_sources}")
         full_file_paths = None
         if path:
             if os.path.isfile(path):

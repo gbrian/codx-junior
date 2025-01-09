@@ -141,7 +141,8 @@ export const actions = actionTree(
       if (!state.tabIx) {
         state.tabIx = 'home'
       }
-      state.showLogs = false    
+      state.showLogs = false
+      state.showCoder = true    
     },
     saveState({ state }) {
       const data = { ...state, uiReady: false }
@@ -161,7 +162,7 @@ export const actions = actionTree(
     },
     async openFile({ state }, file) {
       if (state.isMobile) {
-        state.tabIx = 'app'
+        state.tabIx = 'help'
         state.openedFile = file
       } else {
         await API.coder.openFile(file)
