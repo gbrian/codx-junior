@@ -55,6 +55,7 @@ import VSwatches from "../VSwatches.vue"
             class="grow input input-bordered w-full"/>
           <VSwatches v-model="columnColor" class="h-full mt-1" />
         </div>
+        <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
         Position:
         <ul class="steps">
           <li v-for="n in Math.max(columnPosition, columnList.length)" :key="n"
@@ -64,6 +65,7 @@ import VSwatches from "../VSwatches.vue"
           <button class="btn" @click="addOrUpdateColumn">OK</button>
           <button class="btn" @click="showColumnModal = false">Cancel</button>
         </div>
+        <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
       </modal>
       <div class="grow grid grid-flow-col overflow-x-scroll relative gap-2">
         <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
@@ -123,6 +125,7 @@ export default {
       isDropdownOpen: false,
       boards: [],
       selectedColumn: null,
+      editColumnError: null,
     }
   },
   created () {
@@ -215,34 +218,26 @@ export default {
       }));
     },
     async onColumnTaskListChanged() {
-      await Promise.all(this.columns.map(column =>
-        this.updateColumnTaskList(column )))
+      await Promise.all(this.columns.filter(({ tasks }) => !!tasks)
+        .map(column => this.updateColumnTaskList(column )))
       this.buildKanba()
+      this.saveBoards()
     },
     async updateColumnTaskList(column) {
-      await Promise.all(column.tasks
-        .filter(t => t.column !== column.title)
-        .forEach(async (task, ix) => {
-          if (task.column !== column.title) {
-            task.column = column.title,
-            task.chat_index = ix
-            if (task.id) {
-              await this.$projects.saveChatInfo(task)
+      if (column.tasks) {
+        await Promise.all(column.tasks
+          .filter(t => t.column !== column.title)
+          .forEach(async (task, ix) => {
+            if (task.column !== column.title) {
+              task.column = column.title,
+              task.chat_index = ix
+              if (task.id) {
+                await this.$projects.saveChatInfo(task)
+              }
             }
-          }
-        }))
-      this.buildKanba()
+          }))
+      }
     },
-    onEditColumnTitle(column) {
-      column.newTitle = column.title
-      column.editTitle = true
-    },
-    onColumnTitleChanged(column) {
-      column.title = column.newTitle
-      column.editTitle = false
-      this.onColumnTaskListChanged(column)
-    },
-    onColumnsChanged() {},
     async openChat(element) {
       if (element.id === -1) {
         this.newChat()
@@ -271,17 +266,9 @@ export default {
       this.columnPosition = this.columns.length + 1
       this.selectedColumn = null
     },  
-    addOrUpdateColumn() {
+    async addOrUpdateColumn() {
       if (this.columnName.trim()) {
         const activeBoardColumns = this.activeBoard.columns || []
-
-        const columnsWithSameName = activeBoardColumns.filter(
-          (col) => col.title.toLowerCase() === this.columnName.toLowerCase()
-        );
-
-        if (columnsWithSameName.length > 1) {
-          return;
-        }
 
         if (this.selectedColumn) {
           const oldColumnIndex = activeBoardColumns.findIndex(col => col.title === this.selectedColumn.title)
@@ -296,19 +283,28 @@ export default {
             });
             activeBoardColumns.splice(oldColumnIndex, 1);
           }
+        } else {
+          const columnsWithSameName = activeBoardColumns.filter(
+            (col) => col.title.toLowerCase() === this.columnName.toLowerCase()
+          );
+
+          if (columnsWithSameName.length > 1) {
+            this.editColumnError = "Name already used";
+            return;
+          }
         }
 
         const newColumn = {
           title: this.columnName,
-          color: this.columnColor,
-          tasks: this.selectedColumn ? this.selectedColumn.tasks : []
+          color: this.columnColor
         };
 
         activeBoardColumns.splice(this.columnPosition - 1, 0, newColumn);
-
+        await this.saveBoards()
         this.buildKanba()
       }
       this.resetColumnModal()
+      
     },
     resetColumnModal() {
       this.showColumnModal = false
@@ -316,6 +312,7 @@ export default {
       this.columnColor = '#000000'
       this.columnPosition = 1
       this.selectedColumn = null
+      this.editColumnError = null
     },
     addBoard() {
       if (this.newBoardName.trim()) {
@@ -325,11 +322,18 @@ export default {
       this.showBoardModal = false
     },
     openColumnPropertiesModal(column) {
-      this.selectedColumn = column
-      this.columnName = column.title
-      this.columnColor = column.color || '#000000'
-      this.columnPosition = this.columns.findIndex(c => c.title === column.title) + 1
-      this.showColumnModal = true
+      const columnIndex = this.columns.findIndex(c => c.title === column.title);
+      this.selectedColumn = {
+        ...column,
+        index: columnIndex
+      };
+      this.columnName = column.title;
+      this.columnColor = column.color || '#000000';
+      this.columnPosition = columnIndex + 1;
+      this.showColumnModal = true;
+    },
+    async saveBoards() {
+      await this.$storex.api.chats.boards.save(this.boards)
     }
   }
 }

@@ -3,7 +3,7 @@
   "ai_model": "",
   "project_name": "codx-api",
   "project_path": null,
-  "project_wiki": null,
+  "project_wiki": "wiki",
   "project_dependencies": null,
   "knowledge_extract_document_tags": false,
   "knowledge_search_type": "similarity",
