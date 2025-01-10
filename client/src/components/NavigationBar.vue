@@ -23,6 +23,16 @@ import UserList from './UserList.vue';
 				</a>
 			</div>
 
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'wiki' ? 'bg-base-100 text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Wiki"
+          @click="$ui.setActiveTab('wiki')">
+           <div class="flex flex-col gap-4">
+            <i class="fa-brands fa-wikipedia-w"></i>
+          </div>
+				</a>
+			</div>
+
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'profiles' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Project profiles"
@@ -44,8 +54,9 @@ import UserList from './UserList.vue';
       </div>
 
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'help' ? 'bg-base-100 text-primary': '',]">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Project profiles"
+        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
+          :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="About codx-junior"
           @click="$ui.setActiveTab('help')">
             <div class="flex flex-col gap-4">
             <i class="fa-regular fa-circle-question"></i>

@@ -1,3 +1,0 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": ["/codx/junior/engine.py"], "profiles": [], "name": "CODXJuniorEnginr", "created_at": "2024-10-28T17:04:01.215370", "updated_at": "2025-01-06T06:06:58.765448", "mode": "chat", "board": "Default", "column": "tasks", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/home/codxuser/projects/codx-junior/api/.codx/tasks/Default/tasks/CODXJuniorEnginr.md"}]]
-## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-10-28T17:04:01.215445", "updated_at": "2025-01-05 13:20:27.838221", "images": [], "files": []}]]
-Add __init__ method to CODXJuniorEngine 

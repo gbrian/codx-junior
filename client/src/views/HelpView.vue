@@ -68,5 +68,18 @@
 </div>
 </template>
 <script>
-export default {}
+export default {
+  data () {
+    return {
+      newProjectPath: ""
+    }
+  },
+  methods: {
+    async createNewProject () {
+      await this.$projects.createNewProject(this.newProjectPath)
+      this.newProjectPath = null
+      this.$ui.setActiveTab('tasks')
+    }
+  }
+}
 </script>

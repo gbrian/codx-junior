@@ -191,8 +191,8 @@ class ChatManager:
             for col in set([chat.column for chat in all_chats if chat.board == board]
                             +
                             all_board_columns):
-                if col not in board_columns:
-                    board_columns.append({ "title" :col })
+                if not [c for c in board_columns if c["title"] == col]:
+                    board_columns.append({ "title" : col })
 
         return boards
 

@@ -1,0 +1,3 @@
+# [[{"id": "6b314602-20ae-49cb-a4b6-8e948be0f063", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Chat in a board", "created_at": "2024-10-26T18:01:47.939458", "updated_at": "2025-01-10T04:35:02.205314", "mode": "chat", "board": "Default", "column": "To be tested", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/Default/To be tested/Chat in a board.6b314602-20ae-49cb-a4b6-8e948be0f063.md"}]]
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-04 07:21:40.542105", "updated_at": "2025-01-04 07:21:40.542133", "images": [], "files": []}]]
+Testing save
