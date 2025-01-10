@@ -22,9 +22,9 @@ import Markdown from '@/components/Markdown.vue'
     <div class="grow relative">
       <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden">
         <Browser v-if="isBrowser" :token="$ui.monitors['preview']" />
-        <div class="flex flex-col gap-2" 
+        <div class="flex flex-col" 
           v-for="message in messages" :key="message.id">
-          <ChatEntry :class="['mb-4 rounded-md',
+          <ChatEntry :class="['mb-4 rounded-md bg-base-300 p-2',
             editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
             message.hide ? 'opacity-60' : '']"
             :chat="chat"

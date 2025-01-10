@@ -41,7 +41,9 @@ import Markdown from './Markdown.vue';
           <i :class="contentPreview ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
         </button>
       </label>
-      <Markdown class="p-2 bg-base-300 rounded-md" :text="editProfile.content" v-if="contentPreview" />
+      <Markdown class="p-2 rounded-md"
+        :class="contentPreview ? 'bg-base-100 border border-slate-700' : 'bg-base-300'"
+        :text="editProfile.content" v-if="contentPreview" />
       <textarea id="content" v-model="editProfile.content" class="textarea textarea-bordered w-full h-96 bg-base-300 overflow-auto" v-else></textarea>
     </div>
     <div class="flex gap-2 justify-end">
@@ -64,7 +66,7 @@ export default {
     return {
       editProfile: { ...this.profile },
       confirmDelete: false,
-      contentPreview: false
+      contentPreview: true
     }
   },
   computed: {

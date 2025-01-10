@@ -637,7 +637,7 @@ class CODXJuniorSession:
                 return f.read()
 
         def save_file(new_content):
-            write_file(file_path=file_path, content=new_content)
+            self.write_project_file(file_path=file_path, content=new_content)
 
         if not content:
             content = read_file()
@@ -745,10 +745,14 @@ class CODXJuniorSession:
 
         ai = AI(settings=self.settings)
         profile_manager = ProfileManager(settings=self.settings)
+        chat_profiles_content = ""
+        if chat.profiles:
+            chat_profiles = [profile_manager.read_profile(profile).content for profile in chat.profiles]
+            chat_profiles_content = "\n".join(chat_profiles)
 
         instructions = f"""BEGIN INSTRUCTIONS
         This is a conversation between you and the user about the project {self.settings.project_name}.
-        Please always keep your answers short and simple unless a more detailed answer has been requested.
+        {chat_profiles_content}
         END INSTRUCTIONS
         """
         messages = [

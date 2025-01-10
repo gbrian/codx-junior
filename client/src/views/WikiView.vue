@@ -3,7 +3,7 @@ import { API } from '../api/api'
 import MarkdownVue from '@/components/Markdown.vue'
 </script>
 <template>
-  <div class="flex flex-col gap-2 h-full">
+  <div class="flex flex-col gap-2 h-full mb-4">
     <div class="text-2xl">Project's documentation</div>
     <div class="badge badge-warning flex gap-1" v-if="!settings.project_wiki">Set <span><strong>project_wiki path</strong></span> to enable.</div>
     <div class="flex items-center gap-2">

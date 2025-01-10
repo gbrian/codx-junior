@@ -23,9 +23,9 @@ import EditProfile from '@/components/EditProfile.vue';
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div v-for="profile in filteredProfiles" :key="profile.name" class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg" @click="openEditProfile(profile)">
           <div class="card-body p-4 click hover:shadow-xl overflow-hidden">
-            <h2 class="card-title text-xl font-semibold mb-2">{{ profile.name }}</h2>
+            <h2 class="card-title text-xs font-bold underline mb-2 text-secondary">{{ profile.name }}</h2>
             <p class="mb-2 text-xs">{{ profile.description?.substring(0, 100) }}</p>
-            <div class="badge badge-accent badge-outline">{{ profile.category }}</div>
+            <div class="badge badge-accent badge-sm badge-outline">{{ profile.category }}</div>
           </div>
         </div>
       </div>

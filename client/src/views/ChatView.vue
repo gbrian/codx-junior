@@ -66,6 +66,9 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                   <button class="btn btn-xs" @click="newTag = ''">
                       + tag
                   </button>
+                  <div class="badge badge-seconday badge-outline" v-for="profile in chat.profiles" :key="profile">
+                    {{ profile }}
+                  </div>
                   <modal v-if="newTag !== null">
                     <div class="flex flex-col gap-2">
                       <div class="text-xl">New tag</div>
@@ -101,7 +104,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                         Chat
                       </a>
                     </li>
-                    <li @click="chat.mode = 'task'">
+                    <li @click="setTaskMode">
                       <a class="flex items-center">
                         <i class="fa-regular fa-file-code"></i>
                         Task definition
@@ -310,6 +313,12 @@ export default {
     removeTag (tag) {
       this.chat.tags = this.chat.tags.filter(t => t !== tag)
       this.saveChat()
+    },
+    setTaskMode () {
+      this.chat.mode = 'task'
+      if (!this.chat.profiles?.includes("analyst")) {
+        this.chat.profiles = [...this.chat.profiles||[], "analyst"]
+      }
     }
   }
 }
