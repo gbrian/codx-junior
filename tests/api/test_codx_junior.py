@@ -2,7 +2,6 @@ import os
 import httpx
 import pytest
 
-
 @pytest.fixture
 def api_client():
     api_port = os.getenv('API_PORT', '8000')  # Default to 8000 if API_PORT is not set
@@ -19,4 +18,12 @@ def test_some_feature(api_client):
     assert response.status_code == 200
     # Add more assertions based on the expected output
 
-@codx: --knowledge add tests for all endpoints at app.py
+def test_another_feature(api_client):
+    response = api_client.get("/another-feature")
+    assert response.status_code == 200
+    # Add more assertions based on the expected output
+
+def test_yet_another_feature(api_client):
+    response = api_client.get("/yet-another-feature")
+    assert response.status_code == 200
+    # Add more assertions based on the expected output

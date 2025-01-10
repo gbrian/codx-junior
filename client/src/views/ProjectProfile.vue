@@ -128,10 +128,6 @@ export default {
     async setProject(project) {
       this.$projects.setActiveProject(project)
     },
-    async createNewProject () {
-      await this.$projects.createNewProject(this.newProjectPath)
-      this.newProjectPath = null
-    },
     lastRefresh(last_update) {
       if (last_update) {
         const ts = parseInt(last_update, 10) * 1000

@@ -157,7 +157,7 @@ export default {
     },
     columnList () {
       return this.board ?
-        this.activeBoard?.columns :
+        (this.activeBoard?.columns || []) :
         [...new Set(this.chats.map(c => c.column))]
           .filter(col => !!col)
           .map(title => ({ title }))
@@ -314,9 +314,13 @@ export default {
       this.selectedColumn = null
       this.editColumnError = null
     },
-    addBoard() {
-      if (this.newBoardName.trim()) {
-        this.board = this.newBoardName
+    async addBoard() {
+      const boardName = this.newBoardName.trim() 
+      if (boardName && !this.boards[boardName]) {
+        this.boards[boardName] = {}
+        this.board = boardName
+        await this.saveBoards()
+        this.buildKanba()
       }
       this.newBoardName = ''
       this.showBoardModal = false

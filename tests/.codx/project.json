@@ -1,7 +1,8 @@
 {
   "ai_provider": "openai",
   "ai_model": "gpt-4o",
-  "project_name": "codx-junior-tests",
+  "project_name": "tests",
+  "project_path": null,
   "project_wiki": "",
   "project_dependencies": "",
   "knowledge_extract_document_tags": false,
@@ -13,10 +14,10 @@
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx",
   "temperature": 0.7,
-  "watching": false,
+  "watching": true,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
-  "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSgMKAMKwA8ae1Bto807O_Vj3Jlw8EC2ToDKA&s",
+  "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
   "log_ignore": "",
   "urls": []
 }
