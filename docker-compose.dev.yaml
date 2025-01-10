@@ -1,6 +1,17 @@
 services:
-  codx-junior-build:
-    container_name: codx-junior-build
+
+  build-codx-junior:
+    container_name: build-codx-junior
+    image: codx-junior:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: echo "Done!"
+
+  build-codx-junior-dind:
+    depends_on:
+      - build-codx-junior
+    container_name: build-codx-junior-dind
     image: codx-junior:latest
     build:
       context: .
@@ -11,7 +22,7 @@ services:
     container_name: codx-junior
     image: codx-junior:latest
     depends_on:
-      - codx-junior-build
+      - build-codx-junior
     environment:
       - DEBUG=1
       # HOST_USER to fix permissions from files generated
@@ -25,17 +36,14 @@ services:
       - 9983:9983
 
   codx-junior-dind:
+    depends_on:
+      - build-codx-junior-dind
     container_name: codx-junior-dind
     image: codx-junior:dind
-    build:
-      context: .
-      dockerfile: Dockerfile.dind
     cap_add:
       - SYS_ADMIN
       - NET_ADMIN
     shm_size: 2gb
-    depends_on:
-      - codx-junior-build
     environment:
       - DEBUG=1
       # HOST_USER to fix permissions from files generated

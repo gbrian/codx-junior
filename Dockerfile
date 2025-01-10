@@ -1,6 +1,6 @@
 FROM debian:latest AS API
 
-ENV CODX_JUNIOR_HOME=/projects/codx-junior
+ENV CODX_JUNIOR_PATH=/etc/codx-junior
 # API virtual env
 ENV API_VENV=/tmp/.venv_codx_junior_api
 
@@ -9,8 +9,8 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-COPY api /projects/codx-junior/api
-COPY scripts /projects/codx-junior/scripts
+COPY api /etc/codx-junior/api
+COPY scripts /etc/codx-junior/scripts
 
 RUN chmod +x /projects/codx-junior/scripts/install_api.sh
 RUN bash /projects/codx-junior/scripts/install_api.sh
@@ -27,8 +27,8 @@ ENV HOME=/home/${USER}
 ENV DEBIAN_FRONTEND=noninteractive
 
 # API
-ENV CODX_JUNIOR_HOME=${HOME}/projects/codx-junior
-ENV PYTHONPATH=${CODX_JUNIOR_HOME}/api
+ENV CODX_JUNIOR_PATH=/etc/codx-junior
+ENV PYTHONPATH=${CODX_JUNIOR_PATH}/api
 
 # VNC 
 ENV DISPLAY=:1
@@ -59,7 +59,7 @@ ENV FILEBROWSER_PORT=9987
 # Browser-use port
 ENV BROWSER_PORT=9988
 # Serving client from API
-ENV STATIC_FOLDER=${CODX_JUNIOR_HOME}/client/dist
+ENV STATIC_FOLDER=${CODX_JUNIOR_PATH}/client/dist
 ENV CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-supervisor
 
 # Install package
@@ -101,6 +101,7 @@ RUN groupadd -g ${USER_GROUP} ${USER} && \
     useradd -m -u ${USER_ID} -g ${USER_GROUP} -s /bin/bash ${USER} && \
     echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
+ENV CODX_JUNIOR_HOME=/home/${USER}
 USER ${USER}
 WORKDIR ${CODX_JUNIOR_HOME}
 

@@ -1,4 +1,4 @@
-cd ${CODX_JUNIOR_HOME}/api
+cd ${CODX_JUNIOR_PATH}/api
 if [ ! -d "$API_VENV/bin" ]; then
   echo "Installing codx-junior at $API_VENV"
   python3 -m venv $API_VENV

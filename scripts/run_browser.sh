@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Navigate to the project directory
-cd ${CODX_JUNIOR_HOME}/browser
-bash ${CODX_JUNIOR_HOME}/scripts/install_api.sh
+cd ${CODX_JUNIOR_PATH}/browser
+bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
 
 # Run the FastAPI application using uvicorn
 source ${BROWSER_VENV}/bin/activate

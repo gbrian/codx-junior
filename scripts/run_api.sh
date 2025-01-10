@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Navigate to the directory where your FastAPI application is located
-cd ${CODX_JUNIOR_HOME}/api
-bash ${CODX_JUNIOR_HOME}/scripts/install_api.sh
+cd ${CODX_JUNIOR_PATH}/api
+bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
 
 # Run the FastAPI application using uvicorn
 source ${API_VENV}/bin/activate

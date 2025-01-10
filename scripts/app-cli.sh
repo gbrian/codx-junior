@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Dynamically set CODX_JUNIOR_HOME to the parent directory of the script
-export CODX_JUNIOR_HOME=$(dirname "$(dirname "$(realpath "$0")")")
+# Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
+export CODX_JUNIOR_PATH=$(dirname "$(dirname "$(realpath "$0")")")
 
-export PYTHONPATH=${CODX_JUNIOR_HOME}/api
+export PYTHONPATH=${CODX_JUNIOR_PATH}/api
 
 # VNC 
 export DISPLAY=:10
@@ -20,7 +20,7 @@ export CODER_PORT=3909
 export NOVNC_PORT=3986
 export FILEBROWSER_PORT=3987
 export BROWSER_PORT=3988
-export STATIC_FOLDER=${CODX_JUNIOR_HOME}/client/dist
+export STATIC_FOLDER=${CODX_JUNIOR_PATH}/client/dist
 
 export CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-dev-supervisor
 
@@ -41,7 +41,7 @@ function show_help() {
 function install_app() {
     echo "Starting the installation process..."
     
-    bash ${CODX_JUNIOR_HOME}/scripts/install_api.sh
+    bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
 
     echo "Application installed successfully."
 }
@@ -62,7 +62,7 @@ Y88b.   Y88..88P Y88b 888 .d8""8b.        888 Y88b 888 888  888 888 Y88..88P 888
                                        888P'
 
     echo "Running the application..."
-    /usr/bin/supervisord -c ${CODX_JUNIOR_HOME}/supervisor.conf
+    /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
 }
 
 # Check the command line argument
