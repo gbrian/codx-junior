@@ -51,7 +51,7 @@ export const actions = actionTree(
   { state, getters, mutations },
   {
     async init () {
-      $storex.projects.loadAllProjects()
+      await $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
       await API.project.list()

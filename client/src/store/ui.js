@@ -125,7 +125,7 @@ export const mutations = mutationTree(state, {
   setUIready(state) {
     state.uiReady = true
     // If no user projects, go to help
-    if (!$storex.projects.allProjects.find(p => p.project_path.indexOf("codx-junior") === -1)) {
+    if (!$storex.projects.allProjects?.find(p => p.project_path.indexOf("codx-junior") === -1)) {
       $storex.ui.setActiveTab('help')
     }
   }
@@ -158,7 +158,7 @@ export const actions = actionTree(
     },
     loadTask (_, task) {
       $storex.ui.setActiveTab('tasks')
-      $storex.projects.loadChat(task)
+      $storex.projects.setActiveChat(task)
     },
     async openFile({ state }, file) {
       if (state.isMobile) {

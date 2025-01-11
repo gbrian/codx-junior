@@ -7,3 +7,4 @@ global_settings.json
 **/.codx/db
 filebrowser.
 core
+filebrowser.db

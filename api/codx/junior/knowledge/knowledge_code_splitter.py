@@ -35,18 +35,21 @@ class KnowledgeCodeSplitter:
             try:
                 return self.load_with_code_plitter(file_path=file_path, code_parser_language=code_parser_language)
             except Exception as ex:
-                logger.error(f"[KnowledgeCodeSplitter] load_with_code_plitter load error: {ex} - {file_path} language: {code_parser_language}")
+                #logger.error(f"[KnowledgeCodeSplitter] load_with_code_plitter load error: {ex} - {file_path} language: {code_parser_language}")
+                pass
 
             try:
                 return self.load_with_language_parser(file_path=file_path, code_parser_language=code_parser_language)
             except Exception as ex:
-                logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
-                
+                #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
+                pass
+              
             try:
                 return self.load_as_text(file_path=file_path)
             except Exception as ex:
-                logger.error(f"[KnowledgeCodeSplitter] load_as_text load error: {ex} - {file_path}")
-            
+                #logger.error(f"[KnowledgeCodeSplitter] load_as_text load error: {ex} - {file_path}")
+                pass
+
             logger.exception(f"[KnowledgeCodeSplitter] !!!No valid code splitter found for file {file_path}") 
             return None
         docs = file_to_documents()

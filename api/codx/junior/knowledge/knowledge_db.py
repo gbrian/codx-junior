@@ -16,11 +16,13 @@ from codx.junior.utils import calculate_md5
 
 logger = logging.getLogger(__name__)
 
+CONNECTIONS_CACHE = {}
+
 class DBDocument (Document):
   db_id: str = None
-  def __init__(self, id, metadata, page_content=""):
-    Document.__init__(self, id=id, page_content=page_content, metadata=metadata)
-    self.db_id = id
+  def __init__(self, db_id, metadata, page_content=""):
+    Document.__init__(self, page_content=page_content, metadata=metadata)
+    self.db_id = db_id
 
 class KnowledgeDB:
     db_path: str
@@ -43,7 +45,8 @@ class KnowledgeDB:
         self.db_file_list = f"{self.db_path}/{self.index_name}_file.json"
         self.embedding = None
 
-        self.db = MilvusClient(self.db_file)
+        
+        self.init_db()
         self.init_collection()
         self.refresh_last_update()
 
@@ -52,12 +55,18 @@ class KnowledgeDB:
             self.ai = AI(settings=self.settings)
         return self.ai
 
-
     def refresh_last_update(self):
         if os.path.isfile(self.db_file_list):
             self.last_update = os.path.getmtime(self.db_file_list)
 
-    def init_collection(self):  
+    def init_db(self):
+        global CONNECTIONS_CACHE
+        self.db = CONNECTIONS_CACHE.get(self.index_name)
+        if not self.db:
+            self.db = MilvusClient(self.db_file)
+            CONNECTIONS_CACHE[self.index_name] = self.db
+    
+    def init_collection(self):
         collections = self.db.list_collections()
         if self.index_name not in collections:
             self.db.create_collection(
@@ -73,7 +82,8 @@ class KnowledgeDB:
                 with open(self.db_file_list, 'r') as f:
                     all_files = json.loads(f.read())
         except Exception as ex:
-            logger.error(f"Error reading db files {ex}: {self.db_file_list}")
+            #logger.error(f"Error reading db files {ex}: {self.db_file_list}")
+            pass
         return all_files
 
     def save_all_files(self, all_files):
@@ -84,7 +94,7 @@ class KnowledgeDB:
         all_files = self.get_all_files()
         documents = []
         for file, file_info in all_files.items():
-            documents = documents + [Document(id=doc["id"], page_content="", metadata=doc["metadata"]) \
+            documents = documents + [DBDocument(db_id=doc["id"], page_content="", metadata=doc["metadata"]) \
                                         for doc in file_info["documents"]] 
         return documents
 
@@ -150,6 +160,10 @@ class KnowledgeDB:
         if os.path.isfile(self.db_file_list):
             os.remove(self.db_file_list)
         self.last_update = None
+        
+        global CONNECTIONS_CACHE
+        del CONNECTIONS_CACHE[self.index_name]
+        self.init_db()
         self.init_collection()
 
     def search(self, query: str):

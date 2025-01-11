@@ -103,7 +103,8 @@ import Markdown from '@/components/Markdown.vue'
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop"
     >
-      <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']" contenteditable="true"
+      <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
+        :contenteditable="!waiting"
         ref="editor" @input="onMessageChange"
         @paste="onContentPaste"
         @keydown.esc.stop="onResetEdit"
@@ -123,8 +124,7 @@ import Markdown from '@/components/Markdown.vue'
             </button>
           </div>
         </div>
-        <div class="badge text-info my-2 animate-pulse" v-if="waiting">typing ...</div>
-    
+        <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
         <div class="flex gap-1 items-center justify-end py-2" v-else>
           <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
             <i class="fa-solid fa-save"></i>

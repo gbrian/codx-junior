@@ -82,6 +82,10 @@ export const API = {
       API.del('/api/projects')
       API.lastSettings = null
     },
+    async readme () {
+      const { data } = await API.get('/api/projects/readme')
+      return data
+    },
     watch () {
       return API.get('/api/project/watch')
     },

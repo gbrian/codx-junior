@@ -5,6 +5,7 @@ import time
 import logging
 import socketio
 import threading
+from multiprocessing.pool import ThreadPool
 
 import logging
 logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
@@ -86,38 +87,35 @@ STATIC_FOLDER=os.environ.get("STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
-WATCHING_PROJECTS = {}
-
 def check_project_changes(settings):
     try:
         return CODXJuniorSession(settings=settings).check_project_changes()
     except Exception as ex:
-        logger.error(f"Processing {settings.project_name} error: {ex}")        
+        logger.exception(f"Processing {settings.project_name} error: {ex}")        
     return False
 
 def process_project_changes(settings):
-    WATCHING_PROJECTS[settings.codx_path] = True
-    # logger.info(f"[check_project_changes]: check {settings.project_name}")
+    has_changes = check_project_changes(settings=settings)
+    if not has_changes:
+        return
+    if settings.watching:
+        logger.info(f"[check_all_projects_loop]: {settings.project_name} has_changes: {has_changes}")
+    
     try:
         CODXJuniorSession(settings=settings).process_project_changes()
     except Exception as ex:
-        logger.error(f"Processing {settings.project_name} error: {ex}")        
-    WATCHING_PROJECTS[settings.codx_path] = False
+        logger.exception(f"Processing {settings.project_name} error: {ex}")        
 
 
+CHECK_PROJECTS_POOL = ThreadPool(3)
 def check_all_projects_loop():
     while True:
         try:
             projects_to_check = find_all_projects()
-            for ix, settings in enumerate(projects_to_check):
-                has_changes = check_project_changes(settings=settings)
-                if not has_changes:
-                    continue
-                logger.info(f"[check_all_projects_loop]: {settings.project_name} has_changes: {has_changes}")
-                process_project_changes(settings=settings)
+            CHECK_PROJECTS_POOL.map(process_project_changes, projects_to_check)
         except Exception as ex:
-            logger.exception("Error processing watching projects {ex}")        
-    time.sleep(5)
+            logger.exception("Error processing watching projects {ex}")
+        time.sleep(1)
 
 logger.info("Starting check_all_projects_loop job")
 
@@ -182,11 +180,6 @@ def index():
 @app.get("/api/health")
 def api_health_check():
     return "ok"
-
-@app.get("/api/projects")
-def api_find_all_projects():
-    all_projects = find_all_projects()
-    return all_projects
 
 @app.get("/api/knowledge/reload")
 def api_knowledge_reload(request: Request):
@@ -330,6 +323,17 @@ def api_project_watch(request: Request):
     settings.save_project()
     find_all_projects()
     return { "OK": 1 }
+
+@app.get("/api/projects")
+def api_find_all_projects():
+    all_projects = find_all_projects()
+    return all_projects
+
+@app.get("/api/projects/readme")
+def api_project_readme(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    document = codx_junior_session.get_readme()
+    return Response(content=document or "> Not found", media_type="text/html")
 
 @app.post("/api/projects")
 def api_project_create(request: Request):

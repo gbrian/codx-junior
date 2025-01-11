@@ -45,7 +45,7 @@
           <button class="btn btn-outline flex gap-2 tooltip tooltip-bottom" data-tip="Solve issues chatting with codx!" 
             @click="$ui.setActiveTab('tasks')">
             <i class="fa-solid fa-list-check"></i>
-            TO DO
+            Tasks
           </button>
           <button class="btn btn-outline flex gap-2 tooltip tooltip-bottom" :data-tip="'Assisted coding with @codx' + ': ...'"
             @click="$ui.setShowCoder(true)">

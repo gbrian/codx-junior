@@ -5,13 +5,16 @@ import ProjectDetailt from './ProjectDetailt.vue';
 <div class="dropdown dropdown-bottom flex flex-col h-full" v-if="$project">
     <ProjectDetailt tabindex="0" />
     <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-52 p-2 shadow">
-        <div v-if="showFilter" class="mb-2">
+        <div v-if="showFilter" class="mb-2 flex justify-between px-1">
             <input 
                 type="text" 
-                class="p-2 bg-base-100 input input-xs" 
+                class="p-2 bg-base-100 input input-xs w-2/3 items-center" 
                 placeholder="Filter projects..." 
                 v-model="filterValue" 
             />
+            <span class="click" @click="$projects.loadAllProjects()">
+              <i class="fa-solid fa-arrows-rotate"></i>
+            </span>
         </div>
         <div class="h-96 overflow-auto">
             <li 
@@ -20,7 +23,8 @@ import ProjectDetailt from './ProjectDetailt.vue';
                 @click.stop="$projects.setActiveProject(project)"
             >
                 <a class="flex gap-2">
-                    <div class="avatar">
+                    <div class="avatar indicator">
+                        <span class="indicator-item w-2 h-2 rounded-full bg-secondary" v-if="project.watching"></span>
                         <div class="w-6 h-6 rounded-full">
                             <img :src="project.project_icon" alt="Project Icon" />
                         </div>

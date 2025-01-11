@@ -879,6 +879,14 @@ class CODXJuniorSession:
         except:
           return f"{wiki_file} not found"
 
+    def get_readme(self):
+        project_path = self.settings.project_path
+        readme_file = f"{project_path}/README.md"
+        if os.path.isfile(readme_file):
+          with open(readme_file, 'r', encoding='utf-8', errors='ignore') as f:
+              return f.read()
+        return ""
+
     def update_wiki(self, file_path: str):
         return
         project_wiki_path = self.settings.get_project_wiki_path()

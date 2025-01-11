@@ -109,16 +109,14 @@ class Knowledge:
     def clean_deleted_documents(self):
         documents = self.get_all_documents()
         sources = []
-        ids_to_delete = []
         for doc in documents:
           source = doc.metadata["source"]
           if not self.loader.is_valid_file(source):
             sources.append(source)
-            ids_to_delete.append(doc.db_id)
 
-        if len(ids_to_delete):
-          logger.info(f'Documents to delete: {sources} {ids_to_delete}')
-          self.get_db().delete_documents(ids=ids_to_delete)
+        if sources:
+          logger.info(f'Documents to delete: {sources}')
+          self.get_db().delete_documents(sources=sources)
           return True
         return False
 
