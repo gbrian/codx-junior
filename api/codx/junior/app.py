@@ -403,6 +403,17 @@ def api_get_file(request: Request):
     search = request.query_params.get("search")
     return codx_junior_session.search_files(search=search)
 
+@app.get("/api/apps")
+def api_apps_list(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_project_apps()
+
+@app.get("/api/apps/run")
+def api_apps_run(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    app_name = request.query_params.get("app")
+    return codx_junior_session.run_app(app_name=app_name)
+
 
 @app.get("/api/global/settings")
 def api_read_global_settings():

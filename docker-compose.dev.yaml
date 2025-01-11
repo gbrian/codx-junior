@@ -41,6 +41,7 @@ services:
     image: codx-junior:latest
     depends_on:
       - build-codx-junior
+    shm_size: 2gb
     environment:
       - DEBUG=1
       # HOST_USER to fix permissions from files generated

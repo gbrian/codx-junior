@@ -64,6 +64,18 @@ from codx.junior.mention_manager import (
 
 logger = logging.getLogger(__name__)
 
+APPS = [
+    {
+        "name": "chrome",
+        "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Google_Chrome_icon_%28February_2022%29.svg/768px-Google_Chrome_icon_%28February_2022%29.svg.png",
+        "description": "Google chrome engine",
+    }
+]
+
+APPS_COMMANDS = {
+    "chrome": "google-chrome --no-sandbox --no-default-browser-check"
+}
+
 def create_project(project_path: str):
     logger.info(f"Create new project {project_path}")
     open_readme = False
@@ -1003,3 +1015,9 @@ class CODXJuniorSession:
         base_path = self.settings.project_path
         return [self.parse_file_line(file, base_path) for file in sorted(all_sources)]
 
+    def run_app(self, app_name: str):
+        command = APPS_COMMANDS[app_name]
+        exec_command(command)
+
+    def get_project_apps(self):
+        return APPS

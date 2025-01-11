@@ -20,31 +20,36 @@ import Markdown from '@/components/Markdown.vue'
       </div>
     </div>
     <div class="grow relative">
-      <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden">
-        <Browser v-if="isBrowser" :token="$ui.monitors['preview']" />
-        <div class="flex flex-col" 
-          v-for="message in messages" :key="message.id">
-          <ChatEntry :class="['mb-4 rounded-md bg-base-300 p-2',
-            editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
-            message.hide ? 'opacity-60' : '']"
-            :chat="chat"
-            :message="message"
-            @edit="onEditMessage(message)"
-            @remove="removeMessage(message)"
-            @remove-file="removeFileFromMessage(message, $event)"
-            @hide="toggleHide(message)"
-            @run-edit="runEdit"
-            @copy="onCopy(message)"
-            @generate-code="onGenerateCode(message, $event)"
-            @add-file-to-chat="$emit('add-file', $event)"
-            @image="imagePreview = { ...$event, readonly: true }"
-          />
+      <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden"
+        :class="isBrowser && 'flex gap-1'"
+      >
+        <div class="w-3/4" v-if="isBrowser">
+          <Browser :token="$ui.monitors['preview']" />
         </div>
-        <div class="anchor" ref="anchor"></div>
+        <div class="overflow-auto h-full">
+          <div class="flex flex-col" 
+            v-for="message in messages" :key="message.id">
+            <ChatEntry :class="['mb-4 rounded-md bg-base-300 p-2',
+              editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
+              message.hide ? 'opacity-60' : '']"
+              :chat="chat"
+              :message="message"
+              @edit="onEditMessage(message)"
+              @remove="removeMessage(message)"
+              @remove-file="removeFileFromMessage(message, $event)"
+              @hide="toggleHide(message)"
+              @run-edit="runEdit"
+              @copy="onCopy(message)"
+              @generate-code="onGenerateCode(message, $event)"
+              @add-file-to-chat="$emit('add-file', $event)"
+              @image="imagePreview = { ...$event, readonly: true }"
+            />
+          </div>
+          <div class="anchor" ref="anchor"></div>
+        </div>
       </div>
     </div>
-    <div class="badge text-info my-2 animate-pulse" v-if="waiting">typing ...</div>
-    <div class="chat chat-end" v-if="isBrowser">
+    <div class="chat chat-end" v-if="false && isBrowser">
       <div class="chat-image avatar">
         <div class="w-10 rounded-full">
           <img
@@ -118,20 +123,25 @@ import Markdown from '@/components/Markdown.vue'
             </button>
           </div>
         </div>
-        <div class="flex gap-1 items-center justify-end py-2">
+        <div class="badge text-info my-2 animate-pulse" v-if="waiting">typing ...</div>
+    
+        <div class="flex gap-1 items-center justify-end py-2" v-else>
           <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
             <i class="fa-solid fa-save"></i>
             <div class="text-xs" v-if="editMessage">Edit</div>
           </button>
-          <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit" v-if="editMessage">
+          <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit" 
+            v-if="editMessage">
             <i class="fa-regular fa-circle-xmark"></i>
           </button>
-          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-junior" @click="sendMessage" v-if="!editMessage && !isBrowser">
+          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-junior"
+            @click="sendMessage" 
+            v-if="!editMessage">
             <i class="fa-solid fa-comment"></i>
           </button>
           <button class="btn btn btn-sm btn-circle btn-outline tooltip"
             :class="isBrowser && 'btn-warning'"
-            data-tip="Ask codx-browser" @click="navigate"
+            data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
             v-if="!editMessage">
             <i class="fa-brands fa-chrome"></i>
           </button>
@@ -251,9 +261,6 @@ export default {
   },
   computed: {
      messages () {
-      if (this.isBrowser) {
-        return []
-      }
       if (this.isTask) {
         const msgs = [...this.chat?.messages ||[]].filter(m => !m.hide).reverse()
         return [msgs.find(m => m.role === 'user'),

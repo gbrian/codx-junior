@@ -26,7 +26,7 @@ import SharedView from '@/views/SharedView.vue'
       </div>
     </div>
   </div>
-  <div class="flex flex-col items-center justify-center w-full h-full font-2xl px-4 py-2 bg-base-300/30" v-else>
+  <div class="flex flex-col items-center justify-center w-full h-full font-2xl px-4 py-2" v-else>
     <div class="animate-pulse font-mono text-green-600">Wake up, codx-junior...</div>
   </div>
 </template>

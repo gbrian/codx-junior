@@ -56,6 +56,16 @@ export const API = {
     .finally(() => API.liveRequests--)
   },
   lastSettings: {},
+  apps: {
+    async list(){
+      const { data: apps } = await API.get('/api/apps')
+      return apps
+    },
+    async run(appName){
+      const { data } = await API.get(`/api/apps/run?app=${appName}`)
+      return data
+    } 
+  },
   project: {
     async list () {
       const res = await API.get('/api/projects')
