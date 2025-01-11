@@ -195,7 +195,8 @@ export default {
         id: uuidv4(),
         name: "New chat " + this.chats.length + 1,
         mode: 'task',
-        board: this.board,
+        profiles: ["analyst"],
+        board: this.board || "Default",
         column: column,
         chat_index: 0
       }

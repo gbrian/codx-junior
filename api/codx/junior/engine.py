@@ -191,7 +191,7 @@ class CODXJuniorSession:
     def list_chats(self):
         return self.get_chat_manager().list_chats()
 
-    def save_chat(self, chat, chat_only):
+    def save_chat(self, chat, chat_only=False):
         self.channel.chat_event(f'Saving {chat.name}')
         return self.get_chat_manager().save_chat(chat, chat_only)
 
@@ -468,7 +468,7 @@ class CODXJuniorSession:
         }
     def check_project_changes(self):
         if not self.settings.is_valid_project():
-            logger.error(f"check_project_changes invalid project {self.settings}")
+            # logger.error(f"check_project_changes invalid project {self.settings}")
             return False
         knowledge = Knowledge(settings=self.settings)
         new_files = knowledge.detect_changes()
@@ -747,8 +747,8 @@ class CODXJuniorSession:
         profile_manager = ProfileManager(settings=self.settings)
         chat_profiles_content = ""
         if chat.profiles:
-            chat_profiles = [profile_manager.read_profile(profile).content for profile in chat.profiles]
-            chat_profiles_content = "\n".join(chat_profiles)
+            chat_profiles = [profile_manager.read_profile(profile) for profile in chat.profiles]
+            chat_profiles_content = "\n".join([profile.content for profile in chat_profiles if profile])
 
         instructions = f"""BEGIN INSTRUCTIONS
         This is a conversation between you and the user about the project {self.settings.project_name}.

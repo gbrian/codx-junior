@@ -2,8 +2,8 @@
 import ProjectDetailt from './ProjectDetailt.vue';
 </script>
 <template>
-<div class="dropdown dropdown-end flex flex-col h-full" v-if="$project">
-    <ProjectDetailt />
+<div class="dropdown dropdown-bottom flex flex-col h-full" v-if="$project">
+    <ProjectDetailt tabindex="0" />
     <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-52 p-2 shadow">
         <div v-if="showFilter" class="mb-2">
             <input 

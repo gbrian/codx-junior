@@ -1,6 +1,24 @@
 services:
 
+  build-codx-junior-api:
+    container_name: build-codx-junior-api
+    image: codx-junior:api
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    command: echo "Done!"
+  
+  build-codx-junior-base:
+    container_name: build-codx-junior-base
+    image: codx-junior:base
+    build:
+      context: .
+      dockerfile: Dockerfile.base
+    command: echo "Done!"
+
   build-codx-junior:
+    depends_on:
+      - build-codx-junior-base
     container_name: build-codx-junior
     image: codx-junior:latest
     build:

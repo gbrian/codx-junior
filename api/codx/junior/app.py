@@ -236,6 +236,7 @@ def api_list_chats(request: Request):
 def api_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
     codx_junior_session.chat_with_project(chat=chat, use_knowledge=True)
+    codx_junior_session.save_chat(chat)
     return chat
 
 @app.put("/api/chats")

@@ -32,6 +32,18 @@ export const getters = getterTree(state, {
     return _sub_projects?.map(project_name => state.allProjects
         .find(p => p.project_name === project_name))
         .filter(f => !!f)
+  },
+  projectHierarchy: (state) => {
+    const hierarchy = state.allProjects.map(project => ({ ...project }))
+    return hierarchy.map(project => {
+      project.parent_project = hierarchy
+                        .filter(pp => project.project_path != pp.project_path) 
+                        .find(pp => project.project_path.startsWith(pp.project_path))
+      project.sub_projects = hierarchy
+                        .filter(pp => project.project_path != pp.project_path)
+                        .filter(pp => pp.project_path.startsWith(project.project_path))
+      return project
+    })
   }
 })
 

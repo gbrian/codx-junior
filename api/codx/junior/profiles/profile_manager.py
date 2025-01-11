@@ -41,7 +41,8 @@ class ProfileManager:
 
     def read_profile(self, profile_name) -> Profile:
         profiles = self.list_profiles()
-        return [p for p in profiles if p.name == profile_name][0]
+        match_profiles = [p for p in profiles if p.name == profile_name]
+        return match_profiles[0] if match_profiles else None
 
     def load_profile(self, profile_path) -> Profile:
         with open(profile_path, 'r') as f:
