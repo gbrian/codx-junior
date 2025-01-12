@@ -76,7 +76,7 @@ export default {
       return this.lastSettings?.project_name
     },
     compactView () {
-      return !!this.$storex.projects.activeChat
+      return !!this.$storex.projects.activeChat && this.$ui.tabIx == "tasks"
     }
   },
   methods: {

@@ -8,28 +8,6 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
 </script>
 <template>
   <div class="flex flex-col h-full pb-2" v-if="chat">
-    <div class="hidden gap-2 items-center">
-      <div class="dropdown">
-        <div tabindex="0" role="button" class="btn btn-xs m-1"><i class="fa-solid fa-code-branch"></i></div>
-        <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-68 p-2 shadow">
-          <li class="mt-2">
-            <a class="input input-bordered input-sm flex gap-2">
-              <input class="bg-transparent active:outline-none" placeholder="New branch...">
-              <i class="fa-solid fa-plus"></i>
-            </a>
-          </li>
-          <li><a>{{ API.lastSettings.current_git_branch }}</a></li>
-        </ul>
-      </div>
-      {{ API.lastSettings.current_git_branch }}
-      <div class="grow"></div>
-      <button class="btn btn-sm" @click="showPRView = false" v-if="showPRView">
-        Task
-      </button>
-      <button class="btn btn-sm" @click="showPRView = true" v-else>
-        PR
-      </button>
-    </div>
     <PRView v-if="showPRView"></PRView>
     <div class="grow flex gap-2 h-full justify-between" v-if="showChat">
       <div class="grow flex flex-col gap-2 w-full">
@@ -96,18 +74,12 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             <div class="group relative bg-base-100">
               <div class="bg-base-300 lg:bg-transparent p-2 rounded hidden lg:flex group-hover:flex gap-2 p-1 items-end absolute right-8 -top-1">
                 <div class="dropdown -mt-1">
-                  <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chat.mode }}</div>
+                  <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chatModes[chat.mode].name }}</div>
                   <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                    <li @click="chat.mode = 'chat'">
+                    <li @click="setChatMode(mode)" v-for="info, mode in chatModes" :key="mode">
                       <a class="flex items-center">
-                        <i class="fa-regular fa-comments"></i>
-                        Chat
-                      </a>
-                    </li>
-                    <li @click="setTaskMode">
-                      <a class="flex items-center">
-                        <i class="fa-regular fa-file-code"></i>
-                        Task definition
+                        <i :class="info.icon" class="fa-regular fa-comments"></i>
+                        {{  info.name  }}
                       </a>
                     </li>
                   </ul>
@@ -133,18 +105,15 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                   </span>
                 </button>
                 <div class="dropdown dropdown-end dropdown-bottom -mt-1">
-                  <button tabindex="0" class="btn btn-xs">
-                    <i class="fa-solid fa-plus"></i>
-                  </button>
+                  <label tabindex="0" class="btn btn-xs">
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                  </label>
                   <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
                     <li @click="newSubChat()">
                       <a>New sub task</a>
                     </li>
                   </ul>
                 </div>
-              </div>
-              <div class="btn btn-sm btn-ghost ml-6" @click.stop="">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
               </div>
             </div>
           </div>
@@ -199,7 +168,11 @@ export default {
       showHidden: false,
       showPRView: false,
       confirmDelete: false,
-      newTag: null
+      newTag: null,
+      chatModes: {
+        "task": { name: "Analyst", profiles: ["analyst"], icon: "fa-solid fa-user-doctor" },
+        "chat": { name: "Developer", profiles: ["software_developer"], icon: "fa-solid fa-code" },
+      }
     }
   },
   async created () {
@@ -284,12 +257,17 @@ export default {
       await this.saveChat()
     },
     async addProfile (profile) {
-      if (this.chat.profiles?.find(f => f.endsWith(profile))) {
+      if (this.chat.profiles?.includes(profile)) {
         return
       }
       this.chat.profiles = [...this.chat.profiles||[], profile]
       await this.saveChat()
-      await this.loadChat(this.chat)
+    },
+    removeProfile(profile) {
+      if (this.chat.profiles?.includes(profile)) {
+        this.chat.profiles = this.chat.profiles.filter(p => p !== profile)
+        this.saveChat()
+      }
     },
     onRemoveMessage (message) {
       const ix = this.chat.messages.findIndex(m => m === message)
@@ -314,11 +292,10 @@ export default {
       this.chat.tags = this.chat.tags.filter(t => t !== tag)
       this.saveChat()
     },
-    setTaskMode () {
-      this.chat.mode = 'task'
-      if (!this.chat.profiles?.includes("analyst")) {
-        this.chat.profiles = [...this.chat.profiles||[], "analyst"]
-      }
+    setChatMode (mode) {
+      this.chat.mode = mode
+      this.chat.profiles = this.chatModes[mode].profiles
+      this.saveChat()
     }
   }
 }

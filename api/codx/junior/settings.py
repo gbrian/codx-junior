@@ -112,6 +112,9 @@ class CODXJuniorSettings:
     def get_ai_embeddings_vector_size(self):
         return 1536
 
+    def get_project_settings_file(self):
+        return f"{self.codx_path}/project.json"
+
     @classmethod
     def from_env(cls):
         base = CODXJuniorSettings()
@@ -138,7 +141,10 @@ class CODXJuniorSettings:
     @classmethod
     def from_json(cls, settings: dict):
         base = CODXJuniorSettings.from_env()
-        return CODXJuniorSettings(**{**base.__dict__, **settings})
+        new_settings = CODXJuniorSettings(**{ **base.__dict__, **settings })
+        logging.info(f"Project from json {settings}")
+        logging.info(f"Project from json - settings: {new_settings}")
+        return new_settings
 
     def to_env(self) -> [str]:
         keys = self.__dict__.keys()
@@ -151,13 +157,18 @@ class CODXJuniorSettings:
         return [k for k in keys if k not in ["codx_path"]]
 
     def save_project(self):
-        settings = self.__dict__
         valid_keys = CODXJuniorSettings.get_valid_keys()
         path = f"{self.codx_path}/project.json"
         os.makedirs(self.codx_path, exist_ok=True)
-        if self.project_path in self.codx_path:
+        project_path_folders = self.project_path.split("/")
+        codx_path_folders = self.codx_path.split("/")[:-1]
+        logging.info(f"Saving settings without project_path {project_path_folders} {codx_path_folders}")
+            
+        if project_path_folders == codx_path_folders: # Check for custom project_path
             self.project_path = None
-        logging.info(f"Saving project {path} {settings}")
+
+        settings = self.__dict__
+        logging.info(f"Saving project {path}: {settings}")
         data = {}
         for key in valid_keys:
             data[key] = settings[key]

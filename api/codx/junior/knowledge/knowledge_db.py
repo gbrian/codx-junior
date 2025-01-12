@@ -168,10 +168,11 @@ class KnowledgeDB:
 
     def search(self, query: str):
         query_vector = self.get_ai().embeddings(content=query)
+        limit = int(self.settings.knowledge_search_document_count or "10")
         res = self.db.search(
             collection_name=self.index_name,
             data=[query_vector],
-            limit=self.settings.knowledge_search_document_count,
+            limit=limit,
             output_fields=["id", "page_content", "metadata"]
         )
         documents = []

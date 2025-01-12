@@ -44,12 +44,9 @@ class Knowledge:
         return self.ai
 
     def get_db(self):
-        try:
-            if not self.db:
-              self.db = KnowledgeDB(settings=self.settings)
-            return self.db
-        except Exception as ex:
-            logger.exception(f"Error opening Knowledge DB: {ex}")
+        if not self.db:
+          self.db = KnowledgeDB(settings=self.settings)
+        return self.db
 
     def refresh_last_update(self):
         self.get_db().refresh_last_update()

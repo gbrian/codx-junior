@@ -336,6 +336,8 @@ class CODXJuniorSession:
         if apply_changes is None:
             apply_changes = True if chat.mode == 'task' else False
 
+        code_changes_request = [message for message in chat.messages if not message.hide][0]
+        
         request = f"""
         Assist the user on generating file changes for the project "{self.settings.project_name}" based on the comments below.
         Make sure that all proposed changes follow strictly the best practices.
@@ -348,6 +350,11 @@ class CODXJuniorSession:
         - Root path: {self.settings.project_path}
         - Files tree view: {generate_markdown_tree(knowledge.get_all_sources())}
         Use this information for generating file paths and understanding the project's folder structure.
+
+        CHANGES:
+        ```markdown
+        { code_changes_request.content }
+        ```
 
         Create a list of find&replace instructions for each change needed:
         INSTRUCTIONS:
@@ -366,8 +373,10 @@ class CODXJuniorSession:
                 if error:
                     chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
                 self.chat_with_project(chat=chat, use_knowledge=False, chat_mode='chat')
-                chat.messages = [msg for msg in chat.messages if msg != request_msg]
                 chat.messages[-1].improvement = True
+                
+                request_msg.improvement = True
+                request_msg.hide = True
                 if chat.mode == 'task':
                     chat.messages[-2].hide = False
                     chat.messages[-1].hide = True
@@ -387,7 +396,7 @@ class CODXJuniorSession:
         else:
             code_generator = self.get_ai_code_generator_changes(response=chat.messages[-1].content)
 
-        self.apply_improve_code_changes(code_generator=code_generator)
+        self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
         return code_generator
 
     def get_ai_code_generator_changes(self, response: str):
@@ -417,7 +426,7 @@ class CODXJuniorSession:
             return console_out
         return ""
 
-    def apply_improve_code_changes(self, code_generator: AICodeGerator):
+    def apply_improve_code_changes(self, code_generator: AICodeGerator, chat: Chat = None):
         changes = code_generator.code_changes
         logger.info(f"improve_existing_code total changes: {len(changes)}")
         changes_by_file_path = {}
@@ -446,6 +455,11 @@ class CODXJuniorSession:
                     self.write_project_file(file_path=file_path, content=new_content)
                 else:
                     logger.error(f"Error applying changes to {file_path}. New content: {new_content}")
+
+        if chat:
+            file_paths = " ".join(changes_by_file_path.keys())
+            git_diff = exec_command(f"git diff {file_paths}", cwd=self.settings.project_path)
+            chat.messages.append(Message(role="assistant", content=git_diff))
 
     def change_file_with_instructions(self, instruction_list: [str], file_path: str, content: str):
         profile_manager = ProfileManager(settings=self.settings)

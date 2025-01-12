@@ -145,22 +145,17 @@ import Markdown from '@/components/Markdown.vue'
             v-if="!editMessage">
             <i class="fa-brands fa-chrome"></i>
           </button>
-          <button class="btn btn btn-sm btn-outline tooltip" 
+          <button class="btn btn btn-sm btn-outline tooltip btn-warning" 
             :class="isVoiceSession && 'btn-info animate-pulse'"
-            :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" @click="toggleVoiceSession" v-if="!editMessage">
-            <i class="fa-solid fa-microphone-lines"></i>
+            data-tip="Make code changes" @click="improveCode()" v-if="!editMessage">
+            <i class="fa-solid fa-code"></i>
           </button>
+
           <div class="dropdown dropdown-top dropdown-end">
             <div tabindex="0" role="button" class="btn btn-sm m-1">
               <i class="fa-solid fa-ellipsis-vertical"></i>
             </div>
             <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow gap-2">
-              <li class="btn btn-sm btn-warning" @click="improveCode()" v-if="!editMessage">
-                <a>
-                  <i class="fa-solid fa-code"></i>
-                  Code
-                </a>
-              </li>
               <li class="btn btn-sm" @click="selectFile = true">
                 <a><i class="fa-solid fa-paperclip"></i> Attach files</a>
               </li>
@@ -168,6 +163,13 @@ import Markdown from '@/components/Markdown.vue'
                 <a>
                   <i class="fa-solid fa-flask"></i>
                   Test
+                </a>
+              </li>
+              <li class="btn btn-sm btn-warning tooltip" :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" 
+                @click="toggleVoiceSession" v-if="!editMessage">
+                <a>
+                  <i class="fa-solid fa-microphone-lines"></i>
+                  Voice mode
                 </a>
               </li>
               <li>

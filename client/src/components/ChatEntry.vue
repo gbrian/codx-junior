@@ -9,7 +9,7 @@ import moment from 'moment'
     ]" >
     <div class="text-xs font-bold">{{ moment(message.updated_at).format('DD/MMM HH:mm') }}</div>
     <div :class="['max-w-full group w-full prose-xs',
-      message.improvement ? 'border-green-300/20 bg-green-900' : 'border-slate-300/20',
+      'border-slate-300/20',
       message.role === 'user' ? '': '',
       message.collapse ? 'max-h-40 overflow-hidden': 'h-fit',
       message.hide ? 'text-slate-200/20': ''
