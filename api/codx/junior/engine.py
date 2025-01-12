@@ -458,8 +458,8 @@ class CODXJuniorSession:
 
         if chat:
             file_paths = " ".join(changes_by_file_path.keys())
-            git_diff = exec_command(f"git diff {file_paths}", cwd=self.settings.project_path)
-            chat.messages.append(Message(role="assistant", content=git_diff))
+            git_diff, _ = exec_command(f"git diff {file_paths}", cwd=self.settings.project_path)
+            chat.messages.append(Message(role="assistant", content=f"```diff\n{git_diff}\n```"))
 
     def change_file_with_instructions(self, instruction_list: [str], file_path: str, content: str):
         profile_manager = ProfileManager(settings=self.settings)

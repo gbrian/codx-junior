@@ -7,7 +7,7 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
 </script>
 
 <template>
-  <div class="codx-junior relative flex min-h-full">
+  <div class="codx-junior flex min-h-full">
     <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 pt-2 overflow-auto">
       <div class="flex gap-2 items-center relative justify-between">
         

@@ -33,11 +33,13 @@ import LogViewerVue from './LogViewer.vue'
       <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="bg-stone-800 hover:bg-slate-600 w-1"
         v-if="$ui.showApp && showCodxJunior" />
 
-      <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="$ui.showApp ? 0 : 100" :defaultSize="$ui.codxJuniorWidth"
-        class="flex items-center justify-center" @resize="size => $ui.setCodxJuniorWidth(size)"
+      <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="$ui.showApp ? 0 : 100"
+        :defaultSize="$ui.floatingCodxJunior ? 0 : $ui.codxJuniorWidth"
+        class="flex items-center justify-center relative"
+        @resize="size => $ui.setCodxJuniorWidth(size)"
         v-if="showCodxJunior">
 
-        <CodxJuniorVue class="w-full h-full" />
+        <CodxJuniorVue class="w-full h-full" :class="$ui.floatingCodxJunior ? 'absolute right-0 top-0 bottom-0 border-red-600' : 'relative'" />
       </SplitterPanel>
 
       <SplitterResizeHandle id="splitter-group-1-resize-handle-2" class="bg-stone-800 hover:bg-slate-600 w-1" v-if="$ui.showLogs"/>

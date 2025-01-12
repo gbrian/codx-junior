@@ -30,7 +30,8 @@ export const state = () => ({
   },
   colorsMap: {},
   coderProjectCodxPath: null,
-  uiReady: false
+  uiReady: false,
+  floatingCodxJunior: false
 })
 
 export const getters = getterTree(state, {
@@ -128,6 +129,10 @@ export const mutations = mutationTree(state, {
     if (!$storex.projects.allProjects?.find(p => p.project_path.indexOf("codx-junior") === -1)) {
       $storex.ui.setActiveTab('help')
     }
+  },
+  setFloatinCodxJunior(state, floating) {
+    state.floatingCodxJunior = floating
+    $storex.ui.saveState()
   }
 })
 
