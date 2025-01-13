@@ -83,8 +83,9 @@ import moment from 'moment'
             class="flex gap-2 items-center click"
           >
             <div class="flex gap-2 click hover:underline" @click="$ui.openFile(file)">
-              <div class="click" @click="$ui.openFile(file)">
-                <i class="fa-solid fa-up-right-from-square"></i>
+              <div class="click tooltip tooltip-right" data-tip="Attach file" 
+                @click.stop="$emit('add-file-to-chat', file)">
+                <i class="fa-solid fa-file-arrow-up"></i>
               </div>
               <div class="overflow-hidden">
                 {{ file.split("/").reverse()[0] }}

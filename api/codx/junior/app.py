@@ -36,6 +36,8 @@ disable_logs([
     'chromadb.api.segment',
     'openai._base_client',
     'openai._base_client',
+    'watchdog.observers.inotify_buffer',
+    'watchdog.observers'
 ])
 
 
@@ -119,8 +121,7 @@ def check_all_projects_loop():
 
 logger.info("Starting check_all_projects_loop job")
 
-# Background changes loop
-threading.Thread(target=check_all_projects_loop).start()
+
 
 # Init all projects
 find_all_projects()

@@ -113,11 +113,13 @@ def find_all_projects():
     all_codx_path = result.stdout.decode('utf-8').split("\n")
     paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
     #logger.info(f"[find_all_projects] paths: {paths}")
+    logger.info(f"PROJECT_WATCHER observers: {PROJECT_WATCHER.observers.keys()}")
     for codx_path in paths:
         try:
             project_file_path = f"{codx_path}/project.json"
             settings = CODXJuniorSettings.from_project_file(project_file_path)
             all_projects.append(settings)
+            PROJECT_WATCHER.watch_project(settings=settings)
         except Exception as ex:
             logger.exception(f"Error loading project {str(codx_path)}")
     
@@ -165,6 +167,15 @@ class SessionChannel:
     def chat_event(self, message: str):
         self.send_event('chat-event', { 'text': message })
         logger.info(f"SEND MESSAGE {message}- SENT!")
+
+
+from codx.junior.project_watcher import ProjectWatcher
+PROJECT_WATCHER = ProjectWatcher()
+def watch_projects():
+    for project in find_all_projects(): 
+        PROJECT_WATCHER.watch_project(project,
+            lambda file_path: print(f"Changed: {file_path}"))
+watch_projects()
 
 
 class CODXJuniorSession:
@@ -490,6 +501,7 @@ class CODXJuniorSession:
             "last_update": str(last_update),
             "pending_files": pending_files[0:2000],
             "total_pending_changes": len(pending_files),
+            "project_watcher_active": list(PROJECT_WATCHER.observers.keys()),
             **status
         }
     def check_project_changes(self):

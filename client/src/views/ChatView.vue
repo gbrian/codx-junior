@@ -118,6 +118,22 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             </div>
           </div>
         </div>
+        <div class="w-full overflow-auto" v-if="chat.file_list?.length">
+          <div class="my-2 text-xs">
+            <span>
+              <i class="fa-solid fa-paperclip"></i>
+            </span>
+            <a v-for="file in chat.file_list" :key="file" :data-tip="file"
+              class="group text-nowrap ml-2 hover:underline hover:bg-base-300 click text-accent"
+              @click="$ui.openFile(file)"
+            >
+              <span>{{ file.split('/').reverse()[0] }}</span>
+              <span class="ml-2 click" @click.stop="onRemoveFile(file)">
+                <i class="fa-regular fa-circle-xmark"></i>
+              </span>
+            </a>
+          </div>
+        </div>
         <Chat :chat="chat"
           :showHidden="showHidden"
           @refresh-chat="loadChat(chat)"

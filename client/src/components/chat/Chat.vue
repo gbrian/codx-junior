@@ -3,22 +3,10 @@ import { API } from '../../api/api'
 import ChatEntry from '@/components/ChatEntry.vue'
 import Browser from '@/components/browser/Browser.vue'
 import Markdown from '@/components/Markdown.vue'
+import moment from 'moment'
 </script>
 <template>
   <div class="flex flex-col gap-1 grow">
-    <div class="w-full overflow-auto">
-      <div class="my-2 text-xs" v-if="chat.file_list?.length">
-        <a v-for="file in chat.file_list" :key="file" :data-tip="file"
-          class="group text-nowrap mr-2 hover:underline hover:bg-base-300 click text-accent"
-          @click="$ui.openFile(file)"
-        >
-          <span>{{ file.split('/').reverse()[0] }}</span>
-          <span class="ml-2 click" @click.stop="$emit('remove-file', file)">
-            <i class="fa-regular fa-circle-xmark"></i>
-          </span>
-        </a>
-      </div>
-    </div>
     <div class="grow relative">
       <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden"
         :class="isBrowser && 'flex gap-1'"
@@ -29,6 +17,16 @@ import Markdown from '@/components/Markdown.vue'
         <div class="overflow-auto h-full">
           <div class="flex flex-col" 
             v-for="message in messages" :key="message.id">
+            <div class="divider text-xs my-1" v-if="message.hide && !showHidden">
+              <div class="flex gap-2 justify-between">
+                <div class="click" @click="toggleHide(message)">
+                  <i class="fa-regular fa-eye"></i>
+                </div>
+                <div>hidden message</div>
+                <div class="w-16 font-bold">{{ message.role }}</div> 
+                <div>{{ moment(message.updated_at).format('DD/MMM HH:mm') }}</div>
+              </div>
+            </div>
             <ChatEntry :class="['mb-4 rounded-md bg-base-300 p-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
               message.hide ? 'opacity-60' : '']"
@@ -43,6 +41,7 @@ import Markdown from '@/components/Markdown.vue'
               @generate-code="onGenerateCode(message, $event)"
               @add-file-to-chat="$emit('add-file', $event)"
               @image="imagePreview = { ...$event, readonly: true }"
+              v-else
             />
           </div>
           <div class="anchor" ref="anchor"></div>
@@ -268,7 +267,7 @@ export default {
         return [msgs.find(m => m.role === 'user'),
                 msgs.find(m => m.role === 'assistant')].filter(m => !!m)
       }
-      return this.chat?.messages?.filter(m => !m.hide || this.showHidden)
+      return this.chat?.messages
     },
     multiline () {
       return this.editorText?.split("\n").length > 1 || this.images?.length

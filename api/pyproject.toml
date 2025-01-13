@@ -45,7 +45,8 @@ dependencies = [
   'helium',
   'beautifulsoup4',
   'markdownify',
-  'pymilvus'
+  'pymilvus',
+  'watchdog'
 ]
 
 # chromadb 0.3.29 for compatibility with Ubuntu and lower Sqlite3
