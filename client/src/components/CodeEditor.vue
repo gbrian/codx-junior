@@ -89,18 +89,14 @@ export default {
     }
   },
   async created () {
-    const { data: { files } } = await this.$storex.api.files.list(this.$project.project_path)
-    this.items = files
-    if (this.$ui.openedFile) {
-      this.item = {
-        "name": this.$ui.openedFile.split("/").reverse()[0],
-        "file_path": `${this.$project.project_path}/${this.$ui.openedFile}`,
-        "is_dir": false
-      }
-      this.onOpenItem(this.item)
+    if (this.project) {
+      this.projectChanged()
     }
   },
   computed: {
+    project () {
+      return this.$project
+    },
     fileName() {
       return this.item?.name
     },
@@ -113,9 +109,24 @@ export default {
       if (newVal) {
         this.aiChanges = "> How can I help?"
       }
+    },
+    project () {
+      this.projectChanged()
     }
   },
   methods: {
+    async projectChanged () {
+      const { data: { files } } = await this.$storex.api.files.list(this.project.project_path)
+      this.items = files
+      if (this.$ui.openedFile) {
+        this.item = {
+          "name": this.$ui.openedFile.split("/").reverse()[0],
+          "file_path": `${this.$project.project_path}/${this.$ui.openedFile}`,
+          "is_dir": false
+        }
+        this.onOpenItem(this.item)
+      }
+    },
     async onOpenItem(item) {
       if (item.is_dir && !item.children?.length) {
         const { data: { files } } = await this.$storex.api.files.list(item.file_path)

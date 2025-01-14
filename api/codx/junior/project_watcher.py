@@ -64,3 +64,6 @@ class ProjectWatcher:
                     callback(event.src_path)
         
         return CustomEventHandler()
+
+# Singletone
+PROJECT_WATCHER = ProjectWatcher()

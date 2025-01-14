@@ -12,7 +12,7 @@ import moment from 'moment'
         :class="isBrowser && 'flex gap-1'"
       >
         <div class="w-3/4" v-if="isBrowser">
-          <Browser :token="$ui.monitors['preview']" />
+          <Browser :token="$ui.monitors['shared']" />
         </div>
         <div class="overflow-auto h-full">
           <div class="flex flex-col" 

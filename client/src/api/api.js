@@ -21,7 +21,7 @@ const prepareUrl = (url) => {
 }
 
 const axiosRequest = axios.create({
-});
+})
 export const API = {
   sid: "",
   axiosRequest,
@@ -232,8 +232,8 @@ export const API = {
   },
   images: {
     async upload (file) {
-      let formData = new FormData();
-      formData.append("file", file);
+      let formData = new FormData()
+      formData.append("file", file)
       const { data: url } = await API.post(`/api/images`, formData)
       return window.location.origin + url
     }
@@ -255,8 +255,8 @@ export const API = {
   },
   tools: {
     async imageToText (file) {
-      const formData = new FormData();
-      formData.append("file", file);
+      const formData = new FormData()
+      formData.append("file", file)
       return (await API.post(`/api/image-to-text`, formData)).data
     }
   },
@@ -288,11 +288,11 @@ export const API = {
     console.log("API init", codx_path, API)
   },
   logs: {
-    async read(logName) {
-      return API.get(`/api/logs/${logName}`);
+    async read(logName, size) {
+      return API.get(`/api/logs/${logName}?size=${size}`)
     },
     async list() {
-      return API.get('/api/logs');
+      return API.get('/api/logs')
     }
   },
   files: {

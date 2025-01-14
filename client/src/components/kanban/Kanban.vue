@@ -269,7 +269,10 @@ export default {
     },  
     async addOrUpdateColumn() {
       if (this.columnName.trim()) {
-        const activeBoardColumns = this.activeBoard.columns || []
+        if (!this.activeBoard.columns) {
+          this.activeBoard.columns = [];
+        }
+        const activeBoardColumns = this.activeBoard.columns;
 
         if (this.selectedColumn) {
           const oldColumnIndex = activeBoardColumns.findIndex(col => col.title === this.selectedColumn.title)

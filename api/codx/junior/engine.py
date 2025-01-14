@@ -28,7 +28,6 @@ from codx.junior.settings import (
 )
 
 from codx.junior.chat_manager import ChatManager
-
 from codx.junior.profiles.profile_manager import ProfileManager
 
 from codx.junior.model import (
@@ -61,6 +60,8 @@ from codx.junior.mention_manager import (
     notify_mentions_error,
     strip_mentions
 )
+
+from codx.junior.project_watcher import PROJECT_WATCHER
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,19 @@ def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     logger.info(f"coder_open_file {file_name}")
     os.system(f"code-server -r {file_name}")
 
+def project_file_changed(settings: CODXJuniorSettings, file_path: str):
+    settings = CODXJuniorSettings.from_project_file(settings.get_project_settings_file())
+    if not KnowledgeLoader(settings=settings).is_valid_file(file=file_path):
+        return
+    # Check mentions
+    CODXJuniorSession(settings=settings).check_file_for_mentions(file_path=file_path)
+    # Reload knowledge 
+    if settings.watching:
+        knowledge = Knowledge(settings=settings)
+        file_changes = knowledge.detect_changes()
+        if file_path in file_changes:
+            knowledge.reload_path(path=file_path)
+
 def find_all_projects():
     all_projects = []
     project_path = "/"
@@ -113,13 +127,15 @@ def find_all_projects():
     all_codx_path = result.stdout.decode('utf-8').split("\n")
     paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
     #logger.info(f"[find_all_projects] paths: {paths}")
-    logger.info(f"PROJECT_WATCHER observers: {PROJECT_WATCHER.observers.keys()}")
     for codx_path in paths:
         try:
             project_file_path = f"{codx_path}/project.json"
             settings = CODXJuniorSettings.from_project_file(project_file_path)
             all_projects.append(settings)
-            PROJECT_WATCHER.watch_project(settings=settings)
+            # Watch project changes
+            PROJECT_WATCHER.watch_project(
+                settings=settings,
+                callback=lambda file_path: project_file_changed(settings=settings, file_path=file_path))
         except Exception as ex:
             logger.exception(f"Error loading project {str(codx_path)}")
     
@@ -134,6 +150,9 @@ def find_all_projects():
             project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
             project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]
     return all_projects
+
+# Load all projects and watch
+find_all_projects()
 
 def update_engine():
     try:
@@ -169,24 +188,21 @@ class SessionChannel:
         logger.info(f"SEND MESSAGE {message}- SENT!")
 
 
-from codx.junior.project_watcher import ProjectWatcher
-PROJECT_WATCHER = ProjectWatcher()
-def watch_projects():
-    for project in find_all_projects(): 
-        PROJECT_WATCHER.watch_project(project,
-            lambda file_path: print(f"Changed: {file_path}"))
-watch_projects()
-
 
 class CODXJuniorSession:
     def __init__(self,
-        settings: CODXJuniorSettings = None,
-        codx_path: str = None,
-        app=None,
-        channel: SessionChannel = SessionChannel()):
+            settings: CODXJuniorSettings = None,
+            codx_path: str = None,
+            app=None,
+            channel: SessionChannel = None):
         self.app = app
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
         self.channel = channel
+
+    def get_channel(self):
+        if not self.channel:
+            self.channel = SessionChannel()
+        return self.channel
 
     def delete_project(self):
         shutil.rmtree(self.settings.codx_path)
@@ -215,7 +231,7 @@ class CODXJuniorSession:
         return self.get_chat_manager().list_chats()
 
     def save_chat(self, chat, chat_only=False):
-        self.channel.chat_event(f'Saving {chat.name}')
+        self.get_channel().chat_event(f'Saving {chat.name}')
         return self.get_chat_manager().save_chat(chat, chat_only)
 
     def delete_chat(self, file_path):
@@ -501,7 +517,6 @@ class CODXJuniorSession:
             "last_update": str(last_update),
             "pending_files": pending_files[0:2000],
             "total_pending_changes": len(pending_files),
-            "project_watcher_active": list(PROJECT_WATCHER.observers.keys()),
             **status
         }
     def check_project_changes(self):

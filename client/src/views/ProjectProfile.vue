@@ -5,9 +5,9 @@ import Markdown from '../components/Markdown.vue'
 
 <template>
   <div class="profile-container flex flex-col items-center h-full">
-    <div class="projects-list mt-2 w-full flex flex-col gap-2 p-4" v-if="true">
+    <div class="projects-list mt-2 w-full flex flex-col gap-2 md:p-4">
       <h2 class="text-xl font-bold mb-4">Recent activity</h2>
-      <div class="" v-if="lastModifiedProjects.length">
+      <div class="w-full" v-if="lastModifiedProjects.length">
         <div class="flex flex-col gap-1 text-xs">
           <div class="min-h-40 overflow-auto bg-base-200 rounded">
             <table class="table">
@@ -36,7 +36,7 @@ import Markdown from '../components/Markdown.vue'
         <i class="fa-solid fa-list-check"></i>
         No recent activity! Go and create your first task
       </div>
-      <div class="border border-stone-600 rounded">
+      <div class="md:border md:border-stone-600 rounded w-full">
         <h2 class="px-2 pt-2 text-xl font-bold mb-4 border-b border-stone-600">
           <span class="ml-2 -mb-2 border-b-2 border-warning">README.md</span>
         </h2>
@@ -70,7 +70,7 @@ export default {
     lastModifiedProjects () {
       return this.$storex.projects.chats?.map(c => ({ ...c, fromNow: moment(c.updated_at).fromNow() }))
               .sort((a, b) => a.updated_at > b.updated_at ? -1 : 1)
-              .slice(0, 5)
+              .slice(0, 5) || []
     }
   },
   methods: {
