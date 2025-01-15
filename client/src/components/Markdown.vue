@@ -101,7 +101,7 @@ export default {
     },
     extractYoutubeLinks() {
       const youtubeRegex = /https?:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/g;
-      this.youtubeLinks = this.text.match(youtubeRegex) || [];
+      this.youtubeLinks = this.text?.match(youtubeRegex) || [];
     }
   }
 }

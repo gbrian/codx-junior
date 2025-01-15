@@ -16,7 +16,10 @@ from watchdog.observers import Observer
 
 from codx.junior.settings import CODXJuniorSettings
 
+logging.getLogger('watchdog.observers.inotify_buffer').setLevel(logging.CRITICAL)
+
 logger = logging.getLogger(__name__)
+
 
 class ProjectWatcher:
     """Project watcher will control project's changes by watching file changes"""
@@ -60,7 +63,6 @@ class ProjectWatcher:
 
             def on_any_event(self, event: FileSystemEvent):
                 if not event.is_directory and event.event_type == EVENT_TYPE_MODIFIED:
-                    logger.info(f"FileSystemEventHandler {event}")
                     callback(event.src_path)
         
         return CustomEventHandler()

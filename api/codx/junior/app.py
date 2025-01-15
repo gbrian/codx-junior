@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 import traceback
 
+from codx.junior.log_parser import parse_logs
 from codx.junior.browser import run_browser_manager
 run_browser_manager()
 
@@ -36,8 +37,6 @@ disable_logs([
     'chromadb.api.segment',
     'openai._base_client',
     'openai._base_client',
-    'watchdog.observers.inotify_buffer',
-    'watchdog.observers'
 ])
 
 
@@ -434,7 +433,7 @@ def api_logs_tail(log_name: str, request: Request):
     log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
     log_size = request.query_params.get("log_size") or "1000"
     logs, _ = exec_command(f"tail -n {log_size} {log_file}")
-    return logs
+    return parse_logs(logs)
 
 
 @app.post("/api/global/settings")

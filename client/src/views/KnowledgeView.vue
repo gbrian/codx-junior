@@ -385,11 +385,13 @@ export default {
     async reloadFolder (folderToReload) {
       this.reloadPath(folderToReload)
     },
-    async reloadPath(path) {
+    async reloadPath(path, skipReloadStatus) {
       this.loading = true
       try {
         await API.knowledge.reloadFolder(path)
-        await this.reloadStatus()
+        if (!skipReloadStatus) {
+          await this.reloadStatus()
+        }
         this.folderFilter = null
       } catch{}
       this.loading = false
@@ -399,7 +401,11 @@ export default {
       while(this.selectedFilePaths.length) {
         const filePath = this.selectedFilePaths[0]
         try {
-          await this.reloadPath(filePath)
+          await this.reloadPath(filePath, true)
+          const ix = this.status?.pending_files.indexOf(filePath)
+          if (ix !== -1) {
+            this.status?.pending_files.splice(ix, 1)
+          }
         } catch {}
         delete this.selectedFiles[filePath]
       } 

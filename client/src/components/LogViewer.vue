@@ -2,8 +2,7 @@
   <div class="flex flex-col gap-2 h-full w-full max-w-full">
     <header class="flex flex-col 2xl:flex-row justify-between items-center">
       <div class="flex gap-1">
-        <select v-model="selectedLog" @change="onLogChange"
-          class="border select-xs rounded">
+        <select v-model="selectedLog" @change="onLogChange" class="border select-xs rounded">
           <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
         </select>
         <label class="input input-xs input-bordered flex items-center gap-2">
@@ -35,16 +34,29 @@
         </button>
       </div>
     </header>
-    <div class="" v-if="ignorePatterns.length">
+    <div class="grid grid-cols-4 gap-1 my-2">
+      <div 
+        v-for="module in distinctModules" 
+        :key="module" 
+        @click="toggleModuleVisible(module)"
+        :style="`color:${$ui.colorsMap[module]}`"
+        :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-white': 'badge-outline']"
+      >
+        {{ module }}
+      </div>
+    </div>
+    <div v-if="ignorePatterns.length">
       <i class="fa-regular fa-eye-slash"></i>
-      <span @click="removeIgnore(ignore)" class="click mr-2 badge badge-warning hover:underline" v-for="ignore, ix in ignorePatterns" :key="ignore">
+      <span @click="removeIgnore(ignore)" class="click mr-2 badge badge-warning hover:underline" v-for="ignore in ignorePatterns" :key="ignore">
         {{ ignore }}
       </span>
     </div>
-    <div class="grow overflow-auto" ref="logView">
-      <code>
-        <pre class="w-full" v-html="flog.log" :class="flog.styleClasses" v-for="(flog, ix) in formatedLogs" :key="ix"></pre>
-      </code>
+    <div class="grow overflow-auto flex flex-col gap-2" ref="logView">
+      <div v-for="(flog, ix) in filteredFormatedLogs" :key="ix">
+        <div class="w-full p-1 hover:bg-base-100" v-html="flog.formatedContent"
+          :class="flog.styleClasses"
+        ></div>
+      </div>
     </div>
   </div>
 </template>
@@ -54,49 +66,46 @@ export default {
   data() {
     return {
       selectedLog: '',
-      logs: '',
-      formatedLogs: null,
+      logs: [],
+      formatedLogs: [],
       autoRefresh: false,
       logNames: [],
       filter: null,
-      filterMatchCount: 0
+      filterMatchCount: 0,
+      logModules: {}
     }
   },
-  mounted() {
-    this.fetchLogNames()
-  },
-  beforeUnmount() {
-    this.autoRefresh = false
-  },
   computed: {
+    distinctModules() {
+      return [...new Set(this.logs.map(log => log.module))]
+    },
     ignorePatterns() {
       return this.$project?.log_ignore?.split(",").filter(i => i.trim().length) || []
     },
     allIgnorePatterns() {
       return ["api/logs", "/var/log/", ...this.ignorePatterns]
-    }
-  },
-  watch: {
-    autoRefresh () {
-      if (this.autoRefresh) {
-        this.fetchLogs()
-      }
+    },
+    filteredFormatedLogs () {
+      return this.formatedLogs?.filter(flog => this.logModules[flog.module].visible)
     }
   },
   methods: {
+    toggleModuleVisible(module) {
+      this.logModules[module].visible = !this.logModules[module].visible
+      this.applyFilter()
+    },
     colorMap() {
       const modules = new Set()
-      this.logs?.split('\n').forEach(log => {
-        const moduleMatch = this.extractModule(log)
-        if (moduleMatch) {
-          modules.add(moduleMatch)
+      this.logs.forEach(log => {
+        if (log.module) {
+          modules.add(log.module)
         }
       })
       const colors = this.$ui.colorsMap
       const newModules = [...modules].filter(m => !colors[m])
       if (newModules) {
         newModules.forEach(module => {
-          colors[module] = `#${Math.floor(Math.random()*16777215).toString(16)}` // Random color
+          colors[module] = `#${Math.floor(Math.random() * 16777215).toString(16)}`
         })
         this.$ui.setColorsMap(colors)
       }
@@ -116,10 +125,14 @@ export default {
     },
     fetchLogs() {
       API.logs.read(this.selectedLog)
-        .then((response) => {
+        .then(response => {
           this.logs = response.data
+          this.logModules = {}
+          this.logs.forEach(({ module }) => {
+            this.logModules[module] = { visible: true }
+          })
           this.formatedLogs = []
-          this.formatFetchedLogs(this.logs?.split('\n'))
+          this.formatFetchedLogs(this.logs)
           this.applyFilter()
           requestAnimationFrame(() => this.scrollToBottom())
           if (this.autoRefresh) {
@@ -131,18 +144,18 @@ export default {
     formatFetchedLogs(logs) {
       const bucket = 50
       if (logs?.length) {
-        logs.slice(0, bucket).forEach(log => 
-          this.formatedLogs.push({ log: this.formattedLog(log) }))
-        requestAnimationFrame(() => this.formatFetchedLogs(logs.slice(bucket - 1)))
+        logs.slice(0, bucket).forEach(log =>
+          this.formatedLogs.push({ ...log, formatedContent: this.formattedLog(log), styleClasses: [] }))
+        requestAnimationFrame(() => this.formatFetchedLogs(logs.slice(bucket)))
       }
       this.scrollToBottom()
     },
     clearLogs() {
-      this.logs = null
-      this.formatedLogs = null
+      this.logs = []
+      this.formatedLogs = []
     },
     onLogChange() {
-      this.logs = ''  // Clear log output
+      this.logs = []
       this.fetchLogs()
     },
     scrollToBottom() {
@@ -151,17 +164,19 @@ export default {
     },
     logClasses(log) {
       const classes = []
-      const loweLog = log.toLowerCase() 
+      const lowerLogContent = log.content?.toLowerCase() || ""
       const filter = this.filter?.toLowerCase()
       if (filter) {
-          if (loweLog.indexOf(filter) === -1) {
-            classes.push('opacity-30')
-          } else {
-            classes.push('font-bold')
-            classes.push('match')
-          }
+        if (lowerLogContent.indexOf(filter) === -1) {
+          classes.push('opacity-30')
+        } else {
+          classes.push('font-bold', 'match')
+        }
       }
-      if (this.allIgnorePatterns.find(i => loweLog.indexOf(i) !== -1)) {
+      if (!this.logModules[log.module]?.visible) {
+        classes.push('hidden')
+      }
+      if (this.allIgnorePatterns.find(i => lowerLogContent.indexOf(i) !== -1)) {
         classes.push('hidden')
       }
       return classes
@@ -175,27 +190,34 @@ export default {
     },
     formattedLog(log) {
       const colorsMap = this.colorMap()
-      const module = this.extractModule(log)
-      const color = colorsMap[module] || 'white'
-      return log.replace(/&/g, "&amp;")
-              .replace(/</g, "&lt;")
-              .replace(/>/g, "&gt;")
-              .replace(/'/g, "&#39;")
-              .replace(/"/g, "&quot;")
-              .replace(module, `<span style="color: ${color}">${module}</span>`)
-    },
-    extractModule(log) {
-      const moduleMatch = log?.match(/\[([\w\.\:]+)\]/)
-      return moduleMatch ? moduleMatch[1].split(":")[0] : ""
+      const color = colorsMap[log.module] || 'white'
+      return `
+        <div class="flex flex-col">
+          <div class="flex gap-2">
+            <div>${log.timestamp}</div>
+            <div class="font-bold">${log.level}</div> 
+            <div style="color: ${color}">[${log.module}]</div> 
+            <div>(Line: ${log.line})</div>
+          </div> 
+          <pre>${log.content}</pre>
+          ${Object.keys(log.data).length ? '<pre class="text-warning">' + JSON.stringify(log.data, null, 2) + '</pre>' : ''}
+        </div>
+      `
     },
     applyFilter() {
-      this.formatedLogs?.forEach(flog => flog.styleClasses = this.logClasses(flog.log))
+      this.formatedLogs?.forEach(flog => flog.styleClasses = this.logClasses(flog))
       this.filterMatchCount = this.formatedLogs?.filter(({ styleClasses }) => styleClasses.includes('match')).length
     },
     clearFilter() {
       this.filter = null
       this.applyFilter()
     }
+  },
+  mounted() {
+    this.fetchLogNames()
+  },
+  beforeUnmount() {
+    this.autoRefresh = false
   }
 }
 </script>

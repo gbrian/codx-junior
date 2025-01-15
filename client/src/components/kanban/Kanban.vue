@@ -69,8 +69,11 @@ import VSwatches from "../VSwatches.vue"
       </modal>
       <div class="grow grid grid-flow-col overflow-x-scroll relative gap-2">
         <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
+          :class="column.color && 'border-t-2'"
+          :style="{ borderColor: column.color }"
           v-for="column in columns" :key="column.name">
-          <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
+          <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center"
+          >
             <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
               :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
               <span class="hidden group-hover:block">

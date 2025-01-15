@@ -285,7 +285,10 @@ class Knowledge:
     def get_all_sources (self):
         return self.get_db().get_all_sources()
       
-  
+    def is_valid_project_file(self, file_path):
+        sources = self.loader.list_repository_files()
+        return True if file_path in sources else False
+
     def status (self):
         documents = self.get_all_documents()
         doc_count = len(documents)

@@ -124,6 +124,11 @@ class CODXJuniorSettings:
             base.__dict__[k] = v
         return base
 
+    
+    @classmethod
+    def from_codx_path(cls, codx_path: str):
+        return CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
+        
     @classmethod
     def from_project_file(cls, project_file_path: str):
         base = CODXJuniorSettings()

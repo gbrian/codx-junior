@@ -1,5 +1,5 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
-import { $storex } from '.'
+import store, { $storex } from '.'
 import { API } from '../api/api'
 
 export const namespaced = true
@@ -8,13 +8,23 @@ export const state = () => ({
   allProjects: null,
   chats: null,
   activeChat: null,
-  activeProject: null
+  activeProject: null,
+  logs: null,
+  formatedLogs: [],
+  selectedLog: null,
+  autoRefresh: false
 })
 
 export const mutations = mutationTree(state, {
   setAllProjects(state, allProjects) {
     state.allProjects = allProjects
     state.activeChat = null
+  },
+  setLogs(state, logs) {
+    state.logs = logs
+  },
+  setFormatedLogs(state, formatedLogs) {
+    state.formatedLogs = formatedLogs
   }
 })
 
@@ -143,6 +153,22 @@ export const actions = actionTree(
       return `${project_dependencies}`.split(",").map(dep => 
         state.allProjects.find(({ project_name }) => project_name === dep.trim()))
                           .filter(p => !!p)
+    },
+    async fetchLogs({ state, commit }) {
+      try {
+        const response = await API.logs.read(state.selectedLog)
+        commit('setLogs', response.data)
+        commit('setFormatedLogs', [])
+        // Assuming formatFetchedLogs and applyFilter are methods available in this context
+        this.formatFetchedLogs(state.logs?.split('\n'))
+        this.applyFilter()
+        requestAnimationFrame(() => this.scrollToBottom())
+        if (state.autoRefresh) {
+          setTimeout(() => this.fetchLogs(), 3000)
+        }
+      } catch (error) {
+        console.error(error)
+      }
     }
   }
 )

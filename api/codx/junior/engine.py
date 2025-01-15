@@ -58,7 +58,8 @@ from codx.junior.mention_manager import (
     replace_mentions,
     notify_mentions_in_progress,
     notify_mentions_error,
-    strip_mentions
+    strip_mentions,
+    is_processing_mentions
 )
 
 from codx.junior.project_watcher import PROJECT_WATCHER
@@ -107,18 +108,38 @@ def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     logger.info(f"coder_open_file {file_name}")
     os.system(f"code-server -r {file_name}")
 
-def project_file_changed(settings: CODXJuniorSettings, file_path: str):
-    settings = CODXJuniorSettings.from_project_file(settings.get_project_settings_file())
-    if not KnowledgeLoader(settings=settings).is_valid_file(file=file_path):
+
+FILES_CHECKING = {}
+def check_file_worker(settings: CODXJuniorSettings, file_path: str):
+    global FILES_CHECKING
+    FILES_CHECKING[file_path] = True
+    try:
+        # Check mentions
+        CODXJuniorSession(settings=settings).check_file_for_mentions(file_path=file_path)
+        # Reload knowledge 
+        if settings.watching:
+            knowledge = Knowledge(settings=settings)
+            file_changes = knowledge.detect_changes()
+            if file_path in file_changes:
+                knowledge.reload_path(path=file_path)
+    except:
+        pass
+    del FILES_CHECKING[file_path]
+
+def project_file_changed(codx_path: str, file_path: str):
+    global FILES_CHECKING
+    settings = CODXJuniorSettings.from_codx_path(codx_path)
+    file_key = f"{settings.project_name}:{file_path}"
+    if FILES_CHECKING.get(file_path):
         return
-    # Check mentions
-    CODXJuniorSession(settings=settings).check_file_for_mentions(file_path=file_path)
-    # Reload knowledge 
-    if settings.watching:
-        knowledge = Knowledge(settings=settings)
-        file_changes = knowledge.detect_changes()
-        if file_path in file_changes:
-            knowledge.reload_path(path=file_path)
+    if not Knowledge(settings=settings).is_valid_project_file(file_path=file_path):
+        return
+    logger.info(f"project_file_changed processing event. {file_key}")
+    Thread(target=check_file_worker, args=(settings, file_path)).start()
+
+def create_watcher_callback(settings: CODXJuniorSettings):
+    codx_path = settings.codx_path
+    return lambda file_path: project_file_changed(codx_path=codx_path, file_path=file_path)
 
 def find_all_projects():
     all_projects = []
@@ -135,7 +156,7 @@ def find_all_projects():
             # Watch project changes
             PROJECT_WATCHER.watch_project(
                 settings=settings,
-                callback=lambda file_path: project_file_changed(settings=settings, file_path=file_path))
+                callback=create_watcher_callback(settings=settings))
         except Exception as ex:
             logger.exception(f"Error loading project {str(codx_path)}")
     
@@ -694,7 +715,10 @@ class CODXJuniorSession:
 
         if not content:
             content = read_file()
-            
+        
+        if is_processing_mentions(content=content):
+            raise Exception('Mentions process already in progress')
+
         mentions = extract_mentions(content)
         
         if not mentions:
@@ -739,15 +763,6 @@ class CODXJuniorSession:
 
         chat = Chat(name=f"changes_at_{file_path}", messages=
             [
-                Message(
-                    role="user", 
-                    content=f"""Please consider this best practices when writing this file
-                    {profile.content}
-                    """
-                ) for profile in file_profiles
-            ] 
-            + 
-            [
                 Message(role="user", content=f"""
                 {profile_manager.read_profile("software_developer").content}
                 Find all information needed to apply all changes to file: {file_path}
@@ -763,6 +778,15 @@ class CODXJuniorSession:
         if run_code:
             self.improve_existing_code(chat=chat, apply_changes=True)
         else:
+            if file_profiles:
+                file_profile_content = "\n".join([
+                    profile.content for profile in file_profiles
+                ])
+                
+                chat.messages.append(Message(role="user", content=f"""Best practices for this file:
+                {file_profile_content}
+                """))
+
             chat.messages.append(Message(role="user", content=f"""
             Rewrite full file content replacing codx instructions by required changes.
             Return only the file content without any further decoration or comments.
@@ -1034,21 +1058,30 @@ class CODXJuniorSession:
         return content
     
     def apply_file_profile(self, file_path: str, content: str, profile: Profile):
-        content_message = Message(role="user", content=f"""FILE {file_path}
-        ```
+        file_profile_prompt = f"""
+        You are given a section of code that requires improvement by applying best practices. Your task is to refactor the code while ensuring that it adheres to the specified best practices. Please follow the instructions below:
+
+        ### File Content:
+        ``` {file_path}
         {content}
         ```
-        
-        BEST PRACTICES FOR {file_path}:
+
+        ### Best Practices:
         ```
         {profile.content}
         ```
-        
-        INSTRUCTIONS:
-        Make sure file content follows this best practices and apply all changes needed to it.
+        ### Instructions:
+        1. Refactor the provided code content using the best practices outlined above.
+        2. Ensure the code is well-commented and documented.
+        3. Add any necessary unit tests to confirm the correctness of the refactored code.
+        4. Provide a brief summary of the changes made and the reasoning behind them.
+
+        Please proceed with applying these best practices to the given file content.
         Return the final content without any kind of decoration or extra comments. 
         Avoid surronding your response with fences (```), just return the final content.
-        """)
+        """
+
+        content_message = Message(role="user", content=file_profile_prompt)
 
         chat = Chat(name=f"Improve file with profile {profile.name}", messages=[content_message])
         self.chat_with_project(chat=chat, use_knowledge=False)
