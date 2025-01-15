@@ -5,23 +5,23 @@ import ChatViewVue from '../../views/ChatView.vue'
 import { v4 as uuidv4 } from 'uuid'
 import VSwatches from "../VSwatches.vue"
 </script>
+
 <template>
   <div class="flex flex-col gap-2 h-full">
     <ChatViewVue v-if="chat" 
       @chats="onChatEditDone"
       @sub-task="createSubTask"
       @chat="$projects.setActiveChat($event)"
-    ></ChatViewVue>
+    />
     <div class="flex flex-col gap-2 grow overflow-auto pb-2" v-else>
       <div class="md:text-2xl flex gap-4 items-center justify-between">
         <div class="dropdown">
           <button tabindex="0" class="btn mt-1 dropdown-toggle" @click="toggleDropdown">
             {{ board || "All" }} <i class="fa-solid fa-sort-down"></i>
           </button>
-          <ul v-if="isDropdownOpen" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+          <ul v-if="isDropdownOpen" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
             <li class="flex gap-2" @click="showBoardModal = true"><a>New board ...</a></li>
-            <hr>
-            <li v-for="tasksBoard in boardList" :key="tasksBoard" @click="selectBoard(tasksBoard.id)">
+            <li v-for="tasksBoard in boardList" :key="tasksBoard.id" @click="selectBoard(tasksBoard.id)">
               <a>{{ tasksBoard.title }}</a>
             </li>
           </ul>
@@ -72,8 +72,7 @@ import VSwatches from "../VSwatches.vue"
           :class="column.color && 'border-t-2'"
           :style="{ borderColor: column.color }"
           v-for="column in columns" :key="column.name">
-          <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center"
-          >
+          <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
             <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
               :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
               <span class="hidden group-hover:block">
@@ -84,9 +83,19 @@ import VSwatches from "../VSwatches.vue"
               <div>{{column.title}}</div>
             </div>
             <div class="flex gap-2 items-center">
-              <button class="btn btn-sm" @click="newChat(column.title)">
-                <i class="fa-solid fa-plus"></i>
-              </button>
+              <div class="dropdown dropdown-end">
+                <div tabindex="0" role="button" class="btn btn-sm m-1">
+                  <i class="fa-solid fa-plus"></i>
+                </div>
+                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                  <li class="flex gap-2" @click="newAnalysisTask(column.title)">
+                    <a>Analysis task</a>
+                  </li>
+                  <li class="flex gap-2" @click="newCodingTask(column.title)">
+                    <a>Coding task</a>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
           <div class="grow overflow-y-auto">
@@ -103,7 +112,7 @@ import VSwatches from "../VSwatches.vue"
                   :itemKey="task.id"
                   class="cursor-move overflow-hidden mt-2"
                   @click="openChat(task)"
-                ></task-card>
+                />
               </template>
             </draggable>
           </div>
@@ -112,6 +121,7 @@ import VSwatches from "../VSwatches.vue"
     </div>
   </div>
 </template>
+
 <script>
 export default {
   data() {
@@ -126,64 +136,64 @@ export default {
       columnColor: '#000000',
       columnPosition: 1,
       isDropdownOpen: false,
+      isTaskDropdownOpen: false,
       boards: [],
       selectedColumn: null,
-      editColumnError: null,
+      editColumnError: null
     }
   },
-  created () {
+  created() {
     this.projectChanged()
   },
   computed: {
-    chat () {
+    chat() {
       return this.$projects.activeChat
     },
-    project () {
+    project() {
       return this.$projects.activeProject
     },
-    chats () {
-      return this.$projects.chats
-            .map(c => ({
-              ...c,
-              board: c.board || this.board,
-              column: c.column || "--none--"
-            }))
+    chats() {
+      return this.$projects.chats.map(c => ({
+        ...c,
+        board: c.board || this.board,
+        column: c.column || "--none--"
+      }))
     },
-    activeBoard () {
+    activeBoard() {
       return this.boards[this.board] || {}
     },
-    boardList () {
+    boardList() {
       return [
         ...Object.keys(this.boards || {}).map(title => ({ title, id: title })),
         { title: "All" }
       ]
     },
-    columnList () {
-      return this.board ?
-        (this.activeBoard?.columns || []) :
-        [...new Set(this.chats.map(c => c.column))]
-          .filter(col => !!col)
-          .map(title => ({ title }))
+    columnList() {
+      return this.board 
+        ? (this.activeBoard?.columns || []) 
+        : [...new Set(this.chats.map(c => c.column))]
+            .filter(col => !!col)
+            .map(title => ({ title }))
     }
   },
   watch: {
-    filter (newValue, oldValue) {
+    filter(newValue, oldValue) {
       if ((!newValue && oldValue) || newValue?.length > 3) {
-        this.buildKanba()
+        this.buildKanban()
       }
     },
-    project () {
+    project() {
       this.projectChanged()
     },
-    board () {
-      this.buildKanba()
+    board() {
+      this.buildKanban()
     }
   },
   methods: {
-    async projectChanged () {
+    async projectChanged() {
       this.boards = await this.$storex.api.chats.boards.load()
       this.board = this.$ui.kanban
-      this.buildKanba()
+      this.buildKanban()
     },
     toggleDropdown() {
       this.isDropdownOpen = !this.isDropdownOpen
@@ -193,7 +203,7 @@ export default {
       this.$ui.setKanban(board)
       this.isDropdownOpen = false
     },
-    createNewChat (column) {
+    createNewChat(column) {
       return {
         id: uuidv4(),
         name: "New chat " + this.chats.length + 1,
@@ -204,10 +214,23 @@ export default {
         chat_index: 0
       }
     },
-    newChat (column) {
-      this.$projects.newChat(this.createNewChat(column))
+    newAnalysisTask(column) {
+      this.$projects.newChat({
+        ...this.createNewChat(column),
+        name: "New Analysis Task",
+        mode: 'task',
+        profiles: ["analyst"]
+      })
     },
-    async buildKanba () {
+    newCodingTask(column) {
+      this.$projects.newChat({
+        ...this.createNewChat(column),
+        name: "New Coding Task",
+        mode: 'chat',
+        profiles: ["software_developer"]
+      })
+    },
+    async buildKanban() {
       await this.$projects.loadChats()
       if (this.board && !this.boards[this.board]) {
         this.board = Object.keys(this.boards)[0]
@@ -219,12 +242,12 @@ export default {
         tasks: this.chats
           .filter(c => c.column === column.title && (!this.filter || c.name.toLowerCase().includes(this.filter.toLowerCase())))
           .sort((a, b) => a.chat_index - b.chat_index)
-      }));
+      }))
     },
     async onColumnTaskListChanged() {
       await Promise.all(this.columns.filter(({ tasks }) => !!tasks)
-        .map(column => this.updateColumnTaskList(column )))
-      this.buildKanba()
+        .map(column => this.updateColumnTaskList(column)))
+      this.buildKanban()
       this.saveBoards()
     },
     async updateColumnTaskList(column) {
@@ -233,7 +256,7 @@ export default {
           .filter(t => t.column !== column.title)
           .forEach(async (task, ix) => {
             if (task.column !== column.title) {
-              task.column = column.title,
+              task.column = column.title
               task.chat_index = ix
               if (task.id) {
                 await this.$projects.saveChatInfo(task)
@@ -249,69 +272,59 @@ export default {
         await this.$projects.setActiveChat(element)
       }
     },
-    onChatEditDone () {
+    onChatEditDone() {
       this.$projects.setActiveChat()
-      this.buildKanba()
+      this.buildKanban()
     },
     async createSubTask(parent) {
       const chat = this.createNewChat(parent.column)
       if (!parent.id) {
-        parent.id = uuidv4() // Legacy...
+        parent.id = uuidv4()
       }
       chat.parent_id = parent.id
       chat.column = parent.column
       chat.column_ix = parent.column_ix
       this.$projects.newChat(chat)
     },
-    addColumn () {
-      this.showColumnModal = true
-      this.columnName = ''
-      this.columnColor = '#000000'
-      this.columnPosition = this.columns.length + 1
-      this.selectedColumn = null
-    },  
     async addOrUpdateColumn() {
       if (this.columnName.trim()) {
         if (!this.activeBoard.columns) {
-          this.activeBoard.columns = [];
+          this.activeBoard.columns = []
         }
-        const activeBoardColumns = this.activeBoard.columns;
+        const activeBoardColumns = this.activeBoard.columns
 
         if (this.selectedColumn) {
           const oldColumnIndex = activeBoardColumns.findIndex(col => col.title === this.selectedColumn.title)
-
           if (oldColumnIndex !== -1) {
-            // Update all chats with the new column title
             this.chats.forEach(chat => {
               if (chat.column === this.selectedColumn.title) {
-                chat.column = this.columnName;
+                chat.column = this.columnName
                 this.$storex.api.chats.saveChatInfo(chat)
               }
-            });
-            activeBoardColumns.splice(oldColumnIndex, 1);
+            })
+            activeBoardColumns.splice(oldColumnIndex, 1)
           }
         } else {
           const columnsWithSameName = activeBoardColumns.filter(
             (col) => col.title.toLowerCase() === this.columnName.toLowerCase()
-          );
+          )
 
           if (columnsWithSameName.length > 1) {
-            this.editColumnError = "Name already used";
-            return;
+            this.editColumnError = "Name already used"
+            return
           }
         }
 
         const newColumn = {
           title: this.columnName,
           color: this.columnColor
-        };
+        }
 
-        activeBoardColumns.splice(this.columnPosition - 1, 0, newColumn);
+        activeBoardColumns.splice(this.columnPosition - 1, 0, newColumn)
         await this.saveBoards()
-        this.buildKanba()
+        this.buildKanban()
       }
       this.resetColumnModal()
-      
     },
     resetColumnModal() {
       this.showColumnModal = false
@@ -322,26 +335,26 @@ export default {
       this.editColumnError = null
     },
     async addBoard() {
-      const boardName = this.newBoardName.trim() 
+      const boardName = this.newBoardName.trim()
       if (boardName && !this.boards[boardName]) {
         this.boards[boardName] = {}
         this.board = boardName
         await this.saveBoards()
-        this.buildKanba()
+        this.buildKanban()
       }
       this.newBoardName = ''
       this.showBoardModal = false
     },
     openColumnPropertiesModal(column) {
-      const columnIndex = this.columns.findIndex(c => c.title === column.title);
+      const columnIndex = this.columns.findIndex(c => c.title === column.title)
       this.selectedColumn = {
         ...column,
         index: columnIndex
-      };
-      this.columnName = column.title;
-      this.columnColor = column.color || '#000000';
-      this.columnPosition = columnIndex + 1;
-      this.showColumnModal = true;
+      }
+      this.columnName = column.title
+      this.columnColor = column.color || '#000000'
+      this.columnPosition = columnIndex + 1
+      this.showColumnModal = true
     },
     async saveBoards() {
       await this.$storex.api.chats.boards.save(this.boards)
