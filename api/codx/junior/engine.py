@@ -115,14 +115,16 @@ def check_file_worker(settings: CODXJuniorSettings, file_path: str):
     FILES_CHECKING[file_path] = True
     try:
         # Check mentions
-        CODXJuniorSession(settings=settings).check_file_for_mentions(file_path=file_path)
+        res = CODXJuniorSession(settings=settings).check_file_for_mentions(file_path=file_path)
+        logger.info(f"Check file {file_path} for mentions: {res}")
         # Reload knowledge 
         if settings.watching:
             knowledge = Knowledge(settings=settings)
             file_changes = knowledge.detect_changes()
             if file_path in file_changes:
                 knowledge.reload_path(path=file_path)
-    except:
+    except Exception as ex:
+        logger.exception(f"Error processing file changes {file_path}: {ex}")
         pass
     del FILES_CHECKING[file_path]
 

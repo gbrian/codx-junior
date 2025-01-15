@@ -60,6 +60,7 @@ def parse_logs(log_stream: str) -> List[Dict[str, str]]:
                 "line": int(match.group('line')),
                 "content": match.group('content').strip()
             }
+            log_entry["id"] = f"{log_entry['timestamp']}:{log_entry['level']}:{log_entry['module']}:{log_entry['line']}"
         elif log_entry:
             # Accumulate content lines that are part of the previous log entry
             log_entry["content"] += "\n" + line.strip()

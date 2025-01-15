@@ -28,7 +28,9 @@ import Markdown from './Markdown.vue';
       </div>
       <div class="w-1/2 flex flex-col gap-2">
         <label for="fileMatch">File Match</label>
-        <input id="fileMatch" v-model="editProfile.file_match" type="text" class="bg-base-300 input input-xs input-bordered w-full" />
+        <input id="fileMatch" v-model="editProfile.file_match" type="text" 
+          :class="!isValidFileMatch && 'text-error'"
+          class="bg-base-300 input input-xs input-bordered w-full" />
       </div>
     </div>
     <div class="form-group">
@@ -80,7 +82,18 @@ export default {
     },
     canSave () {
       const { name, category } = this.editProfile
-      return name && category && !this.nameTaken
+      return name && category && !this.nameTaken && this.isValidFileMatch
+    },
+    isValidFileMatch () {
+      if (this.editProfile.category !== "file") {
+        return true
+      }
+      try {
+          new RegExp(this.editProfile.file_match)
+          return true
+      } catch(e) {
+          return false;
+      }
     }
   },
   watch: {

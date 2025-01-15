@@ -75,6 +75,13 @@ export default {
       logModules: {}
     }
   },
+  watch: {
+    autoRefresh (newVal) {
+      if (newVal) {
+        this.fetchLogs()
+      }
+    }
+  },
   computed: {
     distinctModules() {
       return [...new Set(this.logs.map(log => log.module))]
@@ -86,7 +93,9 @@ export default {
       return ["api/logs", "/var/log/", ...this.ignorePatterns]
     },
     filteredFormatedLogs () {
-      return this.formatedLogs?.filter(flog => this.logModules[flog.module].visible)
+      return this.formatedLogs?.filter(flog => 
+        this.logModules[flog.module].visible &&
+          (!flog.data?.url || flog.data.url.indexOf("/api/logs") === -1))
     }
   },
   methods: {

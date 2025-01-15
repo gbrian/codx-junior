@@ -68,8 +68,11 @@ class ProfileManager:
         if profile_path:
             os.remove(profile_path[0])
 
-    def is_profile_match(slef, profile: Profile, file_path: str):
-        return profile.file_match and re.search(profile.file_match, file_path)
+    def is_profile_match(self, profile: Profile, file_path: str):
+        try:
+            return profile.file_match and re.search(profile.file_match, file_path)
+        except:
+            return False
 
     def get_file_profiles(self, file_path: str):
         return [profile for profile in self.list_profiles() \
