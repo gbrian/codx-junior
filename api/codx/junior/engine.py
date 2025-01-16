@@ -434,7 +434,7 @@ class CODXJuniorSession:
             def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:
                 if error:
                     chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
-                self.chat_with_project(chat=chat, use_knowledge=False, chat_mode='chat')
+                self.chat_with_project(chat=chat, use_knowledge=True, chat_mode='chat')
                 chat.messages[-1].improvement = True
                 
                 request_msg.improvement = True

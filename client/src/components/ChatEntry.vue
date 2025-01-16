@@ -46,12 +46,20 @@ import MarkdownIt from 'markdown-it'
               <i class="fa-solid fa-pencil"></i>
             </button>
             <div class="grow"></div>
-            <button class="ml-4 btn btn-error btn-xs hidden group-hover:block" @click="onRemove">
-              <i class="fa-solid fa-trash"></i>
-              <span v-if="isRemove"> Confirm 
-                <span class="hover:underline" @click="confirmRemove">Yes</span>/<span class="hover:underline" @click.stop="cancelRemove">No</span>
-              </span>
-            </button>
+            <div class="dropdown dropdown-hover dropdown-end">
+              <button tabindex="0" class="btn btn-error btn-xs" @click="onRemove">
+                <i class="fa-solid fa-trash"></i>
+                <span v-if="isRemove"> Confirm </span>
+              </button>
+              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow w-28 p-2">
+                <li>
+                  <a class="hover:underline" @click="confirmRemove">Yes</a>
+                </li>
+                <li>
+                  <a class="hover:underline" @click.stop="cancelRemove">No</a>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
         <pre v-if="srcView">{{ message.content }}</pre>
@@ -62,7 +70,7 @@ import MarkdownIt from 'markdown-it'
               {{ patch.file_path }}
             </div>
             <div class="">{{ patch.description }}</div>
-            <Markdown :text="'```patch' + patch.patch + '```'"></Markdown>
+            <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
             <div class="flex justify-end">
               <button class="btn btn-sm btn-warning" @click="applyPatch(patch)">
                 Apply changes
@@ -92,7 +100,7 @@ import MarkdownIt from 'markdown-it'
                 <i class="fa-solid fa-file-arrow-up"></i>
               </div>
               <div class="overflow-hidden">
-                {{ file.split("/").reverse()[0] }}
+                {{ file.split('/').reverse()[0] }}
               </div>
             </div>
             <div class="click hover:text-error" @click.stop="$emit('remove-file', file)">
@@ -143,7 +151,6 @@ export default {
       return task_item ? `### \`${task_item}\`\n\n${content}` : content
     }
   },
-  watch: {},
   methods: {
     formatDate(date) {
       return moment(date).format('DD/MMM HH:mm')
@@ -159,14 +166,14 @@ export default {
       }
     },
     copyTextToClipboard(text) {
-      const textArea = document.createElement("textarea")
+      const textArea = document.createElement('textarea')
       textArea.value = text
       document.body.appendChild(textArea)
       textArea.focus()
       textArea.select()
       document.execCommand('copy')
       document.body.removeChild(textArea)
-      console.log("Code copied", text)
+      console.log('Code copied', text)
     },
     onMessageCopy(ev) {
       const text = window.getSelection().toString()
@@ -200,7 +207,7 @@ export default {
     },
     async applyPatch(patch) {
       patch.res = await this.$storex.api.run.patch(patch)
-      if (patch.res.info?.toLowerCase().includes("error")) {
+      if (patch.res.info?.toLowerCase().includes('error')) {
         patch.res.error = patch.res.info
       }
     }

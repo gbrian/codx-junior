@@ -76,7 +76,10 @@ class BrowserManager:
 
 browser_manager = BrowserManager()
 def run_browser_manager():
-    browser_manager.start_browser()
+    try:
+        browser_manager.start_browser()
+    except:
+        pass
     #check_browser_thread = threading.Thread(target=browser_manager.run_browser_check)
     #check_browser_thread.daemon = True  # Daemon thread will exit when the program does
     #check_browser_thread.start()

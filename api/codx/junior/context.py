@@ -85,12 +85,12 @@ class AICodeChange(BaseModel):
 
 class AICodePatch(BaseModel):
     file_path: str = Field(description="/file/path/to/file")
-    patch: str = Field(description="A git patch with the changes to be applied to the file")
+    patch: str = Field(description="A file patch with the changes to be applied to the file")
     description: str = Field(description="Brief human friendly description about the change highlighting the most important changes")
 
 class AICodeGerator(BaseModel):
     code_changes: List[AICodeChange] = Field(description="Conde changes")
-    code_patches: List[AICodePatch] = Field(description="Changes in path format one for each file")
+    code_patches: List[AICodePatch] = Field(description="A list of file patch for each modificed file")
 
 AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGerator)
 
