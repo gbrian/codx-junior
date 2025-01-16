@@ -467,7 +467,8 @@ async def api_image_to_text_endpoint(file: UploadFile):
 
 @app.post("/api/restart")
 def api_restart():
-    logger.info(f"****************** API RESTART... NOT WORKING...")
+    logger.info(f"****************** API RESTARTING... bye *******************")
+    exec_command("sudo kill 7")
 
 #Socket io (sio) create a Socket.IO server
 sio = socketio.AsyncServer(cors_allowed_origins='*',async_mode='asgi')

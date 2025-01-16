@@ -160,9 +160,32 @@ import UserList from './UserList.vue';
               </select>
             </a>
           </li>
+          <li>
+            <div class="click border rounded-md text-xs bg-error text-white w-full flex justify-center hover:animation-pulse"
+              @click="restartModal = true">
+              <div><i class="fa-solid fa-bomb"></i> Restart!</div>
+            </div>
+          </li>
         </ul>
 			</div>
     </div>
+    <modal v-if="restartModal">
+      <div class="flex flex-col gap-2 font-mono">
+        <div class="font-bold text-xl">Restart... really!!??</div>
+        <div class="">
+          <i class="fa-solid fa-heart-crack text-red-600"></i> Ouch, sorry to hear that... codx-junior will loose one live!  (don't worry, have many). 
+          After restarting give some time to codx-junior and reload, good luck!
+        </div>
+        <div class="flex justify-between">
+          <button class="btn btn-error" @click="$storex.api.restart">
+            <i class="fa-solid fa-skull"></i> Kill codx-junior
+          </button>
+          <button class="btn" @click="restartModal = false">
+            Ops, no, no...
+          </button>
+        </div>
+      </div>
+    </modal>
   </div>
 </template>
 
@@ -173,7 +196,8 @@ export default {
     return {
       isCollapsed: false,
       tabActive: 'text-info bg-base-100',
-      tabInactive: 'text-warning bg-base-300 opacity-50 hover:opacity-100'
+      tabInactive: 'text-warning bg-base-300 opacity-50 hover:opacity-100',
+      restartModal: false
     };
   },
   created () {
