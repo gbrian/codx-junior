@@ -173,7 +173,7 @@ import UserList from './UserList.vue';
       <div class="flex flex-col gap-2 font-mono">
         <div class="font-bold text-xl">Restart... really!!??</div>
         <div class="">
-          <i class="fa-solid fa-heart-crack text-red-600"></i> Ouch, sorry to hear that... codx-junior will loose one live!  (don't worry, have many). 
+          <i class="fa-solid fa-heart-crack text-red-600"></i> Ouch, sorry to hear that... codx-junior will lose one live!  (don't worry, have many). 
           After restarting give some time to codx-junior and reload, good luck!
         </div>
         <div class="flex justify-between">
