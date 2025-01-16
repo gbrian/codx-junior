@@ -203,6 +203,9 @@ export const API = {
     improve (chat) {
       return API.post('/api/run/improve?', chat)
     },
+    patch (patch) {
+      return API.post('/api/run/improve/patch?', patch).then(({ data}) => data)
+    },
     edit (chat) {
       return API.post('/api/run/edit?', chat)
     },

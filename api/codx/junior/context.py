@@ -83,8 +83,14 @@ class AICodeChange(BaseModel):
     existing_content: Optional[str] = Field(description="Existing content to be changed if applies", default="")
     new_content: Optional[str] = Field(description="New content if applies", default="")
 
+class AICodePatch(BaseModel):
+    file_path: str = Field(description="/file/path/to/file")
+    patch: str = Field(description="A git patch with the changes to be applied to the file")
+    description: str = Field(description="Brief human friendly description about the change highlighting the most important changes")
+
 class AICodeGerator(BaseModel):
     code_changes: List[AICodeChange] = Field(description="Conde changes")
+    code_patches: List[AICodePatch] = Field(description="Changes in path format one for each file")
 
 AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGerator)
 

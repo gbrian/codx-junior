@@ -62,6 +62,8 @@ from codx.junior.mention_manager import (
     is_processing_mentions
 )
 
+from codx.junior.context import AICodePatch
+
 from codx.junior.project_watcher import PROJECT_WATCHER
 
 logger = logging.getLogger(__name__)
@@ -379,6 +381,16 @@ class CODXJuniorSession:
         file_list = list(dict.fromkeys(file_list))  # Remove duplicates
 
         return file_list
+
+    def improve_existing_code_patch(self, patch: AICodePatch):
+        ts = datetime.now().strftime('%H%M%S')
+        patch_file = f"/tmp/{ts}.patch"
+        with open(patch_file, 'w') as f:
+            f.write(patch.patch)
+        git_patch = f"git apply {patch_file}"
+        stdin, stderr = exec_command(git_patch, cwd=self.settings.project_path)
+        os.remove(patch_file)
+        return stdin, stderr
 
     def improve_existing_code(self, chat: Chat, apply_changes: bool=None):
         knowledge = Knowledge(settings=self.settings)

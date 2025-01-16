@@ -2,23 +2,18 @@
 import { API } from '../api/api'
 import Markdown from './Markdown.vue'
 import moment from 'moment'
+import { full as emoji } from 'markdown-it-emoji'
+import highlight from 'markdown-it-highlightjs'
+import MarkdownIt from 'markdown-it'
 </script>
+
 <template>
-  <div :class="['relative w-full relative hover:rounded-md',
-      message.role === 'user' ? 'chat-start': 'chat-end',
-    ]" >
-    <div class="text-xs font-bold">{{ moment(message.updated_at).format('DD/MMM HH:mm') }}</div>
-    <div :class="['max-w-full group w-full prose-xs',
-      'border-slate-300/20',
-      message.role === 'user' ? '': '',
-      message.collapse ? 'max-h-40 overflow-hidden': 'h-fit',
-      message.hide ? 'text-slate-200/20': ''
-    ]"
-    >
+  <div :class="['relative w-full hover:rounded-md', message.role === 'user' ? 'chat-start': 'chat-end']">
+    <div class="text-xs font-bold">{{ formatDate(message.updated_at) }}</div>
+    <div :class="['max-w-full group w-full prose-xs border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
       <div @copy.stop="onMessageCopy">
         <div class="flex gap-2 items-center">
-          <div :class="['btn btn-sm btn-outline flex gap-2 items-center font-bold text-xs rounded-md',
-            message.role ==='user' ? 'bg-base-300' :'bg-secondary/80 text-secondary-content' ]">
+          <div :class="['btn btn-sm btn-outline flex gap-2 items-center font-bold text-xs rounded-md', message.role === 'user' ? 'bg-base-300' :'bg-secondary/80 text-secondary-content']">
             <div class="click" @click="$emit('hide')">
               <span class="text-warning" v-if="message.hide">
                 <i class="fa-solid fa-eye-slash"></i>
@@ -28,12 +23,12 @@ import moment from 'moment'
               </span>
             </div>
             <div>
-              <div v-if="message.role ==='user'">You</div>
+              <div v-if="message.role === 'user'">You</div>
               <div v-else>codx-junior</div>
             </div>
           </div>
           <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2 flex w-full">
-            <button class="btn btn-xs" @click="message.collapse = !message.collapse">
+            <button class="btn btn-xs" @click="toggleCollapse">
               <span v-if="message.collapse">
                 <i class="fa-solid fa-chevron-up"></i>
               </span>
@@ -44,8 +39,8 @@ import moment from 'moment'
             <button class="btn btn-xs bg-base-100" @click="copyMessageToClipboard">
               <i class="fa-solid fa-copy"></i>
             </button>      
-            <button class="btn btn-xs " @click="srcView = !srcView">
-                <i class="fa-solid fa-code"></i>
+            <button class="btn btn-xs" @click="toggleSrcView">
+              <i class="fa-solid fa-code"></i>
             </button>
             <button class="btn btn-xs bg-success" @click="$emit('edit')">
               <i class="fa-solid fa-pencil"></i>
@@ -54,22 +49,34 @@ import moment from 'moment'
             <button class="ml-4 btn btn-error btn-xs hidden group-hover:block" @click="onRemove">
               <i class="fa-solid fa-trash"></i>
               <span v-if="isRemove"> Confirm 
-                <span class="hover:underline">Yes</span>/<span class="hover:underline" @click.stop="isRemove = false">No</span>
+                <span class="hover:underline" @click="confirmRemove">Yes</span>/<span class="hover:underline" @click.stop="cancelRemove">No</span>
               </span>
             </button>
-            
           </div>
         </div>
         <pre v-if="srcView">{{ message.content }}</pre>
-        <Markdown :text="messageContent" v-else />
+        <Markdown :text="messageContent" v-if="!srcView && !improvementData" />
+        <div v-if="improvementData">
+          <div class="mt-2 p-2 bg-base-100 rounded-md flex flex-col gap-1" v-for="patch in improvementData.code_patches" :key="patch.file_path">
+            <div class="text-xs font-bold text-primary">
+              {{ patch.file_path }}
+            </div>
+            <div class="">{{ patch.description }}</div>
+            <Markdown :text="'```patch' + patch.patch + '```'"></Markdown>
+            <div class="flex justify-end">
+              <button class="btn btn-sm btn-warning" @click="applyPatch(patch)">
+                Apply changes
+              </button>
+            </div>
+            <div v-if="patch.res">
+              <div class="text-xs text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
+              <div class="text-xs text-success" v-else>Patch applied</div>
+            </div>
+          </div>
+        </div>
         <div v-if="images">
           <div class="carousel gap-2">
-            <div class="carousel-item click mt-2"
-              v-for="image in images" :key="image.src"
-              @click="$emit('image', image)"
-              :alt="image.alt"
-              :title="image.alt"
-            >
+            <div class="carousel-item click mt-2" v-for="image in images" :key="image.src" @click="$emit('image', image)" :alt="image.alt" :title="image.alt">
               <div class="flex flex-col">
                 <div class="bg-auto bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
                 <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 10) }}</p>
@@ -79,12 +86,9 @@ import moment from 'moment'
         </div>
         <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="message.files?.length">
           Linked files:
-          <div v-for="file in message.files" :key="file" :title="file"
-            class="flex gap-2 items-center click"
-          >
+          <div v-for="file in message.files" :key="file" :title="file" class="flex gap-2 items-center click">
             <div class="flex gap-2 click hover:underline" @click="$ui.openFile(file)">
-              <div class="click tooltip tooltip-right" data-tip="Attach file" 
-                @click.stop="$emit('add-file-to-chat', file)">
+              <div class="click tooltip tooltip-right" data-tip="Attach file" @click.stop="$emit('add-file-to-chat', file)">
                 <i class="fa-solid fa-file-arrow-up"></i>
               </div>
               <div class="overflow-hidden">
@@ -100,124 +104,110 @@ import moment from 'moment'
     </div>
   </div>
 </template>
+
 <script>
-import { full as emoji } from 'markdown-it-emoji'
-import highlight  from 'markdown-it-highlightjs'
-import MarkdownIt from 'markdown-it'
-
-const md = new MarkdownIt({
-  html: true
-})
-md.use(emoji)
-md.use(highlight)
-
 export default {
   props: ['chat', 'message'],
-  data () {
+  data() {
     return {
-      showDoc: false,
       srcView: false,
-      isRemove: false
+      isRemove: false,
+      improvementData: null
     }
   },
-  mounted () {
-    this.message.collapse = this.message.hide
-  },
   computed: {
-    html () {
+    html() {
       if (!this.showDoc) {
         try {
-          return md.render(this.message.content)
+          return this.md.render(this.message.content)
         } catch (ex) {
           console.error("Message can't be rendered", this.message)
         }
       }
       return this.showDocPreview
     },
-    showDocPreview () {
-      return md.render("```json\n" + JSON.stringify(this.message, null, 2) + "\n```")
+    showDocPreview() {
+      return this.md.render("```json\n" + JSON.stringify(this.message, null, 2) + "\n```")
     },
-    images () {
+    images() {
       return this.message?.images?.map(i => {
         try {
           return JSON.parse(i)
         } catch {
-          return {
-            src: i
-          }
+          return { src: i }
         }
       })
     },
-    messageContent () {
+    messageContent() {
       const { task_item, content } = this.message
-      if (task_item) {
-        return `### \`${task_item}\`\n\n${content}`
-      }
-      return content
+      return task_item ? `### \`${task_item}\`\n\n${content}` : content
     }
   },
+  watch: {},
   methods: {
-    onRunEdit (preNone) {
-      const codeNode = preNone.querySelector('code')
-      const codeText = codeNode.innerText
-      const codeLang = [...codeNode.classList.values()].find(c => c.startsWith("language-"))||"language-code"
-      const codeSnipped = "```" + codeLang.split("language-")[1] + "\n" + codeText + "\n```"
-      this.$emit('run-edit', codeSnipped)
+    formatDate(date) {
+      return moment(date).format('DD/MMM HH:mm')
     },
-    copyCodeToClipboard(codeBlock){
-      const text = codeBlock.childNodes[0].nodeValue
-      this.copyTextToClipboard(text)
+    extractImprovementData() {
+      if (this.message.improvement) {
+        try {
+          const jsBlock = this.message.content.split("```json")[1].split("```")[0]
+          this.improvementData = JSON.parse(jsBlock)
+        } catch (ex) {
+          console.error("Failed to parse improvement data", ex)
+        }
+      }
     },
-    copyMessageToClipboard(){
-      const text = this.message.content
-      this.copyTextToClipboard(text)
-    },
-    copyTextToClipboard (text) {
+    copyTextToClipboard(text) {
       const textArea = document.createElement("textarea")
       textArea.value = text
-
       document.body.appendChild(textArea)
-
       textArea.focus()
       textArea.select()
       document.execCommand('copy')
       document.body.removeChild(textArea)
       console.log("Code copied", text)
     },
-    toggleExpand(code) {
-      const { parentNode } = code
-      code._collapsed = !code._collapsed
-      const classes = ["h-10", "overflow-hidden"]
-      if (code._collapsed) {
-        parentNode.classList.add(...classes)
-      } else {
-        parentNode.classList.remove(...classes)
-      }
-    },
-    getSelectionText() {
-        if (window.getSelection) {
-            return window.getSelection().toString();
-        }  
-        if (document.selection && document.selection.type != "Control") {
-            return document.selection.createRange().text;
-        }
-        return null;
-    },
     onMessageCopy(ev) {
-      const text = this.getSelectionText()
+      const text = window.getSelection().toString()
       if (text) {
         this.copyTextToClipboard(text)
         ev.preventDefault()
-        window.navigator.clipboard.read().then(console.log)
       }
     },
-    onRemove () {
+    toggleCollapse() {
+      this.message.collapse = !this.message.collapse
+    },
+    toggleSrcView() {
+      this.srcView = !this.srcView
+    },
+    onRemove() {
       if (this.isRemove) {
         this.$emit('remove')
       } else {
         this.isRemove = true
       }
+    },
+    confirmRemove() {
+      this.isRemove = true
+      this.$emit('remove')
+    },
+    cancelRemove() {
+      this.isRemove = false
+    },
+    copyMessageToClipboard() {
+      this.copyTextToClipboard(this.message.content)
+    },
+    async applyPatch(patch) {
+      patch.res = await this.$storex.api.run.patch(patch)
+      if (patch.res.info?.toLowerCase().includes("error")) {
+        patch.res.error = patch.res.info
+      }
     }
+  },
+  mounted() {
+    this.message.collapse = this.message.hide
+    this.extractImprovementData()
   }
 }
 </script>

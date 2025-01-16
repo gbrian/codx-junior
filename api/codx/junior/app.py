@@ -82,7 +82,7 @@ from codx.junior.utils import (
     exec_command,
 )
 
-from codx.junior.scheduler import add_work
+from codx.junior.context import AICodePatch
 
 STATIC_FOLDER=os.environ.get("STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
@@ -281,6 +281,14 @@ def api_run_improve(chat: Chat, request: Request):
     codx_junior_session.save_chat(chat)
     return chat
 
+@app.post("/api/run/improve/patch")
+def api_run_improve_patch(patch: AICodePatch, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    info, error = codx_junior_session.improve_existing_code_patch(patch=patch)
+    return {
+        "info": info, 
+        "error": error
+    }
 @app.get("/api/settings")
 def api_settings_check(request: Request):
     logger.info("/api/settings")
