@@ -16,11 +16,11 @@ import VSwatches from "../VSwatches.vue"
     <div class="flex flex-col gap-2 grow overflow-auto pb-2" v-else>
       <div class="md:text-2xl flex gap-4 items-center justify-between">
         <div class="dropdown">
-          <button tabindex="0" class="btn mt-1 dropdown-toggle" @click="toggleDropdown">
+          <button tabindex="0" class="btn mt-1" @click="toggleDropdown">
             {{ board || "All" }} <i class="fa-solid fa-sort-down"></i>
           </button>
-          <ul v-if="isDropdownOpen" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-            <li class="flex gap-2" @click="showBoardModal = true"><a>New board ...</a></li>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+            <li class="flex gap-2" @click="showNewBoardModal"><a>New board ...</a></li>
             <li v-for="tasksBoard in boardList" :key="tasksBoard.id" @click="selectBoard(tasksBoard.id)">
               <a>{{ tasksBoard.title }}</a>
             </li>
@@ -358,6 +358,9 @@ export default {
     },
     async saveBoards() {
       await this.$storex.api.chats.boards.save(this.boards)
+    },
+    showNewBoardModal() {
+      this.showBoardModal = true
     }
   }
 }
