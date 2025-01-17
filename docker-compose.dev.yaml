@@ -18,7 +18,7 @@ services:
 
   build-codx-junior:
     depends_on:
-      - build-codx-junior-
+      - build-codx-junior-base
       - build-codx-junior-api
     container_name: build-codx-junior
     image: codx-junior:latest
