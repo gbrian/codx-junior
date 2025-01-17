@@ -1,4 +1,4 @@
-# [[{"id": "50997eed-7066-4b2e-92f3-2608dd22d810", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": ["software_developer"], "name": "Logs parser", "created_at": "", "updated_at": "2025-01-15T10:06:53.319260", "mode": "chat", "board": "Default", "column": "on going", "chat_index": 0, "live_url": "", "branch": "", "file_path": ""}]]
+# [[{"id": "50997eed-7066-4b2e-92f3-2608dd22d810", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": ["software_developer"], "name": "Logs parser", "created_at": "2025-01-17 04:17:58.936905+00:00", "updated_at": "2025-01-17T04:36:32.527326", "mode": "chat", "board": "Default", "column": "on going", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/usr/local/codx-junior/api/.codx/tasks/Default/on going/Logs parser.50997eed-7066-4b2e-92f3-2608dd22d810.md"}]]
 ## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-15 09:00:42.894638", "updated_at": "2025-01-15 09:00:42.894659", "images": [], "files": []}]]
 Create logs parser extracting log information from logs stream.
 Exxample of logs:
@@ -248,3 +248,76 @@ except Exception as e:
 - You can test this decorator with different functions to ensure it logs the necessary information correctly.
 
 This decorator can be applied to any function where you want to track execution time and errors, making it a useful tool for debugging and performance monitoring.
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-17 04:21:11.373403", "updated_at": "2025-01-17 04:21:11.373428", "images": [], "files": []}]]
+Add new data extractor for Profier messsages.
+Example:
+```txt
+[2025-01-17 04:33:24,986] INFO [codx.junior.profiling.profiler:18] Profiler: {"method": "list_profiles", "time_taken": 0.028 }
+```
+Add "profiler" info to data
+## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-17 04:21:11.373403", "updated_at": "2025-01-17 04:21:11.373428", "images": [], "files": []}]]
+To extend the log parser with a new data extractor for profiler messages, we need to define a function that can identify and extract relevant information from profiler log entries. These profiler messages contain JSON-like data, which provides details such as the method name and time taken.
+
+Here's how we can implement the `profiler_extractor` function to parse and extract this information:
+
+1. **Identify Profiler Pattern**: Use regular expressions to find lines that contain profiler messages.
+2. **Parse JSON-like Content**: Extract and parse the JSON-like content to get specific details like the method and time taken.
+3. **Return Structured Data**: Return the extracted information as a dictionary.
+
+Let's implement this in Python:
+
+```python
+import re
+import json
+from typing import Optional, Dict
+
+def profiler_extractor(content: str) -> Optional[Dict[str, str]]:
+    # Define a regex pattern to capture the profiler message
+    profiler_pattern = re.compile(
+        r'Profiler:\s+(?P<profiler_data>\{.*\})'
+    )
+
+    # Attempt to match the pattern in the content
+    match = profiler_pattern.search(content)
+
+    if match:
+        # Extract the JSON-like content
+        profiler_data_str = match.group('profiler_data')
+        try:
+            # Parse the JSON-like string to a dict
+            profiler_data = json.loads(profiler_data_str)
+            return profiler_data
+        except json.JSONDecodeError:
+            # Handle invalid JSON format
+            return None
+    
+    # Return None if no profiler info is found
+    return None
+
+# Example usage
+log_content = """
+[2025-01-17 04:33:24,986] INFO [codx.junior.profiling.profiler:18] Profiler: {"method": "list_profiles", "time_taken": 0.028 }
+"""
+
+profiler_info = profiler_extractor(log_content)
+if profiler_info:
+    print(profiler_info)
+```
+
+### Explanation:
+
+- **Regex Pattern**:
+  - The `profiler_pattern` captures the JSON-like content following the "Profiler:" label.
+  
+- **JSON Parsing**:
+  - The JSON string is parsed to a Python dictionary using `json.loads()`. This assumes that the profiler messages are well-formed JSON.
+  
+- **Error Handling**:
+  - The function handles potential JSON parsing errors gracefully, returning `None` if the content cannot be parsed.
+
+### Integration:
+
+- **Unit Tests**: Create unit tests for `profiler_extractor` to ensure it correctly extracts and parses profiler messages from various log entries.
+- **Integration with Log Parser**: Integrate the `profiler_extractor` into the main log parser, enriching log entries with profiler information when applicable.
+
+This approach allows for easy extension of the log parser to handle additional types of custom data extraction scenarios in the future.

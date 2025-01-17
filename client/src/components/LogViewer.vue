@@ -1,5 +1,15 @@
+<script setup>
+import RequestMetrics from './metrics/RequestMetrics.vue'
+</script>
 <template>
-  <div class="flex flex-col gap-2 h-full w-full max-w-full">
+  <div class="gap-2 w-full max-w-full">
+    <h1 class="text-xl font-semibold mb-4">Metrics Dashboard</h1>
+    <div class="p-2">
+      <RequestMetrics :title="'Requests'" :subtitle="'Requests path'"
+        :logs="requestLogs" class="mb-6" />
+      <RequestMetrics :title="'Profiler'" :subtitle="'Method'"
+        :logs="profilerLogs" class="mb-6" />
+    </div>
     <header class="flex flex-col 2xl:flex-row justify-between items-center">
       <div class="flex gap-1">
         <select v-model="selectedLog" @change="onLogChange" class="border select-xs rounded">
@@ -36,7 +46,7 @@
     </header>
     <div class="grid grid-cols-4 gap-1 my-2">
       <div 
-        v-for="module in distinctModules" 
+        v-for="module in visibleModules" 
         :key="module" 
         @click="toggleModuleVisible(module)"
         :style="`color:${$ui.colorsMap[module]}`"
@@ -52,10 +62,22 @@
       </span>
     </div>
     <div class="grow overflow-auto flex flex-col gap-2" ref="logView">
-      <div v-for="(flog, ix) in filteredFormatedLogs" :key="ix">
-        <div class="w-full p-1 hover:bg-base-100" v-html="flog.formatedContent"
-          :class="flog.styleClasses"
-        ></div>
+      <div v-for="(log, ix) in filteredFormatedLogs" :key="ix">
+        <div class="flex flex-col w-full p-1 hover:bg-base-100" :class="log.styleClasses">
+          <div class="flex gap-2">
+            <div>{{ log.timestamp }}</div>
+            <div class="font-bold">{{ log.level }}</div> 
+            <div :style="{color: $ui.colorsMap[log.module]}"
+              class="click"
+              @click="toggleModuleVisible(log.module)" 
+            >
+              [{{ log.module }}]</div> 
+            <div>(Line: {{ log.line }})</div>
+          </div> 
+          <pre>{{ log.content }}</pre>
+          <pre class="text-warning"
+            v-if="Object.keys(log.data).length">{{ JSON.stringify(log.data, null, 2) }}</pre>
+        </div>
       </div>
     </div>
   </div>
@@ -72,7 +94,8 @@ export default {
       logNames: [],
       filter: null,
       filterMatchCount: 0,
-      logModules: {}
+      logModules: {},
+      visibleModules: []
     }
   },
   watch: {
@@ -94,14 +117,26 @@ export default {
     },
     filteredFormatedLogs () {
       return this.formatedLogs?.filter(flog => 
-        this.logModules[flog.module].visible &&
+        (!this.visibleModules.length || this.visibleModules.includes(flog.module)) &&
           (!flog.data?.url || flog.data.url.indexOf("/api/logs") === -1))
+    },
+    requestLogs () {
+      return this.logs.filter(log => log.data.request)
+                      .map(({ timestamp, data: { request: { url, time_taken }}}) => ({ timestamp, path: new URL(url).pathname , time_taken}))
+    },
+    profilerLogs () {
+      return this.logs.filter(log => log.data.profiler)
+                      .map(({ timestamp, data: { profiler: { method, time_taken }}}) => ({ timestamp, path: method , time_taken}))
     }
   },
   methods: {
     toggleModuleVisible(module) {
-      this.logModules[module].visible = !this.logModules[module].visible
-      this.applyFilter()
+      const ix = this.visibleModules.indexOf(module)
+      if (ix !== -1) {
+        this.visibleModules.splice(ix, 1)
+      } else {
+        this.visibleModules.push(module)
+      }
     },
     colorMap() {
       const modules = new Set()
@@ -154,7 +189,7 @@ export default {
       const bucket = 50
       if (logs?.length) {
         logs.slice(0, bucket).forEach(log =>
-          this.formatedLogs.push({ ...log, formatedContent: this.formattedLog(log), styleClasses: [] }))
+          this.formatedLogs.push({ ...log, styleClasses: [] }))
         requestAnimationFrame(() => this.formatFetchedLogs(logs.slice(bucket)))
       }
       this.scrollToBottom()
@@ -196,22 +231,6 @@ export default {
     },
     removeIgnore(ignore) {
       this.$projects.removeLogIgnore(ignore)
-    },
-    formattedLog(log) {
-      const colorsMap = this.colorMap()
-      const color = colorsMap[log.module] || 'white'
-      return `
-        <div class="flex flex-col">
-          <div class="flex gap-2">
-            <div>${log.timestamp}</div>
-            <div class="font-bold">${log.level}</div> 
-            <div style="color: ${color}">[${log.module}]</div> 
-            <div>(Line: ${log.line})</div>
-          </div> 
-          <pre>${log.content}</pre>
-          ${Object.keys(log.data).length ? '<pre class="text-warning">' + JSON.stringify(log.data, null, 2) + '</pre>' : ''}
-        </div>
-      `
     },
     applyFilter() {
       this.formatedLogs?.forEach(flog => flog.styleClasses = this.logClasses(flog))

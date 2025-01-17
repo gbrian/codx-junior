@@ -21,6 +21,8 @@ from codx.junior.utils import (
     write_file
 )
 
+from codx.junior.profiling.profiler import profile_function
+
 from codx.junior.ai import AI
 from codx.junior.settings import (
     CODXJuniorSettings,
@@ -249,6 +251,7 @@ class CODXJuniorSession:
         from codx.junior.browser.browser import Browser
         return Browser(session=self)
 
+    @profile_function
     def load_chat(self, board, chat_name):
         return self.get_chat_manager().load_chat(board=board, chat_name=chat_name)
     
@@ -262,7 +265,7 @@ class CODXJuniorSession:
     def delete_chat(self, file_path):
         self.get_chat_manager().delete_chat(file_path)
 
-
+    @profile_function
     def list_profiles(self):
         return self.get_profile_manager().list_profiles()
 
@@ -288,6 +291,7 @@ class CODXJuniorSession:
             documents = knowledge.reload()
         return {"doc_count": len(documents) if documents else 0}
 
+    @profile_function
     def knowledge_search(self, knowledge_search: KnowledgeSearch):
         self.settings.knowledge_search_type = knowledge_search.document_search_type
         self.settings.knowledge_search_document_count = knowledge_search.document_count
@@ -339,6 +343,7 @@ class CODXJuniorSession:
         Knowledge(settings=self.settings).reset()
         return {"ok": 1}
 
+    @profile_function
     def select_afefcted_documents_from_knowledge(self, ai: AI, query: str, ignore_documents=[]):
         all_projects = find_all_projects()
         
@@ -544,6 +549,7 @@ class CODXJuniorSession:
         self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
         return chat.messages[-1].content
 
+    @profile_function
     def check_knowledge_status(self):
         knowledge = Knowledge(settings=self.settings)
         status = knowledge.status()
@@ -554,6 +560,7 @@ class CODXJuniorSession:
             "total_pending_changes": len(pending_files),
             **status
         }
+
     def check_project_changes(self):
         if not self.settings.is_valid_project():
             # logger.error(f"check_project_changes invalid project {self.settings}")
@@ -699,6 +706,7 @@ class CODXJuniorSession:
             if save_changes:
                 self.save_chat(chat=chat)
 
+    @profile_function
     def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False):
         profile_manager = ProfileManager(settings=self.settings)
         chat_manager = ChatManager(settings=self.settings)
@@ -820,7 +828,7 @@ class CODXJuniorSession:
             image_mention.new_content = ai.image(image_mention.content)
         return replace_mentions(content, image_mentions)
 
-        
+    @profile_function
     def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
         chat_mode = chat_mode or chat.mode or 'chat'
         if chat_mode == 'browser':

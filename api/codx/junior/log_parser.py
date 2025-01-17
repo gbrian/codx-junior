@@ -1,4 +1,5 @@
 import re
+import json
 from typing import List, Dict, Optional
 
 def request_extractor(content: str) -> Optional[Dict[str, str]]:
@@ -17,15 +18,41 @@ def request_extractor(content: str) -> Optional[Dict[str, str]]:
     if url_match and status_code_match:
         # Extract and return the information if both patterns are matched
         return {
-            "url": url_match.group('url'),
-            "status_code": status_code_match.group('status_code'),
-            "time_taken": url_match.group('time_taken')
+            "request": {
+                "url": url_match.group('url'),
+                "status_code": status_code_match.group('status_code'),
+                "time_taken": float(url_match.group('time_taken')),
+                "method": status_code_match.group('method')
+            }
         }
     
     # Return None if no request info is found
     return None
 
-EXTRACTORS = [request_extractor]
+def profiler_extractor(content: str) -> Optional[Dict[str, str]]:
+    # Define a regex pattern to capture the profiler message
+    profiler_pattern = re.compile(
+        r'Profiler:\s+(?P<profiler_data>\{.*\})'
+    )
+
+    # Attempt to match the pattern in the content
+    match = profiler_pattern.search(content)
+
+    if match:
+        # Extract the JSON-like content
+        profiler_data_str = match.group('profiler_data')
+        try:
+            # Parse the JSON-like string to a dict
+            profiler_data = json.loads(profiler_data_str)
+            return { "profiler": profiler_data }
+        except json.JSONDecodeError:
+            # Handle invalid JSON format
+            return None
+    
+    # Return None if no profiler info is found
+    return None
+
+EXTRACTORS = [request_extractor, profiler_extractor]
 
 def parse_logs(log_stream: str) -> List[Dict[str, str]]:
     log_entries = []

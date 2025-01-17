@@ -154,20 +154,13 @@ export const actions = actionTree(
         state.allProjects.find(({ project_name }) => project_name === dep.trim()))
                           .filter(p => !!p)
     },
-    async fetchLogs({ state, commit }) {
+    async fetchAPILogs() {
       try {
-        const response = await API.logs.read(state.selectedLog)
-        commit('setLogs', response.data)
-        commit('setFormatedLogs', [])
-        // Assuming formatFetchedLogs and applyFilter are methods available in this context
-        this.formatFetchedLogs(state.logs?.split('\n'))
-        this.applyFilter()
-        requestAnimationFrame(() => this.scrollToBottom())
-        if (state.autoRefresh) {
-          setTimeout(() => this.fetchLogs(), 3000)
-        }
+        const { data } = await API.logs.read("codx-junior-api")
+        return data
       } catch (error) {
         console.error(error)
+        return []
       }
     }
   }

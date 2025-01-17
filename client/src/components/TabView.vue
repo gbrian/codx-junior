@@ -11,6 +11,7 @@ import NoVNCVue from "./NoVNC.vue"
 import Files from "./apps/Files.vue"
 import HelpView from "@/views/HelpView.vue"
 import PRView from "@/views/PRView.vue"
+import MetricsViewer from "./metrics/MetricsViewer.vue"
 </script>
 <template>
   <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder" />
@@ -24,7 +25,8 @@ import PRView from "@/views/PRView.vue"
   <ProjectProfileVue v-bind="$attrs" v-if="$ui.tabIx == 'home'" />
   <Files class="w-full h-full" v-if="$ui.tabIx == 'files'" />
   <HelpView class="w-full h-full" v-if="$ui.tabIx == 'help'" />
-  <PRView  class="w-full h-full" v-if="$ui.tabIx == 'prview'" />
+  <PRView class="w-full h-full" v-if="$ui.tabIx == 'prview'" />
+  <MetricsViewer class="w-full h-full" v-if="$ui.tabIx == 'metrics'" />
 </template>
 <script>
 export default {
