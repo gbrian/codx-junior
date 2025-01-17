@@ -361,6 +361,7 @@ class CODXJuniorSession:
             mention = [mention[1:] for mention in mentions if mention == search_project.project_name]
             query = query.replace(f"@{mention}", "")
 
+        @profile_function
         def process_rag_query(rag_query):
             docs, file_list = find_relevant_documents(query=rag_query, settings=self.settings, ignore_documents=ignore_documents)
             if not docs:

@@ -4,8 +4,9 @@ import shutil
 import time
 import logging
 import socketio
-import threading
+
 from multiprocessing.pool import ThreadPool
+from threading import Thread
 
 import logging
 logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
@@ -96,34 +97,35 @@ def check_project_changes(settings):
     return False
 
 def process_project_changes(settings):
-    has_changes = check_project_changes(settings=settings)
-    if not has_changes:
-        return
-    if settings.watching:
-        logger.info(f"[check_all_projects_loop]: {settings.project_name} has_changes: {has_changes}")
-    
     try:
+        has_changes = check_project_changes(settings=settings)
+        if not has_changes:
+            return
+        if settings.watching:
+            logger.info(f"[check_all_projects_loop]: {settings.project_name} has_changes: {has_changes}")
+    
         CODXJuniorSession(settings=settings).process_project_changes()
     except Exception as ex:
         logger.exception(f"Processing {settings.project_name} error: {ex}")        
 
 
-CHECK_PROJECTS_POOL = ThreadPool(3)
 def check_all_projects_loop():
     while True:
         try:
             projects_to_check = find_all_projects()
-            CHECK_PROJECTS_POOL.map(process_project_changes, projects_to_check)
+            for project in projects_to_check:
+                if project.watching:
+                    process_project_changes(settings=project)
         except Exception as ex:
             logger.exception("Error processing watching projects {ex}")
-        time.sleep(1)
+        time.sleep(5000)
 
 logger.info("Starting check_all_projects_loop job")
 
 
 
 # Init all projects
-find_all_projects()
+Thread(target=check_all_projects_loop).start()
 
 app = FastAPI(
     title="CODXJuniorAPI",

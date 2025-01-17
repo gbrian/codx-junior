@@ -2,31 +2,9 @@
 import RequestMetrics from './metrics/RequestMetrics.vue'
 </script>
 <template>
-  <div class="gap-2 w-full max-w-full">
-    <h1 class="text-xl font-semibold mb-4">Metrics Dashboard</h1>
-    <div class="p-2">
-      <RequestMetrics :title="'Requests'" :subtitle="'Requests path'"
-        :logs="requestLogs" class="mb-6" />
-      <RequestMetrics :title="'Profiler'" :subtitle="'Method'"
-        :logs="profilerLogs" class="mb-6" />
-    </div>
-    <header class="flex flex-col 2xl:flex-row justify-between items-center">
-      <div class="flex gap-1">
-        <select v-model="selectedLog" @change="onLogChange" class="border select-xs rounded">
-          <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
-        </select>
-        <label class="input input-xs input-bordered flex items-center gap-2">
-          <input type="text" class="grow" placeholder="Search" v-model="filter" @keydown.enter="applyFilter" />
-          <span v-if="filterMatchCount">{{ filterMatchCount }}</span>
-          <span class="click" @click="clearFilter" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
-          <span @click="applyFilter" v-else>
-            <i class="fa-solid fa-magnifying-glass"></i>
-          </span>
-          <span class="click" @click="ignorePattern">
-            <i class="fa-regular fa-eye-slash"></i>
-          </span>
-        </label>
-      </div>
+  <div class="p-2 gap-2 w-full max-w-full overflow-auto">
+    <header class="flex flex-row justify-between items-center">
+      <h1 class="text-xl font-semibold mb-4">Metrics Dashboard</h1>
       <div class="flex gap-2">
         <button class="btn btn-sm" @click="clearLogs">
           <i class="fa-solid fa-trash-can"></i>
@@ -42,6 +20,30 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
         <button class="btn btn-sm" @click="$ui.toggleLogs">
           Close
         </button>
+      </div>
+    </header>
+    <div class="p-2">
+      <RequestMetrics :title="'Requests'" :subtitle="'Requests path'"
+        :logs="requestLogs" class="mb-6" />
+      <RequestMetrics :title="'Profiler'" :subtitle="'Method'"
+        :logs="profilerLogs" class="mb-6" />
+    </div>
+    <header class="flex flex-row justify-between items-center">
+      <div class="flex gap-1">
+        <select v-model="selectedLog" @change="onLogChange" class="border select-xs rounded">
+          <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
+        </select>
+        <label class="input input-xs input-bordered flex items-center gap-2">
+          <input type="text" class="grow" placeholder="Search" v-model="filter" @keydown.enter="applyFilter" />
+          <span v-if="filterMatchCount">{{ filterMatchCount }}</span>
+          <span class="click" @click="clearFilter" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
+          <span @click="applyFilter" v-else>
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </span>
+          <span class="click" @click="ignorePattern">
+            <i class="fa-regular fa-eye-slash"></i>
+          </span>
+        </label>
       </div>
     </header>
     <div class="grid grid-cols-4 gap-1 my-2">
@@ -61,7 +63,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
         {{ ignore }}
       </span>
     </div>
-    <div class="grow overflow-auto flex flex-col gap-2" ref="logView">
+    <div class="flex flex-col gap-2" ref="logView">
       <div v-for="(log, ix) in filteredFormatedLogs" :key="ix">
         <div class="flex flex-col w-full p-1 hover:bg-base-100" :class="log.styleClasses">
           <div class="flex gap-2">
@@ -126,7 +128,8 @@ export default {
     },
     profilerLogs () {
       return this.logs.filter(log => log.data.profiler)
-                      .map(({ timestamp, data: { profiler: { method, time_taken }}}) => ({ timestamp, path: method , time_taken}))
+                      .map(({ timestamp, data: { profiler: { module, method, time_taken }}}) => 
+                                            ({ timestamp, path: `${module?.replace('codx.junior.', '')}.${method}` , time_taken}))
     }
   },
   methods: {

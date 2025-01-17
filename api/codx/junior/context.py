@@ -16,10 +16,13 @@ from codx.junior.knowledge.knowledge_milvus import Knowledge
 
 from codx.junior.utils import extract_json_blocks 
 
+from codx.junior.profiling.profiler import profile_function
+
 logger = logging.getLogger(__name__)
 
 KNOWLEDGE_CONTEXT_SCORE_MATCH = re.compile(r".*([0-9]+)%", re.MULTILINE)
 
+@profile_function
 def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
     ai = AI(settings=settings)
     score = float(settings.knowledge_context_cutoff_relevance_score)
@@ -94,6 +97,7 @@ class AICodeGerator(BaseModel):
 
 AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGerator)
 
+@profile_function
 def ai_validate_context(ai, prompt, doc, retry_count=0):
     assert prompt
     parser = PydanticOutputParser(pydantic_object=AIDocValidateResponse)
@@ -136,6 +140,7 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
 
     return doc
 
+@profile_function
 def find_relevant_documents (query: str, settings, ignore_documents=[], ai_validate=True):
   
   knowledge_documents = Knowledge(settings=settings).search(query)

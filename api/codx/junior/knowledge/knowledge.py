@@ -22,6 +22,7 @@ from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
 from codx.junior.knowledge.knowledge_prompts import KnowledgePrompts
 from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
 
+from codx.junior.profiling.profiler import profile_function
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +93,7 @@ class Knowledge:
         return [project.project_path for project in sub_projects]
 
 
+    @profile_function
     def detect_changes(self):
       current_sources = self.get_all_sources()
       changes = self.loader.list_repository_files(
@@ -129,6 +131,7 @@ class Knowledge:
             logger.error(f"Error loading knowledge {ex}")
             pass
 
+    @profile_function
     def reload_path(self, path: str):
         documents = self.loader.load(last_update=None, path=path)
         logger.info(f"reload_path {path}: {documents}")
@@ -171,6 +174,7 @@ class Knowledge:
           return True
         return False
 
+    @profile_function
     def enrich_document (self, doc, metadata):
       if doc.metadata.get("indexed"):
         raise Exception(f"Doc already indexed {doc.metadata}")
@@ -213,6 +217,7 @@ class Knowledge:
         logger.exception(f"Error extracting document keywords {doc.metadata}: {ex}")
         pass
 
+    @profile_function
     def parallel_enrich(self, documents, metadata):
       with ThreadPoolExecutor() as executor:
         futures = {
@@ -228,6 +233,7 @@ class Knowledge:
               valid_documents.append(result)
         return valid_documents
   
+    @profile_function
     def index_documents (self, documents, raiseIfError=False):
         self.delete_documents(documents)
         # logger.info(f"Indexing documents. {documents}")
@@ -329,6 +335,7 @@ class Knowledge:
             },
         )
 
+    @profile_function
     def search(self, query):
       if not self.settings.use_knowledge:
         logging.error(f"Knowledge::search use_knowledge is DISABLED {self.settings.use_knowledge}")
@@ -435,7 +442,7 @@ class Knowledge:
         return doc_sources
       
     
-
+    @profile_function
     def status (self):
         db = self.get_db()
         ids = []

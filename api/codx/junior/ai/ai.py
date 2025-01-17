@@ -24,6 +24,8 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
 from codx.junior.ai.anthropic import Anthropic_AI
 
+from codx.junior.profiling.profiler import profile_function
+
 # Type hint for a chat message
 Message = Union[AIMessage, HumanMessage, SystemMessage]
 
@@ -43,10 +45,11 @@ class AI:
         self.embeddings = self.create_embeddings_model()
         self.cache = False
 
-
+    @profile_function
     def image(self, prompt):
         return self.llm.generate_image(prompt)
     
+    @profile_function
     def chat(
         self,
         messages: List[Message] = [],
@@ -100,6 +103,7 @@ class AI:
 
         return messages
 
+    @profile_function
     def embeddings(self, content: str):
         return self.embeddings(content=content)
 

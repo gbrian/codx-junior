@@ -1,4 +1,4 @@
-# [[{"id": "96c3e18b-9967-4dc1-990b-5645d39333d7", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": ["software_developer"], "name": "New profiling function", "created_at": "", "updated_at": "2025-01-17T04:13:19.515160", "mode": "chat", "board": "kanban", "column": "on going", "chat_index": 0, "live_url": "", "branch": "", "file_path": ""}]]
+# [[{"id": "96c3e18b-9967-4dc1-990b-5645d39333d7", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": ["software_developer"], "name": "New profiling function", "created_at": "2025-01-17 05:38:05.157829+00:00", "updated_at": "2025-01-17T08:47:18.878937", "mode": "chat", "board": "kanban", "column": "on going", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/usr/local/codx-junior/api/.codx/tasks/kanban/on going/New profiling function.96c3e18b-9967-4dc1-990b-5645d39333d7.md"}]]
 ## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-16 18:58:30.209178", "updated_at": "2025-01-16 18:58:30.209204", "images": [], "files": []}]]
 Create a profiling function decorator to take time taken by functions and log like: "Profiler: {"method": "method_name", "time_taken": 1.234 }" 
 ## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-16 18:58:30.209178", "updated_at": "2025-01-16 18:58:30.209204", "images": [], "files": ["/codx/junior/app.py"]}]]
@@ -113,3 +113,166 @@ if __name__ == "__main__":
 - **Testing and Validation**: Write unit tests for `profile_function` to ensure it correctly logs the execution time. Consider edge cases and potential exceptions.
 
 By following these practices, you can ensure that the profiling functionality is integrated smoothly into your project, providing valuable insights into function performance while maintaining clean and maintainable code.
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-17 06:42:45.002008", "updated_at": "2025-01-17T06:51:42.293Z", "images": [], "files": []}]]
+Profiler function must add the profiled method's pythin module not only the the method name 
+## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-17 06:42:45.002008", "updated_at": "2025-01-17 06:42:45.002033", "images": [], "files": []}]]
+To include the Python module in the log output along with the method name, we can use the built-in `__module__` attribute of the function. This attribute gives us the name of the module in which the function was defined.
+
+Here's how you can modify the `profile_function` decorator to include both the module and the method name in the log:
+
+```python
+import time
+import logging
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+def profile_function(func):
+    """Decorator to profile a function and log the execution time."""
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        try:
+            result = func(*args, **kwargs)
+            return result
+        finally:
+            end_time = time.time()
+            time_taken = end_time - start_time
+            module_name = func.__module__
+            logger.info(f'Profiler: {{"module": "{module_name}", "method": "{func.__name__}", "time_taken": {time_taken:.3f} }}')
+    return wrapper
+
+# Example function to demonstrate the profiler usage
+@profile_function
+def compute_factorial(n):
+    """Compute factorial of a number."""
+    if n == 0:
+        return 1
+    else:
+        return n * compute_factorial(n-1)
+
+if __name__ == "__main__":
+    # Using the decorated function
+    number = 5
+    result = compute_factorial(number)
+    logger.info(f"The factorial of {number} is {result}")
+```
+
+### Explanation:
+
+- **Module Name**: The `__module__` attribute is used to get the module name where the function is defined.
+- **Logging**: The log message now includes both the module and method name, providing more context about where the function resides.
+
+### Best Practices:
+
+- **Logging Format**: Ensure the log message format is consistent with your logging standards across the application.
+- **Modularity**: The profiling decorator remains modular and can be easily applied to any function within the project.
+- **Documentation**: Update the documentation to reflect this change, demonstrating the added capability of logging both module and method names.
+
+By following this approach, you provide a more comprehensive logging output that helps in identifying the exact location of the profiled function, aiding in debugging and performance monitoring.
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-17 08:34:24.981957", "updated_at": "2025-01-17T08:46:43.303Z", "images": [], "files": []}]]
+profile_function will admit a "enable_profiler" optional parameter to enable the use of cProfiler
+If it's set we'll run the wrapped function inside the profiler
+ and add the captured stats to current data output
+
+
+About cProfiler
+import cProfile, pstats, io
+from pstats import SortKey
+pr = cProfile.Profile()
+pr.enable()
+# ... do something ...
+pr.disable()
+s = io.StringIO()
+sortby = SortKey.CUMULATIVE
+ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+ps.print_stats()
+print(s.getvalue())
+
+
+The Profile class can also be used as a context manager (supported only in cProfile module. see Context Manager Types):
+
+import cProfile
+
+with cProfile.Profile() as pr:
+# ... do something ...
+
+pr.print_stats()
+## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-17 08:34:24.981957", "updated_at": "2025-01-17 08:34:24.981994", "images": [], "files": ["/codx/junior/profiling/profiler.py"]}]]
+To modify the `profile_function` decorator to optionally use `cProfile` for more detailed profiling, we can add an `enable_profiler` parameter. If this parameter is set to `True`, we will use `cProfile` to capture detailed profiling statistics, which will then be logged alongside the basic execution time data.
+
+Here's how you can implement this feature:
+
+```python
+# /usr/local/codx-junior/api/codx/junior/profiling/profiler.py
+import time
+import logging
+import cProfile
+import pstats
+import io
+from pstats import SortKey
+
+# Configure logger
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
+def profile_function(enable_profiler=False):
+    """Decorator to profile a function and log the execution time."""
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            pr = None
+            if enable_profiler:
+                pr = cProfile.Profile()
+                pr.enable()
+            start_time = time.time()
+            try:
+                result = func(*args, **kwargs)
+                return result
+            finally:
+                end_time = time.time()
+                time_taken = end_time - start_time
+                module_name = func.__module__
+                logger.info(f'Profiler: {{"module": "{module_name}", "method": "{func.__name__}", "time_taken": {time_taken:.3f} }}')
+                
+                if enable_profiler and pr is not None:
+                    pr.disable()
+                    s = io.StringIO()
+                    ps = pstats.Stats(pr, stream=s).sort_stats(SortKey.CUMULATIVE)
+                    ps.print_stats()
+                    logger.info(s.getvalue())
+        return wrapper
+    return decorator
+
+# Example function to demonstrate the profiler usage
+@profile_function(enable_profiler=True)
+def compute_factorial(n):
+    """Compute factorial of a number."""
+    if n == 0:
+        return 1
+    else:
+        return n * compute_factorial(n-1)
+
+if __name__ == "__main__":
+    # Using the decorated function
+    number = 5
+    result = compute_factorial(number)
+    logger.info(f"The factorial of {number} is {result}")
+```
+
+### Explanation:
+
+- **Decorator Pattern**: The `profile_function` now returns a decorator, which allows us to pass the `enable_profiler` parameter when decorating functions.
+- **cProfile Integration**: We conditionally initialize and enable a `cProfile.Profile` instance if `enable_profiler` is `True`. After the function execution, we gather and log the profiling statistics.
+- **Logging**: Both the execution time and the `cProfile` stats are logged to provide comprehensive profiling information.
+
+### Usage:
+
+- To use the detailed profiling, simply set `enable_profiler=True` when applying the decorator. If you don't need detailed profiling, you can omit the parameter or set it to `False`.
+
+### Best Practices:
+
+- **Performance Overhead**: Be aware that enabling `cProfile` can introduce performance overhead, so it should be used judiciously in performance-critical environments.
+- **Documentation**: Update the project's documentation to explain the usage of the `enable_profiler` parameter and its impact on profiling.
+- **Version Control**: Commit this change to your version control system with a message explaining the addition of optional `cProfile` usage.
+
+This implementation provides flexibility to toggle in-depth profiling as needed, helping you debug and optimize the performance of specific parts of your codebase.

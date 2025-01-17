@@ -98,10 +98,10 @@ import UserList from './UserList.vue';
           </div>
 				</a>
 			</div>
-      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'metrics' ? 'text-primary': '',]">
+      <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" 
           data-tip="Show metrics"
-					 @click.stop="$ui.setActiveTab('metrics')">
+					 @click.stop="$ui.toggleLogs()">
            <div class="flex flex-col gap-4">
             <i class="fa-solid fa-chart-line"></i>
           </div>

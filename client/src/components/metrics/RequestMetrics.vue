@@ -1,12 +1,15 @@
 <template>
-  <div class="">
-    <h2 class="text-xl font-bold">{{ title }} Metrics</h2>
-    <div class="h-60 overflow-auto">
+  <div class="collapse bg-base-200">
+    <input type="checkbox" />
+    <div class="collapse-title text-xl font-medium">
+      <h2 class="text-xl font-bold">{{ title }} Metrics</h2>
+    </div>
+    <div class="collapse-content">
       <table class="table w-full text-left">
         <thead>
           <tr>
             <th>{{ subtitle }}</th>
-            <th class="text-left" colspan="3">Time (ms)</th>
+            <th class="text-left" colspan="3">Time (s)</th>
           </tr>
           <tr class="text-xs">
             <th class="px-4 py-2"></th>
@@ -16,7 +19,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(metrics) in requestMetrics" :key="path">
+          <tr v-for="(metrics) in requestMetrics" :key="metrics.path">
             <td class="px-4 py-2">{{ metrics.path }}</td>
             <td class="px-4 py-2">{{ metrics.min.toFixed(3) }}</td>
             <td class="px-4 py-2">{{ metrics.max.toFixed(3) }}</td>

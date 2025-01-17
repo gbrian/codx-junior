@@ -15,5 +15,5 @@ def profile_function(func):
         finally:
             end_time = time.time()
             time_taken = end_time - start_time
-            logger.info(f'Profiler: {{"method": "{func.__name__}", "time_taken": {time_taken:.3f} }}')
+            logger.info(f'Profiler: {{"module": "{func.__module__}", "method": "{func.__name__}", "time_taken": {time_taken:.3f} }}')
     return wrapper
