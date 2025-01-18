@@ -66,7 +66,14 @@ export const actions = actionTree(
     async loadAllProjects() {
       await API.project.list()
       $storex.projects.setAllProjects(API.allProjects)
-      $storex.projects.setActiveProject(API.lastSettings)
+      if (API.lastSettings) {
+        try {
+          await $storex.projects.setActiveProject(API.lastSettings)
+        } catch {}
+      }
+      if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
+        $storex.projects.setActiveProject($storex.projects.allProjects[0])
+      }
     },
     async setActiveProject ({ state }, project) {
       if (project?.codx_path === state.activeProject?.codx_path) {

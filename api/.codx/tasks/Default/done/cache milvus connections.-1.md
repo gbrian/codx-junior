@@ -1,0 +1,3 @@
+# [[{"id": "-1", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": ["analyst"], "name": "cache milvus connections", "created_at": "2024-10-03T07:27:52.414418", "updated_at": "2025-01-17T19:26:47.791643", "mode": "task", "board": "Default", "column": "done", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/usr/local/codx-junior/api/.codx/tasks/Default/on going/cache milvus connections.-1.md"}]]
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-10 05:26:13.518781", "updated_at": "2025-01-10 05:26:13.518808", "images": [], "files": []}]]
+We must cache milvus connections per project to avoid reconnecting everytim

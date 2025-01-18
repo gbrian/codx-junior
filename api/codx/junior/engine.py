@@ -68,6 +68,8 @@ from codx.junior.context import AICodePatch
 
 from codx.junior.project_watcher import PROJECT_WATCHER
 
+from codx.junior import sio
+
 logger = logging.getLogger(__name__)
 
 APPS = [
@@ -116,21 +118,23 @@ def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
 FILES_CHECKING = {}
 def check_file_worker(settings: CODXJuniorSettings, file_path: str):
     global FILES_CHECKING
-    FILES_CHECKING[file_path] = True
-    try:
-        # Check mentions
-        res = CODXJuniorSession(settings=settings).check_file_for_mentions(file_path=file_path)
-        logger.info(f"Check file {file_path} for mentions: {res}")
-        # Reload knowledge 
-        if settings.watching:
-            knowledge = Knowledge(settings=settings)
-            file_changes = knowledge.detect_changes()
-            if file_path in file_changes:
-                knowledge.reload_path(path=file_path)
-    except Exception as ex:
-        logger.exception(f"Error processing file changes {file_path}: {ex}")
-        pass
-    del FILES_CHECKING[file_path]
+    async def worker():
+        FILES_CHECKING[file_path] = True
+        try:
+            # Check mentions
+            res = await CODXJuniorSession(settings=settings).check_file_for_mentions(file_path=file_path)
+            logger.info(f"Check file {file_path} for mentions: {res}")
+            # Reload knowledge 
+            if settings.watching:
+                knowledge = Knowledge(settings=settings)
+                file_changes = knowledge.detect_changes()
+                if file_path in file_changes:
+                    knowledge.reload_path(path=file_path)
+        except Exception as ex:
+            logger.exception(f"Error processing file changes {file_path}: {ex}")
+            pass
+        del FILES_CHECKING[file_path]
+    asyncio.run(worker())
 
 def project_file_changed(codx_path: str, file_path: str):
     global FILES_CHECKING
@@ -189,31 +193,12 @@ def update_engine():
         logger.exception(ex)
         return ex
                 
-
-async def send_io_message(sio, sid, event, data):
-    logger.info("SENDING MESSAGE BY SIO!")
-    await sio.emit(event, data)
-    logger.info("MESSAGE SENT BY SIO!")
-
 class SessionChannel:
-    def __init__(self, sid=None, sio=None):
+    def __init__(self, sid=None):
         self.sid = sid
-        self.sio = sio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
 
-    def send_event(self, event, data):
-        return # Disabled, not working
-        args = (self.sio, self.sid, event, data)
-        # Thread(target=send_io_message, args=args).start()
-        asyncio.get_event_loop().create_task(
-          send_io_message(self.sio, self.sid, event, data)
-        )
-
-    def chat_event(self, message: str):
-        self.send_event('chat-event', { 'text': message })
-        logger.info(f"SEND MESSAGE {message}- SENT!")
-
+    async def send_event(self, event, data):
+        await sio.emit(event, data)
 
 
 class CODXJuniorSession:
@@ -230,6 +215,14 @@ class CODXJuniorSession:
         if not self.channel:
             self.channel = SessionChannel()
         return self.channel
+
+    async def send_event(self, message: str):
+        await self.get_channel().send_event('codx-junior', { 'text': message })
+        logger.info(f"SEND MESSAGE {message}- SENT!")
+
+    async def chat_event(self, chat: Chat, message: str):
+        await self.get_channel().send_event('chat-event', { 'id': chat.id, 'text': message })
+        logger.info(f"SEND MESSAGE {message}- SENT!")
 
     def delete_project(self):
         shutil.rmtree(self.settings.codx_path)
@@ -259,7 +252,6 @@ class CODXJuniorSession:
         return self.get_chat_manager().list_chats()
 
     def save_chat(self, chat, chat_only=False):
-        self.get_channel().chat_event(f'Saving {chat.name}')
         return self.get_chat_manager().save_chat(chat, chat_only)
 
     def delete_chat(self, file_path):
@@ -269,9 +261,9 @@ class CODXJuniorSession:
     def list_profiles(self):
         return self.get_profile_manager().list_profiles()
 
-    def save_profile(self, profile):
+    async def save_profile(self, profile):
         profile = self.get_profile_manager().save_profile(profile=profile)
-        self.check_file_for_mentions(file_path=profile.path)
+        await self.check_file_for_mentions(file_path=profile.path)
         return self.read_profile(profile_name=profile.name)
 
     def read_profile(self, profile_name):
@@ -292,7 +284,7 @@ class CODXJuniorSession:
         return {"doc_count": len(documents) if documents else 0}
 
     @profile_function
-    def knowledge_search(self, knowledge_search: KnowledgeSearch):
+    async def knowledge_search(self, knowledge_search: KnowledgeSearch):
         self.settings.knowledge_search_type = knowledge_search.document_search_type
         self.settings.knowledge_search_document_count = knowledge_search.document_count
         self.settings.knowledge_context_cutoff_relevance_score = knowledge_search.document_cutoff_score
@@ -317,7 +309,7 @@ class CODXJuniorSession:
                         content=f"Based on previos messages, give me really short answer about: {knowledge_search.search_term}"
                 )
             ])
-            chat, _ = self.chat_with_project(chat=chat, use_knowledge=False)
+            chat, _ = await self.chat_with_project(chat=chat, use_knowledge=False)
             response = chat.messages[-1].content
         elif knowledge_search.search_type == "source":
             documents = Knowledge(settings=self.settings).search_in_source(knowledge_search.search_term)
@@ -398,7 +390,7 @@ class CODXJuniorSession:
         os.remove(patch_file)
         return stdin, stderr
 
-    def improve_existing_code(self, chat: Chat, apply_changes: bool=None):
+    async def improve_existing_code(self, chat: Chat, apply_changes: bool=None):
         knowledge = Knowledge(settings=self.settings)
         profile_manager = ProfileManager(settings=self.settings)
         if apply_changes is None:
@@ -437,10 +429,10 @@ class CODXJuniorSession:
             request_msg = Message(role="user", content=request)
             chat.messages.append(request_msg)
             logger.info(f"improve_existing_code prompt: {request_msg}")
-            def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:
+            async def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:
                 if error:
                     chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
-                self.chat_with_project(chat=chat, use_knowledge=True, chat_mode='chat')
+                await self.chat_with_project(chat=chat, use_knowledge=True, chat_mode='chat')
                 chat.messages[-1].improvement = True
                 
                 request_msg.improvement = True
@@ -456,9 +448,9 @@ class CODXJuniorSession:
                     attempt -= 1
                     if attempt:
                         chat.messages.pop()
-                        return try_chat_code_changes(attempt, error=str(ex))
+                        return await try_chat_code_changes(attempt, error=str(ex))
                     raise ex
-            code_generator = try_chat_code_changes(retry_count)
+            code_generator = await try_chat_code_changes(retry_count)
             if not apply_changes:
                 return code_generator
         else:
@@ -494,7 +486,7 @@ class CODXJuniorSession:
             return console_out
         return ""
 
-    def apply_improve_code_changes(self, code_generator: AICodeGerator, chat: Chat = None):
+    async def apply_improve_code_changes(self, code_generator: AICodeGerator, chat: Chat = None):
         changes = code_generator.code_changes
         logger.info(f"improve_existing_code total changes: {len(changes)}")
         changes_by_file_path = {}
@@ -518,7 +510,7 @@ class CODXJuniorSession:
                         content = f.read()
                 instruction_list = [json.dumps(change.__dict__) for change in changes]
                 logger.info(f"Applying {len(changes)} changes to {file_path}")
-                new_content = self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)
+                new_content = await self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)
                 if new_content and new_content != content:
                     self.write_project_file(file_path=file_path, content=new_content)
                 else:
@@ -529,7 +521,7 @@ class CODXJuniorSession:
             git_diff, _ = exec_command(f"git diff {file_paths}", cwd=self.settings.project_path)
             chat.messages.append(Message(role="assistant", content=f"```diff\n{git_diff}\n```"))
 
-    def change_file_with_instructions(self, instruction_list: [str], file_path: str, content: str):
+    async def change_file_with_instructions(self, instruction_list: [str], file_path: str, content: str):
         profile_manager = ProfileManager(settings=self.settings)
         chat = Chat(name=f"changes_at_{file_path}", messages=[])
 
@@ -547,7 +539,7 @@ class CODXJuniorSession:
 
         { content_instructions }
         """))
-        self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
+        await self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
         return chat.messages[-1].content
 
     @profile_function
@@ -573,7 +565,7 @@ class CODXJuniorSession:
             return False
         return True
 
-    def process_project_changes(self):
+    async def process_project_changes(self):
         if not self.settings.is_valid_project():
             return
         knowledge = Knowledge(settings=self.settings)
@@ -584,7 +576,7 @@ class CODXJuniorSession:
         
         for file_path in new_files:
             try:
-                self.check_file_for_mentions(file_path=file_path)
+                await self.check_file_for_mentions(file_path=file_path)
             except:
                 logger.exception(f"Error checking changes in file {file_path}")
     
@@ -636,45 +628,7 @@ class CODXJuniorSession:
                 content_lines.append(line)
                 continue
 
-    def change_file_by_blocks(self, context_documents, query, file_path, org_content, save_changes=False, profile=None):
-        profile_manager = ProfileManager(settings=self.settings)
-        tasks = "\n *".join(
-            context_documents + [
-                query,
-                'To ADD line(s) use: <GPT_ADD_LINE start_line="10"></GPT_ADD_LINE>',
-                'To REMOVE line(s) use: <GPT_REMOVE_LINE start_line="10" end_line="11"></GPT_ADD_LINE> Lines from 10 to 11 will be deleted, both included',
-                'To CHANGE line(s) use: <GPT_CHANGE_LINE start_line="10" end_line="11">New content</GPT_ADD_LINE> New content will replace lines 10 to 11',
-                'Make sure indentation for new content is consistent'
-            ]
-        )
-        request = f"""Given this CONTENT, generate line changes.
-        ##CONTENT:
-        {org_content}
-        ##TASKS:
-        {tasks}
-        """
-
-        chat_name = '-'.join(file_path.split('/')[-2:])
-        chat_time = datetime.now().strftime('%H%M%S')
-        chat = Chat(name=f"{chat_name}_{chat_time}", messages=[Message(role="user", content=request)])
-        try:
-            if profile:
-                profile_content = profile_manager.read_profile(profile).content
-                if profile_content:
-                    chat.messages = [Message(role="system", content=profile_content)] + chat.messages
-
-            chat = self.chat_with_project(chat=chat, use_knowledge=False)
-            new_content = chat.messages[-1].content
-            
-            return "\n".join(next(self.split_blocks_by_gt_lt(new_content)))
-        except Exception as ex:
-            chat.messages.append(Message(role="error", content=str(ex)))
-            raise ex
-        finally:
-            if save_changes:
-                self.save_chat(chat=chat)
-
-    def change_file(self, context_documents, query, file_path, org_content, save_changes=False):
+    async def change_file(self, context_documents, query, file_path, org_content, save_changes=False):
         profile_manager = ProfileManager(settings=self.settings)
         tasks = "\n *".join(context_documents + [query])
         request = f"""Please produce a full version of this ##CONTENT applying the changes requested in the ##TASKS section.
@@ -696,7 +650,7 @@ class CODXJuniorSession:
             Message(role="user", content=request)
         ])
         try:
-            chat = self.chat_with_project(chat=chat, use_knowledge=False)
+            chat = await self.chat_with_project(chat=chat, use_knowledge=False)
             response = chat.messages[-1].content.strip()
             parsed_response = AI_CODE_VALIDATE_RESPONSE_PARSER.invoke(response)
             return parsed_response.new_content
@@ -708,7 +662,7 @@ class CODXJuniorSession:
                 self.save_chat(chat=chat)
 
     @profile_function
-    def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False):
+    async def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False):
         profile_manager = ProfileManager(settings=self.settings)
         chat_manager = ChatManager(settings=self.settings)
         ai = AI(settings=self.settings)
@@ -740,12 +694,14 @@ class CODXJuniorSession:
             content = read_file()
         
         if is_processing_mentions(content=content):
-            raise Exception('Mentions process already in progress')
+            raise Exception(f'Mentions process already in progress for {file_path}')
 
         mentions = extract_mentions(content)
         
         if not mentions:
             return False
+
+        await self.send_event(message=f"Processing {file_path.split('/')[-1]}...")
             
         logger.info(f"{len(mentions)} mentions found for {file_path}")
         new_content = notify_mentions_in_progress(content)
@@ -755,7 +711,7 @@ class CODXJuniorSession:
         image_mentions = [m for m in mentions if m.flags.image]
         if image_mentions:
             new_content = self.process_image_mention(image_mentions, file_path, content)
-            return self.check_file_for_mentions(file_path=file_path, content=new_content, silent=True)
+            return await self.check_file_for_mentions(file_path=file_path, content=new_content, silent=True)
 
         org_content = strip_mentions(content=content, mentions=mentions)
 
@@ -797,7 +753,7 @@ class CODXJuniorSession:
                 """)
             ])
             
-        self.chat_with_project(chat=chat, use_knowledge=use_knowledge)
+        await self.chat_with_project(chat=chat, use_knowledge=use_knowledge)
         if run_code:
             self.improve_existing_code(chat=chat, apply_changes=True)
         else:
@@ -817,7 +773,7 @@ class CODXJuniorSession:
             {new_content}
             """))
             
-            self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
+            await self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
             response = chat.messages[-1].content
             save_file(new_content=response)
 
@@ -830,12 +786,15 @@ class CODXJuniorSession:
         return replace_mentions(content, image_mentions)
 
     @profile_function
-    def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
+    async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
         chat_mode = chat_mode or chat.mode or 'chat'
         if chat_mode == 'browser':
             logger.info(f"chat_with_project browser mode")
+            await self.chat_event(chat=chat, message=f"connecting with browser...")
             return self.get_browser().chat_with_browser(chat)
 
+        await self.chat_event(chat=chat, message=f"Process chat")
+        
         is_refine = chat_mode == 'task'
         ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
         last_ai_message = ai_messages[-1] if ai_messages else None
@@ -902,6 +861,8 @@ class CODXJuniorSession:
         ignore_documents = chat_files.copy()
         if chat.name:
             ignore_documents.append(f"/{chat.name}")
+
+        await self.chat_event(chat=chat, message=f"Knowledge search")
         
         if use_knowledge:
             affected_documents, doc_file_list = self.select_afefcted_documents_from_knowledge(ai=ai, query=query, ignore_documents=ignore_documents)
@@ -932,6 +893,9 @@ class CODXJuniorSession:
             {context}
             """)
         messages.append(convert_message(user_message))
+        
+        await self.chat_event(chat=chat, message=f"Invoking AI: {self.settings.ai_provider}")
+
         messages = ai.chat(messages, callback=callback)
         response = messages[-1].content
         sources = []
@@ -975,7 +939,7 @@ class CODXJuniorSession:
               return f.read()
         return ""
 
-    def update_wiki(self, file_path: str):
+    async def update_wiki(self, file_path: str):
         return
         project_wiki_path = self.settings.get_project_wiki_path()
         if not self.settings.project_wiki or file_path.startswith(project_wiki_path):
@@ -996,7 +960,7 @@ class CODXJuniorSession:
                 {file_content}
                 """)
             ])
-            self.chat_with_project(chat=chat, use_knowledge=True)
+            await self.chat_with_project(chat=chat, use_knowledge=True)
             chat.messages.append(Message(role="user", content=f"""
             Improve our current wiki with the new knowledge extracted from {file_path},
             Highlight important parts and create mermaid diagrams to help user's understanding of the project.
@@ -1080,7 +1044,7 @@ class CODXJuniorSession:
                 content = self.apply_file_profile(file_path=file_path, content=content, profile=profile)
         return content
     
-    def apply_file_profile(self, file_path: str, content: str, profile: Profile):
+    async def apply_file_profile(self, file_path: str, content: str, profile: Profile):
         file_profile_prompt = f"""
         You are given a section of code that requires improvement by applying best practices. Your task is to refactor the code while ensuring that it adheres to the specified best practices. Please follow the instructions below:
 
@@ -1107,7 +1071,7 @@ class CODXJuniorSession:
         content_message = Message(role="user", content=file_profile_prompt)
 
         chat = Chat(name=f"Improve file with profile {profile.name}", messages=[content_message])
-        self.chat_with_project(chat=chat, use_knowledge=False)
+        await self.chat_with_project(chat=chat, use_knowledge=False)
         return chat.messages[-1].content
 
     def write_project_file(self, file_path: str, content: str):

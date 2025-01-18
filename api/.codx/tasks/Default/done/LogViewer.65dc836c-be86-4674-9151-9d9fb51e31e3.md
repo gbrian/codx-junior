@@ -1,0 +1,3 @@
+# [[{"id": "65dc836c-be86-4674-9151-9d9fb51e31e3", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": ["software_developer"], "name": "LogViewer", "created_at": "2025-01-17 06:58:34.520577+00:00", "updated_at": "2025-01-17T19:26:34.402875", "mode": "chat", "board": "Default", "column": "done", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/usr/local/codx-junior/api/.codx/tasks/Default/on going/LogViewer.65dc836c-be86-4674-9151-9d9fb51e31e3.md"}]]
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-17 07:30:04.934357", "updated_at": "2025-01-17 07:30:04.934383", "images": [], "files": []}]]
+We must add a date time filter to LogViewer

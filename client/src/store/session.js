@@ -34,7 +34,8 @@ export const state = () => ({
   lastError: null,
   id: uuidv4(),
   ts: new Date().getTime(),
-  notifications: []
+  notifications: [],
+  connected: false
 })
 
 export const getters = getterTree(state, {
@@ -63,6 +64,9 @@ export const mutations = mutationTree(state, {
   },
   removeNotification(state, notification) {
     state.notifications = state.notifications.filter(n => n.id !== notification.id)
+  },
+  setConnected(state, connected) {
+    state.connected = connected
   }
 })
 
@@ -80,15 +84,19 @@ export const actions = actionTree(
       socket.on("connect", () => {
         console.log("Socket connected", socket.id)
         API.sid = socket.id
+        $storex.session.setConnected(true)
       });
-      socket.on("disconnect", console.error)
+      socket.on("disconnect", $storex.session.setConnected(false))
       $storex.session.setSocket(socket);
-      socket.on('codx-junior', (...args) => $storex.session.onNewMessage(...args))
-      socket.on('codx-event', ({ text }) => $storex.session.onInfo(text)) 
+      socket.onAny((event, data) => $storex.session.onEvent({ event, data }))
       socket.emit('login', { username: 'user', password: 'pwd' })
     },
-    onNewMessage({ state }, message) {
-      console.log("On server message", message)
+    onEvent(_, { event, data }) {
+      console.log("On server message", event, data)
+      $storex.session.onInfo(data)
+    },
+    onChanEvent(_, { id: chatId, text }) {
+      $storex.session.onInfo({ text })  
     },
     onInfo(_, notification) {
       if (typeof(notification) === 'string') {

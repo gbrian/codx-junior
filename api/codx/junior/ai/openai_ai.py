@@ -14,6 +14,8 @@ from langchain.schema import (
     BaseMessage
 )
 
+from codx.junior.profiling.profiler import profile_function
+
 logger = logging.getLogger(__name__)
 
 tools = [
@@ -58,6 +60,7 @@ class OpenAI_AI:
             "content": gpt_message.content
         }
 
+    @profile_function
     def chat_completions(self, messages, config: dict = {}):
         openai_messages = [self.convert_message(msg) for msg in messages]
         model = self.settings.get_ai_model()
@@ -116,7 +119,8 @@ class OpenAI_AI:
     def tool_read_file(self, file_path):
         with open(file_path, 'r') as f:
             return f.read()
-            
+
+    @profile_function        
     def generate_image(self, prompt):
         response = self.client.images.generate(
             model="dall-e-3",
@@ -128,6 +132,7 @@ class OpenAI_AI:
 
         return response.data[0].url
 
+    @profile_function
     def embeddings(self, content: str):
         response = self.client.embeddings.create(
             input=content,

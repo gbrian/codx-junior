@@ -55,7 +55,7 @@ def profiler_extractor(content: str) -> Optional[Dict[str, str]]:
 EXTRACTORS = [request_extractor, profiler_extractor]
 
 def parse_logs(log_stream: str) -> List[Dict[str, str]]:
-    log_entries = []
+    log_entries = {}
     log_entry = None
 
     # Define the regex pattern for log lines
@@ -69,16 +69,12 @@ def parse_logs(log_stream: str) -> List[Dict[str, str]]:
             data = extactor(entry["content"])
             if data:
                 entry["data"] = { **entry["data"], **data }
-            log_entries.append(entry)
+            log_entries[entry["id"]] = entry
 
     for line in log_stream.splitlines():
         match = log_pattern.match(line)
         if match:
-            # If there's a match, it indicates a new log entry
-            if log_entry:
-                # Append the accumulated log entry to the list
-                add_log_entry(log_entry)
-            
+            # If there's a match, it indicates a new log entry            
             # Start a new log entry
             log_entry = {
                 "timestamp": match.group('timestamp'),
@@ -88,12 +84,10 @@ def parse_logs(log_stream: str) -> List[Dict[str, str]]:
                 "content": match.group('content').strip()
             }
             log_entry["id"] = f"{log_entry['timestamp']}:{log_entry['level']}:{log_entry['module']}:{log_entry['line']}"
+            # Append the accumulated log entry to the list
+            add_log_entry(log_entry)
         elif log_entry:
             # Accumulate content lines that are part of the previous log entry
             log_entry["content"] += "\n" + line.strip()
 
-    # Don't forget to add the last log entry
-    if log_entry:
-        add_log_entry(log_entry)
-
-    return log_entries
+    return list(log_entries.values())

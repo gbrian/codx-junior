@@ -4,6 +4,7 @@ import shutil
 import time
 import logging
 import socketio
+import asyncio
 
 from multiprocessing.pool import ThreadPool
 from threading import Thread
@@ -14,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 from pathlib import Path
 import traceback
+
+from codx.junior import sio
 
 from codx.junior.log_parser import parse_logs
 from codx.junior.browser import run_browser_manager
@@ -96,7 +99,7 @@ def check_project_changes(settings):
         logger.exception(f"Processing {settings.project_name} error: {ex}")        
     return False
 
-def process_project_changes(settings):
+async def process_project_changes(settings):
     try:
         has_changes = check_project_changes(settings=settings)
         if not has_changes:
@@ -104,21 +107,23 @@ def process_project_changes(settings):
         if settings.watching:
             logger.info(f"[check_all_projects_loop]: {settings.project_name} has_changes: {has_changes}")
     
-        CODXJuniorSession(settings=settings).process_project_changes()
+        await CODXJuniorSession(settings=settings).process_project_changes()
     except Exception as ex:
         logger.exception(f"Processing {settings.project_name} error: {ex}")        
 
 
 def check_all_projects_loop():
-    while True:
-        try:
-            projects_to_check = find_all_projects()
-            for project in projects_to_check:
-                if project.watching:
-                    process_project_changes(settings=project)
-        except Exception as ex:
-            logger.exception("Error processing watching projects {ex}")
-        time.sleep(5000)
+    async def worker():
+        while True:
+            try:
+                projects_to_check = find_all_projects()
+                for project in projects_to_check:
+                    if project.watching:
+                        await process_project_changes(settings=project)
+            except Exception as ex:
+                logger.exception("Error processing watching projects {ex}")
+            time.sleep(5000)
+    asyncio.run(worker())
 
 logger.info("Starting check_all_projects_loop job")
 
@@ -164,11 +169,9 @@ async def add_gpt_engineer_settings(request: Request, call_next):
     if codx_path:
         try:
             user_sid = request.headers.get("x-sid")
-            channel = SessionChannel(sid=user_sid, sio=sio)
             request.state.codx_junior_session =  CODXJuniorSession(
                                                     codx_path=codx_path,
-                                                    app=app,
-                                                    channel=channel)
+                                                    app=app)
             settings = request.state.codx_junior_session.settings
             # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:
@@ -184,10 +187,10 @@ def api_health_check():
     return "ok"
 
 @app.get("/api/knowledge/reload")
-def api_knowledge_reload(request: Request):
+async def api_knowledge_reload(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.check_project_changes()
-    codx_junior_session.reload_knowledge()
+    await codx_junior_session.check_project_changes()
+    await codx_junior_session.reload_knowledge()
     return codx_junior_session.check_knowledge_status()
 
 @app.post("/api/knowledge/reload-path")
@@ -228,9 +231,10 @@ def api_list_chats(request: Request):
     return codx_junior_session.list_chats()
 
 @app.post("/api/chats")
-def api_chat(chat: Chat, request: Request):
+async def api_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.chat_with_project(chat=chat, use_knowledge=True)
+    await codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
+    await codx_junior_session.chat_with_project(chat=chat, use_knowledge=True)
     codx_junior_session.save_chat(chat)
     return chat
 
@@ -459,7 +463,9 @@ def api_screen_get():
     screen = Screen()
     res, _ = exec_command(f"sudo xrandr --current")
     # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
-    screen.resolution = res.split("\n")[0].split("current ")[1].split(",")[0].replace(" ", "")
+    lines = res.split("\n")
+    screen_line = [l for l in lines if l.startswith("Screen ")][0]
+    screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
     return screen
 
 @app.post("/api/image-to-text")
@@ -472,8 +478,15 @@ def api_restart():
     logger.info(f"****************** API RESTARTING... bye *******************")
     exec_command("sudo kill 7")
 
-#Socket io (sio) create a Socket.IO server
-sio = socketio.AsyncServer(cors_allowed_origins='*',async_mode='asgi')
+@app.get("/api/stream")
+async def test_stream():
+    async def fake_data_streamer():
+        for i in range(10):
+            await sio.emit('codx-junior', {'response': 'my response'})
+            yield b'some fake data\n\n'
+            await asyncio.sleep(0.5)
+    return StreamingResponse(fake_data_streamer(), media_type='text/event-stream')
+
 #wrap with ASGI application
 socket_app = socketio.ASGIApp(sio)
 app.mount("/", socket_app)

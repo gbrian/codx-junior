@@ -12,10 +12,24 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
       <div class="flex gap-2 items-center relative justify-between">
         
         <ProjectDropdown v-if="!compactView && $ui.activeTab !== 'help'" />
-        
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>
+
+        <div class="dropdown dropdown-end">
+          <div tabindex="0" role="button" class="btn btn-circle btn-sm m-1"
+            :class="$session.notifications?.length && 'btn-warning'"
+          >
+            <i class="fa-solid fa-bell"></i>
+          </div>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+            <li class="mb-2"
+              @click="$session.removeNotification(n)"
+              v-for="n in $session.notifications" :key="n.id">
+              <a class="bg-secondary text-secondary-content">{{ n.text }}</a>
+            </li>
+          </ul>
+        </div>
       </div>
       <TabNavigationVue v-if="false && !compactView" />
       <TabViewVue :key="$project?.codx_path || 'no-project'" />

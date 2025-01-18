@@ -18,35 +18,49 @@ from codx.junior.utils import extract_json_blocks
 
 from codx.junior.profiling.profiler import profile_function
 
+from langchain.output_parsers import PydanticOutputParser
+from pydantic import BaseModel, Field, validator
+
 logger = logging.getLogger(__name__)
+
+import pydantic
+logger.info(f"PYDANTIC VERSION: {pydantic.__version__}")
 
 KNOWLEDGE_CONTEXT_SCORE_MATCH = re.compile(r".*([0-9]+)%", re.MULTILINE)
 
-@profile_function
-def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
-    ai = AI(settings=settings)
-    score = float(settings.knowledge_context_cutoff_relevance_score)
-    if not score:
-      return documents
-    
-    # This function uses ThreadPoolExecutor to parallelize validation of contexts.
-    with ThreadPoolExecutor() as executor:
-        futures = {executor.submit(ai_validate_context, ai=ai, prompt=prompt, doc=doc): doc for doc in documents}
-        valid_documents = []
-        for future in as_completed(futures):
-            result = future.result()
-            if result is not None:
-                valid_documents.append(result)
+class AICodeValidateResponse(BaseModel):
+  new_content: str = Field(description="Full generated content that will overwrite source file.")
 
-        doc_validation = '\n'.join([f"{doc.metadata['source']}: {doc.metadata['relevance_score']}" for doc in valid_documents if doc])
-        logger.info(f"""[VALIDATE WITH CONTEXT]: {prompt}"
-          {doc_validation}
-          """)
-        return [doc for doc in valid_documents \
-          if doc and doc.metadata.get('relevance_score', 0) >= score]
+class AICodeChange(BaseModel):
+    change_type: str = Field(description="Enumeration: new, update, delete, delete_file")
+    file_path: str = Field(description="/file/path/to/file")
+    existing_content: Optional[str] = Field(description="Existing content to be changed if applies", default="")
+    new_content: Optional[str] = Field(description="New content if applies", default="")
 
-from langchain.output_parsers import PydanticOutputParser
-from langchain_core.pydantic_v1 import BaseModel, Field, validator
+class AICodePatch(BaseModel):
+    file_path: str = Field(description="/file/path/to/file")
+    patch: str = Field(description="A file patch with the changes to be applied to the file")
+    description: str = Field(description="Brief human friendly description about the change highlighting the most important changes")
+
+class AICodeGerator(BaseModel):
+    code_changes: List[AICodeChange] = Field(description="Conde changes")
+    code_patches: List[AICodePatch] = Field(description="A list of file patch for each modificed file")
+
+class AIRAGDocument(BaseModel):
+    file_id: str = Field(description="Document id")
+    file_path: str = Field(description="Document file path")
+    content: str = Field(description="Document content")
+    score: Optional[float] = Field(description="Score 0 to 1. Idicates how important is this RAG document related to the user's request") 
+
+class AIRAGValidate(BaseModel):
+    user_request: str = Field(description="User request")
+    documents: List[AIRAGDocument] = Field(description="List of documents found from user'r request")
+
+
+AI_CODE_VALIDATE_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AICodeValidateResponse)
+AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGerator)
+AI_RAG_VALIDATE_PARSSER = PydanticOutputParser(pydantic_object=AIRAGValidate)
+
 class AIDocValidateResponse(BaseModel):
     analysis_example = \
     """
@@ -74,28 +88,29 @@ class AIDocValidateResponse(BaseModel):
     def score_is_valid(cls, field):
         return field
 
-class AICodeValidateResponse(BaseModel):
-  new_content: str = Field(description="Full generated content that will overwrite source file.")
+@profile_function
+def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
+    ai = AI(settings=settings)
+    score = float(settings.knowledge_context_cutoff_relevance_score)
+    if not score:
+      return documents
+    
+    # This function uses ThreadPoolExecutor to parallelize validation of contexts.
+    with ThreadPoolExecutor() as executor:
+        futures = {executor.submit(ai_validate_context, ai=ai, prompt=prompt, doc=doc): doc for doc in documents}
+        valid_documents = []
+        for future in as_completed(futures):
+            result = future.result()
+            if result is not None:
+                valid_documents.append(result)
 
-AI_CODE_VALIDATE_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AICodeValidateResponse)
+        doc_validation = '\n'.join([f"{doc.metadata['source']}: {doc.metadata['relevance_score']}" for doc in valid_documents if doc])
+        logger.info(f"""[VALIDATE WITH CONTEXT]: {prompt}"
+          {doc_validation}
+          """)
+        return [doc for doc in valid_documents \
+          if doc and doc.metadata.get('relevance_score', 0) >= score]
 
-
-class AICodeChange(BaseModel):
-    change_type: str = Field(description="Enumeration: new, update, delete, delete_file")
-    file_path: str = Field(description="/file/path/to/file")
-    existing_content: Optional[str] = Field(description="Existing content to be changed if applies", default="")
-    new_content: Optional[str] = Field(description="New content if applies", default="")
-
-class AICodePatch(BaseModel):
-    file_path: str = Field(description="/file/path/to/file")
-    patch: str = Field(description="A file patch with the changes to be applied to the file")
-    description: str = Field(description="Brief human friendly description about the change highlighting the most important changes")
-
-class AICodeGerator(BaseModel):
-    code_changes: List[AICodeChange] = Field(description="Conde changes")
-    code_patches: List[AICodePatch] = Field(description="A list of file patch for each modificed file")
-
-AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGerator)
 
 @profile_function
 def ai_validate_context(ai, prompt, doc, retry_count=0):

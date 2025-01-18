@@ -163,6 +163,9 @@ export const API = {
     }
   },
   chats: {
+    stream() {
+      return API.get('/api/stream')
+    },
     async list () {
       const { data } = await API.get('/api/chats')
       return data
@@ -292,7 +295,7 @@ export const API = {
   },
   logs: {
     async read(logName, size) {
-      return API.get(`/api/logs/${logName}?size=${size}`)
+      return API.get(`/api/logs/${logName}?log_size=${size}`)
     },
     async list() {
       return API.get('/api/logs')

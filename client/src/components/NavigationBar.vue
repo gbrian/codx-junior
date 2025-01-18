@@ -6,10 +6,17 @@ import UserList from './UserList.vue';
   <div class="flex flex-col items-center shadow h-full"
     :class="$ui.showApp && 'click'">
 
+    <div class="relative">
     <ProjectIconVue
       :right="right"
+      :online="$storex.session.connected"
       @click.stop="setActiveTab('home')"
     />
+      <div class="absolute bottom-0 flex justify-center w-full text-white animate-pulse text-xs"
+        v-if="$session.apiCalls">
+        thinking
+      </div>
+    </div>
 
     <UserList v-if="false" />
     <div class="flex w-full flex-col mt-4 hidden md:flex">
