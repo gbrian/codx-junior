@@ -86,7 +86,7 @@ from codx.junior.utils import (
     exec_command,
 )
 
-from codx.junior.context import AICodePatch
+from codx.junior.context import AICodeGerator
 
 STATIC_FOLDER=os.environ.get("STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
@@ -281,20 +281,27 @@ def api_image_upload(file: UploadFile):
     return image_url
 
 @app.post("/api/run/improve")
-def api_run_improve(chat: Chat, request: Request):
+async def api_run_improve(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.improve_existing_code(chat=chat)
+    await codx_junior_session.improve_existing_code(chat=chat)
     codx_junior_session.save_chat(chat)
     return chat
 
 @app.post("/api/run/improve/patch")
-def api_run_improve_patch(patch: AICodePatch, request: Request):
+async def api_run_improve_patch(code_generator: AICodeGerator, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    info, error = codx_junior_session.improve_existing_code_patch(patch=patch)
+    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)
     return {
         "info": info, 
         "error": error
     }
+
+@app.get("/api/run/changes/summary")
+def api_changes_summary(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    refresh = request.query_params.get("refresh")
+    return codx_junior_session.get_knowledge().build_code_changes_summary(force=refresh == "true")
+
 @app.get("/api/settings")
 def api_settings_check(request: Request):
     logger.info("/api/settings")

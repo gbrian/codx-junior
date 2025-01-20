@@ -12,7 +12,8 @@ export const state = () => ({
   logs: null,
   formatedLogs: [],
   selectedLog: null,
-  autoRefresh: false
+  autoRefresh: false,
+  changesSummary: null
 })
 
 export const mutations = mutationTree(state, {
@@ -169,6 +170,9 @@ export const actions = actionTree(
         console.error(error)
         return []
       }
+    },
+    async refreshChangesSummary({ state }, rebuild) {
+      state.changesSummary = await $storex.api.run.changesSummary(rebuild)
     }
   }
 )

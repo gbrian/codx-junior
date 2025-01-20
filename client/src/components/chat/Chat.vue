@@ -146,7 +146,7 @@ import moment from 'moment'
           </button>
           <button class="btn btn btn-sm btn-outline tooltip btn-warning" 
             :class="isVoiceSession && 'btn-info animate-pulse'"
-            data-tip="Make code changes" @click="improveCode()" v-if="!editMessage">
+            data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && chat.mode === 'chat'">
             <i class="fa-solid fa-code"></i>
           </button>
 

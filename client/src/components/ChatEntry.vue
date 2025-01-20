@@ -72,7 +72,8 @@ import MarkdownIt from 'markdown-it'
             <div class="">{{ patch.description }}</div>
             <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
             <div class="flex justify-end">
-              <button class="btn btn-sm btn-warning" @click="applyPatch(patch)">
+              <button class="btn btn-sm btn-warning" :disabled="patch.working" @click="applyPatch(patch)">
+                <span class="loading loading-spinner" v-if="patch.working"></span>
                 Apply changes
               </button>
             </div>
@@ -149,6 +150,9 @@ export default {
     messageContent() {
       const { task_item, content } = this.message
       return task_item ? `### \`${task_item}\`\n\n${content}` : content
+    },
+    selection () {
+      return document.getSelection().toString()
     }
   },
   methods: {
@@ -206,10 +210,17 @@ export default {
       this.copyTextToClipboard(this.message.content)
     },
     async applyPatch(patch) {
-      patch.res = await this.$storex.api.run.patch(patch)
-      if (patch.res.info?.toLowerCase().includes('error')) {
-        patch.res.error = patch.res.info
+      patch.working = true 
+      try {
+        const code_changes = this.improvementData.code_changes.filter(cc => cc.file_path === patch.file_path)
+        patch.res = await this.$storex.api.run.patch({ code_changes, code_patches: [ patch ] })
+        if (patch.res.info?.toLowerCase().includes('error')) {
+          patch.res.error = patch.res.info
+        }
+      } catch {
+        patch.res = { info: "", error: "Error aplaying patch" }
       }
+      delete patch.working
     }
   },
   mounted() {

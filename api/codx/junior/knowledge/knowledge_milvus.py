@@ -13,8 +13,12 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.llms import OpenAI
 from langchain.schema.document import Document
 
-from codx.junior.utils import calculate_md5
-from codx.junior.utils import extract_blocks
+from codx.junior.utils import (
+  calculate_md5,
+  extract_blocks,
+  exec_command
+)
+
 from codx.junior.ai import AI
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
@@ -311,6 +315,56 @@ class Knowledge:
           "files": doc_sources
         }
         return status_info
+
+    def build_code_changes_summary(self, force = False):
+        chages_summary = ""
+        if force:
+            ai = self.get_ai()
+            stdout, _ = exec_command("git diff", cwd=self.settings.project_path)
+            messages = ai.chat(prompt=f"""
+            ```diff
+            {stdout}
+            ```
+            Given this git diff changes create a human friendly report of changes.
+            The report must have an overview and a list of files changes.
+            Each change section contains: File name,  brief description, and a diff section
+            See example below:
+            
+            EXAMPLE:
+
+            ## Changes details
+            Current changes involve adding new functionality for managing users
+
+            ### Changes
+
+            FILE: /shared/app-rest-mro-management/src/main/java/com/w2m/w2fly/mromanagement/service/HistoryService.java
+            Added modules A, B,  for this and that
+            
+            ```diff
+            +++ /shared/app-rest-mro-management/src/main/java/com/w2m/w2fly/mromanagement/service/HistoryService.java
+            @@ -0,0 +1,33 @@
+            +package com.w2m.w2fly.mromanagement.service;
+            +
+            +import com.w2m.w2fly.mromanagement.data.model.History;
+            +import com.w2m.w2fly.mromanagement.data.repository.HistoryRepository;
+            +import org.springframework.beans.factory.annotation.Autowired;
+            +import org.springframework.stereotype.Service;
+            +
+            +import java.time.LocalDateTime;
+            +
+            +@Service
+            +public class HistoryService
+            ```
+            
+            ... the methods Foo and Bar has been updated to...
+            """)
+            chages_summary = messages[-1].content
+            with open(f"{self.path}/last_changes_summary.md", 'w') as f:
+                f.write(chages_summary)
+        else:
+            with open(f"{self.path}/last_changes_summary.md", 'r') as f:
+                chages_summary = f.read()
+        return chages_summary
     
     @classmethod
     def get_documents_from_sources(cls, file_paths: [str]) -> [Document]:

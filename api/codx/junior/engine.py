@@ -380,17 +380,27 @@ class CODXJuniorSession:
 
         return file_list
 
-    def improve_existing_code_patch(self, patch: AICodePatch):
+    async def improve_existing_code_patch(self, code_generator: AICodeGerator):
+        patch = code_generator.code_patches[0]
         ts = datetime.now().strftime('%H%M%S')
         patch_file = f"/tmp/{ts}.patch"
         with open(patch_file, 'w') as f:
             f.write(patch.patch)
         git_patch = f"git apply {patch_file}"
-        stdin, stderr = exec_command(git_patch, cwd=self.settings.project_path)
+        stdout, stderr = exec_command(git_patch, cwd=self.settings.project_path)
         os.remove(patch_file)
-        return stdin, stderr
+        res = f"{stdout} {stderr}".lower()
+        error = True if len(stderr or "") != 0 or "error" in res else False
+        if error:
+            await self.apply_improve_code_changes(code_generator=code_generator)
+            return "Changes applied", ""
+        return stdout, stderr
 
+
+    @profile_function
     async def improve_existing_code(self, chat: Chat, apply_changes: bool=None):
+        await self.send_event(message=f"Code-gen: Prepring changes")
+
         knowledge = Knowledge(settings=self.settings)
         profile_manager = ProfileManager(settings=self.settings)
         if apply_changes is None:
@@ -456,7 +466,7 @@ class CODXJuniorSession:
         else:
             code_generator = self.get_ai_code_generator_changes(response=chat.messages[-1].content)
 
-        self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
+        await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
         return code_generator
 
     def get_ai_code_generator_changes(self, response: str):
@@ -486,6 +496,7 @@ class CODXJuniorSession:
             return console_out
         return ""
 
+    @profile_function
     async def apply_improve_code_changes(self, code_generator: AICodeGerator, chat: Chat = None):
         changes = code_generator.code_changes
         logger.info(f"improve_existing_code total changes: {len(changes)}")
@@ -499,6 +510,7 @@ class CODXJuniorSession:
         for file_path, changes in changes_by_file_path.items():
             change_type = changes[0].change_type
             logger.info(f"improve_existing_code change: {change_type} - {file_path}")
+            await self.send_event(message=f"Code-gen: change {change_type} - {file_path}")
             
             if change_type == "delete_file":
                 del open_files[file_path]
@@ -512,7 +524,7 @@ class CODXJuniorSession:
                 logger.info(f"Applying {len(changes)} changes to {file_path}")
                 new_content = await self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)
                 if new_content and new_content != content:
-                    self.write_project_file(file_path=file_path, content=new_content)
+                    await self.write_project_file(file_path=file_path, content=new_content)
                 else:
                     logger.error(f"Error applying changes to {file_path}. New content: {new_content}")
 
@@ -687,9 +699,6 @@ class CODXJuniorSession:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 return f.read()
 
-        def save_file(new_content):
-            self.write_project_file(file_path=file_path, content=new_content)
-
         if not content:
             content = read_file()
         
@@ -755,7 +764,7 @@ class CODXJuniorSession:
             
         await self.chat_with_project(chat=chat, use_knowledge=use_knowledge)
         if run_code:
-            self.improve_existing_code(chat=chat, apply_changes=True)
+            await self.improve_existing_code(chat=chat, apply_changes=True)
         else:
             if file_profiles:
                 file_profile_content = "\n".join([
@@ -775,7 +784,7 @@ class CODXJuniorSession:
             
             await self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
             response = chat.messages[-1].content
-            save_file(new_content=response)
+            await self.write_project_file(file_path=file_path, content=response)
 
         return True
 
@@ -976,13 +985,13 @@ class CODXJuniorSession:
             {home_content}
             ```
             """))
-            code_generator = self.improve_existing_code(chat=chat, apply_changes=False)
+            code_generator = await self.improve_existing_code(chat=chat, apply_changes=False)
             logger.info(f"update_wiki file_path: {file_path}, changes: {code_generator}")
             if code_generator:
                 wiki_changes = [change for change in code_generator.code_changes if project_wiki_path in change.file_path]
                 logger.info(f"update_wiki file_path: {file_path}, wiki changes: {wiki_changes}")
                 if wiki_changes:
-                    self.apply_improve_code_changes(code_generator=AICodeGerator(code_changes=wiki_changes))
+                    await self.apply_improve_code_changes(code_generator=AICodeGerator(code_changes=wiki_changes))
 
     def update_project_profile(self, file_path: str):
         return  # deprecated
@@ -1036,12 +1045,12 @@ class CODXJuniorSession:
         with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
       
-    def process_project_file_before_saving(self, file_path: str, content: str):
+    async def process_project_file_before_saving(self, file_path: str, content: str):
         file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)
         if file_profiles:
             logger.info(f"Applying file profiles {[p.name for p in file_profiles]} to {file_path}")
             for profile in file_profiles:
-                content = self.apply_file_profile(file_path=file_path, content=content, profile=profile)
+                content = await self.apply_file_profile(file_path=file_path, content=content, profile=profile)
         return content
     
     async def apply_file_profile(self, file_path: str, content: str, profile: Profile):
@@ -1074,9 +1083,9 @@ class CODXJuniorSession:
         await self.chat_with_project(chat=chat, use_knowledge=False)
         return chat.messages[-1].content
 
-    def write_project_file(self, file_path: str, content: str):
+    async def write_project_file(self, file_path: str, content: str):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        content = self.process_project_file_before_saving(file_path=file_path, content=content)
+        content = await self.process_project_file_before_saving(file_path=file_path, content=content)
         write_file(file_path=file_path, content=content)
 
     def search_files(self, search: str):

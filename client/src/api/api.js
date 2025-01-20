@@ -206,14 +206,17 @@ export const API = {
     improve (chat) {
       return API.post('/api/run/improve?', chat)
     },
-    patch (patch) {
-      return API.post('/api/run/improve/patch?', patch).then(({ data}) => data)
+    patch (aiCodeGenerator) {
+      return API.post('/api/run/improve/patch?', aiCodeGenerator).then(({ data}) => data)
     },
     edit (chat) {
       return API.post('/api/run/edit?', chat)
     },
     liveEdit ({ chat, html, url, message }) {
       return API.post('/api/run/live-edit?', { chat_name: chat.name, html, url, message })
+    },
+    changesSummary(rebuild) {
+      return API.get(`/api/run/changes/summary?refresh=${rebuild}`).then(({ data}) => data)      
     }
   },
   profiles: {
