@@ -322,9 +322,9 @@ def api_list_profile(request: Request):
     return codx_junior_session.list_profiles()
 
 @app.post("/api/profiles")
-def api_create_profile(profile: Profile, request: Request):
+async def api_create_profile(profile: Profile, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.save_profile(profile=profile)
+    return await codx_junior_session.save_profile(profile=profile)
     
 @app.get("/api/profiles/{profile_name}")
 def api_read_profile(profile_name, request: Request):

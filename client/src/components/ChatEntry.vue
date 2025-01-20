@@ -45,6 +45,9 @@ import MarkdownIt from 'markdown-it'
             <button class="btn btn-xs bg-success" @click="$emit('edit')">
               <i class="fa-solid fa-pencil"></i>
             </button>
+            <button class="hidden btn btn-xs bg-secondary" @click="$emit('enhance')">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
             <div class="grow"></div>
             <div class="dropdown dropdown-hover dropdown-end">
               <button tabindex="0" class="btn btn-error btn-xs" @click="onRemove">

@@ -92,6 +92,7 @@ class KnowledgeSearch(BaseModel):
 
 class Profile(BaseModel):
     name: str = Field(default="")
+    url: str = Field(default="")
     description: str = Field(default="")
     category: str = Field(default="", description="Profile category: global, file, coding, ...")
     file_match: str = Field(default="",

@@ -33,6 +33,7 @@ import moment from 'moment'
               :chat="chat"
               :message="message"
               @edit="onEditMessage(message)"
+              @enhance="onEditMessage(message, true)"
               @remove="removeMessage(message)"
               @remove-file="removeFileFromMessage(message, $event)"
               @hide="toggleHide(message)"
@@ -319,9 +320,10 @@ export default {
       this.$refs.editor.innerText = text
       this.onMessageChange()
     },
-    onEditMessage (message) {
+    onEditMessage (message, enhance) {
       console.log("onEditMessage", message)
       this.editMessage = message
+      this.editMessage.enhance = enhance
       this.editMessageId = this.chat.messages.findIndex(m => m === message)
       try {
         this.images = message.images.map(JSON.parse)

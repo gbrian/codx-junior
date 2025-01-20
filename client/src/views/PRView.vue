@@ -6,7 +6,7 @@ import Markdown from '@/components/Markdown.vue'
   <div class="pr-view p-4">
     <header class="flex justify-between items-center">
       <h1 class="text-lg font-bold">Latest Changes</h1>
-      <button @click="$projects.refreshChangesSummary()" class="btn btn-outline btn-sm">
+      <button @click="$projects.refreshChangesSummary(true)" class="btn btn-outline btn-sm">
         <i class="fas fa-sync-alt"></i> Refresh
       </button>
     </header>

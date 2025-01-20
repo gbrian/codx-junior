@@ -317,17 +317,21 @@ class Knowledge:
         return status_info
 
     def build_code_changes_summary(self, force = False):
+        last_changes_summary_file_path = f"{self.get_db().db_path}/last_changes_summary.md"
         chages_summary = ""
         if force:
             ai = self.get_ai()
-            stdout, _ = exec_command("git diff", cwd=self.settings.project_path)
+            exec_command("git add .", cwd=self.settings.project_path)
+            stdout, _ = exec_command("git diff --staged", cwd=self.settings.project_path)
             messages = ai.chat(prompt=f"""
             ```diff
             {stdout}
             ```
-            Given this git diff changes create a human friendly report of changes.
+            
+            Analyze staged changes.
+            Create a human friendly report of changes.
             The report must have an overview and a list of files changes.
-            Each change section contains: File name,  brief description, and a diff section
+            Each change section contains: File name, brief description, errors/improvemnts (if any), and a diff section
             See example below:
             
             EXAMPLE:
@@ -359,10 +363,10 @@ class Knowledge:
             ... the methods Foo and Bar has been updated to...
             """)
             chages_summary = messages[-1].content
-            with open(f"{self.path}/last_changes_summary.md", 'w') as f:
+            with open(last_changes_summary_file_path, 'w') as f:
                 f.write(chages_summary)
         else:
-            with open(f"{self.path}/last_changes_summary.md", 'r') as f:
+            with open(last_changes_summary_file_path, 'r') as f:
                 chages_summary = f.read()
         return chages_summary
     

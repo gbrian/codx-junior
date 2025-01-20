@@ -3,13 +3,11 @@ import { API } from '../api/api'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
 import moment from 'moment'
-import PRView from '../views/PRView.vue'
 import ChatIconVue from '@/components/chat/ChatIcon.vue'
 </script>
 <template>
   <div class="flex flex-col h-full pb-2" v-if="chat">
-    <PRView v-if="showPRView"></PRView>
-    <div class="grow flex gap-2 h-full justify-between" v-if="showChat">
+    <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col gap-2 w-full">
         <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
@@ -105,12 +103,20 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                   </span>
                 </button>
                 <div class="dropdown dropdown-end dropdown-bottom -mt-1">
-                  <label tabindex="0" class="btn btn-xs">
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
-                  </label>
+                  <div tabindex="0" class="btn btn-xs flex items-center indicator">
+                    Tasks <i class="fa-solid fa-pen-to-square"></i>
+                    <span class="indicator-item badge badge-xs badge-secondary" v-if="children.length">
+                      {{ children.length }}
+                    </span>
+                  </div>
                   <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
                     <li @click="newSubChat()">
                       <a>New sub task</a>
+                    </li>
+                    <hr v-if="children.length">
+                    <li @click="$projects.setActiveChat(child)" 
+                      v-for="child in children" :key="children.id">
+                      <a><ChatIconVue :chat="child" /> {{ child.name }}</a>
                     </li>
                   </ul>
                 </div>
@@ -182,7 +188,6 @@ export default {
       showSettings: false,
       addNewFile: null,
       showHidden: false,
-      showPRView: false,
       confirmDelete: false,
       newTag: null,
       chatModes: {
@@ -201,9 +206,6 @@ export default {
     messages () {
       return this.chat.messages.filter(m => !m.hide || this.showHidden)
     },
-    showChat () {
-      return !this.showPRView
-    },
     chatUpdatedDate () {
       const updatedAt = this.chat.updated_at;
       return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
@@ -219,6 +221,9 @@ export default {
     parentChat () {
       const parentId = this.$projects.activeChat.parent_id
       return parentId ? this.chats.find(c => c.id && c.id === parentId) : null
+    },
+    children () {
+      return this.$storex.projects.chats.filter(c => c.parent_id === this.chat.id)
     }
   },
   watch: {
