@@ -12,9 +12,9 @@ import UserList from './UserList.vue';
       :online="$storex.session.connected"
       @click.stop="setActiveTab('home')"
     />
-      <div class="absolute bottom-0 flex justify-center w-full text-white animate-pulse text-xs"
+      <div class="absolute bottom-0 flex justify-center w-full"
         v-if="$session.apiCalls">
-        thinking
+        <span class="badge badge-xs bg-primary text-white animate-pulse">thinking</span>
       </div>
     </div>
 

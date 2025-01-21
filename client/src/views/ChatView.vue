@@ -105,18 +105,25 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                 <div class="dropdown dropdown-end dropdown-bottom -mt-1">
                   <div tabindex="0" class="btn btn-xs flex items-center indicator">
                     Tasks <i class="fa-solid fa-pen-to-square"></i>
-                    <span class="indicator-item badge badge-xs badge-secondary" v-if="children.length">
-                      {{ children.length }}
+                    <span class="indicator-item badge badge-xs badge-secondary" v-if="childrenChats.length">
+                      {{ childrenChats.length }}
                     </span>
                   </div>
                   <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
                     <li @click="newSubChat()">
                       <a>New sub task</a>
                     </li>
-                    <hr v-if="children.length">
+                    <div class="divider" v-if="childrenChats.length"></div>
                     <li @click="$projects.setActiveChat(child)" 
-                      v-for="child in children" :key="children.id">
-                      <a><ChatIconVue :chat="child" /> {{ child.name }}</a>
+                      v-for="child in childrenChats" :key="childrenChats.id">
+                      <a>
+                        <div>
+                          <div class="text-xs">{{ moment(child.updated_at || child.created_at).format("DDMMM HH:mm") }}</div>
+                          <div>
+                            <ChatIconVue :chat="child" /> {{ child.name }}
+                          </div>
+                        </div>
+                      </a>
                     </li>
                   </ul>
                 </div>
@@ -222,8 +229,9 @@ export default {
       const parentId = this.$projects.activeChat.parent_id
       return parentId ? this.chats.find(c => c.id && c.id === parentId) : null
     },
-    children () {
+    childrenChats () {
       return this.$storex.projects.chats.filter(c => c.parent_id === this.chat.id)
+                .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
     }
   },
   watch: {

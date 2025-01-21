@@ -19,7 +19,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(metrics) in requestMetrics" :key="metrics.path">
+          <tr v-for="metrics in requestMetrics" :key="metrics.path">
             <td class="px-4 py-2">{{ metrics.path }}</td>
             <td class="px-4 py-2">{{ metrics.min.toFixed(3) }}</td>
             <td class="px-4 py-2">{{ metrics.max.toFixed(3) }}</td>
@@ -33,28 +33,37 @@
 
 <script>
 export default {
-  props: ['title', 'subtitle', 'logs'],
-  data() {
-    return {
+  props: {
+    title: {
+      type: String,
+      required: true
+    },
+    subtitle: {
+      type: String,
+      required: true
+    },
+    logs: {
+      type: Array,
+      required: true
     }
   },
   computed: {
     requestMetrics() {
       const metricsMap = {}
+      
+      // Organizing logs into metrics map based on the path
       this.logs.forEach(log => {
-        const { 
-          path, time_taken: time
-        } = log
+        const { path, time_taken: time } = log
         
         if (!metricsMap[path]) {
           metricsMap[path] = { times: [] }
         }
-        if (time) {
+        if (isFinite(time) && !isNaN(time)) {
           metricsMap[path].times.push(time)
         }
       })
 
-      // Calculate min, max, and avg for each path
+      // Calculating min, max, and avg times for each path
       const result = []
       for (const [path, { times }] of Object.entries(metricsMap)) {
         const min = Math.min(...times)
@@ -63,10 +72,9 @@ export default {
         result.push({ path, min, max, avg })
       }
 
-      return result.sort((a, b) => a.avg > b.avg ? -1: 1)
+      // Sorting results based on average time
+      return result.sort((a, b) => a.avg > b.avg ? -1 : 1)
     },
-  },
-  methods: {
   }
 }
 </script>

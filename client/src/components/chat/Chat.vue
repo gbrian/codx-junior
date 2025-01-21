@@ -321,6 +321,9 @@ export default {
       this.onMessageChange()
     },
     onEditMessage (message, enhance) {
+      if (this.editMessage === message) {
+        return this.onResetEdit()
+      }
       console.log("onEditMessage", message)
       this.editMessage = message
       this.editMessage.enhance = enhance
@@ -395,6 +398,12 @@ export default {
 
     },
     async sendMessage () {
+      const editAIMessage = this.editMessage && this.editMessage.role !== 'user'
+      if (editAIMessage) {
+          this.removeMessage(this.editMessage)
+          this.editMessage = null
+      }
+      
       if (this.editMessage !== null) {
         this.updateMessage()
       } else {
@@ -402,6 +411,7 @@ export default {
         const { data } = await this.sendChatMessage(this.chat)
         this.chat.messages = data.messages
       }
+      this.onResetEdit()
       this.saveChat()
     },
     async navigate () {
@@ -435,7 +445,6 @@ export default {
           cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,
           documentCount: API.lastSettings.knowledge_search_document_count
       }
-      // this.postMyMessage()
       const { data: { documents } } = await API.knowledge.search(knowledgeSearch)
       const docs = documents.map(doc => `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``) 
       this.$refs.editor.innerText = docs.join("\n")
@@ -468,7 +477,11 @@ export default {
       this.editMessage.content = innerText
       this.editMessage.images = images
       this.editMessage.updated_at = new Date().toISOString()
+      if (editAIMessage) {
+        this.editMessage.role = "user"        
+      }
       this.onResetEdit()
+      
     },
     onResetEdit() {
       if (this.editMessageId !== null) {
