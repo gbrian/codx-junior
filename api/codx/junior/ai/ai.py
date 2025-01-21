@@ -2,11 +2,9 @@
 import json
 import logging
 import os
-
-from typing import List, Optional, Union
-
 import hashlib
 
+from typing import List, Optional, Union
 
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
@@ -72,11 +70,28 @@ class AI:
             callbacks = []
             if callback:
                 callbacks.append(callback)
-            try:
-                response = self.llm(messages=messages, config={ "callbacks": callbacks })
-            except Exception as ex:
-                logger.exception(f"Error processing AI request: {ex}")
-                raise ex
+            
+            # Define retry parameters
+            max_retries = 2
+            retry_count = 0
+
+            while retry_count < max_retries:
+                try:
+                    response = self.llm(messages=messages, config={"callbacks": callbacks})
+                    break  # Exit loop if successful
+                except Exception as ex:
+                    ex_str = str(ex)
+                    logger.warning(f"Retryable error encountered: {ex}. Retrying... ({retry_count + 1}/{max_retries})")
+                    retry_count += 1
+                    if [err for err in ["You can retry your request,"] if err in ex_str]:
+                       continue
+
+                    logger.exception(f"Non-retryable error processing AI request: {ex}")
+                    raise ex  # Raise immediately if non-retryable
+
+            if response is None:
+                logger.error("Max retries exceeded. Failed to process AI request.")
+                raise RuntimeError("Failed to process AI request after retries.")
 
             if self.cache:
                 self.cache[md5Key] = json.dumps(
