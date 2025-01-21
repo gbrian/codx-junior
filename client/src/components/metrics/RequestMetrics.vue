@@ -58,7 +58,7 @@ export default {
         if (!metricsMap[path]) {
           metricsMap[path] = { times: [] }
         }
-        if (isFinite(time) && !isNaN(time)) {
+        if (isFinite(time) && !isNaN(time) && time > 0) {
           metricsMap[path].times.push(time)
         }
       })
@@ -66,10 +66,12 @@ export default {
       // Calculating min, max, and avg times for each path
       const result = []
       for (const [path, { times }] of Object.entries(metricsMap)) {
-        const min = Math.min(...times)
-        const max = Math.max(...times)
-        const avg = times.reduce((a, b) => a + b, 0) / times.length
-        result.push({ path, min, max, avg })
+        if (times.length) {
+          const min = Math.min(...times)
+          const max = Math.max(...times)
+          const avg = times.reduce((a, b) => a + b, 0) / times.length
+          result.push({ path, min, max, avg })
+        }
       }
 
       // Sorting results based on average time
