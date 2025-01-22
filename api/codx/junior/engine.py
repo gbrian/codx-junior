@@ -41,7 +41,8 @@ from codx.junior.model import (
     ImageUrl,
     LiveEdit,
     GlobalSettings,
-    Profile
+    Profile,
+    AI_TASKS_RESPONSE_PARSER
 )
 from codx.junior.context import (
     find_relevant_documents,
@@ -809,6 +810,30 @@ class CODXJuniorSession:
         return replace_mentions(content, image_mentions)
 
     @profile_function
+    def generate_tasks(self, chat: Chat):
+        ai = self.get_ai()
+        last_message = chat.messages[-1]
+
+        prompt = f"""
+        Generate subtasks from this epic:
+        {last_message.content}
+
+        INSTRUCTIONS:
+        Each task must have a clear name and an intial descriptive message with instructions on what has to be done.
+        In the intial message all references needed from the epic like files, keywords, ...
+        {AI_TASKS_RESPONSE_PARSER.get_format_instructions()}
+        """
+
+        messages = ai.chat(prompt=prompt)
+        response = messages[-1].content
+
+        ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)
+        chat_manager = self.get_chat_manager()
+        for sub_task in ai_tasks.tasks:
+            sub_task.parent_id = chat.id
+            chat_manager.save_chat(sub_task)
+    
+    @profile_function
     async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
         chat_mode = chat_mode or chat.mode or 'chat'
         if chat_mode == 'browser':
@@ -909,13 +934,27 @@ class CODXJuniorSession:
             self.log_info(f"chat_with_project found {doc_length} relevant documents")
 
         if context:
-            user_message = Message(role="user", content=f"""{user_message.content}
-            THIS INFORMATION IS COMING FROM PROJECT'S FILES.
-            HOPE IT HELPS TO ANSWER USER REQUEST.
-            KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
-            {context}
+            messages.append(convert_message(
+                Message(role="user", content=f"""
+                  THIS INFORMATION IS COMING FROM PROJECT'S FILES.
+                  HOPE IT HELPS TO ANSWER USER REQUEST.
+                  KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
+                  {context}
+                  """)))
+
+        if is_refine and last_ai_message:
+            refine_message = Message(role="user", content=f"""
+            UPDATE THIS DOCUMENT
+            ```
+            {last_ai_message.content}
+            ```
+
+            WITH USER COMMENTS:
+            {user_message.content}
             """)
-        messages.append(convert_message(user_message))
+            messages.append(convert_message(refine_message))
+        else:
+            messages.append(convert_message(user_message))
         
         await self.chat_event(chat=chat, message=f"Invoking AI: {self.settings.ai_provider}")
 

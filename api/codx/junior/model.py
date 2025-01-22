@@ -2,6 +2,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from datetime import datetime
 
+from langchain.output_parsers import PydanticOutputParser
 
 from typing import List, Dict, Union
 
@@ -158,3 +159,8 @@ class Screen(BaseModel):
       "800x600",
       "640x480"
     ])
+
+class AITasks(BaseModel):
+    tasks: List[Chat] = Field(description="List of tasks. chat mode will be chat.")
+
+AI_TASKS_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AITasks)
