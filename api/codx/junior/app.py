@@ -18,6 +18,8 @@ import traceback
 
 from codx.junior import sio
 
+from codx.junior.profiling.profiler import profile_function
+
 from codx.junior.log_parser import parse_logs
 from codx.junior.browser import run_browser_manager
 run_browser_manager()
@@ -230,6 +232,7 @@ def api_list_chats(request: Request):
         return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
     return codx_junior_session.list_chats()
 
+@profile_function
 @app.post("/api/chats")
 async def api_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session

@@ -92,8 +92,9 @@ class AIDocValidateResponse(BaseModel):
 def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
     ai = AI(settings=settings)
     score = float(settings.knowledge_context_cutoff_relevance_score)
-    if not score:
-      return documents
+    
+    return documents
+    # DISABLED!
     
     # This function uses ThreadPoolExecutor to parallelize validation of contexts.
     with ThreadPoolExecutor() as executor:

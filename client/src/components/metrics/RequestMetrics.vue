@@ -13,6 +13,7 @@
           </tr>
           <tr class="text-xs">
             <th class="px-4 py-2"></th>
+            <th class="px-4 py-2">count</th>
             <th class="px-4 py-2">min</th>
             <th class="px-4 py-2">max</th>
             <th class="px-4 py-2">avg</th>
@@ -20,7 +21,8 @@
         </thead>
         <tbody>
           <tr v-for="metrics in requestMetrics" :key="metrics.path">
-            <td class="px-4 py-2">{{ metrics.path }}</td>
+            <td class="px-4 py-2 click" @click="$emit('filter-module', metrics.path)">{{ metrics.path.replace('codx.junior.', '') }}</td>
+            <td class="px-4 py-2">{{ metrics.count }}</td>
             <td class="px-4 py-2">{{ metrics.min.toFixed(3) }}</td>
             <td class="px-4 py-2">{{ metrics.max.toFixed(3) }}</td>
             <td class="px-4 py-2">{{ metrics.avg.toFixed(3) }}</td>
@@ -66,11 +68,12 @@ export default {
       // Calculating min, max, and avg times for each path
       const result = []
       for (const [path, { times }] of Object.entries(metricsMap)) {
-        if (times.length) {
+        const count = times.length
+        if (count) {
           const min = Math.min(...times)
           const max = Math.max(...times)
           const avg = times.reduce((a, b) => a + b, 0) / times.length
-          result.push({ path, min, max, avg })
+          result.push({ path, min, max, avg, count })
         }
       }
 

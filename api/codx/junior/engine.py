@@ -122,8 +122,9 @@ def check_file_worker(settings: CODXJuniorSettings, file_path: str):
         FILES_CHECKING[file_path] = True
         try:
             # Check mentions
-            res = await CODXJuniorSession(settings=settings).check_file_for_mentions(file_path=file_path)
-            logger.info(f"Check file {file_path} for mentions: {res}")
+            codx_junior_session = CODXJuniorSession(settings=settings)
+            res = await codx_junior_session.check_file_for_mentions(file_path=file_path)
+            codx_junior_session.log_info(f"Check file {file_path} for mentions: {res}")
             # Reload knowledge 
             if settings.watching:
                 knowledge = Knowledge(settings=settings)
@@ -138,18 +139,28 @@ def check_file_worker(settings: CODXJuniorSettings, file_path: str):
 
 def project_file_changed(codx_path: str, file_path: str):
     global FILES_CHECKING
-    settings = CODXJuniorSettings.from_codx_path(codx_path)
+    settings = find_project_from_file_path(file_path)
+    if not settings:
+        return
     file_key = f"{settings.project_name}:{file_path}"
     if FILES_CHECKING.get(file_path):
         return
     if not Knowledge(settings=settings).is_valid_project_file(file_path=file_path):
         return
-    logger.info(f"project_file_changed processing event. {file_key}")
+    logger.info(f"project_file_changed processing event. {file_key} - {settings.project_name}")
     Thread(target=check_file_worker, args=(settings, file_path)).start()
 
 def create_watcher_callback(settings: CODXJuniorSettings):
     codx_path = settings.codx_path
     return lambda file_path: project_file_changed(codx_path=codx_path, file_path=file_path)
+
+def find_project_from_file_path(file_path: str):
+    """Given a file path, find the project parent"""
+    all_projects = find_all_projects()
+    matches = [p for p in all_projects if file_path.startswith(p.project_path)]
+    if matches:
+        return sorted(matches, key=lambda p: len(p.project_path))[-1]
+    return None
 
 def find_all_projects():
     all_projects = []
@@ -211,6 +222,9 @@ class CODXJuniorSession:
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
         self.channel = channel
 
+    def log_info(self, msg):
+        logger.info(f"[{self.settings.project_name}] {msg}")
+
     def get_channel(self):
         if not self.channel:
             self.channel = SessionChannel()
@@ -218,11 +232,11 @@ class CODXJuniorSession:
 
     async def send_event(self, message: str):
         await self.get_channel().send_event('codx-junior', { 'text': message })
-        logger.info(f"SEND MESSAGE {message}- SENT!")
+        self.log_info(f"SEND MESSAGE {message}- SENT!")
 
     async def chat_event(self, chat: Chat, message: str):
         await self.get_channel().send_event('chat-event', { 'id': chat.id, 'text': message })
-        logger.info(f"SEND MESSAGE {message}- SENT!")
+        self.log_info(f"SEND MESSAGE {message}- SENT!")
 
     def delete_project(self):
         shutil.rmtree(self.settings.codx_path)
@@ -274,11 +288,11 @@ class CODXJuniorSession:
 
     def reload_knowledge(self, path: str = None):
         knowledge = self.get_knowledge()
-        logger.info(f"***** reload_knowledge: {path}")
+        self.log_info(f"***** reload_knowledge: {path}")
         documents = None
         if path:
             documents = knowledge.reload_path(path)
-            logger.info(f"reload_knowledge: {path} - Docs: {len(documents)}")
+            self.log_info(f"reload_knowledge: {path} - Docs: {len(documents)}")
         else:
             documents = knowledge.reload()
         return {"doc_count": len(documents) if documents else 0}
@@ -340,14 +354,14 @@ class CODXJuniorSession:
         all_projects = find_all_projects()
         
         mentions = re.findall(r'@\S+', query)
-        logger.info(f"Extracted mentions: {mentions}")
+        self.log_info(f"Extracted mentions: {mentions}")
         
         settings_sub_projects = self.settings.get_sub_projects() if self.settings.knowledge_query_subprojects else []
         settings_sub_projects = [p.project_name for p in settings_sub_projects]
         project_dependencies = self.settings.get_project_dependencies()
         sub_projects = set(settings_sub_projects + [mention[1:] for mention in mentions] + project_dependencies)
         search_projects = [settings for settings in all_projects if settings.project_name in sub_projects]
-        logger.info(f"select_afefcted_documents_from_knowledge query subprojects {sub_projects} - {search_projects}")
+        self.log_info(f"select_afefcted_documents_from_knowledge query subprojects {sub_projects} - {search_projects}")
         
         for search_project in search_projects:
             mention = [mention[1:] for mention in mentions if mention == search_project.project_name]
@@ -359,12 +373,12 @@ class CODXJuniorSession:
             if not docs:
                 docs = []
                 file_list = []
-            logger.info(f"select_afefcted_documents_from_knowledge doc length: {len(docs)} - cutoff score {self.settings.knowledge_context_cutoff_relevance_score}")
+            self.log_info(f"select_afefcted_documents_from_knowledge doc length: {len(docs)} - cutoff score {self.settings.knowledge_context_cutoff_relevance_score}")
             if search_projects and self.settings.knowledge_query_subprojects:
-                logger.info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
+                self.log_info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
                 for sub_settings in search_projects:
                     sub_docs, sub_file_list = find_relevant_documents(query=rag_query, settings=sub_settings, ignore_documents=ignore_documents)
-                    logger.info(f"select_afefcted_documents_from_knowledge search subproject {sub_settings.project_name} docs: {len(sub_docs)}") 
+                    self.log_info(f"select_afefcted_documents_from_knowledge search subproject {sub_settings.project_name} docs: {len(sub_docs)}") 
                     if sub_docs:
                         docs = docs + sub_docs
                     if sub_file_list:
@@ -438,7 +452,7 @@ class CODXJuniorSession:
             retry_count = 1
             request_msg = Message(role="user", content=request)
             chat.messages.append(request_msg)
-            logger.info(f"improve_existing_code prompt: {request_msg}")
+            self.log_info(f"improve_existing_code prompt: {request_msg}")
             async def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:
                 if error:
                     chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
@@ -478,7 +492,7 @@ class CODXJuniorSession:
         return code_generator
 
     def project_script_test(self):
-        logger.info(f"project_script_test, test: {self.settings.script_test} - {self.settings.script_test_check_regex}")
+        self.log_info(f"project_script_test, test: {self.settings.script_test} - {self.settings.script_test_check_regex}")
         if not self.settings.script_test:
             return
 
@@ -489,7 +503,7 @@ class CODXJuniorSession:
                                 text=True)
         console_out = result.stdout
         
-        logger.info(f"project_script_test: {console_out} \nOUTPUT DONE")
+        self.log_info(f"project_script_test: {console_out} \nOUTPUT DONE")
 
         test_regex = self.settings.script_test_check_regex if self.settings.script_test_check_regex else 'error' 
         if re.search(test_regex, console_out):
@@ -499,7 +513,7 @@ class CODXJuniorSession:
     @profile_function
     async def apply_improve_code_changes(self, code_generator: AICodeGerator, chat: Chat = None):
         changes = code_generator.code_changes
-        logger.info(f"improve_existing_code total changes: {len(changes)}")
+        self.log_info(f"improve_existing_code total changes: {len(changes)}")
         changes_by_file_path = {}
         for change in changes:
             file_path = change.file_path
@@ -509,7 +523,7 @@ class CODXJuniorSession:
         
         for file_path, changes in changes_by_file_path.items():
             change_type = changes[0].change_type
-            logger.info(f"improve_existing_code change: {change_type} - {file_path}")
+            self.log_info(f"improve_existing_code change: {change_type} - {file_path}")
             await self.send_event(message=f"Code-gen: change {change_type} - {file_path}")
             
             if change_type == "delete_file":
@@ -521,7 +535,7 @@ class CODXJuniorSession:
                     with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
                 instruction_list = [json.dumps(change.__dict__) for change in changes]
-                logger.info(f"Applying {len(changes)} changes to {file_path}")
+                self.log_info(f"Applying {len(changes)} changes to {file_path}")
                 new_content = await self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)
                 if new_content and new_content != content:
                     await self.write_project_file(file_path=file_path, content=new_content)
@@ -573,7 +587,7 @@ class CODXJuniorSession:
         knowledge = Knowledge(settings=self.settings)
         new_files = knowledge.detect_changes()
         if not new_files:
-            logger.info(f"check_project_changes {self.settings.project_name} no changes")
+            self.log_info(f"check_project_changes {self.settings.project_name} no changes")
             return False
         return True
 
@@ -593,7 +607,7 @@ class CODXJuniorSession:
                 logger.exception(f"Error checking changes in file {file_path}")
     
         if self.settings.watching:
-            logger.info(f"Reload knowledge files {new_files}")
+            self.log_info(f"Reload knowledge files {new_files}")
             self.reload_knowledge()
 
             for file_path in new_files:
@@ -712,7 +726,7 @@ class CODXJuniorSession:
 
         await self.send_event(message=f"Processing {file_path.split('/')[-1]}...")
             
-        logger.info(f"{len(mentions)} mentions found for {file_path}")
+        self.log_info(f"{len(mentions)} mentions found for {file_path}")
         new_content = notify_mentions_in_progress(content)
         if not silent:
             write_file(file_path=file_path, content=new_content)
@@ -733,12 +747,12 @@ class CODXJuniorSession:
 
         if using_chat or skip_knowledge_search:
             use_knowledge = False       
-            logger.info(f"Skip KNOWLEDGE search for processing, using_chat={using_chat}")
+            self.log_info(f"Skip KNOWLEDGE search for processing, using_chat={using_chat}")
         
         def mention_info(mention):
             chat = chat_manager.find_by_id(mention.flags.chat_id) if mention.flags.chat_id else None
             if chat:
-                logger.info(f"using CHAT for processing mention: {mention.mention}")
+                self.log_info(f"using CHAT for processing mention: {mention.mention}")
                 return f"""Based on this conversation:
                 ```markdown
                 {chat_manager.serialize_chat(chat)}
@@ -798,7 +812,7 @@ class CODXJuniorSession:
     async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
         chat_mode = chat_mode or chat.mode or 'chat'
         if chat_mode == 'browser':
-            logger.info(f"chat_with_project browser mode")
+            self.log_info(f"chat_with_project browser mode")
             await self.chat_event(chat=chat, message=f"connecting with browser...")
             return self.get_browser().chat_with_browser(chat)
 
@@ -848,7 +862,7 @@ class CODXJuniorSession:
                         }
                     } for image in images]
 
-                logger.info(f"ImageMessage content: {content}")
+                self.log_info(f"ImageMessage content: {content}")
                 msg = BaseMessage(type="image", content=json.dumps(content))
             elif m.role == "user":
                 msg = HumanMessage(content=m.content)
@@ -892,7 +906,7 @@ class CODXJuniorSession:
                     context += f"{doc_context}\n"
 
             doc_length = len(documents or [])
-            logger.info(f"chat_with_project found {doc_length} relevant documents")
+            self.log_info(f"chat_with_project found {doc_length} relevant documents")
 
         if context:
             user_message = Message(role="user", content=f"""{user_message.content}
@@ -917,7 +931,7 @@ class CODXJuniorSession:
 
     def check_project(self):
         try:
-            logger.info(f"check_project")
+            self.log_info(f"check_project")
             loader = KnowledgeLoader(settings=self.settings)
             loader.fix_repo()
         except Exception as ex:
@@ -963,7 +977,7 @@ class CODXJuniorSession:
 
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             file_content = f.read()
-            logger.info(f"update_wiki file_path: {file_path}, project_wiki: {project_wiki_path}")
+            self.log_info(f"update_wiki file_path: {file_path}, project_wiki: {project_wiki_path}")
             chat = Chat(messages=[
                 Message(role="user", content=f"""Extract important parts from the content of {file_path} to be added to the wiki.
                 {file_content}
@@ -986,10 +1000,10 @@ class CODXJuniorSession:
             ```
             """))
             code_generator = await self.improve_existing_code(chat=chat, apply_changes=False)
-            logger.info(f"update_wiki file_path: {file_path}, changes: {code_generator}")
+            self.log_info(f"update_wiki file_path: {file_path}, changes: {code_generator}")
             if code_generator:
                 wiki_changes = [change for change in code_generator.code_changes if project_wiki_path in change.file_path]
-                logger.info(f"update_wiki file_path: {file_path}, wiki changes: {wiki_changes}")
+                self.log_info(f"update_wiki file_path: {file_path}, wiki changes: {wiki_changes}")
                 if wiki_changes:
                     await self.apply_improve_code_changes(code_generator=AICodeGerator(code_changes=wiki_changes))
 
@@ -1045,10 +1059,11 @@ class CODXJuniorSession:
         with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
       
+    @profile_function
     async def process_project_file_before_saving(self, file_path: str, content: str):
         file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)
+        self.log_info(f"Applying file profiles {[p.name for p in file_profiles]} to {file_path}")
         if file_profiles:
-            logger.info(f"Applying file profiles {[p.name for p in file_profiles]} to {file_path}")
             for profile in file_profiles:
                 content = await self.apply_file_profile(file_path=file_path, content=content, profile=profile)
         return content
@@ -1058,21 +1073,14 @@ class CODXJuniorSession:
         You are given a section of code that requires improvement by applying best practices. Your task is to refactor the code while ensuring that it adheres to the specified best practices. Please follow the instructions below:
 
         ### File Content:
-        ``` {file_path}
+        ```
         {content}
         ```
 
-        ### Best Practices:
+        ### Instructions:
         ```
         {profile.content}
         ```
-        ### Instructions:
-        1. Refactor the provided code content using the best practices outlined above.
-        2. Ensure the code is well-commented and documented.
-        3. Add any necessary unit tests to confirm the correctness of the refactored code.
-        4. Provide a brief summary of the changes made and the reasoning behind them.
-
-        Please proceed with applying these best practices to the given file content.
         Return the final content without any kind of decoration or extra comments. 
         Avoid surronding your response with fences (```), just return the final content.
         """

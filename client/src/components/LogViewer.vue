@@ -1,10 +1,15 @@
 <script setup>
 import RequestMetrics from './metrics/RequestMetrics.vue'
+import TimeSelector from './TimeSelector.vue';
 </script>
 <template>
-  <div class="p-2 gap-2 w-full max-w-full overflow-auto flex flex-col">
+  <div class="px-2 pt-4 gap-2 w-full max-w-full overflow-auto flex flex-col">
     <header class="flex flex-row justify-between items-center">
-      <h1 class="text-xl font-semibold mb-4">Metrics Dashboard</h1>
+      <h1 class="text-xl font-semibold">Dashboard</h1>
+      <TimeSelector
+        :start="timeSelection?.start"
+        :end="timeSelection?.end"
+        :times="logTimes" @time-change="onTimeSelectorChanged" />
       <div class="flex gap-2 items-center">
         <button class="btn btn-sm" @click="clearLogs">
           <i class="fa-solid fa-trash-can"></i>
@@ -20,17 +25,40 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
         <div class="">
           <input class="input input-xs w-10" v-model="tailSize" />
         </div>
+        <div class="px-2">({{ filteredLogs.length }})</div>
       </div>
     </header>
+    <div class="grid grid-cols-4 gap-1 my-2">
+      <div 
+        v-for="module in visibleModules" 
+        :key="module" 
+        @click="toggleModuleVisible(module)"
+        :style="`color:${$ui.colorsMap[module]}`"
+        :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-white': 'badge-outline']"
+      >
+        {{ module }}
+      </div>
+      <div 
+        v-for="module in profilerModuleFilter" 
+        :key="module" 
+        @click="toggleProfilerVisible(module)"
+        :style="`color:${$ui.colorsMap[module]}`"
+        :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-white': 'badge-outline']"
+      >
+        {{ module }}
+      </div>
+    </div>
     <div class="grow overflow-auto">
       <div class="p-2">
         <RequestMetrics :title="'Requests'" :subtitle="'Requests path'"
+          @filter-module="toggleProfilerVisible"
           :logs="requestLogs" class="mb-6" />
         <RequestMetrics :title="'Profiler'" :subtitle="'Method'"
+          @filter-module="toggleProfilerVisible"
           :logs="profilerLogs" class="mb-6" />
       </div>
       <header class="flex flex-row justify-between items-center">
-        <div class="flex gap-1">
+        <div class="flex gap-1 items-center">
           <select v-model="selectedLog" @change="onLogChange" class="border select-xs rounded">
             <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
           </select>
@@ -46,24 +74,8 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
             </span>
           </label>
         </div>
+        <div class="grow"></div>
       </header>
-      <div class="grid grid-cols-4 gap-1 my-2">
-        <div 
-          v-for="module in visibleModules" 
-          :key="module" 
-          @click="toggleModuleVisible(module)"
-          :style="`color:${$ui.colorsMap[module]}`"
-          :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-white': 'badge-outline']"
-        >
-          {{ module }}
-        </div>
-      </div>
-      <div v-if="ignorePatterns.length">
-        <i class="fa-regular fa-eye-slash"></i>
-        <span @click="removeIgnore(ignore)" class="click mr-2 badge badge-warning hover:underline" v-for="ignore in ignorePatterns" :key="ignore">
-          {{ ignore }}
-        </span>
-      </div>
       <div class="flex flex-col gap-2 overflow-auto" style="height:600px" ref="logView">
         <div v-for="(log, ix) in filteredLogs" :key="ix">
           <div :title="log.id" class="flex flex-col w-full p-1 hover:bg-base-100" :class="log.styleClasses">
@@ -77,9 +89,12 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
                 [{{ log.module }}]</div> 
               <div>(Line: {{ log.line }})</div>
             </div> 
-            <pre class="overflow-hidden click" :class="!log.showMore && 'max-h-40'" @click="log.showMore = !log.showMore">{{ log.content }}</pre>
-            <pre class="text-warning"
-              v-if="Object.keys(log.data).length">{{ JSON.stringify(log.data, null, 2) }}</pre>
+            <div class="overflow-hidden click" :class="!log.showMore && 'max-h-40'" @click="log.showMore = !log.showMore">
+              <pre class="text-wrap">{{ log.content }}</pre>
+              <pre class="text-warning text-wrap"
+                v-if="Object.keys(log.data).length">{{ JSON.stringify(log.data, null, 2) }}</pre>
+              <pre v-if="log.data.profiler">{{ log.data.profiler.profile_stats  }}</pre>
+            </div>
           </div>
         </div>
         <div ref="scrollEnd"></div>
@@ -100,13 +115,15 @@ export default {
       filterMatchCount: 0,
       logModules: {},
       visibleModules: [],
+      profilerModuleFilter: [],
       tailSize: 100,
       logLevelColors: {
         "INFO": "text-success",
         "DEBUG": "text-blue-600",
         "ERROR": "text-error",
         "WARNING": "text-warning"
-      }
+      },
+      timeSelection: null
     }
   },
   watch: {
@@ -117,28 +134,42 @@ export default {
     }
   },
   computed: {
+    logTimes () {
+      return new Set(this.logs.map(l => l.timestamp.split(",")[0] ))
+    },
     distinctModules() {
       return [...new Set(this.logs.map(log => log.module))]
     },
-    ignorePatterns() {
-      return this.$project?.log_ignore?.split(",").filter(i => i.trim().length) || []
-    },
-    allIgnorePatterns() {
-      return this.ignorePatterns
-    },
     filteredLogs () {
-      return this.logs?.filter(flog => !flog.hidden &&
-        (!this.visibleModules.length || this.visibleModules.includes(flog.module)) &&
-          (!flog.data?.url || flog.data.url.indexOf("/api/logs") === -1))
+      const isLogVisible = log => {
+        if (log.hidden || log.data.url?.includes("/api/logs")) {
+          return false
+        }
+        if (this.timeSelection) {
+          const { start, end } = this.timeSelection
+          if ((start && log.timestamp < start) || (end && log.timestamp > end)) {
+            return false
+          }
+        }
+        if (this.profilerModuleFilter.length) {
+          return this.profilerModuleFilter.includes(
+            `${log.data?.profiler?.module}.${log.data?.profiler?.method}`) 
+        }
+        if (this.visibleModules.length) {
+          return this.visibleModules.includes(log.module)
+        }
+        return true
+      }
+      return this.logs?.filter(isLogVisible)
     },
     requestLogs () {
       return this.logs.filter(log => log.data.request)
                       .map(({ timestamp, data: { request: { url, time_taken }}}) => ({ timestamp, path: new URL(url).pathname , time_taken}))
     },
     profilerLogs () {
-      return this.logs.filter(log => log.data.profiler)
+      return this.filteredLogs.filter(log => log.data.profiler)
                       .map(({ timestamp, data: { profiler: { module, method, time_taken }}}) => 
-                                            ({ timestamp, path: `${module?.replace('codx.junior.', '')}.${method}` , time_taken}))
+                                            ({ timestamp, path: `${module}.${method}` , time_taken}))
     }
   },
   methods: {
@@ -225,9 +256,6 @@ export default {
       if (!this.logModules[log.module]?.visible) {
         log.hidden = true
       }
-      if (this.allIgnorePatterns.find(i => lowerLogContent.indexOf(i) !== -1)) {
-        log.hidden = true
-      }
       log.styleClasses = classes
     },
     ignorePattern() {
@@ -244,6 +272,16 @@ export default {
     clearFilter() {
       this.filter = null
       this.applyFilter()
+    },
+    toggleProfilerVisible (module) {
+      if (this.profilerModuleFilter.includes(module)) {
+        this.profilerModuleFilter.splice(this.profilerModuleFilter.indexOf(module), 1)
+      } else {
+        this.profilerModuleFilter.push(module)
+      }
+    },
+    onTimeSelectorChanged(selection) {
+      this.timeSelection = selection
     }
   },
   mounted() {

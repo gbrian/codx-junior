@@ -13,8 +13,8 @@ import UserList from './UserList.vue';
       @click.stop="setActiveTab('home')"
     />
       <div class="absolute bottom-0 flex justify-center w-full"
-        v-if="$session.apiCalls">
-        <span class="badge badge-xs bg-primary text-white animate-pulse">thinking</span>
+        v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
+        <span class="badge badge-xs bg-secondary text-white animate-pulse">thinking</span>
       </div>
     </div>
 

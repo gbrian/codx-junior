@@ -27,10 +27,21 @@ class ProjectWatcher:
     def __init__(self):
         self.observers = {}
 
+    def unwatch_children(self, settings: CODXJuniorSettings):
+        """Check if this is parent project and unwatch children to avoid multiple events"""
+        for path in list(self.observers.keys()):
+            if path.startswith(settings.project_path):
+                logger.info(f"Unwatching child project {path} - {settings.project_path}")
+                self.stop_observer(path)
+
+
     def watch_project(self, settings: CODXJuniorSettings, callback: Callable[[str], None]):
         """Watch project changes using watchdog"""
         project_path = settings.project_path
         if not self.is_watching_project(settings):
+            
+            self.unwatch_children(settings)
+            
             event_handler = self._create_event_handler(callback)
             observer = Observer()
             observer.schedule(event_handler, project_path, recursive=True)
@@ -41,11 +52,17 @@ class ProjectWatcher:
     def is_watching_project(self, settings: CODXJuniorSettings):
         """Check if we have an observer for the project"""
         project_path = settings.project_path
-        return True if project_path in self.observers else False
+        for path in list(self.observers.keys()):
+            if project_path.startswith(path):
+                return True
+        return False
 
     def stop_watching(self, settings: CODXJuniorSettings):
         """Stop watching project changes"""
         project_path = settings.project_path
+        self.stop_observer(project_path)
+
+    def stop_observer(self, project_path: str):
         observer = self.observers.pop(project_path, None)
         if observer:
             observer.stop()
