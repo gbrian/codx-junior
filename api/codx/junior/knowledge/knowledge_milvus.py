@@ -316,16 +316,14 @@ class Knowledge:
         }
         return status_info
 
-    def build_code_changes_summary(self, force = False):
+    def build_code_changes_summary(self, diff: str, force = False):
         last_changes_summary_file_path = f"{self.get_db().db_path}/last_changes_summary.md"
         chages_summary = ""
         if force:
             ai = self.get_ai()
-            exec_command("git add .", cwd=self.settings.project_path)
-            stdout, _ = exec_command("git diff --staged", cwd=self.settings.project_path)
             messages = ai.chat(prompt=f"""
             ```diff
-            {stdout}
+            {diff}
             ```
             
             Analyze staged changes.

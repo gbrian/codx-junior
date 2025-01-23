@@ -89,9 +89,13 @@ import TimeSelector from './TimeSelector.vue';
                 [{{ log.module }}]</div> 
               <div>(Line: {{ log.line }})</div>
             </div> 
-            <div class="overflow-hidden click" :class="!log.showMore && 'max-h-40'" @click="log.showMore = !log.showMore">
-              <pre class="text-wrap">{{ log.content }}</pre>
+            <div class="overflow-hidden click" :class="!log.showMore && 'max-h-40'" 
+              @dblclick="log.editable = log.showMore = true"
+              @keydown.esc="log.editable = false"
+              @click="!log.editable && (log.showMore = !log.showMore)">
+              <pre class="text-wrap" :contenteditable="log.editable">{{ log.content }}</pre>
               <pre class="text-warning text-wrap"
+                :contenteditable="log.editable"
                 v-if="Object.keys(log.data).length">{{ JSON.stringify(log.data, null, 2) }}</pre>
               <pre v-if="log.data.profiler">{{ log.data.profiler.profile_stats  }}</pre>
             </div>
