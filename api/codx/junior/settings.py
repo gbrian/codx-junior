@@ -4,7 +4,10 @@ import logging
 import pathlib
 
 from codx.junior.utils import write_file
-from codx.junior.model import GlobalSettings
+from codx.junior.model import (
+    GlobalSettings,
+    ProjectScript
+)
 from codx.junior.utils import exec_command
 
 logger = logging.getLogger(__name__)
@@ -73,6 +76,8 @@ class CODXJuniorSettings:
         self.project_icon = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s"
 
         self.log_ignore = ""
+
+        self.project_scripts: ProjectScript = []
 
         self.urls = []
         if kwrgs:

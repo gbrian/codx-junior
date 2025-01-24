@@ -164,3 +164,11 @@ class AITasks(BaseModel):
     tasks: List[Chat] = Field(description="List of tasks. chat mode will be chat.")
 
 AI_TASKS_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AITasks)
+
+
+class ProjectScript(BaseModel):
+    name: str = Field(description="Script name")
+    description: str = Field(description="Script name", default="")
+    script: str = Field(description="Bash script", default="")
+    status: str = Field(description="Script status: running, stopped, error", default="stopped")
+    background: bool = Field(description="Script runs in background", default=False)
