@@ -41,7 +41,8 @@ from codx.junior.model import (
     ImageUrl,
     LiveEdit,
     GlobalSettings,
-    Profile
+    Profile,
+    AI_TASKS_RESPONSE_PARSER
 )
 from codx.junior.context import (
     find_relevant_documents,
@@ -356,7 +357,7 @@ class CODXJuniorSession:
     def select_afefcted_documents_from_knowledge(self, ai: AI, query: str, ignore_documents=[]):
         all_projects = find_all_projects()
         
-        mentions = re.findall(r'@\S+', query)
+        mentions = re.findall(r'@[a-zA-Z0-9\-\_\.]+', query)
         self.log_info(f"Extracted mentions: {mentions}")
         
         settings_sub_projects = self.settings.get_sub_projects() if self.settings.knowledge_query_subprojects else []
@@ -398,6 +399,9 @@ class CODXJuniorSession:
         return file_list
 
     async def improve_existing_code_patch(self, code_generator: AICodeGerator):
+        changes = code_generator.code_changes
+        file_path = changes[0].file_path
+        
         patch = code_generator.code_patches[0]
         ts = datetime.now().strftime('%H%M%S')
         patch_file = f"/tmp/{ts}.patch"
@@ -410,7 +414,9 @@ class CODXJuniorSession:
         error = True if len(stderr or "") != 0 or "error" in res else False
         if error:
             await self.apply_improve_code_changes(code_generator=code_generator)
-            return "Changes applied", ""
+            stdout = "Changes applied"
+            stderr = ""
+        coder_open_file(self.settings, file_name=file_path)
         return stdout, stderr
 
 
@@ -812,6 +818,30 @@ class CODXJuniorSession:
         return replace_mentions(content, image_mentions)
 
     @profile_function
+    def generate_tasks(self, chat: Chat):
+        ai = self.get_ai()
+        last_message = chat.messages[-1]
+
+        prompt = f"""
+        Generate subtasks from this epic:
+        {last_message.content}
+
+        INSTRUCTIONS:
+        Each task must have a clear name and an intial descriptive message with instructions on what has to be done.
+        In the intial message all references needed from the epic like files, keywords, ...
+        {AI_TASKS_RESPONSE_PARSER.get_format_instructions()}
+        """
+
+        messages = ai.chat(prompt=prompt)
+        response = messages[-1].content
+
+        ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)
+        chat_manager = self.get_chat_manager()
+        for sub_task in ai_tasks.tasks:
+            sub_task.parent_id = chat.id
+            chat_manager.save_chat(sub_task)
+    
+    @profile_function
     async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
         chat_mode = chat_mode or chat.mode or 'chat'
         if chat_mode == 'browser':
@@ -912,13 +942,27 @@ class CODXJuniorSession:
             self.log_info(f"chat_with_project found {doc_length} relevant documents")
 
         if context:
-            user_message = Message(role="user", content=f"""{user_message.content}
-            THIS INFORMATION IS COMING FROM PROJECT'S FILES.
-            HOPE IT HELPS TO ANSWER USER REQUEST.
-            KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
-            {context}
+            messages.append(convert_message(
+                Message(role="user", content=f"""
+                  THIS INFORMATION IS COMING FROM PROJECT'S FILES.
+                  HOPE IT HELPS TO ANSWER USER REQUEST.
+                  KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
+                  {context}
+                  """)))
+
+        if is_refine and last_ai_message:
+            refine_message = Message(role="user", content=f"""
+            UPDATE THIS DOCUMENT
+            ```
+            {last_ai_message.content}
+            ```
+
+            WITH USER COMMENTS:
+            {user_message.content}
             """)
-        messages.append(convert_message(user_message))
+            messages.append(convert_message(refine_message))
+        else:
+            messages.append(convert_message(user_message))
         
         await self.chat_event(chat=chat, message=f"Invoking AI: {self.settings.ai_provider}")
 
@@ -1110,3 +1154,42 @@ class CODXJuniorSession:
 
     def get_project_apps(self):
         return APPS
+
+    def get_project_branches(self):
+        stdout, _ = exec_command("git branch",
+            cwd=self.settings.project_path)
+        return stdout.split("\n")
+
+    def get_project_current_branch(self):
+        stdout, _ = exec_command("git branch --show-current")
+        return stdout
+
+    def get_project_parent_branch(self):
+        current_branch = self.get_project_current_branch()
+        stdout, _ = exec_command(f"git reflog {current_branch}",
+                              cwd=self.settings.project_path)
+        self.log_info(f"get_project_parent_branch reflog: {stdout} cwd: {self.settings.project_path}")
+        creation_line = [l for l in stdout.split("\n") if "Created from" in l][0]
+        # 808a14a v1.0-hello-codx-junior@{53}: branch: Created from refs/remotes/origin/v1.0-hello-codx-junior
+        if "refs/remotes/" in creation_line:
+            ref_branch = creation_line.split(" ")[-1].remove("refs/remotes/", "")
+            # origin/v1.0-hello-codx-junior
+            return ref_branch
+
+        # 5f3e0bdd (origin/main, origin/task-two) tsk-task-1@{4}: branch: Created from 5f3e0bddbc466967f1a2eedc731eec980978b184
+        ref_branch  = creation_line.split(" (")[1].split(",")[0]
+        return ref_branch
+
+    def get_project_changes(self, parent_branch: str = None):
+        if not parent_branch:
+            parent_branch = self.get_project_parent_branch()
+            self.log_info(f"get_project_changes parent_branch {parent_branch}")
+        stdout, _ = exec_command(f"git diff {parent_branch}...",
+                      cwd=self.settings.project_path)
+        return stdout
+
+    def build_code_changes_summary(self, force = False):
+        exec_command("git add .", cwd=self.settings.project_path)
+        diff = self.get_project_changes()
+        return self.get_knowledge().build_code_changes_summary(diff=diff, force=force)
+    

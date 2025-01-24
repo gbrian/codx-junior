@@ -87,6 +87,8 @@ export const actions = actionTree(
     },
     async loadChats({ state }) {
       state.chats = await API.chats.list()
+      const activeChat = $storex.projects.chats.find(c => c.id === state.activeChat?.id)
+      $storex.projects.setActiveChat(activeChat)
     },
     async saveChat (_, chat) {
       await API.chats.save(chat)
@@ -105,8 +107,8 @@ export const actions = actionTree(
       state.activeChat = chat
       return chat
     },
-    async deleteChat(_, {  board, name }) {
-      await API.chats.delete(board, name)
+    async deleteChat(_, chat) {
+      await API.chats.delete(chat)
       await $storex.projects.loadChats()
     },
     async setActiveChat({ state }, chat) {
@@ -173,6 +175,10 @@ export const actions = actionTree(
     },
     async refreshChangesSummary({ state }, rebuild) {
       state.changesSummary = await $storex.api.run.changesSummary(rebuild)
+    },
+    async createSubTasks(_, chat) {
+      await $storex.api.chats.subTasks(chat)
+      await $storex.projects.loadChats()
     }
   }
 )

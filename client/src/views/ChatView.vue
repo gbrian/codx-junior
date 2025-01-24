@@ -89,7 +89,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                   Comfirm? <span class="hover:underline">YES</span> / <span class="hover:underline" @click.stop="confirmDelete = false">NO</span>
                   <i class="fa-solid fa-trash"></i>
                 </button>
-                <button class="btn btn-xs hover:btn-error hover:text-white" @click="deleteChat" v-else>
+                <button class="btn btn-xs btn-error hover:text-white" @click="deleteChat" v-else>
                   <i class="fa-solid fa-trash"></i>
                 </button>
                 
@@ -112,6 +112,9 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                   <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
                     <li @click="newSubChat()">
                       <a>New sub task</a>
+                    </li>
+                    <li @click="createSubTasks()">
+                      <a>Create sub tasks <i class="fa-solid fa-wand-magic-sparkles"></i></a>
                     </li>
                     <div class="divider" v-if="childrenChats.length"></div>
                     <li @click="$projects.setActiveChat(child)" 
@@ -249,8 +252,14 @@ export default {
     },
     async deleteChat () {
       if (this.confirmDelete) {
+        this.confirmDelete = false
         await this.$projects.deleteChat(this.chat)
-        this.navigateToChats()
+        const parentChat = this.$projects.chats.find(c => c.id === this.chat.parent_id)
+        if (parentChat) {
+          this.$projects.setActiveChat(parentChat)
+        } else {
+          this.navigateToChats()
+        }
       } else {
         this.confirmDelete = true
       }
@@ -325,6 +334,10 @@ export default {
       this.chat.mode = mode
       this.chat.profiles = this.chatModes[mode].profiles
       this.saveChat()
+    },
+    async createSubTasks () {
+      await this.$storex.projects.createSubTasks(this.chat)
+
     }
   }
 }

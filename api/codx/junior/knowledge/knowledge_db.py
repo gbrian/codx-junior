@@ -167,6 +167,7 @@ class KnowledgeDB:
         self.init_collection()
 
     def search(self, query: str):
+        score = self.settings.knowledge_context_cutoff_relevance_score
         query_vector = self.get_ai().embeddings(content=query)
         limit = int(self.settings.knowledge_search_document_count or "10")
         res = self.db.search(
@@ -181,6 +182,12 @@ class KnowledgeDB:
             for level1 in level0:
                 _id = level1["id"]
                 entity = level1["entity"]
+                distance = entity.get("distance")
+                logger.info(f"[DB SERACH] entity score analysis distance: {distance}, score: {score}")
+
+                if score and distance and float(distance) < score:
+                    continue
+        
                 documents.append(
                     Document(id=_id,
                         page_content=entity["page_content"], 

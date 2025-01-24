@@ -183,14 +183,17 @@ export const API = {
     async message (chat) {
       return API.post('/api/chats?', chat)
     },
+    async subTasks (chat) {
+      return API.post('/api/chats/sub-tasks?', chat)
+    },
     save (chat) {
       return API.put(`/api/chats?chatonly=0`, chat)
     },
     saveChatInfo(chat) {
       return API.put(`/api/chats?chatonly=1`, chat)
     },
-    delete(board, chatName) {
-      return API.del(`/api/chats?board=${board}&chat_name=${chatName}`)
+    delete(chat) {
+      return API.del(`/api/chats?file_path=${chat.file_path}`)
     },
     boards: {
       async load() {

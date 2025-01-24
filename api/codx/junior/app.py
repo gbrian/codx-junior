@@ -241,6 +241,13 @@ async def api_chat(chat: Chat, request: Request):
     codx_junior_session.save_chat(chat)
     return chat
 
+@profile_function
+@app.post("/api/chats/sub-tasks")
+async def api_chat_subtasks(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    await codx_junior_session.chat_event(chat=chat, message="Creating sub-tasks...")
+    return codx_junior_session.generate_tasks(chat=chat)
+
 @app.put("/api/chats")
 def api_save_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
@@ -303,7 +310,7 @@ async def api_run_improve_patch(code_generator: AICodeGerator, request: Request)
 def api_changes_summary(request: Request):
     codx_junior_session = request.state.codx_junior_session
     refresh = request.query_params.get("refresh")
-    return codx_junior_session.get_knowledge().build_code_changes_summary(force=refresh == "true")
+    return codx_junior_session.build_code_changes_summary(force=refresh == "true")
 
 @app.get("/api/settings")
 def api_settings_check(request: Request):
@@ -352,6 +359,17 @@ def api_project_watch(request: Request):
 def api_find_all_projects():
     all_projects = find_all_projects()
     return all_projects
+
+@app.get("/api/projects/repo/branches")
+def api_find_all_repo_branches(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_project_branches()
+
+@app.get("/api/projects/repo/changes")
+def api_find_all_repo_changes(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    main_branch = request.query_params.get("main_branch")
+    return codx_junior_session.get_project_changes(main_branch=main_branch)
 
 @app.get("/api/projects/readme")
 def api_project_readme(request: Request):

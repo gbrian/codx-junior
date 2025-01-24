@@ -264,9 +264,13 @@ export default {
   computed: {
      messages () {
       if (this.isTask) {
-        const msgs = [...this.chat?.messages ||[]].filter(m => !m.hide).reverse()
-        return [msgs.find(m => m.role === 'user'),
-                msgs.find(m => m.role === 'assistant')].filter(m => !!m)
+        const rmsgs = this.chat?.messages ||[].reverse() 
+        const userMsg = rmsgs.find(m => m.role !== 'assistant' && !m.hide)
+        const aiMsg = rmsgs.chat?.messages.find(m => m.role === 'assistant' && !m.hide)
+        if (aiMsg) {
+          return [aiMsg]
+        }
+        return userMsg ? [userMsg] : []
       }
       return this.chat?.messages
     },
