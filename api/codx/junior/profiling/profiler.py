@@ -16,8 +16,8 @@ def profile_function(func):
     """Decorator to profile a function and log the execution time."""
     @contextmanager
     def wrapping_logic(*args, **kwargs):
-        #pr = cProfile.Profile()
-        #pr.enable()
+        pr = cProfile.Profile()
+        pr.enable()
         all_args = [str(arg) for arg in args]
         for arg, value in kwargs.items():
             all_args.append(f"{arg}={value}")
@@ -29,12 +29,12 @@ def profile_function(func):
         end_time = time.time()
         time_taken = end_time - start_time
 
-        #pr.disable()
-        #s = io.StringIO()
-        #sortby = SortKey.CUMULATIVE
-        #ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        #ps.print_stats()
-        #profile_stats = s.getvalue()
+        pr.disable()
+        s = io.StringIO()
+        sortby = SortKey.CUMULATIVE
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        profile_stats = s.getvalue()
         profile_stats = ""
         func_data = {
             "module": func.__module__,

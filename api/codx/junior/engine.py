@@ -116,7 +116,10 @@ def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
 
 
 FILES_CHECKING = {}
-def check_file_worker(settings: CODXJuniorSettings, file_path: str):
+def check_file_worker(file_path: str):
+    settings = find_project_from_file_path(file_path=file_path)
+    if not settings.is_valid_project_file(file_path=file_path):
+        return
     global FILES_CHECKING
     async def worker():
         FILES_CHECKING[file_path] = True
@@ -148,7 +151,7 @@ def project_file_changed(codx_path: str, file_path: str):
     if not Knowledge(settings=settings).is_valid_project_file(file_path=file_path):
         return
     logger.info(f"project_file_changed processing event. {file_key} - {settings.project_name}")
-    Thread(target=check_file_worker, args=(settings, file_path)).start()
+    Thread(target=check_file_worker, args=(file_path,)).start()
 
 def create_watcher_callback(settings: CODXJuniorSettings):
     codx_path = settings.codx_path
