@@ -55,17 +55,12 @@ class Knowledge:
     def refresh_last_update(self):
         self.get_db().refresh_last_update()
 
-    def get_sub_projects_paths(self):
-        sub_projects = self.settings.get_sub_projects()
-        return [project.project_path for project in sub_projects]
-
-
     def detect_changes(self):
       current_sources = self.get_all_sources()
       changes = self.loader.list_repository_files(
                           last_update=self.get_db().last_update if current_sources else None,
                           current_sources=current_sources,
-                          ignore_paths=self.get_sub_projects_paths())
+                          ignore_paths=self.settings.get_ignore_patterns())
       
       def is_empty(file_path):
           return False if os.stat(file_path).st_size else True
@@ -84,7 +79,7 @@ class Knowledge:
             documents = self.loader.load(
                                 last_update=self.get_db().last_update if current_sources else None,
                                 current_sources=current_sources,
-                                ignore_paths=self.get_sub_projects_paths())
+                                ignore_paths=self.settings.get_ignore_patterns())
             if documents:
                 self.index_documents(documents)
 
@@ -203,7 +198,7 @@ class Knowledge:
                 # logger.info(f"Indexing document DONE: {enriched_doc}")
                 
             except Exception as ex:
-                logger.exception(f"Error indexing document {enriched_doc.metadata['source']}: {ex}")
+                logger.exception(f"Error indexing document {enriched_doc.metadata['source']}: {ex} at project {self.settings.project_path}")
                 if raiseIfError:
                     raise ex
 

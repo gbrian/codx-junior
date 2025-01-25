@@ -228,11 +228,17 @@ class CODXJuniorSettings:
     def get_log_ai(self):
         return GLOBAL_SETTINGS.log_ai
 
+    def get_sub_projects_paths(self):
+        sub_projects = self.get_sub_projects()
+        return [project.project_path for project in sub_projects]
+
 
     def get_ignore_patterns(self):
         ignore_patterns = [".git", "node_modules"]
         if self.knowledge_file_ignore:
-            ignore_patterns = ignore_patterns + [i.strip() for i  in self.knowledge_file_ignore.split(",")]
+            ignore_patterns = ignore_patterns + \
+                            [i.strip() for i  in self.knowledge_file_ignore.split(",")] + \
+                            self.get_sub_projects_paths()
         return ignore_patterns
 
     def is_valid_project_file(self, file_path: str):

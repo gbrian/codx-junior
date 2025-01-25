@@ -67,7 +67,7 @@ from codx.junior.mention_manager import (
 
 from codx.junior.context import AICodePatch
 
-from codx.junior.project_watcher import PROJECT_WATCHER
+from codx.junior.project_watcher import ProjectWatcher
 
 from codx.junior import sio
 
@@ -84,6 +84,12 @@ APPS = [
 APPS_COMMANDS = {
     "chrome": "google-chrome --no-sandbox --no-default-browser-check"
 }
+
+def on_project_watcher_changes(changes:[str]):
+    for file_path in changes:
+        project_file_changed(file_path)
+
+PROJECT_WATCHER = ProjectWatcher(callback=on_project_watcher_changes)
 
 def create_project(project_path: str):
     logger.info(f"Create new project {project_path}")
@@ -141,7 +147,7 @@ def check_file_worker(file_path: str):
         del FILES_CHECKING[file_path]
     asyncio.run(worker())
 
-def project_file_changed(codx_path: str, file_path: str):
+def project_file_changed(file_path: str):
     global FILES_CHECKING
     settings = find_project_from_file_path(file_path)
     if not settings:
@@ -153,10 +159,6 @@ def project_file_changed(codx_path: str, file_path: str):
         return
     logger.info(f"project_file_changed processing event. {file_key} - {settings.project_name}")
     Thread(target=check_file_worker, args=(file_path,)).start()
-
-def create_watcher_callback(settings: CODXJuniorSettings):
-    codx_path = settings.codx_path
-    return lambda file_path: project_file_changed(codx_path=codx_path, file_path=file_path)
 
 def find_project_from_file_path(file_path: str):
     """Given a file path, find the project parent"""
@@ -180,8 +182,7 @@ def find_all_projects():
             all_projects.append(settings)
             # Watch project changes
             PROJECT_WATCHER.watch_project(
-                settings=settings,
-                callback=create_watcher_callback(settings=settings))
+                project_path=settings.project_path)
         except Exception as ex:
             logger.exception(f"Error loading project {str(codx_path)}")
     

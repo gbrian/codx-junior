@@ -42,7 +42,7 @@ disable_logs([
     'chromadb.auth.registry',
     'chromadb.api.segment',
     'openai._base_client',
-    'openai._base_client',
+    'watchfiles.main',
 ])
 
 

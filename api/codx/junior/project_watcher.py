@@ -1,18 +1,10 @@
 import time
 import logging
-from typing import Callable
-from watchdog.events import (
-  FileSystemEvent,
-  PatternMatchingEventHandler,
-  EVENT_TYPE_MOVED,
-  EVENT_TYPE_DELETED,
-  EVENT_TYPE_CREATED,
-  EVENT_TYPE_MODIFIED,
-  EVENT_TYPE_CLOSED,
-  EVENT_TYPE_CLOSED_NO_WRITE,
-  EVENT_TYPE_OPENED
-)
-from watchdog.observers import Observer
+import asyncio
+
+from typing import Callable, List
+from watchfiles import awatch
+from threading import Thread, Event
 
 from codx.junior.settings import CODXJuniorSettings
 
@@ -20,59 +12,50 @@ logging.getLogger('watchdog.observers.inotify_buffer').setLevel(logging.CRITICAL
 
 logger = logging.getLogger(__name__)
 
-
 class ProjectWatcher:
     """Project watcher will control project's changes by watching file changes"""
 
-    def __init__(self):
-        self.observers = {}     
+    def __init__(self, callback: Callable[[List[str]], None]):
+        self.paths = {}
+        self.stop_event = Event()
+        self.callback = callback
+        self.watch_thread = None
+        logger.info(f"ProjectWatcher created")
 
-    def watch_project(self, settings: CODXJuniorSettings, callback: Callable[[str], None]):
+    def watch_project(self, project_path: str):
         """Watch project changes using watchdog"""
-        project_path = settings.project_path
-        if not self.is_watching_project(settings):
-            ignore_patterns = settings.get_ignore_patterns()
-            logger.info(f"_create_event_handler {ignore_patterns}")
-            
-            event_handler = self._create_event_handler(ignore_patterns, callback)
-            observer = Observer()
-            observer.schedule(event_handler, project_path, recursive=True)
-            observer.start()
-            self.observers[project_path] = observer
-            logger.info(f"Started watching project at: {project_path}")
+        if not project_path in self.paths:
+            logger.info(f"watch_project {project_path}")
+            self.paths[project_path] = True
+            self.stop_event.set()
 
-    def is_watching_project(self, settings: CODXJuniorSettings):
-        """Check if we have an observer for the project"""
-        project_path = settings.project_path
-        return project_path in self.observers
+        if not self.watch_thread and len(self.paths.keys()):
+            self.watch_thread = Thread(target=self.start)
+            self.watch_thread.start()
 
-    def stop_watching(self, settings: CODXJuniorSettings):
+    def stop_watching(self, project_path):
         """Stop watching project changes"""
-        project_path = settings.project_path
-        self.stop_observer(project_path)
+        del self.paths[project_path]
+        self.stop_event.set()
 
-    def stop_observer(self, project_path: str):
-        observer = self.observers.pop(project_path, None)
-        if observer:
-            observer.stop()
-            observer.join()
-            logger.info(f"Stopped watching project at: {project_path}")
+    async def watch_changes(self):
+        self.stop_event.clear()
+        paths = list(self.paths.keys())
+        paths.sort(reverse=True, key=lambda x: len(x))
+        def is_child_path (path):
+            matches = [p for p in paths if p.startswith(path)]
+            if matches and len(path) > len(matches[0]):
+                return True
+            return False
 
-    @staticmethod
-    def _create_event_handler(ignore_patterns: [str], callback: Callable[[str], None]) -> PatternMatchingEventHandler:
-        class CustomEventHandler(PatternMatchingEventHandler):
-            def __init__(self):
-                super().__init__(
-                    ignore_patterns=ignore_patterns,
-                    ignore_directories=True
-                )
+        parent_folders = [p for p in paths if not is_child_path(p)] 
+        logger.info(f"watch_changes folders: {parent_folders}")
+        async for changes in awatch(*parent_folders, stop_event=self.stop_event):
+            logger.info(f"watch_changes: {changes}")
+            self.callback([c[1] for c in changes])
 
-            def on_any_event(self, event: FileSystemEvent):
-                if not event.is_directory and event.event_type == EVENT_TYPE_MODIFIED:
-                    if not [p for p in self.ignore_patterns if p in event.src_path]:
-                        callback(event.src_path)
-        
-        return CustomEventHandler()
-
-# Singletone
-PROJECT_WATCHER = ProjectWatcher()
+    def start(self):
+        while True:
+            asyncio.run(self.watch_changes())
+            if not len(self.paths.keys()):
+                break

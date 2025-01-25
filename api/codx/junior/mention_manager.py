@@ -6,9 +6,9 @@ SINGLE_LINE_MENTION_START = "@" + "codx:"
 MULTI_LINE_MENTION_START = "<" + "codx"
 MULTI_LINE_MENTION_END = "</" + "codx>"
 
-SINGLE_LINE_MENTION_START_PROGRESS = "@" + "codx-processing:"
-MULTI_LINE_MENTION_START_PROGRESS = "<" + "codx-processing"
-MULTI_LINE_MENTION_END_PROGRESS = "<" + "/codx-processing>"
+SINGLE_LINE_MENTION_START_PROGRESS = "@" + "codx-ok, please-wait...:"
+MULTI_LINE_MENTION_START_PROGRESS = "<" + "codx-ok, please-wait..."
+MULTI_LINE_MENTION_END_PROGRESS = "<" + "/codx-ok, please-wait...>"
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ def notify_mentions_in_progress(content):
               .replace(MULTI_LINE_MENTION_END, MULTI_LINE_MENTION_END_PROGRESS)
 
 def notify_mentions_error(content, error):
-    return content.replace("codx-processing", f"codx-error: {error}")  
+    return content.replace("codx-ok, please-wait...", f"codx-error: {error}")  
 
 
 def strip_mentions(content, mentions):

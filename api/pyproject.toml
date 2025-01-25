@@ -46,7 +46,7 @@ dependencies = [
   'beautifulsoup4',
   'markdownify',
   'pymilvus',
-  'watchdog'
+  'watchfiles>=1.0.4'
 ]
 
 # chromadb 0.3.29 for compatibility with Ubuntu and lower Sqlite3
