@@ -4,7 +4,7 @@ from datetime import datetime
 
 from langchain.output_parsers import PydanticOutputParser
 
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 
 class ImageUrl(BaseModel):
     url: str = Field(default="")
@@ -113,28 +113,36 @@ class LiveEdit(BaseModel):
     message: str
 
 class OpenAISettings(BaseModel):
-    openai_api_url: str = Field(default=None)
-    openai_api_key: str = Field(default=None)
-    openai_model: str = Field(default="gpt-4o")
+    openai_api_url: Optional[str] = Field(default="")
+    openai_api_key: Optional[str] = Field(default="")
+    openai_model: Optional[str] = Field(default="gpt-4o")
     
 
 class AnthropicAISettings(BaseModel):
-    anthropic_api_url: str = Field(default=None)
-    anthropic_api_key: str = Field(default=None)
-    anthropic_model: str = Field(default="claude-3-5-sonnet-20240620")
+    anthropic_api_url: Optional[str] = Field(default="")
+    anthropic_api_key: Optional[str] = Field(default="")
+    anthropic_model: Optional[str] = Field(default="claude-3-5-sonnet-20240620")
+
+class MistralAISettings(BaseModel):
+    mistral_api_url: Optional[str] = Field(default="")
+    mistral_api_key: Optional[str] = Field(default="")
+    mistral_model: Optional[str] = Field(default="codestral-latest")
 
 class GitSettings(BaseModel):
-    username: str = Field(default="")
-    email: str = Field(default="")
+    username: Optional[str] = Field(default="")
+    email: Optional[str] = Field(default="")
 
 class GlobalSettings(BaseModel):
     openai: OpenAISettings = Field(default=OpenAISettings())
     anthropic_ai: AnthropicAISettings = Field(default=AnthropicAISettings())
+    mistral_ai: MistralAISettings = Field(default=MistralAISettings())
     git: GitSettings = Field(default=GitSettings())
 
     log_ai: bool = Field(default=False)
     projects_root_path: str = Field(default='/projects')
     ai_temperature: str = Field(default="0.8")
+    ai_provider: str = Field(default="mistral")
+    ai_model: str = Field(default="codestral-latest")
 
     log_ignore: List[str] = Field(default=[])
 

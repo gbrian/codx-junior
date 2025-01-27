@@ -28,6 +28,7 @@ def read_global_settings():
 
 def write_global_settings(global_settings: GlobalSettings):
     global GLOBAL_SETTINGS
+    logger.info(f"GLOBAL_SETTINGS: {global_settings}")
     try:
         old_settings = read_global_settings()
         with open(f"global_settings.json", "w") as f:
@@ -51,8 +52,8 @@ logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
 
 class CODXJuniorSettings:
     def __init__(self, **kwrgs):
-        self.ai_provider = "openai"
-        self.ai_model = "gpt-4o"
+        self.ai_provider = None
+        self.ai_model = None
 
         self.project_name = ""
         self.project_path = ""
@@ -88,26 +89,33 @@ class CODXJuniorSettings:
     def __str__(self):
         return json.dumps(self.__dict__)
 
+    def get_ai_provider(self):
+        return self.ai_provider or GLOBAL_SETTINGS.ai_provider
+ 
     def get_ai_api_key(self):
-        if self.ai_provider == "openai":
+        if self.get_ai_provider() in ["openai", "llmlite"]:
             return GLOBAL_SETTINGS.openai.openai_api_key
-        if self.ai_provider == "anthropic":
+        if self.get_ai_provider() == "anthropic":
             return GLOBAL_SETTINGS.anthropic_ai.anthropic_api_key
+        if self.get_ai_provider() == "mistral":
+            return GLOBAL_SETTINGS.mistral_ai.mistral_api_key
         return None
 
     def get_ai_api_url(self):
-        if self.ai_provider == "openai":
+        if self.get_ai_provider() in ["openai", "llmlite"]:
             return GLOBAL_SETTINGS.openai.openai_api_url
-        if self.ai_provider == "anthropic":
+        if self.get_ai_provider() == "anthropic":
             return GLOBAL_SETTINGS.anthropic_ai.anthropic_api_url
+        if self.get_ai_provider() == "mistral":
+            return GLOBAL_SETTINGS.mistral_ai.mistral_api_url
         return None
 
     def get_ai_model(self):
         if self.ai_model:
             return self.ai_model
-        if self.ai_provider == "openai":
+        if self.get_ai_provider() in ["openai", "llmlite"]:
             return GLOBAL_SETTINGS.openai.openai_model
-        if self.ai_provider == "anthropic":
+        if self.get_ai_provider() == "anthropic":
             return GLOBAL_SETTINGS.anthropic_ai.anthropic_model
         return None
 

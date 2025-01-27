@@ -1,0 +1,3 @@
+# [[{"id": "94d6934d-5d10-4805-b624-42f0a59743e8", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": ["analyst"], "name": "Mistral test", "created_at": "2025-01-26 15:46:51.560073+00:00", "updated_at": "2025-01-26T16:22:28.982431", "mode": "task", "board": "Default", "column": "TO DO", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/Default/TO DO/Mistral test.94d6934d-5d10-4805-b624-42f0a59743e8.md"}]]
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-26 16:22:17.281148", "updated_at": "2025-01-26 16:22:17.281175", "images": [], "files": []}]]
+What i need to change to have specific settings for embeddings

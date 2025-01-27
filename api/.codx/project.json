@@ -1,5 +1,5 @@
 {
-  "ai_provider": "openai",
+  "ai_provider": "",
   "ai_model": "",
   "project_name": "codx-api",
   "project_path": null,
@@ -19,5 +19,6 @@
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
   "log_ignore": "",
+  "project_scripts": [],
   "urls": []
 }

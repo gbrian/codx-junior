@@ -33,14 +33,9 @@ def enable_logs(logs):
       logging.getLogger(logger_id).setLevel(logging.DEBUG)
 
 disable_logs([
-    'apscheduler.scheduler',
-    'apscheduler.executors.default',
     'httpx',
     'httpcore.http11',
     'httpcore.connection',
-    'chromadb.config',
-    'chromadb.auth.registry',
-    'chromadb.api.segment',
     'openai._base_client',
     'watchfiles.main',
 ])

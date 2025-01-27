@@ -9,7 +9,6 @@ from codx.junior.knowledge.knowledge_db import KnowledgeDB
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from langchain_openai import OpenAIEmbeddings
 from langchain_community.llms import OpenAI
 from langchain.schema.document import Document
 

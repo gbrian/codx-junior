@@ -147,7 +147,10 @@ class AI:
         return OpenAI_AI(settings=self.settings).chat_completions
 
     def create_embeddings_model(self):
-        return OpenAI_AI(settings=self.settings).embeddings
+        # TODO: Allow choose other providers
+        settings = CODXJuniorSettings(**self.settings.__dict__)
+        settings.ai_provider = "openai"
+        return OpenAI_AI(settings=settings).embeddings
 
 
 def serialize_messages(messages: List[Message]) -> str:

@@ -2,34 +2,25 @@ import logging
 import re
 from pathlib import Path
 from typing import Union, List, Optional
-
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from langchain.schema import (
-    AIMessage,
-    HumanMessage,
-    SystemMessage
-)
+from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from codx.junior.utils import document_to_context
 from codx.junior.ai.ai import AI
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_milvus import Knowledge
-
 from codx.junior.utils import extract_json_blocks 
-
 from codx.junior.profiling.profiler import profile_function
-
 from langchain.output_parsers import PydanticOutputParser
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
+import pydantic
 
 logger = logging.getLogger(__name__)
-
-import pydantic
 logger.info(f"PYDANTIC VERSION: {pydantic.__version__}")
 
 KNOWLEDGE_CONTEXT_SCORE_MATCH = re.compile(r".*([0-9]+)%", re.MULTILINE)
 
 class AICodeValidateResponse(BaseModel):
-  new_content: str = Field(description="Full generated content that will overwrite source file.")
+    new_content: str = Field(description="Full generated content that will overwrite source file.")
 
 class AICodeChange(BaseModel):
     change_type: str = Field(description="Enumeration: new, update, delete, delete_file")
@@ -43,48 +34,46 @@ class AICodePatch(BaseModel):
     description: str = Field(description="Brief human friendly description about the change highlighting the most important changes")
 
 class AICodeGerator(BaseModel):
-    code_changes: List[AICodeChange] = Field(description="Conde changes")
-    code_patches: List[AICodePatch] = Field(description="A list of file patch for each modificed file")
+    code_changes: List[AICodeChange] = Field(description="Code changes")
+    code_patches: List[AICodePatch] = Field(description="A list of file patches for each modified file")
 
 class AIRAGDocument(BaseModel):
     file_id: str = Field(description="Document id")
     file_path: str = Field(description="Document file path")
     content: str = Field(description="Document content")
-    score: Optional[float] = Field(description="Score 0 to 1. Idicates how important is this RAG document related to the user's request") 
+    score: Optional[float] = Field(description="Score 0 to 1. Indicates how important is this RAG document related to the user's request")
 
 class AIRAGValidate(BaseModel):
     user_request: str = Field(description="User request")
-    documents: List[AIRAGDocument] = Field(description="List of documents found from user'r request")
-
+    documents: List[AIRAGDocument] = Field(description="List of documents found from user's request")
 
 AI_CODE_VALIDATE_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AICodeValidateResponse)
 AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGerator)
-AI_RAG_VALIDATE_PARSSER = PydanticOutputParser(pydantic_object=AIRAGValidate)
+AI_RAG_VALIDATE_PARSER = PydanticOutputParser(pydantic_object=AIRAGValidate)
 
+analysis_example = \
+"""
+In this document we can see how to access to API methods getBookings with an example:
+```ts
+    this.API.getBookings({ "from": "now", "to: "now + 10d" })
+```
+"""
+analysis_doc = \
+"""
+Analyse the document and create an explanation with examples of the important parts that can help answering user's request.
+Return a simple JSON object with your response like:
+```json
+{{
+    "score": 0.8,
+    "analysis": {analysis_example}
+    "
+}}
+"""
 class AIDocValidateResponse(BaseModel):
-    analysis_example = \
-    """
-    In this document we can see how to access to API methods getBookings with an example:
-    ```ts
-      this.API.getBookings({ "from": "now", "to: "now + 10d" })
-    ```
-    """
-    analysis_doc = \
-    """
-    Analyse the document and create an explanation with examples of the important parts that can help answering user's request.
-    Return a simple JSON object with your response like:
-    ```json
-    {{
-      "score": 0.8,
-      "analysis": {analysis_example}
-      "
-    }}
-    """
     score: float = Field(description="Scores how important is this document from 0 to 1")
     analysis: str = Field(description=analysis_doc)
 
-    # You can add custom validation logic easily with Pydantic.
-    @validator("score")
+    @field_validator("score")
     def score_is_valid(cls, field):
         return field
 
@@ -109,9 +98,7 @@ def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
         logger.info(f"""[VALIDATE WITH CONTEXT]: {prompt}"
           {doc_validation}
           """)
-        return [doc for doc in valid_documents \
-          if doc and doc.metadata.get('relevance_score', 0) >= score]
-
+        return [doc for doc in valid_documents if doc and doc.metadata.get('relevance_score', 0) >= score]
 
 @profile_function
 def ai_validate_context(ai, prompt, doc, retry_count=0):
@@ -125,14 +112,12 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
     Explain how important it is for the user's request:
     >>> "{prompt}" <<<
 
-    OUPUT INSTRUCTIONS:
+    OUTPUT INSTRUCTIONS:
     {parser.get_format_instructions()}
     ```
-    Where "score" is a value from 0 to 1 indicatting how important is this document, been 1 really important.
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
     """
-    messages = [
-      HumanMessage(content=validation_prompt),
-    ]
+    messages = [HumanMessage(content=validation_prompt)]
     score = None
     response = None
     doc.metadata["relevance_score"] = -1
@@ -148,47 +133,44 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
         doc.metadata["analysis"] = response.analysis
         logger.debug(f"[validate_context] {doc.metadata.get('source')}: {score}")
     else:
-      if not retry_count:
-        logger.exception(f"[validate_context] re-trying failed validation\n{prompt}\n{response}")
-        return ai_validate_context(ai, prompt, doc, retry_count=1)
+        if not retry_count:
+            logger.exception(f"[validate_context] re-trying failed validation\n{prompt}\n{response}")
+            return ai_validate_context(ai, prompt, doc, retry_count=1)
 
-      logger.error(f"[validate_context] failed to validate. Messages: {messages}")
+        logger.error(f"[validate_context] failed to validate. Messages: {messages}")
 
     return doc
 
 @profile_function
-def find_relevant_documents (query: str, settings, ignore_documents=[], ai_validate=True):
+def find_relevant_documents(query: str, settings, ignore_documents=[], ai_validate=True):
+    knowledge_documents = Knowledge(settings=settings).search(query)
+
+    def is_valid_document(doc):
+        source = doc.metadata["source"]
+        checks = [check for check in ignore_documents if check in source]
+        if checks:
+            return False
+        return True
   
-  knowledge_documents = Knowledge(settings=settings).search(query)
-  def is_valid_document(doc):
-    source = doc.metadata["source"]
-    checks = [check for check in ignore_documents if check in source]
-    if checks:
-      return False
-    return True
-  
-  documents = [doc for doc in knowledge_documents if is_valid_document(doc)]
-  logger.info(f"""find_relevant_documents: 
+    documents = [doc for doc in knowledge_documents if is_valid_document(doc)]
+    logger.info(f"""find_relevant_documents: 
     found {len(documents)} from project '{settings.project_name}' knowledge base.
     ignore_documents: {ignore_documents}
     total_valid: {len(documents)}
     """)
   
-  if documents:
-      # Filter out irrelevant documents based on a relevance score
-      relevant_documents = documents
-      if ai_validate:
+    if documents:
+        # Filter out irrelevant documents based on a relevance score
+        relevant_documents = documents
+        if ai_validate:
             relevant_documents = [doc for doc in \
                                 parallel_validate_contexts(query, 
                                                     documents, 
                                                     settings) if doc]
-      file_list = [str(Path(doc.metadata["source"]).absolute())
-                  for doc in relevant_documents]
-      file_list = list(dict.fromkeys(file_list))  # Remove duplicates
-      return relevant_documents, file_list
-  return [], []
-
-
+        file_list = [str(Path(doc.metadata["source"]).absolute()) for doc in relevant_documents]
+        file_list = list(dict.fromkeys(file_list))  # Remove duplicates
+        return relevant_documents, file_list
+    return [], []
 
 class DisplayablePath:
     display_filename_prefix_middle = "├── "
