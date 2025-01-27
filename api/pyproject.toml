@@ -52,6 +52,7 @@ test = [
 doc = [
 
     "autodoc_pydantic >= 1.8.0",
+    "pydantic>=2.10.6",
     "myst_parser >= 0.18.1",
     "nbsphinx >= 0.8.9",
     "sphinx >= 4.5.0",

@@ -51,7 +51,6 @@ class ProjectWatcher:
         parent_folders = [p for p in paths if not is_child_path(p)] 
         logger.info(f"watch_changes folders: {parent_folders}")
         async for changes in awatch(*parent_folders, stop_event=self.stop_event):
-            logger.info(f"watch_changes: {changes}")
             self.callback([c[1] for c in changes])
 
     def start(self):

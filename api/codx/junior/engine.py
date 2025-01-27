@@ -93,12 +93,10 @@ PROJECT_WATCHER = ProjectWatcher(callback=on_project_watcher_changes)
 
 def create_project(project_path: str):
     logger.info(f"Create new project {project_path}")
-    open_readme = False
     projects_root_path = f"{os.environ['HOME']}/projects"
     os.makedirs(projects_root_path, exist_ok=True)
         
     if project_path.startswith("http"):
-        global_settings = read_global_settings()
         url = project_path
         repo_name = url.split("/")[-1].split(".")[0]
         project_path = f"{projects_root_path}/{repo_name}"
@@ -143,7 +141,7 @@ def check_file_worker(file_path: str):
                     knowledge.reload_path(path=file_path)
         except Exception as ex:
             logger.exception(f"Error processing file changes {file_path}: {ex}")
-            pass
+
         del FILES_CHECKING[file_path]
     asyncio.run(worker())
 
@@ -199,7 +197,18 @@ def find_all_projects():
     return all_projects
 
 # Load all projects and watch
-find_all_projects()
+def check_projects():
+    async def check(project):
+        await project.check_project_changes()
+    while True:
+        try:
+            for project in find_all_projects():
+                asyncio.run(check(project=project))
+        except:
+            pass
+        time.sleep(1)
+Thread(target=check_projects).start()
+
 
 def update_engine():
     try:
@@ -608,21 +617,18 @@ class CODXJuniorSession:
         knowledge.clean_deleted_documents()
         new_files, _ = knowledge.detect_changes()
         if not new_files:
-            return
-        
-        for file_path in new_files:
-            try:
-                await self.check_file_for_mentions(file_path=file_path)
-            except:
-                logger.exception(f"Error checking changes in file {file_path}")
-    
-        if self.settings.watching:
-            self.log_info(f"Reload knowledge files {new_files}")
-            self.reload_knowledge()
+            return    
+            
+        await self.send_event(message=f"{self.settings.project_name} changed")
 
-            for file_path in new_files:
-                self.update_project_profile(file_path)
-                self.update_wiki(file_path)
+        for file_path in new_files:
+            res = await self.check_file_for_mentions(file_path=file_path)
+            if res == "processing":
+                continue
+    
+            if self.settings.watching:
+                self.log_info(f"Reload knowledge files {new_files}")
+                knowledge.reload_path(path=file_path)
 
     def extract_changes(self, content):
         for block in extract_json_blocks(content):
@@ -727,12 +733,12 @@ class CODXJuniorSession:
             content = read_file()
         
         if is_processing_mentions(content=content):
-            raise Exception(f'Mentions process already in progress for {file_path}')
+            return "processing"
 
         mentions = extract_mentions(content)
         
         if not mentions:
-            return False
+            return ""
 
         await self.send_event(message=f"Processing {file_path.split('/')[-1]}...")
             
@@ -810,7 +816,7 @@ class CODXJuniorSession:
             response = chat.messages[-1].content
             await self.write_project_file(file_path=file_path, content=response)
 
-        return True
+        return "done"
 
     def process_image_mention(self, image_mentions, file_path: str, content: str):
         ai = self.get_ai()
