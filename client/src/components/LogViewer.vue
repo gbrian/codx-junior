@@ -216,7 +216,7 @@ export default {
     },
     async fetchLogs() {
       const forceScroll = this.logs.length === 0
-      const { data } = await this.$storex.api.logs.read(this.selectedLog, Math.floor(this.tailSize + (this.tailSize / 3)))
+      const { data } = await this.$storex.api.logs.read(this.selectedLog, this.tailSize)
       const newLogs = data.filter(l =>
         !["api/logs", "/var/log/"].some(pattern => l.content.includes(pattern)) &&
         !this.logs.find(ll => ll.id === l.id))

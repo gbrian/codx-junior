@@ -266,7 +266,7 @@ export default {
       if (this.isTask) {
         const rmsgs = this.chat?.messages ||[].reverse() 
         const userMsg = rmsgs.find(m => m.role !== 'assistant' && !m.hide)
-        const aiMsg = rmsgs.chat?.messages.find(m => m.role === 'assistant' && !m.hide)
+        const aiMsg = rmsgs.find(m => m.role === 'assistant' && !m.hide)
         if (aiMsg) {
           return [aiMsg]
         }

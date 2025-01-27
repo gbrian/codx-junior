@@ -38,6 +38,7 @@ disable_logs([
     'httpcore.connection',
     'openai._base_client',
     'watchfiles.main',
+    'asyncio',
 ])
 
 

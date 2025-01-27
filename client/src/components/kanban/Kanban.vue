@@ -192,7 +192,8 @@ export default {
   methods: {
     async projectChanged() {
       this.boards = await this.$storex.api.chats.boards.load()
-      this.board = this.$ui.kanban
+      this.board = Object.keys(this.boards || {}).find(b => this.boards[b].active) ||
+                      this.$ui.kanban
       this.buildKanban()
     },
     toggleDropdown() {
@@ -202,6 +203,9 @@ export default {
       this.board = board
       this.$ui.setKanban(board)
       this.isDropdownOpen = false
+      Object.keys(this.boards || {})
+        .forEach(b => this.boards[b].active = (b === board))
+      this.saveBoards()
     },
     createNewChat(column) {
       return {

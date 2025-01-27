@@ -1,1 +1,26 @@
-{"Bugs": {"columns": []}, "kanban": {"columns": [{"title": "tasks"}]}, "Testing": {}}
+{
+  "Bugs": {
+    "columns": []
+  },
+  "kanban": {
+    "columns": [
+      {
+        "title": "tasks"
+      }
+    ]
+  },
+  "Testing": {},
+  "Browser": {
+    "columns": []
+  },
+  "Profiles": {
+    "columns": []
+  },
+  "Default": {
+    "columns": [
+      {
+        "title": "tasks"
+      }
+    ]
+  }
+}
