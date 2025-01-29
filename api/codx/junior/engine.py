@@ -161,6 +161,9 @@ class CODXJuniorSession:
             channel: SessionChannel = None):
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
         self.channel = channel
+        if not channel:
+            from codx.junior.sio.sio import sio
+            self.channel = SessionChannel(sio=sio)
 
     def log_info(self, msg):
         logger.info(f"[{self.settings.project_name}] {msg}")

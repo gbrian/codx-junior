@@ -1,6 +1,7 @@
 import logging
 import socketio
 import functools
+import asyncio
 
 from codx.junior.sio.session_channel import SessionChannel
 from codx.junior.engine import CODXJuniorSession
@@ -37,24 +38,26 @@ async def io_ping(sid, data: dict = None):
 def sio_api_endpoint(func):
     """Decorator to process sio API requests."""
     @functools.wraps(func)
-    def wrapper(sid: str, data: SioMessage):
-        channel = SessionChannel(sid=sid)
+    async def wrapper(sid: str, data: dict):
+        logger.info(f"SIO REquest {sid} {data}")
+        base_data = SioMessage(**data)
+        channel = SessionChannel(sio=sio, sid=sid)
         codxjunior_session = CODXJuniorSession(
                                 channel=channel,
-                                codx_path=data.codx_path)
+                                codx_path=base_data.codx_path)
         
         if not asyncio.iscoroutinefunction(func):
             return func(sid=sid, data=data, codxjunior_session=codxjunior_session)
         else:
-            async def tmp():
-                return (await func(sid=sid, data=data, codxjunior_session=codxjunior_session))
-            return tmp()
+            return (await func(sid=sid, data=data, codxjunior_session=codxjunior_session))
     return wrapper
 
 @sio.on("codx-junior-chat")
 @sio_api_endpoint
-async def io_chat(sid, data: SioChatMessage, codxjunior_session: CODXJuniorSession):
-    await codx_junior_session.chat_event(chat=data.chat, message="Chatting with project...")
-    await codx_junior_session.chat_with_project(chat=data.chat, use_knowledge=True)
-    codx_junior_session.save_chat(data.chat)
+async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
+    data = SioChatMessage(**data)
+    logger.info(f"codx-junior-chat {data.chat.name} {codxjunior_session.settings.project_name}")
+    await codxjunior_session.chat_event(chat=data.chat, message="Chatting with project...")
+    await codxjunior_session.chat_with_project(chat=data.chat, use_knowledge=True)
+    codxjunior_session.save_chat(data.chat)
     return True

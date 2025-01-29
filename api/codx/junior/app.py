@@ -16,6 +16,7 @@ from pathlib import Path
 import traceback
 
 from codx.junior.sio.sio import socket_app
+from codx.junior.sio.session_channel import SessionChannel
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -127,10 +128,9 @@ async def add_gpt_engineer_settings(request: Request, call_next):
     codx_path = request.query_params.get("codx_path")
     if codx_path:
         try:
-            user_sid = request.headers.get("x-sid")
-            request.state.codx_junior_session =  CODXJuniorSession(
-                                                    codx_path=codx_path,
-                                                    app=app)
+            sio = request.headers.get("x-sid")
+            channel = SessionChannel(sio=sio)
+            request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, channel=channel)
             settings = request.state.codx_junior_session.settings
             # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:

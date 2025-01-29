@@ -75,7 +75,7 @@ def start_background_services(app):
 
                     asyncio.run(check(project=project))
             except Exception as ex:
-                logger.error(f"Erroor checking project {ex}")
+                logger.exception(f"Erroor checking project {ex}")
             time.sleep(1)
 
     logger
