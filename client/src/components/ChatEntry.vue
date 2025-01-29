@@ -8,27 +8,21 @@ import MarkdownIt from 'markdown-it'
 </script>
 
 <template>
-  <div :class="['relative w-full hover:rounded-md', message.role === 'user' ? 'chat-start': 'chat-end']">
-    <div class="text-xs font-bold">{{ formatDate(message.updated_at) }}</div>
+  <div class="relative flex flex-col gap-1 w-full hover:rounded-md">
+    <div class="text-xs font-bold flex justify-between">
+      <div>
+        <div class="text-primary" v-if="message.role === 'user'">You</div>
+        <div class="text-secondary" v-else>codx-junior</div>
+      </div>
+      <div>
+        {{ formatDate(message.updated_at) }}
+      </div>
+    </div>
     <div :class="['max-w-full group w-full prose-xs border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
       <div @copy.stop="onMessageCopy">
         <div class="flex gap-2 items-center">
-          <div :class="['btn btn-sm btn-outline flex gap-2 items-center font-bold text-xs rounded-md', message.role === 'user' ? 'bg-base-300' :'bg-secondary/80 text-secondary-content']">
-            <div class="click" @click="$emit('hide')">
-              <span class="text-warning" v-if="message.hide">
-                <i class="fa-solid fa-eye-slash"></i>
-              </span>
-              <span v-else>
-                <i class="fa-solid fa-eye"></i>
-              </span>
-            </div>
-            <div>
-              <div v-if="message.role === 'user'">You</div>
-              <div v-else>codx-junior</div>
-            </div>
-          </div>
           <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2 flex w-full">
-            <button class="btn btn-xs" @click="toggleCollapse">
+            <button class="btn btn-xs tooltip tooltip-right" data-tip="Expand/Collapse" @click="toggleCollapse">
               <span v-if="message.collapse">
                 <i class="fa-solid fa-chevron-up"></i>
               </span>
@@ -36,21 +30,32 @@ import MarkdownIt from 'markdown-it'
                 <i class="fa-solid fa-chevron-down"></i>
               </span>
             </button>
-            <button class="btn btn-xs bg-base-100" @click="copyMessageToClipboard">
+            <button class="btn btn-xs hover:btn-outline bg-base-100 tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
               <i class="fa-solid fa-copy"></i>
             </button>      
-            <button class="btn btn-xs" @click="toggleSrcView">
+            <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
               <i class="fa-solid fa-code"></i>
             </button>
-            <button class="btn btn-xs bg-success" @click="$emit('edit')">
+            <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
               <i class="fa-solid fa-pencil"></i>
             </button>
-            <button class="hidden btn btn-xs bg-secondary" @click="$emit('enhance')">
+            <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
+              @click="$emit('enhance')">
               <i class="fa-solid fa-wand-magic-sparkles"></i>
             </button>
+            <div class="click btn btn-xs hover:btn-outline tooltip tooltip-bottom pt-1"
+              :data-tip="message.hide ? 'Add message to conversation' : 'Hide message from conversation'" 
+              @click="$emit('hide')">
+              <span class="text-warning" v-if="message.hide">
+                <i class="fa-solid fa-eye-slash"></i>
+              </span>
+              <span v-else>
+                <i class="fa-solid fa-eye"></i>
+              </span>
+            </div>
             <div class="grow"></div>
             <div class="dropdown dropdown-hover dropdown-end">
-              <button tabindex="0" class="btn btn-error btn-xs" @click="onRemove">
+              <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
                 <i class="fa-solid fa-trash"></i>
                 <span v-if="isRemove"> Confirm </span>
               </button>
@@ -66,11 +71,11 @@ import MarkdownIt from 'markdown-it'
           </div>
         </div>
         <pre v-if="srcView">{{ message.content }}</pre>
-        <Markdown :text="messageContent" v-if="!srcView && !improvementData" />
-        <div v-if="improvementData">
-          <div class="mt-2 p-2 bg-base-100 rounded-md flex flex-col gap-1" v-for="patch in improvementData.code_patches" :key="patch.file_path">
-            <div class="text-xs font-bold text-primary">
-              {{ patch.file_path }}
+        <Markdown :text="messageContent" v-if="!srcView && !code_patches" />
+        <div v-if="code_patches">
+          <div class="mt-2 p-2 bg-base-100 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
+            <div class="text-xs font-bold text-primary" :title="patch.file_path">
+              {{ patch.file_path.replace($project.project_path, '') }}
             </div>
             <div class="">{{ patch.description }}</div>
             <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
@@ -156,6 +161,12 @@ export default {
     },
     selection () {
       return document.getSelection().toString()
+    },
+    code_changes () {
+      return this.improvementData?.code_changes
+    },
+    code_patches () {
+      return this.improvementData?.code_patches
     }
   },
   methods: {
@@ -163,13 +174,11 @@ export default {
       return moment(date).format('DD/MMM HH:mm')
     },
     extractImprovementData() {
-      if (this.message.improvement) {
-        try {
-          const jsBlock = this.message.content.split("```json")[1].split("```")[0]
-          this.improvementData = JSON.parse(jsBlock)
-        } catch (ex) {
-          console.error("Failed to parse improvement data", ex)
-        }
+      try {
+        const jsBlock = this.message.content.split("```json")[1].split("```")[0]
+        this.improvementData = JSON.parse(jsBlock)
+      } catch (ex) {
+        console.error("Failed to parse improvement data", ex)
       }
     },
     copyTextToClipboard(text) {
@@ -215,7 +224,7 @@ export default {
     async applyPatch(patch) {
       patch.working = true 
       try {
-        const code_changes = this.improvementData.code_changes.filter(cc => cc.file_path === patch.file_path)
+        const code_changes = this.code_changes.filter(cc => cc.file_path === patch.file_path)
         patch.res = await this.$storex.api.run.patch({ code_changes, code_patches: [ patch ] })
         if (patch.res.info?.toLowerCase().includes('error')) {
           patch.res.error = patch.res.info

@@ -25,6 +25,7 @@ API.axiosRequest.interceptors.response.use(
     $storex.session.decApiCalls()
     $storex.session.setLastError(error)
     console.error("API ERROR:", error);
+    $storex.session.onError(error.toString())
   });
 
 

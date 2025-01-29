@@ -43,7 +43,7 @@ class Chat(BaseModel):
     mode: str = Field(default='chat')
     board: str = Field(default='')
     column: str = Field(default='')
-    chat_index: int = Field(default=None)
+    chat_index: Optional[int] = Field(default=0)
     live_url: str = Field(default='')
     branch: str = Field(default='')
     file_path: str = Field(default='')

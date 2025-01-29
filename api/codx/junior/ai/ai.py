@@ -72,26 +72,10 @@ class AI:
             if callback:
                 callbacks.append(callback)
             
-            # Define retry parameters
-            max_retries = 2
-            retry_count = 0
-
-            while retry_count < max_retries:
-                try:
-                    response = self.llm(messages=messages, config={"callbacks": callbacks})
-                    break  # Exit loop if successful
-                except Exception as ex:
-                    ex_str = str(ex)
-                    logger.warning(f"Retryable error encountered: {ex}. Retrying... ({retry_count + 1}/{max_retries})")
-                    retry_count += 1
-                    if [err for err in ["You can retry your request,"] if err in ex_str]:
-                       continue
-
-                    logger.exception(f"Non-retryable error processing AI request: {ex} ai_provider: {self.get_ai_provider()}")
-                    raise ex  # Raise immediately if non-retryable
-
-            if response is None:
-                logger.error("Max retries exceeded. Failed to process AI request.")
+            try:
+                response = self.llm(messages=messages, config={"callbacks": callbacks})
+            except Exception as ex:
+                logger.exception(f"Non-retryable error processing AI request: {ex}")
                 raise RuntimeError("Failed to process AI request after retries.")
 
             if self.cache:

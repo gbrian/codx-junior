@@ -53,7 +53,7 @@ class ChatManager:
         if not chat.board:
             chat.board = "kanban"
         if not chat.column:
-            chat.column = tasks
+            chat.column = "tasks"
         if not chat.id:
             chat.id = str(uuid.uuid4())
         if not chat.created_at:

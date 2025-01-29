@@ -70,14 +70,55 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             </div>
             <div class="grow"></div>
             <div class="group relative bg-base-100">
-              <div class="bg-base-300 lg:bg-transparent p-2 rounded hidden lg:flex group-hover:flex gap-2 p-1 items-end absolute right-8 -top-1">
-                <div class="dropdown -mt-1">
-                  <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chatModes[chat.mode].name }}</div>
+              <div class="bg-base-300 lg:bg-transparent p-2 rounded hidden lg:flex group-hover:flex gap-2 p-1 items-center absolute right-8 -top-1">
+                <div class="dropdown">
+                  <div tabindex="0" role="button" class="select select-sm select-bordered flex gap-1 items-center">
+                    <i :class="chatModes[chat.mode].icon" class="fa-regular fa-comments"></i>
+                  </div>
                   <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                     <li @click="setChatMode(mode)" v-for="info, mode in chatModes" :key="mode">
                       <a class="flex items-center">
                         <i :class="info.icon" class="fa-regular fa-comments"></i>
                         {{  info.name  }}
+                      </a>
+                    </li>
+                  </ul>
+                </div>                
+                <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
+                  <div class="flex items-center gap-2" v-if="!showHidden">
+                    ({{ hiddenCount }})
+                    <i class="fa-solid fa-eye-slash"></i>
+                  </div>
+                  <span class="text-warning" v-else>
+                    <i class="fa-solid fa-eye"></i>
+                  </span>
+                </button>
+                <div class="dropdown dropdown-end dropdown-bottom">
+                  <div tabindex="0" class="btn btn-sm flex items-center indicator">
+                    Tasks
+                    <span v-if="childrenChats.length">
+                      ({{ childrenChats.length }})
+                    </span>
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </div>
+                  <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
+                    <li @click="newSubChat()">
+                      <a>New sub task</a>
+                    </li>
+                    <li @click="createSubTasks()">
+                      <a>Create sub tasks <i class="fa-solid fa-wand-magic-sparkles"></i></a>
+                    </li>
+                    <div class="divider" v-if="childrenChats.length"></div>
+                    <li class="overflow-hidden text-ellipsis w-full"
+                      @click="$projects.setActiveChat(child)" 
+                      v-for="child in childrenChats" :key="childrenChats.id">
+                      <a>
+                        <div>
+                          <div class="text-xs">{{ moment(child.updated_at || child.created_at).format("DDMMM HH:mm") }}</div>
+                          <div>
+                            <ChatIconVue :chat="child" /> {{ child.name }}
+                          </div>
+                        </div>
                       </a>
                     </li>
                   </ul>
@@ -92,44 +133,6 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                 <button class="btn btn-xs btn-error hover:text-white" @click="deleteChat" v-else>
                   <i class="fa-solid fa-trash"></i>
                 </button>
-                
-                <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
-                  <div class="flex items-center gap-2" v-if="!showHidden">
-                    ({{ hiddenCount }})
-                    <i class="fa-solid fa-eye-slash"></i>
-                  </div>
-                  <span class="text-warning" v-else>
-                    <i class="fa-solid fa-eye"></i>
-                  </span>
-                </button>
-                <div class="dropdown dropdown-end dropdown-bottom -mt-1">
-                  <div tabindex="0" class="btn btn-xs flex items-center indicator">
-                    Tasks <i class="fa-solid fa-pen-to-square"></i>
-                    <span class="indicator-item badge badge-xs badge-secondary" v-if="childrenChats.length">
-                      {{ childrenChats.length }}
-                    </span>
-                  </div>
-                  <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
-                    <li @click="newSubChat()">
-                      <a>New sub task</a>
-                    </li>
-                    <li @click="createSubTasks()">
-                      <a>Create sub tasks <i class="fa-solid fa-wand-magic-sparkles"></i></a>
-                    </li>
-                    <div class="divider" v-if="childrenChats.length"></div>
-                    <li @click="$projects.setActiveChat(child)" 
-                      v-for="child in childrenChats" :key="childrenChats.id">
-                      <a>
-                        <div>
-                          <div class="text-xs">{{ moment(child.updated_at || child.created_at).format("DDMMM HH:mm") }}</div>
-                          <div>
-                            <ChatIconVue :chat="child" /> {{ child.name }}
-                          </div>
-                        </div>
-                      </a>
-                    </li>
-                  </ul>
-                </div>
               </div>
             </div>
           </div>
