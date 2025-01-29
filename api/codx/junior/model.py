@@ -180,3 +180,12 @@ class ProjectScript(BaseModel):
     script: str = Field(description="Bash script", default="")
     status: str = Field(description="Script status: running, stopped, error", default="stopped")
     background: bool = Field(description="Script runs in background", default=False)
+
+
+class SioMessage(BaseModel):
+    codx_path: str = Field(default=None)
+    sid: str = Field(default=None)
+    request_id: str = Field(default=None)
+    
+class SioChatMessage(SioMessage):
+    chat: Chat

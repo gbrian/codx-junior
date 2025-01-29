@@ -1,5 +1,4 @@
 <script setup>
-// @codx-ok, please-wait...: move component implementationto the "script" section, not on the setup and export as default
 import { defineProps, defineEmits, ref } from 'vue'
 
 const props = defineProps({
@@ -19,6 +18,7 @@ function resetTimeSelector() {
   selectedStart.value = null
   selectedEnd.value = null
   emitTimeChange()
+  emit('reset')
 }
 
 function emitTimeChange() {

@@ -1,0 +1,3 @@
+# [[{"id": "6837f62d-da14-42f6-86e9-ad51ce322299", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": ["software_developer"], "name": "Testing io messages", "created_at": "2025-01-28 07:09:43.201757+00:00", "updated_at": "2025-01-28T07:10:50.679095", "mode": "chat", "board": "Default", "column": "tasks", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/usr/local/codx-junior/.codx/tasks/Default/tasks/Testing io messages.6837f62d-da14-42f6-86e9-ad51ce322299.md"}]]
+## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-01-28 06:58:57.684014", "updated_at": "2025-01-28 06:58:57.684044", "images": [], "files": []}]]
+Ok, this should go through socketio

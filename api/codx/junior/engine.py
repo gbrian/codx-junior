@@ -7,7 +7,6 @@ import subprocess
 import shutil
 import asyncio
 from pathlib import Path
-from datetime import datetime, timedelta
 from threading import Thread
 
 from langchain.schema import AIMessage, HumanMessage, SystemMessage, BaseMessage
@@ -67,9 +66,7 @@ from codx.junior.mention_manager import (
 
 from codx.junior.context import AICodePatch
 
-from codx.junior.project_watcher import ProjectWatcher
-
-from codx.junior import sio
+from codx.junior.sio.session_channel import SessionChannel
 
 logger = logging.getLogger(__name__)
 
@@ -84,12 +81,6 @@ APPS = [
 APPS_COMMANDS = {
     "chrome": "google-chrome --no-sandbox --no-default-browser-check"
 }
-
-def on_project_watcher_changes(changes:[str]):
-    for file_path in changes:
-        project_file_changed(file_path)
-
-PROJECT_WATCHER = ProjectWatcher(callback=on_project_watcher_changes)
 
 def create_project(project_path: str):
     logger.info(f"Create new project {project_path}")
@@ -120,44 +111,6 @@ def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     os.system(f"code-server -r {file_name}")
 
 
-FILES_CHECKING = {}
-def check_file_worker(file_path: str):
-    settings = find_project_from_file_path(file_path=file_path)
-    if not settings.is_valid_project_file(file_path=file_path):
-        return
-    global FILES_CHECKING
-    async def worker():
-        FILES_CHECKING[file_path] = True
-        try:
-            # Check mentions
-            codx_junior_session = CODXJuniorSession(settings=settings)
-            res = await codx_junior_session.check_file_for_mentions(file_path=file_path)
-            codx_junior_session.log_info(f"Check file {file_path} for mentions: {res}")
-            # Reload knowledge 
-            if settings.watching:
-                knowledge = Knowledge(settings=settings)
-                file_changes = knowledge.detect_changes()
-                if file_path in file_changes:
-                    knowledge.reload_path(path=file_path)
-        except Exception as ex:
-            logger.exception(f"Error processing file changes {file_path}: {ex}")
-
-        del FILES_CHECKING[file_path]
-    asyncio.run(worker())
-
-def project_file_changed(file_path: str):
-    global FILES_CHECKING
-    settings = find_project_from_file_path(file_path)
-    if not settings:
-        return
-    file_key = f"{settings.project_name}:{file_path}"
-    if FILES_CHECKING.get(file_path):
-        return
-    if not Knowledge(settings=settings).is_valid_project_file(file_path=file_path):
-        return
-    logger.info(f"project_file_changed processing event. {file_key} - {settings.project_name}")
-    Thread(target=check_file_worker, args=(file_path,)).start()
-
 def find_project_from_file_path(file_path: str):
     """Given a file path, find the project parent"""
     all_projects = find_all_projects()
@@ -178,9 +131,6 @@ def find_all_projects():
             project_file_path = f"{codx_path}/project.json"
             settings = CODXJuniorSettings.from_project_file(project_file_path)
             all_projects.append(settings)
-            # Watch project changes
-            PROJECT_WATCHER.watch_project(
-                project_path=settings.project_path)
         except Exception as ex:
             logger.exception(f"Error loading project {str(codx_path)}")
     
@@ -196,20 +146,6 @@ def find_all_projects():
             project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]
     return all_projects
 
-# Load all projects and watch
-def check_projects():
-    async def check(project):
-        await project.check_project_changes()
-    while True:
-        try:
-            for project in find_all_projects():
-                asyncio.run(check(project=project))
-        except:
-            pass
-        time.sleep(1)
-Thread(target=check_projects).start()
-
-
 def update_engine():
     try:
         command = ["git", "pull"]
@@ -218,21 +154,11 @@ def update_engine():
         logger.exception(ex)
         return ex
                 
-class SessionChannel:
-    def __init__(self, sid=None):
-        self.sid = sid
-
-    async def send_event(self, event, data):
-        await sio.emit(event, data)
-
-
 class CODXJuniorSession:
     def __init__(self,
             settings: CODXJuniorSettings = None,
             codx_path: str = None,
-            app=None,
             channel: SessionChannel = None):
-        self.app = app
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
         self.channel = channel
 
@@ -240,8 +166,6 @@ class CODXJuniorSession:
         logger.info(f"[{self.settings.project_name}] {msg}")
 
     def get_channel(self):
-        if not self.channel:
-            self.channel = SessionChannel()
         return self.channel
 
     async def send_event(self, message: str):
@@ -621,14 +545,14 @@ class CODXJuniorSession:
             
         await self.send_event(message=f"{self.settings.project_name} changed")
 
-        for file_path in new_files:
-            res = await self.check_file_for_mentions(file_path=file_path)
-            if res == "processing":
-                continue
-    
-            if self.settings.watching:
-                self.log_info(f"Reload knowledge files {new_files}")
-                knowledge.reload_path(path=file_path)
+        file_path = new_files[0] # one at a time
+        res = await self.check_file_for_mentions(file_path=file_path)
+        if res == "processing":
+            return
+
+        if self.settings.watching:
+            self.log_info(f"Reload knowledge files {new_files}")
+            knowledge.reload_path(path=file_path)
 
     def extract_changes(self, content):
         for block in extract_json_blocks(content):

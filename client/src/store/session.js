@@ -77,8 +77,10 @@ export const actions = actionTree(
       $storex.session.connect()
     },
     connect () {
-      const socket = io();
-      socket.on("connect_error", (err) => {
+      const socket = io({
+        reconnectionDelayMax: 1000
+       })
+       socket.on("connect_error", (err) => {
         console.log(`connect_error due to ${err.message}`);
       });
       socket.on("connect", () => {
@@ -86,10 +88,12 @@ export const actions = actionTree(
         API.sid = socket.id
         $storex.session.setConnected(true)
       });
-      socket.on("disconnect", $storex.session.setConnected(false))
+      socket.on("disconnect", () => $storex.session.setConnected(false))
+      socket.io.on("reconnect", () => {
+        $storex.session.setConnected(true)
+      })
       $storex.session.setSocket(socket);
       socket.onAny((event, data) => $storex.session.onEvent({ event, data }))
-      socket.emit('login', { username: 'user', password: 'pwd' })
     },
     onEvent(_, { event, data }) {
       console.log("On server message", event, data)

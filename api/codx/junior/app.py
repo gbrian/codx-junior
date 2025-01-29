@@ -3,7 +3,6 @@ import uuid
 import shutil
 import time
 import logging
-import socketio
 import asyncio
 
 from multiprocessing.pool import ThreadPool
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 import traceback
 
-from codx.junior import sio
+from codx.junior.sio.sio import socket_app
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -86,49 +85,11 @@ from codx.junior.utils import (
 
 from codx.junior.context import AICodeGerator
 
+from codx.junior.background import start_background_services
+
 STATIC_FOLDER=os.environ.get("STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
-
-def check_project_changes(settings):
-    try:
-        return CODXJuniorSession(settings=settings).check_project_changes()
-    except Exception as ex:
-        logger.exception(f"Processing {settings.project_name} error: {ex}")        
-    return False
-
-async def process_project_changes(settings):
-    try:
-        has_changes = check_project_changes(settings=settings)
-        if not has_changes:
-            return
-        if settings.watching:
-            logger.info(f"[check_all_projects_loop]: {settings.project_name} has_changes: {has_changes}")
-    
-        await CODXJuniorSession(settings=settings).process_project_changes()
-    except Exception as ex:
-        logger.exception(f"Processing {settings.project_name} error: {ex}")        
-
-
-def check_all_projects_loop():
-    async def worker():
-        while True:
-            try:
-                projects_to_check = find_all_projects()
-                for project in projects_to_check:
-                    if project.watching:
-                        await process_project_changes(settings=project)
-            except Exception as ex:
-                logger.exception("Error processing watching projects {ex}")
-            time.sleep(5000)
-    asyncio.run(worker())
-
-logger.info("Starting check_all_projects_loop job")
-
-
-
-# Init all projects
-Thread(target=check_all_projects_loop).start()
 
 app = FastAPI(
     title="CODXJuniorAPI",
@@ -502,31 +463,9 @@ def api_restart():
     logger.info(f"****************** API RESTARTING... bye *******************")
     exec_command("sudo kill 7")
 
-@app.get("/api/stream")
-async def test_stream():
-    async def fake_data_streamer():
-        for i in range(10):
-            await sio.emit('codx-junior', {'response': 'my response'})
-            yield b'some fake data\n\n'
-            await asyncio.sleep(0.5)
-    return StreamingResponse(fake_data_streamer(), media_type='text/event-stream')
-
 #wrap with ASGI application
-socket_app = socketio.ASGIApp(sio)
 app.mount("/", socket_app)
 
-
-@sio.on("error")
-async def error():
-    logger.error(f"Socket error")
-
-@sio.on("connect")
-async def connect(sid, env):
-    logger.info("New Client Connected to This id :"+" "+str(sid))
-
-@sio.on("disconnect")
-async def disconnect(sid):
-    logger.info("Client Disconnected: "+" "+str(sid))
 
 if STATIC_FOLDER:
     os.makedirs(STATIC_FOLDER, exist_ok=True)
@@ -534,4 +473,6 @@ if STATIC_FOLDER:
     app.mount("/", StaticFiles(directory=STATIC_FOLDER, html=True), name="client_chat")
 
 app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
+
+start_background_services(app)
 

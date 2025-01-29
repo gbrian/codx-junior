@@ -470,7 +470,7 @@ export default {
     async sendChatMessage(chat) {
       this.waiting = true
       try {
-        return await API.chats.message(chat)
+        return await this.$storex.projects.chatWihProject(chat)
       } finally {
         this.waiting = false
       }

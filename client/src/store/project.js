@@ -179,6 +179,20 @@ export const actions = actionTree(
     async createSubTasks(_, chat) {
       await $storex.api.chats.subTasks(chat)
       await $storex.projects.loadChats()
+    },
+    async chatWihProject({ state }, chat) {
+      const data = {
+        codx_path: state.activeProject.codx_path,
+        chat
+      }
+      $storex.session.incApiCalls()
+      try {
+        await new Promise((ok, err) =>
+          $storex.session.socket.emit('codx-junior-chat', data, ok))
+        await $storex.projects.loadChat(chat)
+      } finally {
+        $storex.session.decApiCalls()
+      } 
     }
   }
 )

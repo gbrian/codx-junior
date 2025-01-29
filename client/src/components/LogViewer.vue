@@ -9,7 +9,13 @@ import TimeSelector from './TimeSelector.vue';
       <TimeSelector
         :start="timeSelection?.start"
         :end="timeSelection?.end"
-        :times="logTimes" @time-change="onTimeSelectorChanged" />
+        :times="logTimes" @time-change="onTimeSelectorChanged"
+        @reset="showTimeFilter = false"
+        v-if="showTimeFilter"
+      />
+      <button class="btn btn-sm" @click="showTimeFilter = !showTimeFilter">
+        <i class="fa-regular fa-clock"></i>
+      </button>
       <div class="flex gap-2 items-center">
         <button class="btn btn-sm" @click="clearLogs">
           <i class="fa-solid fa-trash-can"></i>
@@ -111,6 +117,7 @@ import TimeSelector from './TimeSelector.vue';
 export default {
   data() {
     return {
+      showTimeFilter: false,
       selectedLog: '',
       logs: [],
       autoRefresh: false,

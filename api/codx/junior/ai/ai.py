@@ -21,6 +21,7 @@ from langchain.schema import (
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
 from codx.junior.ai.anthropic import Anthropic_AI
+from codx.junior.ai.mistral_ai import Mistral_AI
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -86,7 +87,7 @@ class AI:
                     if [err for err in ["You can retry your request,"] if err in ex_str]:
                        continue
 
-                    logger.exception(f"Non-retryable error processing AI request: {ex}")
+                    logger.exception(f"Non-retryable error processing AI request: {ex} ai_provider: {self.get_ai_provider()}")
                     raise ex  # Raise immediately if non-retryable
 
             if response is None:
@@ -142,8 +143,10 @@ class AI:
 
 
     def create_chat_model(self) -> BaseChatModel:
-        if self.settings.ai_provider == "anthropic":
-            return Anthropic_AI(settings=self.settings).chat_completions    
+        if self.settings.get_ai_provider() == "anthropic":
+            return Anthropic_AI(settings=self.settings).chat_completions
+        if self.settings.get_ai_provider() == "mistral":
+            return Mistral_AI(settings=self.settings).chat_completions    
         return OpenAI_AI(settings=self.settings).chat_completions
 
     def create_embeddings_model(self):

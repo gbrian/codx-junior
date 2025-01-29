@@ -18,7 +18,7 @@ from mistralai import Mistral
 logger = logging.getLogger(__name__)
 
 
-class OpenAI_AI:
+class Mistral_AI:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         api_key=settings.get_ai_api_key()
