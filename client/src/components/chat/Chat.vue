@@ -398,8 +398,7 @@ export default {
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
       this.images = []
-      this.$refs.anchor?.scrollIntoView()
-
+      this.scrollToBottom()
     },
     async sendMessage () {
       const editAIMessage = this.editMessage && this.editMessage.role !== 'user'
@@ -458,7 +457,7 @@ export default {
         this.waiting = true
         await apiCall()
         this.$emit('refresh-chat')
-        this.$refs.anchor.scrollIntoView()
+        this.scrollToBottom()
       } catch (ex) {
         this.addMessage({
           role: 'assistant',
@@ -679,6 +678,9 @@ export default {
     },
     setVoiceLanguage(language) {
       this.$ui.setVoiceLanguage(language)
+    },
+    scrollToBottom() {
+      setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)
     }
   }
 }

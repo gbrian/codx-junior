@@ -432,15 +432,18 @@ class CODXJuniorSession:
 
     @profile_function
     async def improve_existing_code(self, chat: Chat, apply_changes: bool=None):
-        await self.send_event(message=f"Code-gen: Prepring changes")
+        await self.send_event(message=f"Code changes")
+
+        valid_messages = [message for message in chat.messages if not message.hide]
+        if valid_messages[-1].improvement:
+            code_generator = self.get_ai_code_generator_changes(response=valid_messages[-1].content)
+            return await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
 
         knowledge = Knowledge(settings=self.settings)
         profile_manager = ProfileManager(settings=self.settings)
         if apply_changes is None:
             apply_changes = True if chat.mode == 'task' else False
 
-        code_changes_request = [message for message in chat.messages if not message.hide][0]
-        
         request = f"""
         Assist the user on generating file changes for the project "{self.settings.project_name}" based on the comments below.
         Make sure that all proposed changes follow strictly the best practices.
@@ -454,50 +457,43 @@ class CODXJuniorSession:
         - Files tree view: {generate_markdown_tree(knowledge.get_all_sources())}
         Use this information for generating file paths and understanding the project's folder structure.
 
-        CHANGES:
-        ```markdown
-        { code_changes_request.content }
-        ```
-
         Create a list of find&replace instructions for each change needed:
         INSTRUCTIONS:
           {AI_CODE_GENERATOR_PARSER.get_format_instructions()}
           
           * For new files create an absolute paths
+          * Only update files that exists in the project's files
           * Keep content indentation; It is crucial to find the content to replace and to make new content work
         """
         code_generator = None
-        if not chat.messages[-1].hide and not chat.messages[-1].improvement:
-            retry_count = 1
-            request_msg = Message(role="user", content=request)
-            chat.messages.append(request_msg)
-            self.log_info(f"improve_existing_code prompt: {request_msg}")
-            async def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:
-                if error:
-                    chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
-                await self.chat_with_project(chat=chat, use_knowledge=True, chat_mode='chat')
-                chat.messages[-1].improvement = True
-                
-                request_msg.improvement = True
-                request_msg.hide = True
-                if chat.mode == 'task':
-                    chat.messages[-2].hide = False
-                    chat.messages[-1].hide = True
-                response = chat.messages[-1].content.strip()
-                try:
-                    return self.get_ai_code_generator_changes(response=response)
-                except Exception as ex:
-                    logger.error(f"Error parsing response: {response}")
-                    attempt -= 1
-                    if attempt:
-                        chat.messages.pop()
-                        return await try_chat_code_changes(attempt, error=str(ex))
-                    raise ex
-            code_generator = await try_chat_code_changes(retry_count)
-            if not apply_changes:
-                return code_generator
-        else:
-            code_generator = self.get_ai_code_generator_changes(response=chat.messages[-1].content)
+        retry_count = 1
+        request_msg = Message(role="user", content=request)
+        chat.messages.append(request_msg)
+        async def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:
+            if error:
+                chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
+            
+            await self.chat_with_project(chat=chat, use_knowledge=False, chat_mode='chat')
+            chat.messages[-1].improvement = True
+            
+            request_msg.improvement = True
+            request_msg.hide = True
+            if chat.mode == 'task':
+                chat.messages[-2].hide = False
+                chat.messages[-1].hide = True
+            response = chat.messages[-1].content.strip()
+            try:
+                return self.get_ai_code_generator_changes(response=response)
+            except Exception as ex:
+                logger.error(f"Error parsing response: {response}")
+                attempt -= 1
+                if attempt:
+                    chat.messages.pop()
+                    return await try_chat_code_changes(attempt, error=str(ex))
+                raise ex
+        code_generator = await try_chat_code_changes(retry_count)
+        if not apply_changes:
+            return code_generator
 
         await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
         return code_generator
@@ -835,7 +831,7 @@ class CODXJuniorSession:
 
         INSTRUCTIONS:
         Each task must have a clear name and an intial descriptive message with instructions on what has to be done.
-        In the intial message all references needed from the epic like files, keywords, ...
+        Copy from the epic everything related with the subtask and add as the first message with a suggestion on how to solve it
         {AI_TASKS_RESPONSE_PARSER.get_format_instructions()}
         """
 
@@ -846,6 +842,10 @@ class CODXJuniorSession:
         chat_manager = self.get_chat_manager()
         for sub_task in ai_tasks.tasks:
             sub_task.parent_id = chat.id
+            sub_task.board = chat.board
+            sub_task.column = sub_task.column or chat.column
+            init_message = "\n".join([m.content for m in sub_task.messages])
+            sub_task.messages = [Message(role="assistant", content=init_message)]
             chat_manager.save_chat(sub_task)
     
     @profile_function
@@ -859,6 +859,9 @@ class CODXJuniorSession:
         await self.chat_event(chat=chat, message=f"Process chat")
         
         is_refine = chat_mode == 'task'
+        task_item = ""
+        if is_refine:
+            task_item = "analysis"
         ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
         last_ai_message = ai_messages[-1] if ai_messages else None
             
@@ -919,24 +922,31 @@ class CODXJuniorSession:
 
         context = ""
         documents = []
-        coding_profiles = []
         chat_files = chat.file_list or []
         ignore_documents = chat_files.copy()
         if chat.name:
             ignore_documents.append(f"/{chat.name}")
 
-        await self.chat_event(chat=chat, message=f"Knowledge search")
-        
+        await self.chat_event(chat=chat, message="Knowledge search")
+
+        for chat_file in chat_files:
+            chat_file_full_path = chat_file
+            if self.settings.project_path not in chat_file_full_path:
+                if chat_file[0] == '/':
+                    chat_file = chat_file[1:]
+                chat_file_full_path = f"{self.settings.project_path}/{chat_file}"
+            try:
+              with open(chat_file_full_path, 'r') as f:
+                  doc_context = document_to_context(
+                    Document(page_content=f.read(), metadata={ "source": chat_file })
+                  )
+                  context += f"{doc_context}\n"
+            except Exception as ex:
+                logger.error(f"Error adding context file to chat {ex}")
+
         if use_knowledge:
             affected_documents, doc_file_list = self.select_afefcted_documents_from_knowledge(ai=ai, query=query, ignore_documents=ignore_documents)
 
-            if chat_files:
-                knowledge = Knowledge(settings=self.settings)
-                chat_documents = [knowledge.doc_from_project_file(file_path) for file_path in chat_files]
-                
-                for doc in documents:
-                    doc_context = document_to_context(doc)
-                    context += f"{doc_context}\n"
 
             if affected_documents:
                 documents = affected_documents
@@ -979,7 +989,7 @@ class CODXJuniorSession:
         if documents:
             sources = list(set([doc.metadata['source'].replace(self.settings.project_path, "") for doc in documents]))
             
-        response_message = Message(role="assistant", content=response, files=sources)
+        response_message = Message(role="assistant", task_item=task_item, content=response, files=sources)
         chat.messages.append(response_message)
         return chat, documents
 

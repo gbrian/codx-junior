@@ -9,7 +9,8 @@ import TimeSelector from './TimeSelector.vue';
       <TimeSelector
         :start="timeSelection?.start"
         :end="timeSelection?.end"
-        :times="logTimes" @time-change="onTimeSelectorChanged" />
+        :times="logTimes" @time-change="onTimeSelectorChanged"
+      />
       <div class="flex gap-2 items-center">
         <button class="btn btn-sm" @click="clearLogs">
           <i class="fa-solid fa-trash-can"></i>

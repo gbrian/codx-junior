@@ -75,30 +75,40 @@ class OpenAI_AI:
         callbacks = config.get("callbacks", None)
         content_parts = []
         if self.settings.get_log_ai():
-            self.log(f"AI response: {response_stream}")
-        for chunk in response_stream:
-            # Check for tools
-            #tool_calls = self.process_tool_calls(chunk.choices[0].message)
-            #if tool_calls:
-            #    messages.append(HumanMessage(content=tool_calls))
-            #    return self.chat_completions(messages=messages)
+            self.log(f"Received AI response, start reading stream")
+        first_chunk = False
+        try:
+            for chunk in response_stream:
+                # Check for tools
+                #tool_calls = self.process_tool_calls(chunk.choices[0].message)
+                #if tool_calls:
+                #    messages.append(HumanMessage(content=tool_calls))
+                #    return self.chat_completions(messages=messages)
+                if not first_chunk:
+                    self.log("Start receiving response")
+                    first_chunk = True
 
-            chunk_content = chunk.choices[0].delta.content
-            if not chunk_content:
-                continue
-
-            content_parts.append(chunk_content)
-            if callbacks:
-                for cb in callbacks:
-                    cb.on_llm_new_token(chunk_content)
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    content_parts.append(chunk_content)
+                else:
+                    self.log(f"NO CONTENT CHUNK RECEIVED: {chunk}")
+                    
+                try:
+                    if callbacks:
+                        for cb in callbacks:
+                            cb.on_llm_new_token(chunk_content)
+                except Exception as ex:
+                    self.log(f"ERROR IN CALLBACKS: {ex}")
+        except Exception as ex:
+            logger.exception(f"Error reading AI response {ex}")
 
         response_content = "".join(content_parts)
-        if self.settings.get_log_ai():
-            logger.debug("\n\n".join(
-                [f"[{datetime.now().isoformat()}] model: {model}, temperature: {temperature}"] +
-                [f"[{message.type}]\n{message.content}" for message in messages] +
-                ["[AI]",response_content]
-            ))
+        self.log("\n\n".join(
+            [f"[{datetime.now().isoformat()}] model: {model}, temperature: {temperature}"] +
+            [f"[{message.type}]\n{message.content}" for message in messages] +
+            ["[AI]",response_content]
+        ))
         return AIMessage(content=response_content)
 
     def process_tool_calls(self, message):
