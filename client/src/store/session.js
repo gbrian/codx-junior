@@ -5,6 +5,7 @@ import io from 'socket.io-client';
 
 export const namespaced = true
 
+setInterval(() => $storex.session.tick(), 1000)
 
 import { API } from '../api/api'
 // Add a request interceptor
@@ -36,7 +37,12 @@ export const state = () => ({
   id: uuidv4(),
   ts: new Date().getTime(),
   notifications: [],
-  connected: false
+  connected: false,
+  user: {
+    userName: new Date().getTime()
+  },
+  users: null,
+  events: []
 })
 
 export const getters = getterTree(state, {
@@ -77,7 +83,13 @@ export const actions = actionTree(
     async init () {
       $storex.session.connect()
     },
-    connect () {
+    tick ({ state }) {
+      const expireNotif = new Date( Date.now() - 1000 * 10 );
+      if (state.events.find(e => e.ts < expireNotif)) {
+        state.events = state.events.filter(e => e.ts < expireNotif)
+      }
+    },
+    connect ({ state }) {
       const socket = io({
         reconnectionDelayMax: 1000
        })
@@ -88,20 +100,24 @@ export const actions = actionTree(
         console.log("Socket connected", socket.id)
         API.sid = socket.id
         $storex.session.setConnected(true)
+        $storex.session.login()
       });
       socket.on("disconnect", () => $storex.session.setConnected(false))
       socket.io.on("reconnect", () => {
         $storex.session.setConnected(true)
+        $storex.session.login()
       })
       $storex.session.setSocket(socket);
       socket.onAny((event, data) => $storex.session.onEvent({ event, data }))
     },
-    onEvent(_, { event, data }) {
-      console.log("On server message", event, data)
-      $storex.session.onInfo(data)
+    login({ state }) {
+      $storex.session.socket.emit("codx-junior-login", { "user": state.user }, users => {
+        state.users = users
+      })
     },
-    onChanEvent(_, { id: chatId, text }) {
-      $storex.session.onInfo({ text })  
+    onEvent({ state }, { event, data }) {
+      console.log("On server message", event, data)
+      state.events.push({ event, data, ts: new Date().getTime() })
     },
     onInfo(_, notification) {
       if (typeof(notification) === 'string') {

@@ -11,6 +11,8 @@ from codx.junior.model import (
     SioChatMessage
 )
 
+USERS = {}
+
 logger = logging.getLogger(__name__)
 
 #Socket io (sio) create a Socket.IO server
@@ -25,10 +27,13 @@ async def error():
 @sio.on("connect")
 async def connect(sid, env):
     logger.info("New Client Connected to This id :"+" "+str(sid))
+    USERS[sid] = {}
 
 @sio.on("disconnect")
 async def disconnect(sid):
     logger.info("Client Disconnected: "+" "+str(sid))
+    if USERS.get(sid):
+        del USERS[sid]
 
 @sio.on("codx-junior-ping")
 async def io_ping(sid, data: dict = None):
@@ -51,6 +56,11 @@ def sio_api_endpoint(func):
         else:
             return (await func(sid=sid, data=data, codxjunior_session=codxjunior_session))
     return wrapper
+
+@sio.on("codx-junior-login")
+def io_login(sid, data: dict):
+    USERS[sid] = data
+    return USERS
 
 @sio.on("codx-junior-chat")
 @sio_api_endpoint

@@ -175,8 +175,8 @@ class CODXJuniorSession:
         await self.get_channel().send_event('codx-junior', { 'text': message })
         self.log_info(f"SEND MESSAGE {message}- SENT!")
 
-    async def chat_event(self, chat: Chat, message: str):
-        await self.get_channel().send_event('chat-event', { 'id': chat.id, 'text': message })
+    async def chat_event(self, chat: Chat, message: str = None, event_type: str = None):
+        await self.get_channel().send_event('chat-event', { 'id': chat.id, 'text': message, 'type': event_type })
         self.log_info(f"SEND MESSAGE {message}- SENT!")
 
     def delete_project(self):
@@ -207,7 +207,9 @@ class CODXJuniorSession:
         return self.get_chat_manager().list_chats()
 
     def save_chat(self, chat, chat_only=False):
-        return self.get_chat_manager().save_chat(chat, chat_only)
+        chat = self.get_chat_manager().save_chat(chat, chat_only)
+        self.chat_event(chat=chat, event_type="changed")
+        return chat
 
     def delete_chat(self, file_path):
         self.get_chat_manager().delete_chat(file_path)
@@ -542,8 +544,6 @@ class CODXJuniorSession:
         if not new_files:
             return    
             
-        await self.send_event(message=f"{self.settings.project_name} changed")
-
         file_path = new_files[0] # one at a time
         res = await self.check_file_for_mentions(file_path=file_path)
         if res == "processing":
@@ -883,7 +883,7 @@ class CODXJuniorSession:
                     context += f"{doc_context}\n"
 
             doc_length = len(documents or [])
-            self.log_info(f"chat_with_project found {doc_length} relevant documents")
+            self.chat_event(chat=chat, message=f"chat_with_project found {doc_length} relevant documents")
 
         if context:
             messages.append(convert_message(
@@ -918,6 +918,7 @@ class CODXJuniorSession:
             
         response_message = Message(role="assistant", task_item=task_item, content=response, files=sources)
         chat.messages.append(response_message)
+        self.chat_event(chat=chat, message=f"done")
         return chat, documents
 
     def check_project(self):

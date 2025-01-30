@@ -86,9 +86,9 @@ export const actions = actionTree(
       project && await $storex.projects.loadChats()
     },
     async loadChats({ state }) {
-      state.chats = await API.chats.list()
-      const activeChat = $storex.projects.chats.find(c => c.id === state.activeChat?.id)
-      $storex.projects.setActiveChat(activeChat)
+      const chats = await API.chats.list()
+      state.chats = chats.reduce((c, acc) => ({ ...acc, [c.id]: chat }), {})
+      $storex.projects.setActiveChat(state.chats[state.activeChat?.id])
     },
     async saveChat (_, chat) {
       await API.chats.save(chat)
@@ -100,7 +100,7 @@ export const actions = actionTree(
     },
     async loadChat({ state }, { board, name }) {
       const chat = await API.chats.loadChat({ board, name })
-      state.chats = [...state.chats.filter(c => c.name !== name), chat]
+      state.chats[chat.id] = chat
       return chat 
     },
     async newChat({ state }, chat) {
@@ -113,11 +113,9 @@ export const actions = actionTree(
     },
     async setActiveChat({ state }, chat) {
       if (chat) {
-        const loadedChat = await API.chats.loadChat(chat)
-        state.chats = [...state.chats.filter(c => c.id !== loadedChat.id), loadedChat]
+        await $storex.projects.loadChat(chat)
       }
-      state.activeChat = state.chats.find(c => c.id === chat?.id)
-      $storex.ui.setKanban(state.activeChat?.board)
+      state.activeChat = state.chats[chat?.id]
     },
     async addLogIgnore({ state }, ignore) {
       let ignores = state.activeProject.log_ignore?.split(",") || []

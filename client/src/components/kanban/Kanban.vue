@@ -153,7 +153,7 @@ export default {
       return this.$projects.activeProject
     },
     chats() {
-      return this.$projects.chats.map(c => ({
+      return Object.values(this.$projects.chats || {}).map(c => ({
         ...c,
         board: c.board || this.board,
         column: c.column || "--none--"
