@@ -6,6 +6,7 @@ import time
 import subprocess
 import shutil
 import asyncio
+from datetime import datetime
 from pathlib import Path
 from threading import Thread
 
@@ -130,7 +131,8 @@ def find_all_projects():
         try:
             project_file_path = f"{codx_path}/project.json"
             settings = CODXJuniorSettings.from_project_file(project_file_path)
-            all_projects.append(settings)
+            if not [p for p in all_projects if p.project_name == settings.project_name]: 
+                all_projects.append(settings)
         except Exception as ex:
             logger.exception(f"Error loading project {str(codx_path)}")
     
@@ -543,8 +545,20 @@ class CODXJuniorSession:
         new_files, _ = knowledge.detect_changes()
         if not new_files:
             return    
-            
-        file_path = new_files[0] # one at a time
+
+        def changed_file():
+            for file_path in new_files:
+                try:
+                    if (int(time.time()) - int(os.stat(file_path).st_mtime) < 10):
+                        return file_path
+                except:
+                    pass
+            return None
+
+        file_path = changed_file() # one at a time by modified time
+        if not file_path:
+            return
+
         res = await self.check_file_for_mentions(file_path=file_path)
         if res == "processing":
             return
