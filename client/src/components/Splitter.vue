@@ -23,10 +23,10 @@ import LogViewerVue from './LogViewer.vue'
             <BrowserVue class="h-full w-full" :token="$ui.monitorToken" />
           </SplitterPanel>
         </SplitterGroup>
-        <div class="h-full w-full" v-else>
-          <CoderVue class="h-full w-full" :class="$ui.appActives[0] === 'coder' ? '' : 'hidden'" />
+        <div class="h-full w-full" v-if="$ui.showApp && $ui.appDivided === 'none'">
+          <CoderVue class="h-full w-full" v-if="$ui.showCoder" />
           <BrowserVue class="h-full w-full" :token="$ui.monitorToken"
-            :class="$ui.appActives[0] === 'browser' ? '' : 'hidden'" />
+            v-if="$ui.showBrowser" />
         </div>
       </SplitterPanel>
 

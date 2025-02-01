@@ -22,7 +22,7 @@ import VSwatches from "../VSwatches.vue"
           <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
             <li class="flex gap-2" @click="showNewBoardModal"><a>New board ...</a></li>
             <li v-for="tasksBoard in boardList" :key="tasksBoard.id" @click="selectBoard(tasksBoard.id)">
-              <a>{{ tasksBoard.title }}</a>
+              <a>{{ tasksBoard.title }} <span v-if="tasksBoard.tasks?.length"> - {{ tasksBoard.tasks.length }} <i class="fa-regular fa-file-lines"></i></span> </a>
             </li>
           </ul>
         </div>
@@ -34,7 +34,7 @@ import VSwatches from "../VSwatches.vue"
             </span>
             <span v-else><i class="fa-solid fa-filter"></i></span>
           </label>
-          <button class="btn btn-sm" @click="showColumnModal = true">
+          <button class="btn btn-sm" @click="showColumnModal = true" v-if="columnList?.length">
             <i class="fa-solid fa-plus"></i>
             <span class="text-xs md:text-md">Column</span>
           </button>
@@ -58,7 +58,7 @@ import VSwatches from "../VSwatches.vue"
         <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
         Position:
         <ul class="steps">
-          <li v-for="n in Math.max(columnPosition, columnList.length)" :key="n"
+          <li v-for="n in columnList.length" :key="n" :title="n"
           class="step click" @click="columnPosition = n" :class="columnPosition === n && 'step-primary'"></li>
         </ul>
         <div class="modal-action">
@@ -67,11 +67,15 @@ import VSwatches from "../VSwatches.vue"
         </div>
         <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
       </modal>
-      <div class="grow grid grid-flow-col overflow-x-scroll relative gap-2">
+      <div class="grow grid grid-flow-col overflow-x-scroll relative gap-2 justify-start">
+        <button class="btn btn-wide btn-primary" @click="showColumnModal = true" v-if="!columnList?.length">
+          <i class="fa-solid fa-plus"></i>
+          <span class="text-xs md:text-md">Column</span>
+        </button>
         <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
           :class="column.color && 'border-t-2'"
           :style="{ borderColor: column.color }"
-          v-for="column in columns" :key="column.name">
+          v-for="column in columns" :key="column.title" :title="column.position">
           <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
             <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
               :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
@@ -123,12 +127,12 @@ import VSwatches from "../VSwatches.vue"
 </template>
 
 <script>
+const ALL_BOARTD_TITLE = "All"
 export default {
   data() {
     return {
       board: null,
       filter: null,
-      columns: [],
       showBoardModal: false,
       showColumnModal: false,
       newBoardName: '',
@@ -139,7 +143,8 @@ export default {
       isTaskDropdownOpen: false,
       boards: [],
       selectedColumn: null,
-      editColumnError: null
+      editColumnError: null,
+      activeBoard: null
     }
   },
   created() {
@@ -153,27 +158,43 @@ export default {
       return this.$projects.activeProject
     },
     chats() {
-      return Object.values(this.$projects.chats || {}).map(c => ({
+      return Object.values(this.$projects.allChats || {}).map(c => ({
         ...c,
-        board: c.board || this.board,
         column: c.column || "--none--"
       }))
     },
-    activeBoard() {
-      return this.boards[this.board] || {}
-    },
     boardList() {
       return [
-        ...Object.keys(this.boards || {}).map(title => ({ title, id: title })),
-        { title: "All" }
-      ]
+        ...Object.keys(this.boards || {}).map(title => ({ 
+          title, 
+          id: title,
+          tasks: this.chats.filter(c => c.board === title)
+        })),
+        { title: ALL_BOARTD_TITLE, tasks: this.chats }
+      ].reduce((acc, board) => ({ ...acc, [board.title]: board }), {})
+    },
+    boardColumns () {
+      return this.boards[this.board]?.columns
+    },
+    columns() {
+      const columnTitles = this.columnList 
+      return columnTitles
+          .map((col, ix) => {
+            const boardColumn = this.boards[this.board]?.columns.find(bc => bc.title === col)||{}
+            return { 
+              title: col,
+              ...boardColumn,
+              tasks: this.activeBoard.tasks.filter(t => (t.column || "--none--") === col),
+              position: boardColumn.position || (ix + 1)
+            }
+          }).sort((a, b) => a.position < b.position ? -1: 1) 
+          || []
     },
     columnList() {
-      return this.board 
-        ? (this.activeBoard?.columns || []) 
-        : [...new Set(this.chats.map(c => c.column))]
-            .filter(col => !!col)
-            .map(title => ({ title }))
+      return [...new Set([
+        ...this.activeBoard?.tasks.map(t => t.column || "--none--") ||[],
+        ...this.boards[this.board]?.columns.map(c => c.title) || []
+        ])]
     }
   },
   watch: {
@@ -192,8 +213,9 @@ export default {
   methods: {
     async projectChanged() {
       this.boards = await this.$storex.api.chats.boards.load()
-      this.board = Object.keys(this.boards || {}).find(b => this.boards[b].active) ||
-                      this.$ui.kanban
+      this.selectBoard(Object.keys(this.boards || {}).find(b => this.boards[b].active) ||
+                      this.$ui.kanban || ALL_BOARTD_TITLE)
+
       this.buildKanban()
     },
     toggleDropdown() {
@@ -205,6 +227,7 @@ export default {
       this.isDropdownOpen = false
       Object.keys(this.boards || {})
         .forEach(b => this.boards[b].active = (b === board))
+      this.activeBoard = this.boardList[this.board] || this.boardList[ALL_BOARTD_TITLE]
       this.saveBoards()
     },
     createNewChat(column) {
@@ -240,13 +263,6 @@ export default {
         this.board = Object.keys(this.boards)[0]
         this.$ui.setKanban(this.board)
       }
-      this.columns = this.columnList.map((column, index) => ({
-        ...column,
-        title: column.title,
-        tasks: this.chats
-          .filter(c => c.column === column.title && (!this.filter || c.name.toLowerCase().includes(this.filter.toLowerCase())))
-          .sort((a, b) => a.chat_index - b.chat_index)
-      }))
     },
     async onColumnTaskListChanged() {
       await Promise.all(this.columns.filter(({ tasks }) => !!tasks)
@@ -291,50 +307,47 @@ export default {
       this.$projects.newChat(chat)
     },
     async addOrUpdateColumn() {
-      if (this.columnName.trim()) {
-        if (!this.activeBoard.columns) {
-          this.activeBoard.columns = []
-        }
-        const activeBoardColumns = this.activeBoard.columns
-
-        if (this.selectedColumn) {
-          const oldColumnIndex = activeBoardColumns.findIndex(col => col.title === this.selectedColumn.title)
-          if (oldColumnIndex !== -1) {
-            this.chats.forEach(chat => {
-              if (chat.column === this.selectedColumn.title) {
-                chat.column = this.columnName
-                this.$storex.api.chats.saveChatInfo(chat)
-              }
-            })
-            activeBoardColumns.splice(oldColumnIndex, 1)
+      this.columnName = this.columnName.trim()
+      if (!this.columnName) {
+        return this.resetColumnModal()
+      }
+      // Move positions
+      if (this.selectedColumn?.position !== this.columnPosition
+          && this.boardColumns.find(c => c.position === this.columnPosition)) {
+            this.boardColumns.filter(c => c.position >= this.columnPosition)
+                .map(c => c.position++)
+      }
+      if (this.selectedColumn?.title !== this.columnName && this.columns[this.columnName]) {
+        this.editColumnError = "Name already used"
+        return
+      }
+      if (this.selectedColumn) {
+        this.chats.forEach(chat => {
+          if (chat.column === this.selectedColumn.title) {
+            chat.column = this.columnName
+            this.$storex.api.chats.saveChatInfo(chat)
           }
-        } else {
-          const columnsWithSameName = activeBoardColumns.filter(
-            (col) => col.title.toLowerCase() === this.columnName.toLowerCase()
-          )
-
-          if (columnsWithSameName.length > 1) {
-            this.editColumnError = "Name already used"
-            return
-          }
-        }
-
+        })
+        this.selectedColumn.title = this.columnName
+        this.selectedColumn.color = this.columnColor
+        this.selectedColumn.position = this.columnPosition
+      } else {
         const newColumn = {
           title: this.columnName,
           color: this.columnColor
         }
-
-        activeBoardColumns.splice(this.columnPosition - 1, 0, newColumn)
-        await this.saveBoards()
-        this.buildKanban()
+        this.boardColumns.push(newColumn)
       }
+      
+      await this.saveBoards()
+      this.selectBoard(this.activeBoard.title)
       this.resetColumnModal()
     },
     resetColumnModal() {
       this.showColumnModal = false
       this.columnName = ''
       this.columnColor = '#000000'
-      this.columnPosition = 1
+      this.columnPosition = this.boards[this.board].columns.length - 1
       this.selectedColumn = null
       this.editColumnError = null
     },
@@ -350,14 +363,10 @@ export default {
       this.showBoardModal = false
     },
     openColumnPropertiesModal(column) {
-      const columnIndex = this.columns.findIndex(c => c.title === column.title)
-      this.selectedColumn = {
-        ...column,
-        index: columnIndex
-      }
-      this.columnName = column.title
-      this.columnColor = column.color || '#000000'
-      this.columnPosition = columnIndex + 1
+      this.selectedColumn = column
+      this.columnName = column?.title
+      this.columnColor = column?.color || '#000000'
+      this.columnPosition = column?.position || this.columnList.length
       this.showColumnModal = true
     },
     async saveBoards() {

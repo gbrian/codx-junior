@@ -10,66 +10,59 @@ import MarkdownIt from 'markdown-it'
 <template>
   <div class="relative flex flex-col gap-1 w-full hover:rounded-md">
     <div class="text-xs font-bold flex justify-between">
-      <div>
-        <div class="text-primary" v-if="message.role === 'user'">You</div>
-        <div class="text-secondary" v-else>codx-junior</div>
+      <div class="flex justify-start gap-2">
+        <input type="checkbox" class="toggle toggle-xs tooltip tooltip-right pt-1"
+            :data-tip="message.hide ? 'Click to add message to conversation' : 'Click to ignore'"
+             :checked="!message.hide" @click.stop="$emit('hide')" />
+        [{{ formatDate(message.updated_at) }}]
+        <div>
+          <div class="text-primary" v-if="message.role === 'user'">You</div>
+          <div class="text-secondary" v-else>codx-junior</div>
+        </div>
       </div>
-      <div>
-        {{ formatDate(message.updated_at) }}
+      <div class="flex gap-2 items-center justify-end">
+        <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2 flex w-full">
+          <button class="btn btn-xs tooltip tooltip-right" data-tip="Expand/Collapse" @click="toggleCollapse">
+            <span v-if="message.collapse">
+              <i class="fa-solid fa-chevron-up"></i>
+            </span>
+            <span v-else>
+              <i class="fa-solid fa-chevron-down"></i>
+            </span>
+          </button>
+          <button class="btn btn-xs hover:btn-outline bg-base-100 tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
+            <i class="fa-solid fa-copy"></i>
+          </button>      
+          <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
+            <i class="fa-solid fa-code"></i>
+          </button>
+          <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
+            <i class="fa-solid fa-pencil"></i>
+          </button>
+          <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
+            @click="$emit('enhance')">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </button>
+          <div class="grow"></div>
+          <div class="dropdown dropdown-hover dropdown-end">
+            <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
+              <i class="fa-solid fa-trash"></i>
+              <span v-if="isRemove"> Confirm </span>
+            </button>
+            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow w-28 p-2">
+              <li>
+                <a class="hover:underline" @click="confirmRemove">Yes</a>
+              </li>
+              <li>
+                <a class="hover:underline" @click.stop="cancelRemove">No</a>
+              </li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
     <div :class="['max-w-full group w-full prose-xs border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
       <div @copy.stop="onMessageCopy">
-        <div class="flex gap-2 items-center">
-          <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2 flex w-full">
-            <button class="btn btn-xs tooltip tooltip-right" data-tip="Expand/Collapse" @click="toggleCollapse">
-              <span v-if="message.collapse">
-                <i class="fa-solid fa-chevron-up"></i>
-              </span>
-              <span v-else>
-                <i class="fa-solid fa-chevron-down"></i>
-              </span>
-            </button>
-            <button class="btn btn-xs hover:btn-outline bg-base-100 tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
-              <i class="fa-solid fa-copy"></i>
-            </button>      
-            <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
-              <i class="fa-solid fa-code"></i>
-            </button>
-            <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
-              <i class="fa-solid fa-pencil"></i>
-            </button>
-            <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
-              @click="$emit('enhance')">
-              <i class="fa-solid fa-wand-magic-sparkles"></i>
-            </button>
-            <div class="click btn btn-xs hover:btn-outline tooltip tooltip-bottom pt-1"
-              :data-tip="message.hide ? 'Add message to conversation' : 'Hide message from conversation'" 
-              @click="$emit('hide')">
-              <span class="text-warning" v-if="message.hide">
-                <i class="fa-solid fa-eye-slash"></i>
-              </span>
-              <span v-else>
-                <i class="fa-solid fa-eye"></i>
-              </span>
-            </div>
-            <div class="grow"></div>
-            <div class="dropdown dropdown-hover dropdown-end">
-              <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
-                <i class="fa-solid fa-trash"></i>
-                <span v-if="isRemove"> Confirm </span>
-              </button>
-              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow w-28 p-2">
-                <li>
-                  <a class="hover:underline" @click="confirmRemove">Yes</a>
-                </li>
-                <li>
-                  <a class="hover:underline" @click.stop="cancelRemove">No</a>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
         <pre v-if="srcView">{{ message.content }}</pre>
         <Markdown :text="messageContent" v-if="!srcView && !code_patches" />
         <div v-if="code_patches">
@@ -174,11 +167,14 @@ export default {
       return moment(date).format('DD/MMM HH:mm')
     },
     extractImprovementData() {
-      try {
-        const jsBlock = this.message.content.split("```json")[1].split("```")[0]
-        this.improvementData = JSON.parse(jsBlock)
-      } catch (ex) {
-        console.error("Failed to parse improvement data", ex)
+      this.improvementData = null
+      if (this.message.content?.includes("```json")) {
+        try {
+          const jsBlock = this.message.content.split("```json")[1].split("```")[0]
+          this.improvementData = JSON.parse(jsBlock)
+        } catch (ex) {
+          console.error("Failed to parse improvement data", ex)
+        }
       }
     },
     copyTextToClipboard(text) {

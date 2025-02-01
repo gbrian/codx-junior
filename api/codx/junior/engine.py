@@ -64,7 +64,7 @@ from codx.junior.mention_manager import (
     strip_mentions,
     is_processing_mentions
 )
-
+from codx.junior.db import CODXJuniorDB
 from codx.junior.context import AICodePatch
 
 from codx.junior.sio.session_channel import SessionChannel
@@ -131,8 +131,12 @@ def find_all_projects():
         try:
             project_file_path = f"{codx_path}/project.json"
             settings = CODXJuniorSettings.from_project_file(project_file_path)
-            if not [p for p in all_projects if p.project_name == settings.project_name]: 
+            project_exists = [p for p in all_projects if p.project_name == settings.project_name] 
+            if not project_exists: 
                 all_projects.append(settings)
+            else:
+                # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
+                pass 
         except Exception as ex:
             logger.exception(f"Error loading project {str(codx_path)}")
     
@@ -163,6 +167,8 @@ class CODXJuniorSession:
             channel: SessionChannel = None):
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
         self.channel = channel
+        self.db = CODXJuniorDB(settings=self.settings)
+        
         if not channel:
             from codx.junior.sio.sio import sio
             self.channel = SessionChannel(sio=sio)

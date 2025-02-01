@@ -226,7 +226,7 @@ export default {
         : moment(updatedAt).format('YYYY-MM-DD');
     },
     chats () {
-      return this.$projects.chats
+      return this.$projects.allChats
     },
     chat () {
       return this.$projects.activeChat
@@ -236,7 +236,7 @@ export default {
       return parentId ? this.chats.find(c => c.id && c.id === parentId) : null
     },
     childrenChats () {
-      return this.$storex.projects.chats.filter(c => c.parent_id === this.chat.id)
+      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
                 .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
     }
   },
@@ -257,7 +257,7 @@ export default {
       if (this.confirmDelete) {
         this.confirmDelete = false
         await this.$projects.deleteChat(this.chat)
-        const parentChat = this.$projects.chats.find(c => c.id === this.chat.parent_id)
+        const parentChat = this.$projects.allChats.find(c => c.id === this.chat.parent_id)
         if (parentChat) {
           this.$projects.setActiveChat(parentChat)
         } else {

@@ -72,7 +72,7 @@ export default {
       return this.$project.project_description;
     },
     lastModifiedProjects () {
-      return this.$storex.projects.chats?.map(c => ({ ...c, fromNow: moment(c.updated_at).fromNow() }))
+      return this.$storex.projects.allChats?.map(c => ({ ...c, fromNow: moment(c.updated_at).fromNow() }))
               .sort((a, b) => a.updated_at > b.updated_at ? -1 : 1)
               .slice(0, 5) || []
     }

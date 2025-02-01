@@ -32,7 +32,8 @@ dependencies = [
   'markdownify',
   'pymilvus',
   'watchfiles>=1.0.4',
-  'mistralai>=1.4.0'
+  'mistralai>=1.4.0',
+  'tinydb>=4.8.2'
 ]
 
 classifiers = [

@@ -146,8 +146,6 @@ export const actions = actionTree(
       if (!state.tabIx) {
         state.tabIx = 'home'
       }
-      state.showLogs = false
-      state.showCoder = true    
     },
     saveState({ state }) {
       const data = { ...state, uiReady: false }

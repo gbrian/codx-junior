@@ -220,13 +220,13 @@ def api_delete_chat(request: Request):
 @app.get("/api/boards")
 def api_boards(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.get_chat_manager().load_boards()
+    return codx_junior_session.load_boards()
 
 @app.post("/api/boards")
 async def api_set_boards(request: Request):
     codx_junior_session = request.state.codx_junior_session
     boards = await request.json()
-    codx_junior_session.get_chat_manager().save_boards(boards)
+    codx_junior_session.save_boards(boards)
 
 
 @app.post("/api/images")

@@ -22,7 +22,7 @@ import ProjectDetailt from './ProjectDetailt.vue';
                 :key="project.codx_path" 
                 @click.stop="$projects.setActiveProject(project)"
             >
-                <a class="flex gap-2">
+                <a class="flex gap-2 items-center">
                     <div class="avatar indicator">
                         <span class="indicator-item w-2 h-2 rounded-full bg-secondary" v-if="project.watching"></span>
                         <div class="w-6 h-6 rounded-full">
@@ -54,7 +54,7 @@ export default {
     filteredProjects() {
       return this.projects.filter(project => 
         project.project_name.toLowerCase().includes(this.filterValue?.toLowerCase())
-      );
+      ).sort((a, b) => a.project_name < b.project_name ? -1: 1);
     }
   },
   watch: {

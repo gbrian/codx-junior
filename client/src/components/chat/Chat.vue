@@ -42,7 +42,7 @@ import moment from 'moment'
               @generate-code="onGenerateCode(message, $event)"
               @add-file-to-chat="$emit('add-file', $event)"
               @image="imagePreview = { ...$event, readonly: true }"
-              v-else
+              v-if="!message.hide || showHidden"
             />
           </div>
           <div class="anchor" ref="anchor"></div>
@@ -265,8 +265,8 @@ export default {
      messages () {
       if (this.isTask) {
         const rmsgs = this.chat?.messages ||[].reverse() 
-        const userMsg = rmsgs.find(m => m.role !== 'assistant' && !m.hide)
-        const aiMsg = rmsgs.find(m => m.role === 'assistant' && !m.hide)
+        const userMsg = rmsgs.find(m => m.role !== 'assistant' && (!m.hide || this.showHidden))
+        const aiMsg = rmsgs.find(m => m.role === 'assistant' && (!m.hide || this.showHidden))
         if (aiMsg) {
           return [aiMsg]
         }

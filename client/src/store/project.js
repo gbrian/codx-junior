@@ -30,7 +30,8 @@ export const mutations = mutationTree(state, {
 })
 
 export const getters = getterTree(state, {
-  allTags: state => new Set(state.chats?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
+  allChats: state => Object.values(state.chats || {}),
+  allTags: state => new Set(Object.values(state.chats||{})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   projectDependencies: state => {
     const { project_dependencies } = state.activeProject
     return project_dependencies?.split(",")
@@ -87,7 +88,7 @@ export const actions = actionTree(
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()
-      state.chats = chats.reduce((c, acc) => ({ ...acc, [c.id]: chat }), {})
+      state.chats = chats.reduce((acc, chat) => ({ ...acc, [chat.id]: chat }), {})
       $storex.projects.setActiveChat(state.chats[state.activeChat?.id])
     },
     async saveChat (_, chat) {
@@ -98,10 +99,10 @@ export const actions = actionTree(
       await API.chats.saveChatInfo(chat)
       await $storex.projects.loadChats()
     },
-    async loadChat({ state }, { board, name }) {
-      const chat = await API.chats.loadChat({ board, name })
-      state.chats[chat.id] = chat
-      return chat 
+    async loadChat({ state }, chat) {
+      const loadedChat = await API.chats.loadChat(chat)
+      state.chats[loadedChat.id] = loadedChat
+      return loadedChat
     },
     async newChat({ state }, chat) {
       state.activeChat = chat
