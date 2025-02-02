@@ -153,7 +153,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             </a>
           </div>
         </div>
-        <Chat :chat="chat"
+        <Chat :chatId="chat.id"
           :showHidden="showHidden"
           @refresh-chat="loadChat(chat)"
           @add-file="onAddFile"

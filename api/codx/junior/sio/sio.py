@@ -3,6 +3,8 @@ import socketio
 import functools
 import asyncio
 
+from concurrent.futures import ThreadPoolExecutor
+
 from codx.junior.sio.session_channel import SessionChannel
 from codx.junior.engine import CODXJuniorSession
 
@@ -19,6 +21,7 @@ logger = logging.getLogger(__name__)
 sio = socketio.AsyncServer(cors_allowed_origins='*',async_mode='asgi')
 socket_app = socketio.ASGIApp(sio)
 
+SIO_POOL = ThreadPoolExecutor(max_workers=10)
 
 @sio.on("error")
 async def error():
@@ -52,9 +55,9 @@ def sio_api_endpoint(func):
                                 codx_path=base_data.codx_path)
         
         if not asyncio.iscoroutinefunction(func):
-            return func(sid=sid, data=data, codxjunior_session=codxjunior_session)
+            return SIO_POOL.submit(func, sid, data, codxjunior_session).result
         else:
-            return (await func(sid=sid, data=data, codxjunior_session=codxjunior_session))
+            return SIO_POOL.submit(asyncio.run, func(sid, data, codxjunior_session)).result
     return wrapper
 
 @sio.on("codx-junior-login")
@@ -67,7 +70,6 @@ def io_login(sid, data: dict):
 async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
     data = SioChatMessage(**data)
     logger.info(f"codx-junior-chat {data.chat.name} {codxjunior_session.settings.project_name}")
-    await codxjunior_session.chat_event(chat=data.chat, message="Chatting with project...")
+    codxjunior_session.chat_event(chat=data.chat, message="Chatting with project...")
     await codxjunior_session.chat_with_project(chat=data.chat, use_knowledge=True)
-    codxjunior_session.save_chat(data.chat)
-    return True
+    await codxjunior_session.save_chat(data.chat)

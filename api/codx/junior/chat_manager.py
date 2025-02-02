@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
-from codx.junior.model import Chat, Message
+from codx.junior.db import Chat, Message
 from codx.junior.utils import write_file
 
 logger = logging.getLogger(__name__)
@@ -72,6 +72,8 @@ class ChatManager:
             logger.info(f"Save chat, curren_chat {current_chat.id} at {current_chat.file_path}")
             if chat_file != current_chat.file_path:
                 self.delete_chat(current_chat.file_path)
+
+        return chat
 
     def delete_chat(self, file_path):
         if os.path.isfile(file_path) \

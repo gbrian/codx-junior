@@ -116,7 +116,7 @@ export const actions = actionTree(
       if (chat) {
         await $storex.projects.loadChat(chat)
       }
-      state.activeChat = state.chats[chat?.id]
+      state.activeChat = chat ? state.chats[chat.id] : null
     },
     async addLogIgnore({ state }, ignore) {
       let ignores = state.activeProject.log_ignore?.split(",") || []
@@ -192,6 +192,23 @@ export const actions = actionTree(
       } finally {
         $storex.session.decApiCalls()
       } 
+    },
+    async onChatEvent({ state }, { event, data }) {
+      const {
+        chat: {
+          id
+        },
+        message
+      } = data
+      const chat = state.chats[id]
+      if (chat && message) {
+        const currentMessage = chat.messages.find(m => m.id === message.id)
+        if (currentMessage) {
+          currentMessage.content += message.content
+        } else {
+          chat.messages.push(message)
+        }
+      }
     }
   }
 )

@@ -47,6 +47,11 @@ class AI:
     @profile_function
     def image(self, prompt):
         return self.llm.generate_image(prompt)
+
+
+    def log(self, message):
+        if self.settings.get_log_ai():
+            logger.info(message)
     
     @profile_function
     def chat(
@@ -60,7 +65,8 @@ class AI:
         if prompt:
             messages.append(HumanMessage(content=prompt))
 
-        logger.debug(f"Creating a new chat completion: {messages}")
+        if self.settings.get_log_ai():
+            logger.info(f"Creating a new chat completion: {messages}")
 
         response = None
         md5Key = messages_md5(messages) if self.cache else None
@@ -73,6 +79,7 @@ class AI:
                 callbacks.append(callback)
             
             try:
+                self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
                 response = self.llm(messages=messages, config={"callbacks": callbacks})
             except Exception as ex:
                 logger.exception(f"Non-retryable error processing AI request: {ex}")

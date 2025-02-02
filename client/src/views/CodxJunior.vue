@@ -14,22 +14,6 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>
-
-        <div class="dropdown dropdown-end">
-          <div tabindex="0" role="button" class="click flex gap-2 items-center p-2"
-            :class="hasNotifications && 'text-warning'"
-          >
-            <div class="max-w-40 overflow-hidden text-nowrap">{{ lastNotification }}</div>
-            <i class="fa-solid fa-bell"></i>
-          </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-            <li class="mb-2"
-              @click="removeNotification(n)"
-              v-for="n in notifications" :key="n.id">
-              <a class="bg-secondary text-secondary-content">{{ n.text }}</a>
-            </li>
-          </ul>
-        </div>
       </div>
       <TabViewVue :key="projectKey" />
     </div>

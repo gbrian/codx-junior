@@ -94,15 +94,16 @@ class OpenAI_AI:
                 else:
                     self.log(f"NO CONTENT CHUNK RECEIVED: {chunk}")
                     
-                try:
-                    if callbacks:
-                        for cb in callbacks:
-                            cb.on_llm_new_token(chunk_content)
-                except Exception as ex:
-                    self.log(f"ERROR IN CALLBACKS: {ex}")
+                if callbacks:
+                    for cb in callbacks:
+                        try:
+                            cb(chunk_content)
+                        except Exception as ex:
+                            logger.error(f"ERROR IN CALLBACKS: {ex}")
         except Exception as ex:
             logger.exception(f"Error reading AI response {ex}")
-
+        
+        self.log(f"AI response done {len(content_parts)} chunks")
         response_content = "".join(content_parts)
         self.log("\n\n".join(
             [f"[{datetime.now().isoformat()}] model: {model}, temperature: {temperature}"] +

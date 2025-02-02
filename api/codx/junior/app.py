@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 import traceback
 
-from codx.junior.sio.sio import socket_app
+from codx.junior.sio.sio import socket_app, sio
 from codx.junior.sio.session_channel import SessionChannel
 
 from codx.junior.profiling.profiler import profile_function
@@ -32,6 +32,7 @@ def enable_logs(logs):
   for logger_id in logs:
       logging.getLogger(logger_id).setLevel(logging.DEBUG)
 
+"""
 disable_logs([
     'httpx',
     'httpcore.http11',
@@ -40,6 +41,7 @@ disable_logs([
     'watchfiles.main',
     'asyncio',
 ])
+"""
 
 
 from flask import send_file
@@ -50,9 +52,11 @@ from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
 
-from codx.junior.model import (
+from codx.junior.db import (
     Chat,
-    Message,
+    Message
+)
+from codx.junior.model import (
     KnowledgeReloadPath,
     KnowledgeSearch,
     KnowledgeDeleteSources,
@@ -128,8 +132,8 @@ async def add_gpt_engineer_settings(request: Request, call_next):
     codx_path = request.query_params.get("codx_path")
     if codx_path:
         try:
-            sio = request.headers.get("x-sid")
-            channel = SessionChannel(sio=sio)
+            sid = request.headers.get("x-sid")
+            channel = SessionChannel(sid=sid, sio=sio)
             request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, channel=channel)
             settings = request.state.codx_junior_session.settings
             # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
@@ -193,23 +197,23 @@ def api_list_chats(request: Request):
 @app.post("/api/chats")
 async def api_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    await codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
+    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
     await codx_junior_session.chat_with_project(chat=chat, use_knowledge=True)
-    codx_junior_session.save_chat(chat)
+    await codx_junior_session.save_chat(chat)
     return chat
 
 @profile_function
 @app.post("/api/chats/sub-tasks")
 async def api_chat_subtasks(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    await codx_junior_session.chat_event(chat=chat, message="Creating sub-tasks...")
+    codx_junior_session.chat_event(chat=chat, message="Creating sub-tasks...")
     return codx_junior_session.generate_tasks(chat=chat)
 
 @app.put("/api/chats")
-def api_save_chat(chat: Chat, request: Request):
+async def api_save_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
     chat_only = request.query_params.get("chatOnly")
-    codx_junior_session.save_chat(chat, chat_only=chat_only)
+    await codx_junior_session.save_chat(chat, chat_only=chat_only)
 
 @app.delete("/api/chats")
 def api_delete_chat(request: Request):
@@ -220,13 +224,13 @@ def api_delete_chat(request: Request):
 @app.get("/api/boards")
 def api_boards(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.load_boards()
+    return codx_junior_session.get_chat_manager().load_boards()
 
 @app.post("/api/boards")
 async def api_set_boards(request: Request):
     codx_junior_session = request.state.codx_junior_session
     boards = await request.json()
-    codx_junior_session.save_boards(boards)
+    codx_junior_session.get_chat_manager().save_boards(boards)
 
 
 @app.post("/api/images")
@@ -251,7 +255,7 @@ def api_image_upload(file: UploadFile):
 async def api_run_improve(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
     await codx_junior_session.improve_existing_code(chat=chat)
-    codx_junior_session.save_chat(chat)
+    await codx_junior_session.save_chat(chat)
     return chat
 
 @app.post("/api/run/improve/patch")

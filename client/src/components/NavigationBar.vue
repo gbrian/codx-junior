@@ -64,10 +64,10 @@ import UserList from './UserList.vue';
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'help' ? 'bg-base-100 text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
           :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="About codx-junior"
+          data-tip="Add project"
           @click="$ui.setActiveTab('help')">
             <div class="flex flex-col gap-4">
-            <i class="fa-regular fa-circle-question"></i>
+              <i class="fa-solid fa-plus"></i>
           </div>
         </a>
       </div>

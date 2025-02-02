@@ -6,12 +6,17 @@ import time
 import subprocess
 import shutil
 import asyncio
+import uuid
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
 
-from langchain.schema import AIMessage, HumanMessage, SystemMessage, BaseMessage
 from langchain.schema.document import Document
+from langchain.schema import (
+    AIMessage,
+    HumanMessage,
+    SystemMessage
+)
 
 from codx.junior.utils import (
     document_to_context,
@@ -33,8 +38,6 @@ from codx.junior.chat_manager import ChatManager
 from codx.junior.profiles.profile_manager import ProfileManager
 
 from codx.junior.model import (
-    Chat,
-    Message,
     KnowledgeSearch,
     Document,
     Content,
@@ -64,7 +67,13 @@ from codx.junior.mention_manager import (
     strip_mentions,
     is_processing_mentions
 )
-from codx.junior.db import CODXJuniorDB
+from codx.junior.db import (
+    CODXJuniorDB,
+    Kanban,
+    Chat,
+    Message,
+)
+
 from codx.junior.context import AICodePatch
 
 from codx.junior.sio.session_channel import SessionChannel
@@ -179,13 +188,21 @@ class CODXJuniorSession:
     def get_channel(self):
         return self.channel
 
-    async def send_event(self, message: str):
-        await self.get_channel().send_event('codx-junior', { 'text': message })
+    def event_data(self, data: dict):
+        data['codx_path'] = self.settings.codx_path
+        return data
+
+    def send_event(self, message: str):
+        self.get_channel().send_event('codx-junior', self.event_data({ 'text': message }))
         self.log_info(f"SEND MESSAGE {message}- SENT!")
 
-    async def chat_event(self, chat: Chat, message: str = None, event_type: str = None):
-        await self.get_channel().send_event('chat-event', { 'id': chat.id, 'text': message, 'type': event_type })
+    def chat_event(self, chat: Chat, message: str = None, event_type: str = None):
+        self.get_channel().send_event('chat-event', self.event_data({ 'chat': { 'id': chat.id }, 'text': message, 'type': event_type }))
         self.log_info(f"SEND MESSAGE {message}- SENT!")
+
+    def message_event(self, chat: Chat, message: Message):
+        self.get_channel().send_event('message-event', self.event_data({ 'chat': { 'id': chat.id }, 'message': message.model_dump() }))
+        self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
 
     def delete_project(self):
         shutil.rmtree(self.settings.codx_path)
@@ -214,7 +231,7 @@ class CODXJuniorSession:
     def list_chats(self):
         return self.get_chat_manager().list_chats()
 
-    def save_chat(self, chat, chat_only=False):
+    async def save_chat(self, chat: Chat, chat_only=False):
         chat = self.get_chat_manager().save_chat(chat, chat_only)
         self.chat_event(chat=chat, event_type="changed")
         return chat
@@ -369,7 +386,7 @@ class CODXJuniorSession:
 
     @profile_function
     async def improve_existing_code(self, chat: Chat, apply_changes: bool=None):
-        await self.send_event(message=f"Code changes")
+        self.send_event(message=f"Code changes")
 
         valid_messages = [message for message in chat.messages if not message.hide]
         if valid_messages[-1].improvement:
@@ -476,7 +493,7 @@ class CODXJuniorSession:
         for file_path, changes in changes_by_file_path.items():
             change_type = changes[0].change_type
             self.log_info(f"improve_existing_code change: {change_type} - {file_path}")
-            await self.send_event(message=f"Code-gen: change {change_type} - {file_path}")
+            self.send_event(message=f"Code-gen: change {change_type} - {file_path}")
             
             if change_type == "delete_file":
                 del open_files[file_path]
@@ -644,7 +661,7 @@ class CODXJuniorSession:
             raise ex
         finally:
             if save_changes:
-                self.save_chat(chat=chat)
+                await self.save_chat(chat=chat)
 
     @profile_function
     async def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False):
@@ -683,7 +700,7 @@ class CODXJuniorSession:
         if not mentions:
             return ""
 
-        await self.send_event(message=f"Processing {file_path.split('/')[-1]}...")
+        self.send_event(message=f"Processing {file_path.split('/')[-1]}...")
             
         self.log_info(f"{len(mentions)} mentions found for {file_path}")
         new_content = notify_mentions_in_progress(content)
@@ -797,18 +814,30 @@ class CODXJuniorSession:
     
     @profile_function
     async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
-        chat_mode = chat_mode or chat.mode or 'chat'
-        if chat_mode == 'browser':
+        chat_mode = chat_mode or chat.mode or "chat"
+        if chat_mode == "browser":
             self.log_info(f"chat_with_project browser mode")
-            await self.chat_event(chat=chat, message=f"connecting with browser...")
+            self.chat_event(chat=chat, message=f"connecting with browser...")
             return self.get_browser().chat_with_browser(chat)
 
-        await self.chat_event(chat=chat, message=f"Process chat")
-        
-        is_refine = chat_mode == 'task'
+        sources = []
+        documents = []
         task_item = ""
+        
+        is_refine = chat_mode == "task"
         if is_refine:
             task_item = "analysis"
+        
+        response_message = Message(role="assistant", doc_id=str(uuid.uuid4()))
+        def send_message_event(content):
+            sources =  []
+            if documents:
+                sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))
+            response_message.content = content
+            response_message.files = sources
+            response_message.task_item = task_item
+            self.message_event(chat=chat, message=response_message)
+        
         ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
         last_ai_message = ai_messages[-1] if ai_messages else None
             
@@ -874,7 +903,7 @@ class CODXJuniorSession:
         if chat.name:
             ignore_documents.append(f"/{chat.name}")
 
-        await self.chat_event(chat=chat, message="Knowledge search")
+        self.chat_event(chat=chat, message="Knowledge search")
 
         for chat_file in chat_files:
             chat_file_full_path = chat_file
@@ -928,19 +957,21 @@ class CODXJuniorSession:
         else:
             messages.append(convert_message(user_message))
         
-        await self.chat_event(chat=chat, message=f"Invoking AI: {self.settings.ai_provider}")
+        self.chat_event(chat=chat, message=f"Invoking AI: {self.settings.ai_provider}")
 
-        messages = ai.chat(messages, callback=callback)
-        response = messages[-1].content
-        sources = []
-        if documents:
-            sources = list(set([doc.metadata['source'].replace(self.settings.project_path, "") for doc in documents]))
-            
-        response_message = Message(role="assistant", task_item=task_item, content=response, files=sources)
+        if not callback:
+            callback = lambda content: send_message_event(content=content)
+        try:
+            messages = ai.chat(messages, callback=callback)
+            response_message.content = messages[-1].content
+        except Exception as ex:
+            logger.exception(f"Error chating with project: {ex} {chat.id}")
+            response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
+
         chat.messages.append(response_message)
         self.chat_event(chat=chat, message=f"done")
         return chat, documents
-
+            
     def check_project(self):
         try:
             self.log_info(f"check_project")
@@ -1158,3 +1189,9 @@ class CODXJuniorSession:
         diff = self.get_project_changes()
         return self.get_knowledge().build_code_changes_summary(diff=diff, force=force)
     
+    def load_boards(self):
+        return self.db.get_all_kankan()
+
+    def save_boards(self, kanbans: []):
+        for kanban in kanbans:
+            self.db.save_kanban(Kanban(**data))

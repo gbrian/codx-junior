@@ -1,3 +1,0 @@
-# [[{"id": "0", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "gnome desktop", "created_at": "2024-10-19T20:34:19.132477", "updated_at": "2025-01-10T04:34:40.479167", "mode": "chat", "board": "Default", "column": "tasks", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/Default/tasks/gnome desktop.md"}]]
-## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-10-19T21:44:00.784847", "updated_at": "2025-01-10 04:28:05.776892", "images": [], "files": []}]]
-Review supervisor.conf

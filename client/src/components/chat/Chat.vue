@@ -45,6 +45,9 @@ import moment from 'moment'
               v-if="!message.hide || showHidden"
             />
           </div>
+          <div class="text-xs text-info" v-for="event in chatEvents" :key="event.ts">
+            <i class="fa-solid fa-comment"></i> {{ event.data.text }}
+          </div>
           <div class="anchor" ref="anchor"></div>
         </div>
       </div>
@@ -233,7 +236,7 @@ import moment from 'moment'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'showHidden'],
+  props: ['chatId', 'showHidden'],
   data () {
     return {
       waiting: false,
@@ -262,7 +265,10 @@ export default {
   created () {
   },
   computed: {
-     messages () {
+    chat () {
+      return this.$projects.chats[this.chatId]
+    },
+    messages () {
       if (this.isTask) {
         const rmsgs = this.chat?.messages ||[].reverse() 
         const userMsg = rmsgs.find(m => m.role !== 'assistant' && (!m.hide || this.showHidden))
@@ -302,6 +308,10 @@ export default {
         }
       }
       return null
+    },
+    chatEvents () {
+      return this.$session.events.filter(e => e.data.chat?.id === this.chatId
+          && e.data.text)
     }
   },
   watch: {
@@ -411,8 +421,7 @@ export default {
         this.updateMessage()
       } else {
         this.postMyMessage()
-        const { data } = await this.sendChatMessage(this.chat)
-        this.chat.messages = data.messages
+        await this.sendChatMessage(this.chat)
       }
       this.onResetEdit()
       this.saveChat()

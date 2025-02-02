@@ -84,9 +84,9 @@ export const actions = actionTree(
       $storex.session.connect()
     },
     tick ({ state }) {
-      const expireNotif = new Date( Date.now() - 1000 * 10 );
+      const expireNotif = new Date( Date.now() - 1000 * 10 ).getTime();
       if (state.events.find(e => e.ts < expireNotif)) {
-        state.events = state.events.filter(e => e.ts < expireNotif)
+        state.events = state.events.filter(e => e.ts >= expireNotif)
       }
     },
     connect ({ state }) {
@@ -118,6 +118,9 @@ export const actions = actionTree(
     onEvent({ state }, { event, data }) {
       console.log("On server message", event, data)
       state.events.push({ event, data, ts: new Date().getTime() })
+      if (data.chat) {
+        $storex.projects.onChatEvent({ event, data })
+      }
     },
     onInfo(_, notification) {
       if (typeof(notification) === 'string') {

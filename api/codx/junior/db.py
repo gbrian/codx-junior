@@ -28,6 +28,7 @@ class Message(BaseModel):
     files: List[str] = Field(default=[])
 
 class Chat(BaseModel):
+    id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
     parent_id: Optional[str] = None
     status: str = Field(default='')
@@ -41,6 +42,8 @@ class Chat(BaseModel):
     mode: str = Field(default='chat')
     kanban_id: str = Field(default='')
     column_id: str = Field(default='')
+    board: str = Field(default='')
+    column: str = Field(default='')
     chat_index: Optional[int] = Field(default=0)
     live_url: str = Field(default='')
     branch: str = Field(default='')
@@ -68,21 +71,24 @@ class CODXJuniorDB:
         self.settings = settings
         self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(self.settings.codx_path))
         self.db_path = f"{self.settings.codx_path}/{self.index_name}.db.json"
-        self.client = PROJECT_DATABASES.get(self.settings.project_path)
-        self.init_client()
+        self.client = PROJECT_DATABASES.get(self.settings.project_path, None)
+        if not self.client:
+            self.init_client()
         self.kanban_table = self.client.table('kanban', cache_size=0)
         self.column_table = self.client.table('column', cache_size=0)
         self.chat_table = self.client.table('chat', cache_size=0)
 
     def init_client(self):
-        if not self.client:
+        if self.client is None:
+            logger.info(f"Connected to database: {self.settings.project_path}")
             self.client = TinyDB(self.db_path, sort_keys=True, indent=4, separators=(',', ': '))
             PROJECT_DATABASES[self.settings.project_path] = self.client
-        logger.info(f"Connected to database: {self.db_path}")
-    
+        
     def reset(self):
+        logger.info(f"Reseting DB {self.settings.project_path}")
         if os.path.exists(self.db_path):
             os.remove(self.db_path)
+            PROJECT_DATABASES[self.settings.project_path] = None
             self.init_client()
 
     def save_kanban(self, kanban: Kanban):
