@@ -30,7 +30,7 @@ class Message(BaseModel):
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
-    parent_id: Optional[str] = None
+    parent_id: Optional[str] = Field(default=None)
     status: str = Field(default='')
     tags: List[str] = Field(default=[])
     file_list: List[str] = Field(default=[])
@@ -51,15 +51,15 @@ class Chat(BaseModel):
 
 class KanbanColumn(BaseModel):
     doc_id: Optional[str] = Field(default=None)
-    title: str
+    title: str = Field(default=None)
     color: Optional[str]
     index: int = Field(default=0)
 
 class Kanban(BaseModel):
     doc_id: Optional[str] = Field(default=None)
-    title: str
+    title: str = Field(default=None)
     description: Optional[str]
-    index: int = 0
+    index: int = Field(default=0)
     columns: Optional[List[KanbanColumn]] = Field(default=[])
     created_at: str = Field(default=str(datetime.now()))
     updated_at: str = Field(default=str(datetime.now()))

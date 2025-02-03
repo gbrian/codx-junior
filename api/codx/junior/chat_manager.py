@@ -61,7 +61,7 @@ class ChatManager:
         chat.updated_at = datetime.now().isoformat()
         
         current_chat = self.find_by_id(chat.id)
-        if chat_only:
+        if chat_only and current_chat:
             chat.messages = current_chat.messages
 
         chat_file = self.get_chat_file(chat)

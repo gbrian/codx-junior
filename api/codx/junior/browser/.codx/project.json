@@ -2,8 +2,9 @@
   "ai_provider": "openai",
   "ai_model": "",
   "project_name": "browser",
+  "project_path": null,
   "project_wiki": "",
-  "project_dependencies": "codx-api",
+  "project_dependencies": "",
   "knowledge_extract_document_tags": false,
   "knowledge_search_type": "similarity",
   "knowledge_search_document_count": 10,
@@ -18,5 +19,6 @@
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://avatars.githubusercontent.com/u/60474196?s=48&v=4",
   "log_ignore": "",
+  "project_scripts": [],
   "urls": []
 }

@@ -10,7 +10,9 @@ from selenium.webdriver import ChromeOptions, FirefoxOptions
 from selenium.common.exceptions import WebDriverException
 
 from codx.junior.engine import CODXJuniorSession
-from codx.junior.model import Chat
+from codx.junior.db import (
+    Chat,
+)
 from codx.junior.utils import exec_command
 from langchain.schema import AIMessage, HumanMessage
 

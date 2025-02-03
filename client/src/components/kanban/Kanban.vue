@@ -230,28 +230,28 @@ export default {
       this.activeBoard = this.boardList[this.board] || this.boardList[ALL_BOARTD_TITLE]
       this.saveBoards()
     },
-    createNewChat(column) {
+    createNewChat(base) {
       return this.$projects.createNewChat({
         id: uuidv4(),
         name: "New chat " + this.chats.length + 1,
         mode: 'task',
         profiles: ["analyst"],
         board: this.board || "Default",
-        column: column,
-        chat_index: 0
+        chat_index: 0,
+        ...base
       })
     },
     newAnalysisTask(column) {
-      this.$projects.newChat({
-        ...this.createNewChat(column),
+      this.createNewChat({
+        column,
         name: "New Analysis Task",
         mode: 'task',
         profiles: ["analyst"]
       })
     },
     newCodingTask(column) {
-      this.$projects.newChat({
-        ...this.createNewChat(column),
+      this.createNewChat({
+        column,
         name: "New Coding Task",
         mode: 'chat',
         profiles: ["software_developer"]
@@ -313,7 +313,7 @@ export default {
       }
       // Move positions
       if (this.selectedColumn?.position !== this.columnPosition
-          && this.boardColumns.find(c => c.position === this.columnPosition)) {
+          && this.boardColumns?.find(c => c.position === this.columnPosition)) {
             this.boardColumns.filter(c => c.position >= this.columnPosition)
                 .map(c => c.position++)
       }
@@ -336,7 +336,11 @@ export default {
           title: this.columnName,
           color: this.columnColor
         }
-        this.boardColumns.push(newColumn)
+        if (this.boardColumns) {
+          this.boardColumns.push(newColumn)
+        } else {
+          this.boards[this.board].columns = [newColumn]
+        }
       }
       
       await this.saveBoards()

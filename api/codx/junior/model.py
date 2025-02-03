@@ -18,36 +18,6 @@ class ChatMessage(BaseModel):
     role: str = Field(default='')
     content: List[Content] = Field(default=[])
 
-class Message(BaseModel):
-    role: str = Field(default='')
-    task_item: str = Field(default='')
-    content: str = Field(default='')
-    hide: bool = Field(default=False)
-    improvement: bool = Field(default=False)
-    created_at: str = Field(default=str(datetime.now()))
-    updated_at: str = Field(default=str(datetime.now()))
-    images: List[str] = Field(default=[])
-    files: List[str] = Field(default=[])
-
-class Chat(BaseModel):
-    id: str = Field(default='')
-    parent_id: str = Field(default='')
-    status: str = Field(default='')
-    tags: List[str] = Field(default=[])
-    file_list: List[str] = Field(default=[])
-    profiles: List[str] = Field(default=[])
-    name: str = Field(default='')
-    messages: List[Message] = Field(default=[])
-    created_at: str = Field(default='')
-    updated_at: str = Field(default='')
-    mode: str = Field(default='chat')
-    board: str = Field(default='')
-    column: str = Field(default='')
-    chat_index: Optional[int] = Field(default=0)
-    live_url: str = Field(default='')
-    branch: str = Field(default='')
-    file_path: str = Field(default='')
-
 class Column(BaseModel):
     name: str = Field(default='')
     chat_ids: List[str] = Field(default=[])
@@ -182,11 +152,3 @@ class AITasks(BaseModel):
     tasks: List[Chat] = Field(description="List of tasks. chat mode will be chat.")
 
 AI_TASKS_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AITasks)
-
-class SioMessage(BaseModel):
-    codx_path: str = Field(default=None)
-    sid: str = Field(default=None)
-    request_id: str = Field(default=None)
-    
-class SioChatMessage(SioMessage):
-    chat: Chat

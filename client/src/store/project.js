@@ -80,8 +80,8 @@ export const actions = actionTree(
       if (project?.codx_path === state.activeProject?.codx_path) {
         return
       }
+      state.activeProject = project
       await API.init(project?.codx_path)
-      state.activeProject = API.lastSettings
       state.activeChat = null
       project && await $storex.projects.loadChats()
     },
@@ -102,10 +102,6 @@ export const actions = actionTree(
       const loadedChat = await API.chats.loadChat(chat)
       state.chats[loadedChat.id] = loadedChat
       return loadedChat
-    },
-    async newChat({ state }, chat) {
-      state.activeChat = chat
-      return chat
     },
     async deleteChat(_, chat) {
       await API.chats.delete(chat)

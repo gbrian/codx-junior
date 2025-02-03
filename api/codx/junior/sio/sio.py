@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from codx.junior.sio.session_channel import SessionChannel
 from codx.junior.engine import CODXJuniorSession
 
-from codx.junior.model import (
+from codx.junior.sio.model import (
     SioMessage,
     SioChatMessage
 )
