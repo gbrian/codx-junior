@@ -957,7 +957,7 @@ class CODXJuniorSession:
         else:
             messages.append(convert_message(user_message))
         
-        self.chat_event(chat=chat, message=f"Invoking AI: {self.settings.ai_provider}")
+        self.chat_event(chat=chat, message=f"Invoking {self.settings.get_ai_provider()}. Model {self.settings.get_ai_model()}")
 
         if not callback:
             callback = lambda content: send_message_event(content=content)

@@ -1,5 +1,5 @@
 {
-  "ai_provider": "",
+  "ai_provider": "mistral",
   "ai_model": "",
   "project_name": "codx-api",
   "project_path": null,

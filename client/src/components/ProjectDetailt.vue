@@ -1,3 +1,6 @@
+<script setup>
+import ProjectChip from './ProjectChip.vue';
+</script>
 <template>
   <div v-if="$project">
     <div tabindex="0" role="button" class="flex flex-col gap-2 text-2xl">
@@ -17,21 +20,40 @@
         data-tip="Open in coder" @click="$ui.coderOpenPath($project)">
         <span v-if="$ui.coderPath == $project.project_path"><i class="fa-solid fa-folder-open"></i></span>
         <span v-else><i class="fa-solid fa-folder"></i></span>
-        
-        {{ $project.project_path }}
+        <div class="max-w-40 overflow-hidden text-nowrap text-right text-ellipsis" :title="$project.project_path">
+          {{ $project.project_path }}
+        </div>
       </div>
-      <span v-if="$projects.childProjects?.length"><i class="fa-solid fa-folder-tree"></i></span>
-      <div class="badge badge-xs badge-secondary click hover:underline" v-for="child in $projects.childProjects"
-        :key="child.project_name" @click.stop="$projects.setActiveProject(child)">
+      <div v-if="$projects.parentProject">
+        <i class="fa-solid fa-turn-up"></i>
+      </div>
+      <ProjectChip :project="$projects.parentProject" class="bg-info text-info-content"
+          :data-tip="`Go to ${$projects.parentProject.project_name}`" 
+          v-if="$projects.parentProject"
+          @click.prevent.stop="$projects.setActiveProject($projects.parentProject)">
+          <img class="w-4 rounded-full bg-base-300" :src="$projects.parentProject.project_icon"/>
+          {{ $projects.parentProject.project_name }}
+      </ProjectChip>
+      <div v-if="$projects.childProjects.length">
+        <i class="fa-solid fa-turn-down"></i>
+      </div>
+      <ProjectChip :project="child" class="bg-secondary text-secondary-content"
+          :data-tip="`Go to ${child.project_name}`" 
+          v-for="child in $projects.childProjects"
+        :key="child.project_name" @click.prevent.stop="$projects.setActiveProject(child)">
+        <img class="w-4 rounded-full bg-base-300" :src="child.project_icon"/>
         {{ child.project_name }}
-      </div>
-      <span v-if="$projects.projectDependencies?.length">
+      </ProjectChip>
+      <div v-if="$projects.projectDependencies?.length">
         <i class="fa-solid fa-link"></i>
-      </span>
-      <div class="badge badge-xs badge-primary click hover:underline" v-for="child in $projects.projectDependencies"
-        :key="child.project_name" @click.stop="$projects.setActiveProject(child)">
-        {{ child.project_name }}
       </div>
+      <ProjectChip :project="child"
+        :data-tip="`Go to ${child.project_name}`"
+        v-for="child in $projects.projectDependencies"
+        :key="child.project_name" @click.stop="$projects.setActiveProject(child)">
+        <img class="w-4 rounded-full bg-base-300" :src="child.project_icon"/>
+        {{ child.project_name }}
+      </ProjectChip>
     </div>
   </div>
 </template>

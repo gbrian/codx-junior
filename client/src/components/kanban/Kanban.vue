@@ -231,7 +231,7 @@ export default {
       this.saveBoards()
     },
     createNewChat(column) {
-      return {
+      return this.$projects.createNewChat({
         id: uuidv4(),
         name: "New chat " + this.chats.length + 1,
         mode: 'task',
@@ -239,7 +239,7 @@ export default {
         board: this.board || "Default",
         column: column,
         chat_index: 0
-      }
+      })
     },
     newAnalysisTask(column) {
       this.$projects.newChat({

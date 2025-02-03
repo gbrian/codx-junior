@@ -53,11 +53,20 @@ def sio_api_endpoint(func):
         codxjunior_session = CODXJuniorSession(
                                 channel=channel,
                                 codx_path=base_data.codx_path)
-        
-        if not asyncio.iscoroutinefunction(func):
-            return SIO_POOL.submit(func, sid, data, codxjunior_session).result
-        else:
-            return SIO_POOL.submit(asyncio.run, func(sid, data, codxjunior_session)).result
+        try:
+            if not asyncio.iscoroutinefunction(func):
+                return SIO_POOL.submit(func, sid, data, codxjunior_session).result
+            else:
+                def worker():
+                    try:
+                        return asyncio.run(func(sid, data, codxjunior_session))
+                    except Exception as ex:
+                        logger.exception(f"Error processing async sio message")
+                    return None
+                return SIO_POOL.submit(worker)
+        except Exception as ex:
+            logger.exception(f"Error processing sio message")
+        return None
     return wrapper
 
 @sio.on("codx-junior-login")

@@ -2,25 +2,33 @@
 import ProjectDetailt from './ProjectDetailt.vue';
 </script>
 <template>
-<div class="dropdown dropdown-bottom flex flex-col h-full" v-if="$project">
-    <ProjectDetailt tabindex="0" />
-    <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-52 p-2 shadow">
-        <div v-if="showFilter" class="mb-2 flex justify-between px-1">
-            <input 
-                type="text" 
-                class="p-2 bg-base-100 input input-xs w-2/3 items-center" 
-                placeholder="Filter projects..." 
-                v-model="filterValue" 
-            />
-            <span class="click" @click="$projects.loadAllProjects()">
-              <i class="fa-solid fa-arrows-rotate"></i>
-            </span>
+<div class="dropdown dropdown-bottom flex flex-col h-full"
+    :class="isOpen ? 'dropdown-open': ''" 
+    v-if="$project">
+    <ProjectDetailt @click="isOpen = !isOpen" />
+    <ul class="dropdown-content menu bg-base-300 rounded-box z-[1] w-52 p-2 shadow"
+      @mouseleave="isOpen = false"
+      @blur="isOpen = false"
+      v-if="isOpen">
+        <div class="mb-2 flex justify-between px-1">
+          <span class="click text-xl" @click="isOpen = false">
+            <i class="fa-solid fa-caret-up"></i>
+          </span>
+          <input 
+              type="text" 
+              class="p-2 bg-base-100 input input-xs w-2/3 items-center" 
+              placeholder="Filter projects..." 
+              v-model="filterValue" 
+          />
+          <span class="click" @click="$projects.loadAllProjects()">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </span>
         </div>
         <div class="h-96 overflow-auto">
             <li 
                 v-for="project in filteredProjects" 
                 :key="project.codx_path" 
-                @click.stop="$projects.setActiveProject(project)"
+                @click.prevent.stop="setActiveProject(project)"
             >
                 <a class="flex gap-2 items-center">
                     <div class="avatar indicator">
@@ -41,6 +49,7 @@ export default {
   props: {},
   data () {
     return {
+      isOpen: false,
       filterValue: ""
     }
   },
@@ -65,6 +74,10 @@ export default {
   methods: {
     resetFilterValue() {
       this.filterValue = null;
+    },
+    setActiveProject(project) {
+      this.isOpen = false
+      this.$projects.setActiveProject(project)
     }
   }
 }

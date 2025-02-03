@@ -92,6 +92,7 @@ export default {
       })
     },
     updateCodeBlocks() {
+      // return
       const codeBlocks = [...this.$el.querySelectorAll('code[class*="language-"]')]
         .filter(cb => !this.codeBlocks.find(ccb => ccb === cb))
       if (codeBlocks.length) {

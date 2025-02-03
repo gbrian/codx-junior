@@ -132,6 +132,14 @@ class GitSettings(BaseModel):
     username: Optional[str] = Field(default="")
     email: Optional[str] = Field(default="")
 
+class ProjectScript(BaseModel):
+    name: str = Field(description="Script name")
+    description: str = Field(description="Script name", default="")
+    script: str = Field(description="Bash script", default="")
+    status: str = Field(description="Script status: running, stopped, error", default="stopped")
+    background: bool = Field(description="Script runs in background", default=False)
+    restart: bool = Field(description="Script must be restarted if stopped", default=False)
+
 class GlobalSettings(BaseModel):
     openai: OpenAISettings = Field(default=OpenAISettings())
     anthropic_ai: AnthropicAISettings = Field(default=AnthropicAISettings())
@@ -149,6 +157,8 @@ class GlobalSettings(BaseModel):
     codx_junior_avatar: str = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
 
     enable_file_manager: bool = Field(default=False)
+
+    project_scripts: Optional[List[ProjectScript]] = Field(default=[])
 
 class Screen(BaseModel):
     resolution: str = Field(default='')
@@ -172,15 +182,6 @@ class AITasks(BaseModel):
     tasks: List[Chat] = Field(description="List of tasks. chat mode will be chat.")
 
 AI_TASKS_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AITasks)
-
-
-class ProjectScript(BaseModel):
-    name: str = Field(description="Script name")
-    description: str = Field(description="Script name", default="")
-    script: str = Field(description="Bash script", default="")
-    status: str = Field(description="Script status: running, stopped, error", default="stopped")
-    background: bool = Field(description="Script runs in background", default=False)
-
 
 class SioMessage(BaseModel):
     codx_path: str = Field(default=None)

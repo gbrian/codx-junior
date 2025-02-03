@@ -90,7 +90,9 @@ class CODXJuniorSettings:
         return json.dumps(self.__dict__)
 
     def get_ai_provider(self):
-        return self.ai_provider or GLOBAL_SETTINGS.ai_provider
+        if self.ai_provider:
+            return self.ai_provider
+        return GLOBAL_SETTINGS.ai_provider
  
     def get_ai_api_key(self):
         if self.get_ai_provider() in ["openai", "llmlite"]:
@@ -117,6 +119,8 @@ class CODXJuniorSettings:
             return GLOBAL_SETTINGS.openai.openai_model
         if self.get_ai_provider() == "anthropic":
             return GLOBAL_SETTINGS.anthropic_ai.anthropic_model
+        if self.get_ai_provider() == "mistral":
+            return GLOBAL_SETTINGS.mistral_ai.mistral_model
         return None
 
     def get_ai_embeddings_model(self):

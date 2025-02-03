@@ -137,7 +137,7 @@ class AI:
         if self.settings.get_ai_provider() == "anthropic":
             return Anthropic_AI(settings=self.settings).chat_completions
         if self.settings.get_ai_provider() == "mistral":
-            return Mistral_AI(settings=self.settings).chat_completions    
+             return Mistral_AI(settings=self.settings).chat_completions    
         return OpenAI_AI(settings=self.settings).chat_completions
 
     def create_embeddings_model(self):

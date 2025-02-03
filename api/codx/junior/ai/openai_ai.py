@@ -41,11 +41,13 @@ tools = [
 class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
-        api_key=settings.get_ai_api_key()
-        base_url=settings.get_ai_api_url()
+        self.model = self.settings.get_ai_model()
+        self.api_key=settings.get_ai_api_key()
+        self.base_url=settings.get_ai_api_url()
+
         self.client = OpenAI(
-            api_key=api_key,
-            base_url=base_url
+            api_key=self.api_key,
+            base_url=self.base_url
         )
 
     def log(self, msg):
@@ -62,12 +64,14 @@ class OpenAI_AI:
 
     @profile_function
     def chat_completions(self, messages, config: dict = {}):
+
+        self.log(f"OpenAI_AI chat_completions {self.settings.get_ai_provider()}: {self.model} {self.base_url} {self.api_key[0:6]}...")
+
         openai_messages = [self.convert_message(msg) for msg in messages]
-        model = self.settings.get_ai_model()
         temperature = float(self.settings.temperature)
         
         response_stream = self.client.chat.completions.create(
-            model=model,
+            model=self.model,
             temperature=temperature,
             messages=openai_messages,
             stream=True
@@ -76,7 +80,6 @@ class OpenAI_AI:
         content_parts = []
         if self.settings.get_log_ai():
             self.log(f"Received AI response, start reading stream")
-        first_chunk = False
         try:
             for chunk in response_stream:
                 # Check for tools
@@ -84,15 +87,9 @@ class OpenAI_AI:
                 #if tool_calls:
                 #    messages.append(HumanMessage(content=tool_calls))
                 #    return self.chat_completions(messages=messages)
-                if not first_chunk:
-                    self.log("Start receiving response")
-                    first_chunk = True
-
                 chunk_content = chunk.choices[0].delta.content
                 if chunk_content:
                     content_parts.append(chunk_content)
-                else:
-                    self.log(f"NO CONTENT CHUNK RECEIVED: {chunk}")
                     
                 if callbacks:
                     for cb in callbacks:

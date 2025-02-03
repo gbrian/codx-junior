@@ -32,7 +32,6 @@ def enable_logs(logs):
   for logger_id in logs:
       logging.getLogger(logger_id).setLevel(logging.DEBUG)
 
-"""
 disable_logs([
     'httpx',
     'httpcore.http11',
@@ -40,8 +39,9 @@ disable_logs([
     'openai._base_client',
     'watchfiles.main',
     'asyncio',
+    'codx.junior.project_watcher',
+    'selenium.webdriver.common.selenium_manager'
 ])
-"""
 
 
 from flask import send_file

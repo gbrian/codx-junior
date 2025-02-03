@@ -39,12 +39,11 @@ export const getters = getterTree(state, {
         .find(p => p.project_name === project_name))
         .filter(f => !!f)
   },
-  childProjects: state => {
-    const { _sub_projects } = state.activeProject
-    return _sub_projects?.map(project_name => state.allProjects
-        .find(p => p.project_name === project_name))
-        .filter(f => !!f)
-  },
+  childProjects: state => state.allProjects.filter(p => 
+      p.project_path !== state.activeProject.project_path && p.project_path.startsWith(state.activeProject.project_path))
+  ,
+  parentProject: state => state.allProjects.find(p =>
+    p.project_path !== state.activeProject.project_path && state.activeProject.project_path.startsWith(p.project_path)),
   projectHierarchy: (state) => {
     const hierarchy = state.allProjects.map(project => ({ ...project }))
     return hierarchy.map(project => {
@@ -184,14 +183,7 @@ export const actions = actionTree(
         codx_path: state.activeProject.codx_path,
         chat
       }
-      $storex.session.incApiCalls()
-      try {
-        await new Promise((ok, err) =>
-          $storex.session.socket.emit('codx-junior-chat', data, ok))
-        await $storex.projects.loadChat(chat)
-      } finally {
-        $storex.session.decApiCalls()
-      } 
+      $storex.session.socket.emit('codx-junior-chat', data)
     },
     async onChatEvent({ state }, { event, data }) {
       const {
@@ -209,6 +201,10 @@ export const actions = actionTree(
           chat.messages.push(message)
         }
       }
+    },
+    createNewChat({ state}, chat) {
+      state.chats[chat.id] = chat
+      state.activeChat = chat
     }
   }
 )
