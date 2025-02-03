@@ -175,10 +175,10 @@ def api_knowledge_reload_all(request: Request):
 
 
 @app.post("/api/knowledge/reload-search")
-def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):
+async def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):
     logger.info("API:knowledge_search_endpoint")
     codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params)
+    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))
 
 @app.get("/api/knowledge/status")
 def api_knowledge_status(request: Request):

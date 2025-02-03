@@ -182,13 +182,15 @@ class KnowledgeDB:
             for level1 in level0:
                 _id = level1["id"]
                 entity = level1["entity"]
-                distance = level1.get("distance")
                 metadata = entity["metadata"]
+                distance = level1.get("distance")
+                
                 logger.info(f"[DB SEARCH] entity score analysis, '{metadata['source']}' distance {distance}, score: {score}")
 
                 if score and distance and float(distance) < float(score):
                     continue
-        
+
+                metadata["relevance_score"] = float(distance)
                 documents.append(
                     Document(id=_id,
                         page_content=entity["page_content"], 
