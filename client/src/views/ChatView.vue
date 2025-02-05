@@ -27,9 +27,23 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                   v-if="parentChat">
                   {{ parentChat.name }}
                 </div>
-                <div class="click" @click="editName = true">
-                  <ChatIconVue :chat="chat" />
-                  {{ chat.name }}
+                <div class="flex items-center gap-2">
+                  <div class="dropdown">
+                    <div tabindex="0" role="button" class="btn btn-xs btn-outline flex gap-1 items-center">
+                      <i :class="chatModes[chat.mode].icon" class="fa-regular fa-comments"></i>
+                    </div>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                      <li @click="setChatMode(mode)" v-for="info, mode in chatModes" :key="mode">
+                        <a class="flex items-center">
+                          <i :class="info.icon" class="fa-regular fa-comments"></i>
+                          {{  info.name  }}
+                        </a>
+                      </li>
+                    </ul>
+                  </div>   
+                  <div class="click" @click="editName = true">
+                    {{ chat.name }}
+                  </div>                  
                 </div>
                 <div class="flex gap-2 items-center">
                   <div class="text-xs">{{ moment.utc(chat.updated_at).fromNow() }}</div>
@@ -70,20 +84,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             </div>
             <div class="grow"></div>
             <div class="group relative bg-base-100">
-              <div class="bg-base-300 lg:bg-transparent p-2 rounded hidden lg:flex group-hover:flex gap-2 p-1 items-center absolute right-8 -top-1">
-                <div class="dropdown">
-                  <div tabindex="0" role="button" class="select select-sm select-bordered flex gap-1 items-center">
-                    <i :class="chatModes[chat.mode].icon" class="fa-regular fa-comments"></i>
-                  </div>
-                  <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                    <li @click="setChatMode(mode)" v-for="info, mode in chatModes" :key="mode">
-                      <a class="flex items-center">
-                        <i :class="info.icon" class="fa-regular fa-comments"></i>
-                        {{  info.name  }}
-                      </a>
-                    </li>
-                  </ul>
-                </div>                
+              <div class="bg-base-300 lg:bg-transparent p-2 rounded hidden lg:flex group-hover:flex gap-2 p-1 items-center absolute right-8 -top-1">             
                 <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
                   <div class="flex items-center gap-2" v-if="!showHidden">
                     ({{ hiddenCount }})
@@ -125,13 +126,6 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                 </div>
                 <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
                   <i class="fa-solid fa-floppy-disk"></i>
-                </button>
-                <button class="btn btn-xs btn-error hover:text-white" @click="deleteChat" v-if="confirmDelete">
-                  Comfirm? <span class="hover:underline">YES</span> / <span class="hover:underline" @click.stop="confirmDelete = false">NO</span>
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-                <button class="btn btn-xs btn-error hover:text-white" @click="deleteChat" v-else>
-                  <i class="fa-solid fa-trash"></i>
                 </button>
               </div>
             </div>

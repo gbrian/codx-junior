@@ -24,30 +24,21 @@ import ProjectChip from './ProjectChip.vue';
           {{ $project.project_path }}
         </div>
       </div>
-      <div v-if="$projects.parentProject">
-        <i class="fa-solid fa-turn-up"></i>
-      </div>
-      <ProjectChip :project="$projects.parentProject" class="bg-info text-info-content"
+      <ProjectChip :project="$projects.parentProject" class="text-info"
           :data-tip="`Go to ${$projects.parentProject.project_name}`" 
           v-if="$projects.parentProject"
           @click.prevent.stop="$projects.setActiveProject($projects.parentProject)">
           <img class="w-4 rounded-full bg-base-300" :src="$projects.parentProject.project_icon"/>
           {{ $projects.parentProject.project_name }}
       </ProjectChip>
-      <div v-if="$projects.childProjects.length">
-        <i class="fa-solid fa-turn-down"></i>
-      </div>
-      <ProjectChip :project="child" class="bg-secondary text-secondary-content"
+      <ProjectChip :project="child" class="text-secondary"
           :data-tip="`Go to ${child.project_name}`" 
           v-for="child in $projects.childProjects"
         :key="child.project_name" @click.prevent.stop="$projects.setActiveProject(child)">
         <img class="w-4 rounded-full bg-base-300" :src="child.project_icon"/>
         {{ child.project_name }}
       </ProjectChip>
-      <div v-if="$projects.projectDependencies?.length">
-        <i class="fa-solid fa-link"></i>
-      </div>
-      <ProjectChip :project="child"
+      <ProjectChip :project="child" class=""
         :data-tip="`Go to ${child.project_name}`"
         v-for="child in $projects.projectDependencies"
         :key="child.project_name" @click.stop="$projects.setActiveProject(child)">

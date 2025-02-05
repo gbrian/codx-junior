@@ -185,11 +185,19 @@ import moment from 'moment'
                   </select>
                 </a>
               </li>
+              <li>
+                <a>
+                  <button class="btn btn-xs btn-error hover:text-white" @click.stop="confirmDelete = true">
+                    <i class="fa-solid fa-trash"></i> Delete chat
+                  </button>
+                </a>
+              </li>
             </ul>
           </div>
         </div>
       </div>
     </div>
+    @codx: Add modal for confirmDelete, ask for confirmation and canel or $emit('delete')
     <modal v-if="imagePreview">
       <div class="flex flex-col gap-2">
         <div class="text-2xl">Upload image</div>
@@ -259,7 +267,8 @@ export default {
       selectFile: false,
       isVoiceSession: false,
       recognition: null,
-      isBrowser: false
+      isBrowser: false,
+      confirmDelete: false
     }
   },
   created () {
@@ -293,7 +302,7 @@ export default {
       return this.messageText || this.images?.length
     },
     isTask () {
-      return this.chat.mode === 'task'
+      return this.chat?.mode === 'task'
     },
     lastAIMessage() {
       if (this.chat) {

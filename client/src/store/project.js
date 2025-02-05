@@ -81,9 +81,11 @@ export const actions = actionTree(
         return
       }
       state.activeProject = project
+      state.chats = {}
       await API.init(project?.codx_path)
-      state.activeChat = null
       project && await $storex.projects.loadChats()
+      state.activeProject = API.lastSettings
+      state.activeChat = null
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()
@@ -190,7 +192,7 @@ export const actions = actionTree(
       } = data
       const chat = state.chats[id]
       if (chat && message) {
-        const currentMessage = chat.messages.find(m => m.id === message.id)
+        const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
         if (currentMessage) {
           currentMessage.content += message.content
         } else {

@@ -3,15 +3,15 @@ import asyncio
 import logging
 
 from threading import Thread
-from typing import List
-from pydantic import BaseModel
+from typing import List, Optional
+from pydantic import BaseModel, Field
 
 from concurrent.futures import ThreadPoolExecutor
 
 logger = logging.getLogger(__name__)
 
 class IOEvent(BaseModel):
-    sid: str
+    sid: Optional[str] = Field(default=None) 
     event: str
     data: dict
 

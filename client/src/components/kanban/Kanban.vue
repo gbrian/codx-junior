@@ -58,7 +58,7 @@ import VSwatches from "../VSwatches.vue"
         <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
         Position:
         <ul class="steps">
-          <li v-for="n in columnList.length" :key="n" :title="n"
+          <li v-for="n in columnList.length" :key="n"
           class="step click" @click="columnPosition = n" :class="columnPosition === n && 'step-primary'"></li>
         </ul>
         <div class="modal-action">
@@ -75,7 +75,7 @@ import VSwatches from "../VSwatches.vue"
         <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
           :class="column.color && 'border-t-2'"
           :style="{ borderColor: column.color }"
-          v-for="column in columns" :key="column.title" :title="column.position">
+          v-for="column in columns" :key="column.title">
           <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
             <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
               :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
@@ -180,7 +180,7 @@ export default {
       const columnTitles = this.columnList 
       return columnTitles
           .map((col, ix) => {
-            const boardColumn = this.boards[this.board]?.columns.find(bc => bc.title === col)||{}
+            const boardColumn = this.boards[this.board]?.columns?.find(bc => bc.title === col)||{}
             return { 
               title: col,
               ...boardColumn,
@@ -193,7 +193,7 @@ export default {
     columnList() {
       return [...new Set([
         ...this.activeBoard?.tasks.map(t => t.column || "--none--") ||[],
-        ...this.boards[this.board]?.columns.map(c => c.title) || []
+        ...this.boards[this.board]?.columns?.map(c => c.title) || []
         ])]
     }
   },

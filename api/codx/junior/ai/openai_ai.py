@@ -103,7 +103,7 @@ class OpenAI_AI:
         self.log(f"AI response done {len(content_parts)} chunks")
         response_content = "".join(content_parts)
         self.log("\n\n".join(
-            [f"[{datetime.now().isoformat()}] model: {model}, temperature: {temperature}"] +
+            [f"[{datetime.now().isoformat()}] model: {self.model}, temperature: {temperature}"] +
             [f"[{message.type}]\n{message.content}" for message in messages] +
             ["[AI]",response_content]
         ))

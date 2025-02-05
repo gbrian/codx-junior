@@ -115,8 +115,6 @@ def create_project(project_path: str):
     return CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
 
 def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
-    if not file_name.startswith(settings.project_path):
-        file_name = f"{settings.project_path}{file_name}"
     logger.info(f"coder_open_file {file_name}")
     os.system(f"code-server -r {file_name}")
 
@@ -830,14 +828,18 @@ class CODXJuniorSession:
         
         response_message = Message(role="assistant", doc_id=str(uuid.uuid4()))
         def send_message_event(content):
+            response_message.content = response_message.content + content
+            # Buffer to save bandwith
+            if len(response_message.content) < 80:
+                return
             sources =  []
             if documents:
                 sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))
-            response_message.content = content
             response_message.files = sources
             response_message.task_item = task_item
             self.message_event(chat=chat, message=response_message)
-        
+            response_message.content = ""
+
         ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
         last_ai_message = ai_messages[-1] if ai_messages else None
             
