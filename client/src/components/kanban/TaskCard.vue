@@ -36,6 +36,12 @@ import ChatIcon from '../chat/ChatIcon.vue';
             <i class="fa-solid fa-paperclip"></i>
           </span>
         </div>
+        <div class="text-xs font-bold tooltip tooltip-left"
+          :data-tip="`${subTasks.length} sub tasks`"
+          v-if="subTasks.length">
+          {{ subTasks.length }}
+          <i class="fa-regular fa-file-lines"></i>
+        </div>
       </div>
     </div>
   </div>
@@ -66,6 +72,10 @@ export default {
       return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
         ? moment(updatedAt).fromNow()
         : moment(updatedAt).format('YYYY-MM-DD');
+    },
+    subTasks() {
+      return this.$storex.projects.allChats.filter(c => c.parent_id === this.task.id)
+                .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
     }
   }
 };

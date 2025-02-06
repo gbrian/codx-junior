@@ -197,7 +197,6 @@ import moment from 'moment'
         </div>
       </div>
     </div>
-    @codx: Add modal for confirmDelete, ask for confirmation and canel or $emit('delete')
     <modal v-if="imagePreview">
       <div class="flex flex-col gap-2">
         <div class="text-2xl">Upload image</div>

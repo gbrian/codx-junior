@@ -78,5 +78,4 @@ def start_background_services(app):
                 logger.exception(f"Erroor checking project {ex}")
             time.sleep(1)
 
-    logger
-    Thread(target=check_projects).start()
+    #Thread(target=check_projects).start()

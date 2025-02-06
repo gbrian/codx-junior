@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from threading import Thread
 
+from contextlib import contextmanager
+
 from langchain.schema.document import Document
 from langchain.schema import (
     AIMessage,
@@ -44,8 +46,7 @@ from codx.junior.model import (
     ImageUrl,
     LiveEdit,
     GlobalSettings,
-    Profile,
-    AI_TASKS_RESPONSE_PARSER
+    Profile
 )
 from codx.junior.context import (
     find_relevant_documents,
@@ -167,6 +168,7 @@ def update_engine():
         logger.exception(ex)
         return ex
                 
+
 class CODXJuniorSession:
     def __init__(self,
             settings: CODXJuniorSettings = None,
@@ -202,6 +204,18 @@ class CODXJuniorSession:
         self.get_channel().send_event('message-event', self.event_data({ 'chat': { 'id': chat.id }, 'message': message.model_dump() }))
         self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
 
+    @contextmanager
+    def chat_action(self, chat: Chat, event: str):
+        self.chat_event(chat=chat, message=f"{event} starting")
+        try:
+            yield
+        except Exception as ex:
+            self.chat_event(chat=chat, message=f"{event} error: {ex}")
+            logger.exception(f"{event} error: {ex}")
+        finally:
+            self.chat_event(chat=chat, message=f"{event} done")
+
+    
     def delete_project(self):
         shutil.rmtree(self.settings.codx_path)
         logger.error(f"PROJECT REMOVED {self.settings.codx_path}")
@@ -784,195 +798,218 @@ class CODXJuniorSession:
 
     @profile_function
     def generate_tasks(self, chat: Chat):
-        ai = self.get_ai()
-        last_message = chat.messages[-1]
+        from codx.junior.db import Chat
+        from pydantic import BaseModel, Field
+        from typing import List
+        from langchain.output_parsers import PydanticOutputParser
 
-        prompt = f"""
-        Generate subtasks from this epic:
-        {last_message.content}
+        class AITasks(BaseModel):
+            tasks: List[Chat] = Field(description="List of tasks. chat mode will be chat.")
 
-        INSTRUCTIONS:
-        Each task must have a clear name and an intial descriptive message with instructions on what has to be done.
-        Copy from the epic everything related with the subtask and add as the first message with a suggestion on how to solve it
-        {AI_TASKS_RESPONSE_PARSER.get_format_instructions()}
-        """
+        AI_TASKS_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AITasks)
 
-        messages = ai.chat(prompt=prompt)
-        response = messages[-1].content
+        with self.chat_action(chat=chat, event="Creating sub-tasks"):
 
-        ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)
-        chat_manager = self.get_chat_manager()
-        for sub_task in ai_tasks.tasks:
-            sub_task.parent_id = chat.id
-            sub_task.board = chat.board
-            sub_task.column = sub_task.column or chat.column
-            init_message = "\n".join([m.content for m in sub_task.messages])
-            sub_task.messages = [Message(role="assistant", content=init_message)]
-            chat_manager.save_chat(sub_task)
-    
+          ai = self.get_ai()
+          
+          content = "\n".join([m.content for m in chat.messages[:-1] if not m.hide])
+          last_message = chat.messages[-1]
+
+          prompt = f"""
+          <content>
+          { content }
+          </content>
+
+          Generate subtasks from this epic:
+          { last_message.content }
+
+          INSTRUCTIONS:
+          Each task must have a clear name and an intial descriptive message with instructions on what has to be done.
+          Copy from the epic everything related with the subtask and add as the first message with a suggestion on how to solve it
+          {AI_TASKS_RESPONSE_PARSER.get_format_instructions()}
+          """
+          
+          messages = ai.chat(prompt=prompt)
+
+          response = messages[-1].content
+
+          ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)
+          self.chat_event(chat=chat, message=f"Generating {len(ai_tasks.tasks)} sub tasks")
+
+          chat_manager = self.get_chat_manager()
+          for sub_task in ai_tasks.tasks:
+              sub_task.parent_id = chat.id
+              sub_task.board = chat.board
+              sub_task.column = chat.column
+              init_message = "\n".join([m.content for m in sub_task.messages])
+              sub_task.messages = [Message(role="assistant", content=init_message)]
+              self.chat_event(chat=chat, message=f"Saving subtask {sub_task.name}")
+              chat_manager.save_chat(sub_task)
+
     @profile_function
     async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
-        chat_mode = chat_mode or chat.mode or "chat"
-        if chat_mode == "browser":
-            self.log_info(f"chat_with_project browser mode")
-            self.chat_event(chat=chat, message=f"connecting with browser...")
-            return self.get_browser().chat_with_browser(chat)
+        with self.chat_action(chat=chat, event=f"Processing AI request {chat.name}"):
+            chat_mode = chat_mode or chat.mode or "chat"
+            if chat_mode == "browser":
+                self.log_info(f"chat_with_project browser mode")
+                self.chat_event(chat=chat, message=f"connecting with browser...")
+                return self.get_browser().chat_with_browser(chat)
 
-        sources = []
-        documents = []
-        task_item = ""
-        
-        is_refine = chat_mode == "task"
-        if is_refine:
-            task_item = "analysis"
-        
-        response_message = Message(role="assistant", doc_id=str(uuid.uuid4()))
-        def send_message_event(content):
-            response_message.content = response_message.content + content
-            # Buffer to save bandwith
-            if len(response_message.content) < 80:
-                return
-            sources =  []
-            if documents:
-                sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))
-            response_message.files = sources
-            response_message.task_item = task_item
-            self.message_event(chat=chat, message=response_message)
-            response_message.content = ""
-
-        ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
-        last_ai_message = ai_messages[-1] if ai_messages else None
+            sources = []
+            documents = []
+            task_item = ""
             
-        user_message = chat.messages[-1]
-        query = user_message.content
+            is_refine = chat_mode == "task"
+            if is_refine:
+                task_item = "analysis"
+            
+            response_message = Message(role="assistant", doc_id=str(uuid.uuid4()))
+            def send_message_event(content):
+                response_message.content = response_message.content + content
+                # Buffer to save bandwith
+                if len(response_message.content) < 80:
+                    return
+                sources =  []
+                if documents:
+                    sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))
+                response_message.files = sources
+                response_message.task_item = task_item
+                self.message_event(chat=chat, message=response_message)
+                response_message.content = ""
 
-        ai = AI(settings=self.settings)
-        profile_manager = ProfileManager(settings=self.settings)
-        chat_profiles_content = ""
-        if chat.profiles:
-            chat_profiles = [profile_manager.read_profile(profile) for profile in chat.profiles]
-            chat_profiles_content = "\n".join([profile.content for profile in chat_profiles if profile])
+            ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
+            last_ai_message = ai_messages[-1] if ai_messages else None
+                
+            user_message = chat.messages[-1]
+            query = user_message.content
 
-        instructions = f"""BEGIN INSTRUCTIONS
-        This is a conversation between you and the user about the project {self.settings.project_name}.
-        {chat_profiles_content}
-        END INSTRUCTIONS
-        """
-        messages = [
-            SystemMessage(content=instructions)
-        ]
+            ai = AI(settings=self.settings)
+            profile_manager = ProfileManager(settings=self.settings)
+            chat_profiles_content = ""
+            if chat.profiles:
+                chat_profiles = [profile_manager.read_profile(profile) for profile in chat.profiles]
+                chat_profiles_content = "\n".join([profile.content for profile in chat_profiles if profile])
 
-        def convert_message(m):
-            msg = None
-            def parse_image(image):
+            instructions = f"""BEGIN INSTRUCTIONS
+            This is a conversation between you and the user about the project {self.settings.project_name}.
+            {chat_profiles_content}
+            END INSTRUCTIONS
+            """
+            messages = [
+                SystemMessage(content=instructions)
+            ]
+
+            def convert_message(m):
+                msg = None
+                def parse_image(image):
+                    try:
+                        return json.loads(image)
+                    except:
+                        return {"src": image, "alt": ""}
+                if m.images:
+                    images = [parse_image(image) for image in m.images]
+                    text_content = {
+                        "type": "text",
+                        "text": m.content
+                    }
+                    content = [text_content] + [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image["src"]
+                            }
+                        } for image in images]
+
+                    self.log_info(f"ImageMessage content: {content}")
+                    msg = BaseMessage(type="image", content=json.dumps(content))
+                elif m.role == "user":
+                    msg = HumanMessage(content=m.content)
+                else:
+                    msg = AIMessage(content=m.content)
+          
+                return msg
+
+            for m in chat.messages[0:-1]:
+                if m.hide or m.improvement:
+                    continue
+                msg = convert_message(m)
+                messages.append(msg)
+
+            context = ""
+            documents = []
+            chat_files = chat.file_list or []
+            ignore_documents = chat_files.copy()
+            if chat.name:
+                ignore_documents.append(f"/{chat.name}")
+
+            self.chat_event(chat=chat, message="Knowledge search")
+
+            for chat_file in chat_files:
+                chat_file_full_path = chat_file
+                if self.settings.project_path not in chat_file_full_path:
+                    if chat_file[0] == '/':
+                        chat_file = chat_file[1:]
+                    chat_file_full_path = f"{self.settings.project_path}/{chat_file}"
                 try:
-                    return json.loads(image)
-                except:
-                    return {"src": image, "alt": ""}
-            if m.images:
-                images = [parse_image(image) for image in m.images]
-                text_content = {
-                    "type": "text",
-                    "text": m.content
-                }
-                content = [text_content] + [
-                    {
-                        "type": "image_url",
-                        "image_url": {
-                            "url": image["src"]
-                        }
-                    } for image in images]
+                  with open(chat_file_full_path, 'r') as f:
+                      doc_context = document_to_context(
+                        Document(page_content=f.read(), metadata={ "source": chat_file })
+                      )
+                      context += f"{doc_context}\n"
+                except Exception as ex:
+                    logger.error(f"Error adding context file to chat {ex}")
 
-                self.log_info(f"ImageMessage content: {content}")
-                msg = BaseMessage(type="image", content=json.dumps(content))
-            elif m.role == "user":
-                msg = HumanMessage(content=m.content)
+            if use_knowledge:
+                affected_documents, doc_file_list = self.select_afefcted_documents_from_knowledge(ai=ai, query=query, ignore_documents=ignore_documents)
+
+
+                if affected_documents:
+                    documents = affected_documents
+                    file_list = doc_file_list
+                    for doc in documents:
+                        doc_context = document_to_context(doc)
+                        context += f"{doc_context}\n"
+
+                doc_length = len(documents or [])
+                self.chat_event(chat=chat, message=f"chat_with_project found {doc_length} relevant documents")
+
+            if context:
+                messages.append(convert_message(
+                    Message(role="user", content=f"""
+                      THIS INFORMATION IS COMING FROM PROJECT'S FILES.
+                      HOPE IT HELPS TO ANSWER USER REQUEST.
+                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
+                      {context}
+                      """)))
+
+            if is_refine and last_ai_message:
+                refine_message = Message(role="user", content=f"""
+                UPDATE THIS DOCUMENT
+                ```
+                {last_ai_message.content}
+                ```
+
+                WITH USER COMMENTS:
+                {user_message.content}
+                """)
+                messages.append(convert_message(refine_message))
             else:
-                msg = AIMessage(content=m.content)
-      
-            return msg
+                messages.append(convert_message(user_message))
+            
+            self.chat_event(chat=chat, message=f"Invoking {self.settings.get_ai_provider()}. Model {self.settings.get_ai_model()}")
 
-        for m in chat.messages[0:-1]:
-            if m.hide or m.improvement:
-                continue
-            msg = convert_message(m)
-            messages.append(msg)
-
-        context = ""
-        documents = []
-        chat_files = chat.file_list or []
-        ignore_documents = chat_files.copy()
-        if chat.name:
-            ignore_documents.append(f"/{chat.name}")
-
-        self.chat_event(chat=chat, message="Knowledge search")
-
-        for chat_file in chat_files:
-            chat_file_full_path = chat_file
-            if self.settings.project_path not in chat_file_full_path:
-                if chat_file[0] == '/':
-                    chat_file = chat_file[1:]
-                chat_file_full_path = f"{self.settings.project_path}/{chat_file}"
+            if not callback:
+                callback = lambda content: send_message_event(content=content)
             try:
-              with open(chat_file_full_path, 'r') as f:
-                  doc_context = document_to_context(
-                    Document(page_content=f.read(), metadata={ "source": chat_file })
-                  )
-                  context += f"{doc_context}\n"
+                messages = ai.chat(messages, callback=callback)
+                response_message.content = messages[-1].content
             except Exception as ex:
-                logger.error(f"Error adding context file to chat {ex}")
+                logger.exception(f"Error chating with project: {ex} {chat.id}")
+                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
 
-        if use_knowledge:
-            affected_documents, doc_file_list = self.select_afefcted_documents_from_knowledge(ai=ai, query=query, ignore_documents=ignore_documents)
-
-
-            if affected_documents:
-                documents = affected_documents
-                file_list = doc_file_list
-                for doc in documents:
-                    doc_context = document_to_context(doc)
-                    context += f"{doc_context}\n"
-
-            doc_length = len(documents or [])
-            self.chat_event(chat=chat, message=f"chat_with_project found {doc_length} relevant documents")
-
-        if context:
-            messages.append(convert_message(
-                Message(role="user", content=f"""
-                  THIS INFORMATION IS COMING FROM PROJECT'S FILES.
-                  HOPE IT HELPS TO ANSWER USER REQUEST.
-                  KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
-                  {context}
-                  """)))
-
-        if is_refine and last_ai_message:
-            refine_message = Message(role="user", content=f"""
-            UPDATE THIS DOCUMENT
-            ```
-            {last_ai_message.content}
-            ```
-
-            WITH USER COMMENTS:
-            {user_message.content}
-            """)
-            messages.append(convert_message(refine_message))
-        else:
-            messages.append(convert_message(user_message))
-        
-        self.chat_event(chat=chat, message=f"Invoking {self.settings.get_ai_provider()}. Model {self.settings.get_ai_model()}")
-
-        if not callback:
-            callback = lambda content: send_message_event(content=content)
-        try:
-            messages = ai.chat(messages, callback=callback)
-            response_message.content = messages[-1].content
-        except Exception as ex:
-            logger.exception(f"Error chating with project: {ex} {chat.id}")
-            response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
-
-        chat.messages.append(response_message)
-        self.chat_event(chat=chat, message=f"done")
-        return chat, documents
+            chat.messages.append(response_message)
+            self.chat_event(chat=chat, message=f"done")
+            return chat, documents
             
     def check_project(self):
         try:

@@ -107,7 +107,7 @@ import VSwatches from "../VSwatches.vue"
               v-model="column.tasks"
               group="tasks"
               :itemKey="column.title"
-              @end="onColumnTaskListChanged"
+              @end="onColumnTaskListChanged(column, event)"
               class="mt-3"
             >
               <template #item="{ element: task }">
@@ -184,7 +184,8 @@ export default {
             return { 
               title: col,
               ...boardColumn,
-              tasks: this.activeBoard.tasks.filter(t => (t.column || "--none--") === col),
+              tasks: this.activeBoard.tasks.filter(t => (t.column || "--none--") === col)
+                      .sort((a, b) => a.chat_index < b.chat_index ? -1 : 1),
               position: boardColumn.position || (ix + 1)
             }
           }).sort((a, b) => a.position < b.position ? -1: 1) 
@@ -264,11 +265,10 @@ export default {
         this.$ui.setKanban(this.board)
       }
     },
-    async onColumnTaskListChanged() {
-      await Promise.all(this.columns.filter(({ tasks }) => !!tasks)
-        .map(column => this.updateColumnTaskList(column)))
+    async onColumnTaskListChanged(column, event) {
+      await Promise.all(column.tasks.map((t, ix) => 
+        this.$projects.saveChatInfo(({ ...t, chat_index: ix }))))
       this.buildKanban()
-      this.saveBoards()
     },
     async updateColumnTaskList(column) {
       if (column.tasks) {
