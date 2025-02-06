@@ -36,14 +36,7 @@ def start_background_services(app):
             try:
                 # Check mentions
                 codx_junior_session = CODXJuniorSession(settings=settings)
-                res = await codx_junior_session.check_file_for_mentions(file_path=file_path)
-                codx_junior_session.log_info(f"Check file {file_path} for mentions: {res}")
-                # Reload knowledge 
-                if settings.watching:
-                    knowledge = Knowledge(settings=settings)
-                    file_changes = knowledge.detect_changes()
-                    if file_path in file_changes:
-                        knowledge.reload_path(path=file_path)
+                codx_junior_session.check_file(file_path=file_path)
             except Exception as ex:
                 logger.exception(f"Error processing file changes {file_path}: {ex}")
 
@@ -69,13 +62,13 @@ def start_background_services(app):
         while True:
             try:
                 for project in find_all_projects():
-                    # Watch project changes
-                    PROJECT_WATCHER.watch_project(
-                        project_path=project.project_path)
+                    # Watch project changes (DISABLED, not workingn fine)
+                    # PROJECT_WATCHER.watch_project(
+                    #    project_path=project.project_path)
 
                     asyncio.run(check(project=project))
             except Exception as ex:
                 logger.exception(f"Erroor checking project {ex}")
             time.sleep(1)
 
-    #Thread(target=check_projects).start()
+    Thread(target=check_projects).start()

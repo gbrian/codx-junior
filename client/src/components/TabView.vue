@@ -1,5 +1,6 @@
 <script setup>
 import KnowledgeViewVue from "../views/KnowledgeView.vue"
+import KnowledgeSettingsVue from "../views/KnowledgeSettings.vue"
 import ProfileViewVue from "../views/ProfileView.vue"
 import ProjectProfileVue from "../views/ProjectProfile.vue"
 import ProjectSettingsVue from "../views/ProjectSettings.vue"
@@ -17,7 +18,8 @@ import MetricsViewer from "./metrics/MetricsViewer.vue"
   <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder" />
   <KanbanVue v-bind="$attrs" v-if="$ui.tabIx === 'tasks'" />
   <NoVNCVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showBrowser" />
-  <KnowledgeViewVue class="lg:w-2/3" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge'" />
+  <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge'" />
+  <KnowledgeSettingsVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge_settings'" />
   <WikiViewVue v-bind="$attrs" v-if="$ui.tabIx == 'wiki'"></WikiViewVue>
   <ProjectSettingsVue  v-bind="$attrs" v-if="$ui.tabIx === 'settings'" />
   <GlobalSettingsVue v-bind="$attrs" v-if="$ui.tabIx === 'global-settings'" />

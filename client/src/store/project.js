@@ -97,7 +97,7 @@ export const actions = actionTree(
       await $storex.projects.loadChats()
     },
     async saveChatInfo (_, chat) {
-      await API.chats.saveChatInfo(chat)
+      await API.chats.saveChatInfo({ ...chat, messages: [] })
       await $storex.projects.loadChats()
     },
     async loadChat({ state }, chat) {

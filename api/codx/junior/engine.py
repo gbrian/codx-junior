@@ -572,6 +572,17 @@ class CODXJuniorSession:
             return False
         return True
 
+    @profile_function
+    async def check_file(self, file_path: str):
+        res = await self.check_file_for_mentions(file_path=file_path)
+        self.log_info(f"Check file {file_path} for mentions: {res}")
+        # Reload knowledge 
+        if self.settings.watching:
+            knowledge = self.get_knowledge()
+            file_changes = knowledge.detect_changes()
+            if file_path in file_changes:
+                knowledge.reload_path(path=file_path)
+
     async def process_project_changes(self):
         if not self.settings.is_valid_project():
             return

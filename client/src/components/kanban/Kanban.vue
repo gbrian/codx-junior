@@ -358,13 +358,15 @@ export default {
     async addBoard() {
       const boardName = this.newBoardName.trim()
       if (boardName && !this.boards[boardName]) {
-        this.boards[boardName] = {}
-        this.board = boardName
+        this.boards[boardName] = {
+          columns: []
+        }
         await this.saveBoards()
-        this.buildKanban()
       }
       this.newBoardName = ''
       this.showBoardModal = false
+      this.board = boardName
+      this.buildKanban()
     },
     openColumnPropertiesModal(column) {
       this.selectedColumn = column
