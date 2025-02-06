@@ -1,19 +1,22 @@
 <script setup>
 import RequestMetrics from './metrics/RequestMetrics.vue'
-import TimeSelector from './TimeSelector.vue';
+import TimeSelector from './TimeSelector.vue'
+import Markdown from './Markdown.vue';
 </script>
+
 <template>
-  <div class="px-2 pt-4 gap-2 w-full max-w-full overflow-auto flex flex-col">
+  <div class="px-2 pt-4 gap-2 w-full max-w-full overflow-auto flex flex-col relative">
     <header class="flex flex-row justify-between items-center">
       <h1 class="text-xl font-semibold">Dashboard</h1>
       <TimeSelector
         :start="timeSelection?.start"
         :end="timeSelection?.end"
-        :times="logTimes" @time-change="onTimeSelectorChanged"
+        :times="logTimes"
+        @time-change="onTimeSelectorChanged"
         @reset="showTimeFilter = false"
         v-if="showTimeFilter"
       />
-      <button class="btn btn-sm" @click="showTimeFilter = !showTimeFilter">
+      <button class="btn btn-sm" @click="toggleTimeFilter">
         <i class="fa-regular fa-clock"></i>
       </button>
       <div class="flex gap-2 items-center">
@@ -28,7 +31,7 @@ import TimeSelector from './TimeSelector.vue';
           <span>Auto-refresh</span>
         </label>
         <div class="grow"></div>
-        <div class="">
+        <div>
           <input class="input input-xs w-10" v-model="tailSize" />
         </div>
         <div class="px-2">({{ filteredLogs.length }})</div>
@@ -39,7 +42,7 @@ import TimeSelector from './TimeSelector.vue';
         v-for="module in visibleModules" 
         :key="module" 
         @click="toggleModuleVisible(module)"
-        :style="`color:${$ui.colorsMap[module]}`"
+        :style="{ color: $ui.colorsMap[module] }"
         :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-white': 'badge-outline']"
       >
         {{ module }}
@@ -48,7 +51,7 @@ import TimeSelector from './TimeSelector.vue';
         v-for="module in profilerModuleFilter" 
         :key="module" 
         @click="toggleProfilerVisible(module)"
-        :style="`color:${$ui.colorsMap[module]}`"
+        :style="{ color: $ui.colorsMap[module] }"
         :class="['click badge badge-sm', logModules[module]?.visible ? 'border border-white': 'badge-outline']"
       >
         {{ module }}
@@ -82,13 +85,13 @@ import TimeSelector from './TimeSelector.vue';
         </div>
         <div class="grow"></div>
       </header>
-      <div class="flex flex-col gap-2 overflow-auto" style="height:600px" ref="logView">
+      <div class="my-2 flex flex-col gap-2 overflow-auto" style="height:600px" ref="logView">
         <div v-for="(log, ix) in filteredLogs" :key="ix">
           <div :title="log.id" class="flex flex-col w-full p-1 hover:bg-base-100" :class="log.styleClasses">
             <div class="flex gap-2">
               <div>{{ log.timestamp }}</div>
               <div class="font-bold" :class="logLevelColors[log.level]">{{ log.level }}</div> 
-              <div :style="{color: $ui.colorsMap[log.module]}"
+              <div :style="{ color: $ui.colorsMap[log.module] }"
                 class="click"
                 @click="toggleModuleVisible(log.module)" 
               >
@@ -107,7 +110,17 @@ import TimeSelector from './TimeSelector.vue';
             </div>
           </div>
         </div>
-        <div ref="scrollEnd"></div>
+        <div class="text-xs click" v-for="event in events" :key="event.ts"
+          @click="event.collapsed = !event.collapsed"
+        >
+          <div class="p-2 bg-warning text-warning-content rounded-md font-medium">
+            <i class="fa-solid fa-bolt"></i> [{{ new Date(event.ts).toISOString() }}] [{{ event.event }}]
+          </div>
+          <div class="mt-2 bg-base-100 p-2" v-if="event.collapsed === true">
+            <Markdown :text="event.data.message.content" v-if="event.data.message.content" />
+            <pre>{{ JSON.stringify({ ...event.data, message: undefined }, null, 2) }}</pre>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -138,20 +151,25 @@ export default {
     }
   },
   watch: {
-    autoRefresh (newVal) {
+    autoRefresh(newVal) {
       if (newVal) {
         this.fetchLogs()
+      }
+    },
+    events(newValue) {
+      if (newValue.length) {
+        this.scrollToBottom()
       }
     }
   },
   computed: {
-    logTimes () {
-      return new Set(this.logs.map(l => l.timestamp.split(",")[0] ))
+    logTimes() {
+      return new Set(this.logs.map(l => l.timestamp.split(",")[0]))
     },
     distinctModules() {
       return [...new Set(this.logs.map(log => log.module))]
     },
-    filteredLogs () {
+    filteredLogs() {
       const isLogVisible = log => {
         if (log.hidden || log.data.url?.includes("/api/logs")) {
           return false
@@ -173,14 +191,26 @@ export default {
       }
       return this.logs?.filter(isLogVisible)
     },
-    requestLogs () {
+    requestLogs() {
       return this.logs.filter(log => log.data.request)
-                      .map(({ timestamp, data: { request: { url, time_taken }}}) => ({ timestamp, path: new URL(url).pathname , time_taken}))
+                      .map(({ timestamp, data: { request: { url, time_taken }}}) => ({ timestamp, path: new URL(url).pathname , time_taken }))
     },
-    profilerLogs () {
+    profilerLogs() {
       return this.filteredLogs.filter(log => log.data.profiler)
                       .map(({ timestamp, data: { profiler: { module, method, time_taken }}}) => 
-                                            ({ timestamp, path: `${module}.${method}` , time_taken}))
+                                            ({ timestamp, path: `${module}.${method}` , time_taken }))
+    },
+    events() {
+      return $storex.session.events.reduce((acc, ev) => {
+        const lastEv = acc[acc.length -1]
+        if (lastEv && lastEv?.data.message?.id === ev.data.message?.id
+          ) {
+            lastEv.data.message.content += ev.data.message.content 
+        } else {
+          acc.push(ev)
+        }
+        return acc
+      }, [])
     }
   },
   methods: {
@@ -191,6 +221,9 @@ export default {
       } else {
         this.visibleModules.push(module)
       }
+    },
+    toggleTimeFilter() {
+      this.showTimeFilter = !this.showTimeFilter
     },
     colorMap() {
       const modules = new Set()
@@ -227,14 +260,14 @@ export default {
       const newLogs = data.filter(l =>
         !["api/logs", "/var/log/"].some(pattern => l.content.includes(pattern)) &&
         !this.logs.find(ll => ll.id === l.id))
-        .sort((a, b) => a.timestamp < b.timestamp ? -1: 1)
+        .sort((a, b) => a.timestamp < b.timestamp ? -1 : 1)
       this.logs.push(...newLogs)
       this.logModules = {}
       this.logs.forEach(({ module }) => {
         this.logModules[module] = { visible: true }
       })
       this.applyFilter()
-      requestAnimationFrame(() => this.scrollToBottom(forceScroll))
+      this.scrollToBottom(forceScroll)
       if (this.autoRefresh) {
         setTimeout(() => this.fetchLogs(), 3000)
       }
@@ -246,11 +279,12 @@ export default {
       this.logs = []
       this.fetchLogs()
     },
-    scrollToBottom(force) {
-      const { logView, scrollEnd } = this.$refs
-      if (logView && scrollEnd) {
+    scrollToBottom() {
+      const { logView } = this.$refs
+      if (logView) {
         logView.scrollTop = logView.scrollHeight
       }
+      this.$el.scrollTop = this.$el.scrollHeight
     },
     logClasses(log) {
       const classes = []
@@ -273,9 +307,6 @@ export default {
       this.$projects.addLogIgnore(this.filter?.toLowerCase())
       this.filter = null
     },
-    removeIgnore(ignore) {
-      this.$projects.removeLogIgnore(ignore)
-    },
     applyFilter() {
       this.logs.forEach(flog => this.logClasses(flog))
       this.filterMatchCount = this.logs.filter(({ styleClasses }) => styleClasses.includes('match')).length
@@ -284,7 +315,7 @@ export default {
       this.filter = null
       this.applyFilter()
     },
-    toggleProfilerVisible (module) {
+    toggleProfilerVisible(module) {
       if (this.profilerModuleFilter.includes(module)) {
         this.profilerModuleFilter.splice(this.profilerModuleFilter.indexOf(module), 1)
       } else {

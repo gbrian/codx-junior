@@ -106,11 +106,15 @@ import UserList from './UserList.vue';
 				</a>
 			</div>
       <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" 
+        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" 
           data-tip="Show metrics"
 					 @click.stop="$ui.toggleLogs()">
            <div class="flex flex-col gap-4">
             <i class="fa-solid fa-chart-line"></i>
+            <span class="text-xs text-warning hover:underline hover:opacity-100 absolute top-2 right-2 tooltip" data-tip="close" 
+            v-if="$session.events.length">
+              <i class="fa-solid fa-bell"></i>
+            </span>
           </div>
 				</a>
 			</div>

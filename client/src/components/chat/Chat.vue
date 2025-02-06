@@ -187,7 +187,7 @@ import moment from 'moment'
               </li>
               <li>
                 <a>
-                  <button class="btn btn-xs btn-error hover:text-white" @click.stop="confirmDelete = true">
+                  <button class="btn btn-xs btn-error hover:text-white" @click.stop="$emit('delete')">
                     <i class="fa-solid fa-trash"></i> Delete chat
                   </button>
                 </a>
@@ -266,8 +266,7 @@ export default {
       selectFile: false,
       isVoiceSession: false,
       recognition: null,
-      isBrowser: false,
-      confirmDelete: false
+      isBrowser: false
     }
   },
   created () {

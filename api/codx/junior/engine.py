@@ -808,7 +808,7 @@ class CODXJuniorSession:
         return replace_mentions(content, image_mentions)
 
     @profile_function
-    def generate_tasks(self, chat: Chat):
+    async def generate_tasks(self, chat: Chat):
         from codx.junior.db import Chat
         from pydantic import BaseModel, Field
         from typing import List

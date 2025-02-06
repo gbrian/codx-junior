@@ -5,6 +5,7 @@ import Chat from '@/components/chat/Chat.vue'
 import moment from 'moment'
 import ChatIconVue from '@/components/chat/ChatIcon.vue'
 </script>
+
 <template>
   <div class="flex flex-col h-full pb-2" v-if="chat">
     <div class="grow flex gap-2 h-full justify-between">
@@ -12,19 +13,12 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
         <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <button class="btn btn-xs btn-circle mt-1 text-white"
-                @click="navigateToChats">
+              <button class="btn btn-xs btn-circle mt-1 text-white" @click="navigateToChats">
                 <i class="fa-solid fa-arrow-left"></i>
               </button>
-              <input v-if="editName"
-                type="text" class="input input-xs input-bordered"
-                @keydown.enter.stop="saveChat"
-                @keydown.esc="editName = false"
-                v-model="chat.name" />
-              <div class="font-bold flex flex-col" v-else> 
-                <div class="mt-1 text-xs hover:underline click font-bold text-primary"
-                  @click="$emit('chat', parentChat)"
-                  v-if="parentChat">
+              <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
+              <div class="font-bold flex flex-col" v-else>
+                <div class="mt-1 text-xs hover:underline click font-bold text-primary" @click="$emit('chat', parentChat)" v-if="parentChat">
                   {{ parentChat.name }}
                 </div>
                 <div class="flex items-center gap-2">
@@ -36,14 +30,14 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                       <li @click="setChatMode(mode)" v-for="info, mode in chatModes" :key="mode">
                         <a class="flex items-center">
                           <i :class="info.icon" class="fa-regular fa-comments"></i>
-                          {{  info.name  }}
+                          {{ info.name }}
                         </a>
                       </li>
                     </ul>
-                  </div>   
+                  </div>
                   <div class="click" @click="editName = true">
                     {{ chat.name }}
-                  </div>                  
+                  </div>
                 </div>
                 <div class="flex gap-2 items-center">
                   <div class="text-xs">{{ moment.utc(chat.updated_at).fromNow() }}</div>
@@ -54,37 +48,35 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                     </button>
                   </div>
                   <button class="btn btn-xs" @click="newTag = ''">
-                      + tag
+                    + tag
                   </button>
-                  <div class="badge badge-seconday badge-outline" v-for="profile in chat.profiles" :key="profile">
+                  <div class="badge badge-secondary badge-outline" v-for="profile in chat.profiles" :key="profile">
                     {{ profile }}
                   </div>
-                  <modal v-if="newTag !== null">
-                    <div class="flex flex-col gap-2">
+                  <dialog v-if="newTag !== null" class="modal">
+                    <div class="modal-box flex flex-col gap-2">
                       <div class="text-xl">New tag</div>
-                      <select class="select select-sm select-bordered"
-                        @change="newTag = $event.target.value"
-                      >
+                      <select class="select select-sm select-bordered" @change="newTag = $event.target.value">
                         <option value="" selected>New</option>
                         <option v-for="t in $projects.allTags" :key="t" :value="t">{{t}}</option>
                       </select>
                       <input type="text" class="input input-sm input-bordered" v-model="newTag" />
                       <div class="flex gap-2 justify-end">
                         <button class="btn btn-error" @click="newTag = null">
-                            Cancel
+                          Cancel
                         </button>
                         <button class="btn" @click="addNewTag" :disabled="newTag.length === 0">
-                            Add
+                          Add
                         </button>
                       </div>
                     </div>
-                  </modal>
+                  </dialog>
                 </div>
               </div>
             </div>
             <div class="grow"></div>
             <div class="group relative bg-base-100">
-              <div class="bg-base-300 lg:bg-transparent p-2 rounded hidden lg:flex group-hover:flex gap-2 p-1 items-center absolute right-8 -top-1">             
+              <div class="bg-base-300 lg:bg-transparent p-2 rounded hidden lg:flex group-hover:flex gap-2 p-1 items-center absolute right-8 -top-1">
                 <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
                   <div class="flex items-center gap-2" v-if="!showHidden">
                     ({{ hiddenCount }})
@@ -110,9 +102,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                       <a>Create sub tasks <i class="fa-solid fa-wand-magic-sparkles"></i></a>
                     </li>
                     <div class="divider" v-if="childrenChats.length"></div>
-                    <li class="overflow-hidden text-ellipsis w-full"
-                      @click="$projects.setActiveChat(child)" 
-                      v-for="child in childrenChats" :key="childrenChats.id">
+                    <li class="overflow-hidden text-ellipsis w-full" @click="$projects.setActiveChat(child)" v-for="child in childrenChats" :key="childrenChats.id">
                       <a>
                         <div>
                           <div class="text-xs">{{ moment(child.updated_at || child.created_at).format("DDMMM HH:mm") }}</div>
@@ -136,10 +126,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             <span>
               <i class="fa-solid fa-paperclip"></i>
             </span>
-            <a v-for="file in chat.file_list" :key="file" :data-tip="file"
-              class="group text-nowrap ml-2 hover:underline hover:bg-base-300 click text-accent"
-              @click="$ui.openFile(file)"
-            >
+            <a v-for="file in chat.file_list" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 click text-accent" @click="$ui.openFile(file)">
               <span>{{ file.split('/').reverse()[0] }}</span>
               <span class="ml-2 click" @click.stop="onRemoveFile(file)">
                 <i class="fa-regular fa-circle-xmark"></i>
@@ -147,15 +134,18 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             </a>
           </div>
         </div>
-        <Chat :chatId="chat.id"
-          :showHidden="showHidden"
-          @refresh-chat="loadChat(chat)"
-          @add-file="onAddFile"
-          @remove-file="onRemoveFile"
-          @delete-message="onRemoveMessage"
-          @save="saveChat"
-        v-if="chat"/>
-        <div class="modal modal-open" role="dialog" v-if="showFile || addFile !== null">
+        <Chat :chatId="chat.id" :showHidden="showHidden" @refresh-chat="loadChat(chat)" @add-file="onAddFile" @remove-file="onRemoveFile" @delete-message="onRemoveMessage" @delete="deleteChat" @save="saveChat" v-if="chat"/>
+        <dialog v-if="confirmDelete" class="modal">
+          <div class="modal-box">
+            <h3 class="font-bold text-lg">Confirm Delete</h3>
+            <p>Are you sure you want to delete this chat?</p>
+            <div class="modal-action">
+              <button class="btn btn-error" @click="confirmDeleteChat">Delete</button>
+              <button class="btn" @click="resetConfirmDelete">Cancel</button>
+            </div>
+          </div>
+        </dialog>
+        <dialog class="modal modal-open" role="dialog" v-if="showFile || addFile !== null">
           <div class="modal-box flex flex-col gap-4 p-4">
             <h3 class="font-bold text-lg" v-if="showFile">
               This file belongs to the task context:
@@ -176,12 +166,13 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
               </button>
             </div>
           </div>
-        </div>
+        </dialog>
       </div>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
   </div>
 </template>
+
 <script>
 export default {
   props: ['chatMode', 'openChat'],
@@ -203,99 +194,99 @@ export default {
       }
     }
   },
-  async created () {
+  async created() {
     this.loadProfiles()
   },
   computed: {
-    hiddenCount () {
+    hiddenCount() {
       return this.chat.messages?.filter(m => m.hide).length
     },
-    messages () {
+    messages() {
       return this.chat.messages.filter(m => !m.hide || this.showHidden)
     },
-    chatUpdatedDate () {
-      const updatedAt = this.chat.updated_at;
+    chatUpdatedDate() {
+      const updatedAt = this.chat.updated_at
       return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
         ? moment(updatedAt).fromNow()
-        : moment(updatedAt).format('YYYY-MM-DD');
+        : moment(updatedAt).format('YYYY-MM-DD')
     },
-    chats () {
+    chats() {
       return this.$projects.allChats
     },
-    chat () {
+    chat() {
       return this.$projects.activeChat
     },
-    parentChat () {
+    parentChat() {
       const parentId = this.$projects.activeChat.parent_id
       return parentId ? this.chats.find(c => c.id && c.id === parentId) : null
     },
-    childrenChats () {
+    childrenChats() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
-                .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
+        .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
     }
   },
-  watch: {
-  },
   methods: {
-    async loadProfiles () {
+    async loadProfiles() {
       try {
         const { data } = await API.profiles.list()
         this.profiles = data
       } catch {}
     },
-    async saveChat () {
+    async saveChat() {
       this.editName = false
       await this.$projects.saveChat(this.chat)
     },
-    async deleteChat () {
-      if (this.confirmDelete) {
-        this.confirmDelete = false
-        await this.$projects.deleteChat(this.chat)
-        const parentChat = this.$projects.allChats.find(c => c.id === this.chat.parent_id)
-        if (parentChat) {
-          this.$projects.setActiveChat(parentChat)
-        } else {
-          this.navigateToChats()
-        }
+    async deleteChat() {
+      this.confirmDelete = true
+    },
+    async confirmDeleteChat() {
+      this.confirmDelete = false
+      await this.$projects.deleteChat(this.chat)
+      const parentChat = this.$projects.allChats.find(c => c.id === this.chat.parent_id)
+      if (parentChat) {
+        this.$projects.setActiveChat(parentChat)
       } else {
-        this.confirmDelete = true
+        this.navigateToChats()
       }
     },
-    async loadChat (chat) {
+    resetConfirmDelete() {
+      this.confirmDelete = false
+    },
+    async loadChat(chat) {
       await this.$projects.setActiveChat(chat)
       this.showChatsTree = false
     },
-    async removeFileFromContext () {
-      this.chat.profiles = this.chat.profiles?.filter(f => f !== this.showFile) 
+    async removeFileFromContext() {
+      this.chat.profiles = this.chat.profiles?.filter(f => f !== this.showFile)
       this.onRemoveFile(this.showFile)
       await this.loadChat(this.chat)
       this.showFile = null
     },
-    async addFileToContext () {
+    async addFileToContext() {
       this.onAddFile(this.addFile)
       await this.saveChat()
       await this.loadChat(this.chat)
       this.showFile = null
       this.addFile = null
     },
-    async onAddFile (file) {
+    async onAddFile(file) {
       if (this.chat.file_list?.includes(file)) {
         return
       }
-      this.chat.file_list = [...(this.chat.file_list||[]), file]
+      this.chat.file_list = [...(this.chat.file_list || []), file]
       this.addNewFile = null
       await this.saveChat()
     },
-    async onRemoveFile (file) {
-      this.chat.file_list = (this.chat.file_list||[]).filter(f => f !== file)
+    async onRemoveFile(file) {
+      this.chat.file_list = (this.chat.file_list || []).filter(f => f !== file)
       this.addNewFile = null
       await this.saveChat()
     },
-    async addProfile (profile) {
+    async addProfile(profile) {
       if (this.chat.profiles?.includes(profile)) {
         return
       }
-      this.chat.profiles = [...this.chat.profiles||[], profile]
+      this.chat.profiles = [...this.chat.profiles || [], profile]
       await this.saveChat()
     },
     removeProfile(profile) {
@@ -304,37 +295,36 @@ export default {
         this.saveChat()
       }
     },
-    onRemoveMessage (message) {
+    onRemoveMessage(message) {
       const ix = this.chat.messages.findIndex(m => m === message)
       if (this.chat.mode == 'task' && message.role === "assistant") {
-        this.chat.messages[ix-1].hide = false
+        this.chat.messages[ix - 1].hide = false
       }
       this.chat.messages = this.chat.messages.filter((m, i) => i !== ix)
       this.saveChat()
     },
-    navigateToChats () {
+    navigateToChats() {
       this.$emit('chats')
     },
-    async newSubChat () {
+    async newSubChat() {
       this.$emit('sub-task', this.chat)
     },
-    addNewTag () {
-      this.chat.tags = [...new Set([...this.chat.tags||[], this.newTag])]
+    addNewTag() {
+      this.chat.tags = [...new Set([...this.chat.tags || [], this.newTag])]
       this.newTag = null
       this.saveChat()
     },
-    removeTag (tag) {
+    removeTag(tag) {
       this.chat.tags = this.chat.tags.filter(t => t !== tag)
       this.saveChat()
     },
-    setChatMode (mode) {
+    setChatMode(mode) {
       this.chat.mode = mode
       this.chat.profiles = this.chatModes[mode].profiles
       this.saveChat()
     },
-    async createSubTasks () {
+    async createSubTasks() {
       await this.$storex.projects.createSubTasks(this.chat)
-
     }
   }
 }

@@ -206,7 +206,7 @@ async def api_chat(chat: Chat, request: Request):
 @app.post("/api/chats/sub-tasks")
 async def api_chat_subtasks(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.generate_tasks(chat=chat)
+    return await codx_junior_session.generate_tasks(chat=chat)
 
 @app.put("/api/chats")
 async def api_save_chat(chat: Chat, request: Request):

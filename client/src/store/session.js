@@ -84,7 +84,7 @@ export const actions = actionTree(
       $storex.session.connect()
     },
     tick ({ state }) {
-      const expireNotif = new Date( Date.now() - 1000 * 10 ).getTime();
+      const expireNotif = new Date( Date.now() - 1000 * 40 ).getTime();
       if (state.events.find(e => e.ts < expireNotif)) {
         state.events = state.events.filter(e => e.ts >= expireNotif)
       }

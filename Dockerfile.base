@@ -59,7 +59,6 @@ USER ${USER}
 RUN curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
 RUN codx chrome
 RUN codx docker
-RUN codx filebrowser
 RUN codx coder
 
 COPY --chown=${USER} code-server/User/settings.json ${HOME}/.local/share/code-server/Machine/settings.json
