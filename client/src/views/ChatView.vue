@@ -143,7 +143,6 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
           @delete="confirmDelete = true"
           @save="saveChat" 
           v-if="chat"/>
-          {{ confirmDelete }}
         <modal v-if="confirmDelete">
           <div class="">
             <h3 class="font-bold text-lg">Confirm Delete</h3>

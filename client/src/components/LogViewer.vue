@@ -203,7 +203,9 @@ export default {
     events() {
       return $storex.session.events.reduce((acc, ev) => {
         const lastEv = acc[acc.length -1]
-        if (lastEv && lastEv?.data.message &&
+        if (lastEv && 
+            lastEv?.data.message &&
+            ev.data.message?.id &&
             lastEv?.data.message?.id === ev.data.message?.id
           ) {
             lastEv.data.message.content += ev.data.message.content 

@@ -837,7 +837,7 @@ class CODXJuniorSession:
           INSTRUCTIONS:
           Each task must have a clear name and an intial descriptive message with instructions on what has to be done.
           Copy from the epic everything related with the subtask and add as the first message with a suggestion on how to solve it
-          {AI_TASKS_RESPONSE_PARSER.get_format_instructions()}
+          { AI_TASKS_RESPONSE_PARSER.get_format_instructions() }
           """
           
           messages = ai.chat(prompt=prompt)

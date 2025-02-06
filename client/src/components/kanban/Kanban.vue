@@ -67,61 +67,72 @@ import VSwatches from "../VSwatches.vue"
         </div>
         <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
       </modal>
-      <div class="grow grid grid-flow-col overflow-x-scroll relative gap-2 justify-start">
+      <div class="grow">
         <button class="btn btn-wide btn-primary" @click="showColumnModal = true" v-if="!columnList?.length">
           <i class="fa-solid fa-plus"></i>
           <span class="text-xs md:text-md">Column</span>
         </button>
-        <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
-          :class="column.color && 'border-t-2'"
-          :style="{ borderColor: column.color }"
-          v-for="column in columns" :key="column.title">
-          <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
-            <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
-              :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
-              <span class="hidden group-hover:block">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </span>
-            </div>
-            <div class="flex gap-2 items-center grow">
-              <div>{{column.title}}</div>
-            </div>
-            <div class="flex gap-2 items-center">
-              <div class="dropdown dropdown-end">
-                <div tabindex="0" role="button" class="btn btn-sm m-1 felx items-center">
-                  <span v-if="column.tasks?.length">({{ column.tasks.length  }})</span>
-                  <i class="mt-1 fa-solid fa-plus"></i>
+        <draggable
+          v-model="columns"
+          group="tasks"
+          :itemKey="c => c.title"
+          @end="onColumnTaskListChanged()"
+          class="mt-3 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
+        >
+          <template #item="{ element: column }">
+        
+            <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
+              :class="column.color && 'border-t-2'"
+              :style="{ borderColor: column.color }"
+              >
+              <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
+                <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
+                  :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
+                  <span class="hidden group-hover:block">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </span>
                 </div>
-                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                  <li class="flex gap-2" @click="newAnalysisTask(column.title)">
-                    <a>Analysis task</a>
-                  </li>
-                  <li class="flex gap-2" @click="newCodingTask(column.title)">
-                    <a>Coding task</a>
-                  </li>
-                </ul>
+                <div class="flex gap-2 items-center grow">
+                  <div>{{column.title}}</div>
+                </div>
+                <div class="flex gap-2 items-center">
+                  <div class="dropdown dropdown-end">
+                    <div tabindex="0" role="button" class="btn btn-sm m-1 felx items-center">
+                      <span v-if="column.tasks?.length">({{ column.tasks.length  }})</span>
+                      <i class="mt-1 fa-solid fa-plus"></i>
+                    </div>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                      <li class="flex gap-2" @click="newAnalysisTask(column.title)">
+                        <a>Analysis task</a>
+                      </li>
+                      <li class="flex gap-2" @click="newCodingTask(column.title)">
+                        <a>Coding task</a>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <div class="grow overflow-y-auto">
+                <draggable
+                  v-model="column.tasks"
+                  group="tasks"
+                  :itemKey="column.title"
+                  @end="onColumnTaskListChanged(column)"
+                  class="mt-3"
+                >
+                  <template #item="{ element: task }">
+                    <task-card
+                      :task="task"
+                      :itemKey="task.id"
+                      class="cursor-move overflow-hidden mt-2"
+                      @click="openChat(task)"
+                    />
+                  </template>
+                </draggable>
               </div>
             </div>
-          </div>
-          <div class="grow overflow-y-auto">
-            <draggable
-              v-model="column.tasks"
-              group="tasks"
-              :itemKey="column.title"
-              @end="onColumnTaskListChanged(column, event)"
-              class="mt-3"
-            >
-              <template #item="{ element: task }">
-                <task-card
-                  :task="task"
-                  :itemKey="task.id"
-                  class="cursor-move overflow-hidden mt-2"
-                  @click="openChat(task)"
-                />
-              </template>
-            </draggable>
-          </div>
-        </div>
+          </template>
+        </draggable>
       </div>
     </div>
   </div>
@@ -139,12 +150,12 @@ export default {
       newBoardName: '',
       columnName: '',
       columnColor: '#000000',
-      columnPosition: 1,
       isDropdownOpen: false,
       isTaskDropdownOpen: false,
       boards: [],
       selectedColumn: null,
-      editColumnError: null
+      editColumnError: null,
+      columns: []
     }
   },
   created() {
@@ -180,31 +191,8 @@ export default {
     boardColumns () {
       return this.boards[this.board]?.columns
     },
-    columns() {
-      const columnTitles = this.columnList 
-      return columnTitles
-          .map((col, ix) => {
-            const boardColumn = this.boards[this.board]?.columns?.find(bc => bc.title === col)||{}
-            const columnChats = boardColumn.chats || {}
-            const getChatIndex = c => {
-              return columnChats[c.id]?.chat_index || 0 
-            }
-            return { 
-              title: col,
-              ...boardColumn,
-              tasks: this.activeBoard.tasks
-                      .filter(t => (t.column || "--none--") === col)
-                      .sort((a, b) => getChatIndex(a) < getChatIndex(b) ? -1 : 1),
-              position: boardColumn.position || (ix + 1)
-            }
-          }).sort((a, b) => a.position < b.position ? -1: 1) 
-          || []
-    },
     columnList() {
-      return [...new Set([
-        ...this.activeBoard?.tasks.map(t => t.column || "--none--") ||[],
-        ...this.boards[this.board]?.columns?.map(c => c.title) || []
-        ])]
+      return this.boards[this.board]?.columns?.map(c => c.title) || []
     }
   },
   watch: {
@@ -235,9 +223,11 @@ export default {
       this.board = board
       this.$ui.setKanban(board)
       this.isDropdownOpen = false
-      Object.keys(this.boards || {})
-        .forEach(b => this.boards[b].active = (b === board))
-      this.saveBoards()
+      if (!this.boards[board].active) {
+        Object.keys(this.boards || {})
+          .forEach(b => this.boards[b].active = (b === board))
+        this.saveBoards()
+      }
     },
     createNewChat(base) {
       return this.$projects.createNewChat({
@@ -271,10 +261,38 @@ export default {
         this.board = Object.keys(this.boards)[0]
         this.$ui.setKanban(this.board)
       }
+      this.buildColumns()
     },
-    async onColumnTaskListChanged(column, event) {
-      const currentColumn = this.boards[this.board].columns.find(c => c.title === column.title)
-      currentColumn.chats = column.tasks.reduce((acc, t, chat_index) => ({ ...acc, [t.id]: { chat_index }}), {})
+    buildColumns() {
+      const columnTitles = this.columnList 
+      this.columns = columnTitles
+          .map((col, ix) => {
+            const boardColumn = this.boards[this.board]?.columns?.find(bc => bc.title === col)||{}
+            const columnChats = boardColumn.chats || {}
+            const getChatIndex = c => {
+              return columnChats[c.id]?.chat_index || 0 
+            }
+            return { 
+              title: col,
+              ...boardColumn,
+              tasks: this.activeBoard.tasks
+                      .filter(t => (t.column || "--none--") === col)
+                      .sort((a, b) => getChatIndex(a) < getChatIndex(b) ? -1 : 1),
+              position: ix
+            }
+          }).sort((a, b) => a.position < b.position ? -1: 1)
+          || []
+    },
+    async onColumnTaskListChanged() {
+      const { columns } = this.boards[this.board]
+      this.boards[this.board].columns = await Promise.all(this.columns.map(async (column, ix) => {
+        const currentColumn = columns.find(c => c.title === column.title)
+        currentColumn.chats = column.tasks.reduce((acc, t, chat_index) => ({ ...acc, [t.id]: { chat_index }}), {})
+        await Promise.all(column.tasks.filter(t => t.column !== column.title)
+          .map(task => this.$storex.projects.saveChatInfo({ ...task, column: column.title })))
+        return currentColumn
+      }))
+      
       this.saveBoards()
     },
     async updateColumnTaskList(column) {
@@ -318,12 +336,6 @@ export default {
       if (!this.columnName) {
         return this.resetColumnModal()
       }
-      // Move positions
-      if (this.selectedColumn?.position !== this.columnPosition
-          && this.boardColumns?.find(c => c.position === this.columnPosition)) {
-            this.boardColumns.filter(c => c.position >= this.columnPosition)
-                .map(c => c.position++)
-      }
       if (this.selectedColumn?.title !== this.columnName && this.columns[this.columnName]) {
         this.editColumnError = "Name already used"
         return
@@ -337,7 +349,6 @@ export default {
         })
         this.selectedColumn.title = this.columnName
         this.selectedColumn.color = this.columnColor
-        this.selectedColumn.position = this.columnPosition
       } else {
         const newColumn = {
           title: this.columnName,
@@ -358,7 +369,6 @@ export default {
       this.showColumnModal = false
       this.columnName = ''
       this.columnColor = '#000000'
-      this.columnPosition = this.boards[this.board].columns.length - 1
       this.selectedColumn = null
       this.editColumnError = null
     },
@@ -379,7 +389,6 @@ export default {
       this.selectedColumn = column
       this.columnName = column?.title
       this.columnColor = column?.color || '#000000'
-      this.columnPosition = column?.position || this.columnList.length
       this.showColumnModal = true
     },
     async saveBoards() {
