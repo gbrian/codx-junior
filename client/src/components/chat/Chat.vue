@@ -185,13 +185,15 @@ import moment from 'moment'
                   </select>
                 </a>
               </li>
-              <li>
+              <li class="btn btn-sm text-white btn-error tooltip"
+                data-tip="Delete?" 
+                @click="$emit('delete')">
                 <a>
-                  <button class="btn btn-xs btn-error hover:text-white" @click.stop="$emit('delete')">
-                    <i class="fa-solid fa-trash"></i> Delete chat
-                  </button>
+                  <i class="fa-solid fa-trash-can"></i>
+                  Delete
                 </a>
               </li>
+              
             </ul>
           </div>
         </div>

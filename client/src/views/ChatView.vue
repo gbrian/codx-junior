@@ -134,9 +134,18 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             </a>
           </div>
         </div>
-        <Chat :chatId="chat.id" :showHidden="showHidden" @refresh-chat="loadChat(chat)" @add-file="onAddFile" @remove-file="onRemoveFile" @delete-message="onRemoveMessage" @delete="deleteChat" @save="saveChat" v-if="chat"/>
-        <dialog v-if="confirmDelete" class="modal">
-          <div class="modal-box">
+        <Chat :chatId="chat.id"
+          :showHidden="showHidden"
+          @refresh-chat="loadChat(chat)"
+          @add-file="onAddFile"
+          @remove-file="onRemoveFile" 
+          @delete-message="onRemoveMessage"
+          @delete="confirmDelete = true"
+          @save="saveChat" 
+          v-if="chat"/>
+          {{ confirmDelete }}
+        <modal v-if="confirmDelete">
+          <div class="">
             <h3 class="font-bold text-lg">Confirm Delete</h3>
             <p>Are you sure you want to delete this chat?</p>
             <div class="modal-action">
@@ -144,8 +153,8 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
               <button class="btn" @click="resetConfirmDelete">Cancel</button>
             </div>
           </div>
-        </dialog>
-        <dialog class="modal modal-open" role="dialog" v-if="showFile || addFile !== null">
+        </modal>
+        <modal class="modal modal-open" role="dialog" v-if="showFile || addFile !== null">
           <div class="modal-box flex flex-col gap-4 p-4">
             <h3 class="font-bold text-lg" v-if="showFile">
               This file belongs to the task context:
@@ -166,7 +175,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
               </button>
             </div>
           </div>
-        </dialog>
+        </modal>
       </div>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
@@ -236,13 +245,11 @@ export default {
       this.editName = false
       await this.$projects.saveChat(this.chat)
     },
-    async deleteChat() {
-      this.confirmDelete = true
-    },
     async confirmDeleteChat() {
       this.confirmDelete = false
+      const parent_id = this.chat.parent_id
       await this.$projects.deleteChat(this.chat)
-      const parentChat = this.$projects.allChats.find(c => c.id === this.chat.parent_id)
+      const parentChat = this.$projects.allChats.find(c => c.id === parent_id)
       if (parentChat) {
         this.$projects.setActiveChat(parentChat)
       } else {

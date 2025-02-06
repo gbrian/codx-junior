@@ -88,8 +88,9 @@ import VSwatches from "../VSwatches.vue"
             </div>
             <div class="flex gap-2 items-center">
               <div class="dropdown dropdown-end">
-                <div tabindex="0" role="button" class="btn btn-sm m-1">
-                  <i class="fa-solid fa-plus"></i>
+                <div tabindex="0" role="button" class="btn btn-sm m-1 felx items-center">
+                  <span v-if="column.tasks?.length">({{ column.tasks.length  }})</span>
+                  <i class="mt-1 fa-solid fa-plus"></i>
                 </div>
                 <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                   <li class="flex gap-2" @click="newAnalysisTask(column.title)">
@@ -143,25 +144,28 @@ export default {
       isTaskDropdownOpen: false,
       boards: [],
       selectedColumn: null,
-      editColumnError: null,
-      activeBoard: null
+      editColumnError: null
     }
   },
   created() {
     this.projectChanged()
   },
   computed: {
+    chats () {
+      const allChats = this.$projects.allChats
+      return Object.values(allChats || {}).map(c => ({
+          ...c,
+          column: c.column || "--none--"
+        }))
+    },
     chat() {
       return this.$projects.activeChat
     },
     project() {
       return this.$projects.activeProject
     },
-    chats() {
-      return Object.values(this.$projects.allChats || {}).map(c => ({
-        ...c,
-        column: c.column || "--none--"
-      }))
+    activeBoard () {
+      return this.boardList[this.board] || this.boardList[ALL_BOARTD_TITLE]
     },
     boardList() {
       return [
@@ -214,7 +218,7 @@ export default {
     },
     board() {
       this.buildKanban()
-    }
+    },
   },
   methods: {
     async projectChanged() {
@@ -233,7 +237,6 @@ export default {
       this.isDropdownOpen = false
       Object.keys(this.boards || {})
         .forEach(b => this.boards[b].active = (b === board))
-      this.activeBoard = this.boardList[this.board] || this.boardList[ALL_BOARTD_TITLE]
       this.saveBoards()
     },
     createNewChat(base) {
@@ -264,7 +267,6 @@ export default {
       })
     },
     async buildKanban() {
-      await this.$projects.loadChats()
       if (this.board && !this.boards[this.board]) {
         this.board = Object.keys(this.boards)[0]
         this.$ui.setKanban(this.board)
