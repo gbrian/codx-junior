@@ -279,7 +279,7 @@ export default {
     },
     messages () {
       if (this.isTask) {
-        const rmsgs = (this.chat?.messages ||[]).reverse() 
+        const rmsgs = this.chat?.messages?.sort((a, b) => a.updated_at > b.updated_at ? -1: 1) ||[] 
         const userMsg = rmsgs.find(m => m.role !== 'assistant' && (!m.hide || this.showHidden))
         const aiMsg = rmsgs.find(m => m.role === 'assistant' && (!m.hide || this.showHidden))
         if (aiMsg) {
