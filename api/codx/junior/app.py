@@ -211,7 +211,7 @@ async def api_chat_subtasks(chat: Chat, request: Request):
 @app.put("/api/chats")
 async def api_save_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    chat_only = request.query_params.get("chatOnly")
+    chat_only = request.query_params.get("chatonly")
     await codx_junior_session.save_chat(chat, chat_only=chat_only)
 
 @app.delete("/api/chats")

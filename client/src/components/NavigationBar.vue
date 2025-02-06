@@ -19,6 +19,17 @@ import UserList from './UserList.vue';
     </div>
 
     <UserList v-if="false" />
+
+    <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'knowledge' ? 'bg-base-100 text-primary': '',]">
+      <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+        data-tip="Knowledge"
+        @click="$ui.setActiveTab('knowledge')">
+        <div class="flex flex-col gap-4">
+          <i class="fa-solid fa-comments"></i>
+        </div>
+      </a>
+    </div>
+
     <div class="flex w-full flex-col mt-4 hidden md:flex">
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'tasks' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
@@ -39,16 +50,6 @@ import UserList from './UserList.vue';
           </div>
 				</a>
 			</div>
-
-      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'knowledge' ? 'bg-base-100 text-primary': '',]">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Knowledge"
-          @click="$ui.setActiveTab('knowledge')">
-            <div class="flex flex-col gap-4">
-            <i class="fa-solid fa-book"></i>
-          </div>
-        </a>
-      </div>
 
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'prview' ? 'bg-base-100 text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" 
@@ -112,14 +113,13 @@ import UserList from './UserList.vue';
            <div class="flex flex-col gap-4">
             <i class="fa-solid fa-chart-line"></i>
             <span class="text-xs text-warning hover:underline hover:opacity-100 absolute top-2 right-2 tooltip" data-tip="close" 
-            v-if="$session.events.length">
+              v-if="$session.events.length">
               <i class="fa-solid fa-bell"></i>
             </span>
           </div>
 				</a>
 			</div>
     </div>
-    
     <div>
       <div :class="['dropdown dropdown-end click',
         right ? 'dropdown-left' : 'dropdown-right']">

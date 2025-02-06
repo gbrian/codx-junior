@@ -181,11 +181,16 @@ export default {
       return columnTitles
           .map((col, ix) => {
             const boardColumn = this.boards[this.board]?.columns?.find(bc => bc.title === col)||{}
+            const columnChats = boardColumn.chats || {}
+            const getChatIndex = c => {
+              return columnChats[c.id]?.chat_index || 0 
+            }
             return { 
               title: col,
               ...boardColumn,
-              tasks: this.activeBoard.tasks.filter(t => (t.column || "--none--") === col)
-                      .sort((a, b) => a.chat_index < b.chat_index ? -1 : 1),
+              tasks: this.activeBoard.tasks
+                      .filter(t => (t.column || "--none--") === col)
+                      .sort((a, b) => getChatIndex(a) < getChatIndex(b) ? -1 : 1),
               position: boardColumn.position || (ix + 1)
             }
           }).sort((a, b) => a.position < b.position ? -1: 1) 
@@ -266,9 +271,9 @@ export default {
       }
     },
     async onColumnTaskListChanged(column, event) {
-      await Promise.all(column.tasks.map((t, ix) => 
-        this.$projects.saveChatInfo(({ ...t, chat_index: ix }))))
-      this.buildKanban()
+      const currentColumn = this.boards[this.board].columns.find(c => c.title === column.title)
+      currentColumn.chats = column.tasks.reduce((acc, t, chat_index) => ({ ...acc, [t.id]: { chat_index }}), {})
+      this.saveBoards()
     },
     async updateColumnTaskList(column) {
       if (column.tasks) {
