@@ -159,8 +159,12 @@ import moment from 'moment'
               <i class="fa-solid fa-ellipsis-vertical"></i>
             </div>
             <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow gap-2">
-              <li class="btn btn-sm" @click="selectFile = true">
-                <a><i class="fa-solid fa-paperclip"></i> Attach files</a>
+              <li class="btn btn-sm tooltip"
+                data-tip="Attach files" 
+                @click="selectFile = true">
+                <a>
+                  <i class="fa-solid fa-paperclip"></i> Attach files
+                </a>
               </li>
               <li class="btn btn-sm" @click="testProject" v-if="API.lastSettings.script_test">
                 <a>
@@ -168,21 +172,11 @@ import moment from 'moment'
                   Test
                 </a>
               </li>
-              <li class="btn btn-sm btn-warning tooltip" :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" 
+              <li class="btn btn-sm tooltip" :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" 
                 @click="toggleVoiceSession" v-if="!editMessage">
                 <a>
                   <i class="fa-solid fa-microphone-lines"></i>
                   Voice mode
-                </a>
-              </li>
-              <li>
-                <a> 
-                  <i class="fa-solid fa-microphone-lines"></i>
-                  <select class="select select-sm" @change="setVoiceLanguage($event.target.value)">
-                    <option v-for="key, lang in $ui.voiceLanguages"
-                      :key="lang"
-                      :selected="$ui.voiceLanguage === lang" :value="lang">{{ key }}</option>
-                  </select>
                 </a>
               </li>
               <li class="btn btn-sm text-white btn-error tooltip"
@@ -693,9 +687,6 @@ export default {
     stopVoiceSession() {
       this.isVoiceSession = false
       this.recognition?.stop()
-    },
-    setVoiceLanguage(language) {
-      this.$ui.setVoiceLanguage(language)
     },
     scrollToBottom() {
       setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)

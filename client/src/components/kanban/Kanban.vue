@@ -53,11 +53,6 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
             <VSwatches v-model="columnColor" class="h-full mt-1" />
           </div>
           <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
-          Position:
-          <ul class="steps">
-            <li v-for="n in columnList.length" :key="n"
-            class="step click" @click="columnPosition = n" :class="columnPosition === n && 'step-primary'"></li>
-          </ul>
           <div class="modal-action">
             <button class="btn" @click="addOrUpdateColumn">OK</button>
             <button class="btn" @click="showColumnModal = false">Cancel</button>
@@ -214,6 +209,9 @@ export default {
     board() {
       this.buildKanban()
     },
+    chats() {
+      this.buildKanban()
+    }
   },
   methods: {
     async projectChanged() {
@@ -308,8 +306,8 @@ export default {
         await this.$projects.setActiveChat(element)
       }
     },
-    onChatEditDone() {
-      this.$projects.setActiveChat()
+    async onChatEditDone() {
+      await this.$projects.setActiveChat()
       this.buildKanban()
     },
     async createSubTask(parent) {

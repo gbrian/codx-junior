@@ -131,8 +131,18 @@ import UserList from './UserList.vue';
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
-          <li><a @click.stop="setActiveTab('knowledge_settings')"><i class="fa-solid fa-cog"></i> Knowledge</a></li>
+          <li><a @click.stop="setActiveTab('knowledge_settings')"><i class="fa-solid fa-book"></i> Knowledge</a></li>
           <li class="border"></li>
+          <li>
+            <a> 
+              <i class="fa-solid fa-microphone-lines"></i>
+              <select class="select select-sm" @change="$ui.setVoiceLanguage($event.target.value)">
+                <option v-for="key, lang in $ui.voiceLanguages"
+                  :key="lang"
+                  :selected="$ui.voiceLanguage === lang" :value="lang">{{ key }}</option>
+              </select>
+            </a>
+          </li>
           <li>
             <a>
               <i class="fa-solid fa-table-columns"></i>
