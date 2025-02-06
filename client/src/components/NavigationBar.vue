@@ -33,7 +33,7 @@ import UserList from './UserList.vue';
     <div class="flex w-full flex-col mt-4 hidden md:flex">
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'tasks' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="My TO DO"
+          data-tip="Kanban"
           @click="$ui.setActiveTab('tasks')">
            <div class="flex flex-col gap-4">
             <i class="fa-solid fa-list-check"></i>

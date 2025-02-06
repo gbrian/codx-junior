@@ -164,7 +164,7 @@ export default {
   },
   methods: {
     formatDate(date) {
-      return moment(date).format('DD/MMM HH:mm')
+      return moment(date).format('DD/MMM HH:mm:ss')
     },
     extractImprovementData() {
       this.improvementData = null
