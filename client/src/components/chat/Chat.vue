@@ -27,7 +27,7 @@ import moment from 'moment'
                 <div>{{ moment(message.updated_at).format('DD/MMM HH:mm') }}</div>
               </div>
             </div>
-            <ChatEntry :class="['mb-4 rounded-md bg-base-300 p-2',
+            <ChatEntry :class="['mb-4 rounded-md bg-base-300 py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
               message.hide ? 'opacity-60' : '']"
               :chat="chat"
@@ -271,15 +271,16 @@ export default {
     chat () {
       return this.$projects.chats[this.chatId]
     },
+    visibleMessages() {
+      return this.chat?.messages.filter(m => !m.hide || this.showHidden) || []
+    },
     messages () {
       if (this.isTask) {
-        const rmsgs = [...this.chat?.messages || []].reverse() 
-        const userMsg = rmsgs.find(m => m.role !== 'assistant' && (!m.hide || this.showHidden))
-        const aiMsg = rmsgs.find(m => m.role === 'assistant' && (!m.hide || this.showHidden))
-        if (aiMsg) {
-          return [aiMsg]
+        const lastMessage = this.visibleMessages.length ? this.visibleMessages[this.visibleMessages.length - 1] : null
+        if (lastMessage && lastMessage.role === 'assistant') {
+          return [lastMessage]
         }
-        return userMsg ? [userMsg] : []
+        return this.visibleMessages.filter(m => m.role !== 'assistant')
       }
       return this.chat?.messages
     },

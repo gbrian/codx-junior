@@ -195,13 +195,13 @@ export const API = {
     delete(chat) {
       return API.del(`/api/chats?file_path=${chat.file_path}`)
     },
-    boards: {
+    kanban: {
       async load() {
-        const { data: boards } = await API.get('/api/boards')
-        return boards
+        const { data: kanban } = await API.get('/api/kanban')
+        return kanban
       },
-      async save(boards) {
-        API.post('/api/boards', boards)
+      async save(kanban) {
+        API.post('/api/kanban', kanban)
       }
     }
   },

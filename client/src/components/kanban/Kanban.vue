@@ -8,136 +8,136 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 </script>
 
 <template>
-  <div class="h-full">
-    <SplitterGroup id="splitter-group-1" direction="horizontal" auto-save-id="splitter-group-1">
-      <SplitterPanel :order="0" class="flex flex-col gap-2 grow overflow-auto pb-2">
-        <div class="md:text-2xl flex gap-4 items-center justify-between">
-          <div class="dropdown">
-            <button tabindex="0" class="btn mt-1" @click="toggleDropdown">
-              {{ board || 'All' }} <i class="fa-solid fa-sort-down"></i>
-            </button>
-            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-              <li class="flex gap-2" @click="showNewBoardModal"><a>New board ...</a></li>
-              <li v-for="tasksBoard in boardList" :key="tasksBoard.id" @click="selectBoard(tasksBoard.id)">
-                <a>{{ tasksBoard.title }} <span v-if="tasksBoard.tasks?.length"> - {{ tasksBoard.tasks.length }} <i class="fa-regular fa-file-lines"></i></span> </a>
-              </li>
-            </ul>
-          </div>
-          <div class="flex gap-2">
-            <div class="hidden grow input input-sm input-bordered flex items-center gap-2">
-              <input type="text" v-model="filter" class="grow" placeholder="Search" />
-              <span class="click" v-if="filter" @click.stop="filter = null">
-                <i class="fa-regular fa-circle-xmark"></i>
-              </span>
-              <span v-else><i class="fa-solid fa-filter"></i></span>
-            </div>
-            <button class="btn btn-sm" @click="showColumnModal = true" v-if="columnList?.length">
-              <i class="fa-solid fa-plus"></i>
-              <span class="text-xs md:text-md">Column</span>
-            </button>
-          </div>
+  <SplitterGroup id="splitter-group-1" direction="horizontal" auto-save-id="splitter-group-1">
+    <SplitterPanel :order="0" class="flex flex-col gap-2 grow overflow-auto pb-2">
+      <div class="md:text-2xl flex gap-4 items-center justify-between">
+        <div class="dropdown">
+          <button tabindex="0" class="btn mt-1" @click="toggleDropdown">
+            {{ board || 'All' }} <i class="fa-solid fa-sort-down"></i>
+          </button>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+            <li class="flex gap-2" @click="showNewBoardModal"><a>New board ...</a></li>
+            <li v-for="tasksBoard in boardList" :key="tasksBoard.id" @click="selectBoard(tasksBoard.id)">
+              <a>{{ tasksBoard.title }} <span v-if="tasksBoard.tasks?.length"> - {{ tasksBoard.tasks.length }} <i class="fa-regular fa-file-lines"></i></span> </a>
+            </li>
+          </ul>
         </div>
-        <modal v-if="showBoardModal">
-          <h2 class="font-bold text-lg">Add New Board</h2>
-          <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
-          <div class="modal-action">
-            <button class="btn" @click="addBoard">OK</button>
-            <button class="btn" @click="showBoardModal = false">Cancel</button>
+        <div class="flex gap-2">
+          <div class="hidden grow input input-sm input-bordered flex items-center gap-2">
+            <input type="text" v-model="filter" class="grow" placeholder="Search" />
+            <span class="click" v-if="filter" @click.stop="filter = null">
+              <i class="fa-regular fa-circle-xmark"></i>
+            </span>
+            <span v-else><i class="fa-solid fa-filter"></i></span>
           </div>
-        </modal>
-        <modal v-if="showColumnModal">
-          <h2 class="font-bold text-lg">Add/Edit Column</h2>
-          <div class="flex gap-1 items-center">
-            <input type="text" v-model="columnName" placeholder="Enter column name"
-              class="grow input input-bordered w-full"/>
-            <VSwatches v-model="columnColor" class="h-full mt-1" />
-          </div>
-          <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
-          <div class="modal-action">
-            <button class="btn" @click="addOrUpdateColumn">OK</button>
-            <button class="btn" @click="showColumnModal = false">Cancel</button>
-          </div>
-          <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
-        </modal>
-        <div class="grow">
-          <button class="btn btn-wide btn-primary" @click="showColumnModal = true" v-if="!columnList?.length">
+          <button class="btn btn-sm" @click="showColumnModal = true" v-if="columnList?.length">
             <i class="fa-solid fa-plus"></i>
             <span class="text-xs md:text-md">Column</span>
           </button>
-          <draggable
-            v-model="columns"
-            group="tasks"
-            :itemKey="c => c.title"
-            @end="onColumnTaskListChanged"
-            class="mt-3 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
-          >
-            <template #item="{ element: column }">
-              <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
-                :class="column.color && 'border-t-2'"
-                :style="{ borderColor: column.color }"
-              >
-                <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
-                  <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
-                    :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
-                    <span class="hidden group-hover:block">
-                      <i class="fa-solid fa-pen-to-square"></i>
-                    </span>
-                  </div>
-                  <div class="flex gap-2 items-center grow">
-                    <div>{{column.title}}</div>
-                  </div>
-                  <div class="flex gap-2 items-center">
-                    <div class="dropdown dropdown-end">
-                      <div tabindex="0" role="button" class="btn btn-sm m-1 flex items-center">
-                        <span v-if="column.tasks?.length">({{ column.tasks.length  }})</span>
-                        <i class="mt-1 fa-solid fa-plus"></i>
-                      </div>
-                      <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                        <li class="flex gap-2" @click="newAnalysisTask(column.title)">
-                          <a>Analysis task</a>
-                        </li>
-                        <li class="flex gap-2" @click="newCodingTask(column.title)">
-                          <a>Coding task</a>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
+        </div>
+      </div>
+      <modal v-if="showBoardModal">
+        <h2 class="font-bold text-lg">Add New Board</h2>
+        <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
+        <div class="modal-action">
+          <button class="btn" @click="addBoard">OK</button>
+          <button class="btn" @click="showBoardModal = false">Cancel</button>
+        </div>
+      </modal>
+      <modal v-if="showColumnModal">
+        <h2 class="font-bold text-lg">Add/Edit Column</h2>
+        <div class="flex gap-1 items-center">
+          <input type="text" v-model="columnName" placeholder="Enter column name"
+            class="grow input input-bordered w-full"/>
+          <VSwatches v-model="columnColor" class="h-full mt-1" />
+        </div>
+        <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
+        <div class="modal-action">
+          <button class="btn" @click="addOrUpdateColumn">OK</button>
+          <button class="btn" @click="showColumnModal = false">Cancel</button>
+        </div>
+        <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
+      </modal>
+      <div class="grow">
+        <button class="btn btn-wide btn-primary" @click="showColumnModal = true" v-if="!columnList?.length">
+          <i class="fa-solid fa-plus"></i>
+          <span class="text-xs md:text-md">Column</span>
+        </button>
+        <draggable
+          v-model="columns"
+          group="tasks"
+          :itemKey="c => c.title"
+          @end="onColumnTaskListChanged"
+          class="mt-3 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
+        >
+          <template #item="{ element: column }">
+            <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
+              :class="column.color && 'border-t-2'"
+              :style="{ borderColor: column.color }"
+            >
+              <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
+                <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
+                  :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
+                  <span class="hidden group-hover:block">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </span>
                 </div>
-                <div class="grow overflow-y-auto">
-                  <draggable
-                    v-model="column.tasks"
-                    group="tasks"
-                    :itemKey="column.title"
-                    @end="onColumnTaskListChanged(column)"
-                    class="mt-3"
-                  >
-                    <template #item="{ element: task }">
-                      <task-card
-                        :task="task"
-                        :itemKey="task.id"
-                        class="cursor-move overflow-hidden mt-2"
-                        @click="openChat(task)"
-                      />
-                    </template>
-                  </draggable>
+                <div class="flex gap-2 items-center grow">
+                  <div>{{column.title}}</div>
+                </div>
+                <div class="flex gap-2 items-center">
+                  <div class="dropdown dropdown-end">
+                    <div tabindex="0" role="button" class="btn btn-sm m-1 flex items-center">
+                      <span v-if="column.tasks?.length">({{ column.tasks.length  }})</span>
+                      <i class="mt-1 fa-solid fa-plus"></i>
+                    </div>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                      <li class="flex gap-2" @click="newAnalysisTask(column.title)">
+                        <a>Analysis task</a>
+                      </li>
+                      <li class="flex gap-2" @click="newCodingTask(column.title)">
+                        <a>Coding task</a>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
               </div>
-            </template>
-          </draggable>
-        </div>
-      </SplitterPanel>
-      <SplitterResizeHandle 
-        id="splitter-group-1-resize-handle-2" 
-        class="bg-stone-800 hover:bg-slate-600 w-1" v-if="chat"/>
-      <SplitterPanel :order="1" class="flex-shrink-0 w-1/3" v-if="chat">
-        <ChatViewVue
-          @chats="onChatEditDone"
-          @sub-task="createSubTask"
-          @chat="$projects.setActiveChat($event)"
-        />
-      </SplitterPanel>
-    </SplitterGroup>
-  </div>
+              <div class="grow overflow-y-auto">
+                <draggable
+                  v-model="column.tasks"
+                  group="tasks"
+                  :itemKey="column.title"
+                  @end="onColumnTaskListChanged(column)"
+                  class="mt-3"
+                >
+                  <template #item="{ element: task }">
+                    <task-card
+                      :task="task"
+                      :itemKey="task.id"
+                      class="cursor-move overflow-hidden mt-2"
+                      @click="openChat(task)"
+                    />
+                  </template>
+                </draggable>
+              </div>
+            </div>
+          </template>
+        </draggable>
+      </div>
+    </SplitterPanel>
+    <SplitterResizeHandle 
+      id="splitter-group-1-resize-handle-2" 
+      class="bg-stone-800 hover:bg-slate-600 w-1" v-if="chat">
+    </SplitterResizeHandle>
+    <SplitterPanel :order="1" class="flex-shrink-0 w-1/3 flex" v-if="chat">
+      <ChatViewVue
+        class="ml-2 w-full"
+        @chats="onChatEditDone"
+        @sub-task="createSubTask"
+        @chat="$projects.setActiveChat($event)"
+      />
+    </SplitterPanel>
+  </SplitterGroup>
 </template>
 
 <script>
@@ -154,16 +154,19 @@ export default {
       columnName: '',
       columnColor: '#000000',
       isDropdownOpen: false,
-      boards: [],
+      kanban: {},
       selectedColumn: null,
       editColumnError: null,
       columns: []
     }
   },
-  created() {
+  mounted() {
     this.projectChanged()
   },
   computed: {
+    boards() {
+      return this.kanban?.boards || {}
+    },
     chats() {
       const allChats = this.$projects.allChats
       return Object.values(allChats || {}).map(c => ({
@@ -215,7 +218,7 @@ export default {
   },
   methods: {
     async projectChanged() {
-      this.boards = await this.$storex.api.chats.boards.load()
+      this.kanban = await this.$storex.api.chats.kanban.load()
       this.selectBoard(Object.keys(this.boards || {}).find(b => this.boards[b].active) ||
                       this.$ui.kanban || ALL_BOARTD_TITLE)
       this.buildKanban()
@@ -230,7 +233,7 @@ export default {
       if (!this.boards[board].active) {
         Object.keys(this.boards || {})
           .forEach(b => this.boards[b].active = (b === board))
-        this.saveBoards()
+        this.saveKanban()
       }
     },
     createNewChat(base) {
@@ -297,7 +300,7 @@ export default {
         return currentColumn
       }))
       
-      this.saveBoards()
+      this.saveKanban()
     },
     async openChat(element) {
       if (element.id === -1) {
@@ -350,7 +353,7 @@ export default {
         }
       }
       
-      await this.saveBoards()
+      await this.saveKanban()
       this.selectBoard(this.activeBoard.title)
       this.resetColumnModal()
     },
@@ -367,7 +370,7 @@ export default {
         this.boards[boardName] = {
           columns: []
         }
-        await this.saveBoards()
+        await this.saveKanban()
       }
       this.newBoardName = ''
       this.showBoardModal = false
@@ -380,8 +383,8 @@ export default {
       this.columnColor = column?.color || '#000000'
       this.showColumnModal = true
     },
-    async saveBoards() {
-      await this.$storex.api.chats.boards.save(this.boards)
+    async saveKanban() {
+      await this.$storex.api.chats.kanban.save(this.kanban)
     },
     showNewBoardModal() {
       this.showBoardModal = true

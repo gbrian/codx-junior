@@ -1,7 +1,9 @@
 {
+  "project_id": "520ed67a-78c3-4839-92fc-f26d35671d98",
   "ai_provider": "openai",
   "ai_model": "gpt-4o",
   "project_name": "browser",
+  "project_path": null,
   "project_wiki": "",
   "project_dependencies": "",
   "knowledge_extract_document_tags": false,
@@ -18,5 +20,6 @@
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
   "log_ignore": "",
+  "project_scripts": [],
   "urls": []
 }

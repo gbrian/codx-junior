@@ -2,6 +2,7 @@ import os
 import json
 import logging
 import pathlib
+import uuid
 
 from codx.junior.utils import write_file
 from codx.junior.model import (
@@ -52,6 +53,8 @@ logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
 
 class CODXJuniorSettings:
     def __init__(self, **kwrgs):
+        self.project_id = None
+
         self.ai_provider = None
         self.ai_model = None
 
@@ -158,6 +161,8 @@ class CODXJuniorSettings:
             settings.codx_path = base.codx_path
             if not settings.project_path or settings.project_path[0] != "/":
                 settings.project_path = base.project_path
+            if not settings.project_id:
+                return settings.save_project()
             return settings
 
     @classmethod
@@ -188,6 +193,9 @@ class CODXJuniorSettings:
             
         if project_path_folders == codx_path_folders: # Check for custom project_path
             self.project_path = None
+        # project_id
+        if not self.project_id:
+            self.project_id = str(uuid.uuid4())
 
         settings = self.__dict__
         logging.info(f"Saving project {path}: {settings}")
@@ -196,6 +204,8 @@ class CODXJuniorSettings:
             data[key] = settings[key]
         logger.info(f"Saving project {valid_keys}: {data}")
         write_file(path, json.dumps(data, indent=2))
+
+        return self
 
     def get_sub_projects(self):
         try:

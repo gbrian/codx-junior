@@ -30,6 +30,7 @@ class Message(BaseModel):
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
+    project_id: Optional[str] = Field(default=None, description="Defines the project which this chat belongs")
     parent_id: Optional[str] = Field(default=None)
     status: str = Field(default='')
     tags: List[str] = Field(default=[])

@@ -211,7 +211,7 @@ async def api_chat_subtasks(chat: Chat, request: Request):
 @app.put("/api/chats")
 async def api_save_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    chat_only = request.query_params.get("chatonly")
+    chat_only = request.query_params.get("chatonly") == "1"
     await codx_junior_session.save_chat(chat, chat_only=chat_only)
 
 @app.delete("/api/chats")
@@ -220,16 +220,16 @@ def api_delete_chat(request: Request):
     file_path = request.query_params.get("file_path")
     codx_junior_session.delete_chat(file_path)
 
-@app.get("/api/boards")
-def api_boards(request: Request):
+@app.get("/api/kanban")
+def api_kanban(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.get_chat_manager().load_boards()
+    return codx_junior_session.get_chat_manager().load_kanban()
 
-@app.post("/api/boards")
-async def api_set_boards(request: Request):
+@app.post("/api/kanban")
+async def api_set_kanban(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    boards = await request.json()
-    codx_junior_session.get_chat_manager().save_boards(boards)
+    kanban = await request.json()
+    codx_junior_session.get_chat_manager().save_kanban(kanban)
 
 
 @app.post("/api/images")

@@ -42,6 +42,9 @@ import ChatIcon from '../chat/ChatIcon.vue';
           {{ subTasks.length }}
           <i class="fa-regular fa-file-lines"></i>
         </div>
+        <div class="badge badge-xs badge-warning" v-if="chatProject">
+          {{ chatProject.project_name }}
+        </div>
       </div>
     </div>
   </div>
@@ -76,6 +79,10 @@ export default {
     subTasks() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.task.id)
                 .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
+    },
+    chatProject() {
+      return this.$projects.allProjects.find(p => p.project_id === this.task.project_id && 
+                  p.project_id !== this.$project.project_id)
     }
   }
 };

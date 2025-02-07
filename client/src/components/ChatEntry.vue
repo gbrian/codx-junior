@@ -8,7 +8,7 @@ import MarkdownIt from 'markdown-it'
 </script>
 
 <template>
-  <div class="relative flex flex-col gap-1 w-full hover:rounded-md">
+  <div class="relative flex flex-col gap-1 w-full hover:rounded-md p-2">
     <div class="text-xs font-bold flex justify-between">
       <div class="flex justify-start gap-2">
         <input type="checkbox" class="toggle toggle-xs tooltip tooltip-right pt-1"

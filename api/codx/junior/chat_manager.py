@@ -58,6 +58,7 @@ class ChatManager:
             chat.id = str(uuid.uuid4())
         if not chat.created_at:
             chat.created_at = chat.updated_at
+        
         chat.updated_at = datetime.now().isoformat()
         
         current_chat = self.find_by_id(chat.id)
@@ -174,16 +175,28 @@ class ChatManager:
               return self.load_chat_from_path(chat_file=chat.file_path)
         return None
 
-    def load_boards(self):
-        boards_file = f"{self.chat_path}/boards.json"
+    def load_kanban(self):
+        kanban_file = f"{self.chat_path}/kanban.json"
         all_chats = self.list_chats()
-        boards = {}
-        if os.path.isfile(boards_file):
-            with open(boards_file, 'r') as f:
-                boards = json.loads(f.read())
+        kanban = {
+          "version": 0.1,
+          "boards": {},
+          "tags": {}
+        }
+        if os.path.isfile(kanban_file):
+            with open(kanban_file, 'r') as f:
+                kanban = json.loads(f.read())
+            version = kanban.get("version", None)
+            if not version:
+                kanban = {
+                    "version": 0.1,
+                    "boards": kanban,
+                    "tags": {}
+                }
 
         all_board_dirs = [board for board in os.listdir(f"{self.chat_path}") \
                             if os.path.isdir(f"{self.chat_path}/{board}")]
+        boards = kanban["boards"]
         for board in set([chat.board for chat in all_chats] + all_board_dirs):
             if not boards.get(board):
                 boards[board] = {}
@@ -199,9 +212,9 @@ class ChatManager:
                 if not [c for c in board_columns if c["title"] == col]:
                     board_columns.append({ "title" : col })
 
-        return boards
+        return kanban
 
-    def save_boards(self, boards):
-        boards_file = f"{self.chat_path}/boards.json"
-        with open(boards_file, 'w') as f:
-            f.write(json.dumps(boards))
+    def save_kanban(self, kanban):
+        kanban_file = f"{self.chat_path}/kanban.json"
+        with open(kanban_file, 'w') as f:
+            f.write(json.dumps(kanban))

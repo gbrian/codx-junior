@@ -127,6 +127,12 @@ def find_project_from_file_path(file_path: str):
     if matches:
         return sorted(matches, key=lambda p: len(p.project_path))[-1]
     return None
+  
+def find_project_by_id(project_id: str):
+    """Given a project id, find the project"""
+    all_projects = find_all_projects()
+    matches = [p for p in all_projects if p.project_id == project_id]
+    return matches[0] if matches else None
 
 def find_all_projects():
     all_projects = []
@@ -826,6 +832,7 @@ class CODXJuniorSession:
 
           prompt = f"""
           <content>
+          {self.get_chat_analysis_parents(chat=chat)}
           { content }
           </content>
 
@@ -855,8 +862,30 @@ class CODXJuniorSession:
               self.chat_event(chat=chat, message=f"Saving subtask {sub_task.name}")
               chat_manager.save_chat(sub_task)
 
+    def get_chat_analysis_parents(self, chat: Chat):
+        """Given a chat, traverse all parents and return all analysis"""
+        parent_content = []
+        parent_id = chat.parent_id
+        chat_manager = self.get_chat_manager()
+        while parent_id:
+            parent_chat = chat_manager.find_by_id(parent_id)
+            last_ai_message = [m for m in parent_chat.messages if m.role == "assistant" and not m.hide]
+            if last_ai_message:
+              parent_content.append(last_ai_message[-1].content)
+            parent_id = parent_chat.parent_id
+        return "\n".join(parent_content)
+
     @profile_function
     async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
+        # Invoke project based on project_id
+        if chat.project_id and chat.project_id != self.settings.project_id:
+            return find_project_by_id(chat.project_id).chat_with_project(
+              chat=chat,
+              use_knowledge=use_knowledge,
+              callback=callback,
+              append_references=append_references,
+              chat_mode=chat_mode)
+
         with self.chat_action(chat=chat, event=f"Processing AI request {chat.name}"):
             chat_mode = chat_mode or chat.mode or "chat"
             if chat_mode == "browser":
@@ -993,12 +1022,19 @@ class CODXJuniorSession:
 
             if is_refine and last_ai_message:
                 refine_message = Message(role="user", content=f"""
-                UPDATE THIS DOCUMENT
-                ```
-                {last_ai_message.content}
-                ```
+                <task>
+                { chat.name }
+                </task>
 
-                WITH USER COMMENTS:
+                <parent_context>
+                {self.get_chat_analysis_parents(chat=chat)}
+                </parent_context>
+
+                <document>
+                {last_ai_message.content}
+                </document>
+
+                UPDATE DOCUMENT WITH USER COMMENTS:
                 {user_message.content}
                 """)
                 messages.append(convert_message(refine_message))
@@ -1236,10 +1272,3 @@ class CODXJuniorSession:
         exec_command("git add .", cwd=self.settings.project_path)
         diff = self.get_project_changes()
         return self.get_knowledge().build_code_changes_summary(diff=diff, force=force)
-    
-    def load_boards(self):
-        return self.db.get_all_kankan()
-
-    def save_boards(self, kanbans: []):
-        for kanban in kanbans:
-            self.db.save_kanban(Kanban(**data))
