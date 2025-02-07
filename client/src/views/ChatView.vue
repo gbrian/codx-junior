@@ -107,7 +107,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             <select v-model="chat.project_id" class="select select-bordered select-xs w-full max-w-xs"
               @change="saveChat"
             >
-              <option v-for="project in $projects.allProjects" :key="project.project_id"
+              <option v-for="project in subProjects" :key="project.project_id"
                 :value="project.project_id"
                 :selected="project.project_id === chatProject.project_id"
               >
@@ -200,7 +200,6 @@ export default {
   props: ['chatMode', 'openChat'],
   data() {
     return {
-      profiles: null,
       showFile: null,
       addFile: null,
       showChatsTree: false,
@@ -216,10 +215,13 @@ export default {
       }
     }
   },
-  async created() {
-    this.loadProfiles()
-  },
   computed: {
+    subProjects () {
+      return [
+          ...this.$projects.childProjects || [],
+          ...this.$projects.projectDependencies || []
+      ]
+    },
     hiddenCount() {
       return this.chat.messages?.filter(m => m.hide).length
     },
@@ -252,12 +254,6 @@ export default {
     }
   },
   methods: {
-    async loadProfiles() {
-      try {
-        const { data } = await API.profiles.list()
-        this.profiles = data
-      } catch {}
-    },
     async saveChat() {
       this.editName = false
       await this.$projects.saveChat(this.chat)

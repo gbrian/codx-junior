@@ -10,10 +10,10 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 <template>
   <SplitterGroup id="splitter-group-1" direction="horizontal" auto-save-id="splitter-group-1">
     <SplitterPanel :order="0" class="flex flex-col gap-2 grow overflow-auto pb-2">
-      <div class="md:text-2xl flex gap-4 items-center justify-between">
+      <div class="md:text-2xl flex gap-4 items-center">
         <div class="dropdown">
-          <button tabindex="0" class="btn mt-1" @click="toggleDropdown">
-            {{ board || 'All' }} <i class="fa-solid fa-sort-down"></i>
+          <button tabindex="0" class="btn btn-sm mt-1" @click="toggleDropdown">
+            Board <i class="fa-solid fa-sort-down"></i>
           </button>
           <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
             <li class="flex gap-2" @click="showNewBoardModal"><a>New board ...</a></li>
@@ -22,6 +22,8 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
             </li>
           </ul>
         </div>
+        <span>{{ board || 'All' }}</span>
+        <div class="grow"></div>
         <div class="flex gap-2">
           <div class="hidden grow input input-sm input-bordered flex items-center gap-2">
             <input type="text" v-model="filter" class="grow" placeholder="Search" />
@@ -68,7 +70,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
           group="tasks"
           :itemKey="c => c.title"
           @end="onColumnTaskListChanged"
-          class="mt-3 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
+          class="mt-3 min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
         >
           <template #item="{ element: column }">
             <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"

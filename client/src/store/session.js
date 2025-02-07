@@ -118,6 +118,12 @@ export const actions = actionTree(
     onEvent({ state }, { event, data }) {
       console.log("On server message", event, data)
       state.events.push({ event, data, ts: new Date().getTime() })
+      const {
+        codx_path
+      } = data
+      if (codx_path) {
+        data.project = $storex.projects.allProjects.find(p => p.codx_path === codx_path)
+      }
       if (data.chat) {
         $storex.projects.onChatEvent({ event, data })
       }

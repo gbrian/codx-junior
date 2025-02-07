@@ -82,10 +82,11 @@ export const actions = actionTree(
       }
       state.activeProject = project
       state.chats = {}
+      state.activeChat = null
       await API.init(project?.codx_path)
       project && await $storex.projects.loadChats()
       state.activeProject = API.lastSettings
-      state.activeChat = null
+      
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()

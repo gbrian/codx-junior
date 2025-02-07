@@ -38,7 +38,7 @@ import ProjectChip from './ProjectChip.vue';
         <img class="w-4 rounded-full bg-base-300" :src="child.project_icon"/>
         {{ child.project_name }}
       </ProjectChip>
-      <ProjectChip :project="child" class=""
+      <ProjectChip :project="child" class="text-info"
         :data-tip="`Go to ${child.project_name}`"
         v-for="child in $projects.projectDependencies"
         :key="child.project_name" @click.stop="$projects.setActiveProject(child)">

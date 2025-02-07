@@ -17,6 +17,7 @@ from langchain.schema.document import Document
 from langchain.schema import (
     AIMessage,
     HumanMessage,
+    BaseMessage,
     SystemMessage
 )
 
@@ -187,6 +188,10 @@ class CODXJuniorSession:
         if not channel:
             from codx.junior.sio.sio import sio
             self.channel = SessionChannel(sio=sio)
+
+    def switch_project(self, project_id: str):
+        settings = find_project_by_id(project_id=project_id)
+        return CODXJuniorSession(settings=settings, channel=self.channel)
 
     def log_info(self, msg):
         logger.info(f"[{self.settings.project_name}] {msg}")
@@ -865,21 +870,20 @@ class CODXJuniorSession:
     def get_chat_analysis_parents(self, chat: Chat):
         """Given a chat, traverse all parents and return all analysis"""
         parent_content = []
-        parent_id = chat.parent_id
         chat_manager = self.get_chat_manager()
-        while parent_id:
-            parent_chat = chat_manager.find_by_id(parent_id)
+        parent_chat = chat_manager.find_by_id(chat.parent_id)
+        while parent_chat:
             last_ai_message = [m for m in parent_chat.messages if m.role == "assistant" and not m.hide]
             if last_ai_message:
               parent_content.append(last_ai_message[-1].content)
-            parent_id = parent_chat.parent_id
+            parent_chat = chat_manager.find_by_id(parent_chat.parent_id)
         return "\n".join(parent_content)
 
     @profile_function
     async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
         # Invoke project based on project_id
         if chat.project_id and chat.project_id != self.settings.project_id:
-            return find_project_by_id(chat.project_id).chat_with_project(
+            return await self.switch_project(chat.project_id).chat_with_project(
               chat=chat,
               use_knowledge=use_knowledge,
               callback=callback,

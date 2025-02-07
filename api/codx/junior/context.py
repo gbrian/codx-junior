@@ -1,5 +1,6 @@
 import logging
 import re
+import os
 from pathlib import Path
 from typing import Union, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -81,9 +82,6 @@ class AIDocValidateResponse(BaseModel):
 def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
     ai = AI(settings=settings)
     score = float(settings.knowledge_context_cutoff_relevance_score)
-    
-    return documents
-    # DISABLED!
     
     # This function uses ThreadPoolExecutor to parallelize validation of contexts.
     with ThreadPoolExecutor() as executor:
@@ -167,7 +165,7 @@ def find_relevant_documents(query: str, settings, ignore_documents=[], ai_valida
                                 parallel_validate_contexts(query, 
                                                     documents, 
                                                     settings) if doc]
-        file_list = [str(Path(doc.metadata["source"]).absolute()) for doc in relevant_documents]
+        file_list = [os.path.join(settings.project_path, str(Path(doc.metadata["source"]).absolute())) for doc in relevant_documents]
         file_list = list(dict.fromkeys(file_list))  # Remove duplicates
         return relevant_documents, file_list
     return [], []

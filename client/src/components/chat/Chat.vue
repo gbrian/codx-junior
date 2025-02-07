@@ -46,7 +46,7 @@ import moment from 'moment'
             />
           </div>
           <div class="text-xs text-info" v-for="event in chatEvents" :key="event.ts">
-            <i class="fa-solid fa-comment"></i> {{ event.data.text }}
+             <span class="badge badge-xs" v-if="event.data.project">{{ event.data.project?.project_name }} </span> {{ event.data.text }}
           </div>
           <div class="anchor" ref="anchor"></div>
         </div>
@@ -55,8 +55,7 @@ import moment from 'moment'
     <div class="chat chat-end" v-if="false && isBrowser">
       <div class="chat-image avatar">
         <div class="w-10 rounded-full">
-          <img
-            src="/only_icon.png" />
+          <img src="/only_icon.png" alt="logo" />
         </div>
       </div>
       <div class="chat-bubble">
@@ -272,7 +271,7 @@ export default {
       return this.$projects.chats[this.chatId]
     },
     visibleMessages() {
-      return this.chat?.messages.filter(m => !m.hide || this.showHidden) || []
+      return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
     messages () {
       if (this.isTask) {

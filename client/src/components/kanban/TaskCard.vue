@@ -5,7 +5,7 @@ import ChatIcon from '../chat/ChatIcon.vue';
 </script>
 <template>
   <div class="bg-base-100 shadow rounded border border-base-300 flex flex-col gap-2 click">
-    <div class="bg-auto bg-no-repeat bg-center h-28 bg-base-300"
+    <div class="bg-contain bg-no-repeat bg-center h-28 bg-base-300"
       :style="`background-image: url(${image.src})`"
       v-if="image"
     >

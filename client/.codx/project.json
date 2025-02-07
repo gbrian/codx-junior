@@ -10,7 +10,7 @@
   "knowledge_search_type": "similarity",
   "knowledge_search_document_count": 10,
   "knowledge_enrich_documents": false,
-  "knowledge_context_cutoff_relevance_score": 0.9,
+  "knowledge_context_cutoff_relevance_score": "0.4",
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx,assets,public",
