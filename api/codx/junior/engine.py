@@ -190,8 +190,11 @@ class CODXJuniorSession:
             self.channel = SessionChannel(sio=sio)
 
     def switch_project(self, project_id: str):
+        if not project_id or project_id == self.settings.project_id:
+            return self
         settings = find_project_by_id(project_id=project_id)
-        return CODXJuniorSession(settings=settings, channel=self.channel)
+        return CODXJuniorSession(settings=settings, channel=self.channel) \
+                if settings else self
 
     def log_info(self, msg):
         logger.info(f"[{self.settings.project_name}] {msg}")
@@ -386,6 +389,9 @@ class CODXJuniorSession:
         return file_list
 
     async def improve_existing_code_patch(self, code_generator: AICodeGerator):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+
         changes = code_generator.code_changes
         file_path = changes[0].file_path
         
@@ -409,6 +415,8 @@ class CODXJuniorSession:
 
     @profile_function
     async def improve_existing_code(self, chat: Chat, apply_changes: bool=None):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
         self.send_event(message=f"Code changes")
 
         valid_messages = [message for message in chat.messages if not message.hide]
@@ -504,6 +512,9 @@ class CODXJuniorSession:
 
     @profile_function
     async def apply_improve_code_changes(self, code_generator: AICodeGerator, chat: Chat = None):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+        
         changes = code_generator.code_changes
         self.log_info(f"improve_existing_code total changes: {len(changes)}")
         changes_by_file_path = {}
@@ -771,7 +782,7 @@ class CODXJuniorSession:
         
         query = "\n  *".join([mention_info(mention) for mention in mentions])
 
-        chat = Chat(name=f"changes_at_{file_path}", messages=
+        analysis_chat = Chat(name=f"analysis_at_{file_path}", messages=
             [
                 Message(role="user", content=f"""
                 {profile_manager.read_profile("software_developer").content}
@@ -784,28 +795,41 @@ class CODXJuniorSession:
                 """)
             ])
             
-        await self.chat_with_project(chat=chat, use_knowledge=use_knowledge)
+        await self.chat_with_project(chat=analysis_chat, use_knowledge=use_knowledge)
         if run_code:
             await self.improve_existing_code(chat=chat, apply_changes=True)
         else:
+            changes_chat = Chat(name=f"changes_at_{file_path}", messages=
+                [
+                    Message(role="user", content=f"""
+                    {profile_manager.read_profile("software_developer").content}
+                    Find all information needed to apply all changes to file: {file_path}
+                    Changes:
+                    {query}
+
+                    File content:
+                    {new_content}
+                    """),
+                    analysis_chat.messages[-1]
+                ])
             if file_profiles:
                 file_profile_content = "\n".join([
                     profile.content for profile in file_profiles
                 ])
                 
-                chat.messages.append(Message(role="user", content=f"""Best practices for this file:
+                changes_chat.messages.append(Message(role="user", content=f"""Best practices for this file:
                 {file_profile_content}
                 """))
 
-            chat.messages.append(Message(role="user", content=f"""
+            changes_chat.messages.append(Message(role="user", content=f"""
             Rewrite full file content replacing codx instructions by required changes.
             Return only the file content without any further decoration or comments.
             Do not surround response with '```' marks, just content:
             {new_content}
             """))
             
-            await self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
-            response = chat.messages[-1].content
+            await self.chat_with_project(chat=changes_chat, use_knowledge=False, append_references=False)
+            response = changes_chat.messages[-1].content
             await self.write_project_file(file_path=file_path, content=response)
 
         return "done"
@@ -882,13 +906,7 @@ class CODXJuniorSession:
     @profile_function
     async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
         # Invoke project based on project_id
-        if chat.project_id and chat.project_id != self.settings.project_id:
-            return await self.switch_project(chat.project_id).chat_with_project(
-              chat=chat,
-              use_knowledge=use_knowledge,
-              callback=callback,
-              append_references=append_references,
-              chat_mode=chat_mode)
+        self = self.switch_project(chat.project_id)
 
         with self.chat_action(chat=chat, event=f"Processing AI request {chat.name}"):
             chat_mode = chat_mode or chat.mode or "chat"

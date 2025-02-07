@@ -1,6 +1,7 @@
 <script setup>
 import ProjectIconVue from './ProjectIcon.vue'
-import UserList from './UserList.vue';
+import UserList from './UserList.vue'
+import moment from 'moment';
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
@@ -107,8 +108,9 @@ import UserList from './UserList.vue';
 				</a>
 			</div>
       <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" 
-          data-tip="Show metrics"
+        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" 
+          :class="right ? 'tooltip-left' : 'tooltip-right'" 
+          :data-tip="showLogsTooltip"
 					 @click.stop="$ui.toggleLogs()">
            <div class="flex flex-col gap-4">
             <i class="fa-solid fa-chart-line"></i>
@@ -230,6 +232,14 @@ export default {
     },
     isSharedScreen () {
       return this.$route.name === 'codx-junior-shared'
+    },
+    showLogsTooltip() {
+      const lastEvent = this.$session.events[this.$session.events.length-1]
+      if (lastEvent) {
+        const message = lastEvent.data.message?.content || ""
+        return `[${moment(lastEvent.ts).format('HH:mm:ss')}] ${lastEvent.event} ${lastEvent.data.text || ''}\n${message}`
+      }
+      return "Show logs/events"
     }
   },
   methods: {

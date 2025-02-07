@@ -14,7 +14,7 @@ import LogViewerVue from './LogViewer.vue'
         <SplitterGroup id="splitter-group-2" :direction="isHorizontal ? 'horizontal' : 'vertical'"
           auto-save-id="splitter-group-2"
           v-if="$ui.appDivided !== 'none'">
-          <SplitterPanel id="splitter-group-2-panel-1" :order="0" :min-size="40" v-if="$ui.showCoder">
+          <SplitterPanel id="splitter-group-2-panel-1" :order="0" :min-size="20" v-if="$ui.showCoder">
             <CoderVue class="h-full w-full" />
           </SplitterPanel>
           <SplitterResizeHandle id="splitter-group-2-resize-handle-1" class="bg-stone-800 hover:bg-slate-600"

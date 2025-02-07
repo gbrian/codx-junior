@@ -97,7 +97,7 @@ import moment from 'moment'
         </li>
       </ul>
     </div>
-    <div :class="['flex bg-base-300 border rounded-md shadow', 
+    <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
           multiline ? 'flex-col' : '',
           editMessage && 'border-warning',
           onDraggingOverInput ? 'bg-warning/10': '']"
@@ -136,19 +136,21 @@ import moment from 'moment'
             v-if="editMessage">
             <i class="fa-regular fa-circle-xmark"></i>
           </button>
-          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-junior"
+          <button class="btn btn btn-sm btn-circle btn-outline tooltip"
+            data-tip="Ask codx-junior"
+            :class="isVoiceSession && 'btn-success animate-pulse'"
             @click="sendMessage" 
             v-if="!editMessage">
-            <i class="fa-solid fa-comment"></i>
+            <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
+            <i class="fa-solid fa-comment" v-else></i>
           </button>
-          <button class="btn btn btn-sm btn-circle btn-outline tooltip"
+          <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
             :class="isBrowser && 'btn-warning'"
             data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
             v-if="!editMessage">
             <i class="fa-brands fa-chrome"></i>
           </button>
           <button class="btn btn btn-sm btn-outline tooltip btn-warning" 
-            :class="isVoiceSession && 'btn-info animate-pulse'"
             data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && chat.mode === 'chat'">
             <i class="fa-solid fa-code"></i>
           </button>
@@ -171,7 +173,18 @@ import moment from 'moment'
                   Test
                 </a>
               </li>
-              <li class="btn btn-sm tooltip" :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" 
+              <li class="btn btn-sm tooltip"
+                :class="isBrowser && 'btn-success'" 
+                :data-tip="isBrowser ? 'Close browser' : 'Open browser'" 
+                @click="isBrowser = !isBrowser" v-if="!editMessage">
+                <a>
+                  <i class="fa-brands fa-chrome"></i>
+                  {{ isBrowser ? 'Close' : 'Open' }} Browser
+                </a>
+              </li>
+              <li class="btn btn-sm tooltip" 
+                :class="isVoiceSession && 'btn-success'" 
+                :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" 
                 @click="toggleVoiceSession" v-if="!editMessage">
                 <a>
                   <i class="fa-solid fa-microphone-lines"></i>
@@ -420,6 +433,10 @@ export default {
           this.editMessage = null
       }
       
+      if (this.isVoiceSession && !this.canPost) {
+        return
+      }
+
       if (this.editMessage !== null) {
         this.updateMessage()
       } else {
@@ -685,8 +702,8 @@ export default {
       this.recognition = recognition
     },
     stopVoiceSession() {
-      this.isVoiceSession = false
       this.recognition?.stop()
+      this.recognition = null
     },
     scrollToBottom() {
       setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)

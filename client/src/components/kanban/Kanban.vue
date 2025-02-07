@@ -12,17 +12,16 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
     <SplitterPanel :order="0" class="flex flex-col gap-2 grow overflow-auto pb-2">
       <div class="md:text-2xl flex gap-4 items-center">
         <div class="dropdown">
-          <button tabindex="0" class="btn btn-sm mt-1" @click="toggleDropdown">
-            Board <i class="fa-solid fa-sort-down"></i>
+          <button tabindex="0" class="btn btn-primary btn-sm mt-1" @click="toggleDropdown">
+            Board {{ activeBoard?.title }} <i class="fa-solid fa-sort-down"></i>
           </button>
           <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-            <li class="flex gap-2" @click="showNewBoardModal"><a>New board ...</a></li>
-            <li v-for="tasksBoard in boardList" :key="tasksBoard.id" @click="selectBoard(tasksBoard.id)">
+            <li class="flex gap-2 text-secondary" @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> New board</a></li>
+            <li v-for="tasksBoard in boards" :key="tasksBoard.id" @click="selectBoard(tasksBoard.id)">
               <a>{{ tasksBoard.title }} <span v-if="tasksBoard.tasks?.length"> - {{ tasksBoard.tasks.length }} <i class="fa-regular fa-file-lines"></i></span> </a>
             </li>
           </ul>
         </div>
-        <span>{{ board || 'All' }}</span>
         <div class="grow"></div>
         <div class="flex gap-2">
           <div class="hidden grow input input-sm input-bordered flex items-center gap-2">
@@ -68,7 +67,7 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
         <draggable
           v-model="columns"
           group="tasks"
-          :itemKey="c => c.title"
+          :itemKey="c => c.title + c.position"
           @end="onColumnTaskListChanged"
           class="mt-3 min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
         >
@@ -143,7 +142,8 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 </template>
 
 <script>
-const ALL_BOARTD_TITLE = "All"
+const ALL_BOARD_TITLE = "All"
+const ALL_BOARD_TITLE_ID = "$$$$All@@@@"
 
 export default {
   data() {
@@ -166,9 +166,6 @@ export default {
     this.projectChanged()
   },
   computed: {
-    boards() {
-      return this.kanban?.boards || {}
-    },
     chats() {
       const allChats = this.$projects.allChats
       return Object.values(allChats || {}).map(c => ({
@@ -183,23 +180,27 @@ export default {
       return this.$projects.activeProject
     },
     activeBoard() {
-      return this.boardList[this.board] || this.boardList[ALL_BOARTD_TITLE]
-    },
-    boardList() {
-      return [
-        ...Object.keys(this.boards || {}).map(title => ({ 
-          title, 
-          id: title,
-          tasks: this.chats.filter(c => c.board === title)
-        })),
-        { title: ALL_BOARTD_TITLE, tasks: this.chats }
-      ].reduce((acc, board) => ({ ...acc, [board.title]: board }), {})
+      return this.boards[this.board]
     },
     boardColumns() {
       return this.boards[this.board]?.columns
     },
     columnList() {
       return this.boards[this.board]?.columns?.map(c => c.title) || []
+    },
+    boards() {
+      const boards = this.kanban?.boards || {} 
+      return [
+                ...Object.keys(boards).map(board => ({ ...boards[board], id: board, title: board })), 
+                {
+                  title: ALL_BOARD_TITLE,
+                  id: ALL_BOARD_TITLE_ID,
+                  columns: Object.values(this.kanban?.boards || {}).reduce((acc, b) => acc.concat(b.columns.map(c => ({ ...c, board: b }))), [])
+                }
+              ].reduce((acc, b) => ({ ...acc, [b.id]: {
+                ...b,
+                tasks: this.chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.title)
+            }}), {})
     }
   },
   watch: {
@@ -222,19 +223,20 @@ export default {
     async projectChanged() {
       this.kanban = await this.$storex.api.chats.kanban.load()
       this.selectBoard(Object.keys(this.boards || {}).find(b => this.boards[b].active) ||
-                      this.$ui.kanban || ALL_BOARTD_TITLE)
+                      this.$ui.kanban || ALL_BOARD_TITLE_ID)
       this.buildKanban()
     },
     toggleDropdown() {
       this.isDropdownOpen = !this.isDropdownOpen
     },
     selectBoard(board) {
+      board = board || ALL_BOARD_TITLE_ID
       this.board = board
       this.$ui.setKanban(board)
       this.isDropdownOpen = false
-      if (!this.boards[board].active) {
-        Object.keys(this.boards || {})
-          .forEach(b => this.boards[b].active = (b === board))
+      if (this.kanban.boards[board] && !this.kanban.boards[board].active) {
+        Object.keys(this.kanban.boards)
+          .forEach(b => this.kanban.boards[b].active = (b === board))
         this.saveKanban()
       }
     },
@@ -345,6 +347,7 @@ export default {
         this.selectedColumn.color = this.columnColor
       } else {
         const newColumn = {
+          id: uuidv4(),
           title: this.columnName,
           color: this.columnColor
         }
@@ -369,7 +372,8 @@ export default {
     async addBoard() {
       const boardName = this.newBoardName.trim()
       if (boardName && !this.boards[boardName]) {
-        this.boards[boardName] = {
+        this.kanban.boards[boardName] = {
+          id: uuidv4(),
           columns: []
         }
         await this.saveKanban()
