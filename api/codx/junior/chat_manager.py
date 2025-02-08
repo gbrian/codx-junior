@@ -61,7 +61,7 @@ class ChatManager:
         
         chat.updated_at = datetime.now().isoformat()
         
-        current_chat = self.find_by_id(chat.id)
+        current_chat = self.find_by_id(chat_id=chat.id)
         if chat_only and current_chat:
             chat.messages = current_chat.messages
         for msg in chat.messages:
@@ -169,9 +169,9 @@ class ChatManager:
             return self.load_chat_from_path(chat_file=file_path)
         return [load_chat(c["chat_path"]) for c in last_updated_chats]
 
-    def find_by_id(self, id):
+    def find_by_id(self, chat_id):
         for chat in self.list_chats():
-          if chat.id == id:
+          if chat.id == chat_id:
               return self.load_chat_from_path(chat_file=chat.file_path)
         return None
 
@@ -196,6 +196,7 @@ class ChatManager:
 
         all_board_dirs = [board for board in os.listdir(f"{self.chat_path}") \
                             if os.path.isdir(f"{self.chat_path}/{board}")]
+        save_kanban = False
         boards = kanban["boards"]
         for board in set([chat.board for chat in all_chats] + all_board_dirs):
             if not boards.get(board):
@@ -211,7 +212,15 @@ class ChatManager:
                             all_board_columns):
                 if not [c for c in board_columns if c["title"] == col]:
                     board_columns.append({ "title" : col })
+                    save_kanban = True
 
+            for col in board_columns:
+                if not col.get("id"):
+                    col["id"] = str(uuid.uuid4())
+                    save_kanban = True
+
+        if save_kanban:
+            self.save_kanban(kanban)
         return kanban
 
     def save_kanban(self, kanban):

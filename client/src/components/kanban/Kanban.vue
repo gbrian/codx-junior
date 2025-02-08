@@ -4,141 +4,150 @@ import TaskCard from "./TaskCard.vue"
 import ChatViewVue from '../../views/ChatView.vue'
 import { v4 as uuidv4 } from 'uuid'
 import VSwatches from "../VSwatches.vue"
-import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 </script>
 
 <template>
-  <SplitterGroup id="splitter-group-1" direction="horizontal" auto-save-id="splitter-group-1">
-    <SplitterPanel :order="0" class="flex flex-col gap-2 grow overflow-auto pb-2">
-      <div class="md:text-2xl flex gap-4 items-center">
+  <ChatViewVue
+    @chats="onChatEditDone"
+    @sub-task="createSubTask"
+    @chat="$projects.setActiveChat($event)"
+    v-if="$projects.activeChat"
+  />
+  <div v-else>
+    <div class="flex gap-4 items-center">
+      <div class="flex gap-2 items-center">
         <div class="dropdown">
-          <button tabindex="0" class="btn btn-primary btn-sm mt-1" @click="toggleDropdown">
-            Board {{ activeBoard?.title }} <i class="fa-solid fa-sort-down"></i>
-          </button>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-            <li class="flex gap-2 text-secondary" @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> New board</a></li>
+          <div tabindex="0" class="text-xl py-1 px-2 click flex items-center gap-2" @click="toggleDropdown">
+            <button class="btn btn-sm">
+              <i class="fa-solid fa-sort-down"></i>
+            </button>
+            {{ activeBoard?.title }} 
+            
+          </div>
+          <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-52 p-2 shadow">
             <li v-for="tasksBoard in boards" :key="tasksBoard.id" @click="selectBoard(tasksBoard.id)">
-              <a>{{ tasksBoard.title }} <span v-if="tasksBoard.tasks?.length"> - {{ tasksBoard.tasks.length }} <i class="fa-regular fa-file-lines"></i></span> </a>
+              <a class="flex justify-between">
+                {{ tasksBoard.title }}
+                <div class="shrink-0" v-if="tasksBoard.tasks?.length"> 
+                  ({{ tasksBoard.tasks.length }})
+                </div> 
+              </a>
             </li>
           </ul>
         </div>
-        <div class="grow"></div>
-        <div class="flex gap-2">
-          <div class="hidden grow input input-sm input-bordered flex items-center gap-2">
-            <input type="text" v-model="filter" class="grow" placeholder="Search" />
-            <span class="click" v-if="filter" @click.stop="filter = null">
-              <i class="fa-regular fa-circle-xmark"></i>
-            </span>
-            <span v-else><i class="fa-solid fa-filter"></i></span>
-          </div>
-          <button class="btn btn-sm" @click="showColumnModal = true" v-if="columnList?.length">
-            <i class="fa-solid fa-plus"></i>
-            <span class="text-xs md:text-md">Column</span>
-          </button>
-        </div>
       </div>
-      <modal v-if="showBoardModal">
-        <h2 class="font-bold text-lg">Add New Board</h2>
-        <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
-        <div class="modal-action">
-          <button class="btn" @click="addBoard">OK</button>
-          <button class="btn" @click="showBoardModal = false">Cancel</button>
+      <div class="grow"></div>
+      <div class="flex gap-2">
+        <div class="hidden grow input input-sm input-bordered flex items-center gap-2">
+          <input type="text" v-model="filter" class="grow" placeholder="Search" />
+          <span class="click" v-if="filter" @click.stop="filter = null">
+            <i class="fa-regular fa-circle-xmark"></i>
+          </span>
+          <span v-else><i class="fa-solid fa-filter"></i></span>
         </div>
-      </modal>
-      <modal v-if="showColumnModal">
-        <h2 class="font-bold text-lg">Add/Edit Column</h2>
-        <div class="flex gap-1 items-center">
-          <input type="text" v-model="columnName" placeholder="Enter column name"
-            class="grow input input-bordered w-full"/>
-          <VSwatches v-model="columnColor" class="h-full mt-1" />
-        </div>
-        <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
-        <div class="modal-action">
-          <button class="btn" @click="addOrUpdateColumn">OK</button>
-          <button class="btn" @click="showColumnModal = false">Cancel</button>
-        </div>
-        <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
-      </modal>
-      <div class="grow">
-        <button class="btn btn-wide btn-primary" @click="showColumnModal = true" v-if="!columnList?.length">
+        <button class="btn btn-sm btn-warning btn-outline" @click="showNewBoardModal">
+          <i class="fa-solid fa-plus"></i> Board
+        </button>
+        
+        <button class="btn btn-sm btn-outline" @click="showColumnModal = true" v-if="columnList?.length">
           <i class="fa-solid fa-plus"></i>
           <span class="text-xs md:text-md">Column</span>
         </button>
-        <draggable
-          v-model="columns"
-          group="tasks"
-          :itemKey="c => c.title + c.position"
-          @end="onColumnTaskListChanged"
-          class="mt-3 min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
-        >
-          <template #item="{ element: column }">
-            <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
-              :class="column.color && 'border-t-2'"
-              :style="{ borderColor: column.color }"
-            >
-              <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
-                <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
-                  :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
-                  <span class="hidden group-hover:block">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                  </span>
-                </div>
-                <div class="flex gap-2 items-center grow">
-                  <div>{{column.title}}</div>
-                </div>
-                <div class="flex gap-2 items-center">
-                  <div class="dropdown dropdown-end">
-                    <div tabindex="0" role="button" class="btn btn-sm m-1 flex items-center">
-                      <span v-if="column.tasks?.length">({{ column.tasks.length  }})</span>
-                      <i class="mt-1 fa-solid fa-plus"></i>
-                    </div>
-                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                      <li class="flex gap-2" @click="newAnalysisTask(column.title)">
-                        <a>Analysis task</a>
-                      </li>
-                      <li class="flex gap-2" @click="newCodingTask(column.title)">
-                        <a>Coding task</a>
-                      </li>
-                    </ul>
-                  </div>
-                </div>
+      </div>
+    </div>
+    <modal v-if="showBoardModal">
+      <h2 class="font-bold text-lg">Add New Board</h2>
+      <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
+      <select v-model="selectedTemplate" class="select select-bordered w-full mt-2">
+        <option disabled value="">Select a Template</option>
+        <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
+      </select>
+      <div class="modal-action">
+        <button class="btn" @click="addBoard">OK</button>
+        <button class="btn" @click="showBoardModal = false">Cancel</button>
+      </div>
+    </modal>
+    <modal v-if="showColumnModal">
+      <h2 class="font-bold text-lg">Add/Edit Column</h2>
+      <div class="flex gap-1 items-center">
+        <input type="text" v-model="columnTitle" placeholder="Enter column name"
+          class="grow input input-bordered w-full"/>
+        <VSwatches v-model="columnColor" class="h-full mt-1" />
+      </div>
+      <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
+      <div class="modal-action">
+        <button class="btn" @click="addOrUpdateColumn">OK</button>
+        <button class="btn" @click="showColumnModal = false">Cancel</button>
+      </div>
+      <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
+    </modal>
+    <div class="mt-3 grow">
+      <button class="btn btn-sm btn-wide btn-primary" @click="showColumnModal = true" v-if="!columnList?.length">
+        <i class="fa-solid fa-plus"></i>
+        <span class="text-xs md:text-md">Column</span>
+      </button>
+      <draggable
+        v-model="columns"
+        group="tasks"
+        :itemKey="c => c.title + c.position"
+        @end="onColumnTaskListChanged"
+        class="min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
+      >
+        <template #item="{ element: column }">
+          <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
+            :class="column.color && 'border-t-2'"
+            :style="{ borderColor: column.color }"
+          >
+            <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
+              <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
+                :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
+                <span class="hidden group-hover:block">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </span>
               </div>
-              <div class="grow overflow-y-auto">
-                <draggable
-                  v-model="column.tasks"
-                  group="tasks"
-                  :itemKey="column.title"
-                  @end="onColumnTaskListChanged(column)"
-                  class="mt-3"
-                >
-                  <template #item="{ element: task }">
-                    <task-card
-                      :task="task"
-                      :itemKey="task.id"
-                      class="cursor-move overflow-hidden mt-2"
-                      @click="openChat(task)"
-                    />
-                  </template>
-                </draggable>
+              <div class="flex gap-2 items-center grow">
+                <div>{{column.title}}</div>
+              </div>
+              <div class="flex gap-2 items-center">
+                <div class="dropdown dropdown-end">
+                  <div tabindex="0" role="button" class="btn btn-sm m-1 flex items-center">
+                    <span v-if="column.tasks?.length">({{ column.tasks.length  }})</span>
+                    <i class="mt-1 fa-solid fa-plus"></i>
+                  </div>
+                  <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                    <li class="flex gap-2" @click="newAnalysisTask(column.title)">
+                      <a>Analysis task</a>
+                    </li>
+                    <li class="flex gap-2" @click="newCodingTask(column.title)">
+                      <a>Coding task</a>
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
-          </template>
-        </draggable>
-      </div>
-    </SplitterPanel>
-    <SplitterResizeHandle 
-      id="splitter-group-1-resize-handle-2" 
-      class="bg-stone-800 hover:bg-slate-600 w-1" v-if="chat">
-    </SplitterResizeHandle>
-    <SplitterPanel :order="1" class="flex-shrink-0 w-1/3 flex" v-if="chat">
-      <ChatViewVue
-        class="ml-2 w-full"
-        @chats="onChatEditDone"
-        @sub-task="createSubTask"
-        @chat="$projects.setActiveChat($event)"
-      />
-    </SplitterPanel>
-  </SplitterGroup>
+            <div class="grow overflow-y-auto">
+              <draggable
+                v-model="column.tasks"
+                group="tasks"
+                :itemKey="column.title"
+                @end="onColumnTaskListChanged(column)"
+                class="mt-3"
+              >
+                <template #item="{ element: task }">
+                  <task-card
+                    :task="task"
+                    :itemKey="task.id"
+                    class="cursor-move overflow-hidden mt-2"
+                    @click="openChat(task)"
+                  />
+                </template>
+              </draggable>
+            </div>
+          </div>
+        </template>
+      </draggable>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -153,25 +162,51 @@ export default {
       showBoardModal: false,
       showColumnModal: false,
       newBoardName: '',
-      columnName: '',
+      columnTitle: '',
       columnColor: '#000000',
       isDropdownOpen: false,
-      kanban: {},
       selectedColumn: null,
       editColumnError: null,
-      columns: []
+      columns: [],
+      selectedTemplate: null,
+      templates: [
+        {
+          name: "Scrum",
+          description: "Scrum board",
+          columns: [
+            { title: "To Do", color: "#FF5733" },
+            { title: "In Progress", color: "#33FF57" },
+            { title: "Done", color: "#3357FF" }
+          ]
+        },
+        {
+          name: "Backlog",
+          description: "Backlog board",
+          columns: [
+            { title: "Backlog", color: "#FFC300" },
+            { title: "In Development", color: "#DAF7A6" },
+            { title: "Completed", color: "#C70039" }
+          ]
+        }
+      ]
     }
   },
   mounted() {
     this.projectChanged()
   },
   computed: {
+    kanban() {
+      return this.$projects.kanban
+    },
+    activeKanbanBoard() {
+      return this.kanban.boards[this.board]
+    },
     chats() {
       const allChats = this.$projects.allChats
       return Object.values(allChats || {}).map(c => ({
-          ...c,
-          column: c.column || "--none--"
-        }))
+        ...c,
+        column: c.column || "--none--"
+      }))
     },
     chat() {
       return this.$projects.activeChat
@@ -191,16 +226,16 @@ export default {
     boards() {
       const boards = this.kanban?.boards || {} 
       return [
-                ...Object.keys(boards).map(board => ({ ...boards[board], id: board, title: board })), 
-                {
-                  title: ALL_BOARD_TITLE,
-                  id: ALL_BOARD_TITLE_ID,
-                  columns: Object.values(this.kanban?.boards || {}).reduce((acc, b) => acc.concat(b.columns.map(c => ({ ...c, board: b }))), [])
-                }
-              ].reduce((acc, b) => ({ ...acc, [b.id]: {
-                ...b,
-                tasks: this.chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.title)
-            }}), {})
+        ...Object.keys(boards).map(board => ({ ...boards[board], id: board, title: board })), 
+        {
+          title: ALL_BOARD_TITLE,
+          id: ALL_BOARD_TITLE_ID,
+          columns: Object.values(this.kanban?.boards || {}).reduce((acc, b) => acc.concat(b.columns.map(c => ({ ...c, board: b }))), [])
+        }
+      ].reduce((acc, b) => ({ ...acc, [b.id]: {
+        ...b,
+        tasks: this.chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.title)
+      }}), {})
     }
   },
   watch: {
@@ -221,7 +256,7 @@ export default {
   },
   methods: {
     async projectChanged() {
-      this.kanban = await this.$storex.api.chats.kanban.load()
+      await this.$projects.loadKanban()
       this.selectBoard(Object.keys(this.boards || {}).find(b => this.boards[b].active) ||
                       this.$ui.kanban || ALL_BOARD_TITLE_ID)
       this.buildKanban()
@@ -328,43 +363,33 @@ export default {
       this.$projects.newChat(chat)
     },
     async addOrUpdateColumn() {
-      this.columnName = this.columnName.trim()
-      if (!this.columnName) {
+      this.columnTitle = this.columnTitle.trim()
+      if (!this.columnTitle) {
         return this.resetColumnModal()
       }
-      if (this.selectedColumn?.title !== this.columnName && this.columns[this.columnName]) {
+      const existingColumnTitle = this.activeKanbanBoard.columns.find(c => c.title === this.columnTitle)
+      if (existingColumnTitle && existingColumnTitle.id !== this.selectedColumn?.id) {
         this.editColumnError = "Name already used"
         return
       }
       if (this.selectedColumn) {
-        this.chats.forEach(chat => {
-          if (chat.column === this.selectedColumn.title) {
-            chat.column = this.columnName
-            this.$storex.api.chats.saveChatInfo(chat)
-          }
-        })
-        this.selectedColumn.title = this.columnName
+        this.selectedColumn.title = this.columnTitle
         this.selectedColumn.color = this.columnColor
       } else {
         const newColumn = {
           id: uuidv4(),
-          title: this.columnName,
+          title: this.columnTitle,
           color: this.columnColor
         }
-        if (this.boardColumns) {
-          this.boardColumns.push(newColumn)
-        } else {
-          this.boards[this.board].columns = [newColumn]
-        }
-      }
-      
+        this.activeBoard.columns.push(newColumn)
+      }      
       await this.saveKanban()
-      this.selectBoard(this.activeBoard.title)
       this.resetColumnModal()
+      this.buildKanban()
     },
     resetColumnModal() {
       this.showColumnModal = false
-      this.columnName = ''
+      this.columnTitle = ''
       this.columnColor = '#000000'
       this.selectedColumn = null
       this.editColumnError = null
@@ -372,25 +397,28 @@ export default {
     async addBoard() {
       const boardName = this.newBoardName.trim()
       if (boardName && !this.boards[boardName]) {
+        const selectedTemplate = this.selectedTemplate
         this.kanban.boards[boardName] = {
           id: uuidv4(),
-          columns: []
+          description: selectedTemplate.description,
+          columns: selectedTemplate.columns
         }
         await this.saveKanban()
       }
       this.newBoardName = ''
+      this.selectedTemplate = null
       this.showBoardModal = false
       this.board = boardName
       this.buildKanban()
     },
     openColumnPropertiesModal(column) {
-      this.selectedColumn = column
-      this.columnName = column?.title
+      this.selectedColumn = this.activeKanbanBoard.columns.find(c => c.id === column.id)
+      this.columnTitle = column?.title
       this.columnColor = column?.color || '#000000'
       this.showColumnModal = true
     },
     async saveKanban() {
-      await this.$storex.api.chats.kanban.save(this.kanban)
+      await this.$projects.saveKanban()
     },
     showNewBoardModal() {
       this.showBoardModal = true

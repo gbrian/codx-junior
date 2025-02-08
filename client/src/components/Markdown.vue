@@ -8,7 +8,7 @@ import highlight from 'markdown-it-highlightjs'
 
 <template>
   <div>
-    <div class="text-md text-wrap mt-2 max-w-full w-full overflow-y-auto prose prose-sm leading-tight">
+    <div class="text-md text-wrap mt-2 max-w-full w-full overflow-y-auto prose leading-tight">
       <div v-html="html"></div>
       <YoutubeViewer
         v-for="(url, index) in youtubeLinks"

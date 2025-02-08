@@ -61,7 +61,7 @@ import MarkdownIt from 'markdown-it'
         </div>
       </div>
     </div>
-    <div :class="['max-w-full group w-full prose-xs border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
+    <div :class="['max-w-full group w-full border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
       <div @copy.stop="onMessageCopy">
         <pre v-if="srcView">{{ message.content }}</pre>
         <Markdown :text="messageContent" v-if="!srcView && !code_patches" />

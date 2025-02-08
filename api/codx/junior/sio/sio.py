@@ -82,3 +82,9 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
     codxjunior_session.chat_event(chat=data.chat, message="Chatting with project...")
     await codxjunior_session.chat_with_project(chat=data.chat, use_knowledge=True)
     await codxjunior_session.save_chat(data.chat)
+
+@sio.on("codx-junior-subtasks")
+@sio_api_endpoint
+async def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSession):
+    data = SioChatMessage(**data)
+    return await codxjunior_session.generate_tasks(chat=data.chat)

@@ -16,7 +16,7 @@ import Markdown from './Markdown.vue';
         <i class="fa-brands fa-chrome"></i>
       </button>
     </div>
-    <MermaidViewerVue :diagram="codeText" v-if="showMermaid" />
+    <MermaidViewerVue :diagram="codeText" theme="dark" v-if="showMermaid" />
     <CodeEditor
       line-nums 
       :value="codeText"

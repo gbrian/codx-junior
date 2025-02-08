@@ -16,7 +16,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
               <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else>
                 <div class="mt-1 text-xs hover:underline click font-bold text-primary" @click="$emit('chat', parentChat)" v-if="parentChat">
-                  {{ parentChat.name }}
+                  <i class="fa-solid fa-turn-up"></i> {{ parentChat.name }}
                 </div>
                 <div class="flex items-center gap-2">
                   <div class="dropdown">

@@ -13,7 +13,8 @@ export const state = () => ({
   formatedLogs: [],
   selectedLog: null,
   autoRefresh: false,
-  changesSummary: null
+  changesSummary: null,
+  kanban: {}
 })
 
 export const mutations = mutationTree(state, {
@@ -84,7 +85,7 @@ export const actions = actionTree(
       state.chats = {}
       state.activeChat = null
       await API.init(project?.codx_path)
-      project && await $storex.projects.loadChats()
+      project && await $storex.projects.loadKanban()
       state.activeProject = API.lastSettings
       
     },
@@ -173,10 +174,6 @@ export const actions = actionTree(
     async refreshChangesSummary({ state }, rebuild) {
       state.changesSummary = await $storex.api.run.changesSummary(rebuild)
     },
-    async createSubTasks(_, chat) {
-      await $storex.api.chats.subTasks(chat)
-      await $storex.projects.loadChats()
-    },
     async chatWihProject({ state }, chat) {
       const data = {
         codx_path: state.activeProject.codx_path,
@@ -184,26 +181,45 @@ export const actions = actionTree(
       }
       $storex.session.socket.emit('codx-junior-chat', data)
     },
+    async createSubTasks({ state }, chat) {
+      const data = {
+        codx_path: state.activeProject.codx_path,
+        chat
+      }
+      $storex.session.socket.emit('codx-junior-subtasks', data)
+    },
     async onChatEvent({ state }, { event, data }) {
       const {
         chat: {
-          id
+          id: chatId
         },
         message
       } = data
-      const chat = state.chats[id]
-      if (chat && message) {
-        const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
-        if (currentMessage) {
-          currentMessage.content += message.content
-        } else {
-          chat.messages.push(message)
+      if (chatId) {
+        const chat = state.chats[chatId] || await $storex.projects.loadChat({ id: chatId })
+        if (chat && message) {
+          const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
+          if (currentMessage) {
+            currentMessage.content += message.content
+          } else {
+            chat.messages.push(message)
+          }
         }
       }
     },
     createNewChat({ state}, chat) {
       state.chats[chat.id] = chat
       state.activeChat = chat
+    },
+    async loadKanban({ state }) {
+      const [kanban] = await Promise.all([
+                              $storex.api.chats.kanban.load(),
+                              $storex.projects.loadChats()
+                            ])
+      state.kanban = kanban
+    },
+    async saveKanban({ state }) {
+      await $storex.api.chats.kanban.save(state.kanban)
     }
   }
 )

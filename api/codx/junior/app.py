@@ -191,6 +191,9 @@ def api_list_chats(request: Request):
     file_path = request.query_params.get("file_path")
     if file_path:
         return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
+    chat_id = request.query_params.get("id")
+    if chat_id:
+        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
     return codx_junior_session.list_chats()
 
 @profile_function

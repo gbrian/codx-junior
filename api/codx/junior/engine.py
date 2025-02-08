@@ -80,6 +80,12 @@ from codx.junior.context import AICodePatch
 
 from codx.junior.sio.session_channel import SessionChannel
 
+"""Emit message event after message content reaches MESSAGE_LENGH_THRESHOLD_TO_TRIGGER_ENVENT"""
+MESSAGE_LENGH_THRESHOLD_TO_TRIGGER_ENVENT = 500
+
+"""Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
+MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 300
+
 logger = logging.getLogger(__name__)
 
 APPS = [
@@ -134,6 +140,13 @@ def find_project_by_id(project_id: str):
     all_projects = find_all_projects()
     matches = [p for p in all_projects if p.project_id == project_id]
     return matches[0] if matches else None
+
+def find_project_by_name(project_name: str):
+    """Given a project project_name, find the project"""
+    all_projects = find_all_projects()
+    matches = [p for p in all_projects if p.project_name == project_name]
+    return matches[0] if matches else None
+
 
 def find_all_projects():
     all_projects = []
@@ -343,6 +356,13 @@ class CODXJuniorSession:
         Knowledge(settings=self.settings).reset()
         return {"ok": 1}
 
+    def get_project_dependencies(self):
+        """Returns all projects related with this project, including child projects and links"""
+        project_child_projects = self.settings.get_sub_projects()
+        project_child_projects = [p.project_name for p in project_child_projects]
+        project_dependencies = [find_project_by_name(project_name) for project_name in self.settings.get_project_dependencies()]
+        return project_child_projects, project_dependencies
+        
     @profile_function
     def select_afefcted_documents_from_knowledge(self, ai: AI, query: str, ignore_documents=[]):
         all_projects = find_all_projects()
@@ -350,13 +370,11 @@ class CODXJuniorSession:
         mentions = re.findall(r'@[a-zA-Z0-9\-\_\.]+', query)
         self.log_info(f"Extracted mentions: {mentions}")
         
-        settings_sub_projects = self.settings.get_sub_projects() if self.settings.knowledge_query_subprojects else []
-        settings_sub_projects = [p.project_name for p in settings_sub_projects]
-        project_dependencies = self.settings.get_project_dependencies()
-        sub_projects = set(settings_sub_projects + [mention[1:] for mention in mentions] + project_dependencies)
-        search_projects = [settings for settings in all_projects if settings.project_name in sub_projects]
-        self.log_info(f"select_afefcted_documents_from_knowledge query subprojects {sub_projects} - {search_projects}")
-        
+        project_child_projects, project_dependencies = self.get_project_dependencies()
+        project_child_projects = project_child_projects if self.settings.knowledge_query_subprojects else []
+        mention_projects = [m for m in [find_project_by_name(mention[1:]) for mention in mentions] if m]
+        search_projects = project_child_projects + project_dependencies + mention_projects
+
         for search_project in search_projects:
             mention = [mention[1:] for mention in mentions if mention == search_project.project_name]
             query = query.replace(f"@{mention}", "")
@@ -614,11 +632,8 @@ class CODXJuniorSession:
 
         def changed_file():
             for file_path in new_files:
-                try:
-                    if (int(time.time()) - int(os.stat(file_path).st_mtime) < 10):
-                        return file_path
-                except:
-                    pass
+                if (int(time.time()) - int(os.stat(file_path).st_mtime) < MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS):
+                    return file_path
             return None
 
         file_path = changed_file() # one at a time by modified time
@@ -840,6 +855,9 @@ class CODXJuniorSession:
             image_mention.new_content = ai.image(image_mention.content)
         return replace_mentions(content, image_mentions)
 
+    def get_project_profile(self):
+        return self.get_profile_manager().read_profile("project")
+
     @profile_function
     async def generate_tasks(self, chat: Chat):
         from codx.junior.db import Chat
@@ -859,7 +877,22 @@ class CODXJuniorSession:
           content = "\n".join([m.content for m in chat.messages[:-1] if not m.hide])
           last_message = chat.messages[-1]
 
+          def format_project_info(project):
+              return f"""<project name="{project.settings.project_name}" id="{project.settings.project_id}">
+              { project.get_project_profile() }
+              </project>
+              """
+          project_child_projects, project_dependencies = self.get_project_dependencies()
+          all_projects = [self] + [CODXJuniorSession(settings=settings) for settings in project_child_projects + project_dependencies]
+          projects_section = f"""
+          { [format_project_info(p) for p in all_projects] }
+          """
+
           prompt = f"""
+          <projects>
+          { projects_section }
+          </projects>
+
           <content>
           {self.get_chat_analysis_parents(chat=chat)}
           { content }
@@ -871,6 +904,7 @@ class CODXJuniorSession:
           INSTRUCTIONS:
           Each task must have a clear name and an intial descriptive message with instructions on what has to be done.
           Copy from the epic everything related with the subtask and add as the first message with a suggestion on how to solve it
+          Choose the right project_id for each task
           { AI_TASKS_RESPONSE_PARSER.get_format_instructions() }
           """
           
@@ -927,7 +961,7 @@ class CODXJuniorSession:
             def send_message_event(content):
                 response_message.content = response_message.content + content
                 # Buffer to save bandwith
-                if len(response_message.content) < 80:
+                if len(response_message.content) < MESSAGE_LENGH_THRESHOLD_TO_TRIGGER_ENVENT:
                     return
                 sources =  []
                 if documents:
