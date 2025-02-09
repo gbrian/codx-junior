@@ -6,7 +6,7 @@ import ProjectChip from './ProjectChip.vue';
     <div tabindex="0" role="button" class="flex flex-col gap-2 text-2xl">
       <div class="flex gap-2 items-center">
         <div class="avatar">
-          <div class="w-6 h-6 rounded-full">
+          <div class="w-6 h-6 rounded-full bg-white">
             <img :src="$projects.activeProject.project_icon" />
           </div>
         </div>

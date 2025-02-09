@@ -96,6 +96,16 @@ class MistralAISettings(BaseModel):
     mistral_api_key: Optional[str] = Field(default="")
     mistral_model: Optional[str] = Field(default="codestral-latest")
 
+class AISettings(BaseModel):
+    provider: Optional[str] = Field(default="") 
+    api_url: Optional[str] = Field(default="")
+    api_key: Optional[str] = Field(default="")
+    model: Optional[str] = Field(default="")
+    temperature: Optional[float] = Field(default=0.8)
+
+class EmbeddingAISettings(AISettings):
+    vector_size: Optional[int] = Field(default=1536)
+
 class GitSettings(BaseModel):
     username: Optional[str] = Field(default="")
     email: Optional[str] = Field(default="")
@@ -112,6 +122,7 @@ class GlobalSettings(BaseModel):
     openai: OpenAISettings = Field(default=OpenAISettings())
     anthropic_ai: AnthropicAISettings = Field(default=AnthropicAISettings())
     mistral_ai: MistralAISettings = Field(default=MistralAISettings())
+    embeddings_ai_settings: EmbeddingAISettings = Field(default=EmbeddingAISettings(provider="openai"))
     git: GitSettings = Field(default=GitSettings())
 
     log_ai: bool = Field(default=False)

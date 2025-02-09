@@ -219,7 +219,7 @@ class Knowledge:
       
     def search_in_source(self, query):
       documents = self.get_all_documents()
-      return [doc for doc in documents if search_query in doc.metadata["source"].lower()]
+      return [doc for doc in documents if query in doc.metadata["source"].lower()]
 
     def doc_from_project_file(self, file_path):
         file_path = f"{self.settings.project_path}/{file_path}"

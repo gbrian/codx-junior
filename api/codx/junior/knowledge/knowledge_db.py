@@ -71,7 +71,7 @@ class KnowledgeDB:
         if self.index_name not in collections:
             self.db.create_collection(
                 collection_name=self.index_name,
-                dimension=self.settings.get_ai_embeddings_vector_size(),
+                dimension=self.settings.get_ai_embeddings_settings().vector_size,
                 auto_id=True
             )
 

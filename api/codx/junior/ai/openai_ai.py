@@ -141,12 +141,22 @@ class OpenAI_AI:
         return response.data[0].url
 
     @profile_function
-    def embeddings(self, content: str):
-        response = self.client.embeddings.create(
-            input=content,
-            model=self.settings.get_ai_embeddings_model()
+    def embeddings(self):
+        embeddings_ai_settings = self.settings.get_ai_embeddings_settings()
+        client = OpenAI(
+            api_key=embeddings_ai_settings.api_key,
+            base_url=embeddings_ai_settings.api_url
         )
-        embeddings = []
-        for data in response.data:
-            embeddings = embeddings + data.embedding
-        return embeddings
+        def embedding_func(content: str):
+            try:
+              response = client.embeddings.create(
+                  input=content,
+                  model=embeddings_ai_settings.model
+              )
+              embeddings = []
+              for data in response.data:
+                  embeddings = embeddings + data.embedding
+              return embeddings
+            except Exception as ex:
+              logger.exception(f"Error creating embeddings {ex} {self.settings.project_name} {embeddings_ai_settings}")
+        return embedding_func

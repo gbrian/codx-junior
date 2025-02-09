@@ -958,6 +958,7 @@ class CODXJuniorSession:
                 task_item = "analysis"
             
             response_message = Message(role="assistant", doc_id=str(uuid.uuid4()))
+            start_time = time.time()
             def send_message_event(content):
                 response_message.content = response_message.content + content
                 # Buffer to save bandwith
@@ -1104,6 +1105,7 @@ class CODXJuniorSession:
             try:
                 messages = ai.chat(messages, callback=callback)
                 response_message.content = messages[-1].content
+                response_message.meta_data["time_taken"] = time.time() - start_time
             except Exception as ex:
                 logger.exception(f"Error chating with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"

@@ -46,7 +46,7 @@ import moment from 'moment'
             />
           </div>
           <div class="text-xs text-info" v-for="event in chatEvents" :key="event.ts">
-             <span class="badge badge-xs" v-if="event.data.project">{{ event.data.project?.project_name }} </span> {{ event.data.text }}
+             <span class="badge badge-xs" v-if="event.data.project">[{{ moment(event.ts).format('HH:mm:ss')}}] {{ event.data.project?.project_name }} </span> {{ event.data.text }}
           </div>
           <div class="anchor" ref="anchor"></div>
         </div>

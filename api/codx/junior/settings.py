@@ -3,11 +3,15 @@ import json
 import logging
 import pathlib
 import uuid
+from pydantic import BaseModel, Field
+from typing import Optional, List
 
 from codx.junior.utils import write_file
 from codx.junior.model import (
     GlobalSettings,
-    ProjectScript
+    ProjectScript,
+    AISettings,
+    EmbeddingAISettings
 )
 from codx.junior.utils import exec_command
 
@@ -51,53 +55,51 @@ read_global_settings()
 logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
 
 
-class CODXJuniorSettings:
-    def __init__(self, **kwrgs):
-        self.project_id = None
+class CODXJuniorSettings(BaseModel):
+    project_id: Optional[str] = Field(default=None)
 
-        self.ai_provider = None
-        self.ai_model = None
+    ai_settings: Optional[AISettings] = Field(default=AISettings())
 
-        self.project_name = ""
-        self.project_path = ""
-        self.codx_path = ""
-        self.project_wiki = ""
-        self.project_dependencies = ""
+    project_name: Optional[str] = Field(default=None)
+    project_path: Optional[str] = Field(default="")
+    codx_path: Optional[str] = Field(default=None)
+    project_wiki: Optional[str] = Field(default=None)
+    project_dependencies: Optional[str] = Field(default=None)
 
-        self.knowledge_extract_document_tags = False
-        self.knowledge_search_type = "similarity"
-        self.knowledge_search_document_count = 10
-        self.knowledge_enrich_documents = False
-        self.knowledge_context_cutoff_relevance_score = 0.9
-        self.knowledge_external_folders = ""
-        self.knowledge_query_subprojects = True
-        self.knowledge_file_ignore = ".codx"
+    knowledge_extract_document_tags: Optional[bool] = Field(default=False)
+    knowledge_search_type: Optional[str] = Field(default="similarity")
+    knowledge_search_document_count: Optional[int] = Field(default=10)
+    knowledge_enrich_documents: Optional[bool] = Field(default=False)
+    knowledge_context_cutoff_relevance_score: Optional[float] = Field(default=0.9)
+    knowledge_external_folders: Optional[str] = Field(default="")
+    knowledge_query_subprojects: Optional[bool] = Field(default=True)
+    knowledge_file_ignore: Optional[str] = Field(default=".codx")
 
-        self.temperature = 0.7
-        self.watching = False
-        self.use_knowledge = True
-        self.knowledge_hnsw_M = 1024
-        self.project_icon = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s"
+    temperature: Optional[float] = Field(default=0.7)
+    watching: Optional[bool] = Field(default=False)
+    use_knowledge: Optional[bool] = Field(default=True)
+    knowledge_hnsw_M: Optional[int] = Field(default=1024)
+    project_icon: Optional[str] = Field(default="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s")
 
-        self.log_ignore = ""
+    log_ignore: Optional[str] = Field(default="")
 
-        self.project_scripts: ProjectScript = []
+    project_scripts: Optional[List[ProjectScript]] = Field(default=[])
 
-        self.urls = []
-        if kwrgs:
-            keys = CODXJuniorSettings().__dict__.keys()
-            for key in kwrgs.keys():
-                self.__dict__[key] = kwrgs.get(key)
+    embeddings_ai_settings: Optional[EmbeddingAISettings] = Field(default=EmbeddingAISettings())
+
+    urls: Optional[List[str]] = Field(default=[])
 
     def __str__(self):
-        return json.dumps(self.__dict__)
+        return str(self.model_dump())
 
     def get_ai_provider(self):
-        if self.ai_provider:
-            return self.ai_provider
+        if self.ai_settings.provider:
+            return self.ai_settings.provider
         return GLOBAL_SETTINGS.ai_provider
  
     def get_ai_api_key(self):
+        if self.ai_settings.api_key:
+            return self.ai_settings.api_key
         if self.get_ai_provider() in ["openai", "llmlite"]:
             return GLOBAL_SETTINGS.openai.openai_api_key
         if self.get_ai_provider() == "anthropic":
@@ -107,6 +109,8 @@ class CODXJuniorSettings:
         return None
 
     def get_ai_api_url(self):
+        if self.ai_settings.api_url:
+            return self.ai_settings.api_url
         if self.get_ai_provider() in ["openai", "llmlite"]:
             return GLOBAL_SETTINGS.openai.openai_api_url
         if self.get_ai_provider() == "anthropic":
@@ -116,8 +120,8 @@ class CODXJuniorSettings:
         return None
 
     def get_ai_model(self):
-        if self.ai_model:
-            return self.ai_model
+        if self.ai_settings.model:
+            return self.ai_settings.model
         if self.get_ai_provider() in ["openai", "llmlite"]:
             return GLOBAL_SETTINGS.openai.openai_model
         if self.get_ai_provider() == "anthropic":
@@ -126,25 +130,15 @@ class CODXJuniorSettings:
             return GLOBAL_SETTINGS.mistral_ai.mistral_model
         return None
 
-    def get_ai_embeddings_model(self):
-        return "text-embedding-3-small"
+    def get_ai_embeddings_settings(self):
+        if len(self.embeddings_ai_settings.provider or ""):
+            return self.embeddings_ai_settings
 
-    def get_ai_embeddings_vector_size(self):
-        return 1536
+        return GLOBAL_SETTINGS.embeddings_ai_settings
 
     def get_project_settings_file(self):
         return f"{self.codx_path}/project.json"
 
-    @classmethod
-    def from_env(cls):
-        base = CODXJuniorSettings()
-        gpt_envs = [env for env in os.environ if env.startswith("GPTARG_")]
-        envs = [(env.replace("GPTARG_", ""), os.environ[env]) for env in gpt_envs]
-        for k, v in envs:
-            base.__dict__[k] = v
-        return base
-
-    
     @classmethod
     def from_codx_path(cls, codx_path: str):
         return CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
@@ -156,7 +150,7 @@ class CODXJuniorSettings:
         base.project_path = base.codx_path.replace("/.codx", "")
         with open(project_file_path, "r") as f:
             settings = json.loads(f.read())
-            settings = CODXJuniorSettings(**{**base.__dict__, **settings})
+            settings = CODXJuniorSettings(**{**base.model_dump(), **settings})
             # Avoid override
             settings.codx_path = base.codx_path
             if not settings.project_path or settings.project_path[0] != "/":
@@ -167,16 +161,11 @@ class CODXJuniorSettings:
 
     @classmethod
     def from_json(cls, settings: dict):
-        base = CODXJuniorSettings.from_env()
+        base = CODXJuniorSettings()
         new_settings = CODXJuniorSettings(**{ **base.__dict__, **settings })
         logging.info(f"Project from json {settings}")
         logging.info(f"Project from json - settings: {new_settings}")
         return new_settings
-
-    def to_env(self) -> [str]:
-        keys = self.__dict__.keys()
-        gpt_envs = [f'GPTARG_{key}="{self.__dict__[key]}"' for key in keys]
-        return gpt_envs
 
     @classmethod
     def get_valid_keys(cls):
@@ -197,7 +186,7 @@ class CODXJuniorSettings:
         if not self.project_id:
             self.project_id = str(uuid.uuid4())
 
-        settings = self.__dict__
+        settings = self.model_dump()
         logging.info(f"Saving project {path}: {settings}")
         data = {}
         for key in valid_keys:

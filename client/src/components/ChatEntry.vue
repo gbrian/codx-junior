@@ -14,7 +14,7 @@ import MarkdownIt from 'markdown-it'
         <input type="checkbox" class="toggle toggle-xs tooltip tooltip-right pt-1"
             :data-tip="message.hide ? 'Click to add message to conversation' : 'Click to ignore'"
              :checked="!message.hide" @click.stop="$emit('hide')" />
-        [{{ formatDate(message.updated_at) }}]
+        [{{ formatDate(message.updated_at) }}] <span v-if="timeTaken">({{ timeTaken }} s.)</span>
         <div>
           <div class="text-primary" v-if="message.role === 'user'">You</div>
           <div class="text-secondary" v-else>codx-junior</div>
@@ -160,6 +160,12 @@ export default {
     },
     code_patches () {
       return this.improvementData?.code_patches
+    },
+    timeTaken () {
+      if (!this.message.meta_data?.time_taken) {
+        return null
+      }
+      return moment().add(Math.floor(this.message.meta_data.time_taken), 'seconds').format("mm:ss")
     }
   },
   methods: {

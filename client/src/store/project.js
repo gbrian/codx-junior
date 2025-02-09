@@ -135,9 +135,8 @@ export const actions = actionTree(
     },
     async saveSettings({ state }, settings) {
       await API.settings.write(settings)
+      await $storex.projects.loadAllProjects()
       state.activeProject = API.lastSettings
-      state.allProjects = (state.allProjects||[])
-        .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p)
     },
     async realoadProject({ state }) {
       await API.settings.read()

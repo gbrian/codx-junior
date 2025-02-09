@@ -26,6 +26,7 @@ class Message(BaseModel):
     updated_at: str = Field(default=str(datetime.now()))
     images: List[str] = Field(default=[])
     files: List[str] = Field(default=[])
+    meta_data: Optional[dict] = Field(default={})
 
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
