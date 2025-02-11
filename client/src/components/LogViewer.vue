@@ -8,6 +8,9 @@ import Markdown from './Markdown.vue';
   <div class="px-2 pt-4 gap-2 w-full max-w-full overflow-auto flex flex-col relative">
     <header class="flex flex-row justify-between items-center">
       <h1 class="text-xl font-semibold">Dashboard</h1>
+      <button class="btn btn-sm" :class="showMetrics && 'btn-outline'" @click="showMetrics = !showMetrics">
+        Metrics
+      </button>
       <TimeSelector
         :start="timeSelection?.start"
         :end="timeSelection?.end"
@@ -58,7 +61,7 @@ import Markdown from './Markdown.vue';
       </div>
     </div>
     <div class="grow overflow-auto">
-      <div class="p-2">
+      <div class="p-2" v-if="showMetrics">
         <RequestMetrics :title="'Requests'" :subtitle="'Requests path'"
           @filter-module="toggleProfilerVisible"
           :logs="requestLogs" class="mb-6" />
@@ -130,6 +133,7 @@ import Markdown from './Markdown.vue';
 export default {
   data() {
     return {
+      showMetrics: false,
       showTimeFilter: false,
       selectedLog: '',
       logs: [],

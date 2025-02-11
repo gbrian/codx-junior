@@ -1,6 +1,8 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import store, { $storex } from '.'
 import { API } from '../api/api'
+import { v4 as uuidv4 } from 'uuid'
+
 
 export const namespaced = true
 
@@ -207,6 +209,9 @@ export const actions = actionTree(
       }
     },
     createNewChat({ state}, chat) {
+      if (!chat.id) {
+        chat.id = uuidv4()
+      }
       state.chats[chat.id] = chat
       state.activeChat = chat
     },

@@ -100,7 +100,7 @@ class CODXJuniorSettings(BaseModel):
     def get_ai_api_key(self):
         if self.ai_settings.api_key:
             return self.ai_settings.api_key
-        if self.get_ai_provider() in ["openai", "llmlite"]:
+        if self.get_ai_provider() in ["openai", "ollama"]:
             return GLOBAL_SETTINGS.openai.openai_api_key
         if self.get_ai_provider() == "anthropic":
             return GLOBAL_SETTINGS.anthropic_ai.anthropic_api_key
@@ -111,7 +111,7 @@ class CODXJuniorSettings(BaseModel):
     def get_ai_api_url(self):
         if self.ai_settings.api_url:
             return self.ai_settings.api_url
-        if self.get_ai_provider() in ["openai", "llmlite"]:
+        if self.get_ai_provider() in ["openai", "ollama"]:
             return GLOBAL_SETTINGS.openai.openai_api_url
         if self.get_ai_provider() == "anthropic":
             return GLOBAL_SETTINGS.anthropic_ai.anthropic_api_url
@@ -122,7 +122,7 @@ class CODXJuniorSettings(BaseModel):
     def get_ai_model(self):
         if self.ai_settings.model:
             return self.ai_settings.model
-        if self.get_ai_provider() in ["openai", "llmlite"]:
+        if self.get_ai_provider() in ["openai", "ollama"]:
             return GLOBAL_SETTINGS.openai.openai_model
         if self.get_ai_provider() == "anthropic":
             return GLOBAL_SETTINGS.anthropic_ai.anthropic_model

@@ -1,7 +1,7 @@
 {
   "project_id": "67fe8e3d-329e-4a4f-aa55-dd19815a62b4",
   "ai_settings": {
-    "provider": "openai",
+    "provider": "",
     "api_url": "https://ollama-gbrian-rzy-hrxa-bsz-1273-codx-dev.meetnav.com/v1",
     "api_key": "sk-ollama",
     "model": "deepseek-r1",

@@ -165,7 +165,7 @@ export default {
       if (!this.message.meta_data?.time_taken) {
         return null
       }
-      return moment().add(Math.floor(this.message.meta_data.time_taken), 'seconds').format("mm:ss")
+      return `${this.message.meta_data.model} ${moment().add(Math.floor(this.message.meta_data.time_taken), 'seconds').format("mm:ss")}`
     }
   },
   methods: {

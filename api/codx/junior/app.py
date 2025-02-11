@@ -201,7 +201,7 @@ def api_list_chats(request: Request):
 async def api_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
     codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
-    await codx_junior_session.chat_with_project(chat=chat, use_knowledge=True)
+    await codx_junior_session.chat_with_project(chat=chat)
     await codx_junior_session.save_chat(chat)
     return chat
 

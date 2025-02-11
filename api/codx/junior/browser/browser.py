@@ -109,7 +109,7 @@ class Browser:
 
             chat.messages.append(browser_request_message)
             # Call AI for navigation instructions
-            self.session.chat_with_project(chat_mode="chat", chat=chat, use_knowledge=False)
+            self.session.chat_with_project(chat_mode="chat", chat=chat, disable_knowledge=False)
             browser_request_message.hide = True
 
             response = chat.messages[-1].content

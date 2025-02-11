@@ -15,20 +15,20 @@ import PRView from "@/views/PRView.vue"
 import MetricsViewer from "./metrics/MetricsViewer.vue"
 </script>
 <template>
-  <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder" />
-  <KanbanVue v-bind="$attrs" v-if="$ui.tabIx === 'tasks'" />
-  <NoVNCVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showBrowser" />
-  <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge'" />
-  <KnowledgeSettingsVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge_settings'" />
+  <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder":class="$ui.tabIx" />
+  <KanbanVue v-bind="$attrs" v-if="$ui.tabIx === 'tasks'":class="$ui.tabIx" />
+  <NoVNCVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showBrowser":class="$ui.tabIx" />
+  <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge'":class="$ui.tabIx" />
+  <KnowledgeSettingsVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge_settings'":class="$ui.tabIx" />
   <WikiViewVue v-bind="$attrs" v-if="$ui.tabIx == 'wiki'"></WikiViewVue>
-  <ProjectSettingsVue  v-bind="$attrs" v-if="$ui.tabIx === 'settings'" />
-  <GlobalSettingsVue v-bind="$attrs" v-if="$ui.tabIx === 'global-settings'" />
-  <ProfileViewVue v-bind="$attrs" v-if="$ui.tabIx === 'profiles'" />
-  <ProjectProfileVue v-bind="$attrs" v-if="$ui.tabIx == 'home'" />
-  <Files class="w-full h-full" v-if="$ui.tabIx == 'files'" />
-  <HelpView class="w-full h-full" v-if="$ui.tabIx == 'help'" />
-  <PRView class="w-full h-full" v-if="$ui.tabIx == 'prview'" />
-  <MetricsViewer class="w-full h-full" v-if="$ui.tabIx == 'metrics'" />
+  <ProjectSettingsVue  v-bind="$attrs" v-if="$ui.tabIx === 'settings'":class="$ui.tabIx" />
+  <GlobalSettingsVue v-bind="$attrs" v-if="$ui.tabIx === 'global-settings'":class="$ui.tabIx" />
+  <ProfileViewVue v-bind="$attrs" v-if="$ui.tabIx === 'profiles'":class="$ui.tabIx" />
+  <ProjectProfileVue v-bind="$attrs" v-if="$ui.tabIx == 'home'":class="$ui.tabIx" />
+  <Files class="w-full h-full" v-if="$ui.tabIx == 'files'":class="$ui.tabIx" />
+  <HelpView class="w-full h-full" v-if="$ui.tabIx == 'help'":class="$ui.tabIx" />
+  <PRView class="w-full h-full" v-if="$ui.tabIx == 'prview'":class="$ui.tabIx" />
+  <MetricsViewer class="w-full h-full" v-if="$ui.tabIx == 'metrics'":class="$ui.tabIx" />
 </template>
 <script>
 export default {

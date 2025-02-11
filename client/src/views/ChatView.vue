@@ -99,7 +99,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             <button class="btn btn-xs" @click="newTag = ''">
               + tag
             </button>
-            <div class="badge badge-secondary badge-outline" v-for="profile in chat.profiles" :key="profile">
+            <div class="badge text-secondary" v-for="profile in chat.profiles" :key="profile">
               {{ profile }}
             </div>
           </div>
@@ -238,10 +238,10 @@ export default {
       return this.$projects.allChats
     },
     chat() {
-      return this.$projects.activeChat
+      return this.openChat || this.$projects.activeChat
     },
     parentChat() {
-      const parentId = this.$projects.activeChat.parent_id
+      const parentId = this.chat.parent_id
       return parentId ? this.chats.find(c => c.id && c.id === parentId) : null
     },
     childrenChats() {

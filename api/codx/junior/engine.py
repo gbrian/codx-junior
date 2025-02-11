@@ -330,7 +330,7 @@ class CODXJuniorSession:
                         content=f"Based on previos messages, give me really short answer about: {knowledge_search.search_term}"
                 )
             ])
-            chat, _ = await self.chat_with_project(chat=chat, use_knowledge=False)
+            chat, _ = await self.chat_with_project(chat=chat, disable_knowledge=True)
             response = chat.messages[-1].content
         elif knowledge_search.search_type == "source":
             documents = Knowledge(settings=self.settings).search_in_source(knowledge_search.search_term)
@@ -373,7 +373,9 @@ class CODXJuniorSession:
         project_child_projects, project_dependencies = self.get_project_dependencies()
         project_child_projects = project_child_projects if self.settings.knowledge_query_subprojects else []
         mention_projects = [m for m in [find_project_by_name(mention[1:]) for mention in mentions] if m]
-        search_projects = project_child_projects + project_dependencies + mention_projects
+        
+        search_projects = [p for p in list(map(lambda project_name: ([p for p in all_projects if p == project_name] or [None])[0], 
+                                  project_child_projects + project_dependencies + mention_projects)) if p]
 
         for search_project in search_projects:
             mention = [mention[1:] for mention in mentions if mention == search_project.project_name]
@@ -476,7 +478,7 @@ class CODXJuniorSession:
             if error:
                 chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
             
-            await self.chat_with_project(chat=chat, use_knowledge=False, chat_mode='chat')
+            await self.chat_with_project(chat=chat, disable_knowledge=True, chat_mode='chat')
             chat.messages[-1].improvement = True
             
             request_msg.improvement = True
@@ -586,7 +588,7 @@ class CODXJuniorSession:
 
         { content_instructions }
         """))
-        await self.chat_with_project(chat=chat, use_knowledge=False, append_references=False)
+        await self.chat_with_project(chat=chat, disable_knowledge=True, append_references=False)
         return chat.messages[-1].content
 
     @profile_function
@@ -710,7 +712,7 @@ class CODXJuniorSession:
             Message(role="user", content=request)
         ])
         try:
-            chat = await self.chat_with_project(chat=chat, use_knowledge=False)
+            chat = await self.chat_with_project(chat=chat, disable_knowledge=True)
             response = chat.messages[-1].content.strip()
             parsed_response = AI_CODE_VALIDATE_RESPONSE_PARSER.invoke(response)
             return parsed_response.new_content
@@ -810,7 +812,7 @@ class CODXJuniorSession:
                 """)
             ])
             
-        await self.chat_with_project(chat=analysis_chat, use_knowledge=use_knowledge)
+        await self.chat_with_project(chat=analysis_chat, disable_knowledge=not use_knowledge)
         if run_code:
             await self.improve_existing_code(chat=chat, apply_changes=True)
         else:
@@ -843,7 +845,7 @@ class CODXJuniorSession:
             {new_content}
             """))
             
-            await self.chat_with_project(chat=changes_chat, use_knowledge=False, append_references=False)
+            await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False)
             response = changes_chat.messages[-1].content
             await self.write_project_file(file_path=file_path, content=response)
 
@@ -938,7 +940,7 @@ class CODXJuniorSession:
         return "\n".join(parent_content)
 
     @profile_function
-    async def chat_with_project(self, chat: Chat, use_knowledge: bool=True, callback=None, append_references: bool=True, chat_mode: str=None):
+    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None):
         # Invoke project based on project_id
         self = self.switch_project(chat.project_id)
 
@@ -1054,7 +1056,7 @@ class CODXJuniorSession:
                 except Exception as ex:
                     logger.error(f"Error adding context file to chat {ex}")
 
-            if use_knowledge:
+            if not disable_knowledge and self.settings.use_knowledge:
                 affected_documents, doc_file_list = self.select_afefcted_documents_from_knowledge(ai=ai, query=query, ignore_documents=ignore_documents)
 
 
@@ -1066,8 +1068,9 @@ class CODXJuniorSession:
                         context += f"{doc_context}\n"
 
                 doc_length = len(documents or [])
-                self.chat_event(chat=chat, message=f"chat_with_project found {doc_length} relevant documents")
-
+                self.chat_event(chat=chat, message=f"Knowledge search found {doc_length} relevant documents")
+            else:
+                self.chat_event(chat=chat, message=f"! Knowledge search is disabled !")
             if context:
                 messages.append(convert_message(
                     Message(role="user", content=f"""
@@ -1105,11 +1108,13 @@ class CODXJuniorSession:
             try:
                 messages = ai.chat(messages, callback=callback)
                 response_message.content = messages[-1].content
-                response_message.meta_data["time_taken"] = time.time() - start_time
             except Exception as ex:
                 logger.exception(f"Error chating with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
 
+            response_message.meta_data["time_taken"] = time.time() - start_time
+            response_message.meta_data["model"] = self.settings.get_ai_model()
+            
             chat.messages.append(response_message)
             self.chat_event(chat=chat, message=f"done")
             return chat, documents
@@ -1168,7 +1173,7 @@ class CODXJuniorSession:
                 {file_content}
                 """)
             ])
-            await self.chat_with_project(chat=chat, use_knowledge=True)
+            await self.chat_with_project(chat=chat)
             chat.messages.append(Message(role="user", content=f"""
             Improve our current wiki with the new knowledge extracted from {file_path},
             Highlight important parts and create mermaid diagrams to help user's understanding of the project.
@@ -1273,7 +1278,7 @@ class CODXJuniorSession:
         content_message = Message(role="user", content=file_profile_prompt)
 
         chat = Chat(name=f"Improve file with profile {profile.name}", messages=[content_message])
-        await self.chat_with_project(chat=chat, use_knowledge=False)
+        await self.chat_with_project(chat=chat, disable_knowledge=True)
         return chat.messages[-1].content
 
     async def write_project_file(self, file_path: str, content: str):

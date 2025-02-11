@@ -11,6 +11,7 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
     <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 pt-2 overflow-auto">
       <div class="flex gap-2 items-center relative justify-between">
         <ProjectDropdown v-if="!isHelpTabActive" />
+        <div class="badge">{{ aiProvider }} / {{ aiModel }}</div>
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>
@@ -57,6 +58,16 @@ export default {
     }
   },
   computed: {
+    aiProvider () {
+      return this.$project.ai_settings.provider || 
+        this.$storex.api.globalSettings.ai_provider
+    },
+    aiModel () {
+      if (this.$project.ai_settings.provider && this.$project.ai_settings.model) {
+        return this.$project.ai_settings.model
+      }
+      return this.$storex.api.globalSettings.ai_model
+    },
     subProjects() {
       return Array.isArray(this.lastSettings?.sub_projects)
         ? this.lastSettings?.sub_projects

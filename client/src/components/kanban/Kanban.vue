@@ -330,14 +330,17 @@ export default {
           || []
     },
     async onColumnTaskListChanged() {
-      const { columns } = this.boards[this.board]
-      this.boards[this.board].columns = await Promise.all(this.columns.map(async (column, ix) => {
+      const { columns } = this
+      await Promise.all(this.columns.map(async (column, ix) => {
         const currentColumn = columns.find(c => c.title === column.title)
         currentColumn.chats = column.tasks.reduce((acc, t, chat_index) => ({ ...acc, [t.id]: { chat_index }}), {})
         await Promise.all(column.tasks.filter(t => t.column !== column.title)
           .map(task => this.$storex.projects.saveChatInfo({ ...task, column: column.title })))
         return currentColumn
       }))
+
+      const kboard = this.kanban.boards[this.board]
+      kboard.columns = columns.map(c => kboard.columns.find(kc => kc.id === c.id))
       
       this.saveKanban()
     },
