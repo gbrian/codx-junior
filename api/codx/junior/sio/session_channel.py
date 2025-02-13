@@ -23,7 +23,6 @@ def process_event_queue():
         if EVENT_QUEUE:
             try:
                 event: IOEvent = EVENT_QUEUE.pop(0)
-                logger.info(f"Processing event: {event.event} {event.data['ts']}")
                 asyncio.run(sio.emit(event.event, event.data))
             except Exception as e:
                 logger.error(f"Error processing event: {e}")
@@ -48,6 +47,5 @@ class SessionChannel:
             asyncio.run(self.sio.emit(event, data))
         """
         EVENT_QUEUE.append(IOEvent(sid=self.sid, event=event, data=data))
-        logger.info(f"Sending event: {event} {data}, queue size: {len(EVENT_QUEUE)}")
 
         

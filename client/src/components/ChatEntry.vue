@@ -149,8 +149,8 @@ export default {
       })
     },
     messageContent() {
-      const { task_item, content } = this.message
-      return task_item ? `### \`${task_item}\`\n\n${content}` : content
+      const { content } = this.message
+      return content
     },
     selection () {
       return document.getSelection().toString()
@@ -227,7 +227,7 @@ export default {
       patch.working = true 
       try {
         const code_changes = this.code_changes.filter(cc => cc.file_path === patch.file_path)
-        patch.res = await this.$storex.api.run.patch({ code_changes, code_patches: [ patch ] })
+        patch.res = await this.$projects.codeImprovePatch({ chat: this.chat, code_generator: { code_changes, code_patches: [ patch ] } })
         if (patch.res.info?.toLowerCase().includes('error')) {
           patch.res.error = patch.res.info
         }

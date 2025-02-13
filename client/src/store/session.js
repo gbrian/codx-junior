@@ -5,6 +5,7 @@ import io from 'socket.io-client';
 
 export const namespaced = true
 
+const EVENT_EXPIRE_SECONDS = 120
 setInterval(() => $storex.session.tick(), 1000)
 
 import { API } from '../api/api'
@@ -84,7 +85,7 @@ export const actions = actionTree(
       $storex.session.connect()
     },
     tick ({ state }) {
-      const expireNotif = new Date( Date.now() - 1000 * 40 ).getTime();
+      const expireNotif = new Date( Date.now() - 1000 * EVENT_EXPIRE_SECONDS ).getTime();
       if (state.events.find(e => e.ts < expireNotif)) {
         state.events = state.events.filter(e => e.ts >= expireNotif)
       }
@@ -122,7 +123,7 @@ export const actions = actionTree(
         codx_path
       } = data
       if (codx_path) {
-        data.project = $storex.projects.allProjects.find(p => p.codx_path === codx_path)
+        data.project = $storex.projects.allProjects?.find(p => p.codx_path === codx_path)
       }
       if (data.chat) {
         $storex.projects.onChatEvent({ event, data })

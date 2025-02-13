@@ -66,7 +66,7 @@ class Profile(BaseModel):
     category: str = Field(default="", description="Profile category: global, file, coding, ...")
     file_match: str = Field(default="",
         description="Optional regex to apply profiles based on file absolute path.")
-    content: str = Field(default="")
+    content: Optional[str] = Field(default=None)
     path: str = Field(default="")
 
 class Document(BaseModel):
@@ -101,6 +101,7 @@ class AISettings(BaseModel):
     api_url: Optional[str] = Field(default="")
     api_key: Optional[str] = Field(default="")
     model: Optional[str] = Field(default="")
+    context_length: Optional[int] = Field(default=0)
     temperature: Optional[float] = Field(default=0.8)
 
 class EmbeddingAISettings(AISettings):

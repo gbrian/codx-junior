@@ -22,6 +22,7 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
 from codx.junior.ai.anthropic import Anthropic_AI
 from codx.junior.ai.mistral_ai import Mistral_AI
+from codx.junior.ai.ai_logger import AILogger
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -51,7 +52,7 @@ class AI:
 
     def log(self, message):
         if self.settings.get_log_ai():
-            logger.info(message)
+            AILogger.info(message)
     
     @profile_function
     def chat(

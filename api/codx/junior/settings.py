@@ -71,6 +71,7 @@ class CODXJuniorSettings(BaseModel):
     knowledge_search_document_count: Optional[int] = Field(default=10)
     knowledge_enrich_documents: Optional[bool] = Field(default=False)
     knowledge_context_cutoff_relevance_score: Optional[float] = Field(default=0.9)
+    knowledge_context_rag_distance: Optional[float] = Field(default=0.4)
     knowledge_external_folders: Optional[str] = Field(default="")
     knowledge_query_subprojects: Optional[bool] = Field(default=True)
     knowledge_file_ignore: Optional[str] = Field(default=".codx")
@@ -131,7 +132,7 @@ class CODXJuniorSettings(BaseModel):
         return None
 
     def get_ai_embeddings_settings(self):
-        if len(self.embeddings_ai_settings.provider or ""):
+        if self.embeddings_ai_settings.provider:
             return self.embeddings_ai_settings
 
         return GLOBAL_SETTINGS.embeddings_ai_settings

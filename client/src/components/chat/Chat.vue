@@ -287,13 +287,6 @@ export default {
       return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
     messages () {
-      if (this.isTask) {
-        const lastMessage = this.visibleMessages.length ? this.visibleMessages[this.visibleMessages.length - 1] : null
-        if (lastMessage && lastMessage.role === 'assistant') {
-          return [lastMessage]
-        }
-        return this.visibleMessages.filter(m => m.role !== 'assistant')
-      }
       return this.chat?.messages
     },
     multiline () {
@@ -377,18 +370,7 @@ export default {
     },
     async improveCode () {
       this.postMyMessage()
-      await this.sendApiRequest(
-        () => API.run.improve(this.chat),
-        data => ['### Changes done',
-                  data.messages.reverse()[0].content,
-                  '### Edits done',
-                  data.edits.map(edit => "```json\n"
-                      + JSON.stringify(edit, 2, null) + 
-                    "\n```"),
-                  "### Error",
-                  JSON.stringify(data.errors, 2, null)
-                ].join("\n")
-      )
+      await this.projects.codeImprove(this.chat)
       this.testProject()
     },
     runEdit (codeSnipped) {
@@ -427,12 +409,6 @@ export default {
       this.scrollToBottom()
     },
     async sendMessage () {
-      const editAIMessage = this.editMessage && this.editMessage.role !== 'user'
-      if (editAIMessage) {
-          this.removeMessage(this.editMessage)
-          this.editMessage = null
-      }
-      
       if (this.isVoiceSession && !this.canPost) {
         return
       }

@@ -1,9 +1,9 @@
 <script setup>
-import { API } from '../api/api'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
 import moment from 'moment'
-import ChatIconVue from '@/components/chat/ChatIcon.vue'
+import TaskCard from '@/components/kanban/TaskCard.vue'
+import Kanban from '@/components/kanban/Kanban.vue';
 </script>
 
 <template>
@@ -15,8 +15,10 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
             <div class="flex gap-2 items-start">
               <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else>
-                <div class="mt-1 text-xs hover:underline click font-bold text-primary" @click="$emit('chat', parentChat)" v-if="parentChat">
-                  <i class="fa-solid fa-turn-up"></i> {{ parentChat.name }}
+                <div class="mt-1 text-xs hover:underline click font-bold text-primary"
+                  @click="naviageToParent"
+                  v-if="parentChat || Kanban">
+                  <i class="fa-solid fa-turn-up"></i> {{ parentChat?.name || kanban?.title }}
                 </div>
                 <div class="flex items-center gap-2">
                   <div class="dropdown">
@@ -57,7 +59,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                   </span>
                   <i class="fa-solid fa-caret-down"></i>
                 </div>
-                <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
+                <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] p-2 w-96 shadow">
                   <li @click="newSubChat()">
                     <a>New sub task</a>
                   </li>
@@ -65,16 +67,10 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                     <a>Create sub tasks <i class="fa-solid fa-wand-magic-sparkles"></i></a>
                   </li>
                   <div class="divider" v-if="childrenChats.length"></div>
-                  <li class="overflow-hidden text-ellipsis w-full" @click="$projects.setActiveChat(child)" v-for="child in childrenChats" :key="childrenChats.id">
-                    <a>
-                      <div>
-                        <div class="text-xs">{{ moment(child.updated_at || child.created_at).format("DDMMM HH:mm") }}</div>
-                        <div>
-                          <ChatIconVue :chat="child" /> {{ child.name }}
-                        </div>
-                      </div>
-                    </a>
-                  </li>
+                  <div class="max-h-96 w-full overflow-auto flex flex-col gap-2 p-1">
+                    <TaskCard class="p-2" :task="child" @click="$projects.setActiveChat(child)"
+                          v-for="child in childrenChats" :key="childrenChats.id" />
+                  </div>
                 </ul>
               </div>
               <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
@@ -111,7 +107,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                 :value="project.project_id"
                 :selected="project.project_id === chatProject.project_id"
               >
-              {{ project.project_name }}
+              {{ project.project_name }} <span v-if="project.ai_settings.provider">({{ project.ai_settings.model }})</span>
               </option>
             </select>
             {{  }}
@@ -142,7 +138,8 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
         <modal v-if="confirmDelete">
           <div class="">
             <h3 class="font-bold text-lg">Confirm Delete</h3>
-            <p>Are you sure you want to delete this chat?</p>
+            <p class="text-error font-bold">Are you sure you want to delete this chat?</p>
+            <div class="text-xl p-1">{{ chat.name }}</div>
             <div class="modal-action">
               <button class="btn btn-error" @click="confirmDeleteChat">Delete</button>
               <button class="btn" @click="resetConfirmDelete">Cancel</button>
@@ -197,7 +194,7 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
 
 <script>
 export default {
-  props: ['chatMode', 'openChat'],
+  props: ['chatMode', 'openChat', 'kanban'],
   data() {
     return {
       showFile: null,
@@ -218,6 +215,7 @@ export default {
   computed: {
     subProjects () {
       return [
+          this.$project,
           ...this.$projects.childProjects || [],
           ...this.$projects.projectDependencies || []
       ]
@@ -317,7 +315,7 @@ export default {
     },
     onRemoveMessage(message) {
       const ix = this.chat.messages.findIndex(m => m === message)
-      if (this.chat.mode == 'task' && message.role === "assistant") {
+      if (this.chat.mode == 'task' && message.role === "assistant" && ix) {
         this.chat.messages[ix - 1].hide = false
       }
       this.chat.messages = this.chat.messages.filter((m, i) => i !== ix)
@@ -345,6 +343,13 @@ export default {
     },
     async createSubTasks() {
       await this.$storex.projects.createSubTasks(this.chat)
+    },
+    naviageToParent() {
+      if (this.parentChat) {
+        this.$emit('chat', this.parentChat)
+      } else {
+        this.navigateToChats()
+      }
     }
   }
 }

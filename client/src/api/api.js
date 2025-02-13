@@ -105,11 +105,8 @@ export const API = {
       }
       return res
     },
-    write (settings) {
-      return API.put('/api/settings?', settings)
-    },
-    async save() {
-      await API.put('/api/settings?', API.lastSettings)
+    async save(settings) {
+      await API.put('/api/settings?', settings || API.lastSettings)
       return API.settings.read()
     },
     global: {
@@ -234,7 +231,6 @@ export const API = {
     },
     async delete (name) {
       await API.del(`/api/profiles/${name}`)
-      API.lastSettings = null
     }
   },
   coder: {

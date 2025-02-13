@@ -120,19 +120,25 @@ class KnowledgeDB:
             }
             data.append(doc_data)
 
-        res = self.db.insert(
-                collection_name=self.index_name,
-                data=data
-            )
-        new_docs = []
-        for ix, _id in enumerate(res["ids"]):
-            doc = documents[ix]
-            new_docs.append({
-                "id": _id,
-                "metadata": doc.metadata
-            })
-
-        self.update_all_file(documents=new_docs)
+        try:
+          res = self.db.insert(
+                  collection_name=self.index_name,
+                  data=data
+              )
+          new_docs = []
+          for ix, _id in enumerate(res["ids"]):
+              doc = documents[ix]
+              new_docs.append({
+                  "id": _id,
+                  "metadata": doc.metadata
+              })
+          self.update_all_file(documents=new_docs)
+        except Exception as ex:
+            if "float_vector" in str(ex):
+                logger.error(f"Error inserting new documents for project {self.settings.project_name} {ex}, trying to restart index")
+                self.reset()
+            else:
+                raise ex
         
     def delete_documents (self, sources: [str]):
         logger.info('Removing old documents')
@@ -176,15 +182,19 @@ class KnowledgeDB:
             output_fields=["id", "page_content", "metadata"]
         )
         documents = []
+        rag_distance = float(self.settings.knowledge_context_rag_distance or 0)
         # logger.info(f"search results: {list(res)}")
         for level0 in list(res):
             for level1 in level0:
                 _id = level1["id"]
                 entity = level1["entity"]
                 metadata = entity["metadata"]
-                distance = level1.get("distance")
-                
-                metadata["db_distance"] = float(distance)
+                distance = float(level1.get("distance"))
+
+                if distance < rag_distance:
+                    continue
+
+                metadata["db_distance"] = distance
                 documents.append(
                     Document(id=_id,
                         page_content=entity["page_content"], 

@@ -80,9 +80,6 @@ from codx.junior.context import AICodePatch
 
 from codx.junior.sio.session_channel import SessionChannel
 
-"""Emit message event after message content reaches MESSAGE_LENGH_THRESHOLD_TO_TRIGGER_ENVENT"""
-MESSAGE_LENGH_THRESHOLD_TO_TRIGGER_ENVENT = 500
-
 """Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
 MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 300
 
@@ -221,15 +218,15 @@ class CODXJuniorSession:
 
     def send_event(self, message: str):
         self.get_channel().send_event('codx-junior', self.event_data({ 'text': message }))
-        self.log_info(f"SEND MESSAGE {message}- SENT!")
+        # self.log_info(f"SEND MESSAGE {message}- SENT!")
 
     def chat_event(self, chat: Chat, message: str = None, event_type: str = None):
         self.get_channel().send_event('chat-event', self.event_data({ 'chat': { 'id': chat.id }, 'text': message, 'type': event_type }))
-        self.log_info(f"SEND MESSAGE {message}- SENT!")
+        # self.log_info(f"SEND MESSAGE {message}- SENT!")
 
     def message_event(self, chat: Chat, message: Message):
         self.get_channel().send_event('message-event', self.event_data({ 'chat': { 'id': chat.id }, 'message': message.model_dump() }))
-        self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
+        # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
 
     @contextmanager
     def chat_action(self, chat: Chat, event: str):
@@ -364,7 +361,7 @@ class CODXJuniorSession:
         return project_child_projects, project_dependencies
         
     @profile_function
-    def select_afefcted_documents_from_knowledge(self, ai: AI, query: str, ignore_documents=[]):
+    def select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str, ignore_documents=[]):
         all_projects = find_all_projects()
         
         mentions = re.findall(r'@[a-zA-Z0-9\-\_\.]+', query)
@@ -383,6 +380,7 @@ class CODXJuniorSession:
 
         @profile_function
         def process_rag_query(rag_query):
+            self.chat_event(chat=chat, message=f"Search knowledge in {self.settings.project_name}")
             docs, file_list = find_relevant_documents(query=rag_query, settings=self.settings, ignore_documents=ignore_documents)
             if not docs:
                 docs = []
@@ -391,6 +389,7 @@ class CODXJuniorSession:
             if search_projects and self.settings.knowledge_query_subprojects:
                 self.log_info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
                 for sub_settings in search_projects:
+                    self.chat_event(chat=chat, message=f"Search knowledge in {sub_settings.project_name}")
                     sub_docs, sub_file_list = find_relevant_documents(query=rag_query, settings=sub_settings, ignore_documents=ignore_documents)
                     self.log_info(f"select_afefcted_documents_from_knowledge search subproject {sub_settings.project_name} docs: {len(sub_docs)}") 
                     if sub_docs:
@@ -400,15 +399,7 @@ class CODXJuniorSession:
             return docs, file_list
         return process_rag_query(rag_query=query)
 
-    def select_afected_files_from_knowledge(self, ai: AI, query: str):
-        relevant_documents, file_list = self.select_afefcted_documents_from_knowledge(ai=ai, query=query)
-        file_list = [str(Path(doc.metadata["source"]).absolute())
-                      for doc in relevant_documents]
-        file_list = list(dict.fromkeys(file_list))  # Remove duplicates
-
-        return file_list
-
-    async def improve_existing_code_patch(self, code_generator: AICodeGerator):
+    async def improve_existing_code_patch(self, chat:Chat, code_generator: AICodeGerator):
         # Invoke project based on project_id
         self = self.switch_project(chat.project_id)
 
@@ -426,7 +417,7 @@ class CODXJuniorSession:
         res = f"{stdout} {stderr}".lower()
         error = True if len(stderr or "") != 0 or "error" in res else False
         if error:
-            await self.apply_improve_code_changes(code_generator=code_generator)
+            await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
             stdout = "Changes applied"
             stderr = ""
         coder_open_file(self.settings, file_name=file_path)
@@ -886,9 +877,7 @@ class CODXJuniorSession:
               """
           project_child_projects, project_dependencies = self.get_project_dependencies()
           all_projects = [self] + [CODXJuniorSession(settings=settings) for settings in project_child_projects + project_dependencies]
-          projects_section = f"""
-          { [format_project_info(p) for p in all_projects] }
-          """
+          projects_section = "\n".join([format_project_info(p) for p in all_projects])
 
           prompt = f"""
           <projects>
@@ -960,19 +949,22 @@ class CODXJuniorSession:
                 task_item = "analysis"
             
             response_message = Message(role="assistant", doc_id=str(uuid.uuid4()))
+            timing_info = {
+              "start_time": time.time(),
+              "first_response": None
+            }
             start_time = time.time()
+            first_response_from_ai_time = 0
             def send_message_event(content):
-                response_message.content = response_message.content + content
-                # Buffer to save bandwith
-                if len(response_message.content) < MESSAGE_LENGH_THRESHOLD_TO_TRIGGER_ENVENT:
-                    return
+                if not timing_info.get("first_response"):
+                    timing_info["first_response"] = time.time() - timing_info["start_time"]
+                response_message.content = content
                 sources =  []
                 if documents:
                     sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))
                 response_message.files = sources
                 response_message.task_item = task_item
                 self.message_event(chat=chat, message=response_message)
-                response_message.content = ""
 
             ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
             last_ai_message = ai_messages[-1] if ai_messages else None
@@ -987,15 +979,7 @@ class CODXJuniorSession:
                 chat_profiles = [profile_manager.read_profile(profile) for profile in chat.profiles]
                 chat_profiles_content = "\n".join([profile.content for profile in chat_profiles if profile])
 
-            instructions = f"""BEGIN INSTRUCTIONS
-            This is a conversation between you and the user about the project {self.settings.project_name}.
-            {chat_profiles_content}
-            END INSTRUCTIONS
-            """
-            messages = [
-                SystemMessage(content=instructions)
-            ]
-
+            messages = []
             def convert_message(m):
                 msg = None
                 def parse_image(image):
@@ -1057,7 +1041,7 @@ class CODXJuniorSession:
                     logger.error(f"Error adding context file to chat {ex}")
 
             if not disable_knowledge and self.settings.use_knowledge:
-                affected_documents, doc_file_list = self.select_afefcted_documents_from_knowledge(ai=ai, query=query, ignore_documents=ignore_documents)
+                affected_documents, doc_file_list = self.select_afefcted_documents_from_knowledge(ai=ai, chat=chat, query=query, ignore_documents=ignore_documents)
 
 
                 if affected_documents:
@@ -1080,7 +1064,7 @@ class CODXJuniorSession:
                       {context}
                       """)))
 
-            if is_refine and last_ai_message:
+            if is_refine:
                 refine_message = Message(role="user", content=f"""
                 <task>
                 { chat.name }
@@ -1091,15 +1075,19 @@ class CODXJuniorSession:
                 </parent_context>
 
                 <document>
-                {last_ai_message.content}
+                {last_ai_message.content if last_ai_message else ''}
                 </document>
 
-                UPDATE DOCUMENT WITH USER COMMENTS:
+                <user_request>
                 {user_message.content}
+                </user_request>
                 """)
                 messages.append(convert_message(refine_message))
             else:
                 messages.append(convert_message(user_message))
+
+            # Add extra chat_profiles_content
+            messages[-1].content += chat_profiles_content
             
             self.chat_event(chat=chat, message=f"Invoking {self.settings.get_ai_provider()}. Model {self.settings.get_ai_model()}")
 
@@ -1112,10 +1100,14 @@ class CODXJuniorSession:
                 logger.exception(f"Error chating with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
 
-            response_message.meta_data["time_taken"] = time.time() - start_time
+            response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
+            response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
             response_message.meta_data["model"] = self.settings.get_ai_model()
             
             chat.messages.append(response_message)
+            if is_refine:
+                for message in chat.messages[:-1]:
+                    message.hide = True
             self.chat_event(chat=chat, message=f"done")
             return chat, documents
             

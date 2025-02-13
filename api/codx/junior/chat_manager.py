@@ -98,7 +98,8 @@ class ChatManager:
         # wrong setup?
         if not board or not column:
             new_chat_file = f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}/{name}.md"
-            os.rename(chat_file, new_chat_file)
+            if chat_file:
+              os.rename(chat_file, new_chat_file)
             chat_file = new_chat_file
             board = DEFAULT_BOARD
             column = DEFAULT_COLUMN

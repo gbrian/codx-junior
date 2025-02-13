@@ -8,6 +8,10 @@ from concurrent.futures import ThreadPoolExecutor
 from codx.junior.sio.session_channel import SessionChannel
 from codx.junior.engine import CODXJuniorSession
 
+from codx.junior.context import (
+    AICodeGerator
+)
+
 from codx.junior.sio.model import (
     SioMessage,
     SioChatMessage
@@ -88,3 +92,23 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
 async def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSession):
     data = SioChatMessage(**data)
     return await codxjunior_session.generate_tasks(chat=data.chat)
+
+@sio.on("codx-junior-improve")
+@sio_api_endpoint
+async def io_run_improve(sid, data: dict, codxjunior_session: CODXJuniorSession):
+    data = SioChatMessage(**data)
+    await codxjunior_session.improve_existing_code(chat=data.chat)
+    await codxjunior_session.save_chat(data.chat)
+
+@sio.on("codx-junior-improve-patch")
+@sio_api_endpoint
+async def sio_run_improve_patch(sid, data: dict, codxjunior_session: CODXJuniorSession):
+    code_generator = AICodeGerator(**data["code_generator"])
+    data = SioChatMessage(**data)
+    info, error = await codxjunior_session.improve_existing_code_patch(
+                            chat=data.chat,
+                            code_generator=code_generator)
+    return {
+        "info": info, 
+        "error": error
+    }
