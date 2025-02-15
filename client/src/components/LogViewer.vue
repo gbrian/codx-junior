@@ -124,6 +124,7 @@ import Markdown from './Markdown.vue';
             <pre>{{ JSON.stringify({ ...event.data, message: undefined }, null, 2) }}</pre>
           </div>
         </div>
+        <div class="h-1 w-full" ref="logViewBottom"></div>
       </div>
     </div>
   </div>
@@ -205,7 +206,9 @@ export default {
                                             ({ timestamp, path: `${module}.${method}` , time_taken }))
     },
     events() {
-      return $storex.session.events.reduce((acc, ev) => {
+      return $storex.session.events
+      .filter(e => !e.data.message)
+      .reduce((acc, ev) => {
         const lastEv = acc[acc.length -1]
         if (lastEv && 
             lastEv?.data.message &&
@@ -287,6 +290,9 @@ export default {
       this.fetchLogs()
     },
     scrollToBottom() {
+      if (true || !this.$refs.logViewBottom?.checkVisibility()) {
+        return
+      }
       const { logView } = this.$refs
       if (logView) {
         logView.scrollTop = logView.scrollHeight

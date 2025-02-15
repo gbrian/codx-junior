@@ -11,6 +11,7 @@ import VSwatches from "../VSwatches.vue"
     @chats="onChatEditDone"
     @sub-task="createSubTask"
     @chat="$projects.setActiveChat($event)"
+    :kanban="activeBoard"
     v-if="$projects.activeChat"
   />
   <div v-else>
@@ -310,13 +311,13 @@ export default {
       this.buildColumns()
     },
     buildColumns() {
-      const columnTitles = this.columnList 
+      const columnTitles = this.columnList
+      const cloumnChats = this.kanban.boards[this.board]?.columns?.chats || [] 
       this.columns = columnTitles
           .map((col, ix) => {
             const boardColumn = this.boards[this.board]?.columns?.find(bc => bc.title === col)||{}
-            const columnChats = boardColumn.chats || {}
             const getChatIndex = c => {
-              return columnChats[c.id]?.chat_index || 0 
+              return cloumnChats.findIndex(kc => kc.id === c.id)
             }
             return { 
               title: col,
@@ -330,17 +331,14 @@ export default {
           || []
     },
     async onColumnTaskListChanged() {
-      const { columns } = this
-      await Promise.all(this.columns.map(async (column, ix) => {
-        const currentColumn = columns.find(c => c.title === column.title)
-        currentColumn.chats = column.tasks.reduce((acc, t, chat_index) => ({ ...acc, [t.id]: { chat_index }}), {})
+      const kboard = this.kanban.boards[this.board]
+      kboard.columns = await Promise.all(this.columns.map(async (column, ix) => {
+        const kcolumn = kboard.columns.find(kc => kc.id === column.id)
+        kcolumn.chats = column.tasks.map(t => t.id)
         await Promise.all(column.tasks.filter(t => t.column !== column.title)
           .map(task => this.$storex.projects.saveChatInfo({ ...task, column: column.title })))
-        return currentColumn
+        return kcolumn
       }))
-
-      const kboard = this.kanban.boards[this.board]
-      kboard.columns = columns.map(c => kboard.columns.find(kc => kc.id === c.id))
       
       this.saveKanban()
     },

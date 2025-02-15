@@ -45,18 +45,29 @@ class ProfileManager:
         return match_profiles[0] if match_profiles else None
 
     def load_profile(self, profile_path) -> Profile:
+        profile = None
         with open(profile_path, 'r') as f:
             content = f.read()
             profile = Profile(**json.loads(content))
             profile.path = profile_path
-            return profile
+        profile_content_file_path = f"{profile_path}.md"
+        if os.path.isfile(profile_content_file_path):
+            with open(profile_content_file_path, 'r') as f:
+              profile.content = f.read()
+        return profile
 
     def save_profile(self, profile: Profile):
         if not profile.name:
             raise Exception('Invalid profie')
 
         profile_path = f"{os.path.join(self.profiles_path, profile.name)}.profile"
+        profile_content_file_path = f"{profile_path}.md"
+        
         logger.info(f"Save profile {profile_path}")
+        with open(profile_content_file_path, 'w') as f:
+              f.write(profile.content)
+        profile.content = f"See {profile.name}.profile.md file"
+
         with open(profile_path, 'w') as f:
             f.write(json.dumps(profile.__dict__))
         return self.read_profile(profile_name=profile.name)

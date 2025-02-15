@@ -10,7 +10,7 @@ import Markdown from './Markdown.vue'
       </button>
       Profile
       <div class="grow"></div>
-      <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="loading">Delete</button>
+      <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isOverriden || loading">Delete</button>
     </label>
     <div class="flex justify-between items-center gap-4">
       <input id="name" v-model="editProfile.name" type="text" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" />

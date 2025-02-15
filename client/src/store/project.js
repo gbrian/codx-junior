@@ -58,7 +58,15 @@ export const getters = getterTree(state, {
                         .filter(pp => pp.project_path.startsWith(project.project_path))
       return project
     })
-  }
+  },
+  embeddings_ai_settings: state => state.activeProject?.embeddings_ai_settings.provider ?
+                                      state.activeProject?.embeddings_ai_settings : $storex.api.globalSettings?.embeddings_ai_settings,
+  aiProvider: state => state.activeProject?.ai_settings.provider || 
+                      $storex.api.globalSettings?.ai_provider,
+  aiModel: state => state.activeProject?.ai_settings.model || 
+                      $storex.api.globalSettings?.ai_model,
+  embeddingsAIProvider: () => $storex.projects.embeddings_ai_settings?.provider,
+  embeddingsAIModel: () => $storex.projects.embeddings_ai_settings?.model,
 })
 
 export const actions = actionTree(
@@ -136,8 +144,7 @@ export const actions = actionTree(
       }
     },
     async saveSettings({ state }, settings) {
-      await API.settings.write(settings)
-      await $storex.projects.loadAllProjects()
+      await API.settings.save(settings)
       state.activeProject = API.lastSettings
     },
     async realoadProject({ state }) {
@@ -188,6 +195,27 @@ export const actions = actionTree(
         chat
       }
       $storex.session.socket.emit('codx-junior-subtasks', data)
+    },
+    async codeImprove({ state }, chat) {
+      const data = {
+        codx_path: state.activeProject.codx_path,
+        chat
+      }
+      $storex.session.socket.emit('codx-junior-improve', data)
+    },
+    async codeImprovePatch({ state }, { chat, code_generator }) {
+      const data = {
+        codx_path: state.activeProject.codx_path,
+        chat,
+        code_generator
+      }
+      return new Promise((ok, ko) => {
+        const tout = setTimeout(ko, 200000)
+        $storex.session.socket.emit('codx-junior-improve-patch', data, response => {
+          clearTimeout(tout)
+          ok(response)
+        })
+      })
     },
     async onChatEvent({ state }, { event, data }) {
       const {

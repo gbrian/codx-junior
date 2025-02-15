@@ -1,22 +1,22 @@
 <script setup>
 import { API } from '../api/api'
-import NavigationBar from '../components/NavigationBar.vue'
-import TabNavigationVue from '../components/TabNavigation.vue'
 import TabViewVue from '@/components/TabView.vue'
 import ProjectDropdown from '@/components/ProjectDropdown.vue'
 </script>
 
 <template>
   <div class="codx-junior flex min-h-full">
-    <div class="grow flex flex-col relative bg-base-100 gap-2 px-2 pt-2 overflow-auto">
-      <div class="flex gap-2 items-center relative justify-between">
+    <div class="grow flex flex-col relative bg-base-100 gap-2 overflow-auto bg-base-300">
+      <div class="p-2 flex gap-2 items-center relative justify-between">
         <ProjectDropdown v-if="!isHelpTabActive" />
-        <div class="badge">{{ aiProvider }} / {{ aiModel }}</div>
+        <div class="badge">{{ $projects.aiProvider }} / {{ $projects.aiModel }}</div>
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
-      <TabViewVue :key="projectKey" />
+      <div class="grow p-2 bg-base-100">
+        <TabViewVue  :key="projectKey" />
+      </div>
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">
       <div class="modal-box">
@@ -58,16 +58,6 @@ export default {
     }
   },
   computed: {
-    aiProvider () {
-      return this.$project.ai_settings.provider || 
-        this.$storex.api.globalSettings.ai_provider
-    },
-    aiModel () {
-      if (this.$project.ai_settings.provider && this.$project.ai_settings.model) {
-        return this.$project.ai_settings.model
-      }
-      return this.$storex.api.globalSettings.ai_model
-    },
     subProjects() {
       return Array.isArray(this.lastSettings?.sub_projects)
         ? this.lastSettings?.sub_projects

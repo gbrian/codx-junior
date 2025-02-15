@@ -9,6 +9,8 @@ import MarkdownVue from '@/components/Markdown.vue'
       <div class="grow">
         <div class="text-error text-xs" v-if="!settings?.use_knowledge">Knowledge search is disabled!</div>
       </div>
+      <div class="badge">{{ $projects.embeddingsAIProvider }} / {{ $projects.embeddingsAIModel }}</div>
+        
       <button class="btn btn-sm" @click="toggleWatch()">
         <span class="label-text mr-2">Watch changes</span> 
         <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="settings.watching" />
@@ -422,7 +424,7 @@ export default {
       const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
       const newIgnore = new Set([...currIgnore, ...entries])
       API.lastSettings.knowledge_file_ignore = [...newIgnore].join(",")
-      await API.settings.write(API.lastSettings)
+      await API.settings.save(API.lastSettings)
       await this.reloadStatus()
       this.selectedFiles = {}
       this.addToIgnore = null
@@ -431,7 +433,7 @@ export default {
       const currIgnore = API.lastSettings?.knowledge_file_ignore?.split(',') || []
       const newIgnore = currIgnore.filter(e => !entries.includes(e))
       API.lastSettings.knowledge_file_ignore = newIgnore.join(",")
-      await API.settings.write(API.lastSettings)
+      await API.settings.save(API.lastSettings)
       await this.reloadStatus()
       this.selectedFiles = {}
       this.addToIgnore = null
@@ -478,7 +480,7 @@ export default {
     },
     async saveKnowledgeSettings () {
       await API.settings.read()
-      API.settings.write({
+      API.settings.save({
         ...API.lastSettings,
         knowledge_search_type: this.documentSearchType,
         knowledge_context_cutoff_relevance_score: this.cutoffScore,

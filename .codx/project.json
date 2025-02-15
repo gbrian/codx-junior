@@ -1,7 +1,13 @@
 {
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
-  "ai_provider": "",
-  "ai_model": "",
+  "ai_settings": {
+    "provider": "",
+    "api_url": "",
+    "api_key": "",
+    "model": "",
+    "context_length": 0,
+    "temperature": 0.8
+  },
   "project_name": "codx-junior",
   "project_path": null,
   "project_wiki": null,
@@ -11,6 +17,7 @@
   "knowledge_search_document_count": 10,
   "knowledge_enrich_documents": false,
   "knowledge_context_cutoff_relevance_score": 0.9,
+  "knowledge_context_rag_distance": 0.4,
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": "api/,client/,.codx,assets,/.gitignore,xdg,browser",
@@ -18,8 +25,17 @@
   "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
-  "project_icon": "https://codx-junior-dev-gbrian-rzy-hrxa-bsz-1273-codx-dev.meetnav.com/only_icon.png",
+  "project_icon": "https://codx-dev.meetnav.com/only_icon.png",
   "log_ignore": "/var/log/supervisor",
   "project_scripts": [],
+  "embeddings_ai_settings": {
+    "provider": "",
+    "api_url": "",
+    "api_key": "",
+    "model": "",
+    "context_length": 0,
+    "temperature": 0.8,
+    "vector_size": 1536
+  },
   "urls": []
 }

@@ -16,9 +16,15 @@
               {{ project.project_name }}
             </div>
             <div class="grow"></div>
-            <div class="flex gap-2">
-              <div class="badge badge-xs badge-info" v-if="project.ai_settings.provider">{{ project.ai_settings.provider }}</div>
-              <div class="badge badge-xs badge-warning" v-if="project.ai_settings.model">{{ project.ai_settings.model }}</div>
+            <div class="flex justify-between">
+              <div class="text-xs text-primary flex gap-1 items-center" v-if="project.ai_settings.provider">
+                <i class="fa-solid fa-brain"></i>
+                {{ project.ai_settings.provider }} / {{ project.ai_settings.model }}
+              </div>
+              <div class="text-xs text-secondary flex gap-1 items-center" v-if="project.embeddings_ai_settings.provider">
+                <i class="fa-regular fa-file"></i>
+                {{ project.embeddings_ai_settings.provider }} / {{ project.embeddings_ai_settings.model }}
+              </div>
             </div>
           </div>
         </div>
