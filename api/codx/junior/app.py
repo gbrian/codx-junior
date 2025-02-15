@@ -4,6 +4,7 @@ import shutil
 import time
 import logging
 import asyncio
+import socketio
 
 from multiprocessing.pool import ThreadPool
 from threading import Thread
@@ -15,7 +16,7 @@ logger = logging.getLogger(__name__)
 from pathlib import Path
 import traceback
 
-from codx.junior.sio.sio import socket_app, sio
+from codx.junior.sio.sio import sio
 from codx.junior.sio.session_channel import SessionChannel
 
 from codx.junior.profiling.profiler import profile_function
@@ -92,7 +93,7 @@ from codx.junior.context import AICodeGerator
 
 from codx.junior.background import start_background_services
 
-STATIC_FOLDER=os.environ.get("STATIC_FOLDER")
+CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
@@ -105,6 +106,9 @@ app = FastAPI(
     redoc_url="/api/redoc",
     ssl_context='adhoc'
 )
+
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
 
 @app.on_event("startup")
 def startup_event():
@@ -140,10 +144,6 @@ async def add_gpt_engineer_settings(request: Request, call_next):
         except Exception as ex:
             logger.error(f"Error loading settings {codx_path}: {ex}\n{request.url}")
     return await call_next(request)
-
-@app.get("/")
-def index():
-    return RedirectResponse(url="/index.html")
 
 @app.get("/api/health")
 def api_health_check():
@@ -469,14 +469,10 @@ def api_restart():
     logger.info(f"****************** API RESTARTING... bye *******************")
     exec_command("sudo kill 7")
 
-#wrap with ASGI application
-app.mount("/", socket_app)
-
-
-if STATIC_FOLDER:
-    os.makedirs(STATIC_FOLDER, exist_ok=True)
-    logger.info(f"API Static folder: {STATIC_FOLDER}")
-    app.mount("/", StaticFiles(directory=STATIC_FOLDER, html=True), name="client_chat")
+if CODX_JUNIOR_STATIC_FOLDER:
+    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)
+    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")
+    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")
 
 app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
 

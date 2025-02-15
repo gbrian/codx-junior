@@ -63,9 +63,12 @@ class KnowledgeDB:
         global CONNECTIONS_CACHE
         self.db = CONNECTIONS_CACHE.get(self.index_name)
         if not self.db:
-            self.db = MilvusClient(self.db_file)
-            CONNECTIONS_CACHE[self.index_name] = self.db
-    
+            try:
+                self.db = MilvusClient(self.db_file)
+                CONNECTIONS_CACHE[self.index_name] = self.db
+            except Exception as ex:
+                logger.exception(f"Error connecting to project's DB {self.settings.project_name}")
+
     def init_collection(self):
         collections = self.db.list_collections()
         if self.index_name not in collections:

@@ -5,16 +5,16 @@ import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 
 const {
-  API_PORT,
+  CODX_JUNIOR_API_PORT,
   NOTEBOOKS_URL,
-  CODER_PORT,
+  CODX_JUNIOR_CODER_PORT,
   NOVNC_PORT,
-  FILEBROWSER_PORT
+  CODX_JUNIOR_FILEBROWSER_PORT
 } = process.env
-const apiUrl = `http://0.0.0.0:${API_PORT}`
-const coderUrl = `http://0.0.0.0:${CODER_PORT}`
+const apiUrl = `http://0.0.0.0:${CODX_JUNIOR_API_PORT}`
+const coderUrl = `http://0.0.0.0:${CODX_JUNIOR_CODER_PORT}`
 const noVNCUrl = `http://0.0.0.0:${NOVNC_PORT}`
-const filebrowserUrl = `http://0.0.0.0:${FILEBROWSER_PORT}/filebrowser`
+const filebrowserUrl = `http://0.0.0.0:${CODX_JUNIOR_FILEBROWSER_PORT}/filebrowser`
 
 console.log("filebrowserUrl", filebrowserUrl)
 // https://vitejs.dev/config/
@@ -71,6 +71,7 @@ export default defineConfig({
   },
   build: {
     outDir: './dist',
+    minify: false,
     emptyOutDir: true, // also necessary
   }
 })

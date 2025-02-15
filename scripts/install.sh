@@ -4,10 +4,7 @@
 set -e
 
 # Load .env variables
-export $(grep -v '^#' .env | xargs)
-
-# Set CODX_JUNIOR_PATH to the current script directory
-export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")" && pwd)"
+export $(grep -v '^#' ${CODX_JUNIOR_PATH}/.env | xargs)
 
 bash scripts/logo.sh
 
