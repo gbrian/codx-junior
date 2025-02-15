@@ -615,11 +615,11 @@ class CODXJuniorSession:
         return True
 
     @profile_function
-    async def check_file(self, file_path: str):
+    async def check_file(self, file_path: str, force: bool = False):
         res = await self.check_file_for_mentions(file_path=file_path)
         self.log_info(f"Check file {file_path} for mentions: {res}")
         # Reload knowledge 
-        if res != "processing" and self.settings.watching:
+        if res != "processing" and (force or self.settings.watching):
             knowledge = self.get_knowledge()
             knowledge.reload_path(path=file_path)
 
