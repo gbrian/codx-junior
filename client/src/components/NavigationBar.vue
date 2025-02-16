@@ -22,7 +22,7 @@ import moment from 'moment';
     <UserList v-if="false" />
 
 
-    <div class="flex w-full flex-col mt-4 hidden md:flex">
+    <div class="flex w-full flex-col mt-4 flex">
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'knowledge' ? 'bg-base-100 text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Knowledge"
@@ -82,7 +82,7 @@ import moment from 'moment';
     <div class="grow"></div>
     <div class="divider"></div>
       
-    <div class="flex w-full flex-col mt-4 hidden md:flex">
+    <div class="flex w-full flex-col mt-4 flex">
       <div :class="['hover:bg-base-100 click relative', $ui.appActives[0] === 'coder' ? 'text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
         @click.stop="$ui.setShowCoder(true)">
