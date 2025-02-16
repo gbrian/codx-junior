@@ -2,6 +2,7 @@
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 import BrowserVue from './browser/Browser.vue'
 import CoderVue from '../components/apps/Coder.vue'
+import PreviewVue from '../components/apps/Preview.vue'
 import CodxJuniorVue from '../views/CodxJunior.vue'
 import NavigationBar from '../components/NavigationBar.vue'
 import LogViewerVue from './LogViewer.vue'
@@ -20,12 +21,12 @@ import LogViewerVue from './LogViewer.vue'
           <SplitterResizeHandle id="splitter-group-2-resize-handle-1" class="bg-stone-800 hover:bg-slate-600"
             :class="isHorizontal ? 'w-1' : 'h-1'" v-if="$ui.showBrowser && $ui.showCoder" />
           <SplitterPanel id="splitter-group-2-panel-2" :min-size="20" class="" :order="1" v-if="$ui.showBrowser">
-            <BrowserVue class="h-full w-full" :token="$ui.monitorToken" />
+            <PreviewVue class="h-full w-full" :token="$ui.monitorToken" />
           </SplitterPanel>
         </SplitterGroup>
         <div class="h-full w-full" v-if="$ui.showApp && $ui.appDivided === 'none'">
           <CoderVue class="h-full w-full" v-if="$ui.showCoder" />
-          <BrowserVue class="h-full w-full" :token="$ui.monitorToken"
+          <PreviewVue class="h-full w-full" :token="$ui.monitorToken"
             v-if="$ui.showBrowser" />
         </div>
       </SplitterPanel>

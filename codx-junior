@@ -36,8 +36,16 @@ function run_app() {
     bash ${CODX_JUNIOR_PATH}/scripts/logo.sh
 
     echo "Running the application..."
-    bash ${CODX_JUNIOR_PATH}/scripts/run_api.sh
+    # /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
+    run_codx_apps
+    bash ${CODX_JUNIOR_PATH}/scripts/run_client.sh
 }
+
+run_codx_apps() {
+    code-server --bind-addr=0.0.0.0:${CODX_JUNIOR_CODER_PORT} --auth=none &
+    bash ${CODX_JUNIOR_PATH}/scripts/run_api.sh &
+}
+
 
 # Check the command line argument
 case "$1" in
@@ -49,6 +57,9 @@ case "$1" in
         ;;
     run)
         run_app
+        ;;
+    run-api)
+        run_api
         ;;
     *)
         echo "Invalid command. Use 'help' to see available commands."
