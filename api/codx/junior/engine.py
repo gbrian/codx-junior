@@ -70,7 +70,6 @@ from codx.junior.mention_manager import (
     is_processing_mentions
 )
 from codx.junior.db import (
-    CODXJuniorDB,
     Kanban,
     Chat,
     Message,
@@ -193,7 +192,6 @@ class CODXJuniorSession:
             channel: SessionChannel = None):
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
         self.channel = channel
-        self.db = CODXJuniorDB(settings=self.settings)
         
         if not channel:
             from codx.junior.sio.sio import sio
@@ -1317,9 +1315,10 @@ class CODXJuniorSession:
 
     def get_project_changes(self, parent_branch: str = None):
         if not parent_branch:
-            parent_branch = self.get_project_parent_branch()
+            #parent_branch = self.get_project_parent_branch()
+            parent_branch = "HEAD"
             self.log_info(f"get_project_changes parent_branch {parent_branch}")
-        stdout, _ = exec_command(f"git diff {parent_branch}...",
+        stdout, _ = exec_command(f"git diff {parent_branch}",
                       cwd=self.settings.project_path)
         return stdout
 

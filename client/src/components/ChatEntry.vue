@@ -184,14 +184,7 @@ export default {
       }
     },
     copyTextToClipboard(text) {
-      const textArea = document.createElement('textarea')
-      textArea.value = text
-      document.body.appendChild(textArea)
-      textArea.focus()
-      textArea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textArea)
-      console.log('Code copied', text)
+      this.$ui.copyTextToClipboard(text)
     },
     onMessageCopy(ev) {
       const text = window.getSelection().toString()

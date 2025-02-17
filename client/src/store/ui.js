@@ -65,7 +65,7 @@ export const mutations = mutationTree(state, {
   },
   setActiveTab(state, tabIx) {
     if (state.tabIx === tabIx) {
-      if (!$storex.ui.isMobile) {
+      if (!$storex.ui.isMobile && $storex.ui.showApp) {
         state.tabIx = null
       }
     } else {
@@ -187,6 +187,16 @@ export const actions = actionTree(
       await API.screen.getScreenResolution()
       state.resolution = API.screen.display?.resolution,
       state.resolutions = API.screen.display?.resolutions
+    },
+    copyTextToClipboard(_, text) {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      console.log('Code copied', text)
     }
   },
 )
