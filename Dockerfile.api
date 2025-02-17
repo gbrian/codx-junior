@@ -2,7 +2,7 @@ FROM debian:latest AS api
 
 ENV CODX_JUNIOR_PATH=/usr/local/codx-junior
 # API virtual env
-ENV API_VENV=/tmp/.venv_codx_junior_api
+ENV CODX_JUNIOR_API_VENV=/tmp/.venv_codx_junior_api
 
 RUN apt-get update && \
     apt-get install -y python3 python3-venv nano && \

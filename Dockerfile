@@ -12,19 +12,19 @@ ENV DISPLAY_WIDTH 1920
 ENV DISPLAY_HEIGHT 1080
 ENV VNC_NO_PASSWORD 1
 # API virtual env
-ENV API_VENV /tmp/.venv_codx_junior_api
+ENV CODX_JUNIOR_API_VENV /tmp/.venv_codx_junior_api
 # Browser virtual env
 ENV BROWSER_VENV /tmp/.venv_codx_junior_browser
 # codx-junior API port
-ENV API_PORT 9984
+ENV CODX_JUNIOR_API_PORT 9984
 # codx-junior WEB port
 ENV WEB_PORT 9983
 # codx-junior code-server port
-ENV CODER_PORT 9909
+ENV CODX_JUNIOR_CODER_PORT 9909
 # codx-junior NOVNC port
 ENV NOVNC_PORT 9986
 # Filebrowser port
-ENV FILEBROWSER_PORT 9987
+ENV CODX_JUNIOR_FILEBROWSER_PORT 9987
 # Browser-use port
 ENV BROWSER_PORT 9988
 
@@ -46,7 +46,7 @@ RUN chmod +x ${CODX_JUNIOR_PATH}/scripts/run_client.sh
 COPY --chown=${USER} code-server/User/settings.json ${HOME}/.local/share/code-server/User/settings.json
 
 # Copy API venv
-COPY --from=api --chown=${USER} $API_VENV $API_VENV
+COPY --from=api --chown=${USER} $CODX_JUNIOR_API_VENV $CODX_JUNIOR_API_VENV
 
 USER root
 RUN mkdir -p ${CODX_SUPERVISOR_LOG_FOLDER}

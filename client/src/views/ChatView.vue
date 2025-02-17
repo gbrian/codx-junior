@@ -10,15 +10,15 @@ import Kanban from '@/components/kanban/Kanban.vue';
   <div class="flex flex-col h-full pb-2" v-if="chat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col gap-2 w-full">
-        <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
+        <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
               <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else>
-                <div class="mt-1 text-xs hover:underline click font-bold text-primary"
+                <div class="my-2 text-xs hover:underline click font-bold text-primary"
                   @click="naviageToParent"
                   v-if="parentChat || Kanban">
-                  <i class="fa-solid fa-turn-up"></i> {{ parentChat?.name || kanban?.title }}
+                  <i class="fa-solid fa-turn-up"></i> {{ parentChat?.name || kanban?.title }} ...
                 </div>
                 <div class="flex items-center gap-2">
                   <div class="dropdown">
@@ -34,52 +34,57 @@ import Kanban from '@/components/kanban/Kanban.vue';
                       </li>
                     </ul>
                   </div>
-                  <div class="click" @click="editName = true">
+                  <div class="click text-xs md:text-xl" @click="editName = true">
                     {{ chat.name }}
                   </div>
                 </div>
               </div>
             </div>
             <div class="grow"></div>
-            <div class="flex gap-2 p-1 items-center -top-1">
-              <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
-                <div class="flex items-center gap-2" v-if="!showHidden">
-                  ({{ hiddenCount }})
-                  <i class="fa-solid fa-eye-slash"></i>
-                </div>
-                <span class="text-warning" v-else>
-                  <i class="fa-solid fa-eye"></i>
-                </span>
-              </button>
-              <div class="dropdown dropdown-end dropdown-bottom">
-                <div tabindex="0" class="btn btn-sm flex items-center indicator">
-                  Tasks
-                  <span v-if="childrenChats.length">
-                    ({{ childrenChats.length }})
-                  </span>
-                  <i class="fa-solid fa-caret-down"></i>
-                </div>
-                <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] p-2 w-96 shadow">
-                  <li @click="newSubChat()">
-                    <a>New sub task</a>
-                  </li>
-                  <li @click="createSubTasks()">
-                    <a>Create sub tasks <i class="fa-solid fa-wand-magic-sparkles"></i></a>
-                  </li>
-                  <div class="divider" v-if="childrenChats.length"></div>
-                  <div class="max-h-96 w-full overflow-auto flex flex-col gap-2 p-1">
-                    <TaskCard class="p-2" :task="child" @click="$projects.setActiveChat(child)"
-                          v-for="child in childrenChats" :key="childrenChats.id" />
+            <div class="flex gap-1 items-center">
+              <div class="flex gap-2 p-1 items-center -top-1" v-if="toggleChatOptions">
+                <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
+                  <div class="flex items-center gap-2" v-if="!showHidden">
+                    ({{ hiddenCount }})
+                    <i class="fa-solid fa-eye-slash"></i>
                   </div>
-                </ul>
+                  <span class="text-warning" v-else>
+                    <i class="fa-solid fa-eye"></i>
+                  </span>
+                </button>
+                <div class="dropdown dropdown-end dropdown-bottom">
+                  <div tabindex="0" class="btn btn-sm flex items-center indicator">
+                    Tasks
+                    <span v-if="childrenChats.length">
+                      ({{ childrenChats.length }})
+                    </span>
+                    <i class="fa-solid fa-caret-down"></i>
+                  </div>
+                  <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] p-2 w-96 shadow">
+                    <li @click="newSubChat()">
+                      <a>New sub task</a>
+                    </li>
+                    <li @click="createSubTasks()">
+                      <a>Create sub tasks <i class="fa-solid fa-wand-magic-sparkles"></i></a>
+                    </li>
+                    <div class="divider" v-if="childrenChats.length"></div>
+                    <div class="max-h-96 w-full overflow-auto flex flex-col gap-2 p-1">
+                      <TaskCard class="p-2" :task="child" @click="$projects.setActiveChat(child)"
+                            v-for="child in childrenChats" :key="childrenChats.id" />
+                    </div>
+                  </ul>
+                </div>
+                <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
+                  <i class="fa-solid fa-floppy-disk"></i>
+                </button>
+                <div class="grow"></div>
+                <button class="btn btn-xs btn-error btn-outline mt-1 text-white" @click="navigateToChats">
+                  <i class="fa-regular fa-circle-xmark"></i>
+                </button>
               </div>
-              <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
-                <i class="fa-solid fa-floppy-disk"></i>
-              </button>
-              <div class="grow"></div>
-              <button class="btn btn-xs btn-error btn-outline mt-1 text-white" @click="navigateToChats">
-                <i class="fa-regular fa-circle-xmark"></i>
-              </button>
+              <div class="md:hidden btn btn-sm" @click="toggleChatOptions = !toggleChatOptions">
+                <i class="fa-solid fa-bars"></i>
+              </div>
             </div>
           </div>
         </div>
@@ -209,8 +214,12 @@ export default {
       chatModes: {
         "task": { name: "Analyst", profiles: ["analyst"], icon: "fa-solid fa-user-doctor" },
         "chat": { name: "Developer", profiles: ["software_developer"], icon: "fa-solid fa-code" },
-      }
+      },
+      toggleChatOptions: false
     }
+  },
+  mounted () {
+    this.toggleChatOptions = !this.$ui.isMobile
   },
   computed: {
     subProjects () {

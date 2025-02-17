@@ -1,7 +1,7 @@
 from inspect import getcallargs
 
 from langchain.output_parsers import PydanticOutputParser
-from langchain_core.pydantic_v1 import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator
 from typing import Union, List
 
 class Prompt():

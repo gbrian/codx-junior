@@ -1,4 +1,5 @@
-from __future__ import annotations
+import os
+
 from pydantic import BaseModel, Field
 from datetime import datetime
 
@@ -30,21 +31,6 @@ class Logprobs(BaseModel):
     token_logprobs: List[float]
     top_logprobs: List[Dict[str, float]]
     text_offset: List[int]
-
-class Choice(BaseModel):
-    index: int
-    message: Message
-    logprobs: Optional[Logprobs]
-    finish_reason: str
-
-class ChatResponse(BaseModel):
-    id: str
-    object: str
-    created: int
-    model: str
-    system_fingerprint: str
-    choices: List[Choice]
-    usage: Dict[str, int]
 
 class KnowledgeReloadPath(BaseModel):
     path: str
@@ -119,6 +105,13 @@ class ProjectScript(BaseModel):
     background: bool = Field(description="Script runs in background", default=False)
     restart: bool = Field(description="Script must be restarted if stopped", default=False)
 
+class Bookmark(BaseModel):
+    name: str
+    icon: Optional[str] = Field(default="")
+    title: Optional[str] = Field(default="")
+    url: Optional[str] = Field(default="")
+    port: Optional[int] = Field(default=None)
+
 class GlobalSettings(BaseModel):
     openai: OpenAISettings = Field(default=OpenAISettings())
     anthropic_ai: AnthropicAISettings = Field(default=AnthropicAISettings())
@@ -139,6 +132,11 @@ class GlobalSettings(BaseModel):
     enable_file_manager: bool = Field(default=False)
 
     project_scripts: Optional[List[ProjectScript]] = Field(default=[])
+
+    bookmarks: List[Bookmark] = Field(default=[
+        Bookmark(name="Coder", title="code-server", port=os.environ["CODX_JUNIOR_CODER_PORT"]),
+        Bookmark(name="Desktop", title="Desktop", port=os.environ["CODX_JUNIOR_NOVNC_PORT"])
+    ])
 
 class Screen(BaseModel):
     resolution: str = Field(default='')

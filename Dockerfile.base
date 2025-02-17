@@ -74,5 +74,5 @@ Default=1" > ${CODX_JUNIOR_HOME}/.mozilla/firefox/profiles.ini
 RUN mkdir ${CODX_JUNIOR_HOME}/FileSync
 
 ENV CODX_JUNIOR_PATH=/usr/local/codx-junior
-ENV STATIC_FOLDER=${CODX_JUNIOR_PATH}/client/dist
+ENV CODX_JUNIOR_STATIC_FOLDER=${CODX_JUNIOR_PATH}/client/dist
 

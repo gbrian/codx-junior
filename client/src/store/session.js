@@ -90,8 +90,9 @@ export const actions = actionTree(
         state.events = state.events.filter(e => e.ts >= expireNotif)
       }
     },
-    connect ({ state }) {
+    connect () {
       const socket = io({
+        path: '/api/socket.io',
         reconnectionDelayMax: 1000
        })
        socket.on("connect_error", (err) => {

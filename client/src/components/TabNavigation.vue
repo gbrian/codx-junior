@@ -43,7 +43,7 @@
           <li @click="showCoder()">
             <a><i class="fa-solid fa-code"></i> Coder</a></li>
           <li @click="showBrowser()">
-            <a><i class="fa-solid fa-display"></i> Prefiew</a>
+            <a><i class="fa-solid fa-display"></i> Preview</a>
           </li>
         </ul>
       </div>

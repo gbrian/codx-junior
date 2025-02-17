@@ -23,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 #Socket io (sio) create a Socket.IO server
 sio = socketio.AsyncServer(cors_allowed_origins='*',async_mode='asgi')
-socket_app = socketio.ASGIApp(sio)
 
 SIO_POOL = ThreadPoolExecutor(max_workers=10)
 

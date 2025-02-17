@@ -65,7 +65,9 @@ export const mutations = mutationTree(state, {
   },
   setActiveTab(state, tabIx) {
     if (state.tabIx === tabIx) {
-      state.tabIx = null
+      if (!$storex.ui.isMobile) {
+        state.tabIx = null
+      }
     } else {
       state.tabIx = tabIx
     }
@@ -82,6 +84,9 @@ export const mutations = mutationTree(state, {
     } else {
       state.appActives = state.appActives.filter(a => a !== 'coder')
     }
+    if (state.showCoder && state.isMobile && state.showBrowser) {
+      $storex.ui.setShowBrowser(false)
+    }
     $storex.ui.saveState()
   },
   setShowBrowser(state, show) {
@@ -90,6 +95,9 @@ export const mutations = mutationTree(state, {
       state.appActives = ['browser', ...state.appActives]
     } else {
       state.appActives = state.appActives.filter(a => a !== 'browser')
+    }
+    if (state.showCoder && state.isMobile && state.showBrowser) {
+      $storex.ui.setShowCoder(false)
     }
     $storex.ui.saveState()
   },
@@ -126,7 +134,7 @@ export const mutations = mutationTree(state, {
   setUIready(state) {
     state.uiReady = true
     // If no user projects, go to help
-    if (!$storex.projects.allProjects?.find(p => p.project_path.indexOf("codx-junior") === -1)) {
+    if (!state.tabIx || !$storex.projects.allProjects?.find(p => p.project_path.indexOf("codx-junior") === -1)) {
       $storex.ui.setActiveTab('help')
     }
   },

@@ -1,0 +1,67 @@
+#!/bin/bash
+
+# Load .env variables
+export $(grep -v '^#' .env | xargs)
+
+# Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
+if [ -z "${CODX_JUNIOR_PATH}" ]; then
+    # Set CODX_JUNIOR_PATH to the current script directory
+    export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+# Ensure all background processes are terminated on script exit
+trap "kill 0" EXIT
+
+# Function to display help information
+function show_help() {
+    echo "Usage: app.cli [command]"
+    echo
+    echo "Commands:"
+    echo "  help      Display this help message"
+    echo "  install   Install the application"
+    echo "  run       Run the application"
+}
+
+# Function to simulate installation process
+function install_app() {
+    echo "Starting the installation process..."
+    
+    bash ${CODX_JUNIOR_PATH}/scripts/install.sh
+
+    echo "Application installed successfully."
+}
+
+# Function to simulate running the application
+function run_app() {
+    bash ${CODX_JUNIOR_PATH}/scripts/logo.sh
+
+    echo "Running the application..."
+    # /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
+    run_codx_apps
+    bash ${CODX_JUNIOR_PATH}/scripts/run_client.sh
+}
+
+run_codx_apps() {
+    code-server --bind-addr=0.0.0.0:${CODX_JUNIOR_CODER_PORT} --auth=none &
+    bash ${CODX_JUNIOR_PATH}/scripts/run_api.sh &
+}
+
+
+# Check the command line argument
+case "$1" in
+    help)
+        show_help
+        ;;
+    install)
+        install_app
+        ;;
+    run)
+        run_app
+        ;;
+    run-api)
+        run_api
+        ;;
+    *)
+        echo "Invalid command. Use 'help' to see available commands."
+        ;;
+esac

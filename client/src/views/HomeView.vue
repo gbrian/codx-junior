@@ -18,7 +18,7 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue';
           <LogoVue />
         </label>
       </div>
-      <TabNavigationVue />
+      <TabNavigationVue v-if="!$projects.activeChat" />
       <TabViewVue class="grow" />
     </div>
     <div class="drawer-side">
