@@ -209,13 +209,7 @@ export const actions = actionTree(
         chat,
         code_generator
       }
-      return new Promise((ok, ko) => {
-        const tout = setTimeout(ko, 200000)
-        $storex.session.socket.emit('codx-junior-improve-patch', data, response => {
-          clearTimeout(tout)
-          ok(response)
-        })
-      })
+      $storex.session.socket.emit('codx-junior-improve-patch', data)
     },
     async onChatEvent({ state }, { event, data }) {
       const {

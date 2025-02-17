@@ -38,7 +38,7 @@ import moment from 'moment';
           data-tip="Kanban"
           @click="$ui.setActiveTab('tasks')">
            <div class="flex flex-col gap-4">
-            <i class="fa-solid fa-list-check"></i>
+            <i class="fa-brands fa-trello"></i>
           </div>
 				</a>
 			</div>

@@ -227,9 +227,9 @@ export default {
       patch.working = true 
       try {
         const code_changes = this.code_changes.filter(cc => cc.file_path === patch.file_path)
-        patch.res = await this.$projects.codeImprovePatch({ chat: this.chat, code_generator: { code_changes, code_patches: [ patch ] } })
-        if (patch.res.info?.toLowerCase().includes('error')) {
-          patch.res.error = patch.res.info
+        await this.$projects.codeImprovePatch({ chat: this.chat, code_generator: { code_changes, code_patches: [ patch ] } })
+        patch.res = {
+          info: "Patch sent, please check events for updates"
         }
       } catch {
         patch.res = { info: "", error: "Error aplaying patch" }
