@@ -8,7 +8,6 @@ import KanbanList from "./KanbanList.vue"
 </script>
 
 <template>
-  <div>
   <KanbanList
       :boards="boards"
       @select="selectBoard" 
@@ -95,12 +94,12 @@ import KanbanList from "./KanbanList.vue"
         </button>
         <draggable
           v-model="columns"
-          group="tasks"
-          :itemKey="c => c.title + c.position"
-          :move="() => !$ui.isMobile"
+          group="columns"
+          itemKey="id"
           :disabled="$ui.isMobile"
           @end="onColumnTaskListChanged"
           class="min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
+          :class="$ui.isMobile && 'border border-red-300'"
         >
           <template #item="{ element: column }">
             <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
@@ -138,8 +137,7 @@ import KanbanList from "./KanbanList.vue"
                 <draggable
                   v-model="column.tasks"
                   group="tasks"
-                  :itemKey="column.title"
-                  :move="() => !$ui.isMobile"
+                  itemKey="id"
                   :disabled="$ui.isMobile"
                   @end="onColumnTaskListChanged(column)"
                   class="mt-3"
@@ -147,7 +145,7 @@ import KanbanList from "./KanbanList.vue"
                   <template #item="{ element: task }">
                     <task-card
                       :task="task"
-                      :itemKey="task.id"
+                      :itemKey="'id'"
                       class="cursor-move overflow-hidden mt-2"
                       @click="openChat(task)"
                     />
@@ -159,7 +157,6 @@ import KanbanList from "./KanbanList.vue"
         </draggable>
       </div>
     </div>
-  </div>
 </template>
 
 <script>

@@ -452,11 +452,14 @@ def api_screen_set(screen: Screen):
 @app.get("/api/screen")
 def api_screen_get():
     screen = Screen()
-    res, _ = exec_command(f"sudo xrandr --current")
-    # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
-    lines = res.split("\n")
-    screen_line = [l for l in lines if l.startswith("Screen ")][0]
-    screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
+    try:
+        res, _ = exec_command(f"sudo xrandr --current")
+        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
+        lines = res.split("\n")
+        screen_line = [l for l in lines if l.startswith("Screen ")][0]
+        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
+    except Exception as ex:
+        logger.error(f"Error extracting screen resolutions {ex}")
     return screen
 
 @app.post("/api/image-to-text")

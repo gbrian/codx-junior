@@ -17,7 +17,7 @@ import PreviewVue from "./apps/Preview.vue"
 </script>
 <template>
   <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder":class="$ui.tabIx" />
-  <KanbanVue v-bind="$attrs" v-if="$ui.tabIx === 'tasks'":class="$ui.tabIx" />
+  <KanbanVue v-if="$ui.tabIx === 'tasks'" />
   <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge'":class="$ui.tabIx" />
   <KnowledgeSettingsVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge_settings'":class="$ui.tabIx" />
   <WikiViewVue v-bind="$attrs" v-if="$ui.tabIx == 'wiki'"></WikiViewVue>
