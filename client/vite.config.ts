@@ -69,7 +69,10 @@ console.log("proxy settings", proxy)
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
-    proxy
+    proxy,
+    watch: {
+      ignored: ["**/.codx/**"],
+    },
   },
   plugins: [
     vue(),
