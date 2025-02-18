@@ -50,9 +50,9 @@ class ProfileManager:
             content = f.read()
             profile = Profile(**json.loads(content))
             profile.path = profile_path
-        profile_content_file_path = f"{profile_path}.md"
-        if os.path.isfile(profile_content_file_path):
-            with open(profile_content_file_path, 'r') as f:
+        profile.content_path = f"{profile_path}.md"
+        if os.path.isfile(profile.content_path):
+            with open(profile.content_path, 'r') as f:
               profile.content = f.read()
         return profile
 
@@ -61,10 +61,10 @@ class ProfileManager:
             raise Exception('Invalid profie')
 
         profile_path = f"{os.path.join(self.profiles_path, profile.name)}.profile"
-        profile_content_file_path = f"{profile_path}.md"
+        profile.content_path = f"{profile_path}.md"
         
         logger.info(f"Save profile {profile_path}")
-        with open(profile_content_file_path, 'w') as f:
+        with open(profile.content_path, 'w') as f:
               f.write(profile.content)
         profile.content = f"See {profile.name}.profile.md file"
 

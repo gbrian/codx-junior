@@ -1,31 +1,66 @@
 <script setup>
+import moment from 'moment';
 </script>
 
 <template>
   <div class="w-full h-full flex flex-col gap-2">
     <h1 class="text-2xl font-bold mb-4">Kanban Boards Dashboard</h1>
+    <div class="flex justify-end">
+      <button class="btn btn-sm btn-warning btn-outline" @click="emitNewKanban">
+        <i class="fa-solid fa-plus"></i> New Kanban
+      </button>
+    </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" v-if="boards">
-      <div v-for="board in boards" :key="board.title" 
-          @click="selectBoard(board)"
-        class="click card bg-base-100 shadow-md p-4 rounded-lg border border-sky-400/80">
-        <h2 class="font-bold text-lg">{{ board.title }}</h2>
-        <p class="text-sm">{{ board.description }}</p>
-        <p class="text-xs text-gray-500">Last Update: {{ board.last_update }}</p>
-        <div class="flex items-center mt-2">
-          <i class="fas fa-columns text-gray-600 mr-2"></i>
-          <span>{{ board.columns?.length || 0 }} Columns</span>
+      <div
+        v-for="board in sortedBoards"
+        :key="board.title"
+        @click="selectBoard(board)"
+        class="card bg-base-100 shadow-md p-4 rounded-lg border border-sky-400/80 cursor-pointer"
+      >
+        <div class="card-body flex flex-col">
+          <h2 class="card-title">{{ board.title }}</h2>
+          <p class="text-sm">{{ board.description }}</p>
+          <div class="grow"></div>
+          <div class="flex flex-col">
+            <p class="text-xs text-gray-500">Last Update: <span v-if="board.last_update">{{ moment(board.last_update).fromNow() }}</span></p>
+            <div class="flex items-center mt-2">
+              <i class="fas fa-columns text-gray-600 mr-2"></i>
+              <span>{{ board.columns?.length || 0 }} Columns</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        @click="emitNewKanban"
+        class="card bg-base-100 shadow-md p-4 rounded-lg border border-dashed border-gray-400 flex items-center justify-center cursor-pointer"
+      >
+        <div class="card-body flex items-center justify-center">
+          <i class="fas fa-plus text-gray-600 mr-2"></i>
+          <span class="font-bold text-lg">New Kanban</span>
         </div>
       </div>
     </div>
   </div>
 </template>
+
 <script>
 export default {
   props: ['boards'],
+  computed: {
+    sortedBoards() {
+      return Object.values(this.boards)
+        .sort((a, b) => 
+          a.last_update && b.last_update ? 
+            a.last_update > b.last_update ? -1 : 1 :
+              a.last_update ? -1 : 1)
+    }
+  },
   methods: {
     selectBoard(board) {
-      console.log("WTH", board)
       this.$emit('select', board.title)
+    },
+    emitNewKanban() {
+      this.$emit('new')
     }
   }
 }

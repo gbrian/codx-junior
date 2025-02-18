@@ -8,37 +8,30 @@ import KanbanList from "./KanbanList.vue"
 </script>
 
 <template>
-  <KanbanList
+  <div class="h-full">
+    <KanbanList
       :boards="boards"
-      @select="selectBoard" 
-      v-if="!$projects.activeChat && !board"/>
+      @select="selectBoard"
+      @new="showNewBoardModal"
+      v-if="!$projects.activeChat && !board"
+    />
     <ChatViewVue
+      class="h-full"
       @chats="onChatEditDone"
       @sub-task="createSubTask"
       @chat="$projects.setActiveChat($event)"
       :kanban="activeBoard"
       v-if="$projects.activeChat"
     />
-    <div v-if="!$projects.activeChat && board">
+
+    <div v-if="showKanban">
       <div class="flex gap-4 items-center">
         <div class="flex gap-2 items-center">
-          <div class="dropdown">
-            <div tabindex="0" class="text-xl py-1 px-2 click flex items-center gap-2" @click="toggleDropdown">
-              <button class="btn btn-sm">
-                <i class="fa-solid fa-sort-down"></i>
-              </button>
-              {{ activeBoard?.title }} 
-            </div>
-            <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-52 p-2 shadow">
-              <li v-for="tasksBoard in boards" :key="tasksBoard.id" @click="selectBoard(tasksBoard.id)">
-                <a class="flex justify-between">
-                  {{ tasksBoard.title }}
-                  <div class="shrink-0" v-if="tasksBoard.tasks?.length"> 
-                    ({{ tasksBoard.tasks.length }})
-                  </div> 
-                </a>
-              </li>
-            </ul>
+          <div tabindex="0" class="text-xl py-1 px-2 click flex items-center gap-2" @click="toggleDropdown">
+            <button class="btn btn-sm" @click="selectBoard()">
+              <i class="fa-solid fa-caret-left"></i>
+            </button>
+            {{ activeBoard?.title }} 
           </div>
         </div>
         <div class="grow"></div>
@@ -50,43 +43,12 @@ import KanbanList from "./KanbanList.vue"
             </span>
             <span v-else><i class="fa-solid fa-filter"></i></span>
           </div>
-          <button class="btn btn-sm btn-warning btn-outline" @click="showNewBoardModal">
-            <i class="fa-solid fa-plus"></i> Board
-          </button>
-          
           <button class="btn btn-sm btn-outline" @click="showColumnModal = true" v-if="columnList?.length">
             <i class="fa-solid fa-plus"></i>
             <span class="text-xs md:text-md">Column</span>
           </button>
         </div>
       </div>
-      <modal v-if="showBoardModal">
-        <h2 class="font-bold text-lg">Add New Board</h2>
-        <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
-        <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
-        <select v-model="selectedTemplate" class="select select-bordered w-full mt-2">
-          <option disabled value="">Select a Template</option>
-          <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
-        </select>
-        <div class="modal-action">
-          <button class="btn" @click="addBoard">OK</button>
-          <button class="btn" @click="showBoardModal = false">Cancel</button>
-        </div>
-      </modal>
-      <modal v-if="showColumnModal">
-        <h2 class="font-bold text-lg">Add/Edit Column</h2>
-        <div class="flex gap-1 items-center">
-          <input type="text" v-model="columnTitle" placeholder="Enter column name"
-            class="grow input input-bordered w-full"/>
-          <VSwatches v-model="columnColor" class="h-full mt-1" />
-        </div>
-        <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
-        <div class="modal-action">
-          <button class="btn" @click="addOrUpdateColumn">OK</button>
-          <button class="btn" @click="showColumnModal = false">Cancel</button>
-        </div>
-        <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
-      </modal>
       <div class="mt-3 grow">
         <button class="btn btn-sm btn-wide btn-primary" @click="showColumnModal = true" v-if="!columnList?.length">
           <i class="fa-solid fa-plus"></i>
@@ -157,6 +119,35 @@ import KanbanList from "./KanbanList.vue"
         </draggable>
       </div>
     </div>
+    <modal v-if="showBoardModal">
+      <h2 class="font-bold text-lg">Add New Board</h2>
+      <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
+      <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
+      <input type="text" v-model="newBoardBranch" placeholder="Enter branch name" class="input input-bordered w-full mt-2"/>
+      <select v-model="selectedTemplate" class="select select-bordered w-full mt-2">
+        <option disabled value="">Select a Template</option>
+        <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
+      </select>
+      <div class="modal-action">
+        <button class="btn" @click="addBoard">OK</button>
+        <button class="btn" @click="showBoardModal = false">Cancel</button>
+      </div>
+    </modal>
+    <modal v-if="showColumnModal">
+      <h2 class="font-bold text-lg">Add/Edit Column</h2>
+      <div class="flex gap-1 items-center">
+        <input type="text" v-model="columnTitle" placeholder="Enter column name"
+          class="grow input input-bordered w-full"/>
+        <VSwatches v-model="columnColor" class="h-full mt-1" />
+      </div>
+      <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
+      <div class="modal-action">
+        <button class="btn" @click="addOrUpdateColumn">OK</button>
+        <button class="btn" @click="showColumnModal = false">Cancel</button>
+      </div>
+      <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
+    </modal>
+  </div>
 </template>
 
 <script>
@@ -172,6 +163,7 @@ export default {
       showColumnModal: false,
       newBoardName: '',
       newBoardDescription: '',
+      newBoardBranch: '',
       columnTitle: '',
       columnColor: '#000000',
       isDropdownOpen: false,
@@ -205,6 +197,9 @@ export default {
     this.projectChanged()
   },
   computed: {
+    showKanban () {
+      return !this.$projects.activeChat && this.activeKanbanBoard
+    },
     kanban() {
       return this.$projects.kanban
     },
@@ -363,13 +358,11 @@ export default {
       this.buildKanban()
     },
     async createSubTask(parent) {
-      const chat = this.createNewChat(parent.column)
-      if (!parent.id) {
-        parent.id = uuidv4()
-      }
-      chat.parent_id = parent.id
-      chat.column = parent.column
-      chat.column_ix = parent.column_ix
+      const chat = this.createNewChat({
+        board: parent.board,
+        column: parent.column,
+        parent_id: parent.id
+      })
       this.$projects.newChat(chat)
     },
     async addOrUpdateColumn() {
@@ -411,6 +404,7 @@ export default {
         this.kanban.boards[boardName] = {
           id: uuidv4(),
           description: this.newBoardDescription.trim() || selectedTemplate.description,
+          branch: this.newBoardBranch.trim(),
           columns: selectedTemplate.columns,
           last_update: new Date().toISOString()
         }
@@ -418,6 +412,7 @@ export default {
       }
       this.newBoardName = ''
       this.newBoardDescription = ''
+      this.newBoardBranch = ''
       this.selectedTemplate = null
       this.showBoardModal = false
       this.board = boardName

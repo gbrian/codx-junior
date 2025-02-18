@@ -17,16 +17,6 @@ import moment from 'moment'
         <div class="overflow-auto h-full">
           <div class="flex flex-col" 
             v-for="message in messages" :key="message.id">
-            <div class="divider text-xs my-1" v-if="message.hide && !showHidden">
-              <div class="flex gap-2 justify-between">
-                <div class="click" @click="toggleHide(message)">
-                  <i class="fa-regular fa-eye"></i>
-                </div>
-                <div>hidden message</div>
-                <div class="w-16 font-bold">{{ message.role }}</div> 
-                <div>{{ moment(message.updated_at).format('DD/MMM HH:mm') }}</div>
-              </div>
-            </div>
             <ChatEntry :class="['mb-4 rounded-md bg-base-300 py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
               message.hide ? 'opacity-60' : '']"
@@ -142,7 +132,7 @@ import moment from 'moment'
             @click="sendMessage" 
             v-if="!editMessage">
             <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
-            <i class="fa-solid fa-comment" v-else></i>
+            <i :class="$projects.chatModes[chat.mode].icon" v-else></i>
           </button>
           <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
             :class="isBrowser && 'btn-warning'"
@@ -286,8 +276,45 @@ export default {
     visibleMessages() {
       return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
+    lastAIMessage() {
+      const { messages } = this.chat
+      const aiMsgs = messages.filter(m => !m.hide && m.role === 'assistant')
+      if (aiMsgs.length) {
+        const { diffMessage } = this
+        return { ...aiMsgs[aiMsgs.length - 1], diffMessage }
+      }
+      return null
+    },
+    diffMessage () {
+      if (this.isTask) {
+        const { messages } = this.chat
+        const aiMsgs = messages.filter(m => m.role === 'assistant')
+        if (aiMsgs.length > 1) {
+          return aiMsgs[aiMsgs.length - 2]
+        }
+      }
+      return null
+    },
     messages () {
-      return this.chat?.messages
+      if (!this.chat?.messages) {
+        return []
+      }
+      const { messages } = this.chat
+      if (this.isTask) {
+        const aiMsg = this.lastAIMessage
+        const lastMsg = messages[messages.length - 1]
+        const res = [] 
+        if (aiMsg) {
+          res.push(aiMsg)
+        }
+        if (lastMsg?.role !== 'assistant') {
+          res.push(lastMsg)
+        }
+        if (res.length) {
+          return res
+        }
+      }
+      return messages
     },
     multiline () {
       return this.editorText?.split("\n").length > 1 || this.images?.length
@@ -303,20 +330,6 @@ export default {
     },
     isTask () {
       return this.chat?.mode === 'task'
-    },
-    lastAIMessage() {
-      if (this.chat) {
-        const { messages } = this.chat
-        for(var c = messages.length - 1; c >= 0; --c) {
-          const m = messages[c]
-          if (!m.hide 
-                && m.role === 'assistant'
-                && m.task_item === 'browser') {
-            return m
-          }
-        }
-      }
-      return null
     },
     chatEvents () {
       return this.$session.events.filter(e => e.data.chat?.id === this.chatId
@@ -370,7 +383,7 @@ export default {
     },
     async improveCode () {
       this.postMyMessage()
-      await this.projects.codeImprove(this.chat)
+      await this.$projects.codeImprove(this.chat)
       this.testProject()
     },
     runEdit (codeSnipped) {

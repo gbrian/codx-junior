@@ -279,7 +279,7 @@ class CODXJuniorSession:
 
     async def save_profile(self, profile):
         profile = self.get_profile_manager().save_profile(profile=profile)
-        await self.check_file_for_mentions(file_path=profile.path)
+        await self.check_file_for_mentions(file_path=profile.content_path)
         return self.read_profile(profile_name=profile.name)
 
     def read_profile(self, profile_name):
@@ -358,42 +358,45 @@ class CODXJuniorSession:
         project_dependencies = [find_project_by_name(project_name) for project_name in self.settings.get_project_dependencies()]
         return project_child_projects, project_dependencies
         
+    def find_projects_by_mentions(self, query: str):
+        mentions = re.findall(r'@[a-zA-Z0-9\-\_\.]+', query)
+        self.log_info(f"Extracted mentions: {mentions}")
+        return [m for m in [find_project_by_name(mention[1:]) for mention in mentions] if m]
+
     @profile_function
     def select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str, ignore_documents=[]):
         all_projects = find_all_projects()
         
-        mentions = re.findall(r'@[a-zA-Z0-9\-\_\.]+', query)
-        self.log_info(f"Extracted mentions: {mentions}")
-        
         project_child_projects, project_dependencies = self.get_project_dependencies()
         project_child_projects = project_child_projects if self.settings.knowledge_query_subprojects else []
-        mention_projects = [m for m in [find_project_by_name(mention[1:]) for mention in mentions] if m]
+        mention_projects = self.find_projects_by_mentions(query=query)
         
         search_projects = [p for p in list(map(lambda project_name: ([p for p in all_projects if p == project_name] or [None])[0], 
                                   project_child_projects + project_dependencies + mention_projects)) if p]
 
         for search_project in search_projects:
-            mention = [mention[1:] for mention in mentions if mention == search_project.project_name]
-            query = query.replace(f"@{mention}", "")
+            query = query.replace(f"@{search_project.project_name}", "")
 
         @profile_function
         def process_rag_query(rag_query):
-            self.chat_event(chat=chat, message=f"Search knowledge in {self.settings.project_name}")
-            docs, file_list = find_relevant_documents(query=rag_query, settings=self.settings, ignore_documents=ignore_documents)
-            if not docs:
-                docs = []
-                file_list = []
-            self.log_info(f"select_afefcted_documents_from_knowledge doc length: {len(docs)} - cutoff score {self.settings.knowledge_context_cutoff_relevance_score}")
+            docs = []
+            file_list = []
+
+            projects_to_search = [self.settings]
             if search_projects and self.settings.knowledge_query_subprojects:
-                self.log_info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
-                for sub_settings in search_projects:
-                    self.chat_event(chat=chat, message=f"Search knowledge in {sub_settings.project_name}")
-                    sub_docs, sub_file_list = find_relevant_documents(query=rag_query, settings=sub_settings, ignore_documents=ignore_documents)
-                    self.log_info(f"select_afefcted_documents_from_knowledge search subproject {sub_settings.project_name} docs: {len(sub_docs)}") 
-                    if sub_docs:
-                        docs = docs + sub_docs
-                    if sub_file_list:
-                        file_list = file_list + sub_file_list
+                projects_to_search = projects_to_search + search_projects
+            
+            self.log_info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
+            for search_project in projects_to_search:    
+                self.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.project_path}")
+                project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, ignore_documents=ignore_documents)
+                project_file_list = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
+                if project_docs:
+                    docs = docs + project_docs
+                if project_file_list:
+                    file_list = file_list + project_file_list
+            
+            self.log_info(f"select_afefcted_documents_from_knowledge doc length: {len(docs)} - cutoff score {self.settings.knowledge_context_cutoff_relevance_score}")  
             return docs, file_list
         return process_rag_query(rag_query=query)
 
@@ -497,7 +500,7 @@ class CODXJuniorSession:
         for change in code_generator.code_changes:
             file_path = change.file_path
             if not file_path.startswith(self.settings.project_path):
-                change.file_path = os.path.join(self.settings.project_path, file_path)
+                change.file_path = os.path.join(self.settings.project_path, file_path)        
         return code_generator
 
     def project_script_test(self):
@@ -1040,8 +1043,6 @@ class CODXJuniorSession:
 
             if not disable_knowledge and self.settings.use_knowledge:
                 affected_documents, doc_file_list = self.select_afefcted_documents_from_knowledge(ai=ai, chat=chat, query=query, ignore_documents=ignore_documents)
-
-
                 if affected_documents:
                     documents = affected_documents
                     file_list = doc_file_list
@@ -1077,6 +1078,7 @@ class CODXJuniorSession:
                 </document>
 
                 <user_request>
+                Refine document with this comments:
                 {user_message.content}
                 </user_request>
                 """)
@@ -1316,7 +1318,7 @@ class CODXJuniorSession:
     def get_project_changes(self, parent_branch: str = None):
         if not parent_branch:
             #parent_branch = self.get_project_parent_branch()
-            parent_branch = "HEAD"
+            parent_branch = parent_branch or "HEAD@{1}"
             self.log_info(f"get_project_changes parent_branch {parent_branch}")
         stdout, _ = exec_command(f"git diff {parent_branch}",
                       cwd=self.settings.project_path)

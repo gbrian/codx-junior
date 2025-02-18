@@ -16,6 +16,8 @@ export const state = () => ({
   selectedLog: null,
   autoRefresh: false,
   changesSummary: null,
+  profiles: [],
+  selectedProfile: null,
   kanban: {}
 })
 
@@ -29,6 +31,9 @@ export const mutations = mutationTree(state, {
   },
   setFormatedLogs(state, formatedLogs) {
     state.formatedLogs = formatedLogs
+  },
+  setSelectedProfile(state, profile) {
+    state.selectedProfile = profile
   }
 })
 
@@ -67,6 +72,14 @@ export const getters = getterTree(state, {
                       $storex.api.globalSettings?.ai_model,
   embeddingsAIProvider: () => $storex.projects.embeddings_ai_settings?.provider,
   embeddingsAIModel: () => $storex.projects.embeddings_ai_settings?.model,
+  chatModes: state => {
+    const analystProfiles = state.profiles.filter(p => p.category === 'assistant').map(p => p.name)
+    return {
+      "task": { name: "Analyst", profiles: analystProfiles, icon: "fa-solid fa-user-doctor" },
+      "chat": { name: "Developer", profiles: ["software_developer"], icon: "fa-regular fa-comments" },
+    }
+  },
+
 })
 
 export const actions = actionTree(
@@ -97,7 +110,8 @@ export const actions = actionTree(
       await API.init(project?.codx_path)
       project && await $storex.projects.loadKanban()
       state.activeProject = API.lastSettings
-      
+      const { data: profiles } = await $storex.api.profiles.list();
+      state.profiles = profiles
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()
@@ -246,6 +260,22 @@ export const actions = actionTree(
     },
     async saveKanban({ state }) {
       await $storex.api.chats.kanban.save(state.kanban)
+    },
+    async saveProfile({ state }, profile) {
+      const { data } = await $storex.api.profiles.save(profile)
+      state.profiles = [...state.profiles.filter(p => p.name !== data.name), data]
+      if (state.selectedProfile.name === data.name) {
+        state.selectedProfile = data
+      }
+    },
+    deleteProfile({ state }, profile) {
+      if (profile.name === state.selectedProfile?.name) {
+        state.selectedProfile = null
+      }
+      $storex.api.profiles.delete(profile.name)
+    },
+    createNewProfile({ state }, profile) {
+      state.selectedProfile = profile
     }
   }
 )

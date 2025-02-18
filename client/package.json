@@ -34,6 +34,7 @@
     "typed-vuex": "^0.3.1",
     "uuid": "^11.0.3",
     "uuidv4": "^6.2.13",
+    "v-code-diff": "^1.13.1",
     "vue": "^3.4.21",
     "vue-mermaid-string": "^6.0.0",
     "vue-router": "^4.3.0",

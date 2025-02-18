@@ -5,6 +5,7 @@ import moment from 'moment'
 import { full as emoji } from 'markdown-it-emoji'
 import highlight from 'markdown-it-highlightjs'
 import MarkdownIt from 'markdown-it'
+import { CodeDiff } from 'v-code-diff'
 </script>
 
 <template>
@@ -36,6 +37,10 @@ import MarkdownIt from 'markdown-it'
           <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
             <i class="fa-solid fa-code"></i>
           </button>
+          <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
+            <i class="fa-regular fa-file-lines"></i>
+            <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
+          </button>
           <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
             <i class="fa-solid fa-pencil"></i>
           </button>
@@ -64,7 +69,13 @@ import MarkdownIt from 'markdown-it'
     <div :class="['max-w-full group w-full border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
       <div @copy.stop="onMessageCopy">
         <pre v-if="srcView">{{ message.content }}</pre>
-        <Markdown :text="messageContent" v-if="!srcView && !code_patches" />
+        <Markdown :text="messageContent" v-if="!showDiff && !srcView && !code_patches" />
+        <CodeDiff
+          :old-string="message.diffMessage.content"
+          :new-string="messageContent"
+          theme="dark"
+          v-if="showDiff"
+        />
         <div v-if="code_patches">
           <div class="mt-2 p-2 bg-base-100 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
             <div class="text-xs font-bold text-primary" :title="patch.file_path">
@@ -122,7 +133,8 @@ export default {
     return {
       srcView: false,
       isRemove: false,
-      improvementData: null
+      improvementData: null,
+      showDiff: false
     }
   },
   computed: {
@@ -197,7 +209,18 @@ export default {
       this.message.collapse = !this.message.collapse
     },
     toggleSrcView() {
-      this.srcView = !this.srcView
+      if (this.srcView = !this.srcView) {
+        this.showDiff = false
+        this.message.collapse = false
+        this.srcView = null
+      }
+    },
+    toggleShowDiff() {
+      if (this.showDiff = !this.showDiff) {
+        this.srcView = false
+        this.message.collapse = false
+        this.srcView = null
+      }
     },
     onRemove() {
       if (this.isRemove) {

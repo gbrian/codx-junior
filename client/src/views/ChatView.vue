@@ -26,8 +26,19 @@ import Kanban from '@/components/kanban/Kanban.vue';
                       <i :class="chatModes[chat.mode].icon" class="fa-regular fa-comments"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                      <li @click="setChatMode(mode)" v-for="info, mode in chatModes" :key="mode">
-                        <a class="flex items-center">
+                      <li v-for="info, mode in chatModes" :key="mode">
+                        <details open v-if="info.profiles.length > 1">
+                          <summary>
+                            <i :class="info.icon" class="fa-regular fa-comments"></i>
+                            {{ info.name }}
+                          </summary>
+                          <ul>
+                            <li @click="setChatMode(mode, profile)" v-for="profile in info.profiles" :key="profile">
+                              <a>{{ profile  }}</a>
+                            </li>
+                          </ul>
+                        </details>
+                        <a class="flex items-center" @click="setChatMode(mode, info.profiles[0])" v-else>
                           <i :class="info.icon" class="fa-regular fa-comments"></i>
                           {{ info.name }}
                         </a>
@@ -211,10 +222,6 @@ export default {
       showHidden: false,
       confirmDelete: false,
       newTag: null,
-      chatModes: {
-        "task": { name: "Analyst", profiles: ["analyst"], icon: "fa-solid fa-user-doctor" },
-        "chat": { name: "Developer", profiles: ["software_developer"], icon: "fa-solid fa-code" },
-      },
       toggleChatOptions: false
     }
   },
@@ -222,6 +229,9 @@ export default {
     this.toggleChatOptions = !this.$ui.isMobile
   },
   computed: {
+    chatModes () {
+      return this.$projects.chatModes
+    },
     subProjects () {
       return [
           this.$project,
@@ -323,11 +333,11 @@ export default {
       }
     },
     onRemoveMessage(message) {
-      const ix = this.chat.messages.findIndex(m => m === message)
-      if (this.chat.mode == 'task' && message.role === "assistant" && ix) {
+      const ix = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
+      if (this.chat.mode == 'task' && message.role === "assistant" && ix > 1) {
         this.chat.messages[ix - 1].hide = false
       }
-      this.chat.messages = this.chat.messages.filter((m, i) => i !== ix)
+      this.chat.messages = this.chat.messages.filter((_, i) => i !== ix)
       this.saveChat()
     },
     navigateToChats() {
@@ -345,9 +355,9 @@ export default {
       this.chat.tags = this.chat.tags.filter(t => t !== tag)
       this.saveChat()
     },
-    setChatMode(mode) {
+    setChatMode(mode, profile) {
       this.chat.mode = mode
-      this.chat.profiles = this.chatModes[mode].profiles
+      this.chat.profiles = [profile]
       this.saveChat()
     },
     async createSubTasks() {

@@ -54,6 +54,7 @@ class Profile(BaseModel):
         description="Optional regex to apply profiles based on file absolute path.")
     content: Optional[str] = Field(default=None)
     path: str = Field(default="")
+    content_path: str = Field(default="")
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -104,6 +105,7 @@ class ProjectScript(BaseModel):
     status: str = Field(description="Script status: running, stopped, error", default="stopped")
     background: bool = Field(description="Script runs in background", default=False)
     restart: bool = Field(description="Script must be restarted if stopped", default=False)
+    pid_file_path: str = Field(default="")
 
 class Bookmark(BaseModel):
     name: str

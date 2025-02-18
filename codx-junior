@@ -1,4 +1,17 @@
 #!/bin/bash
+export LOGFILE=$CODX_SUPERVISOR_LOG_FOLDER/codx-junior-api.log
+sudo touch $LOGFILE
+sudo tail -n 30000 $LOGFILE > $LOGFILE 
+exec > >(sudo tee $LOGFILE)
+exec 2>&1
+
+jobs=()
+function kill_apps() {
+  for job in $jobs; do
+    kill -9 $job || true
+  done
+}
+trap kill_apps EXIT HUP TERM INT
 
 # Load .env variables
 source .env
@@ -31,24 +44,43 @@ function install_app() {
     echo "Application installed successfully."
 }
 
+function stop_app() {
+  jobs=$(cat codx-junior.pid)
+  kill_apps
+}
+
 # Function to simulate running the application
 function run_app() {
     bash ${CODX_JUNIOR_PATH}/scripts/logo.sh
-
+    
     echo "Running the application..."
     # /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
     run_codx_apps
-    bash ${CODX_JUNIOR_PATH}/scripts/run_client.sh
 }
 
 run_codx_apps() {
+    jobs+=($$)
+    
+    echo "Run code server"
     code-server --bind-addr=0.0.0.0:${CODX_JUNIOR_CODER_PORT} --auth=none &
+    jobs+=($!)
+    
+    echo "Run API"
     bash ${CODX_JUNIOR_PATH}/scripts/run_api.sh &
+    jobs+=($!)
+
+    echo "${jobs[*]}" > codx-junior.pid
+
+    echo "Run client"
+    bash ${CODX_JUNIOR_PATH}/scripts/run_client.sh
 }
 
 
 # Check the command line argument
 case "$1" in
+    stop)
+        stop_app
+        ;;
     help)
         show_help
         ;;

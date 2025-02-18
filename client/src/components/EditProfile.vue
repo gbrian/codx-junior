@@ -22,6 +22,7 @@ import Markdown from './Markdown.vue'
             class="select select-xs select-bordered">
           <option value="project">Project</option>
           <option value="assistant">Assistant</option>
+          <option value="chat">Chat</option>
           <option value="file">File</option>
         </select>
       </div>

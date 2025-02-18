@@ -8,7 +8,7 @@ import EditProfile from '@/components/EditProfile.vue';
       :allProfiles="profiles"
       :loading="loadingProfile"
       @save="saveSelectedProfile"
-      @cancel="selectedProfile = null"
+      @cancel="openEditProfile()"
       @delete="deleteSelectedProfile"
       v-if="selectedProfile" />
     <div v-else>
@@ -18,7 +18,7 @@ import EditProfile from '@/components/EditProfile.vue';
       </p>  
       <div class="flex items-center justify-between mb-4">
         <input type="text" placeholder="Search profiles" v-model="searchQuery" class="input input-sm input-bordered w-full max-w-xs" />
-        <button class="btn btn-sm btn-primary ml-4" @click="selectedProfile = {}">Create New</button>
+        <button class="btn btn-sm btn-primary ml-4" @click="$projects.createNewProfile({})">Create New</button>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div v-for="profile in filteredProfiles" :key="profile.name" class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg" @click="openEditProfile(profile)">
@@ -38,15 +38,16 @@ export default {
   data() {
     return {
       searchQuery: '',
-      profiles: [],
-      selectedProfile: null,
       loadingProfile: false
     };
   },
-  created() {
-    this.fetchProfiles();
-  },
   computed: {
+    profiles () {
+      return this.$projects.profiles
+    },
+    selectedProfile () {
+      return this.$projects.selectedProfile
+    },
     filteredProfiles() {
       return this.profiles.filter(profile =>
         profile.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
@@ -55,29 +56,16 @@ export default {
     }
   },
   methods: {
-    async fetchProfiles() {
-      const { data: profiles } = await this.$storex.api.profiles.list();
-      this.profiles = profiles
-    },
     openEditProfile(selectedProfile) {
-      this.selectedProfile = selectedProfile
+      this.$projects.setSelectedProfile(selectedProfile)
     },
     async deleteSelectedProfile() {
-      await this.$storex.api.profiles.delete(this.selectedProfile.name)
-      this.profiles = this.profiles.filter(p => p.name !== this.selectedProfile.name)
-      this.selectedProfile = null
+      this.$projects.deleteSelectedProfile(this.selectedProfile)
     },
     async saveSelectedProfile(profile) {
       this.loadingProfile = true
       try {
-        const { data } = await this.$storex.api.profiles.save(profile)
-        if (this.selectedProfile.name) {
-          const ix = this.profiles.findIndex(p => p.name === data.name)
-          this.profiles.splice(ix, 1, data)
-          this.selectedProfile = data
-        } else {
-          this.profiles = [...this.profiles, data]
-        }
+        this.$projects.saveProfile(profile)
       } catch{}
       this.loadingProfile = false
     }
