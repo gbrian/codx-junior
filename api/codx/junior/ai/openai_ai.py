@@ -7,6 +7,8 @@ from openai import OpenAI
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 
+from codx.junior.ai.ai_logger import AILogger
+
 from codx.junior.settings import CODXJuniorSettings
 from langchain.schema import (
     AIMessage,
@@ -49,10 +51,12 @@ class OpenAI_AI:
             api_key=self.api_key,
             base_url=self.base_url
         )
+        self.ai_logger = AILogger(settings=settings)
+
 
     def log(self, msg):
         if self.settings.get_log_ai():
-            logger.info(msg)
+            self.ai_logger.info(msg)
 
     def convert_message(self, gpt_message: Union[AIMessage, HumanMessage, BaseMessage]): 
         if gpt_message.type == "image":
@@ -102,11 +106,6 @@ class OpenAI_AI:
         
         self.log(f"AI response done {len(content_parts)} chunks")
         response_content = "".join(content_parts)
-        self.log("\n\n".join(
-            [f"[{datetime.now().isoformat()}] model: {self.model}, temperature: {temperature}"] +
-            [f"[{message.type}]\n{message.content}" for message in messages] +
-            ["[AI]",response_content]
-        ))
         return AIMessage(content=response_content)
 
     def process_tool_calls(self, message):

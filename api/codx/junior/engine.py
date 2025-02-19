@@ -311,7 +311,7 @@ class CODXJuniorSession:
             documents, file_list = find_relevant_documents(query=knowledge_search.search_term,
                                                     settings=self.settings, 
                                                     ignore_documents=[],
-                                                    ai_validate=False)
+                                                    ai_validate=True)
             
             chat = Chat(messages=
                 [
@@ -929,6 +929,18 @@ class CODXJuniorSession:
             parent_chat = chat_manager.find_by_id(parent_chat.parent_id)
         return "\n".join(parent_content)
 
+
+    def create_knowledge_search_query(self, query: str):
+      ai = self.get_ai()
+      return ai.chat(prompt=f"""
+      <text>
+      {query}
+      </text>
+
+      Return a concise clear document search query without any further decoration or explanation.
+      """)[-1].content
+                
+
     @profile_function
     async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None):
         # Invoke project based on project_id
@@ -941,10 +953,14 @@ class CODXJuniorSession:
                 self.chat_event(chat=chat, message=f"connecting with browser...")
                 return self.get_browser().chat_with_browser(chat)
 
-            sources = []
             documents = []
             task_item = ""
-            
+
+            parent_chat = None
+            if chat.parent_id:
+                chat_manager = self.get_chat_manager()
+                parent_chat = chat_manager.find_by_id(chat.parent_id)
+
             is_refine = chat_mode == "task"
             if is_refine:
                 task_item = "analysis"
@@ -954,8 +970,7 @@ class CODXJuniorSession:
               "start_time": time.time(),
               "first_response": None
             }
-            start_time = time.time()
-            first_response_from_ai_time = 0
+
             def send_message_event(content):
                 if not timing_info.get("first_response"):
                     timing_info["first_response"] = time.time() - timing_info["start_time"]
@@ -967,13 +982,14 @@ class CODXJuniorSession:
                 response_message.task_item = task_item
                 self.message_event(chat=chat, message=response_message)
 
-            ai_messages = [m for m in chat.messages if not m.hide and not m.improvement and m.role == "assistant"]
+            valid_messages = [m for m in chat.messages if not m.hide and not m.improvement]
+            ai_messages = [m for m in valid_messages if m.role == "assistant"]
             last_ai_message = ai_messages[-1] if ai_messages else None
                 
-            user_message = chat.messages[-1]
+            user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
             query = user_message.content
 
-            ai = AI(settings=self.settings)
+            ai = self.get_ai()
             profile_manager = ProfileManager(settings=self.settings)
             chat_profiles_content = ""
             if chat.profiles:
@@ -1020,6 +1036,9 @@ class CODXJuniorSession:
             context = ""
             documents = []
             chat_files = chat.file_list or []
+            if parent_chat and parent_chat.file_list:
+                chat_files = chat_files + parent_chat.file_list
+
             ignore_documents = chat_files.copy()
             if chat.name:
                 ignore_documents.append(f"/{chat.name}")
@@ -1042,18 +1061,20 @@ class CODXJuniorSession:
                     logger.error(f"Error adding context file to chat {ex}")
 
             if not disable_knowledge and self.settings.use_knowledge:
-                affected_documents, doc_file_list = self.select_afefcted_documents_from_knowledge(ai=ai, chat=chat, query=query, ignore_documents=ignore_documents)
-                if affected_documents:
-                    documents = affected_documents
-                    file_list = doc_file_list
+                doc_length = 0
+                if query:
+                    search_query = self.create_knowledge_search_query(query=query)
+                    self.chat_event(chat=chat, message=f"Knowledge searching for: {search_query}")
+                    documents, file_list = self.select_afefcted_documents_from_knowledge(ai=ai, chat=chat, query=search_query, ignore_documents=ignore_documents)
                     for doc in documents:
                         doc_context = document_to_context(doc)
                         context += f"{doc_context}\n"
-
-                doc_length = len(documents or [])
+                
+                    response_message.files = file_list
+                    doc_length = len(documents)
                 self.chat_event(chat=chat, message=f"Knowledge search found {doc_length} relevant documents")
             else:
-                self.chat_event(chat=chat, message=f"! Knowledge search is disabled !")
+                self.chat_event(chat=chat, message="! Knowledge search is disabled !")
             if context:
                 messages.append(convert_message(
                     Message(role="user", content=f"""
@@ -1108,7 +1129,7 @@ class CODXJuniorSession:
             if is_refine:
                 for message in chat.messages[:-1]:
                     message.hide = True
-            self.chat_event(chat=chat, message=f"done")
+            self.chat_event(chat=chat, message="done")
             return chat, documents
             
     def check_project(self):

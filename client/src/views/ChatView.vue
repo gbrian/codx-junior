@@ -129,12 +129,12 @@ import Kanban from '@/components/kanban/Kanban.vue';
             {{  }}
           </div>
         </div>
-        <div class="w-full overflow-auto" v-if="chat.file_list?.length">
+        <div class="w-full overflow-auto" v-if="chatFiles.length">
           <div class="my-2 text-xs">
             <span>
               <i class="fa-solid fa-paperclip"></i>
             </span>
-            <a v-for="file in chat.file_list" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 click text-accent" @click="$ui.openFile(file)">
+            <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 click text-accent" @click="$ui.openFile(file)">
               <span>{{ file.split('/').reverse()[0] }}</span>
               <span class="ml-2 click" @click.stop="onRemoveFile(file)">
                 <i class="fa-regular fa-circle-xmark"></i>
@@ -144,6 +144,7 @@ import Kanban from '@/components/kanban/Kanban.vue';
         </div>
         <Chat :chatId="chat.id"
           :showHidden="showHidden"
+          :childrenChats="childrenChats"
           @refresh-chat="loadChat(chat)"
           @add-file="onAddFile"
           @remove-file="onRemoveFile" 
@@ -255,7 +256,7 @@ export default {
       return this.$projects.allChats
     },
     chat() {
-      return this.openChat || this.$projects.activeChat
+      return this.$projects.chats[this.openChat?.id || this.$projects.activeChat.id]
     },
     parentChat() {
       const parentId = this.chat.parent_id
@@ -268,6 +269,12 @@ export default {
     chatProject() {
       return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) ||
               this.$project
+    },
+    parentChat () {
+      return this.$projects.allChats.find(c => c.id === this.chat.parent_id)
+    },
+    chatFiles() {
+      return [...this.chat.file_list||[], ...this.parentChat?.file_list||[]]
     }
   },
   methods: {
@@ -279,7 +286,7 @@ export default {
       this.confirmDelete = false
       const parent_id = this.chat.parent_id
       await this.$projects.deleteChat(this.chat)
-      const parentChat = this.$projects.allChats.find(c => c.id === parent_id)
+      const parentChat = this.parentChat
       if (parentChat) {
         this.$projects.setActiveChat(parentChat)
       } else {

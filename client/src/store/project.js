@@ -18,7 +18,8 @@ export const state = () => ({
   changesSummary: null,
   profiles: [],
   selectedProfile: null,
-  kanban: {}
+  kanban: {},
+  chatBuffer:{}
 })
 
 export const mutations = mutationTree(state, {
@@ -120,7 +121,6 @@ export const actions = actionTree(
     },
     async saveChat (_, chat) {
       await API.chats.save(chat)
-      await $storex.projects.loadChats()
     },
     async saveChatInfo (_, chat) {
       await API.chats.saveChatInfo({ ...chat, messages: [] })
@@ -129,6 +129,9 @@ export const actions = actionTree(
     async loadChat({ state }, chat) {
       const loadedChat = await API.chats.loadChat(chat)
       state.chats[loadedChat.id] = loadedChat
+      if (state.activeChat?.id === loadedChat.id) {
+        state.activeChat = loadedChat
+      }
       return loadedChat
     },
     async deleteChat(_, chat) {
@@ -230,14 +233,28 @@ export const actions = actionTree(
         chat: {
           id: chatId
         },
-        message
+        message,
+        event_type,
+        type
       } = data
+
+      if ((type || event_type === 'changed') && chatId) {
+        await $storex.projects.loadChat({ id: chatId })
+      }
+
       if (chatId) {
         const chat = state.chats[chatId] || await $storex.projects.loadChat({ id: chatId })
         if (chat && message) {
           const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
           if (currentMessage) {
-            currentMessage.content += message.content
+            const currentMessageContent = (currentMessage.content||"")
+            const inFence = currentMessageContent.includes("```") 
+                              && currentMessageContent.split("```").length % 2 === 0
+            state.chatBuffer[chatId] = (state.chatBuffer[chatId]||"") + message.content
+            if (!inFence || state.chatBuffer[chatId].length > 100) {
+              currentMessage.content += state.chatBuffer[chatId]
+              state.chatBuffer[chatId] = ""
+            }
           } else {
             chat.messages.push(message)
           }

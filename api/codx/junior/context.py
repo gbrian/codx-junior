@@ -83,8 +83,10 @@ def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
     ai = AI(settings=settings)
     score = float(settings.knowledge_context_cutoff_relevance_score)
     if not score:
+      logger.info(f"Validating RAG documents disabled!!")
       return documents
     
+    logger.info(f"Validating RAG documents. Min score: {score}")
     # This function uses ThreadPoolExecutor to parallelize validation of contexts.
     with ThreadPoolExecutor() as executor:
         futures = {executor.submit(ai_validate_context, ai=ai, prompt=prompt, doc=doc): doc for doc in documents}
@@ -124,7 +126,7 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
     try:
         messages = ai.chat(messages=messages)
         response = parser.invoke(messages[-1].content.strip())
-        score = response.score
+        score = float(response.score)
     except Exception as ex:
         logger.error(f"Error parsing content validation: {ex}")
 
@@ -157,6 +159,7 @@ def find_relevant_documents(query: str, settings, ignore_documents=[], ai_valida
     found {len(documents)} from project '{settings.project_name}' knowledge base.
     ignore_documents: {ignore_documents}
     total_valid: {len(documents)}
+    ai_validate: {ai_validate}
     """)
   
     if documents:

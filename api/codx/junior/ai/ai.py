@@ -44,6 +44,7 @@ class AI:
         self.llm = self.create_chat_model()
         self.embeddings = self.create_embeddings_model()
         self.cache = False
+        self.ai_logger = AILogger(settings=settings)
 
     @profile_function
     def image(self, prompt):
@@ -52,7 +53,7 @@ class AI:
 
     def log(self, message):
         if self.settings.get_log_ai():
-            AILogger.info(message)
+            self.ai_logger.info(message)
     
     @profile_function
     def chat(
@@ -67,7 +68,7 @@ class AI:
             messages.append(HumanMessage(content=prompt))
 
         if self.settings.get_log_ai():
-            logger.info(f"Creating a new chat completion: {messages}")
+            self.ai_logger.info(f"Creating a new chat completion: {messages}")
 
         response = None
         md5Key = messages_md5(messages) if self.cache else None
@@ -94,7 +95,7 @@ class AI:
                     }
                 )
         elif self.settings.get_log_ai():
-            logger.debug(f"Response from cache: {messages} {response}")
+            self.ai_logger.debug(f"Response from cache: {messages} {response}")
 
         messages.append(response)
         if self.settings.get_log_ai():
@@ -106,8 +107,8 @@ class AI:
               {msg.content}
               """
               for msg in messages])
-            logger.debug(f"Chat completion finished: {format_messages()}")
-            logger.info(f"[AI] chat messages {len(messages)}")
+            self.ai_logger.debug(f"Chat completion finished: {format_messages()}")
+            self.ai_logger.info(f"[AI] chat messages {len(messages)}")
 
         return messages
 

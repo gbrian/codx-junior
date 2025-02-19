@@ -15,9 +15,9 @@ def profile_function(func):
     """Decorator to profile a function and log the execution time."""
     @contextmanager
     def wrapping_logic(*args, **kwargs):
-        all_args = [str(arg) for arg in args]
+        all_args = [str(arg)[0:50] for arg in args]
         for arg, value in kwargs.items():
-            all_args.append(f"{arg}={value}")
+            all_args.append(f"{arg}={str(value)[0:50]}")
 
         start_time = time.time()
         

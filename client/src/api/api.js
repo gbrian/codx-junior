@@ -168,7 +168,7 @@ export const API = {
       return data
     },
     async loadChat ({ id, file_path }) {
-      const { data } = await API.get(`/api/chats?file_path=${file_path}&id=${id}`)
+      const { data } = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`)
       return data
     },
     async newChat () {
