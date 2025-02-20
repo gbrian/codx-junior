@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+
+[project]
+name = "llm-factory"
+version = "0.1.0"
+description = "A FastAPI server setup for llm-factory with ollama"
+dependencies = [
+    "fastapi>=0.115.8",
+    "uvicorn>=0.34.0",
+    "openai>=1.63.2",
+    "requests>=2.32.3"
+]
+requires-python = ">=3.8"
+authors = [
+    {name = "Your Name", email = "you@example.com"}
+]
+readme = "README.md"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.4",
+    "pytest-asyncio>=0.25.3"
+]
+
+[project.urls]
+Homepage = "https://example.com"
+Documentation = "https://readthedocs.org"
+Repository = "https://github.com/yourusername/llm-factory"
+"Bug Tracker" = "https://github.com/yourusername/llm-factory/issues"

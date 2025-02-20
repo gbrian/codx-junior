@@ -151,8 +151,8 @@ import KanbanList from "./KanbanList.vue"
 </template>
 
 <script>
-const ALL_BOARD_TITLE = "All"
-const ALL_BOARD_TITLE_ID = "$$$$All@@@@"
+const ALL_BOARD_TITLE = "$All"
+const ALL_BOARD_TITLE_ID = "$ALL"
 
 export default {
   data() {
@@ -231,12 +231,17 @@ export default {
     boards() {
       const boards = this.kanban?.boards || {} 
       return [
-        ...Object.keys(boards).map(board => ({ ...boards[board], id: board, title: board })), 
+        ...Object.keys(boards).map(board => ({ 
+          ...boards[board],
+          id: board, 
+          title: board 
+        }))
+        /*, 
         {
           title: ALL_BOARD_TITLE,
           id: ALL_BOARD_TITLE_ID,
           columns: Object.values(this.kanban?.boards || {}).reduce((acc, b) => acc.concat(b.columns.map(c => ({ ...c, board: b }))), [])
-        }
+        }*/
       ].reduce((acc, b) => ({ ...acc, [b.id]: {
         ...b,
         tasks: this.chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.title)
@@ -306,10 +311,6 @@ export default {
       })
     },
     async buildKanban() {
-      if (this.board && !this.boards[this.board]) {
-        this.board = Object.keys(this.boards)[0]
-        this.$ui.setKanban(this.board)
-      }
       this.buildColumns()
     },
     buildColumns() {

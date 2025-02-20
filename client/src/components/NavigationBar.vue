@@ -23,16 +23,6 @@ import moment from 'moment';
 
 
     <div class="flex w-full flex-col mt-4 flex">
-      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'knowledge' ? 'bg-base-100 text-primary': '',]">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Knowledge"
-          @click="$ui.setActiveTab('knowledge')">
-          <div class="flex flex-col gap-4">
-            <i class="fa-solid fa-comments"></i>
-          </div>
-        </a>
-      </div>
-
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'tasks' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Kanban"
@@ -61,6 +51,16 @@ import moment from 'moment';
             <div class="flex flex-col gap-4">
                 <i class="fa-solid fa-code-compare"></i>
             </div>
+        </a>
+      </div>
+
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'knowledge_settings' ? 'bg-base-100 text-primary': '',]">
+        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Knowledge"
+          @click="$ui.setActiveTab('knowledge_settings')">
+          <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-book"></i>
+          </div>
         </a>
       </div>
 
@@ -134,7 +134,6 @@ import moment from 'moment';
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
-          <li><a @click.stop="setActiveTab('knowledge_settings')"><i class="fa-solid fa-book"></i> Knowledge</a></li>
           <li class="border"></li>
           <li>
             <a> 
