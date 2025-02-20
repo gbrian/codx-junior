@@ -93,6 +93,7 @@ class AISettings(BaseModel):
 
 class EmbeddingAISettings(AISettings):
     vector_size: Optional[int] = Field(default=1536)
+    chunk_size: Optional[int] = Field(default=8190)
 
 class GitSettings(BaseModel):
     username: Optional[str] = Field(default="")
