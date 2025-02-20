@@ -1,7 +1,13 @@
 #!/bin/bash
+
+# Load .env variables
+source .env
+
+# Logs
 export LOGFILE=$CODX_SUPERVISOR_LOG_FOLDER/codx-junior-api.log
 sudo touch $LOGFILE
-sudo tail -n 30000 $LOGFILE > $LOGFILE 
+sudo chown $USER $LOGFILE
+tail -n 30000 $LOGFILE > $LOGFILE 
 exec > >(sudo tee $LOGFILE)
 exec 2>&1
 
@@ -12,9 +18,6 @@ function kill_apps() {
   done
 }
 trap kill_apps EXIT HUP TERM INT
-
-# Load .env variables
-source .env
 
 # Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
 if [ -z "${CODX_JUNIOR_PATH}" ]; then
@@ -45,6 +48,8 @@ function install_app() {
 }
 
 function stop_app() {
+  echo "Stopping codx-junior"
+  
   jobs=$(cat codx-junior.pid)
   kill_apps
 }
