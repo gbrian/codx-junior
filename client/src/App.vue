@@ -12,6 +12,14 @@ import SharedView from '@/views/SharedView.vue'
     <SharedView v-if="isSharedScreen" />
     <HomeViewVue v-if="isMobileScreen" />
     <SplitViewVue v-if="isSplitterScreen" />
+    <div class="absolute top-0 right-0 p-2" v-if="$ui.notifications.length">
+      <div class="p-2 text-xs bg-info/30 hover:bg-sky-700 text-white rounded-md">
+        <div v-for="notification in $ui.notifications" :key="notification.ts">
+          <pre><span class="click hover:underline" @click="$ui.removeNotification(notification)">(X)</span>[{{ notification.ts }}] {{ notification.text }}</pre>
+          
+        </div>
+      </div>
+    </div>
   </div>
   <div class="flex flex-col items-center justify-center w-full h-full font-2xl px-4 py-2" v-else>
     <div class="animate-pulse font-mono text-green-600">Wake up, codx-junior...</div>

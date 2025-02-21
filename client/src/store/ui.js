@@ -1,6 +1,7 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
 import { API } from '../api/api'
+import moment from 'moment'
 
 export const namespaced = true
 
@@ -31,7 +32,8 @@ export const state = () => ({
   colorsMap: {},
   coderProjectCodxPath: null,
   uiReady: false,
-  floatingCodxJunior: false
+  floatingCodxJunior: false,
+  notifications: []
 })
 
 export const getters = getterTree(state, {
@@ -141,6 +143,18 @@ export const mutations = mutationTree(state, {
   setFloatinCodxJunior(state, floating) {
     state.floatingCodxJunior = floating
     $storex.ui.saveState()
+  },
+  addNotification(state, { text }) {
+    const notif = {
+      ts: moment().format("hh:mm:ss"),
+      text
+    }
+    state.notifications.push(notif)
+    setTimeout(() => $storex.ui.removeNotification(notif) , 30000)
+  },
+  removeNotification(state, notification) {
+    state.notifications.splice(
+      state.notifications.findIndex(n => n === notification), 1)
   }
 })
 
@@ -196,7 +210,7 @@ export const actions = actionTree(
       textArea.select()
       document.execCommand('copy')
       document.body.removeChild(textArea)
-      console.log('Code copied', text)
+      $storex.ui.addNotification({ text: "Text copied" })
     }
   },
 )

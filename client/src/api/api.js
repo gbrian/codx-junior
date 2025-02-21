@@ -94,6 +94,10 @@ export const API = {
     },
     test () {
       return API.get('/api/project/script/test')
+    },
+    async branches () {
+      const { data: branches } = await API.get('/api/projects/repo/branches')
+      return branches 
     }
   },
   settings: {
@@ -215,8 +219,8 @@ export const API = {
     liveEdit ({ chat, html, url, message }) {
       return API.post('/api/run/live-edit?', { chat_name: chat.name, html, url, message })
     },
-    changesSummary(rebuild) {
-      return API.get(`/api/run/changes/summary?refresh=${rebuild}`).then(({ data}) => data)      
+    changesSummary({ branch, rebuild }) {
+      return API.get(`/api/run/changes/summary?branch=${branch}&refresh=${rebuild}`).then(({ data}) => data)      
     }
   },
   profiles: {

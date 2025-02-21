@@ -4,7 +4,7 @@ import Badge from "./Badge.vue";
 import ChatIcon from '../chat/ChatIcon.vue';
 </script>
 <template>
-  <div class="p-2 shadow rounded border border-base-300 flex flex-col gap-2 click"
+  <div class="p-2 shadow rounded flex flex-col gap-2 click"
     :class="parentChat ? 'bg-base-100':'bg-base-300'"
   >
     <div class="bg-contain bg-no-repeat bg-center h-28 bg-base-300"
@@ -32,7 +32,7 @@ import ChatIcon from '../chat/ChatIcon.vue';
         </div>
       </div>
       <div class="flex justify-between items-center">
-        <span class="text-xs text-gray-600">{{ formattedDate }}</span>
+        <span class="text-xs" :class="isToday ? 'font-bold' : 'text-gray-600'">{{ formattedDate }}</span>
         <div class="flex gap-1 justify-end">
           <div class="font-bold text-xs text-info flex gap-2" v-for="tag in task.tags" :key="tag">
             #{{ tag }}
@@ -79,11 +79,15 @@ export default {
       let image = this.task.messages?.find(m => m.images.length)?.images[0]
       return image ? JSON.parse(image): null
     },
+    isToday() {
+      const updatedAt = this.task.updated_at;
+      return moment(0, "HH").diff(updatedAt, "days") == 0
+    },
     formattedDate() {
       const updatedAt = this.task.updated_at;
-      return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
-        ? moment(updatedAt).fromNow()
-        : moment(updatedAt).format('YYYY-MM-DD');
+      return this.isToday
+        ? moment(updatedAt).format('hh:mm:ss')
+        : moment(updatedAt).format('YYYY-MM-DD hh:mm:ss');
     },
     subTasks() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.task.id)

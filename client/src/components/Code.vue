@@ -5,15 +5,23 @@ import MermaidViewerVue from './MermaidViewer.vue'
 import Markdown from './Markdown.vue';
 </script>
 <template>
-  <div>
-    <div class="flex gap-2 w-full justify-center hidden" ref="toolbar">
-      <button class="btn btn-xs tooltip" data-tip="Generate code" @click="$emit('generate-code', code.innerText)">
-        <i class="fa-solid fa-file-code"></i>
+  <div class="border rounded-md">
+    <div class="flex gap-2 w-full justify-end bg-base-100 p-2 rounded-t" ref="toolbar">
+      <button class="btn btn-xs tooltip hidden" data-tip="Generate code" @click="$emit('generate-code', code.innerText)">
+        <i class="fa-solid fa-file-code"></i> Generate code
       </button>
       <button class="btn btn-xs tooltip" data-tip="Preview HTML"
         @click="htmlPreview = !htmlPreview" v-if="language === 'html'"
       >
         <i class="fa-brands fa-chrome"></i>
+      </button>
+      <button class="btn btn-sm" @click="showMermaidSource = !showMermaidSource"
+        v-if="showMermaid">
+        <span v-if="showMermaidSource">View diagram</span>
+        <span v-else>View code</span>
+      </button>
+      <button class="btn btn-xs tooltip" data-tip="Copy" @click="$ui.copyTextToClipboard(code.innerText)">
+        <i class="fa-solid fa-copy"></i> Copy
       </button>
     </div>
     <MermaidViewerVue :diagram="codeText" theme="dark" 
@@ -29,11 +37,6 @@ import Markdown from './Markdown.vue';
       :header="false"
       v-if="showCode"
     ></CodeEditor>
-    <button class="btn btn-sm" @click="showMermaidSource = !showMermaidSource"
-      v-if="showMermaid">
-      <span v-if="showMermaidSource">View diagram</span>
-      <span v-else>View code</span>
-    </button>
     <div class="prose" :html="markdownText" v-if="markdownText"></div>
     <div class="" v-html="codeText" v-if="htmlPreview"></div>
   </div>

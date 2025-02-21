@@ -36,9 +36,9 @@ import KanbanList from "./KanbanList.vue"
         </div>
         <div class="grow"></div>
         <div class="flex gap-2">
-          <div class="hidden grow input input-sm input-bordered flex items-center gap-2">
-            <input type="text" v-model="filter" class="grow" placeholder="Search" />
-            <span class="click" v-if="filter" @click.stop="filter = null">
+          <div class="grow input input-sm input-bordered flex items-center gap-2">
+            <input type="text" v-model="filter" class="grow" placeholder="Search tasks" />
+            <span class="click" v-if="filter" @click.stop="filter = ''">
               <i class="fa-regular fa-circle-xmark"></i>
             </span>
             <span v-else><i class="fa-solid fa-filter"></i></span>
@@ -55,7 +55,7 @@ import KanbanList from "./KanbanList.vue"
           <span class="text-xs md:text-md">Column</span>
         </button>
         <draggable
-          v-model="columns"
+          v-model="filteredColumns"
           group="columns"
           itemKey="id"
           :disabled="$ui.isMobile"
@@ -106,9 +106,11 @@ import KanbanList from "./KanbanList.vue"
                 >
                   <template #item="{ element: task }">
                     <task-card
+                      v-if="taskMatchesFilter(task)"
                       :task="task"
                       :itemKey="'id'"
                       class="cursor-move overflow-hidden mt-2"
+                      :class="lastUpdatedTask.id == task.id ? 'border boder-primary border-dashed':''"
                       @click="openChat(task)"
                     />
                   </template>
@@ -151,7 +153,6 @@ import KanbanList from "./KanbanList.vue"
 </template>
 
 <script>
-const ALL_BOARD_TITLE = "$All"
 const ALL_BOARD_TITLE_ID = "$ALL"
 
 export default {
@@ -197,6 +198,12 @@ export default {
     this.projectChanged()
   },
   computed: {
+    lastUpdatedTask () {
+      return this.visibleTasks.sort((a, b) => 
+                (a.updated_at || new Date(1900, 1, 1, 0, 0, 0,  0)) > 
+                  (b.updated_at || new Date(1900, 1, 1, 0, 0, 0,  0)) ? -1 : 1)
+                .slice(0, 1)[0] || {}
+    },
     showKanban () {
       return !this.$projects.activeChat && this.activeKanbanBoard
     },
@@ -236,16 +243,29 @@ export default {
           id: board, 
           title: board 
         }))
-        /*, 
-        {
-          title: ALL_BOARD_TITLE,
-          id: ALL_BOARD_TITLE_ID,
-          columns: Object.values(this.kanban?.boards || {}).reduce((acc, b) => acc.concat(b.columns.map(c => ({ ...c, board: b }))), [])
-        }*/
       ].reduce((acc, b) => ({ ...acc, [b.id]: {
         ...b,
         tasks: this.chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.title)
       }}), {})
+    },
+    filteredColumns() {
+      if (!this.filter) {
+        return this.columns
+      }
+      const filterText = this.filter.toLowerCase()
+      return this.columns.map(column => {
+        const filteredTasks = column.tasks.filter(task => {
+          const taskNameMatches = task.name.toLowerCase().includes(filterText)
+          const messageContentMatches = task.messages?.some(message =>
+            message.content.toLowerCase().includes(filterText)
+          )
+          return taskNameMatches || messageContentMatches
+        })
+        return { ...column, tasks: filteredTasks }
+      })
+    },
+    visibleTasks() {
+      return this.filteredColumns.reduce((a, b) => a.concat(b.tasks || []), [])
     }
   },
   watch: {
@@ -433,6 +453,14 @@ export default {
     },
     showNewBoardModal() {
       this.showBoardModal = true
+    },
+    taskMatchesFilter(task) {
+      const filterText = this.filter?.toLowerCase() || ''
+      const taskNameMatches = task.name.toLowerCase().includes(filterText)
+      const messageContentMatches = task.messages?.some(message =>
+        message.content.toLowerCase().includes(filterText)
+      )
+      return taskNameMatches || messageContentMatches
     }
   }
 }

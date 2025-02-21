@@ -40,7 +40,7 @@ import TaskCard from '../kanban/TaskCard.vue'
              <span class="badge badge-xs" v-if="event.data.project">[{{ moment(event.ts).format('HH:mm:ss')}}] {{ event.data.project?.project_name }} </span> {{ event.data.text }}
           </div>
           <div class="anchor" ref="anchor"></div>
-          <div class="grid grid-cols-3 mb-2 bg-base-100" v-if="childrenChats?.length">
+          <div class="grid grid-cols-3 gap-2 mb-2 bg-base-100" v-if="childrenChats?.length">
             <TaskCard class="p-2 bg-base-300" :task="child" @click="$projects.setActiveChat(child)"
                               v-for="child in childrenChats" :key="childrenChats.id" />
           </div>

@@ -214,8 +214,11 @@ class CODXJuniorSession:
         data['codx_path'] = self.settings.codx_path
         return data
 
+    def send_notification(self, **kwargs):
+        self.get_channel().send_event('codx-junior', self.event_data({ **kwargs, "type": "notification" }))
+
     def send_event(self, message: str):
-        self.get_channel().send_event('codx-junior', self.event_data({ 'text': message }))
+        self.get_channel().send_event('codx-junior', self.event_data({ 'text': message, "type": "event" }))
         # self.log_info(f"SEND MESSAGE {message}- SENT!")
 
     def chat_event(self, chat: Chat, message: str = None, event_type: str = None):
@@ -600,6 +603,7 @@ class CODXJuniorSession:
             # logger.error(f"check_project_changes invalid project {self.settings}")
             return False
         knowledge = Knowledge(settings=self.settings)
+        knowledge.clean_deleted_documents()
         new_files = knowledge.detect_changes()
         if not new_files:
             self.log_info(f"check_project_changes {self.settings.project_name} no changes")
@@ -752,7 +756,7 @@ class CODXJuniorSession:
         if not mentions:
             return ""
 
-        self.send_event(message=f"Processing {file_path.split('/')[-1]}...")
+        self.send_notification(text=f"@codx {len(mentions)} mentions in {file_path.split('/')[-1]}")
             
         self.log_info(f"{len(mentions)} mentions found for {file_path}")
         new_content = notify_mentions_in_progress(content)
@@ -840,7 +844,9 @@ class CODXJuniorSession:
             await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False)
             response = changes_chat.messages[-1].content
             await self.write_project_file(file_path=file_path, content=response)
-
+        
+        self.send_notification(text=f"@codx done for {file_path.split('/')[-1]}")
+  
         return "done"
 
     def process_image_mention(self, image_mentions, file_path: str, content: str):
@@ -1314,7 +1320,7 @@ class CODXJuniorSession:
     def get_project_branches(self):
         stdout, _ = exec_command("git branch",
             cwd=self.settings.project_path)
-        return stdout.split("\n")
+        return [s.strip() for s in stdout.split("\n") if s.strip()]
 
     def get_project_current_branch(self):
         stdout, _ = exec_command("git branch --show-current")

@@ -3,6 +3,7 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
+import pugPlugin from "vite-plugin-pug"
 
 const {
   CODX_JUNIOR_API_PORT,
@@ -66,6 +67,10 @@ const proxy = {
 }
 
 console.log("proxy settings", proxy)
+
+const options = { pretty: true } // FIXME: pug pretty is deprecated!
+const locals = { }
+
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
@@ -77,7 +82,7 @@ export default defineConfig({
   plugins: [
     vue(),
     vueJsx(),
-    
+    pugPlugin(options, locals)
   ],
   resolve: {
     alias: {

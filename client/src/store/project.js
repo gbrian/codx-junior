@@ -19,7 +19,8 @@ export const state = () => ({
   profiles: [],
   selectedProfile: null,
   kanban: {},
-  chatBuffer:{}
+  chatBuffer:{},
+  branches: []
 })
 
 export const mutations = mutationTree(state, {
@@ -109,10 +110,15 @@ export const actions = actionTree(
       state.chats = {}
       state.activeChat = null
       await API.init(project?.codx_path)
-      project && await $storex.projects.loadKanban()
+      if (project) {
+          $storex.projects.loadKanban()
+      }
       state.activeProject = API.lastSettings
       const { data: profiles } = await $storex.api.profiles.list();
       state.profiles = profiles
+    },
+    async loadBranches({ state }) {
+      state.branches = await $storex.api.project.branches()
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()
@@ -196,8 +202,8 @@ export const actions = actionTree(
         return []
       }
     },
-    async refreshChangesSummary({ state }, rebuild) {
-      state.changesSummary = await $storex.api.run.changesSummary(rebuild)
+    async refreshChangesSummary({ state }, { branch, rebuild }) {
+      state.changesSummary = await $storex.api.run.changesSummary({ branch, rebuild })
     },
     async chatWihProject({ state }, chat) {
       const data = {

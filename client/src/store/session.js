@@ -121,13 +121,18 @@ export const actions = actionTree(
       console.log("On server message", event, data)
       state.events.push({ event, data, ts: new Date().getTime() })
       const {
-        codx_path
+        codx_path,
+        type,
+        chat
       } = data
       if (codx_path) {
         data.project = $storex.projects.allProjects?.find(p => p.codx_path === codx_path)
       }
-      if (data.chat) {
+      if (chat) {
         $storex.projects.onChatEvent({ event, data })
+      }
+      if (type === 'notification') {
+        $storex.ui.addNotification(data)
       }
     },
     onInfo(_, notification) {
