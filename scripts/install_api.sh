@@ -1,3 +1,6 @@
+#!/bin/bash
+source ../.venv
+
 export PYTHONPATH=${CODX_JUNIOR_PATH}/api
 
 cd ${CODX_JUNIOR_PATH}/api

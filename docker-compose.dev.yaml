@@ -1,77 +1,13 @@
 services:
-
-  build-codx-junior-api:
-    container_name: build-codx-junior-api
-    image: codx-junior:api
-    build:
-      context: .
-      dockerfile: Dockerfile.api
-    command: echo "Done!"
-  
-  build-codx-junior-base:
-    container_name: build-codx-junior-base
-    image: codx-junior:base
-    build:
-      context: .
-      dockerfile: Dockerfile.base
-    command: echo "Done!"
-
-  build-codx-junior:
-    depends_on:
-      - build-codx-junior-base
-      - build-codx-junior-api
-    container_name: build-codx-junior
-    image: codx-junior:latest
-    build:
-      context: .
-      dockerfile: Dockerfile
-    command: echo "Done!"
-
-  build-codx-junior-dind:
-    depends_on:
-      - build-codx-junior
-    container_name: build-codx-junior-dind
-    image: codx-junior:latest
-    build:
-      context: .
-      dockerfile: Dockerfile.dind
-    command: echo "Done!"
-
   codx-junior:
     container_name: codx-junior
-    image: codx-junior:latest
-    depends_on:
-      - build-codx-junior
+    image: lscr.io/linuxserver/webtop:debian-kde
     shm_size: 2gb
-    environment:
-      - DEBUG=1
-      # HOST_USER to fix permissions from files generated
-      - HOST_USER=${USER:-root}
-      - ANONYMIZED_TELEMETRY=False
     volumes:
-      - ${HOST_PROJECTS_ROOT_PATH}/code-server/extensions:/root/.local/share/code-server/extensions
-      - ${HOST_PROJECTS_ROOT_PATH}/code-server/User:/root/.local/share/code-server/User
-      - ${HOST_PROJECTS_ROOT_PATH}:${HOST_PROJECTS_ROOT_PATH}
+      - ./docker-init:/custom-cont-init.d:ro
+      - ./code-server/extensions:/root/.local/share/code-server/extensions
+      - ./code-server/User:/root/.local/share/code-server/User
+      - .:/config/codx-junior
     ports:
-      - 9983:9983
-
-  codx-junior-dind:
-    depends_on:
-      - build-codx-junior-dind
-    container_name: codx-junior-dind
-    image: codx-junior:dind
-    cap_add:
-      - SYS_ADMIN
-      - NET_ADMIN
-    shm_size: 2gb
-    environment:
-      - DEBUG=1
-      # HOST_USER to fix permissions from files generated
-      - HOST_USER=${USER:-root}
-      - ANONYMIZED_TELEMETRY=False
-    volumes:
-      - ${HOST_PROJECTS_ROOT_PATH}/code-server/extensions:/root/.local/share/code-server/extensions
-      - ${HOST_PROJECTS_ROOT_PATH}/code-server/User:/root/.local/share/code-server/User
-      - ${HOST_PROJECTS_ROOT_PATH}:${HOST_PROJECTS_ROOT_PATH}
-    ports:
-      - 9993:9983
+      - 8080:9983 #Web
+      - 8081:9080 #coder

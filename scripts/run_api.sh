@@ -1,4 +1,6 @@
 #!/bin/bash
+source ../.venv
+
 export PYTHONPATH=${CODX_JUNIOR_PATH}/api
 export CODX_JUNIOR_STATIC_FOLDER=${CODX_JUNIOR_PATH}/client/dist
 

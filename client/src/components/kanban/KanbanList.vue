@@ -15,7 +15,7 @@ import moment from 'moment'
         v-for="board in sortedBoards"
         :key="board.title"
         @click="selectBoard(board)"
-        class="card card-bordered bg-base-100 shadow-md p-4 rounded-lg cursor-pointer"
+        class="card card-bordered bg-base-300 shadow-md p-4 rounded-lg cursor-pointer"
       >
         <div class="card-body flex flex-col">
           <h2 class="card-title">{{ board.title }}</h2>
@@ -35,7 +35,7 @@ import moment from 'moment'
       </div>
       <div
         @click="emitNewKanban"
-        class="card card-bordered card-dashed bg-base-100 shadow-md p-4 rounded-lg flex items-center justify-center cursor-pointer"
+        class="card card-bordered card-dashed bg-base-200 border-slate-600 border-dashed shadow-md p-4 rounded-lg flex items-center justify-center cursor-pointer"
       >
         <div class="card-body flex items-center justify-center">
           <i class="fas fa-plus text-gray-600 mr-2"></i>

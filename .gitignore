@@ -11,5 +11,5 @@ filebrowser.db
 .idea
 .vscode
 static
-codx-junior.pid
 llm-factory/ollama-data
+pids

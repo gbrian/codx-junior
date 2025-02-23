@@ -70,13 +70,15 @@ class KnowledgeDB:
                 logger.exception(f"Error connecting to project's DB {self.settings.project_name}")
 
     def init_collection(self):
-        collections = self.db.list_collections()
-        if self.index_name not in collections:
-            self.db.create_collection(
-                collection_name=self.index_name,
-                dimension=self.settings.get_ai_embeddings_settings().vector_size,
-                auto_id=True
-            )
+        if self.db:
+            collections = self.db.list_collections()
+            if self.index_name in collections:
+                return
+        self.db.create_collection(
+            collection_name=self.index_name,
+            dimension=self.settings.get_ai_embeddings_settings().vector_size,
+            auto_id=True
+        )
 
     def get_all_files(self):
         all_files = {}
