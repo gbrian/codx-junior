@@ -1,0 +1,22 @@
+{
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    "./api",
+    "-p",
+    "test_*.py"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestArgs": [
+  ],
+  "sqltools.useNodeRuntime": true,
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "driver": "SQLite",
+      "name": "app-ng-mro",
+      "database": "/shared/app-ng-mro/.vscode/.codx/db/shared-app-ng-mro/chroma.sqlite3"
+    }
+  ]
+}

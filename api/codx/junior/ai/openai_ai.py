@@ -7,12 +7,16 @@ from openai import OpenAI
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 
+from codx.junior.ai.ai_logger import AILogger
+
 from codx.junior.settings import CODXJuniorSettings
 from langchain.schema import (
     AIMessage,
     HumanMessage,
     BaseMessage
 )
+
+from codx.junior.profiling.profiler import profile_function
 
 logger = logging.getLogger(__name__)
 
@@ -39,14 +43,20 @@ tools = [
 class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
+        self.model = self.settings.get_ai_model()
+        self.api_key=settings.get_ai_api_key()
+        self.base_url=settings.get_ai_api_url()
+
         self.client = OpenAI(
-            api_key=settings.get_ai_api_key(),
-            base_url=settings.get_ai_api_url()
+            api_key=self.api_key,
+            base_url=self.base_url
         )
+        self.ai_logger = AILogger(settings=settings)
+
 
     def log(self, msg):
         if self.settings.get_log_ai():
-            logger.info(msg)
+            self.ai_logger.info(msg)
 
     def convert_message(self, gpt_message: Union[AIMessage, HumanMessage, BaseMessage]): 
         if gpt_message.type == "image":
@@ -56,13 +66,16 @@ class OpenAI_AI:
             "content": gpt_message.content
         }
 
+    @profile_function
     def chat_completions(self, messages, config: dict = {}):
+
+        self.log(f"OpenAI_AI chat_completions {self.settings.get_ai_provider()}: {self.model} {self.base_url} {self.api_key[0:6]}...")
+
         openai_messages = [self.convert_message(msg) for msg in messages]
-        model = self.settings.get_ai_model()
         temperature = float(self.settings.temperature)
         
         response_stream = self.client.chat.completions.create(
-            model=model,
+            model=self.model,
             temperature=temperature,
             messages=openai_messages,
             stream=True
@@ -70,30 +83,29 @@ class OpenAI_AI:
         callbacks = config.get("callbacks", None)
         content_parts = []
         if self.settings.get_log_ai():
-            self.log(f"AI response: {response_stream}")
-        for chunk in response_stream:
-            # Check for tools
-            #tool_calls = self.process_tool_calls(chunk.choices[0].message)
-            #if tool_calls:
-            #    messages.append(HumanMessage(content=tool_calls))
-            #    return self.chat_completions(messages=messages)
-
-            chunk_content = chunk.choices[0].delta.content
-            if not chunk_content:
-                continue
-
-            content_parts.append(chunk_content)
-            if callbacks:
-                for cb in callbacks:
-                    cb.on_llm_new_token(chunk_content)
-
+            self.log(f"Received AI response, start reading stream")
+        try:
+            for chunk in response_stream:
+                # Check for tools
+                #tool_calls = self.process_tool_calls(chunk.choices[0].message)
+                #if tool_calls:
+                #    messages.append(HumanMessage(content=tool_calls))
+                #    return self.chat_completions(messages=messages)
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    content_parts.append(chunk_content)
+                    
+                if callbacks:
+                    for cb in callbacks:
+                        try:
+                            cb(chunk_content)
+                        except Exception as ex:
+                            logger.error(f"ERROR IN CALLBACKS: {ex}")
+        except Exception as ex:
+            logger.exception(f"Error reading AI response {ex}")
+        
+        self.log(f"AI response done {len(content_parts)} chunks")
         response_content = "".join(content_parts)
-        if self.settings.get_log_ai():
-            logger.debug("\n\n".join(
-                [f"[{datetime.now().isoformat()}] model: {model}, temperature: {temperature}"] +
-                [f"[{message.type}]\n{message.content}" for message in messages] +
-                ["[AI]",response_content]
-            ))
         return AIMessage(content=response_content)
 
     def process_tool_calls(self, message):
@@ -114,7 +126,8 @@ class OpenAI_AI:
     def tool_read_file(self, file_path):
         with open(file_path, 'r') as f:
             return f.read()
-            
+
+    @profile_function        
     def generate_image(self, prompt):
         response = self.client.images.generate(
             model="dall-e-3",
@@ -125,3 +138,24 @@ class OpenAI_AI:
         )
 
         return response.data[0].url
+
+    @profile_function
+    def embeddings(self):
+        embeddings_ai_settings = self.settings.get_ai_embeddings_settings()
+        client = OpenAI(
+            api_key=embeddings_ai_settings.api_key,
+            base_url=embeddings_ai_settings.api_url
+        )
+        def embedding_func(content: str):
+            try:
+              response = client.embeddings.create(
+                  input=content,
+                  model=embeddings_ai_settings.model
+              )
+              embeddings = []
+              for data in response.data:
+                  embeddings = embeddings + data.embedding
+              return embeddings
+            except Exception as ex:
+              logger.exception(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
+        return embedding_func

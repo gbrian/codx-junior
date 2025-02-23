@@ -5,3 +5,11 @@ __pycache__
 client/.vite
 global_settings.json
 **/.codx/db
+filebrowser.
+core
+filebrowser.db
+.idea
+.vscode
+static
+llm-factory/ollama-data
+pids

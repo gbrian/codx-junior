@@ -1,27 +1,35 @@
 <template>
   <div role="tablist" class="tabs tabs-bordered">
     <a role="tab" :class="['tab flex items-center gap-2', ($ui.tabIx === 'home') ? 'tab-active font-bold' : '']" @click="setActiveTab('home')">
-      <i class="fa-solid fa-house"></i>
-      <span class="hidden lg:inline">Projects</span>
+      <img class="w-4 rounded-full" src="/only_icon.png" />
+      <span class="hidden lg:inline">Start</span>
     </a>
     <a role="tab" :class="['tab flex items-center gap-2', 
       disableProjectTabs && 'tab-disabled',
       ($ui.tabIx === 'tasks') ? 'tab-active font-bold' : '']"
       @click="setActiveTab('tasks')">
-      <i class="fa-brands fa-trello"></i> <span class="hidden lg:inline">Tasks</span>
+      <i class="fa-solid fa-list-check"></i> <span class="hidden lg:inline">TO DO</span>
     </a>
-    <a role="tab" :class="['tab flex items-center gap-2', 
-      disableProjectTabs && 'tab-disabled',
-      ($ui.tabIx === 'knowledge') ? 'tab-active font-bold' : '']" 
-      @click="setActiveTab('knowledge')">
-      <i class="fa-solid fa-book"></i> <span class="hidden lg:inline">Knowledge</span>
-    </a>
-    <a role="tab" :class="['tab flex items-center gap-2', 
+    <a role="tab" :class="['hidden tab flex items-center gap-2', 
       disableProjectTabs && 'tab-disabled',
       ($ui.tabIx === 'wiki') ? 'tab-active font-bold' : '']" 
       @click="setActiveTab('wiki')">
       <i class="fa-brands fa-wikipedia-w"></i> <span class="hidden lg:inline">Docs</span>
     </a>
+    <a role="tab" :class="['tab flex items-center gap-2', 
+      disableProjectTabs && 'tab-disabled',
+      ($ui.tabIx === 'files') ? 'tab-active font-bold' : '']" 
+      @click="setActiveTab('files')" v-if="$ui.enableFileManger">
+      <i class="fa-solid fa-folder"></i> 
+      <span class="hidden lg:inline">Files</span>
+    </a>
+    <a role="tab" :class="['tab flex items-center gap-2', 
+      disableProjectTabs && 'tab-disabled',
+      ($ui.tabIx === 'profiles') ? 'tab-active font-bold' : '']" 
+      @click="setActiveTab('profiles')">
+      <i class="fa-solid fa-circle-user"></i> <span class="hidden lg:inline">Profiles</span>
+    </a>
+    
     <a role="tab" :class="['tab flex items-center gap-2', 
       disableProjectTabs && 'tab-disabled',
       ($ui.tabIx === 'app') ? 'tab-active font-bold' : '']" 
@@ -35,7 +43,7 @@
           <li @click="showCoder()">
             <a><i class="fa-solid fa-code"></i> Coder</a></li>
           <li @click="showBrowser()">
-            <a><i class="fa-solid fa-display"></i> Prefiew</a>
+            <a><i class="fa-solid fa-display"></i> Preview</a>
           </li>
         </ul>
       </div>

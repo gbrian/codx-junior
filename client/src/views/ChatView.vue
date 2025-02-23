@@ -1,126 +1,59 @@
 <script setup>
-import { API } from '../api/api'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
 import moment from 'moment'
-import PRView from '../views/PRView.vue'
-import ChatIconVue from '@/components/chat/ChatIcon.vue'
+import TaskCard from '@/components/kanban/TaskCard.vue'
+import Kanban from '@/components/kanban/Kanban.vue';
 </script>
+
 <template>
   <div class="flex flex-col h-full pb-2" v-if="chat">
-    <div class="flex gap-2 items-center hidden">
-      <div class="dropdown">
-        <div tabindex="0" role="button" class="btn btn-xs m-1"><i class="fa-solid fa-code-branch"></i></div>
-        <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-68 p-2 shadow">
-          <li class="mt-2">
-            <a class="input input-bordered input-sm flex gap-2">
-              <input class="bg-transparent active:outline-none" placeholder="New branch...">
-              <i class="fa-solid fa-plus"></i>
-            </a>
-          </li>
-          <li><a>{{ API.lastSettings.current_git_branch }}</a></li>
-        </ul>
-      </div>
-      {{ API.lastSettings.current_git_branch }}
-      <div class="grow"></div>
-      <button class="btn btn-sm" @click="showPRView = false" v-if="showPRView">
-        Task
-      </button>
-      <button class="btn btn-sm" @click="showPRView = true" v-else>
-        PR
-      </button>
-    </div>
-    <PRView v-if="showPRView"></PRView>
-    <div class="grow flex gap-2 h-full justify-between" v-if="showChat">
+    <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col gap-2 w-full">
-        <div class="text-xl flex gap-2 items-center" v-if="!chatMode">
+        <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <button class="btn btn-xs btn-circle mt-1 text-white"
-                @click="navigateToChats">
-                <i class="fa-solid fa-arrow-left"></i>
-              </button>
-              <input v-if="editName"
-                type="text" class="input input-xs input-bordered"
-                @keydown.enter.stop="saveChat"
-                @keydown.esc="editName = false"
-                v-model="chat.name" />
-              <div class="font-bold flex flex-col" v-else> 
-                <div class="click" @click="editName = true">
-                  <ChatIconVue :chat="chat" />
-                  {{ chat.name }}
+              <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
+              <div class="font-bold flex flex-col" v-else>
+                <div class="my-2 text-xs hover:underline click font-bold text-primary"
+                  @click="naviageToParent"
+                  v-if="parentChat || Kanban">
+                  <i class="fa-solid fa-turn-up"></i> {{ parentChat?.name || kanban?.title }} ...
                 </div>
-                <div class="flex gap-2 items-center">
-                  <div class="text-xs">{{ moment.utc(chat.updated_at).fromNow() }}</div>
-                  <div class="badge badge-sm badge-info flex gap-2" v-for="tag in chat.tags" :key="tag">
-                    {{ tag }}
-                    <button class="btn btn-xs btn-ghost" @click="removeTag(tag)">
-                      x
-                    </button>
-                  </div>
-                  <button class="btn btn-xs" @click="newTag = ''">
-                      + tag
-                  </button>
-                  <modal v-if="newTag !== null">
-                    <div class="flex flex-col gap-2">
-                      <div class="text-xl">New tag</div>
-                      <select class="select select-sm select-bordered"
-                        @change="newTag = $event.target.value"
-                      >
-                        <option value="" selected>New</option>
-                        <option v-for="t in $projects.allTags" :key="t" :value="t">{{t}}</option>
-                      </select>
-                      <input type="text" class="input input-sm input-bordered" v-model="newTag" />
-                      <div class="flex gap-2 justify-end">
-                        <button class="btn btn-error" @click="newTag = null">
-                            Cancel
-                        </button>
-                        <button class="btn" @click="addNewTag" :disabled="newTag.length === 0">
-                            Add
-                        </button>
-                      </div>
+                <div class="flex items-center gap-2">
+                  <div class="dropdown">
+                    <div tabindex="0" role="button" class="btn btn-xs btn-outline flex gap-1 items-center">
+                      <i :class="chatModes[chat.mode].icon" class="fa-regular fa-comments"></i>
                     </div>
-                  </modal>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                      <li v-for="info, mode in chatModes" :key="mode">
+                        <details open v-if="info.profiles.length > 1">
+                          <summary>
+                            <i :class="info.icon" class="fa-regular fa-comments"></i>
+                            {{ info.name }}
+                          </summary>
+                          <ul>
+                            <li @click="setChatMode(mode, profile)" v-for="profile in info.profiles" :key="profile">
+                              <a>{{ profile  }}</a>
+                            </li>
+                          </ul>
+                        </details>
+                        <a class="flex items-center" @click="setChatMode(mode, info.profiles[0])" v-else>
+                          <i :class="info.icon" class="fa-regular fa-comments"></i>
+                          {{ info.name }}
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                  <div class="click text-xs md:text-xl" @click="editName = true">
+                    {{ chat.name }}
+                  </div>
                 </div>
               </div>
             </div>
             <div class="grow"></div>
-            <div class="group relative bg-base-100">
-              <div class="bg-base-300 p-2 rounded hidden group-hover:flex gap-2 p-1 items-end absolute right-8 -top-1">
-                <div class="dropdown -mt-1">
-                  <div tabindex="0" role="button" class="select select-xs select-bordered">{{ chat.mode }}</div>
-                  <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                    <li @click="chat.mode = 'chat'">
-                      <a class="flex items-center">
-                        <i class="fa-regular fa-comments"></i>
-                        Chat
-                      </a>
-                    </li>
-                    <li @click="chat.mode = 'task'">
-                      <a class="flex items-center">
-                        <i class="fa-regular fa-file-code"></i>
-                        Task definition
-                      </a>
-                    </li>
-                    <li @click="chat.mode = 'browser'">
-                      <a class="flex items-center">
-                        <i class="fa-brands fa-chrome"></i>
-                        Browse the web
-                      </a>
-                    </li>
-                  </ul>
-                </div>
-                <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
-                  <i class="fa-solid fa-floppy-disk"></i>
-                </button>
-                <button class="btn btn-xs btn-error hover:text-white" @click="deleteChat" v-if="confirmDelete">
-                  Comfirm? <span class="hover:underline">YES</span> / <span class="hover:underline" @click.stop="confirmDelete = false">NO</span>
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-                <button class="btn btn-xs hover:btn-error hover:text-white" @click="deleteChat" v-else>
-                  <i class="fa-solid fa-trash"></i>
-                </button>
-                
+            <div class="flex gap-1 items-center">
+              <div class="flex gap-2 p-1 items-center -top-1" v-if="toggleChatOptions">
                 <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
                   <div class="flex items-center gap-2" v-if="!showHidden">
                     ({{ hiddenCount }})
@@ -130,32 +63,107 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
                     <i class="fa-solid fa-eye"></i>
                   </span>
                 </button>
-                <div class="dropdown dropdown-end dropdown-bottom -mt-1">
-                  <button tabindex="0" class="btn btn-xs">
-                    <i class="fa-solid fa-plus"></i>
-                  </button>
-                  <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] w-60 p-2 shadow">
+                <div class="dropdown dropdown-end dropdown-bottom">
+                  <div tabindex="0" class="btn btn-sm flex items-center indicator">
+                    Tasks
+                    <span v-if="childrenChats.length">
+                      ({{ childrenChats.length }})
+                    </span>
+                    <i class="fa-solid fa-caret-down"></i>
+                  </div>
+                  <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] p-2 w-96 shadow">
                     <li @click="newSubChat()">
                       <a>New sub task</a>
                     </li>
+                    <li @click="createSubTasks()">
+                      <a>Create sub tasks <i class="fa-solid fa-wand-magic-sparkles"></i></a>
+                    </li>
+                    <div class="divider" v-if="childrenChats.length"></div>
+                    <div class="max-h-96 w-full overflow-auto flex flex-col gap-2 p-1">
+                      <TaskCard class="p-2" :task="child" @click="$projects.setActiveChat(child)"
+                            v-for="child in childrenChats" :key="childrenChats.id" />
+                    </div>
                   </ul>
                 </div>
+                <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
+                  <i class="fa-solid fa-floppy-disk"></i>
+                </button>
+                <div class="grow"></div>
+                <button class="btn btn-xs btn-error btn-outline mt-1 text-white" @click="navigateToChats">
+                  <i class="fa-regular fa-circle-xmark"></i>
+                </button>
               </div>
-              <div class="btn btn-sm btn-ghost ml-6" @click.stop="">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
+              <div class="md:hidden btn btn-sm" @click="toggleChatOptions = !toggleChatOptions">
+                <i class="fa-solid fa-bars"></i>
               </div>
             </div>
           </div>
         </div>
-        <Chat :chat="chat"
+        <div class="flex justify-between">
+          <div class="flex gap-2 items-center">
+            <div class="text-xs">{{ moment.utc(chat.updated_at).fromNow() }}</div>
+            <div class="badge badge-sm badge-info flex gap-2" v-for="tag in chat.tags" :key="tag">
+              {{ tag }}
+              <button class="btn btn-xs btn-ghost" @click="removeTag(tag)">
+                x
+              </button>
+            </div>
+            <button class="btn btn-xs" @click="newTag = ''">
+              + tag
+            </button>
+            <div class="badge text-secondary" v-for="profile in chat.profiles" :key="profile">
+              {{ profile }}
+            </div>
+          </div>
+          <div class="flex gap-2 justify-end">
+            <select v-model="chat.project_id" class="select select-bordered select-xs w-full max-w-xs"
+              @change="saveChat"
+            >
+              <option v-for="project in subProjects" :key="project.project_id"
+                :value="project.project_id"
+                :selected="project.project_id === chatProject.project_id"
+              >
+              {{ project.project_name }} <span v-if="project.ai_settings.provider">({{ project.ai_settings.model }})</span>
+              </option>
+            </select>
+            {{  }}
+          </div>
+        </div>
+        <div class="w-full overflow-auto" v-if="chatFiles.length">
+          <div class="my-2 text-xs">
+            <span>
+              <i class="fa-solid fa-paperclip"></i>
+            </span>
+            <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 click text-accent" @click="$ui.openFile(file)">
+              <span>{{ file.split('/').reverse()[0] }}</span>
+              <span class="ml-2 click" @click.stop="onRemoveFile(file)">
+                <i class="fa-regular fa-circle-xmark"></i>
+              </span>
+            </a>
+          </div>
+        </div>
+        <Chat :chatId="chat.id"
           :showHidden="showHidden"
+          :childrenChats="childrenChats"
           @refresh-chat="loadChat(chat)"
           @add-file="onAddFile"
-          @remove-file="onRemoveFile"
+          @remove-file="onRemoveFile" 
           @delete-message="onRemoveMessage"
-          @save="saveChat"
-        v-if="chat"/>
-        <div class="modal modal-open" role="dialog" v-if="showFile || addFile !== null">
+          @delete="confirmDelete = true"
+          @save="saveChat" 
+          v-if="chat"/>
+        <modal v-if="confirmDelete">
+          <div class="">
+            <h3 class="font-bold text-lg">Confirm Delete</h3>
+            <p class="text-error font-bold">Are you sure you want to delete this chat?</p>
+            <div class="text-xl p-1">{{ chat.name }}</div>
+            <div class="modal-action">
+              <button class="btn btn-error" @click="confirmDeleteChat">Delete</button>
+              <button class="btn" @click="resetConfirmDelete">Cancel</button>
+            </div>
+          </div>
+        </modal>
+        <modal class="modal modal-open" role="dialog" v-if="showFile || addFile !== null">
           <div class="modal-box flex flex-col gap-4 p-4">
             <h3 class="font-bold text-lg" v-if="showFile">
               This file belongs to the task context:
@@ -176,18 +184,36 @@ import ChatIconVue from '@/components/chat/ChatIcon.vue'
               </button>
             </div>
           </div>
-        </div>
+        </modal>
+        <modal v-if="newTag !== null">
+          <div class="flex flex-col gap-2">
+            <div class="text-xl">New tag</div>
+            <select class="select select-sm select-bordered" @change="newTag = $event.target.value">
+              <option value="" selected>New</option>
+              <option v-for="t in $projects.allTags" :key="t" :value="t">{{t}}</option>
+            </select>
+            <input type="text" class="input input-sm input-bordered" v-model="newTag" />
+            <div class="flex gap-2 justify-end">
+              <button class="btn btn-error" @click="newTag = null">
+                Cancel
+              </button>
+              <button class="btn" @click="addNewTag" :disabled="newTag.length === 0">
+                Add
+              </button>
+            </div>
+          </div>
+        </modal>
       </div>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
   </div>
 </template>
+
 <script>
 export default {
-  props: ['chatMode', 'openChat'],
+  props: ['chatMode', 'openChat', 'kanban'],
   data() {
     return {
-      profiles: null,
       showFile: null,
       addFile: null,
       showChatsTree: false,
@@ -195,122 +221,161 @@ export default {
       showSettings: false,
       addNewFile: null,
       showHidden: false,
-      showPRView: false,
       confirmDelete: false,
-      newTag: null
+      newTag: null,
+      toggleChatOptions: false
     }
   },
-  async created () {
-    this.loadProfiles()
+  mounted () {
+    this.toggleChatOptions = !this.$ui.isMobile
   },
   computed: {
-    hiddenCount () {
+    chatModes () {
+      return this.$projects.chatModes
+    },
+    subProjects () {
+      return [
+          this.$project,
+          ...this.$projects.childProjects || [],
+          ...this.$projects.projectDependencies || []
+      ]
+    },
+    hiddenCount() {
       return this.chat.messages?.filter(m => m.hide).length
     },
-    messages () {
+    messages() {
       return this.chat.messages.filter(m => !m.hide || this.showHidden)
     },
-    showChat () {
-      return !this.showPRView
-    },
-    chatUpdatedDate () {
-      const updatedAt = this.chat.updated_at;
+    chatUpdatedDate() {
+      const updatedAt = this.chat.updated_at
       return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
         ? moment(updatedAt).fromNow()
-        : moment(updatedAt).format('YYYY-MM-DD');
+        : moment(updatedAt).format('YYYY-MM-DD')
     },
-    chats () {
-      return this.$projects.chats
+    chats() {
+      return this.$projects.allChats
     },
-    chat () {
-      return this.$projects.activeChat
+    chat() {
+      return this.$projects.chats[this.openChat?.id || this.$projects.activeChat.id]
+    },
+    parentChat() {
+      const parentId = this.chat.parent_id
+      return parentId ? this.chats.find(c => c.id && c.id === parentId) : null
+    },
+    childrenChats() {
+      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
+        .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
+    },
+    chatProject() {
+      return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) ||
+              this.$project
+    },
+    parentChat () {
+      return this.$projects.allChats.find(c => c.id === this.chat.parent_id)
+    },
+    chatFiles() {
+      return [...this.chat.file_list||[], ...this.parentChat?.file_list||[]]
     }
   },
-  watch: {
-  },
   methods: {
-    async loadProfiles () {
-      try {
-        const { data } = await API.profiles.list()
-        this.profiles = data
-      } catch {}
-    },
-    async saveChat () {
+    async saveChat() {
       this.editName = false
       await this.$projects.saveChat(this.chat)
     },
-    async deleteChat () {
-      if (this.confirmDelete) {
-        await this.$projects.deleteChat(this.chat)
-        this.navigateToChats()
+    async confirmDeleteChat() {
+      this.confirmDelete = false
+      const parent_id = this.chat.parent_id
+      await this.$projects.deleteChat(this.chat)
+      const parentChat = this.parentChat
+      if (parentChat) {
+        this.$projects.setActiveChat(parentChat)
       } else {
-        this.confirmDelete = true
+        this.navigateToChats()
       }
     },
-    async loadChat (chat) {
+    resetConfirmDelete() {
+      this.confirmDelete = false
+    },
+    async loadChat(chat) {
       await this.$projects.setActiveChat(chat)
       this.showChatsTree = false
     },
-    async removeFileFromContext () {
-      this.chat.profiles = this.chat.profiles?.filter(f => f !== this.showFile) 
+    async removeFileFromContext() {
+      this.chat.profiles = this.chat.profiles?.filter(f => f !== this.showFile)
       this.onRemoveFile(this.showFile)
       await this.loadChat(this.chat)
       this.showFile = null
     },
-    async addFileToContext () {
+    async addFileToContext() {
       this.onAddFile(this.addFile)
       await this.saveChat()
       await this.loadChat(this.chat)
       this.showFile = null
       this.addFile = null
     },
-    async onAddFile (file) {
+    async onAddFile(file) {
       if (this.chat.file_list?.includes(file)) {
         return
       }
-      this.chat.file_list = [...(this.chat.file_list||[]), file]
+      this.chat.file_list = [...(this.chat.file_list || []), file]
       this.addNewFile = null
       await this.saveChat()
     },
-    async onRemoveFile (file) {
-      this.chat.file_list = (this.chat.file_list||[]).filter(f => f !== file)
+    async onRemoveFile(file) {
+      this.chat.file_list = (this.chat.file_list || []).filter(f => f !== file)
       this.addNewFile = null
       await this.saveChat()
     },
-    async addProfile (profile) {
-      if (this.chat.profiles?.find(f => f.endsWith(profile))) {
+    async addProfile(profile) {
+      if (this.chat.profiles?.includes(profile)) {
         return
       }
-      this.chat.profiles = [...this.chat.profiles||[], profile]
+      this.chat.profiles = [...this.chat.profiles || [], profile]
       await this.saveChat()
-      await this.loadChat(this.chat)
     },
-    onRemoveMessage (ix) {
-      const message = this.chat.messages[ix]
-      if (this.chat.mode == 'task' && message.role === "assistant") {
-        this.chat.messages[ix-1].hide = false
+    removeProfile(profile) {
+      if (this.chat.profiles?.includes(profile)) {
+        this.chat.profiles = this.chat.profiles.filter(p => p !== profile)
+        this.saveChat()
       }
-      this.chat.messages = this.chat.messages.filter((m, i) => i !== ix)
+    },
+    onRemoveMessage(message) {
+      const ix = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
+      if (this.chat.mode == 'task' && message.role === "assistant" && ix > 1) {
+        this.chat.messages[ix - 1].hide = false
+      }
+      this.chat.messages = this.chat.messages.filter((_, i) => i !== ix)
       this.saveChat()
     },
-    navigateToChats () {
+    navigateToChats() {
       this.$emit('chats')
     },
-    async newSubChat () {
-      const parent = this.chat
-      await this.newChat()
-      this.chat.parent_id = parent.parent_id
-      this.chat.column = parent.column
-      this.chat.column_ix = parent.column_ix
+    async newSubChat() {
+      this.$emit('sub-task', this.chat)
     },
-    addNewTag () {
-      this.chat.tags = [...new Set([...this.chat.tags||[], this.newTag])]
+    addNewTag() {
+      this.chat.tags = [...new Set([...this.chat.tags || [], this.newTag])]
       this.newTag = null
       this.saveChat()
     },
-    removeTag (tag) {
+    removeTag(tag) {
       this.chat.tags = this.chat.tags.filter(t => t !== tag)
       this.saveChat()
+    },
+    setChatMode(mode, profile) {
+      this.chat.mode = mode
+      this.chat.profiles = [profile]
+      this.saveChat()
+    },
+    async createSubTasks() {
+      await this.$storex.projects.createSubTasks(this.chat)
+    },
+    naviageToParent() {
+      if (this.parentChat) {
+        this.$emit('chat', this.parentChat)
+      } else {
+        this.navigateToChats()
+      }
     }
   }
 }

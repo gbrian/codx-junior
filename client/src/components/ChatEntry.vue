@@ -1,93 +1,105 @@
 <script setup>
 import { API } from '../api/api'
 import Markdown from './Markdown.vue'
+import moment from 'moment'
+import { full as emoji } from 'markdown-it-emoji'
+import highlight from 'markdown-it-highlightjs'
+import MarkdownIt from 'markdown-it'
+import { CodeDiff } from 'v-code-diff'
 </script>
+
 <template>
-  <div :class="['relative w-full relative p-2 hover:rounded-md',
-      message.role === 'user' ? 'chat-start': 'chat-end',
-    ]" >
-    <div :class="['px-2 max-w-full group w-full -mx-2 prose-xs',
-      message.improvement ? 'border-green-300/20 bg-green-900' : 'border-slate-300/20',
-      message.role === 'user' ? '': '',
-      message.collapse ? 'max-h-40 overflow-hidden': 'h-fit',
-      message.hide ? 'text-slate-200/20': ''
-    ]"
-    >
-      <div @copy.stop="onMessageCopy">
-        <div class="flex gap-2 items-center">
-          <div :class="['btn btn-sm btn-outline flex gap-2 items-center font-bold text-xs rounded-md',
-            message.role ==='user' ? 'bg-base-300' :'bg-secondary/80 text-secondary-content' ]">
-            <div class="click" @click="$emit('hide')">
-              <span class="text-warning" v-if="message.hide">
-                <i class="fa-solid fa-eye-slash"></i>
-              </span>
-              <span v-else>
-                <i class="fa-solid fa-eye"></i>
-              </span>
-            </div>
-            <div v-if="chat.mode === 'chat'">
-              <div v-if="message.role ==='user'">You</div>
-              <div v-else>codx-junior</div>
-            </div>
-            <div v-if="chat.mode === 'task'">
-              <div class="dropdown">
-                <div tabindex="0" role="button" class="click">
-                  {{ message.task_item || '...' }}
-                </div>
-                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 text-neutral-content w-52 p-2 shadow">
-                  <li @click="message.task_item = 'issue'">
-                    <a><i class="fa-solid fa-microscope"></i> Observe</a>
-                  </li>
-                  <li @click="message.task_item = 'test'">
-                    <a><i class="fa-solid fa-flask-vial"></i> Test</a>
-                  </li>
-                  <li @click="message.task_item = 'Fix'">
-                    <a><i class="fa-solid fa-code"></i> Fix</a>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2 flex w-full">
-            <button class="btn btn-xs" @click="message.collapse = !message.collapse">
-              <span v-if="message.collapse">
-                <i class="fa-solid fa-chevron-up"></i>
-              </span>
-              <span v-else>
-                <i class="fa-solid fa-chevron-down"></i>
-              </span>
-            </button>
-            <button class="btn btn-xs bg-base-100" @click="copyMessageToClipboard">
-              <i class="fa-solid fa-copy"></i>
-            </button>      
-            <button class="btn btn-xs " @click="srcView = !srcView">
-                <i class="fa-solid fa-code"></i>
-            </button>
-            <button class="btn btn-xs bg-success" @click="$emit('edit')">
-              <i class="fa-solid fa-pencil"></i>
-            </button>
-            <div class="grow"></div>
-            <button class="ml-4 btn btn-error btn-xs hidden group-hover:block" @click="onRemove">
+  <div class="relative flex flex-col gap-1 w-full hover:rounded-md p-2">
+    <div class="text-xs font-bold flex justify-between">
+      <div class="flex justify-start gap-2">
+        <input type="checkbox" class="toggle toggle-xs tooltip tooltip-right pt-1"
+            :data-tip="message.hide ? 'Click to add message to conversation' : 'Click to ignore'"
+             :checked="!message.hide" @click.stop="$emit('hide')" />
+        [{{ formatDate(message.updated_at) }}] <span v-if="timeTaken">({{ timeTaken }} s.)</span>
+        <div>
+          <div class="text-primary" v-if="message.role === 'user'">You</div>
+          <div class="text-secondary" v-else>codx-junior</div>
+        </div>
+      </div>
+      <div class="flex gap-2 items-center justify-end">
+        <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2 flex w-full">
+          <button class="btn btn-xs tooltip tooltip-right" data-tip="Expand/Collapse" @click="toggleCollapse">
+            <span v-if="message.collapse">
+              <i class="fa-solid fa-chevron-up"></i>
+            </span>
+            <span v-else>
+              <i class="fa-solid fa-chevron-down"></i>
+            </span>
+          </button>
+          <button class="btn btn-xs hover:btn-outline bg-base-100 tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
+            <i class="fa-solid fa-copy"></i>
+          </button>      
+          <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
+            <i class="fa-solid fa-code"></i>
+          </button>
+          <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
+            <i class="fa-regular fa-file-lines"></i>
+            <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
+          </button>
+          <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
+            <i class="fa-solid fa-pencil"></i>
+          </button>
+          <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
+            @click="$emit('enhance')">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+          </button>
+          <div class="grow"></div>
+          <div class="dropdown dropdown-hover dropdown-end">
+            <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
               <i class="fa-solid fa-trash"></i>
-              <span v-if="isRemove"> Confirm 
-                <span class="hover:underline">Yes</span>/<span class="hover:underline" @click.stop="isRemove = false">No</span>
-              </span>
+              <span v-if="isRemove"> Confirm </span>
             </button>
-            
+            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow w-28 p-2">
+              <li>
+                <a class="hover:underline" @click="confirmRemove">Yes</a>
+              </li>
+              <li>
+                <a class="hover:underline" @click.stop="cancelRemove">No</a>
+              </li>
+            </ul>
           </div>
         </div>
+      </div>
+    </div>
+    <div :class="['max-w-full group w-full border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
+      <div @copy.stop="onMessageCopy">
         <pre v-if="srcView">{{ message.content }}</pre>
-        <Markdown :text="messageContent" v-else />
+        <Markdown :text="messageContent" v-if="!showDiff && !srcView && !code_patches" />
+        <CodeDiff
+          :old-string="message.diffMessage.content"
+          :new-string="messageContent"
+          theme="dark"
+          v-if="showDiff"
+        />
+        <div v-if="code_patches">
+          <div class="mt-2 p-2 bg-base-100 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
+            <div class="text-xs font-bold text-primary" :title="patch.file_path">
+              {{ patch.file_path.replace($project.project_path, '') }}
+            </div>
+            <div class="">{{ patch.description }}</div>
+            <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
+            <div class="flex justify-end">
+              <button class="btn btn-sm btn-warning" :disabled="patch.working" @click="applyPatch(patch)">
+                <span class="loading loading-spinner" v-if="patch.working"></span>
+                Apply changes
+              </button>
+            </div>
+            <div v-if="patch.res">
+              <div class="text-xs text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
+              <div class="text-xs text-success" v-else>Patch applied</div>
+            </div>
+          </div>
+        </div>
         <div v-if="images">
           <div class="carousel gap-2">
-            <div class="carousel-item click mt-2"
-              v-for="image in images" :key="image.src"
-              @click="$emit('image', image)"
-              :alt="image.alt"
-              :title="image.alt"
-            >
+            <div class="carousel-item click mt-2" v-for="image in images" :key="image.src" @click="$emit('image', image)" :alt="image.alt" :title="image.alt">
               <div class="flex flex-col">
-                <div class="bg-auto bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
+                <div class="bg-contain bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
                 <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 10) }}</p>
               </div>
             </div>
@@ -95,15 +107,13 @@ import Markdown from './Markdown.vue'
         </div>
         <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="message.files?.length">
           Linked files:
-          <div v-for="file in message.files" :key="file" :title="file"
-            class="flex gap-2 items-center click"
-          >
+          <div v-for="file in message.files" :key="file" :title="file" class="flex gap-2 items-center click">
             <div class="flex gap-2 click hover:underline" @click="$ui.openFile(file)">
-              <div class="click" @click="$ui.openFile(file)">
-                <i class="fa-solid fa-up-right-from-square"></i>
+              <div class="click tooltip tooltip-right" data-tip="Attach file" @click.stop="$emit('add-file-to-chat', file)">
+                <i class="fa-solid fa-file-arrow-up"></i>
               </div>
               <div class="overflow-hidden">
-                {{ file.split("/").reverse()[0] }}
+                {{ file.split('/').reverse()[0] }}
               </div>
             </div>
             <div class="click hover:text-error" @click.stop="$emit('remove-file', file)">
@@ -115,124 +125,137 @@ import Markdown from './Markdown.vue'
     </div>
   </div>
 </template>
+
 <script>
-import { full as emoji } from 'markdown-it-emoji'
-import highlight  from 'markdown-it-highlightjs'
-import MarkdownIt from 'markdown-it'
-
-const md = new MarkdownIt({
-  html: true
-})
-md.use(emoji)
-md.use(highlight)
-
 export default {
   props: ['chat', 'message'],
-  data () {
+  data() {
     return {
-      showDoc: false,
       srcView: false,
-      isRemove: false
+      isRemove: false,
+      improvementData: null,
+      showDiff: false
     }
   },
-  mounted () {
-    this.message.collapse = this.message.hide
-  },
   computed: {
-    html () {
+    html() {
       if (!this.showDoc) {
         try {
-          return md.render(this.message.content)
+          return this.md.render(this.message.content)
         } catch (ex) {
           console.error("Message can't be rendered", this.message)
         }
       }
       return this.showDocPreview
     },
-    showDocPreview () {
-      return md.render("```json\n" + JSON.stringify(this.message, null, 2) + "\n```")
+    showDocPreview() {
+      return this.md.render("```json\n" + JSON.stringify(this.message, null, 2) + "\n```")
     },
-    images () {
+    images() {
       return this.message?.images?.map(i => {
         try {
           return JSON.parse(i)
         } catch {
-          return {
-            src: i
-          }
+          return { src: i }
         }
       })
     },
-    messageContent () {
-      const { task_item, content } = this.message
-      if (task_item) {
-        return `### \`${task_item}\`\n\n${content}`
-      }
+    messageContent() {
+      const { content } = this.message
       return content
+    },
+    selection () {
+      return document.getSelection().toString()
+    },
+    code_changes () {
+      return this.improvementData?.code_changes
+    },
+    code_patches () {
+      return this.improvementData?.code_patches
+    },
+    timeTaken () {
+      if (!this.message.meta_data?.time_taken) {
+        return null
+      }
+      return `${this.message.meta_data.model} ${moment().add(Math.floor(this.message.meta_data.time_taken), 'seconds').format("mm:ss")}`
     }
   },
   methods: {
-    onRunEdit (preNone) {
-      const codeNode = preNone.querySelector('code')
-      const codeText = codeNode.innerText
-      const codeLang = [...codeNode.classList.values()].find(c => c.startsWith("language-"))||"language-code"
-      const codeSnipped = "```" + codeLang.split("language-")[1] + "\n" + codeText + "\n```"
-      this.$emit('run-edit', codeSnipped)
+    formatDate(date) {
+      return moment(date).format('DD/MMM HH:mm:ss')
     },
-    copyCodeToClipboard(codeBlock){
-      const text = codeBlock.childNodes[0].nodeValue
-      this.copyTextToClipboard(text)
-    },
-    copyMessageToClipboard(){
-      const text = this.message.content
-      this.copyTextToClipboard(text)
-    },
-    copyTextToClipboard (text) {
-      const textArea = document.createElement("textarea")
-      textArea.value = text
-
-      document.body.appendChild(textArea)
-
-      textArea.focus()
-      textArea.select()
-      document.execCommand('copy')
-      document.body.removeChild(textArea)
-      console.log("Code copied", text)
-    },
-    toggleExpand(code) {
-      const { parentNode } = code
-      code._collapsed = !code._collapsed
-      const classes = ["h-10", "overflow-hidden"]
-      if (code._collapsed) {
-        parentNode.classList.add(...classes)
-      } else {
-        parentNode.classList.remove(...classes)
+    extractImprovementData() {
+      this.improvementData = null
+      if (this.message.content?.includes("```json")) {
+        try {
+          const jsBlock = this.message.content.split("```json")[1].split("```")[0]
+          this.improvementData = JSON.parse(jsBlock)
+        } catch (ex) {
+          console.error("Failed to parse improvement data", ex)
+        }
       }
     },
-    getSelectionText() {
-        if (window.getSelection) {
-            return window.getSelection().toString();
-        }  
-        if (document.selection && document.selection.type != "Control") {
-            return document.selection.createRange().text;
-        }
-        return null;
+    copyTextToClipboard(text) {
+      this.$ui.copyTextToClipboard(text)
     },
     onMessageCopy(ev) {
-      const text = this.getSelectionText()
+      const text = window.getSelection().toString()
       if (text) {
         this.copyTextToClipboard(text)
         ev.preventDefault()
-        window.navigator.clipboard.read().then(console.log)
       }
     },
-    onRemove () {
+    toggleCollapse() {
+      this.message.collapse = !this.message.collapse
+    },
+    toggleSrcView() {
+      if (this.srcView = !this.srcView) {
+        this.showDiff = false
+        this.message.collapse = false
+        this.srcView = null
+      }
+    },
+    toggleShowDiff() {
+      if (this.showDiff = !this.showDiff) {
+        this.srcView = false
+        this.message.collapse = false
+        this.srcView = null
+      }
+    },
+    onRemove() {
       if (this.isRemove) {
         this.$emit('remove')
       } else {
         this.isRemove = true
       }
+    },
+    confirmRemove() {
+      this.isRemove = true
+      this.$emit('remove')
+    },
+    cancelRemove() {
+      this.isRemove = false
+    },
+    copyMessageToClipboard() {
+      this.copyTextToClipboard(this.message.content)
+    },
+    async applyPatch(patch) {
+      patch.working = true 
+      try {
+        const code_changes = this.code_changes.filter(cc => cc.file_path === patch.file_path)
+        await this.$projects.codeImprovePatch({ chat: this.chat, code_generator: { code_changes, code_patches: [ patch ] } })
+        patch.res = {
+          info: "Patch sent, please check events for updates"
+        }
+      } catch {
+        patch.res = { info: "", error: "Error aplaying patch" }
+      }
+      delete patch.working
     }
+  },
+  mounted() {
+    this.message.collapse = this.message.hide
+    this.extractImprovementData()
   }
 }
 </script>

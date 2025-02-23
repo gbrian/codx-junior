@@ -2,11 +2,12 @@
 import NoVNC from '../NoVNC.vue';
 </script>
 <template>
-  <NoVNC class=""/>
+  <NoVNC class="m-1" :token="token" :key="token"/>
 </template>
 
 <script>
 export default {
+  props: ['token'],
   data () {
     return {
       chat: {

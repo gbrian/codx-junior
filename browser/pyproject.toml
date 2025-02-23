@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "codx-junior-browser"
+version = "0.1.0"
+description = "API project for codx-junior-browser"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+browser-use = "^0.1.16"
+fastapi = "^0.115.6"

@@ -1,0 +1,128 @@
+#!/bin/bash
+
+# Load .env variables
+source .env
+
+# Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
+if [ -z "${CODX_JUNIOR_PATH}" ]; then
+    export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")" && pwd)"
+fi
+
+# Logs
+export LOGFILE=$CODX_SUPERVISOR_LOG_FOLDER/codx-junior-api.log
+sudo touch $LOGFILE
+if [ $(id -u) != 0 ]; then
+    sudo chown $USER $LOGFILE
+fi
+tail -n 30000 $LOGFILE > $LOGFILE
+exec > >(sudo tee -a $LOGFILE) 2>&1
+
+# Ensure ./pids directory exists
+mkdir -p ./pids
+
+function kill_apps() {
+  for pid_file in ./pids/*.pid; do
+    if [ -f "$pid_file" ]; then
+      pid=$(cat "$pid_file")
+      kill -9 "$pid" || true
+      rm "$pid_file"
+    fi
+  done
+}
+
+# Function to display help information
+function show_help() {
+    cat << EOF
+Usage: app.cli [command]
+
+Commands:
+  help      Display this help message
+  install   Install the application
+  run       Run the application
+  stop      Stop the application
+  status    Display the status of the application
+  logs      Show the tail of the logs file
+EOF
+}
+
+# Function to simulate installation process
+function install_app() {
+    echo "Starting the installation process..."
+    bash "${CODX_JUNIOR_PATH}/scripts/install.sh"
+    echo "Application installed successfully."
+}
+
+function stop_codx() {
+  echo "Stopping codx-junior"
+  kill_apps
+}
+
+function status() {
+  echo "codx-junior status"
+
+  for pid_file in ./pids/*.pid; do
+    echo "Stopping: $pid_file"
+    if [ -f "$pid_file" ]; then
+      pid=$(cat "$pid_file")
+      if ps -p "$pid" > /dev/null 2>&1; then
+        echo "Process with PID $pid ($(basename "$pid_file" .pid)) is running."
+      else
+        echo "Process with PID $pid ($(basename "$pid_file" .pid)) is not running."
+      fi
+    fi
+  done
+}
+
+# Function to show the tail of the logs file
+function show_logs() {
+    tail -n 100 -f $LOGFILE
+}
+
+# Function to simulate running the application
+function start_codx() {
+    bash "${CODX_JUNIOR_PATH}/scripts/logo.sh"
+
+    stop_codx
+
+    echo "Running the application..."
+    run_codx_apps
+}
+
+function run_codx_apps() {
+    echo "Run code server"
+    code-server --bind-addr=0.0.0.0:${CODX_JUNIOR_CODER_PORT} --auth=none >> $LOGFILE 2>&1 &
+    echo $! > ./pids/code-server.pid
+
+    echo "Run API"
+    bash "${CODX_JUNIOR_PATH}/scripts/run_api.sh" >> $LOGFILE 2>&1 &
+    echo $! > ./pids/api.pid
+
+    echo "Run client"
+    bash "${CODX_JUNIOR_PATH}/scripts/run_client.sh" >> $LOGFILE 2>&1 &
+    echo $! > ./pids/client.pid
+}
+
+# Check the command line argument
+case "$1" in
+    stop)
+        stop_codx
+        ;;
+    help)
+        show_help
+        ;;
+    install)
+        install_app
+        ;;
+    start)
+        start_codx
+        ;;
+    status)
+        status
+        ;;
+    logs)
+        show_logs
+        ;;
+    *)
+        echo "Invalid command. Use 'help' to see available commands."
+        ;;
+esac

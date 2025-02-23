@@ -6,6 +6,7 @@ import store, { $storex } from "./store";
 import App from './App.vue'
 import Modal from './components/Modal.vue'
 import router from './router'
+import Markdown from '@/components/Markdown.vue'
 
 const globalMixin = {
   computed: {
@@ -34,6 +35,7 @@ const app = createApp(App)
               .use(store)
               .use(router)
               .component('modal', Modal)
+              .component('Markdown', Markdown)
               .mount('#app')
 
 $storex.app = app

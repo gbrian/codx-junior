@@ -1,0 +1,1 @@
+{"name": "daisyui_components", "url": "", "description": "DaisyUI framework ", "category": "file", "file_match": ".*.vue", "content": "Project uses DaisyUI for components, use them instead basic HTML elements", "path": "/usr/local/codx-junior/client/.codx/profiles/daisyui_components.profile"}

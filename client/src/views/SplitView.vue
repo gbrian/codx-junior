@@ -4,8 +4,7 @@ import SplitterVue from '../components/Splitter.vue'
 </script>
 
 <template>
-  <SplitterVue class="w-full h-full" v-if="$ui.showApp" />
-  <CodxJuniorVue class="w-full h-full" v-else />
+  <SplitterVue class="w-full h-full" />
 </template>
 <script>
 export default {

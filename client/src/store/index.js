@@ -7,8 +7,9 @@ import { API } from '../api/api'
 import * as session from './session'
 import * as projects from './project'
 import * as ui from './ui'
+import * as users from './users'
 
-const modules = { session, projects, ui }
+const modules = { session, projects, ui, users }
 const storePattern = {
   state () {
     return {
@@ -22,9 +23,13 @@ let storex = null
 store = createStore(storePattern)
 storex = useAccessor(store, storePattern)
 storex.init = async () => {
-  Object.keys(modules).forEach(async m => {
-    await storex[m].init(storex)
-  })
+  await API.init()
+  await Promise.all(Object.keys(modules).map(async m => {
+    if (storex[m].init) {
+      await storex[m].init(storex)
+    }
+  }))
+  $storex.ui.setUIready()
 }
 storex.store = store
 storex.api = API

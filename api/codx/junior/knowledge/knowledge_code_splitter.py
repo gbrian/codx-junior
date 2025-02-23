@@ -5,6 +5,8 @@ from langchain.text_splitter import Language
 from langchain.document_loaders.parsers import LanguageParser
 from langchain_community.document_loaders.blob_loaders import Blob
 
+from codx.junior.settings import CODXJuniorSettings
+
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import CharacterTextSplitter
 
@@ -22,9 +24,13 @@ LANGUAGE_PARSER_MAPPING = {
 logger = logging.getLogger(__name__)
 
 class KnowledgeCodeSplitter:
-    def __init__(self):
+    def __init__(self, settings: CODXJuniorSettings):
+        self.settings = settings
+        self.embeddings_ai_settings = self.settings.get_ai_embeddings_settings()
+        
         self.text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
-            chunk_size=5000, chunk_overlap=0
+            chunk_size=self.embeddings_ai_settings.chunk_size, 
+            chunk_overlap=0
         )
 
     def load(self, file_path):
@@ -35,18 +41,21 @@ class KnowledgeCodeSplitter:
             try:
                 return self.load_with_code_plitter(file_path=file_path, code_parser_language=code_parser_language)
             except Exception as ex:
-                logger.error(f"[KnowledgeCodeSplitter] load_with_code_plitter load error: {ex} - {file_path} language: {code_parser_language}")
+                #logger.error(f"[KnowledgeCodeSplitter] load_with_code_plitter load error: {ex} - {file_path} language: {code_parser_language}")
+                pass
 
             try:
                 return self.load_with_language_parser(file_path=file_path, code_parser_language=code_parser_language)
             except Exception as ex:
-                logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
-                
+                #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
+                pass
+              
             try:
                 return self.load_as_text(file_path=file_path)
             except Exception as ex:
-                logger.error(f"[KnowledgeCodeSplitter] load_as_text load error: {ex} - {file_path}")
-            
+                #logger.error(f"[KnowledgeCodeSplitter] load_as_text load error: {ex} - {file_path}")
+                pass
+
             logger.exception(f"[KnowledgeCodeSplitter] !!!No valid code splitter found for file {file_path}") 
             return None
         docs = file_to_documents()

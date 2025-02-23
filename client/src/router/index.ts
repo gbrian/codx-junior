@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import SplitView from '../views/SplitView.vue'
+import SplitView from '@/views/SplitView.vue'
 import HomeView from '@/views/HomeView.vue'
+import SharedView from '@/views/SharedView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -14,6 +15,11 @@ const router = createRouter({
       path: '/codx-junior',
       name: 'codx-junior',
       component: HomeView
+    },
+    {
+      path: '/shared',
+      name: 'codx-junior-shared',
+      component: SharedView
     },    
   ]
 })

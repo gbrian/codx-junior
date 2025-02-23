@@ -1,10 +1,11 @@
 {
+  "project_id": "f789ee52-3117-4ab2-8c9d-5c8393ff35ad",
   "ai_provider": "openai",
   "ai_model": "",
   "project_name": "browser",
-  "project_path": "/shared/onwaytransfers.com/dev/owt/codx-junior/api/codx/junior/browser",
+  "project_path": null,
   "project_wiki": "",
-  "project_dependencies": "codx-api",
+  "project_dependencies": "",
   "knowledge_extract_document_tags": false,
   "knowledge_search_type": "similarity",
   "knowledge_search_document_count": 10,
@@ -14,11 +15,11 @@
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx",
   "temperature": 0.7,
-  "codx_path": "/shared/onwaytransfers.com/dev/owt/codx-junior/api/codx/junior/browser/.codx",
-  "watching": true,
+  "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://avatars.githubusercontent.com/u/60474196?s=48&v=4",
   "log_ignore": "",
+  "project_scripts": [],
   "urls": []
 }

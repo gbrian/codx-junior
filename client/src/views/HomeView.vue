@@ -1,10 +1,9 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
 import NavigationBarVue from '../components/NavigationBar.vue';
 import LogoVue from '../components/Logo.vue';
 import TabNavigationVue from '../components/TabNavigation.vue';
 import TabViewVue from '../components/TabView.vue';
-
+import ProjectDropdown from '@/components/ProjectDropdown.vue';
 </script>
 <template>
   <div class="drawer drawer-end">
@@ -12,17 +11,14 @@ import TabViewVue from '../components/TabView.vue';
     <div class="w-full h-full flex flex-col justify-center items-center bg-base-100/30" v-if="$projects.allProjects === null">
       <div class="text-2xl">LOADING <span class="loading loading-dots loading-xs"></span></div>
     </div>
-    <div ref="contentRef" class="drawer-content p-2 flex flex-col gap-2 overflow-auto bg-base-100" v-if="$project?.project_name">
+    <div ref="contentRef" class="drawer-content p-2 flex flex-col gap-2 overflow-auto bg-base-100">
       <div class="flex justify-between">
-        <div class="flex flex-col">
-          <div class="font-bold">{{ $project.project_name }}</div>
-          <div class="text-xs">{{ $project.project_path }}</div>
-        </div>
+        <ProjectDropdown class="flex flex-col" />
         <label for="my-drawer-4" class="drawer-button btn btn-sm">
           <LogoVue />
         </label>
       </div>
-      <TabNavigationVue />
+      <TabNavigationVue v-if="!$projects.activeChat" />
       <TabViewVue class="grow" />
     </div>
     <div class="drawer-side">

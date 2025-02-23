@@ -1,6 +1,7 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import { $storex } from '.'
 import { API } from '../api/api'
+import moment from 'moment'
 
 export const namespaced = true
 
@@ -20,12 +21,28 @@ export const state = () => ({
     "es-SP": "Español"
   },
   appActives: [],
-  appDivided: 'none'
+  appDivided: 'none',
+  resolution: API.screen.display?.resolution,
+  resolutions: API.screen.display?.resolutions,
+  monitor: "preview",
+  monitors: {
+    "preview": "CODX-SCREEN-PREVIEW",
+    "shared": "CODX-SCREEN-SHARED"
+  },
+  colorsMap: {},
+  coderProjectCodxPath: null,
+  uiReady: false,
+  floatingCodxJunior: false,
+  notifications: []
 })
 
 export const getters = getterTree(state, {
   showApp: state => state.showBrowser || state.showCoder,
-  isLandscape: state => state.orientation !== 'portrait'
+  isLandscape: state => state.orientation !== 'portrait',
+  monitorToken: state => state.monitors[state.monitor],
+  isSharedScreen: () => window.location.pathname === '/shared',
+  enableFileManger: () => API.globalSettings?.enable_file_manager,
+  activeTab: state => state.tabIx
 })
 
 export const mutations = mutationTree(state, {
@@ -49,7 +66,13 @@ export const mutations = mutationTree(state, {
     $storex.ui.setShowBrowser(!state.showBrowser)
   },
   setActiveTab(state, tabIx) {
-    state.tabIx = tabIx
+    if (state.tabIx === tabIx) {
+      if (!$storex.ui.isMobile && $storex.ui.showApp) {
+        state.tabIx = null
+      }
+    } else {
+      state.tabIx = tabIx
+    }
     if (state.tabIx !== 'app' && state.isMobile) {
       state.showCoder = false
       state.showBrowser = false
@@ -63,6 +86,9 @@ export const mutations = mutationTree(state, {
     } else {
       state.appActives = state.appActives.filter(a => a !== 'coder')
     }
+    if (state.showCoder && state.isMobile && state.showBrowser) {
+      $storex.ui.setShowBrowser(false)
+    }
     $storex.ui.saveState()
   },
   setShowBrowser(state, show) {
@@ -71,6 +97,9 @@ export const mutations = mutationTree(state, {
       state.appActives = ['browser', ...state.appActives]
     } else {
       state.appActives = state.appActives.filter(a => a !== 'browser')
+    }
+    if (state.showCoder && state.isMobile && state.showBrowser) {
+      $storex.ui.setShowCoder(false)
     }
     $storex.ui.saveState()
   },
@@ -92,6 +121,40 @@ export const mutations = mutationTree(state, {
   setAppDivided(state, divided) {
     state.appDivided = divided
     $storex.ui.saveState()
+  },
+  setMonitor(state, monitor) {
+    state.monitor = monitor
+    $storex.ui.saveState()
+  },
+  setColorsMap(state, colorsMap) {
+    state.colorsMap = colorsMap
+    $storex.ui.saveState()
+  },
+  coderOpenPath(state, project) {
+    state.coderProjectCodxPath = project.codx_path
+  },
+  setUIready(state) {
+    state.uiReady = true
+    // If no user projects, go to help
+    if (!state.tabIx || !$storex.projects.allProjects?.find(p => p.project_path.indexOf("codx-junior") === -1)) {
+      $storex.ui.setActiveTab('help')
+    }
+  },
+  setFloatinCodxJunior(state, floating) {
+    state.floatingCodxJunior = floating
+    $storex.ui.saveState()
+  },
+  addNotification(state, { text }) {
+    const notif = {
+      ts: moment().format("hh:mm:ss"),
+      text
+    }
+    state.notifications.push(notif)
+    setTimeout(() => $storex.ui.removeNotification(notif) , 30000)
+  },
+  removeNotification(state, notification) {
+    state.notifications.splice(
+      state.notifications.findIndex(n => n === notification), 1)
   }
 })
 
@@ -105,10 +168,10 @@ export const actions = actionTree(
       if (!state.tabIx) {
         state.tabIx = 'home'
       }
-      state.showLogs = false
     },
     saveState({ state }) {
-      localStorage.setItem('uiState', JSON.stringify(state))
+      const data = { ...state, uiReady: false }
+      localStorage.setItem('uiState', JSON.stringify(data))
     },
     handleResize({ state }) {
       const width = window.innerWidth
@@ -120,11 +183,11 @@ export const actions = actionTree(
     },
     loadTask (_, task) {
       $storex.ui.setActiveTab('tasks')
-      $storex.projects.loadChat(task)
+      $storex.projects.setActiveChat(task)
     },
     async openFile({ state }, file) {
       if (state.isMobile) {
-        state.tabIx = 'app'
+        state.tabIx = 'help'
         state.openedFile = file
       } else {
         await API.coder.openFile(file)
@@ -133,6 +196,21 @@ export const actions = actionTree(
     },
     setScreenResolution(_, resolution) {
       API.screen.setScreenResolution(resolution)
+    },
+    async readScreenResolutions ({ state }) {
+      await API.screen.getScreenResolution()
+      state.resolution = API.screen.display?.resolution,
+      state.resolutions = API.screen.display?.resolutions
+    },
+    copyTextToClipboard(_, text) {
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.focus()
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      $storex.ui.addNotification({ text: "Text copied" })
     }
   },
 )

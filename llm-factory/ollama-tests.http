@@ -1,0 +1,25 @@
+
+
+POST http://0.0.0.0:11434/api/pull
+Content-Type: application/json
+
+{
+  // "model": "deepseek-r1"
+  "model": "codellama"
+}
+
+###
+POST http://0.0.0.0:11434/v1/chat/completions
+Content-Type: application/json
+
+{
+  "model": "codellama",// "deepseek-r1",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Create a JAVA Controller for User Management"
+    }
+  ]
+}
+
+### Firsr 2m27s

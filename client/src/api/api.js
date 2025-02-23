@@ -21,7 +21,7 @@ const prepareUrl = (url) => {
 }
 
 const axiosRequest = axios.create({
-});
+})
 export const API = {
   sid: "",
   axiosRequest,
@@ -56,6 +56,16 @@ export const API = {
     .finally(() => API.liveRequests--)
   },
   lastSettings: {},
+  apps: {
+    async list(){
+      const { data: apps } = await API.get('/api/apps')
+      return apps
+    },
+    async run(appName){
+      const { data } = await API.get(`/api/apps/run?app=${appName}`)
+      return data
+    } 
+  },
   project: {
     async list () {
       const res = await API.get('/api/projects')
@@ -72,6 +82,10 @@ export const API = {
       API.del('/api/projects')
       API.lastSettings = null
     },
+    async readme () {
+      const { data } = await API.get('/api/projects/readme')
+      return data
+    },
     watch () {
       return API.get('/api/project/watch')
     },
@@ -80,30 +94,34 @@ export const API = {
     },
     test () {
       return API.get('/api/project/script/test')
+    },
+    async branches () {
+      const { data: branches } = await API.get('/api/projects/repo/branches')
+      return branches 
     }
   },
   settings: {
     async read () {
       const res = await API.get('/api/settings')
-      API.lastSettings = res.data
+      API.lastSettings = { ...API.lastSettings || {}, ...res.data }
       if (API.lastSettings) {
-        localStorage.setItem("API_SETTINGS", JSON.stringify(API.lastSettings))
+        localStorage.setItem("API_SETTINGS", JSON.stringify(res.data))
       }
       return res
     },
-    write (settings) {
-      return API.put('/api/settings?', settings)
-    },
-    async save() {
-      await API.put('/api/settings?', API.lastSettings)
+    async save(settings) {
+      await API.put('/api/settings?', settings || API.lastSettings)
       return API.settings.read()
     },
     global: {
-      read() {
-        return API.get('/api/global/settings')
+      async read() {
+        const { data } = await API.get('/api/global/settings')
+        API.globalSettings = data
+        return { data }
       },
-      write(settings) {
-        return API.post('/api/global/settings', settings)
+      async write(settings) {
+        await API.post('/api/global/settings', settings)
+        return API.global.read()
       }
     }
   },
@@ -146,12 +164,15 @@ export const API = {
     }
   },
   chats: {
+    stream() {
+      return API.get('/api/stream')
+    },
     async list () {
       const { data } = await API.get('/api/chats')
       return data
     },
-    async loadChat ({ board, name }) {
-      const { data } = await API.get(`/api/chats?board=${board}&chat_name=${name}`)
+    async loadChat ({ id, file_path }) {
+      const { data } = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`)
       return data
     },
     async newChat () {
@@ -163,25 +184,43 @@ export const API = {
     async message (chat) {
       return API.post('/api/chats?', chat)
     },
+    async subTasks (chat) {
+      return API.post('/api/chats/sub-tasks?', chat)
+    },
     save (chat) {
       return API.put(`/api/chats?chatonly=0`, chat)
     },
     saveChatInfo(chat) {
       return API.put(`/api/chats?chatonly=1`, chat)
     },
-    delete(board, chatName) {
-      return API.del(`/api/chats?board=${board}&chat_name=${chatName}`)
+    delete(chat) {
+      return API.del(`/api/chats?file_path=${chat.file_path}`)
+    },
+    kanban: {
+      async load() {
+        const { data: kanban } = await API.get('/api/kanban')
+        return kanban
+      },
+      async save(kanban) {
+        API.post('/api/kanban', kanban)
+      }
     }
   },
   run: {
     improve (chat) {
       return API.post('/api/run/improve?', chat)
     },
+    patch (aiCodeGenerator) {
+      return API.post('/api/run/improve/patch?', aiCodeGenerator).then(({ data}) => data)
+    },
     edit (chat) {
       return API.post('/api/run/edit?', chat)
     },
     liveEdit ({ chat, html, url, message }) {
       return API.post('/api/run/live-edit?', { chat_name: chat.name, html, url, message })
+    },
+    changesSummary({ branch, rebuild }) {
+      return API.get(`/api/run/changes/summary?branch=${branch}&refresh=${rebuild}`).then(({ data}) => data)      
     }
   },
   profiles: {
@@ -196,7 +235,6 @@ export const API = {
     },
     async delete (name) {
       await API.del(`/api/profiles/${name}`)
-      API.lastSettings = null
     }
   },
   coder: {
@@ -206,8 +244,8 @@ export const API = {
   },
   images: {
     async upload (file) {
-      let formData = new FormData();
-      formData.append("file", file);
+      let formData = new FormData()
+      formData.append("file", file)
       const { data: url } = await API.post(`/api/images`, formData)
       return window.location.origin + url
     }
@@ -229,8 +267,8 @@ export const API = {
   },
   tools: {
     async imageToText (file) {
-      const formData = new FormData();
-      formData.append("file", file);
+      const formData = new FormData()
+      formData.append("file", file)
       return (await API.post(`/api/image-to-text`, formData)).data
     }
   },
@@ -241,6 +279,7 @@ export const API = {
       const { data: projects } = await API.project.list()
       API.lastSettings = projects.find(p => p.codx_path === codx_path)
       if (API.lastSettings) {
+        await API.settings.read()
         localStorage.setItem("API_CODX_PATH", API.lastSettings.codx_path)
       }
       API.allProjects = projects
@@ -257,14 +296,15 @@ export const API = {
       API.screen.getScreenResolution()
     }
     API.liveRequests--
-    console.log("API init", codx_path, API.lastSettings)
+    await API.settings.global.read()
+    console.log("API init", codx_path, API)
   },
   logs: {
-    async read(logName) {
-      return API.get(`/api/logs/${logName}`);
+    async read(logName, size) {
+      return API.get(`/api/logs/${logName}?log_size=${size}`)
     },
     async list() {
-      return API.get('/api/logs');
+      return API.get('/api/logs')
     }
   },
   files: {

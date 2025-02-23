@@ -78,9 +78,10 @@ def extract_blocks(content):
 
 def exec_command(command: str, cwd: str=None):
     logger.info(f"exec_command# {command}")
-    result = subprocess.run(command.split(" "), cwd=cwd,
-                                    stdout = subprocess.PIPE,
-                                    stderr = subprocess.STDOUT,
+    result = subprocess.run(command.split(" "),
+                                    cwd=cwd,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT,
                                     text=True)
     return result.stdout, result.stderr
 

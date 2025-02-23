@@ -2,11 +2,9 @@
 import json
 import logging
 import os
-
-from typing import List, Optional, Union
-
 import hashlib
 
+from typing import List, Optional, Union
 
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
@@ -23,6 +21,10 @@ from langchain.schema import (
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
 from codx.junior.ai.anthropic import Anthropic_AI
+from codx.junior.ai.mistral_ai import Mistral_AI
+from codx.junior.ai.ai_logger import AILogger
+
+from codx.junior.profiling.profiler import profile_function
 
 # Type hint for a chat message
 Message = Union[AIMessage, HumanMessage, SystemMessage]
@@ -40,12 +42,20 @@ class AI:
     ):
         self.settings = settings
         self.llm = self.create_chat_model()
+        self.embeddings = self.create_embeddings_model()
         self.cache = False
+        self.ai_logger = AILogger(settings=settings)
 
-
+    @profile_function
     def image(self, prompt):
         return self.llm.generate_image(prompt)
+
+
+    def log(self, message):
+        if self.settings.get_log_ai():
+            self.ai_logger.info(message)
     
+    @profile_function
     def chat(
         self,
         messages: List[Message] = [],
@@ -57,7 +67,8 @@ class AI:
         if prompt:
             messages.append(HumanMessage(content=prompt))
 
-        logger.debug(f"Creating a new chat completion: {messages}")
+        if self.settings.get_log_ai():
+            self.ai_logger.info(f"Creating a new chat completion: {messages}")
 
         response = None
         md5Key = messages_md5(messages) if self.cache else None
@@ -68,11 +79,13 @@ class AI:
             callbacks = []
             if callback:
                 callbacks.append(callback)
+            
             try:
-                response = self.llm(messages=messages, config={ "callbacks": callbacks })
+                self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
+                response = self.llm(messages=messages, config={"callbacks": callbacks})
             except Exception as ex:
-                logger.exception(f"Error processing AI request: {ex}")
-                raise ex
+                logger.exception(f"Non-retryable error processing AI request: {ex}")
+                raise RuntimeError("Failed to process AI request after retries.")
 
             if self.cache:
                 self.cache[md5Key] = json.dumps(
@@ -82,7 +95,7 @@ class AI:
                     }
                 )
         elif self.settings.get_log_ai():
-            logger.debug(f"Response from cache: {messages} {response}")
+            self.ai_logger.debug(f"Response from cache: {messages} {response}")
 
         messages.append(response)
         if self.settings.get_log_ai():
@@ -94,10 +107,14 @@ class AI:
               {msg.content}
               """
               for msg in messages])
-            logger.debug(f"Chat completion finished: {format_messages()}")
-            logger.info(f"[AI] chat messages {len(messages)}")
+            self.ai_logger.debug(f"Chat completion finished: {format_messages()}")
+            self.ai_logger.info(f"[AI] chat messages {len(messages)}")
 
         return messages
+
+    @profile_function
+    def embeddings(self, content: str):
+        return self.embeddings(content=content)
 
     @staticmethod
     def serialize_messages(messages: List[Message]) -> str:
@@ -119,10 +136,14 @@ class AI:
 
 
     def create_chat_model(self) -> BaseChatModel:
-        if self.settings.ai_provider == "anthropic":
-            return Anthropic_AI(settings=self.settings).chat_completions    
+        if self.settings.get_ai_provider() == "anthropic":
+            return Anthropic_AI(settings=self.settings).chat_completions
+        if self.settings.get_ai_provider() == "mistral":
+             return Mistral_AI(settings=self.settings).chat_completions    
         return OpenAI_AI(settings=self.settings).chat_completions
 
+    def create_embeddings_model(self):
+        return OpenAI_AI(settings=self.settings).embeddings()
 
 def serialize_messages(messages: List[Message]) -> str:
     return AI.serialize_messages(messages)

@@ -1,46 +1,68 @@
 <script setup>
 import { API } from '../../api/api'
 import ChatEntry from '@/components/ChatEntry.vue'
+import Browser from '@/components/browser/Browser.vue'
+import Markdown from '@/components/Markdown.vue'
+import moment from 'moment'
+import TaskCard from '../kanban/TaskCard.vue'
 </script>
 <template>
   <div class="flex flex-col gap-1 grow">
-    <div class="w-full overflow-auto">
-      <div class="my-2 text-xs" v-if="chat.file_list?.length">
-        <a v-for="file in chat.file_list" :key="file" :data-tip="file"
-          class="group text-nowrap mr-2 hover:underline hover:bg-base-300 click text-accent"
-          @click="$ui.openFile(file)"
-        >
-          <span>{{ file.split('/').reverse()[0] }}</span>
-          <span class="ml-2 click" @click.stop="$emit('remove-file', file)">
-            <i class="fa-regular fa-circle-xmark"></i>
-          </span>
-        </a>
-      </div>
-    </div>
     <div class="grow relative">
-      <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden">
-        <div class="flex flex-col gap-2" 
-          v-for="message in messages" :key="message.id">
-          <ChatEntry :class="['mb-4 rounded-md bg-base-300',
-            editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
-            message.hide ? 'opacity-60' : '']"
-            :chat="chat"
-            :message="message"
-            @edit="onEditMessage(message)"
-            @remove="removeMessage(message)"
-            @remove-file="removeFileFromMessage(message, $event)"
-            @hide="toggleHide(message)"
-            @run-edit="runEdit"
-            @copy="onCopy(message)"
-            @generate-code="onGenerateCode(message, $event)"
-            @add-file-to-chat="$emit('add-file', $event)"
-            @image="imagePreview = { ...$event, readonly: true }"
-          />
+      <div class="absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden"
+        :class="isBrowser && 'flex gap-1'"
+      >
+        <div class="w-3/4" v-if="isBrowser">
+          <Browser :token="$ui.monitors['shared']" />
         </div>
-        <div class="anchor" ref="anchor"></div>
+        <div class="overflow-auto h-full">
+          <div class="flex flex-col" 
+            v-for="message in messages" :key="message.id">
+            <ChatEntry :class="['mb-4 rounded-md bg-base-300 py-2',
+              editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
+              message.hide ? 'opacity-60' : '']"
+              :chat="chat"
+              :message="message"
+              @edit="onEditMessage(message)"
+              @enhance="onEditMessage(message, true)"
+              @remove="removeMessage(message)"
+              @remove-file="removeFileFromMessage(message, $event)"
+              @hide="toggleHide(message)"
+              @run-edit="runEdit"
+              @copy="onCopy(message)"
+              @generate-code="onGenerateCode(message, $event)"
+              @add-file-to-chat="$emit('add-file', $event)"
+              @image="imagePreview = { ...$event, readonly: true }"
+              v-if="!message.hide || showHidden"
+            />
+          </div>
+          <div class="text-xs text-info" v-for="event in chatEvents" :key="event.ts">
+             <span class="badge badge-xs" v-if="event.data.project">[{{ moment(event.ts).format('HH:mm:ss')}}] {{ event.data.project?.project_name }} </span> {{ event.data.text }}
+          </div>
+          <div class="anchor" ref="anchor"></div>
+          <div class="grid grid-cols-3 gap-2 mb-2 bg-base-100" v-if="childrenChats?.length">
+            <TaskCard class="p-2 bg-base-300" :task="child" @click="$projects.setActiveChat(child)"
+                              v-for="child in childrenChats" :key="childrenChats.id" />
+          </div>
+        </div>
       </div>
     </div>
-    <div class="badge text-info my-2 animate-pulse" v-if="waiting">typing ...</div>
+    <div class="chat chat-end" v-if="false && isBrowser">
+      <div class="chat-image avatar">
+        <div class="w-10 rounded-full">
+          <img src="/only_icon.png" alt="logo" />
+        </div>
+      </div>
+      <div class="chat-bubble">
+        <Markdown class="max-h-40 overflow-auto" :text="lastAIMessage.content" v-if="lastAIMessage" />
+        <div v-else>
+          <span class="font-bold">Let's navigate together:</span>
+          Use browser to navigate any web or try:
+          <span class="italic text-info">Find top 5 results for ....</span>
+        </div>
+      </div>
+    </div>
+    
     <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
       <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2">
         <div class="flex p-1 items-center text-sky-600">
@@ -70,7 +92,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
         </li>
       </ul>
     </div>
-    <div :class="['flex bg-base-300 border rounded-md shadow', 
+    <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
           multiline ? 'flex-col' : '',
           editMessage && 'border-warning',
           onDraggingOverInput ? 'bg-warning/10': '']"
@@ -78,7 +100,8 @@ import ChatEntry from '@/components/ChatEntry.vue'
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop"
     >
-      <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']" contenteditable="true"
+      <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
+        :contenteditable="!waiting"
         ref="editor" @input="onMessageChange"
         @paste="onContentPaste"
         @keydown.esc.stop="onResetEdit"
@@ -98,38 +121,46 @@ import ChatEntry from '@/components/ChatEntry.vue'
             </button>
           </div>
         </div>
-        <div class="flex gap-1 items-center justify-end py-2">
+        <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
+        <div class="flex gap-1 items-center justify-end py-2" v-else>
           <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
             <i class="fa-solid fa-save"></i>
             <div class="text-xs" v-if="editMessage">Edit</div>
           </button>
-          <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit" v-if="editMessage">
+          <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit" 
+            v-if="editMessage">
             <i class="fa-regular fa-circle-xmark"></i>
           </button>
-          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Ask codx-junior" @click="sendMessage" v-if="!editMessage">
-            <i class="fa-solid fa-comment"></i>
+          <button class="btn btn btn-sm btn-circle btn-outline tooltip"
+            data-tip="Ask codx-junior"
+            :class="isVoiceSession && 'btn-success animate-pulse'"
+            @click="sendMessage" 
+            v-if="!editMessage">
+            <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
+            <i :class="$projects.chatModes[chat.mode].icon" v-else></i>
           </button>
-          <button class="btn btn btn-sm btn-circle btn-outline tooltip" data-tip="Browse the web" @click="navigate" v-if="!editMessage">
+          <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
+            :class="isBrowser && 'btn-warning'"
+            data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
+            v-if="!editMessage">
             <i class="fa-brands fa-chrome"></i>
           </button>
-          <button class="btn btn btn-sm btn-outline tooltip" 
-            :class="isVoiceSession && 'btn-info animate-pulse'"
-            :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" @click="toggleVoiceSession" v-if="!editMessage">
-            <i class="fa-solid fa-microphone-lines"></i>
+          <button class="btn btn btn-sm btn-outline tooltip btn-warning" 
+            data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && chat.mode === 'chat'">
+            <i class="fa-solid fa-code"></i>
           </button>
+
           <div class="dropdown dropdown-top dropdown-end">
             <div tabindex="0" role="button" class="btn btn-sm m-1">
               <i class="fa-solid fa-ellipsis-vertical"></i>
             </div>
             <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow gap-2">
-              <li class="btn btn-sm btn-warning" @click="improveCode()" v-if="!editMessage">
+              <li class="btn btn-sm tooltip"
+                data-tip="Attach files" 
+                @click="selectFile = true">
                 <a>
-                  <i class="fa-solid fa-code"></i>
-                  Code
+                  <i class="fa-solid fa-paperclip"></i> Attach files
                 </a>
-              </li>
-              <li class="btn btn-sm" @click="selectFile = true">
-                <a><i class="fa-solid fa-paperclip"></i> Attach files</a>
               </li>
               <li class="btn btn-sm" @click="testProject" v-if="API.lastSettings.script_test">
                 <a>
@@ -137,16 +168,33 @@ import ChatEntry from '@/components/ChatEntry.vue'
                   Test
                 </a>
               </li>
-              <li>
-                <a> 
-                  <i class="fa-solid fa-microphone-lines"></i>
-                  <select class="select select-sm" @change="setVoiceLanguage($event.target.value)">
-                    <option v-for="key, lang in $ui.voiceLanguages"
-                      :key="lang"
-                      :selected="$ui.voiceLanguage === lang" :value="lang">{{ key }}</option>
-                  </select>
+              <li class="btn btn-sm tooltip"
+                :class="isBrowser && 'btn-success'" 
+                :data-tip="isBrowser ? 'Close browser' : 'Open browser'" 
+                @click="isBrowser = !isBrowser" v-if="!editMessage">
+                <a>
+                  <i class="fa-brands fa-chrome"></i>
+                  {{ isBrowser ? 'Close' : 'Open' }} Browser
                 </a>
               </li>
+              <li class="btn btn-sm tooltip" 
+                :class="isVoiceSession && 'btn-success'" 
+                :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" 
+                @click="toggleVoiceSession" v-if="!editMessage">
+                <a>
+                  <i class="fa-solid fa-microphone-lines"></i>
+                  Voice mode
+                </a>
+              </li>
+              <li class="btn btn-sm text-white btn-error tooltip"
+                data-tip="Delete?" 
+                @click="$emit('delete')">
+                <a>
+                  <i class="fa-solid fa-trash-can"></i>
+                  Delete
+                </a>
+              </li>
+              
             </ul>
           </div>
         </div>
@@ -198,7 +246,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'showHidden'],
+  props: ['chatId', 'showHidden', 'childrenChats'],
   data () {
     return {
       waiting: false,
@@ -220,14 +268,58 @@ export default {
       },
       selectFile: false,
       isVoiceSession: false,
-      recognition: null
+      recognition: null,
+      isBrowser: false
     }
   },
   created () {
   },
   computed: {
-     messages () {
-      return this.chat?.messages?.filter(m => !m.hide || this.showHidden)
+    chat () {
+      return this.$projects.chats[this.chatId]
+    },
+    visibleMessages() {
+      return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
+    },
+    lastAIMessage() {
+      const { messages } = this.chat
+      const aiMsgs = messages.filter(m => !m.hide && m.role === 'assistant')
+      if (aiMsgs.length) {
+        const { diffMessage } = this
+        return { ...aiMsgs[aiMsgs.length - 1], diffMessage }
+      }
+      return null
+    },
+    diffMessage () {
+      if (this.isTask) {
+        const { messages } = this.chat
+        const aiMsgs = messages.filter(m => m.role === 'assistant')
+        if (aiMsgs.length > 1) {
+          return aiMsgs[aiMsgs.length - 2]
+        }
+      }
+      return null
+    },
+    messages () {
+      if (!this.chat?.messages) {
+        return []
+      }
+      const { messages } = this.chat
+      if (this.isTask) {
+        const aiMsg = this.lastAIMessage
+        const lastMsg = messages[messages.length - 1]
+        const res = [] 
+        if (aiMsg) {
+          res.push(aiMsg)
+        }
+        if (lastMsg?.role !== 'assistant') {
+          res.push(lastMsg)
+        }
+        if (res.length) {
+          return res
+        }
+      }
+      return messages
     },
     multiline () {
       return this.editorText?.split("\n").length > 1 || this.images?.length
@@ -242,7 +334,11 @@ export default {
       return this.messageText || this.images?.length
     },
     isTask () {
-      return this.chat.mode === 'task'
+      return this.chat?.mode === 'task'
+    },
+    chatEvents () {
+      return this.$session.events.filter(e => e.data.chat?.id === this.chatId
+          && e.data.text)
     }
   },
   watch: {
@@ -265,9 +361,13 @@ export default {
       this.$refs.editor.innerText = text
       this.onMessageChange()
     },
-    onEditMessage (message) {
+    onEditMessage (message, enhance) {
+      if (this.editMessage === message) {
+        return this.onResetEdit()
+      }
       console.log("onEditMessage", message)
       this.editMessage = message
+      this.editMessage.enhance = enhance
       this.editMessageId = this.chat.messages.findIndex(m => m === message)
       try {
         this.images = message.images.map(JSON.parse)
@@ -288,18 +388,7 @@ export default {
     },
     async improveCode () {
       this.postMyMessage()
-      await this.sendApiRequest(
-        () => API.run.improve(this.chat),
-        data => ['### Changes done',
-                  data.messages.reverse()[0].content,
-                  '### Edits done',
-                  data.edits.map(edit => "```json\n"
-                      + JSON.stringify(edit, 2, null) + 
-                    "\n```"),
-                  "### Error",
-                  JSON.stringify(data.errors, 2, null)
-                ].join("\n")
-      )
+      await this.$projects.codeImprove(this.chat)
       this.testProject()
     },
     runEdit (codeSnipped) {
@@ -335,27 +424,38 @@ export default {
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
       this.images = []
-      this.$refs.anchor?.scrollIntoView()
-
+      this.scrollToBottom()
     },
     async sendMessage () {
+      if (this.isVoiceSession && !this.canPost) {
+        return
+      }
+
       if (this.editMessage !== null) {
         this.updateMessage()
       } else {
         this.postMyMessage()
-        const { data } = await this.sendChatMessage(this.chat)
-        this.chat.messages = data.messages
+        await this.sendChatMessage(this.chat)
       }
+      this.onResetEdit()
       this.saveChat()
     },
     async navigate () {
+      if (!this.editorText) {
+        if (this.isBrowser = !this.isBrowser) {
+          if (this.lastAIMessage) {
+            this.lastAIMessage.hide
+          }
+        }
+        return
+      }
       const message = this.getUserMessage()
       const { data } = await this.sendChatMessage({ mode: 'browser', messages: [
         ...this.chat.messages,
         message
       ] })
-      const response = data.messages.reverse()[0]
-      this.chat.messages = [...this.chat.messages, response]
+      this.chat.messages = data.messages
+      this.saveChat()
       this.cleanUserInputAndWaitAnswer()
     },
     getSendMessage() {
@@ -371,7 +471,6 @@ export default {
           cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,
           documentCount: API.lastSettings.knowledge_search_document_count
       }
-      // this.postMyMessage()
       const { data: { documents } } = await API.knowledge.search(knowledgeSearch)
       const docs = documents.map(doc => `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``) 
       this.$refs.editor.innerText = docs.join("\n")
@@ -381,7 +480,7 @@ export default {
         this.waiting = true
         await apiCall()
         this.$emit('refresh-chat')
-        this.$refs.anchor.scrollIntoView()
+        this.scrollToBottom()
       } catch (ex) {
         this.addMessage({
           role: 'assistant',
@@ -393,7 +492,7 @@ export default {
     async sendChatMessage(chat) {
       this.waiting = true
       try {
-        return await API.chats.message(chat)
+        return await this.$storex.projects.chatWihProject(chat)
       } finally {
         this.waiting = false
       }
@@ -404,7 +503,11 @@ export default {
       this.editMessage.content = innerText
       this.editMessage.images = images
       this.editMessage.updated_at = new Date().toISOString()
+      if (editAIMessage) {
+        this.editMessage.role = "user"        
+      }
       this.onResetEdit()
+      
     },
     onResetEdit() {
       if (this.editMessageId !== null) {
@@ -415,8 +518,7 @@ export default {
       }
     },
     removeMessage(message) {
-      const ix = this.chat.messages.findIndex(m => m === message)
-      this.$emit("delete-message", ix)
+      this.$emit("delete-message", message)
     },
     async searchKeywords () {
       const { data } = await API.knowledge.searchKeywords(this.termSearchQuery)
@@ -594,11 +696,11 @@ export default {
       this.recognition = recognition
     },
     stopVoiceSession() {
-      this.isVoiceSession = false
       this.recognition?.stop()
+      this.recognition = null
     },
-    setVoiceLanguage(language) {
-      this.$ui.setVoiceLanguage(language)
+    scrollToBottom() {
+      setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)
     }
   }
 }

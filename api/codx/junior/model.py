@@ -1,8 +1,9 @@
-from __future__ import annotations
+import os
+
 from pydantic import BaseModel, Field
+from datetime import datetime
 
-
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional
 
 class ImageUrl(BaseModel):
     url: str = Field(default="")
@@ -16,58 +17,20 @@ class ChatMessage(BaseModel):
     role: str = Field(default='')
     content: List[Content] = Field(default=[])
 
-class Message(BaseModel):
-    role: str = Field(default='')
-    task_item: str = Field(default='')
-    content: str = Field(default='')
-    hide: bool = Field(default=False)
-    improvement: bool = Field(default=False)
-    created_at: str = Field(default='')
-    updated_at: str = Field(default='')
-    images: List[str] = Field(default=[])
-    files: List[str] = Field(default=[])
-
-class Chat(BaseModel):
-    id: str = Field(default='')
-    parent_id: str = Field(default='')
-    status: str = Field(default='')
-    tags: List[str] = Field(default=[])
-    file_list: List[str] = Field(default=[])
-    profiles: List[str] = Field(default=[])
+class Column(BaseModel):
     name: str = Field(default='')
-    messages: List[Message] = Field(default=[])
-    created_at: str = Field(default='')
-    updated_at: str = Field(default='')
-    mode: str = Field(default='chat')
-    board: str = Field(default='')
-    column: str = Field(default='')
-    column_index: int = Field(default=-1)
-    chat_index: int = Field(default=-1)
-    live_url: str = Field(default='')
-    branch: str = Field(default='')
-    board: str = Field(default='')
+    chat_ids: List[str] = Field(default=[])
 
+class Board(BaseModel):
+    name: str = Field(default='')
+    description: str = Field(default='')
+    columns: List[Column] = Field(default=[])
 
 class Logprobs(BaseModel):
     tokens: List[str]
     token_logprobs: List[float]
     top_logprobs: List[Dict[str, float]]
     text_offset: List[int]
-
-class Choice(BaseModel):
-    index: int
-    message: Message
-    logprobs: Optional[Logprobs]
-    finish_reason: str
-
-class ChatResponse(BaseModel):
-    id: str
-    object: str
-    created: int
-    model: str
-    system_fingerprint: str
-    choices: List[Choice]
-    usage: Dict[str, int]
 
 class KnowledgeReloadPath(BaseModel):
     path: str
@@ -84,8 +47,14 @@ class KnowledgeSearch(BaseModel):
 
 class Profile(BaseModel):
     name: str = Field(default="")
-    content: str = Field(default="")
-    user_comment: str = Field(default="")
+    url: str = Field(default="")
+    description: str = Field(default="")
+    category: str = Field(default="", description="Profile category: global, file, coding, ...")
+    file_match: str = Field(default="",
+        description="Optional regex to apply profiles based on file absolute path.")
+    content: Optional[str] = Field(default=None)
+    path: str = Field(default="")
+    content_path: str = Field(default="")
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -99,30 +68,78 @@ class LiveEdit(BaseModel):
     message: str
 
 class OpenAISettings(BaseModel):
-    openai_api_url: str = Field(default=None)
-    openai_api_key: str = Field(default=None)
-    openai_model: str = Field(default="gpt-4o")
+    openai_api_url: Optional[str] = Field(default="")
+    openai_api_key: Optional[str] = Field(default="")
+    openai_model: Optional[str] = Field(default="gpt-4o")
     
 
 class AnthropicAISettings(BaseModel):
-    anthropic_api_url: str = Field(default=None)
-    anthropic_api_key: str = Field(default=None)
-    anthropic_model: str = Field(default="claude-3-5-sonnet-20240620")
+    anthropic_api_url: Optional[str] = Field(default="")
+    anthropic_api_key: Optional[str] = Field(default="")
+    anthropic_model: Optional[str] = Field(default="claude-3-5-sonnet-20240620")
+
+class MistralAISettings(BaseModel):
+    mistral_api_url: Optional[str] = Field(default="")
+    mistral_api_key: Optional[str] = Field(default="")
+    mistral_model: Optional[str] = Field(default="codestral-latest")
+
+class AISettings(BaseModel):
+    provider: Optional[str] = Field(default="") 
+    api_url: Optional[str] = Field(default="")
+    api_key: Optional[str] = Field(default="")
+    model: Optional[str] = Field(default="")
+    context_length: Optional[int] = Field(default=0)
+    temperature: Optional[float] = Field(default=0.8)
+
+class EmbeddingAISettings(AISettings):
+    vector_size: Optional[int] = Field(default=1536)
+    chunk_size: Optional[int] = Field(default=8190)
 
 class GitSettings(BaseModel):
-    username: str = Field(default="")
-    email: str = Field(default="")
+    username: Optional[str] = Field(default="")
+    email: Optional[str] = Field(default="")
+
+class ProjectScript(BaseModel):
+    name: str = Field(description="Script name")
+    description: str = Field(description="Script name", default="")
+    script: str = Field(description="Bash script", default="")
+    status: str = Field(description="Script status: running, stopped, error", default="stopped")
+    background: bool = Field(description="Script runs in background", default=False)
+    restart: bool = Field(description="Script must be restarted if stopped", default=False)
+    pid_file_path: str = Field(default="")
+
+class Bookmark(BaseModel):
+    name: str
+    icon: Optional[str] = Field(default="")
+    title: Optional[str] = Field(default="")
+    url: Optional[str] = Field(default="")
+    port: Optional[int] = Field(default=None)
 
 class GlobalSettings(BaseModel):
     openai: OpenAISettings = Field(default=OpenAISettings())
     anthropic_ai: AnthropicAISettings = Field(default=AnthropicAISettings())
+    mistral_ai: MistralAISettings = Field(default=MistralAISettings())
+    embeddings_ai_settings: EmbeddingAISettings = Field(default=EmbeddingAISettings(provider="openai"))
     git: GitSettings = Field(default=GitSettings())
 
     log_ai: bool = Field(default=False)
     projects_root_path: str = Field(default='/projects')
     ai_temperature: str = Field(default="0.8")
+    ai_provider: str = Field(default="mistral")
+    ai_model: str = Field(default="codestral-latest")
 
     log_ignore: List[str] = Field(default=[])
+
+    codx_junior_avatar: str = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
+
+    enable_file_manager: bool = Field(default=False)
+
+    project_scripts: Optional[List[ProjectScript]] = Field(default=[])
+
+    bookmarks: List[Bookmark] = Field(default=[
+        Bookmark(name="Coder", title="code-server", port=os.environ["CODX_JUNIOR_CODER_PORT"]),
+        Bookmark(name="Desktop", title="Desktop", port=os.environ["CODX_JUNIOR_NOVNC_PORT"])
+    ])
 
 class Screen(BaseModel):
     resolution: str = Field(default='')

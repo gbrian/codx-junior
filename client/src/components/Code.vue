@@ -5,18 +5,28 @@ import MermaidViewerVue from './MermaidViewer.vue'
 import Markdown from './Markdown.vue';
 </script>
 <template>
-  <div>
-    <div class="flex gap-2 w-full justify-center hidden" ref="toolbar">
-      <button class="btn btn-xs tooltip" data-tip="Generate code" @click="$emit('generate-code', code.innerText)">
-        <i class="fa-solid fa-file-code"></i>
+  <div class="rounded-md">
+    <div class="flex gap-2 w-full justify-end bg-base-100 p-2 rounded-t" ref="toolbar">
+      <button class="btn btn-xs tooltip hidden" data-tip="Generate code" @click="$emit('generate-code', code.innerText)">
+        <i class="fa-solid fa-file-code"></i> Generate code
       </button>
       <button class="btn btn-xs tooltip" data-tip="Preview HTML"
         @click="htmlPreview = !htmlPreview" v-if="language === 'html'"
       >
         <i class="fa-brands fa-chrome"></i>
       </button>
+      <button class="btn btn-sm" @click="showMermaidSource = !showMermaidSource"
+        v-if="showMermaid">
+        <span v-if="showMermaidSource">View diagram</span>
+        <span v-else>View code</span>
+      </button>
+      <button class="btn btn-xs tooltip" data-tip="Copy" @click="$ui.copyTextToClipboard(code.innerText)">
+        <i class="fa-solid fa-copy"></i> Copy
+      </button>
     </div>
-    <MermaidViewerVue :diagram="codeText" v-if="showMermaid" />
+    <MermaidViewerVue :diagram="codeText" theme="dark" 
+      @click="showMermaidSource = !showMermaidSource"
+      v-if="showMermaid && !showMermaidSource" />
     <CodeEditor
       line-nums 
       :value="codeText"
@@ -41,11 +51,12 @@ export default {
     return {
       codeText: null,
       languages: null,
-      htmlPreview: false
+      htmlPreview: false,
+      showMermaidSource: false
     }
   },
   created () {
-    const language = languageMapping[this.language] || this.language
+    const language = languageMapping[this.codeLanguage] || this.codeLanguage
     this.languages = [[ language, language.toUpperCase() ]]
     this.codeText = this.code.innerText
     console.log("Code block created", language)
@@ -57,13 +68,17 @@ export default {
   },
   computed: {
     language() {
-      return this.code.attributes["class"].value.split("-").reverse()[0]
+      const lang = this.code.attributes["class"].value.split("-").reverse()[0]
+      return lang
+    },
+    codeLanguage () {
+      return this.language.includes("mermaid") ? "markdown" : this.language
     },
     showMermaid () {
       return this.language === 'mermaid'
     },
     showCode () {
-      return !this.showMermaid && ! this.htmlPreview
+      return (!this.showMermaid || this.showMermaidSource) && !this.htmlPreview
     },
     markdownText () {
       if (this.language === 'md' && false) {

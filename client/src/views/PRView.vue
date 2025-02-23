@@ -1,53 +1,103 @@
-<template>
-  <div class="pr-view">
-    <h1>Visualize Code Changes</h1>
-    <div>
-      <label for="branch1">Select Branch 1:</label>
-      <select v-model="branch1" @change="fetchChanges">
-        <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
-      </select>
-      
-      <label for="branch2">Select Branch 2:</label>
-      <select v-model="branch2" @change="fetchChanges">
-        <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
-      </select>
-    </div>
-    
-    <div v-if="changes">
-      <h2>Changes between {{ branch1 }} and {{ branch2 }}</h2>
-      <pre>{{ changes }}</pre>
-    </div>
+<script setup>
+import GitDiffViewer from '@/components/code/GitDiffViewer.vue'
+import Collapsible from '@/components/Collapsible.vue';
+</script>
+
+<template lang="pug">
+  <div class="pr-view p-4 flex flex-col gap-4">
+    <header class="flex justify-between items-start">
+      <div class="flex flex-col gap-2">
+        <h1 class="text-3xl font-bold">Changes review</h1>
+        <div class="flex gap-2 items-center">
+          <div class="flex items-center gap-2">
+            <label class="block text-xs font-bold" for="branchSource">Source</label>
+            <select id="branchSource" class="select select-bordered select-sm w-full max-w-xs" v-model="selectedBranchSource">
+              <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="block text-xs font-bold" for="branchTarget">Target</label>
+            <select id="branchTarget" class="select select-bordered select-sm w-full max-w-xs" v-model="selectedBranchTarget">
+              <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </header>
+    .flex.flex-col.gap-4.grow
+
+      Collapsible(v-model="overviewChecked" :start-expanded="true")
+        template(v-slot:title)
+          .flex.flex-col.grow
+            .flex.justify-between.items-center
+              | Overview
+              button.btn.btn-sm.tooltip(data-tip="Rebuild summary" 
+                                        @click="refreshSummary(true)")
+                <i class="fa-solid fa-arrows-rotate"></i> Rebuild
+            .text-sm Changes overview
+        template(v-slot:content)
+          Markdown(:text="$projects.changesSummary")
+
+      Collapsible
+        template(v-slot:title)
+          .flex.flex-col.grow
+            | Tasks
+            .text-sm Tasks associated with {{ selectedBranchSource }}
+        template(v-slot:content)
+          
+
+      Collapsible
+        template(v-slot:title)
+          .flex.flex-col.grow
+            | Files
+            .text-sm Files changed
+        template(v-slot:content)
+          div
+            GitDiffViewer(:diff="$projects.project_branches.git_diff" v-if="$projects.project_branches.git_diff")
   </div>
 </template>
 
 <script>
-import { API } from '../api/api'
-
 export default {
   data() {
     return {
-      branches: [], // Array to hold branch names
-      branch1: null,
-      branch2: null,
-      changes: null,
+      selectedBranchSource: null,
+      selectedBranchTarget: null,
+      activeTab: 'Overview',
+      overviewChecked: true 
     }
   },
-  async created() {
-    await this.loadBranches();
+  computed: {
+    branches() {
+      return this.$projects.project_branches.branches
+    },
+  },
+  watch: {
+    $project() {
+      this.refreshSummary()
+    }
   },
   methods: {
-    async loadBranches() {
-      // Fetch the list of branches from the API
-      const response = await API.getBranches();
-      this.branches = response.data;
+    switchTab(tab) {
+      this.activeTab = tab
     },
-    async fetchChanges() {
-      if (this.branch1 && this.branch2) {
-        // Fetch code changes between the two branches
-        const response = await API.getCodeChanges(this.branch1, this.branch2);
-        this.changes = response.data;
-      }
+    copyText() {
+      copyTextToClipboard(this.changesSummary)
+    },
+    async refreshSummary(rebuild = false) {
+      // Refresh summary and reload branches
+      this.$projects.refreshChangesSummary({
+        source: this.selectedBranchSource,
+        target: this.selectedBranchTarget,
+        rebuild
+      })
+      await this.$projects.loadBranches()
+      this.selectedBranchSource = this.$projects.currentBranch
+      this.selectedBranchTarget = this.$projects.project_branches.parent_branch
     }
+  },
+  mounted() {
+    this.refreshSummary(false)
   }
 }
 </script>

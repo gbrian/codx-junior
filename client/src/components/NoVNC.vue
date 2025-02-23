@@ -7,6 +7,7 @@ import RFB from '@novnc/novnc'
 <script>
 export default {
   name: 'NoVNCViewer',
+  props: ['token'],
   data() {
     return {
       rfb: null,
@@ -29,7 +30,8 @@ export default {
   },
   methods: {
     connect () {
-      const url = `wss://${window.location.host}/novnc`
+      const protocol = window.location.protocol.includes("https") ? "wss": "ws"
+      const url = `${protocol}://${window.location.host}/novnc?token=${this.token}`
       const options = {
         credentials: {
           password: "password"
@@ -49,14 +51,10 @@ export default {
 
       this.rfb.addEventListener('clipboard', (event) => {
         this.noVNClipboard = event.detail.text
+        this.syncNoVNCToHostClipboard()
       });
 
       this.canvas.onfocus = this.syncHostClipboardToNoVNC.bind(this)
-      this.canvas.onkeyup = e => {
-        if (['c', 'x'].includes(e.key) && e.ctrlKey) {
-            this.syncNoVNCToHostClipboard()
-        }
-      }
     },
     syncHostClipboardToNoVNC () {
       navigator.clipboard.readText().then(text => {
