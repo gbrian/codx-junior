@@ -1,36 +1,58 @@
 <script setup>
-import Markdown from '@/components/Markdown.vue'
+import GitDiffViewer from '@/components/code/GitDiffViewer.vue'
+import Collapsible from '@/components/Collapsible.vue';
 </script>
 
-<template>
-  <div class="pr-view p-4">
-    <header class="flex justify-between items-center">
-      <div>
-        <h1 class="text-lg font-bold">Latest Changes</h1>
-        .flex.gap-2
-          <label for="branchSource" class="block text-sm font-medium mb-1">Source Branch:</label>
-          <select id="branchSource" class="select select-bordered select-sm w-full max-w-xs" v-model="selectedBranchSource">
-            <option v-for="branch in projectBranches" :key="branch" :value="branch">
-              {{ branch }}
-            </option>
-          </select>
-          <label for="branchTarget" class="block text-sm font-medium mt-2 mb-1">Target Branch:</label>
-          <select id="branchTarget" class="select select-bordered select-sm w-full max-w-xs" v-model="selectedBranchTarget">
-            <option v-for="branch in projectBranches" :key="branch" :value="branch">
-              {{ branch }}
-            </option>
-          </select>
-      </div>
-      <div class="flex gap-2 items-center">
-        <button class="btn btn-sm" @click="copyTextToClipboard">
-          <i class="fa-solid fa-copy"></i>
-        </button>
-        <button @click="refreshChangesSummary(true)" class="btn btn-outline btn-sm">
-          <i class="fas fa-sync-alt"></i> Rebuild
-        </button>
+<template lang="pug">
+  <div class="pr-view p-4 flex flex-col gap-4">
+    <header class="flex justify-between items-start">
+      <div class="flex flex-col gap-2">
+        <h1 class="text-3xl font-bold">Changes review</h1>
+        <div class="flex gap-2 items-center">
+          <div class="flex items-center gap-2">
+            <label class="block text-xs font-bold" for="branchSource">Source</label>
+            <select id="branchSource" class="select select-bordered select-sm w-full max-w-xs" v-model="selectedBranchSource">
+              <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
+            </select>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="block text-xs font-bold" for="branchTarget">Target</label>
+            <select id="branchTarget" class="select select-bordered select-sm w-full max-w-xs" v-model="selectedBranchTarget">
+              <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
+            </select>
+          </div>
+        </div>
       </div>
     </header>
-    <Markdown :text="$projects.changesSummary" v-if="$projects.changesSummary"/>
+    .flex.flex-col.gap-4.grow
+
+      Collapsible(v-model="overviewChecked" :start-expanded="true")
+        template(v-slot:title)
+          .flex.flex-col.grow
+            .flex.justify-between.items-center
+              | Overview
+              button.btn.btn-sm.tooltip(data-tip="Rebuild summary" @click="refreshSummary(true)")
+                i.fas.fa-sync-alt Rebuild
+            .text-sm Changes overview
+        template(v-slot:content)
+          Markdown(:text="$projects.changesSummary")
+
+      Collapsible
+        template(v-slot:title)
+          .flex.flex-col.grow
+            | Tasks
+            .text-sm Tasks associated with {{ selectedBranchSource }}
+        template(v-slot:content)
+          
+
+      Collapsible
+        template(v-slot:title)
+          .flex.flex-col.grow
+            | Files
+            .text-sm Files changed
+        template(v-slot:content)
+          div
+            GitDiffViewer(:diff="$projects.project_branches.git_diff" v-if="$projects.project_branches.git_diff")
   </div>
 </template>
 
@@ -39,37 +61,42 @@ export default {
   data() {
     return {
       selectedBranchSource: null,
-      selectedBranchTarget: null
+      selectedBranchTarget: null,
+      activeTab: 'Overview',
+      overviewChecked: true 
     }
-  },
-  mounted() {
-    this.refreshChangesSummary(false)
   },
   computed: {
-    branches () {
-      return this.$projects.branches
+    branches() {
+      return this.$projects.project_branches.branches
     },
-    project () {
-      return this.$project
-    }
   },
   watch: {
-    project () {
-      this.refreshChangesSummary()
+    $project() {
+      this.refreshSummary()
     }
   },
   methods: {
-    copyTextToClipboard() {
-      this.$ui.copyTextToClipboard($projects.changesSummary)
+    switchTab(tab) {
+      this.activeTab = tab
     },
-    refreshChangesSummary(rebuild) {
+    copyText() {
+      copyTextToClipboard(this.changesSummary)
+    },
+    async refreshSummary(rebuild = false) {
+      // Refresh summary and reload branches
       this.$projects.refreshChangesSummary({
         source: this.selectedBranchSource,
         target: this.selectedBranchTarget,
         rebuild
       })
-      this.$projects.loadBranches()
+      await this.$projects.loadBranches()
+      this.selectedBranchSource = this.$projects.currentBranch
+      this.selectedBranchTarget = this.$projects.project_branches.parent_branch
     }
+  },
+  mounted() {
+    this.refreshSummary(false)
   }
 }
 </script>

@@ -20,7 +20,7 @@ export const state = () => ({
   selectedProfile: null,
   kanban: {},
   chatBuffer:{},
-  branches: []
+  project_branches: {}
 })
 
 export const mutations = mutationTree(state, {
@@ -81,7 +81,8 @@ export const getters = getterTree(state, {
       "chat": { name: "Developer", profiles: ["software_developer"], icon: "fa-regular fa-comments" },
     }
   },
-
+  branches: state => state.project_branches.branches,
+  currentBranch: state => state.project_branches.current_branch,
 })
 
 export const actions = actionTree(
@@ -118,7 +119,7 @@ export const actions = actionTree(
       state.profiles = profiles
     },
     async loadBranches({ state }) {
-      state.branches = await $storex.api.project.branches()
+      state.project_branches = await $storex.api.project.branches()
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()

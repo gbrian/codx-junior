@@ -23,7 +23,6 @@ import KanbanList from "./KanbanList.vue"
       :kanban="activeBoard"
       v-if="$projects.activeChat"
     />
-
     <div v-if="showKanban">
       <div class="flex gap-4 items-center">
         <div class="flex gap-2 items-center">
@@ -31,7 +30,7 @@ import KanbanList from "./KanbanList.vue"
             <button class="btn btn-sm" @click="selectBoard()">
               <i class="fa-solid fa-caret-left"></i>
             </button>
-            {{ activeBoard?.title }} 
+            {{ activeBoard?.title }}
           </div>
         </div>
         <div class="grow"></div>
@@ -81,7 +80,7 @@ import KanbanList from "./KanbanList.vue"
                 <div class="flex gap-2 items-center">
                   <div class="dropdown dropdown-end">
                     <div tabindex="0" role="button" class="btn btn-sm m-1 flex items-center">
-                      <span v-if="column.tasks?.length">({{ column.tasks.length  }})</span>
+                      <span v-if="column.tasks?.length">({{ column.tasks.length }})</span>
                       <i class="mt-1 fa-solid fa-plus"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -149,6 +148,15 @@ import KanbanList from "./KanbanList.vue"
       </div>
       <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
     </modal>
+    <modal v-if="showEditKanbanModal">
+      <h2 class="font-bold text-lg">Edit Kanban Board</h2>
+      <input type="text" v-model="editBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
+      <input type="text" v-model="editBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
+      <div class="modal-action">
+        <button class="btn" @click="editKanban">Save</button>
+        <button class="btn" @click="showEditKanbanModal = false">Cancel</button>
+      </div>
+    </modal>
   </div>
 </template>
 
@@ -162,6 +170,7 @@ export default {
       filter: null,
       showBoardModal: false,
       showColumnModal: false,
+      showEditKanbanModal: false,
       newBoardName: '',
       newBoardDescription: '',
       newBoardBranch: '',
@@ -191,20 +200,22 @@ export default {
             { title: "Completed", color: "#C70039" }
           ]
         }
-      ]
+      ],
+      editBoardName: '',
+      editBoardDescription: ''
     }
   },
   mounted() {
     this.projectChanged()
   },
   computed: {
-    lastUpdatedTask () {
+    lastUpdatedTask() {
       return this.visibleTasks.sort((a, b) => 
-                (a.updated_at || new Date(1900, 1, 1, 0, 0, 0,  0)) > 
-                  (b.updated_at || new Date(1900, 1, 1, 0, 0, 0,  0)) ? -1 : 1)
-                .slice(0, 1)[0] || {}
+        (a.updated_at || new Date(1900, 1, 1, 0, 0, 0, 0)) > 
+        (b.updated_at || new Date(1900, 1, 1, 0, 0, 0, 0)) ? -1 : 1)
+        .slice(0, 1)[0] || {}
     },
-    showKanban () {
+    showKanban() {
       return !this.$projects.activeChat && this.activeKanbanBoard
     },
     kanban() {
@@ -236,12 +247,12 @@ export default {
       return this.boards[this.board]?.columns?.map(c => c.title) || []
     },
     boards() {
-      const boards = this.kanban?.boards || {} 
+      const boards = this.kanban?.boards || {}
       return [
-        ...Object.keys(boards).map(board => ({ 
+        ...Object.keys(boards).map(board => ({
           ...boards[board],
-          id: board, 
-          title: board 
+          id: board,
+          title: board
         }))
       ].reduce((acc, b) => ({ ...acc, [b.id]: {
         ...b,
@@ -303,6 +314,18 @@ export default {
         this.saveKanban()
       }
     },
+    async editKanban() {
+      if (!this.editBoardName.trim()) {
+        return
+      }
+      const board = this.activeBoard
+      if (board) {
+        board.title = this.editBoardName
+        board.description = this.editBoardDescription
+        await this.saveKanban(true)
+        this.showEditKanbanModal = false
+      }
+    },
     createNewChat(base) {
       return this.$projects.createNewChat({
         id: uuidv4(),
@@ -335,23 +358,23 @@ export default {
     },
     buildColumns() {
       const columnTitles = this.columnList
-      const cloumnChats = this.kanban.boards[this.board]?.columns?.chats || [] 
+      const cloumnChats = this.kanban.boards[this.board]?.columns?.chats || []
       this.columns = columnTitles
-          .map((col, ix) => {
-            const boardColumn = this.boards[this.board]?.columns?.find(bc => bc.title === col)||{}
-            const getChatIndex = c => {
-              return cloumnChats.findIndex(kc => kc.id === c.id)
-            }
-            return { 
-              title: col,
-              ...boardColumn,
-              tasks: this.activeBoard.tasks
-                      .filter(t => (t.column || "--none--") === col)
-                      .sort((a, b) => getChatIndex(a) < getChatIndex(b) ? -1 : 1),
-              position: ix
-            }
-          }).sort((a, b) => a.position < b.position ? -1: 1)
-          || []
+        .map((col, ix) => {
+          const boardColumn = this.boards[this.board]?.columns?.find(bc => bc.title === col)||{}
+          const getChatIndex = c => {
+            return cloumnChats.findIndex(kc => kc.id === c.id)
+          }
+          return {
+            title: col,
+            ...boardColumn,
+            tasks: this.activeBoard.tasks
+              .filter(t => (t.column || "--none--") === col)
+              .sort((a, b) => getChatIndex(a) < getChatIndex(b) ? -1 : 1),
+            position: ix
+          }
+        }).sort((a, b) => a.position < b.position ? -1: 1)
+        || []
     },
     async onColumnTaskListChanged() {
       if (this.$ui.isMobile) {
@@ -406,7 +429,7 @@ export default {
           color: this.columnColor
         }
         this.activeBoard.columns.push(newColumn)
-      }      
+      }
       await this.saveKanban(true)
       this.resetColumnModal()
       this.buildKanban()

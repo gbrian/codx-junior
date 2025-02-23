@@ -357,7 +357,7 @@ class Knowledge:
             chages_summary = messages[-1].content
             with open(last_changes_summary_file_path, 'w') as f:
                 f.write(chages_summary)
-        else:
+        elif os.path.isfile(last_changes_summary_file_path):
             with open(last_changes_summary_file_path, 'r') as f:
                 chages_summary = f.read()
         return chages_summary

@@ -1320,7 +1320,73 @@ class CODXJuniorSession:
     def get_project_branches(self):
         stdout, _ = exec_command("git branch",
             cwd=self.settings.project_path)
-        return [s.strip() for s in stdout.split("\n") if s.strip()]
+        branches = [s.strip() for s in stdout.split("\n") if s.strip()]
+        current_branch = [b for b in branches if b.startswith('* ')]
+        if current_branch:
+            current_branch = current_branch[0].replace('* ', '')
+        else:
+            current_branch = ""
+
+        branches = [b.replace('* ', '') for b in branches]
+
+        branch_details = self.get_branch_details(current_branch)
+        parent_branch = branch_details["parent_branch"]
+
+        git_diff = ""
+        if current_branch and parent_branch:
+            stdout, _ = exec_command(f"git diff HEAD..{parent_branch}",
+              cwd=self.settings.project_path)
+            git_diff = stdout
+
+
+        return {
+          "branches": branches,
+          "current_branch": current_branch.strip(),
+          "parent_branch": parent_branch,
+          "git_diff": git_diff,
+          "branch_details": branch_details
+        }
+
+    def get_branch_details(self, branch_name: str):
+        """
+        Extracts commit details from a specified branch without checking it out.
+
+        Args:
+            branch_name (str): The name of the branch to extract commits from.
+
+        Returns:
+            list: A list of dictionaries containing commit information.
+        """
+        # Command to get commit details from the specified branch
+        log_command = f"git log -g --format=%H|%an|%cI|%s {branch_name}"
+        stdout, _ = exec_command(log_command, cwd=self.settings.project_path)
+
+        log_lines = stdout.split('\n')
+
+        commits = []
+        for entry in log_lines:
+            if entry.strip():
+                logger.info(f"GIT LOG LIINE: {entry}")
+                commit_hash, author, date, message = entry.split('|', 3)
+
+                # Command to get files changed in each commit
+                file_changes_command = \
+                    f'git show --name-only --pretty=format:{commit_hash}'
+                stdout, _ = exec_command(file_changes_command, cwd=self.settings.project_path)
+                file_changes = stdout.strip().split('\n')
+                commits.append({
+                    'entry_line': entry,
+                    'commit_hash': commit_hash,
+                    'author': author,
+                    'date': date,
+                    'message': message,
+                    'files': [file for file in file_changes if file][1:]
+                })
+
+        return {
+          "commits": commits,
+          "parent_branch": commits[-1]["commit_hash"]
+        }
 
     def get_project_current_branch(self):
         stdout, _ = exec_command("git branch --show-current")

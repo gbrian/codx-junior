@@ -1,5 +1,5 @@
 <script setup>
-import moment from 'moment';
+import moment from 'moment'
 </script>
 
 <template>
@@ -15,7 +15,7 @@ import moment from 'moment';
         v-for="board in sortedBoards"
         :key="board.title"
         @click="selectBoard(board)"
-        class="card bg-base-100 shadow-md p-4 rounded-lg border border-sky-400/80 cursor-pointer"
+        class="card card-bordered bg-base-100 shadow-md p-4 rounded-lg cursor-pointer"
       >
         <div class="card-body flex flex-col">
           <h2 class="card-title">{{ board.title }}</h2>
@@ -28,11 +28,14 @@ import moment from 'moment';
               <span>{{ board.columns?.length || 0 }} Columns</span>
             </div>
           </div>
+          <button @click.stop="emitEditEvent(board)" class="btn btn-sm btn-outline mt-2">
+            <i class="fas fa-cogs"></i> Edit
+          </button>
         </div>
       </div>
       <div
         @click="emitNewKanban"
-        class="card bg-base-100 shadow-md p-4 rounded-lg border border-dashed border-gray-400 flex items-center justify-center cursor-pointer"
+        class="card card-bordered card-dashed bg-base-100 shadow-md p-4 rounded-lg flex items-center justify-center cursor-pointer"
       >
         <div class="card-body flex items-center justify-center">
           <i class="fas fa-plus text-gray-600 mr-2"></i>
@@ -48,6 +51,7 @@ export default {
   props: ['boards'],
   computed: {
     sortedBoards() {
+      // Sort boards based on last_update
       return Object.values(this.boards)
         .sort((a, b) => 
           a.last_update && b.last_update ? 
@@ -57,10 +61,13 @@ export default {
   },
   methods: {
     selectBoard(board) {
-      this.$emit('select', board.title)
+      this.$emit('select', board.title) // Emit select event with board title
     },
     emitNewKanban() {
-      this.$emit('new')
+      this.$emit('new') // Emit new Kanban event
+    },
+    emitEditEvent(board) {
+      this.$emit('edit', board) // Emit edit event with board object
     }
   }
 }

@@ -5,7 +5,7 @@ import MermaidViewerVue from './MermaidViewer.vue'
 import Markdown from './Markdown.vue';
 </script>
 <template>
-  <div class="border rounded-md">
+  <div class="rounded-md">
     <div class="flex gap-2 w-full justify-end bg-base-100 p-2 rounded-t" ref="toolbar">
       <button class="btn btn-xs tooltip hidden" data-tip="Generate code" @click="$emit('generate-code', code.innerText)">
         <i class="fa-solid fa-file-code"></i> Generate code
