@@ -12,6 +12,7 @@ import KanbanList from "./KanbanList.vue"
     <KanbanList
       :boards="boards"
       @select="selectBoard"
+      @edit="onEditBoard"
       @new="showNewBoardModal"
       v-if="!$projects.activeChat && !board"
     />
@@ -121,19 +122,8 @@ import KanbanList from "./KanbanList.vue"
       </div>
     </div>
     <modal v-if="showBoardModal">
-      <h2 class="font-bold text-lg">Add New Board</h2>
-      <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
-      <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
-      <input type="text" v-model="newBoardBranch" placeholder="Enter branch name" class="input input-bordered w-full mt-2"/>
-      <select v-model="selectedTemplate" class="select select-bordered w-full mt-2">
-        <option disabled value="">Select a Template</option>
-        <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
-      </select>
-      <div class="modal-action">
-        <button class="btn" @click="addBoard">OK</button>
-        <button class="btn" @click="showBoardModal = false">Cancel</button>
-      </div>
     </modal>
+
     <modal v-if="showColumnModal">
       <h2 class="font-bold text-lg">Add/Edit Column</h2>
       <div class="flex gap-1 items-center">
@@ -147,15 +137,6 @@ import KanbanList from "./KanbanList.vue"
         <button class="btn" @click="showColumnModal = false">Cancel</button>
       </div>
       <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
-    </modal>
-    <modal v-if="showEditKanbanModal">
-      <h2 class="font-bold text-lg">Edit Kanban Board</h2>
-      <input type="text" v-model="editBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
-      <input type="text" v-model="editBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
-      <div class="modal-action">
-        <button class="btn" @click="editKanban">Save</button>
-        <button class="btn" @click="showEditKanbanModal = false">Cancel</button>
-      </div>
     </modal>
   </div>
 </template>
@@ -484,6 +465,11 @@ export default {
         message.content.toLowerCase().includes(filterText)
       )
       return taskNameMatches || messageContentMatches
+    },
+    onEditBoard (board) {
+      this.selectBoard(board)
+
+      this.showEditKanbanModal = true
     }
   }
 }

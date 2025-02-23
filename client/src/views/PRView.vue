@@ -31,8 +31,9 @@ import Collapsible from '@/components/Collapsible.vue';
           .flex.flex-col.grow
             .flex.justify-between.items-center
               | Overview
-              button.btn.btn-sm.tooltip(data-tip="Rebuild summary" @click="refreshSummary(true)")
-                i.fas.fa-sync-alt Rebuild
+              button.btn.btn-sm.tooltip(data-tip="Rebuild summary" 
+                                        @click="refreshSummary(true)")
+                <i class="fa-solid fa-arrows-rotate"></i> Rebuild
             .text-sm Changes overview
         template(v-slot:content)
           Markdown(:text="$projects.changesSummary")
