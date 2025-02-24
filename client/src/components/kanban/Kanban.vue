@@ -186,9 +186,6 @@ export default {
       editBoardDescription: ''
     }
   },
-  mounted() {
-    this.projectChanged()
-  },
   computed: {
     lastUpdatedTask() {
       return this.visibleTasks.sort((a, b) => 
