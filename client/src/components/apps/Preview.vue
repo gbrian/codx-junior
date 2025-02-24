@@ -4,7 +4,7 @@ import Iframe from '../Iframe.vue';
 <template>
   <div class="relative">
     <Iframe ref="iframe" :url="previewUrl" @loaded="onCoderLoaded"
-      title="coder"
+      title="preview"
       :key="iframeKey"
     />
     <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300 flex flex-col items-center justify-center z-50" v-if="!iframeLoaded">
@@ -24,7 +24,7 @@ export default {
   },
   computed: {
     previewUrl () {
-      return "/novnc"
+      return "/novnc/vnc/index.html?autoconnect=1&resize=scale&clipboard_up=true&clipboard_down=true&clipboard_seamless=true&show_control_bar=true"
     }
   },
   methods: {
