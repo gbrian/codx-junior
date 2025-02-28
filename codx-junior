@@ -61,7 +61,7 @@ function status() {
   echo "codx-junior status"
 
   for pid_file in ./pids/*.pid; do
-    echo "Stopping: $pid_file"
+    echo "Checking '$pid_file'..."
     if [ -f "$pid_file" ]; then
       pid=$(cat "$pid_file")
       if ps -p "$pid" > /dev/null 2>&1; then

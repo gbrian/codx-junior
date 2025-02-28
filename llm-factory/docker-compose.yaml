@@ -1,7 +1,7 @@
 services:
   llm-factory:
     image: python:3.10-slim
-    container_name: llm-factory-container
+    container_name: llm-factory
     working_dir: /app
     volumes:
       - ./:/app
@@ -17,7 +17,7 @@ services:
 
   ollama:
     image: ollama/ollama
-    container_name: ollama-container
+    container_name: ollama
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
@@ -29,7 +29,7 @@ services:
 
   traefik:
     image: traefik:v2.9
-    container_name: traefik-container
+    container_name: traefik
     command:
       - "--api.insecure=true"
       - "--providers.docker=true"
