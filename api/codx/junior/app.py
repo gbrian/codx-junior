@@ -5,16 +5,14 @@ import time
 import logging
 import asyncio
 import socketio
+import traceback
 
 from multiprocessing.pool import ThreadPool
 from threading import Thread
 
-import logging
-logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
-logger = logging.getLogger(__name__)
-
 from pathlib import Path
-import traceback
+
+from codx.junior.ai import AIManager
 
 from codx.junior.sio.sio import sio
 from codx.junior.sio.session_channel import SessionChannel
@@ -23,6 +21,11 @@ from codx.junior.profiling.profiler import profile_function
 
 from codx.junior.log_parser import parse_logs
 from codx.junior.browser import run_browser_manager
+
+
+logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
+logger = logging.getLogger(__name__)
+
 run_browser_manager()
 
 def disable_logs(logs):
@@ -428,6 +431,10 @@ def api_apps_run(request: Request):
 def api_read_global_settings():
     return read_global_settings()
 
+@app.post("/api/global/settings")
+def api_write_global_settings(global_settings: GlobalSettings):
+    write_global_settings(global_settings=global_settings)
+    AIManager().reload_models(read_global_settings())
 
 @app.get("/api/logs")
 def api_logs_list():
@@ -439,11 +446,6 @@ def api_logs_tail(log_name: str, request: Request):
     log_size = request.query_params.get("log_size") or "1000"
     logs, _ = exec_command(f"tail -n {log_size} {log_file}")
     return parse_logs(logs)
-
-
-@app.post("/api/global/settings")
-def api_write_global_settings(global_settings: GlobalSettings):
-    return write_global_settings(global_settings=global_settings)
 
 @app.post("/api/screen")
 def api_screen_set(screen: Screen):

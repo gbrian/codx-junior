@@ -123,7 +123,7 @@ import Kanban from '@/components/kanban/Kanban.vue';
                 :value="project.project_id"
                 :selected="project.project_id === chatProject.project_id"
               >
-              {{ project.project_name }} <span v-if="project.ai_settings.provider">({{ project.ai_settings.model }})</span>
+              {{ project.project_name }} <span>({{ $projects.aiModel }})</span>
               </option>
             </select>
             {{  }}

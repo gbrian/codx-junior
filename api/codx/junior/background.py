@@ -58,7 +58,10 @@ def start_background_services(app):
     # Load all projects and watch
     def check_projects():
         async def check(project):
-            await CODXJuniorSession(settings=project).process_project_changes()
+            try:
+              await CODXJuniorSession(settings=project).process_project_changes()
+            except Exception as ex:
+              logger.exception(f"Error processing project {project.project_name}: {ex}")
         while True:
             try:
                 for project in find_all_projects():

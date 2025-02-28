@@ -66,19 +66,17 @@ export const getters = getterTree(state, {
       return project
     })
   },
-  embeddings_ai_settings: state => state.activeProject?.embeddings_ai_settings.provider ?
-                                      state.activeProject?.embeddings_ai_settings : $storex.api.globalSettings?.embeddings_ai_settings,
-  aiProvider: state => state.activeProject?.ai_settings.provider || 
-                      $storex.api.globalSettings?.ai_provider,
-  aiModel: state => state.activeProject?.ai_settings.model || 
-                      $storex.api.globalSettings?.ai_model,
-  embeddingsAIProvider: () => $storex.projects.embeddings_ai_settings?.provider,
-  embeddingsAIModel: () => $storex.projects.embeddings_ai_settings?.model,
+  embeddingsModel: state => state.activeProject?.embeddings_model || 
+                                $storex.api.globalSettings?.embeddings_model,
+  aiModel: state => state.activeProject?.llm_model || 
+                      $storex.api.globalSettings?.llm_model,
   chatModes: state => {
     const analystProfiles = state.profiles.filter(p => p.category === 'assistant').map(p => p.name)
+    const agentProfiles = state.profiles.filter(p => p.category === 'agent').map(p => p.name)
     return {
       "task": { name: "Analyst", profiles: analystProfiles, icon: "fa-solid fa-user-doctor" },
       "chat": { name: "Developer", profiles: ["software_developer"], icon: "fa-regular fa-comments" },
+      "agent": { name: "Developer", profiles: agentProfiles, icon: "fa-solid fa-play" },
     }
   },
   branches: state => state.project_branches.branches,

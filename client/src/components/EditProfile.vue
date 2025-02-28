@@ -24,6 +24,7 @@ import Markdown from './Markdown.vue'
           <option value="assistant">Assistant</option>
           <option value="chat">Chat</option>
           <option value="file">File</option>
+          <option value="agent">Agent</option>
         </select>
       </div>
       <div class="w-1/2 flex flex-col gap-2">

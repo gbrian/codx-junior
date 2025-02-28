@@ -13,3 +13,4 @@ filebrowser.db
 static
 llm-factory/ollama-data
 pids
+ollama_models

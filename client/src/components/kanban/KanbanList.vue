@@ -15,7 +15,7 @@ import moment from 'moment'
         v-for="board in sortedBoards"
         :key="board.title"
         @click="selectBoard(board)"
-        class="card card-bordered bg-base-300 shadow-md p-4 rounded-lg cursor-pointer"
+        class="card card-bordered bg-base-300 shadow-md rounded-lg cursor-pointer"
       >
         <div class="card-body flex flex-col">
           <h2 class="card-title">{{ board.title }}</h2>

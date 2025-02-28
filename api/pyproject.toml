@@ -33,7 +33,8 @@ dependencies = [
   'pymilvus',
   'watchfiles>=1.0.4',
   'mistralai>=1.4.0',
-  'tinydb>=4.8.2'
+  'tinydb>=4.8.2',
+  'ollama>=0.4.7'
 ]
 
 classifiers = [
@@ -67,7 +68,8 @@ doc = [
     "linkchecker >= 10.2.1",
     "sphinx-copybutton >= 0.5.1",
     "markdown-include >= 0.6.0",
-    "sphinx_copybutton >= 0.5.2"
+    "sphinx_copybutton >= 0.5.2",
+    "ollama>=0.4.7"
 ]
 
 

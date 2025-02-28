@@ -55,4 +55,7 @@ bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
 echo "Install client"
 bash ${CODX_JUNIOR_PATH}/scripts/install_client.sh
 
+echo "Install ollama"
+bash ${CODX_JUNIOR_PATH}/scripts/install_ollama.sh
+
 echo "Installation complete!"

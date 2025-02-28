@@ -9,8 +9,10 @@ import MarkdownVue from '@/components/Markdown.vue'
       <div class="grow">
         <div class="text-error text-xs" v-if="!settings?.use_knowledge">Knowledge search is disabled!</div>
       </div>
-      <div class="badge">{{ $projects.embeddingsAIProvider }} / {{ $projects.embeddingsAIModel }}</div>
-        
+      <div class="badge flex gap-2">
+        <span class="text-info"><i class="fa-solid fa-file"></i></span>
+        {{ $projects.embeddingsModel }}
+      </div>
       <button class="btn btn-sm" @click="toggleWatch()">
         <span class="label-text mr-2">Watch changes</span> 
         <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="settings.watching" />

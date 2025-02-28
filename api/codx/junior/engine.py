@@ -96,6 +96,8 @@ APPS_COMMANDS = {
     "chrome": "google-chrome --no-sandbox --no-default-browser-check"
 }
 
+AGENT_DONE_WORD = "$$@@AGENT_DONE@@$$$"
+
 def create_project(project_path: str):
     logger.info(f"Create new project {project_path}")
     projects_root_path = f"{os.environ['HOME']}/projects"
@@ -120,6 +122,8 @@ def create_project(project_path: str):
 
 def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     logger.info(f"coder_open_file {file_name}")
+    if not file_name.startswith(settings.project_path):
+        file_name = f"{settings.project_path}{file_name}".replace("//", "/")
     os.system(f"code-server -r {file_name}")
 
 
@@ -424,6 +428,8 @@ class CODXJuniorSession:
             await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
             stdout = "Changes applied"
             stderr = ""
+        if file_path not in chat.file_list:
+             chat.file_list.append(file_path) 
         coder_open_file(self.settings, file_name=file_path)
         return stdout, stderr
 
@@ -547,6 +553,8 @@ class CODXJuniorSession:
             if change_type == "delete_file":
                 del open_files[file_path]
                 os.remove(file_path)
+                if file_path in chat.file_list:
+                    chat.file_list = [f for f in chat.file_list if f != file_path]
             else:
                 content = ""
                 if os.path.isfile(file_path):
@@ -557,6 +565,8 @@ class CODXJuniorSession:
                 new_content = await self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)
                 if new_content and new_content != content:
                     await self.write_project_file(file_path=file_path, content=new_content)
+                    if file_path not in chat.file_list:
+                        chat.file_list.append(file_path)
                 else:
                     logger.error(f"Error applying changes to {file_path}. New content: {new_content}")
 
@@ -944,11 +954,12 @@ class CODXJuniorSession:
       </text>
 
       Return a concise clear document search query without any further decoration or explanation.
+      Extract file names if present to use in the query
       """)[-1].content
                 
 
     @profile_function
-    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None):
+    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0):
         # Invoke project based on project_id
         self = self.switch_project(chat.project_id)
 
@@ -968,6 +979,11 @@ class CODXJuniorSession:
                 parent_chat = chat_manager.find_by_id(chat.parent_id)
 
             is_refine = chat_mode == "task"
+            is_agent = chat_mode  == "agent"
+
+            max_iterations = self.settings.get_agent_max_iterations()
+            iterations_left = max_iterations - iteration
+
             if is_refine:
                 task_item = "analysis"
             
@@ -1069,7 +1085,8 @@ class CODXJuniorSession:
             if not disable_knowledge and self.settings.use_knowledge:
                 doc_length = 0
                 if query:
-                    search_query = self.create_knowledge_search_query(query=query)
+                    query_context = "\n".join([m.content for m in messages])
+                    search_query = self.create_knowledge_search_query(query=f"{query_context}\n{query}")
                     self.chat_event(chat=chat, message=f"Knowledge searching for: {search_query}")
                     documents, file_list = self.select_afefcted_documents_from_knowledge(ai=ai, chat=chat, query=search_query, ignore_documents=ignore_documents)
                     for doc in documents:
@@ -1110,6 +1127,27 @@ class CODXJuniorSession:
                 </user_request>
                 """)
                 messages.append(convert_message(refine_message))
+            elif is_agent:
+                refine_message = Message(role="user", content=f"""
+                You are responsible to end this task.
+                Follow instructions and try to solve it with the minimun iterations needed.
+                <task>
+                { chat.name }
+                </task>
+
+                <parent_context>
+                {self.get_chat_analysis_parents(chat=chat)}
+                </parent_context>
+
+                <user_request>
+                Refine document with this comments:
+                {user_message.content}
+                </user_request>
+                
+                You still have { iterations_left } attemps more to finish the task. 
+                Return { AGENT_DONE_WORD } when the task is done.
+                """)
+                messages.append(convert_message(refine_message))
             else:
                 messages.append(convert_message(user_message))
 
@@ -1135,7 +1173,18 @@ class CODXJuniorSession:
             if is_refine:
                 for message in chat.messages[:-1]:
                     message.hide = True
-            self.chat_event(chat=chat, message="done")
+
+            is_agent_done = AGENT_DONE_WORD in response_message.content
+            if is_agent and not is_agent_done and iterations_left:
+              self.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")
+              return self.chat_with_project(chat=chat,
+                    disable_knowledge=disable_knowledge,
+                    callback=callback,
+                    append_references=append_references,
+                    chat_mode=chat_mode,
+                    iteration=iteration + 1)
+            else:    
+              self.chat_event(chat=chat, message="done")
             return chat, documents
             
     def check_project(self):
@@ -1418,6 +1467,6 @@ class CODXJuniorSession:
         return stdout
 
     def build_code_changes_summary(self, force = False):
-        exec_command("git add .", cwd=self.settings.project_path)
-        diff = self.get_project_changes()
+        project_branches = self.get_project_branches()
+        diff = project_branches["git_diff"]
         return self.get_knowledge().build_code_changes_summary(diff=diff, force=force)
