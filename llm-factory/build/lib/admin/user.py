@@ -19,6 +19,32 @@ class UserCreate(BaseModel):
     username: str
     email: str
 
+class ApiKeyBase(BaseModel):
+    key: str
+
+class ApiKeyCreate(ApiKeyBase):
+    pass
+
+class ApiKey(ApiKeyBase):
+    id: int
+    user_id: int
+
+    class Config:
+        orm_mode = True
+
+class UserPermissionBase(BaseModel):
+    permission_name: str
+
+class UserPermissionCreate(UserPermissionBase):
+    pass
+
+class UserPermission(UserPermissionBase):
+    id: int
+    user_id: int
+
+    class Config:
+        orm_mode = True
+
 @app.post("/users/", response_model=schemas.User)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_email(db, email=user.email)
@@ -37,3 +63,11 @@ def read_user(user_id: int, db: Session = Depends(get_db)):
     if db_user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return db_user
+
+@app.post("/users/{user_id}/api_keys/", response_model=schemas.ApiKey)
+def create_api_key_for_user(user_id: int, api_key: ApiKeyCreate, db: Session = Depends(get_db)):
+    return crud.create_api_key(db=db, api_key=api_key, user_id=user_id)
+
+@app.post("/users/{user_id}/permissions/", response_model=schemas.UserPermission)
+def create_permission_for_user(user_id: int, permission: UserPermissionCreate, db: Session = Depends(get_db)):
+    return crud.create_user_permission(db=db, user_permission=permission, user_id=user_id)

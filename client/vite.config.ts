@@ -77,7 +77,14 @@ export default defineConfig({
     proxy,
     watch: {
       ignored: ["**/.codx/**"],
-    },
+    }
+  },
+  define: {
+    'process.env': {
+      apiUrl,
+      coderUrl,
+      noVNCUrl
+    }
   },
   plugins: [
     vue(),
