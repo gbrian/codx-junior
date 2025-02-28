@@ -89,17 +89,31 @@ function start_codx() {
 }
 
 function run_codx_apps() {
+    run_code_server
+    run_api
+    run_client
+    run_ollama
+}
+
+function run_code_server() {
     echo "Run code server"
     code-server --bind-addr=0.0.0.0:${CODX_JUNIOR_CODER_PORT} --auth=none >> $LOGFILE 2>&1 &
     echo $! > ./pids/code-server.pid
-
+}
+function run_api() {
     echo "Run API"
     bash "${CODX_JUNIOR_PATH}/scripts/run_api.sh" >> $LOGFILE 2>&1 &
     echo $! > ./pids/api.pid
-
+}
+function run_client() {
     echo "Run client"
     bash "${CODX_JUNIOR_PATH}/scripts/run_client.sh" >> $LOGFILE 2>&1 &
     echo $! > ./pids/client.pid
+}
+function run_ollama() {
+    echo "Run ollama"
+    bash "${CODX_JUNIOR_PATH}/scripts/run_ollama.sh" >> $LOGFILE 2>&1 &
+    echo $! > ./pids/ollama.pid
 }
 
 # Check the command line argument

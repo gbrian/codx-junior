@@ -43,9 +43,11 @@ tools = [
 class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
-        self.model = self.settings.get_ai_model()
-        self.api_key=settings.get_ai_api_key()
-        self.base_url=settings.get_ai_api_url()
+        self.llm_settings = settings.get_llm_settings()
+                
+        self.model = self.llm_settings.model
+        self.api_key = self.llm_settings.api_key
+        self.base_url = self.llm_settings.api_url
 
         self.client = OpenAI(
             api_key=self.api_key,
@@ -69,10 +71,10 @@ class OpenAI_AI:
     @profile_function
     def chat_completions(self, messages, config: dict = {}):
 
-        self.log(f"OpenAI_AI chat_completions {self.settings.get_ai_provider()}: {self.model} {self.base_url} {self.api_key[0:6]}...")
+        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
 
         openai_messages = [self.convert_message(msg) for msg in messages]
-        temperature = float(self.settings.temperature)
+        temperature = float(self.llm_settings.temperature)
         
         response_stream = self.client.chat.completions.create(
             model=self.model,
@@ -141,7 +143,7 @@ class OpenAI_AI:
 
     @profile_function
     def embeddings(self):
-        embeddings_ai_settings = self.settings.get_ai_embeddings_settings()
+        embeddings_ai_settings = self.settings.get_embeddings_settings()
         client = OpenAI(
             api_key=embeddings_ai_settings.api_key,
             base_url=embeddings_ai_settings.api_url
@@ -158,4 +160,5 @@ class OpenAI_AI:
               return embeddings
             except Exception as ex:
               logger.exception(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
+              raise ex
         return embedding_func

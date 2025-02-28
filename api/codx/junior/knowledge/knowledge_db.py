@@ -74,11 +74,15 @@ class KnowledgeDB:
             collections = self.db.list_collections()
             if self.index_name in collections:
                 return
-        self.db.create_collection(
-            collection_name=self.index_name,
-            dimension=self.settings.get_ai_embeddings_settings().vector_size,
-            auto_id=True
-        )
+        embeddings_ai_settings = self.settings.get_embeddings_settings()
+        try:
+            self.db.create_collection(
+                collection_name=self.index_name,
+                dimension=embeddings_ai_settings.vector_size,
+                auto_id=True
+            )
+        except Exception as ex:
+            logger.exception(f"Error creating embeddings collection {ex}. Setting: {embeddings_ai_settings}")
 
     def get_all_files(self):
         all_files = {}
@@ -117,13 +121,16 @@ class KnowledgeDB:
     def index_documents(self, documents: [Document]):
         data = []
         for doc in documents:
-            vector = self.get_ai().embeddings(content=doc.page_content)
-            doc_data = {
-              "vector": vector,
-              "page_content": doc.page_content,
-              "metadata": doc.metadata
-            }
-            data.append(doc_data)
+            try:
+                vector = self.get_ai().embeddings(content=doc.page_content)
+                doc_data = {
+                  "vector": vector,
+                  "page_content": doc.page_content,
+                  "metadata": doc.metadata
+                }
+                data.append(doc_data)
+            except Exception as ex:
+                logger.error(f"Error processing document, len {len(doc.page_content)}, {doc.metadata}: {ex}")
 
         try:
           res = self.db.insert(

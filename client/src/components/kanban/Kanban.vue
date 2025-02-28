@@ -194,7 +194,7 @@ export default {
         .slice(0, 1)[0] || {}
     },
     showKanban() {
-      return !this.$projects.activeChat && this.activeKanbanBoard
+      return this.kanban && !this.$projects.activeChat && this.activeKanbanBoard
     },
     kanban() {
       return this.$projects.kanban
@@ -332,7 +332,9 @@ export default {
       })
     },
     async buildKanban() {
-      this.buildColumns()
+      if (this.kanban) {
+        this.buildColumns()
+      }
     },
     buildColumns() {
       const columnTitles = this.columnList

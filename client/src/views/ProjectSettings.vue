@@ -52,58 +52,13 @@ import { API } from '../api/api'
       <div class="font-bold mb-2">AI</div>
       <div class="ml-4">
         <div class="flex justify-between mb-2">
-          <div class="label-text">ai_provider</div>
-          <div class="w-1/2"><input v-model="settings.ai_settings.provider" type="text"
+          <div class="label-text">llm_model</div>
+          <div class="w-1/2"><input v-model="settings.llm_model" type="text"
               class="input input-bordered w-full"></div>
         </div>
         <div class="flex justify-between mb-2">
-          <div class="label-text">ai_model</div>
-          <div class="w-1/2"><input v-model="settings.ai_settings.model" type="text"
-              class="input input-bordered w-full"></div>
-        </div>
-        <div class="flex justify-between mb-2">
-          <div class="label-text">ai_url</div>
-          <div class="w-1/2"><input v-model="settings.ai_settings.api_url" type="text"
-              class="input input-bordered w-full"></div>
-        </div>
-        <div class="flex justify-between mb-2">
-          <div class="label-text">ai_key</div>
-          <div class="w-1/2"><input v-model="settings.ai_settings.api_key" type="text"
-              class="input input-bordered w-full"></div>
-        </div>
-        <div class="flex justify-between mb-2">
-          <div class="label-text">temperature</div>
-          <div class="w-1/2"><input v-model="settings.ai_settings.temperature" type="text"
-              class="input input-bordered w-full"></div>
-        </div>
-
-      </div>
-
-      <div class="font-bold mb-2">Embeddings</div>
-      <div class="ml-4">
-        <div class="flex justify-between mb-2">
-          <div class="label-text">embeddings_ai_settings.api_key</div>
-          <div class="w-1/2"><input v-model="settings.embeddings_ai_settings.api_key" type="text"
-              class="input input-bordered w-full"></div>
-        </div>
-        <div class="flex justify-between mb-2">
-          <div class="label-text">embeddings_ai_settings.api_url</div>
-          <div class="w-1/2"><input v-model="settings.embeddings_ai_settings.api_url" type="text"
-              class="input input-bordered w-full"></div>
-        </div>
-        <div class="flex justify-between mb-2">
-          <div class="label-text">embeddings_ai_settings.model</div>
-          <div class="w-1/2"><input v-model="settings.embeddings_ai_settings.model" type="text"
-              class="input input-bordered w-full"></div>
-        </div>
-        <div class="flex justify-between mb-2">
-          <div class="label-text">embeddings_ai_settings.provider</div>
-          <div class="w-1/2"><input v-model="settings.embeddings_ai_settings.provider" type="text"
-              class="input input-bordered w-full"></div>
-        </div>
-        <div class="flex justify-between mb-2">
-          <div class="label-text">embeddings_ai_settings.vector_size</div>
-          <div class="w-1/2"><input v-model="settings.embeddings_ai_settings.vector_size" type="text"
+          <div class="label-text">embeddings_model</div>
+          <div class="w-1/2"><input v-model="settings.embeddings_model" type="text"
               class="input input-bordered w-full"></div>
         </div>
       </div>

@@ -121,7 +121,7 @@ export const API = {
       },
       async write(settings) {
         await API.post('/api/global/settings', settings)
-        return API.global.read()
+        return API.settings.global.read()
       }
     }
   },

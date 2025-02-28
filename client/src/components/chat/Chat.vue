@@ -301,7 +301,7 @@ export default {
       return null
     },
     messages () {
-      if (!this.chat?.messages) {
+      if (!this.chat?.messages?.length) {
         return []
       }
       const { messages } = this.chat
@@ -312,7 +312,7 @@ export default {
         if (aiMsg) {
           res.push(aiMsg)
         }
-        if (lastMsg?.role !== 'assistant') {
+        if (lastMsg && lastMsg?.role !== 'assistant') {
           res.push(lastMsg)
         }
         if (res.length) {

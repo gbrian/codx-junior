@@ -21,9 +21,9 @@
                 <i class="fa-solid fa-brain"></i>
                 {{ project.ai_settings.provider }} / {{ project.ai_settings.model }}
               </div>
-              <div class="text-xs text-secondary flex gap-1 items-center" v-if="project.embeddings_ai_settings.provider">
+              <div class="text-xs text-secondary flex gap-1 items-center">
                 <i class="fa-regular fa-file"></i>
-                {{ project.embeddings_ai_settings.provider }} / {{ project.embeddings_ai_settings.model }}
+                {{ $projects.embeddingsModel }}
               </div>
             </div>
           </div>

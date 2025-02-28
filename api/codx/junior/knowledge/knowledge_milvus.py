@@ -198,7 +198,10 @@ class Knowledge:
                 
             except Exception as ex:
                 logger.exception(f"Error indexing document {enriched_doc.metadata['source']}: {ex} at project {self.settings.project_path}")
-                if raiseIfError:
+                if "float data" in str(ex):
+                  logger.error(f"{self.settings.project_path}: float data error, trying to reset index")
+                  self.reset()
+                elif raiseIfError:
                     raise ex
 
     def get_last_changed_file_paths (self):

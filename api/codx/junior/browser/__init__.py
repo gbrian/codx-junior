@@ -78,6 +78,7 @@ class BrowserManager:
 
 browser_manager = BrowserManager()
 def run_browser_manager():
+    return
     try:
         browser_manager.start_browser()
     except:

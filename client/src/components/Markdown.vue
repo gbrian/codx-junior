@@ -7,7 +7,7 @@ import highlight from 'markdown-it-highlightjs'
 </script>
 
 <template>
-  <div>
+  <div class="w-full h-full flex gap-2">
     <div class="text-md text-wrap max-w-full w-full overflow-y-auto prose leading-tight">
       <div v-html="html"></div>
       <YoutubeViewer
@@ -20,7 +20,6 @@ import highlight from 'markdown-it-highlightjs'
       v-for="code in codeBlocks"
       :key="code.id"
       :code="code"
-      ref="codeSection"
       @generate-code="$emit('generate-code', $event)"
     />
   </div>
@@ -28,7 +27,9 @@ import highlight from 'markdown-it-highlightjs'
 
 <script>
 const md = new MarkdownIt({
-  html: true
+  html: true,
+  linkify: true,
+  typographer: true
 })
 md.use(emoji)
 md.use(highlight)
@@ -39,20 +40,26 @@ export default {
     return {
       codeBlocks: [],
       showDoc: false,
-      srcView: false,
       youtubeLinks: []
     }
   },
   mounted() {
-    this.updateCodeBlocks()
-    this.captureLinks()
-    this.extractYoutubeLinks()
+    this.initializeComponent()
   },
   computed: {
     html() {
       if (!this.showDoc) {
         try {
-          return md.render(this.sanitizedText)
+          const textWithLinks = this.sanitizedText.replace(
+            /`((?:\/[^\s:]+)+)(?::(\d+))?`/g,
+            (match, filePath, lineNumber) => {
+              const slashCount = (filePath.match(/\//g) || []).length
+              if (slashCount < 2) return match
+              const lineInfo = lineNumber ? `:${lineNumber}` : ''
+              return `<a class="file-link btn btn-link" href="${filePath}${lineInfo}">${filePath}${lineInfo}</a>`
+            }
+          )
+          return md.render(textWithLinks)
         } catch (ex) {
           console.error("Message can't be rendered", this.text)
         }
@@ -77,13 +84,18 @@ export default {
       this.codeBlocks = []
       this.youtubeLinks = []
       requestAnimationFrame(() => {
-        this.captureLinks()
-        this.updateCodeBlocks()
-        this.extractYoutubeLinks()
+        this.initializeComponent()
       })
     }
   },
   methods: {
+    initializeComponent() {
+      // Initialize component by capturing links and extracting necessary data
+      this.updateCodeBlocks()
+      this.captureLinks()
+      this.extractYoutubeLinks()
+      this.captureFileLinks()
+    },
     captureLinks() {
       const linkBlocks = [...this.$el.querySelectorAll('a')]
       linkBlocks.forEach(a => a.onclick = ev => {
@@ -92,7 +104,6 @@ export default {
       })
     },
     updateCodeBlocks() {
-      // return
       const codeBlocks = [...this.$el.querySelectorAll('code[class*="language-"]')]
         .filter(cb => cb.innerText.trim().length && !this.codeBlocks.includes(cb))
       if (codeBlocks.length) {
@@ -101,8 +112,21 @@ export default {
       }
     },
     extractYoutubeLinks() {
-      const youtubeRegex = /https?:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/g;
-      this.youtubeLinks = this.text?.match(youtubeRegex) || [];
+      const youtubeRegex = /https?:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/g
+      this.youtubeLinks = this.text?.match(youtubeRegex) || []
+    },
+    captureFileLinks() {
+      const fileLinks = [...this.$el.querySelectorAll('.file-link')]
+      fileLinks.forEach(link => {
+        link.onclick = ev => {
+          ev.preventDefault()
+          this.openFile(link.getAttribute('href'))
+        }
+      })
+    },
+    openFile(href) {
+      this.$ui.copyTextToClipboard(href)
+      this.$storex.api.coder.openFile(href)
     }
   }
 }
