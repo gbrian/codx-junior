@@ -1153,8 +1153,8 @@ class CODXJuniorSession:
 
             # Add extra chat_profiles_content
             messages[-1].content += chat_profiles_content
-            
-            self.chat_event(chat=chat, message=f"Invoking {self.settings.get_ai_provider()}. Model {self.settings.get_ai_model()}")
+            ai_settings = self.settings.get_llm_settings()
+            self.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
 
             if not callback:
                 callback = lambda content: send_message_event(content=content)
@@ -1167,7 +1167,7 @@ class CODXJuniorSession:
 
             response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
             response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
-            response_message.meta_data["model"] = self.settings.get_ai_model()
+            response_message.meta_data["model"] = ai_settings.model
             
             chat.messages.append(response_message)
             if is_refine:
