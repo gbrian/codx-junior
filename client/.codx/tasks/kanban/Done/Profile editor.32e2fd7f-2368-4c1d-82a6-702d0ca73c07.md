@@ -1,5 +1,5 @@
-# [[{"id": "32e2fd7f-2368-4c1d-82a6-702d0ca73c07", "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Profile editor", "created_at": "2024-12-29T08:40:08.861085", "updated_at": "2024-12-29T08:40:08.861085", "mode": "task", "board": "Profiles", "column": "new column", "chat_index": 0, "live_url": "", "branch": ""}]]
-## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:29:43.117175", "updated_at": "2024-12-29 08:29:43.117201", "images": [], "files": []}]]
+# [[{"id": "32e2fd7f-2368-4c1d-82a6-702d0ca73c07", "doc_id": null, "project_id": null, "parent_id": "", "status": "", "tags": [], "file_list": [], "profiles": [], "name": "Profile editor", "created_at": "2024-12-29T08:40:08.861085", "updated_at": "2025-02-28T07:40:41.309195", "mode": "task", "kanban_id": "", "column_id": "", "board": "kanban", "column": "Done", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/shared/codx-junior/client/.codx/tasks/kanban/tasks/None.md"}]]
+## [[{"doc_id": "203e7f66-e2e4-43df-b098-6a481fd99d1f", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:29:43.117175", "updated_at": "2024-12-29 08:29:43.117201", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
 Create a new component to edit a profile
 This is the model:
 ```py
@@ -12,7 +12,7 @@ class Profile(BaseModel):
         description="Optional regex to apply profiles based on file absolute path.")
     content: str = Field(default="")
 ```
-## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:29:43.117175", "updated_at": "2024-12-29 08:29:43.117201", "images": [], "files": ["/src/views/ProfileView.vue"]}]]
+## [[{"doc_id": "c844114a-5d8a-4c2d-abac-a26d1549f2c8", "role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:29:43.117175", "updated_at": "2024-12-29 08:29:43.117201", "images": [], "files": ["/src/views/ProfileView.vue"], "meta_data": {}, "profiles": []}]]
 To create a new component for editing a profile, you can extend or refactor the existing `ProfileView.vue` component. Here's a simple approach to creating a new component named `EditProfile.vue`:
 
 ### EditProfile.vue
@@ -95,9 +95,9 @@ export default {
 - **Styling**: Add any custom styles as needed.
 
 This component can be integrated into your application wherever profile editing is needed. You may need to adjust or extend its functionality based on your specific requirements.
-## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": []}]]
+## [[{"doc_id": "91208f40-2fb3-4dbd-9949-5b763b5e153b", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
 check ProfileView component a reference on how structuring components
-## [[{"role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": []}]]
+## [[{"doc_id": "215fa8aa-d3b1-4f98-bb60-0e05e52fca2d", "role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
 To structure your new `EditProfile.vue` component similarly to the `ProfileView.vue` component, you'll want to ensure consistent practices in terms of layout, data handling, and possibly styling. Below is an example of how you might structure the `EditProfile.vue` component:
 
 ### EditProfile.vue
@@ -177,9 +177,9 @@ export default {
 - **Styling**: Add classes and styles that match the overall look and feel of your application. 
 
 This structure should align with the practices you observed in `ProfileView.vue`, making your component cohesive with the rest of your project.
-## [[{"role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": []}]]
+## [[{"doc_id": "bc164841-3bb9-47d3-b542-f5ac7d0cef23", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
 Create component
-## [[{"role": "assistant", "task_item": "", "hide": true, "improvement": true, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": []}]]
+## [[{"doc_id": "bfc2abf1-7940-4d2d-91a4-3f1ec691312b", "role": "assistant", "task_item": "", "hide": true, "improvement": true, "created_at": "2024-12-29 08:38:16.111328", "updated_at": "2024-12-29 08:38:16.111353", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
 ```json
 {
   "code_changes": [

@@ -23,6 +23,18 @@ import moment from 'moment';
 
 
     <div class="flex w-full flex-col mt-4 flex">
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'wiki' ? 'bg-base-100 text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Wiki"
+          @click="$ui.setActiveTab('wiki')">
+          <div class="avatar">
+            <div class="w-7 rounded-full">
+              <img :src="$project.project_icon" />
+            </div>
+          </div>
+				</a>
+			</div>
+      
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'tasks' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Kanban"

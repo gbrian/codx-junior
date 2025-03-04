@@ -57,8 +57,11 @@ class KnowledgeCodeSplitter:
             return None
         docs = file_to_documents()
         if docs:
+            total_docs = len(docs)
             for ix, doc in enumerate(docs):
               doc.metadata["index"] = ix
+              doc.metadata["total_docs"] = total_docs
+              doc.metadata["length"] = len(doc.page_content)
         return docs
 
     def load_with_code_plitter(self, file_path, code_parser_language):

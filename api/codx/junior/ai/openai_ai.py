@@ -70,22 +70,26 @@ class OpenAI_AI:
 
     @profile_function
     def chat_completions(self, messages, config: dict = {}):
+        kwargs = {
+            "model":self.model,
+            "stream":True
+        }
 
-        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
+        if self.llm_settings.temperature:
+            kwargs["temperature"] = float(self.llm_settings.temperature) 
+
+        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}... {kwargs}")
 
         openai_messages = [self.convert_message(msg) for msg in messages]
-        temperature = float(self.llm_settings.temperature)
         
         response_stream = self.client.chat.completions.create(
-            model=self.model,
-            temperature=temperature,
-            messages=openai_messages,
-            stream=True
+            **kwargs,
+            messages=openai_messages
         )
         callbacks = config.get("callbacks", None)
         content_parts = []
         if self.settings.get_log_ai():
-            self.log(f"Received AI response, start reading stream")
+            self.log("Received AI response, start reading stream")
         try:
             for chunk in response_stream:
                 # Check for tools

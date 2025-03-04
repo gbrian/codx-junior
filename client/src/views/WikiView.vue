@@ -4,19 +4,19 @@ import MarkdownVue from '@/components/Markdown.vue'
 </script>
 <template>
   <div class="flex flex-col gap-2 h-full mb-4">
-    <div class="text-2xl">Project's documentation</div>
+    <div class="text-2xl">Wiki</div>
     <div class="badge badge-warning flex gap-1" v-if="!settings.project_wiki">Set <span><strong>project_wiki path</strong></span> to enable.</div>
     <div class="flex items-center gap-2">
-      <div class="breadcrumbs text-sm shrink-0">
+      <div class="breadcrumbs text-xs shrink-0">
         <ul>
-          <li v-for="path in history" :key="path"
+          <li class="badge badge-outline" v-for="path in history" :key="path"
             @click="onBack(path)"
           >
             <a>{{ path }}</a>
           </li>
         </ul>
       </div>
-      <button class="btn btn-xs btn-ghost" @click="editDocument">
+      <button class="hidden btn btn-xs btn-ghost" @click="editDocument">
         <span v-if="isEditing"><i class="fa-solid fa-floppy-disk"></i></span>
         <span v-else><i class="fa-solid fa-file-pen"></i></span>
       </button>

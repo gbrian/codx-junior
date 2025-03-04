@@ -268,9 +268,6 @@ export default {
     },
     board() {
       this.buildKanban()
-    },
-    chats() {
-      this.buildKanban()
     }
   },
   methods: {

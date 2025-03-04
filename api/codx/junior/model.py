@@ -56,7 +56,7 @@ class Profile(BaseModel):
     content: Optional[str] = Field(default=None)
     path: str = Field(default="")
     content_path: str = Field(default="")
-    profiles: Optional[List[str]] = Field(default="")
+    profiles: Optional[List[str]] = Field(default=[])
 
 class Document(BaseModel):
     id: int = Field(default=None)
