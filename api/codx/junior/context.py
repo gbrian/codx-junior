@@ -132,7 +132,7 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
 
     if score is not None:
         doc.metadata["relevance_score"] = score
-        doc.metadata["analysis"] = response.analysis
+        doc.metadata["score_analysis"] = response.analysis
         logger.debug(f"[validate_context] {doc.metadata.get('source')}: {score}")
     else:
         if not retry_count:

@@ -113,6 +113,9 @@ export const actions = actionTree(
           $storex.projects.loadKanban()
       }
       state.activeProject = API.lastSettings
+      await $storex.projects.loadProfiles()
+    },
+    async loadProfiles({ state }) {
       const { data: profiles } = await $storex.api.profiles.list();
       state.profiles = profiles
     },

@@ -122,6 +122,18 @@ import KanbanList from "./KanbanList.vue"
       </div>
     </div>
     <modal v-if="showBoardModal">
+      <h2 class="font-bold text-lg">Add New Board</h2>
+      <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
+      <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
+      <input type="text" v-model="newBoardBranch" placeholder="Enter branch name" class="input input-bordered w-full mt-2"/>
+      <select v-model="selectedTemplate" class="select select-bordered w-full mt-2">
+        <option disabled value="">Select a Template</option>
+        <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
+      </select>
+      <div class="modal-action">
+        <button class="btn" @click="addBoard">OK</button>
+        <button class="btn" @click="showBoardModal = false">Cancel</button>
+      </div>
     </modal>
 
     <modal v-if="showColumnModal">
@@ -234,7 +246,7 @@ export default {
         }))
       ].reduce((acc, b) => ({ ...acc, [b.id]: {
         ...b,
-        tasks: this.chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.title)
+        tasks: this.chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.id)
       }}), {})
     },
     filteredColumns() {
@@ -279,10 +291,11 @@ export default {
     toggleDropdown() {
       this.isDropdownOpen = !this.isDropdownOpen
     },
-    selectBoard(board) {
+    async selectBoard(board) {
       this.board = board
       this.$ui.setKanban(board)
       this.isDropdownOpen = false
+      await this.$projects.loadChats()
       if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
         Object.keys(this.kanban.boards)
           .forEach(b => this.kanban.boards[b].active = (b === board))

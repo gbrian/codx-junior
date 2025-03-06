@@ -126,8 +126,9 @@ class CODXJuniorSettings(BaseModel):
     def get_agent_max_iterations(self):
         return GLOBAL_SETTINGS.agent_settings.max_agent_iteractions
 
-    def get_llm_settings(self) -> AISettings:
-        llm_model = self.llm_model 
+    def get_llm_settings(self, llm_model: str = None) -> AISettings:
+        if not llm_model:
+            llm_model = self.llm_model 
         if not llm_model:
             llm_model = GLOBAL_SETTINGS.llm_model
 

@@ -38,10 +38,11 @@ class LogginCallbackHandler(StreamingStdOutCallbackHandler):
 
 class AI:
     def __init__(
-        self, settings: CODXJuniorSettings
+        self, settings: CODXJuniorSettings,
+        llm_model: str = None
     ):
         self.settings = settings
-        self.llm = self.create_chat_model()
+        self.llm = self.create_chat_model(llm_model=llm_model)
         self.embeddings = self.create_embeddings_model()
         self.cache = False
         self.ai_logger = AILogger(settings=settings)
@@ -135,8 +136,8 @@ class AI:
         return list(messages_from_dict(prevalidated_data))  # type: ignore
 
 
-    def create_chat_model(self) -> BaseChatModel:
-        return OpenAI_AI(settings=self.settings).chat_completions
+    def create_chat_model(self, llm_model: str) -> BaseChatModel:
+        return OpenAI_AI(settings=self.settings, llm_model=llm_model).chat_completions
 
     def create_embeddings_model(self):
         return OpenAI_AI(settings=self.settings).embeddings()

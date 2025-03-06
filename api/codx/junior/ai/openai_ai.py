@@ -41,9 +41,9 @@ tools = [
 ]
 
 class OpenAI_AI:
-    def __init__(self, settings: CODXJuniorSettings):
+    def __init__(self, settings: CODXJuniorSettings, llm_model: str = None):
         self.settings = settings
-        self.llm_settings = settings.get_llm_settings()
+        self.llm_settings = settings.get_llm_settings(llm_model=llm_model)
                 
         self.model = self.llm_settings.model
         self.api_key = self.llm_settings.api_key

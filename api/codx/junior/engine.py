@@ -255,8 +255,8 @@ class CODXJuniorSession:
     def get_profile_manager(self):
         return ProfileManager(settings=self.settings)
 
-    def get_ai(self):
-        return AI(settings=self.settings)
+    def get_ai(self, model: str = None):
+        return AI(settings=self.settings, model=model)
 
     def get_knowledge(self):
         return Knowledge(settings=self.settings)
@@ -311,6 +311,7 @@ class CODXJuniorSession:
         self.settings.knowledge_search_type = knowledge_search.document_search_type
         self.settings.knowledge_search_document_count = knowledge_search.document_count
         self.settings.knowledge_context_cutoff_relevance_score = knowledge_search.document_cutoff_score
+        self.settings.knowledge_context_rag_distance = knowledge_search.document_cutoff_rag
         
         documents = []
         response = ""
@@ -343,7 +344,8 @@ class CODXJuniorSession:
             "settings": {
                 "knowledge_search_type": self.settings.knowledge_search_type,
                 "knowledge_search_document_count": self.settings.knowledge_search_document_count,
-                "knowledge_context_cutoff_relevance_score": self.settings.knowledge_context_cutoff_relevance_score
+                "knowledge_context_cutoff_relevance_score": self.settings.knowledge_context_cutoff_relevance_score,
+                "knowledge_context_rag_distance": self.settings.knowledge_context_rag_distance
             }
         }
 
@@ -1011,7 +1013,7 @@ class CODXJuniorSession:
             user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
             query = user_message.content
 
-            ai = self.get_ai()
+            ai = self.get_ai(model=chat.model)
             profile_manager = ProfileManager(settings=self.settings)
             chat_profiles_content = ""
             if chat.profiles:

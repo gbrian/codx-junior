@@ -2,6 +2,7 @@
 import { API } from '../api/api'
 import TabViewVue from '@/components/TabView.vue'
 import ProjectDropdown from '@/components/ProjectDropdown.vue'
+import moment from 'moment'
 </script>
 
 <template>
@@ -19,6 +20,10 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
+      <div class="text-xs text-info" v-if="lastEvent">
+      <span class="badge badge-xs" v-if="lastEvent.data.project">[{{ moment(lastEvent.ts).format('HH:mm:ss')}}] {{ lastEvent.data.project?.project_name }} </span> {{ lastEvent.data.text }}
+    </div>
+
       <div class="grow p-2 bg-base-100">
         <TabViewVue  :key="projectKey" />
       </div>
@@ -41,7 +46,7 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
           <button class="btn btn-secondary" @click="closeOpenProjectModal">Close</button>
         </div>
       </div>
-    </div>
+    </div>    
     <div class="toast toast-end">
       <div class="bg-error text-white overflow-auto rounded-md max-w-96 max-h-60 text-xs"
         v-if="lastError" @click="clearLastError">
@@ -90,6 +95,9 @@ export default {
     },
     projectPlaceholder() {
       return this.codxPath || "Project's absolute path"
+    },
+    lastEvent() {
+      return this.$storex.session.events[this.$storex.session.events.length - 1]
     }
   },
   methods: {

@@ -45,6 +45,7 @@ class KnowledgeSearch(BaseModel):
     document_search_type: str = Field(default=None)
     document_count: int = Field(default=None)
     document_cutoff_score: float = Field(default=None)
+    document_cutoff_rag: float = Field(default=None)
 
 class Profile(BaseModel):
     name: str = Field(default="")
@@ -57,6 +58,7 @@ class Profile(BaseModel):
     path: str = Field(default="")
     content_path: str = Field(default="")
     profiles: Optional[List[str]] = Field(default=[])
+    llm_model: Optional[str] = Field(default='')
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -154,6 +156,13 @@ OLLAMA_EMBEDDINGS_MODEL = AIModel(name="nomic-embed-text",
                                 settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),
                                 url="https://ollama.com/library/nomic-embed-text")
 
+OLLAMA_WIKI_MODEL = AIModel(name="deepseek-r1", 
+                                model_type=AIModelType.llm,
+                                ai_provider="ollama",
+                                settings=AILLMModelSettings(),
+                                url="https://ollama.com/library/deepseek-r1")
+
+
 class AgentSettings(BaseModel):
     max_agent_iteractions: int = 4
 
@@ -162,6 +171,7 @@ class GlobalSettings(BaseModel):
     
     embeddings_model:  str = Field(default="nomic-embed-text")
     llm_model: str = Field(default="codellama")
+    wiki_model: str = Field(default="deepseek-r1")
 
     git: GitSettings = Field(default=GitSettings())
 
@@ -189,6 +199,7 @@ class GlobalSettings(BaseModel):
 
     ai_models: List[AIModel] = [
       OPENAI_MODEL,
+      OLLAMA_WIKI_MODEL,
       OLLAMA_EMBEDDINGS_MODEL
     ]
 

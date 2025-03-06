@@ -16,16 +16,6 @@
               {{ project.project_name }}
             </div>
             <div class="grow"></div>
-            <div class="flex justify-between">
-              <div class="text-xs text-primary flex gap-1 items-center" v-if="project.ai_settings.provider">
-                <i class="fa-solid fa-brain"></i>
-                {{ project.ai_settings.provider }} / {{ project.ai_settings.model }}
-              </div>
-              <div class="text-xs text-secondary flex gap-1 items-center">
-                <i class="fa-regular fa-file"></i>
-                {{ $projects.embeddingsModel }}
-              </div>
-            </div>
           </div>
         </div>
         <div class="font-bold">Add project</div>

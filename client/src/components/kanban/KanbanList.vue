@@ -18,19 +18,21 @@ import moment from 'moment'
         class="card card-bordered bg-base-300 shadow-md rounded-lg cursor-pointer"
       >
         <div class="card-body flex flex-col">
+          <span class="text-xs" v-if="board.last_update">[{{ moment(board.last_update).fromNow() }}]</span>
           <h2 class="card-title">{{ board.title }}</h2>
           <p class="text-sm">{{ board.description }}</p>
           <div class="grow"></div>
-          <div class="flex flex-col">
-            <p class="text-xs text-gray-500">Last Update: <span v-if="board.last_update">{{ moment(board.last_update).fromNow() }}</span></p>
-            <div class="flex items-center mt-2">
-              <i class="fas fa-columns text-gray-600 mr-2"></i>
-              <span>{{ board.columns?.length || 0 }} Columns</span>
+          <div class="flex justify-between">
+            <div class="flex gap-2 items-center text-xl">
+              <i class="fas fa-columns text-gray-600"></i>
+              <span class="-mt-1">{{ board.columns?.length || 0 }}</span>
+              <i class="fa-brands fa-trello text-gray-600"></i>
+              <span class="-mt-1">{{ board.tasks?.length || 0 }}</span>
             </div>
+            <button @click.stop="emitEditEvent(board)" class="btn btn-sm btn-outline mt-2">
+              <i class="fas fa-cogs"></i>
+            </button>
           </div>
-          <button @click.stop="emitEditEvent(board)" class="btn btn-sm btn-outline mt-2">
-            <i class="fas fa-cogs"></i> Edit
-          </button>
         </div>
       </div>
       <div

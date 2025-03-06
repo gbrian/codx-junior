@@ -125,7 +125,15 @@ class KnowledgeDB:
         data = []
         for doc in documents:
             try:
-                vector = self.get_ai().embeddings(content=doc.page_content)
+                content = list(filter(lambda x: x,
+                  [
+                    doc.metadata["source"],
+                    doc.page_content,
+                    doc.metadata.get("summary"),
+                    doc.metadata.get("tags")
+                  ]
+                ))
+                vector = self.get_ai().embeddings(content="\n".join(content))
                 doc_data = {
                   "vector": vector,
                   "page_content": doc.page_content,

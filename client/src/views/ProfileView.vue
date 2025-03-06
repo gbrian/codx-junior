@@ -21,9 +21,15 @@ import EditProfile from '@/components/EditProfile.vue';
         <button class="btn btn-sm btn-primary ml-4" @click="$projects.createNewProfile({})">Create New</button>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div v-for="profile in filteredProfiles" :key="profile.name" class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg" @click="openEditProfile(profile)">
-          <div class="card-body p-4 click hover:shadow-xl overflow-hidden">
-            <h2 class="card-title text-xs font-bold underline mb-2 text-secondary">{{ profile.name }}</h2>
+        <div v-for="profile in filteredProfiles" :key="profile.name"
+          class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg" @click="openEditProfile(profile)">
+          <div class="card-body p-4 click hover:shadow-xl overflow-hidden flex flex-col gap-2">
+            <h2 class="card-title text-xs font-bold underline text-secondary">{{ profile.name }}</h2>
+            <p class="text-xs text-warning">
+              <span v-if="profile.llm_model">
+                <i class="fa-solid fa-brain"></i> {{ profile.llm_model }}
+              </span>
+            </p>
             <p class="mb-2 text-xs">{{ profile.description?.substring(0, 100) }}</p>
             <div class="badge badge-accent badge-sm badge-outline">{{ profile.category }}</div>
           </div>
@@ -55,7 +61,13 @@ export default {
       ).sort((a, b) => a.name > b.name ? 1 : -1);
     }
   },
+  created() {
+    this.loadProfiles()
+  },
   methods: {
+    loadProfiles() {
+      this.$projects.loadProfiles()
+    },
     openEditProfile(selectedProfile) {
       this.$projects.setSelectedProfile(selectedProfile)
     },

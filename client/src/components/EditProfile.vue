@@ -14,6 +14,11 @@ import Markdown from './Markdown.vue'
     </label>
     <div class="flex justify-between items-center gap-4">
       <input id="name" v-model="editProfile.name" type="text" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" />
+      <select class="select select-bordered select-sm" v-model="editProfile.llm_model">
+        <option v-for="model in aiModels" :key="model.name" :value="model.name">
+          {{ model.ai_provider }} - {{ model.name }}
+        </option>
+      </select>
     </div>
     <div class="form-group flex space-x-4 text-xs">
       <div class="w-1/2 flex flex-col gap-2">
@@ -35,15 +40,6 @@ import Markdown from './Markdown.vue'
     <div class="form-group">
       <label for="description">Description</label>
       <textarea id="description" v-model="editProfile.description" class="bg-base-300 textarea textarea-bordered w-full"></textarea>
-    </div>
-    <div class="form-group flex space-x-4 text-xs">
-      <div class="w-full flex flex-col gap-2">
-        <label for="url">Profile URL</label>
-        <input id="url" v-model="editProfile.url" type="url" class="bg-base-300 input input-xs input-bordered w-full" placeholder="Enter profile URL" />
-      </div>
-    </div>
-    <div class="flex gap-2">
-      <button class="btn btn-xs" @click="downloadProfileContent">Download</button>
     </div>
     <div class="flex flex-col gap-2">
       <label for="content flex gap-2">Content
@@ -77,6 +73,12 @@ export default {
     }
   },
   computed: {
+    aiModels() {
+      return this.$storex.api.globalSettings?.ai_models
+                .filter(m => m.model_type === 'llm')
+                .sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
+
+    },
     isOverriden() {
       return this.profile.path?.startsWith(this.$project.project_path)
     },

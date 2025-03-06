@@ -84,6 +84,13 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
                 <input v-model="settings.llm_model" type="text" class="input input-bordered" />
               </div>
             </div>
+            <div class="font-bold">LLM WIKI provider</div>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center">
+                <span class="p-6 w-1/4">Model:</span>
+                <input v-model="settings.wiki_model" type="text" class="input input-bordered" />
+              </div>
+            </div>
           </div>
         </div>
       </div>

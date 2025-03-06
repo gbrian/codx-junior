@@ -105,7 +105,7 @@ export default {
     },
     updateCodeBlocks() {
       const codeBlocks = [...this.$el.querySelectorAll('code[class*="language-"]')]
-        .filter(cb => cb.innerText.trim().length && !this.codeBlocks.includes(cb))
+        .filter(cb => cb.innerText.trim().length > 40 && !this.codeBlocks.includes(cb))
       if (codeBlocks.length) {
         this.codeBlocks = [...this.codeBlocks, ...codeBlocks]
         console.log("Code blocks", codeBlocks)

@@ -11,7 +11,7 @@ import moment from 'moment';
     <ProjectIconVue
       :right="right"
       :online="$storex.session.connected"
-      @click.stop="setActiveTab('home')"
+      @click.stop="setActiveTab('help')"
     />
       <div class="absolute bottom-0 flex justify-center w-full"
         v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
@@ -28,7 +28,7 @@ import moment from 'moment';
           data-tip="Wiki"
           @click="$ui.setActiveTab('wiki')">
           <div class="avatar">
-            <div class="w-7 rounded-full">
+            <div class="w-7 rounded-full bg-white">
               <img :src="$project.project_icon" />
             </div>
           </div>
@@ -41,16 +41,6 @@ import moment from 'moment';
           @click="$ui.setActiveTab('tasks')">
            <div class="flex flex-col gap-4">
             <i class="fa-brands fa-trello"></i>
-          </div>
-				</a>
-			</div>
-
-      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'profiles' ? 'bg-base-100 text-primary': '',]">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Project profiles"
-          @click="$ui.setActiveTab('profiles')">
-           <div class="flex flex-col gap-4">
-            <i class="fa-solid fa-circle-user"></i>
           </div>
 				</a>
 			</div>
@@ -75,6 +65,16 @@ import moment from 'moment';
           </div>
         </a>
       </div>
+
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'profiles' ? 'bg-base-100 text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Project profiles"
+          @click="$ui.setActiveTab('profiles')">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-circle-user"></i>
+          </div>
+				</a>
+			</div>
 
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'help' ? 'bg-base-100 text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
