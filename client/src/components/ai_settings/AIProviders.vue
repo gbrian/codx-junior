@@ -119,8 +119,11 @@ export default {
       this.showDialog = true
     },
     saveProvider() {
+      if (!this.aiProviders.find(p => p.name === this.currentProvider.name)) {
+        this.aiProviders.push(this.currentProvider)
+      }
       this.showDialog = false
-      // Add logic to save provider
+      this.currentProvider = null
     },
     confirmDelete(provider) {
       this.providerToDelete = provider

@@ -180,7 +180,8 @@ class KnowledgeDB:
                 filter=f"id in [{','.join(ids_to_delete)}]"
             )
             for source in sources:
-                del all_files[source]
+                if all_files.get(source):
+                    del all_files[source]
             self.save_all_files(all_files)
 
     def reset(self):    

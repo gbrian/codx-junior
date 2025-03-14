@@ -30,9 +30,9 @@ class AICodeChange(BaseModel):
     new_content: Optional[str] = Field(description="New content if applies", default="")
 
 class AICodePatch(BaseModel):
-    file_path: str = Field(description="/file/path/to/file")
+    file_path: str = Field(description="/file/path/to/file", default="")
     patch: str = Field(description="A file patch with the changes to be applied to the file")
-    description: str = Field(description="Brief human friendly description about the change highlighting the most important changes")
+    description: str = Field(description="Brief human friendly description about the change highlighting the most important changes", default="")
 
 class AICodeGerator(BaseModel):
     code_changes: List[AICodeChange] = Field(description="Code changes")

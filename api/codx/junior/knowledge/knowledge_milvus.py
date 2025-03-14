@@ -138,8 +138,9 @@ class Knowledge:
         except Exception as ex:
           logger.info(f"Error enriching document {source}: {ex}")
           
-      if self.settings.knowledge_extract_document_tags:
-          self.extract_doc_keywords(doc)
+      # NOT WOIRKING FINE
+      #if self.settings.knowledge_extract_document_tags:
+      #    self.extract_doc_keywords(doc)
        
       doc.metadata["indexed"] = 1
       return doc
@@ -159,7 +160,8 @@ class Knowledge:
             messages = self.get_ai().chat(prompt=keywords_prompt)
             response = messages[-1].content.strip()
             
-            doc.metadata["keywords"] = response.split("\n")[-1]
+            keywords = response.split("\n")[-1]
+            doc.metadata["keywords"] = keywords
         source = doc.metadata['source']
         logger.info(f"Extracted keywords from {source}: {keywords}")
         self.knowledge_keywords.add_keywords(source, keywords)

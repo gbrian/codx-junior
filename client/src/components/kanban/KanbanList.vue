@@ -51,6 +51,9 @@ import moment from 'moment'
 <script>
 export default {
   props: ['boards'],
+  created() {
+    this.$projects.loadKanban()
+  },
   computed: {
     sortedBoards() {
       // Sort boards based on last_update

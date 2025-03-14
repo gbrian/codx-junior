@@ -47,6 +47,18 @@ class KnowledgeSearch(BaseModel):
     document_cutoff_score: float = Field(default=None)
     document_cutoff_rag: float = Field(default=None)
 
+class Tool(BaseModel):
+    name: str = Field(default="")
+    description: str = Field(default="")
+
+class CodxJuniorBaseTools(BaseModel):
+    knowledge:Tool = Tool(name="knowledge", description="Project's knowledge search")
+    
+class CodxUser(BaseModel):
+    name: str = Field(default="")
+    avatar: str = Field(default="")
+    personality: str = Field(default="")
+
 class Profile(BaseModel):
     name: str = Field(default="")
     url: str = Field(default="")
@@ -59,6 +71,9 @@ class Profile(BaseModel):
     content_path: str = Field(default="")
     profiles: Optional[List[str]] = Field(default=[])
     llm_model: Optional[str] = Field(default='')
+    use_knowledge: Optional[bool] = Field(default=True)
+    user: Optional[CodxUser] = Field(default=CodxUser())
+    tools: Optional[List[Tool]] = Field(default=[])
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -171,6 +186,7 @@ class GlobalSettings(BaseModel):
     
     embeddings_model:  str = Field(default="nomic-embed-text")
     llm_model: str = Field(default="codellama")
+    rag_model: str = Field(default="codellama")
     wiki_model: str = Field(default="deepseek-r1")
 
     git: GitSettings = Field(default=GitSettings())

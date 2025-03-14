@@ -39,14 +39,22 @@ import Markdown from './Markdown.vue'
     </div>
     <div class="form-group">
       <label for="description">Description</label>
-      <textarea id="description" v-model="editProfile.description" class="bg-base-300 textarea textarea-bordered w-full"></textarea>
+      <textarea id="description" v-model="editProfile.description"
+        class="bg-base-300 textarea textarea-bordered w-full"></textarea>
     </div>
     <div class="flex flex-col gap-2">
-      <label for="content flex gap-2">Content
-        <button class="btn btn-xs" @click="toggleContentPreview">
-          <i :class="contentPreview ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
-        </button>
-      </label>
+      <div class="flex justify-between">
+        <label for="content flex gap-2">Content
+          <button class="btn btn-xs" @click="toggleContentPreview">
+            <i :class="contentPreview ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
+          </button>
+        </label>
+        <div class="flex gap-2 items-center">
+          Use knowledge
+          <input type="checkbox" v-model="profile.use_knowledge"
+            class="toggle checked:border-info checked:bg-info" />
+        </div>
+      </div>
       <Markdown class="p-2 rounded-md" :class="contentPreview ? 'bg-base-100 border border-slate-700' : 'bg-base-300'" :text="editProfile.content" v-if="contentPreview" />
       <textarea id="content" v-model="editProfile.content" class="textarea textarea-bordered w-full h-96 bg-base-300 overflow-auto" v-else></textarea>
     </div>

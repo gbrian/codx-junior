@@ -7,6 +7,8 @@ from langchain_community.document_loaders.blob_loaders import Blob
 
 from codx.junior.settings import CODXJuniorSettings
 
+# from codx.junior.browser.browseruse import BrowserUse
+
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
@@ -31,31 +33,7 @@ class KnowledgeCodeSplitter:
         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=10)
 
     def load(self, file_path):
-        def file_to_documents():
-            suffix = file_path.split(".")[-1] if "." in file_path else "txt"
-            language = LANGUAGE_FROM_EXTENSION.get(suffix, suffix) or suffix
-            code_parser_language = CODE_PARSER_FROM_EXTENSION.get(suffix, language) or language 
-            try:
-                return self.load_with_code_plitter(file_path=file_path, code_parser_language=code_parser_language)
-            except Exception as ex:
-                #logger.error(f"[KnowledgeCodeSplitter] load_with_code_plitter load error: {ex} - {file_path} language: {code_parser_language}")
-                pass
-
-            try:
-                return self.load_with_language_parser(file_path=file_path, code_parser_language=code_parser_language)
-            except Exception as ex:
-                #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
-                pass
-              
-            try:
-                return self.load_as_text(file_path=file_path)
-            except Exception as ex:
-                #logger.error(f"[KnowledgeCodeSplitter] load_as_text load error: {ex} - {file_path}")
-                pass
-
-            logger.exception(f"[KnowledgeCodeSplitter] !!!No valid code splitter found for file {file_path}") 
-            return None
-        docs = file_to_documents()
+        docs = self.file_to_documents(file_path=file_path)
         if docs:
             total_docs = len(docs)
             for ix, doc in enumerate(docs):
@@ -63,6 +41,35 @@ class KnowledgeCodeSplitter:
               doc.metadata["total_docs"] = total_docs
               doc.metadata["length"] = len(doc.page_content)
         return docs
+
+    def file_to_documents(self, file_path):
+        suffix = file_path.split(".")[-1] if "." in file_path else "txt"
+        language = LANGUAGE_FROM_EXTENSION.get(suffix, suffix) or suffix
+        code_parser_language = CODE_PARSER_FROM_EXTENSION.get(suffix, language) or language 
+        try:
+            return self.load_with_code_plitter(file_path=file_path, code_parser_language=code_parser_language)
+        except Exception as ex:
+            #logger.error(f"[KnowledgeCodeSplitter] load_with_code_plitter load error: {ex} - {file_path} language: {code_parser_language}")
+            pass
+
+        try:
+            return self.load_with_language_parser(file_path=file_path, code_parser_language=code_parser_language)
+        except Exception as ex:
+            #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
+            pass
+          
+        try:
+            return self.load_as_text(file_path=file_path)
+        except Exception as ex:
+            #logger.error(f"[KnowledgeCodeSplitter] load_as_text load error: {ex} - {file_path}")
+            pass
+
+        logger.exception(f"[KnowledgeCodeSplitter] !!!No valid code splitter found for file {file_path}") 
+        return None
+    
+    def load_with_browser(self, file_path):
+        browser = Browser(settings=self.settings)
+        
 
     def load_with_code_plitter(self, file_path, code_parser_language):
         code_parser = CodeSplitter(

@@ -69,7 +69,10 @@ import { CodeDiff } from 'v-code-diff'
     <div :class="['max-w-full group w-full border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
       <div @copy.stop="onMessageCopy">
         <pre v-if="srcView">{{ message.content }}</pre>
-        <Markdown :text="messageContent" v-if="!showDiff && !srcView && !code_patches" />
+        <Markdown 
+          :text="messageContent"
+          @generate-code="onGenerateCode" 
+          v-if="!showDiff && !srcView && !code_patches" />
         <CodeDiff
           :old-string="message.diffMessage.content"
           :new-string="messageContent"
@@ -212,14 +215,12 @@ export default {
       if (this.srcView = !this.srcView) {
         this.showDiff = false
         this.message.collapse = false
-        this.srcView = null
       }
     },
     toggleShowDiff() {
       if (this.showDiff = !this.showDiff) {
         this.srcView = false
         this.message.collapse = false
-        this.srcView = null
       }
     },
     onRemove() {
@@ -251,6 +252,9 @@ export default {
         patch.res = { info: "", error: "Error aplaying patch" }
       }
       delete patch.working
+    },
+    onGenerateCode(codeBlockInfo) {
+      this.$emit('generate-code', codeBlockInfo)
     }
   },
   mounted() {

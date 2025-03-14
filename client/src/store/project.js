@@ -73,9 +73,10 @@ export const getters = getterTree(state, {
   chatModes: state => {
     const analystProfiles = state.profiles.filter(p => p.category === 'assistant').map(p => p.name)
     const agentProfiles = state.profiles.filter(p => p.category === 'agent').map(p => p.name)
+    const chatProfiles = state.profiles.filter(p => p.category === 'chat' || p.name === "software_developer").map(p => p.name)
     return {
       "task": { name: "Analyst", profiles: analystProfiles, icon: "fa-solid fa-user-doctor" },
-      "chat": { name: "Developer", profiles: ["software_developer"], icon: "fa-regular fa-comments" },
+      "chat": { name: "Developer", profiles: chatProfiles, icon: "fa-regular fa-comments" },
       "agent": { name: "Developer", profiles: agentProfiles, icon: "fa-solid fa-play" },
     }
   },
@@ -236,6 +237,14 @@ export const actions = actionTree(
       }
       $storex.session.socket.emit('codx-junior-improve-patch', data)
     },
+    generateCode({ state }, { chat, codeBlockInfo }) {
+      const data = {
+        codx_path: state.activeProject.codx_path,
+        chat,
+        code_block_info: codeBlockInfo
+      }
+      $storex.session.socket.emit('codx-junior-generate-code', data)
+    },
     async onChatEvent({ state }, { event, data }) {
       const {
         chat: {
@@ -255,11 +264,8 @@ export const actions = actionTree(
         if (chat && message) {
           const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
           if (currentMessage) {
-            const currentMessageContent = (currentMessage.content||"")
-            const inFence = currentMessageContent.includes("```") 
-                              && currentMessageContent.split("```").length % 2 === 0
             state.chatBuffer[chatId] = (state.chatBuffer[chatId]||"") + message.content
-            if (!inFence || state.chatBuffer[chatId].length > 100) {
+            if (state.chatBuffer[chatId].length > 100) {
               currentMessage.content += state.chatBuffer[chatId]
               state.chatBuffer[chatId] = ""
             }

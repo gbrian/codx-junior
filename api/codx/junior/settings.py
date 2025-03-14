@@ -115,8 +115,10 @@ class CODXJuniorSettings(BaseModel):
 
     project_scripts: Optional[List[ProjectScript]] = Field(default=[])
 
-    embeddings_model:  str = Field(default="nomic-embed-text")
-    llm_model: str = Field(default="codellama")
+    embeddings_model:  str = Field(default="")
+    llm_model: str = Field(default="")
+    rag_model: str = Field(default="")
+    wiki_model: str = Field(default="")
 
     urls: Optional[List[str]] = Field(default=[])
 

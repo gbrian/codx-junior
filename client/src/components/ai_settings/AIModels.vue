@@ -1,60 +1,71 @@
 <script setup>
+import { useStore } from 'vuex'
 </script>
 
 <template>
   <div class="w-full h-full flex flex-col gap-2 p-4">
     <h1 class="text-2xl font-bold mb-4">AI Models</h1>
-    <div class="overflow-x-auto">
-      <table class="table w-full">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Provider</th>
-            <th>Type</th>
-            <th>Temperature</th>
-            <th>Vector Size</th>
-            <th>Chunk Size</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="model in aiModels" :key="model.name" class="click" @click="editModel(model)">
-            <td class="font-bold">
-              {{ model.name }}
-            </td>
-            <td>{{ model.ai_provider }}</td>
-            <td :title="model.model_type">
-              <span class="text-warning" v-if="model.model_type === 'llm'"><i class="fa-solid fa-brain"></i></span>
-              <span class="text-info" v-else><i class="fa-solid fa-file"></i></span>
-            </td>
-            <td>{{ model.settings.temperature || '-' }}</td>
-            <td>{{ model.settings.vector_size || '-' }}</td>
-            <td>{{ model.settings.chunk_size || '-' }}</td>
-            <td class="flex gap-2">
-              <button class="btn btn-xs btn-circle btn-ghost text-info" @click.stop="">
-                <a :href="model.url" target="_blank" v-if="model.url"><i class="fa-solid fa-circle-info"></i></a>
-              </button>
-              <button class="btn btn-xs btn-circle btn-ghost" @click.stop="editModel(model)">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </button>
-              <button class="btn btn-xs btn-circle btn-ghost text-error" @click.stop="confirmDelete(model)">
-                <i class="fa-solid fa-trash-can"></i>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div
+        v-for="model in aiModels"
+        :key="model.name"
+        class="click card border border-base-300 p-4 shadow-sm flex flex-col justify-between"
+        @click="editModel(model)"
+      >
+        <div class="overflow-hidden">
+          <h2 class="font-bold text-lg text-primary">{{ model.name }}</h2>
+          <span class="badge badge-xs badge-warning" v-if="model.model_type === 'llm'">
+            <i class="fa-solid fa-brain"></i> LLM
+          </span>
+          <span class="badge badge-xs badge-info" v-else>
+            <i class="fa-solid fa-file"></i> Embeddings
+          </span>
+          <table class="table w-full">
+            <tr>
+              <td>Provider:</td>
+              <td>{{ model.ai_provider }}</td>
+            </tr>
+            <tr v-if="model.model_type === 'llm'">
+              <td>Temperature:</td>
+              <td>{{ model.settings.temperature || '-' }}</td>
+            </tr>
+            <tr v-if="model.model_type === 'embeddings'">
+              <td>Vector Size:</td>
+              <td>{{ model.settings.vector_size || '-' }}</td>
+            </tr>
+            <tr v-if="model.model_type === 'embeddings'">
+              <td>Chunk Size:</td>
+              <td>{{ model.settings.chunk_size || '-' }}</td>
+            </tr>
+          </table>
+        </div>
+        <div class="flex gap-2 mt-4">
+          <button class="btn btn-xs btn-circle btn-outline text-info" @click.stop="">
+            <a :href="model.url" target="_blank" v-if="model.url"><i class="fa-solid fa-circle-info"></i></a>
+          </button>
+          <button class="btn btn-xs btn-circle btn-outline" @click.stop="editModel(model)">
+            <i class="fa-solid fa-pen-to-square"></i>
+          </button>
+          <button class="btn btn-xs btn-circle btn-outline text-error" @click.stop="confirmDelete(model)">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      </div>
+      <div class="card border-2 border-dashed border-base-300 p-4 flex justify-center items-center cursor-pointer" @click="editModel(null)">
+        <span class="text-gray-500">Add New Model</span>
+      </div>
     </div>
-    <div class="flex justify-end">
-      <button class="btn btn-sm mt-2" @click="editModel()">
-        Add New
-      </button>
-    </div>
-
     <modal v-if="showDialog">
-      <form @submit.prevent="saveModel">
+      <form class="flex flex-col gap-2" @submit.prevent="saveModel">
         <div class="form-control">
-          <label class="label">Model Name</label>
+          <span class="label">Model Type</span>
+          <select class="select select-bordered" v-model="currentModel.model_type">
+            <option value="llm">LLM</option>
+            <option value="embeddings">Embeddings</option>
+          </select>
+        </div>
+        <div class="form-control">
+          <span class="label">Model Name</span>
           <input
             class="input input-bordered"
             v-model="currentModel.name"
@@ -62,7 +73,7 @@
           />
         </div>
         <div class="form-control">
-          <label class="label">AI Provider</label>
+          <span class="label">AI Provider</span>
           <input
             class="input input-bordered"
             v-model="currentModel.ai_provider"
@@ -70,22 +81,15 @@
           />
         </div>
         <div class="form-control">
-          <label class="label">Model url</label>
+          <span class="label">Model url</span>
           <input
             class="input input-bordered"
             v-model="currentModel.url"
             placeholder="Url"
           />
         </div>
-        <div class="form-control">
-          <label class="label">Model Type</label>
-          <select class="select select-bordered" v-model="currentModel.model_type">
-            <option value="llm">LLM</option>
-            <option value="embeddings">Embeddings</option>
-          </select>
-        </div>
         <div class="form-control" v-if="currentModelIsLLM">
-          <label class="label">Temperature</label>
+          <span class="label">Temperature</span>
           <input
             type="number"
             class="input input-bordered"
@@ -95,7 +99,7 @@
           />
         </div>
         <div class="form-control" v-if="!currentModelIsLLM">
-          <label class="label">Vector Size</label>
+          <span class="label">Vector Size</span>
           <input
             type="number"
             class="input input-bordered"
@@ -104,7 +108,7 @@
           />
         </div>
         <div class="form-control" v-if="!currentModelIsLLM">
-          <label class="label">Chunk Size</label>
+          <span class="label">Chunk Size</span>
           <input
             type="number"
             class="input input-bordered"
@@ -112,7 +116,7 @@
             placeholder="Chunk Size"
           />
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 justify-end">
           <button class="btn btn-primary" type="submit">Save</button>
           <button class="btn" @click="showDialog = false">Cancel</button>
         </div>
@@ -140,23 +144,23 @@ export default {
       showDialog: false,
       showDeleteDialog: false,
       currentModel: {
-        name: '',
-        ai_provider: '',
-        model_type: 'llm',
-        settings: {
-          temperature: 1,
-          vector_size: 1536,
-          chunk_size: 8190,
-        },
+      name: '',
+      ai_provider: '',
+      model_type: 'llm',
+      settings: {
+        temperature: 1,
+        vector_size: 1536,
+          chunk_size: 8190
+        }
       },
-      modelToDelete: null,
-    }
+      modelToDelete: null
+      }
   },
   computed: {
     aiModels() {
       return this.$storex.api.globalSettings?.ai_models
     },
-    currentModelIsLLM () {
+    currentModelIsLLM() {
       return this.currentModel?.model_type === 'llm'
     }
   },
@@ -183,7 +187,7 @@ export default {
         this.aiModels.splice(index, 1)
       }
       this.showDeleteDialog = false
-    },
-  },
+    }
+  }
 }
 </script>

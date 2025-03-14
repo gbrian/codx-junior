@@ -9,7 +9,6 @@ from selenium import *
 from selenium.webdriver import ChromeOptions, FirefoxOptions
 from selenium.common.exceptions import WebDriverException
 
-from codx.junior.engine import CODXJuniorSession
 from codx.junior.db import (
     Chat,
 )

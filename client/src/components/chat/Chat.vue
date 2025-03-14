@@ -30,14 +30,11 @@ import TaskCard from '../kanban/TaskCard.vue'
               @hide="toggleHide(message)"
               @run-edit="runEdit"
               @copy="onCopy(message)"
-              @generate-code="onGenerateCode(message, $event)"
               @add-file-to-chat="$emit('add-file', $event)"
               @image="imagePreview = { ...$event, readonly: true }"
+              @generate-code="onGenerateCode"
               v-if="!message.hide || showHidden"
             />
-          </div>
-          <div class="text-xs text-info" v-for="event in chatEvents" :key="event.ts">
-             <span class="badge badge-xs" v-if="event.data.project">[{{ moment(event.ts).format('HH:mm:ss')}}] {{ event.data.project?.project_name }} </span> {{ event.data.text }}
           </div>
           <div class="anchor" ref="anchor"></div>
           <div class="grid grid-cols-3 gap-2 mb-2 bg-base-100" v-if="childrenChats?.length">
@@ -200,9 +197,6 @@ import TaskCard from '../kanban/TaskCard.vue'
         </div>
       </div>
     </div>
-    <div class="text-xs text-info" v-if="lastEvent">
-      <span class="badge badge-xs" v-if="lastEvent.data.project">[{{ moment(lastEvent.ts).format('HH:mm:ss')}}] {{ lastEvent.data.project?.project_name }} </span> {{ lastEvent.data.text }}
-    </div>
     <modal v-if="imagePreview">
       <div class="flex flex-col gap-2">
         <div class="text-2xl">Upload image</div>
@@ -339,12 +333,15 @@ export default {
     isTask () {
       return this.chat?.mode === 'task'
     },
-    chatEvents () {
-      return this.$session.events.filter(e => e.data.chat?.id === this.chatId
-          && e.data.text)
-    },
-    lastEvent () {
-      return this.chatEvents[this.chatEvents.length - 1]
+    mentionList() {
+      return [
+        {
+          name: "user1"
+        },
+        {
+          name: "project"
+        }
+      ]
     }
   },
   watch: {
@@ -372,9 +369,8 @@ export default {
         return this.onResetEdit()
       }
       console.log("onEditMessage", message)
-      this.editMessage = message
-      this.editMessage.enhance = enhance
-      this.editMessageId = this.chat.messages.findIndex(m => m === message)
+      this.editMessageId = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
+      this.editMessage = this.chat.messages[this.editMessageId]
       try {
         this.images = message.images.map(JSON.parse)
       } catch {}
@@ -443,7 +439,6 @@ export default {
         this.postMyMessage()
         await this.sendChatMessage(this.chat)
       }
-      this.onResetEdit()
       this.saveChat()
     },
     async navigate () {
@@ -509,19 +504,13 @@ export default {
       this.editMessage.content = innerText
       this.editMessage.images = images
       this.editMessage.updated_at = new Date().toISOString()
-      if (editAIMessage) {
-        this.editMessage.role = "user"        
-      }
       this.onResetEdit()
-      
     },
     onResetEdit() {
-      if (this.editMessageId !== null) {
-        this.editMessage = null
-        this.setEditorText("")
-        this.editMessageId = null
-        this.images = []
-      }
+      this.editMessage = null
+      this.setEditorText("")
+      this.editMessageId = null
+      this.images = []
     },
     removeMessage(message) {
       this.$emit("delete-message", message)
@@ -649,11 +638,8 @@ export default {
         ...allUrls.map((src, ix) => ({ src, alt: "", ix: this.images.length + 1 + ix }))]
       this.selectFile = false
     },
-    onGenerateCode(message, code) {
-      this.setEditorText(`Generate code only for this piece of code:
-      \`\`\`
-      ${code}
-      \`\`\``)
+    onGenerateCode(codeBlockInfo) {
+      this.$projects.generateCode({ chat: this.chat, codeBlockInfo })
     },
     removeImage(ix) {
       this.images = this.images.filter((i, imx) => imx !== ix)
@@ -662,6 +648,7 @@ export default {
       this.editorText = this.$refs.editor.innerText.trim() || ""
     },
     async testProject () {
+      throw new Error('Obsolte')
       const { data } = await API.project.test()
       this.testError = data
       if (this.testError) {

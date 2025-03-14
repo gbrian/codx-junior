@@ -1,0 +1,9 @@
+# [[{"id": "15576a6f-73a8-457f-9298-a42c2b088269", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": [], "profiles": ["software_developer"], "name": "List all files in a folder with git", "created_at": "2025-03-11 10:57:54.594903", "updated_at": "2025-03-11T11:04:46.784775", "mode": "chat", "kanban_id": "", "column_id": "", "board": "kanban", "column": "tasks", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/kanban/tasks/List all files in a folder with git.15576a6f-73a8-457f-9298-a42c2b088269.md", "model": ""}]]
+## [[{"doc_id": "b8f83d06-2438-42e4-898c-e03fe460ac03", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-03-11 10:57:54.591965", "updated_at": "2025-03-11T11:03:59.689Z", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
+We must get the files under source control with git for an specific folder from command line
+## [[{"doc_id": "4e0e4735-b3de-4d35-8100-f2b0e5845911", "role": "system", "task_item": "", "hide": true, "improvement": false, "created_at": "2025-03-11 10:57:54.591965", "updated_at": "2025-03-11 10:57:54.592004", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
+Knowledge search query: 
+We must get the files under source control with git for an specific folder -> get files source control git specific folder
+## [[{"doc_id": "76fb9c2c-249f-4c0a-bfdc-5fd97fa2cfdd", "role": "system", "task_item": "", "hide": true, "improvement": false, "created_at": "2025-03-11 10:57:54.591965", "updated_at": "2025-03-11 10:57:54.592004", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
+Knowledge search query: We must get the files under source control with git for an specific folder from command line
+We must get the files under source control with git for an specific folder from command line -> get files source control git specific folder command line

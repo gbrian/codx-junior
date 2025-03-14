@@ -34,7 +34,7 @@ dependencies = [
   'watchfiles>=1.0.4',
   'mistralai>=1.4.0',
   'tinydb>=4.8.2',
-  'ollama>=0.4.7'
+  'ollama>=0.4.7',
 ]
 
 classifiers = [

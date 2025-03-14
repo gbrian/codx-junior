@@ -18,7 +18,7 @@ class MentionFlags():
     chat_id: str = None
     code: bool = None
     image: bool = False
-
+      
 class Mention():
     mention: str = None
     start_line: int = 0

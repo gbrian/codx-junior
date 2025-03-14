@@ -7,7 +7,7 @@ import Markdown from './Markdown.vue';
 <template>
   <div class="rounded-md">
     <div class="flex gap-2 w-full justify-end bg-base-100 p-2 rounded-t" ref="toolbar">
-      <button class="btn btn-xs tooltip hidden" data-tip="Generate code" @click="$emit('generate-code', code.innerText)">
+      <button class="btn btn-xs tooltip" data-tip="Generate code" @click="$emit('generate-code', codeBlockInfo)">
         <i class="fa-solid fa-file-code"></i> Generate code
       </button>
       <button class="btn btn-xs tooltip" data-tip="Preview HTML"
@@ -15,7 +15,7 @@ import Markdown from './Markdown.vue';
       >
         <i class="fa-brands fa-chrome"></i>
       </button>
-      <button class="btn btn-sm" @click="showMermaidSource = !showMermaidSource"
+      <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource"
         v-if="showMermaid">
         <span v-if="showMermaidSource">View diagram</span>
         <span v-else>View code</span>
@@ -85,6 +85,12 @@ export default {
         return this.codeText
       }
       return null
+    },
+    codeBlockInfo() {
+      return {
+        code: this.code.innerText,
+        language: this.language
+      }
     }
   }
 }

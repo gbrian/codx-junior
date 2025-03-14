@@ -20,9 +20,14 @@ import moment from 'moment'
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
-      <div class="text-xs text-info" v-if="lastEvent">
-      <span class="badge badge-xs" v-if="lastEvent.data.project">[{{ moment(lastEvent.ts).format('HH:mm:ss')}}] {{ lastEvent.data.project?.project_name }} </span> {{ lastEvent.data.text }}
-    </div>
+      <div class="text-xs text-info group relative" v-if="lastEvent">
+        {{ lastEvent }}
+        <div class="bg-base-300/60 flex flex-col gap-2 hidden group-hover:block absolute top-4 w-96 h-20 z-50">
+          <div v-for="event in lastEvents" :key="event.ts">
+            {{ formatEvent(event)  }}
+          </div>
+        </div>
+      </div>
 
       <div class="grow p-2 bg-base-100">
         <TabViewVue  :key="projectKey" />
@@ -97,10 +102,21 @@ export default {
       return this.codxPath || "Project's absolute path"
     },
     lastEvent() {
-      return this.$storex.session.events[this.$storex.session.events.length - 1]
+      const lastEvent = this.$session.events[this.$session.events.length-1]
+      if (lastEvent) {
+        return this.formatEvent(lastEvent)
+      }
+      return null
+    },
+    lastEvents() {
+      return this.$session.events?.slice(this.$session.events.length - 3)
     }
   },
   methods: {
+    formatEvent(event) {
+      const message = event.data.message?.content || ""
+      return `[${moment(event.ts).format('HH:mm:ss')}] ${event.event} ${event.data.text || ''}\n${message}`
+    },
     async onOpenProject(path) {
       await this.initProject(path)
     },

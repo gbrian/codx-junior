@@ -26,14 +26,54 @@ import moment from 'moment'
         {{ sp }}
       </span>
     </div>
-    
-    <div role="tablist" class="tabs tabs-border flex gap-2">
-      <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Search' }" @click="selectedTab = 'Search'">
-        <i class="fa-solid fa-magnifying-glass"></i> Search
-      </a>
-      <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Index' }" @click="selectedTab = 'Index'">
-        <i class="fa-solid fa-file-import"></i> Index
-      </a>
+
+    <div class="stats stats-sm">
+      <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
+        <div class="stat-figure mt-6">
+          <i class="fa-2xl fa-solid fa-file"></i>
+        </div>
+        <div class="stat-title">Pending</div>
+        <div class="stat-value">{{ status?.pending_files?.length }}</div>
+        <div class="stat-desc"></div>
+      </div>
+      
+      <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
+        <div class="stat-figure mt-6 text-success">
+          <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
+        </div>
+        <div class="stat-title">Indexed</div>
+        <div class="stat-value">{{ status?.file_count }}</div>
+        <div class="stat-desc"></div>
+      </div>
+
+      <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
+        <div class="stat-figure mt-6 text-warning">
+          <i class="fa-2xl fa-solid fa-file"></i>
+        </div>
+        <div class="stat-title">Ignored</div>
+        <div class="stat-value">{{ ignoredFolders?.length }}</div>
+        <div class="stat-desc"></div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-figure mt-6 text-info">
+          <i class="fa-2xl fa-solid fa-book"></i>
+        </div>
+        <div class="stat-title">Keywords</div>
+        <div class="stat-value">{{ status?.keyword_count }}</div>
+        <div class="stat-desc"></div>
+      </div>
+    </div>
+
+    <div class="">
+      <div role="tablist" class="tabs tabs-box flex gap-2">
+        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Search' }" @click="selectedTab = 'Search'">
+          <i class="fa-solid fa-magnifying-glass"></i> Search
+        </a>
+        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Index' }" @click="selectedTab = 'Index'">
+          <i class="fa-solid fa-file-import"></i> Index
+        </a>
+      </div>
     </div>
 
     <div v-if="selectedTab === 'Search'">
@@ -115,43 +155,6 @@ import moment from 'moment'
           </div>
           <div class="stat-desc flex gap-2 items-center btn btn-sm" @click="reloadStatus">
             <i class="fa-solid fa-rotate-right"></i> Update
-          </div>
-        </div>
-        <div class="stats stats-sm">
-          <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
-            <div class="stat-figure mt-6">
-              <i class="fa-2xl fa-solid fa-file"></i>
-            </div>
-            <div class="stat-title">Pending</div>
-            <div class="stat-value">{{ status?.pending_files?.length }}</div>
-            <div class="stat-desc"></div>
-          </div>
-          
-          <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
-            <div class="stat-figure mt-6 text-success">
-              <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
-            </div>
-            <div class="stat-title">Indexed</div>
-            <div class="stat-value">{{ status?.file_count }}</div>
-            <div class="stat-desc"></div>
-          </div>
-
-          <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
-            <div class="stat-figure mt-6 text-warning">
-              <i class="fa-2xl fa-solid fa-file"></i>
-            </div>
-            <div class="stat-title">Ignored</div>
-            <div class="stat-value">{{ ignoredFolders?.length }}</div>
-            <div class="stat-desc"></div>
-          </div>
-
-          <div class="stat">
-            <div class="stat-figure mt-6 text-info">
-              <i class="fa-2xl fa-solid fa-book"></i>
-            </div>
-            <div class="stat-title">Keywords</div>
-            <div class="stat-value">{{ status?.keyword_count }}</div>
-            <div class="stat-desc"></div>
           </div>
         </div>
 
@@ -484,8 +487,6 @@ export default {
         searchType,
         documentSearchType,
         documentCount,
-        cutoffRag,
-        cutoffScore
       } = this
       if (!searchTerm) {
         return
@@ -494,8 +495,8 @@ export default {
         searchTerm,
         searchType,
         documentSearchType,
-        cutoffScore,
-        cutoffRag,
+        cutoffScore: 0.1,
+        cutoffRag: 0.1,
         documentCount
       })
       data.documents = data.documents.reduce((acc, doc) => {

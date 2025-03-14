@@ -31,7 +31,10 @@ import EditProfile from '@/components/EditProfile.vue';
               </span>
             </p>
             <p class="mb-2 text-xs">{{ profile.description?.substring(0, 100) }}</p>
-            <div class="badge badge-accent badge-sm badge-outline">{{ profile.category }}</div>
+            <div class="flex justify-between">
+              <div class="badge badge-accent badge-sm badge-outline">{{ profile.category }}</div>
+              <i class="fa-solid fa-book" :class="profile.use_knowledge ? 'text-info' : 'text-error'" ></i>
+            </div>
           </div>
         </div>
       </div>

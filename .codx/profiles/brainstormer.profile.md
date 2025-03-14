@@ -1,0 +1,1 @@
+Help me discuss an idea. Find pitfalls, missing considerations and suggest improvements to the idea.

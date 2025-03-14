@@ -71,20 +71,31 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
               <input v-model="settings.log_ai" type="checkbox" class="checkbox" />
             </div>
             <div class="font-bold">Embeddings</div>
+            <div class="text-xs">Converts project's documents into embeddings for knowledge search</div>
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
                 <input v-model="settings.embeddings_model" type="text" class="input input-bordered" />
               </div>
             </div>
-            <div class="font-bold">LLM provider</div>
+            <div class="font-bold">Knowledge search</div>
+            <div class="text-xs">Scores knowledge results based on user's request</div>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center">
+                <span class="p-6 w-1/4">Model:</span>
+                <input v-model="settings.rag_model" type="text" class="input input-bordered" />
+              </div>
+            </div>
+            <div class="font-bold">Reasoning</div>
+            <div class="text-xs">Default Reasoning model</div>
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
                 <input v-model="settings.llm_model" type="text" class="input input-bordered" />
               </div>
             </div>
-            <div class="font-bold">LLM WIKI provider</div>
+            <div class="font-bold">WIKI</div>
+            <div class="text-xs">Generates wiki documents from project's knowledge</div>
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>

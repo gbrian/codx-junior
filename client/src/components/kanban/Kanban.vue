@@ -8,7 +8,7 @@ import KanbanList from "./KanbanList.vue"
 </script>
 
 <template>
-  <div class="h-full">
+  <div class="h-full" v-if="kanban?.boards">
     <KanbanList
       :boards="boards"
       @select="selectBoard"
@@ -195,7 +195,8 @@ export default {
         }
       ],
       editBoardName: '',
-      editBoardDescription: ''
+      editBoardDescription: '',
+      filteredColumns: []
     }
   },
   computed: {
@@ -237,7 +238,7 @@ export default {
       return this.boards[this.board]?.columns?.map(c => c.title) || []
     },
     boards() {
-      const boards = this.kanban?.boards || {}
+      const { kanban: { boards }, chats } = this
       return [
         ...Object.keys(boards).map(board => ({
           ...boards[board],
@@ -246,24 +247,8 @@ export default {
         }))
       ].reduce((acc, b) => ({ ...acc, [b.id]: {
         ...b,
-        tasks: this.chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.id)
+        tasks: chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.id)
       }}), {})
-    },
-    filteredColumns() {
-      if (!this.filter) {
-        return this.columns
-      }
-      const filterText = this.filter.toLowerCase()
-      return this.columns.map(column => {
-        const filteredTasks = column.tasks.filter(task => {
-          const taskNameMatches = task.name.toLowerCase().includes(filterText)
-          const messageContentMatches = task.messages?.some(message =>
-            message.content.toLowerCase().includes(filterText)
-          )
-          return taskNameMatches || messageContentMatches
-        })
-        return { ...column, tasks: filteredTasks }
-      })
     },
     visibleTasks() {
       return this.filteredColumns.reduce((a, b) => a.concat(b.tasks || []), [])
@@ -277,12 +262,26 @@ export default {
     },
     project() {
       this.projectChanged()
-    },
-    board() {
-      this.buildKanban()
     }
   },
   methods: {
+    buildFilteredColumns() {
+      if (!this.filter) {
+        this.filteredColumns = this.columns
+      } else {
+        const filterText = this.filter.toLowerCase()
+        this.filteredColumns = this.columns.map(column => {
+          const filteredTasks = column.tasks.filter(task => {
+            const taskNameMatches = task.name.toLowerCase().includes(filterText)
+            const messageContentMatches = task.messages?.some(message =>
+              message.content.toLowerCase().includes(filterText)
+            )
+            return taskNameMatches || messageContentMatches
+          })
+          return { ...column, tasks: filteredTasks }
+        })
+      }
+    },
     async projectChanged() {
       await this.$projects.loadKanban()
       this.selectBoard()
@@ -301,6 +300,7 @@ export default {
           .forEach(b => this.kanban.boards[b].active = (b === board))
         this.saveKanban()
       }
+      this.buildKanban()
     },
     async editKanban() {
       if (!this.editBoardName.trim()) {
@@ -365,13 +365,14 @@ export default {
           }
         }).sort((a, b) => a.position < b.position ? -1: 1)
         || []
+        this.buildFilteredColumns()
     },
     async onColumnTaskListChanged() {
       if (this.$ui.isMobile) {
         return
       }
       const kboard = this.kanban.boards[this.board]
-      kboard.columns = await Promise.all(this.columns.map(async (column, ix) => {
+      kboard.columns = await Promise.all(this.filteredColumns.map(async (column, ix) => {
         const kcolumn = kboard.columns.find(kc => kc.id === column.id)
         kcolumn.chats = column.tasks.map(t => t.id)
         await Promise.all(column.tasks.filter(t => t.column !== column.title)
@@ -391,11 +392,14 @@ export default {
       await this.$projects.setActiveChat()
       this.buildKanban()
     },
-    async createSubTask(parent) {
+    async createSubTask({ parent, name, description }) {
       const chat = this.createNewChat({
         board: parent.board,
+        name,
         column: parent.column,
-        parent_id: parent.id
+        parent_id: parent.id,
+        project_id: parent.project_id,
+        messages: [{ role: "user", content: description }]
       })
       this.$projects.newChat(chat)
     },
@@ -439,7 +443,7 @@ export default {
           id: uuidv4(),
           description: this.newBoardDescription.trim() || selectedTemplate.description,
           branch: this.newBoardBranch.trim(),
-          columns: selectedTemplate.columns,
+          columns: selectedTemplate?.columns || [],
           last_update: new Date().toISOString()
         }
         await this.saveKanban()

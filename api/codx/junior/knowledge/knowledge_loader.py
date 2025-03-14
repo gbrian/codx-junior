@@ -14,6 +14,8 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_code_splitter import KnowledgeCodeSplitter
 from codx.junior.knowledge.knowledge_code_to_dcouments import KnowledgeCodeToDocuments
 
+from codx.junior.utils import exec_command
+
 logger = logging.getLogger(__name__)
 
 
@@ -86,8 +88,38 @@ class KnowledgeLoader:
             logger.debug(f"Loaded {len(documents)} documents from {len(files)} files. OK: {len(good_docs)} ERROR: {len(bad_docs)}")
         return good_docs
 
-    def run_command(self, command):
-        result = subprocess.run(command, cwd=self.path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    def get_git_files(self):
+        git_parent_folder, _ = exec_command("git rev-parse --git-dir", cwd=self.path)
+        git_parent_folder = git_parent_folder.strip()
+        
+        # logger.info(f"git_parent_folder: '{git_parent_folder}'")
+        
+        git_parent = self.path
+        if "/.git" in git_parent_folder:
+            git_parent = git_parent_folder.replace("/.git", "")
+        
+        # Versioned files
+        versioned_files, _ = self.run_git_command(['git', 'ls-files'], cwd=git_parent)
+        # Unversioned files
+        unversioned_files, _ = self.run_git_command(['git', 'ls-files', '--others', '--exclude-standard'], cwd=git_parent)
+        
+        # joining versioned and unversioned file paths
+        full_file_paths = [os.path.join(git_parent, file_path) for file_path in versioned_files + unversioned_files]
+
+        current_path_files = [f for f in full_file_paths if f.startswith(self.path)]
+        
+        # logger.info(f"""list_repository_files checking {self.path}: 
+        # git root: {git_parent_folder}
+        # git_parent: {git_parent}
+        # git files {len(full_file_paths)}
+        # this folder files {len(current_path_files)}
+        # """)
+        return current_path_files
+
+    def run_git_command(self, command, cwd: str = None):
+        if not cwd:
+            cwd = self.path
+        result = subprocess.run(command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         file_paths = result.stdout.decode('utf-8').split('\n')
         error = result.stderr.decode('utf-8') if result.stderr else None
         return file_paths, error
@@ -101,12 +133,9 @@ class KnowledgeLoader:
                 full_file_paths = [str(file_path) for file_path in pathlib.Path(path).rglob("*")]
             logging.info(f"Indexing {full_file_paths}")
         else:
-            # Versioned files
-            versioned_files, _ = self.run_command(['git', 'ls-files'])
-            # Unversioned files
-            unversioned_files, _ = self.run_command(['git', 'ls-files', '--others', '--exclude-standard'])
-            # joining versioned and unversioned file paths
-            full_file_paths = [os.path.join(self.path, file_path) for file_path in versioned_files + unversioned_files]
+            
+            # filter if we are in a sub-path
+            full_file_paths = self.get_git_files()
                         
             if self.settings.knowledge_external_folders:
                 for ext_path in self.settings.knowledge_external_folders.split(","):
@@ -130,9 +159,9 @@ class KnowledgeLoader:
         return list(set([os.path.dirname(file_path) for file_path in all_files]))
 
     def fix_repo(self):
-        _, error = self.run_command(['git', 'ls-files'])
+        _, error = self.run_git_command(['git', 'ls-files'])
         if error and "detected dubious ownership in repository" in error:
             fix = [err for err in error.split("\n") if "git config" in err][0]
             logging.info(f"Fixing git error {fix}")
-            self.run_command(fix.strip().split(" "))
+            self.run_git_command(fix.strip().split(" "))
 

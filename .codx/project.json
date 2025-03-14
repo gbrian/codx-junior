@@ -19,7 +19,9 @@
   "project_icon": "https://codx-dev.meetnav.com/only_icon.png",
   "log_ignore": "/var/log/supervisor",
   "project_scripts": [],
-  "embeddings_model": "nomic-embed-text",
-  "llm_model": "codellama",
+  "embeddings_model": "",
+  "llm_model": "",
+  "rag_model": "",
+  "wiki_model": "",
   "urls": []
 }
