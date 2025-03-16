@@ -8,7 +8,7 @@ export const namespaced = true
 
 export const state = () => ({
   allProjects: null,
-  chats: null,
+  chats: {},
   activeChat: null,
   activeProject: null,
   logs: null,
@@ -20,7 +20,9 @@ export const state = () => ({
   selectedProfile: null,
   kanban: {},
   chatBuffer:{},
-  project_branches: {}
+  project_branches: {},
+  projectLoading: false,
+  knowledge: null
 })
 
 export const mutations = mutationTree(state, {
@@ -36,6 +38,9 @@ export const mutations = mutationTree(state, {
   },
   setSelectedProfile(state, profile) {
     state.selectedProfile = profile
+  },
+  setProjectLoading(state, value) {
+    state.projectLoading = value
   }
 })
 
@@ -47,7 +52,7 @@ export const getters = getterTree(state, {
     return project_dependencies?.split(",")
         .map(project_name => state.allProjects
         .find(p => p.project_name === project_name))
-        .filter(f => !!f)
+        .filter(f => !!f) || []
   },
   childProjects: state => state.allProjects.filter(p => 
       p.project_path !== state.activeProject.project_path && p.project_path.startsWith(state.activeProject.project_path))
@@ -71,17 +76,37 @@ export const getters = getterTree(state, {
   aiModel: state => state.activeProject?.llm_model || 
                       $storex.api.globalSettings?.llm_model,
   chatModes: state => {
-    const analystProfiles = state.profiles.filter(p => p.category === 'assistant').map(p => p.name)
-    const agentProfiles = state.profiles.filter(p => p.category === 'agent').map(p => p.name)
-    const chatProfiles = state.profiles.filter(p => p.category === 'chat' || p.name === "software_developer").map(p => p.name)
     return {
-      "task": { name: "Analyst", profiles: analystProfiles, icon: "fa-solid fa-user-doctor" },
-      "chat": { name: "Developer", profiles: chatProfiles, icon: "fa-regular fa-comments" },
-      "agent": { name: "Developer", profiles: agentProfiles, icon: "fa-solid fa-play" },
+      "task": { name: "Analyst", profiles: [], icon: "fa-solid fa-user-doctor" },
+      "chat": { name: "Developer", profiles: [], icon: "fa-regular fa-comments" },
     }
   },
   branches: state => state.project_branches.branches,
   currentBranch: state => state.project_branches.current_branch,
+  mentionList: () => {
+    return [
+      ...$storex.projects.profiles.map(profile => ({ name: profile.name, profile, tooltip: `Chat with ${profile.name}` })),
+      ...[
+        $storex.projects.activeProject,
+        $storex.projects.parentProject,
+        ...$storex.projects.childProjects,
+        ...$storex.projects.projectDependencies,
+      ]
+        .filter(project => project)
+        .map(project => ({ name: project.project_name, project, tooltip: `Search in project ${project.project_name}` })),
+      ...[
+        ...$storex.projects.knowledge.files,
+        ...$storex.projects.knowledge.pending_files
+      ]
+        .map(file => ({ file,
+                        name: `file://${file.split('/').reverse()[0]}`,
+                        filePath: file.split('/').reverse().slice(0, 3).reverse().join('/')
+                      }))
+        .map(({ file, name, filePath }) => ({ name, 
+                        file, 
+                        tooltip: `Use file ${filePath}` })),
+    ]
+  },
 })
 
 export const actions = actionTree(
@@ -106,15 +131,23 @@ export const actions = actionTree(
       if (project?.codx_path === state.activeProject?.codx_path) {
         return
       }
-      state.activeProject = project
-      state.chats = {}
-      state.activeChat = null
-      await API.init(project?.codx_path)
-      if (project) {
-          $storex.projects.loadKanban()
+      state.projectLoading = true
+      try {
+        await API.init(project?.codx_path)
+      } finally {
+        state.projectLoading = false
       }
+      $storex.projects.loadProjectKnowledge()
       state.activeProject = API.lastSettings
+      state.chats = {}
+      state.kanban = {}
+      state.activeChat = null
       await $storex.projects.loadProfiles()
+    },
+    async loadProjectKnowledge({ state }) {
+      state.knowledge = null
+      const { data } = await API.knowledge.status()
+      state.knowledge = data
     },
     async loadProfiles({ state }) {
       const { data: profiles } = await $storex.api.profiles.list();
@@ -170,11 +203,21 @@ export const actions = actionTree(
       }
     },
     async saveSettings({ state }, settings) {
-      await API.settings.save(settings)
+      state.projectLoading = true
+      try {
+        await API.settings.save(settings)
+      } finally {
+        state.projectLoading = false
+      }
       state.activeProject = API.lastSettings
     },
     async realoadProject({ state }) {
-      await API.settings.read()
+      state.projectLoading = true
+      try {
+        await API.settings.read()
+      } finally {
+        state.projectLoading = false
+      }
       state.activeProject = API.lastSettings
       state.allProjects = (state.allProjects||[])
         .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p)
@@ -283,11 +326,7 @@ export const actions = actionTree(
       state.activeChat = chat
     },
     async loadKanban({ state }) {
-      const [kanban] = await Promise.all([
-                              $storex.api.chats.kanban.load(),
-                              $storex.projects.loadChats()
-                            ])
-      state.kanban = kanban
+      state.kanban = await  $storex.api.chats.kanban.load()
     },
     async saveKanban({ state }) {
       await $storex.api.chats.kanban.save(state.kanban)

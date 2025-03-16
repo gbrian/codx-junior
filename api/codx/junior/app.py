@@ -60,7 +60,7 @@ from codx.junior.db import (
     Chat,
     Message
 )
-from codx.junior.model import (
+from codx.junior.model.model import (
     KnowledgeReloadPath,
     KnowledgeSearch,
     KnowledgeDeleteSources,
@@ -151,6 +151,10 @@ async def add_gpt_engineer_settings(request: Request, call_next):
 @app.get("/api/health")
 def api_health_check():
     return "ok"
+
+@app.post("/api/users/login")
+def api_extract_tags(request: Request):
+    pass
 
 @app.get("/api/knowledge/reload")
 async def api_knowledge_reload(request: Request):
@@ -449,13 +453,15 @@ def api_logs_tail(log_name: str, request: Request):
 
 @app.post("/api/screen")
 def api_screen_set(screen: Screen):
-    return exec_command(f"sudo xrandr -s {screen.resolution}")
+    CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+    return exec_command(f"xrandr -s {screen.resolution}", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
 
 @app.get("/api/screen")
 def api_screen_get():
     screen = Screen()
     try:
-        res, _ = exec_command(f"sudo xrandr --current")
+        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
         # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
         lines = res.split("\n")
         screen_line = [l for l in lines if l.startswith("Screen ")][0]

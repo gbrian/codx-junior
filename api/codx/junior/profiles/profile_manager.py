@@ -5,7 +5,7 @@ import logging
 import re
 
 from codx.junior.settings import CODXJuniorSettings
-from codx.junior.model import Profile
+from codx.junior.model.model import Profile
 from codx.junior.utils import write_file
 
 logger = logging.getLogger(__name__)

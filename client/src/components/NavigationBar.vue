@@ -169,20 +169,6 @@ import moment from 'moment';
           </li>
           <li>
             <a>
-              <span class="click"><i class="fa-solid fa-display"></i></span>
-              <select class="select select-sm overflow-auto"
-                @change="$ui.setMonitor($event.target.value)">
-                <option disabled selected>Select monitor</option>
-                <option v-for="_, monitor in $ui.monitors" :key="monitor" :value="monitor"
-                  :selected="$ui.monitor === monitor"
-                >
-                  {{ monitor }}
-                </option>
-              </select>
-            </a>
-          </li>
-          <li>
-            <a>
               <span class="click" @click="$storex.api.screen.getScreenResolution()"><i class="fa-solid fa-display"></i></span>
               <select class="select select-sm overflow-auto"
                 @change="$ui.setScreenResolution($event.target.value)">

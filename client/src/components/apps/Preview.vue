@@ -3,7 +3,7 @@ import Iframe from '../Iframe.vue';
 </script>
 <template>
   <div class="relative">
-    <Iframe ref="iframe" :url="previewUrl" @loaded="onCoderLoaded"
+    <Iframe ref="iframe" :url="previewUrl" @loaded="onLoaded"
       title="preview"
       :key="iframeKey"
     />
@@ -24,14 +24,11 @@ export default {
   },
   computed: {
     previewUrl () {
-      return "/novnc/vnc/index.html?autoconnect=1&resize=scale&clipboard_up=true&clipboard_down=true&clipboard_seamless=true&show_control_bar=true"
+      return "/novnc/vnc.html?autoconnect=true&resize=scale"
     }
   },
   methods: {
-    onCoderLoaded (iframe) {
-      if (!iframe?.contentWindow) {
-        return
-      }
+    onLoaded (iframe) {
       const { pathname, search } = iframe.contentWindow.location
       if (pathname.indexOf("/novnc") === -1) {
         this.url = `/coder${pathname.slice(1)}${search}`

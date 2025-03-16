@@ -42,6 +42,14 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue';
         </div>
 
         <div class="flex justify-between mb-2">
+          <div class="label-text">Project Preview Url</div>
+          <div class="w-2/3">
+            <input v-model="settings.project_preview_url" type="text" class="input input-bordered w-full">
+            <div class="text-xs">Project's preview url.</div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mb-2">
           <div class="label-text">Wiki Page</div>
           <div class="w-2/3">
             <input v-model="settings.project_wiki" type="text" class="input input-bordered w-full">

@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from codx.junior.utils import write_file
-from codx.junior.model import (
+from codx.junior.model.model import (
     GlobalSettings,
     ProjectScript,
     AISettings,
@@ -95,6 +95,8 @@ class CODXJuniorSettings(BaseModel):
     codx_path: Optional[str] = Field(default=None)
     project_wiki: Optional[str] = Field(default=None)
     project_dependencies: Optional[str] = Field(default=None)
+
+    project_preview_url: Optional[str] = Field(default=None)
 
     knowledge_extract_document_tags: Optional[bool] = Field(default=False)
     knowledge_search_type: Optional[str] = Field(default="similarity")

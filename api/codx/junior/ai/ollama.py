@@ -5,7 +5,7 @@ from ollama import Client
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.ai_logger import AILogger
-from codx.junior.model import AISettings
+from codx.junior.model.model import AISettings
 
 from codx.junior.profiling.profiler import profile_function
 

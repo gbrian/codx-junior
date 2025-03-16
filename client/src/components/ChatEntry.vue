@@ -1,20 +1,13 @@
 <script setup>
-import { API } from '../api/api'
 import Markdown from './Markdown.vue'
 import moment from 'moment'
-import { full as emoji } from 'markdown-it-emoji'
-import highlight from 'markdown-it-highlightjs'
-import MarkdownIt from 'markdown-it'
 import { CodeDiff } from 'v-code-diff'
 </script>
 
 <template>
-  <div class="relative flex flex-col gap-1 w-full hover:rounded-md p-2">
+  <div class="relative flex flex-col gap-1 w-full hover:rounded-md p-2 group">
     <div class="text-xs font-bold flex justify-between">
       <div class="flex justify-start gap-2">
-        <input type="checkbox" class="toggle toggle-xs tooltip tooltip-right pt-1"
-            :data-tip="message.hide ? 'Click to add message to conversation' : 'Click to ignore'"
-             :checked="!message.hide" @click.stop="$emit('hide')" />
         [{{ formatDate(message.updated_at) }}] <span v-if="timeTaken">({{ timeTaken }} s.)</span>
         <div>
           <div class="text-primary" v-if="message.role === 'user'">You</div>
@@ -22,7 +15,15 @@ import { CodeDiff } from 'v-code-diff'
         </div>
       </div>
       <div class="flex gap-2 items-center justify-end">
-        <div class="opacity-20 group-hover:opacity-100 md:opacity-100 gap-2 flex w-full">
+        <div class="opacity-0 group-hover:opacity-100 gap-2 flex w-full items-center">
+          <div class="tooltip click"
+            :data-tip="message.hide ? 'Click to add message to conversation' : 
+                                      'Click to hide message from the conversation'"
+             :checked="!message.hide" @click.stop="$emit('hide')"
+            >
+            <i class="fa-solid fa-eye" v-if="message.hide"></i>
+            <i class="text-warning fa-solid fa-eye-slash" v-else></i>
+          </div>  
           <button class="btn btn-xs tooltip tooltip-right" data-tip="Expand/Collapse" @click="toggleCollapse">
             <span v-if="message.collapse">
               <i class="fa-solid fa-chevron-up"></i>

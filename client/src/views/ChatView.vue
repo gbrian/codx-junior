@@ -112,12 +112,8 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
             <button class="btn btn-xs" @click="newTag = ''">
               + tag
             </button>
-            <div class="badge text-secondary" v-for="profile in chatProfiles" :key="profile.name">
-              {{ profile.name }}
-              <i class="fa-solid fa-book" :class="profile.use_knowledge ? 'text-info' : 'text-error'" ></i>
-            </div>
           </div>
-          <div class="flex gap-2 justify-end">
+          <div class="hidden flex gap-2 justify-end">
             <ModelSelector class="select-xs" v-model="chat.model" />
             <select v-model="chat.project_id" class="select select-bordered select-xs w-full max-w-xs"
               @change="saveChat"
@@ -398,7 +394,6 @@ export default {
     },
     setChatMode(mode, profile) {
       this.chat.mode = mode
-      this.chat.profiles = [profile]
       this.saveChat()
     },
     async createSubTasks() {

@@ -1,7 +1,7 @@
 import logging
 
 from codx.junior.ai.ai import AI
-from codx.junior.model import AISettings
+from codx.junior.model.model import AISettings
 from codx.junior.settings import get_model_settings
 
 from codx.junior.ai.ollama import OllamaAI

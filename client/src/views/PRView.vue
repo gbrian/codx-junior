@@ -26,7 +26,7 @@ import Collapsible from '@/components/Collapsible.vue';
     </header>
     .flex.flex-col.gap-4.grow
 
-      Collapsible(v-model="overviewChecked" :start-expanded="true")
+      Collapsible.hidden(v-model="overviewChecked" :start-expanded="true")
         template(v-slot:title)
           .flex.flex-col.grow
             .flex.justify-between.items-center
@@ -38,7 +38,7 @@ import Collapsible from '@/components/Collapsible.vue';
         template(v-slot:content)
           Markdown(:text="$projects.changesSummary")
 
-      Collapsible
+      Collapsible.hidden
         template(v-slot:title)
           .flex.flex-col.grow
             | Tasks
@@ -74,6 +74,12 @@ export default {
   },
   watch: {
     $project() {
+      this.refreshSummary()
+    },
+    selectedBranchSource() {
+      this.refreshSummary()
+    },
+    selectedBranchTarget() {
       this.refreshSummary()
     }
   },

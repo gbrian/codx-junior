@@ -24,7 +24,7 @@ import KanbanList from "./KanbanList.vue"
       :kanban="activeBoard"
       v-if="$projects.activeChat"
     />
-    <div v-if="showKanban">
+    <div v-if="!$projects.activeChat && showKanban">
       <div class="flex gap-4 items-center">
         <div class="flex gap-2 items-center">
           <div tabindex="0" class="text-xl py-1 px-2 click flex items-center gap-2" @click="toggleDropdown">
@@ -199,6 +199,9 @@ export default {
       filteredColumns: []
     }
   },
+  created() {
+    this.projectChanged()
+  },
   computed: {
     lastUpdatedTask() {
       return this.visibleTasks.sort((a, b) => 
@@ -207,7 +210,7 @@ export default {
         .slice(0, 1)[0] || {}
     },
     showKanban() {
-      return this.kanban && !this.$projects.activeChat && this.activeKanbanBoard
+      return this.kanban && this.activeKanbanBoard
     },
     kanban() {
       return this.$projects.kanban

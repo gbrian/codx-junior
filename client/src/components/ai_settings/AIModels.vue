@@ -9,7 +9,7 @@ import { useStore } from 'vuex'
       <div
         v-for="model in aiModels"
         :key="model.name"
-        class="click card border border-base-300 p-4 shadow-sm flex flex-col justify-between"
+        class="click card border border-slate-300 bg-slate-800 text-white/80 p-4 shadow-sm flex flex-col justify-between"
         @click="editModel(model)"
       >
         <div class="overflow-hidden">
@@ -20,7 +20,7 @@ import { useStore } from 'vuex'
           <span class="badge badge-xs badge-info" v-else>
             <i class="fa-solid fa-file"></i> Embeddings
           </span>
-          <table class="table w-full">
+          <table class="w-full">
             <tr>
               <td>Provider:</td>
               <td>{{ model.ai_provider }}</td>
