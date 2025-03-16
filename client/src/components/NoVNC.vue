@@ -31,7 +31,7 @@ export default {
   methods: {
     connect () {
       const protocol = window.location.protocol.includes("https") ? "wss": "ws"
-      const url = `${protocol}://${window.location.host}/novnc?token=${this.token}`
+      const url = `${protocol}://${window.location.host}/novnc?token=${this.token}&resize=scale`
       const options = {
         credentials: {
           password: "password"
