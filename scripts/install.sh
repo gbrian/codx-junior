@@ -58,4 +58,7 @@ bash ${CODX_JUNIOR_PATH}/scripts/install_client.sh
 echo "Install ollama"
 bash ${CODX_JUNIOR_PATH}/scripts/install_ollama.sh
 
+echo "Install noVNC"
+bash ${CODX_JUNIOR_PATH}/scripts/install_noVNC.sh
+
 echo "Installation complete!"

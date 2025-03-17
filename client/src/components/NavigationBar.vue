@@ -143,7 +143,7 @@ import moment from 'moment';
           @click="$ui.readScreenResolutions()">
            <i class="fa-solid fa-gear"></i>
 				</a>
-        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
+        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-52 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li class="border"></li>
@@ -179,6 +179,20 @@ import moment from 'moment';
                   {{ resolution }}
                 </option>
               </select>
+              <div class="dropdown dropdown-end group">
+                <div tabindex="2" role="button" class="btn btn-xs m-1">
+                  <i class="fa-solid fa-up-right-and-down-left-from-center" v-if="$ui.noVNCSettings.resize === 'scale'"></i>
+                  <i class="fa-solid fa-down-left-and-up-right-to-center" v-else></i>
+                </div>
+                <ul tabindex="2" class="hidden group-hover:flex dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                  <li @click="$ui.setNoVNCSettings({ resize: 'scale' })">
+                    <a><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Local</a>
+                  </li>
+                  <li @click="$ui.setNoVNCSettings({ resize: 'remote' })">
+                    <a><i class="fa-solid fa-down-left-and-up-right-to-center"></i> Remote</a>
+                  </li>
+                </ul>
+              </div>
             </a>
           </li>
           <li>

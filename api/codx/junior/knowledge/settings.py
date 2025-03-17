@@ -37,7 +37,7 @@ CODE_PARSER_FROM_EXTENSION = {
     "r": "r",
     "pl": "perl",
     "scala": "scala",
-    "ts": "ts",
+    "ts": "typescript",
     "md": "markdown",
     "txt": "text",
     "html": "html",

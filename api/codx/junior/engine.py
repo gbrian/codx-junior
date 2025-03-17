@@ -601,7 +601,7 @@ class CODXJuniorSession:
                 self.log_info(f"Applying {len(changes)} changes to {file_path}")
                 new_content = await self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)
                 if new_content and new_content != content:
-                    await self.write_project_file(file_path=file_path, content=new_content)
+                    self.write_file(file_path=file_path, content=new_content)
                     if file_path not in chat.file_list:
                         chat.file_list.append(file_path)
                 else:
@@ -910,14 +910,14 @@ class CODXJuniorSession:
               response = changes_chat.messages[-1].content
               
               self.log_info(f"Mentions save file changes {file_path}")
-              await self.write_project_file(file_path=file_path, content=response)
+              self.write_file(file_path=file_path, content=response)
           
           self.send_notification(text=f"@codx done for {file_path.split('/')[-1]}")
     
           return "done"
       try:
           res = await check_file_for_mentions_inner(file_path=file_path, content=content, silent=silent)
-          self.log_info(f"Mentions manager done for {file_path}")
+          self.log_info(f"[{self.settings.project_name}] Mentions manager done for {file_path}")
           return res
       except Exception as ex:
           self.log_error(f"Error processing mentions at {file_path}: {ex}")
@@ -1496,7 +1496,6 @@ class CODXJuniorSession:
         commits = []
         for entry in log_lines:
             if entry.strip():
-                logger.info(f"GIT LOG LIINE: {entry}")
                 commit_hash, author, date, message = entry.split('|', 3)
 
                 # Command to get files changed in each commit

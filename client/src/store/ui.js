@@ -33,7 +33,10 @@ export const state = () => ({
   coderProjectCodxPath: null,
   uiReady: false,
   floatingCodxJunior: false,
-  notifications: []
+  notifications: [],
+  noVNCSettings: {
+    resize: 'scale'
+  }
 })
 
 export const getters = getterTree(state, {
@@ -155,6 +158,9 @@ export const mutations = mutationTree(state, {
   removeNotification(state, notification) {
     state.notifications.splice(
       state.notifications.findIndex(n => n === notification), 1)
+  },
+  setNoVNCSettings(state, settings) {
+    state.noVNCSettings = { ...state.noVNCSettings, ...settings }
   }
 })
 

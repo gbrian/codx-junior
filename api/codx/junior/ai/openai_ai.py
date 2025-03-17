@@ -91,6 +91,7 @@ class OpenAI_AI:
         if self.settings.get_log_ai():
             self.log("Received AI response, start reading stream")
         try:
+            callback_buffer = []
             for chunk in response_stream:
                 # Check for tools
                 #tool_calls = self.process_tool_calls(chunk.choices[0].message)
@@ -100,13 +101,16 @@ class OpenAI_AI:
                 chunk_content = chunk.choices[0].delta.content
                 if chunk_content:
                     content_parts.append(chunk_content)
-                    
-                if callbacks:
-                    for cb in callbacks:
-                        try:
-                            cb(chunk_content)
-                        except Exception as ex:
-                            logger.error(f"ERROR IN CALLBACKS: {ex}")
+                    if callbacks:
+                        callback_buffer.append(chunk_content)
+                        if len(callback_buffer) > 100:
+                            message = "".join(callback_buffer)
+                            callback_buffer = []
+                            for cb in callbacks:
+                                try:
+                                    cb(message)
+                                except Exception as ex:
+                                    logger.error(f"ERROR IN CALLBACKS: {ex}")
         except Exception as ex:
             logger.exception(f"Error reading AI response {ex}")
         
