@@ -601,7 +601,7 @@ class CODXJuniorSession:
                 self.log_info(f"Applying {len(changes)} changes to {file_path}")
                 new_content = await self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)
                 if new_content and new_content != content:
-                    self.write_file(file_path=file_path, content=new_content)
+                    write_file(file_path=file_path, content=new_content)
                     if file_path not in chat.file_list:
                         chat.file_list.append(file_path)
                 else:
@@ -910,7 +910,7 @@ class CODXJuniorSession:
               response = changes_chat.messages[-1].content
               
               self.log_info(f"Mentions save file changes {file_path}")
-              self.write_file(file_path=file_path, content=response)
+              write_file(file_path=file_path, content=response)
           
           self.send_notification(text=f"@codx done for {file_path.split('/')[-1]}")
     

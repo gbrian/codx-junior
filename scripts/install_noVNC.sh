@@ -30,4 +30,7 @@ sudo apt install -y firefox-esr
 # Clean up
 sudo apt autoremove -y
 
+# Copy desktop files
+cp -r ${CODX_JUNIOR_PATH}/scripts/Desktop ~/Desktop
+
 echo "Installation of noVNC and its dependencies (including Firefox) completed successfully."
