@@ -17,7 +17,7 @@ install_packages() {
     sudo apt-get install -y \
         curl wget supervisor nano \
         locales python3 python3-venv \
-        procps git sudo tesseract-ocr
+        procps git tesseract-ocr
     sudo apt-get clean
     sudo rm -rf /var/lib/apt/lists/*
 }

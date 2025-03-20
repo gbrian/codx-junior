@@ -3,14 +3,5 @@ services:
     container_name: codx-junior
     image: codx-junior:latest
     build: .
-    shm_size: 2gb
+    shm_size: 4gb
     privileged: true
-    volumes:
-      - ./docker-init:/custom-cont-init.d:ro
-      - ./code-server/extensions:/root/.local/share/code-server/extensions
-      - ./code-server/User:/root/.local/share/code-server/User
-      - .:/config/codx-junior
-    ports:
-      - 8080:9983 # Web
-      - 8081:9982 # coder
-      - 8082:3000 # Desktop
