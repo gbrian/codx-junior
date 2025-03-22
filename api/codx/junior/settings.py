@@ -122,6 +122,8 @@ class CODXJuniorSettings(BaseModel):
     rag_model: str = Field(default="")
     wiki_model: str = Field(default="")
 
+    last_error: str = Field(default="")
+
     urls: Optional[List[str]] = Field(default=[])
 
     def __str__(self):

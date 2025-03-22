@@ -442,14 +442,21 @@ def api_write_global_settings(global_settings: GlobalSettings):
 
 @app.get("/api/logs")
 def api_logs_list():
-    return ['codx-junior-api', 'codx-junior-web', 'lxde', 'novnc', 'firefox', 'vncserver', 'vncserver-shared', 'supervisord']
+    stdout, _ = exec_command(f"ls {os.environ['CODX_SUPERVISOR_LOG_FOLDER']}")
+    return [log for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
     log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
-    log_size = request.query_params.get("log_size") or "1000"
-    logs, _ = exec_command(f"tail -n {log_size} {log_file}")
-    return parse_logs(logs)
+    log_size = request.query_params.get("log_size") or "100"
+    cmd = f"tail -n {log_size} {log_file}"
+    try:
+        logs, _ = exec_command(cmd)
+        logger.info(f"api logs {logs}")
+
+        return parse_logs(logs)
+    except Exception as ex:
+        logger.exception(f"Error reading logs: {ex}")
 
 @app.post("/api/screen")
 def api_screen_set(screen: Screen):

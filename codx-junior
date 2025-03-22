@@ -1,21 +1,16 @@
 #!/bin/bash
 
-# Load .env variables
-source .env
-
 # Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
 if [ -z "${CODX_JUNIOR_PATH}" ]; then
     export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")" && pwd)"
 fi
 
+# Load .env variables
+source ${CODX_JUNIOR_PATH}/.env
+bash "${CODX_JUNIOR_PATH}/scripts/logo.sh"
+
 # Logs
-export LOGFILE=$CODX_SUPERVISOR_LOG_FOLDER/codx-junior-api.log
-sudo touch $LOGFILE
-if [ $(id -u) != 0 ]; then
-    sudo chown $USER $LOGFILE
-fi
-tail -n 30000 $LOGFILE > $LOGFILE
-exec > >(sudo tee -a $LOGFILE) 2>&1
+export LOGFILE=$CODX_SUPERVISOR_LOG_FOLDER/codx-junior.log
 
 # Apps PIDs
 API_PID=$(pgrep -f "codx.junior.main:app")
@@ -110,8 +105,6 @@ esac
 
 # Function to simulate running the application
 function start_codx() {
-    bash "${CODX_JUNIOR_PATH}/scripts/logo.sh"
-
     stop_codx
 
     echo "Running the application..."
@@ -147,6 +140,10 @@ function run_noVNC() {
     bash "${CODX_JUNIOR_PATH}/scripts/run_noVNC.sh" >> ./logs/novnc 2>&1 &
 }
 
+function run_supervisor {
+    /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
+}
+
 COMMAND=$1
 shift
 # Check the command line argument
@@ -168,6 +165,9 @@ case "$COMMAND" in
         ;;
     logs)
         show_logs $@
+        ;;
+    supervisor)
+        run_supervisor
         ;;
     *)
         echo "Invalid command. Use 'help' to see available commands."

@@ -77,7 +77,6 @@ def extract_blocks(content):
           continue
 
 def exec_command(command: str, cwd: str=None, env: dict=None):
-    # logger.info(f"exec_command# {command}")
     result = subprocess.run(command.split(" "),
                                     cwd=cwd,
                                     env=os.environ | (env or {}),

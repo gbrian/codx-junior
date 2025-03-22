@@ -89,5 +89,16 @@ def parse_logs(log_stream: str) -> List[Dict[str, str]]:
         elif log_entry:
             # Accumulate content lines that are part of the previous log entry
             log_entry["content"] += "\n" + line.strip()
+        else:
+            log_entry = {
+                "timestamp": "",
+                "level": "",
+                "module": "",
+                "line": "",
+                "id": line,
+                "content": line
+            }
+            add_log_entry(log_entry)
+            log_entry = None
 
     return list(log_entries.values())

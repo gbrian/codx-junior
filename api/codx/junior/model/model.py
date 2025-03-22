@@ -125,7 +125,7 @@ class Bookmark(BaseModel):
 class AIProvider(BaseModel):
     name: Optional[str] = Field(default="", description="Provider name") 
     provider: Optional[str] = Field(default="ollama", description="OpenAI compatible LLM protocols like: OpenAI, Ollama") 
-    api_url: Optional[str] = Field(description="Optional url if provider is remote", default="http://0.0.0.0:11434")
+    api_url: Optional[str] = Field(description="Optional url if provider is remote", default="http://0.0.0.0:11434/v1")
     api_key: Optional[str] = Field(description="Optional api key", default="sk-ollama")
 
 class AILLMModelSettings(BaseModel):

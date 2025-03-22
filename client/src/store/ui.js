@@ -21,7 +21,7 @@ export const state = () => ({
     "es-SP": "Español"
   },
   appActives: [],
-  appDivided: 'none',
+  appDivided: 'horizontal',
   resolution: API.screen.display?.resolution,
   resolutions: API.screen.display?.resolutions,
   monitor: "preview",

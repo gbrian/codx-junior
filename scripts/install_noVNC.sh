@@ -19,10 +19,10 @@ if [ ! -d "${CODX_JUNIOR_PATH}/noVNC" ]; then
 fi
 
 # Install a VNC server, e.g., TightVNCserver
-sudo apt install -y tightvncserver
+sudo apt install -y tigervnc-standalone-server
 
 # Install a lightweight desktop environment, e.g., Xfce
-sudo apt install -y xfce4 xfce4-goodies
+sudo apt install -y xfce4 xfce4-goodies dbus-x11
 
 # Install Firefox
 sudo apt install -y firefox-esr
@@ -32,5 +32,16 @@ sudo apt autoremove -y
 
 # Copy desktop files
 cp -r ${CODX_JUNIOR_PATH}/scripts/Desktop ~/Desktop
+
+vncpasswd -f > $HOME/.vnc/passwd <<EOF
+12345678
+12345678
+EOF
+
+chmod 600 $HOME/.vnc/passwd
+chown -R codx-junior $HOME/.vnc
+touch $HOME/.Xauthority 
+cp ${CODX_JUNIOR_PATH}/vnc/* ~/.vnc
+chmod +x ~/.vnc/xstartup
 
 echo "Installation of noVNC and its dependencies (including Firefox) completed successfully."

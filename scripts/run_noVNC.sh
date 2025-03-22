@@ -18,7 +18,7 @@ trap cleanup EXIT INT
 
 # Check if vncserver is already running, if not, start it
 if ! pgrep -x "Xtightvnc" > /dev/null; then
-    vncserver -SecurityTypes None ${CODX_JUNIOR_DISPLAY} &
+    env -u SESSION_MANAGER -u DBUS_SESSION_BUS_ADDRESS vncserver -SecurityTypes None ${CODX_JUNIOR_DISPLAY} &
 fi
 
 # Change directory to noVNC

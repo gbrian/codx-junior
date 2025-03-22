@@ -1,7 +1,21 @@
 services:
   codx-junior:
+    env_file:
+      - .env
     container_name: codx-junior
     image: codx-junior:latest
-    build: .
+    build: 
+      context: .
+      args:
+        - USER_GID=1001
+        - USER_UID=1001
     shm_size: 4gb
     privileged: true
+    volumes:
+      - /shared/codx-junior:/usr/lib/codx-junior
+    ports:
+      - 19980:19980 # CODX_JUNIOR_API_PORT
+      - 19981:19981 # CODX_JUNIOR_WEB_PORT
+      - 19982:19982 # CODX_JUNIOR_CODER_PORT
+      - 19983:19983 # CODX_JUNIOR_NOVNC_PORT
+
