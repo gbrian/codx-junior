@@ -63,7 +63,27 @@ const proxy = {
     target: NOTEBOOKS_URL,
     changeOrigin: false,
     ws: true,
-  }
+  },
+  '/__vite_dev_proxy__': {
+      changeOrigin: true,
+
+      // Just make Vite happy
+      target: 'https://example.com',
+      rewrite(path: string) {
+        const proxyUrl = new URL(path, 'file:'),
+          url = new URL(proxyUrl.searchParams.get('url'))
+        return url.pathname + url.search
+      },
+      configure(proxy: any, options: any) {
+        proxy.on('proxyReq', (proxyReq, req) => {
+          const query = req['_parsedUrl']['query'],
+            url = new URL(new URLSearchParams(query).get('url'))
+
+          // Change target here
+          options.target = url.origin
+        })
+      },
+    },
 }
 
 console.log("proxy settings", proxy)
@@ -77,7 +97,14 @@ export default defineConfig({
     proxy,
     watch: {
       ignored: ["**/.codx/**"],
-    },
+    }
+  },
+  define: {
+    'process.env': {
+      apiUrl,
+      coderUrl,
+      noVNCUrl
+    }
   },
   plugins: [
     vue(),

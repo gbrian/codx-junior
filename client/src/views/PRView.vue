@@ -1,6 +1,6 @@
 <script setup>
 import GitDiffViewer from '@/components/code/GitDiffViewer.vue'
-import Collapsible from '@/components/Collapsible.vue';
+import Collapsible from '@/components/Collapsible.vue'
 </script>
 
 <template lang="pug">
@@ -17,16 +17,32 @@ import Collapsible from '@/components/Collapsible.vue';
           </div>
           <div class="flex items-center gap-2">
             <label class="block text-xs font-bold" for="branchTarget">Target</label>
-            <select id="branchTarget" class="select select-bordered select-sm w-full max-w-xs" v-model="selectedBranchTarget">
-              <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
-            </select>
+            <div class="flex gap-1 input input-sm input-bordered items-center">
+              <button @click="toggleBranchInput" class="btn btn-xs">
+                <i class="fa-solid" :class="isInputVisible ? 'fa-list' : 'fa-pen'"></i>
+              </button>
+              select(
+                v-if="!isInputVisible"
+                id="branchTarget"
+                class="selectselect-sm w-full max-w-xs"
+                v-model="selectedBranchTarget"
+              )
+                <option v-for="branch in branches" :key="branch" :value="branch">{{ branch }}</option>
+              input(
+                v-else
+                id="branchTargetInput"
+                type="text"
+                class="input input-sm w-full max-w-xs"
+                v-model="selectedBranchTarget"
+              )
+            </div>
           </div>
         </div>
       </div>
     </header>
     .flex.flex-col.gap-4.grow
 
-      Collapsible(v-model="overviewChecked" :start-expanded="true")
+      Collapsible.hidden(v-model="overviewChecked" :start-expanded="true")
         template(v-slot:title)
           .flex.flex-col.grow
             .flex.justify-between.items-center
@@ -38,7 +54,7 @@ import Collapsible from '@/components/Collapsible.vue';
         template(v-slot:content)
           Markdown(:text="$projects.changesSummary")
 
-      Collapsible
+      Collapsible.hidden
         template(v-slot:title)
           .flex.flex-col.grow
             | Tasks
@@ -64,16 +80,23 @@ export default {
       selectedBranchSource: null,
       selectedBranchTarget: null,
       activeTab: 'Overview',
-      overviewChecked: true 
+      overviewChecked: true,
+      isInputVisible: false 
     }
   },
   computed: {
     branches() {
       return this.$projects.project_branches.branches
-    },
+    }
   },
   watch: {
     $project() {
+      this.refreshSummary()
+    },
+    selectedBranchSource() {
+      this.refreshSummary()
+    },
+    selectedBranchTarget() {
       this.refreshSummary()
     }
   },
@@ -85,7 +108,6 @@ export default {
       copyTextToClipboard(this.changesSummary)
     },
     async refreshSummary(rebuild = false) {
-      // Refresh summary and reload branches
       this.$projects.refreshChangesSummary({
         source: this.selectedBranchSource,
         target: this.selectedBranchTarget,
@@ -94,6 +116,9 @@ export default {
       await this.$projects.loadBranches()
       this.selectedBranchSource = this.$projects.currentBranch
       this.selectedBranchTarget = this.$projects.project_branches.parent_branch
+    },
+    toggleBranchInput() {
+      this.isInputVisible = !this.isInputVisible
     }
   },
   mounted() {

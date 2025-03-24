@@ -9,7 +9,6 @@ from selenium import *
 from selenium.webdriver import ChromeOptions, FirefoxOptions
 from selenium.common.exceptions import WebDriverException
 
-from codx.junior.engine import CODXJuniorSession
 from codx.junior.db import (
     Chat,
 )
@@ -78,6 +77,7 @@ class BrowserManager:
 
 browser_manager = BrowserManager()
 def run_browser_manager():
+    return
     try:
         browser_manager.start_browser()
     except:

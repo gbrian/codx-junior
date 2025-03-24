@@ -14,12 +14,8 @@ echo "codx-cli installation complete."
 cd /config/codx-junior
 echo "Changed directory to /config/codx-junior."
 
-echo "Installing codx-junior..."
-bash codx-junior install
-echo "codx-junior installation complete."
-
 echo "Running codx-junior..."
-bash codx-junior run
+bash codx-junior start
 echo "codx-junior is running."
 
 echo "Setup process completed successfully."

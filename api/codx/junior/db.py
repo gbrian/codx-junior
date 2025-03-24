@@ -51,6 +51,7 @@ class Chat(BaseModel):
     live_url: str = Field(default='')
     branch: str = Field(default='')
     file_path: str = Field(default='')
+    model: Optional[str] = Field(default='')
 
 class KanbanColumn(BaseModel):
     doc_id: Optional[str] = Field(default=None)

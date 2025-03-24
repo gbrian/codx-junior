@@ -7,11 +7,14 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from codx.junior.utils import write_file
-from codx.junior.model import (
+from codx.junior.model.model import (
     GlobalSettings,
     ProjectScript,
     AISettings,
-    EmbeddingAISettings
+    AIModel,
+    AIProvider,
+    AILLMModelSettings,
+    AIModelType
 )
 from codx.junior.utils import exec_command
 
@@ -20,6 +23,35 @@ logger = logging.getLogger(__name__)
 ROOT_PATH = os.path.dirname(__file__)
 GLOBAL_SETTINGS = None
 
+def get_model_settings(llm_model: str) -> AISettings:
+    model_settings = [m for m in GLOBAL_SETTINGS.ai_models if m.name == llm_model]
+    if not model_settings:
+        raise Exception(f"LLM model not found: {llm_model}")
+    
+    model: AIModel = model_settings[0]
+    ai_provider_settings = [p for p in GLOBAL_SETTINGS.ai_providers if p.name == model.ai_provider]
+    if not ai_provider_settings:
+        raise Exception(f"LLM AI provider not found: {model.ai_provider}")
+    
+    provider = ai_provider_settings[0]
+    ai_settings = AISettings(
+      provider=provider.provider,
+      api_url=provider.api_url,
+      api_key=provider.api_key,
+      model=model.name,
+      model_type=model.model_type,
+      url=model.url
+    )
+
+    if model.model_type == AIModelType.llm:
+        ai_settings.context_length = model.settings.context_length,
+        ai_settings.temperature=model.settings.temperature
+
+    if model.model_type == AIModelType.embeddings:
+        ai_settings.vector_size = model.settings.vector_size
+        ai_settings.chunk_size=model.settings.chunk_size
+
+    return ai_settings
 
 def read_global_settings():
     global GLOBAL_SETTINGS
@@ -58,13 +90,13 @@ logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
 class CODXJuniorSettings(BaseModel):
     project_id: Optional[str] = Field(default=None)
 
-    ai_settings: Optional[AISettings] = Field(default=AISettings())
-
     project_name: Optional[str] = Field(default=None)
     project_path: Optional[str] = Field(default="")
     codx_path: Optional[str] = Field(default=None)
     project_wiki: Optional[str] = Field(default=None)
     project_dependencies: Optional[str] = Field(default=None)
+
+    project_preview_url: Optional[str] = Field(default=None)
 
     knowledge_extract_document_tags: Optional[bool] = Field(default=False)
     knowledge_search_type: Optional[str] = Field(default="similarity")
@@ -76,7 +108,6 @@ class CODXJuniorSettings(BaseModel):
     knowledge_query_subprojects: Optional[bool] = Field(default=True)
     knowledge_file_ignore: Optional[str] = Field(default=".codx")
 
-    temperature: Optional[float] = Field(default=0.7)
     watching: Optional[bool] = Field(default=False)
     use_knowledge: Optional[bool] = Field(default=True)
     knowledge_hnsw_M: Optional[int] = Field(default=1024)
@@ -86,56 +117,35 @@ class CODXJuniorSettings(BaseModel):
 
     project_scripts: Optional[List[ProjectScript]] = Field(default=[])
 
-    embeddings_ai_settings: Optional[EmbeddingAISettings] = Field(default=EmbeddingAISettings())
+    embeddings_model:  str = Field(default="")
+    llm_model: str = Field(default="")
+    rag_model: str = Field(default="")
+    wiki_model: str = Field(default="")
+
+    last_error: str = Field(default="")
 
     urls: Optional[List[str]] = Field(default=[])
 
     def __str__(self):
         return str(self.model_dump())
 
-    def get_ai_provider(self):
-        if self.ai_settings.provider:
-            return self.ai_settings.provider
-        return GLOBAL_SETTINGS.ai_provider
- 
-    def get_ai_api_key(self):
-        if self.ai_settings.api_key:
-            return self.ai_settings.api_key
-        if self.get_ai_provider() in ["openai", "ollama"]:
-            return GLOBAL_SETTINGS.openai.openai_api_key
-        if self.get_ai_provider() == "anthropic":
-            return GLOBAL_SETTINGS.anthropic_ai.anthropic_api_key
-        if self.get_ai_provider() == "mistral":
-            return GLOBAL_SETTINGS.mistral_ai.mistral_api_key
-        return None
+    def get_agent_max_iterations(self):
+        return GLOBAL_SETTINGS.agent_settings.max_agent_iteractions
 
-    def get_ai_api_url(self):
-        if self.ai_settings.api_url:
-            return self.ai_settings.api_url
-        if self.get_ai_provider() in ["openai", "ollama"]:
-            return GLOBAL_SETTINGS.openai.openai_api_url
-        if self.get_ai_provider() == "anthropic":
-            return GLOBAL_SETTINGS.anthropic_ai.anthropic_api_url
-        if self.get_ai_provider() == "mistral":
-            return GLOBAL_SETTINGS.mistral_ai.mistral_api_url
-        return None
+    def get_llm_settings(self, llm_model: str = None) -> AISettings:
+        if not llm_model:
+            llm_model = self.llm_model 
+        if not llm_model:
+            llm_model = GLOBAL_SETTINGS.llm_model
 
-    def get_ai_model(self):
-        if self.ai_settings.model:
-            return self.ai_settings.model
-        if self.get_ai_provider() in ["openai", "ollama"]:
-            return GLOBAL_SETTINGS.openai.openai_model
-        if self.get_ai_provider() == "anthropic":
-            return GLOBAL_SETTINGS.anthropic_ai.anthropic_model
-        if self.get_ai_provider() == "mistral":
-            return GLOBAL_SETTINGS.mistral_ai.mistral_model
-        return None
+        return get_model_settings(llm_model)   
 
-    def get_ai_embeddings_settings(self):
-        if self.embeddings_ai_settings.provider:
-            return self.embeddings_ai_settings
+    def get_embeddings_settings(self) -> AISettings:
+        embeddings_model = self.embeddings_model 
+        if not embeddings_model:
+            embeddings_model = GLOBAL_SETTINGS.embeddings_model
 
-        return GLOBAL_SETTINGS.embeddings_ai_settings
+        return get_model_settings(embeddings_model)
 
     def get_project_settings_file(self):
         return f"{self.codx_path}/project.json"
@@ -213,7 +223,8 @@ class CODXJuniorSettings(BaseModel):
         return []
 
     def is_valid_project(self):
-        return True if self.get_ai_api_key() else False
+        ai_settings = self.get_llm_settings()
+        return True if ai_settings.api_url or ai_settings.provider == 'ollama' else False
 
     def get_dbs(self):
         from codx.junior import build_dbs

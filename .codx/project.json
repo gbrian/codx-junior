@@ -1,16 +1,8 @@
 {
   "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
-  "ai_settings": {
-    "provider": "",
-    "api_url": "",
-    "api_key": "",
-    "model": "",
-    "context_length": 0,
-    "temperature": 0.8
-  },
   "project_name": "codx-junior",
   "project_path": null,
-  "project_wiki": null,
+  "project_wiki": "wiki",
   "project_dependencies": null,
   "knowledge_extract_document_tags": false,
   "knowledge_search_type": "similarity",
@@ -21,21 +13,15 @@
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": "api/,client/,.codx,assets,/.gitignore,xdg,browser",
-  "temperature": 0.7,
   "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://codx-dev.meetnav.com/only_icon.png",
   "log_ignore": "/var/log/supervisor",
   "project_scripts": [],
-  "embeddings_ai_settings": {
-    "provider": "",
-    "api_url": "",
-    "api_key": "",
-    "model": "",
-    "context_length": 0,
-    "temperature": 0.8,
-    "vector_size": 1536
-  },
+  "embeddings_model": "",
+  "llm_model": "",
+  "rag_model": "",
+  "wiki_model": "",
   "urls": []
 }

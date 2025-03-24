@@ -1,9 +1,10 @@
 <script setup>
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
-import moment from 'moment'
 import TaskCard from '@/components/kanban/TaskCard.vue'
-import Kanban from '@/components/kanban/Kanban.vue';
+import Kanban from '@/components/kanban/Kanban.vue'
+import moment from 'moment'
+import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
 </script>
 
 <template>
@@ -101,7 +102,7 @@ import Kanban from '@/components/kanban/Kanban.vue';
         </div>
         <div class="flex justify-between">
           <div class="flex gap-2 items-center">
-            <div class="text-xs">{{ moment.utc(chat.updated_at).fromNow() }}</div>
+            <div class="text-xs">{{ formattedChatUpdatedDate }}</div>
             <div class="badge badge-sm badge-info flex gap-2" v-for="tag in chat.tags" :key="tag">
               {{ tag }}
               <button class="btn btn-xs btn-ghost" @click="removeTag(tag)">
@@ -111,11 +112,9 @@ import Kanban from '@/components/kanban/Kanban.vue';
             <button class="btn btn-xs" @click="newTag = ''">
               + tag
             </button>
-            <div class="badge text-secondary" v-for="profile in chat.profiles" :key="profile">
-              {{ profile }}
-            </div>
           </div>
-          <div class="flex gap-2 justify-end">
+          <div class="hidden flex gap-2 justify-end">
+            <ModelSelector class="select-xs" v-model="chat.model" />
             <select v-model="chat.project_id" class="select select-bordered select-xs w-full max-w-xs"
               @change="saveChat"
             >
@@ -123,10 +122,9 @@ import Kanban from '@/components/kanban/Kanban.vue';
                 :value="project.project_id"
                 :selected="project.project_id === chatProject.project_id"
               >
-              {{ project.project_name }} <span v-if="project.ai_settings.provider">({{ project.ai_settings.model }})</span>
+              {{ project.project_name }} <span>({{ $projects.aiModel }})</span>
               </option>
             </select>
-            {{  }}
           </div>
         </div>
         <div class="w-full overflow-auto" v-if="chatFiles.length">
@@ -203,6 +201,17 @@ import Kanban from '@/components/kanban/Kanban.vue';
             </div>
           </div>
         </modal>
+        <modal v-if="showSubtaskModal">
+          <div class="flex flex-col gap-4 p-4">
+            <h3 class="font-bold text-lg">Create New Subtask</h3>
+            <input v-model="subtaskName" type="text" class="input input-bordered" placeholder="Subtask Name" />
+            <textarea v-model="subtaskDescription" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
+            <div class="flex gap-2 justify-end">
+              <button class="btn btn-error" @click="cancelSubtask">Cancel</button>
+              <button class="btn btn-primary" @click="createSubtask">Create</button>
+            </div>
+          </div>
+        </modal>
       </div>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
@@ -223,21 +232,28 @@ export default {
       showHidden: false,
       confirmDelete: false,
       newTag: null,
-      toggleChatOptions: false
+      toggleChatOptions: false,
+      showSubtaskModal: false,
+      subtaskName: '',
+      subtaskDescription: ''
     }
   },
   mounted () {
     this.toggleChatOptions = !this.$ui.isMobile
   },
   computed: {
+    chatProfiles () {
+      const { profiles } = this.$projects
+      return this.chat.profiles?.map(name => profiles.find(p => p.name === name ))
+    },
     chatModes () {
       return this.$projects.chatModes
     },
     subProjects () {
       return [
-          this.$project,
-          ...this.$projects.childProjects || [],
-          ...this.$projects.projectDependencies || []
+        this.$project,
+        ...this.$projects.childProjects || [],
+        ...this.$projects.projectDependencies || []
       ]
     },
     hiddenCount() {
@@ -246,7 +262,7 @@ export default {
     messages() {
       return this.chat.messages.filter(m => !m.hide || this.showHidden)
     },
-    chatUpdatedDate() {
+    formattedChatUpdatedDate() {
       const updatedAt = this.chat.updated_at
       return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
         ? moment(updatedAt).fromNow()
@@ -257,10 +273,6 @@ export default {
     },
     chat() {
       return this.$projects.chats[this.openChat?.id || this.$projects.activeChat.id]
-    },
-    parentChat() {
-      const parentId = this.chat.parent_id
-      return parentId ? this.chats.find(c => c.id && c.id === parentId) : null
     },
     childrenChats() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
@@ -351,7 +363,25 @@ export default {
       this.$emit('chats')
     },
     async newSubChat() {
-      this.$emit('sub-task', this.chat)
+      this.showSubtaskModal = true
+    },
+    createSubtask() {
+      if (this.subtaskName.trim()) {
+        this.$emit('sub-task', {
+          parent: this.chat,
+          name: this.subtaskName,
+          description: this.subtaskDescription
+        })
+        this.resetSubtaskModal()
+      }
+    },
+    cancelSubtask() {
+      this.resetSubtaskModal()
+    },
+    resetSubtaskModal() {
+      this.showSubtaskModal = false
+      this.subtaskName = ''
+      this.subtaskDescription = ''
     },
     addNewTag() {
       this.chat.tags = [...new Set([...this.chat.tags || [], this.newTag])]
@@ -364,7 +394,6 @@ export default {
     },
     setChatMode(mode, profile) {
       this.chat.mode = mode
-      this.chat.profiles = [profile]
       this.saveChat()
     },
     async createSubTasks() {

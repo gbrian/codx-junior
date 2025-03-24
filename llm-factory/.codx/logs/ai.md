@@ -9253,3 +9253,1396 @@ def create_permission_for_user(user_id: int, permission: UserPermissionCreate, d
     return crud.create_user_permission(db=db, user_permission=permission, user_id=user_id)
               
 [AI] chat messages 4
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "global profiles gallery, profiles marketplace, connect with profiles, flow profiles, task_analyst, task_agent, file based, file_writing, file_analysis" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2585
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 514 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "global profiles gallery, profiles marketplace, connect with profiles, flow profiles, task_analyst, task_agent, file based, file_writing, file_analysis" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+The output schema for the user's request is:
+```
+{
+  "properties": {
+    "score": {
+      "description": "Scores how important is this document from 0 to 1",
+      "title": "Score",
+      "type": "number"
+    },
+    "analysis": {
+      "description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n",
+      "title": "Analysis",
+      "type": "string"
+    }
+  },
+  "required": ["score", "analysis"]
+}
+```
+According to the schema, the output should have two properties:
+
+* `score`: a value from 0 to 1 indicating how important is this document, being 1 really important.
+* `analysis`: an explanation with examples of the important parts that can help answering user's request.
+
+The `required` field in the schema indicates that both properties are required in the output.
+
+The output should be a JSON object with the following structure:
+```json
+{
+  "score": 0.8,
+  "analysis": {
+    "global profiles gallery": [
+      ["global profiles", "gallery"],
+      ["profiles marketplace"]
+    ],
+    "connect with profiles": ["connect with profiles"],
+    "flow profiles": ["flow profiles"],
+    "task_analyst": ["task_analyst"],
+    "task_agent": ["task_agent"],
+    "file based": ["file based"],
+    "file_writing": ["file_writing"],
+    "file_analysis": ["file_analysis"]
+  }
+}
+```
+In this output, the `score` property is set to 0.8, indicating that this document is important with a score of 80%. The `analysis` property contains an object with keys representing the different parts that can help answering user's request, and values being arrays of strings representing the corresponding examples.
+
+The output structure is based on the schema requirements and includes both the `score` and `analysis` properties as required.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "global profiles gallery, profiles marketplace, connect with profiles, flow profiles, task_analyst, task_agent, file based, file_writing, file_analysis" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2585
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 302 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "global profiles gallery, profiles marketplace, connect with profiles, flow profiles, task_analyst, task_agent, file based, file_writing, file_analysis" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+The output JSON instance for the given user's request should have the following structure:
+```json
+{
+  "score": 0.8,
+  "analysis": {
+    "global profiles gallery": ["profiles marketplace", "connect with profiles"],
+    "flow profiles": ["task_analyst", "task_agent"],
+    "file based": ["file_writing", "file_analysis"]
+  }
+}
+```
+Here's a breakdown of the analysis:
+
+* Global Profiles Gallery: This refers to the fact that the user mentioned "profiles" in their request, which is a common term used to refer to profiles or personas in social media platforms. The profiles marketplace and connecting with profiles are both related to this concept.
+* Flow Profiles: This is referring to the idea of creating profiles based on an individual's behavior or actions over time. The task analyst and task agent are both related to this concept, as they involve analyzing data to create a profile.
+* File Based: This refers to the fact that the user mentioned "file" in their request, which is a common term used to refer to files or documents on computers. The file writing and file analysis are both related to this concept, as they involve creating and analyzing files respectively.
+
+Overall, the analysis suggests that the user is looking for solutions related to profiles, behavior analysis, and data analysis.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "global profiles gallery, profiles marketplace, connect with profiles, flow profiles, task_analyst, task_agent, file based, file_writing, file_analysis" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2585
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 752 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "global profiles gallery, profiles marketplace, connect with profiles, flow profiles, task_analyst, task_agent, file based, file_writing, file_analysis" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+The output of the analysis should be a JSON object with two properties:
+
+* `score`: a number between 0 and 1 indicating the importance of the document in answering the user's request. A higher score indicates that the document is more relevant.
+* `analysis`: an explanation of the important parts of the document that can help answer the user's request. This should be a JSON object with the following structure:
+	+ `score`: a number between 0 and 1 indicating the importance of each part of the document. A higher score indicates that the part is more relevant.
+	+ `explanation`: a textual explanation of each important part of the document, including any examples or supporting evidence.
+
+For example, if the user's request is "global profiles gallery, profiles marketplace, connect with profiles, flow profiles, task_analyst, task_agent, file based, file_writing, file_analysis", and the document contains all of these elements in a way that makes them relevant to the user's request, the output analysis could be:
+```json
+{
+  "score": 1.0,
+  "analysis": {
+    "global profiles gallery": {
+      "score": 0.8,
+      "explanation": "This document has a section on global profiles gallery, which is relevant to the user's request."
+    },
+    "profiles marketplace": {
+      "score": 0.7,
+      "explanation": "This document has a section on profiles marketplace, but it is not as relevant as the other sections."
+    },
+    "connect with profiles": {
+      "score": 0.6,
+      "explanation": "This document has a section on connecting with profiles, but it is not as relevant as the other sections."
+    },
+    "flow profiles": {
+      "score": 0.5,
+      "explanation": "This document has a section on flow profiles, but it is not as relevant as the other sections."
+    },
+    "task_analyst": {
+      "score": 0.4,
+      "explanation": "This document has a section on task analyst, but it is not as relevant as the other sections."
+    },
+    "task_agent": {
+      "score": 0.3,
+      "explanation": "This document has a section on task agent, but it is not as relevant as the other sections."
+    },
+    "file based": {
+      "score": 0.2,
+      "explanation": "This document has a section on file based, but it is not as relevant as the other sections."
+    },
+    "file_writing": {
+      "score": 0.1,
+      "explanation": "This document has a section on file writing, but it is not as relevant as the other sections."
+    },
+    "file_analysis": {
+      "score": 0.0,
+      "explanation": "This document does not have a section on file analysis."
+    }
+  }
+}
+```
+In this example, the score for each section is based on how relevant it is to the user's request, with higher scores indicating more relevance. The explanation for each section provides details on why the section is important and includes any supporting evidence or examples that can help answer the user's question.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "global profiles gallery, profiles marketplace, connect with profiles, flow profiles, task_analyst, task_agent, file based, file_writing, file_analysis" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2585
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 297 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "global profiles gallery, profiles marketplace, connect with profiles, flow profiles, task_analyst, task_agent, file based, file_writing, file_analysis" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2706
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 292 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+It's difficult to determine the importance of a given document without more context about the user's request and the content of the document itself. However, based on the information provided, it seems that the document contains information related to a project management system and a set of entities, such as users, locations, departments, and work items.
+
+If the user's request is related to managing projects or tracking work items, then the document may be important for providing valuable insights and information about the project and its progress. The content of the document could include details about the project goals, objectives, timelines, milestones, resources required, and any other relevant information that can help the user understand and manage their projects effectively.
+
+On the other hand, if the user's request is related to managing users or locations, then the document may not be as important for providing useful information about the project. However, it could still be useful in helping the user understand the context of the project, such as who is involved, where they are located, and any other relevant details that can help them manage their work more efficiently.
+
+Overall, the importance of a given document will depend on the specific context of the user's request and the content of the document itself, and it's difficult to provide a definitive answer without more information about the user's needs and the purpose of the document.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2706
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 62 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+It would be important for the user's request because it contains all the necessary information about the document in a structured and easily accessible way. The document provides an explanation of the importance of the document and its relevance to the user's request, which can be useful in making informed decisions.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content="\n      <text>\n      \nCreate an angular material form with reactive forms to edit this entity:\n```ts\nimport { WorkItemRevision } from './work-item-revision'\nimport { Location } from './location'\nimport { Mro } from './mro'\nimport { Department } from './department'\nimport { User } from './user'\n\n\nexport interface Project {\n  id: number;\n  name: string;\n  description: string;\n  msn: string;\n  requestedBy: Department;\n  createdBy: User;\n  initDate: Date;\n  finishDate: Date;\n  isClosed: boolean;\n  archived: boolean;\n  assignedTo: Department;\n  mro: Mro;\n  location: Location;\n  createdDate: Date;\n  updatedDate: Date;\n  workItemRevisions: WorkItemRevision[];\n}\n```\n\n\n\n\n      </text>\n\n      <instructions>\n        Extract keywords and other relevant information from the text\n        Create a search query containing all the keywords\n        Return only the search query without any decoration of any other information \n      </instructions>\n      ", additional_kwargs={}, response_metadata={}), AIMessage(content='angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions', additional_kwargs={}, response_metadata={}), HumanMessage(content="\n      <text>\n      \nCreate an angular material form with reactive forms to edit this entity:\n```ts\nimport { WorkItemRevision } from './work-item-revision'\nimport { Location } from './location'\nimport { Mro } from './mro'\nimport { Department } from './department'\nimport { User } from './user'\n\n\nexport interface Project {\n  id: number;\n  name: string;\n  description: string;\n  msn: string;\n  requestedBy: Department;\n  createdBy: User;\n  initDate: Date;\n  finishDate: Date;\n  isClosed: boolean;\n  archived: boolean;\n  assignedTo: Department;\n  mro: Mro;\n  location: Location;\n  createdDate: Date;\n  updatedDate: Date;\n  workItemRevisions: WorkItemRevision[];\n}\n```\n\n\n\n\n      </text>\n\n      <instructions>\n        Extract keywords and other relevant information from the text\n        Create a search query containing all the keywords\n        Return only the search query without any decoration of any other information \n      </instructions>\n      ", additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 3 words: 2167
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 70 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+      <text>
+      
+Create an angular material form with reactive forms to edit this entity:
+```ts
+import { WorkItemRevision } from './work-item-revision'
+import { Location } from './location'
+import { Mro } from './mro'
+import { Department } from './department'
+import { User } from './user'
+
+
+export interface Project {
+  id: number;
+  name: string;
+  description: string;
+  msn: string;
+  requestedBy: Department;
+  createdBy: User;
+  initDate: Date;
+  finishDate: Date;
+  isClosed: boolean;
+  archived: boolean;
+  assignedTo: Department;
+  mro: Mro;
+  location: Location;
+  createdDate: Date;
+  updatedDate: Date;
+  workItemRevisions: WorkItemRevision[];
+}
+```
+
+
+
+
+      </text>
+
+      <instructions>
+        Extract keywords and other relevant information from the text
+        Create a search query containing all the keywords
+        Return only the search query without any decoration of any other information 
+      </instructions>
+      
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions
+              
+############################################
+              ### ROLE: human
+              ############################################
+
+              
+      <text>
+      
+Create an angular material form with reactive forms to edit this entity:
+```ts
+import { WorkItemRevision } from './work-item-revision'
+import { Location } from './location'
+import { Mro } from './mro'
+import { Department } from './department'
+import { User } from './user'
+
+
+export interface Project {
+  id: number;
+  name: string;
+  description: string;
+  msn: string;
+  requestedBy: Department;
+  createdBy: User;
+  initDate: Date;
+  finishDate: Date;
+  isClosed: boolean;
+  archived: boolean;
+  assignedTo: Department;
+  mro: Mro;
+  location: Location;
+  createdDate: Date;
+  updatedDate: Date;
+  workItemRevisions: WorkItemRevision[];
+}
+```
+
+
+
+
+      </text>
+
+      <instructions>
+        Extract keywords and other relevant information from the text
+        Create a search query containing all the keywords
+        Return only the search query without any decoration of any other information 
+      </instructions>
+      
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions
+              
+[AI] chat messages 4
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2706
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 135 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+It's important for the user's request because it provides insights into the content of the document and can help identify the most relevant information that answers the user's question. The analysis field provides a detailed description of the important parts of the document, which can be used to create a response that is tailored to the user's needs.
+
+For example, if the user's request is related to "angular material form, reactive forms, edit entity", the analysis field may provide information about how the document relates to this topic and include examples of relevant sentences or paragraphs from the document that can help answer the user's question.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2706
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 486 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "angular material form, reactive forms, edit entity, Project interface, WorkItemRevision, Location, Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate, finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+The importance of this document for the user's request can be calculated based on various factors such as the relevance of the information in the document to the user's request, the accuracy of the information in the document, and the time it takes to retrieve the information from the document.
+
+To calculate the importance of this document, we can use a combination of these factors. Here are some steps that can be taken:
+
+1. **Relevance**: Calculate the relevance of the information in the document to the user's request by analyzing the content of the document and comparing it to the keywords or phrases in the user's request. The relevance score can range from 0 to 1, where a higher score indicates more relevant information.
+2. **Accuracy**: Calculate the accuracy of the information in the document by analyzing the content of the document and comparing it to the expected output for the user's request. The accuracy score can range from 0 to 1, where a higher score indicates more accurate information.
+3. **Time**: Calculate the time it takes to retrieve the information from the document by analyzing the time it takes to extract the information from the document and prepare it for the user's request. The time score can range from 0 to 1, where a higher score indicates less time is required to retrieve the information.
+4. **Complexity**: Calculate the complexity of the information in the document by analyzing the content of the document and comparing it to the expected output for the user's request. The complexity score can range from 0 to 1, where a higher score indicates more complex information.
+5. **User feedback**: Collect feedback from the user on the importance of the document based on their experience with the document. This feedback can help improve the relevance and accuracy of the information in the document.
+6. **Aggregation**: Aggregate the scores calculated for each factor to get a final score that indicates how important this document is for the user's request. The final score can range from 0 to 1, where a higher score indicates more importance.
+
+By combining these factors, we can calculate the importance of this document for the user's request and provide a personalized experience for the user.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content="Create an angular material form with reactive forms to edit this entity:\n```ts\nimport { WorkItemRevision } from './work-item-revision'\nimport { Location } from './location'\nimport { Mro } from './mro'\nimport { Department } from './department'\nimport { User } from './user'\n\n\nexport interface Project {\n  id: number;\n  name: string;\n  description: string;\n  msn: string;\n  requestedBy: Department;\n  createdBy: User;\n  initDate: Date;\n  finishDate: Date;\n  isClosed: boolean;\n  archived: boolean;\n  assignedTo: Department;\n  mro: Mro;\n  location: Location;\n  createdDate: Date;\n  updatedDate: Date;\n  workItemRevisions: WorkItemRevision[];\n}\n```\n\n\n\nYou are a software developer helping the user to maintain its project. Follow coding best practices such as writing clean, readable, and maintainable code. Ensure proper version control using Git. Write unit tests to verify code functionality. Document code changes and update documentation regularly. Follow agile methodologies for task management and ensure automatic documentation updates.", additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 1040
+OpenAI_AI chat_completions openai: claude-3-7-sonnet-20250219 https://api.anthropic.com/v1 sk-ant... {'model': 'claude-3-7-sonnet-20250219', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 0 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              Create an angular material form with reactive forms to edit this entity:
+```ts
+import { WorkItemRevision } from './work-item-revision'
+import { Location } from './location'
+import { Mro } from './mro'
+import { Department } from './department'
+import { User } from './user'
+
+
+export interface Project {
+  id: number;
+  name: string;
+  description: string;
+  msn: string;
+  requestedBy: Department;
+  createdBy: User;
+  initDate: Date;
+  finishDate: Date;
+  isClosed: boolean;
+  archived: boolean;
+  assignedTo: Department;
+  mro: Mro;
+  location: Location;
+  createdDate: Date;
+  updatedDate: Date;
+  workItemRevisions: WorkItemRevision[];
+}
+```
+
+
+
+You are a software developer helping the user to maintain its project. Follow coding best practices such as writing clean, readable, and maintainable code. Ensure proper version control using Git. Write unit tests to verify code functionality. Document code changes and update documentation regularly. Follow agile methodologies for task management and ensure automatic documentation updates.
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "mermaid diagram project structure dependencies APP children db model services controllers model depend db services depend model controllers depend services" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2590
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 203 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "mermaid diagram project structure dependencies APP children db model services controllers model depend db services depend model controllers depend services" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+The output for the given input will be a JSON object with two properties:
+
+* "score": A value from 0 to 1 indicating the importance of the document, where 1 is the most important.
+* "analysis": An explanation of the document and its relevance to the user's request, including examples of the important parts that can help answering the user's query. The analysis will be provided in a simple JSON format like this:
+```json
+{
+    "score": 0.8,
+    "analysis": {analysis_example}
+}
+```
+The "analysis_example" object will contain details about how the document relates to the user's request, such as the matching words and phrases, the importance of each word or phrase, and any other relevant information that can help answering the user's query. The exact format of the analysis object will depend on the specific use case and requirements of the system using the output.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "mermaid diagram project structure dependencies APP children db model services controllers model depend db services depend model controllers depend services" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2590
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 275 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "mermaid diagram project structure dependencies APP children db model services controllers model depend db services depend model controllers depend services" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              The provided document appears to be a `docker-compose.yaml` file, which defines the services and networks used in a Docker Compose project. The document includes three services: `llm-factory`, `ollama`, and `traefik`. Each service has its own configuration, including the image to use, the working directory, volumes to mount, commands to run, environment variables, labels, and networks. The `traefik` service is responsible for routing incoming requests to the appropriate service based on the request's URL.
+
+The user's request mentions a "mermaid diagram project structure" and dependencies in different parts of the project. To answer this question, we need to understand how these dependencies are represented in the provided document. The `llm-factory` service is responsible for generating diagrams based on input data, while the `ollama` service is responsible for managing the dependencies between the diagram's elements.
+
+It is important for the user's request because it will help us understand how to generate a mermaid diagram project structure and manage its dependencies in a Docker Compose project. By analyzing the provided document, we can identify the services that are responsible for generating diagrams and managing their dependencies, which will allow us to provide a more accurate answer to the user's request.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "mermaid diagram project structure dependencies APP children db model services controllers model depend db services depend model controllers depend services solid connections dashed connections version control Git repository commit messages push changes remote repository branches features bug fixes clean readable maintainable code naming conventions coding standards comment code variable function names refactor code readability performance unit testing component db model services controllers testing framework Jest Mocha pytest tests typical cases edge cases continuous integration CI pipeline documentation README setup instructions contribution guidelines JSDoc Sphinx Docusaurus automatic documentation changelog release notes agile methodologies task management Jira Trello Asana tasks goals deadlines stand-ups retrospective meetings automatic documentation updates CI/CD pipeline GitHub Actions deployment" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 3350
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 466 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "mermaid diagram project structure dependencies APP children db model services controllers model depend db services depend model controllers depend services solid connections dashed connections version control Git repository commit messages push changes remote repository branches features bug fixes clean readable maintainable code naming conventions coding standards comment code variable function names refactor code readability performance unit testing component db model services controllers testing framework Jest Mocha pytest tests typical cases edge cases continuous integration CI pipeline documentation README setup instructions contribution guidelines JSDoc Sphinx Docusaurus automatic documentation changelog release notes agile methodologies task management Jira Trello Asana tasks goals deadlines stand-ups retrospective meetings automatic documentation updates CI/CD pipeline GitHub Actions deployment" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+The document provides a comprehensive overview of the project structure and dependencies for a Mermaid diagram project. The following are some key points that explain why each section is important:
+
+* `services`: This section defines the services used in the project, including the `llm-factory` service that will generate diagrams based on user requests, and the `ollama` service that will provide a web interface for users to interact with the diagrams.
+* `volumes`: This section defines the volumes used in the project, which are used to mount the Docker container's file system to the host machine's file system. This allows developers to modify files on the host machine and see the changes reflected in the container.
+* `networks`: This section defines the networks used in the project, which are used to connect containers together. In this case, there is only one network defined: `web`.
+* `labels`: This section defines labels that can be used to customize the behavior of Traefik, a popular open-source reverse proxy and load balancer. In this case, the `traefik` service is configured with two labels: `"traefik.enable=true"` enables Traefik to handle requests for the project, and `"traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"` specifies that any request for `/admin` should be routed to the `llm-factory` service.
+* `environment`: This section defines environment variables that can be used by the project's services. In this case, the `PYTHONUNBUFFERED` variable is set to `1`, which tells Python to disable buffering for stdout and stderr.
+* `ports`: This section defines the ports that should be exposed on the host machine. In this case, port 80 is exposed, which allows users to access the project's web interface through a browser.
+
+Overall, these sections are important because they provide a clear understanding of how the project is structured and how it can be used to generate diagrams based on user requests. They also highlight the importance of using Docker containers to manage dependencies and isolate the project from external factors.
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/llm-factory/docker-compose.yaml\nservices:\n  llm-factory:\n    image: python:3.10-slim\n    container_name: llm-factory\n    working_dir: /app\n    volumes:\n      - ./:/app\n    command: bash run-factory.sh\n    environment:\n      - PYTHONUNBUFFERED=1\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"\n      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"\n    networks:\n      - web\n\n  ollama:\n    image: ollama/ollama\n    container_name: ollama\n    labels:\n      - "traefik.enable=true"\n      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"\n      - "traefik.http.services.ollama.loadbalancer.server.port=11434"\n    volumes:\n      - ./ollama-data:/root/.ollama\n    networks:\n      - web\n\n  traefik:\n    image: traefik:v2.9\n    container_name: traefik\n    command:\n      - "--api.insecure=true"\n      - "--providers.docker=true"\n      - "--entrypoints.web.address=:80"\n      - "--log.level=DEBUG"\n      - "--accesslog=true"\n    ports:\n      - "8754:80"\n    volumes:\n      - "/var/run/docker.sock:/var/run/docker.sock:ro"\n    networks:\n      - web\n\nnetworks:\n  web:\n    driver: bridge\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "mermaid diagram project structure dependencies APP children db model services controllers model depend db services depend model controllers depend services solid connections dashed connections version control Git repository commit messages push changes remote repository branches features bug fixes clean readable maintainable code naming conventions coding standards comment code variable function names refactor code readability performance unit testing component db model services controllers testing framework Jest Mocha pytest tests typical cases edge cases continuous integration CI pipeline documentation README setup instructions contribution guidelines JSDoc Sphinx Docusaurus automatic documentation changelog release notes agile methodologies task management Jira Trello Asana tasks goals deadlines stand-ups retrospective meetings automatic documentation updates CI/CD pipeline GitHub Actions deployment" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 3350
+OpenAI_AI chat_completions ollama: codellama http://116.203.48.159:11434/v1 sk-OLL... {'model': 'codellama', 'stream': True, 'temperature': 0.7}
+Received AI response, start reading stream
+AI response done 442 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/llm-factory/docker-compose.yaml
+services:
+  llm-factory:
+    image: python:3.10-slim
+    container_name: llm-factory
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: bash run-factory.sh
+    environment:
+      - PYTHONUNBUFFERED=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.llm-factory.rule=PathPrefix(`/admin`)"
+      - "traefik.http.services.llm-factory.loadbalancer.server.port=8000"
+    networks:
+      - web
+
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.ollama.rule=(PathPrefix(`/api`) || PathPrefix(`/v1`))"
+      - "traefik.http.services.ollama.loadbalancer.server.port=11434"
+    volumes:
+      - ./ollama-data:/root/.ollama
+    networks:
+      - web
+
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--log.level=DEBUG"
+      - "--accesslog=true"
+    ports:
+      - "8754:80"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - web
+
+networks:
+  web:
+    driver: bridge
+```
+    
+    Explain how important it is for the user's request:
+    >>> "mermaid diagram project structure dependencies APP children db model services controllers model depend db services depend model controllers depend services solid connections dashed connections version control Git repository commit messages push changes remote repository branches features bug fixes clean readable maintainable code naming conventions coding standards comment code variable function names refactor code readability performance unit testing component db model services controllers testing framework Jest Mocha pytest tests typical cases edge cases continuous integration CI pipeline documentation README setup instructions contribution guidelines JSDoc Sphinx Docusaurus automatic documentation changelog release notes agile methodologies task management Jira Trello Asana tasks goals deadlines stand-ups retrospective meetings automatic documentation updates CI/CD pipeline GitHub Actions deployment" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              
+The provided document appears to be a `docker-compose.yaml` file that defines the services and networks used in a Docker container orchestration system. The document contains definitions for three services: `llm-factory`, `ollama`, and `traefik`.
+
+The `llm-factory` service is defined as an image of Python 3.10 with a working directory set to `/app`. It has a command that runs the `run-factory.sh` script, and it exposes port 8000 for the application. The service also uses labels to enable Traefik's reverse proxy and define rules for routing requests to the service.
+
+The `ollama` service is defined as an image of the `ollama/ollama` Docker image with a working directory set to `/root/.ollama`. It exposes port 11434 for the application, and it uses labels to enable Traefik's reverse proxy and define rules for routing requests to the service.
+
+The `traefik` service is defined as an image of the `traefik:v2.9` Docker image with a command that sets various configuration options for Traefik. It exposes port 8754, uses labels to enable Traefik's reverse proxy, and defines rules for routing requests to the services.
+
+The document also includes definitions for two networks: `web` and `traefik`. The `web` network has a driver set to `bridge`, which means that containers connected to this network can communicate with each other using their IP addresses. The `traefik` network is also defined, but it does not have any specific configuration options set.
+
+Overall, the document appears to be defining a Docker container orchestration system that includes three services and two networks, and it uses Traefik as a reverse proxy for routing requests between the services. The importance of this document depends on the user's needs and goals, but it may be useful for deploying and managing a containerized application or service using Docker and Traefik.
+              
+[AI] chat messages 2

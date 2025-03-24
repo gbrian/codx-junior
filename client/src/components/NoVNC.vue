@@ -2,7 +2,9 @@
 import RFB from '@novnc/novnc'
 </script>
 <template>
-  <div ref="vncContainer" class="vnc-container w-full h-full"></div>
+  <div ref="vncContainer" class="vnc-container w-full h-full"
+    @focus="syncHostClipboardToNoVNC"
+  ></div>
 </template>
 <script>
 export default {
@@ -21,6 +23,14 @@ export default {
   computed: {
     canvas () {
       return this.$el.querySelector('canvas')
+    },
+    resizeType () {
+      return this.$ui.noVNCSettings.resize
+    }
+  },
+  watch: {
+    resizeType () {
+      this.connect()
     }
   },
   beforeDestroy() {
@@ -30,6 +40,8 @@ export default {
   },
   methods: {
     connect () {
+      this.rfb?.disconnect()
+
       const protocol = window.location.protocol.includes("https") ? "wss": "ws"
       const url = `${protocol}://${window.location.host}/novnc?token=${this.token}`
       const options = {
@@ -39,8 +51,15 @@ export default {
       };
 
       this.rfb = new RFB(this.$refs.vncContainer, url, options);
-      this.rfb.scaleViewport = true
 
+      if (this.resizeType === 'scale') {
+        this.rfb.scaleViewport = true
+      }
+      if (this.resizeType === 'remote') {
+        this.rfb.clipViewport = true
+        this.rfb.resizeSession = true
+      }
+      
       this.rfb.addEventListener('connect', () => {
         console.log('Connected to the NoVNC server');
       });
@@ -58,8 +77,11 @@ export default {
     },
     syncHostClipboardToNoVNC () {
       navigator.clipboard.readText().then(text => {
-        this.rfb.clipboardPasteFrom(text);
-        console.log('Clipboard synced HOST->NoVNC')
+        if (this.noVNClipboard != text) {
+          this.rfb.clipboardPasteFrom(text);
+          console.log('Clipboard synced HOST->NoVNC')
+        }
+        this.noVNClipboard = text
       })
     },
     syncNoVNCToHostClipboard() {

@@ -9,7 +9,6 @@ from codx.junior.knowledge.knowledge_db import KnowledgeDB
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from langchain_community.llms import OpenAI
 from langchain.schema.document import Document
 
 from codx.junior.utils import (
@@ -126,14 +125,22 @@ class Knowledge:
 
       if self.settings.knowledge_enrich_documents:
         try:
-          prompt, system = self.knowledge_prompts.enrich_document_prompt(doc)
-          messages = self.get_ai().start(system, prompt)
-          summary = messages[-1].content.strip()
+          summary_prompt=f"""
+          Given this document:
+          <document>
+          { doc.page_content }
+          </document>
+
+          Return a 10 lines summary with all important concepts and keywords.
+          """
+          messages = self.get_ai().chat(prompt=summary_prompt)
+          doc.metadata["summary"] = messages[-1].content.strip()
         except Exception as ex:
           logger.info(f"Error enriching document {source}: {ex}")
-          pass
-      if self.settings.knowledge_extract_document_tags:
-          self.extract_doc_keywords(doc)
+          
+      # NOT WOIRKING FINE
+      #if self.settings.knowledge_extract_document_tags:
+      #    self.extract_doc_keywords(doc)
        
       doc.metadata["indexed"] = 1
       return doc
@@ -142,20 +149,24 @@ class Knowledge:
       keywords = doc.metadata.get("keywords")
       try:
         if not keywords:
-            prompt, system = self.knowledge_prompts.extract_document_tags(doc)
-            messages = self.get_ai().chat(messages=[system], prompt=prompt)
+            keywords_prompt = f"""
+            Given this document:
+            <document>
+            { doc.page_content }
+            </document>
+
+            Generate only one line with keywords separated by comma.
+            """
+            messages = self.get_ai().chat(prompt=keywords_prompt)
             response = messages[-1].content.strip()
             
-            blocks = list(extract_blocks(response))
-            keywords = blocks[0]["content"] if blocks else respone
-
+            keywords = response.split("\n")[-1]
             doc.metadata["keywords"] = keywords
         source = doc.metadata['source']
         logger.info(f"Extracted keywords from {source}: {keywords}")
         self.knowledge_keywords.add_keywords(source, keywords)
       except Exception as ex:
         logger.exception(f"Error extracting document keywords {doc.metadata}: {ex}")
-        pass
 
     def parallel_enrich(self, documents, metadata):
       with ThreadPoolExecutor() as executor:
@@ -183,8 +194,10 @@ class Knowledge:
         metadata = {
           "index_date": f"{index_date}"
         }
+        enriched_documents = self.parallel_enrich(documents=documents, metadata=metadata)
 
-        for enriched_doc in documents:
+        
+        for enriched_doc in enriched_documents:
             source = enriched_doc.metadata["source"]
             try:
                 #if self.settings.knowledge_extract_document_tags:
@@ -198,7 +211,10 @@ class Knowledge:
                 
             except Exception as ex:
                 logger.exception(f"Error indexing document {enriched_doc.metadata['source']}: {ex} at project {self.settings.project_path}")
-                if raiseIfError:
+                if "float data" in str(ex):
+                  logger.error(f"{self.settings.project_path}: float data error, trying to reset index")
+                  self.reset()
+                elif raiseIfError:
                     raise ex
 
     def get_last_changed_file_paths (self):
@@ -218,8 +234,7 @@ class Knowledge:
       return self.get_db().search(query=query)
       
     def search_in_source(self, query):
-      documents = self.get_all_documents()
-      return [doc for doc in documents if query in doc.metadata["source"].lower()]
+      return self.get_db().search_in_source(query=query)
 
     def doc_from_project_file(self, file_path):
         file_path = f"{self.settings.project_path}/{file_path}"

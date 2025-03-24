@@ -6,6 +6,7 @@ export const namespaced = true
 import { API } from '../api/api'
 export const state = () => ({
   codxJunior: null,
+  user: null,
   users: []
 })
 

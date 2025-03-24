@@ -5,16 +5,14 @@ import time
 import logging
 import asyncio
 import socketio
+import traceback
 
 from multiprocessing.pool import ThreadPool
 from threading import Thread
 
-import logging
-logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
-logger = logging.getLogger(__name__)
-
 from pathlib import Path
-import traceback
+
+from codx.junior.ai import AIManager
 
 from codx.junior.sio.sio import sio
 from codx.junior.sio.session_channel import SessionChannel
@@ -23,6 +21,11 @@ from codx.junior.profiling.profiler import profile_function
 
 from codx.junior.log_parser import parse_logs
 from codx.junior.browser import run_browser_manager
+
+
+logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
+logger = logging.getLogger(__name__)
+
 run_browser_manager()
 
 def disable_logs(logs):
@@ -57,7 +60,7 @@ from codx.junior.db import (
     Chat,
     Message
 )
-from codx.junior.model import (
+from codx.junior.model.model import (
     KnowledgeReloadPath,
     KnowledgeSearch,
     KnowledgeDeleteSources,
@@ -149,6 +152,10 @@ async def add_gpt_engineer_settings(request: Request, call_next):
 def api_health_check():
     return "ok"
 
+@app.post("/api/users/login")
+def api_extract_tags(request: Request):
+    pass
+
 @app.get("/api/knowledge/reload")
 async def api_knowledge_reload(request: Request):
     codx_junior_session = request.state.codx_junior_session
@@ -189,11 +196,11 @@ def api_knowledge_status(request: Request):
 def api_list_chats(request: Request):
     codx_junior_session = request.state.codx_junior_session
     file_path = request.query_params.get("file_path")
-    if file_path:
-        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
     chat_id = request.query_params.get("id")
     if chat_id:
         return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
+    if file_path:
+        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
     return codx_junior_session.list_chats()
 
 @profile_function
@@ -428,32 +435,40 @@ def api_apps_run(request: Request):
 def api_read_global_settings():
     return read_global_settings()
 
+@app.post("/api/global/settings")
+def api_write_global_settings(global_settings: GlobalSettings):
+    write_global_settings(global_settings=global_settings)
+    AIManager().reload_models(read_global_settings())
 
 @app.get("/api/logs")
 def api_logs_list():
-    return ['codx-junior-api', 'codx-junior-web', 'lxde', 'novnc', 'firefox', 'vncserver', 'vncserver-shared', 'supervisord']
+    stdout, _ = exec_command(f"ls {os.environ['CODX_SUPERVISOR_LOG_FOLDER']}")
+    return [log for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
     log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
-    log_size = request.query_params.get("log_size") or "1000"
-    logs, _ = exec_command(f"tail -n {log_size} {log_file}")
-    return parse_logs(logs)
+    log_size = request.query_params.get("log_size") or "100"
+    cmd = f"tail -n {log_size} {log_file}"
+    try:
+        logs, _ = exec_command(cmd)
+        logger.info(f"api logs {logs}")
 
-
-@app.post("/api/global/settings")
-def api_write_global_settings(global_settings: GlobalSettings):
-    return write_global_settings(global_settings=global_settings)
+        return parse_logs(logs)
+    except Exception as ex:
+        logger.exception(f"Error reading logs: {ex}")
 
 @app.post("/api/screen")
 def api_screen_set(screen: Screen):
-    return exec_command(f"sudo xrandr -s {screen.resolution}")
+    CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+    return exec_command(f"xrandr -s {screen.resolution}", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
 
 @app.get("/api/screen")
 def api_screen_get():
     screen = Screen()
     try:
-        res, _ = exec_command(f"sudo xrandr --current")
+        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
         # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
         lines = res.split("\n")
         screen_line = [l for l in lines if l.startswith("Screen ")][0]

@@ -16,8 +16,8 @@ install_packages() {
     sudo apt-get update
     sudo apt-get install -y \
         curl wget supervisor nano \
-        locales python3 python3-venv \
-        procps git sudo tesseract-ocr
+        locales python3.11 python3.11-venv firefox-esr \
+        procps git tesseract-ocr
     sudo apt-get clean
     sudo rm -rf /var/lib/apt/lists/*
 }
@@ -39,6 +39,9 @@ curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash
 codx docker
 codx coder
 codx nodejs
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 # Copy settings.json
 echo "Copying VS Code settings..."
@@ -54,5 +57,11 @@ bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
 
 echo "Install client"
 bash ${CODX_JUNIOR_PATH}/scripts/install_client.sh
+
+echo "Install ollama"
+bash ${CODX_JUNIOR_PATH}/scripts/install_ollama.sh
+
+echo "Install noVNC"
+bash ${CODX_JUNIOR_PATH}/scripts/install_noVNC.sh
 
 echo "Installation complete!"

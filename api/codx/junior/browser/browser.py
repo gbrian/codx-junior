@@ -8,7 +8,7 @@ from selenium import *
 from selenium.webdriver import ChromeOptions, FirefoxOptions
 
 from codx.junior.engine import CODXJuniorSession
-from codx.junior.model import Chat, Message
+from codx.junior.model.model import Chat, Message
 from codx.junior.utils import exec_command
 from langchain.schema import AIMessage, HumanMessage
 

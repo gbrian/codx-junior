@@ -38,10 +38,12 @@ class LogginCallbackHandler(StreamingStdOutCallbackHandler):
 
 class AI:
     def __init__(
-        self, settings: CODXJuniorSettings
+        self, settings: CODXJuniorSettings,
+        llm_model: str = None
     ):
         self.settings = settings
-        self.llm = self.create_chat_model()
+        self.llm_model = llm_model
+        self.llm = self.create_chat_model(llm_model=llm_model)
         self.embeddings = self.create_embeddings_model()
         self.cache = False
         self.ai_logger = AILogger(settings=settings)
@@ -84,7 +86,7 @@ class AI:
                 self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
                 response = self.llm(messages=messages, config={"callbacks": callbacks})
             except Exception as ex:
-                logger.exception(f"Non-retryable error processing AI request: {ex}")
+                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model} {self.settings}")
                 raise RuntimeError("Failed to process AI request after retries.")
 
             if self.cache:
@@ -135,12 +137,11 @@ class AI:
         return list(messages_from_dict(prevalidated_data))  # type: ignore
 
 
-    def create_chat_model(self) -> BaseChatModel:
-        if self.settings.get_ai_provider() == "anthropic":
-            return Anthropic_AI(settings=self.settings).chat_completions
-        if self.settings.get_ai_provider() == "mistral":
-             return Mistral_AI(settings=self.settings).chat_completions    
-        return OpenAI_AI(settings=self.settings).chat_completions
+    def create_chat_model(self, llm_model: str) -> BaseChatModel:
+        return OpenAI_AI(settings=self.settings, llm_model=llm_model).chat_completions
+
+    def get_openai_chat_client(self, llm_model: str = None):
+        return OpenAI_AI(settings=self.settings, llm_model=llm_model).client
 
     def create_embeddings_model(self):
         return OpenAI_AI(settings=self.settings).embeddings()

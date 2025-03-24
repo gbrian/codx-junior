@@ -1,6 +1,7 @@
 import os
 
 from pydantic import BaseModel, Field
+from enum import Enum
 from datetime import datetime
 
 from typing import List, Dict, Union, Optional
@@ -44,10 +45,24 @@ class KnowledgeSearch(BaseModel):
     document_search_type: str = Field(default=None)
     document_count: int = Field(default=None)
     document_cutoff_score: float = Field(default=None)
+    document_cutoff_rag: float = Field(default=None)
+
+class Tool(BaseModel):
+    name: str = Field(default="")
+    description: str = Field(default="")
+
+class CodxJuniorBaseTools(BaseModel):
+    knowledge:Tool = Tool(name="knowledge", description="Project's knowledge search")
+    
+class CodxUser(BaseModel):
+    name: str = Field(default="")
+    avatar: str = Field(default="")
+    personality: str = Field(default="")
 
 class Profile(BaseModel):
     name: str = Field(default="")
     url: str = Field(default="")
+    avatar: str = Field(default="")
     description: str = Field(default="")
     category: str = Field(default="", description="Profile category: global, file, coding, ...")
     file_match: str = Field(default="",
@@ -55,6 +70,11 @@ class Profile(BaseModel):
     content: Optional[str] = Field(default=None)
     path: str = Field(default="")
     content_path: str = Field(default="")
+    profiles: Optional[List[str]] = Field(default=[])
+    llm_model: Optional[str] = Field(default='')
+    use_knowledge: Optional[bool] = Field(default=True)
+    user: Optional[CodxUser] = Field(default=CodxUser())
+    tools: Optional[List[Tool]] = Field(default=[])
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -83,18 +103,6 @@ class MistralAISettings(BaseModel):
     mistral_api_key: Optional[str] = Field(default="")
     mistral_model: Optional[str] = Field(default="codestral-latest")
 
-class AISettings(BaseModel):
-    provider: Optional[str] = Field(default="") 
-    api_url: Optional[str] = Field(default="")
-    api_key: Optional[str] = Field(default="")
-    model: Optional[str] = Field(default="")
-    context_length: Optional[int] = Field(default=0)
-    temperature: Optional[float] = Field(default=0.8)
-
-class EmbeddingAISettings(AISettings):
-    vector_size: Optional[int] = Field(default=1536)
-    chunk_size: Optional[int] = Field(default=8190)
-
 class GitSettings(BaseModel):
     username: Optional[str] = Field(default="")
     email: Optional[str] = Field(default="")
@@ -115,19 +123,79 @@ class Bookmark(BaseModel):
     url: Optional[str] = Field(default="")
     port: Optional[int] = Field(default=None)
 
+class AIProvider(BaseModel):
+    name: Optional[str] = Field(default="", description="Provider name") 
+    provider: Optional[str] = Field(default="ollama", description="OpenAI compatible LLM protocols like: OpenAI, Ollama") 
+    api_url: Optional[str] = Field(description="Optional url if provider is remote", default="http://0.0.0.0:11434/v1")
+    api_key: Optional[str] = Field(description="Optional api key", default="sk-ollama")
+
+class AILLMModelSettings(BaseModel):
+    temperature: Optional[float] = Field(default=1, description="Model temperature")
+    context_length: Optional[int] = Field(default=0)
+    
+class AIEmbeddingModelSettings(BaseModel):
+    vector_size: Optional[int] = Field(default=1536, description="Model vector size")
+    chunk_size: Optional[int] = Field(default=8190, description="Model chunk_size")
+
+class AIModelType(str, Enum):
+    llm = 'llm'
+    embeddings = 'embeddings'
+
+class AIModel(BaseModel):
+    name: str = Field(description="Model name")
+    model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
+    ai_provider: str = Field(description="AI Provider name")
+    settings: Union[AILLMModelSettings, AIEmbeddingModelSettings] = Field(description="Model settings")
+    metadata: Optional[dict] = Field(description="Model's last update date", default={})
+    url: Optional[str] = Field(description="Model info", default="")
+
+class AISettings(BaseModel):
+    provider: Optional[str] = Field(default="") 
+    api_url: Optional[str] = Field(default="")
+    api_key: Optional[str] = Field(default="")
+    model: Optional[str] = Field(default="")
+    context_length: Optional[int] = Field(default=0)
+    temperature: Optional[float] = Field(default=0.8)
+    vector_size: Optional[int] = Field(default=1536)
+    chunk_size: Optional[int] = Field(default=8190)
+    model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
+    url: Optional[str] = Field(description="Model info", default="")
+
+    
+OPENAI_PROVIDER = AIProvider(name="openai", provider="openai")
+OPENAI_MODEL = AIModel(name="gpt-4o", ai_provider="openai", model_type=AIModelType.llm, settings=AILLMModelSettings())
+
+OLLAMA_PROVIDER = AIProvider(name="ollama", provider="ollama")
+OLLAMA_EMBEDDINGS_MODEL = AIModel(name="nomic-embed-text", 
+                                model_type=AIModelType.embeddings,
+                                ai_provider="ollama",
+                                settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),
+                                url="https://ollama.com/library/nomic-embed-text")
+
+OLLAMA_WIKI_MODEL = AIModel(name="deepseek-r1", 
+                                model_type=AIModelType.llm,
+                                ai_provider="ollama",
+                                settings=AILLMModelSettings(),
+                                url="https://ollama.com/library/deepseek-r1")
+
+
+class AgentSettings(BaseModel):
+    max_agent_iteractions: int = 4
+
 class GlobalSettings(BaseModel):
-    openai: OpenAISettings = Field(default=OpenAISettings())
-    anthropic_ai: AnthropicAISettings = Field(default=AnthropicAISettings())
-    mistral_ai: MistralAISettings = Field(default=MistralAISettings())
-    embeddings_ai_settings: EmbeddingAISettings = Field(default=EmbeddingAISettings(provider="openai"))
+    log_ai: bool = Field(default=False)
+    
+    embeddings_model:  str = Field(default="nomic-embed-text")
+    llm_model: str = Field(default="codellama")
+    rag_model: str = Field(default="codellama")
+    wiki_model: str = Field(default="deepseek-r1")
+
     git: GitSettings = Field(default=GitSettings())
 
-    log_ai: bool = Field(default=False)
-    projects_root_path: str = Field(default='/projects')
-    ai_temperature: str = Field(default="0.8")
-    ai_provider: str = Field(default="mistral")
-    ai_model: str = Field(default="codestral-latest")
+    agent_settings: AgentSettings = Field(description="Agent settings", default=AgentSettings())
 
+    projects_root_path: str = Field(default='/projects')
+    
     log_ignore: List[str] = Field(default=[])
 
     codx_junior_avatar: str = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
@@ -140,6 +208,17 @@ class GlobalSettings(BaseModel):
         Bookmark(name="Coder", title="code-server", port=os.environ["CODX_JUNIOR_CODER_PORT"]),
         Bookmark(name="Desktop", title="Desktop", port=os.environ["CODX_JUNIOR_NOVNC_PORT"])
     ])
+
+    ai_providers: List[AIProvider] = [
+        OPENAI_PROVIDER,
+        OLLAMA_PROVIDER
+    ]
+
+    ai_models: List[AIModel] = [
+      OPENAI_MODEL,
+      OLLAMA_WIKI_MODEL,
+      OLLAMA_EMBEDDINGS_MODEL
+    ]
 
 class Screen(BaseModel):
     resolution: str = Field(default='')

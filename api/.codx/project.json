@@ -1,7 +1,5 @@
 {
   "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
-  "ai_provider": "mistral",
-  "ai_model": "",
   "project_name": "codx-api",
   "project_path": null,
   "project_wiki": "wiki",
@@ -10,16 +8,18 @@
   "knowledge_search_type": "similarity",
   "knowledge_search_document_count": 10,
   "knowledge_enrich_documents": false,
-  "knowledge_context_cutoff_relevance_score": "0.4",
+  "knowledge_context_cutoff_relevance_score": 0.4,
+  "knowledge_context_rag_distance": 0.4,
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx,assets,public",
-  "temperature": 0.7,
   "watching": true,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
   "log_ignore": "",
   "project_scripts": [],
+  "embeddings_model": "nomic-embed-text",
+  "llm_model": "gpt-4o",
   "urls": []
 }

@@ -2,18 +2,36 @@
 import { API } from '../api/api'
 import TabViewVue from '@/components/TabView.vue'
 import ProjectDropdown from '@/components/ProjectDropdown.vue'
+import moment from 'moment'
 </script>
 
 <template>
-  <div class="codx-junior flex min-h-full">
+  <div class="codx-junior flex min-h-full relative">
+    <div class="absolute top-0 left-0 right-0 bottom-0 z-[100] bg-base-300 flex flex-col justify-center items-center" v-if="$projects.projectLoading">
+      <div class="text-2xl">Loading...</div>
+    </div>
     <div class="grow flex flex-col relative bg-base-100 gap-2 overflow-auto bg-base-300">
       <div class="p-2 flex gap-2 items-center relative justify-between">
         <ProjectDropdown v-if="!isHelpTabActive" />
-        <div class="badge">{{ $projects.aiProvider }} / {{ $projects.aiModel }}</div>
+        <div class="badge flex gap-2" v-if="!isHelpTabActive">
+          <span class="text-warning"><i class="fa-solid fa-brain"></i></span>
+              {{ $projects.aiModel }} / 
+              <span class="text-info"><i class="fa-solid fa-file"></i></span>
+              {{ $projects.embeddingsModel }}
+          </div>
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
+      <div class="text-xs text-info group relative" v-if="lastEvent">
+        {{ lastEvent }}
+        <div class="bg-base-300/60 flex flex-col gap-2 hidden group-hover:block absolute top-4 w-96 h-20 z-50">
+          <div v-for="event in lastEvents" :key="event.ts">
+            {{ formatEvent(event)  }}
+          </div>
+        </div>
+      </div>
+
       <div class="grow p-2 bg-base-100">
         <TabViewVue  :key="projectKey" />
       </div>
@@ -36,7 +54,7 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue'
           <button class="btn btn-secondary" @click="closeOpenProjectModal">Close</button>
         </div>
       </div>
-    </div>
+    </div>    
     <div class="toast toast-end">
       <div class="bg-error text-white overflow-auto rounded-md max-w-96 max-h-60 text-xs"
         v-if="lastError" @click="clearLastError">
@@ -85,9 +103,23 @@ export default {
     },
     projectPlaceholder() {
       return this.codxPath || "Project's absolute path"
+    },
+    lastEvent() {
+      const lastEvent = this.$session.events[this.$session.events.length-1]
+      if (lastEvent) {
+        return this.formatEvent(lastEvent)
+      }
+      return null
+    },
+    lastEvents() {
+      return this.$session.events?.slice(this.$session.events.length - 3)
     }
   },
   methods: {
+    formatEvent(event) {
+      const message = event.data.message?.content || ""
+      return `[${moment(event.ts).format('HH:mm:ss')}] ${event.event} ${event.data.text || ''}\n${message}`
+    },
     async onOpenProject(path) {
       await this.initProject(path)
     },

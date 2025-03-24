@@ -12,8 +12,25 @@ import Markdown from './Markdown.vue'
       <div class="grow"></div>
       <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isOverriden || loading">Delete</button>
     </label>
+    <div class="flex justify-center">
+      <div class="flex flex-col gpa-2 items-center">
+        <div class="avatar">
+          <div class="w-24 rounded">
+            <img :src="userAvatar" />
+          </div>
+        </div>
+        <input placeholder="Avatar" v-model="editProfile.avatar" type="text"
+          class="bg-base-300 input input-sm input-bordered w-full" />  
+      </div>
+    </div>
     <div class="flex justify-between items-center gap-4">
       <input id="name" v-model="editProfile.name" type="text" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" />
+      <select class="select select-bordered select-sm" v-model="editProfile.llm_model">
+        <option value="">-- default --</option>
+        <option v-for="model in aiModels" :key="model.name" :value="model.name">
+          {{ model.ai_provider }} - {{ model.name }}
+        </option>
+      </select>
     </div>
     <div class="form-group flex space-x-4 text-xs">
       <div class="w-1/2 flex flex-col gap-2">
@@ -24,6 +41,7 @@ import Markdown from './Markdown.vue'
           <option value="assistant">Assistant</option>
           <option value="chat">Chat</option>
           <option value="file">File</option>
+          <option value="agent">Agent</option>
         </select>
       </div>
       <div class="w-1/2 flex flex-col gap-2">
@@ -33,23 +51,22 @@ import Markdown from './Markdown.vue'
     </div>
     <div class="form-group">
       <label for="description">Description</label>
-      <textarea id="description" v-model="editProfile.description" class="bg-base-300 textarea textarea-bordered w-full"></textarea>
-    </div>
-    <div class="form-group flex space-x-4 text-xs">
-      <div class="w-full flex flex-col gap-2">
-        <label for="url">Profile URL</label>
-        <input id="url" v-model="editProfile.url" type="url" class="bg-base-300 input input-xs input-bordered w-full" placeholder="Enter profile URL" />
-      </div>
-    </div>
-    <div class="flex gap-2">
-      <button class="btn btn-xs" @click="downloadProfileContent">Download</button>
+      <textarea id="description" v-model="editProfile.description"
+        class="bg-base-300 textarea textarea-bordered w-full"></textarea>
     </div>
     <div class="flex flex-col gap-2">
-      <label for="content flex gap-2">Content
-        <button class="btn btn-xs" @click="toggleContentPreview">
-          <i :class="contentPreview ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
-        </button>
-      </label>
+      <div class="flex justify-between">
+        <label for="content flex gap-2">Content
+          <button class="btn btn-xs" @click="toggleContentPreview">
+            <i :class="contentPreview ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
+          </button>
+        </label>
+        <div class="flex gap-2 items-center">
+          Use knowledge
+          <input type="checkbox" v-model="profile.use_knowledge"
+            class="toggle checked:border-info checked:bg-info" />
+        </div>
+      </div>
       <Markdown class="p-2 rounded-md" :class="contentPreview ? 'bg-base-100 border border-slate-700' : 'bg-base-300'" :text="editProfile.content" v-if="contentPreview" />
       <textarea id="content" v-model="editProfile.content" class="textarea textarea-bordered w-full h-96 bg-base-300 overflow-auto" v-else></textarea>
     </div>
@@ -76,6 +93,16 @@ export default {
     }
   },
   computed: {
+    userAvatar() {
+      return this.editProfile.avatar ||
+        'https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp'
+    },
+    aiModels() {
+      return this.$storex.api.globalSettings?.ai_models
+                .filter(m => m.model_type === 'llm')
+                .sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
+
+    },
     isOverriden() {
       return this.profile.path?.startsWith(this.$project.project_path)
     },

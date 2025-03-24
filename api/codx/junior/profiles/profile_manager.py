@@ -5,7 +5,7 @@ import logging
 import re
 
 from codx.junior.settings import CODXJuniorSettings
-from codx.junior.model import Profile
+from codx.junior.model.model import Profile
 from codx.junior.utils import write_file
 
 logger = logging.getLogger(__name__)
@@ -46,15 +46,19 @@ class ProfileManager:
 
     def load_profile(self, profile_path) -> Profile:
         profile = None
-        with open(profile_path, 'r') as f:
-            content = f.read()
-            profile = Profile(**json.loads(content))
-            profile.path = profile_path
-        profile.content_path = f"{profile_path}.md"
-        if os.path.isfile(profile.content_path):
-            with open(profile.content_path, 'r') as f:
-              profile.content = f.read()
-        return profile
+        try:
+            with open(profile_path, 'r') as f:
+                content = f.read()
+                profile = Profile(**json.loads(content))
+                profile.path = profile_path
+            profile.content_path = f"{profile_path}.md"
+            if os.path.isfile(profile.content_path):
+                with open(profile.content_path, 'r') as f:
+                  profile.content = f.read()
+            return profile
+        except Exception as ex:
+            logger.exception(f"Error loading profile: {profile_path} {ex}")
+            raise ex
 
     def save_profile(self, profile: Profile):
         if not profile.name:
@@ -69,7 +73,7 @@ class ProfileManager:
         profile.content = f"See {profile.name}.profile.md file"
 
         with open(profile_path, 'w') as f:
-            f.write(json.dumps(profile.__dict__))
+            f.write(json.dumps(profile.model_dump()))
         return self.read_profile(profile_name=profile.name)
 
     def delete_profile(self, profile_name):

@@ -17,6 +17,8 @@ from codx.junior.sio.model import (
     SioChatMessage
 )
 
+from codx.junior.ai import AIManager
+
 USERS = {}
 
 logger = logging.getLogger(__name__)
@@ -55,7 +57,8 @@ def sio_api_endpoint(func):
         channel = SessionChannel(sio=sio, sid=sid)
         codxjunior_session = CODXJuniorSession(
                                 channel=channel,
-                                codx_path=base_data.codx_path)
+                                codx_path=base_data.codx_path) if base_data.codx_path \
+                                  else None # Global requests
         try:
             if not asyncio.iscoroutinefunction(func):
                 return SIO_POOL.submit(func, sid, data, codxjunior_session).result
@@ -111,3 +114,17 @@ async def sio_run_improve_patch(sid, data: dict, codxjunior_session: CODXJuniorS
         "info": info, 
         "error": error
     }
+
+@sio.on("codx-junior-generate-code")
+@sio_api_endpoint
+async def sio_run_generate_code(sid, data: dict, codxjunior_session: CODXJuniorSession):
+    code_block_info = data["code_block_info"]
+    data = SioChatMessage(**data)
+    await codxjunior_session.generate_code(
+                            chat=data.chat,
+                            code_block_info=code_block_info)
+
+@sio.on("codx-junior-ai-load-model")
+@sio_api_endpoint
+async def sio_ai_load_model(sid, data: dict):
+    AIManager().load_model(model=data["model"])

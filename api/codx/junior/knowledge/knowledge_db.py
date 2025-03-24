@@ -74,11 +74,15 @@ class KnowledgeDB:
             collections = self.db.list_collections()
             if self.index_name in collections:
                 return
-        self.db.create_collection(
-            collection_name=self.index_name,
-            dimension=self.settings.get_ai_embeddings_settings().vector_size,
-            auto_id=True
-        )
+        embeddings_ai_settings = self.settings.get_embeddings_settings()
+        try:
+            self.db.create_collection(
+                collection_name=self.index_name,
+                dimension=embeddings_ai_settings.vector_size,
+                auto_id=True
+            )
+        except Exception as ex:
+            logger.exception(f"Error creating embeddings collection {ex}. Setting: {embeddings_ai_settings}")
 
     def get_all_files(self):
         all_files = {}
@@ -105,27 +109,42 @@ class KnowledgeDB:
 
     def update_all_file (self, documents: [Document]):
         all_files = self.get_all_files()
-        sources = [doc["metadata"]["source"] for doc in documents]
+        sources = list(set([doc["metadata"]["source"] for doc in documents]))
 
         for file in sources:
+            new_docs = [doc for doc in documents if doc["metadata"]["source"] == file]
+            if all_files.get(file):
+                new_docs =  all_files[file]["documents"] + new_docs
             all_files[file] = {
                 "file_md5": calculate_md5(file),
-                "documents": [doc for doc in documents if doc["metadata"]["source"] == file]
+                "documents": new_docs
             }
         self.save_all_files(all_files)
 
     def index_documents(self, documents: [Document]):
         data = []
         for doc in documents:
-            vector = self.get_ai().embeddings(content=doc.page_content)
-            doc_data = {
-              "vector": vector,
-              "page_content": doc.page_content,
-              "metadata": doc.metadata
-            }
-            data.append(doc_data)
+            try:
+                content = list(filter(lambda x: x,
+                  [
+                    doc.metadata["source"],
+                    doc.page_content,
+                    doc.metadata.get("summary"),
+                    doc.metadata.get("tags")
+                  ]
+                ))
+                vector = self.get_ai().embeddings(content="\n".join(content))
+                doc_data = {
+                  "vector": vector,
+                  "page_content": doc.page_content,
+                  "metadata": doc.metadata
+                }
+                data.append(doc_data)
+            except Exception as ex:
+                logger.error(f"Error processing document, len {len(doc.page_content)}, {doc.metadata}: {ex}")
 
         try:
+          logger.info(f"Indexing {len(data)} documents")
           res = self.db.insert(
                   collection_name=self.index_name,
                   data=data
@@ -161,7 +180,8 @@ class KnowledgeDB:
                 filter=f"id in [{','.join(ids_to_delete)}]"
             )
             for source in sources:
-                del all_files[source]
+                if all_files.get(source):
+                    del all_files[source]
             self.save_all_files(all_files)
 
     def reset(self):    
@@ -177,27 +197,45 @@ class KnowledgeDB:
         self.init_db()
         self.init_collection()
 
+    def search_in_source(self, query):
+      documents = self.get_all_documents()
+      matches = [doc.db_id for doc in documents if query.lower() in doc.metadata["source"].lower()]
+      results = self.db.query(
+            collection_name=self.index_name,
+            ids=matches,
+            output_fields=["id", "page_content", "metadata"]
+        )
+      logger.info(f"Search in sources matches: {matches} results: {results}")
+      return [Document(id=res["id"],
+                        page_content=res["page_content"], 
+                        metadata=res["metadata"]) for res in list(results)]
+      
     def search(self, query: str):
         query_vector = self.get_ai().embeddings(content=query)
         limit = int(self.settings.knowledge_search_document_count or "10")
-        res = self.db.search(
+        results = self.db.search(
             collection_name=self.index_name,
             data=[query_vector],
             limit=limit,
             output_fields=["id", "page_content", "metadata"]
         )
-        documents = []
         rag_distance = float(self.settings.knowledge_context_rag_distance or 0)
-        # logger.info(f"search results: {list(res)}")
-        for level0 in list(res):
+        return self.db_results_to_documents(results=results, rag_distance=rag_distance)
+
+    def db_results_to_documents(self, results, rag_distance):
+        documents = []
+        
+        # logger.info(f"search results: {list(results)}")
+        for level0 in list(results):
             for level1 in level0:
                 _id = level1["id"]
                 entity = level1["entity"]
                 metadata = entity["metadata"]
-                distance = float(level1.get("distance"))
-
-                if distance < rag_distance:
-                    continue
+                
+                if rag_distance:
+                    distance = float(level1.get("distance"))
+                    if distance < rag_distance:
+                      continue
 
                 metadata["db_distance"] = distance
                 documents.append(

@@ -11,7 +11,7 @@ import moment from 'moment';
     <ProjectIconVue
       :right="right"
       :online="$storex.session.connected"
-      @click.stop="setActiveTab('home')"
+      @click.stop="setActiveTab('help')"
     />
       <div class="absolute bottom-0 flex justify-center w-full"
         v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
@@ -23,22 +23,24 @@ import moment from 'moment';
 
 
     <div class="flex w-full flex-col mt-4 flex">
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'wiki' ? 'bg-base-100 text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Wiki"
+          @click="$ui.setActiveTab('wiki')">
+          <div class="avatar">
+            <div class="w-7 rounded-full bg-white">
+              <img :src="$project.project_icon" />
+            </div>
+          </div>
+				</a>
+			</div>
+      
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'tasks' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Kanban"
           @click="$ui.setActiveTab('tasks')">
            <div class="flex flex-col gap-4">
             <i class="fa-brands fa-trello"></i>
-          </div>
-				</a>
-			</div>
-
-      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'profiles' ? 'bg-base-100 text-primary': '',]">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Project profiles"
-          @click="$ui.setActiveTab('profiles')">
-           <div class="flex flex-col gap-4">
-            <i class="fa-solid fa-circle-user"></i>
           </div>
 				</a>
 			</div>
@@ -63,6 +65,16 @@ import moment from 'moment';
           </div>
         </a>
       </div>
+
+      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'profiles' ? 'bg-base-100 text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Project profiles"
+          @click="$ui.setActiveTab('profiles')">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-circle-user"></i>
+          </div>
+				</a>
+			</div>
 
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'help' ? 'bg-base-100 text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
@@ -131,7 +143,7 @@ import moment from 'moment';
           @click="$ui.readScreenResolutions()">
            <i class="fa-solid fa-gear"></i>
 				</a>
-        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow-xl">
+        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-52 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li class="border"></li>
@@ -157,20 +169,6 @@ import moment from 'moment';
           </li>
           <li>
             <a>
-              <span class="click"><i class="fa-solid fa-display"></i></span>
-              <select class="select select-sm overflow-auto"
-                @change="$ui.setMonitor($event.target.value)">
-                <option disabled selected>Select monitor</option>
-                <option v-for="_, monitor in $ui.monitors" :key="monitor" :value="monitor"
-                  :selected="$ui.monitor === monitor"
-                >
-                  {{ monitor }}
-                </option>
-              </select>
-            </a>
-          </li>
-          <li>
-            <a>
               <span class="click" @click="$storex.api.screen.getScreenResolution()"><i class="fa-solid fa-display"></i></span>
               <select class="select select-sm overflow-auto"
                 @change="$ui.setScreenResolution($event.target.value)">
@@ -181,6 +179,20 @@ import moment from 'moment';
                   {{ resolution }}
                 </option>
               </select>
+              <div class="dropdown dropdown-end group">
+                <div tabindex="2" role="button" class="btn btn-xs m-1">
+                  <i class="fa-solid fa-up-right-and-down-left-from-center" v-if="$ui.noVNCSettings.resize === 'scale'"></i>
+                  <i class="fa-solid fa-down-left-and-up-right-to-center" v-else></i>
+                </div>
+                <ul tabindex="2" class="hidden group-hover:flex dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                  <li @click="$ui.setNoVNCSettings({ resize: 'scale' })">
+                    <a><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Local</a>
+                  </li>
+                  <li @click="$ui.setNoVNCSettings({ resize: 'remote' })">
+                    <a><i class="fa-solid fa-down-left-and-up-right-to-center"></i> Remote</a>
+                  </li>
+                </ul>
+              </div>
             </a>
           </li>
           <li>

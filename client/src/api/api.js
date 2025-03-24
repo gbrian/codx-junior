@@ -121,7 +121,7 @@ export const API = {
       },
       async write(settings) {
         await API.post('/api/global/settings', settings)
-        return API.global.read()
+        return API.settings.global.read()
       }
     }
   },
@@ -140,6 +140,7 @@ export const API = {
         searchType: search_type,
         documentSearchType: document_search_type,
         cutoffScore: document_cutoff_score,
+        cutoffRag: document_cutoff_rag,
         documentCount: document_count
     }) {
       return API.post(`/api/knowledge/reload-search`, {
@@ -147,6 +148,7 @@ export const API = {
           search_type,
           document_search_type,
           document_cutoff_score,
+          document_cutoff_rag,
           document_count
       })
     },

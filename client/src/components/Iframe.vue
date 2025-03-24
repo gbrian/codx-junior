@@ -6,12 +6,15 @@
 </template>
 <script>
 export default {
-  props: ['url'],
+  props: ['url', 'nocheck'],
   methods: {
     onIframeLoaded() {
       const { iframe } = this.$refs
-      if (!iframe) {
+      if (!iframe?.contentWindow) {
         return setTimeout(() => this.onIframeLoaded, 2000)
+      }
+      if (this.nocheck) {
+        return this.$emit('loaded', iframe)
       }
       const { pathname, search } = iframe.contentWindow.location
       const thisPathName = this.url.split("?")[0]

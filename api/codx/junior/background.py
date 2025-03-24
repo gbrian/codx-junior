@@ -14,10 +14,17 @@ from codx.junior.engine import (
 from codx.junior.project_watcher import ProjectWatcher
 from codx.junior.knowledge.knowledge_milvus import Knowledge
 
+from codx.junior.ai import AIManager
+
+from codx.junior.settings import (
+  read_global_settings
+)
 
 logger = logging.getLogger(__name__)
 
 def start_background_services(app):
+
+    AIManager().reload_models(read_global_settings())
 
     def on_project_watcher_changes(changes:[str]):
         for file_path in changes:
@@ -58,17 +65,20 @@ def start_background_services(app):
     # Load all projects and watch
     def check_projects():
         async def check(project):
-            await CODXJuniorSession(settings=project).process_project_changes()
+            settings = CODXJuniorSession(settings=project)
+            try:
+                await settings.process_project_changes()
+            except Exception as ex:
+                settings.last_error = str(ex)
         while True:
             try:
                 for project in find_all_projects():
-                    # Watch project changes (DISABLED, not workingn fine)
-                    # PROJECT_WATCHER.watch_project(
-                    #    project_path=project.project_path)
-
-                    asyncio.run(check(project=project))
+                    try:
+                        asyncio.run(check(project=project))
+                    except:
+                        pass
             except Exception as ex:
                 logger.exception(f"Erroor checking project {ex}")
-            time.sleep(1)
+            time.sleep(0.1)
 
     Thread(target=check_projects).start()
