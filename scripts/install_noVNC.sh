@@ -14,9 +14,8 @@ sudo apt update
 sudo apt install -y git wget python3 python3-pip novnc websockify
 
 # Clone the noVNC repository if it does not exist
-if [ ! -d "${CODX_JUNIOR_PATH}/noVNC" ]; then
-  git clone https://github.com/novnc/noVNC.git ${CODX_JUNIOR_PATH}/noVNC
-fi
+rm -rf ${CODX_JUNIOR_PATH}/noVNC || true
+git clone https://github.com/novnc/noVNC.git ${CODX_JUNIOR_PATH}/noVNC
 
 # Install a VNC server, e.g., TightVNCserver
 sudo apt install -y tigervnc-standalone-server
@@ -32,6 +31,8 @@ sudo apt autoremove -y
 
 # Copy desktop files
 cp -r ${CODX_JUNIOR_PATH}/scripts/Desktop ~/Desktop
+
+[ ! -d $HOME/.vnc ] && mkdir $HOME/.vnc
 
 vncpasswd -f > $HOME/.vnc/passwd <<EOF
 12345678
