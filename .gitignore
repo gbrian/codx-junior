@@ -15,3 +15,5 @@ llm-factory/ollama-data
 pids
 ollama_models
 logs
+.codx/logs/ai.md
+

@@ -12,9 +12,21 @@ import Markdown from './Markdown.vue'
       <div class="grow"></div>
       <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isOverriden || loading">Delete</button>
     </label>
+    <div class="flex justify-center">
+      <div class="flex flex-col gpa-2 items-center">
+        <div class="avatar">
+          <div class="w-24 rounded">
+            <img :src="userAvatar" />
+          </div>
+        </div>
+        <input placeholder="Avatar" v-model="editProfile.avatar" type="text"
+          class="bg-base-300 input input-sm input-bordered w-full" />  
+      </div>
+    </div>
     <div class="flex justify-between items-center gap-4">
       <input id="name" v-model="editProfile.name" type="text" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" />
       <select class="select select-bordered select-sm" v-model="editProfile.llm_model">
+        <option value="">-- default --</option>
         <option v-for="model in aiModels" :key="model.name" :value="model.name">
           {{ model.ai_provider }} - {{ model.name }}
         </option>
@@ -81,6 +93,10 @@ export default {
     }
   },
   computed: {
+    userAvatar() {
+      return this.editProfile.avatar ||
+        'https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp'
+    },
     aiModels() {
       return this.$storex.api.globalSettings?.ai_models
                 .filter(m => m.model_type === 'llm')

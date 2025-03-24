@@ -1,5 +1,4 @@
 <script setup>
-import { useStore } from 'vuex'
 </script>
 
 <template>
@@ -65,19 +64,20 @@ import { useStore } from 'vuex'
           </select>
         </div>
         <div class="form-control">
+          <span class="label">AI Provider</span>
+          <select class="select select-bordered" v-model="currentModel.ai_provider">
+            <option v-for="provider in aiProviders" :key="provider.name" :value="provider.name">
+              {{ provider.name }}
+            </option>
+          </select>
+        </div>
+        <div class="divider"></div>
+        <div class="form-control">
           <span class="label">Model Name</span>
           <input
             class="input input-bordered"
             v-model="currentModel.name"
             placeholder="Model Name"
-          />
-        </div>
-        <div class="form-control">
-          <span class="label">AI Provider</span>
-          <input
-            class="input input-bordered"
-            v-model="currentModel.ai_provider"
-            placeholder="AI Provider"
           />
         </div>
         <div class="form-control">
@@ -144,21 +144,24 @@ export default {
       showDialog: false,
       showDeleteDialog: false,
       currentModel: {
-      name: '',
-      ai_provider: '',
-      model_type: 'llm',
-      settings: {
-        temperature: 1,
-        vector_size: 1536,
+        name: '',
+        ai_provider: '',
+        model_type: 'llm',
+        settings: {
+          temperature: 1,
+          vector_size: 1536,
           chunk_size: 8190
         }
       },
       modelToDelete: null
-      }
+    }
   },
   computed: {
     aiModels() {
       return this.$storex.api.globalSettings?.ai_models
+    },
+    aiProviders() {
+      return this.$storex.api.globalSettings?.ai_providers
     },
     currentModelIsLLM() {
       return this.currentModel?.model_type === 'llm'
