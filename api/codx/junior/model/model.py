@@ -172,11 +172,11 @@ OLLAMA_EMBEDDINGS_MODEL = AIModel(name="nomic-embed-text",
                                 settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),
                                 url="https://ollama.com/library/nomic-embed-text")
 
-OLLAMA_WIKI_MODEL = AIModel(name="deepseek-r1", 
+OLLAMA_WIKI_MODEL = AIModel(name="gemma:7b", 
                                 model_type=AIModelType.llm,
                                 ai_provider="ollama",
                                 settings=AILLMModelSettings(),
-                                url="https://ollama.com/library/deepseek-r1")
+                                url="https://ollama.com/library/gemma")
 
 
 class AgentSettings(BaseModel):
@@ -186,9 +186,9 @@ class GlobalSettings(BaseModel):
     log_ai: bool = Field(default=False)
     
     embeddings_model:  str = Field(default="nomic-embed-text")
-    llm_model: str = Field(default="codellama")
-    rag_model: str = Field(default="codellama")
-    wiki_model: str = Field(default="deepseek-r1")
+    llm_model: str = Field(default="gemma:7b")
+    rag_model: str = Field(default="gemma:7b")
+    wiki_model: str = Field(default="gemma:7b")
 
     git: GitSettings = Field(default=GitSettings())
 

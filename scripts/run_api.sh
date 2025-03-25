@@ -2,6 +2,7 @@
 # Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
 export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")/.." && pwd)"
 echo "CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
+echo "Starting api USER: ${USER} HOME: ${HOME}"
 
 source ${CODX_JUNIOR_PATH}/.env
 
