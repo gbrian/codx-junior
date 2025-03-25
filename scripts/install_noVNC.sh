@@ -34,6 +34,8 @@ sudo apt autoremove -y
 # Copy desktop files
 cp -r ${CODX_JUNIOR_PATH}/scripts/Desktop ~/Desktop
 
+[ ! -d $HOME/.vnc ] && mkdir $HOME/.vnc
+
 vncpasswd -f > $HOME/.vnc/passwd <<EOF
 12345678
 12345678
