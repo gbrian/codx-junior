@@ -21,7 +21,7 @@ services:
     privileged: true
     restart: unless_stopped
     volumes:
-      - /shared/codx-junior:/home/codx-junior/codx-junior
+      - .:/home/codx-junior/codx-junior
     ports:
       - 19980:19980 # CODX_JUNIOR_API_PORT
       - 19981:19981 # CODX_JUNIOR_WEB_PORT
