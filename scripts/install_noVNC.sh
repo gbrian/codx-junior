@@ -14,7 +14,9 @@ sudo apt update
 sudo apt install -y git wget python3 python3-pip novnc websockify
 
 # Clone the noVNC repository if it does not exist
-rm -rf ${CODX_JUNIOR_PATH}/noVNC || true
+if [ -d "${CODX_JUNIOR_PATH}/noVNC" ]; then
+  rm -rf ${CODX_JUNIOR_PATH}/noVNC
+fi
 git clone https://github.com/novnc/noVNC.git ${CODX_JUNIOR_PATH}/noVNC
 
 # Install a VNC server, e.g., TightVNCserver
