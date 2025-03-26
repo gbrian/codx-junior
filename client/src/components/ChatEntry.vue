@@ -14,55 +14,59 @@ import { CodeDiff } from 'v-code-diff'
           <div class="text-secondary" v-else>codx-junior</div>
         </div>
       </div>
-      <div class="flex gap-2 items-center justify-end">
-        <div class="opacity-0 group-hover:opacity-100 gap-2 flex w-full items-center">
-          <div class="tooltip click"
-            :data-tip="message.hide ? 'Click to add message to conversation' : 
-                                      'Click to hide message from the conversation'"
-             :checked="!message.hide" @click.stop="$emit('hide')"
-            >
-            <i class="fa-solid fa-eye" v-if="message.hide"></i>
-            <i class="text-warning fa-solid fa-eye-slash" v-else></i>
-          </div>  
-          <button class="btn btn-xs tooltip tooltip-right" data-tip="Expand/Collapse" @click="toggleCollapse">
-            <span v-if="message.collapse">
-              <i class="fa-solid fa-chevron-up"></i>
-            </span>
-            <span v-else>
-              <i class="fa-solid fa-chevron-down"></i>
-            </span>
-          </button>
-          <button class="btn btn-xs hover:btn-outline bg-base-100 tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
-            <i class="fa-solid fa-copy"></i>
-          </button>      
-          <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
-            <i class="fa-solid fa-code"></i>
-          </button>
-          <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
-            <i class="fa-regular fa-file-lines"></i>
-            <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
-          </button>
-          <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
-            <i class="fa-solid fa-pencil"></i>
-          </button>
-          <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
-            @click="$emit('enhance')">
-            <i class="fa-solid fa-wand-magic-sparkles"></i>
-          </button>
-          <div class="grow"></div>
-          <div class="dropdown dropdown-hover dropdown-end">
-            <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
-              <i class="fa-solid fa-trash"></i>
-              <span v-if="isRemove"> Confirm </span>
+      <div class="flex gap-2 items-center justify-end relative grow">
+        <div class="opacity-0 group-hover:opacity-100 flex flex-col absolute right-0 top-0">
+          <div class="gap-2 flex justify-end items-center">
+            <div class="tooltip tooltip-bottom click"
+              :data-tip="message.hide ? 'Click to add message to conversation' : 
+                                        'Click to hide message from the conversation'"
+              :checked="!message.hide" @click.stop="$emit('hide')"
+              >
+              <i class="fa-solid fa-eye" v-if="message.hide"></i>
+              <i class="text-warning fa-solid fa-eye-slash" v-else></i>
+            </div>  
+            <button class="btn btn-xs tooltip tooltip-bottom" data-tip="Expand/Collapse" @click="toggleCollapse">
+              <span v-if="message.collapse">
+                <i class="fa-solid fa-chevron-up"></i>
+              </span>
+              <span v-else>
+                <i class="fa-solid fa-chevron-down"></i>
+              </span>
             </button>
-            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow w-28 p-2">
-              <li>
-                <a class="hover:underline" @click="confirmRemove">Yes</a>
-              </li>
-              <li>
-                <a class="hover:underline" @click.stop="cancelRemove">No</a>
-              </li>
-            </ul>
+            <button class="btn btn-xs hover:btn-outline bg-base-100 tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
+              <i class="fa-solid fa-copy"></i>
+            </button>      
+            <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
+              <i class="fa-solid fa-code"></i>
+            </button>
+            <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
+              <i class="fa-regular fa-file-lines"></i>
+              <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
+            </button>
+            <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
+              <i class="fa-solid fa-pencil"></i>
+            </button>
+            <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
+              @click="$emit('enhance')">
+              <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+            <div class="dropdown dropdown-hover dropdown-end">
+              <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
+                <i class="fa-solid fa-trash"></i>
+                <span v-if="isRemove"> Confirm </span>
+              </button>
+              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow w-28 p-2">
+                <li>
+                  <a class="hover:underline" @click="confirmRemove">Yes</a>
+                </li>
+                <li>
+                  <a class="hover:underline" @click.stop="cancelRemove">No</a>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="flex justify-end">
+            <div>{{ message.profiles?.join(',') }}</div>
           </div>
         </div>
       </div>

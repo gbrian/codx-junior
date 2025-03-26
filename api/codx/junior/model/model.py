@@ -6,6 +6,7 @@ from datetime import datetime
 
 from typing import List, Dict, Union, Optional
 
+
 class ImageUrl(BaseModel):
     url: str = Field(default="")
 
@@ -59,6 +60,11 @@ class CodxUser(BaseModel):
     avatar: str = Field(default="")
     personality: str = Field(default="")
 
+class ProfileApiSettings(BaseModel):
+    active: bool = Field(description="Model is visible through API", default=False)
+    model_name: Optional[str] = Field(description="Model's name", default=None)
+    description: Optional[str] = Field(description="Model's description", default=None)
+
 class Profile(BaseModel):
     name: str = Field(default="")
     url: str = Field(default="")
@@ -75,6 +81,8 @@ class Profile(BaseModel):
     use_knowledge: Optional[bool] = Field(default=True)
     user: Optional[CodxUser] = Field(default=CodxUser())
     tools: Optional[List[Tool]] = Field(default=[])
+    tags: Optional[List[str]] = Field(default=[])
+    api_settings: Optional[ProfileApiSettings] = Field(description="Indicates if the profile is accessible through the LLM API", default=ProfileApiSettings())
 
 class Document(BaseModel):
     id: int = Field(default=None)

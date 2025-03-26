@@ -13,12 +13,6 @@ import moment from 'moment'
     <div class="grow flex flex-col relative bg-base-100 gap-2 overflow-auto bg-base-300">
       <div class="p-2 flex gap-2 items-center relative justify-between">
         <ProjectDropdown v-if="!isHelpTabActive" />
-        <div class="badge flex gap-2" v-if="!isHelpTabActive">
-          <span class="text-warning"><i class="fa-solid fa-brain"></i></span>
-              {{ $projects.aiModel }} / 
-              <span class="text-info"><i class="fa-solid fa-file"></i></span>
-              {{ $projects.embeddingsModel }}
-          </div>
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>

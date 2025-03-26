@@ -19,7 +19,7 @@ import ProfileCard from '@/components/ProfileCard.vue';
       </p>  
       <div class="flex items-center justify-between mb-4">
         <input type="text" placeholder="Search profiles" v-model="searchQuery" class="input input-sm input-bordered w-full max-w-xs" />
-        <button class="btn btn-sm btn-primary ml-4" @click="$projects.createNewProfile({})">Create New</button>
+        <button class="btn btn-sm btn-primary ml-4" @click="$projects.createNewProfile({ api_settings: {} })">Create New</button>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div v-for="profile in filteredProfiles" :key="profile.name"

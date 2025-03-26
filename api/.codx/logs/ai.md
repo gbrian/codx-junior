@@ -23693,3 +23693,4455 @@ if __name__ == "__main__":
 This refined approach aligns with the specified requirements and continues to promote modular and structured code, facilitating easy management and extension of database operations.
               
 [AI] chat messages 4
+Creating a new chat completion: [HumanMessage(content='\n      <text>\n      \n@codx-api create a new set of endpoints for the app to expose a chatGPT API compatible list of endpoints: model, completions\n      </text>\n\n      <instructions>\n        Extract keywords and other relevant information from the text\n        Create a search query containing all the keywords\n        Return only the search query without any decoration of any other information \n      </instructions>\n      ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 424
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Received AI response, start reading stream
+AI response done 11 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+      <text>
+      
+@codx-api create a new set of endpoints for the app to expose a chatGPT API compatible list of endpoints: model, completions
+      </text>
+
+      <instructions>
+        Extract keywords and other relevant information from the text
+        Create a search query containing all the keywords
+        Return only the search query without any decoration of any other information 
+      </instructions>
+      
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              codx-api endpoints app chatGPT API model completions
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/ai/openai_ai.py\n@profile_function\n    def chat_completions(self, messages, config: dict = {}):\n        kwargs = {\n            "model":self.model,\n            "stream":True\n        }\n\n        if self.llm_settings.temperature:\n            kwargs["temperature"] = float(self.llm_settings.temperature) \n\n        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}... {kwargs}")\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 1755
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/ai/openai_ai.py\nself.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")\n\n        openai_messages = [self.convert_message(msg) for msg in messages]\n        temperature = float(self.settings.temperature)\n        \n        response_stream = self.client.chat.completions.create(\n            model=self.model,\n            temperature=temperature,\n            messages=openai_messages,\n            stream=True\n        )\n        callbacks = config.get("callbacks", None)\n        content_parts = []\n        if self.settings.get_log_ai():\n            self.log(f"Received AI response, start reading stream")\n        try:\n            for chunk in response_stream:\n                # Check for tools\n                #tool_calls = self.process_tool_calls(chunk.choices[0].message)\n                #if tool_calls:\n                #    messages.append(HumanMessage(content=tool_calls))\n                #    return self.chat_completions(messages=messages)\n                chunk_content = chunk.choices[0].delta.content\n                if chunk_content:\n                    content_parts.append(chunk_content)\n                    \n                if callbacks:\n                    for cb in callbacks:\n                        try:\n                            cb(chunk_content)\n                        except Exception as ex:\n                            logger.error(f"ERROR IN CALLBACKS: {ex}")\n        except Exception as ex:\n            logger.exception(f"Error reading AI response {ex}")\n        \n        self.log(f"AI response done {len(content_parts)} chunks")\n        response_content = "".join(content_parts)\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self, message):\n        tool_responses = []\n        for tool_call in message.tool_calls or []:\n            self.log(f"process_tool_calls: {tool_call}")\n            func = json.loads(tool_call.function)\n            name = func["name"]\n            params = func["arguments"]\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/app.py\n@app.delete("/api/knowledge/delete")\ndef api_knowledge_reload_all(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.delete_knowledge()\n\n\n@app.post("/api/knowledge/reload-search")\nasync def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):\n    logger.info("API:knowledge_search_endpoint")\n    codx_junior_session = request.state.codx_junior_session\n    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))\n\n@app.get("/api/knowledge/status")\ndef api_knowledge_status(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.check_knowledge_status()\n\n@app.get("/api/chats")\ndef api_list_chats(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path = request.query_params.get("file_path")\n    chat_id = request.query_params.get("id")\n    if chat_id:\n        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)\n    if file_path:\n        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)\n    return codx_junior_session.list_chats()\n\n@profile_function\n@app.post("/api/chats")\nasync def api_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")\n    await codx_junior_session.chat_with_project(chat=chat)\n    await codx_junior_session.save_chat(chat)\n    return chat\n\n@profile_function\n@app.post("/api/chats/sub-tasks")\nasync def api_chat_subtasks(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return await codx_junior_session.generate_tasks(chat=chat)\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/app.py\n@app.get("/api/screen")\ndef api_screen_get():\n    screen = Screen()\n    try:\n        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]\n        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})\n        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768\n        lines = res.split("\\n")\n        screen_line = [l for l in lines if l.startswith("Screen ")][0]\n        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")\n    except Exception as ex:\n        logger.error(f"Error extracting screen resolutions {ex}")\n    return screen\n\n@app.post("/api/image-to-text")\nasync def api_image_to_text_endpoint(file: UploadFile):\n    file_bytes = await file.read()            \n    return api_image_to_text(file_bytes)\n\n@app.post("/api/restart")\ndef api_restart():\n    logger.info(f"****************** API RESTARTING... bye *******************")\n    exec_command("sudo kill 7")\n\nif CODX_JUNIOR_STATIC_FOLDER:\n    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)\n    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")\n    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")\n\napp.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")\n\nstart_background_services(app)\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 2649
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/ai/openai_ai.py\nopenai_messages = [self.convert_message(msg) for msg in messages]\n        \n        response_stream = self.client.chat.completions.create(\n            **kwargs,\n            messages=openai_messages\n        )\n        callbacks = config.get("callbacks", None)\n        content_parts = []\n        if self.settings.get_log_ai():\n            self.log("Received AI response, start reading stream")\n        try:\n            callback_buffer = []\n            for chunk in response_stream:\n                # Check for tools\n                #tool_calls = self.process_tool_calls(chunk.choices[0].message)\n                #if tool_calls:\n                #    messages.append(HumanMessage(content=tool_calls))\n                #    return self.chat_completions(messages=messages)\n                chunk_content = chunk.choices[0].delta.content\n                if chunk_content:\n                    content_parts.append(chunk_content)\n                    if callbacks:\n                        callback_buffer.append(chunk_content)\n                        if len(callback_buffer) > 100:\n                            message = "".join(callback_buffer)\n                            callback_buffer = []\n                            for cb in callbacks:\n                                try:\n                                    cb(message)\n                                except Exception as ex:\n                                    logger.error(f"ERROR IN CALLBACKS: {ex}")\n        except Exception as ex:\n            logger.exception(f"Error reading AI response {ex}")\n        \n        self.log(f"AI response done {len(content_parts)} chunks")\n        response_content = "".join(content_parts)\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self, message):\n        tool_responses = []\n        for tool_call in message.tool_calls or []:\n            self.log(f"process_tool_calls: {tool_call}")\n            func = json.loads(tool_call.function)\n            name = func["name"]\n            params = func["arguments"]\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 3132
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Creating a new chat completion. Messages: 1 words: 3353
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/ai/openai_ai.py\nself.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")\n\n        openai_messages = [self.convert_message(msg) for msg in messages]\n        temperature = float(self.llm_settings.temperature)\n        \n        response_stream = self.client.chat.completions.create(\n            model=self.model,\n            temperature=temperature,\n            messages=openai_messages,\n            stream=True\n        )\n        callbacks = config.get("callbacks", None)\n        content_parts = []\n        if self.settings.get_log_ai():\n            self.log(f"Received AI response, start reading stream")\n        try:\n            for chunk in response_stream:\n                # Check for tools\n                #tool_calls = self.process_tool_calls(chunk.choices[0].message)\n                #if tool_calls:\n                #    messages.append(HumanMessage(content=tool_calls))\n                #    return self.chat_completions(messages=messages)\n                chunk_content = chunk.choices[0].delta.content\n                if chunk_content:\n                    content_parts.append(chunk_content)\n                    \n                if callbacks:\n                    for cb in callbacks:\n                        try:\n                            cb(chunk_content)\n                        except Exception as ex:\n                            logger.error(f"ERROR IN CALLBACKS: {ex}")\n        except Exception as ex:\n            logger.exception(f"Error reading AI response {ex}")\n        \n        self.log(f"AI response done {len(content_parts)} chunks")\n        response_content = "".join(content_parts)\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self, message):\n        tool_responses = []\n        for tool_call in message.tool_calls or []:\n            self.log(f"process_tool_calls: {tool_call}")\n            func = json.loads(tool_call.function)\n            name = func["name"]\n            params = func["arguments"]\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/app.py\nfrom codx.junior.utils import (\n    exec_command,\n)\n\nfrom codx.junior.context import AICodeGerator\n\nfrom codx.junior.background import start_background_services\n\nCODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")\nIMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"\nos.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)\n\napp = FastAPI(\n    title="CODXJuniorAPI",\n    description="API for CODXJunior",\n    version="1.0",\n    openapi_url="/api/openapi.json",\n    docs_url="/api/docs",\n    redoc_url="/api/redoc",\n    ssl_context=\'adhoc\'\n)\n\nsio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")\napp.mount("/api/socket.io", sio_asgi_app)\n\n@app.on_event("startup")\ndef startup_event():\n    logger.info(f"Creating FASTAPI: {app.__dict__}")\n\n@app.exception_handler(Exception)\nasync def my_exception_handler(request: Request, ex: Exception):\n    return JSONResponse(status_code=500, \n        content=traceback.format_exception(ex))\n\n@app.middleware("http")\nasync def add_process_time_header(request: Request, call_next):\n    process_time = None\n    start_time = time.time()\n    try:\n        response = await call_next(request)\n        process_time = time.time() - start_time\n        response.headers["X-Process-Time"] = str(process_time)\n        return response\n    finally:\n        logger.info(f"Request {request.url} - {time.time() - start_time} ms")\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion. Messages: 1 words: 3331
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Creating a new chat completion. Messages: 1 words: 2708
+Creating a new chat completion. Messages: 1 words: 3335
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/engine.py\nresponse = messages[-1].content\n\n          ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)\n          self.chat_event(chat=chat, message=f"Generating {len(ai_tasks.tasks)} sub tasks")\n\n          chat_manager = self.get_chat_manager()\n          for sub_task in ai_tasks.tasks:\n              sub_task.parent_id = chat.id\n              sub_task.board = chat.board\n              sub_task.column = chat.column\n              sub_task.project_id = chat.project_id\n              init_message = "\\n".join([m.content for m in sub_task.messages])\n              sub_task.messages = [Message(role="assistant", content=init_message)]\n              self.chat_event(chat=chat, message=f"Saving subtask {sub_task.name}")\n              chat_manager.save_chat(sub_task)\n\n    def get_chat_analysis_parents(self, chat: Chat):\n        """Given a chat, traverse all parents and return all analysis"""\n        parent_content = []\n        chat_manager = self.get_chat_manager()\n        parent_chat = chat_manager.find_by_id(chat.parent_id)\n        while parent_chat:\n            messages = [m.content for m in parent_chat.messages if not m.hide]\n            if messages:\n              parent_content.append("\\n".join(messages))\n            parent_chat = chat_manager.find_by_id(parent_chat.parent_id)\n        return "\\n".join(parent_content)\n\n\n    def create_knowledge_search_query(self, query: str):\n      ai = self.get_ai()\n      return ai.chat(prompt=f"""\n      <text>\n      {query}\n      </text>\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Creating a new chat completion. Messages: 1 words: 2805
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/app.py\n@app.post("/api/run/improve/patch")\nasync def api_run_improve_patch(code_generator: AICodeGerator, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)\n    return {\n        "info": info, \n        "error": error\n    }\n\n@app.get("/api/run/changes/summary")\ndef api_changes_summary(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    refresh = request.query_params.get("refresh")\n    return codx_junior_session.build_code_changes_summary(force=refresh == "true")\n\n@app.get("/api/settings")\ndef api_settings_check(request: Request):\n    logger.info("/api/settings")\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.check_project()\n    return codx_junior_session.settings\n\n@app.put("/api/settings")\nasync def api_save_settings(request: Request):\n    settings = await request.json()\n    CODXJuniorSettings.from_json(settings).save_project()\n    find_all_projects()\n    return api_settings_check(request)\n\n@app.get("/api/profiles")\ndef api_list_profile(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.list_profiles()\n\n@app.post("/api/profiles")\nasync def api_create_profile(profile: Profile, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return await codx_junior_session.save_profile(profile=profile)\n    \n@app.get("/api/profiles/{profile_name}")\ndef api_read_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.read_profile(profile_name)\n\n@app.delete("/api/profiles/{profile_name}")\ndef api_delete_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.delete_profile(profile_name)\n    return\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+Creating a new chat completion: [HumanMessage(content='\n    Given this document:\n    ```txt\n/shared/codx-junior/api/codx/junior/engine.py\nif not callback:\n                callback = lambda content: send_message_event(content=content)\n            try:\n                messages = ai.chat(messages, callback=callback)\n                response_message.content = messages[-1].content\n            except Exception as ex:\n                logger.exception(f"Error chating with project: {ex} {chat.id}")\n                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"\n\n            response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]\n            response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]\n            response_message.meta_data["model"] = ai_settings.model\n            \n            chat.messages.append(response_message)\n            if is_refine:\n                for message in chat.messages[:-1]:\n                    message.hide = True\n\n            is_agent_done = AGENT_DONE_WORD in response_message.content\n            if is_agent and not is_agent_done and iterations_left:\n              self.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")\n              return self.chat_with_project(chat=chat,\n                    disable_knowledge=disable_knowledge,\n                    callback=callback,\n                    append_references=append_references,\n                    chat_mode=chat_mode,\n                    iteration=iteration + 1)\n            else:    \n              self.chat_event(chat=chat, message="done")\n            return chat, documents\n            \n    def check_project(self):\n        try:\n            self.log_info(f"check_project")\n            loader = KnowledgeLoader(settings=self.settings)\n            loader.fix_repo()\n        except Exception as ex:\n            logger.exception(str(ex))\n\n    def extract_tags(self, doc):\n        knowledge = Knowledge(settings=self.settings)\n        knowledge.extract_doc_keywords(doc)\n        return doc\n```\n    \n    Explain how important it is for the user\'s request:\n    >>> "codx-api endpoints app chatGPT API model completions" <<<\n\n    OUTPUT INSTRUCTIONS:\n    The output should be formatted as a JSON instance that conforms to the JSON schema below.\n\nAs an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}\nthe object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.\n\nHere is the output schema:\n```\n{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\\nAnalyse the document and create an explanation with examples of the important parts that can help answering user\'s request.\\nReturn a simple JSON object with your response like:\\n```json\\n{{\\n    \\"score\\": 0.8,\\n    \\"analysis\\": {analysis_example}\\n    \\"\\n}}\\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}\n```\n    ```\n    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.\n    ', additional_kwargs={}, response_metadata={})]
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Creating a new chat completion. Messages: 1 words: 3272
+Creating a new chat completion. Messages: 1 words: 3254
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Received AI response, start reading stream
+Received AI response, start reading stream
+Received AI response, start reading stream
+Received AI response, start reading stream
+Received AI response, start reading stream
+Received AI response, start reading stream
+Received AI response, start reading stream
+Received AI response, start reading stream
+Received AI response, start reading stream
+Received AI response, start reading stream
+AI response done 124 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/ai/openai_ai.py
+@profile_function
+    def chat_completions(self, messages, config: dict = {}):
+        kwargs = {
+            "model":self.model,
+            "stream":True
+        }
+
+        if self.llm_settings.temperature:
+            kwargs["temperature"] = float(self.llm_settings.temperature) 
+
+        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}... {kwargs}")
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.9,
+    "analysis": "The document is highly relevant to the user's request. It describes a function `chat_completions` within a file path suggestive of an API module related to chat-based AI using OpenAI models, which aligns with keywords like 'codx-api', 'chatGPT', and 'API model completions' in the request. The function appears to deal with configuring and logging chat completions using the OpenAI API, including parameters like 'model' and 'temperature', both significant for API endpoints dealing with AI model interactions."
+}
+```
+              
+[AI] chat messages 2
+AI response done 170 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/app.py
+@app.post("/api/run/improve/patch")
+async def api_run_improve_patch(code_generator: AICodeGerator, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)
+    return {
+        "info": info, 
+        "error": error
+    }
+
+@app.get("/api/run/changes/summary")
+def api_changes_summary(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    refresh = request.query_params.get("refresh")
+    return codx_junior_session.build_code_changes_summary(force=refresh == "true")
+
+@app.get("/api/settings")
+def api_settings_check(request: Request):
+    logger.info("/api/settings")
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.check_project()
+    return codx_junior_session.settings
+
+@app.put("/api/settings")
+async def api_save_settings(request: Request):
+    settings = await request.json()
+    CODXJuniorSettings.from_json(settings).save_project()
+    find_all_projects()
+    return api_settings_check(request)
+
+@app.get("/api/profiles")
+def api_list_profile(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.list_profiles()
+
+@app.post("/api/profiles")
+async def api_create_profile(profile: Profile, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.save_profile(profile=profile)
+    
+@app.get("/api/profiles/{profile_name}")
+def api_read_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.read_profile(profile_name)
+
+@app.delete("/api/profiles/{profile_name}")
+def api_delete_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.delete_profile(profile_name)
+    return
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.7,
+    "analysis": "The document provided routes API endpoints for the 'codx-junior' application, which handle actions such as improving code patches, summarizing code changes, managing settings, and handling user profiles. The user's request for 'codx-api endpoints app chatGPT API model completions' seems interested in API documentation related to code completions, possibly derived from AI models. The mentioned endpoints in the document relate directly to programmatic functionalities like improving code, managing settings, and handling user profiles, which could be relevant for a chatGPT API requiring code generation or completion features. However, the document does not explicitly mention model completions but provides endpoints which might interact with such functionality indirectly, especially through '/api/run/improve/patch' and profile management endpoints."
+}
+```
+              
+[AI] chat messages 2
+AI response done 176 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/engine.py
+response = messages[-1].content
+
+          ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)
+          self.chat_event(chat=chat, message=f"Generating {len(ai_tasks.tasks)} sub tasks")
+
+          chat_manager = self.get_chat_manager()
+          for sub_task in ai_tasks.tasks:
+              sub_task.parent_id = chat.id
+              sub_task.board = chat.board
+              sub_task.column = chat.column
+              sub_task.project_id = chat.project_id
+              init_message = "\n".join([m.content for m in sub_task.messages])
+              sub_task.messages = [Message(role="assistant", content=init_message)]
+              self.chat_event(chat=chat, message=f"Saving subtask {sub_task.name}")
+              chat_manager.save_chat(sub_task)
+
+    def get_chat_analysis_parents(self, chat: Chat):
+        """Given a chat, traverse all parents and return all analysis"""
+        parent_content = []
+        chat_manager = self.get_chat_manager()
+        parent_chat = chat_manager.find_by_id(chat.parent_id)
+        while parent_chat:
+            messages = [m.content for m in parent_chat.messages if not m.hide]
+            if messages:
+              parent_content.append("\n".join(messages))
+            parent_chat = chat_manager.find_by_id(parent_chat.parent_id)
+        return "\n".join(parent_content)
+
+
+    def create_knowledge_search_query(self, query: str):
+      ai = self.get_ai()
+      return ai.chat(prompt=f"""
+      <text>
+      {query}
+      </text>
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.7,
+    "analysis": "The document contains functions and operations related to a chat system and integrates with AI tasks. Given the user's request about 'codx-api endpoints app chatGPT API model completions', the document is relevant but not entirely focused on API endpoints or the ChatGPT model explicitly. The document details creating sub-tasks from AI responses and traversing chat parent relationships, which might not be directly about API model completions but shows interaction with an AI, which could be relevant to understanding the chatGPT API's application in generating and managing chat-related tasks. Examples include 'AI_TASKS_RESPONSE_PARSER.invoke(response)' that processes AI model output, and 'create_knowledge_search_query' that constructs a query possibly for an AI-driven search, indicating the document's relevance to AI-based chat management operations."
+}
+```
+              
+[AI] chat messages 2
+AI response done 170 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/ai/openai_ai.py
+self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
+
+        openai_messages = [self.convert_message(msg) for msg in messages]
+        temperature = float(self.llm_settings.temperature)
+        
+        response_stream = self.client.chat.completions.create(
+            model=self.model,
+            temperature=temperature,
+            messages=openai_messages,
+            stream=True
+        )
+        callbacks = config.get("callbacks", None)
+        content_parts = []
+        if self.settings.get_log_ai():
+            self.log(f"Received AI response, start reading stream")
+        try:
+            for chunk in response_stream:
+                # Check for tools
+                #tool_calls = self.process_tool_calls(chunk.choices[0].message)
+                #if tool_calls:
+                #    messages.append(HumanMessage(content=tool_calls))
+                #    return self.chat_completions(messages=messages)
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    content_parts.append(chunk_content)
+                    
+                if callbacks:
+                    for cb in callbacks:
+                        try:
+                            cb(chunk_content)
+                        except Exception as ex:
+                            logger.error(f"ERROR IN CALLBACKS: {ex}")
+        except Exception as ex:
+            logger.exception(f"Error reading AI response {ex}")
+        
+        self.log(f"AI response done {len(content_parts)} chunks")
+        response_content = "".join(content_parts)
+        return AIMessage(content=response_content)
+
+    def process_tool_calls(self, message):
+        tool_responses = []
+        for tool_call in message.tool_calls or []:
+            self.log(f"process_tool_calls: {tool_call}")
+            func = json.loads(tool_call.function)
+            name = func["name"]
+            params = func["arguments"]
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.9,
+    "analysis": "The document is highly relevant to the user's request regarding 'codx-api endpoints app chatGPT API model completions'. It describes a Python class method that handles communication with the OpenAI API to receive chat completions. Key aspects include the use of parameters like 'model' and 'temperature', which are pertinent to configuring API endpoints for chat completions as mentioned in the user's query. The method orchestrates a chat process with streaming responses, captures chunks of data, and handles callbacks, which are crucial components when developing endpoints for a chat-based application using the ChatGPT API. Additionally, it logs AI interactions and processes any tool calls within the chat messages, indicating extension possibilities, making it well-aligned with the user's interest in API endpoints and completions."
+}
+```
+              
+[AI] chat messages 2
+AI response done 191 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/app.py
+@app.get("/api/screen")
+def api_screen_get():
+    screen = Screen()
+    try:
+        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
+        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
+        lines = res.split("\n")
+        screen_line = [l for l in lines if l.startswith("Screen ")][0]
+        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
+    except Exception as ex:
+        logger.error(f"Error extracting screen resolutions {ex}")
+    return screen
+
+@app.post("/api/image-to-text")
+async def api_image_to_text_endpoint(file: UploadFile):
+    file_bytes = await file.read()            
+    return api_image_to_text(file_bytes)
+
+@app.post("/api/restart")
+def api_restart():
+    logger.info(f"****************** API RESTARTING... bye *******************")
+    exec_command("sudo kill 7")
+
+if CODX_JUNIOR_STATIC_FOLDER:
+    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)
+    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")
+    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")
+
+app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
+
+start_background_services(app)
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.5,
+    "analysis": "The document outlines several API endpoints for a FastAPI application located in the file 'app.py'. It includes endpoints for retrieving screen information, converting image files to text, and restarting the API service. The 'api/screen' endpoint retrieves the screen's current resolution, which might be relevant for understanding graphical interface settings. The 'api/image-to-text' endpoint is associated with image processing, which could be related to chat functionality in apps using image data, similar to feature discussions in AI models like ChatGPT. The restart endpoint is administrative and less relevant to chat functionality. The API mounts static files for a client chat interface, suggesting a user-facing chat application possibly connecting to models like ChatGPT. While the document describes API functionality, it doesn't directly mention ChatGPT or API model completions, but it potentially supports a chat interface that could interact with such models."
+}
+```
+              
+[AI] chat messages 2
+AI response done 160 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/engine.py
+if not callback:
+                callback = lambda content: send_message_event(content=content)
+            try:
+                messages = ai.chat(messages, callback=callback)
+                response_message.content = messages[-1].content
+            except Exception as ex:
+                logger.exception(f"Error chating with project: {ex} {chat.id}")
+                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
+
+            response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
+            response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
+            response_message.meta_data["model"] = ai_settings.model
+            
+            chat.messages.append(response_message)
+            if is_refine:
+                for message in chat.messages[:-1]:
+                    message.hide = True
+
+            is_agent_done = AGENT_DONE_WORD in response_message.content
+            if is_agent and not is_agent_done and iterations_left:
+              self.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")
+              return self.chat_with_project(chat=chat,
+                    disable_knowledge=disable_knowledge,
+                    callback=callback,
+                    append_references=append_references,
+                    chat_mode=chat_mode,
+                    iteration=iteration + 1)
+            else:    
+              self.chat_event(chat=chat, message="done")
+            return chat, documents
+            
+    def check_project(self):
+        try:
+            self.log_info(f"check_project")
+            loader = KnowledgeLoader(settings=self.settings)
+            loader.fix_repo()
+        except Exception as ex:
+            logger.exception(str(ex))
+
+    def extract_tags(self, doc):
+        knowledge = Knowledge(settings=self.settings)
+        knowledge.extract_doc_keywords(doc)
+        return doc
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.7,
+    "analysis": "The document appears to be part of an API related to a project called 'codx-junior' and involves chat functionality with a model, likely ChatGPT, to produce completions. The code includes mechanisms to handle message callbacks, error logging, measuring response times, and iterations for an agent system, which are important features for a chat-like API service. Given the user's interest in 'codx-api endpoints app chatGPT API model completions,' the document is moderately relevant. It details parts of how a chat system functions within the app, such as handling exceptions, generating responses, and refining outputs through iterations, which aligns with the user's query about chat and model completions within an API context."
+}
+```
+              
+[AI] chat messages 2
+AI response done 189 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/app.py
+@app.delete("/api/knowledge/delete")
+def api_knowledge_reload_all(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.delete_knowledge()
+
+
+@app.post("/api/knowledge/reload-search")
+async def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):
+    logger.info("API:knowledge_search_endpoint")
+    codx_junior_session = request.state.codx_junior_session
+    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))
+
+@app.get("/api/knowledge/status")
+def api_knowledge_status(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.check_knowledge_status()
+
+@app.get("/api/chats")
+def api_list_chats(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("file_path")
+    chat_id = request.query_params.get("id")
+    if chat_id:
+        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
+    if file_path:
+        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
+    return codx_junior_session.list_chats()
+
+@profile_function
+@app.post("/api/chats")
+async def api_chat(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
+    await codx_junior_session.chat_with_project(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@profile_function
+@app.post("/api/chats/sub-tasks")
+async def api_chat_subtasks(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.generate_tasks(chat=chat)
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.7,
+    "analysis": "The document provides details on various API endpoints related to knowledge and chats, which are components that could potentially interact with a chatGPT API model. The endpoints for chat management (/api/chats and /api/chats/sub-tasks) and knowledge management (/api/knowledge/delete, /api/knowledge/reload-search, /api/knowledge/status) indicate functionalities that involve handling chat interactions and knowledge base operations. This could link to how a chatGPT API model processes and generates completions based on user interactions and stored knowledge. However, the document does not explicitly mention the integration or usage of a chatGPT or API model for generating text completions or other output, meaning it only partially overlaps with the user's request. The document mainly focuses on the backend API logic which might be used as part of a broader system that includes a chatGPT API model."
+}
+```
+              
+[AI] chat messages 2
+AI response done 197 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/app.py
+from codx.junior.utils import (
+    exec_command,
+)
+
+from codx.junior.context import AICodeGerator
+
+from codx.junior.background import start_background_services
+
+CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
+IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
+os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
+
+app = FastAPI(
+    title="CODXJuniorAPI",
+    description="API for CODXJunior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
+
+@app.on_event("startup")
+def startup_event():
+    logger.info(f"Creating FASTAPI: {app.__dict__}")
+
+@app.exception_handler(Exception)
+async def my_exception_handler(request: Request, ex: Exception):
+    return JSONResponse(status_code=500, 
+        content=traceback.format_exception(ex))
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    process_time = None
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+    finally:
+        logger.info(f"Request {request.url} - {time.time() - start_time} ms")
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.6,
+    "analysis": "The document appears to be a Python script for a FastAPI application, potentially relevant to the user's interest in APIs related to codx endpoints and chatGPT model completions. Key aspects include:\n1. The route setup using FastAPI, with endpoints defined for `openapi.json`, `docs`, and `redoc`, which could relate to exposing API endpoints.\n2. The use of middleware and exception handlers, useful for managing API requests and responses, although it does not explicitly define chatGPT or model completion endpoints.\n3. Background services are mentioned, which might relate to handling asynchronous tasks, essential in chat API scenarios.\n4. The script includes a socketio setup for real-time communication, which could facilitate interaction scenarios like chat completion.\nOverall, while the document outlines a framework relevant to API development, it lacks specific details on chatGPT or model completion functionality."
+}
+```
+              
+[AI] chat messages 2
+AI response done 200 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/ai/openai_ai.py
+self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
+
+        openai_messages = [self.convert_message(msg) for msg in messages]
+        temperature = float(self.settings.temperature)
+        
+        response_stream = self.client.chat.completions.create(
+            model=self.model,
+            temperature=temperature,
+            messages=openai_messages,
+            stream=True
+        )
+        callbacks = config.get("callbacks", None)
+        content_parts = []
+        if self.settings.get_log_ai():
+            self.log(f"Received AI response, start reading stream")
+        try:
+            for chunk in response_stream:
+                # Check for tools
+                #tool_calls = self.process_tool_calls(chunk.choices[0].message)
+                #if tool_calls:
+                #    messages.append(HumanMessage(content=tool_calls))
+                #    return self.chat_completions(messages=messages)
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    content_parts.append(chunk_content)
+                    
+                if callbacks:
+                    for cb in callbacks:
+                        try:
+                            cb(chunk_content)
+                        except Exception as ex:
+                            logger.error(f"ERROR IN CALLBACKS: {ex}")
+        except Exception as ex:
+            logger.exception(f"Error reading AI response {ex}")
+        
+        self.log(f"AI response done {len(content_parts)} chunks")
+        response_content = "".join(content_parts)
+        return AIMessage(content=response_content)
+
+    def process_tool_calls(self, message):
+        tool_responses = []
+        for tool_call in message.tool_calls or []:
+            self.log(f"process_tool_calls: {tool_call}")
+            func = json.loads(tool_call.function)
+            name = func["name"]
+            params = func["arguments"]
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.9,
+    "analysis": "The document is highly relevant to the user's request concerning 'codx-api endpoints app chatGPT API model completions'. The script appears to define a method for creating and handling chat completions based on the OpenAI GPT model. Important parts include: 1) The use of 'self.client.chat.completions.create()' to initiate a completion request to the model, which directly relates to a codx-api endpoint for generating responses with the chatGPT model. 2) Parameters such as 'model' and 'temperature' are critical for configuring the response style and are part of the API functionality. 3) The script logs the interaction details and processes the response in chunks, which may support efficient handling of data in an API. This is important for understanding how such endpoints might be structured and function in practical applications, aligning with the user's interest in the app, API model, and completions."
+}
+```
+              
+[AI] chat messages 2
+AI response done 201 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+    Given this document:
+    ```txt
+/shared/codx-junior/api/codx/junior/ai/openai_ai.py
+openai_messages = [self.convert_message(msg) for msg in messages]
+        
+        response_stream = self.client.chat.completions.create(
+            **kwargs,
+            messages=openai_messages
+        )
+        callbacks = config.get("callbacks", None)
+        content_parts = []
+        if self.settings.get_log_ai():
+            self.log("Received AI response, start reading stream")
+        try:
+            callback_buffer = []
+            for chunk in response_stream:
+                # Check for tools
+                #tool_calls = self.process_tool_calls(chunk.choices[0].message)
+                #if tool_calls:
+                #    messages.append(HumanMessage(content=tool_calls))
+                #    return self.chat_completions(messages=messages)
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    content_parts.append(chunk_content)
+                    if callbacks:
+                        callback_buffer.append(chunk_content)
+                        if len(callback_buffer) > 100:
+                            message = "".join(callback_buffer)
+                            callback_buffer = []
+                            for cb in callbacks:
+                                try:
+                                    cb(message)
+                                except Exception as ex:
+                                    logger.error(f"ERROR IN CALLBACKS: {ex}")
+        except Exception as ex:
+            logger.exception(f"Error reading AI response {ex}")
+        
+        self.log(f"AI response done {len(content_parts)} chunks")
+        response_content = "".join(content_parts)
+        return AIMessage(content=response_content)
+
+    def process_tool_calls(self, message):
+        tool_responses = []
+        for tool_call in message.tool_calls or []:
+            self.log(f"process_tool_calls: {tool_call}")
+            func = json.loads(tool_call.function)
+            name = func["name"]
+            params = func["arguments"]
+```
+    
+    Explain how important it is for the user's request:
+    >>> "codx-api endpoints app chatGPT API model completions" <<<
+
+    OUTPUT INSTRUCTIONS:
+    The output should be formatted as a JSON instance that conforms to the JSON schema below.
+
+As an example, for the schema {"properties": {"foo": {"title": "Foo", "description": "a list of strings", "type": "array", "items": {"type": "string"}}}, "required": ["foo"]}
+the object {"foo": ["bar", "baz"]} is a well-formatted instance of the schema. The object {"properties": {"foo": ["bar", "baz"]}} is not well-formatted.
+
+Here is the output schema:
+```
+{"properties": {"score": {"description": "Scores how important is this document from 0 to 1", "title": "Score", "type": "number"}, "analysis": {"description": "\nAnalyse the document and create an explanation with examples of the important parts that can help answering user's request.\nReturn a simple JSON object with your response like:\n```json\n{{\n    \"score\": 0.8,\n    \"analysis\": {analysis_example}\n    \"\n}}\n", "title": "Analysis", "type": "string"}}, "required": ["score", "analysis"]}
+```
+    ```
+    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
+    
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              ```json
+{
+    "score": 0.8,
+    "analysis": "The document seems to be part of a codebase related to codx, specifically dealing with AI interactions likely involving the OpenAI API, as evidenced by the file path and function usage in the code. It consists of code responsible for handling and processing AI responses from the OpenAI API model completions, which aligns with the user's request regarding 'codx-api endpoints app chatGPT API model completions'. The code transforms messages, communicates with the OpenAI API to create chat completions, and processes the API responses while also handling tool calls. This is important because it provides insight into how model completions are handled programmatically in the 'codx-api'. However, the document does not directly describe API endpoints themselves, which is why the score is not a perfect 1, but rather 0.8, acknowledging its relevance to the user's request but also noting its lack of explicit detail on endpoint definitions."
+}
+```
+              
+[AI] chat messages 2
+Creating a new chat completion: [HumanMessage(content='\n                      THIS INFORMATION IS COMING FROM PROJECT\'S FILES.\n                      HOPE IT HELPS TO ANSWER USER REQUEST.\n                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).\n                      ```txt\n/shared/codx-junior/api/codx/junior/ai/openai_ai.py\n@profile_function\n    def chat_completions(self, messages, config: dict = {}):\n        kwargs = {\n            "model":self.model,\n            "stream":True\n        }\n\n        if self.llm_settings.temperature:\n            kwargs["temperature"] = float(self.llm_settings.temperature) \n\n        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}... {kwargs}")\n```\n```txt\n/shared/codx-junior/api/codx/junior/app.py\n@app.post("/api/run/improve/patch")\nasync def api_run_improve_patch(code_generator: AICodeGerator, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)\n    return {\n        "info": info, \n        "error": error\n    }\n\n@app.get("/api/run/changes/summary")\ndef api_changes_summary(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    refresh = request.query_params.get("refresh")\n    return codx_junior_session.build_code_changes_summary(force=refresh == "true")\n\n@app.get("/api/settings")\ndef api_settings_check(request: Request):\n    logger.info("/api/settings")\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.check_project()\n    return codx_junior_session.settings\n\n@app.put("/api/settings")\nasync def api_save_settings(request: Request):\n    settings = await request.json()\n    CODXJuniorSettings.from_json(settings).save_project()\n    find_all_projects()\n    return api_settings_check(request)\n\n@app.get("/api/profiles")\ndef api_list_profile(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.list_profiles()\n\n@app.post("/api/profiles")\nasync def api_create_profile(profile: Profile, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return await codx_junior_session.save_profile(profile=profile)\n    \n@app.get("/api/profiles/{profile_name}")\ndef api_read_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.read_profile(profile_name)\n\n@app.delete("/api/profiles/{profile_name}")\ndef api_delete_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.delete_profile(profile_name)\n    return\n```\n```txt\n/shared/codx-junior/api/codx/junior/engine.py\nresponse = messages[-1].content\n\n          ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)\n          self.chat_event(chat=chat, message=f"Generating {len(ai_tasks.tasks)} sub tasks")\n\n          chat_manager = self.get_chat_manager()\n          for sub_task in ai_tasks.tasks:\n              sub_task.parent_id = chat.id\n              sub_task.board = chat.board\n              sub_task.column = chat.column\n              sub_task.project_id = chat.project_id\n              init_message = "\\n".join([m.content for m in sub_task.messages])\n              sub_task.messages = [Message(role="assistant", content=init_message)]\n              self.chat_event(chat=chat, message=f"Saving subtask {sub_task.name}")\n              chat_manager.save_chat(sub_task)\n\n    def get_chat_analysis_parents(self, chat: Chat):\n        """Given a chat, traverse all parents and return all analysis"""\n        parent_content = []\n        chat_manager = self.get_chat_manager()\n        parent_chat = chat_manager.find_by_id(chat.parent_id)\n        while parent_chat:\n            messages = [m.content for m in parent_chat.messages if not m.hide]\n            if messages:\n              parent_content.append("\\n".join(messages))\n            parent_chat = chat_manager.find_by_id(parent_chat.parent_id)\n        return "\\n".join(parent_content)\n\n\n    def create_knowledge_search_query(self, query: str):\n      ai = self.get_ai()\n      return ai.chat(prompt=f"""\n      <text>\n      {query}\n      </text>\n```\n```txt\n/shared/codx-junior/api/codx/junior/ai/openai_ai.py\nself.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")\n\n        openai_messages = [self.convert_message(msg) for msg in messages]\n        temperature = float(self.llm_settings.temperature)\n        \n        response_stream = self.client.chat.completions.create(\n            model=self.model,\n            temperature=temperature,\n            messages=openai_messages,\n            stream=True\n        )\n        callbacks = config.get("callbacks", None)\n        content_parts = []\n        if self.settings.get_log_ai():\n            self.log(f"Received AI response, start reading stream")\n        try:\n            for chunk in response_stream:\n                # Check for tools\n                #tool_calls = self.process_tool_calls(chunk.choices[0].message)\n                #if tool_calls:\n                #    messages.append(HumanMessage(content=tool_calls))\n                #    return self.chat_completions(messages=messages)\n                chunk_content = chunk.choices[0].delta.content\n                if chunk_content:\n                    content_parts.append(chunk_content)\n                    \n                if callbacks:\n                    for cb in callbacks:\n                        try:\n                            cb(chunk_content)\n                        except Exception as ex:\n                            logger.error(f"ERROR IN CALLBACKS: {ex}")\n        except Exception as ex:\n            logger.exception(f"Error reading AI response {ex}")\n        \n        self.log(f"AI response done {len(content_parts)} chunks")\n        response_content = "".join(content_parts)\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self, message):\n        tool_responses = []\n        for tool_call in message.tool_calls or []:\n            self.log(f"process_tool_calls: {tool_call}")\n            func = json.loads(tool_call.function)\n            name = func["name"]\n            params = func["arguments"]\n```\n```txt\n/shared/codx-junior/api/codx/junior/app.py\n@app.get("/api/screen")\ndef api_screen_get():\n    screen = Screen()\n    try:\n        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]\n        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})\n        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768\n        lines = res.split("\\n")\n        screen_line = [l for l in lines if l.startswith("Screen ")][0]\n        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")\n    except Exception as ex:\n        logger.error(f"Error extracting screen resolutions {ex}")\n    return screen\n\n@app.post("/api/image-to-text")\nasync def api_image_to_text_endpoint(file: UploadFile):\n    file_bytes = await file.read()            \n    return api_image_to_text(file_bytes)\n\n@app.post("/api/restart")\ndef api_restart():\n    logger.info(f"****************** API RESTARTING... bye *******************")\n    exec_command("sudo kill 7")\n\nif CODX_JUNIOR_STATIC_FOLDER:\n    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)\n    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")\n    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")\n\napp.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")\n\nstart_background_services(app)\n```\n```txt\n/shared/codx-junior/api/codx/junior/engine.py\nif not callback:\n                callback = lambda content: send_message_event(content=content)\n            try:\n                messages = ai.chat(messages, callback=callback)\n                response_message.content = messages[-1].content\n            except Exception as ex:\n                logger.exception(f"Error chating with project: {ex} {chat.id}")\n                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"\n\n            response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]\n            response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]\n            response_message.meta_data["model"] = ai_settings.model\n            \n            chat.messages.append(response_message)\n            if is_refine:\n                for message in chat.messages[:-1]:\n                    message.hide = True\n\n            is_agent_done = AGENT_DONE_WORD in response_message.content\n            if is_agent and not is_agent_done and iterations_left:\n              self.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")\n              return self.chat_with_project(chat=chat,\n                    disable_knowledge=disable_knowledge,\n                    callback=callback,\n                    append_references=append_references,\n                    chat_mode=chat_mode,\n                    iteration=iteration + 1)\n            else:    \n              self.chat_event(chat=chat, message="done")\n            return chat, documents\n            \n    def check_project(self):\n        try:\n            self.log_info(f"check_project")\n            loader = KnowledgeLoader(settings=self.settings)\n            loader.fix_repo()\n        except Exception as ex:\n            logger.exception(str(ex))\n\n    def extract_tags(self, doc):\n        knowledge = Knowledge(settings=self.settings)\n        knowledge.extract_doc_keywords(doc)\n        return doc\n```\n```txt\n/shared/codx-junior/api/codx/junior/app.py\n@app.delete("/api/knowledge/delete")\ndef api_knowledge_reload_all(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.delete_knowledge()\n\n\n@app.post("/api/knowledge/reload-search")\nasync def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):\n    logger.info("API:knowledge_search_endpoint")\n    codx_junior_session = request.state.codx_junior_session\n    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))\n\n@app.get("/api/knowledge/status")\ndef api_knowledge_status(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.check_knowledge_status()\n\n@app.get("/api/chats")\ndef api_list_chats(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path = request.query_params.get("file_path")\n    chat_id = request.query_params.get("id")\n    if chat_id:\n        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)\n    if file_path:\n        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)\n    return codx_junior_session.list_chats()\n\n@profile_function\n@app.post("/api/chats")\nasync def api_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")\n    await codx_junior_session.chat_with_project(chat=chat)\n    await codx_junior_session.save_chat(chat)\n    return chat\n\n@profile_function\n@app.post("/api/chats/sub-tasks")\nasync def api_chat_subtasks(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return await codx_junior_session.generate_tasks(chat=chat)\n```\n```txt\n/shared/codx-junior/api/codx/junior/app.py\nfrom codx.junior.utils import (\n    exec_command,\n)\n\nfrom codx.junior.context import AICodeGerator\n\nfrom codx.junior.background import start_background_services\n\nCODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")\nIMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"\nos.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)\n\napp = FastAPI(\n    title="CODXJuniorAPI",\n    description="API for CODXJunior",\n    version="1.0",\n    openapi_url="/api/openapi.json",\n    docs_url="/api/docs",\n    redoc_url="/api/redoc",\n    ssl_context=\'adhoc\'\n)\n\nsio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")\napp.mount("/api/socket.io", sio_asgi_app)\n\n@app.on_event("startup")\ndef startup_event():\n    logger.info(f"Creating FASTAPI: {app.__dict__}")\n\n@app.exception_handler(Exception)\nasync def my_exception_handler(request: Request, ex: Exception):\n    return JSONResponse(status_code=500, \n        content=traceback.format_exception(ex))\n\n@app.middleware("http")\nasync def add_process_time_header(request: Request, call_next):\n    process_time = None\n    start_time = time.time()\n    try:\n        response = await call_next(request)\n        process_time = time.time() - start_time\n        response.headers["X-Process-Time"] = str(process_time)\n        return response\n    finally:\n        logger.info(f"Request {request.url} - {time.time() - start_time} ms")\n```\n```txt\n/shared/codx-junior/api/codx/junior/ai/openai_ai.py\nself.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")\n\n        openai_messages = [self.convert_message(msg) for msg in messages]\n        temperature = float(self.settings.temperature)\n        \n        response_stream = self.client.chat.completions.create(\n            model=self.model,\n            temperature=temperature,\n            messages=openai_messages,\n            stream=True\n        )\n        callbacks = config.get("callbacks", None)\n        content_parts = []\n        if self.settings.get_log_ai():\n            self.log(f"Received AI response, start reading stream")\n        try:\n            for chunk in response_stream:\n                # Check for tools\n                #tool_calls = self.process_tool_calls(chunk.choices[0].message)\n                #if tool_calls:\n                #    messages.append(HumanMessage(content=tool_calls))\n                #    return self.chat_completions(messages=messages)\n                chunk_content = chunk.choices[0].delta.content\n                if chunk_content:\n                    content_parts.append(chunk_content)\n                    \n                if callbacks:\n                    for cb in callbacks:\n                        try:\n                            cb(chunk_content)\n                        except Exception as ex:\n                            logger.error(f"ERROR IN CALLBACKS: {ex}")\n        except Exception as ex:\n            logger.exception(f"Error reading AI response {ex}")\n        \n        self.log(f"AI response done {len(content_parts)} chunks")\n        response_content = "".join(content_parts)\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self, message):\n        tool_responses = []\n        for tool_call in message.tool_calls or []:\n            self.log(f"process_tool_calls: {tool_call}")\n            func = json.loads(tool_call.function)\n            name = func["name"]\n            params = func["arguments"]\n```\n```txt\n/shared/codx-junior/api/codx/junior/ai/openai_ai.py\nopenai_messages = [self.convert_message(msg) for msg in messages]\n        \n        response_stream = self.client.chat.completions.create(\n            **kwargs,\n            messages=openai_messages\n        )\n        callbacks = config.get("callbacks", None)\n        content_parts = []\n        if self.settings.get_log_ai():\n            self.log("Received AI response, start reading stream")\n        try:\n            callback_buffer = []\n            for chunk in response_stream:\n                # Check for tools\n                #tool_calls = self.process_tool_calls(chunk.choices[0].message)\n                #if tool_calls:\n                #    messages.append(HumanMessage(content=tool_calls))\n                #    return self.chat_completions(messages=messages)\n                chunk_content = chunk.choices[0].delta.content\n                if chunk_content:\n                    content_parts.append(chunk_content)\n                    if callbacks:\n                        callback_buffer.append(chunk_content)\n                        if len(callback_buffer) > 100:\n                            message = "".join(callback_buffer)\n                            callback_buffer = []\n                            for cb in callbacks:\n                                try:\n                                    cb(message)\n                                except Exception as ex:\n                                    logger.error(f"ERROR IN CALLBACKS: {ex}")\n        except Exception as ex:\n            logger.exception(f"Error reading AI response {ex}")\n        \n        self.log(f"AI response done {len(content_parts)} chunks")\n        response_content = "".join(content_parts)\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self, message):\n        tool_responses = []\n        for tool_call in message.tool_calls or []:\n            self.log(f"process_tool_calls: {tool_call}")\n            func = json.loads(tool_call.function)\n            name = func["name"]\n            params = func["arguments"]\n```\n\n                      ', additional_kwargs={}, response_metadata={}), HumanMessage(content='@codx-api create a new set of endpoints for the app to expose a chatGPT API compatible list of endpoints: model, completions', additional_kwargs={}, response_metadata={}, profiles='')]
+Creating a new chat completion. Messages: 2 words: 17289
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Received AI response, start reading stream
+AI response done 747 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              
+                      THIS INFORMATION IS COMING FROM PROJECT'S FILES.
+                      HOPE IT HELPS TO ANSWER USER REQUEST.
+                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
+                      ```txt
+/shared/codx-junior/api/codx/junior/ai/openai_ai.py
+@profile_function
+    def chat_completions(self, messages, config: dict = {}):
+        kwargs = {
+            "model":self.model,
+            "stream":True
+        }
+
+        if self.llm_settings.temperature:
+            kwargs["temperature"] = float(self.llm_settings.temperature) 
+
+        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}... {kwargs}")
+```
+```txt
+/shared/codx-junior/api/codx/junior/app.py
+@app.post("/api/run/improve/patch")
+async def api_run_improve_patch(code_generator: AICodeGerator, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)
+    return {
+        "info": info, 
+        "error": error
+    }
+
+@app.get("/api/run/changes/summary")
+def api_changes_summary(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    refresh = request.query_params.get("refresh")
+    return codx_junior_session.build_code_changes_summary(force=refresh == "true")
+
+@app.get("/api/settings")
+def api_settings_check(request: Request):
+    logger.info("/api/settings")
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.check_project()
+    return codx_junior_session.settings
+
+@app.put("/api/settings")
+async def api_save_settings(request: Request):
+    settings = await request.json()
+    CODXJuniorSettings.from_json(settings).save_project()
+    find_all_projects()
+    return api_settings_check(request)
+
+@app.get("/api/profiles")
+def api_list_profile(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.list_profiles()
+
+@app.post("/api/profiles")
+async def api_create_profile(profile: Profile, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.save_profile(profile=profile)
+    
+@app.get("/api/profiles/{profile_name}")
+def api_read_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.read_profile(profile_name)
+
+@app.delete("/api/profiles/{profile_name}")
+def api_delete_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.delete_profile(profile_name)
+    return
+```
+```txt
+/shared/codx-junior/api/codx/junior/engine.py
+response = messages[-1].content
+
+          ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)
+          self.chat_event(chat=chat, message=f"Generating {len(ai_tasks.tasks)} sub tasks")
+
+          chat_manager = self.get_chat_manager()
+          for sub_task in ai_tasks.tasks:
+              sub_task.parent_id = chat.id
+              sub_task.board = chat.board
+              sub_task.column = chat.column
+              sub_task.project_id = chat.project_id
+              init_message = "\n".join([m.content for m in sub_task.messages])
+              sub_task.messages = [Message(role="assistant", content=init_message)]
+              self.chat_event(chat=chat, message=f"Saving subtask {sub_task.name}")
+              chat_manager.save_chat(sub_task)
+
+    def get_chat_analysis_parents(self, chat: Chat):
+        """Given a chat, traverse all parents and return all analysis"""
+        parent_content = []
+        chat_manager = self.get_chat_manager()
+        parent_chat = chat_manager.find_by_id(chat.parent_id)
+        while parent_chat:
+            messages = [m.content for m in parent_chat.messages if not m.hide]
+            if messages:
+              parent_content.append("\n".join(messages))
+            parent_chat = chat_manager.find_by_id(parent_chat.parent_id)
+        return "\n".join(parent_content)
+
+
+    def create_knowledge_search_query(self, query: str):
+      ai = self.get_ai()
+      return ai.chat(prompt=f"""
+      <text>
+      {query}
+      </text>
+```
+```txt
+/shared/codx-junior/api/codx/junior/ai/openai_ai.py
+self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
+
+        openai_messages = [self.convert_message(msg) for msg in messages]
+        temperature = float(self.llm_settings.temperature)
+        
+        response_stream = self.client.chat.completions.create(
+            model=self.model,
+            temperature=temperature,
+            messages=openai_messages,
+            stream=True
+        )
+        callbacks = config.get("callbacks", None)
+        content_parts = []
+        if self.settings.get_log_ai():
+            self.log(f"Received AI response, start reading stream")
+        try:
+            for chunk in response_stream:
+                # Check for tools
+                #tool_calls = self.process_tool_calls(chunk.choices[0].message)
+                #if tool_calls:
+                #    messages.append(HumanMessage(content=tool_calls))
+                #    return self.chat_completions(messages=messages)
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    content_parts.append(chunk_content)
+                    
+                if callbacks:
+                    for cb in callbacks:
+                        try:
+                            cb(chunk_content)
+                        except Exception as ex:
+                            logger.error(f"ERROR IN CALLBACKS: {ex}")
+        except Exception as ex:
+            logger.exception(f"Error reading AI response {ex}")
+        
+        self.log(f"AI response done {len(content_parts)} chunks")
+        response_content = "".join(content_parts)
+        return AIMessage(content=response_content)
+
+    def process_tool_calls(self, message):
+        tool_responses = []
+        for tool_call in message.tool_calls or []:
+            self.log(f"process_tool_calls: {tool_call}")
+            func = json.loads(tool_call.function)
+            name = func["name"]
+            params = func["arguments"]
+```
+```txt
+/shared/codx-junior/api/codx/junior/app.py
+@app.get("/api/screen")
+def api_screen_get():
+    screen = Screen()
+    try:
+        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
+        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
+        lines = res.split("\n")
+        screen_line = [l for l in lines if l.startswith("Screen ")][0]
+        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
+    except Exception as ex:
+        logger.error(f"Error extracting screen resolutions {ex}")
+    return screen
+
+@app.post("/api/image-to-text")
+async def api_image_to_text_endpoint(file: UploadFile):
+    file_bytes = await file.read()            
+    return api_image_to_text(file_bytes)
+
+@app.post("/api/restart")
+def api_restart():
+    logger.info(f"****************** API RESTARTING... bye *******************")
+    exec_command("sudo kill 7")
+
+if CODX_JUNIOR_STATIC_FOLDER:
+    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)
+    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")
+    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")
+
+app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
+
+start_background_services(app)
+```
+```txt
+/shared/codx-junior/api/codx/junior/engine.py
+if not callback:
+                callback = lambda content: send_message_event(content=content)
+            try:
+                messages = ai.chat(messages, callback=callback)
+                response_message.content = messages[-1].content
+            except Exception as ex:
+                logger.exception(f"Error chating with project: {ex} {chat.id}")
+                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
+
+            response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
+            response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
+            response_message.meta_data["model"] = ai_settings.model
+            
+            chat.messages.append(response_message)
+            if is_refine:
+                for message in chat.messages[:-1]:
+                    message.hide = True
+
+            is_agent_done = AGENT_DONE_WORD in response_message.content
+            if is_agent and not is_agent_done and iterations_left:
+              self.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")
+              return self.chat_with_project(chat=chat,
+                    disable_knowledge=disable_knowledge,
+                    callback=callback,
+                    append_references=append_references,
+                    chat_mode=chat_mode,
+                    iteration=iteration + 1)
+            else:    
+              self.chat_event(chat=chat, message="done")
+            return chat, documents
+            
+    def check_project(self):
+        try:
+            self.log_info(f"check_project")
+            loader = KnowledgeLoader(settings=self.settings)
+            loader.fix_repo()
+        except Exception as ex:
+            logger.exception(str(ex))
+
+    def extract_tags(self, doc):
+        knowledge = Knowledge(settings=self.settings)
+        knowledge.extract_doc_keywords(doc)
+        return doc
+```
+```txt
+/shared/codx-junior/api/codx/junior/app.py
+@app.delete("/api/knowledge/delete")
+def api_knowledge_reload_all(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.delete_knowledge()
+
+
+@app.post("/api/knowledge/reload-search")
+async def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):
+    logger.info("API:knowledge_search_endpoint")
+    codx_junior_session = request.state.codx_junior_session
+    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))
+
+@app.get("/api/knowledge/status")
+def api_knowledge_status(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.check_knowledge_status()
+
+@app.get("/api/chats")
+def api_list_chats(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("file_path")
+    chat_id = request.query_params.get("id")
+    if chat_id:
+        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
+    if file_path:
+        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
+    return codx_junior_session.list_chats()
+
+@profile_function
+@app.post("/api/chats")
+async def api_chat(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
+    await codx_junior_session.chat_with_project(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@profile_function
+@app.post("/api/chats/sub-tasks")
+async def api_chat_subtasks(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.generate_tasks(chat=chat)
+```
+```txt
+/shared/codx-junior/api/codx/junior/app.py
+from codx.junior.utils import (
+    exec_command,
+)
+
+from codx.junior.context import AICodeGerator
+
+from codx.junior.background import start_background_services
+
+CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
+IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
+os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
+
+app = FastAPI(
+    title="CODXJuniorAPI",
+    description="API for CODXJunior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
+
+@app.on_event("startup")
+def startup_event():
+    logger.info(f"Creating FASTAPI: {app.__dict__}")
+
+@app.exception_handler(Exception)
+async def my_exception_handler(request: Request, ex: Exception):
+    return JSONResponse(status_code=500, 
+        content=traceback.format_exception(ex))
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    process_time = None
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+    finally:
+        logger.info(f"Request {request.url} - {time.time() - start_time} ms")
+```
+```txt
+/shared/codx-junior/api/codx/junior/ai/openai_ai.py
+self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
+
+        openai_messages = [self.convert_message(msg) for msg in messages]
+        temperature = float(self.settings.temperature)
+        
+        response_stream = self.client.chat.completions.create(
+            model=self.model,
+            temperature=temperature,
+            messages=openai_messages,
+            stream=True
+        )
+        callbacks = config.get("callbacks", None)
+        content_parts = []
+        if self.settings.get_log_ai():
+            self.log(f"Received AI response, start reading stream")
+        try:
+            for chunk in response_stream:
+                # Check for tools
+                #tool_calls = self.process_tool_calls(chunk.choices[0].message)
+                #if tool_calls:
+                #    messages.append(HumanMessage(content=tool_calls))
+                #    return self.chat_completions(messages=messages)
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    content_parts.append(chunk_content)
+                    
+                if callbacks:
+                    for cb in callbacks:
+                        try:
+                            cb(chunk_content)
+                        except Exception as ex:
+                            logger.error(f"ERROR IN CALLBACKS: {ex}")
+        except Exception as ex:
+            logger.exception(f"Error reading AI response {ex}")
+        
+        self.log(f"AI response done {len(content_parts)} chunks")
+        response_content = "".join(content_parts)
+        return AIMessage(content=response_content)
+
+    def process_tool_calls(self, message):
+        tool_responses = []
+        for tool_call in message.tool_calls or []:
+            self.log(f"process_tool_calls: {tool_call}")
+            func = json.loads(tool_call.function)
+            name = func["name"]
+            params = func["arguments"]
+```
+```txt
+/shared/codx-junior/api/codx/junior/ai/openai_ai.py
+openai_messages = [self.convert_message(msg) for msg in messages]
+        
+        response_stream = self.client.chat.completions.create(
+            **kwargs,
+            messages=openai_messages
+        )
+        callbacks = config.get("callbacks", None)
+        content_parts = []
+        if self.settings.get_log_ai():
+            self.log("Received AI response, start reading stream")
+        try:
+            callback_buffer = []
+            for chunk in response_stream:
+                # Check for tools
+                #tool_calls = self.process_tool_calls(chunk.choices[0].message)
+                #if tool_calls:
+                #    messages.append(HumanMessage(content=tool_calls))
+                #    return self.chat_completions(messages=messages)
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    content_parts.append(chunk_content)
+                    if callbacks:
+                        callback_buffer.append(chunk_content)
+                        if len(callback_buffer) > 100:
+                            message = "".join(callback_buffer)
+                            callback_buffer = []
+                            for cb in callbacks:
+                                try:
+                                    cb(message)
+                                except Exception as ex:
+                                    logger.error(f"ERROR IN CALLBACKS: {ex}")
+        except Exception as ex:
+            logger.exception(f"Error reading AI response {ex}")
+        
+        self.log(f"AI response done {len(content_parts)} chunks")
+        response_content = "".join(content_parts)
+        return AIMessage(content=response_content)
+
+    def process_tool_calls(self, message):
+        tool_responses = []
+        for tool_call in message.tool_calls or []:
+            self.log(f"process_tool_calls: {tool_call}")
+            func = json.loads(tool_call.function)
+            name = func["name"]
+            params = func["arguments"]
+```
+
+                      
+              
+############################################
+              ### ROLE: human
+              ############################################
+
+              @codx-api create a new set of endpoints for the app to expose a chatGPT API compatible list of endpoints: model, completions
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              To create a new set of endpoints for the app to expose a ChatGPT API compatible list of endpoints such as `/models` and `/completions`, you'd follow a process similar to extending a FastAPI application. Below, I'll show how you can implement these using the existing FastAPI setup.
+
+1. **Endpoint for Listing Models**: This will mock the behavior of listing available models.
+
+2. **Endpoint for Creating Completions**: This will simulate the creation of a completion using the model.
+
+Below is a code block implementing these new endpoints in the existing FastAPI setup:
+
+```python
+from fastapi import FastAPI, Request
+from pydantic import BaseModel
+from typing import List
+
+app = FastAPI(
+    title="CODXJuniorAPI",
+    description="API for CODXJunior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+# Mock some models
+class Model(BaseModel):
+    id: str
+    object: str
+    created: int
+    owned_by: str
+
+available_models = [
+    Model(id="gpt-3.5-turbo", object="model", created=1628472935, owned_by="openai"),
+    Model(id="gpt-4", object="model", created=1628472980, owned_by="openai")
+]
+
+@app.get("/v1/models")
+async def list_models():
+    return {"object": "list", "data": available_models}
+
+@app.post("/v1/completions")
+async def create_completion(request: Request):
+    body = await request.json()
+    # Mock a completion response
+    completion_response = {
+        "id": "cmpl-3",
+        "object": "text_completion",
+        "created": 1628472935,
+        "model": body.get("model", "gpt-3.5-turbo"),
+        "choices": [
+            {
+                "text": "This is a simulated response.",
+                "index": 0,
+                "logprobs": None,
+                "finish_reason": "length"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 5,
+            "completion_tokens": 7,
+            "total_tokens": 12
+        }
+    }
+    return completion_response
+
+# Mount the existing app and servers
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
+
+# If needed, initialize additional components or services
+start_background_services(app)
+```
+
+### Explanation
+
+- **GET `/v1/models`:** This endpoint returns a list of available models using a predefined set of models defined in `available_models`.
+  
+- **POST `/v1/completions`:** This endpoint simulates response generation using a completion request. It reads from the incoming request body, allowing you to specify the model and potentially other parameters.
+
+- **Pydantic model (`Model`)**: Used for the response schema for available models.
+
+- **Mock Data**: Since this is a simulation, it's returning static data and responses. For real systems, these would query a database or other systems to fetch actual models and process real completions.
+
+Please ensure you have the `fastapi` and `pydantic` libraries installed to run the above code. You can install them via pip:
+
+```sh
+pip install fastapi pydantic
+```
+
+Also, ensure to manage CORS and authentication if these endpoints will be exposed in production.
+              
+[AI] chat messages 3
+Creating a new chat completion: [HumanMessage(content='@codx-api create a new set of endpoints for the app to expose a chatGPT API compatible list of endpoints: model, completions', additional_kwargs={}, response_metadata={}), AIMessage(content='To create a new set of endpoints for the app to expose a ChatGPT API compatible list of endpoints such as `/models` and `/completions`, you\'d follow a process similar to extending a FastAPI application. Below, I\'ll show how you can implement these using the existing FastAPI setup.\n\n1. **Endpoint for Listing Models**: This will mock the behavior of listing available models.\n\n2. **Endpoint for Creating Completions**: This will simulate the creation of a completion using the model.\n\nBelow is a code block implementing these new endpoints in the existing FastAPI setup:\n\n```python\nfrom fastapi import FastAPI, Request\nfrom pydantic import BaseModel\nfrom typing import List\n\napp = FastAPI(\n    title="CODXJuniorAPI",\n    description="API for CODXJunior",\n    version="1.0",\n    openapi_url="/api/openapi.json",\n    docs_url="/api/docs",\n    redoc_url="/api/redoc",\n    ssl_context=\'adhoc\'\n)\n\n# Mock some models\nclass Model(BaseModel):\n    id: str\n    object: str\n    created: int\n    owned_by: str\n\navailable_models = [\n    Model(id="gpt-3.5-turbo", object="model", created=1628472935, owned_by="openai"),\n    Model(id="gpt-4", object="model", created=1628472980, owned_by="openai")\n]\n\n@app.get("/v1/models")\nasync def list_models():\n    return {"object": "list", "data": available_models}\n\n@app.post("/v1/completions")\nasync def create_completion(request: Request):\n    body = await request.json()\n    # Mock a completion response\n    completion_response = {\n        "id": "cmpl-3",\n        "object": "text_completion",\n        "created": 1628472935,\n        "model": body.get("model", "gpt-3.5-turbo"),\n        "choices": [\n            {\n                "text": "This is a simulated response.",\n                "index": 0,\n                "logprobs": None,\n                "finish_reason": "length"\n            }\n        ],\n        "usage": {\n            "prompt_tokens": 5,\n            "completion_tokens": 7,\n            "total_tokens": 12\n        }\n    }\n    return completion_response\n\n# Mount the existing app and servers\nsio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")\napp.mount("/api/socket.io", sio_asgi_app)\n\n# If needed, initialize additional components or services\nstart_background_services(app)\n```\n\n### Explanation\n\n- **GET `/v1/models`:** This endpoint returns a list of available models using a predefined set of models defined in `available_models`.\n  \n- **POST `/v1/completions`:** This endpoint simulates response generation using a completion request. It reads from the incoming request body, allowing you to specify the model and potentially other parameters.\n\n- **Pydantic model (`Model`)**: Used for the response schema for available models.\n\n- **Mock Data**: Since this is a simulation, it\'s returning static data and responses. For real systems, these would query a database or other systems to fetch actual models and process real completions.\n\nPlease ensure you have the `fastapi` and `pydantic` libraries installed to run the above code. You can install them via pip:\n\n```sh\npip install fastapi pydantic\n```\n\nAlso, ensure to manage CORS and authentication if these endpoints will be exposed in production.', additional_kwargs={}, response_metadata={}), HumanMessage(content='\n                      THIS INFORMATION IS COMING FROM PROJECT\'S FILES.\n                      HOPE IT HELPS TO ANSWER USER REQUEST.\n                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).\n                      ```None\n/shared/codx-junior/api/codx/junior/app.py\nimport os\nimport uuid\nimport shutil\nimport time\nimport logging\nimport asyncio\nimport socketio\nimport traceback\n\nfrom multiprocessing.pool import ThreadPool\nfrom threading import Thread\n\nfrom pathlib import Path\n\nfrom codx.junior.ai import AIManager\n\nfrom codx.junior.sio.sio import sio\nfrom codx.junior.sio.session_channel import SessionChannel\n\nfrom codx.junior.profiling.profiler import profile_function\n\nfrom codx.junior.log_parser import parse_logs\nfrom codx.junior.browser import run_browser_manager\n\n\nlogging.basicConfig(level = logging.DEBUG,format = \'[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s\')\nlogger = logging.getLogger(__name__)\n\nrun_browser_manager()\n\ndef disable_logs(logs):\n  for logger_id in logs:\n      logging.getLogger(logger_id).setLevel(logging.WARNING)\n\ndef enable_logs(logs):\n  for logger_id in logs:\n      logging.getLogger(logger_id).setLevel(logging.DEBUG)\n\ndisable_logs([\n    \'httpx\',\n    \'httpcore.http11\',\n    \'httpcore.connection\',\n    \'openai._base_client\',\n    \'watchfiles.main\',\n    \'asyncio\',\n    \'codx.junior.project_watcher\',\n    \'selenium.webdriver.common.selenium_manager\'\n])\n\n\nfrom flask import send_file\n\nfrom fastapi import FastAPI, Request, Response, UploadFile\nfrom fastapi.staticfiles import StaticFiles\nfrom starlette.responses import RedirectResponse\nfrom fastapi.responses import JSONResponse\nfrom fastapi.responses import StreamingResponse\n\nfrom codx.junior.db import (\n    Chat,\n    Message\n)\nfrom codx.junior.model.model import (\n    KnowledgeReloadPath,\n    KnowledgeSearch,\n    KnowledgeDeleteSources,\n    Profile,\n    Document,\n    LiveEdit,\n    GlobalSettings,\n    Screen\n)\n\nfrom codx.junior.settings import (\n  CODXJuniorSettings,\n  read_global_settings,\n  write_global_settings\n)\n\nfrom codx.junior.profiles.profile_manager import ProfileManager\nfrom codx.junior.chat_manager import ChatManager\n\nfrom codx.junior.engine import (\n    create_project,\n    coder_open_file,\n    find_all_projects,\n    CODXJuniorSession,\n    SessionChannel\n)\n\nfrom codx.junior.utils import (\n    exec_command,\n)\n\nfrom codx.junior.context import AICodeGerator\n\nfrom codx.junior.background import start_background_services\n\nCODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")\nIMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"\nos.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)\n\napp = FastAPI(\n    title="CODXJuniorAPI",\n    description="API for CODXJunior",\n    version="1.0",\n    openapi_url="/api/openapi.json",\n    docs_url="/api/docs",\n    redoc_url="/api/redoc",\n    ssl_context=\'adhoc\'\n)\n\nsio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")\napp.mount("/api/socket.io", sio_asgi_app)\n\n@app.on_event("startup")\ndef startup_event():\n    logger.info(f"Creating FASTAPI: {app.__dict__}")\n\n@app.exception_handler(Exception)\nasync def my_exception_handler(request: Request, ex: Exception):\n    return JSONResponse(status_code=500, \n        content=traceback.format_exception(ex))\n\n@app.middleware("http")\nasync def add_process_time_header(request: Request, call_next):\n    process_time = None\n    start_time = time.time()\n    try:\n        response = await call_next(request)\n        process_time = time.time() - start_time\n        response.headers["X-Process-Time"] = str(process_time)\n        return response\n    finally:\n        logger.info(f"Request {request.url} - {time.time() - start_time} ms")\n\n@app.middleware("http")\nasync def add_gpt_engineer_settings(request: Request, call_next):\n    codx_path = request.query_params.get("codx_path")\n    if codx_path:\n        try:\n            sid = request.headers.get("x-sid")\n            channel = SessionChannel(sid=sid, sio=sio)\n            request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, channel=channel)\n            settings = request.state.codx_junior_session.settings\n            # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")\n        except Exception as ex:\n            logger.error(f"Error loading settings {codx_path}: {ex}\\n{request.url}")\n    return await call_next(request)\n\n@app.get("/api/health")\ndef api_health_check():\n    return "ok"\n\n@app.post("/api/users/login")\ndef api_extract_tags(request: Request):\n    pass\n\n@app.get("/api/knowledge/reload")\nasync def api_knowledge_reload(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    await codx_junior_session.check_project_changes()\n    await codx_junior_session.reload_knowledge()\n    return codx_junior_session.check_knowledge_status()\n\n@app.post("/api/knowledge/reload-path")\nasync def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    logger.info(f"**** API:knowledge_reload_path {knowledge_reload_path}")\n    await codx_junior_session.check_file(file_path=knowledge_reload_path.path, force=True)\n    return codx_junior_session.check_knowledge_status()\n\n@app.post("/api/knowledge/delete")\ndef api_knowledge_reload_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.delete_knowledge_source(sources=knowledge_delete_sources.sources)\n\n@app.delete("/api/knowledge/delete")\ndef api_knowledge_reload_all(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.delete_knowledge()\n\n\n@app.post("/api/knowledge/reload-search")\nasync def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):\n    logger.info("API:knowledge_search_endpoint")\n    codx_junior_session = request.state.codx_junior_session\n    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))\n\n@app.get("/api/knowledge/status")\ndef api_knowledge_status(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.check_knowledge_status()\n\n@app.get("/api/chats")\ndef api_list_chats(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path = request.query_params.get("file_path")\n    chat_id = request.query_params.get("id")\n    if chat_id:\n        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)\n    if file_path:\n        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)\n    return codx_junior_session.list_chats()\n\n@profile_function\n@app.post("/api/chats")\nasync def api_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")\n    await codx_junior_session.chat_with_project(chat=chat)\n    await codx_junior_session.save_chat(chat)\n    return chat\n\n@profile_function\n@app.post("/api/chats/sub-tasks")\nasync def api_chat_subtasks(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return await codx_junior_session.generate_tasks(chat=chat)\n\n@app.put("/api/chats")\nasync def api_save_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    chat_only = request.query_params.get("chatonly") == "1"\n    await codx_junior_session.save_chat(chat, chat_only=chat_only)\n\n@app.delete("/api/chats")\ndef api_delete_chat(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path = request.query_params.get("file_path")\n    codx_junior_session.delete_chat(file_path)\n\n@app.get("/api/kanban")\ndef api_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.get_chat_manager().load_kanban()\n\n@app.post("/api/kanban")\nasync def api_set_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    kanban = await request.json()\n    codx_junior_session.get_chat_manager().save_kanban(kanban)\n\n\n@app.post("/api/images")\ndef api_image_upload(file: UploadFile):\n    if file.filename == \'\':\n        return jsonify({\'error\': \'No selected file\'}), 400\n\n    # Generate a unique filename using UUID\n    unique_filename = f"{str(uuid.uuid4())}-{file.filename}"\n    file_path = os.path.join(IMAGE_UPLOAD_FOLDER, unique_filename)\n    \n    # Save the file\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    with open(file_path, "wb+") as file_object:\n        shutil.copyfileobj(file.file, file_object)   \n\n    # Return the full URL to access the image\n    image_url = \'/api/images/\' + unique_filename\n    return image_url\n\n@app.post("/api/run/improve")\nasync def api_run_improve(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    await codx_junior_session.improve_existing_code(chat=chat)\n    await codx_junior_session.save_chat(chat)\n    return chat\n\n@app.post("/api/run/improve/patch")\nasync def api_run_improve_patch(code_generator: AICodeGerator, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)\n    return {\n        "info": info, \n        "error": error\n    }\n\n@app.get("/api/run/changes/summary")\ndef api_changes_summary(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    refresh = request.query_params.get("refresh")\n    return codx_junior_session.build_code_changes_summary(force=refresh == "true")\n\n@app.get("/api/settings")\ndef api_settings_check(request: Request):\n    logger.info("/api/settings")\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.check_project()\n    return codx_junior_session.settings\n\n@app.put("/api/settings")\nasync def api_save_settings(request: Request):\n    settings = await request.json()\n    CODXJuniorSettings.from_json(settings).save_project()\n    find_all_projects()\n    return api_settings_check(request)\n\n@app.get("/api/profiles")\ndef api_list_profile(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.list_profiles()\n\n@app.post("/api/profiles")\nasync def api_create_profile(profile: Profile, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return await codx_junior_session.save_profile(profile=profile)\n    \n@app.get("/api/profiles/{profile_name}")\ndef api_read_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.read_profile(profile_name)\n\n@app.delete("/api/profiles/{profile_name}")\ndef api_delete_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.delete_profile(profile_name)\n    return\n\n@app.get("/api/project/watch")\ndef api_project_watch(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    settings.watching = True\n    settings.save_project()\n    find_all_projects()\n    return { "OK": 1 }\n\n@app.get("/api/projects")\ndef api_find_all_projects():\n    all_projects = find_all_projects()\n    return all_projects\n\n@app.get("/api/projects/repo/branches")\ndef api_find_all_repo_branches(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.get_project_branches()\n\n@app.get("/api/projects/repo/changes")\ndef api_find_all_repo_changes(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    main_branch = request.query_params.get("main_branch")\n    return codx_junior_session.get_project_changes(main_branch=main_branch)\n\n@app.get("/api/projects/readme")\ndef api_project_readme(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    document = codx_junior_session.get_readme()\n    return Response(content=document or "> Not found", media_type="text/html")\n\n@app.post("/api/projects")\ndef api_project_create(request: Request):\n    project_path = request.query_params.get("project_path")\n    try:\n        return CODXJuniorSettings.from_project_file(f"${project_path}/.codx/project.json")\n    except:\n        return create_project(project_path=project_path)\n\n@app.delete("/api/projects")\ndef api_project_delete(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.delete_project()\n    return { "ok": 1 }\n\n@app.get("/api/project/unwatch")\ndef api_project_unwatch(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    settings.watching = False\n    settings.save_project()\n    find_all_projects()\n    return { "OK": 1 }\n\n@app.get("/api/knowledge/keywords")\ndef api_get_keywords(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    query = request.query_params.get("query")\n    return codx_junior_session.get_keywords(query=query)\n\n@app.post("/api/knowledge/keywords")\ndef api_extract_tags(doc: Document, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    logging.info(f"Extract keywords from {doc}")\n    doc = codx_junior_session.extract_tags(doc=doc)\n    return doc.__dict__\n\n@app.get("/api/code-server/file/open")\ndef api_list_chats(request: Request):\n    file_name = request.query_params.get("file_name")\n    settings = codx_junior_session = request.state.codx_junior_session.settings\n    coder_open_file(settings=settings, file_name=file_name)\n\n@app.get("/api/wiki")\ndef api_get_wiki(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path = request.query_params.get("file_path")\n    document = codx_junior_session.get_wiki_file(file_path)\n    return Response(content=document or "> Not found", media_type="text/html")\n\n@app.get("/api/files")\ndef api_get_files(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path = request.query_params.get("path")\n    return codx_junior_session.read_directory(path=path)\n\n@app.get("/api/files/read")\ndef api_get_file(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path = request.query_params.get("path")\n    return codx_junior_session.read_file(path=path)\n\n@app.post("/api/files/write")\ndef api_post_file(doc: Document, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path = request.query_params.get("path")\n    return codx_junior_session.write_file(path=path, content=doc.page_content)\n\n@app.get("/api/files/find")\ndef api_get_file(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    search = request.query_params.get("search")\n    return codx_junior_session.search_files(search=search)\n\n@app.get("/api/apps")\ndef api_apps_list(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.get_project_apps()\n\n@app.get("/api/apps/run")\ndef api_apps_run(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    app_name = request.query_params.get("app")\n    return codx_junior_session.run_app(app_name=app_name)\n\n\n@app.get("/api/global/settings")\ndef api_read_global_settings():\n    return read_global_settings()\n\n@app.post("/api/global/settings")\ndef api_write_global_settings(global_settings: GlobalSettings):\n    write_global_settings(global_settings=global_settings)\n    AIManager().reload_models(read_global_settings())\n\n@app.get("/api/logs")\ndef api_logs_list():\n    stdout, _ = exec_command(f"ls {os.environ[\'CODX_SUPERVISOR_LOG_FOLDER\']}")\n    return [log for log in [log.strip().replace(".log", "") for log in stdout.split("\\n")] if log]\n\n@app.get("/api/logs/{log_name}")\ndef api_logs_tail(log_name: str, request: Request):\n    log_file = f"{os.environ[\'CODX_SUPERVISOR_LOG_FOLDER\']}/{log_name}.log"\n    log_size = request.query_params.get("log_size") or "100"\n    cmd = f"tail -n {log_size} {log_file}"\n    try:\n        logs, _ = exec_command(cmd)\n        logger.info(f"api logs {logs}")\n\n        return parse_logs(logs)\n    except Exception as ex:\n        logger.exception(f"Error reading logs: {ex}")\n\n@app.post("/api/screen")\ndef api_screen_set(screen: Screen):\n    CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]\n    return exec_command(f"xrandr -s {screen.resolution}", env={"DISPLAY": CODX_JUNIOR_DISPLAY})\n\n@app.get("/api/screen")\ndef api_screen_get():\n    screen = Screen()\n    try:\n        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]\n        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})\n        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768\n        lines = res.split("\\n")\n        screen_line = [l for l in lines if l.startswith("Screen ")][0]\n        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")\n    except Exception as ex:\n        logger.error(f"Error extracting screen resolutions {ex}")\n    return screen\n\n@app.post("/api/image-to-text")\nasync def api_image_to_text_endpoint(file: UploadFile):\n    file_bytes = await file.read()            \n    return api_image_to_text(file_bytes)\n\n@app.post("/api/restart")\ndef api_restart():\n    logger.info(f"****************** API RESTARTING... bye *******************")\n    exec_command("sudo kill 7")\n\nif CODX_JUNIOR_STATIC_FOLDER:\n    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)\n    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")\n    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")\n\napp.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")\n\nstart_background_services(app)\n\n\n```\n\n                      ', additional_kwargs={}, response_metadata={}), HumanMessage(content='it will extend @file://app.py but in a new file', additional_kwargs={}, response_metadata={}, profiles='')]
+Creating a new chat completion. Messages: 4 words: 21286
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Received AI response, start reading stream
+AI response done 865 chunks
+Chat completion finished: ############################################
+              ### ROLE: human
+              ############################################
+
+              @codx-api create a new set of endpoints for the app to expose a chatGPT API compatible list of endpoints: model, completions
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              To create a new set of endpoints for the app to expose a ChatGPT API compatible list of endpoints such as `/models` and `/completions`, you'd follow a process similar to extending a FastAPI application. Below, I'll show how you can implement these using the existing FastAPI setup.
+
+1. **Endpoint for Listing Models**: This will mock the behavior of listing available models.
+
+2. **Endpoint for Creating Completions**: This will simulate the creation of a completion using the model.
+
+Below is a code block implementing these new endpoints in the existing FastAPI setup:
+
+```python
+from fastapi import FastAPI, Request
+from pydantic import BaseModel
+from typing import List
+
+app = FastAPI(
+    title="CODXJuniorAPI",
+    description="API for CODXJunior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+# Mock some models
+class Model(BaseModel):
+    id: str
+    object: str
+    created: int
+    owned_by: str
+
+available_models = [
+    Model(id="gpt-3.5-turbo", object="model", created=1628472935, owned_by="openai"),
+    Model(id="gpt-4", object="model", created=1628472980, owned_by="openai")
+]
+
+@app.get("/v1/models")
+async def list_models():
+    return {"object": "list", "data": available_models}
+
+@app.post("/v1/completions")
+async def create_completion(request: Request):
+    body = await request.json()
+    # Mock a completion response
+    completion_response = {
+        "id": "cmpl-3",
+        "object": "text_completion",
+        "created": 1628472935,
+        "model": body.get("model", "gpt-3.5-turbo"),
+        "choices": [
+            {
+                "text": "This is a simulated response.",
+                "index": 0,
+                "logprobs": None,
+                "finish_reason": "length"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 5,
+            "completion_tokens": 7,
+            "total_tokens": 12
+        }
+    }
+    return completion_response
+
+# Mount the existing app and servers
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
+
+# If needed, initialize additional components or services
+start_background_services(app)
+```
+
+### Explanation
+
+- **GET `/v1/models`:** This endpoint returns a list of available models using a predefined set of models defined in `available_models`.
+  
+- **POST `/v1/completions`:** This endpoint simulates response generation using a completion request. It reads from the incoming request body, allowing you to specify the model and potentially other parameters.
+
+- **Pydantic model (`Model`)**: Used for the response schema for available models.
+
+- **Mock Data**: Since this is a simulation, it's returning static data and responses. For real systems, these would query a database or other systems to fetch actual models and process real completions.
+
+Please ensure you have the `fastapi` and `pydantic` libraries installed to run the above code. You can install them via pip:
+
+```sh
+pip install fastapi pydantic
+```
+
+Also, ensure to manage CORS and authentication if these endpoints will be exposed in production.
+              
+############################################
+              ### ROLE: human
+              ############################################
+
+              
+                      THIS INFORMATION IS COMING FROM PROJECT'S FILES.
+                      HOPE IT HELPS TO ANSWER USER REQUEST.
+                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
+                      ```None
+/shared/codx-junior/api/codx/junior/app.py
+import os
+import uuid
+import shutil
+import time
+import logging
+import asyncio
+import socketio
+import traceback
+
+from multiprocessing.pool import ThreadPool
+from threading import Thread
+
+from pathlib import Path
+
+from codx.junior.ai import AIManager
+
+from codx.junior.sio.sio import sio
+from codx.junior.sio.session_channel import SessionChannel
+
+from codx.junior.profiling.profiler import profile_function
+
+from codx.junior.log_parser import parse_logs
+from codx.junior.browser import run_browser_manager
+
+
+logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
+logger = logging.getLogger(__name__)
+
+run_browser_manager()
+
+def disable_logs(logs):
+  for logger_id in logs:
+      logging.getLogger(logger_id).setLevel(logging.WARNING)
+
+def enable_logs(logs):
+  for logger_id in logs:
+      logging.getLogger(logger_id).setLevel(logging.DEBUG)
+
+disable_logs([
+    'httpx',
+    'httpcore.http11',
+    'httpcore.connection',
+    'openai._base_client',
+    'watchfiles.main',
+    'asyncio',
+    'codx.junior.project_watcher',
+    'selenium.webdriver.common.selenium_manager'
+])
+
+
+from flask import send_file
+
+from fastapi import FastAPI, Request, Response, UploadFile
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse
+from fastapi.responses import JSONResponse
+from fastapi.responses import StreamingResponse
+
+from codx.junior.db import (
+    Chat,
+    Message
+)
+from codx.junior.model.model import (
+    KnowledgeReloadPath,
+    KnowledgeSearch,
+    KnowledgeDeleteSources,
+    Profile,
+    Document,
+    LiveEdit,
+    GlobalSettings,
+    Screen
+)
+
+from codx.junior.settings import (
+  CODXJuniorSettings,
+  read_global_settings,
+  write_global_settings
+)
+
+from codx.junior.profiles.profile_manager import ProfileManager
+from codx.junior.chat_manager import ChatManager
+
+from codx.junior.engine import (
+    create_project,
+    coder_open_file,
+    find_all_projects,
+    CODXJuniorSession,
+    SessionChannel
+)
+
+from codx.junior.utils import (
+    exec_command,
+)
+
+from codx.junior.context import AICodeGerator
+
+from codx.junior.background import start_background_services
+
+CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
+IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
+os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
+
+app = FastAPI(
+    title="CODXJuniorAPI",
+    description="API for CODXJunior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
+
+@app.on_event("startup")
+def startup_event():
+    logger.info(f"Creating FASTAPI: {app.__dict__}")
+
+@app.exception_handler(Exception)
+async def my_exception_handler(request: Request, ex: Exception):
+    return JSONResponse(status_code=500, 
+        content=traceback.format_exception(ex))
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    process_time = None
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+    finally:
+        logger.info(f"Request {request.url} - {time.time() - start_time} ms")
+
+@app.middleware("http")
+async def add_gpt_engineer_settings(request: Request, call_next):
+    codx_path = request.query_params.get("codx_path")
+    if codx_path:
+        try:
+            sid = request.headers.get("x-sid")
+            channel = SessionChannel(sid=sid, sio=sio)
+            request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, channel=channel)
+            settings = request.state.codx_junior_session.settings
+            # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
+        except Exception as ex:
+            logger.error(f"Error loading settings {codx_path}: {ex}\n{request.url}")
+    return await call_next(request)
+
+@app.get("/api/health")
+def api_health_check():
+    return "ok"
+
+@app.post("/api/users/login")
+def api_extract_tags(request: Request):
+    pass
+
+@app.get("/api/knowledge/reload")
+async def api_knowledge_reload(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    await codx_junior_session.check_project_changes()
+    await codx_junior_session.reload_knowledge()
+    return codx_junior_session.check_knowledge_status()
+
+@app.post("/api/knowledge/reload-path")
+async def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    logger.info(f"**** API:knowledge_reload_path {knowledge_reload_path}")
+    await codx_junior_session.check_file(file_path=knowledge_reload_path.path, force=True)
+    return codx_junior_session.check_knowledge_status()
+
+@app.post("/api/knowledge/delete")
+def api_knowledge_reload_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.delete_knowledge_source(sources=knowledge_delete_sources.sources)
+
+@app.delete("/api/knowledge/delete")
+def api_knowledge_reload_all(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.delete_knowledge()
+
+
+@app.post("/api/knowledge/reload-search")
+async def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):
+    logger.info("API:knowledge_search_endpoint")
+    codx_junior_session = request.state.codx_junior_session
+    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))
+
+@app.get("/api/knowledge/status")
+def api_knowledge_status(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.check_knowledge_status()
+
+@app.get("/api/chats")
+def api_list_chats(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("file_path")
+    chat_id = request.query_params.get("id")
+    if chat_id:
+        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
+    if file_path:
+        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
+    return codx_junior_session.list_chats()
+
+@profile_function
+@app.post("/api/chats")
+async def api_chat(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
+    await codx_junior_session.chat_with_project(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@profile_function
+@app.post("/api/chats/sub-tasks")
+async def api_chat_subtasks(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.generate_tasks(chat=chat)
+
+@app.put("/api/chats")
+async def api_save_chat(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    chat_only = request.query_params.get("chatonly") == "1"
+    await codx_junior_session.save_chat(chat, chat_only=chat_only)
+
+@app.delete("/api/chats")
+def api_delete_chat(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("file_path")
+    codx_junior_session.delete_chat(file_path)
+
+@app.get("/api/kanban")
+def api_kanban(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_chat_manager().load_kanban()
+
+@app.post("/api/kanban")
+async def api_set_kanban(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    kanban = await request.json()
+    codx_junior_session.get_chat_manager().save_kanban(kanban)
+
+
+@app.post("/api/images")
+def api_image_upload(file: UploadFile):
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    # Generate a unique filename using UUID
+    unique_filename = f"{str(uuid.uuid4())}-{file.filename}"
+    file_path = os.path.join(IMAGE_UPLOAD_FOLDER, unique_filename)
+    
+    # Save the file
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    with open(file_path, "wb+") as file_object:
+        shutil.copyfileobj(file.file, file_object)   
+
+    # Return the full URL to access the image
+    image_url = '/api/images/' + unique_filename
+    return image_url
+
+@app.post("/api/run/improve")
+async def api_run_improve(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    await codx_junior_session.improve_existing_code(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@app.post("/api/run/improve/patch")
+async def api_run_improve_patch(code_generator: AICodeGerator, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)
+    return {
+        "info": info, 
+        "error": error
+    }
+
+@app.get("/api/run/changes/summary")
+def api_changes_summary(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    refresh = request.query_params.get("refresh")
+    return codx_junior_session.build_code_changes_summary(force=refresh == "true")
+
+@app.get("/api/settings")
+def api_settings_check(request: Request):
+    logger.info("/api/settings")
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.check_project()
+    return codx_junior_session.settings
+
+@app.put("/api/settings")
+async def api_save_settings(request: Request):
+    settings = await request.json()
+    CODXJuniorSettings.from_json(settings).save_project()
+    find_all_projects()
+    return api_settings_check(request)
+
+@app.get("/api/profiles")
+def api_list_profile(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.list_profiles()
+
+@app.post("/api/profiles")
+async def api_create_profile(profile: Profile, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.save_profile(profile=profile)
+    
+@app.get("/api/profiles/{profile_name}")
+def api_read_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.read_profile(profile_name)
+
+@app.delete("/api/profiles/{profile_name}")
+def api_delete_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.delete_profile(profile_name)
+    return
+
+@app.get("/api/project/watch")
+def api_project_watch(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    settings.watching = True
+    settings.save_project()
+    find_all_projects()
+    return { "OK": 1 }
+
+@app.get("/api/projects")
+def api_find_all_projects():
+    all_projects = find_all_projects()
+    return all_projects
+
+@app.get("/api/projects/repo/branches")
+def api_find_all_repo_branches(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_project_branches()
+
+@app.get("/api/projects/repo/changes")
+def api_find_all_repo_changes(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    main_branch = request.query_params.get("main_branch")
+    return codx_junior_session.get_project_changes(main_branch=main_branch)
+
+@app.get("/api/projects/readme")
+def api_project_readme(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    document = codx_junior_session.get_readme()
+    return Response(content=document or "> Not found", media_type="text/html")
+
+@app.post("/api/projects")
+def api_project_create(request: Request):
+    project_path = request.query_params.get("project_path")
+    try:
+        return CODXJuniorSettings.from_project_file(f"${project_path}/.codx/project.json")
+    except:
+        return create_project(project_path=project_path)
+
+@app.delete("/api/projects")
+def api_project_delete(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.delete_project()
+    return { "ok": 1 }
+
+@app.get("/api/project/unwatch")
+def api_project_unwatch(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    settings.watching = False
+    settings.save_project()
+    find_all_projects()
+    return { "OK": 1 }
+
+@app.get("/api/knowledge/keywords")
+def api_get_keywords(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    query = request.query_params.get("query")
+    return codx_junior_session.get_keywords(query=query)
+
+@app.post("/api/knowledge/keywords")
+def api_extract_tags(doc: Document, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    logging.info(f"Extract keywords from {doc}")
+    doc = codx_junior_session.extract_tags(doc=doc)
+    return doc.__dict__
+
+@app.get("/api/code-server/file/open")
+def api_list_chats(request: Request):
+    file_name = request.query_params.get("file_name")
+    settings = codx_junior_session = request.state.codx_junior_session.settings
+    coder_open_file(settings=settings, file_name=file_name)
+
+@app.get("/api/wiki")
+def api_get_wiki(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("file_path")
+    document = codx_junior_session.get_wiki_file(file_path)
+    return Response(content=document or "> Not found", media_type="text/html")
+
+@app.get("/api/files")
+def api_get_files(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    path = request.query_params.get("path")
+    return codx_junior_session.read_directory(path=path)
+
+@app.get("/api/files/read")
+def api_get_file(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    path = request.query_params.get("path")
+    return codx_junior_session.read_file(path=path)
+
+@app.post("/api/files/write")
+def api_post_file(doc: Document, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    path = request.query_params.get("path")
+    return codx_junior_session.write_file(path=path, content=doc.page_content)
+
+@app.get("/api/files/find")
+def api_get_file(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    search = request.query_params.get("search")
+    return codx_junior_session.search_files(search=search)
+
+@app.get("/api/apps")
+def api_apps_list(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_project_apps()
+
+@app.get("/api/apps/run")
+def api_apps_run(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    app_name = request.query_params.get("app")
+    return codx_junior_session.run_app(app_name=app_name)
+
+
+@app.get("/api/global/settings")
+def api_read_global_settings():
+    return read_global_settings()
+
+@app.post("/api/global/settings")
+def api_write_global_settings(global_settings: GlobalSettings):
+    write_global_settings(global_settings=global_settings)
+    AIManager().reload_models(read_global_settings())
+
+@app.get("/api/logs")
+def api_logs_list():
+    stdout, _ = exec_command(f"ls {os.environ['CODX_SUPERVISOR_LOG_FOLDER']}")
+    return [log for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+
+@app.get("/api/logs/{log_name}")
+def api_logs_tail(log_name: str, request: Request):
+    log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
+    log_size = request.query_params.get("log_size") or "100"
+    cmd = f"tail -n {log_size} {log_file}"
+    try:
+        logs, _ = exec_command(cmd)
+        logger.info(f"api logs {logs}")
+
+        return parse_logs(logs)
+    except Exception as ex:
+        logger.exception(f"Error reading logs: {ex}")
+
+@app.post("/api/screen")
+def api_screen_set(screen: Screen):
+    CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+    return exec_command(f"xrandr -s {screen.resolution}", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
+
+@app.get("/api/screen")
+def api_screen_get():
+    screen = Screen()
+    try:
+        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
+        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
+        lines = res.split("\n")
+        screen_line = [l for l in lines if l.startswith("Screen ")][0]
+        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
+    except Exception as ex:
+        logger.error(f"Error extracting screen resolutions {ex}")
+    return screen
+
+@app.post("/api/image-to-text")
+async def api_image_to_text_endpoint(file: UploadFile):
+    file_bytes = await file.read()            
+    return api_image_to_text(file_bytes)
+
+@app.post("/api/restart")
+def api_restart():
+    logger.info(f"****************** API RESTARTING... bye *******************")
+    exec_command("sudo kill 7")
+
+if CODX_JUNIOR_STATIC_FOLDER:
+    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)
+    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")
+    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")
+
+app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
+
+start_background_services(app)
+
+
+```
+
+                      
+              
+############################################
+              ### ROLE: human
+              ############################################
+
+              it will extend @file://app.py but in a new file
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              To extend the existing FastAPI application as described in your original `app.py` file with new endpoints while defining them in a separate file, you can modularize your FastAPI application. Here's how you can achieve this:
+
+1. **Create a new file**, say `chatgpt_api.py`, to define the new endpoints `/v1/models` and `/v1/completions`.
+
+2. **Import FastAPI** and necessary models or types from `pydantic`.
+
+3. **Define the new endpoints** in `chatgpt_api.py`.
+
+4. **Import and include** these routers in your main `app.py`.
+
+Here's how you can structure your code:
+
+### Step 1: Create `chatgpt_api.py`
+
+**`chatgpt_api.py`**
+
+```python
+from fastapi import APIRouter, Request
+from pydantic import BaseModel
+from typing import List
+
+router = APIRouter()
+
+# Define your data models
+class Model(BaseModel):
+    id: str
+    object: str
+    created: int
+    owned_by: str
+
+available_models = [
+    Model(id="gpt-3.5-turbo", object="model", created=1628472935, owned_by="openai"),
+    Model(id="gpt-4", object="model", created=1628472980, owned_by="openai")
+]
+
+@router.get("/v1/models", tags=["chatgpt"])
+async def list_models():
+    return {"object": "list", "data": available_models}
+
+@router.post("/v1/completions", tags=["chatgpt"])
+async def create_completion(request: Request):
+    body = await request.json()
+    completion_response = {
+        "id": "cmpl-3",
+        "object": "text_completion",
+        "created": 1628472935,
+        "model": body.get("model", "gpt-3.5-turbo"),
+        "choices": [
+            {
+                "text": "This is a simulated response.",
+                "index": 0,
+                "logprobs": None,
+                "finish_reason": "length"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 5,
+            "completion_tokens": 7,
+            "total_tokens": 12
+        }
+    }
+    return completion_response
+```
+
+### Step 2: Modify `app.py` to include the new router
+
+Find the section in `app.py` where you import necessary components and initialize FastAPI, and include the new router.
+
+```python
+# app.py - /shared/codx-junior/api/codx/junior/app.py
+
+from fastapi import FastAPI
+import socketio
+
+# Import the newly created router
+from chatgpt_api import router as chatgpt_router
+
+# (The rest of your imports and setup code...)
+# Here is the existing app creation
+
+app = FastAPI(
+    title="CODXJuniorAPI",
+    description="API for CODXJunior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+# Include the chatgpt_router
+app.include_router(chatgpt_router, prefix="/api")
+
+# Existing setup code...
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
+
+# Mount static files and other initializations...
+start_background_services(app)
+```
+
+### Explanation
+
+- **Router Definition**: We define a new router using `APIRouter()` in `chatgpt_api.py`.
+
+- **Define Endpoints**: New endpoints `/v1/models` and `/v1/completions` are defined in `chatgpt_api.py`.
+
+- **Include Router**: In `app.py`, the `chatgpt_router` is included in the main application with a prefix `/api` to maintain consistency with existing endpoints.
+
+By structuring your code in this way, you maintain a clean separation of concerns, making it easier to manage and extend your codebase.
+              
+[AI] chat messages 5
+Creating a new chat completion: [AIMessage(content='To extend the existing FastAPI application as described in your original `app.py` file with new endpoints while defining them in a separate file, you can modularize your FastAPI application. Here\'s how you can achieve this:\n\n1. **Create a new file**, say `chatgpt_api.py`, to define the new endpoints `/v1/models` and `/v1/completions`.\n\n2. **Import FastAPI** and necessary models or types from `pydantic`.\n\n3. **Define the new endpoints** in `chatgpt_api.py`.\n\n4. **Import and include** these routers in your main `app.py`.\n\nHere\'s how you can structure your code:\n\n### Step 1: Create `chatgpt_api.py`\n\n**`chatgpt_api.py`**\n\n```python\nfrom fastapi import APIRouter, Request\nfrom pydantic import BaseModel\nfrom typing import List\n\nrouter = APIRouter()\n\n# Define your data models\nclass Model(BaseModel):\n    id: str\n    object: str\n    created: int\n    owned_by: str\n\navailable_models = [\n    Model(id="gpt-3.5-turbo", object="model", created=1628472935, owned_by="openai"),\n    Model(id="gpt-4", object="model", created=1628472980, owned_by="openai")\n]\n\n@router.get("/v1/models", tags=["chatgpt"])\nasync def list_models():\n    return {"object": "list", "data": available_models}\n\n@router.post("/v1/completions", tags=["chatgpt"])\nasync def create_completion(request: Request):\n    body = await request.json()\n    completion_response = {\n        "id": "cmpl-3",\n        "object": "text_completion",\n        "created": 1628472935,\n        "model": body.get("model", "gpt-3.5-turbo"),\n        "choices": [\n            {\n                "text": "This is a simulated response.",\n                "index": 0,\n                "logprobs": None,\n                "finish_reason": "length"\n            }\n        ],\n        "usage": {\n            "prompt_tokens": 5,\n            "completion_tokens": 7,\n            "total_tokens": 12\n        }\n    }\n    return completion_response\n```\n\n### Step 2: Modify `app.py` to include the new router\n\nFind the section in `app.py` where you import necessary components and initialize FastAPI, and include the new router.\n\n```python\n# app.py - /shared/codx-junior/api/codx/junior/app.py\n\nfrom fastapi import FastAPI\nimport socketio\n\n# Import the newly created router\nfrom chatgpt_api import router as chatgpt_router\n\n# (The rest of your imports and setup code...)\n# Here is the existing app creation\n\napp = FastAPI(\n    title="CODXJuniorAPI",\n    description="API for CODXJunior",\n    version="1.0",\n    openapi_url="/api/openapi.json",\n    docs_url="/api/docs",\n    redoc_url="/api/redoc",\n    ssl_context=\'adhoc\'\n)\n\n# Include the chatgpt_router\napp.include_router(chatgpt_router, prefix="/api")\n\n# Existing setup code...\nsio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")\napp.mount("/api/socket.io", sio_asgi_app)\n\n# Mount static files and other initializations...\nstart_background_services(app)\n```\n\n### Explanation\n\n- **Router Definition**: We define a new router using `APIRouter()` in `chatgpt_api.py`.\n\n- **Define Endpoints**: New endpoints `/v1/models` and `/v1/completions` are defined in `chatgpt_api.py`.\n\n- **Include Router**: In `app.py`, the `chatgpt_router` is included in the main application with a prefix `/api` to maintain consistency with existing endpoints.\n\nBy structuring your code in this way, you maintain a clean separation of concerns, making it easier to manage and extend your codebase.', additional_kwargs={}, response_metadata={}), HumanMessage(content='\n                      THIS INFORMATION IS COMING FROM PROJECT\'S FILES.\n                      HOPE IT HELPS TO ANSWER USER REQUEST.\n                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).\n                      ```None\n/shared/codx-junior/api/codx/junior/app.py\nimport os\nimport uuid\nimport shutil\nimport time\nimport logging\nimport asyncio\nimport socketio\nimport traceback\n\nfrom multiprocessing.pool import ThreadPool\nfrom threading import Thread\n\nfrom pathlib import Path\n\nfrom codx.junior.ai import AIManager\n\nfrom codx.junior.sio.sio import sio\nfrom codx.junior.sio.session_channel import SessionChannel\n\nfrom codx.junior.profiling.profiler import profile_function\n\nfrom codx.junior.log_parser import parse_logs\nfrom codx.junior.browser import run_browser_manager\n\n\nlogging.basicConfig(level = logging.DEBUG,format = \'[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s\')\nlogger = logging.getLogger(__name__)\n\nrun_browser_manager()\n\ndef disable_logs(logs):\n  for logger_id in logs:\n      logging.getLogger(logger_id).setLevel(logging.WARNING)\n\ndef enable_logs(logs):\n  for logger_id in logs:\n      logging.getLogger(logger_id).setLevel(logging.DEBUG)\n\ndisable_logs([\n    \'httpx\',\n    \'httpcore.http11\',\n    \'httpcore.connection\',\n    \'openai._base_client\',\n    \'watchfiles.main\',\n    \'asyncio\',\n    \'codx.junior.project_watcher\',\n    \'selenium.webdriver.common.selenium_manager\'\n])\n\n\nfrom flask import send_file\n\nfrom fastapi import FastAPI, Request, Response, UploadFile\nfrom fastapi.staticfiles import StaticFiles\nfrom starlette.responses import RedirectResponse\nfrom fastapi.responses import JSONResponse\nfrom fastapi.responses import StreamingResponse\n\nfrom codx.junior.db import (\n    Chat,\n    Message\n)\nfrom codx.junior.model.model import (\n    KnowledgeReloadPath,\n    KnowledgeSearch,\n    KnowledgeDeleteSources,\n    Profile,\n    Document,\n    LiveEdit,\n    GlobalSettings,\n    Screen\n)\n\nfrom codx.junior.settings import (\n  CODXJuniorSettings,\n  read_global_settings,\n  write_global_settings\n)\n\nfrom codx.junior.profiles.profile_manager import ProfileManager\nfrom codx.junior.chat_manager import ChatManager\n\nfrom codx.junior.engine import (\n    create_project,\n    coder_open_file,\n    find_all_projects,\n    CODXJuniorSession,\n    SessionChannel\n)\n\nfrom codx.junior.utils import (\n    exec_command,\n)\n\nfrom codx.junior.context import AICodeGerator\n\nfrom codx.junior.background import start_background_services\n\nCODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")\nIMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"\nos.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)\n\napp = FastAPI(\n    title="CODXJuniorAPI",\n    description="API for CODXJunior",\n    version="1.0",\n    openapi_url="/api/openapi.json",\n    docs_url="/api/docs",\n    redoc_url="/api/redoc",\n    ssl_context=\'adhoc\'\n)\n\nsio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")\napp.mount("/api/socket.io", sio_asgi_app)\n\n@app.on_event("startup")\ndef startup_event():\n    logger.info(f"Creating FASTAPI: {app.__dict__}")\n\n@app.exception_handler(Exception)\nasync def my_exception_handler(request: Request, ex: Exception):\n    return JSONResponse(status_code=500, \n        content=traceback.format_exception(ex))\n\n@app.middleware("http")\nasync def add_process_time_header(request: Request, call_next):\n    process_time = None\n    start_time = time.time()\n    try:\n        response = await call_next(request)\n        process_time = time.time() - start_time\n        response.headers["X-Process-Time"] = str(process_time)\n        return response\n    finally:\n        logger.info(f"Request {request.url} - {time.time() - start_time} ms")\n\n@app.middleware("http")\nasync def add_gpt_engineer_settings(request: Request, call_next):\n    codx_path = request.query_params.get("codx_path")\n    if codx_path:\n        try:\n            sid = request.headers.get("x-sid")\n            channel = SessionChannel(sid=sid, sio=sio)\n            request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, channel=channel)\n            settings = request.state.codx_junior_session.settings\n            # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")\n        except Exception as ex:\n            logger.error(f"Error loading settings {codx_path}: {ex}\\n{request.url}")\n    return await call_next(request)\n\n@app.get("/api/health")\ndef api_health_check():\n    return "ok"\n\n@app.post("/api/users/login")\ndef api_extract_tags(request: Request):\n    pass\n\n@app.get("/api/knowledge/reload")\nasync def api_knowledge_reload(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    await codx_junior_session.check_project_changes()\n    await codx_junior_session.reload_knowledge()\n    return codx_junior_session.check_knowledge_status()\n\n@app.post("/api/knowledge/reload-path")\nasync def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    logger.info(f"**** API:knowledge_reload_path {knowledge_reload_path}")\n    await codx_junior_session.check_file(file_path=knowledge_reload_path.path, force=True)\n    return codx_junior_session.check_knowledge_status()\n\n@app.post("/api/knowledge/delete")\ndef api_knowledge_reload_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.delete_knowledge_source(sources=knowledge_delete_sources.sources)\n\n@app.delete("/api/knowledge/delete")\ndef api_knowledge_reload_all(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.delete_knowledge()\n\n\n@app.post("/api/knowledge/reload-search")\nasync def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):\n    logger.info("API:knowledge_search_endpoint")\n    codx_junior_session = request.state.codx_junior_session\n    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))\n\n@app.get("/api/knowledge/status")\ndef api_knowledge_status(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.check_knowledge_status()\n\n@app.get("/api/chats")\ndef api_list_chats(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path = request.query_params.get("file_path")\n    chat_id = request.query_params.get("id")\n    if chat_id:\n        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)\n    if file_path:\n        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)\n    return codx_junior_session.list_chats()\n\n@profile_function\n@app.post("/api/chats")\nasync def api_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")\n    await codx_junior_session.chat_with_project(chat=chat)\n    await codx_junior_session.save_chat(chat)\n    return chat\n\n@profile_function\n@app.post("/api/chats/sub-tasks")\nasync def api_chat_subtasks(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return await codx_junior_session.generate_tasks(chat=chat)\n\n@app.put("/api/chats")\nasync def api_save_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    chat_only = request.query_params.get("chatonly") == "1"\n    await codx_junior_session.save_chat(chat, chat_only=chat_only)\n\n@app.delete("/api/chats")\ndef api_delete_chat(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path = request.query_params.get("file_path")\n    codx_junior_session.delete_chat(file_path)\n\n@app.get("/api/kanban")\ndef api_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.get_chat_manager().load_kanban()\n\n@app.post("/api/kanban")\nasync def api_set_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    kanban = await request.json()\n    codx_junior_session.get_chat_manager().save_kanban(kanban)\n\n\n@app.post("/api/images")\ndef api_image_upload(file: UploadFile):\n    if file.filename == \'\':\n        return jsonify({\'error\': \'No selected file\'}), 400\n\n    # Generate a unique filename using UUID\n    unique_filename = f"{str(uuid.uuid4())}-{file.filename}"\n    file_path = os.path.join(IMAGE_UPLOAD_FOLDER, unique_filename)\n    \n    # Save the file\n    os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    with open(file_path, "wb+") as file_object:\n        shutil.copyfileobj(file.file, file_object)   \n\n    # Return the full URL to access the image\n    image_url = \'/api/images/\' + unique_filename\n    return image_url\n\n@app.post("/api/run/improve")\nasync def api_run_improve(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    await codx_junior_session.improve_existing_code(chat=chat)\n    await codx_junior_session.save_chat(chat)\n    return chat\n\n@app.post("/api/run/improve/patch")\nasync def api_run_improve_patch(code_generator: AICodeGerator, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)\n    return {\n        "info": info, \n        "error": error\n    }\n\n@app.get("/api/run/changes/summary")\ndef api_changes_summary(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    refresh = request.query_params.get("refresh")\n    return codx_junior_session.build_code_changes_summary(force=refresh == "true")\n\n@app.get("/api/settings")\ndef api_settings_check(request: Request):\n    logger.info("/api/settings")\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.check_project()\n    return codx_junior_session.settings\n\n@app.put("/api/settings")\nasync def api_save_settings(request: Request):\n    settings = await request.json()\n    CODXJuniorSettings.from_json(settings).save_project()\n    find_all_projects()\n    return api_settings_check(request)\n\n@app.get("/api/profiles")\ndef api_list_profile(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.list_profiles()\n\n@app.post("/api/profiles")\nasync def api_create_profile(profile: Profile, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return await codx_junior_session.save_profile(profile=profile)\n    \n@app.get("/api/profiles/{profile_name}")\ndef api_read_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.read_profile(profile_name)\n\n@app.delete("/api/profiles/{profile_name}")\ndef api_delete_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.delete_profile(profile_name)\n    return\n\n@app.get("/api/project/watch")\ndef api_project_watch(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    settings.watching = True\n    settings.save_project()\n    find_all_projects()\n    return { "OK": 1 }\n\n@app.get("/api/projects")\ndef api_find_all_projects():\n    all_projects = find_all_projects()\n    return all_projects\n\n@app.get("/api/projects/repo/branches")\ndef api_find_all_repo_branches(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.get_project_branches()\n\n@app.get("/api/projects/repo/changes")\ndef api_find_all_repo_changes(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    main_branch = request.query_params.get("main_branch")\n    return codx_junior_session.get_project_changes(main_branch=main_branch)\n\n@app.get("/api/projects/readme")\ndef api_project_readme(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    document = codx_junior_session.get_readme()\n    return Response(content=document or "> Not found", media_type="text/html")\n\n@app.post("/api/projects")\ndef api_project_create(request: Request):\n    project_path = request.query_params.get("project_path")\n    try:\n        return CODXJuniorSettings.from_project_file(f"${project_path}/.codx/project.json")\n    except:\n        return create_project(project_path=project_path)\n\n@app.delete("/api/projects")\ndef api_project_delete(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.delete_project()\n    return { "ok": 1 }\n\n@app.get("/api/project/unwatch")\ndef api_project_unwatch(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    settings.watching = False\n    settings.save_project()\n    find_all_projects()\n    return { "OK": 1 }\n\n@app.get("/api/knowledge/keywords")\ndef api_get_keywords(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    query = request.query_params.get("query")\n    return codx_junior_session.get_keywords(query=query)\n\n@app.post("/api/knowledge/keywords")\ndef api_extract_tags(doc: Document, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    logging.info(f"Extract keywords from {doc}")\n    doc = codx_junior_session.extract_tags(doc=doc)\n    return doc.__dict__\n\n@app.get("/api/code-server/file/open")\ndef api_list_chats(request: Request):\n    file_name = request.query_params.get("file_name")\n    settings = codx_junior_session = request.state.codx_junior_session.settings\n    coder_open_file(settings=settings, file_name=file_name)\n\n@app.get("/api/wiki")\ndef api_get_wiki(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path = request.query_params.get("file_path")\n    document = codx_junior_session.get_wiki_file(file_path)\n    return Response(content=document or "> Not found", media_type="text/html")\n\n@app.get("/api/files")\ndef api_get_files(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path = request.query_params.get("path")\n    return codx_junior_session.read_directory(path=path)\n\n@app.get("/api/files/read")\ndef api_get_file(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path = request.query_params.get("path")\n    return codx_junior_session.read_file(path=path)\n\n@app.post("/api/files/write")\ndef api_post_file(doc: Document, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path = request.query_params.get("path")\n    return codx_junior_session.write_file(path=path, content=doc.page_content)\n\n@app.get("/api/files/find")\ndef api_get_file(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    search = request.query_params.get("search")\n    return codx_junior_session.search_files(search=search)\n\n@app.get("/api/apps")\ndef api_apps_list(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return codx_junior_session.get_project_apps()\n\n@app.get("/api/apps/run")\ndef api_apps_run(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    app_name = request.query_params.get("app")\n    return codx_junior_session.run_app(app_name=app_name)\n\n\n@app.get("/api/global/settings")\ndef api_read_global_settings():\n    return read_global_settings()\n\n@app.post("/api/global/settings")\ndef api_write_global_settings(global_settings: GlobalSettings):\n    write_global_settings(global_settings=global_settings)\n    AIManager().reload_models(read_global_settings())\n\n@app.get("/api/logs")\ndef api_logs_list():\n    stdout, _ = exec_command(f"ls {os.environ[\'CODX_SUPERVISOR_LOG_FOLDER\']}")\n    return [log for log in [log.strip().replace(".log", "") for log in stdout.split("\\n")] if log]\n\n@app.get("/api/logs/{log_name}")\ndef api_logs_tail(log_name: str, request: Request):\n    log_file = f"{os.environ[\'CODX_SUPERVISOR_LOG_FOLDER\']}/{log_name}.log"\n    log_size = request.query_params.get("log_size") or "100"\n    cmd = f"tail -n {log_size} {log_file}"\n    try:\n        logs, _ = exec_command(cmd)\n        logger.info(f"api logs {logs}")\n\n        return parse_logs(logs)\n    except Exception as ex:\n        logger.exception(f"Error reading logs: {ex}")\n\n@app.post("/api/screen")\ndef api_screen_set(screen: Screen):\n    CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]\n    return exec_command(f"xrandr -s {screen.resolution}", env={"DISPLAY": CODX_JUNIOR_DISPLAY})\n\n@app.get("/api/screen")\ndef api_screen_get():\n    screen = Screen()\n    try:\n        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]\n        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})\n        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768\n        lines = res.split("\\n")\n        screen_line = [l for l in lines if l.startswith("Screen ")][0]\n        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")\n    except Exception as ex:\n        logger.error(f"Error extracting screen resolutions {ex}")\n    return screen\n\n@app.post("/api/image-to-text")\nasync def api_image_to_text_endpoint(file: UploadFile):\n    file_bytes = await file.read()            \n    return api_image_to_text(file_bytes)\n\n@app.post("/api/restart")\ndef api_restart():\n    logger.info(f"****************** API RESTARTING... bye *******************")\n    exec_command("sudo kill 7")\n\nif CODX_JUNIOR_STATIC_FOLDER:\n    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)\n    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")\n    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")\n\napp.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")\n\nstart_background_services(app)\n\n\n```\n```None\n/shared/codx-junior/api/codx/junior/engine.py\nimport os\nimport logging\nimport re\nimport json\nimport time\nimport subprocess\nimport shutil\nimport asyncio\nimport uuid\nfrom datetime import datetime\nfrom pathlib import Path\nfrom threading import Thread\n\nfrom slugify import slugify\n\nfrom contextlib import contextmanager\n\nfrom langchain.schema.document import Document\nfrom langchain.schema import (\n    AIMessage,\n    HumanMessage,\n    BaseMessage,\n    SystemMessage\n)\n\nfrom codx.junior.utils import (\n    document_to_context,\n    extract_code_blocks,\n    extract_json_blocks,\n    exec_command,\n    write_file\n)\n\nfrom codx.junior.profiling.profiler import profile_function\n\nfrom codx.junior.ai import AI\nfrom codx.junior.settings import (\n    CODXJuniorSettings,\n    read_global_settings\n)\n\nfrom codx.junior.chat_manager import ChatManager\nfrom codx.junior.profiles.profile_manager import ProfileManager\n\nfrom codx.junior.model.model import (\n    KnowledgeSearch,\n    Document,\n    Content,\n    ImageUrl,\n    LiveEdit,\n    GlobalSettings,\n    Profile\n)\nfrom codx.junior.context import (\n    find_relevant_documents,\n    AI_CODE_VALIDATE_RESPONSE_PARSER,\n    generate_markdown_tree,\n    AI_CODE_GENERATOR_PARSER,\n    AICodeGerator,\n    AICodePatch\n)\n\nfrom codx.junior.knowledge.knowledge_milvus import Knowledge\nfrom codx.junior.knowledge.knowledge_loader import KnowledgeLoader\nfrom codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords\n\nfrom codx.junior.mention_manager import (\n    extract_mentions,\n    replace_mentions,\n    notify_mentions_in_progress,\n    notify_mentions_error,\n    strip_mentions,\n    is_processing_mentions\n)\nfrom codx.junior.db import (\n    Kanban,\n    Chat,\n    Message,\n)\n\nfrom codx.junior.sio.session_channel import SessionChannel\n\n"""Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won\'t be processed"""\nMAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 300\n\nlogger = logging.getLogger(__name__)\n\nAPPS = [\n    {\n        "name": "chrome",\n        "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Google_Chrome_icon_%28February_2022%29.svg/768px-Google_Chrome_icon_%28February_2022%29.svg.png",\n        "description": "Google chrome engine",\n    }\n]\n\nAPPS_COMMANDS = {\n    "chrome": "google-chrome --no-sandbox --no-default-browser-check"\n}\n\nAGENT_DONE_WORD = "$$@@AGENT_DONE@@$$$"\n\ndef create_project(project_path: str):\n    logger.info(f"Create new project {project_path}")\n    projects_root_path = f"{os.environ[\'HOME\']}/projects"\n    os.makedirs(projects_root_path, exist_ok=True)\n        \n    if project_path.startswith("http"):\n        url = project_path\n        repo_name = url.split("/")[-1].split(".")[0]\n        project_path = f"{projects_root_path}/{repo_name}"\n        command = f"git clone --depth=1 {url} {project_path}"\n        logger.info(f"Cloning repo {url} {repo_name} {project_path}")\n        exec_command(command=command)\n        open_readme = True\n    \n    settings = CODXJuniorSettings()\n    settings.project_name = project_path.split("/")[-1]\n    settings.codx_path = f"{project_path}/.codx"\n    settings.watching = True\n    settings.save_project()\n    _, stderr = exec_command("git branch")\n    if stderr:\n        exec_command("git init", cwd=project_path)\n    return CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")\n\ndef coder_open_file(settings: CODXJuniorSettings,  file_name: str):\n    logger.info(f"coder_open_file {file_name}")\n    if not file_name.startswith(settings.project_path):\n        file_name = f"{settings.project_path}{file_name}".replace("//", "/")\n    os.system(f"code-server -r {file_name}")\n\n\ndef find_project_from_file_path(file_path: str):\n    """Given a file path, find the project parent"""\n    all_projects = find_all_projects()\n    matches = [p for p in all_projects if file_path.startswith(p.project_path)]\n    if matches:\n        logger.info(f"Find projects for file {file_path}: {[m.project_name for m in matches]}")\n        return sorted(matches, key=lambda p: len(p.project_path))[-1]\n    return None\n  \ndef find_project_by_id(project_id: str):\n    """Given a project id, find the project"""\n    all_projects = find_all_projects()\n    matches = [p for p in all_projects if p.project_id == project_id]\n    return matches[0] if matches else None\n\ndef find_project_by_name(project_name: str):\n    """Given a project project_name, find the project"""\n    all_projects = find_all_projects()\n    matches = [p for p in all_projects if p.project_name == project_name]\n    return matches[0] if matches else None\n\n\ndef find_all_projects():\n    all_projects = []\n    project_path = "/"\n    result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)\n    all_codx_path = result.stdout.decode(\'utf-8\').split("\\n")\n    paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]\n    #logger.info(f"[find_all_projects] paths: {paths}")\n    for codx_path in paths:\n        try:\n            project_file_path = f"{codx_path}/project.json"\n            settings = CODXJuniorSettings.from_project_file(project_file_path)\n            project_exists = [p for p in all_projects if p.project_name == settings.project_name] \n            if not project_exists: \n                all_projects.append(settings)\n            else:\n                # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")\n                pass \n        except Exception as ex:\n            logger.exception(f"Error loading project {str(codx_path)}")\n    \n    def update_projects_with_details():\n        for project in all_projects:\n            try:\n                command = ["git", "branch", "--show-current"]\n                result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)\n                project.__dict__["_current_git_branch"] = result.stdout.decode(\'utf-8\')\n            except Exception as ex:\n                project.__dict__["_current_git_branch"] = f"Error: {ex}"\n            project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()\n            project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]\n    return all_projects\n\ndef update_engine():\n    try:\n        command = ["git", "pull"]\n        subprocess.run(command)\n    except Exception as ex:\n        logger.exception(ex)\n        return ex\n                \n\nclass CODXJuniorSession:\n    def __init__(self,\n            settings: CODXJuniorSettings = None,\n            codx_path: str = None,\n            channel: SessionChannel = None):\n        self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")\n        self.channel = channel\n        \n        if not channel:\n            from codx.junior.sio.sio import sio\n            self.channel = SessionChannel(sio=sio)\n\n    def switch_project(self, project_id: str):\n        if not project_id or project_id == self.settings.project_id:\n            return self\n        settings = find_project_by_id(project_id=project_id)\n        return CODXJuniorSession(settings=settings, channel=self.channel) \\\n                if settings else self\n\n    def log_info(self, msg):\n        logger.info(f"[{self.settings.project_name}] {msg}")\n\n    def log_error(self, msg):\n        logger.error(f"[{self.settings.project_name}] {msg}")\n    \n    def log_exception(self, msg):\n        logger.exception(f"[{self.settings.project_name}] {msg}")\n\n    def get_channel(self):\n        return self.channel\n\n    def event_data(self, data: dict):\n        data[\'codx_path\'] = self.settings.codx_path\n        return data\n\n    def send_notification(self, **kwargs):\n        self.get_channel().send_event(\'codx-junior\', self.event_data({ **kwargs, "type": "notification" }))\n\n    def send_event(self, message: str):\n        self.get_channel().send_event(\'codx-junior\', self.event_data({ \'text\': message, "type": "event" }))\n        # self.log_info(f"SEND MESSAGE {message}- SENT!")\n\n    def chat_event(self, chat: Chat, message: str = None, event_type: str = None):\n        self.get_channel().send_event(\'chat-event\', self.event_data({ \'chat\': { \'id\': chat.id }, \'text\': message, \'type\': event_type }))\n        # self.log_info(f"SEND MESSAGE {message}- SENT!")\n\n    def message_event(self, chat: Chat, message: Message):\n        self.get_channel().send_event(\'message-event\', self.event_data({ \'chat\': { \'id\': chat.id }, \'message\': message.model_dump() }))\n        # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")\n\n    @contextmanager\n    def chat_action(self, chat: Chat, event: str):\n        self.chat_event(chat=chat, message=f"{event} starting")\n        self.log_info(f"Start chat {chat.name}")\n        try:\n            yield\n        except Exception as ex:\n            self.chat_event(chat=chat, message=f"{event} error: {ex}")\n            self.log_error(f"Chat {chat.name} {event} error: {ex}")\n        finally:\n            self.chat_event(chat=chat, message=f"{event} done")\n            self.log_info(f"Chat done {chat.name}")\n\n    \n    def delete_project(self):\n        shutil.rmtree(self.settings.codx_path)\n        logger.error(f"PROJECT REMOVED {self.settings.codx_path}")\n\n    def get_chat_manager(self):\n        return ChatManager(settings=self.settings)\n\n    def get_profile_manager(self):\n        return ProfileManager(settings=self.settings)\n\n    def get_ai(self, llm_model: str = None):\n        return AI(settings=self.settings, llm_model=llm_model)\n\n    def get_knowledge(self):\n        return Knowledge(settings=self.settings)\n\n    def get_browser(self):\n        from codx.junior.browser.browser import Browser\n        return Browser(session=self)\n\n    @profile_function\n    def load_chat(self, board, chat_name):\n        return self.get_chat_manager().load_chat(board=board, chat_name=chat_name)\n    \n    def list_chats(self):\n        return self.get_chat_manager().list_chats()\n\n    async def save_chat(self, chat: Chat, chat_only=False):\n        chat = self.get_chat_manager().save_chat(chat, chat_only)\n        self.chat_event(chat=chat, event_type="changed")\n        return chat\n\n    def delete_chat(self, file_path):\n        self.get_chat_manager().delete_chat(file_path)\n\n    @profile_function\n    def list_profiles(self):\n        return self.get_profile_manager().list_profiles()\n\n    async def save_profile(self, profile):\n        profile = self.get_profile_manager().save_profile(profile=profile)\n        await self.check_file_for_mentions(file_path=profile.content_path)\n        return self.read_profile(profile_name=profile.name)\n\n    def read_profile(self, profile_name):\n        return self.get_profile_manager().read_profile(profile_name)\n\n    def delete_profile(self, profile_name):\n        return self.get_profile_manager().delete_profile(profile_name)\n\n    def reload_knowledge(self, path: str = None):\n        knowledge = self.get_knowledge()\n        self.log_info(f"***** reload_knowledge: {path}")\n        documents = None\n        if path:\n            documents = knowledge.reload_path(path)\n            self.log_info(f"reload_knowledge: {path} - Docs: {len(documents)}")\n        else:\n            documents = knowledge.reload()\n        return {"doc_count": len(documents) if documents else 0}\n\n    @profile_function\n    async def knowledge_search(self, knowledge_search: KnowledgeSearch):\n        self.settings.knowledge_search_type = knowledge_search.document_search_type\n        self.settings.knowledge_search_document_count = knowledge_search.document_count\n        self.settings.knowledge_context_cutoff_relevance_score = knowledge_search.document_cutoff_score\n        self.settings.knowledge_context_rag_distance = knowledge_search.document_cutoff_rag\n\n        logger.info(f"""knowledge_search: \n        knowledge_search_type: {self.settings.knowledge_search_type}\n        knowledge_search_document_count: {self.settings.knowledge_search_document_count}\n        knowledge_context_cutoff_relevance_score: {self.settings.knowledge_context_cutoff_relevance_score}\n        knowledge_context_rag_distance: {self.settings.knowledge_context_rag_distance}\n        """)\n        \n        documents = []\n        response = ""\n        if knowledge_search.search_type == "embeddings":\n            documents, file_list = find_relevant_documents(query=knowledge_search.search_term,\n                                                    settings=self.settings, \n                                                    ignore_documents=[],\n                                                    ai_validate=True)\n            \n            chat = Chat(messages=\n                [\n                    Message(\n                        role="user",\n                        content=doc.page_content)\n                    for doc in documents] +  \n                [\n                    Message(\n                        role="user",\n                        content=f"Based on previos messages, give me really short answer about: {knowledge_search.search_term}"\n                )\n            ])\n            chat, _ = await self.chat_with_project(chat=chat, disable_knowledge=True)\n            response = chat.messages[-1].content\n        elif knowledge_search.search_type == "source":\n            documents = Knowledge(settings=self.settings).search_in_source(knowledge_search.search_term)\n        \n        return {\n            "response": response,\n            "documents": documents,\n            "settings": {\n                "knowledge_search_type": self.settings.knowledge_search_type,\n                "knowledge_search_document_count": self.settings.knowledge_search_document_count,\n                "knowledge_context_cutoff_relevance_score": self.settings.knowledge_context_cutoff_relevance_score,\n                "knowledge_context_rag_distance": self.settings.knowledge_context_rag_distance\n            }\n        }\n\n    def delete_knowledge_source(self, sources: [str]):\n        Knowledge(settings=self.settings).delete_documents(sources=sources)\n        self.settings.watching = False\n        self.settings.save_project()\n        find_all_projects()\n        return {"ok": 1}\n\n    def delete_knowledge(self):\n        Knowledge(settings=self.settings).reset()\n        return {"ok": 1}\n\n    def get_project_dependencies(self):\n        """Returns all projects related with this project, including child projects and links"""\n        project_child_projects = self.settings.get_sub_projects()\n        project_dependencies = [find_project_by_name(project_name) for project_name in self.settings.get_project_dependencies()]\n        return project_child_projects, project_dependencies\n        \n    def extract_query_mentions(self, query: str):\n        mentions = re.findall(r\'@[a-zA-Z0-9\\-\\_\\.]+\', query)\n        self.log_info(f"Extracted mentions: {mentions}")\n        return mentions\n\n    def find_projects_by_mentions(self, mentions: [str]):\n        return [project for project in [find_project_by_name(mention[1:]) for mention in mentions] if project]\n\n    def find_profiles_by_mentions(self, mentions: [str]):\n        profile_manager = self.get_profile_manager()\n        return [p for p in profile_manager.list_profiles() if p.name in mentions]\n\n    def get_query_mentions(self, query: str):\n        mentions = self.extract_query_mentions(query=query)\n        projects = self.find_projects_by_mentions(mentions=mentions)\n        profiles = self.find_profiles_by_mentions(mentions=mentions)\n        return {\n          "projects": projects,\n          "profiles": profiles\n        }\n\n    @profile_function\n    def select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str, ignore_documents=[], search_projects = []):\n        for search_project in search_projects:\n            query = query.replace(f"@{search_project.project_name}", "")\n\n        @profile_function\n        def process_rag_query(rag_query):\n            docs = []\n            file_list = []\n\n            self.log_info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")\n            for search_project in search_projects:    \n                self.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.project_path}")\n                project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, ignore_documents=ignore_documents)\n                project_file_list = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]\n                if project_docs:\n                    docs = docs + project_docs\n                if project_file_list:\n                    file_list = file_list + project_file_list\n            \n            self.log_info(f"select_afefcted_documents_from_knowledge doc length: {len(docs)} - cutoff score {self.settings.knowledge_context_cutoff_relevance_score}")  \n            return docs, file_list\n        return process_rag_query(rag_query=query)\n\n    async def generate_code(self, chat: Chat, code_block_info: dict):\n        language = code_block_info["language"]\n        code = code_block_info["code"]\n        \n        try:\n            chat.messages.append(Message(role="user", content=f"""\n            Apply this code\n            ```{language}\n            {code}\n            ```\n            """))\n            self.chat_event(chat=chat, message="Applying patch")\n            await self.improve_existing_code(chat=chat, apply_changes=True)\n            self.chat_event(chat=chat, message="Applying patch done.")\n        except Exception as ex:\n            self.chat_event(chat=chat, message=f"Error applying patch: {ex}", event_type="error")\n            raise ex\n                      \n    async def improve_existing_code_patch(self, chat:Chat, code_generator: AICodeGerator):\n        # Invoke project based on project_id\n        self = self.switch_project(chat.project_id)\n\n        patch = code_generator.code_patches[0]\n        ts = datetime.now().strftime(\'%H%M%S\')\n        patch_file = f"{self.settings.project_path}/{ts}.patch"\n        with open(patch_file, \'w\') as f:\n            f.write(patch.patch)\n        git_patch = f"git apply {patch_file}"\n        stdout, stderr = exec_command(git_patch, cwd=self.settings.project_path)\n        os.remove(patch_file)\n        res = f"{stdout} {stderr}".lower()\n        error = True if len(stderr or "") != 0 or "error" in res else False\n        \n        changes = code_generator.code_changes            \n        if error and changes:\n            file_path = changes[0].file_path\n            await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)\n            stdout = "Changes applied"\n            stderr = ""\n            if file_path not in chat.file_list:\n                chat.file_list.append(file_path) \n                coder_open_file(self.settings, file_name=file_path)\n        return stdout, stderr\n\n\n    @profile_function\n    async def improve_existing_code(self, chat: Chat, apply_changes: bool=None):\n        # Invoke project based on project_id\n        self = self.switch_project(chat.project_id)\n        self.send_event(message=f"Code changes")\n\n        valid_messages = [message for message in chat.messages if not message.hide]\n        if valid_messages[-1].improvement:\n            code_generator = self.get_ai_code_generator_changes(response=valid_messages[-1].content)\n            return await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)\n\n        knowledge = Knowledge(settings=self.settings)\n        profile_manager = ProfileManager(settings=self.settings)\n        if apply_changes is None:\n            apply_changes = True if chat.mode == \'task\' else False\n\n        request = f"""\n        Assist the user on generating file changes for the project "{self.settings.project_name}" based on the comments below.\n        Make sure that all proposed changes follow strictly the best practices.\n        \n        Best practices:\n        ```markdown\n        {profile_manager.read_profile("software_developer").content}\n        ```\n        Info about the project:\n        - Root path: {self.settings.project_path}\n        - Files tree view: {generate_markdown_tree(knowledge.get_all_sources())}\n        Use this information for generating file paths and understanding the project\'s folder structure.\n\n        Create a list of find&replace instructions for each change needed:\n        INSTRUCTIONS:\n          {AI_CODE_GENERATOR_PARSER.get_format_instructions()}\n          \n          * For new files create an absolute paths\n          * Only update files that exists in the project\'s files\n          * Keep content indentation; It is crucial to find the content to replace and to make new content work\n        """\n        code_generator = None\n        retry_count = 1\n        request_msg = Message(role="user", content=request)\n        chat.messages.append(request_msg)\n        async def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:\n            if error:\n                chat.messages.append(Message(role="user", content=f"There was an error last time:\\n {error}"))\n            \n            await self.chat_with_project(chat=chat, disable_knowledge=True, chat_mode=\'chat\')\n            chat.messages[-1].improvement = True\n            \n            request_msg.improvement = True\n            request_msg.hide = True\n            if chat.mode == \'task\':\n                chat.messages[-2].hide = False\n                chat.messages[-1].hide = True\n            response = chat.messages[-1].content.strip()\n            try:\n                return self.get_ai_code_generator_changes(response=response)\n            except Exception as ex:\n                logger.error(f"Error parsing response: {response}")\n                attempt -= 1\n                if attempt:\n                    chat.messages.pop()\n                    return await try_chat_code_changes(attempt, error=str(ex))\n                raise ex\n        code_generator = await try_chat_code_changes(retry_count)\n        if not apply_changes:\n            return code_generator\n\n        await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)\n        return code_generator\n\n    def get_ai_code_generator_changes(self, response: str):\n        code_generator = AI_CODE_GENERATOR_PARSER.invoke(response)\n        for change in code_generator.code_changes:\n            file_path = change.file_path\n            if not file_path.startswith(self.settings.project_path):\n                change.file_path = os.path.join(self.settings.project_path, file_path)        \n        return code_generator\n\n    def project_script_test(self):\n        self.log_info(f"project_script_test, test: {self.settings.script_test} - {self.settings.script_test_check_regex}")\n        if not self.settings.script_test:\n            return\n\n        command = self.settings.script_test.split(" ")\n        result = subprocess.run(command, cwd=self.settings.project_path,\n                                stdout=subprocess.PIPE,\n                                stderr=subprocess.STDOUT,\n                                text=True)\n        console_out = result.stdout\n        \n        self.log_info(f"project_script_test: {console_out} \\nOUTPUT DONE")\n\n        test_regex = self.settings.script_test_check_regex if self.settings.script_test_check_regex else \'error\' \n        if re.search(test_regex, console_out):\n            return console_out\n        return ""\n\n    @profile_function\n    async def apply_improve_code_changes(self, code_generator: AICodeGerator, chat: Chat = None):\n        # Invoke project based on project_id\n        self = self.switch_project(chat.project_id)\n        \n        changes = code_generator.code_changes\n        self.log_info(f"improve_existing_code total changes: {len(changes)}")\n        changes_by_file_path = {}\n        for change in changes:\n            file_path = change.file_path\n            if file_path not in changes_by_file_path:\n                changes_by_file_path[file_path] = []\n            changes_by_file_path[file_path].append(change)\n        \n        for file_path, changes in changes_by_file_path.items():\n            change_type = changes[0].change_type\n            self.log_info(f"improve_existing_code change: {change_type} - {file_path}")\n            self.send_event(message=f"Code-gen: change {change_type} - {file_path}")\n            \n            if change_type == "delete_file":\n                del open_files[file_path]\n                os.remove(file_path)\n                if file_path in chat.file_list:\n                    chat.file_list = [f for f in chat.file_list if f != file_path]\n            else:\n                content = ""\n                if os.path.isfile(file_path):\n                    with open(file_path, \'r\', encoding=\'utf-8\', errors=\'ignore\') as f:\n                        content = f.read()\n                instruction_list = [json.dumps(change.__dict__) for change in changes]\n                self.log_info(f"Applying {len(changes)} changes to {file_path}")\n                new_content = await self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)\n                if new_content and new_content != content:\n                    write_file(file_path=file_path, content=new_content)\n                    if file_path not in chat.file_list:\n                        chat.file_list.append(file_path)\n                else:\n                    logger.error(f"Error applying changes to {file_path}. New content: {new_content}")\n\n        if chat:\n            file_paths = " ".join(changes_by_file_path.keys())\n            git_diff, _ = exec_command(f"git diff {file_paths}", cwd=self.settings.project_path)\n            chat.messages.append(Message(role="assistant", content=f"```diff\\n{git_diff}\\n```"))\n\n    async def change_file_with_instructions(self, instruction_list: [str], file_path: str, content: str):\n        profile_manager = ProfileManager(settings=self.settings)\n        chat = Chat(name=f"changes_at_{file_path}", messages=[])\n\n        content_instructions = f"EXISTING CONTENT:\\n{content}" if content else ""\n        chat.messages.append(Message(role="user", content=f"""\n        {profile_manager.read_profile("software_developer").content}\n\n        Rewrite full file content replacing codx instructions by required changes.\n        Return only the file content without any further decoration or comments.\n        Do not surround response with \'```\' marks, just content.\n        Always respect current file content formatting.\n\n        INSTRUCTIONS:\n        { "- ".join(instruction_list) }\n\n        { content_instructions }\n        """))\n        await self.chat_with_project(chat=chat, disable_knowledge=True, append_references=False)\n        return chat.messages[-1].content\n\n    @profile_function\n    def check_knowledge_status(self):\n        knowledge = Knowledge(settings=self.settings)\n        status = knowledge.status()\n        pending_files, last_update = knowledge.detect_changes()\n        return {\n            "last_update": str(last_update),\n            "pending_files": pending_files[0:2000],\n            "total_pending_changes": len(pending_files),\n            **status\n        }\n\n    def check_project_changes(self):\n        if not self.settings.is_valid_project():\n            # logger.error(f"check_project_changes invalid project {self.settings}")\n            return False\n        knowledge = Knowledge(settings=self.settings)\n        knowledge.clean_deleted_documents()\n        new_files = knowledge.detect_changes()\n        if not new_files:\n            self.log_info(f"check_project_changes {self.settings.project_name} no changes")\n            return False\n        return True\n\n    @profile_function\n    async def check_file(self, file_path: str, force: bool = False):\n        res = await self.check_file_for_mentions(file_path=file_path)\n        self.log_info(f"Check file {file_path} for mentions: {res}")\n        # Reload knowledge \n        if res != "processing" and (force or self.settings.watching):\n            knowledge = self.get_knowledge()\n            knowledge.reload_path(path=file_path)\n\n    async def process_project_changes(self):\n        if not self.settings.is_valid_project():\n            return\n        knowledge = Knowledge(settings=self.settings)\n        knowledge.clean_deleted_documents()\n        new_files, _ = knowledge.detect_changes()\n        if not new_files:\n            return    \n\n        def changed_file():\n            for file_path in new_files:\n                if (int(time.time()) - int(os.stat(file_path).st_mtime) < MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS):\n                    return file_path\n            return None\n\n        file_path = changed_file() # one at a time by modified time\n        if not file_path:\n            return\n\n        res = await self.check_file_for_mentions(file_path=file_path)\n        if res == "processing":\n            return\n\n        if self.settings.watching:\n            self.log_info(f"Reload knowledge files {new_files}")\n            knowledge.reload_path(path=file_path)\n\n    def extract_changes(self, content):\n        for block in extract_json_blocks(content):\n            try:\n                for change in block:\n                    yield change["change"]\n            except:\n                pass\n\n    def split_blocks_by_gt_lt(self, content):\n        add_line = False\n        content_lines = []\n        for line in content.split("\\n"):\n            if line == "<GPT_CODE_CHANGE>":\n                add_line = True\n                continue\n            if line == "</GPT_CODE_CHANGE>":\n                yield content_lines\n                add_line = False\n                content_lines = []\n            if add_line:\n                content_lines.append(line)\n                continue\n\n    def get_line_changes(self, content):\n        line_change = None\n        for line in content.split("\\n"):\n            if line.startswith("<GPT_"):\n                line_change = {\n                    "type": re.match(r\'<GPT_([^_]+)_LINE\', line),\n                    "start": line.split("start_line=")[1]\n                }\n                continue\n            if line.startswith("</GPT"):\n                yield content_lines\n                add_line = False\n                content_lines = []\n            if add_line:\n                content_lines.append(line)\n                continue\n\n    async def change_file(self, context_documents, query, file_path, org_content, save_changes=False):\n        profile_manager = ProfileManager(settings=self.settings)\n        tasks = "\\n *".join(context_documents + [query])\n        request = f"""Please produce a full version of this ##CONTENT applying the changes requested in the ##TASKS section.\n        The output will replace existing file so write all unchanged lines as well.\n        ##CONTENT:\n        {org_content}\n        \n        ##TASKS:\n        {tasks}\n\n        OUPUT INSTRUCTIONS:\n        {AI_CODE_VALIDATE_RESPONSE_PARSER.get_format_instructions()}\n        """\n\n        chat_name = \'-\'.join(file_path.split(\'/\')[-2:])\n        chat_time = datetime.now().strftime(\'%H%M%S\')\n        chat = Chat(name=f"{chat_name}_{chat_time}", messages=[\n            Message(role="user", content=profile_manager.read_profile("software_developer").content),\n            Message(role="user", content=request)\n        ])\n        try:\n            chat = await self.chat_with_project(chat=chat, disable_knowledge=True)\n            response = chat.messages[-1].content.strip()\n            parsed_response = AI_CODE_VALIDATE_RESPONSE_PARSER.invoke(response)\n            return parsed_response.new_content\n        except Exception as ex:\n            chat.messages.append(Message(role="error", content=str(ex)))\n            raise ex\n        finally:\n            if save_changes:\n                await self.save_chat(chat=chat)\n\n    @profile_function\n    async def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False):\n\n      async def check_file_for_mentions_inner(file_path: str, content: str = None, silent: bool = False):\n          profile_manager = self.get_profile_manager()\n          chat_manager = self.get_chat_manager()\n          mentions = None\n          file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)\n          \n          def read_file():\n              def prepare_ipynb_for_llm():\n                  with open(file_path, \'r\', encoding=\'utf-8\', errors=\'ignore\') as file:\n                      notebook_data = json.loads(file.read())\n                  \n                      # Remove outputs from each cell\n                      for cell in notebook_data.get(\'cells\', []):\n                          if \'outputs\' in cell:\n                              del cell[\'outputs\']\n                  \n                      return json.dumps(notebook_data)\n\n              if  file_path.endswith(".ipynb"):\n                  return prepare_ipynb_for_llm()\n          \n              with open(file_path, \'r\', encoding=\'utf-8\', errors=\'ignore\') as f:\n                  return f.read()\n\n          if not content:\n              content = read_file()\n          \n          if is_processing_mentions(content=content):\n              return "processing"\n\n          mentions = extract_mentions(content)\n          \n          if not mentions:\n              return ""\n\n          keywords = self.get_keywords(query=" ".join([m.mention for m in mentions]))\n          \n          self.send_notification(text=f"@codx {len(mentions)} mentions in {file_path.split(\'/\')[-1]} keywords: {keywords}")    \n          self.log_info(f"{len(mentions)} mentions found for {file_path}")\n\n          new_content = notify_mentions_in_progress(content)\n          if not silent:\n              write_file(file_path=file_path, content=new_content)\n\n          image_mentions = [m for m in mentions if m.flags.image]\n          if image_mentions:\n              new_content = self.process_image_mention(image_mentions, file_path, content)\n              return await self.check_file_for_mentions(file_path=file_path, content=new_content, silent=True)\n\n          use_knowledge = any(m.flags.knowledge for m in mentions) or keywords\n          using_chat = any(m.flags.chat_id for m in mentions)\n          run_code = any(m.flags.code for m in mentions)\n\n          if using_chat:\n              use_knowledge = False       \n              self.log_info(f"Skip KNOWLEDGE search for processing, using_chat={using_chat}")\n          \n          def mention_info(mention):\n              chat = chat_manager.find_by_id(mention.flags.chat_id) if mention.flags.chat_id else None\n              if chat:\n                  self.log_info(f"using CHAT for processing mention: {mention.mention}")\n                  return f"""Based on this conversation:\n                  ```markdown\n                  {chat_manager.serialize_chat(chat)}\n                  ```\n                  User commented in line {mention.start_line}: {mention.mention}\n                  """\n              return f"User commented in line {mention.start_line}: {mention.mention}"\n          \n          query = "\\n  *".join([mention_info(mention) for mention in mentions])\n          file_chat_name = "-".join(file_path.split("/")[-2:])\n          \n          self.log_info(f"Create mention chat {file_chat_name}")\n          analysis_chat = None\n          if use_knowledge:\n              analysis_chat = Chat(name=slugify(f"analysis_at_{file_chat_name}-{datetime.now()}"), \n                  board="mentions",\n                  column="analysis",\n                  mode="chat",\n                  tags=["use_knowledge" if use_knowledge else "skip_knowledge"],\n                  messages=\n                  [\n                      Message(role="user", content="\\n".join([\n                      f"Find all information needed to apply all changes to file: {file_path}",\n                      "",\n                      f"Changes:",\n                      query,\n                      "",\n                      "File content:",\n                      new_content\n                      ]))\n                  ])\n              self.log_info(f"Chat with project analysis {analysis_chat.name}")\n              await self.chat_with_project(chat=analysis_chat, disable_knowledge=not use_knowledge)\n              analysis_chat = chat_manager.save_chat(analysis_chat)\n\n          if run_code:\n              self.log_info(f"Mentions running code {file_path}")\n              await self.improve_existing_code(chat=chat, apply_changes=True)\n          else:\n              changes_chat = Chat(name=slugify(f"changes_at_{file_chat_name}-{datetime.now()}"), \n                board="mentions",\n                column="changes",\n                parent_chat=analysis_chat.id if analysis_chat else None,\n                tags=["use_knowledge" if use_knowledge else "skip_knowledge"],\n                messages=\n                  [\n                      Message(role="user", content=f"""\n                      ```\n                      {new_content}\n                      ```\n                      \n                      {query}\n                      """)\n                  ])\n              \n              if analysis_chat:\n                  changes_chat.messages.append(analysis_chat.messages[-1])\n\n              if file_profiles:\n                  file_profile_content = "\\n".join([\n                      profile.content for profile in file_profiles\n                  ])\n                  \n                  changes_chat.messages.append(Message(\n                      role="user",\n                      profiles=[profile.name for profile in file_profiles],\n                      content=f"""Best practices for this file:\n                  {file_profile_content}\n                  """))\n\n              changes_chat.messages.append(Message(role="user", content=f"""\n              Rewrite full file content replacing codx instructions with the minimum changes as possible.\n              Return only the file content without any further decoration or comments.\n              Do not surround response with \'```\' marks, just content:\n              {new_content}\n              """))\n              \n              self.log_info(f"Mentions generate changes {file_path}")\n              \n              await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False)\n              chat_manager.save_chat(changes_chat)\n              response = changes_chat.messages[-1].content\n              \n              self.log_info(f"Mentions save file changes {file_path}")\n              write_file(file_path=file_path, content=response)\n          \n          self.send_notification(text=f"@codx done for {file_path.split(\'/\')[-1]}")\n    \n          return "done"\n      try:\n          res = await check_file_for_mentions_inner(file_path=file_path, content=content, silent=silent)\n          self.log_info(f"[{self.settings.project_name}] Mentions manager done for {file_path}")\n          return res\n      except Exception as ex:\n          self.log_exception(f"Error processing mentions at {file_path}: {ex}")\n\n    def process_image_mention(self, image_mentions, file_path: str, content: str):\n        ai = self.get_ai()\n        for image_mention in image_mentions:\n            image_mention.new_content = ai.image(image_mention.content)\n        return replace_mentions(content, image_mentions)\n\n    def get_project_profile(self):\n        return self.get_profile_manager().read_profile("project")\n\n    @profile_function\n    async def generate_tasks(self, chat: Chat):\n        from codx.junior.db import Chat\n        from pydantic import BaseModel, Field\n        from typing import List\n        from langchain.output_parsers import PydanticOutputParser\n\n        class AITasks(BaseModel):\n            tasks: List[Chat] = Field(description="List of tasks. chat mode will be chat.")\n\n        AI_TASKS_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AITasks)\n\n        with self.chat_action(chat=chat, event="Creating sub-tasks"):\n\n          ai = self.get_ai()\n          \n          content = "\\n".join([m.content for m in chat.messages[:-1] if not m.hide])\n          last_message = chat.messages[-1]\n\n          def format_project_info(project):\n              logger.info(f"format_project_info: {project.__dict__}")\n              return f"""<project name="{project.settings.project_name}" id="{project.settings.project_id}">\n              { project.get_project_profile() }\n              </project>\n              """\n          project_child_projects, project_dependencies = self.get_project_dependencies()\n          logger.info(f"project_child_projects: {[p.__dict__ for p in project_child_projects]}")\n          logger.info(f"project_dependencies: {[p.__dict__ for p in project_dependencies]}")\n          all_projects = [self] + [CODXJuniorSession(settings=settings) for settings in project_child_projects + project_dependencies]\n          projects_section = "\\n".join([format_project_info(project=project) for project in all_projects])\n\n          prompt = f"""\n          <projects>\n          { projects_section }\n          </projects>\n\n          <content>\n          {self.get_chat_analysis_parents(chat=chat)}\n          { content }\n          </content>\n\n          Generate subtasks from this epic:\n          { last_message.content }\n\n          INSTRUCTIONS:\n          Each task must have a clear name and an intial descriptive message with instructions on what has to be done.\n          Copy from the epic everything related with the subtask and add as the first message with a suggestion on how to solve it\n          Choose the right project_id for each task\n          { AI_TASKS_RESPONSE_PARSER.get_format_instructions() }\n          """\n          \n          messages = ai.chat(prompt=prompt)\n\n          response = messages[-1].content\n\n          ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)\n          self.chat_event(chat=chat, message=f"Generating {len(ai_tasks.tasks)} sub tasks")\n\n          chat_manager = self.get_chat_manager()\n          for sub_task in ai_tasks.tasks:\n              sub_task.parent_id = chat.id\n              sub_task.board = chat.board\n              sub_task.column = chat.column\n              sub_task.project_id = chat.project_id\n              init_message = "\\n".join([m.content for m in sub_task.messages])\n              sub_task.messages = [Message(role="assistant", content=init_message)]\n              self.chat_event(chat=chat, message=f"Saving subtask {sub_task.name}")\n              chat_manager.save_chat(sub_task)\n\n    def get_chat_analysis_parents(self, chat: Chat):\n        """Given a chat, traverse all parents and return all analysis"""\n        parent_content = []\n        chat_manager = self.get_chat_manager()\n        parent_chat = chat_manager.find_by_id(chat.parent_id)\n        while parent_chat:\n            messages = [m.content for m in parent_chat.messages if not m.hide]\n            if messages:\n              parent_content.append("\\n".join(messages))\n            parent_chat = chat_manager.find_by_id(parent_chat.parent_id)\n        return "\\n".join(parent_content)\n\n\n    def create_knowledge_search_query(self, query: str):\n      ai = self.get_ai()\n      return ai.chat(prompt=f"""\n      <text>\n      {query}\n      </text>\n\n      <instructions>\n        Extract keywords and other relevant information from the text\n        Create a search query containing all the keywords\n        Return only the search query without any decoration of any other information \n      </instructions>\n      """)[-1].content\n                \n    @profile_function\n    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0):\n        # Invoke project based on project_id\n        self = self.switch_project(chat.project_id)\n\n        with self.chat_action(chat=chat, event=f"Processing AI request {chat.name}"):\n            chat_mode = chat_mode or chat.mode or "chat"\n            if chat_mode == "browser":\n                self.log_info(f"chat_with_project browser mode")\n                self.chat_event(chat=chat, message=f"connecting with browser...")\n                return self.get_browser().chat_with_browser(chat)\n\n            documents = []\n            task_item = ""\n\n            parent_chat = None\n            if chat.parent_id:\n                chat_manager = self.get_chat_manager()\n                parent_chat = chat_manager.find_by_id(chat.parent_id)\n\n            is_refine = chat_mode == "task"\n            is_agent = chat_mode  == "agent"\n\n            max_iterations = self.settings.get_agent_max_iterations()\n            iterations_left = max_iterations - iteration\n\n            if is_refine:\n                task_item = "analysis"\n            \n            response_message = Message(role="assistant",\n                                      doc_id=str(uuid.uuid4()))\n            timing_info = {\n              "start_time": time.time(),\n              "first_response": None\n            }\n\n            def send_message_event(content):\n                if not timing_info.get("first_response"):\n                    timing_info["first_response"] = time.time() - timing_info["start_time"]\n                response_message.content = content\n                sources =  []\n                if documents:\n                    sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))\n                response_message.files = sources\n                response_message.task_item = task_item\n                self.message_event(chat=chat, message=response_message)\n\n            valid_messages = [m for m in chat.messages if not m.hide and not m.improvement]\n            ai_messages = [m for m in valid_messages if m.role == "assistant"]\n            last_ai_message = ai_messages[-1] if ai_messages else None\n                \n            user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")\n            query = user_message.content\n\n            query_mentions = self.get_query_mentions(query=query)\n            self.log_info(f"Chat with project mentions: {query_mentions}")\n            \n            ai = self.get_ai(llm_model=chat.model)\n            profile_manager = ProfileManager(settings=self.settings)\n            chat_profiles = query_mentions["profiles"]\n            chat_profiles_content = ""\n            chat_profile_names = ""\n            if chat_profiles:\n                chat_profiles_content = "\\n".join([profile.content for profile in chat_profiles if profile])\n                chat_profile_names = [profile.name for profile in chat_profiles if profile]\n\n            self.log_info(f"chat_with_project {chat.name} settings ready")\n            messages = []\n            def convert_message(m):\n                msg = None\n                def parse_image(image):\n                    try:\n                        return json.loads(image)\n                    except:\n                        return {"src": image, "alt": ""}\n                if m.images:\n                    images = [parse_image(image) for image in m.images]\n                    text_content = {\n                        "type": "text",\n                        "text": m.content\n                    }\n                    content = [text_content] + [\n                        {\n                            "type": "image_url",\n                            "image_url": {\n                                "url": image["src"]\n                            }\n                        } for image in images]\n\n                    self.log_info(f"ImageMessage content: {content}")\n                    msg = BaseMessage(type="image", content=json.dumps(content))\n                elif m.role == "user":\n                    msg = HumanMessage(content=m.content)\n                else:\n                    msg = AIMessage(content=m.content)\n          \n                return msg\n\n            for m in chat.messages[0:-1]:\n                if m.hide or m.improvement:\n                    continue\n                msg = convert_message(m)\n                messages.append(msg)\n\n            context = ""\n            documents = []\n            chat_files = chat.file_list or []\n            if parent_chat and parent_chat.file_list:\n                chat_files = chat_files + parent_chat.file_list\n\n            ignore_documents = chat_files.copy()\n            if chat.name:\n                ignore_documents.append(f"/{chat.name}")\n\n            self.chat_event(chat=chat, message="Knowledge search")\n\n            for chat_file in chat_files:\n                chat_file_full_path = chat_file\n                if self.settings.project_path not in chat_file_full_path:\n                    if chat_file[0] == \'/\':\n                        chat_file = chat_file[1:]\n                    chat_file_full_path = f"{self.settings.project_path}/{chat_file}"\n                try:\n                  with open(chat_file_full_path, \'r\') as f:\n                      doc_context = document_to_context(\n                        Document(page_content=f.read(), metadata={ "source": chat_file })\n                      )\n                      context += f"{doc_context}\\n"\n                except Exception as ex:\n                    logger.error(f"Error adding context file to chat {ex}")\n\n            search_projects = query_mentions["projects"]\n            if not disable_knowledge and self.settings.use_knowledge and search_projects:\n                self.log_info(f"chat_with_project start project search {search_projects}")\n                try:\n                    doc_length = 0\n                    if query:\n                        query_context = "\\n".join([m.content for m in messages])\n                        search_query = self.create_knowledge_search_query(query=f"{query_context}\\n{query}")\n          \n                        self.chat_event(chat=chat, message=f"Knowledge searching for: {search_query}")\n                        \n                        documents, file_list = self.select_afefcted_documents_from_knowledge(ai=ai, chat=chat, query=search_query, ignore_documents=ignore_documents, search_projects=search_projects)\n                        for doc in documents:\n                            doc_context = document_to_context(doc)\n                            context += f"{doc_context}\\n"\n                    \n                        response_message.files = file_list\n                        doc_length = len(documents)\n                    self.chat_event(chat=chat, message=f"Knowledge search found {doc_length} relevant documents")\n                except Exception as ex:\n                    self.chat_event(chat=chat, message=f"!!Error searching in knowledge {ex}", event_type="error")\n            else:\n                self.chat_event(chat=chat, message="! Knowledge search is disabled !")\n            if context:\n                messages.append(convert_message(\n                    Message(role="user", content=f"""\n                      THIS INFORMATION IS COMING FROM PROJECT\'S FILES.\n                      HOPE IT HELPS TO ANSWER USER REQUEST.\n                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).\n                      {context}\n                      """)))\n\n            if is_refine:\n                refine_message = Message(role="user", content=f"""\n                <task>\n                { chat.name }\n                </task>\n\n                <parent_context>\n                {self.get_chat_analysis_parents(chat=chat)}\n                </parent_context>\n\n                <document>\n                {last_ai_message.content if last_ai_message else \'\'}\n                </document>\n\n                <user_request>\n                Refine document with this comments:\n                {user_message.content}\n                </user_request>\n                """)\n                messages.append(convert_message(refine_message))\n            elif is_agent:\n                refine_message = Message(role="user", content=f"""\n                You are responsible to end this task.\n                Follow instructions and try to solve it with the minimun iterations needed.\n                <task>\n                { chat.name }\n                </task>\n\n                <parent_context>\n                {self.get_chat_analysis_parents(chat=chat)}\n                </parent_context>\n\n                <user_request>\n                Refine document with this comments:\n                {user_message.content}\n                </user_request>\n                \n                You still have { iterations_left } attemps more to finish the task. \n                Return { AGENT_DONE_WORD } when the task is done.\n                """)\n                messages.append(convert_message(refine_message))\n            else:\n                messages.append(convert_message(user_message))\n\n            # Add extra chat_profiles_content\n            messages[-1].content += chat_profiles_content\n            messages[-1].profiles = chat_profile_names\n            ai_settings = self.settings.get_llm_settings()\n            self.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")\n\n            if not callback:\n                callback = lambda content: send_message_event(content=content)\n            try:\n                messages = ai.chat(messages, callback=callback)\n                response_message.content = messages[-1].content\n            except Exception as ex:\n                logger.exception(f"Error chating with project: {ex} {chat.id}")\n                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"\n\n            response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]\n            response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]\n            response_message.meta_data["model"] = ai_settings.model\n            \n            chat.messages.append(response_message)\n            if is_refine:\n                for message in chat.messages[:-1]:\n                    message.hide = True\n\n            is_agent_done = AGENT_DONE_WORD in response_message.content\n            if is_agent and not is_agent_done and iterations_left:\n              self.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")\n              return self.chat_with_project(chat=chat,\n                    disable_knowledge=disable_knowledge,\n                    callback=callback,\n                    append_references=append_references,\n                    chat_mode=chat_mode,\n                    iteration=iteration + 1)\n            else:    \n              self.chat_event(chat=chat, message="done")\n            return chat, documents\n            \n    def check_project(self):\n        try:\n            self.log_info(f"check_project")\n            loader = KnowledgeLoader(settings=self.settings)\n            loader.fix_repo()\n        except Exception as ex:\n            logger.exception(str(ex))\n\n    def extract_tags(self, doc):\n        knowledge = Knowledge(settings=self.settings)\n        knowledge.extract_doc_keywords(doc)\n        return doc\n\n    def get_keywords(self, query):\n        return KnowledgeKeywords(settings=self.settings).get_keywords(query)\n\n    def get_wiki_file(self, file_path:str):\n        project_wiki_path = self.settings.get_project_wiki_path()\n        wiki_file = f"{project_wiki_path}{file_path}"\n        try:\n          with open(wiki_file, \'r\', encoding=\'utf-8\', errors=\'ignore\') as f:\n              return f.read()\n        except:\n          return f"{wiki_file} not found"\n\n    def get_readme(self):\n        project_path = self.settings.project_path\n        readme_file = f"{project_path}/README.md"\n        if os.path.isfile(readme_file):\n          with open(readme_file, \'r\', encoding=\'utf-8\', errors=\'ignore\') as f:\n              return f.read()\n        return ""\n\n    async def update_wiki(self, file_path: str):\n        return\n        project_wiki_path = self.settings.get_project_wiki_path()\n        if not self.settings.project_wiki or file_path.startswith(project_wiki_path):\n            return\n\n        project_wiki_home = f"{project_wiki_path}/home.md"\n\n        home_content = f"# {self.settings.project_name}"\n        if os.path.isfile(project_wiki_home):\n            with open(project_wiki_home, \'r\', encoding=\'utf-8\', errors=\'ignore\') as f:\n                home_content = f.read()\n\n        with open(file_path, \'r\', encoding=\'utf-8\', errors=\'ignore\') as f:\n            file_content = f.read()\n            self.log_info(f"update_wiki file_path: {file_path}, project_wiki: {project_wiki_path}")\n            chat = Chat(messages=[\n                Message(role="user", content=f"""Extract important parts from the content of {file_path} to be added to the wiki.\n                {file_content}\n                """)\n            ])\n            await self.chat_with_project(chat=chat)\n            chat.messages.append(Message(role="user", content=f"""\n            Improve our current wiki with the new knowledge extracted from {file_path},\n            Highlight important parts and create mermaid diagrams to help user\'s understanding of the project.\n            If information is not relevant for the whole project but for the file itself remove from home and create a new linked wiki page instead.\n            \n            Wiki directory structure:\n            ```md\n            {generate_markdown_tree(Path(project_wiki_path).glob("**"))}\n            ```\n\n            Wiki home content:\n            ```{project_wiki_home}\n            {home_content}\n            ```\n            """))\n            code_generator = await self.improve_existing_code(chat=chat, apply_changes=False)\n            self.log_info(f"update_wiki file_path: {file_path}, changes: {code_generator}")\n            if code_generator:\n                wiki_changes = [change for change in code_generator.code_changes if project_wiki_path in change.file_path]\n                self.log_info(f"update_wiki file_path: {file_path}, wiki changes: {wiki_changes}")\n                if wiki_changes:\n                    await self.apply_improve_code_changes(code_generator=AICodeGerator(code_changes=wiki_changes))\n\n    def update_project_profile(self, file_path: str):\n        return  # deprecated\n\n    def get_project_metrics(self):\n        chat_manager = ChatManager(settings=self.settings)\n\n        number_of_chats = chat_manager.chat_count()\n        chat_changed_last = chat_manager.last_chats()\n        \n        status = self.check_knowledge_status()\n        \n        return {\n            "number_of_chats": number_of_chats,\n            "chats_changed_last": chat_changed_last,\n            **status\n        }\n\n    def api_image_to_text(self, image_bytes):\n        from PIL import Image\n        import pytesseract\n        import io\n\n        image = Image.open(io.BytesIO(image_bytes))\n        text = pytesseract.image_to_string(image)\n        \n        return text\n    \n    def parse_file_line(self, file, base_path):\n        file_path = os.path.join(base_path, file)\n        if not file_path.startswith(self.settings.project_path):\n            file_path = f"{self.settings.project_path}/{file_path}"\n        is_dir = os.path.isdir(file_path)\n        return {\n          "name": file.split("/")[-1],\n          "file_path": file_path,\n          "is_dir": is_dir,\n          "children": [] if is_dir else None\n        }\n    \n    def read_directory(self, path: str):\n        base_path = path\n        files = os.listdir(base_path)\n        return {\n          "path": path,\n          "full_path": base_path,\n          "files": [self.parse_file_line(file, base_path) for file in sorted(files)]\n        }\n\n    def read_file(self, path: str):\n        with open(path, \'r\', encoding=\'utf-8\', errors=\'ignore\') as f:\n            return f.read()\n      \n    @profile_function\n    async def process_project_file_before_saving(self, file_path: str, content: str):\n        file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)\n        self.log_info(f"Applying file profiles {[p.name for p in file_profiles]} to {file_path}")\n        if file_profiles:\n            for profile in file_profiles:\n                content = await self.apply_file_profile(file_path=file_path, content=content, profile=profile)\n        return content\n    \n    async def apply_file_profile(self, file_path: str, content: str, profile: Profile):\n        file_profile_prompt = f"""\n        You are given a section of code that requires improvement by applying best practices. Your task is to refactor the code while ensuring that it adheres to the specified best practices. Please follow the instructions below:\n\n        ### File Content:\n        ```\n        {content}\n        ```\n\n        ### Instructions:\n        ```\n        {profile.content}\n        ```\n        Return the final content without any kind of decoration or extra comments. \n        Avoid surronding your response with fences (```), just return the final content.\n        """\n\n        content_message = Message(role="user", content=file_profile_prompt)\n\n        chat = Chat(name=f"Improve file with profile {profile.name}", messages=[content_message])\n        await self.chat_with_project(chat=chat, disable_knowledge=True)\n        return chat.messages[-1].content\n\n    async def write_project_file(self, file_path: str, content: str):\n        os.makedirs(os.path.dirname(file_path), exist_ok=True)\n        content = await self.process_project_file_before_saving(file_path=file_path, content=content)\n        write_file(file_path=file_path, content=content)\n\n    def search_files(self, search: str):\n        all_sources = [s for s in self.get_knowledge().get_all_sources().keys() if search in s]\n        base_path = self.settings.project_path\n        return [self.parse_file_line(file, base_path) for file in sorted(all_sources)]\n\n    def run_app(self, app_name: str):\n        command = APPS_COMMANDS[app_name]\n        exec_command(command)\n\n    def get_project_apps(self):\n        return APPS\n\n    def get_project_branches(self):\n        stdout, _ = exec_command("git branch",\n            cwd=self.settings.project_path)\n        branches = [s.strip() for s in stdout.split("\\n") if s.strip()]\n        current_branch = [b for b in branches if b.startswith(\'* \')]\n        if current_branch:\n            current_branch = current_branch[0].replace(\'* \', \'\')\n        else:\n            current_branch = ""\n\n        branches = [b.replace(\'* \', \'\') for b in branches]\n\n        branch_details = self.get_branch_details(current_branch)\n        parent_branch = branch_details["parent_branch"]\n\n        git_diff = ""\n        if current_branch and parent_branch:\n            stdout, _ = exec_command(f"git diff HEAD..{parent_branch}",\n              cwd=self.settings.project_path)\n            git_diff = stdout\n\n\n        return {\n          "branches": branches,\n          "current_branch": current_branch.strip(),\n          "parent_branch": parent_branch,\n          "git_diff": git_diff,\n          "branch_details": branch_details\n        }\n\n    def get_branch_details(self, branch_name: str):\n        """\n        Extracts commit details from a specified branch without checking it out.\n\n        Args:\n            branch_name (str): The name of the branch to extract commits from.\n\n        Returns:\n            list: A list of dictionaries containing commit information.\n        """\n        # Command to get commit details from the specified branch\n        log_command = f"git log -g --format=%H|%an|%cI|%s {branch_name}"\n        stdout, _ = exec_command(log_command, cwd=self.settings.project_path)\n\n        log_lines = stdout.split(\'\\n\')\n\n        commits = []\n        for entry in log_lines:\n            if entry.strip():\n                commit_hash, author, date, message = entry.split(\'|\', 3)\n\n                # Command to get files changed in each commit\n                file_changes_command = \\\n                    f\'git show --name-only --pretty=format:{commit_hash}\'\n                stdout, _ = exec_command(file_changes_command, cwd=self.settings.project_path)\n                file_changes = stdout.strip().split(\'\\n\')\n                commits.append({\n                    \'entry_line\': entry,\n                    \'commit_hash\': commit_hash,\n                    \'author\': author,\n                    \'date\': date,\n                    \'message\': message,\n                    \'files\': [file for file in file_changes if file][1:]\n                })\n\n        return {\n          "commits": commits,\n          "parent_branch": commits[-1]["commit_hash"]\n        }\n\n    def get_project_current_branch(self):\n        stdout, _ = exec_command("git branch --show-current")\n        return stdout\n\n    def get_project_parent_branch(self):\n        current_branch = self.get_project_current_branch()\n        stdout, _ = exec_command(f"git reflog {current_branch}",\n                              cwd=self.settings.project_path)\n        self.log_info(f"get_project_parent_branch reflog: {stdout} cwd: {self.settings.project_path}")\n        creation_line = [l for l in stdout.split("\\n") if "Created from" in l][0]\n        # 808a14a v1.0-hello-codx-junior@{53}: branch: Created from refs/remotes/origin/v1.0-hello-codx-junior\n        if "refs/remotes/" in creation_line:\n            ref_branch = creation_line.split(" ")[-1].remove("refs/remotes/", "")\n            # origin/v1.0-hello-codx-junior\n            return ref_branch\n\n        # 5f3e0bdd (origin/main, origin/task-two) tsk-task-1@{4}: branch: Created from 5f3e0bddbc466967f1a2eedc731eec980978b184\n        ref_branch  = creation_line.split(" (")[1].split(",")[0]\n        return ref_branch\n\n    def get_project_changes(self, parent_branch: str = None):\n        if not parent_branch:\n            #parent_branch = self.get_project_parent_branch()\n            parent_branch = parent_branch or "HEAD@{1}"\n            self.log_info(f"get_project_changes parent_branch {parent_branch}")\n        stdout, _ = exec_command(f"git diff {parent_branch}",\n                      cwd=self.settings.project_path)\n        return stdout\n\n    def build_code_changes_summary(self, force = False):\n        project_branches = self.get_project_branches()\n        diff = project_branches["git_diff"]\n        return self.get_knowledge().build_code_changes_summary(diff=diff, force=force)\n\n```\n\n                      ', additional_kwargs={}, response_metadata={}), HumanMessage(content='Models will come from checking all profiles in all projects @file://engine.py\nThose profiles with api_settings.active will be returned. Use api_settings: name and description for the Model info returned', additional_kwargs={}, response_metadata={}, profiles='')]
+Creating a new chat completion. Messages: 3 words: 87930
+OpenAI_AI chat_completions openai: gpt-4o https://api.openai.com/v1 sk-HyP... {'model': 'gpt-4o', 'stream': True, 'temperature': 1.0}
+Received AI response, start reading stream
+AI response done 857 chunks
+Chat completion finished: ############################################
+              ### ROLE: ai
+              ############################################
+
+              To extend the existing FastAPI application as described in your original `app.py` file with new endpoints while defining them in a separate file, you can modularize your FastAPI application. Here's how you can achieve this:
+
+1. **Create a new file**, say `chatgpt_api.py`, to define the new endpoints `/v1/models` and `/v1/completions`.
+
+2. **Import FastAPI** and necessary models or types from `pydantic`.
+
+3. **Define the new endpoints** in `chatgpt_api.py`.
+
+4. **Import and include** these routers in your main `app.py`.
+
+Here's how you can structure your code:
+
+### Step 1: Create `chatgpt_api.py`
+
+**`chatgpt_api.py`**
+
+```python
+from fastapi import APIRouter, Request
+from pydantic import BaseModel
+from typing import List
+
+router = APIRouter()
+
+# Define your data models
+class Model(BaseModel):
+    id: str
+    object: str
+    created: int
+    owned_by: str
+
+available_models = [
+    Model(id="gpt-3.5-turbo", object="model", created=1628472935, owned_by="openai"),
+    Model(id="gpt-4", object="model", created=1628472980, owned_by="openai")
+]
+
+@router.get("/v1/models", tags=["chatgpt"])
+async def list_models():
+    return {"object": "list", "data": available_models}
+
+@router.post("/v1/completions", tags=["chatgpt"])
+async def create_completion(request: Request):
+    body = await request.json()
+    completion_response = {
+        "id": "cmpl-3",
+        "object": "text_completion",
+        "created": 1628472935,
+        "model": body.get("model", "gpt-3.5-turbo"),
+        "choices": [
+            {
+                "text": "This is a simulated response.",
+                "index": 0,
+                "logprobs": None,
+                "finish_reason": "length"
+            }
+        ],
+        "usage": {
+            "prompt_tokens": 5,
+            "completion_tokens": 7,
+            "total_tokens": 12
+        }
+    }
+    return completion_response
+```
+
+### Step 2: Modify `app.py` to include the new router
+
+Find the section in `app.py` where you import necessary components and initialize FastAPI, and include the new router.
+
+```python
+# app.py - /shared/codx-junior/api/codx/junior/app.py
+
+from fastapi import FastAPI
+import socketio
+
+# Import the newly created router
+from chatgpt_api import router as chatgpt_router
+
+# (The rest of your imports and setup code...)
+# Here is the existing app creation
+
+app = FastAPI(
+    title="CODXJuniorAPI",
+    description="API for CODXJunior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+# Include the chatgpt_router
+app.include_router(chatgpt_router, prefix="/api")
+
+# Existing setup code...
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
+
+# Mount static files and other initializations...
+start_background_services(app)
+```
+
+### Explanation
+
+- **Router Definition**: We define a new router using `APIRouter()` in `chatgpt_api.py`.
+
+- **Define Endpoints**: New endpoints `/v1/models` and `/v1/completions` are defined in `chatgpt_api.py`.
+
+- **Include Router**: In `app.py`, the `chatgpt_router` is included in the main application with a prefix `/api` to maintain consistency with existing endpoints.
+
+By structuring your code in this way, you maintain a clean separation of concerns, making it easier to manage and extend your codebase.
+              
+############################################
+              ### ROLE: human
+              ############################################
+
+              
+                      THIS INFORMATION IS COMING FROM PROJECT'S FILES.
+                      HOPE IT HELPS TO ANSWER USER REQUEST.
+                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
+                      ```None
+/shared/codx-junior/api/codx/junior/app.py
+import os
+import uuid
+import shutil
+import time
+import logging
+import asyncio
+import socketio
+import traceback
+
+from multiprocessing.pool import ThreadPool
+from threading import Thread
+
+from pathlib import Path
+
+from codx.junior.ai import AIManager
+
+from codx.junior.sio.sio import sio
+from codx.junior.sio.session_channel import SessionChannel
+
+from codx.junior.profiling.profiler import profile_function
+
+from codx.junior.log_parser import parse_logs
+from codx.junior.browser import run_browser_manager
+
+
+logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
+logger = logging.getLogger(__name__)
+
+run_browser_manager()
+
+def disable_logs(logs):
+  for logger_id in logs:
+      logging.getLogger(logger_id).setLevel(logging.WARNING)
+
+def enable_logs(logs):
+  for logger_id in logs:
+      logging.getLogger(logger_id).setLevel(logging.DEBUG)
+
+disable_logs([
+    'httpx',
+    'httpcore.http11',
+    'httpcore.connection',
+    'openai._base_client',
+    'watchfiles.main',
+    'asyncio',
+    'codx.junior.project_watcher',
+    'selenium.webdriver.common.selenium_manager'
+])
+
+
+from flask import send_file
+
+from fastapi import FastAPI, Request, Response, UploadFile
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import RedirectResponse
+from fastapi.responses import JSONResponse
+from fastapi.responses import StreamingResponse
+
+from codx.junior.db import (
+    Chat,
+    Message
+)
+from codx.junior.model.model import (
+    KnowledgeReloadPath,
+    KnowledgeSearch,
+    KnowledgeDeleteSources,
+    Profile,
+    Document,
+    LiveEdit,
+    GlobalSettings,
+    Screen
+)
+
+from codx.junior.settings import (
+  CODXJuniorSettings,
+  read_global_settings,
+  write_global_settings
+)
+
+from codx.junior.profiles.profile_manager import ProfileManager
+from codx.junior.chat_manager import ChatManager
+
+from codx.junior.engine import (
+    create_project,
+    coder_open_file,
+    find_all_projects,
+    CODXJuniorSession,
+    SessionChannel
+)
+
+from codx.junior.utils import (
+    exec_command,
+)
+
+from codx.junior.context import AICodeGerator
+
+from codx.junior.background import start_background_services
+
+CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
+IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
+os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
+
+app = FastAPI(
+    title="CODXJuniorAPI",
+    description="API for CODXJunior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
+app.mount("/api/socket.io", sio_asgi_app)
+
+@app.on_event("startup")
+def startup_event():
+    logger.info(f"Creating FASTAPI: {app.__dict__}")
+
+@app.exception_handler(Exception)
+async def my_exception_handler(request: Request, ex: Exception):
+    return JSONResponse(status_code=500, 
+        content=traceback.format_exception(ex))
+
+@app.middleware("http")
+async def add_process_time_header(request: Request, call_next):
+    process_time = None
+    start_time = time.time()
+    try:
+        response = await call_next(request)
+        process_time = time.time() - start_time
+        response.headers["X-Process-Time"] = str(process_time)
+        return response
+    finally:
+        logger.info(f"Request {request.url} - {time.time() - start_time} ms")
+
+@app.middleware("http")
+async def add_gpt_engineer_settings(request: Request, call_next):
+    codx_path = request.query_params.get("codx_path")
+    if codx_path:
+        try:
+            sid = request.headers.get("x-sid")
+            channel = SessionChannel(sid=sid, sio=sio)
+            request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, channel=channel)
+            settings = request.state.codx_junior_session.settings
+            # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
+        except Exception as ex:
+            logger.error(f"Error loading settings {codx_path}: {ex}\n{request.url}")
+    return await call_next(request)
+
+@app.get("/api/health")
+def api_health_check():
+    return "ok"
+
+@app.post("/api/users/login")
+def api_extract_tags(request: Request):
+    pass
+
+@app.get("/api/knowledge/reload")
+async def api_knowledge_reload(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    await codx_junior_session.check_project_changes()
+    await codx_junior_session.reload_knowledge()
+    return codx_junior_session.check_knowledge_status()
+
+@app.post("/api/knowledge/reload-path")
+async def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    logger.info(f"**** API:knowledge_reload_path {knowledge_reload_path}")
+    await codx_junior_session.check_file(file_path=knowledge_reload_path.path, force=True)
+    return codx_junior_session.check_knowledge_status()
+
+@app.post("/api/knowledge/delete")
+def api_knowledge_reload_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.delete_knowledge_source(sources=knowledge_delete_sources.sources)
+
+@app.delete("/api/knowledge/delete")
+def api_knowledge_reload_all(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.delete_knowledge()
+
+
+@app.post("/api/knowledge/reload-search")
+async def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):
+    logger.info("API:knowledge_search_endpoint")
+    codx_junior_session = request.state.codx_junior_session
+    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))
+
+@app.get("/api/knowledge/status")
+def api_knowledge_status(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.check_knowledge_status()
+
+@app.get("/api/chats")
+def api_list_chats(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("file_path")
+    chat_id = request.query_params.get("id")
+    if chat_id:
+        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
+    if file_path:
+        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
+    return codx_junior_session.list_chats()
+
+@profile_function
+@app.post("/api/chats")
+async def api_chat(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
+    await codx_junior_session.chat_with_project(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@profile_function
+@app.post("/api/chats/sub-tasks")
+async def api_chat_subtasks(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.generate_tasks(chat=chat)
+
+@app.put("/api/chats")
+async def api_save_chat(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    chat_only = request.query_params.get("chatonly") == "1"
+    await codx_junior_session.save_chat(chat, chat_only=chat_only)
+
+@app.delete("/api/chats")
+def api_delete_chat(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("file_path")
+    codx_junior_session.delete_chat(file_path)
+
+@app.get("/api/kanban")
+def api_kanban(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_chat_manager().load_kanban()
+
+@app.post("/api/kanban")
+async def api_set_kanban(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    kanban = await request.json()
+    codx_junior_session.get_chat_manager().save_kanban(kanban)
+
+
+@app.post("/api/images")
+def api_image_upload(file: UploadFile):
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    # Generate a unique filename using UUID
+    unique_filename = f"{str(uuid.uuid4())}-{file.filename}"
+    file_path = os.path.join(IMAGE_UPLOAD_FOLDER, unique_filename)
+    
+    # Save the file
+    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    with open(file_path, "wb+") as file_object:
+        shutil.copyfileobj(file.file, file_object)   
+
+    # Return the full URL to access the image
+    image_url = '/api/images/' + unique_filename
+    return image_url
+
+@app.post("/api/run/improve")
+async def api_run_improve(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    await codx_junior_session.improve_existing_code(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@app.post("/api/run/improve/patch")
+async def api_run_improve_patch(code_generator: AICodeGerator, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)
+    return {
+        "info": info, 
+        "error": error
+    }
+
+@app.get("/api/run/changes/summary")
+def api_changes_summary(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    refresh = request.query_params.get("refresh")
+    return codx_junior_session.build_code_changes_summary(force=refresh == "true")
+
+@app.get("/api/settings")
+def api_settings_check(request: Request):
+    logger.info("/api/settings")
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.check_project()
+    return codx_junior_session.settings
+
+@app.put("/api/settings")
+async def api_save_settings(request: Request):
+    settings = await request.json()
+    CODXJuniorSettings.from_json(settings).save_project()
+    find_all_projects()
+    return api_settings_check(request)
+
+@app.get("/api/profiles")
+def api_list_profile(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.list_profiles()
+
+@app.post("/api/profiles")
+async def api_create_profile(profile: Profile, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.save_profile(profile=profile)
+    
+@app.get("/api/profiles/{profile_name}")
+def api_read_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.read_profile(profile_name)
+
+@app.delete("/api/profiles/{profile_name}")
+def api_delete_profile(profile_name, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.delete_profile(profile_name)
+    return
+
+@app.get("/api/project/watch")
+def api_project_watch(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    settings.watching = True
+    settings.save_project()
+    find_all_projects()
+    return { "OK": 1 }
+
+@app.get("/api/projects")
+def api_find_all_projects():
+    all_projects = find_all_projects()
+    return all_projects
+
+@app.get("/api/projects/repo/branches")
+def api_find_all_repo_branches(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_project_branches()
+
+@app.get("/api/projects/repo/changes")
+def api_find_all_repo_changes(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    main_branch = request.query_params.get("main_branch")
+    return codx_junior_session.get_project_changes(main_branch=main_branch)
+
+@app.get("/api/projects/readme")
+def api_project_readme(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    document = codx_junior_session.get_readme()
+    return Response(content=document or "> Not found", media_type="text/html")
+
+@app.post("/api/projects")
+def api_project_create(request: Request):
+    project_path = request.query_params.get("project_path")
+    try:
+        return CODXJuniorSettings.from_project_file(f"${project_path}/.codx/project.json")
+    except:
+        return create_project(project_path=project_path)
+
+@app.delete("/api/projects")
+def api_project_delete(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.delete_project()
+    return { "ok": 1 }
+
+@app.get("/api/project/unwatch")
+def api_project_unwatch(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    settings.watching = False
+    settings.save_project()
+    find_all_projects()
+    return { "OK": 1 }
+
+@app.get("/api/knowledge/keywords")
+def api_get_keywords(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    query = request.query_params.get("query")
+    return codx_junior_session.get_keywords(query=query)
+
+@app.post("/api/knowledge/keywords")
+def api_extract_tags(doc: Document, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    logging.info(f"Extract keywords from {doc}")
+    doc = codx_junior_session.extract_tags(doc=doc)
+    return doc.__dict__
+
+@app.get("/api/code-server/file/open")
+def api_list_chats(request: Request):
+    file_name = request.query_params.get("file_name")
+    settings = codx_junior_session = request.state.codx_junior_session.settings
+    coder_open_file(settings=settings, file_name=file_name)
+
+@app.get("/api/wiki")
+def api_get_wiki(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("file_path")
+    document = codx_junior_session.get_wiki_file(file_path)
+    return Response(content=document or "> Not found", media_type="text/html")
+
+@app.get("/api/files")
+def api_get_files(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    path = request.query_params.get("path")
+    return codx_junior_session.read_directory(path=path)
+
+@app.get("/api/files/read")
+def api_get_file(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    path = request.query_params.get("path")
+    return codx_junior_session.read_file(path=path)
+
+@app.post("/api/files/write")
+def api_post_file(doc: Document, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    path = request.query_params.get("path")
+    return codx_junior_session.write_file(path=path, content=doc.page_content)
+
+@app.get("/api/files/find")
+def api_get_file(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    search = request.query_params.get("search")
+    return codx_junior_session.search_files(search=search)
+
+@app.get("/api/apps")
+def api_apps_list(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_project_apps()
+
+@app.get("/api/apps/run")
+def api_apps_run(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    app_name = request.query_params.get("app")
+    return codx_junior_session.run_app(app_name=app_name)
+
+
+@app.get("/api/global/settings")
+def api_read_global_settings():
+    return read_global_settings()
+
+@app.post("/api/global/settings")
+def api_write_global_settings(global_settings: GlobalSettings):
+    write_global_settings(global_settings=global_settings)
+    AIManager().reload_models(read_global_settings())
+
+@app.get("/api/logs")
+def api_logs_list():
+    stdout, _ = exec_command(f"ls {os.environ['CODX_SUPERVISOR_LOG_FOLDER']}")
+    return [log for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+
+@app.get("/api/logs/{log_name}")
+def api_logs_tail(log_name: str, request: Request):
+    log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
+    log_size = request.query_params.get("log_size") or "100"
+    cmd = f"tail -n {log_size} {log_file}"
+    try:
+        logs, _ = exec_command(cmd)
+        logger.info(f"api logs {logs}")
+
+        return parse_logs(logs)
+    except Exception as ex:
+        logger.exception(f"Error reading logs: {ex}")
+
+@app.post("/api/screen")
+def api_screen_set(screen: Screen):
+    CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+    return exec_command(f"xrandr -s {screen.resolution}", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
+
+@app.get("/api/screen")
+def api_screen_get():
+    screen = Screen()
+    try:
+        CODX_JUNIOR_DISPLAY = os.environ["CODX_JUNIOR_DISPLAY"]
+        res, _ = exec_command(f"xrandr --current", env={"DISPLAY": CODX_JUNIOR_DISPLAY})
+        # Screen 0: minimum 32 x 32, current 1920 x 1080, maximum 32768 x 32768
+        lines = res.split("\n")
+        screen_line = [l for l in lines if l.startswith("Screen ")][0]
+        screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
+    except Exception as ex:
+        logger.error(f"Error extracting screen resolutions {ex}")
+    return screen
+
+@app.post("/api/image-to-text")
+async def api_image_to_text_endpoint(file: UploadFile):
+    file_bytes = await file.read()            
+    return api_image_to_text(file_bytes)
+
+@app.post("/api/restart")
+def api_restart():
+    logger.info(f"****************** API RESTARTING... bye *******************")
+    exec_command("sudo kill 7")
+
+if CODX_JUNIOR_STATIC_FOLDER:
+    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)
+    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")
+    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")
+
+app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
+
+start_background_services(app)
+
+
+```
+```None
+/shared/codx-junior/api/codx/junior/engine.py
+import os
+import logging
+import re
+import json
+import time
+import subprocess
+import shutil
+import asyncio
+import uuid
+from datetime import datetime
+from pathlib import Path
+from threading import Thread
+
+from slugify import slugify
+
+from contextlib import contextmanager
+
+from langchain.schema.document import Document
+from langchain.schema import (
+    AIMessage,
+    HumanMessage,
+    BaseMessage,
+    SystemMessage
+)
+
+from codx.junior.utils import (
+    document_to_context,
+    extract_code_blocks,
+    extract_json_blocks,
+    exec_command,
+    write_file
+)
+
+from codx.junior.profiling.profiler import profile_function
+
+from codx.junior.ai import AI
+from codx.junior.settings import (
+    CODXJuniorSettings,
+    read_global_settings
+)
+
+from codx.junior.chat_manager import ChatManager
+from codx.junior.profiles.profile_manager import ProfileManager
+
+from codx.junior.model.model import (
+    KnowledgeSearch,
+    Document,
+    Content,
+    ImageUrl,
+    LiveEdit,
+    GlobalSettings,
+    Profile
+)
+from codx.junior.context import (
+    find_relevant_documents,
+    AI_CODE_VALIDATE_RESPONSE_PARSER,
+    generate_markdown_tree,
+    AI_CODE_GENERATOR_PARSER,
+    AICodeGerator,
+    AICodePatch
+)
+
+from codx.junior.knowledge.knowledge_milvus import Knowledge
+from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
+from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
+
+from codx.junior.mention_manager import (
+    extract_mentions,
+    replace_mentions,
+    notify_mentions_in_progress,
+    notify_mentions_error,
+    strip_mentions,
+    is_processing_mentions
+)
+from codx.junior.db import (
+    Kanban,
+    Chat,
+    Message,
+)
+
+from codx.junior.sio.session_channel import SessionChannel
+
+"""Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
+MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 300
+
+logger = logging.getLogger(__name__)
+
+APPS = [
+    {
+        "name": "chrome",
+        "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Google_Chrome_icon_%28February_2022%29.svg/768px-Google_Chrome_icon_%28February_2022%29.svg.png",
+        "description": "Google chrome engine",
+    }
+]
+
+APPS_COMMANDS = {
+    "chrome": "google-chrome --no-sandbox --no-default-browser-check"
+}
+
+AGENT_DONE_WORD = "$$@@AGENT_DONE@@$$$"
+
+def create_project(project_path: str):
+    logger.info(f"Create new project {project_path}")
+    projects_root_path = f"{os.environ['HOME']}/projects"
+    os.makedirs(projects_root_path, exist_ok=True)
+        
+    if project_path.startswith("http"):
+        url = project_path
+        repo_name = url.split("/")[-1].split(".")[0]
+        project_path = f"{projects_root_path}/{repo_name}"
+        command = f"git clone --depth=1 {url} {project_path}"
+        logger.info(f"Cloning repo {url} {repo_name} {project_path}")
+        exec_command(command=command)
+        open_readme = True
+    
+    settings = CODXJuniorSettings()
+    settings.project_name = project_path.split("/")[-1]
+    settings.codx_path = f"{project_path}/.codx"
+    settings.watching = True
+    settings.save_project()
+    _, stderr = exec_command("git branch")
+    if stderr:
+        exec_command("git init", cwd=project_path)
+    return CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
+
+def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
+    logger.info(f"coder_open_file {file_name}")
+    if not file_name.startswith(settings.project_path):
+        file_name = f"{settings.project_path}{file_name}".replace("//", "/")
+    os.system(f"code-server -r {file_name}")
+
+
+def find_project_from_file_path(file_path: str):
+    """Given a file path, find the project parent"""
+    all_projects = find_all_projects()
+    matches = [p for p in all_projects if file_path.startswith(p.project_path)]
+    if matches:
+        logger.info(f"Find projects for file {file_path}: {[m.project_name for m in matches]}")
+        return sorted(matches, key=lambda p: len(p.project_path))[-1]
+    return None
+  
+def find_project_by_id(project_id: str):
+    """Given a project id, find the project"""
+    all_projects = find_all_projects()
+    matches = [p for p in all_projects if p.project_id == project_id]
+    return matches[0] if matches else None
+
+def find_project_by_name(project_name: str):
+    """Given a project project_name, find the project"""
+    all_projects = find_all_projects()
+    matches = [p for p in all_projects if p.project_name == project_name]
+    return matches[0] if matches else None
+
+
+def find_all_projects():
+    all_projects = []
+    project_path = "/"
+    result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    all_codx_path = result.stdout.decode('utf-8').split("\n")
+    paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
+    #logger.info(f"[find_all_projects] paths: {paths}")
+    for codx_path in paths:
+        try:
+            project_file_path = f"{codx_path}/project.json"
+            settings = CODXJuniorSettings.from_project_file(project_file_path)
+            project_exists = [p for p in all_projects if p.project_name == settings.project_name] 
+            if not project_exists: 
+                all_projects.append(settings)
+            else:
+                # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
+                pass 
+        except Exception as ex:
+            logger.exception(f"Error loading project {str(codx_path)}")
+    
+    def update_projects_with_details():
+        for project in all_projects:
+            try:
+                command = ["git", "branch", "--show-current"]
+                result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                project.__dict__["_current_git_branch"] = result.stdout.decode('utf-8')
+            except Exception as ex:
+                project.__dict__["_current_git_branch"] = f"Error: {ex}"
+            project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
+            project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]
+    return all_projects
+
+def update_engine():
+    try:
+        command = ["git", "pull"]
+        subprocess.run(command)
+    except Exception as ex:
+        logger.exception(ex)
+        return ex
+                
+
+class CODXJuniorSession:
+    def __init__(self,
+            settings: CODXJuniorSettings = None,
+            codx_path: str = None,
+            channel: SessionChannel = None):
+        self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
+        self.channel = channel
+        
+        if not channel:
+            from codx.junior.sio.sio import sio
+            self.channel = SessionChannel(sio=sio)
+
+    def switch_project(self, project_id: str):
+        if not project_id or project_id == self.settings.project_id:
+            return self
+        settings = find_project_by_id(project_id=project_id)
+        return CODXJuniorSession(settings=settings, channel=self.channel) \
+                if settings else self
+
+    def log_info(self, msg):
+        logger.info(f"[{self.settings.project_name}] {msg}")
+
+    def log_error(self, msg):
+        logger.error(f"[{self.settings.project_name}] {msg}")
+    
+    def log_exception(self, msg):
+        logger.exception(f"[{self.settings.project_name}] {msg}")
+
+    def get_channel(self):
+        return self.channel
+
+    def event_data(self, data: dict):
+        data['codx_path'] = self.settings.codx_path
+        return data
+
+    def send_notification(self, **kwargs):
+        self.get_channel().send_event('codx-junior', self.event_data({ **kwargs, "type": "notification" }))
+
+    def send_event(self, message: str):
+        self.get_channel().send_event('codx-junior', self.event_data({ 'text': message, "type": "event" }))
+        # self.log_info(f"SEND MESSAGE {message}- SENT!")
+
+    def chat_event(self, chat: Chat, message: str = None, event_type: str = None):
+        self.get_channel().send_event('chat-event', self.event_data({ 'chat': { 'id': chat.id }, 'text': message, 'type': event_type }))
+        # self.log_info(f"SEND MESSAGE {message}- SENT!")
+
+    def message_event(self, chat: Chat, message: Message):
+        self.get_channel().send_event('message-event', self.event_data({ 'chat': { 'id': chat.id }, 'message': message.model_dump() }))
+        # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
+
+    @contextmanager
+    def chat_action(self, chat: Chat, event: str):
+        self.chat_event(chat=chat, message=f"{event} starting")
+        self.log_info(f"Start chat {chat.name}")
+        try:
+            yield
+        except Exception as ex:
+            self.chat_event(chat=chat, message=f"{event} error: {ex}")
+            self.log_error(f"Chat {chat.name} {event} error: {ex}")
+        finally:
+            self.chat_event(chat=chat, message=f"{event} done")
+            self.log_info(f"Chat done {chat.name}")
+
+    
+    def delete_project(self):
+        shutil.rmtree(self.settings.codx_path)
+        logger.error(f"PROJECT REMOVED {self.settings.codx_path}")
+
+    def get_chat_manager(self):
+        return ChatManager(settings=self.settings)
+
+    def get_profile_manager(self):
+        return ProfileManager(settings=self.settings)
+
+    def get_ai(self, llm_model: str = None):
+        return AI(settings=self.settings, llm_model=llm_model)
+
+    def get_knowledge(self):
+        return Knowledge(settings=self.settings)
+
+    def get_browser(self):
+        from codx.junior.browser.browser import Browser
+        return Browser(session=self)
+
+    @profile_function
+    def load_chat(self, board, chat_name):
+        return self.get_chat_manager().load_chat(board=board, chat_name=chat_name)
+    
+    def list_chats(self):
+        return self.get_chat_manager().list_chats()
+
+    async def save_chat(self, chat: Chat, chat_only=False):
+        chat = self.get_chat_manager().save_chat(chat, chat_only)
+        self.chat_event(chat=chat, event_type="changed")
+        return chat
+
+    def delete_chat(self, file_path):
+        self.get_chat_manager().delete_chat(file_path)
+
+    @profile_function
+    def list_profiles(self):
+        return self.get_profile_manager().list_profiles()
+
+    async def save_profile(self, profile):
+        profile = self.get_profile_manager().save_profile(profile=profile)
+        await self.check_file_for_mentions(file_path=profile.content_path)
+        return self.read_profile(profile_name=profile.name)
+
+    def read_profile(self, profile_name):
+        return self.get_profile_manager().read_profile(profile_name)
+
+    def delete_profile(self, profile_name):
+        return self.get_profile_manager().delete_profile(profile_name)
+
+    def reload_knowledge(self, path: str = None):
+        knowledge = self.get_knowledge()
+        self.log_info(f"***** reload_knowledge: {path}")
+        documents = None
+        if path:
+            documents = knowledge.reload_path(path)
+            self.log_info(f"reload_knowledge: {path} - Docs: {len(documents)}")
+        else:
+            documents = knowledge.reload()
+        return {"doc_count": len(documents) if documents else 0}
+
+    @profile_function
+    async def knowledge_search(self, knowledge_search: KnowledgeSearch):
+        self.settings.knowledge_search_type = knowledge_search.document_search_type
+        self.settings.knowledge_search_document_count = knowledge_search.document_count
+        self.settings.knowledge_context_cutoff_relevance_score = knowledge_search.document_cutoff_score
+        self.settings.knowledge_context_rag_distance = knowledge_search.document_cutoff_rag
+
+        logger.info(f"""knowledge_search: 
+        knowledge_search_type: {self.settings.knowledge_search_type}
+        knowledge_search_document_count: {self.settings.knowledge_search_document_count}
+        knowledge_context_cutoff_relevance_score: {self.settings.knowledge_context_cutoff_relevance_score}
+        knowledge_context_rag_distance: {self.settings.knowledge_context_rag_distance}
+        """)
+        
+        documents = []
+        response = ""
+        if knowledge_search.search_type == "embeddings":
+            documents, file_list = find_relevant_documents(query=knowledge_search.search_term,
+                                                    settings=self.settings, 
+                                                    ignore_documents=[],
+                                                    ai_validate=True)
+            
+            chat = Chat(messages=
+                [
+                    Message(
+                        role="user",
+                        content=doc.page_content)
+                    for doc in documents] +  
+                [
+                    Message(
+                        role="user",
+                        content=f"Based on previos messages, give me really short answer about: {knowledge_search.search_term}"
+                )
+            ])
+            chat, _ = await self.chat_with_project(chat=chat, disable_knowledge=True)
+            response = chat.messages[-1].content
+        elif knowledge_search.search_type == "source":
+            documents = Knowledge(settings=self.settings).search_in_source(knowledge_search.search_term)
+        
+        return {
+            "response": response,
+            "documents": documents,
+            "settings": {
+                "knowledge_search_type": self.settings.knowledge_search_type,
+                "knowledge_search_document_count": self.settings.knowledge_search_document_count,
+                "knowledge_context_cutoff_relevance_score": self.settings.knowledge_context_cutoff_relevance_score,
+                "knowledge_context_rag_distance": self.settings.knowledge_context_rag_distance
+            }
+        }
+
+    def delete_knowledge_source(self, sources: [str]):
+        Knowledge(settings=self.settings).delete_documents(sources=sources)
+        self.settings.watching = False
+        self.settings.save_project()
+        find_all_projects()
+        return {"ok": 1}
+
+    def delete_knowledge(self):
+        Knowledge(settings=self.settings).reset()
+        return {"ok": 1}
+
+    def get_project_dependencies(self):
+        """Returns all projects related with this project, including child projects and links"""
+        project_child_projects = self.settings.get_sub_projects()
+        project_dependencies = [find_project_by_name(project_name) for project_name in self.settings.get_project_dependencies()]
+        return project_child_projects, project_dependencies
+        
+    def extract_query_mentions(self, query: str):
+        mentions = re.findall(r'@[a-zA-Z0-9\-\_\.]+', query)
+        self.log_info(f"Extracted mentions: {mentions}")
+        return mentions
+
+    def find_projects_by_mentions(self, mentions: [str]):
+        return [project for project in [find_project_by_name(mention[1:]) for mention in mentions] if project]
+
+    def find_profiles_by_mentions(self, mentions: [str]):
+        profile_manager = self.get_profile_manager()
+        return [p for p in profile_manager.list_profiles() if p.name in mentions]
+
+    def get_query_mentions(self, query: str):
+        mentions = self.extract_query_mentions(query=query)
+        projects = self.find_projects_by_mentions(mentions=mentions)
+        profiles = self.find_profiles_by_mentions(mentions=mentions)
+        return {
+          "projects": projects,
+          "profiles": profiles
+        }
+
+    @profile_function
+    def select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str, ignore_documents=[], search_projects = []):
+        for search_project in search_projects:
+            query = query.replace(f"@{search_project.project_name}", "")
+
+        @profile_function
+        def process_rag_query(rag_query):
+            docs = []
+            file_list = []
+
+            self.log_info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
+            for search_project in search_projects:    
+                self.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.project_path}")
+                project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, ignore_documents=ignore_documents)
+                project_file_list = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
+                if project_docs:
+                    docs = docs + project_docs
+                if project_file_list:
+                    file_list = file_list + project_file_list
+            
+            self.log_info(f"select_afefcted_documents_from_knowledge doc length: {len(docs)} - cutoff score {self.settings.knowledge_context_cutoff_relevance_score}")  
+            return docs, file_list
+        return process_rag_query(rag_query=query)
+
+    async def generate_code(self, chat: Chat, code_block_info: dict):
+        language = code_block_info["language"]
+        code = code_block_info["code"]
+        
+        try:
+            chat.messages.append(Message(role="user", content=f"""
+            Apply this code
+            ```{language}
+            {code}
+            ```
+            """))
+            self.chat_event(chat=chat, message="Applying patch")
+            await self.improve_existing_code(chat=chat, apply_changes=True)
+            self.chat_event(chat=chat, message="Applying patch done.")
+        except Exception as ex:
+            self.chat_event(chat=chat, message=f"Error applying patch: {ex}", event_type="error")
+            raise ex
+                      
+    async def improve_existing_code_patch(self, chat:Chat, code_generator: AICodeGerator):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+
+        patch = code_generator.code_patches[0]
+        ts = datetime.now().strftime('%H%M%S')
+        patch_file = f"{self.settings.project_path}/{ts}.patch"
+        with open(patch_file, 'w') as f:
+            f.write(patch.patch)
+        git_patch = f"git apply {patch_file}"
+        stdout, stderr = exec_command(git_patch, cwd=self.settings.project_path)
+        os.remove(patch_file)
+        res = f"{stdout} {stderr}".lower()
+        error = True if len(stderr or "") != 0 or "error" in res else False
+        
+        changes = code_generator.code_changes            
+        if error and changes:
+            file_path = changes[0].file_path
+            await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
+            stdout = "Changes applied"
+            stderr = ""
+            if file_path not in chat.file_list:
+                chat.file_list.append(file_path) 
+                coder_open_file(self.settings, file_name=file_path)
+        return stdout, stderr
+
+
+    @profile_function
+    async def improve_existing_code(self, chat: Chat, apply_changes: bool=None):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+        self.send_event(message=f"Code changes")
+
+        valid_messages = [message for message in chat.messages if not message.hide]
+        if valid_messages[-1].improvement:
+            code_generator = self.get_ai_code_generator_changes(response=valid_messages[-1].content)
+            return await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
+
+        knowledge = Knowledge(settings=self.settings)
+        profile_manager = ProfileManager(settings=self.settings)
+        if apply_changes is None:
+            apply_changes = True if chat.mode == 'task' else False
+
+        request = f"""
+        Assist the user on generating file changes for the project "{self.settings.project_name}" based on the comments below.
+        Make sure that all proposed changes follow strictly the best practices.
+        
+        Best practices:
+        ```markdown
+        {profile_manager.read_profile("software_developer").content}
+        ```
+        Info about the project:
+        - Root path: {self.settings.project_path}
+        - Files tree view: {generate_markdown_tree(knowledge.get_all_sources())}
+        Use this information for generating file paths and understanding the project's folder structure.
+
+        Create a list of find&replace instructions for each change needed:
+        INSTRUCTIONS:
+          {AI_CODE_GENERATOR_PARSER.get_format_instructions()}
+          
+          * For new files create an absolute paths
+          * Only update files that exists in the project's files
+          * Keep content indentation; It is crucial to find the content to replace and to make new content work
+        """
+        code_generator = None
+        retry_count = 1
+        request_msg = Message(role="user", content=request)
+        chat.messages.append(request_msg)
+        async def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:
+            if error:
+                chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
+            
+            await self.chat_with_project(chat=chat, disable_knowledge=True, chat_mode='chat')
+            chat.messages[-1].improvement = True
+            
+            request_msg.improvement = True
+            request_msg.hide = True
+            if chat.mode == 'task':
+                chat.messages[-2].hide = False
+                chat.messages[-1].hide = True
+            response = chat.messages[-1].content.strip()
+            try:
+                return self.get_ai_code_generator_changes(response=response)
+            except Exception as ex:
+                logger.error(f"Error parsing response: {response}")
+                attempt -= 1
+                if attempt:
+                    chat.messages.pop()
+                    return await try_chat_code_changes(attempt, error=str(ex))
+                raise ex
+        code_generator = await try_chat_code_changes(retry_count)
+        if not apply_changes:
+            return code_generator
+
+        await self.apply_improve_code_changes(chat=chat, code_generator=code_generator)
+        return code_generator
+
+    def get_ai_code_generator_changes(self, response: str):
+        code_generator = AI_CODE_GENERATOR_PARSER.invoke(response)
+        for change in code_generator.code_changes:
+            file_path = change.file_path
+            if not file_path.startswith(self.settings.project_path):
+                change.file_path = os.path.join(self.settings.project_path, file_path)        
+        return code_generator
+
+    def project_script_test(self):
+        self.log_info(f"project_script_test, test: {self.settings.script_test} - {self.settings.script_test_check_regex}")
+        if not self.settings.script_test:
+            return
+
+        command = self.settings.script_test.split(" ")
+        result = subprocess.run(command, cwd=self.settings.project_path,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                text=True)
+        console_out = result.stdout
+        
+        self.log_info(f"project_script_test: {console_out} \nOUTPUT DONE")
+
+        test_regex = self.settings.script_test_check_regex if self.settings.script_test_check_regex else 'error' 
+        if re.search(test_regex, console_out):
+            return console_out
+        return ""
+
+    @profile_function
+    async def apply_improve_code_changes(self, code_generator: AICodeGerator, chat: Chat = None):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+        
+        changes = code_generator.code_changes
+        self.log_info(f"improve_existing_code total changes: {len(changes)}")
+        changes_by_file_path = {}
+        for change in changes:
+            file_path = change.file_path
+            if file_path not in changes_by_file_path:
+                changes_by_file_path[file_path] = []
+            changes_by_file_path[file_path].append(change)
+        
+        for file_path, changes in changes_by_file_path.items():
+            change_type = changes[0].change_type
+            self.log_info(f"improve_existing_code change: {change_type} - {file_path}")
+            self.send_event(message=f"Code-gen: change {change_type} - {file_path}")
+            
+            if change_type == "delete_file":
+                del open_files[file_path]
+                os.remove(file_path)
+                if file_path in chat.file_list:
+                    chat.file_list = [f for f in chat.file_list if f != file_path]
+            else:
+                content = ""
+                if os.path.isfile(file_path):
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+                instruction_list = [json.dumps(change.__dict__) for change in changes]
+                self.log_info(f"Applying {len(changes)} changes to {file_path}")
+                new_content = await self.change_file_with_instructions(instruction_list=instruction_list, file_path=file_path, content=content)
+                if new_content and new_content != content:
+                    write_file(file_path=file_path, content=new_content)
+                    if file_path not in chat.file_list:
+                        chat.file_list.append(file_path)
+                else:
+                    logger.error(f"Error applying changes to {file_path}. New content: {new_content}")
+
+        if chat:
+            file_paths = " ".join(changes_by_file_path.keys())
+            git_diff, _ = exec_command(f"git diff {file_paths}", cwd=self.settings.project_path)
+            chat.messages.append(Message(role="assistant", content=f"```diff\n{git_diff}\n```"))
+
+    async def change_file_with_instructions(self, instruction_list: [str], file_path: str, content: str):
+        profile_manager = ProfileManager(settings=self.settings)
+        chat = Chat(name=f"changes_at_{file_path}", messages=[])
+
+        content_instructions = f"EXISTING CONTENT:\n{content}" if content else ""
+        chat.messages.append(Message(role="user", content=f"""
+        {profile_manager.read_profile("software_developer").content}
+
+        Rewrite full file content replacing codx instructions by required changes.
+        Return only the file content without any further decoration or comments.
+        Do not surround response with '```' marks, just content.
+        Always respect current file content formatting.
+
+        INSTRUCTIONS:
+        { "- ".join(instruction_list) }
+
+        { content_instructions }
+        """))
+        await self.chat_with_project(chat=chat, disable_knowledge=True, append_references=False)
+        return chat.messages[-1].content
+
+    @profile_function
+    def check_knowledge_status(self):
+        knowledge = Knowledge(settings=self.settings)
+        status = knowledge.status()
+        pending_files, last_update = knowledge.detect_changes()
+        return {
+            "last_update": str(last_update),
+            "pending_files": pending_files[0:2000],
+            "total_pending_changes": len(pending_files),
+            **status
+        }
+
+    def check_project_changes(self):
+        if not self.settings.is_valid_project():
+            # logger.error(f"check_project_changes invalid project {self.settings}")
+            return False
+        knowledge = Knowledge(settings=self.settings)
+        knowledge.clean_deleted_documents()
+        new_files = knowledge.detect_changes()
+        if not new_files:
+            self.log_info(f"check_project_changes {self.settings.project_name} no changes")
+            return False
+        return True
+
+    @profile_function
+    async def check_file(self, file_path: str, force: bool = False):
+        res = await self.check_file_for_mentions(file_path=file_path)
+        self.log_info(f"Check file {file_path} for mentions: {res}")
+        # Reload knowledge 
+        if res != "processing" and (force or self.settings.watching):
+            knowledge = self.get_knowledge()
+            knowledge.reload_path(path=file_path)
+
+    async def process_project_changes(self):
+        if not self.settings.is_valid_project():
+            return
+        knowledge = Knowledge(settings=self.settings)
+        knowledge.clean_deleted_documents()
+        new_files, _ = knowledge.detect_changes()
+        if not new_files:
+            return    
+
+        def changed_file():
+            for file_path in new_files:
+                if (int(time.time()) - int(os.stat(file_path).st_mtime) < MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS):
+                    return file_path
+            return None
+
+        file_path = changed_file() # one at a time by modified time
+        if not file_path:
+            return
+
+        res = await self.check_file_for_mentions(file_path=file_path)
+        if res == "processing":
+            return
+
+        if self.settings.watching:
+            self.log_info(f"Reload knowledge files {new_files}")
+            knowledge.reload_path(path=file_path)
+
+    def extract_changes(self, content):
+        for block in extract_json_blocks(content):
+            try:
+                for change in block:
+                    yield change["change"]
+            except:
+                pass
+
+    def split_blocks_by_gt_lt(self, content):
+        add_line = False
+        content_lines = []
+        for line in content.split("\n"):
+            if line == "<GPT_CODE_CHANGE>":
+                add_line = True
+                continue
+            if line == "</GPT_CODE_CHANGE>":
+                yield content_lines
+                add_line = False
+                content_lines = []
+            if add_line:
+                content_lines.append(line)
+                continue
+
+    def get_line_changes(self, content):
+        line_change = None
+        for line in content.split("\n"):
+            if line.startswith("<GPT_"):
+                line_change = {
+                    "type": re.match(r'<GPT_([^_]+)_LINE', line),
+                    "start": line.split("start_line=")[1]
+                }
+                continue
+            if line.startswith("</GPT"):
+                yield content_lines
+                add_line = False
+                content_lines = []
+            if add_line:
+                content_lines.append(line)
+                continue
+
+    async def change_file(self, context_documents, query, file_path, org_content, save_changes=False):
+        profile_manager = ProfileManager(settings=self.settings)
+        tasks = "\n *".join(context_documents + [query])
+        request = f"""Please produce a full version of this ##CONTENT applying the changes requested in the ##TASKS section.
+        The output will replace existing file so write all unchanged lines as well.
+        ##CONTENT:
+        {org_content}
+        
+        ##TASKS:
+        {tasks}
+
+        OUPUT INSTRUCTIONS:
+        {AI_CODE_VALIDATE_RESPONSE_PARSER.get_format_instructions()}
+        """
+
+        chat_name = '-'.join(file_path.split('/')[-2:])
+        chat_time = datetime.now().strftime('%H%M%S')
+        chat = Chat(name=f"{chat_name}_{chat_time}", messages=[
+            Message(role="user", content=profile_manager.read_profile("software_developer").content),
+            Message(role="user", content=request)
+        ])
+        try:
+            chat = await self.chat_with_project(chat=chat, disable_knowledge=True)
+            response = chat.messages[-1].content.strip()
+            parsed_response = AI_CODE_VALIDATE_RESPONSE_PARSER.invoke(response)
+            return parsed_response.new_content
+        except Exception as ex:
+            chat.messages.append(Message(role="error", content=str(ex)))
+            raise ex
+        finally:
+            if save_changes:
+                await self.save_chat(chat=chat)
+
+    @profile_function
+    async def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False):
+
+      async def check_file_for_mentions_inner(file_path: str, content: str = None, silent: bool = False):
+          profile_manager = self.get_profile_manager()
+          chat_manager = self.get_chat_manager()
+          mentions = None
+          file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)
+          
+          def read_file():
+              def prepare_ipynb_for_llm():
+                  with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+                      notebook_data = json.loads(file.read())
+                  
+                      # Remove outputs from each cell
+                      for cell in notebook_data.get('cells', []):
+                          if 'outputs' in cell:
+                              del cell['outputs']
+                  
+                      return json.dumps(notebook_data)
+
+              if  file_path.endswith(".ipynb"):
+                  return prepare_ipynb_for_llm()
+          
+              with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                  return f.read()
+
+          if not content:
+              content = read_file()
+          
+          if is_processing_mentions(content=content):
+              return "processing"
+
+          mentions = extract_mentions(content)
+          
+          if not mentions:
+              return ""
+
+          keywords = self.get_keywords(query=" ".join([m.mention for m in mentions]))
+          
+          self.send_notification(text=f"@codx {len(mentions)} mentions in {file_path.split('/')[-1]} keywords: {keywords}")    
+          self.log_info(f"{len(mentions)} mentions found for {file_path}")
+
+          new_content = notify_mentions_in_progress(content)
+          if not silent:
+              write_file(file_path=file_path, content=new_content)
+
+          image_mentions = [m for m in mentions if m.flags.image]
+          if image_mentions:
+              new_content = self.process_image_mention(image_mentions, file_path, content)
+              return await self.check_file_for_mentions(file_path=file_path, content=new_content, silent=True)
+
+          use_knowledge = any(m.flags.knowledge for m in mentions) or keywords
+          using_chat = any(m.flags.chat_id for m in mentions)
+          run_code = any(m.flags.code for m in mentions)
+
+          if using_chat:
+              use_knowledge = False       
+              self.log_info(f"Skip KNOWLEDGE search for processing, using_chat={using_chat}")
+          
+          def mention_info(mention):
+              chat = chat_manager.find_by_id(mention.flags.chat_id) if mention.flags.chat_id else None
+              if chat:
+                  self.log_info(f"using CHAT for processing mention: {mention.mention}")
+                  return f"""Based on this conversation:
+                  ```markdown
+                  {chat_manager.serialize_chat(chat)}
+                  ```
+                  User commented in line {mention.start_line}: {mention.mention}
+                  """
+              return f"User commented in line {mention.start_line}: {mention.mention}"
+          
+          query = "\n  *".join([mention_info(mention) for mention in mentions])
+          file_chat_name = "-".join(file_path.split("/")[-2:])
+          
+          self.log_info(f"Create mention chat {file_chat_name}")
+          analysis_chat = None
+          if use_knowledge:
+              analysis_chat = Chat(name=slugify(f"analysis_at_{file_chat_name}-{datetime.now()}"), 
+                  board="mentions",
+                  column="analysis",
+                  mode="chat",
+                  tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
+                  messages=
+                  [
+                      Message(role="user", content="\n".join([
+                      f"Find all information needed to apply all changes to file: {file_path}",
+                      "",
+                      f"Changes:",
+                      query,
+                      "",
+                      "File content:",
+                      new_content
+                      ]))
+                  ])
+              self.log_info(f"Chat with project analysis {analysis_chat.name}")
+              await self.chat_with_project(chat=analysis_chat, disable_knowledge=not use_knowledge)
+              analysis_chat = chat_manager.save_chat(analysis_chat)
+
+          if run_code:
+              self.log_info(f"Mentions running code {file_path}")
+              await self.improve_existing_code(chat=chat, apply_changes=True)
+          else:
+              changes_chat = Chat(name=slugify(f"changes_at_{file_chat_name}-{datetime.now()}"), 
+                board="mentions",
+                column="changes",
+                parent_chat=analysis_chat.id if analysis_chat else None,
+                tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
+                messages=
+                  [
+                      Message(role="user", content=f"""
+                      ```
+                      {new_content}
+                      ```
+                      
+                      {query}
+                      """)
+                  ])
+              
+              if analysis_chat:
+                  changes_chat.messages.append(analysis_chat.messages[-1])
+
+              if file_profiles:
+                  file_profile_content = "\n".join([
+                      profile.content for profile in file_profiles
+                  ])
+                  
+                  changes_chat.messages.append(Message(
+                      role="user",
+                      profiles=[profile.name for profile in file_profiles],
+                      content=f"""Best practices for this file:
+                  {file_profile_content}
+                  """))
+
+              changes_chat.messages.append(Message(role="user", content=f"""
+              Rewrite full file content replacing codx instructions with the minimum changes as possible.
+              Return only the file content without any further decoration or comments.
+              Do not surround response with '```' marks, just content:
+              {new_content}
+              """))
+              
+              self.log_info(f"Mentions generate changes {file_path}")
+              
+              await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False)
+              chat_manager.save_chat(changes_chat)
+              response = changes_chat.messages[-1].content
+              
+              self.log_info(f"Mentions save file changes {file_path}")
+              write_file(file_path=file_path, content=response)
+          
+          self.send_notification(text=f"@codx done for {file_path.split('/')[-1]}")
+    
+          return "done"
+      try:
+          res = await check_file_for_mentions_inner(file_path=file_path, content=content, silent=silent)
+          self.log_info(f"[{self.settings.project_name}] Mentions manager done for {file_path}")
+          return res
+      except Exception as ex:
+          self.log_exception(f"Error processing mentions at {file_path}: {ex}")
+
+    def process_image_mention(self, image_mentions, file_path: str, content: str):
+        ai = self.get_ai()
+        for image_mention in image_mentions:
+            image_mention.new_content = ai.image(image_mention.content)
+        return replace_mentions(content, image_mentions)
+
+    def get_project_profile(self):
+        return self.get_profile_manager().read_profile("project")
+
+    @profile_function
+    async def generate_tasks(self, chat: Chat):
+        from codx.junior.db import Chat
+        from pydantic import BaseModel, Field
+        from typing import List
+        from langchain.output_parsers import PydanticOutputParser
+
+        class AITasks(BaseModel):
+            tasks: List[Chat] = Field(description="List of tasks. chat mode will be chat.")
+
+        AI_TASKS_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AITasks)
+
+        with self.chat_action(chat=chat, event="Creating sub-tasks"):
+
+          ai = self.get_ai()
+          
+          content = "\n".join([m.content for m in chat.messages[:-1] if not m.hide])
+          last_message = chat.messages[-1]
+
+          def format_project_info(project):
+              logger.info(f"format_project_info: {project.__dict__}")
+              return f"""<project name="{project.settings.project_name}" id="{project.settings.project_id}">
+              { project.get_project_profile() }
+              </project>
+              """
+          project_child_projects, project_dependencies = self.get_project_dependencies()
+          logger.info(f"project_child_projects: {[p.__dict__ for p in project_child_projects]}")
+          logger.info(f"project_dependencies: {[p.__dict__ for p in project_dependencies]}")
+          all_projects = [self] + [CODXJuniorSession(settings=settings) for settings in project_child_projects + project_dependencies]
+          projects_section = "\n".join([format_project_info(project=project) for project in all_projects])
+
+          prompt = f"""
+          <projects>
+          { projects_section }
+          </projects>
+
+          <content>
+          {self.get_chat_analysis_parents(chat=chat)}
+          { content }
+          </content>
+
+          Generate subtasks from this epic:
+          { last_message.content }
+
+          INSTRUCTIONS:
+          Each task must have a clear name and an intial descriptive message with instructions on what has to be done.
+          Copy from the epic everything related with the subtask and add as the first message with a suggestion on how to solve it
+          Choose the right project_id for each task
+          { AI_TASKS_RESPONSE_PARSER.get_format_instructions() }
+          """
+          
+          messages = ai.chat(prompt=prompt)
+
+          response = messages[-1].content
+
+          ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)
+          self.chat_event(chat=chat, message=f"Generating {len(ai_tasks.tasks)} sub tasks")
+
+          chat_manager = self.get_chat_manager()
+          for sub_task in ai_tasks.tasks:
+              sub_task.parent_id = chat.id
+              sub_task.board = chat.board
+              sub_task.column = chat.column
+              sub_task.project_id = chat.project_id
+              init_message = "\n".join([m.content for m in sub_task.messages])
+              sub_task.messages = [Message(role="assistant", content=init_message)]
+              self.chat_event(chat=chat, message=f"Saving subtask {sub_task.name}")
+              chat_manager.save_chat(sub_task)
+
+    def get_chat_analysis_parents(self, chat: Chat):
+        """Given a chat, traverse all parents and return all analysis"""
+        parent_content = []
+        chat_manager = self.get_chat_manager()
+        parent_chat = chat_manager.find_by_id(chat.parent_id)
+        while parent_chat:
+            messages = [m.content for m in parent_chat.messages if not m.hide]
+            if messages:
+              parent_content.append("\n".join(messages))
+            parent_chat = chat_manager.find_by_id(parent_chat.parent_id)
+        return "\n".join(parent_content)
+
+
+    def create_knowledge_search_query(self, query: str):
+      ai = self.get_ai()
+      return ai.chat(prompt=f"""
+      <text>
+      {query}
+      </text>
+
+      <instructions>
+        Extract keywords and other relevant information from the text
+        Create a search query containing all the keywords
+        Return only the search query without any decoration of any other information 
+      </instructions>
+      """)[-1].content
+                
+    @profile_function
+    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+
+        with self.chat_action(chat=chat, event=f"Processing AI request {chat.name}"):
+            chat_mode = chat_mode or chat.mode or "chat"
+            if chat_mode == "browser":
+                self.log_info(f"chat_with_project browser mode")
+                self.chat_event(chat=chat, message=f"connecting with browser...")
+                return self.get_browser().chat_with_browser(chat)
+
+            documents = []
+            task_item = ""
+
+            parent_chat = None
+            if chat.parent_id:
+                chat_manager = self.get_chat_manager()
+                parent_chat = chat_manager.find_by_id(chat.parent_id)
+
+            is_refine = chat_mode == "task"
+            is_agent = chat_mode  == "agent"
+
+            max_iterations = self.settings.get_agent_max_iterations()
+            iterations_left = max_iterations - iteration
+
+            if is_refine:
+                task_item = "analysis"
+            
+            response_message = Message(role="assistant",
+                                      doc_id=str(uuid.uuid4()))
+            timing_info = {
+              "start_time": time.time(),
+              "first_response": None
+            }
+
+            def send_message_event(content):
+                if not timing_info.get("first_response"):
+                    timing_info["first_response"] = time.time() - timing_info["start_time"]
+                response_message.content = content
+                sources =  []
+                if documents:
+                    sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))
+                response_message.files = sources
+                response_message.task_item = task_item
+                self.message_event(chat=chat, message=response_message)
+
+            valid_messages = [m for m in chat.messages if not m.hide and not m.improvement]
+            ai_messages = [m for m in valid_messages if m.role == "assistant"]
+            last_ai_message = ai_messages[-1] if ai_messages else None
+                
+            user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
+            query = user_message.content
+
+            query_mentions = self.get_query_mentions(query=query)
+            self.log_info(f"Chat with project mentions: {query_mentions}")
+            
+            ai = self.get_ai(llm_model=chat.model)
+            profile_manager = ProfileManager(settings=self.settings)
+            chat_profiles = query_mentions["profiles"]
+            chat_profiles_content = ""
+            chat_profile_names = ""
+            if chat_profiles:
+                chat_profiles_content = "\n".join([profile.content for profile in chat_profiles if profile])
+                chat_profile_names = [profile.name for profile in chat_profiles if profile]
+
+            self.log_info(f"chat_with_project {chat.name} settings ready")
+            messages = []
+            def convert_message(m):
+                msg = None
+                def parse_image(image):
+                    try:
+                        return json.loads(image)
+                    except:
+                        return {"src": image, "alt": ""}
+                if m.images:
+                    images = [parse_image(image) for image in m.images]
+                    text_content = {
+                        "type": "text",
+                        "text": m.content
+                    }
+                    content = [text_content] + [
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image["src"]
+                            }
+                        } for image in images]
+
+                    self.log_info(f"ImageMessage content: {content}")
+                    msg = BaseMessage(type="image", content=json.dumps(content))
+                elif m.role == "user":
+                    msg = HumanMessage(content=m.content)
+                else:
+                    msg = AIMessage(content=m.content)
+          
+                return msg
+
+            for m in chat.messages[0:-1]:
+                if m.hide or m.improvement:
+                    continue
+                msg = convert_message(m)
+                messages.append(msg)
+
+            context = ""
+            documents = []
+            chat_files = chat.file_list or []
+            if parent_chat and parent_chat.file_list:
+                chat_files = chat_files + parent_chat.file_list
+
+            ignore_documents = chat_files.copy()
+            if chat.name:
+                ignore_documents.append(f"/{chat.name}")
+
+            self.chat_event(chat=chat, message="Knowledge search")
+
+            for chat_file in chat_files:
+                chat_file_full_path = chat_file
+                if self.settings.project_path not in chat_file_full_path:
+                    if chat_file[0] == '/':
+                        chat_file = chat_file[1:]
+                    chat_file_full_path = f"{self.settings.project_path}/{chat_file}"
+                try:
+                  with open(chat_file_full_path, 'r') as f:
+                      doc_context = document_to_context(
+                        Document(page_content=f.read(), metadata={ "source": chat_file })
+                      )
+                      context += f"{doc_context}\n"
+                except Exception as ex:
+                    logger.error(f"Error adding context file to chat {ex}")
+
+            search_projects = query_mentions["projects"]
+            if not disable_knowledge and self.settings.use_knowledge and search_projects:
+                self.log_info(f"chat_with_project start project search {search_projects}")
+                try:
+                    doc_length = 0
+                    if query:
+                        query_context = "\n".join([m.content for m in messages])
+                        search_query = self.create_knowledge_search_query(query=f"{query_context}\n{query}")
+          
+                        self.chat_event(chat=chat, message=f"Knowledge searching for: {search_query}")
+                        
+                        documents, file_list = self.select_afefcted_documents_from_knowledge(ai=ai, chat=chat, query=search_query, ignore_documents=ignore_documents, search_projects=search_projects)
+                        for doc in documents:
+                            doc_context = document_to_context(doc)
+                            context += f"{doc_context}\n"
+                    
+                        response_message.files = file_list
+                        doc_length = len(documents)
+                    self.chat_event(chat=chat, message=f"Knowledge search found {doc_length} relevant documents")
+                except Exception as ex:
+                    self.chat_event(chat=chat, message=f"!!Error searching in knowledge {ex}", event_type="error")
+            else:
+                self.chat_event(chat=chat, message="! Knowledge search is disabled !")
+            if context:
+                messages.append(convert_message(
+                    Message(role="user", content=f"""
+                      THIS INFORMATION IS COMING FROM PROJECT'S FILES.
+                      HOPE IT HELPS TO ANSWER USER REQUEST.
+                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
+                      {context}
+                      """)))
+
+            if is_refine:
+                refine_message = Message(role="user", content=f"""
+                <task>
+                { chat.name }
+                </task>
+
+                <parent_context>
+                {self.get_chat_analysis_parents(chat=chat)}
+                </parent_context>
+
+                <document>
+                {last_ai_message.content if last_ai_message else ''}
+                </document>
+
+                <user_request>
+                Refine document with this comments:
+                {user_message.content}
+                </user_request>
+                """)
+                messages.append(convert_message(refine_message))
+            elif is_agent:
+                refine_message = Message(role="user", content=f"""
+                You are responsible to end this task.
+                Follow instructions and try to solve it with the minimun iterations needed.
+                <task>
+                { chat.name }
+                </task>
+
+                <parent_context>
+                {self.get_chat_analysis_parents(chat=chat)}
+                </parent_context>
+
+                <user_request>
+                Refine document with this comments:
+                {user_message.content}
+                </user_request>
+                
+                You still have { iterations_left } attemps more to finish the task. 
+                Return { AGENT_DONE_WORD } when the task is done.
+                """)
+                messages.append(convert_message(refine_message))
+            else:
+                messages.append(convert_message(user_message))
+
+            # Add extra chat_profiles_content
+            messages[-1].content += chat_profiles_content
+            messages[-1].profiles = chat_profile_names
+            ai_settings = self.settings.get_llm_settings()
+            self.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
+
+            if not callback:
+                callback = lambda content: send_message_event(content=content)
+            try:
+                messages = ai.chat(messages, callback=callback)
+                response_message.content = messages[-1].content
+            except Exception as ex:
+                logger.exception(f"Error chating with project: {ex} {chat.id}")
+                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
+
+            response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
+            response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
+            response_message.meta_data["model"] = ai_settings.model
+            
+            chat.messages.append(response_message)
+            if is_refine:
+                for message in chat.messages[:-1]:
+                    message.hide = True
+
+            is_agent_done = AGENT_DONE_WORD in response_message.content
+            if is_agent and not is_agent_done and iterations_left:
+              self.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")
+              return self.chat_with_project(chat=chat,
+                    disable_knowledge=disable_knowledge,
+                    callback=callback,
+                    append_references=append_references,
+                    chat_mode=chat_mode,
+                    iteration=iteration + 1)
+            else:    
+              self.chat_event(chat=chat, message="done")
+            return chat, documents
+            
+    def check_project(self):
+        try:
+            self.log_info(f"check_project")
+            loader = KnowledgeLoader(settings=self.settings)
+            loader.fix_repo()
+        except Exception as ex:
+            logger.exception(str(ex))
+
+    def extract_tags(self, doc):
+        knowledge = Knowledge(settings=self.settings)
+        knowledge.extract_doc_keywords(doc)
+        return doc
+
+    def get_keywords(self, query):
+        return KnowledgeKeywords(settings=self.settings).get_keywords(query)
+
+    def get_wiki_file(self, file_path:str):
+        project_wiki_path = self.settings.get_project_wiki_path()
+        wiki_file = f"{project_wiki_path}{file_path}"
+        try:
+          with open(wiki_file, 'r', encoding='utf-8', errors='ignore') as f:
+              return f.read()
+        except:
+          return f"{wiki_file} not found"
+
+    def get_readme(self):
+        project_path = self.settings.project_path
+        readme_file = f"{project_path}/README.md"
+        if os.path.isfile(readme_file):
+          with open(readme_file, 'r', encoding='utf-8', errors='ignore') as f:
+              return f.read()
+        return ""
+
+    async def update_wiki(self, file_path: str):
+        return
+        project_wiki_path = self.settings.get_project_wiki_path()
+        if not self.settings.project_wiki or file_path.startswith(project_wiki_path):
+            return
+
+        project_wiki_home = f"{project_wiki_path}/home.md"
+
+        home_content = f"# {self.settings.project_name}"
+        if os.path.isfile(project_wiki_home):
+            with open(project_wiki_home, 'r', encoding='utf-8', errors='ignore') as f:
+                home_content = f.read()
+
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            file_content = f.read()
+            self.log_info(f"update_wiki file_path: {file_path}, project_wiki: {project_wiki_path}")
+            chat = Chat(messages=[
+                Message(role="user", content=f"""Extract important parts from the content of {file_path} to be added to the wiki.
+                {file_content}
+                """)
+            ])
+            await self.chat_with_project(chat=chat)
+            chat.messages.append(Message(role="user", content=f"""
+            Improve our current wiki with the new knowledge extracted from {file_path},
+            Highlight important parts and create mermaid diagrams to help user's understanding of the project.
+            If information is not relevant for the whole project but for the file itself remove from home and create a new linked wiki page instead.
+            
+            Wiki directory structure:
+            ```md
+            {generate_markdown_tree(Path(project_wiki_path).glob("**"))}
+            ```
+
+            Wiki home content:
+            ```{project_wiki_home}
+            {home_content}
+            ```
+            """))
+            code_generator = await self.improve_existing_code(chat=chat, apply_changes=False)
+            self.log_info(f"update_wiki file_path: {file_path}, changes: {code_generator}")
+            if code_generator:
+                wiki_changes = [change for change in code_generator.code_changes if project_wiki_path in change.file_path]
+                self.log_info(f"update_wiki file_path: {file_path}, wiki changes: {wiki_changes}")
+                if wiki_changes:
+                    await self.apply_improve_code_changes(code_generator=AICodeGerator(code_changes=wiki_changes))
+
+    def update_project_profile(self, file_path: str):
+        return  # deprecated
+
+    def get_project_metrics(self):
+        chat_manager = ChatManager(settings=self.settings)
+
+        number_of_chats = chat_manager.chat_count()
+        chat_changed_last = chat_manager.last_chats()
+        
+        status = self.check_knowledge_status()
+        
+        return {
+            "number_of_chats": number_of_chats,
+            "chats_changed_last": chat_changed_last,
+            **status
+        }
+
+    def api_image_to_text(self, image_bytes):
+        from PIL import Image
+        import pytesseract
+        import io
+
+        image = Image.open(io.BytesIO(image_bytes))
+        text = pytesseract.image_to_string(image)
+        
+        return text
+    
+    def parse_file_line(self, file, base_path):
+        file_path = os.path.join(base_path, file)
+        if not file_path.startswith(self.settings.project_path):
+            file_path = f"{self.settings.project_path}/{file_path}"
+        is_dir = os.path.isdir(file_path)
+        return {
+          "name": file.split("/")[-1],
+          "file_path": file_path,
+          "is_dir": is_dir,
+          "children": [] if is_dir else None
+        }
+    
+    def read_directory(self, path: str):
+        base_path = path
+        files = os.listdir(base_path)
+        return {
+          "path": path,
+          "full_path": base_path,
+          "files": [self.parse_file_line(file, base_path) for file in sorted(files)]
+        }
+
+    def read_file(self, path: str):
+        with open(path, 'r', encoding='utf-8', errors='ignore') as f:
+            return f.read()
+      
+    @profile_function
+    async def process_project_file_before_saving(self, file_path: str, content: str):
+        file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)
+        self.log_info(f"Applying file profiles {[p.name for p in file_profiles]} to {file_path}")
+        if file_profiles:
+            for profile in file_profiles:
+                content = await self.apply_file_profile(file_path=file_path, content=content, profile=profile)
+        return content
+    
+    async def apply_file_profile(self, file_path: str, content: str, profile: Profile):
+        file_profile_prompt = f"""
+        You are given a section of code that requires improvement by applying best practices. Your task is to refactor the code while ensuring that it adheres to the specified best practices. Please follow the instructions below:
+
+        ### File Content:
+        ```
+        {content}
+        ```
+
+        ### Instructions:
+        ```
+        {profile.content}
+        ```
+        Return the final content without any kind of decoration or extra comments. 
+        Avoid surronding your response with fences (```), just return the final content.
+        """
+
+        content_message = Message(role="user", content=file_profile_prompt)
+
+        chat = Chat(name=f"Improve file with profile {profile.name}", messages=[content_message])
+        await self.chat_with_project(chat=chat, disable_knowledge=True)
+        return chat.messages[-1].content
+
+    async def write_project_file(self, file_path: str, content: str):
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        content = await self.process_project_file_before_saving(file_path=file_path, content=content)
+        write_file(file_path=file_path, content=content)
+
+    def search_files(self, search: str):
+        all_sources = [s for s in self.get_knowledge().get_all_sources().keys() if search in s]
+        base_path = self.settings.project_path
+        return [self.parse_file_line(file, base_path) for file in sorted(all_sources)]
+
+    def run_app(self, app_name: str):
+        command = APPS_COMMANDS[app_name]
+        exec_command(command)
+
+    def get_project_apps(self):
+        return APPS
+
+    def get_project_branches(self):
+        stdout, _ = exec_command("git branch",
+            cwd=self.settings.project_path)
+        branches = [s.strip() for s in stdout.split("\n") if s.strip()]
+        current_branch = [b for b in branches if b.startswith('* ')]
+        if current_branch:
+            current_branch = current_branch[0].replace('* ', '')
+        else:
+            current_branch = ""
+
+        branches = [b.replace('* ', '') for b in branches]
+
+        branch_details = self.get_branch_details(current_branch)
+        parent_branch = branch_details["parent_branch"]
+
+        git_diff = ""
+        if current_branch and parent_branch:
+            stdout, _ = exec_command(f"git diff HEAD..{parent_branch}",
+              cwd=self.settings.project_path)
+            git_diff = stdout
+
+
+        return {
+          "branches": branches,
+          "current_branch": current_branch.strip(),
+          "parent_branch": parent_branch,
+          "git_diff": git_diff,
+          "branch_details": branch_details
+        }
+
+    def get_branch_details(self, branch_name: str):
+        """
+        Extracts commit details from a specified branch without checking it out.
+
+        Args:
+            branch_name (str): The name of the branch to extract commits from.
+
+        Returns:
+            list: A list of dictionaries containing commit information.
+        """
+        # Command to get commit details from the specified branch
+        log_command = f"git log -g --format=%H|%an|%cI|%s {branch_name}"
+        stdout, _ = exec_command(log_command, cwd=self.settings.project_path)
+
+        log_lines = stdout.split('\n')
+
+        commits = []
+        for entry in log_lines:
+            if entry.strip():
+                commit_hash, author, date, message = entry.split('|', 3)
+
+                # Command to get files changed in each commit
+                file_changes_command = \
+                    f'git show --name-only --pretty=format:{commit_hash}'
+                stdout, _ = exec_command(file_changes_command, cwd=self.settings.project_path)
+                file_changes = stdout.strip().split('\n')
+                commits.append({
+                    'entry_line': entry,
+                    'commit_hash': commit_hash,
+                    'author': author,
+                    'date': date,
+                    'message': message,
+                    'files': [file for file in file_changes if file][1:]
+                })
+
+        return {
+          "commits": commits,
+          "parent_branch": commits[-1]["commit_hash"]
+        }
+
+    def get_project_current_branch(self):
+        stdout, _ = exec_command("git branch --show-current")
+        return stdout
+
+    def get_project_parent_branch(self):
+        current_branch = self.get_project_current_branch()
+        stdout, _ = exec_command(f"git reflog {current_branch}",
+                              cwd=self.settings.project_path)
+        self.log_info(f"get_project_parent_branch reflog: {stdout} cwd: {self.settings.project_path}")
+        creation_line = [l for l in stdout.split("\n") if "Created from" in l][0]
+        # 808a14a v1.0-hello-codx-junior@{53}: branch: Created from refs/remotes/origin/v1.0-hello-codx-junior
+        if "refs/remotes/" in creation_line:
+            ref_branch = creation_line.split(" ")[-1].remove("refs/remotes/", "")
+            # origin/v1.0-hello-codx-junior
+            return ref_branch
+
+        # 5f3e0bdd (origin/main, origin/task-two) tsk-task-1@{4}: branch: Created from 5f3e0bddbc466967f1a2eedc731eec980978b184
+        ref_branch  = creation_line.split(" (")[1].split(",")[0]
+        return ref_branch
+
+    def get_project_changes(self, parent_branch: str = None):
+        if not parent_branch:
+            #parent_branch = self.get_project_parent_branch()
+            parent_branch = parent_branch or "HEAD@{1}"
+            self.log_info(f"get_project_changes parent_branch {parent_branch}")
+        stdout, _ = exec_command(f"git diff {parent_branch}",
+                      cwd=self.settings.project_path)
+        return stdout
+
+    def build_code_changes_summary(self, force = False):
+        project_branches = self.get_project_branches()
+        diff = project_branches["git_diff"]
+        return self.get_knowledge().build_code_changes_summary(diff=diff, force=force)
+
+```
+
+                      
+              
+############################################
+              ### ROLE: human
+              ############################################
+
+              Models will come from checking all profiles in all projects @file://engine.py
+Those profiles with api_settings.active will be returned. Use api_settings: name and description for the Model info returned
+              
+############################################
+              ### ROLE: ai
+              ############################################
+
+              To implement the feature where models are retrieved from checking all profiles in all projects, and only those profiles with `api_settings.active` are returned, you can define additional logic in your existing setup. Here's how you could implement this feature in `chatgpt_api.py` by adding a new endpoint:
+
+### Step 1: Update `engine.py`
+
+Make sure that the `Profile` model includes the necessary attributes to facilitate the retrieval of model information. Suppose `Profile` objects have an `api_settings` dictionary that contains `active`, `name`, and `description` keys.
+
+### Step 2: Implement Logic to Retrieve Models
+
+You'll need to create a function in `engine.py` (or an appropriate module) that retrieves all projects and checks their profiles for active models.
+
+### Step 3: Define New Endpoint in `chatgpt_api.py`
+
+Here's the code implementation:
+
+```python
+# In /shared/codx-junior/api/codx/junior/engine.py
+
+def get_active_models_from_profiles(all_projects):
+    active_models = []
+    for project in all_projects:
+        profile_manager = ProfileManager(settings=project.settings)
+        profiles = profile_manager.list_profiles()
+        for profile in profiles:
+            try:
+                if profile.api_settings.get('active'):
+                    model_info = {
+                        'id': profile.api_settings.get('name', 'unknown-model'),
+                        'object': 'model',
+                        'created': int(time.time()),  # or some meaningful timestamp
+                        'owned_by': project.settings.project_name,
+                        'description': profile.api_settings.get('description', 'No description')
+                    }
+                    active_models.append(model_info)
+            except AttributeError:
+                continue  # In case `api_settings` or expected fields are not present
+    return active_models
+```
+
+### Step 4: Use This Function in Your New Endpoint
+
+In `chatgpt_api.py`, define the `/v1/models` endpoint using the function added in step 3.
+
+```python
+# In /shared/codx-junior/api/codx/junior/chatgpt_api.py
+
+from fastapi import APIRouter
+from engine import find_all_projects, get_active_models_from_profiles  # Import your functions
+
+router = APIRouter()
+
+@router.get("/v1/models", tags=["chatgpt"])
+async def list_models():
+    all_projects = find_all_projects()
+    available_models = get_active_models_from_profiles(all_projects)
+    return {"object": "list", "data": available_models}
+```
+
+### Step 5: Include the Router in your main `app.py`
+
+Ensure that your `app.py` includes this new router so these routes are active in your FastAPI application.
+
+```python
+# In /shared/codx-junior/api/codx/junior/app.py
+
+from fastapi import FastAPI
+import socketio
+
+from chatgpt_api import router as chatgpt_router  # Import your router
+
+# Existing FastAPI setup...
+
+app = FastAPI(
+    title="CODXJuniorAPI",
+    description="API for CODXJunior",
+    version="1.0",
+    openapi_url="/api/openapi.json",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    ssl_context='adhoc'
+)
+
+app.include_router(chatgpt_router, prefix="/api")  # Include the new router
+
+# Existing socketio and other setup...
+```
+
+### Explanation
+
+- **get_active_models_from_profiles**: This function iterates over all projects and their profiles, checks for active models, and compiles a list of these models with essential information.
+
+- **Endpoint Definition**: The `/v1/models` endpoint uses the above function to return the list of active models.
+
+- **Integration**: The router is included in the `app.py` file, making the endpoint accessible through the `/api/v1/models` URL.
+
+This solution assumes that the `Profile` class or its instances have access to the required `api_settings` dictionary and that you have a way to compile a list of all projects through a function like `find_all_projects`. Ensure your models and functions are properly defined and imported in the respective modules.
+              
+[AI] chat messages 4

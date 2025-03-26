@@ -10,6 +10,7 @@ import Markdown from './Markdown.vue'
       </button>
       Profile
       <div class="grow"></div>
+      <button type="button" class="btn btn-sm btn-primary" :class="loading && 'loading loading-spinner'" @click="onSubmit" :disabled="!canSave">Update</button>
       <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isOverriden || loading">Delete</button>
     </label>
     <div class="flex justify-center">
@@ -44,34 +45,55 @@ import Markdown from './Markdown.vue'
           <option value="agent">Agent</option>
         </select>
       </div>
-      <div class="w-1/2 flex flex-col gap-2">
-        <label for="fileMatch">File Match</label>
-        <input id="fileMatch" v-model="editProfile.file_match" type="text" :class="!isValidFileMatch && 'text-error'" class="bg-base-300 input input-xs input-bordered w-full" />
-      </div>
     </div>
     <div class="form-group">
       <label for="description">Description</label>
       <textarea id="description" v-model="editProfile.description"
         class="bg-base-300 textarea textarea-bordered w-full"></textarea>
     </div>
-    <div class="flex flex-col gap-2">
+
+    <div role="tablist" class="tabs tabs-boxed">
+      <div role="tab" class="tab" :class="{ 'tab-active': tab === 'content' }"
+        @click="tab = 'content'"
+      >
+        Content
+      </div>
+      <div role="tab" class="tab" :class="{ 'tab-active': tab === 'settings' }"
+        @click="tab = 'settings'"
+      >
+        Settings
+      </div>
+    </div>    
+    
+    <div class="form-group flex flex-col gap-4" v-if="tab === 'settings'">
+      <div class="flex gap-2 items-center">
+        Expose in API
+        <input type="checkbox" v-model="editProfile.api_settings.active"
+          class="toggle checked:border-info checked:bg-info" />
+      </div>
+      <div class="pl-4 flex flex-col gap-2" v-if="editProfile.api_settings.active">
+        <label for="modelName">API Model Name</label>
+        <input :placeholder="`default: ${$project.project_name}/${editProfile.name}`"
+          v-model="editProfile.api_settings.modelName" type="text" class="input input-sm input-bordered bg-base-300" />
+        <label for="modelDescription">API Model Description</label>
+        <textarea v-model="editProfile.api_settings.modelDescription" class="textarea textarea-bordered bg-base-300"></textarea>
+      </div>
+      <div class="flex gap-2 items-center">
+        Use knowledge
+        <input type="checkbox" v-model="profile.use_knowledge"
+          class="toggle checked:border-info checked:bg-info" />
+      </div>
+    </div>
+    <div class="flex flex-col gap-2" v-if="tab === 'content'">
       <div class="flex justify-between">
         <label for="content flex gap-2">Content
           <button class="btn btn-xs" @click="toggleContentPreview">
             <i :class="contentPreview ? 'fa-solid fa-pencil-alt' : 'fa-solid fa-eye'"></i>
           </button>
         </label>
-        <div class="flex gap-2 items-center">
-          Use knowledge
-          <input type="checkbox" v-model="profile.use_knowledge"
-            class="toggle checked:border-info checked:bg-info" />
-        </div>
       </div>
       <Markdown class="p-2 rounded-md" :class="contentPreview ? 'bg-base-100 border border-slate-700' : 'bg-base-300'" :text="editProfile.content" v-if="contentPreview" />
       <textarea id="content" v-model="editProfile.content" class="textarea textarea-bordered w-full h-96 bg-base-300 overflow-auto" v-else></textarea>
-    </div>
-    <div class="flex gap-2 justify-end">
-      <button type="button" class="btn btn-sm btn-primary" :class="loading && 'loading loading-spinner'" @click="onSubmit" :disabled="!canSave">Update</button>
     </div>
     <modal v-if="confirmDelete">
       <div class="text-2xl">Confirm delete?</div>
@@ -90,6 +112,7 @@ export default {
       editProfile: { ...this.profile },
       confirmDelete: false,
       contentPreview: true,
+      tab: 'content'
     }
   },
   computed: {
@@ -101,7 +124,6 @@ export default {
       return this.$storex.api.globalSettings?.ai_models
                 .filter(m => m.model_type === 'llm')
                 .sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
-
     },
     isOverriden() {
       return this.profile.path?.startsWith(this.$project.project_path)
@@ -128,12 +150,6 @@ export default {
     }
   },
   watch: {
-    profile: {
-      handler() {
-        this.editProfile = { ...this.profile }
-      },
-      deep: true,
-    }
   },
   methods: {
     onSubmit() {

@@ -69,7 +69,7 @@ class ProfileManager:
         
         logger.info(f"Save profile {profile_path}")
         with open(profile.content_path, 'w') as f:
-              f.write(profile.content)
+              f.write(profile.content or "")
         profile.content = f"See {profile.name}.profile.md file"
 
         with open(profile_path, 'w') as f:

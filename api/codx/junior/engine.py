@@ -135,6 +135,7 @@ def find_project_from_file_path(file_path: str):
     all_projects = find_all_projects()
     matches = [p for p in all_projects if file_path.startswith(p.project_path)]
     if matches:
+        logger.info(f"Find projects for file {file_path}: {[m.project_name for m in matches]}")
         return sorted(matches, key=lambda p: len(p.project_path))[-1]
     return None
   
@@ -190,7 +191,7 @@ def update_engine():
     except Exception as ex:
         logger.exception(ex)
         return ex
-                
+
 
 class CODXJuniorSession:
     def __init__(self,
@@ -216,6 +217,9 @@ class CODXJuniorSession:
 
     def log_error(self, msg):
         logger.error(f"[{self.settings.project_name}] {msg}")
+    
+    def log_exception(self, msg):
+        logger.exception(f"[{self.settings.project_name}] {msg}")
 
     def get_channel(self):
         return self.channel
@@ -842,28 +846,28 @@ class CODXJuniorSession:
           file_chat_name = "-".join(file_path.split("/")[-2:])
           
           self.log_info(f"Create mention chat {file_chat_name}")
-
-          analysis_chat = Chat(name=slugify(f"analysis_at_{file_chat_name}-{datetime.now()}"), 
-              board="mentions",
-              column="analysis",
-              mode="chat",
-              tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
-              messages=
-              [
-                  Message(role="user", content="\n".join([
-                  f"{profile_manager.read_profile('software_developer').content}",
-                  f"Find all information needed to apply all changes to file: {file_path}",
-                  "",
-                  f"Changes:",
-                  query,
-                  "",
-                  "File content:",
-                  new_content
-                  ]))
-              ])
-          self.log_info(f"Chat with project analysis {analysis_chat.name}")
-          await self.chat_with_project(chat=analysis_chat, disable_knowledge=not use_knowledge)
-          analysis_chat = chat_manager.save_chat(analysis_chat)
+          analysis_chat = None
+          if use_knowledge:
+              analysis_chat = Chat(name=slugify(f"analysis_at_{file_chat_name}-{datetime.now()}"), 
+                  board="mentions",
+                  column="analysis",
+                  mode="chat",
+                  tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
+                  messages=
+                  [
+                      Message(role="user", content="\n".join([
+                      f"Find all information needed to apply all changes to file: {file_path}",
+                      "",
+                      f"Changes:",
+                      query,
+                      "",
+                      "File content:",
+                      new_content
+                      ]))
+                  ])
+              self.log_info(f"Chat with project analysis {analysis_chat.name}")
+              await self.chat_with_project(chat=analysis_chat, disable_knowledge=not use_knowledge)
+              analysis_chat = chat_manager.save_chat(analysis_chat)
 
           if run_code:
               self.log_info(f"Mentions running code {file_path}")
@@ -872,27 +876,31 @@ class CODXJuniorSession:
               changes_chat = Chat(name=slugify(f"changes_at_{file_chat_name}-{datetime.now()}"), 
                 board="mentions",
                 column="changes",
-                parent_chat=analysis_chat.id,
+                parent_chat=analysis_chat.id if analysis_chat else None,
                 tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
                 messages=
                   [
                       Message(role="user", content=f"""
-                      {profile_manager.read_profile("software_developer").content}
-                      Find all information needed to apply all changes to file: {file_path}
-                      User comments:
-                      {query}
-
-                      File content:
+                      ```
                       {new_content}
-                      """),
-                      analysis_chat.messages[-1]
+                      ```
+                      
+                      {query}
+                      """)
                   ])
+              
+              if analysis_chat:
+                  changes_chat.messages.append(analysis_chat.messages[-1])
+
               if file_profiles:
                   file_profile_content = "\n".join([
                       profile.content for profile in file_profiles
                   ])
                   
-                  changes_chat.messages.append(Message(role="user", content=f"""Best practices for this file:
+                  changes_chat.messages.append(Message(
+                      role="user",
+                      profiles=[profile.name for profile in file_profiles],
+                      content=f"""Best practices for this file:
                   {file_profile_content}
                   """))
 
@@ -920,7 +928,7 @@ class CODXJuniorSession:
           self.log_info(f"[{self.settings.project_name}] Mentions manager done for {file_path}")
           return res
       except Exception as ex:
-          self.log_error(f"Error processing mentions at {file_path}: {ex}")
+          self.log_exception(f"Error processing mentions at {file_path}: {ex}")
 
     def process_image_mention(self, image_mentions, file_path: str, content: str):
         ai = self.get_ai()
@@ -1014,19 +1022,26 @@ class CODXJuniorSession:
 
 
     def create_knowledge_search_query(self, query: str):
-      ai = self.get_ai()
-      return ai.chat(prompt=f"""
-      <text>
-      {query}
-      </text>
+        ai = self.get_ai()
+        return ai.chat(prompt=f"""
+        <text>
+        {query}
+        </text>
 
-      <instructions>
-        Extract keywords and other relevant information from the text
-        Create a search query containing all the keywords
-        Return only the search query without any decoration of any other information 
-      </instructions>
-      """)[-1].content
-                
+        <instructions>
+          Extract keywords and other relevant information from the text
+          Create a search query containing all the keywords
+          Return only the search query without any decoration of any other information 
+        </instructions>
+        """)[-1].content
+    
+    @profile_function
+    async def api_chat_with_project(self, profile_name: str, messages: []):
+        chat = Chat(name="api-chat", profiles=[profile_name], messages=[Message(role=m["role"], content=m["content"]) \
+                                                          for m in messages])
+        await self.chat_with_project(chat=chat)
+        return chat
+
     @profile_function
     async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0):
         # Invoke project based on project_id
@@ -1082,15 +1097,18 @@ class CODXJuniorSession:
             query = user_message.content
 
             query_mentions = self.get_query_mentions(query=query)
-            self.log_info(f"Chat with project mentions: {query_mentions}")
             
             ai = self.get_ai(llm_model=chat.model)
             profile_manager = ProfileManager(settings=self.settings)
-            chat_profiles = query_mentions["profiles"]
+            chat_profiles = query_mentions["profiles"] + [profile_manager.read_profile(profile_name) \
+                                                            for profile_name in chat.profiles]
             chat_profiles_content = ""
+            chat_profile_names = ""
             if chat_profiles:
                 chat_profiles_content = "\n".join([profile.content for profile in chat_profiles if profile])
+                chat_profile_names = [profile.name for profile in chat_profiles if profile]
 
+          
             self.log_info(f"chat_with_project {chat.name} settings ready")
             messages = []
             def convert_message(m):
@@ -1234,6 +1252,7 @@ class CODXJuniorSession:
 
             # Add extra chat_profiles_content
             messages[-1].content += chat_profiles_content
+            messages[-1].profiles = chat_profile_names
             ai_settings = self.settings.get_llm_settings()
             self.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
 

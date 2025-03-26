@@ -22,6 +22,8 @@ from codx.junior.profiling.profiler import profile_function
 from codx.junior.log_parser import parse_logs
 from codx.junior.browser import run_browser_manager
 
+from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
+
 
 logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -112,6 +114,8 @@ app = FastAPI(
 
 sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
 app.mount("/api/socket.io", sio_asgi_app)
+
+app.include_router(chatgpt_router, prefix="/api")
 
 @app.on_event("startup")
 def startup_event():

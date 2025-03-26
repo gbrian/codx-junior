@@ -85,7 +85,11 @@ export const getters = getterTree(state, {
   currentBranch: state => state.project_branches.current_branch,
   mentionList: () => {
     return [
-      ...$storex.projects.profiles.map(profile => ({ name: profile.name, profile, tooltip: `Chat with ${profile.name}` })),
+      ...$storex.projects.profiles.map(profile => ({ 
+          name: profile.name,
+          profile,
+          tooltip: profile.description 
+        })),
       ...[
         $storex.projects.activeProject,
         $storex.projects.parentProject,

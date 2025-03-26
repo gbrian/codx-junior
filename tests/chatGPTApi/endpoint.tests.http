@@ -1,0 +1,18 @@
+### Models
+GET http://localhost:9984/api/v1/models
+Authorization: Bearer ${apiKey}
+
+### Completions
+POST http://localhost:9984/api/v1/completions
+Authorization: Bearer ${apiKey}
+Content-Type: application/json
+
+{
+  "model": "codx-junior/analyst",
+  "messages": [
+    {
+      "role": "user",
+      "content": "How I can enable a profile through  the API?."
+    }
+  ]
+}

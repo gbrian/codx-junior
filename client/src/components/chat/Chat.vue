@@ -88,11 +88,11 @@ import TaskCard from '../kanban/TaskCard.vue'
     <div class="flex gap-2">
       <span class="badge tooltip flex gap-2 items-center"
         :data-tip="mention.tooltip"
-        :class="{ 'badge-primary': mention.project, 'badge-secondary': mention.profile }"
+        :class="{ 'badge-primary': mention.project, 'badge-success badge-outline': mention.profile }"
         v-for="mention in messageMentions" :key="mention.name">
         <i class="fa-solid fa-magnifying-glass" v-if="mention.project"></i>
-        <img class="w-4 rounded-full" :src="mention.profile.icon" v-if="mention.profile?.icon" />
-        <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.icon"></i>
+        <img class="w-4 rounded-full" :src="mention.profile.avatar" v-if="mention.profile?.avatar" />
+        <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.avatar"></i>
         <div class="-mt-1">
           {{ mention.name }}
         </div>
