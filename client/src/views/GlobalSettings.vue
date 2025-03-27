@@ -115,7 +115,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
       </div>
     </div>
     <div v-if="activeTab === 'AI Models'" class="flex flex-col gap-4">
-      <AISettings />
+      <AISettings :settings="settings" />
     </div>
     <div v-if="activeTab === 'Agents'" class="flex flex-col gap-4">
       <AgentSettings />

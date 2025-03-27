@@ -100,6 +100,7 @@
 
 <script>
 export default {
+  props: ['settings'],
   data() {
     return {
       showDialog: false,
@@ -110,7 +111,7 @@ export default {
   },
   computed: {
     aiProviders() {
-      return this.$storex.api.globalSettings?.ai_providers
+      return this.settings.ai_providers
     }
   },
   methods: {

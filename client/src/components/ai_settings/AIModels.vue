@@ -147,6 +147,7 @@
 
 <script>
 export default {
+  props: ['settings'],
   data() {
     return {
       showDialog: false,
@@ -166,10 +167,10 @@ export default {
   },
   computed: {
     aiModels() {
-      return this.$storex.api.globalSettings?.ai_models
+      return this.settings.ai_models
     },
     aiProviders() {
-      return this.$storex.api.globalSettings?.ai_providers
+      return this.settings.ai_providers
     },
     currentModelIsLLM() {
       return this.currentModel?.model_type === 'llm'
