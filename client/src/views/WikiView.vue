@@ -4,7 +4,6 @@ import MarkdownVue from '@/components/Markdown.vue'
 </script>
 <template>
   <div class="flex flex-col gap-2 h-full mb-4">
-    <div class="text-2xl">Wiki</div>
     <div class="badge badge-warning flex gap-1" v-if="!settings.project_wiki">Set <span><strong>project_wiki path</strong></span> to enable.</div>
     <div class="flex items-center gap-2">
       <div class="breadcrumbs text-xs shrink-0">

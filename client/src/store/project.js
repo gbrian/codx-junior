@@ -99,8 +99,8 @@ export const getters = getterTree(state, {
         .filter(project => project)
         .map(project => ({ name: project.project_name, project, tooltip: `Search in project ${project.project_name}` })),
       ...[
-        ...$storex.projects.knowledge.files,
-        ...$storex.projects.knowledge.pending_files
+        ...$storex.projects.knowledge?.files || [],
+        ...$storex.projects.knowledge?.pending_files || []
       ]
         .map(file => ({ file,
                         name: `file://${file.split('/').reverse()[0]}`,
@@ -181,7 +181,9 @@ export const actions = actionTree(
       return loadedChat
     },
     async deleteChat(_, chat) {
-      await API.chats.delete(chat)
+      if (!chat.temp) {
+        await API.chats.delete(chat)
+      }
       await $storex.projects.loadChats()
     },
     async setActiveChat({ state }, chat) {
@@ -323,11 +325,16 @@ export const actions = actionTree(
       }
     },
     createNewChat({ state}, chat) {
-      if (!chat.id) {
-        chat.id = uuidv4()
+      chat = {
+        id: uuidv4(),
+        mode: 'chat',
+        profiles: [],
+        chat_index: 0,
+        ...chat
       }
       state.chats[chat.id] = chat
       state.activeChat = chat
+      return chat
     },
     async loadKanban({ state }) {
       state.kanban = await  $storex.api.chats.kanban.load()

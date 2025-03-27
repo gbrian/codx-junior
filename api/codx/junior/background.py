@@ -68,6 +68,7 @@ def start_background_services(app):
             settings = CODXJuniorSession(settings=project)
             try:
                 await settings.process_project_changes()
+                await settings.process_wiki_changes()
             except Exception as ex:
                 settings.last_error = str(ex)
         while True:

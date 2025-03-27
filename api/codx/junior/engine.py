@@ -1103,7 +1103,7 @@ class CODXJuniorSession:
             chat_profiles = query_mentions["profiles"] + [profile_manager.read_profile(profile_name) \
                                                             for profile_name in chat.profiles]
             chat_profiles_content = ""
-            chat_profile_names = ""
+            chat_profile_names = []
             if chat_profiles:
                 chat_profiles_content = "\n".join([profile.content for profile in chat_profiles if profile])
                 chat_profile_names = [profile.name for profile in chat_profiles if profile]
@@ -1252,7 +1252,6 @@ class CODXJuniorSession:
 
             # Add extra chat_profiles_content
             messages[-1].content += chat_profiles_content
-            messages[-1].profiles = chat_profile_names
             ai_settings = self.settings.get_llm_settings()
             self.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
 
@@ -1268,6 +1267,7 @@ class CODXJuniorSession:
             response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
             response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
             response_message.meta_data["model"] = ai_settings.model
+            response_message.profiles = chat_profile_names
             
             chat.messages.append(response_message)
             if is_refine:
@@ -1320,8 +1320,13 @@ class CODXJuniorSession:
               return f.read()
         return ""
 
+
+    async def process_wiki_changes(self):
+        knowledge = Knowledge(settings=self.settings)
+        # pending_files, last_update = knowledge.detect_changes(last_update=)
+        
+      
     async def update_wiki(self, file_path: str):
-        return
         project_wiki_path = self.settings.get_project_wiki_path()
         if not self.settings.project_wiki or file_path.startswith(project_wiki_path):
             return
@@ -1336,10 +1341,11 @@ class CODXJuniorSession:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             file_content = f.read()
             self.log_info(f"update_wiki file_path: {file_path}, project_wiki: {project_wiki_path}")
-            chat = Chat(messages=[
-                Message(role="user", content=f"""Extract important parts from the content of {file_path} to be added to the wiki.
-                {file_content}
-                """)
+            chat = Chat(profiles=["wiki"], 
+                        messages=[
+                            Message(role="user", content=f"""Extract important parts from the content of {file_path} to be added to the wiki.
+                            {file_content}
+                            """)
             ])
             await self.chat_with_project(chat=chat)
             chat.messages.append(Message(role="user", content=f"""

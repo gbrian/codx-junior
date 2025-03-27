@@ -11,7 +11,6 @@ import moment from 'moment';
     <ProjectIconVue
       :right="right"
       :online="$storex.session.connected"
-      @click.stop="setActiveTab('help')"
     />
       <div class="absolute bottom-0 flex justify-center w-full"
         v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
@@ -27,11 +26,7 @@ import moment from 'moment';
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Wiki"
           @click="$ui.setActiveTab('wiki')">
-          <div class="avatar">
-            <div class="w-7 rounded-full bg-white">
-              <img :src="$project.project_icon" />
-            </div>
-          </div>
+          <i class="fa-solid fa-book-medical"></i>
 				</a>
 			</div>
       
@@ -56,7 +51,7 @@ import moment from 'moment';
         </a>
       </div>
 
-      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'knowledge_settings' ? 'bg-base-100 text-primary': '',]">
+      <div :class="['hidden hover:bg-base-100 click relative', $ui.tabIx === 'knowledge_settings' ? 'bg-base-100 text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Knowledge"
           @click="$ui.setActiveTab('knowledge_settings')">
@@ -68,10 +63,10 @@ import moment from 'moment';
 
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'profiles' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Project profiles"
+          data-tip="Team"
           @click="$ui.setActiveTab('profiles')">
            <div class="flex flex-col gap-4">
-            <i class="fa-solid fa-circle-user"></i>
+            <i class="fa-solid fa-user-group"></i>
           </div>
 				</a>
 			</div>
@@ -146,6 +141,7 @@ import moment from 'moment';
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-52 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
+          <li><a @click.stop="setActiveTab('knowledge_settings')">Knowledge settings</a></li>
           <li class="border"></li>
           <li>
             <a> 
@@ -232,7 +228,8 @@ export default {
       isCollapsed: false,
       tabActive: 'text-info bg-base-100',
       tabInactive: 'text-warning bg-base-300 opacity-50 hover:opacity-100',
-      restartModal: false
+      restartModal: false,
+      chat: null
     };
   },
   created () {
@@ -260,6 +257,9 @@ export default {
     },
     setActiveProject(project) {
       this.$projects.setActiveProject(project)
+    },
+    async newQuickChat() {
+      await this.$projects.createNewChat({ temp: true })
     }
   }
 };

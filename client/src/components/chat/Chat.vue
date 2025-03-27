@@ -600,7 +600,9 @@ export default {
       }
     },
     saveChat() {
-      return API.chats.save(this.chat)
+      if (!this.chat.temp) { 
+        return API.chats.save(this.chat)
+      }
     },
     onDrop(e) {
       this.onDraggingOverInput = false

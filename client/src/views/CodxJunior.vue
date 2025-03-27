@@ -7,7 +7,7 @@ import moment from 'moment'
 
 <template>
   <div class="codx-junior flex min-h-full relative">
-    <div class="absolute top-0 left-0 right-0 bottom-0 z-[100] bg-base-300 flex flex-col justify-center items-center" v-if="$projects.projectLoading">
+    <div class="absolute top-0 left-0 right-0 bottom-0 z-[100] m-2 rounded-lg bg-base-300/70 flex flex-col justify-center items-center" v-if="$projects.projectLoading">
       <div class="text-2xl">Loading...</div>
     </div>
     <div class="grow flex flex-col relative bg-base-100 gap-2 overflow-auto bg-base-300">

@@ -55,6 +55,8 @@ class ProfileManager:
             if os.path.isfile(profile.content_path):
                 with open(profile.content_path, 'r') as f:
                   profile.content = f.read()
+            if not profile.avatar:
+                profile.avatar = f"https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r={profile.name}"
             return profile
         except Exception as ex:
             logger.exception(f"Error loading profile: {profile_path} {ex}")

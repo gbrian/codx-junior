@@ -3,6 +3,7 @@ import re
 import logging
 import shutil
 import json
+from datetime import datetime
 
 from slugify import slugify
 from pathlib import Path
@@ -117,6 +118,7 @@ class KnowledgeDB:
                 new_docs =  all_files[file]["documents"] + new_docs
             all_files[file] = {
                 "file_md5": calculate_md5(file),
+                "update_at": datetime.now().strftime("%m/%d/%YT%H:%M:%S"),
                 "documents": new_docs
             }
         self.save_all_files(all_files)
