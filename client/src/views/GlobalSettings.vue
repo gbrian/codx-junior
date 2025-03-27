@@ -1,6 +1,7 @@
 <script setup>
 import AISettings from './AISettings.vue'
 import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
+import ModelSelector from '@/components/ai_settings/ModelSelector.vue';
 </script>
 
 <template>
@@ -75,7 +76,7 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
-                <input v-model="settings.embeddings_model" type="text" class="input input-bordered" />
+                <ModelSelector v-model="settings.embeddings_model" />
               </div>
             </div>
             <div class="font-bold">Knowledge search</div>
@@ -83,7 +84,7 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
-                <input v-model="settings.rag_model" type="text" class="input input-bordered" />
+                <ModelSelector v-model="settings.rag_model" />
               </div>
             </div>
             <div class="font-bold">Reasoning</div>
@@ -91,7 +92,7 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
-                <input v-model="settings.llm_model" type="text" class="input input-bordered" />
+                <ModelSelector v-model="settings.llm_model" />
               </div>
             </div>
             <div class="font-bold">WIKI</div>
@@ -99,7 +100,7 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
-                <input v-model="settings.wiki_model" type="text" class="input input-bordered" />
+                <ModelSelector v-model="settings.wiki_model" />
               </div>
             </div>
           </div>

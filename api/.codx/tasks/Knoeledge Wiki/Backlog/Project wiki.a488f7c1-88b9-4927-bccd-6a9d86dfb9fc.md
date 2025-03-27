@@ -1,4 +1,4 @@
-# [[{"id": "a488f7c1-88b9-4927-bccd-6a9d86dfb9fc", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": ["/shared/codx-junior/api/codx/junior/knowledge/knowledge_wiki.py", "/shared/codx-junior/api/codx/junior/knowledge/knowledge_db.py"], "profiles": [], "name": "Project wiki", "created_at": "2025-03-27 06:40:17.379081", "updated_at": "2025-03-27T11:24:00.135378", "mode": "chat", "kanban_id": "", "column_id": "", "board": "Knoeledge Wiki", "column": "Backlog", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/Knoeledge Wiki/Backlog/Project wiki.a488f7c1-88b9-4927-bccd-6a9d86dfb9fc.md", "model": ""}]]
+# [[{"id": "a488f7c1-88b9-4927-bccd-6a9d86dfb9fc", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": ["/shared/codx-junior/api/codx/junior/knowledge/knowledge_wiki.py", "/shared/codx-junior/api/codx/junior/knowledge/knowledge_db.py"], "profiles": [], "name": "Project wiki", "created_at": "2025-03-27 06:40:17.379081", "updated_at": "2025-03-27T11:26:16.489645", "mode": "chat", "kanban_id": "", "column_id": "", "board": "Knoeledge Wiki", "column": "Backlog", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/Knoeledge Wiki/Backlog/Project wiki.a488f7c1-88b9-4927-bccd-6a9d86dfb9fc.md", "model": ""}]]
 ## [[{"doc_id": "59c05360-f856-4221-b6a0-daec4e0111eb", "role": "user", "task_item": "", "hide": true, "improvement": false, "created_at": "2025-03-27 06:40:17.376358", "updated_at": "2025-03-27 06:40:17.376397", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
 We must process changed documents and produce wiki documentation.
 We'll check for files modified in 30 mins ago and not been processed by wiki
@@ -161,5 +161,74 @@ Task will be considered done once all list entries are checked:
 ---
 
 This structured approach ensures that tasks are clearly defined, aligned with the project's codebase, and incorporate the necessary technical details from `knowledge_db.py`.
-## [[{"doc_id": "ab6026a4-cf82-41fa-9da5-024adde0120a", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-03-27 06:40:17.376358", "updated_at": "2025-03-27 06:40:17.376397", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
-Create the check_files and process_file methods
+## [[{"doc_id": "ab6026a4-cf82-41fa-9da5-024adde0120a", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-03-27 06:40:17.376358", "updated_at": "2025-03-27T11:25:46.770Z", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
+Create the check_files and process_file methods @software_developer
+## [[{"doc_id": "92e72aa4-593b-4e4b-8f04-95c8ea3ac2a0", "role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-03-27 09:02:08.520135", "updated_at": "2025-03-27 09:02:08.520175", "images": [], "files": [], "meta_data": {"time_taken": 24.726157665252686, "first_chunk_time_taken": 6.625138759613037, "model": "gpt-4o"}, "profiles": []}]]
+To implement the `check_files` and `process_file` methods, we'll expand the `KnowledgeWiki` class in `knowledge_wiki.py` by leveraging existing methods from the `KnowledgeDB` class. Below is an example of how these methods could be implemented:
+
+```python
+# File location: /shared/codx-junior/api/codx/junior/knowledge/knowledge_wiki.py
+
+class KnowledgeWiki:
+    # Existing __init__ and get_db methods...
+
+    def check_files(self):
+        """
+        Retrieve and filter files modified in the last 30 minutes that need to be processed for wiki updates.
+        """
+        db = self.get_db()
+        all_files = db.get_all_files()
+        target_files = []
+
+        # Current time in seconds
+        current_time = datetime.now().timestamp()
+
+        for file_path, file_info in all_files.items():
+            # Get last modified time of the file in seconds
+            file_mod_time = os.path.getmtime(file_path)
+
+            # Check if file was modified in the last 30 minutes (30 * 60 seconds)
+            if current_time - file_mod_time < 1800:
+                # Check if file needs wiki update
+                wiki_update_time = datetime.strptime(file_info.get("wiki_update", "01/01/1970T00:00:00"), "%m/%d/%YT%H:%M:%S").timestamp()
+                if wiki_update_time < file_mod_time:
+                    target_files.append(file_path)
+
+        return target_files
+
+    def process_file(self, file_path):
+        """
+        Generate wiki documentation for a specified file.
+        """
+        # Assuming we have a method like `generate_wiki` defined elsewhere
+        try:
+            logger.info(f"Processing file for wiki update: {file_path}")
+            generate_wiki(file_path)
+            logger.info(f"Wiki documentation generated successfully for: {file_path}")
+        except Exception as e:
+            logger.error(f"Failed to generate wiki for {file_path}: {e}")
+
+    def generate_wiki(file_path):
+        """
+        Function that generates the wiki documentation for a given file.
+        Implementation needed based on project specifics.
+        """
+        # Hypothetical implementation
+        # This should be replaced with the actual logic to generate wiki from the file.
+        logger.info(f"Generating wiki for {file_path}")
+        pass
+
+# Example usage:
+# wiki = KnowledgeWiki(settings=some_settings)
+# files_to_process = wiki.check_files()
+# for file_path in files_to_process:
+#     wiki.process_file(file_path)
+```
+
+### Explanation:
+
+- **`check_files` Method:** This method retrieves all files from the database and filters them based on the modification time and the last wiki update time. It looks for files modified in the last 30 minutes and whose last wiki update was before the last modification.
+
+- **`process_file` Method:** This method assumes there is a `generate_wiki` function that handles the actual generation of wiki documentation for a specified file. It logs the process and catches any exceptions that may occur during wiki generation.
+
+These methods should be adapted and integrated into the actual environment where the `KnowledgeWiki` class is used. Additional handling or customization may be necessary based on the specific requirements and environment setup.

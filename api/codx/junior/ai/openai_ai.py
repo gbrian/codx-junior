@@ -92,6 +92,7 @@ class OpenAI_AI:
             self.log("Received AI response, start reading stream")
         try:
             callback_buffer = []
+            last_callback_send = datetime.now()
             for chunk in response_stream:
                 # Check for tools
                 #tool_calls = self.process_tool_calls(chunk.choices[0].message)
@@ -103,7 +104,8 @@ class OpenAI_AI:
                     content_parts.append(chunk_content)
                     if callbacks:
                         callback_buffer.append(chunk_content)
-                        if len(callback_buffer) > 100:
+                        if (datetime.now() - last_callback_send).total_seconds() > 3:
+                            last_callback_send = datetime.now()
                             message = "".join(callback_buffer)
                             callback_buffer = []
                             for cb in callbacks:

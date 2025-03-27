@@ -76,7 +76,7 @@ import TaskCard from '../kanban/TaskCard.vue'
         </div>
       </div>
       <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
-        <li v-for="term, ix in searchTerms" :key="term.name">
+        <li class="tooltip" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
           <a @click="addSerchTerm(term)">
             <div :class="[searchTermSelIx === ix ? 'underline':'']">
               <span class="text-sky-600 font-bold">@{{ term.name }}</span>

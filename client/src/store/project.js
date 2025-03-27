@@ -19,7 +19,6 @@ export const state = () => ({
   profiles: [],
   selectedProfile: null,
   kanban: {},
-  chatBuffer:{},
   project_branches: {},
   projectLoading: false,
   knowledge: null
@@ -313,11 +312,7 @@ export const actions = actionTree(
         if (chat && message) {
           const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
           if (currentMessage) {
-            state.chatBuffer[chatId] = (state.chatBuffer[chatId]||"") + message.content
-            if (state.chatBuffer[chatId].length > 100) {
-              currentMessage.content += state.chatBuffer[chatId]
-              state.chatBuffer[chatId] = ""
-            }
+            currentMessage.content += message.content
           } else {
             chat.messages.push(message)
           }

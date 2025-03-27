@@ -150,9 +150,10 @@ class AIModelType(str, Enum):
     embeddings = 'embeddings'
 
 class AIModel(BaseModel):
-    name: str = Field(description="Model name")
+    name: str = Field(description="Model name")    
     model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
     ai_provider: str = Field(description="AI Provider name")
+    ai_model: Optional[str] = Field(description="AI Provider's model name", default=None)
     settings: Union[AILLMModelSettings, AIEmbeddingModelSettings] = Field(description="Model settings")
     metadata: Optional[dict] = Field(description="Model's last update date", default={})
     url: Optional[str] = Field(description="Model info", default="")

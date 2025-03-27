@@ -38,7 +38,7 @@ def get_model_settings(llm_model: str) -> AISettings:
       provider=provider.provider,
       api_url=provider.api_url,
       api_key=provider.api_key,
-      model=model.name,
+      model=model.ai_model or model.name,
       model_type=model.model_type,
       url=model.url
     )

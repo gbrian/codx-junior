@@ -81,6 +81,14 @@
           />
         </div>
         <div class="form-control">
+          <span class="label">AI Provider Model's Name</span>
+          <input
+            class="input input-bordered"
+            v-model="currentModel.ai_model"
+            :placeholder="currentModel.name"
+          />
+        </div>
+        <div class="form-control">
           <span class="label">Model url</span>
           <input
             class="input input-bordered"
