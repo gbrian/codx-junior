@@ -13,7 +13,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
         <div class="flex justify-between">
           <div class="font-semibold tracking-wide text-sm flex gap-2">
             <div class="rounded-full">
-              <ChatIcon :chat="task" />
+              <ChatIcon :mode="task.mode" />
             </div>
             <div class="overflow-hidden">{{ task.name }}</div>
           </div>

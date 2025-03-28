@@ -36,7 +36,8 @@ export const state = () => ({
   notifications: [],
   noVNCSettings: {
     resize: 'scale'
-  }
+  },
+  theme: 'dark'
 })
 
 export const getters = getterTree(state, {
@@ -161,6 +162,9 @@ export const mutations = mutationTree(state, {
   },
   setNoVNCSettings(state, settings) {
     state.noVNCSettings = { ...state.noVNCSettings, ...settings }
+  },
+  setTheme(state, theme) {
+    state.theme = theme
   }
 })
 

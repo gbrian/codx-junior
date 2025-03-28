@@ -69,9 +69,6 @@ class AI:
         if prompt:
             messages.append(HumanMessage(content=prompt))
 
-        if self.settings.get_log_ai():
-            self.ai_logger.info(f"Creating a new chat completion: {messages}")
-
         response = None
         md5Key = messages_md5(messages) if self.cache else None
         if self.cache and md5Key in self.cache:

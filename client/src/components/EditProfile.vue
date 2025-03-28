@@ -80,8 +80,18 @@ import Markdown from './Markdown.vue'
       </div>
       <div class="flex gap-2 items-center">
         Use knowledge
-        <input type="checkbox" v-model="profile.use_knowledge"
+        <input type="checkbox" v-model="editProfile.use_knowledge"
           class="toggle checked:border-info checked:bg-info" />
+      </div>
+      <div class="flex gap-2 items-center">
+        Chat mode
+        <select v-model="editProfile.chat_mode"
+          class="select select-sm select-bordered">
+          <option value="task">Task</option>
+          <option value="chat">Chat</option>
+          <option value="code">Coding</option>
+          <option value="browser">Browser</option>
+        </select>
       </div>
     </div>
     <div class="flex flex-col gap-2" v-if="tab === 'content'">

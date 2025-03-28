@@ -78,9 +78,13 @@ class OpenAI_AI:
         if self.llm_settings.temperature:
             kwargs["temperature"] = float(self.llm_settings.temperature) 
 
-        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}... {kwargs}")
+        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
 
         openai_messages = [self.convert_message(msg) for msg in messages]
+
+        if self.llm_settings.merge_messages:
+            message = "\n\n".join([f"## {message['role']}:\n{message['content']}" for message in openai_messages])
+            openai_messages = [{ "role": "user", "content": message }]
         
         response_stream = self.client.chat.completions.create(
             **kwargs,

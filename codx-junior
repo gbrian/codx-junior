@@ -22,16 +22,21 @@ mkdir -p ./logs
 
 function kill_apps() {
   echo "Stop api pid: ${API_PID}"
-  kill ${API_PID} || true
+  kill $(pgrep -f "run_api")
   
   echo "Stop client pid: ${CLIENT_PID}"
-  kill ${CLIENT_PID} || true
+  kill $(pgrep -f "run_client")
+  kill $(pgrep -f "codx-junior/client")
   
   echo "Stop ollama pid: ${OLLAMA_PID}"
-  kill ${OLLAMA_PID} || true
+  kill $(pgrep -f "run_ollama")
+  kill $(pgrep -f "ollama")
+  
   
   echo "Stop noVNC pid: ${NOVNC_PID}"
-  kill ${NOVNC_PID} || true
+  sudo kill $(pgrep -f "run_noVNC")
+  sudo kill $(pgrep -f "websockify")
+  sudo vncserver -kill ${CODX_JUNIOR_DISPLAY}
 
 }
 
@@ -141,6 +146,7 @@ function run_noVNC() {
 }
 
 function run_supervisor {
+    kill_apps
     /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
 }
 

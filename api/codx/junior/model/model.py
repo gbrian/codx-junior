@@ -83,6 +83,7 @@ class Profile(BaseModel):
     tools: Optional[List[Tool]] = Field(default=[])
     tags: Optional[List[str]] = Field(default=[])
     api_settings: Optional[ProfileApiSettings] = Field(description="Indicates if the profile is accessible through the LLM API", default=ProfileApiSettings())
+    chat_mode: Optional[str] = Field(description="Affects on how conversation works. Like writing a document or chat messages", default=None)
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -140,6 +141,7 @@ class AIProvider(BaseModel):
 class AILLMModelSettings(BaseModel):
     temperature: Optional[float] = Field(default=1, description="Model temperature")
     context_length: Optional[int] = Field(default=0)
+    merge_messages: Optional[bool] = Field(description="Flat conversation into a single message before sending to model", default=False)
     
 class AIEmbeddingModelSettings(BaseModel):
     vector_size: Optional[int] = Field(default=1536, description="Model vector size")
@@ -167,6 +169,7 @@ class AISettings(BaseModel):
     temperature: Optional[float] = Field(default=0.8)
     vector_size: Optional[int] = Field(default=1536)
     chunk_size: Optional[int] = Field(default=8190)
+    merge_messages: Optional[bool] = Field(default=False)
     model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
     url: Optional[str] = Field(description="Model info", default="")
 

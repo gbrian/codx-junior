@@ -35,22 +35,14 @@ def get_model_settings(llm_model: str) -> AISettings:
     
     provider = ai_provider_settings[0]
     ai_settings = AISettings(
-      provider=provider.provider,
-      api_url=provider.api_url,
-      api_key=provider.api_key,
-      model=model.ai_model or model.name,
-      model_type=model.model_type,
-      url=model.url
+        **model.settings.__dict__,
+        provider=provider.provider,
+        api_url=provider.api_url,
+        api_key=provider.api_key,
+        model=model.ai_model or model.name,
+        model_type=model.model_type,
+        url=model.url
     )
-
-    if model.model_type == AIModelType.llm:
-        ai_settings.context_length = model.settings.context_length,
-        ai_settings.temperature=model.settings.temperature
-
-    if model.model_type == AIModelType.embeddings:
-        ai_settings.vector_size = model.settings.vector_size
-        ai_settings.chunk_size=model.settings.chunk_size
-
     return ai_settings
 
 def read_global_settings():

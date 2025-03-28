@@ -64,11 +64,11 @@ import KanbanList from "./KanbanList.vue"
           :class="$ui.isMobile && 'border border-red-300'"
         >
           <template #item="{ element: column }">
-            <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
-              :class="column.color && 'border-t-2'"
+            <div class="bg-secondary/50 rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
+              :class="column.color && 'border-t-4'"
               :style="{ borderColor: column.color }"
             >
-              <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
+              <div class="group font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
                 <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
                   :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
                   <span class="hidden group-hover:block">
@@ -109,7 +109,7 @@ import KanbanList from "./KanbanList.vue"
                       v-if="taskMatchesFilter(task)"
                       :task="task"
                       :itemKey="'id'"
-                      class="cursor-move overflow-hidden mt-2"
+                      class="bg-base-100 overflow-hidden mt-2"
                       :class="lastUpdatedTask.id == task.id ? 'border boder-primary border-dashed':''"
                       @click="openChat(task)"
                     />

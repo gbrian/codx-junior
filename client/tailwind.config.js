@@ -11,4 +11,7 @@ export default {
     extend: {},
   },
   plugins: [daisyui, typography,],
+  daisyui: {
+    themes: true,
+  },
 }

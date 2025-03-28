@@ -1,6 +1,7 @@
 <script setup>
 import ProjectIconVue from './ProjectIcon.vue'
 import UserList from './UserList.vue'
+import ThemeSelector from './ThemeSelector.vue'
 import moment from 'moment';
 </script>
 <template>
@@ -138,7 +139,7 @@ import moment from 'moment';
           @click="$ui.readScreenResolutions()">
            <i class="fa-solid fa-gear"></i>
 				</a>
-        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-52 p-2 shadow-xl">
+        <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-72 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li><a @click.stop="setActiveTab('knowledge_settings')">Knowledge settings</a></li>
@@ -189,6 +190,11 @@ import moment from 'moment';
                   </li>
                 </ul>
               </div>
+            </a>
+          </li>
+          <li>
+            <a class="flex gap-2">
+              <ThemeSelector /> {{ $ui.theme }}
             </a>
           </li>
           <li>

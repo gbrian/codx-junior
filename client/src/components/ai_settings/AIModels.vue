@@ -28,6 +28,10 @@
               <td>Temperature:</td>
               <td>{{ model.settings.temperature || '-' }}</td>
             </tr>
+            <tr v-if="model.model_type === 'llm' && model.settings.merge_messages">
+              <td>Merge messages:</td>
+              <td>{{ model.settings.merge_messages || '-' }}</td>
+            </tr>
             <tr v-if="model.model_type === 'embeddings'">
               <td>Vector Size:</td>
               <td>{{ model.settings.vector_size || '-' }}</td>
@@ -94,6 +98,14 @@
             class="input input-bordered"
             v-model="currentModel.url"
             placeholder="Url"
+          />
+        </div>
+        <div class="form-control" v-if="currentModelIsLLM">
+          <span class="label">Merge messages</span>
+          <input
+            type="checkbox"
+            class="toggle"
+            v-model.number="currentModel.settings.merge_messages"
           />
         </div>
         <div class="form-control" v-if="currentModelIsLLM">

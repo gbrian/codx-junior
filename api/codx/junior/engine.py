@@ -1044,6 +1044,11 @@ class CODXJuniorSession:
 
     @profile_function
     async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0):
+        timing_info = {
+            "start_time": time.time(),
+            "first_response": None
+        }
+
         # Invoke project based on project_id
         self = self.switch_project(chat.project_id)
 
@@ -1073,10 +1078,6 @@ class CODXJuniorSession:
             
             response_message = Message(role="assistant",
                                       doc_id=str(uuid.uuid4()))
-            timing_info = {
-              "start_time": time.time(),
-              "first_response": None
-            }
 
             def send_message_event(content):
                 if not timing_info.get("first_response"):
@@ -1098,15 +1099,21 @@ class CODXJuniorSession:
 
             query_mentions = self.get_query_mentions(query=query)
             
-            ai = self.get_ai(llm_model=chat.model)
             profile_manager = ProfileManager(settings=self.settings)
             chat_profiles = query_mentions["profiles"] + [profile_manager.read_profile(profile_name) \
                                                             for profile_name in chat.profiles]
             chat_profiles_content = ""
             chat_profile_names = []
+            chat_model = None
             if chat_profiles:
-                chat_profiles_content = "\n".join([profile.content for profile in chat_profiles if profile])
-                chat_profile_names = [profile.name for profile in chat_profiles if profile]
+                vaild_profiles = [profile for profile in chat_profiles if profile]
+                chat_profiles_content = "\n".join([profile.content for profile in vaild_profiles])
+                chat_profile_names = [profile.name for profile in vaild_profiles]
+                chat_models = list(set([profile.llm_model for profile in vaild_profiles if profile.llm_model]))
+                chat_model = chat_models[0] if chat_models else None
+                if vaild_profiles[0].chat_mode:
+                    chat_mode = vaild_profiles[0].chat_mode 
+
 
           
             self.log_info(f"chat_with_project {chat.name} settings ready")
@@ -1253,11 +1260,14 @@ class CODXJuniorSession:
             # Add extra chat_profiles_content
             messages[-1].content += chat_profiles_content
             ai_settings = self.settings.get_llm_settings()
+            if chat_model:
+                ai_settings.model = chat_model
             self.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
 
             if not callback:
                 callback = lambda content: send_message_event(content=content)
             try:
+                ai = self.get_ai(llm_model=ai_settings.model)
                 messages = ai.chat(messages, callback=callback)
                 response_message.content = messages[-1].content
             except Exception as ex:
