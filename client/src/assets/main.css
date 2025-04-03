@@ -4,6 +4,9 @@
 
 @import "https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/default.min.css";
 
+@import 'floating-vue/dist/style.css';
+@import 'floating-vue/style.css';
+
 html, body {
   height: 100% !important;
   width: 100% !important;

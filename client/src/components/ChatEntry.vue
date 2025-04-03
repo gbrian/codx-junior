@@ -15,126 +15,126 @@ import { CodeDiff } from 'v-code-diff'
         </div>
       </div>
     </div>
-    <div class="w-11/12">
-      <div class="flex flex-col gap-1 hover:rounded-md p-2 group">
-        <div class="text-xs font-bold flex justify-between">
-          <div class="flex justify-start gap-2">
-            [{{ formatDate(message.updated_at) }}] <span v-if="timeTaken">({{ timeTaken }} s.)</span>
-            <div>
+    <div class="grow max-w-full">
+      <div class="w-full flex flex-col gap-1 hover:rounded-md p-2 group">
+        <div class="text-xs font-bold flex flex-col">
+          <div class="flex justify-start gap-2 items-center">
+            <div class="flex gap-2 grow">
+              [{{ formatDate(message.updated_at) }}] <span v-if="timeTaken">({{ timeTaken }} s.)</span>
+            </div>
+            <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end">
+              <div class="bg-base-300 px-2 flex flex-col">
+                <div class="gap-2 flex justify-end items-center">
+                  <div class="tooltip tooltip-bottom click"
+                    :data-tip="message.hide ? 'Click to add message to conversation' : 
+                                              'Click to hide message from the conversation'"
+                    :checked="!message.hide" @click.stop="$emit('hide')"
+                    >
+                    <i class="fa-solid fa-eye" v-if="message.hide"></i>
+                    <i class="text-warning fa-solid fa-eye-slash" v-else></i>
+                  </div>  
+                  <button class="btn btn-xs tooltip tooltip-bottom" data-tip="Expand/Collapse" @click="toggleCollapse">
+                    <span v-if="message.collapse">
+                      <i class="fa-solid fa-chevron-up"></i>
+                    </span>
+                    <span v-else>
+                      <i class="fa-solid fa-chevron-down"></i>
+                    </span>
+                  </button>
+                  <button class="btn btn-xs hover:btn-outline bg-base-100 tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
+                    <i class="fa-solid fa-copy"></i>
+                  </button>      
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
+                    <i class="fa-solid fa-code"></i>
+                  </button>
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
+                    <i class="fa-regular fa-file-lines"></i>
+                    <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
+                  </button>
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
+                    <i class="fa-solid fa-pencil"></i>
+                  </button>
+                  <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
+                    @click="$emit('enhance')">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                  </button>
+                  <div class="dropdown dropdown-hover dropdown-end">
+                    <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
+                      <i class="fa-solid fa-trash"></i>
+                      <span v-if="isRemove"> Confirm </span>
+                    </button>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow w-28 p-2">
+                      <li>
+                        <a class="hover:underline" @click="confirmRemove">Yes</a>
+                      </li>
+                      <li>
+                        <a class="hover:underline" @click.stop="cancelRemove">No</a>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
               <div class="text-primary" v-if="message.role === 'user'">You</div>
               <div class="text-secondary" v-else>codx-junior</div>
             </div>
-          </div>
-          <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end">
-            <div class="bg-base-300 px-2 p-1 flex flex-col">
-              <div class="gap-2 flex justify-end items-center">
-                <div class="tooltip tooltip-bottom click"
-                  :data-tip="message.hide ? 'Click to add message to conversation' : 
-                                            'Click to hide message from the conversation'"
-                  :checked="!message.hide" @click.stop="$emit('hide')"
-                  >
-                  <i class="fa-solid fa-eye" v-if="message.hide"></i>
-                  <i class="text-warning fa-solid fa-eye-slash" v-else></i>
-                </div>  
-                <button class="btn btn-xs tooltip tooltip-bottom" data-tip="Expand/Collapse" @click="toggleCollapse">
-                  <span v-if="message.collapse">
-                    <i class="fa-solid fa-chevron-up"></i>
-                  </span>
-                  <span v-else>
-                    <i class="fa-solid fa-chevron-down"></i>
-                  </span>
-                </button>
-                <button class="btn btn-xs hover:btn-outline bg-base-100 tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
-                  <i class="fa-solid fa-copy"></i>
-                </button>      
-                <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
-                  <i class="fa-solid fa-code"></i>
-                </button>
-                <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
-                  <i class="fa-regular fa-file-lines"></i>
-                  <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
-                </button>
-                <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
-                  <i class="fa-solid fa-pencil"></i>
-                </button>
-                <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
-                  @click="$emit('enhance')">
-                  <i class="fa-solid fa-wand-magic-sparkles"></i>
-                </button>
-                <div class="dropdown dropdown-hover dropdown-end">
-                  <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
-                    <i class="fa-solid fa-trash"></i>
-                    <span v-if="isRemove"> Confirm </span>
-                  </button>
-                  <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow w-28 p-2">
-                    <li>
-                      <a class="hover:underline" @click="confirmRemove">Yes</a>
-                    </li>
-                    <li>
-                      <a class="hover:underline" @click.stop="cancelRemove">No</a>
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
-        <div :class="['max-w-full group border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
-          <div @copy.stop="onMessageCopy">
-            <pre v-if="srcView">{{ message.content }}</pre>
-            <Markdown 
-              :text="messageContent"
-              @generate-code="onGenerateCode" 
-              v-if="!showDiff && !srcView && !code_patches" />
-            <CodeDiff
-              :old-string="message.diffMessage.content"
-              :new-string="messageContent"
-              theme="dark"
-              v-if="showDiff"
-            />
-            <div v-if="code_patches">
-              <div class="mt-2 p-2 bg-base-100 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
-                <div class="text-xs font-bold text-primary" :title="patch.file_path">
-                  {{ patch.file_path.replace($project.project_path, '') }}
-                </div>
-                <div class="">{{ patch.description }}</div>
-                <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
-                <div class="flex justify-end">
-                  <button class="btn btn-sm btn-warning" :disabled="patch.working" @click="applyPatch(patch)">
-                    <span class="loading loading-spinner" v-if="patch.working"></span>
-                    Apply changes
-                  </button>
-                </div>
-                <div v-if="patch.res">
-                  <div class="text-xs text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
-                  <div class="text-xs text-success" v-else>Patch applied</div>
+        <div @copy.stop="onMessageCopy" :class="['max-w-full group border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
+          <pre v-if="srcView">{{ message.content }}</pre>
+          <Markdown 
+            :text="messageContent"
+            @generate-code="onGenerateCode" 
+            v-if="!showDiff && !srcView && !code_patches" />
+          <CodeDiff
+            :old-string="message.diffMessage.content"
+            :new-string="messageContent"
+            theme="dark"
+            v-if="showDiff"
+          />
+          <div v-if="code_patches">
+            <div class="mt-2 p-2 bg-base-100 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
+              <div class="text-xs font-bold text-primary" :title="patch.file_path">
+                {{ patch.file_path.replace($project.project_path, '') }}
+              </div>
+              <div class="">{{ patch.description }}</div>
+              <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
+              <div class="flex justify-end">
+                <button class="btn btn-sm btn-warning" :disabled="patch.working" @click="applyPatch(patch)">
+                  <span class="loading loading-spinner" v-if="patch.working"></span>
+                  Apply changes
+                </button>
+              </div>
+              <div v-if="patch.res">
+                <div class="text-xs text-error" v-if="patch.res.error">{{ patch.res.error }}</div>
+                <div class="text-xs text-success" v-else>Patch applied</div>
+              </div>
+            </div>
+          </div>
+          <div v-if="images">
+            <div class="carousel gap-2">
+              <div class="carousel-item click mt-2" v-for="image in images" :key="image.src" @click="$emit('image', image)" :alt="image.alt" :title="image.alt">
+                <div class="flex flex-col">
+                  <div class="bg-contain bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
+                  <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 10) }}</p>
                 </div>
               </div>
             </div>
-            <div v-if="images">
-              <div class="carousel gap-2">
-                <div class="carousel-item click mt-2" v-for="image in images" :key="image.src" @click="$emit('image', image)" :alt="image.alt" :title="image.alt">
-                  <div class="flex flex-col">
-                    <div class="bg-contain bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
-                    <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 10) }}</p>
-                  </div>
+          </div>
+          <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="message.files?.length">
+            Linked files:
+            <div v-for="file in message.files" :key="file" :title="file" class="flex gap-2 items-center click">
+              <div class="flex gap-2 click hover:underline" @click="$ui.openFile(file)">
+                <div class="click tooltip tooltip-right" data-tip="Attach file" @click.stop="$emit('add-file-to-chat', file)">
+                  <i class="fa-solid fa-file-arrow-up"></i>
+                </div>
+                <div class="overflow-hidden">
+                  {{ file.split('/').reverse()[0] }}
                 </div>
               </div>
-            </div>
-            <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="message.files?.length">
-              Linked files:
-              <div v-for="file in message.files" :key="file" :title="file" class="flex gap-2 items-center click">
-                <div class="flex gap-2 click hover:underline" @click="$ui.openFile(file)">
-                  <div class="click tooltip tooltip-right" data-tip="Attach file" @click.stop="$emit('add-file-to-chat', file)">
-                    <i class="fa-solid fa-file-arrow-up"></i>
-                  </div>
-                  <div class="overflow-hidden">
-                    {{ file.split('/').reverse()[0] }}
-                  </div>
-                </div>
-                <div class="click hover:text-error" @click.stop="$emit('remove-file', file)">
-                  <i class="fa-regular fa-circle-xmark"></i>
-                </div>
+              <div class="click hover:text-error" @click.stop="$emit('remove-file', file)">
+                <i class="fa-regular fa-circle-xmark"></i>
               </div>
             </div>
           </div>

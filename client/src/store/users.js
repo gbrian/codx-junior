@@ -27,6 +27,15 @@ export const actions = actionTree(
         userName: "codx-junior", 
         avatar: API.globalSettings.codx_junior_avatar
       }
+    },
+    async login({ state }, user) {
+      state.user = await API.user.login(user)
+    },
+    async logout({ state }) {
+      state.user = null
+    },
+    async saveUser({ state }, user) {
+      state.user = await API.user.save(user)
     }
   }
 )

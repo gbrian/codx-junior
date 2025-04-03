@@ -8,9 +8,9 @@ export const namespaced = true
 const EVENT_EXPIRE_SECONDS = 120
 setInterval(() => $storex.session.tick(), 1000)
 
-import { API } from '../api/api'
+import { API, axiosInstance } from '../api/api'
 // Add a request interceptor
-API.axiosRequest.interceptors.request.use(function (config) {
+axiosInstance.interceptors.request.use(function (config) {
     $storex.session.incApiCalls()
     return config;
   }, function (error) {
@@ -18,7 +18,7 @@ API.axiosRequest.interceptors.request.use(function (config) {
     return Promise.reject(error);
   });
 
-API.axiosRequest.interceptors.response.use(
+axiosInstance.interceptors.response.use(
   (response) => {
     $storex.session.decApiCalls()
     return response

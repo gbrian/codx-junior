@@ -125,7 +125,7 @@ export default {
       this.init(path)
     },
     async createNewProject() {
-      const { data: { codx_path } } = await API.project.create(this.getProjectPath())
+      const { data: { codx_path } } = await API.projects.create(this.getProjectPath())
       this.openProject(codx_path)
     },
     async getAllProjects() {
@@ -139,7 +139,7 @@ export default {
       this.showOpenProjectModal = false
     },
     async deleteProject() {
-      await API.project.delete()
+      await API.projects.delete()
       this.setActiveTab('home')
     },
     openTask(task) {

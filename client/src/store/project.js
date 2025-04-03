@@ -108,7 +108,7 @@ export const getters = getterTree(state, {
         .map(({ file, name, filePath }) => ({ name, 
                         file, 
                         tooltip: `Use file ${filePath}` })),
-    ]
+    ].map(m => ({ ...m, searchIndex: m.name.toLowerCase() }))
   },
 })
 
@@ -119,7 +119,7 @@ export const actions = actionTree(
       await $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
-      await API.project.list()
+      await API.projects.list()
       $storex.projects.setAllProjects(API.allProjects)
       if (API.lastSettings) {
         try {
@@ -229,7 +229,7 @@ export const actions = actionTree(
       return state.activeProject
     },
     async createNewProject(_, projectPath) {
-      const { data: newProject } = await API.project.create(projectPath)
+      const { data: newProject } = await API.projects.create(projectPath)
       if (!newProject) {
         return null
       }
@@ -263,10 +263,11 @@ export const actions = actionTree(
       }
       $storex.session.socket.emit('codx-junior-chat', data)
     },
-    async createSubTasks({ state }, chat) {
+    async createSubTasks({ state }, { chat, instructions }) {
       const data = {
         codx_path: state.activeProject.codx_path,
-        chat
+        chat,
+        instructions
       }
       $storex.session.socket.emit('codx-junior-subtasks', data)
     },
@@ -293,6 +294,14 @@ export const actions = actionTree(
       }
       $storex.session.socket.emit('codx-junior-generate-code', data)
     },
+    createSubtasks({ state }, { chat, instructions }) {
+      const data = {
+        codx_path: state.activeProject.codx_path,
+        chat,
+        instructions
+      }
+      $storex.session.socket.emit('codx-junior-generate-tasks', data)
+    },
     async onChatEvent({ state }, { event, data }) {
       const {
         chat: {
@@ -300,10 +309,15 @@ export const actions = actionTree(
         },
         message,
         event_type,
-        type
+        type,
+        codx_path
       } = data
 
-      if ((type || event_type === 'changed') && chatId) {
+      if (event_type === 'error') {
+        $storex.ui.addNotification({ text: message, type: event_type })
+      }
+
+      if (chatId && !state.chats[chatId]) {
         await $storex.projects.loadChat({ id: chatId })
       }
 
@@ -313,6 +327,7 @@ export const actions = actionTree(
           const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
           if (currentMessage) {
             currentMessage.content += message.content
+            currentMessage.updated_at = new Date().toISOString()
           } else {
             chat.messages.push(message)
           }
@@ -327,8 +342,10 @@ export const actions = actionTree(
         chat_index: 0,
         ...chat
       }
-      state.chats[chat.id] = chat
-      state.activeChat = chat
+      if (!chat.temp) {
+        state.chats[chat.id] = chat
+        state.activeChat = chat
+      }
       return chat
     },
     async loadKanban({ state }) {

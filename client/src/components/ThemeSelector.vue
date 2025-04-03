@@ -1,6 +1,6 @@
 <template>
   <div title="Change Theme" class="dropdown dropdown-end block ">
-    <div tabindex="0" role="button" class="btn btn-sm gap-1 btn-ghost">
+    <div tabindex="0" role="button" class="btn btn-sm gap-1 btn-ghost" @click="openSelector = !openSelector">
       <div class="bg-base-100 border-base-content/10 grid shrink-0 grid-cols-2 gap-0.5 rounded-md border p-1">
         <div class="bg-base-content size-1 rounded-full"></div>
         <div class="bg-primary size-1 rounded-full"></div>
@@ -12,10 +12,10 @@
       </svg>
     </div>
     <div tabindex="0"
-      class="dropdown-content bg-base-200 text-base-content rounded-box top-px h-[30.5rem] max-h-[calc(100vh-8.6rem)] overflow-y-auto border border-white/5 shadow-2xl outline-1 outline-black/5 mt-16">
+      class="dropdown-content bg-base-200 text-base-content rounded-box top-px h-[30.5rem] max-h-[calc(100vh-8.6rem)] overflow-y-auto border border-white/5 shadow-2xl outline-1 outline-black/5 mt-16" v-if="openSelector">
       <ul class="menu w-56">
         <li class="menu-title text-xs">Theme</li> <!--[-->
-        <li><button class="gap-3 px-2" data-set-theme="light" @click="$ui.setTheme('light')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="light" @click="setTheme('light')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="light" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -27,7 +27,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="dark" @click="$ui.setTheme('dark')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="dark" @click="setTheme('dark')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="dark" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -39,7 +39,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="cupcake" @click="$ui.setTheme('cupcake')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="cupcake" @click="setTheme('cupcake')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="cupcake" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -51,7 +51,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="bumblebee" @click="$ui.setTheme('bumblebee')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="bumblebee" @click="setTheme('bumblebee')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="bumblebee" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -63,7 +63,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="emerald" @click="$ui.setTheme('emerald')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="emerald" @click="setTheme('emerald')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="emerald" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -75,7 +75,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="corporate" @click="$ui.setTheme('corporate')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="corporate" @click="setTheme('corporate')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="corporate" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -87,7 +87,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="synthwave" @click="$ui.setTheme('synthwave')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="synthwave" @click="setTheme('synthwave')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="synthwave" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -99,7 +99,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2 [&amp;_svg]:visible" data-set-theme="retro" @click="$ui.setTheme('retro')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2 [&amp;_svg]:visible" data-set-theme="retro" @click="setTheme('retro')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="retro" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -111,7 +111,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="cyberpunk" @click="$ui.setTheme('cyberpunk')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="cyberpunk" @click="setTheme('cyberpunk')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="cyberpunk" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -123,7 +123,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="valentine" @click="$ui.setTheme('valentine')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="valentine" @click="setTheme('valentine')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="valentine" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -135,7 +135,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="halloween" @click="$ui.setTheme('halloween')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="halloween" @click="setTheme('halloween')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="halloween" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -147,7 +147,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="garden" @click="$ui.setTheme('garden')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="garden" @click="setTheme('garden')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="garden" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -159,7 +159,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="forest" @click="$ui.setTheme('forest')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="forest" @click="setTheme('forest')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="forest" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -171,7 +171,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="aqua" @click="$ui.setTheme('aqua')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="aqua" @click="setTheme('aqua')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="aqua" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -183,7 +183,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="lofi" @click="$ui.setTheme('lofi')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="lofi" @click="setTheme('lofi')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="lofi" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -195,7 +195,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="pastel" @click="$ui.setTheme('pastel')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="pastel" @click="setTheme('pastel')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="pastel" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -207,7 +207,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="fantasy" @click="$ui.setTheme('fantasy')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="fantasy" @click="setTheme('fantasy')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="fantasy" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -219,7 +219,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="wireframe" @click="$ui.setTheme('wireframe')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="wireframe" @click="setTheme('wireframe')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="wireframe" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -231,7 +231,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="black" @click="$ui.setTheme('black')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="black" @click="setTheme('black')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="black" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -243,7 +243,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="luxury" @click="$ui.setTheme('luxury')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="luxury" @click="setTheme('luxury')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="luxury" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -255,7 +255,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="dracula" @click="$ui.setTheme('dracula')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="dracula" @click="setTheme('dracula')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="dracula" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -267,7 +267,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="cmyk" @click="$ui.setTheme('cmyk')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="cmyk" @click="setTheme('cmyk')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="cmyk" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -279,7 +279,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="autumn" @click="$ui.setTheme('autumn')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="autumn" @click="setTheme('autumn')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="autumn" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -291,7 +291,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="business" @click="$ui.setTheme('business')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="business" @click="setTheme('business')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="business" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -303,7 +303,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="acid" @click="$ui.setTheme('acid')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="acid" @click="setTheme('acid')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="acid" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -315,7 +315,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="lemonade" @click="$ui.setTheme('lemonade')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="lemonade" @click="setTheme('lemonade')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="lemonade" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -327,7 +327,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="night" @click="$ui.setTheme('night')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="night" @click="setTheme('night')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="night" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -339,7 +339,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="coffee" @click="$ui.setTheme('coffee')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="coffee" @click="setTheme('coffee')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="coffee" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -351,7 +351,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="winter" @click="$ui.setTheme('winter')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="winter" @click="setTheme('winter')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="winter" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -363,7 +363,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="dim" @click="$ui.setTheme('dim')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="dim" @click="setTheme('dim')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="dim" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -375,7 +375,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="nord" @click="$ui.setTheme('nord')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="nord" @click="setTheme('nord')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="nord" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -387,7 +387,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="sunset" @click="$ui.setTheme('sunset')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="sunset" @click="setTheme('sunset')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="sunset" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -399,7 +399,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="caramellatte" @click="$ui.setTheme('caramellatte')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="caramellatte" @click="setTheme('caramellatte')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="caramellatte"
               class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
@@ -412,7 +412,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="abyss" @click="$ui.setTheme('abyss')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="abyss" @click="setTheme('abyss')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="abyss" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -424,7 +424,7 @@
               <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"></path>
             </svg>
           </button></li>
-        <li><button class="gap-3 px-2" data-set-theme="silk" @click="$ui.setTheme('silk')" data-act-class="[&amp;_svg]:visible">
+        <li><button class="gap-3 px-2" data-set-theme="silk" @click="setTheme('silk')" data-act-class="[&amp;_svg]:visible">
             <div data-theme="silk" class="bg-base-100 grid shrink-0 grid-cols-2 gap-0.5 rounded-md p-1 shadow-sm">
               <div class="bg-base-content size-1 rounded-full"></div>
               <div class="bg-primary size-1 rounded-full"></div>
@@ -466,3 +466,18 @@
     </div>
   </div>
 </template>
+<script>
+export default {
+  data () {
+    return {
+      openSelector: false
+    }
+  },
+  methods: {
+    setTheme(theme) {
+      this.openSelector = false
+      this.$ui.setTheme(theme)
+    }
+  }
+}
+</script>

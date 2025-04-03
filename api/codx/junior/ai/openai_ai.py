@@ -62,7 +62,11 @@ class OpenAI_AI:
 
     def convert_message(self, gpt_message: Union[AIMessage, HumanMessage, BaseMessage]): 
         if gpt_message.type == "image":
-            return { "content": json.loads(gpt_message.content), "role": "user" }
+            try:
+                return { "content": json.loads(gpt_message.content), "role": "user" }
+            except Exception as ex:
+                self.log(f"Error converting image message '{ex}': {gpt_message}")
+                raise ex
         return {
             "role": "assistant" if gpt_message.type == "ai" else "user",
             "content": gpt_message.content
@@ -108,7 +112,7 @@ class OpenAI_AI:
                     content_parts.append(chunk_content)
                     if callbacks:
                         callback_buffer.append(chunk_content)
-                        if (datetime.now() - last_callback_send).total_seconds() > 3:
+                        if (datetime.now() - last_callback_send).total_seconds() > 1:
                             last_callback_send = datetime.now()
                             message = "".join(callback_buffer)
                             callback_buffer = []

@@ -2,6 +2,7 @@
 import AISettings from './AISettings.vue'
 import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
 import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
+import ExportImportButton from '@/components/ExportImportButton.vue';
 </script>
 
 <template>
@@ -11,13 +12,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
       <div class="flex justify-end gap-2 items-center">
         <button class="btn btn-sm" @click="reloadSettings">Reload</button>
         <button class="btn btn-sm btn-primary" @click="saveSettings">Save</button>
-        <div class="dropdown dropdown-hover dropdown-bottom dropdown-end">
-          <div tabindex="0" role="button" class="btn btn-sm m-1"><i class="fa-solid fa-bars"></i></div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-50 w-52 p-2 shadow-sm">
-            <li @click="exportSettings"><a>Export</a></li>
-            <li @click="importSettings"><a>Import</a></li>
-          </ul>
-        </div>
+        <ExportImportButton :data="settings" @change="submit" />
       </div>
     </div>
     <div role="tablist" class="tabs tabs-bordered">
@@ -155,21 +150,13 @@ export default {
     reloadSettings() {
       this.loadSettings()
     },
-    exportSettings() {
-      const settingsText = JSON.stringify(this.settings, null, 2)
-      this.$ui.copyTextToClipboard(settingsText)
-    },
-    importSettings() {
-      this.showImport = true
-    },
-    async submit() {
+    async submit(importData) {
       try {
-        const imported = JSON.parse(this.importData)
+        const imported = importData
         this.settings = { ...this.settings, ...imported }
       } catch (e) {
         console.error('Import failed', e)
       }
-      this.showImport = false
     }
   }
 }

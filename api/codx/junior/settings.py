@@ -23,17 +23,20 @@ logger = logging.getLogger(__name__)
 ROOT_PATH = os.path.dirname(__file__)
 GLOBAL_SETTINGS = None
 
+def get_provider_settings(ai_provider: str) -> AIProvider:
+    ai_provider_settings = [p for p in GLOBAL_SETTINGS.ai_providers if p.name == ai_provider]
+    if not ai_provider_settings:
+        raise Exception(f"LLM AI provider not found: {ai_provider}")
+    
+    return ai_provider_settings[0]
+    
+
 def get_model_settings(llm_model: str) -> AISettings:
-    model_settings = [m for m in GLOBAL_SETTINGS.ai_models if m.name == llm_model]
+    model_settings = [m for m in GLOBAL_SETTINGS.ai_models if m.name == llm_model or m.ai_model == llm_model]
     if not model_settings:
         raise Exception(f"LLM model not found: {llm_model}")
-    
     model: AIModel = model_settings[0]
-    ai_provider_settings = [p for p in GLOBAL_SETTINGS.ai_providers if p.name == model.ai_provider]
-    if not ai_provider_settings:
-        raise Exception(f"LLM AI provider not found: {model.ai_provider}")
-    
-    provider = ai_provider_settings[0]
+    provider = get_provider_settings(model.ai_provider)
     ai_settings = AISettings(
         **model.settings.__dict__,
         provider=provider.provider,

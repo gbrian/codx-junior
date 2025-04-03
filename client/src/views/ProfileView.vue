@@ -13,9 +13,9 @@ import ProfileCard from '@/components/ProfileCard.vue';
       @delete="deleteSelectedProfile"
       v-if="selectedProfile" />
     <div v-else>
-      <h1 class="text-2xl font-bold mb-4">Profiles</h1>
+      <h1 class="text-2xl font-bold mb-4">Team</h1>
       <p class="mb-6">
-        With the profiles you can define the behavior of codx-junior when managing your tasks and files. Use it to define how you like the chatting style, coding best practices, architectural constraints, security restrictions, preferred development tools, and collaboration settings.
+        Explore your team here! Set up member behavior, instructions, AI model, and tools needed for their tasks.
       </p>  
       <div class="flex items-center justify-between mb-4">
         <input type="text" placeholder="Search profiles" v-model="searchQuery" class="input input-sm input-bordered w-full max-w-xs" />
@@ -37,13 +37,13 @@ export default {
     return {
       searchQuery: '',
       loadingProfile: false
-    };
+    }
   },
   computed: {
-    profiles () {
+    profiles() {
       return this.$projects.profiles
     },
-    selectedProfile () {
+    selectedProfile() {
       return this.$projects.selectedProfile
     },
     filteredProfiles() {
@@ -70,10 +70,9 @@ export default {
       this.loadingProfile = true
       try {
         this.$projects.saveProfile(profile)
-      } catch{}
+      } catch {}
       this.loadingProfile = false
     }
   }
-};
+}
 </script>
-

@@ -254,7 +254,7 @@ export default {
     },
     async fetchLogNames() {
       try {
-        const response = await API.logs.list()
+        const response = await this.$storex.api.logs.list()
         this.logNames = response.data
         if (this.logNames.length) {
           this.selectedLog = this.logNames[0]

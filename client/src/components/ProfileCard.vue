@@ -14,21 +14,26 @@ import ChatIcon from './chat/ChatIcon.vue';
         </div>
       </div>
     </div>
-    <div class="mt-4 tooltip" :data-tip="profile.name">
+    <div class="flex flex-col gap-1 items-center mt-4 tooltip" :data-tip="profile.name">
       <h2 class="text-lg font-semibold overflow-hidden text-ellipsis">
         {{ profile.name }}
       </h2>
       <p class="badge badge-xs badge-success badge-outline">{{ profile.category }} {{ profile.file_match  }}</p>
+      <div class="flex gap-1 justify-center">
+        <div v-for="profile in profile.profiles" :key="profile.id" class="badge-xs badge badge-secondary">
+          {{ profile }}
+        </div>
+      </div>
       <p class="text-gray-500 h-20 overflow-hidden text-xs text-ellipsis">{{ profile.description }}</p>
       <div class="flex justify-center mt-2 space-x-2">
         <span v-for="badge in badges" :key="badge" class="badge badge-secondary">{{ badge }}</span>
       </div>
-      <div class="flex justify-between items-end">
+      <div class="flex">
         <div>
           <div class="font-bold text-xs">Skills</div>
           <div class="flex gap-2">
             <div>
-              <i class="fa-solid fa-book" :class="profile.use_knowledge ? 'text-info' : 'text-error'" ></i>
+              <i class="fa-solid fa-book" :class="profile.use_knowledge ? 'text-info' : 'text-slate-400'" ></i>
             </div>
             <div class="tooltip" data-tip="Expose profile in the API">
               <i class="fa-solid fa-share-nodes" :class="profile.api_settings.active ? 'text-warning' : 'text-slate-500'" ></i>

@@ -4,6 +4,8 @@ import logging
 import shutil
 import json
 from datetime import datetime
+from contextlib import contextmanager
+    
 
 from slugify import slugify
 from pathlib import Path
@@ -17,8 +19,6 @@ from codx.junior.utils import calculate_md5
 
 logger = logging.getLogger(__name__)
 
-CONNECTIONS_CACHE = {}
-
 class DBDocument (Document):
   db_id: str = None
   def __init__(self, db_id, metadata, page_content=""):
@@ -29,7 +29,6 @@ class KnowledgeDB:
     db_path: str
     db_file_list: str
     index_name: str
-    db: MilvusClient = None
     ai: AI
     last_update = None
 
@@ -45,9 +44,7 @@ class KnowledgeDB:
         self.db_file = f"{self.db_path}/milvus.db"
         self.db_file_list = f"{self.db_path}/{self.index_name}_file.json"
         self.embedding = None
-
         
-        self.init_db()
         self.init_collection()
         self.refresh_last_update()
 
@@ -60,30 +57,30 @@ class KnowledgeDB:
         if os.path.isfile(self.db_file_list):
             self.last_update = os.path.getmtime(self.db_file_list)
 
-    def init_db(self):
-        global CONNECTIONS_CACHE
-        self.db = CONNECTIONS_CACHE.get(self.index_name)
-        if not self.db:
-            try:
-                self.db = MilvusClient(self.db_file)
-                CONNECTIONS_CACHE[self.index_name] = self.db
-            except Exception as ex:
-                logger.exception(f"Error connecting to project's DB {self.settings.project_name}")
+    @contextmanager
+    def get_db(self):
+        db = None
+        try:
+            db = MilvusClient(self.db_file)
+            yield db         
+        finally:
+            if db:
+                  db.close()
 
     def init_collection(self):
-        if self.db:
-            collections = self.db.list_collections()
+        with self.get_db() as db:
+            collections = db.list_collections()
             if self.index_name in collections:
                 return
-        embeddings_ai_settings = self.settings.get_embeddings_settings()
-        try:
-            self.db.create_collection(
-                collection_name=self.index_name,
-                dimension=embeddings_ai_settings.vector_size,
-                auto_id=True
-            )
-        except Exception as ex:
-            logger.exception(f"Error creating embeddings collection {ex}. Setting: {embeddings_ai_settings}")
+            embeddings_ai_settings = self.settings.get_embeddings_settings()
+            try:
+                db.create_collection(
+                    collection_name=self.index_name,
+                    dimension=embeddings_ai_settings.vector_size,
+                    auto_id=True
+                )
+            except Exception as ex:
+                logger.exception(f"Error creating embeddings collection {ex}. Setting: {embeddings_ai_settings}")
 
     def get_all_files(self):
         all_files = {}
@@ -147,18 +144,19 @@ class KnowledgeDB:
 
         try:
           logger.info(f"Indexing {len(data)} documents")
-          res = self.db.insert(
-                  collection_name=self.index_name,
-                  data=data
-              )
-          new_docs = []
-          for ix, _id in enumerate(res["ids"]):
-              doc = documents[ix]
-              new_docs.append({
-                  "id": _id,
-                  "metadata": doc.metadata
-              })
-          self.update_all_file(documents=new_docs)
+          with self.get_db() as db:
+              res = db.insert(
+                      collection_name=self.index_name,
+                      data=data
+                  )
+              new_docs = []
+              for ix, _id in enumerate(res["ids"]):
+                  doc = documents[ix]
+                  new_docs.append({
+                      "id": _id,
+                      "metadata": doc.metadata
+                  })
+              self.update_all_file(documents=new_docs)
         except Exception as ex:
             if "float_vector" in str(ex):
                 logger.error(f"Error inserting new documents for project {self.settings.project_name} {ex}, trying to restart index")
@@ -177,19 +175,21 @@ class KnowledgeDB:
                 
         if ids_to_delete:
             logger.info(f"Document ids to delete: {ids_to_delete}: {sources}")
-            self.db.delete(
-                collection_name=self.index_name,
-                filter=f"id in [{','.join(ids_to_delete)}]"
-            )
+            with self.get_db() as db:
+                db.delete(
+                    collection_name=self.index_name,
+                    filter=f"id in [{','.join(ids_to_delete)}]"
+                )
             for source in sources:
                 if all_files.get(source):
                     del all_files[source]
             self.save_all_files(all_files)
 
     def reset(self):    
-        self.db.drop_collection(
-            collection_name=self.index_name
-        )
+        with self.get_db() as db:
+            db.drop_collection(
+                collection_name=self.index_name
+            )
         if os.path.isfile(self.db_file_list):
             os.remove(self.db_file_list)
         self.last_update = None
@@ -202,27 +202,29 @@ class KnowledgeDB:
     def search_in_source(self, query):
       documents = self.get_all_documents()
       matches = [doc.db_id for doc in documents if query.lower() in doc.metadata["source"].lower()]
-      results = self.db.query(
-            collection_name=self.index_name,
-            ids=matches,
-            output_fields=["id", "page_content", "metadata"]
-        )
-      logger.info(f"Search in sources matches: {matches} results: {results}")
-      return [Document(id=res["id"],
-                        page_content=res["page_content"], 
-                        metadata=res["metadata"]) for res in list(results)]
+      with self.get_db() as db:
+          results = db.query(
+                collection_name=self.index_name,
+                ids=matches,
+                output_fields=["id", "page_content", "metadata"]
+            )
+          logger.info(f"Search in sources matches: {matches} results: {results}")
+          return [Document(id=res["id"],
+                            page_content=res["page_content"], 
+                            metadata=res["metadata"]) for res in list(results)]
       
     def search(self, query: str):
         query_vector = self.get_ai().embeddings(content=query)
         limit = int(self.settings.knowledge_search_document_count or "10")
-        results = self.db.search(
-            collection_name=self.index_name,
-            data=[query_vector],
-            limit=limit,
-            output_fields=["id", "page_content", "metadata"]
-        )
-        rag_distance = float(self.settings.knowledge_context_rag_distance or 0)
-        return self.db_results_to_documents(results=results, rag_distance=rag_distance)
+        with self.get_db() as db:
+            results = db.search(
+                collection_name=self.index_name,
+                data=[query_vector],
+                limit=limit,
+                output_fields=["id", "page_content", "metadata"]
+            )
+            rag_distance = float(self.settings.knowledge_context_rag_distance or 0)
+            return self.db_results_to_documents(results=results, rag_distance=rag_distance)
 
     def db_results_to_documents(self, results, rag_distance):
         documents = []
