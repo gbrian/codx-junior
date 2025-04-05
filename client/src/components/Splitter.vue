@@ -10,11 +10,14 @@ import LogViewerVue from './LogViewer.vue'
 
 <template>
   <div class="bg-base-300 flex">
-    <SplitterGroup id="splitter-group-1" direction="horizontal" auto-save-id="splitter-group-1">
+    <SplitterGroup id="splitter-group-1" class="relative" 
+      direction="horizontal" auto-save-id="splitter-group-1">
       <SplitterPanel id="splitter-group-1-panel-1" :order="0" :min-size="20" class="" v-if="$ui.showApp">
-        <SplitterGroup id="splitter-group-2" :direction="isHorizontal ? 'horizontal' : 'vertical'"
+        <SplitterGroup id="splitter-group-2" 
+          :direction="isHorizontal ? 'horizontal' : 'vertical'"
           auto-save-id="splitter-group-2"
-          v-if="$ui.appDivided !== 'none'">
+          v-if="$ui.appDivided !== 'none'"
+        >
           <SplitterPanel id="splitter-group-2-panel-1" :order="0" :min-size="20" v-if="$ui.showCoder">
             <CoderVue class="h-full w-full" />
           </SplitterPanel>
@@ -34,13 +37,14 @@ import LogViewerVue from './LogViewer.vue'
       <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="bg-stone-800 hover:bg-slate-600 w-1"
         v-if="$ui.showApp && showCodxJunior" />
 
-      <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="$ui.showApp ? 0 : 100"
+      <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="$ui.floatingCodxJunior ? 0 : $ui.showApp ?  20 : 100"
         :defaultSize="$ui.floatingCodxJunior ? 0 : $ui.codxJuniorWidth"
-        class="flex items-center justify-center relative"
+        class="flex items-center justify-center transition-all transition-discrete"
+        :class="$ui.floatingCodxJunior ? 'absolute z-50 right-0 top-0 bottom-0 border-red-600 w-2 opacity-30 hover:w-2/4 hover:opacity-90' : ''"
         @resize="size => $ui.setCodxJuniorWidth(size)"
         v-if="showCodxJunior">
 
-        <CodxJuniorVue class="w-full h-full" :class="$ui.floatingCodxJunior ? 'absolute right-0 top-0 bottom-0 border-red-600' : 'relative'" />
+        <CodxJuniorVue class="w-full h-full" />
       </SplitterPanel>
 
       <SplitterResizeHandle id="splitter-group-1-resize-handle-2" class="bg-stone-800 hover:bg-slate-600 w-1" v-if="$ui.showLogs"/>

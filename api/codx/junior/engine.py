@@ -399,17 +399,18 @@ class CODXJuniorSession:
         """
         profile_manager = self.get_profile_manager()
         project_profiles = profile_manager.list_profiles()
+
         all_profiles = list(profiles)
-        def add_profile(profile):
-            if not [p for p in all_profiles if p.name == profile.name]:
+        def add_profile(profile_name):
+            profile = next((p for p in project_profiles if p.name == profile_name), None)
+            if profile and profile not in all_profiles:
                 all_profiles.append(profile)
 
-        for profile in project_profiles:
-            for p in profiles:
-                if p.name in profile.profiles:
-                    add_profile(p)
-
-        return list(all_profiles)
+        for profile in profiles:
+            for profile_name in profile.profiles:
+                add_profile(profile_name)
+        
+        return all_profiles
     
     def find_profiles_by_mentions(self, mentions: [str]):
         profile_manager = self.get_profile_manager()
@@ -1112,15 +1113,10 @@ class CODXJuniorSession:
                 chat_manager = self.get_chat_manager()
                 parent_chat = chat_manager.find_by_id(chat.parent_id)
 
-            is_refine = chat_mode == "task"
-            is_agent = chat_mode  == "agent"
 
             max_iterations = self.settings.get_agent_max_iterations()
             iterations_left = max_iterations - iteration
 
-            if is_refine:
-                task_item = "analysis"
-            
             response_message = Message(role="assistant",
                                       doc_id=str(uuid.uuid4()))
 
@@ -1148,26 +1144,37 @@ class CODXJuniorSession:
             def load_profiles():
                 query_profiles = query_mentions["profiles"]
                 chat_profiles = [profile_manager.read_profile(profile_name) for profile_name in chat.profiles]
-                return [p for p in query_profiles + chat_profiles if p]
+                all_profiles = [p for p in query_profiles + chat_profiles if p]
+                all_profiles = self.get_profiles_and_parents(all_profiles)
+                profile_names = [p.name for p in all_profiles]
+                self.log_info(f"Loading profiles: {profile_names}")
+                return all_profiles
 
+            is_refine = chat_mode == "task"
+            is_agent = chat_mode  == "agent"
+            
             chat_profiles = load_profiles()
             chat_profiles_content = ""
             chat_profile_names = []
-            chat_model = None
+            chat_model = chat.model
             profiles_with_knowledge = []
             if chat_profiles:
                 valid_profiles = [profile for profile in chat_profiles if profile]
                 chat_profiles_content = "\n".join([profile.content for profile in valid_profiles])
                 chat_profile_names = [profile.name for profile in valid_profiles]
-                chat_models = list(set([profile.llm_model for profile in valid_profiles if profile.llm_model]))
-                chat_model = chat_models[0] if chat_models else None
+                if not chat_model:
+                    chat_models = list(set([profile.llm_model for profile in valid_profiles if profile.llm_model]))
+                    chat_model = chat_models[0] if chat_models else None
                 if valid_profiles[0].chat_mode:
                     chat_mode = valid_profiles[0].chat_mode
                 # None profile uses knowledge, disable knowledge
                 if not disable_knowledge:
                     profiles_with_knowledge = [p for p in valid_profiles if p.use_knowledge]
+                if next((p for p in valid_profiles if p.chat_mode == 'task'), None):
+                    is_refine = True
 
-
+            if is_refine:
+                task_item = "analysis"
           
             self.log_info(f"chat_with_project {chat.name} settings ready")
             messages = []
@@ -1573,7 +1580,8 @@ class CODXJuniorSession:
 
         git_diff = ""
         if current_branch and parent_branch:
-            stdout, _ = exec_command(f"git diff HEAD..{parent_branch}",
+            head_ix = len(branch_details["commits"]) - 1
+            stdout, _ = exec_command(f"git diff HEAD~{head_ix}",
               cwd=self.settings.project_path)
             git_diff = stdout
 

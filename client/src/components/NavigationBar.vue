@@ -90,6 +90,10 @@ import moment from 'moment';
     <div class="grow"></div>
     <div class="divider"></div>
       
+    <button class="hidden md:block" v-if="$ui.showApp" @click="$ui.setFloatinCodxJunior(!$ui.floatingCodxJunior)">
+      <i class="fa-solid fa-right-from-bracket" :class="$ui.floatingCodxJunior && 'rotate-180'"></i>
+    </button>
+
     <div class="flex w-full flex-col mt-4 flex">
       <div :class="['hover:bg-base-100 click relative', $ui.appActives[0] === 'coder' ? 'text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"

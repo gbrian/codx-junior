@@ -82,6 +82,7 @@ const initializeAPI = () => {
     get(url) {
       API.connection.liveRequests++;
       return API.connection.get(url)
+        .then(({ data }) => data)
         .catch(console.error)
         .finally(() => API.connection.liveRequests--);
     },
@@ -94,47 +95,55 @@ const initializeAPI = () => {
     post(url, data) {
       API.connection.liveRequests++;
       return API.connection.post(url, data)
+        .then(({ data }) => data)
         .catch(console.error)
         .finally(() => API.connection.liveRequests--);
     },
     put(url, data) {
       API.connection.liveRequests++;
       return API.connection.put(url, data)
+        .then(({ data }) => data)
         .catch(console.error)
         .finally(() => API.connection.liveRequests--);
     },
     user: {
       async login(user) {
-        const { data } = await API.post('/api/users/login', user);
+        const data = await API.post('/api/users/login', user);
         API.user = data;
         return data;
       },
       async save(user) {
-        const { data } = await API.post('/api/users/update', user);
+        const data = await API.post('/api/users/update', user);
         API.user = data;
         return data;
       }
     },
     apps: {
       async list() {
-        const { data: apps } = await API.get('/api/apps');
+        const apps = await API.get('/api/apps');
         return apps;
       },
       async run(appName) {
-        const { data } = await API.get(`/api/apps/run?app=${appName}`);
+        const data = await API.get(`/api/apps/run?app=${appName}`);
         return data;
       }
     },
-    async project(project) {
-      return initializeAPI().init(project)
+    async project(projectOrId) {
+      if (!projectOrId.codx_path) {
+        projectOrId = API.allProjects.find(p => p.id === projectOrId || p.project_name === projectOrId) 
+      }
+      if (projectOrId.codx_path === API.settings.codx_path) {
+        return API
+      }
+      return initializeAPI().init(projectOrId.codx_path)
     },
     projects: {
       async list() {
-        const res = await API.get('/api/projects');
+        const data = await API.get('/api/projects');
         if (API.lastSettings) {
-          API.allProjects = res.data;
+          API.allProjects = data;
         }
-        return res;
+        return data;
       },
       create(projectPath) {
         return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath), {});
@@ -145,7 +154,7 @@ const initializeAPI = () => {
         API.lastSettings = null;
       },
       async readme() {
-        const { data } = await API.get('/api/projects/readme');
+        const data = await API.get('/api/projects/readme');
         return data;
       },
       watch() {
@@ -158,18 +167,18 @@ const initializeAPI = () => {
         return API.get('/api/project/script/test');
       },
       async branches() {
-        const { data: branches } = await API.get('/api/projects/repo/branches');
+        const branches = await API.get('/api/projects/repo/branches');
         return branches;
       }
     },
     settings: {
       async read() {
-        const res = await API.get('/api/settings');
-        API.lastSettings = { ...API.lastSettings || {}, ...res.data };
+        const data = await API.get('/api/settings');
+        API.lastSettings = { ...API.lastSettings || {}, ...data };
         if (API.lastSettings) {
-          localStorage.setItem("API_SETTINGS", JSON.stringify(res.data));
+          localStorage.setItem("API_SETTINGS", JSON.stringify(data));
         }
-        return res;
+        return data;
       },
       async save(settings) {
         await API.put('/api/settings?', settings || API.lastSettings);
@@ -177,9 +186,9 @@ const initializeAPI = () => {
       },
       global: {
         async read() {
-          const { data } = await API.get('/api/global/settings');
+          const data = await API.get('/api/global/settings');
           API.globalSettings = data;
-          return { data };
+          return data;
         },
         async write(settings) {
           await API.post('/api/global/settings', settings);
@@ -232,11 +241,11 @@ const initializeAPI = () => {
         return API.get('/api/stream');
       },
       async list() {
-        const { data } = await API.get('/api/chats');
+        const data = await API.get('/api/chats');
         return data;
       },
       async loadChat({ id, file_path }) {
-        const { data } = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`);
+        const data = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`);
         return data;
       },
       async newChat() {
@@ -262,7 +271,7 @@ const initializeAPI = () => {
       },
       kanban: {
         async load() {
-          const { data: kanban } = await API.get('/api/kanban');
+          const kanban = await API.get('/api/kanban');
           return kanban;
         },
         async save(kanban) {
@@ -310,7 +319,7 @@ const initializeAPI = () => {
       async upload(file) {
         let formData = new FormData();
         formData.append("file", file);
-        const { data: url } = await API.post(`/api/images`, formData);
+        const url = await API.post(`/api/images`, formData);
         return window.location.origin + url;
       }
     },
@@ -343,7 +352,7 @@ const initializeAPI = () => {
       }
       API.connection.liveRequests++;
       this.codx_path = codx_path;
-      const { data: projects } = await API.projects.list();
+      const projects = await API.projects.list();
       API.allProjects = projects;
 
       if (codx_path) {
@@ -357,6 +366,7 @@ const initializeAPI = () => {
       API.connection.liveRequests--;
       await API.settings.global.read();
       console.log("API init", codx_path, API);
+      return API
     },
     logs: {
       async read(logName, size) {
@@ -387,7 +397,7 @@ const initializeAPI = () => {
         return API.screen.getScreenResolution();
       },
       async getScreenResolution() {
-        const { data: display } = await API.get('/api/screen');
+        const display = await API.get('/api/screen');
         API.screen.display = display;
         return API.screen.display;
       }

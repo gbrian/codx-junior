@@ -160,14 +160,6 @@ async def add_gpt_engineer_settings(request: Request, call_next):
 def api_health_check():
     return "ok"
 
-@app.post("/api/users/login")
-def api_extract_tags(request: Request):
-    pass
-
-@app.post("/api/users/login")
-def api_extract_tags(request: Request):
-    pass
-
 @app.get("/api/knowledge/reload")
 async def api_knowledge_reload(request: Request):
     codx_junior_session = request.state.codx_junior_session

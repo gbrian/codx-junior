@@ -8,23 +8,62 @@ services:
     build: 
       context: .
       args:
-        - CODX_JUNIOR_BRANCH=v1.0-hello-codx-junior
-        - USER_GID=1001
-        - USER_UID=1001
+        - USER_GID=${USER_GID:-1001}
+        - USER_UID=${USER_UID:-1001}
   
-  codx-junior:
+  codx-junior-ollama:
+    # Includes code-server, preview and codx-junior web
     depends_on:
       - codx-junior-build
-    container_name: codx-junior
+    container_name: codx-junior-ollama
     image: codx-junior:latest
     shm_size: 4gb
     privileged: true
-    restart: unless_stopped
+    restart: unless-stopped
+    environment:
+      - CODX_JUNIOR_APPS=ollama
+    volumes:
+      - .:/home/codx-junior/codx-junior
+    ports:
+      - 19985:19985 # CODX_JUNIOR_OLLAMA_PORT
+    networks:
+      - codx-junior
+
+  codx-junior-api:
+    # Includes code-server, preview and codx-junior web
+    depends_on:
+      - codx-junior-ollama
+    container_name: codx-junior-api
+    image: codx-junior:latest
+    shm_size: 4gb
+    privileged: true
+    restart: unless-stopped
+    environment:
+      - CODX_JUNIOR_APPS=api
     volumes:
       - .:/home/codx-junior/codx-junior
     ports:
       - 19980:19980 # CODX_JUNIOR_API_PORT
-      - 19981:19981 # CODX_JUNIOR_WEB_PORT
-      - 19982:19982 # CODX_JUNIOR_CODER_PORT
-      - 19983:19983 # CODX_JUNIOR_NOVNC_PORT
+    networks:
+      - codx-junior
 
+  codx-junior-client:
+    # Includes code-server, preview and codx-junior web
+    depends_on:
+      - codx-junior-api
+    container_name: codx-junior-client
+    image: codx-junior:latest
+    shm_size: 4gb
+    privileged: true
+    restart: unless-stopped
+    environment:
+      - CODX_JUNIOR_APPS=client
+    networks:
+      - codx-junior
+    volumes:
+      - .:/home/codx-junior/codx-junior
+    ports:
+      - 19981:19981 # CODX_JUNIOR_WEB_PORT
+
+networks:
+  codx-junior:

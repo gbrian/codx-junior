@@ -177,7 +177,7 @@ class AISettings(BaseModel):
 OPENAI_PROVIDER = AIProvider(name="openai", provider="openai")
 OPENAI_MODEL = AIModel(name="gpt-4o", ai_provider="openai", model_type=AIModelType.llm, settings=AILLMModelSettings())
 
-OLLAMA_PROVIDER = AIProvider(name="ollama", provider="ollama")
+OLLAMA_PROVIDER = AIProvider(name="ollama", provider="ollama", api_url=os.environ.get('CODX_JUNIOR_OLLAMA_URL', None))
 OLLAMA_EMBEDDINGS_MODEL = AIModel(name="nomic-embed-text", 
                                 model_type=AIModelType.embeddings,
                                 ai_provider="ollama",

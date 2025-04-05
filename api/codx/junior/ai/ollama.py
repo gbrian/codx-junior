@@ -32,7 +32,7 @@ class OllamaAI:
             self.log(f"ollama pull model {model_info} DONE!")
             return self.client.show(self.ai_settings.model).model_dump()
         except Exception as ex:
-            logger.exception(f"Error loading model {model_info}: {ex}")
+            logger.exception(f"Error loading model {model_info}: {ex} {self.ai_settings}")
 
     def prune_models(self, active_models:[str]):
         self.log(f"ollama prune model list: {active_models}")

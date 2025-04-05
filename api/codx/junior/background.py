@@ -24,7 +24,7 @@ from codx.junior.settings import (
 logger = logging.getLogger(__name__)
 
 def start_background_services(app):
-
+    logger.info("*** Starting background processes ***")
     AIManager().reload_models(read_global_settings())
 
     def on_project_watcher_changes(changes:[str]):

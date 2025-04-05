@@ -507,7 +507,7 @@ export default {
         return
       }
       const message = this.getUserMessage()
-      const { data } = await this.sendChatMessage({
+      const data = await this.sendChatMessage({
         mode: 'browser',
         messages: [
           ...this.theChat.messages,
@@ -531,7 +531,7 @@ export default {
         cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,
         documentCount: API.lastSettings.knowledge_search_document_count
       }
-      const { data: { documents } } = await API.knowledge.search(knowledgeSearch)
+      const { documents } = await API.knowledge.search(knowledgeSearch)
       const docs = documents.map(doc => `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``)
       this.$refs.editor.innerText = docs.join("\n")
     },
@@ -739,7 +739,7 @@ export default {
     },
     async testProject() {
       throw new Error('Obsolte')
-      const { data } = await API.projects.test()
+      const data = await API.projects.test()
       this.testError = data
       if (this.testError) {
         this.editMessage = this.testError

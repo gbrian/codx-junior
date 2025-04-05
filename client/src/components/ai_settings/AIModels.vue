@@ -171,8 +171,10 @@ Chat
         </div>
       </div>
     </modal>
-    <modal :close="true" @close="testModelChat = null" v-if="testModelChat">
-      <div class="text-xl">Test model</div>
+    <modal :close="true" @close="closeTestModel" v-if="testModelChat">
+      <div class="text-xl">
+        Test model <span class="text-primary font-bold">{{ testModelChat.model }}</span>
+      </div>
       <Chat class="h-96" :chat="testModelChat" />
     </modal>
   </div>
@@ -235,7 +237,14 @@ export default {
       this.showDeleteDialog = false
     },
     async testModel(model) {
-      this.testModelChat = await this.$projects.createNewChat({ temp: true, llm_model: model.name })
+      this.testModelChat = await this.$projects.createNewChat({ 
+        temp: true,
+        model: model.name
+      })
+    },
+    closeTestModel() {
+      this.$projects.deleteChat(this.testModelChat)
+      this.testModelChat = null
     }
   }
 }

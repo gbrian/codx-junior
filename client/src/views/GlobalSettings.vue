@@ -140,7 +140,7 @@ export default {
   },
   methods: {
     async loadSettings() {
-      const { data } = await this.$storex.api.settings.global.read()
+      const data = await this.$storex.api.settings.global.read()
       this.settings = data
     },
     async saveSettings() {

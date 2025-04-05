@@ -13,4 +13,4 @@ router = APIRouter()
 @router.post("/users/login")
 async def create_completion(request: Request):  
     body = await request.json()
-    return { **body, "avatar": "https://avatar.iran.liara.run/public/21" }
+    return { **body, "avatar": "https://avatar.iran.liara.run/public/21", "token": "" }

@@ -31,10 +31,9 @@ function kill_apps() {
 
   echo "Stop api"
   kill_pid $(pgrep -f "run_api")
-  
-  echo "Stop api"
-  kill_pid $(pgrep -f "run_api")
-  
+  kill_pid $(pgrep -f "codx.junior.main:app")
+  kill_pid $(pgrep -f ".venv_codx_junior_api")
+    
   echo "Stop client"
   kill_pid $(pgrep -f "run_client")
   kill_pid $(pgrep -f "codx-junior/client")

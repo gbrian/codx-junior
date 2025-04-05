@@ -5,17 +5,17 @@ import { CodeDiff } from 'v-code-diff'
 </script>
 
 <template>
-  <div class="chat-entry flex gap-1 items-start w-full relative">
+  <div class="chat-entry flex gap-1 items-start relative">
     <div class="flex flex-col gap-2 ml-4 py-1" v-if="messageProfiles.length">
       <div v-for="profile in messageProfiles" :key="profile.name">
-        <div class="avatar tooltip tooltip-down" :data-tip="profile.name">
+        <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
           <div class="ring-primary ring-offset-base-100 w-6 h-6 rounded-full ring ring-offset-2">
             <img :src="profile.avatar" :alt="profile.name" />
           </div>
         </div>
       </div>
     </div>
-    <div class="grow max-w-full">
+    <div class="grow overflow-auto">
       <div class="w-full flex flex-col gap-1 hover:rounded-md p-2 group">
         <div class="text-xs font-bold flex flex-col">
           <div class="flex justify-start gap-2 items-center">

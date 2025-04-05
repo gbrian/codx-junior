@@ -418,7 +418,7 @@ export default {
   },
   methods: {
     async reloadStatus() {
-      const { data } = await API.knowledge.status()
+      const data = await API.knowledge.status()
       this.settings = { ...API.lastSettings }
       this.status = data
     },
@@ -491,7 +491,7 @@ export default {
       if (!searchTerm) {
         return
       }
-      const { data } = await API.knowledge.search({
+      const data = await API.knowledge.search({
         searchTerm,
         searchType,
         documentSearchType,
@@ -518,7 +518,7 @@ export default {
       this.onKnowledgeSearch()
     },
     async extractKeywords(doc) {
-      const { data } = await API.knowledge.keywords(doc)
+      const data = await API.knowledge.keywords(doc)
       this.showDoc = data
     },
     async saveKnowledgeSettings() {

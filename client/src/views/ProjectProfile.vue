@@ -92,7 +92,7 @@ export default {
       this.$ui.loadTask(task)
     },
     async loadReadme() {
-      this.readme = await this.$storex.api.project.readme()
+      this.readme = await this.$storex.api.projects.readme()
     }
   }
 }

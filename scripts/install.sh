@@ -1,4 +1,12 @@
 #!/bin/bash
+# Function to log messages
+log_info() {
+  echo "[INFO] $1"
+}
+
+log_error() {
+  echo "[ERROR] $1" >&2
+}
 
 # Stop script on error
 set -e
@@ -36,32 +44,76 @@ sudo mkdir -p "${CODX_SUPERVISOR_LOG_FOLDER}"
 # Install codx APPS
 echo "Installing codx APPS..."
 curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
-codx docker
-codx coder
-codx nodejs
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-# Copy settings.json
-echo "Copying VS Code settings..."
-mkdir -p ${HOME}/.local/share/code-server/Machine
-cp code-server/User/settings.json ${HOME}/.local/share/code-server/Machine/settings.json
+
+# Installers
+function install_client() {
+  echo "Install web client"
+  bash ${CODX_JUNIOR_PATH}/scripts/install_client.sh
+
+  echo "Install noVNC"
+  bash ${CODX_JUNIOR_PATH}/scripts/install_noVNC.sh
+}
+
+function install_api() {
+  echo "Install api"
+  bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
+}
+
+function install_ollama () {
+  echo "Install ollama"
+  bash ${CODX_JUNIOR_PATH}/scripts/install_ollama.sh
+}
+
+function copy_app_conf() {
+  if [ ! -d /etc/supervisord ]; then
+    sudo mkdir /etc/supervisord
+  fi
+  
+  app=$1
+  log_info "Copying supervisor conf for: $app"
+  conf_source="${HOME}/codx-junior/supervisor.${app}.conf"
+  conf_dest="/etc/supervisord/supervisor.${app}.conf"
+
+  if [ -f $conf_source ]; then
+    sudo cp $conf_source $conf_dest
+    log_info "Copied $conf_source to $conf_dest"
+  else
+    log_error "Configuration file $conf_source not found for app: $app"
+  fi
+}
+
+echo "Load supervisor files"
+# Check if CODX_JUNIOR_APPS is not empty
+if [ -z "$CODX_JUNIOR_APPS" ]; then
+  export CODX_JUNIOR_APPS="client api ollama"
+fi
+
+for app in $CODX_JUNIOR_APPS; do
+  # Copy supervisor conf
+  copy_app_conf $app
+
+  # Execute custom instructions based on the app name
+  case $app in
+    client)
+      install_client
+      ;;
+    api)
+      install_api
+      ;;
+    ollama)
+      install_ollama
+      ;;
+    *)
+      echo "Unknown app: $app"
+      ;;
+  esac
+
+done
+
 
 # Create FileSync directory
 echo "Creating FileSync directory..."
 mkdir -p "${HOME}/FileSync"
-
-echo "Install api"
-bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
-
-echo "Install client"
-bash ${CODX_JUNIOR_PATH}/scripts/install_client.sh
-
-echo "Install ollama"
-bash ${CODX_JUNIOR_PATH}/scripts/install_ollama.sh
-
-echo "Install noVNC"
-bash ${CODX_JUNIOR_PATH}/scripts/install_noVNC.sh
 
 echo "Installation complete!"

@@ -9,9 +9,6 @@ RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
 RUN echo "LANG=en_US.UTF-8" > /etc/locale.conf
 RUN locale-gen en_US.UTF-8
 
-ARG CODX_JUNIOR_BRANCH=v1.0-hello-codx-junior 
-ENV CODX_JUNIOR_BRANCH=$CODX_JUNIOR_BRANCH
-# Check if USER_UID and USER_GID are set; otherwise, use default value 1000
 ARG USER_UID=1000
 ARG USER_GID=1000
 ENV USER="codx-junior"

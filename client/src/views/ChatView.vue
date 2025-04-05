@@ -106,7 +106,7 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
                   </ul>
                 </div>
                 <button class="btn btn-sm btn-circle tooltip" data-tip="Add profile"
-                  @click="showAddProfile = true">
+                  @click="onAddProfile">
                   <i class="fa-solid fa-user-plus"></i>
                 </button>
               </div>
@@ -251,8 +251,8 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
       </div>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
-    <modal v-if="showAddProfile" :close="true" @close="showAddProfile = false">
-      <ProfileSelector @select="addProfile($event.name)" />
+    <modal class="max-w-full w-1/3" v-if="showAddProfile" :close="true" @close="showAddProfile = false">
+      <ProfileSelector @select="addProfile($event.name)" :project="chatProject" />
     </modal>
   </div>
 </template>
@@ -456,6 +456,9 @@ export default {
     },
     onExport() {
       this.$ui.copyTextToClipboard(JSON.stringify(this.chat, null, 2))
+    },
+    async onAddProfile() {
+      this.showAddProfile = true
     }
   }
 }

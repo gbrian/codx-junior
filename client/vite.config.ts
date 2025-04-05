@@ -94,6 +94,7 @@ const locals = { }
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
+    allowedHosts: true,
     proxy,
     watch: {
       ignored: ["**/.codx/**"],
@@ -116,9 +117,17 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
+  optimizeDeps: {
+    noDiscovery: true,
+    include: undefined,
+    esbuildOptions: {
+      target: 'esnext'
+    }
+  },
   build: {
     outDir: './dist',
     minify: false,
     emptyOutDir: true, // also necessary
+    target: "esnext"
   }
 })

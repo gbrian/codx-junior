@@ -8,12 +8,14 @@
     "playwright.config.*"
   ],
   "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
     "composite": true,
     "noEmit": true,
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.node.tsbuildinfo",
 
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
     "types": ["node"]
   }
 }

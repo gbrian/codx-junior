@@ -25,9 +25,6 @@ import ChatIcon from './chat/ChatIcon.vue';
         </div>
       </div>
       <p class="text-gray-500 h-20 overflow-hidden text-xs text-ellipsis">{{ profile.description }}</p>
-      <div class="flex justify-center mt-2 space-x-2">
-        <span v-for="badge in badges" :key="badge" class="badge badge-secondary">{{ badge }}</span>
-      </div>
       <div class="flex">
         <div>
           <div class="font-bold text-xs">Skills</div>

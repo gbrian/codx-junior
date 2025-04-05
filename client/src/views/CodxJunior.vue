@@ -12,7 +12,9 @@ import moment from 'moment'
     </div>
     <div class="grow flex flex-col relative bg-base-100 gap-2 overflow-auto bg-base-300">
       <div class="p-2 flex gap-2 items-center relative justify-between">
-        <ProjectDropdown v-if="!isHelpTabActive" />
+        <div class="flex gap-4 items-start">
+          <ProjectDropdown v-if="!isHelpTabActive" />
+        </div>
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>
@@ -26,7 +28,7 @@ import moment from 'moment'
         </div>
       </div>
 
-      <div class="grow p-2 bg-base-100">
+      <div class="grow p-2 bg-base-100 overflow-auto">
         <TabViewVue  :key="projectKey" />
       </div>
     </div>
@@ -125,7 +127,7 @@ export default {
       this.init(path)
     },
     async createNewProject() {
-      const { data: { codx_path } } = await API.projects.create(this.getProjectPath())
+      const { codx_path } = await API.projects.create(this.getProjectPath())
       this.openProject(codx_path)
     },
     async getAllProjects() {
