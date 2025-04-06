@@ -134,9 +134,9 @@ class Bookmark(BaseModel):
 
 class AIProvider(BaseModel):
     name: Optional[str] = Field(default="", description="Provider name") 
-    provider: Optional[str] = Field(default="ollama", description="OpenAI compatible LLM protocols like: OpenAI, Ollama") 
+    provider: Optional[str] = Field(default="llmfactory", description="OpenAI compatible LLM protocols like: OpenAI, Ollama") 
     api_url: Optional[str] = Field(description="Optional url if provider is remote", default="http://0.0.0.0:11434/v1")
-    api_key: Optional[str] = Field(description="Optional api key", default="sk-ollama")
+    api_key: Optional[str] = Field(description="Optional api key", default="sk-llmfactory")
 
 class AILLMModelSettings(BaseModel):
     temperature: Optional[float] = Field(default=1, description="Model temperature")
@@ -174,21 +174,32 @@ class AISettings(BaseModel):
     url: Optional[str] = Field(description="Model info", default="")
 
     
-OPENAI_PROVIDER = AIProvider(name="openai", provider="openai")
-OPENAI_MODEL = AIModel(name="gpt-4o", ai_provider="openai", model_type=AIModelType.llm, settings=AILLMModelSettings())
+OPENAI_PROVIDER = AIProvider(name="openai",
+                            provider="openai",
+                            api_url=os.environ.get('OPENAI_API_BASE'),
+                            api_key=os.environ.get('OPENAI_API_KEY'))
 
-OLLAMA_PROVIDER = AIProvider(name="ollama", provider="ollama", api_url=os.environ.get('CODX_JUNIOR_OLLAMA_URL', None))
+OPENAI_MODEL = AIModel(name="gpt-4o", 
+                      ai_provider="openai",
+                      model_type=AIModelType.llm,
+                      settings=AILLMModelSettings())
+
+OLLAMA_PROVIDER = AIProvider(name="llmfactory",
+                            provider="llmfactory",
+                            api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_URL'),
+                            api_key=os.environ.get('CODX_JUNIOR_LLMFACTORY_KEY'))
+
 OLLAMA_EMBEDDINGS_MODEL = AIModel(name="nomic-embed-text", 
                                 model_type=AIModelType.embeddings,
-                                ai_provider="ollama",
+                                ai_provider="llmfactory",
                                 settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),
-                                url="https://ollama.com/library/nomic-embed-text")
+                                url="https://llmfactory.com/library/nomic-embed-text")
 
 OLLAMA_WIKI_MODEL = AIModel(name="gemma:7b", 
                                 model_type=AIModelType.llm,
-                                ai_provider="ollama",
+                                ai_provider="llmfactory",
                                 settings=AILLMModelSettings(),
-                                url="https://ollama.com/library/gemma")
+                                url="https://llmfactory.com/library/gemma")
 
 
 class AgentSettings(BaseModel):

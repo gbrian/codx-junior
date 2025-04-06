@@ -2,7 +2,7 @@
 # Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
 export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")/.." && pwd)"
 echo "CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
-echo "Starting ollama USER: ${USER} HOME: ${HOME}"
+echo "Starting llmfactory USER: ${USER} HOME: ${HOME}"
 
 source ${CODX_JUNIOR_PATH}/.env
 
@@ -13,5 +13,5 @@ if [ "$OLLAMA_MODELS" == "" ]; then
   export OLLAMA_MODELS=${CODX_JUNIOR_PATH}/ollama_models
   mkdir -p $OLLAMA_MODELS
 fi
-export OLLAMA_HOST=0.0.0.0:${CODX_JUNIOR_OLLAMA_PORT:-11434}
+export OLLAMA_HOST=0.0.0.0:${CODX_JUNIOR_LLMFACTORY_PORT:-11434}
 ollama serve

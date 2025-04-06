@@ -29,8 +29,11 @@ def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvide
     if not ai_provider_settings:
         raise Exception(f"LLM AI provider not found: {ai_provider}")
     
-    return ai_provider_settings[0]
-    
+    ai_provider = ai_provider_settings[0]
+    ai_provider.api_url = os.path.expandvars(ai_provider.api_url)
+    ai_provider.api_key = os.path.expandvars(ai_provider.api_key)
+
+    return ai_provider
 
 def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
     global_settings = global_settings or GLOBAL_SETTINGS
@@ -221,7 +224,7 @@ class CODXJuniorSettings(BaseModel):
 
     def is_valid_project(self):
         ai_settings = self.get_llm_settings()
-        return True if ai_settings.api_url or ai_settings.provider == 'ollama' else False
+        return True if ai_settings.api_url or ai_settings.provider == 'llmfactory' else False
 
     def get_dbs(self):
         from codx.junior import build_dbs

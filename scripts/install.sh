@@ -60,9 +60,9 @@ function install_api() {
   bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
 }
 
-function install_ollama () {
-  echo "Install ollama"
-  bash ${CODX_JUNIOR_PATH}/scripts/install_ollama.sh
+function install_llmFactory () {
+  echo "Install llm-factory"
+  bash ${CODX_JUNIOR_PATH}/scripts/install_llmFactory.sh
 }
 
 function copy_app_conf() {
@@ -86,7 +86,7 @@ function copy_app_conf() {
 echo "Load supervisor files"
 # Check if CODX_JUNIOR_APPS is not empty
 if [ -z "$CODX_JUNIOR_APPS" ]; then
-  export CODX_JUNIOR_APPS="client api ollama"
+  export CODX_JUNIOR_APPS="client api llm-factory"
 fi
 
 for app in $CODX_JUNIOR_APPS; do
@@ -101,8 +101,8 @@ for app in $CODX_JUNIOR_APPS; do
     api)
       install_api
       ;;
-    ollama)
-      install_ollama
+    llm-factory)
+      install_llmFactory
       ;;
     *)
       echo "Unknown app: $app"

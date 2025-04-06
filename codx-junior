@@ -38,9 +38,9 @@ function kill_apps() {
   kill_pid $(pgrep -f "run_client")
   kill_pid $(pgrep -f "codx-junior/client")
   
-  echo "Stop ollama"
-  kill_pid $(pgrep -f "run_ollama")
-  kill_pid $(pgrep -f "ollama")
+  echo "Stop llm-factory"
+  kill_pid $(pgrep -f "run_llmFactory")
+  kill_pid $(pgrep -f "llm-factory")
 
   echo "Stop code-server"
   kill_pid $(pgrep -f "code-server --bind-addr=0.0.0.0:${CODX_JUNIOR_CODER_PORT}") 
@@ -65,7 +65,7 @@ Commands:
   stop      Stop the application
   status    Display the status of the application
   logs      Show the tail of the logs file
-            Valida logs: api client coder ollama preview supervisor
+            Valida logs: api client coder llm-factory preview supervisor
 EOF
 }
 
@@ -110,8 +110,8 @@ function show_logs() {
     client)
         show_log codx-junior-web.log
         ;;
-    ollama)
-        show_log ollama.log
+    llm-factory)
+        show_log llm-factory.log
         ;;
     preview)
         show_log preview.log
@@ -140,7 +140,7 @@ function run_codx_apps() {
     run_code_server
     run_api
     run_client
-    run_ollama
+    run_llmFactory
     run_noVNC
 }
 
@@ -156,9 +156,9 @@ function run_client() {
     echo "Run client"
     bash "${CODX_JUNIOR_PATH}/scripts/run_client.sh" >> ./logs/client 2>&1 & 
 }
-function run_ollama() {
-    echo "Run ollama"
-    bash "${CODX_JUNIOR_PATH}/scripts/run_ollama.sh" >> ./logs/ollama 2>&1 &
+function run_llmFactory() {
+    echo "Run llm-factory"
+    bash "${CODX_JUNIOR_PATH}/scripts/run_llmFactory.sh" >> ./logs/llm-factory 2>&1 &
 }
 function run_noVNC() {
     echo "Run noVNC"
