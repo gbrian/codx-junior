@@ -69,9 +69,6 @@ class AI:
         if prompt:
             messages.append(HumanMessage(content=prompt))
 
-        if self.settings.get_log_ai():
-            self.ai_logger.info(f"Creating a new chat completion: {messages}")
-
         response = None
         md5Key = messages_md5(messages) if self.cache else None
         if self.cache and md5Key in self.cache:
@@ -100,18 +97,6 @@ class AI:
             self.ai_logger.debug(f"Response from cache: {messages} {response}")
 
         messages.append(response)
-        if self.settings.get_log_ai():
-            def format_messages():
-              return "\n".join([f"""############################################
-              ### ROLE: {msg.type}
-              ############################################
-
-              {msg.content}
-              """
-              for msg in messages])
-            self.ai_logger.debug(f"Chat completion finished: {format_messages()}")
-            self.ai_logger.info(f"[AI] chat messages {len(messages)}")
-
         return messages
 
     @profile_function

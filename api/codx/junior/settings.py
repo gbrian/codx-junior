@@ -23,34 +23,34 @@ logger = logging.getLogger(__name__)
 ROOT_PATH = os.path.dirname(__file__)
 GLOBAL_SETTINGS = None
 
-def get_model_settings(llm_model: str) -> AISettings:
-    model_settings = [m for m in GLOBAL_SETTINGS.ai_models if m.name == llm_model]
+def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvider:
+    global_settings = global_settings or GLOBAL_SETTINGS
+    ai_provider_settings = [p for p in global_settings.ai_providers if p.name == ai_provider]
+    if not ai_provider_settings:
+        raise Exception(f"LLM AI provider not found: {ai_provider}")
+    
+    ai_provider = ai_provider_settings[0]
+    ai_provider.api_url = os.path.expandvars(ai_provider.api_url)
+    ai_provider.api_key = os.path.expandvars(ai_provider.api_key)
+
+    return ai_provider
+
+def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
+    global_settings = global_settings or GLOBAL_SETTINGS
+    model_settings = [m for m in global_settings.ai_models if m.name == llm_model or m.ai_model == llm_model]
     if not model_settings:
         raise Exception(f"LLM model not found: {llm_model}")
-    
     model: AIModel = model_settings[0]
-    ai_provider_settings = [p for p in GLOBAL_SETTINGS.ai_providers if p.name == model.ai_provider]
-    if not ai_provider_settings:
-        raise Exception(f"LLM AI provider not found: {model.ai_provider}")
-    
-    provider = ai_provider_settings[0]
+    provider = get_provider_settings(model.ai_provider, global_settings=global_settings)
     ai_settings = AISettings(
-      provider=provider.provider,
-      api_url=provider.api_url,
-      api_key=provider.api_key,
-      model=model.name,
-      model_type=model.model_type,
-      url=model.url
+        **model.settings.__dict__,
+        provider=provider.provider,
+        api_url=provider.api_url,
+        api_key=provider.api_key,
+        model=model.ai_model or model.name,
+        model_type=model.model_type,
+        url=model.url
     )
-
-    if model.model_type == AIModelType.llm:
-        ai_settings.context_length = model.settings.context_length,
-        ai_settings.temperature=model.settings.temperature
-
-    if model.model_type == AIModelType.embeddings:
-        ai_settings.vector_size = model.settings.vector_size
-        ai_settings.chunk_size=model.settings.chunk_size
-
     return ai_settings
 
 def read_global_settings():
@@ -224,7 +224,7 @@ class CODXJuniorSettings(BaseModel):
 
     def is_valid_project(self):
         ai_settings = self.get_llm_settings()
-        return True if ai_settings.api_url or ai_settings.provider == 'ollama' else False
+        return True if ai_settings.api_url or ai_settings.provider == 'llmfactory' else False
 
     def get_dbs(self):
         from codx.junior import build_dbs

@@ -2,21 +2,27 @@
 import HomeViewVue from '@/views/HomeView.vue'
 import SplitViewVue from '@/views/SplitView.vue'
 import SharedView from '@/views/SharedView.vue'
+import Login from './components/user/Login.vue';
 
 </script>
 
 <template>
-  <div class="w-full h-full flex relative bg-transparent relative" data-theme="dark" v-if="$ui.uiReady">
+  <div class="w-full h-full flex relative bg-transparent relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <div class="absolute top-0 h-1" 
       :class="$session.apiCalls && 'w-full bg-secondary/70 animate-pulse z-50'"></div>
     <SharedView v-if="isSharedScreen" />
     <HomeViewVue v-if="isMobileScreen" />
     <SplitViewVue v-if="isSplitterScreen" />
-    <div class="absolute top-0 right-0 p-2" v-if="$ui.notifications.length">
-      <div class="p-2 text-xs bg-info/30 hover:bg-sky-700 text-white rounded-md">
-        <div v-for="notification in $ui.notifications" :key="notification.ts">
-          <pre><span class="click hover:underline" @click="$ui.removeNotification(notification)">(X)</span>[{{ notification.ts }}] {{ notification.text }}</pre>
-          
+    <Login v-if="isLogin" />
+    <div class="absolute top-0 right-0 p-2">
+      <div class="p-2 text-xs bg-error/30 hover:bg-error text-white rounded-md" v-if="errorNotifications.length">
+        <div class="click" v-for="notification in errorNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">
+          <pre><span class="click hover:underline">(X)</span>[{{ notification.ts }}] ERROR: {{ notification.text }}</pre>
+        </div>
+      </div>
+      <div class="p-2 text-xs bg-info/30 hover:bg-sky-700 text-white rounded-md" v-if="infoNotifications.length">
+        <div class="click" v-for="notification in infoNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">
+          <pre><span class="click hover:underline">(X)</span>[{{ notification.ts }}] {{ notification.text }}</pre>
         </div>
       </div>
     </div>
@@ -34,14 +40,23 @@ export default {
   created () {
   },
   computed: {
+    infoNotifications() {
+      return this.$ui.notifications.filter(n => n.type !== 'error')
+    },
+    errorNotifications() {
+      return this.$ui.notifications.filter(n => n.type === 'error')
+    },
     isSharedScreen () {
-      return this.$route.name === 'codx-junior-shared'
+      return this.$user && this.$route.name === 'codx-junior-shared'
     },
     isMobileScreen () {
-      return !this.isSharedScreen && this.$ui.isMobile
+      return this.$user && !this.isSharedScreen && this.$ui.isMobile
     },
     isSplitterScreen () {
-      return !this.isSharedScreen && !this.$ui.isMobile
+      return this.$user && !this.isSharedScreen && !this.$ui.isMobile
+    },
+    isLogin () {
+      return !this.$user
     }
   },
   watch: {

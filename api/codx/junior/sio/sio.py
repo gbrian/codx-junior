@@ -92,8 +92,8 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
 @sio.on("codx-junior-subtasks")
 @sio_api_endpoint
 async def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSession):
-    data = SioChatMessage(**data)
-    return await codxjunior_session.generate_tasks(chat=data.chat)
+    sio_chat = SioChatMessage(**data)
+    return await codxjunior_session.generate_tasks(chat=sio_chat.chat, instructions=data.get("instructions"))
 
 @sio.on("codx-junior-improve")
 @sio_api_endpoint
@@ -101,6 +101,12 @@ async def io_run_improve(sid, data: dict, codxjunior_session: CODXJuniorSession)
     data = SioChatMessage(**data)
     await codxjunior_session.improve_existing_code(chat=data.chat)
     await codxjunior_session.save_chat(data.chat)
+
+@sio.on("codx-junior-generate-tasks")
+@sio_api_endpoint
+async def io_create_chat_tasks(sid, data: dict, codxjunior_session: CODXJuniorSession):
+    data = SioChatMessage(**data)
+    await codxjunior_session.generate_tasks(chat=data.chat)
 
 @sio.on("codx-junior-improve-patch")
 @sio_api_endpoint

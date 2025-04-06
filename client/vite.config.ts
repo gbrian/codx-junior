@@ -10,9 +10,10 @@ const {
   NOTEBOOKS_URL,
   CODX_JUNIOR_CODER_PORT,
   CODX_JUNIOR_NOVNC_PORT,
-  CODX_JUNIOR_FILEBROWSER_PORT
+  CODX_JUNIOR_FILEBROWSER_PORT,
+  CODX_JUNIOR_API_URL
 } = process.env
-const apiUrl = `http://0.0.0.0:${CODX_JUNIOR_API_PORT}`
+const apiUrl = CODX_JUNIOR_API_URL || `http://0.0.0.0:${CODX_JUNIOR_API_PORT}`
 const coderUrl = `http://0.0.0.0:${CODX_JUNIOR_CODER_PORT}`
 const noVNCUrl = `http://0.0.0.0:${CODX_JUNIOR_NOVNC_PORT}`
 const filebrowserUrl = `http://0.0.0.0:${CODX_JUNIOR_FILEBROWSER_PORT}/filebrowser`
@@ -94,6 +95,7 @@ const locals = { }
 // https://vitejs.dev/config/
 export default defineConfig({
   server: {
+    allowedHosts: true,
     proxy,
     watch: {
       ignored: ["**/.codx/**"],
@@ -116,9 +118,15 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
+  optimizeDeps: {
+    esbuildOptions: {
+      target: 'esnext'
+    }
+  },
   build: {
     outDir: './dist',
     minify: false,
     emptyOutDir: true, // also necessary
+    target: "esnext"
   }
 })

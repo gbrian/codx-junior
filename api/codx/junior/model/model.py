@@ -6,6 +6,7 @@ from datetime import datetime
 
 from typing import List, Dict, Union, Optional
 
+
 class ImageUrl(BaseModel):
     url: str = Field(default="")
 
@@ -59,6 +60,11 @@ class CodxUser(BaseModel):
     avatar: str = Field(default="")
     personality: str = Field(default="")
 
+class ProfileApiSettings(BaseModel):
+    active: bool = Field(description="Model is visible through API", default=False)
+    model_name: Optional[str] = Field(description="Model's name", default=None)
+    description: Optional[str] = Field(description="Model's description", default=None)
+
 class Profile(BaseModel):
     name: str = Field(default="")
     url: str = Field(default="")
@@ -75,6 +81,9 @@ class Profile(BaseModel):
     use_knowledge: Optional[bool] = Field(default=True)
     user: Optional[CodxUser] = Field(default=CodxUser())
     tools: Optional[List[Tool]] = Field(default=[])
+    tags: Optional[List[str]] = Field(default=[])
+    api_settings: Optional[ProfileApiSettings] = Field(description="Indicates if the profile is accessible through the LLM API", default=ProfileApiSettings())
+    chat_mode: Optional[str] = Field(description="Affects on how conversation works. Like writing a document or chat messages", default=None)
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -125,13 +134,14 @@ class Bookmark(BaseModel):
 
 class AIProvider(BaseModel):
     name: Optional[str] = Field(default="", description="Provider name") 
-    provider: Optional[str] = Field(default="ollama", description="OpenAI compatible LLM protocols like: OpenAI, Ollama") 
+    provider: Optional[str] = Field(default="llmfactory", description="OpenAI compatible LLM protocols like: OpenAI, Ollama") 
     api_url: Optional[str] = Field(description="Optional url if provider is remote", default="http://0.0.0.0:11434/v1")
-    api_key: Optional[str] = Field(description="Optional api key", default="sk-ollama")
+    api_key: Optional[str] = Field(description="Optional api key", default="sk-llmfactory")
 
 class AILLMModelSettings(BaseModel):
     temperature: Optional[float] = Field(default=1, description="Model temperature")
     context_length: Optional[int] = Field(default=0)
+    merge_messages: Optional[bool] = Field(description="Flat conversation into a single message before sending to model", default=False)
     
 class AIEmbeddingModelSettings(BaseModel):
     vector_size: Optional[int] = Field(default=1536, description="Model vector size")
@@ -142,9 +152,10 @@ class AIModelType(str, Enum):
     embeddings = 'embeddings'
 
 class AIModel(BaseModel):
-    name: str = Field(description="Model name")
+    name: str = Field(description="Model name")    
     model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
     ai_provider: str = Field(description="AI Provider name")
+    ai_model: Optional[str] = Field(description="AI Provider's model name", default=None)
     settings: Union[AILLMModelSettings, AIEmbeddingModelSettings] = Field(description="Model settings")
     metadata: Optional[dict] = Field(description="Model's last update date", default={})
     url: Optional[str] = Field(description="Model info", default="")
@@ -158,25 +169,37 @@ class AISettings(BaseModel):
     temperature: Optional[float] = Field(default=0.8)
     vector_size: Optional[int] = Field(default=1536)
     chunk_size: Optional[int] = Field(default=8190)
+    merge_messages: Optional[bool] = Field(default=False)
     model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
     url: Optional[str] = Field(description="Model info", default="")
 
     
-OPENAI_PROVIDER = AIProvider(name="openai", provider="openai")
-OPENAI_MODEL = AIModel(name="gpt-4o", ai_provider="openai", model_type=AIModelType.llm, settings=AILLMModelSettings())
+OPENAI_PROVIDER = AIProvider(name="openai",
+                            provider="openai",
+                            api_url=os.environ.get('OPENAI_API_BASE'),
+                            api_key=os.environ.get('OPENAI_API_KEY'))
 
-OLLAMA_PROVIDER = AIProvider(name="ollama", provider="ollama")
+OPENAI_MODEL = AIModel(name="gpt-4o", 
+                      ai_provider="openai",
+                      model_type=AIModelType.llm,
+                      settings=AILLMModelSettings())
+
+OLLAMA_PROVIDER = AIProvider(name="llmfactory",
+                            provider="llmfactory",
+                            api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_URL'),
+                            api_key=os.environ.get('CODX_JUNIOR_LLMFACTORY_KEY'))
+
 OLLAMA_EMBEDDINGS_MODEL = AIModel(name="nomic-embed-text", 
                                 model_type=AIModelType.embeddings,
-                                ai_provider="ollama",
+                                ai_provider="llmfactory",
                                 settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),
-                                url="https://ollama.com/library/nomic-embed-text")
+                                url="https://llmfactory.com/library/nomic-embed-text")
 
-OLLAMA_WIKI_MODEL = AIModel(name="deepseek-r1", 
+OLLAMA_WIKI_MODEL = AIModel(name="gemma:7b", 
                                 model_type=AIModelType.llm,
-                                ai_provider="ollama",
+                                ai_provider="llmfactory",
                                 settings=AILLMModelSettings(),
-                                url="https://ollama.com/library/deepseek-r1")
+                                url="https://llmfactory.com/library/gemma")
 
 
 class AgentSettings(BaseModel):
@@ -186,9 +209,9 @@ class GlobalSettings(BaseModel):
     log_ai: bool = Field(default=False)
     
     embeddings_model:  str = Field(default="nomic-embed-text")
-    llm_model: str = Field(default="codellama")
-    rag_model: str = Field(default="codellama")
-    wiki_model: str = Field(default="deepseek-r1")
+    llm_model: str = Field(default="gemma:7b")
+    rag_model: str = Field(default="gemma:7b")
+    wiki_model: str = Field(default="gemma:7b")
 
     git: GitSettings = Field(default=GitSettings())
 

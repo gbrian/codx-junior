@@ -6,13 +6,14 @@ import AIModels from '@/components/ai_settings/AIModels.vue';
 <template lang="pug">
   .flex.flex-col.gap-2
     .text-2xl Providers
-    AIProviders
+    AIProviders(:settings="settings")
     .text-2xl Models
-    AIModels
+    AIModels(:settings="settings")
 </template>
 
 <script>
 export default {
+  props: ['settings'],
   data() {
     return {
     }

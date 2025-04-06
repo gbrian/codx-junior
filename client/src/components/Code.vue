@@ -1,8 +1,7 @@
 <script setup>
-import hljs from 'highlight.js';
 import CodeEditor from 'simple-code-editor';
 import MermaidViewerVue from './MermaidViewer.vue'
-import Markdown from './Markdown.vue';
+import MarkdownViewer from './MarkdownViewer.vue';
 </script>
 <template>
   <div class="rounded-md">
@@ -37,13 +36,14 @@ import Markdown from './Markdown.vue';
       :header="false"
       v-if="showCode"
     ></CodeEditor>
-    <div class="prose" :html="markdownText" v-if="markdownText"></div>
+    <MarkdownViewer :text="codeText" v-if="showMarkdown" />
     <div class="" v-html="codeText" v-if="htmlPreview"></div>
   </div>
 </template>
 <script>
 const languageMapping = {
-  "vue": "html"
+  "vue": "html",
+  "markdown": "md"
 }
 export default {
   props: ['code'],
@@ -69,7 +69,7 @@ export default {
   computed: {
     language() {
       const lang = this.code.attributes["class"].value.split("-").reverse()[0]
-      return lang
+      return languageMapping[lang] || lang
     },
     codeLanguage () {
       return this.language.includes("mermaid") ? "markdown" : this.language
@@ -78,7 +78,10 @@ export default {
       return this.language === 'mermaid'
     },
     showCode () {
-      return (!this.showMermaid || this.showMermaidSource) && !this.htmlPreview
+      return !this.showMarkdown && (!this.showMermaid || this.showMermaidSource) && !this.htmlPreview
+    },
+    showMarkdown() {
+      return this.language === 'md' 
     },
     markdownText () {
       if (this.language === 'md' && false) {

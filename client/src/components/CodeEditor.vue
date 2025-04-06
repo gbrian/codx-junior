@@ -116,7 +116,7 @@ export default {
   },
   methods: {
     async projectChanged () {
-      const { data: { files } } = await this.$storex.api.files.list(this.project.project_path)
+      const { files } = await this.$storex.api.files.list(this.project.project_path)
       this.items = files
       if (this.$ui.openedFile) {
         this.item = {
@@ -129,16 +129,16 @@ export default {
     },
     async onOpenItem(item) {
       if (item.is_dir && !item.children?.length) {
-        const { data: { files } } = await this.$storex.api.files.list(item.file_path)
+        const { files } = await this.$storex.api.files.list(item.file_path)
         item.children = files
       } else {
-        const { data } = await this.$storex.api.files.read(item.file_path)
+        const data = await this.$storex.api.files.read(item.file_path)
         this.item = item
         this.fileContent = data
       }
     },
     async onSearchFiles () {
-      const { data } = await this.$storex.api.files.search(this.findFile)
+      const data = await this.$storex.api.files.search(this.findFile)
       this.searchResults = data
     },
     clearSearch() {

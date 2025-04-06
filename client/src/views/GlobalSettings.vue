@@ -1,15 +1,18 @@
 <script setup>
 import AISettings from './AISettings.vue'
 import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
+import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
+import ExportImportButton from '@/components/ExportImportButton.vue';
 </script>
 
 <template>
   <div class="w-full h-full flex flex-col gap-2 p-4 overflow-auto">
     <div class="text-xl font-medium my-2 flex justify-between">
       Global Settings
-      <div class="flex justify-end gap-2">
+      <div class="flex justify-end gap-2 items-center">
         <button class="btn btn-sm" @click="reloadSettings">Reload</button>
         <button class="btn btn-sm btn-primary" @click="saveSettings">Save</button>
+        <ExportImportButton :data="settings" @change="submit" />
       </div>
     </div>
     <div role="tablist" class="tabs tabs-bordered">
@@ -75,7 +78,7 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
-                <input v-model="settings.embeddings_model" type="text" class="input input-bordered" />
+                <ModelSelector v-model="settings.embeddings_model" />
               </div>
             </div>
             <div class="font-bold">Knowledge search</div>
@@ -83,7 +86,7 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
-                <input v-model="settings.rag_model" type="text" class="input input-bordered" />
+                <ModelSelector v-model="settings.rag_model" />
               </div>
             </div>
             <div class="font-bold">Reasoning</div>
@@ -91,7 +94,7 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
-                <input v-model="settings.llm_model" type="text" class="input input-bordered" />
+                <ModelSelector v-model="settings.llm_model" />
               </div>
             </div>
             <div class="font-bold">WIKI</div>
@@ -99,7 +102,7 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
             <div class="flex flex-col gap-2">
               <div class="flex items-center">
                 <span class="p-6 w-1/4">Model:</span>
-                <input v-model="settings.wiki_model" type="text" class="input input-bordered" />
+                <ModelSelector v-model="settings.wiki_model" />
               </div>
             </div>
           </div>
@@ -107,20 +110,29 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
       </div>
     </div>
     <div v-if="activeTab === 'AI Models'" class="flex flex-col gap-4">
-      <AISettings />
+      <AISettings :settings="settings" />
     </div>
     <div v-if="activeTab === 'Agents'" class="flex flex-col gap-4">
       <AgentSettings />
     </div>
+    <modal v-if="showImport" :close="true" @close="showImport = false">
+      <div class="flex flex-col gap-2">
+        <div class="text-xl">Paste your JSON settings here</div>
+        <textarea v-model="importData" class="textarea textarea-bordered w-full"></textarea>
+        <button class="btn btn-sm btn-primary" @click="submit">Import</button>
+      </div>
+    </modal>
   </div>
 </template>
 
 <script>
 export default {
-  data() {
+  data () {
     return {
       activeTab: 'Settings',
-      settings: null
+      settings: null,
+      importData: '',
+      showImport: false
     }
   },
   created () {
@@ -128,7 +140,7 @@ export default {
   },
   methods: {
     async loadSettings() {
-      const { data } = await this.$storex.api.settings.global.read()
+      const data = await this.$storex.api.settings.global.read()
       this.settings = data
     },
     async saveSettings() {
@@ -137,6 +149,14 @@ export default {
     },
     reloadSettings() {
       this.loadSettings()
+    },
+    async submit(importData) {
+      try {
+        const imported = importData
+        this.settings = { ...this.settings, ...imported }
+      } catch (e) {
+        console.error('Import failed', e)
+      }
     }
   }
 }

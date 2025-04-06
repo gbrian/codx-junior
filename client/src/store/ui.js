@@ -36,7 +36,8 @@ export const state = () => ({
   notifications: [],
   noVNCSettings: {
     resize: 'scale'
-  }
+  },
+  theme: 'dark'
 })
 
 export const getters = getterTree(state, {
@@ -147,10 +148,11 @@ export const mutations = mutationTree(state, {
     state.floatingCodxJunior = floating
     $storex.ui.saveState()
   },
-  addNotification(state, { text }) {
+  addNotification(state, { text, type }) {
     const notif = {
       ts: moment().format("hh:mm:ss"),
-      text
+      text,
+      type
     }
     state.notifications.push(notif)
     setTimeout(() => $storex.ui.removeNotification(notif) , 30000)
@@ -161,6 +163,9 @@ export const mutations = mutationTree(state, {
   },
   setNoVNCSettings(state, settings) {
     state.noVNCSettings = { ...state.noVNCSettings, ...settings }
+  },
+  setTheme(state, theme) {
+    state.theme = theme
   }
 })
 

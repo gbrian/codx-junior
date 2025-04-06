@@ -22,6 +22,10 @@ from codx.junior.profiling.profiler import profile_function
 from codx.junior.log_parser import parse_logs
 from codx.junior.browser import run_browser_manager
 
+from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
+from codx.junior.api.users import router as users_router
+
+CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
 logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
 logger = logging.getLogger(__name__)
@@ -113,6 +117,10 @@ app = FastAPI(
 sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
 app.mount("/api/socket.io", sio_asgi_app)
 
+app.include_router(chatgpt_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
+
+
 @app.on_event("startup")
 def startup_event():
     logger.info(f"Creating FASTAPI: {app.__dict__}")
@@ -151,10 +159,6 @@ async def add_gpt_engineer_settings(request: Request, call_next):
 @app.get("/api/health")
 def api_health_check():
     return "ok"
-
-@app.post("/api/users/login")
-def api_extract_tags(request: Request):
-    pass
 
 @app.get("/api/knowledge/reload")
 async def api_knowledge_reload(request: Request):
@@ -437,8 +441,9 @@ def api_read_global_settings():
 
 @app.post("/api/global/settings")
 def api_write_global_settings(global_settings: GlobalSettings):
+    AIManager().reload_models(global_settings)
     write_global_settings(global_settings=global_settings)
-    AIManager().reload_models(read_global_settings())
+    
 
 @app.get("/api/logs")
 def api_logs_list():
@@ -494,5 +499,6 @@ if CODX_JUNIOR_STATIC_FOLDER:
 
 app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
 
-start_background_services(app)
+if CODX_JUNIOR_API_BACKGROUND:
+    start_background_services(app)
 

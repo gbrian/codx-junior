@@ -1,5 +1,4 @@
 <script setup>
-import CodxJuniorVue from './CodxJunior.vue'
 import SplitterVue from '../components/Splitter.vue'
 </script>
 

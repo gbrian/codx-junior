@@ -11,6 +11,9 @@ I create codx-junior for making our life easier by automating and streamlining t
 
 > You'll never code alone!
 
+![Hello codx-junior](./assets/images/hello-codx-junior.png) 
+
+
 ## how does it work?
 
 Imagine `codx-junior` as your ultimate project collaborator. It's ready to support you through every step of your project management journey. No matter how complex things get, we're here to simplify your work, enhance testing, and ensure everything is documented just right.
@@ -18,19 +21,46 @@ Imagine `codx-junior` as your ultimate project collaborator. It's ready to suppo
 ### AI
 Mostly is done by AI, codx-junior uses a set of basic flows and profiles to instruct LLM models to achieve the tasks. So please take your time to set the AI settings and profiles for your projects.
 
-### How to run it
+### How to Run Codx-Junior
 
-```bash
-# check .env file to customize setup
-git clone https://github.com/gbrian/codx-junior
-cd codx-junior
-codx-junior install
-codx-junior run
-```
+Running `codx-junior` is straightforward and can be done in multiple ways to suit your development needs:
 
-And then open `http:://localhost:9983` in your browser
- 
-> Docker comming soon
+#### Using Codx-Junior Scripts
+To run `codx-junior` using the provided scripts, follow these steps:
+1. **Navigate to the directory:**
+   ```bash
+   cd codx-junior
+   ```
+2. **Set up your modules:**
+   Define which modules you want to load:
+   ```bash
+   export CODX_JUNIOR_APPS=client api llm-factory
+   ```
+3. **Install modules:**
+   Execute the installation script:
+   ```bash
+   bash codx-junior install
+   ```
+4. **Run the Supervisor module:**
+   Initiate the supervisor with:
+   ```bash
+   bash codx-junior supervisor
+   ```
+
+#### Using Docker
+If you prefer using Docker, make sure your configurations are set in `docker-compose.dev.yaml` or create a custom one:
+1. **Navigate to the directory:**
+   ```bash
+   cd codx-junior
+   ```
+2. **Run Docker Compose:**
+   Bring up your services with:
+   ```bash
+   docker-compose up -f docker-compose.dev.yaml
+   ```
+
+### Accessing Codx-Junior
+Once running, access the platform by navigating to `http://localhost:19981` (or any other port specified in your `.env` file).
 
 ## Features
 #### Project's dashboard

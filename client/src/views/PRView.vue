@@ -4,10 +4,10 @@ import Collapsible from '@/components/Collapsible.vue'
 </script>
 
 <template lang="pug">
-  <div class="pr-view p-4 flex flex-col gap-4">
+  <div class="pr-view p-4 flex flex-col gap-4 h-full">
     <header class="flex justify-between items-start">
       <div class="flex flex-col gap-2">
-        <h1 class="text-3xl font-bold">Changes review</h1>
+        <h1 class="md:text-3xl text-xl font-bold">Changes review</h1>
         <div class="flex gap-2 items-center">
           <div class="flex items-center gap-2">
             <label class="block text-xs font-bold" for="branchSource">Source</label>
@@ -40,7 +40,7 @@ import Collapsible from '@/components/Collapsible.vue'
         </div>
       </div>
     </header>
-    .flex.flex-col.gap-4.grow
+    .flex.flex-col.gap-4.grow.overflow-auto
 
       Collapsible.hidden(v-model="overviewChecked" :start-expanded="true")
         template(v-slot:title)
@@ -62,14 +62,7 @@ import Collapsible from '@/components/Collapsible.vue'
         template(v-slot:content)
           
 
-      Collapsible
-        template(v-slot:title)
-          .flex.flex-col.grow
-            | Files
-            .text-sm Files changed
-        template(v-slot:content)
-          div
-            GitDiffViewer(:diff="$projects.project_branches.git_diff" v-if="$projects.project_branches.git_diff")
+      GitDiffViewer(:diff="$projects.project_branches.git_diff" v-if="$projects.project_branches.git_diff")
   </div>
 </template>
 

@@ -4,7 +4,7 @@ import Chat from '@/components/chat/Chat.vue'
 import TaskCard from '@/components/kanban/TaskCard.vue'
 import Kanban from '@/components/kanban/Kanban.vue'
 import moment from 'moment'
-import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
+import ProfileSelector from '@/components/profile/ProfileSelector.vue'
 </script>
 
 <template>
@@ -16,9 +16,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
             <div class="flex gap-2 items-start">
               <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else>
-                <div class="my-2 text-xs hover:underline click font-bold text-primary"
-                  @click="naviageToParent"
-                  v-if="parentChat || Kanban">
+                <div class="my-2 text-xs hover:underline click font-bold text-primary" @click="naviageToParent" v-if="parentChat || Kanban">
                   <i class="fa-solid fa-turn-up"></i> {{ parentChat?.name || kanban?.title }} ...
                 </div>
                 <div class="flex items-center gap-2">
@@ -35,7 +33,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
                           </summary>
                           <ul>
                             <li @click="setChatMode(mode, profile)" v-for="profile in info.profiles" :key="profile">
-                              <a>{{ profile  }}</a>
+                              <a>{{ profile }}</a>
                             </li>
                           </ul>
                         </details>
@@ -53,49 +51,64 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
               </div>
             </div>
             <div class="grow"></div>
-            <div class="flex gap-1 items-center">
-              <div class="flex gap-2 p-1 items-center -top-1" v-if="toggleChatOptions">
-                <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
-                  <div class="flex items-center gap-2" v-if="!showHidden">
-                    ({{ hiddenCount }})
-                    <i class="fa-solid fa-eye-slash"></i>
-                  </div>
-                  <span class="text-warning" v-else>
-                    <i class="fa-solid fa-eye"></i>
-                  </span>
-                </button>
-                <div class="dropdown dropdown-end dropdown-bottom">
-                  <div tabindex="0" class="btn btn-sm flex items-center indicator">
-                    Tasks
-                    <span v-if="childrenChats.length">
-                      ({{ childrenChats.length }})
-                    </span>
-                    <i class="fa-solid fa-caret-down"></i>
-                  </div>
-                  <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] p-2 w-96 shadow">
-                    <li @click="newSubChat()">
-                      <a>New sub task</a>
-                    </li>
-                    <li @click="createSubTasks()">
-                      <a>Create sub tasks <i class="fa-solid fa-wand-magic-sparkles"></i></a>
-                    </li>
-                    <div class="divider" v-if="childrenChats.length"></div>
-                    <div class="max-h-96 w-full overflow-auto flex flex-col gap-2 p-1">
-                      <TaskCard class="p-2" :task="child" @click="$projects.setActiveChat(child)"
-                            v-for="child in childrenChats" :key="childrenChats.id" />
+            <div class="flex flex-col gap-2">
+              <div class="flex gap-1 items-center">
+                <div class="flex gap-2 p-1 items-center -top-1" v-if="toggleChatOptions">
+                  <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
+                    <div class="flex items-center gap-2" v-if="!showHidden">
+                      ({{ hiddenCount }})
+                      <i class="fa-solid fa-eye-slash"></i>
                     </div>
+                    <span class="text-warning" v-else>
+                      <i class="fa-solid fa-eye"></i>
+                    </span>
+                  </button>
+                  <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                  </button>
+                  <div class="grow"></div>
+                  <div class="dropdown dropdown-end dropdown-bottom">
+                    <div tabindex="0" class="btn btn-sm flex items-center indicator">
+                      <i class="fa-solid fa-bars"></i>
+                    </div>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] p-2 w-96 shadow">
+                      <li @click="newSubChat()">
+                        <a><i class="fa-solid fa-plus"></i> New sub task</a>
+                      </li>
+                      <li @click="createSubTasks()">
+                        <a><i class="fa-solid fa-wand-magic-sparkles"></i> Create sub tasks</a>
+                      </li>
+                      <li @click="onExport">
+                        <a><i class="fa-solid fa-copy"></i> Export</a>
+                      </li>
+                      <div class="divider" v-if="childrenChats.length"></div>
+                      <div class="max-h-96 w-full overflow-auto flex flex-col gap-2 p-1">
+                        <TaskCard class="click p-2" :task="child" @click="$projects.setActiveChat(child)" v-for="child in childrenChats" :key="childrenChats.id" />
+                      </div>
+                    </ul>
+                  </div>
+                </div>
+                <div class="md:hidden btn btn-sm" @click="toggleChatOptions = !toggleChatOptions">
+                  <i class="fa-solid fa-bars"></i>
+                </div>
+              </div>
+              <div class="flex justify-end items-center">
+                <div class="dropdown dropdown-end" v-for="profile in chatProfiles" :key="profile.name">
+                  <div tabindex="0" role="button" class="btn btn-xs m-1">
+                    <div class="avatar tooltip" :data-tip="profile.name">
+                      <div class="ring-primary ring-offset-base-100 w-4 h-4 rounded-full ring ring-offset-2">
+                        <img :src="profile.avatar" :alt="profile.name" />
+                      </div>
+                    </div>
+                  </div>
+                  <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-50 w-40 p-2 shadow-sm">
+                    <li class="text-error" @click="removeProfile(profile)"><a>Remove</a></li>
                   </ul>
                 </div>
-                <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
-                  <i class="fa-solid fa-floppy-disk"></i>
+                <button class="btn btn-sm btn-circle tooltip" data-tip="Add profile"
+                  @click="onAddProfile">
+                  <i class="fa-solid fa-user-plus"></i>
                 </button>
-                <div class="grow"></div>
-                <button class="btn btn-xs btn-error btn-outline mt-1 text-white" @click="navigateToChats">
-                  <i class="fa-regular fa-circle-xmark"></i>
-                </button>
-              </div>
-              <div class="md:hidden btn btn-sm" @click="toggleChatOptions = !toggleChatOptions">
-                <i class="fa-solid fa-bars"></i>
               </div>
             </div>
           </div>
@@ -113,18 +126,30 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
               + tag
             </button>
           </div>
-          <div class="hidden flex gap-2 justify-end">
-            <ModelSelector class="select-xs" v-model="chat.model" />
-            <select v-model="chat.project_id" class="select select-bordered select-xs w-full max-w-xs"
-              @change="saveChat"
-            >
-              <option v-for="project in subProjects" :key="project.project_id"
-                :value="project.project_id"
-                :selected="project.project_id === chatProject.project_id"
-              >
-              {{ project.project_name }} <span>({{ $projects.aiModel }})</span>
-              </option>
-            </select>
+          <div class="flex gap-1 justify-end items-center">
+            <div class="dropdown dropdown-end">
+              <div tabindex="0" role="button" class="btn btn-sm m-1 flex gap-1 items-center">
+                <div class="avatar">
+                  <div class="w-6 rounded-full">
+                    <img :src="chatProject.project_icon" />
+                  </div>
+                </div>
+                {{ chatProject.project_name }}
+              </div>
+              <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-50 w-52 p-2 shadow-sm">
+                <li @click="chat.project_id = project.project_id"
+                  v-for="project in subProjects" :key="project.project_id">
+                  <a>
+                    <div class="avatar">
+                      <div class="w-6 rounded-full">
+                        <img :src="project.project_icon" />
+                      </div>
+                    </div>
+                    {{ project.project_name }}
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
         <div class="w-full overflow-auto" v-if="chatFiles.length">
@@ -212,9 +237,23 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
             </div>
           </div>
         </modal>
+        <modal v-if="showSubtasksModal">
+          <div class="flex flex-col gap-4 p-4">
+            <h3 class="font-bold text-2xl">Split into tasks</h3>
+            <div class="tex-xl">Instructions:</div>
+            <textarea v-model="createTasksInstructions" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
+            <div class="flex gap-2 justify-end">
+              <button class="btn btn-error" @click="showSubtasksModal = false">Cancel</button>
+              <button class="btn btn-primary" @click="createSubTasks">Create</button>
+            </div>
+          </div>
+        </modal>
       </div>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
+    <modal class="max-w-full w-1/3" v-if="showAddProfile" :close="true" @close="showAddProfile = false">
+      <ProfileSelector @select="addProfile($event.name)" :project="chatProject" />
+    </modal>
   </div>
 </template>
 
@@ -234,8 +273,11 @@ export default {
       newTag: null,
       toggleChatOptions: false,
       showSubtaskModal: false,
+      showSubtasksModal: false,
       subtaskName: '',
-      subtaskDescription: ''
+      subtaskDescription: '',
+      showAddProfile: false,
+      createTasksInstructions: ''
     }
   },
   mounted () {
@@ -244,7 +286,7 @@ export default {
   computed: {
     chatProfiles () {
       const { profiles } = this.$projects
-      return this.chat.profiles?.map(name => profiles.find(p => p.name === name ))
+      return profiles.filter(p => this.chat.profiles?.includes(p.name))
     },
     chatModes () {
       return this.$projects.chatModes
@@ -279,7 +321,7 @@ export default {
         .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
     },
     chatProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) ||
+      return this.subProjects.find(p => p.project_id === this.chat.project_id) ||
               this.$project
     },
     parentChat () {
@@ -339,15 +381,15 @@ export default {
       await this.saveChat()
     },
     async addProfile(profile) {
-      if (this.chat.profiles?.includes(profile)) {
-        return
+      if (!this.chat.profiles?.includes(profile)) {
+        this.chat.profiles = [...this.chat.profiles || [], profile]
+        await this.saveChat()
       }
-      this.chat.profiles = [...this.chat.profiles || [], profile]
-      await this.saveChat()
+      this.showAddProfile = false
     },
     removeProfile(profile) {
-      if (this.chat.profiles?.includes(profile)) {
-        this.chat.profiles = this.chat.profiles.filter(p => p !== profile)
+      if (this.chat.profiles?.includes(profile.name)) {
+        this.chat.profiles = this.chat.profiles.filter(p => p !== profile.name)
         this.saveChat()
       }
     },
@@ -397,7 +439,13 @@ export default {
       this.saveChat()
     },
     async createSubTasks() {
-      await this.$storex.projects.createSubTasks(this.chat)
+      if (this.showSubtasksModal) {
+        this.$emit('sub-tasks', { chat: this.chat, instructions: this.createTasksInstructions })
+        this.showSubtasksModal = false
+      } else {
+        this.showSubtasksModal = true
+        this.createTasksInstructions = ""
+      }
     },
     naviageToParent() {
       if (this.parentChat) {
@@ -405,6 +453,12 @@ export default {
       } else {
         this.navigateToChats()
       }
+    },
+    onExport() {
+      this.$ui.copyTextToClipboard(JSON.stringify(this.chat, null, 2))
+    },
+    async onAddProfile() {
+      this.showAddProfile = true
     }
   }
 }

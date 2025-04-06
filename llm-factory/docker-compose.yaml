@@ -15,7 +15,7 @@ services:
     networks:
       - web
 
-  ollama:
+  llmfactory:
     image: ollama/ollama
     container_name: ollama
     labels:

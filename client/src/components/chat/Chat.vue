@@ -4,6 +4,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
 import Browser from '@/components/browser/Browser.vue'
 import Markdown from '@/components/Markdown.vue'
 import TaskCard from '../kanban/TaskCard.vue'
+import moment from 'moment'
 </script>
 
 <template>
@@ -35,8 +36,12 @@ import TaskCard from '../kanban/TaskCard.vue'
           </div>
           <div class="anchor" ref="anchor"></div>
           <div class="grid grid-cols-3 gap-2 mb-2 bg-base-100" v-if="childrenChats?.length">
-            <TaskCard class="p-2 bg-base-300" :task="child" @click="$projects.setActiveChat(child)"
-              v-for="child in childrenChats" :key="childrenChats.id" />
+            <div v-for="child in childrenChats" :key="child.id" class="relative">
+              <TaskCard class="click p-2 bg-base-300" :task="child" @click="$projects.setActiveChat(child)" />
+              <button class="absolute top-0 right-0 btn btn-sm hover:btn-error text-error btn-circle" @click="confirmDeleteTask(child)">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -56,7 +61,9 @@ import TaskCard from '../kanban/TaskCard.vue'
         </div>
       </div>
     </div>
-
+    <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
+      {{  lastChatEvent }}
+    </div>
     <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
       <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2 hidden">
         <div class="flex p-1 items-center text-sky-600">
@@ -76,7 +83,7 @@ import TaskCard from '../kanban/TaskCard.vue'
         </div>
       </div>
       <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
-        <li v-for="term, ix in searchTerms" :key="term.name">
+        <li class="tooltip" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
           <a @click="addSerchTerm(term)">
             <div :class="[searchTermSelIx === ix ? 'underline':'']">
               <span class="text-sky-600 font-bold">@{{ term.name }}</span>
@@ -88,11 +95,11 @@ import TaskCard from '../kanban/TaskCard.vue'
     <div class="flex gap-2">
       <span class="badge tooltip flex gap-2 items-center"
         :data-tip="mention.tooltip"
-        :class="{ 'badge-primary': mention.project, 'badge-secondary': mention.profile }"
+        :class="{ 'badge-primary': mention.project, 'badge-success badge-outline': mention.profile }"
         v-for="mention in messageMentions" :key="mention.name">
         <i class="fa-solid fa-magnifying-glass" v-if="mention.project"></i>
-        <img class="w-4 rounded-full" :src="mention.profile.icon" v-if="mention.profile?.icon" />
-        <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.icon"></i>
+        <img class="w-4 rounded-full" :src="mention.profile.avatar" v-if="mention.profile?.avatar" />
+        <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.avatar"></i>
         <div class="-mt-1">
           {{ mention.name }}
         </div>
@@ -140,7 +147,7 @@ import TaskCard from '../kanban/TaskCard.vue'
             @click="sendMessage"
             v-if="!editMessage">
             <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
-            <i :class="$projects.chatModes[chat.mode].icon" v-else></i>
+            <i :class="$projects.chatModes[theChat.mode].icon" v-else></i>
           </button>
           <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
             :class="isBrowser && 'btn-warning'"
@@ -149,7 +156,7 @@ import TaskCard from '../kanban/TaskCard.vue'
             <i class="fa-brands fa-chrome"></i>
           </button>
           <button class="btn btn btn-sm btn-outline tooltip btn-warning"
-            data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && chat.mode === 'chat'">
+            data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
             <i class="fa-solid fa-code"></i>
           </button>
 
@@ -189,11 +196,11 @@ import TaskCard from '../kanban/TaskCard.vue'
                   Voice mode
                 </a>
               </li>
-              <li class="btn btn-sm text-white btn-error tooltip"
+              <li class="btn btn-sm btn-error brn-circleZ tooltip"
                 data-tip="Delete?"
                 @click="$emit('delete')">
                 <a>
-                  <i class="fa-solid fa-trash-can"></i>
+                  <i class="fa-solid fa-cross"></i>
                   Delete
                 </a>
               </li>
@@ -243,6 +250,18 @@ import TaskCard from '../kanban/TaskCard.vue'
         </button>
       </label>
     </modal>
+
+    <modal v-if="showModal">
+      <div class="flex flex-col gap-2">
+        <div class="text-xl">Confirm Deletion</div>
+        <p>Are you sure you want to delete this task?</p>
+        <div class="font-bold text-primary text-xl">{{ taskToDelete.name }}</div>
+        <div class="flex justify-end gap-2">
+          <button class="btn" @click="showModal = false">Cancel</button>
+          <button class="btn btn-error" @click="deleteTask">Delete</button>
+        </div>
+      </div>
+    </modal>
   </div>
 </template>
 
@@ -250,7 +269,7 @@ import TaskCard from '../kanban/TaskCard.vue'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chatId', 'showHidden', 'childrenChats'],
+  props: ['chat', 'chatId', 'showHidden', 'childrenChats'],
   data() {
     return {
       waiting: false,
@@ -273,7 +292,9 @@ export default {
       isVoiceSession: false,
       recognition: null,
       isBrowser: false,
-      syncEditableTextInterval: null
+      syncEditableTextInterval: null,
+      showModal: false,
+      taskToDelete: null
     }
   },
   created() {
@@ -285,14 +306,14 @@ export default {
     clearInterval(this.syncEditableTextInterval)
   },
   computed: {
-    chat() {
-      return this.$projects.chats[this.chatId]
+    theChat() {
+      return this.chat || this.$projects.chats[this.chatId]
     },
     visibleMessages() {
-      return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
+      return this.theChat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
     lastAIMessage() {
-      const { messages } = this.chat
+      const { messages } = this.theChat
       const aiMsgs = messages.filter(m => !m.hide && m.role === 'assistant')
       if (aiMsgs.length) {
         const { diffMessage } = this
@@ -302,7 +323,7 @@ export default {
     },
     diffMessage() {
       if (this.isTask) {
-        const { messages } = this.chat
+        const { messages } = this.theChat
         const aiMsgs = messages.filter(m => m.role === 'assistant')
         if (aiMsgs.length > 1) {
           return aiMsgs[aiMsgs.length - 2]
@@ -311,10 +332,10 @@ export default {
       return null
     },
     messages() {
-      if (!this.chat?.messages?.length) {
+      if (!this.theChat?.messages?.length) {
         return []
       }
-      const { messages } = this.chat
+      const { messages } = this.theChat
       if (this.isTask) {
         const aiMsg = this.lastAIMessage
         const lastMsg = messages[messages.length - 1]
@@ -344,7 +365,7 @@ export default {
       return this.messageText || this.images?.length
     },
     isTask() {
-      return this.chat?.mode === 'task'
+      return this.theChat?.mode === 'task'
     },
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
@@ -353,6 +374,14 @@ export default {
     },
     showTermSearch() {
       return this.searchTerms?.length
+    },
+    lastChatEvent() {
+      const { events } = this.$storex.session
+      const event = events[events.length - 1]
+      if (event?.data.chat?.id === this.theChat.id) {
+        const message = event.data.message?.content || ""
+        return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type || event.data.type || ''} ${event.data.text || ''}\n${message}`
+      } 
     }
   },
   watch: {
@@ -379,8 +408,8 @@ export default {
         return this.onResetEdit()
       }
       console.log("onEditMessage", message)
-      this.editMessageId = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
-      this.editMessage = this.chat.messages[this.editMessageId]
+      this.editMessageId = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)
+      this.editMessage = this.theChat.messages[this.editMessageId]
       try {
         this.images = message.images.map(JSON.parse)
       } catch { }
@@ -400,7 +429,7 @@ export default {
     },
     async improveCode() {
       this.postMyMessage()
-      await this.$projects.codeImprove(this.chat)
+      await this.$projects.codeImprove(this.theChat)
       this.testProject()
     },
     runEdit(codeSnipped) {
@@ -414,19 +443,21 @@ export default {
       )
     },
     addMessage(msg) {
-      this.chat.messages = [
-        ...this.chat.messages || [],
+      this.theChat.messages = [
+        ...this.theChat.messages || [],
         msg
       ]
     },
     getUserMessage() {
       const message = this.$refs.editor.innerText
       const files = this.messageMentions.filter(m => m.file).map(m => m.file)
+      const profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
       return {
         role: 'user',
         content: message,
         images: this.images.map(JSON.stringify),
-        files
+        files,
+        profiles
       }
     },
     postMyMessage() {
@@ -451,9 +482,20 @@ export default {
         this.updateMessage()
       } else {
         this.postMyMessage()
-        await this.sendChatMessage(this.chat)
+        await this.sendChatMessage(this.theChat)
       }
       this.saveChat()
+    },
+    confirmDeleteTask(child) {
+      this.taskToDelete = child
+      this.showModal = true
+    },
+    deleteTask() {
+       if (this.taskToDelete) {
+         this.$projects.deleteChat(this.taskToDelete)
+       }
+       this.taskToDelete = null
+       this.showModal = false
     },
     async navigate() {
       if (!this.editorText) {
@@ -465,20 +507,20 @@ export default {
         return
       }
       const message = this.getUserMessage()
-      const { data } = await this.sendChatMessage({
+      const data = await this.sendChatMessage({
         mode: 'browser',
         messages: [
-          ...this.chat.messages,
+          ...this.theChat.messages,
           message
         ]
       })
-      this.chat.messages = data.messages
+      this.theChat.messages = data.messages
       this.saveChat()
       this.cleanUserInputAndWaitAnswer()
     },
     getSendMessage() {
       return this.editMessage ||
-        this.chat.messages[this.chat.messages.length - 1].content
+        this.theChat.messages[this.theChat.messages.length - 1].content
     },
     async askKnowledge() {
       const searchTerm = this.$refs.editor.innerText
@@ -489,7 +531,7 @@ export default {
         cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,
         documentCount: API.lastSettings.knowledge_search_document_count
       }
-      const { data: { documents } } = await API.knowledge.search(knowledgeSearch)
+      const { documents } = await API.knowledge.search(knowledgeSearch)
       const docs = documents.map(doc => `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``)
       this.$refs.editor.innerText = docs.join("\n")
     },
@@ -518,6 +560,10 @@ export default {
     async updateMessage() {
       const { innerText } = this.$refs.editor
       const images = this.images.map(JSON.stringify)
+      
+      this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
+      this.editMessage.profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
+
       this.editMessage.content = innerText
       this.editMessage.images = images
       this.editMessage.updated_at = new Date().toISOString()
@@ -533,12 +579,17 @@ export default {
       this.$emit("delete-message", message)
     },
     async searchKeywords() {
-      this.searchTerms = this.$projects.mentionList.filter(mention => mention.name.includes(this.termSearchQuery))
+      const searchQuery = this.termSearchQuery?.toLowerCase()
+      this.searchTerms = this.$projects.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
       this.searchTermSelIx = 0
     },
     addSerchTerm(term) {
       let text = this.$refs.editor.innerText
-      this.$refs.editor.innerText = text.replace(this.getCursorWord(), '@' + term.name)
+      const replaceWord = this.getCursorWord()
+      const caretIndex = this.getEditorCaretCharOffset()
+      const startIndex = caretIndex - replaceWord.length
+      const newText = [text.slice(0, startIndex), '@' + term.name, text.slice(caretIndex)].join('')
+      this.$refs.editor.innerText = newText
       this.closeTermSearch()
     },
     getEditorCaretCharOffset() {
@@ -575,7 +626,6 @@ export default {
       const lastWord = this.getCursorWord()
       const mention = lastWord[0] === '@' ? lastWord?.slice(1) : null
       if (mention?.length >= 3 &&
-        !this.termSearchQuery?.startsWith(mention) &&
         !this.$projects.mentionList.find(m => m.name === mention)) {
         this.termSearchQuery = mention
       }
@@ -600,7 +650,9 @@ export default {
       }
     },
     saveChat() {
-      return API.chats.save(this.chat)
+      if (!this.theChat.temp) { 
+        return API.chats.save(this.theChat)
+      }
     },
     onDrop(e) {
       this.onDraggingOverInput = false
@@ -673,7 +725,7 @@ export default {
       this.selectFile = false
     },
     onGenerateCode(codeBlockInfo) {
-      this.$projects.generateCode({ chat: this.chat, codeBlockInfo })
+      this.$projects.generateCode({ chat: this.theChat, codeBlockInfo })
     },
     removeImage(ix) {
       this.images = this.images.filter((i, imx) => imx !== ix)
@@ -687,7 +739,7 @@ export default {
     },
     async testProject() {
       throw new Error('Obsolte')
-      const { data } = await API.project.test()
+      const data = await API.projects.test()
       this.testError = data
       if (this.testError) {
         this.editMessage = this.testError

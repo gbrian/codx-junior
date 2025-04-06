@@ -5,7 +5,7 @@ import { API } from '../api/api';
 const allProjects = ref([]);
 
 const getAllProjects = async () => {
-  const { data } = await API.project.list();
+  const data = await API.projects.list();
   allProjects.value = data;
 };
 

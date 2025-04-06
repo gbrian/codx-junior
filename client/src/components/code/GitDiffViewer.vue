@@ -2,19 +2,19 @@
 </script>
 
 <template>
-<div class="w-full h-full flex flex-col gap-2">
-  <div v-for="file in parsedDiff" :key="file.path">
-    <div clas="flex gap-2">
-      <div class="cursor-pointer" @click.stop="toggleExpanded(file)">
-        {{ file.path }}
-        <button class="btn btn-sm">
-          <i class="fa-solid fa-caret-up" v-if="expandedFiles[file.path]"></i>
+<div class="w-full flex flex-col gap-2 overflow-auto">
+  <div class="relative" v-for="file in parsedDiff" :key="file.path">
+    <div clas="flex gap-2 relative">
+      <div class="click sticky top-0 hover:underline" @click="openFile(file)">
+        <button class="btn btn-sm" @click.stop="toggleExpanded(file)">
+          <i class="fa-solid fa-caret-up" v-if="!collapsedFiles[file.path]"></i>
           <i class="fa-solid fa-caret-down" v-else></i>
         </button>
+        {{ file.path }}
       </div>
     </div>
     <div>
-      <markdown :text="file.diff" v-if="expandedFiles[file.path]"></markdown>
+      <markdown :text="file.diff" v-if="!collapsedFiles[file.path]"></markdown>
     </div>
   </div>
 </div>
@@ -25,7 +25,7 @@ export default {
   props:['diff'],
   data () {
     return {
-      expandedFiles: {}
+      collapsedFiles: {}
     }
   },
   computed: {
@@ -35,10 +35,10 @@ export default {
   },
   methods: {
     toggleExpanded(file) {
-      if (this.expandedFiles[file.path]) {
-        this.expandedFiles[file.path] = false
+      if (this.collapsedFiles[file.path]) {
+        this.collapsedFiles[file.path] = false
       } else {
-        this.expandedFiles[file.path] = true
+        this.collapsedFiles[file.path] = true
       }
     },
     parseDiff(diffData) {
@@ -61,8 +61,9 @@ export default {
       })
       return files
     },
-    openFile(filePath) {
-      this.$ui.ui.coderOpenPath(filePath)
+    openFile(file) {
+      const filePath = `${this.$project.project_path}/${file.path}`
+      this.$ui.openFile(filePath)
     },
     toggleCollapse(filePath) {
       if (this.collapsedFiles.has(filePath)) {

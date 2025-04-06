@@ -19,7 +19,6 @@ export const state = () => ({
   profiles: [],
   selectedProfile: null,
   kanban: {},
-  chatBuffer:{},
   project_branches: {},
   projectLoading: false,
   knowledge: null
@@ -85,7 +84,11 @@ export const getters = getterTree(state, {
   currentBranch: state => state.project_branches.current_branch,
   mentionList: () => {
     return [
-      ...$storex.projects.profiles.map(profile => ({ name: profile.name, profile, tooltip: `Chat with ${profile.name}` })),
+      ...$storex.projects.profiles.map(profile => ({ 
+          name: profile.name,
+          profile,
+          tooltip: profile.description 
+        })),
       ...[
         $storex.projects.activeProject,
         $storex.projects.parentProject,
@@ -95,8 +98,8 @@ export const getters = getterTree(state, {
         .filter(project => project)
         .map(project => ({ name: project.project_name, project, tooltip: `Search in project ${project.project_name}` })),
       ...[
-        ...$storex.projects.knowledge.files,
-        ...$storex.projects.knowledge.pending_files
+        ...$storex.projects.knowledge?.files || [],
+        ...$storex.projects.knowledge?.pending_files || []
       ]
         .map(file => ({ file,
                         name: `file://${file.split('/').reverse()[0]}`,
@@ -105,7 +108,7 @@ export const getters = getterTree(state, {
         .map(({ file, name, filePath }) => ({ name, 
                         file, 
                         tooltip: `Use file ${filePath}` })),
-    ]
+    ].map(m => ({ ...m, searchIndex: m.name.toLowerCase() }))
   },
 })
 
@@ -116,7 +119,7 @@ export const actions = actionTree(
       await $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
-      await API.project.list()
+      await API.projects.list()
       $storex.projects.setAllProjects(API.allProjects)
       if (API.lastSettings) {
         try {
@@ -146,15 +149,15 @@ export const actions = actionTree(
     },
     async loadProjectKnowledge({ state }) {
       state.knowledge = null
-      const { data } = await API.knowledge.status()
+      const data = await API.knowledge.status()
       state.knowledge = data
     },
     async loadProfiles({ state }) {
-      const { data: profiles } = await $storex.api.profiles.list();
+      const profiles = await $storex.api.profiles.list();
       state.profiles = profiles
     },
     async loadBranches({ state }) {
-      state.project_branches = await $storex.api.project.branches()
+      state.project_branches = await $storex.api.projects.branches()
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()
@@ -176,9 +179,13 @@ export const actions = actionTree(
       }
       return loadedChat
     },
-    async deleteChat(_, chat) {
-      await API.chats.delete(chat)
-      await $storex.projects.loadChats()
+    async deleteChat({ state }, chat) {
+      if (!chat.temp) {
+        await API.chats.delete(chat)
+        await $storex.projects.loadChats()
+      } else {
+        delete state.chats[chat.id]
+      }
     },
     async setActiveChat({ state }, chat) {
       if (chat) {
@@ -224,7 +231,7 @@ export const actions = actionTree(
       return state.activeProject
     },
     async createNewProject(_, projectPath) {
-      const { data: newProject } = await API.project.create(projectPath)
+      const newProject = await API.projects.create(projectPath)
       if (!newProject) {
         return null
       }
@@ -241,7 +248,7 @@ export const actions = actionTree(
     },
     async fetchAPILogs() {
       try {
-        const { data } = await API.logs.read("codx-junior-api")
+        const data = await API.logs.read("codx-junior-api")
         return data
       } catch (error) {
         console.error(error)
@@ -258,10 +265,11 @@ export const actions = actionTree(
       }
       $storex.session.socket.emit('codx-junior-chat', data)
     },
-    async createSubTasks({ state }, chat) {
+    async createSubTasks({ state }, { chat, instructions }) {
       const data = {
         codx_path: state.activeProject.codx_path,
-        chat
+        chat,
+        instructions
       }
       $storex.session.socket.emit('codx-junior-subtasks', data)
     },
@@ -288,6 +296,14 @@ export const actions = actionTree(
       }
       $storex.session.socket.emit('codx-junior-generate-code', data)
     },
+    createSubtasks({ state }, { chat, instructions }) {
+      const data = {
+        codx_path: state.activeProject.codx_path,
+        chat,
+        instructions
+      }
+      $storex.session.socket.emit('codx-junior-generate-tasks', data)
+    },
     async onChatEvent({ state }, { event, data }) {
       const {
         chat: {
@@ -295,11 +311,18 @@ export const actions = actionTree(
         },
         message,
         event_type,
-        type
+        type,
+        codx_path
       } = data
 
-      if ((type || event_type === 'changed') && chatId) {
-        await $storex.projects.loadChat({ id: chatId })
+      if (event_type === 'error') {
+        $storex.ui.addNotification({ text: message, type: event_type })
+      }
+    
+      if (chatId && (!state.chats[chatId] || type === 'changed')) {
+        if (codx_path === state.activeProject.codx_path) {
+            await $storex.projects.loadChat({ id: chatId })
+        }
       }
 
       if (chatId) {
@@ -307,11 +330,8 @@ export const actions = actionTree(
         if (chat && message) {
           const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
           if (currentMessage) {
-            state.chatBuffer[chatId] = (state.chatBuffer[chatId]||"") + message.content
-            if (state.chatBuffer[chatId].length > 100) {
-              currentMessage.content += state.chatBuffer[chatId]
-              state.chatBuffer[chatId] = ""
-            }
+            currentMessage.content += message.content
+            currentMessage.updated_at = new Date().toISOString()
           } else {
             chat.messages.push(message)
           }
@@ -319,11 +339,18 @@ export const actions = actionTree(
       }
     },
     createNewChat({ state}, chat) {
-      if (!chat.id) {
-        chat.id = uuidv4()
+      chat = {
+        id: uuidv4(),
+        mode: 'chat',
+        profiles: [],
+        chat_index: 0,
+        ...chat
       }
       state.chats[chat.id] = chat
-      state.activeChat = chat
+      if (!chat.temp) {
+        state.activeChat = chat
+      }
+      return chat
     },
     async loadKanban({ state }) {
       state.kanban = await  $storex.api.chats.kanban.load()
@@ -332,7 +359,7 @@ export const actions = actionTree(
       await $storex.api.chats.kanban.save(state.kanban)
     },
     async saveProfile({ state }, profile) {
-      const { data } = await $storex.api.profiles.save(profile)
+      const data = await $storex.api.profiles.save(profile)
       state.profiles = [...state.profiles.filter(p => p.name !== data.name), data]
       if (state.selectedProfile.name === data.name) {
         state.selectedProfile = data

@@ -30,5 +30,17 @@ class OllamaAI:
         try:
             self.client.pull(self.ai_settings.model)
             self.log(f"ollama pull model {model_info} DONE!")
+            return self.client.show(self.ai_settings.model).model_dump()
         except Exception as ex:
-            logger.exception(f"Error loading model {model_info}: {ex}")
+            logger.exception(f"Error loading model {model_info}: {ex} {self.ai_settings}")
+
+    def prune_models(self, active_models:[str]):
+        self.log(f"ollama prune model list: {active_models}")
+        all_models = self.client.list().models
+        for model_info in all_models:
+            self.log(f"ollama check model: {model_info}")
+            model_name = model_info.model.replace(":latest", "")
+            if model_name not in active_models:
+                self.log(f"ollama delete model: {model_info.model}")
+                self.client.delete(model_info.model)
+                 

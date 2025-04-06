@@ -9,29 +9,47 @@ fi
 source ${CODX_JUNIOR_PATH}/.env
 bash "${CODX_JUNIOR_PATH}/scripts/logo.sh"
 
-# Logs
-export LOGFILE=$CODX_SUPERVISOR_LOG_FOLDER/codx-junior.log
-
-# Apps PIDs
-API_PID=$(pgrep -f "codx.junior.main:app")
-CLIENT_PID=$(pgrep -f "codx-junior/client/node_modules/.bin/vite")
-OLLAMA_PID=$(pgrep -f "ollama")
-NOVNC_PID=$(pgrep -f "vnc ${CODX_JUNIOR_DISPLAY}")
-
-mkdir -p ./logs
+function kill_pid() {
+  if [ "$1" != "" ]; then
+    echo "Stopping pid: $1"
+    sudo kill $1
+    ps --pid "$1" > /dev/null
+    if [ "$?" -eq 0 ]; then
+        echo "Forcing kill $1."
+        sudo kill -9 $1
+    fi
+  fi
+}
 
 function kill_apps() {
-  echo "Stop api pid: ${API_PID}"
-  kill ${API_PID} || true
+  echo "stop supervisor"
+  SUPERVISOR_PID=$(pgrep -f "codx-junior/supervisor.conf")
+  if [ "$SUPERVISOR_PID" != "" ]; then
+    kill_pid $(pgrep -f "codx-junior supervisor") 
+    kill_pid $SUPERVISOR_PID
+  fi
+
+  echo "Stop api"
+  kill_pid $(pgrep -f "run_api")
+  kill_pid $(pgrep -f "codx.junior.main:app")
+  kill_pid $(pgrep -f ".venv_codx_junior_api")
+    
+  echo "Stop client"
+  kill_pid $(pgrep -f "run_client")
+  kill_pid $(pgrep -f "codx-junior/client")
   
-  echo "Stop client pid: ${CLIENT_PID}"
-  kill ${CLIENT_PID} || true
+  echo "Stop llm-factory"
+  kill_pid $(pgrep -f "run_llmFactory")
+  kill_pid $(pgrep -f "llm-factory")
+
+  echo "Stop code-server"
+  kill_pid $(pgrep -f "code-server --bind-addr=0.0.0.0:${CODX_JUNIOR_CODER_PORT}") 
   
-  echo "Stop ollama pid: ${OLLAMA_PID}"
-  kill ${OLLAMA_PID} || true
   
-  echo "Stop noVNC pid: ${NOVNC_PID}"
-  kill ${NOVNC_PID} || true
+  echo "Stop noVNC"
+  kill_pid $(pgrep -f "run_noVNC")
+  kill_pid $(pgrep -f "websockify")
+  sudo vncserver -kill ${CODX_JUNIOR_DISPLAY}
 
 }
 
@@ -47,6 +65,7 @@ Commands:
   stop      Stop the application
   status    Display the status of the application
   logs      Show the tail of the logs file
+            Valida logs: api client coder llm-factory preview supervisor
 EOF
 }
 
@@ -81,21 +100,27 @@ function status() {
 # Function to show the tail of the logs file
 function show_log() {
   echo "Logs for $1 PID $2"
-  tail -n 100 -f ./logs/$1
+  tail -n 100 -f ${CODX_SUPERVISOR_LOG_FOLDER}/$1
 }
 function show_logs() {
     case "$1" in
     api)
-        show_log api ${API_PID}
+        show_log codx-junior-api.log
         ;;
     client)
-        show_log client ${CLIENT_PID}
+        show_log codx-junior-web.log
         ;;
-    ollama)
-        show_log ollama ${OLLAMA_PID}
+    llm-factory)
+        show_log llm-factory.log
         ;;
-    novnc)
-        show_log novnc ${NOVNC_PID}
+    preview)
+        show_log preview.log
+        ;;
+    coder)
+        show_log code-server.log
+        ;;
+    supervisor)
+        show_log supervisord.log
         ;;
     *)
         echo "Invalid command. Use 'logs' to see available commands."
@@ -115,7 +140,7 @@ function run_codx_apps() {
     run_code_server
     run_api
     run_client
-    run_ollama
+    run_llmFactory
     run_noVNC
 }
 
@@ -131,9 +156,9 @@ function run_client() {
     echo "Run client"
     bash "${CODX_JUNIOR_PATH}/scripts/run_client.sh" >> ./logs/client 2>&1 & 
 }
-function run_ollama() {
-    echo "Run ollama"
-    bash "${CODX_JUNIOR_PATH}/scripts/run_ollama.sh" >> ./logs/ollama 2>&1 &
+function run_llmFactory() {
+    echo "Run llm-factory"
+    bash "${CODX_JUNIOR_PATH}/scripts/run_llmFactory.sh" >> ./logs/llm-factory 2>&1 &
 }
 function run_noVNC() {
     echo "Run noVNC"
@@ -141,7 +166,14 @@ function run_noVNC() {
 }
 
 function run_supervisor {
-    /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
+    kill_apps
+    if [ "$(id -u)" != "0" ]; then
+      echo "Switching supervisor to root"
+      sudo USER=$USER HOME=$HOME bash ${CODX_JUNIOR_PATH}/codx-junior supervisor
+    else
+      echo "Running supervisor $USER - $HOME"
+      /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
+    fi
 }
 
 COMMAND=$1

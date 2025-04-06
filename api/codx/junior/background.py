@@ -1,6 +1,7 @@
 import logging
 import time
 import asyncio
+import os
 
 from datetime import datetime
 from threading import Thread
@@ -23,7 +24,7 @@ from codx.junior.settings import (
 logger = logging.getLogger(__name__)
 
 def start_background_services(app):
-
+    logger.info("*** Starting background processes ***")
     AIManager().reload_models(read_global_settings())
 
     def on_project_watcher_changes(changes:[str]):
@@ -68,6 +69,7 @@ def start_background_services(app):
             settings = CODXJuniorSession(settings=project)
             try:
                 await settings.process_project_changes()
+                await settings.process_wiki_changes()
             except Exception as ex:
                 settings.last_error = str(ex)
         while True:

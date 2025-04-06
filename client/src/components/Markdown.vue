@@ -18,6 +18,7 @@ import highlight from 'markdown-it-highlightjs'
     </div>
     <Code
       v-for="code in codeBlocks"
+      class="code-block"
       :key="code.id"
       :code="code"
       @generate-code="$emit('generate-code', $event)"
@@ -70,12 +71,20 @@ export default {
       return md.render("```json\n" + JSON.stringify(this.text, null, 2) + "\n```")
     },
     sanitizedText() {
-      let text = ""
-      if (this.text) {
-        text = this.text
-          .replace("```thymeleaf", "```html")
-          .replace("```md", "")
+      let text = this.text || ""
+      const lines = text.split("\n")
+      const isMdFence = ["```md", "```markdown", "```"].includes(lines[0])
+
+      if (isMdFence) {
+        lines.splice(0, 1)
+        const ix = lines.findIndex(l => l === '```')
+        if (ix !== -1) {
+          lines.splice(ix, 1)
+        }
+        text = lines.join("\n")
       }
+      text = text
+        .replace("```thymeleaf", "```html")
       return text
     }
   },

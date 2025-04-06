@@ -20,6 +20,7 @@ import KanbanList from "./KanbanList.vue"
       class="h-full"
       @chats="onChatEditDone"
       @sub-task="createSubTask"
+      @sub-tasks="createSubTasks"
       @chat="$projects.setActiveChat($event)"
       :kanban="activeBoard"
       v-if="$projects.activeChat"
@@ -61,14 +62,13 @@ import KanbanList from "./KanbanList.vue"
           :disabled="$ui.isMobile"
           @end="onColumnTaskListChanged"
           class="min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
-          :class="$ui.isMobile && 'border border-red-300'"
         >
           <template #item="{ element: column }">
-            <div class="bg-neutral rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
-              :class="column.color && 'border-t-2'"
+            <div class="bg-info/20 rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
+              :class="column.color && 'border-t-4'"
               :style="{ borderColor: column.color }"
             >
-              <div class="group text-neutral-content font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
+              <div class="group font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
                 <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
                   :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
                   <span class="hidden group-hover:block">
@@ -77,6 +77,11 @@ import KanbanList from "./KanbanList.vue"
                 </div>
                 <div class="flex gap-2 items-center grow">
                   <div>{{column.title}}</div>
+                </div>
+                <div class="btn btn-sm" @click="column.showSubTasks = !column.showSubTasks"
+                  :class="column.showSubTasks && 'btn-info'"
+                >
+                  <i class="fa-regular fa-file-lines"></i>
                 </div>
                 <div class="flex gap-2 items-center">
                   <div class="dropdown dropdown-end">
@@ -90,6 +95,9 @@ import KanbanList from "./KanbanList.vue"
                       </li>
                       <li class="flex gap-2" @click="newCodingTask(column.title)">
                         <a>Coding task</a>
+                      </li>
+                      <li class="flex gap-2" @click="importTask(column.title)">
+                        <a>Import task</a>
                       </li>
                     </ul>
                   </div>
@@ -109,8 +117,10 @@ import KanbanList from "./KanbanList.vue"
                       v-if="taskMatchesFilter(task)"
                       :task="task"
                       :itemKey="'id'"
-                      class="cursor-move overflow-hidden mt-2"
-                      :class="lastUpdatedTask.id == task.id ? 'border boder-primary border-dashed':''"
+                      class="click bg-base-100 overflow-hidden mt-2"
+                      :class="[lastUpdatedTask.id == task.id ? 'border boder-primary border-dashed':'',
+                        !column.showSubTasks && task.parent_id && 'hidden'
+                      ]"
                       @click="openChat(task)"
                     />
                   </template>
@@ -317,15 +327,11 @@ export default {
         this.showEditKanbanModal = false
       }
     },
-    createNewChat(base) {
+    async createNewChat(base) {
       return this.$projects.createNewChat({
+        ...base,
         id: uuidv4(),
-        name: "New chat " + this.chats.length + 1,
-        mode: 'task',
-        profiles: ["analyst"],
         board: this.board || "Default",
-        chat_index: 0,
-        ...base
       })
     },
     newAnalysisTask(column) {
@@ -343,6 +349,16 @@ export default {
         mode: 'chat',
         profiles: ["software_developer"]
       })
+    },
+    async importTask(column) {
+      const clipboardContent = await navigator.clipboard.readText();
+      const existingChat = JSON.parse(clipboardContent)
+      const newChat = await this.createNewChat({
+        ...existingChat,
+        id: null,
+        column,
+      })
+      this.$projects.saveChat(newChat)
     },
     async buildKanban() {
       if (this.kanban) {
@@ -405,6 +421,9 @@ export default {
         messages: [{ role: "user", content: description }]
       })
       this.$projects.newChat(chat)
+    },
+    async createSubTasks(event) {
+      this.$projects.createSubtasks(event)
     },
     async addOrUpdateColumn() {
       this.columnTitle = this.columnTitle.trim()

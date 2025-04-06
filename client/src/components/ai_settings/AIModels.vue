@@ -1,4 +1,6 @@
 <script setup>
+import Chat from '../chat/Chat.vue';
+Chat
 </script>
 
 <template>
@@ -12,7 +14,14 @@
         @click="editModel(model)"
       >
         <div class="overflow-hidden">
-          <h2 class="font-bold text-lg text-primary">{{ model.name }}</h2>
+          <h2 class="font-bold text-lg text-primary flex justify-between">
+            <div>
+              <span>{{ model.name }}</span><span class="text-secondary" v-if="model.ai_model && model.name != model.ai_model"> / {{ model.ai_model }}</span>
+            </div>
+            <button class="btn btn-xs btn-circle btn-outline" @click.stop="testModel(model)" v-if="model.model_type === 'llm'">
+              <i class="fa-solid fa-comments"></i>
+            </button>
+          </h2>
           <span class="badge badge-xs badge-warning" v-if="model.model_type === 'llm'">
             <i class="fa-solid fa-brain"></i> LLM
           </span>
@@ -27,6 +36,18 @@
             <tr v-if="model.model_type === 'llm'">
               <td>Temperature:</td>
               <td>{{ model.settings.temperature || '-' }}</td>
+            </tr>
+            <tr v-if="model.model_type === 'llm'">
+              <td>Context:</td>
+              <td>
+                <span v-if="model.settings.context_length">
+                  {{ (model.settings.context_length || 0) / 1024 }}K
+                </span>
+              </td>
+            </tr>
+            <tr v-if="model.model_type === 'llm' && model.settings.merge_messages">
+              <td>Merge messages:</td>
+              <td>{{ model.settings.merge_messages || '-' }}</td>
             </tr>
             <tr v-if="model.model_type === 'embeddings'">
               <td>Vector Size:</td>
@@ -81,11 +102,27 @@
           />
         </div>
         <div class="form-control">
+          <span class="label">AI Provider Model's Name</span>
+          <input
+            class="input input-bordered"
+            v-model="currentModel.ai_model"
+            :placeholder="currentModel.name"
+          />
+        </div>
+        <div class="form-control">
           <span class="label">Model url</span>
           <input
             class="input input-bordered"
             v-model="currentModel.url"
             placeholder="Url"
+          />
+        </div>
+        <div class="form-control" v-if="currentModelIsLLM">
+          <span class="label">Merge messages</span>
+          <input
+            type="checkbox"
+            class="toggle"
+            v-model.number="currentModel.settings.merge_messages"
           />
         </div>
         <div class="form-control" v-if="currentModelIsLLM">
@@ -134,11 +171,18 @@
         </div>
       </div>
     </modal>
+    <modal :close="true" @close="closeTestModel" v-if="testModelChat">
+      <div class="text-xl">
+        Test model <span class="text-primary font-bold">{{ testModelChat.model }}</span>
+      </div>
+      <Chat class="h-96" :chat="testModelChat" />
+    </modal>
   </div>
 </template>
 
 <script>
 export default {
+  props: ['settings'],
   data() {
     return {
       showDialog: false,
@@ -153,15 +197,16 @@ export default {
           chunk_size: 8190
         }
       },
-      modelToDelete: null
+      modelToDelete: null,
+      testModelChat: null
     }
   },
   computed: {
     aiModels() {
-      return this.$storex.api.globalSettings?.ai_models
+      return this.settings.ai_models
     },
     aiProviders() {
-      return this.$storex.api.globalSettings?.ai_providers
+      return this.settings.ai_providers
     },
     currentModelIsLLM() {
       return this.currentModel?.model_type === 'llm'
@@ -190,6 +235,16 @@ export default {
         this.aiModels.splice(index, 1)
       }
       this.showDeleteDialog = false
+    },
+    async testModel(model) {
+      this.testModelChat = await this.$projects.createNewChat({ 
+        temp: true,
+        model: model.name
+      })
+    },
+    closeTestModel() {
+      this.$projects.deleteChat(this.testModelChat)
+      this.testModelChat = null
     }
   }
 }

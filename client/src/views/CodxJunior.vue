@@ -7,18 +7,14 @@ import moment from 'moment'
 
 <template>
   <div class="codx-junior flex min-h-full relative">
-    <div class="absolute top-0 left-0 right-0 bottom-0 z-[100] bg-base-300 flex flex-col justify-center items-center" v-if="$projects.projectLoading">
+    <div class="absolute top-0 left-0 right-0 bottom-0 z-[100] m-2 rounded-lg bg-base-300/70 flex flex-col justify-center items-center" v-if="$projects.projectLoading">
       <div class="text-2xl">Loading...</div>
     </div>
     <div class="grow flex flex-col relative bg-base-100 gap-2 overflow-auto bg-base-300">
       <div class="p-2 flex gap-2 items-center relative justify-between">
-        <ProjectDropdown v-if="!isHelpTabActive" />
-        <div class="badge flex gap-2" v-if="!isHelpTabActive">
-          <span class="text-warning"><i class="fa-solid fa-brain"></i></span>
-              {{ $projects.aiModel }} / 
-              <span class="text-info"><i class="fa-solid fa-file"></i></span>
-              {{ $projects.embeddingsModel }}
-          </div>
+        <div class="flex gap-4 items-start">
+          <ProjectDropdown v-if="!isHelpTabActive" />
+        </div>
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
         </button>
@@ -32,7 +28,7 @@ import moment from 'moment'
         </div>
       </div>
 
-      <div class="grow p-2 bg-base-100">
+      <div class="grow p-2 bg-base-100 overflow-auto">
         <TabViewVue  :key="projectKey" />
       </div>
     </div>
@@ -131,7 +127,7 @@ export default {
       this.init(path)
     },
     async createNewProject() {
-      const { data: { codx_path } } = await API.project.create(this.getProjectPath())
+      const { codx_path } = await API.projects.create(this.getProjectPath())
       this.openProject(codx_path)
     },
     async getAllProjects() {
@@ -145,7 +141,7 @@ export default {
       this.showOpenProjectModal = false
     },
     async deleteProject() {
-      await API.project.delete()
+      await API.projects.delete()
       this.setActiveTab('home')
     },
     openTask(task) {

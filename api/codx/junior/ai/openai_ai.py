@@ -62,7 +62,11 @@ class OpenAI_AI:
 
     def convert_message(self, gpt_message: Union[AIMessage, HumanMessage, BaseMessage]): 
         if gpt_message.type == "image":
-            return { "content": json.loads(gpt_message.content), "role": "user" }
+            try:
+                return { "content": json.loads(gpt_message.content), "role": "user" }
+            except Exception as ex:
+                self.log(f"Error converting image message '{ex}': {gpt_message}")
+                raise ex
         return {
             "role": "assistant" if gpt_message.type == "ai" else "user",
             "content": gpt_message.content
@@ -78,10 +82,14 @@ class OpenAI_AI:
         if self.llm_settings.temperature:
             kwargs["temperature"] = float(self.llm_settings.temperature) 
 
-        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}... {kwargs}")
+        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
 
         openai_messages = [self.convert_message(msg) for msg in messages]
-        
+
+        if self.llm_settings.merge_messages:
+            message = "\n".join([message['content'] for message in openai_messages])
+            openai_messages = [{ "role": "user", "content": message }]
+        self.log(f"USER REQUEST:\n{openai_messages}")
         response_stream = self.client.chat.completions.create(
             **kwargs,
             messages=openai_messages
@@ -89,9 +97,25 @@ class OpenAI_AI:
         callbacks = config.get("callbacks", None)
         content_parts = []
         if self.settings.get_log_ai():
-            self.log("Received AI response, start reading stream")
+            self.log("\nReceived AI response, start reading stream\n")
         try:
-            callback_buffer = []
+            callback_data = {
+              "buffer": [],
+              "ts": datetime.now()
+            }
+            def send_callback(force=False):
+              if callbacks:
+                  callback_data["buffer"].append(chunk_content)
+                  if force or (datetime.now() - callback_data["ts"]).total_seconds() > 1:
+                      callback_data["ts"] = datetime.now()
+                      message = "".join(callback_data["buffer"])
+                      callback_data["buffer"] = []
+                      for cb in callbacks:
+                          try:
+                              cb(message)
+                          except Exception as ex:
+                              logger.error(f"ERROR IN CALLBACKS: {ex}")
+
             for chunk in response_stream:
                 # Check for tools
                 #tool_calls = self.process_tool_calls(chunk.choices[0].message)
@@ -99,23 +123,18 @@ class OpenAI_AI:
                 #    messages.append(HumanMessage(content=tool_calls))
                 #    return self.chat_completions(messages=messages)
                 chunk_content = chunk.choices[0].delta.content
-                if chunk_content:
-                    content_parts.append(chunk_content)
-                    if callbacks:
-                        callback_buffer.append(chunk_content)
-                        if len(callback_buffer) > 100:
-                            message = "".join(callback_buffer)
-                            callback_buffer = []
-                            for cb in callbacks:
-                                try:
-                                    cb(message)
-                                except Exception as ex:
-                                    logger.error(f"ERROR IN CALLBACKS: {ex}")
+                if not chunk_content:
+                    continue
+                content_parts.append(chunk_content)
+                send_callback()
+            # Last chunks...
+            send_callback(True)  
         except Exception as ex:
             logger.exception(f"Error reading AI response {ex}")
         
-        self.log(f"AI response done {len(content_parts)} chunks")
         response_content = "".join(content_parts)
+        self.log(f"AI RESPONSE:\n{response_content}")
+        
         return AIMessage(content=response_content)
 
     def process_tool_calls(self, message):

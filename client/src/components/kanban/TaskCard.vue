@@ -13,7 +13,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
         <div class="flex justify-between">
           <div class="font-semibold tracking-wide text-sm flex gap-2">
             <div class="rounded-full">
-              <ChatIcon :chat="task" />
+              <ChatIcon :mode="task.mode" />
             </div>
             <div class="overflow-hidden">{{ task.name }}</div>
           </div>
@@ -36,18 +36,20 @@ import ChatIcon from '../chat/ChatIcon.vue'
         </div>
       </div>
       <div class="flex justify-between items-center">
-        <div v-if="subTasks.length" class="text-xs font-bold tooltip tooltip-left" :data-tip="`${subTasks.length} sub tasks`">
-          {{ subTasks.length }}
-          <i class="fa-regular fa-file-lines"></i>
+        <div class="flex justify-end">
+          <button class="btn btn-circle btn-sm" @click.stop="openSettingsModal">
+            <i class="fas fa-cog"></i>
+          </button>
         </div>
-        <div v-if="chatProject" class="badge badge-sm badge-warning">
-          {{ chatProject.project_name }}
+        <div class="flex justify-between items-center badge badge-warning" v-if="subTasks.length">
+          <div class="text-xs font-bold tooltip tooltip-left" :data-tip="`${subTasks.length} sub tasks`">
+            {{ subTasks.length }}
+            <i class="fa-regular fa-file-lines"></i>
+          </div>
+          <div v-if="chatProject" class="badge badge-sm badge-warning">
+            {{ chatProject.project_name }}
+          </div>
         </div>
-      </div>
-      <div class="flex justify-end">
-        <button class="btn btn-circle btn-sm" @click.stop="openSettingsModal">
-          <i class="fas fa-cog"></i>
-        </button>
       </div>
     </div>
     <modal v-if="isSettingsModalOpen" @click.stop>
@@ -78,6 +80,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
         </div>
       </div>
     </modal>
+    <progress class="progress w-full" v-if="updating"></progress>
   </div>
 </template>
 <script>
@@ -119,6 +122,15 @@ export default {
     },
     parentChat() {
       return this.$projects.chats[this.task.parent_id]
+    },
+    updating() {
+      const { messages } = this.task
+      if (!messages?.length) {
+        return false
+      }
+      return moment().diff(
+          moment(messages[messages.length - 1].updated_at)
+        , 'seconds') < 10
     }
   },
   methods: {

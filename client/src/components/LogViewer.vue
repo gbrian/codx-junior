@@ -254,7 +254,7 @@ export default {
     },
     async fetchLogNames() {
       try {
-        const response = await API.logs.list()
+        const response = await this.$storex.api.logs.list()
         this.logNames = response.data
         if (this.logNames.length) {
           this.selectedLog = this.logNames[0]
@@ -266,7 +266,7 @@ export default {
     },
     async fetchLogs() {
       const forceScroll = this.logs.length === 0
-      const { data } = await this.$storex.api.logs.read(this.selectedLog, this.tailSize)
+      const data = await this.$storex.api.logs.read(this.selectedLog, this.tailSize)
       const newLogs = data.filter(l =>
         !["api/logs", "/var/log/"].some(pattern => l.content.includes(pattern)) &&
         !this.logs.find(ll => ll.id === l.id))

@@ -53,10 +53,12 @@ class Knowledge:
     def refresh_last_update(self):
         self.get_db().refresh_last_update()
 
-    def detect_changes(self):
+    def detect_changes(self, last_update = None):
       current_sources = self.get_all_sources()
+      if not last_update:
+          last_update = self.get_db().last_update
       changes = self.loader.list_repository_files(
-                          last_update=self.get_db().last_update if current_sources else None,
+                          last_update=last_update if current_sources else None,
                           current_sources=current_sources,
                           ignore_paths=self.settings.get_ignore_patterns())
       

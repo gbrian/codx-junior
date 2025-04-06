@@ -18,8 +18,6 @@ import pydantic
 logger = logging.getLogger(__name__)
 logger.info(f"PYDANTIC VERSION: {pydantic.__version__}")
 
-KNOWLEDGE_CONTEXT_SCORE_MATCH = re.compile(r".*([0-9]+)%", re.MULTILINE)
-
 class AICodeValidateResponse(BaseModel):
     new_content: str = Field(description="Full generated content that will overwrite source file.")
 
@@ -106,18 +104,27 @@ def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
 def ai_validate_context(ai, prompt, doc, retry_count=0):
     assert prompt
     parser = PydanticOutputParser(pydantic_object=AIDocValidateResponse)
-    validation_prompt = \
-    f"""
-    Given this document:
-    {document_to_context(doc)}
     
-    Explain how important it is for the user's request:
-    >>> "{prompt}" <<<
+    json_example = """{
+      "score": 0.8,
+      "analysis": "Brief explanation on why this document is relevant for the user request"
+    }"""
 
-    OUTPUT INSTRUCTIONS:
-    {parser.get_format_instructions()}
+    validation_prompt = f"""
+    <document>
+    {document_to_context(doc)}
+    </document>
+    <user_request>
+    {prompt}
+    </user_request>
+
+    INSTRUCTIONS:
+    Score from 0 to 1 how important is the document for the user_request.
+    Where 0 is not important at all or has low value and 1 is highly imortant.
+    Return a single JSON object like this:
+    ```json
+    {json_example}
     ```
-    Where "score" is a value from 0 to 1 indicating how important is this document, being 1 really important.
     """
     messages = [HumanMessage(content=validation_prompt)]
     score = None
