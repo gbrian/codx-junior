@@ -9,6 +9,9 @@ import router from './router'
 import Markdown from '@/components/Markdown.vue'
 import FloatingVue from 'floating-vue'
 
+// BUG: error loading module. Keep it here
+import highlightjs from 'highlight.js'
+
 const globalMixin = {
   computed: {
     $storex () {
