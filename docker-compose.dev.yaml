@@ -1,8 +1,6 @@
 services:
 
   codx-junior-build:
-    env_file:
-      - .env
     container_name: codx-junior-build
     image: codx-junior:latest
     build: 

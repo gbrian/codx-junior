@@ -1,7 +1,7 @@
 #!/bin/bash
 # Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
 export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")/.." && pwd)"
-source ${CODX_JUNIOR_PATH}/.env
+source ${CODX_JUNIOR_PATH}/set_env.sh
 
 echo "CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
 echo "Starting client USER: ${USER} HOME: ${HOME}"

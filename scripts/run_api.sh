@@ -4,7 +4,7 @@ export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")/.." && pwd)"
 echo "CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
 echo "Starting api USER: ${USER} HOME: ${HOME}"
 
-source ${CODX_JUNIOR_PATH}/.env
+source ${CODX_JUNIOR_PATH}/set_env.sh
 
 export PYTHONPATH=${CODX_JUNIOR_PATH}/api
 export CODX_JUNIOR_STATIC_FOLDER=${CODX_JUNIOR_PATH}/client/dist

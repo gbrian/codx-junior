@@ -12,7 +12,7 @@ log_error() {
 set -e
 
 # Load .env variables
-export $(grep -v '^#' ${CODX_JUNIOR_PATH}/.env | xargs)
+source ${CODX_JUNIOR_PATH}/set_env.sh
 
 bash scripts/logo.sh
 
