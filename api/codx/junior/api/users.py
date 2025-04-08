@@ -6,6 +6,10 @@ from codx.junior.engine import (
   CODXJuniorSession,
 )
 
+from codx.junior.security.user_management import UserSecurityManager 
+from codx.junior.model.model import CodxUserLogin
+
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -13,4 +17,5 @@ router = APIRouter()
 @router.post("/users/login")
 async def create_completion(request: Request):  
     body = await request.json()
-    return { **body, "avatar": "https://avatar.iran.liara.run/public/21", "token": "" }
+    user = UserSecurityManager().login_user(CodxUserLogin(**body))
+    return user

@@ -14,6 +14,7 @@ import HelpView from "@/views/HelpView.vue"
 import PRView from "@/views/PRView.vue"
 import MetricsViewer from "./metrics/MetricsViewer.vue"
 import PreviewVue from "./apps/Preview.vue"
+import AccountSettings from './security/AccountSettings.vue'
 </script>
 <template>
   <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder":class="$ui.tabIx" />
@@ -30,6 +31,7 @@ import PreviewVue from "./apps/Preview.vue"
   <PRView class="w-full h-full" v-if="$ui.tabIx == 'prview'":class="$ui.tabIx" />
   <MetricsViewer class="w-full h-full" v-if="$ui.tabIx == 'metrics'":class="$ui.tabIx" />
   <PreviewVue class="h-full w-full" :token="$ui.monitorToken" v-if="$ui.showBrowser && $ui.isMobile" />
+  <AccountSettings v-if="$ui.tabIx == 'account'":class="$ui.tabIx" />
 </template>
 <script>
 export default {

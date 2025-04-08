@@ -34,29 +34,28 @@ class CodxJuniorConnection {
   get(url) {
     this.liveRequests++;
     return this.axiosInstance.get(this.prepareUrl(url), { headers: this.headers })
-      .catch(console.error)
+      .then(({ data }) => data)
       .finally(() => this.liveRequests--);
   }
 
   del(url) {
     this.liveRequests++;
     return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
-      .catch(console.error)
       .finally(() => this.liveRequests--);
   }
 
   post(url, data) {
     this.liveRequests++;
     return this.axiosInstance.post(this.prepareUrl(url), data, { headers: this.headers })
-      .catch(console.error)
+      .then(({ data }) => data)
       .finally(() => this.liveRequests--);
   }
 
   put(url, data) {
     this.liveRequests++;
     return this.axiosInstance.put(this.prepareUrl(url), data, { headers: this.headers })
-      .catch(console.error)
-      .finally(() => this.liveRequests--);
+          .then(({ data }) => data)
+          .finally(() => this.liveRequests--);
   }
 }
 
@@ -80,36 +79,22 @@ const initializeAPI = () => {
       };
     },
     get(url) {
-      API.connection.liveRequests++;
       return API.connection.get(url)
-        .then(({ data }) => data)
-        .catch(console.error)
-        .finally(() => API.connection.liveRequests--);
     },
     del(url) {
-      API.connection.liveRequests++;
       return API.connection.del(url)
-        .catch(console.error)
-        .finally(() => API.connection.liveRequests--);
     },
     post(url, data) {
-      API.connection.liveRequests++;
       return API.connection.post(url, data)
-        .then(({ data }) => data)
-        .catch(console.error)
-        .finally(() => API.connection.liveRequests--);
     },
     put(url, data) {
-      API.connection.liveRequests++;
       return API.connection.put(url, data)
-        .then(({ data }) => data)
-        .catch(console.error)
-        .finally(() => API.connection.liveRequests--);
     },
-    user: {
+    users: {
       async login(user) {
         const data = await API.post('/api/users/login', user);
         API.user = data;
+        localStorage.setItem("CODX_USER", JSON.stringify(API.user))
         return data;
       },
       async save(user) {
@@ -421,6 +406,9 @@ const initializeAPI = () => {
       });
     }
   };
+  try {
+    API.user = JSON.parse(localStorage.getItem("CODX_USER"))
+  } catch{}
   return API;
 };
 

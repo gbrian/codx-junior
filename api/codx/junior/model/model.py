@@ -1,6 +1,7 @@
 import os
+import regex
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, constr, validator
 from enum import Enum
 from datetime import datetime
 
@@ -55,10 +56,21 @@ class Tool(BaseModel):
 class CodxJuniorBaseTools(BaseModel):
     knowledge:Tool = Tool(name="knowledge", description="Project's knowledge search")
     
-class CodxUser(BaseModel):
-    name: str = Field(default="")
-    avatar: str = Field(default="")
-    personality: str = Field(default="")
+
+class ProjectPermission(BaseModel):
+    project_id: str
+    permissions: str = Field(description="User permissions fof the project", default=[])
+
+class CodxUserLogin(BaseModel):
+    username: Optional[str] = Field(default="")
+    password: Optional[str] = Field(default="")
+    email: Optional[str] = Field(default="")
+    
+class CodxUser(CodxUserLogin):
+    avatar: Optional[str] = Field(default="")
+    projects: Optional[List[ProjectPermission]] = Field(default=[])
+    role: Optional[str] = Field(description="User role", default="user")
+    token: Optional[str] = Field(default="")
 
 class ProfileApiSettings(BaseModel):
     active: bool = Field(description="Model is visible through API", default=False)
@@ -172,7 +184,6 @@ class AISettings(BaseModel):
     merge_messages: Optional[bool] = Field(default=False)
     model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
     url: Optional[str] = Field(description="Model info", default="")
-
     
 OPENAI_PROVIDER = AIProvider(name="openai",
                             provider="openai",
@@ -242,6 +253,9 @@ class GlobalSettings(BaseModel):
       OLLAMA_WIKI_MODEL,
       OLLAMA_EMBEDDINGS_MODEL
     ]
+
+    users: Optional[List[CodxUser]] = Field(default=[])
+    secret: Optional[str] = Field(description="Encription secret", default="codx-junior-rules")
 
 class Screen(BaseModel):
     resolution: str = Field(default='')

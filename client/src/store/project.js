@@ -16,7 +16,6 @@ export const state = () => ({
   selectedLog: null,
   autoRefresh: false,
   changesSummary: null,
-  profiles: [],
   selectedProfile: null,
   kanban: {},
   project_branches: {},
@@ -44,6 +43,7 @@ export const mutations = mutationTree(state, {
 })
 
 export const getters = getterTree(state, {
+  profiles: state => $storex.profiles.profiles[state.activeProject.project_id],
   allChats: state => Object.values(state.chats || {}),
   allTags: state => new Set(Object.values(state.chats||{})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   projectDependencies: state => {
@@ -153,8 +153,7 @@ export const actions = actionTree(
       state.knowledge = data
     },
     async loadProfiles({ state }) {
-      const profiles = await $storex.api.profiles.list();
-      state.profiles = profiles
+      await $storex.profiles.loadProjectProfiles(state.activeProject)
     },
     async loadBranches({ state }) {
       state.project_branches = await $storex.api.projects.branches()
@@ -359,8 +358,7 @@ export const actions = actionTree(
       await $storex.api.chats.kanban.save(state.kanban)
     },
     async saveProfile({ state }, profile) {
-      const data = await $storex.api.profiles.save(profile)
-      state.profiles = [...state.profiles.filter(p => p.name !== data.name), data]
+      const data = await $storex.profiles.saveProfile({ profile, project: state.activeProject })
       if (state.selectedProfile.name === data.name) {
         state.selectedProfile = data
       }

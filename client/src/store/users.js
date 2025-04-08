@@ -27,15 +27,20 @@ export const actions = actionTree(
         userName: "codx-junior", 
         avatar: API.globalSettings.codx_junior_avatar
       }
+      state.user = API.user
     },
     async login({ state }, user) {
-      state.user = await API.user.login(user)
+      try {
+        state.user = await API.users.login(user)
+      } catch(ex) {
+        $storex.session.onError("Login error")
+      }
     },
     async logout({ state }) {
       state.user = null
     },
     async saveUser({ state }, user) {
-      state.user = await API.user.save(user)
+      state.user = await API.users.save(user)
     }
   }
 )

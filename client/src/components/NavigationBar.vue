@@ -139,11 +139,16 @@ import moment from 'moment';
       <div :class="['dropdown dropdown-end click',
         right ? 'dropdown-left' : 'dropdown-right']">
 				<a tabindex="0" class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
-          :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="More settings"
+          :class="right ? 'tooltip-left' : 'tooltip-right'" :data-tip="$users.user.username"
           @click="$ui.readScreenResolutions()">
-           <i class="fa-solid fa-gear"></i>
+          <div class="avatar">
+            <div class="w-8 ring rounded-full">
+              <img :src="$users.user.avatar" />
+            </div>
+          </div>
 				</a>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-72 p-2 shadow-xl">
+          <li><a @click.stop="setActiveTab('account')">Account settings</a></li>
           <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
           <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li><a @click.stop="setActiveTab('knowledge_settings')">Knowledge settings</a></li>
