@@ -212,6 +212,8 @@ import moment from 'moment';
               <div><i class="fa-solid fa-bomb"></i> Restart!</div>
             </div>
           </li>
+          <li class="border"></li>
+          <li><a @click.stop="$users.logout()">Log out</a></li>
         </ul>
 			</div>
     </div>

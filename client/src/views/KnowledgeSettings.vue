@@ -326,16 +326,16 @@ export default {
       searchResults: null,
       showDoc: null,
       searchType: "embeddings",
-      documentSearchType: API.lastSettings.knowledge_search_type,
-      cutoffRag: API.lastSettings.knowledge_context_rag_distance,
-      cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,
-      documentCount: API.lastSettings.knowledge_search_document_count,
-      enableKeywords: API.lastSettings.knowledge_extract_document_tags,
+      documentSearchType: API.activeProject.knowledge_search_type,
+      cutoffRag: API.activeProject.knowledge_context_rag_distance,
+      cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,
+      documentCount: API.activeProject.knowledge_search_document_count,
+      enableKeywords: API.activeProject.knowledge_extract_document_tags,
       selectedFiles: {},
       showIndexFiles: 0,
       fileFilter: null,
       addToIgnore: null,
-      settings: API.lastSettings,
+      settings: API.activeProject,
       resetKnowledge: false
     }
   },
@@ -419,7 +419,7 @@ export default {
   methods: {
     async reloadStatus() {
       const data = await API.knowledge.status()
-      this.settings = { ...API.lastSettings }
+      this.settings = { ...API.activeProject }
       this.status = data
     },
     async reloadFolder(folderToReload) {
@@ -461,17 +461,17 @@ export default {
     async addEntriesToIgnore(entries) {
       const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
       const newIgnore = new Set([...currIgnore, ...entries])
-      API.lastSettings.knowledge_file_ignore = [...newIgnore].join(",")
-      await API.settings.save(API.lastSettings)
+      API.activeProject.knowledge_file_ignore = [...newIgnore].join(",")
+      await API.settings.save(API.activeProject)
       await this.reloadStatus()
       this.selectedFiles = {}
       this.addToIgnore = null
     },
     async removeEntriesFromIgnore(entries) {
-      const currIgnore = API.lastSettings?.knowledge_file_ignore?.split(',') || []
+      const currIgnore = API.activeProject?.knowledge_file_ignore?.split(',') || []
       const newIgnore = currIgnore.filter(e => !entries.includes(e))
-      API.lastSettings.knowledge_file_ignore = newIgnore.join(",")
-      await API.settings.save(API.lastSettings)
+      API.activeProject.knowledge_file_ignore = newIgnore.join(",")
+      await API.settings.save(API.activeProject)
       await this.reloadStatus()
       this.selectedFiles = {}
       this.addToIgnore = null
@@ -524,7 +524,7 @@ export default {
     async saveKnowledgeSettings() {
       await API.settings.read()
       API.settings.save({
-        ...API.lastSettings,
+        ...API.activeProject,
         knowledge_search_type: this.documentSearchType,
         knowledge_context_cutoff_relevance_score: this.cutoffScore,
         knowledge_search_document_count: this.documentCount,
@@ -533,10 +533,10 @@ export default {
       this.reloadStatus()
     },
     async toggleWatch(watching) {
-      if (!API.lastSettings) {
+      if (!API.activeProject) {
         return
       }
-      API.lastSettings.watching = !API.lastSettings.watching
+      API.activeProject.watching = !API.activeProject.watching
       await API.settings.save()
       this.reloadStatus()
     },

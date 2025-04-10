@@ -92,6 +92,8 @@ class CODXJuniorSettings(BaseModel):
 
     project_name: Optional[str] = Field(default=None)
     project_path: Optional[str] = Field(default="")
+    project_branches: Optional[List[str]] = Field(default=[])
+    
     codx_path: Optional[str] = Field(default=None)
     project_wiki: Optional[str] = Field(default=None)
     project_dependencies: Optional[str] = Field(default=None)

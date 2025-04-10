@@ -5,42 +5,40 @@ export const namespaced = true
 
 import { API } from '../api/api'
 export const state = () => ({
-  codxJunior: null,
-  user: null,
-  users: []
 })
 
 export const getters = getterTree(state, {
-  allUsers: ({ codxJunior, users }) => codxJunior ? [ codxJunior, ...users ] : []
+  user: () => API.user,
+  isAdmin: () => API.user?.role === 'admin',
+  allUsers: ({ codxJunior, users }) => codxJunior ? [ codxJunior, ...users ] : [],
+  codxJunior: () => (      state.codxJunior = { 
+        userName: "codx-junior", 
+        avatar: API.globalSettings?.codx_junior_avatar
+      })
 })
 
 export const mutations = mutationTree(state, {
-  setUsers (state, users) {
-  },
 })
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
     async init ({ state }, $storex) {
-      state.codxJunior = { 
-        userName: "codx-junior", 
-        avatar: API.globalSettings.codx_junior_avatar
-      }
-      state.user = API.user
     },
-    async login({ state }, user) {
+    async login({ _ }, user) {
       try {
-        state.user = await API.users.login(user)
+        await API.users.login(user)
+        $storex.init()
       } catch(ex) {
         $storex.session.onError("Login error")
       }
     },
-    async logout({ state }) {
-      state.user = null
+    async logout() {
+      API.users.logout()
+
     },
     async saveUser({ state }, user) {
-      state.user = await API.users.save(user)
+      await API.users.save(user)
     }
   }
 )

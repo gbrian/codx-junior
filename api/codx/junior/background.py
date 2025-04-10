@@ -74,7 +74,7 @@ def start_background_services(app):
                 settings.last_error = str(ex)
         while True:
             try:
-                for project in find_all_projects():
+                for project in find_all_projects().values():
                     try:
                         asyncio.run(check(project=project))
                     except:

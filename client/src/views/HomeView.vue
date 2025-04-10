@@ -19,7 +19,7 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue';
         </label>
       </div>
       <TabNavigationVue v-if="!$projects.activeChat" />
-      <TabViewVue class="grow" />
+      <TabViewVue />
     </div>
     <div class="drawer-side">
       <label for="my-drawer-4" aria-label="close sidebar" class="drawer-overlay"></label>

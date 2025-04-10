@@ -73,12 +73,12 @@ export default {
   },
   computed: {
     subProjects() {
-      return Array.isArray(this.lastSettings?.sub_projects)
-        ? this.lastSettings?.sub_projects
-        : this.lastSettings?.sub_projects?.split(",").filter(p => p.trim().length)
+      return Array.isArray(this.activeProject?.sub_projects)
+        ? this.activeProject?.sub_projects
+        : this.activeProject?.sub_projects?.split(",").filter(p => p.trim().length)
     },
     projectName() {
-      return this.lastSettings?.project_name
+      return this.activeProject?.project_name
     },
     lastNotification() {
       return this.notifications.length > 0 

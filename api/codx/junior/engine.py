@@ -49,7 +49,8 @@ from codx.junior.model.model import (
     ImageUrl,
     LiveEdit,
     GlobalSettings,
-    Profile
+    Profile,
+    CodxUser
 )
 from codx.junior.context import (
     find_relevant_documents,
@@ -79,6 +80,8 @@ from codx.junior.db import (
 )
 
 from codx.junior.sio.session_channel import SessionChannel
+from codx.junior.security.user_management import UserSecurityManager
+
 
 """Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
 MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 300
@@ -132,7 +135,7 @@ def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
 
 def find_project_from_file_path(file_path: str):
     """Given a file path, find the project parent"""
-    all_projects = find_all_projects()
+    all_projects = find_all_projects().values()
     matches = [p for p in all_projects if file_path.startswith(p.project_path)]
     if matches:
         logger.info(f"Find projects for file {file_path}: {[m.project_name for m in matches]}")
@@ -141,19 +144,28 @@ def find_project_from_file_path(file_path: str):
   
 def find_project_by_id(project_id: str):
     """Given a project id, find the project"""
-    all_projects = find_all_projects()
+    all_projects = find_all_projects().values()
     matches = [p for p in all_projects if p.project_id == project_id]
     return matches[0] if matches else None
 
 def find_project_by_name(project_name: str):
     """Given a project project_name, find the project"""
-    all_projects = find_all_projects()
+    all_projects = find_all_projects().values()
     matches = [p for p in all_projects if p.project_name == project_name]
     return matches[0] if matches else None
 
+def find_all_user_projects(user: CodxUser):
+    user_security_manager = UserSecurityManager()
+    for settings in find_all_projects().values():
+        permissions = user_security_manager.get_user_project_access(user=user, settings=settings)
+        if permissions:
+            yield {
+                **settings.__dict__,
+                "permissions": permissions
+            }
 
 def find_all_projects():
-    all_projects = []
+    all_projects = {}
     project_path = "/"
     result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     all_codx_path = result.stdout.decode('utf-8').split("\n")
@@ -163,9 +175,9 @@ def find_all_projects():
         try:
             project_file_path = f"{codx_path}/project.json"
             settings = CODXJuniorSettings.from_project_file(project_file_path)
-            project_exists = [p for p in all_projects if p.project_name == settings.project_name] 
+            project_exists = [p for p in all_projects.values() if p.project_name == settings.project_name] 
             if not project_exists: 
-                all_projects.append(settings)
+                all_projects[settings.project_id] = settings
             else:
                 # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
                 pass 
@@ -173,7 +185,7 @@ def find_all_projects():
             logger.exception(f"Error loading project {str(codx_path)}")
     
     def update_projects_with_details():
-        for project in all_projects:
+        for project in all_projects.values():
             try:
                 command = ["git", "branch", "--show-current"]
                 result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -1249,7 +1261,7 @@ class CODXJuniorSession:
             ai = self.get_ai(llm_model=ai_settings.model)
 
             # Read knowledge
-            search_projects = query_mentions["projects"]
+            search_projects = query_mentions["projects"] + [self.settings]
             if not disable_knowledge and self.settings.use_knowledge and search_projects:
                 self.log_info(f"chat_with_project start project search {search_projects}")
                 try:

@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def get_active_profiles_for_api():
     active_profiles = []
-    for project in find_all_projects():
+    for project in find_all_projects().values():
         profile_manager = ProfileManager(settings=project)
         profiles = profile_manager.list_profiles()
         for profile in profiles:
@@ -38,7 +38,7 @@ async def create_completion(request: Request):
     body = await request.json()
     model = body.get("model")
     project_name, profile_name = model.split("/")
-    project = [p for p in find_all_projects() if p.project_name == project_name][0]
+    project = [p for p in find_all_projects().values() if p.project_name == project_name][0]
     session = CODXJuniorSession(settings=project)
     messages = body.get("messages")
     chat = await session.api_chat_with_project(profile_name=profile_name, messages=messages)

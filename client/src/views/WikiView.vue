@@ -41,7 +41,7 @@ export default {
   },
   computed: {
     settings () {
-      return API.lastSettings
+      return API.activeProject
     }
   },
   methods: {

@@ -116,18 +116,24 @@ export const actions = actionTree(
   { state, getters, mutations },
   {
     async init () {
-      await $storex.projects.loadAllProjects()
+      $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
-      await API.projects.list()
-      $storex.projects.setAllProjects(API.allProjects)
-      if (API.lastSettings) {
-        try {
-          await $storex.projects.setActiveProject(API.lastSettings)
-        } catch {}
-      }
-      if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
-        $storex.projects.setActiveProject($storex.projects.allProjects[0])
+      if ($storex.api.user) {
+        await API.projects.list()
+        $storex.projects.setAllProjects(API.allProjects)
+        if (API.activeProject) {
+          try {
+            await $storex.projects.setActiveProject(API.activeProject)
+          } catch {}
+        }
+        if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
+          $storex.projects.setActiveProject($storex.projects.allProjects[0])
+        }
+      } else { 
+        state.allProjects = []
+        state.activeProject = null
+        state.activeChat = null
       }
     },
     async setActiveProject ({ state }, project) {
@@ -136,12 +142,12 @@ export const actions = actionTree(
       }
       state.projectLoading = true
       try {
-        await API.init(project?.codx_path)
+        await API.setActiveProject(project)
       } finally {
         state.projectLoading = false
       }
       $storex.projects.loadProjectKnowledge()
-      state.activeProject = API.lastSettings
+      state.activeProject = API.activeProject
       state.chats = {}
       state.kanban = {}
       state.activeChat = null
@@ -215,7 +221,7 @@ export const actions = actionTree(
       } finally {
         state.projectLoading = false
       }
-      state.activeProject = API.lastSettings
+      state.activeProject = API.activeProject
     },
     async realoadProject({ state }) {
       state.projectLoading = true
@@ -224,7 +230,7 @@ export const actions = actionTree(
       } finally {
         state.projectLoading = false
       }
-      state.activeProject = API.lastSettings
+      state.activeProject = API.activeProject
       state.allProjects = (state.allProjects||[])
         .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p)
       return state.activeProject

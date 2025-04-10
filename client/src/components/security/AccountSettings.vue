@@ -2,9 +2,10 @@
 </script>
 <template>
   <div class="flex flex-col items-center p-4 gap-4">
+    <div class="text-2xl">Account settings</div>
     <div class="avatar">
       <div class="w-24 ring rounded-full">
-        <img :src="user.avatar" />
+        <img :src="avatar" />
       </div>
     </div>
     <div class="flex flex-col gap-2 w-full">
@@ -25,8 +26,7 @@
       
       <div class="flex justify-between items-center">
         <button type="button" class="btn btn-outline" @click="showResetPasswordModal = true">Reset Password</button>
-        <button type="submit" class="btn btn-primary">Update</button>
-        <button type="button" class="btn btn-secondary" @click="$users.logout()">Logout</button>
+        <button type="submit" class="btn btn-primary" @click="$users.saveUser(user)">Update</button>
         <modal v-if="showResetPasswordModal" @close="showResetPasswordModal = false">
           <template #header>Reset Password</template>
           <template #body>
@@ -59,6 +59,9 @@ export default {
   computed: {
     user() {
       return this.$user
+    },
+    avatar () {
+      return this.user.avatar
     }
   },
   methods: {

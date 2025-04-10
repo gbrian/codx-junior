@@ -1,7 +1,7 @@
 <script setup>
 import moment from 'moment'
-import ChatIcon from '../chat/ChatIcon.vue'
 import ProfileSelector from '@/components/profile/ProfileSelector.vue'
+import ProfileAvatar from '../profile/ProfileAvatar.vue';
 </script>
 <template>
   <div :class="['p-2 shadow-lg rounded-lg flex flex-col gap-2', parentChat ? 'bg-base-100' : 'bg-base-300']">
@@ -13,9 +13,7 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
         </div>
         <div class="flex justify-between">
           <div class="font-semibold tracking-wide text-sm flex gap-2">
-            <div class="rounded-full">
-              <ChatIcon :mode="task.mode" />
-            </div>
+            <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
             <div class="overflow-hidden">{{ task.name }}</div>
           </div>
           <div class="flex gap-2 items-center">
@@ -148,6 +146,9 @@ export default {
       return moment().diff(
         moment(messages[messages.length - 1].updated_at)
       , 'seconds') < 10
+    },
+    profile() {
+      return this.$projects.profiles.find(p => p.name === this.task.profiles[0])
     }
   },
   methods: {

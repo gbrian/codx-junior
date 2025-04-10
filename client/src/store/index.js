@@ -24,7 +24,6 @@ let storex = null
 store = createStore(storePattern)
 storex = useAccessor(store, storePattern)
 storex.init = async () => {
-  await API.init()
   await Promise.all(Object.keys(modules).map(async m => {
     if (storex[m].init) {
       await storex[m].init(storex)

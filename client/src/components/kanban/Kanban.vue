@@ -157,6 +157,11 @@ import KanbanList from "./KanbanList.vue"
       <div class="modal-action">
         <button class="btn" @click="addOrUpdateColumn">OK</button>
         <button class="btn" @click="showColumnModal = false">Cancel</button>
+        <button class="btn btn-error" @click="deleteColumn">Delete</button>
+        <div class="text-error text-xs" v-if="confirmDeleteColumn">
+          Are you sure you want to delete this column? 
+          All tasks will be removed.
+        </div>
       </div>
       <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
     </modal>
@@ -206,7 +211,8 @@ export default {
       ],
       editBoardName: '',
       editBoardDescription: '',
-      filteredColumns: []
+      filteredColumns: [],
+      confirmDeleteColumn: false
     }
   },
   created() {
@@ -449,6 +455,16 @@ export default {
       await this.saveKanban(true)
       this.resetColumnModal()
       this.buildKanban()
+    },
+    async deleteColumn() {
+      if (this.confirmDeleteColumn) {
+        this.activeKanbanBoard.columns = this.activeKanbanBoard.columns.filter(
+          column => column.id !== this.selectedColumn.id
+        )
+        await this.saveKanban(true)
+        this.resetColumnModal()
+      }
+      this.confirmDeleteColumn = !this.confirmDeleteColumn
     },
     resetColumnModal() {
       this.showColumnModal = false

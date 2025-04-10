@@ -172,7 +172,7 @@ import moment from 'moment'
                   <i class="fa-solid fa-paperclip"></i> Attach files
                 </a>
               </li>
-              <li class="btn btn-sm" @click="testProject" v-if="API.lastSettings.script_test">
+              <li class="btn btn-sm" @click="testProject" v-if="API.activeProject.script_test">
                 <a>
                   <i class="fa-solid fa-flask"></i>
                   Test
@@ -527,9 +527,9 @@ export default {
       const knowledgeSearch = {
         searchTerm,
         searchType: 'embeddings',
-        documentSearchType: API.lastSettings.knowledge_search_type,
-        cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,
-        documentCount: API.lastSettings.knowledge_search_document_count
+        documentSearchType: API.activeProject.knowledge_search_type,
+        cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,
+        documentCount: API.activeProject.knowledge_search_document_count
       }
       const { documents } = await API.knowledge.search(knowledgeSearch)
       const docs = documents.map(doc => `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``)

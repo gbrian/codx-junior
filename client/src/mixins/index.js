@@ -10,7 +10,7 @@ export const global = {
       return this.$storex.session
     },
     lastSettings () {
-      return this.$storex.project.lastSettings
+      return this.$storex.project.activeProject
     }
   }
 }

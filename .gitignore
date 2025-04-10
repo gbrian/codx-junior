@@ -3,7 +3,7 @@ node_modules
 __pycache__
 *egg-*
 client/.vite
-global_settings.json
+global_settings*
 **/.codx/db
 filebrowser.
 core
@@ -16,4 +16,3 @@ pids
 ollama_models
 logs
 .codx/logs/ai.md
-

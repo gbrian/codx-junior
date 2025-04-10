@@ -24,6 +24,7 @@ from codx.junior.browser import run_browser_manager
 
 from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
 from codx.junior.api.users import router as users_router
+from codx.junior.security.user_management import get_authenticated_user
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
@@ -54,7 +55,7 @@ disable_logs([
 
 from flask import send_file
 
-from fastapi import FastAPI, Request, Response, UploadFile
+from fastapi import FastAPI, Request, Response, UploadFile, Depends
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
@@ -72,7 +73,8 @@ from codx.junior.model.model import (
     Document,
     LiveEdit,
     GlobalSettings,
-    Screen
+    Screen,
+    CodxUser
 )
 
 from codx.junior.settings import (
@@ -88,6 +90,7 @@ from codx.junior.engine import (
     create_project,
     coder_open_file,
     find_all_projects,
+    find_all_user_projects,
     CODXJuniorSession,
     SessionChannel
 )
@@ -330,9 +333,9 @@ def api_project_watch(request: Request):
     return { "OK": 1 }
 
 @app.get("/api/projects")
-def api_find_all_projects():
-    all_projects = find_all_projects()
-    return all_projects
+def api_find_all_projects(user: CodxUser = Depends(get_authenticated_user)):
+    all_projects = find_all_user_projects(user)
+    return list(all_projects)
 
 @app.get("/api/projects/repo/branches")
 def api_find_all_repo_branches(request: Request):
