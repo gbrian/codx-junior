@@ -1,4 +1,5 @@
 <script setup>
+import ThemeSelector from '../ThemeSelector.vue'
 </script>
 <template>
   <div class="flex flex-col items-center p-4 gap-4">
@@ -14,9 +15,15 @@
         <div class="badge badge-primary">{{ user.role }}</div>
       </div>
       <div class="text-xs">{{ user.token }}</div>
-      <div class="form-control">
-        <span class="font-semibold">Avatar</span>
-        <input type="text" v-model="user.avatar" class="input input-bordered w-full" placeholder="Enter avatar URL" />
+      <div class="flex justify-between gap-4">
+        <div class="form-control">
+          <span class="font-semibold">Theme</span>
+          <ThemeSelector @change="user.theme = $event" />
+        </div>
+        <div class="form-control grow">
+          <span class="font-semibold">Avatar</span>
+          <input type="text" v-model="user.avatar" class="input input-bordered w-full" placeholder="Enter avatar URL" />
+        </div>
       </div>
       
       <div class="form-control">

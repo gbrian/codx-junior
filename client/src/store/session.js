@@ -65,13 +65,8 @@ export const mutations = mutationTree(state, {
   set$childCodxJuior(state, $childCodxJuior) {
     state.$childCodxJuior = $childCodxJuior
   },
-  addNotification(state, notification) {
-    notification.id = new Date().getTime()
-    state.notifications = [...state.notifications, notification]
-    setTimeout(() => $storex.session.removeNotification(notification), 15000)
-  },
-  removeNotification(state, notification) {
-    state.notifications = state.notifications.filter(n => n.id !== notification.id)
+  addNotification(_, notification) {
+    $storex.ui.addNotification(notification)
   },
   setConnected(state, connected) {
     state.connected = connected

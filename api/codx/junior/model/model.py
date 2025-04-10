@@ -68,6 +68,7 @@ class CodxUserLogin(BaseModel):
     
 class CodxUser(CodxUserLogin):
     avatar: Optional[str] = Field(default="")
+    theme: Optional[str] = Field(default="dim")
     projects: Optional[List[ProjectPermission]] = Field(default=[])
     role: Optional[str] = Field(description="User role", default="user")
     token: Optional[str] = Field(default="")

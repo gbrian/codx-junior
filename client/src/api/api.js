@@ -125,7 +125,7 @@ const initializeAPI = (project) => {
       },
       async logout() {
         API.user = null;
-        API.settings = {}
+        API.activeProject = {}
         localStorage.removeItem("CODX_USER")
       }
     },
@@ -429,22 +429,13 @@ const initializeAPI = (project) => {
         }, 5000);
       });
     },
-    permissions: {
-      get isAdmin () {
-        return API.user?.role === 'admin'
-      },
-      globalSettings () {
-        return {
-          read: API.permissions.isAdmin,
-          write: API.permissions.isAdmin,
-        }
-      },
-      projectSettings (project_id) {
-        const permission = API.user?.permissions.find(p => p.project_id === project_id).permissions || []
-        return {
-          read: permissions.includes("admin"),
-          write: permissions.includes("admin"),
-        }
+    get permissions () {
+      const permissions = API.activeProject.permissions || []
+      const isAdmin = API.user?.role === 'admin'
+      const isProjectAdmin = permissions.includes("admin")
+      return {
+        isAdmin,
+        isProjectAdmin
       }
     }
   };

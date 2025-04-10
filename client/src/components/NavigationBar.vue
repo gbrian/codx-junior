@@ -1,7 +1,6 @@
 <script setup>
 import ProjectIconVue from './ProjectIcon.vue'
 import UserList from './UserList.vue'
-import ThemeSelector from './ThemeSelector.vue'
 import moment from 'moment';
 </script>
 <template>
@@ -143,14 +142,14 @@ import moment from 'moment';
           @click="$ui.readScreenResolutions()">
           <div class="avatar">
             <div class="w-8 ring rounded-full">
-              <img :src="$users.user.avatar" />
+              <img :src="$storex.api.user.avatar" />
             </div>
           </div>
 				</a>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-72 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('account')">Account settings</a></li>
-          <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
-          <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
+          <li v-if="$storex.api.permissions.isProjectAdmin"><a @click.stop="setActiveTab('settings')">Project settings</a></li>
+          <li v-if="$storex.api.permissions.isAdmin"><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li><a @click.stop="setActiveTab('knowledge_settings')">Knowledge settings</a></li>
           <li class="border"></li>
           <li>
@@ -200,17 +199,6 @@ import moment from 'moment';
                 </ul>
               </div>
             </a>
-          </li>
-          <li>
-            <a class="flex gap-2">
-              <ThemeSelector /> {{ $ui.theme }}
-            </a>
-          </li>
-          <li>
-            <div class="click border rounded-md text-xs bg-error text-white w-full flex justify-center hover:animation-pulse"
-              @click="restartModal = true">
-              <div><i class="fa-solid fa-bomb"></i> Restart!</div>
-            </div>
           </li>
           <li class="border"></li>
           <li><a @click.stop="$users.logout()">Log out</a></li>

@@ -34,11 +34,12 @@ export const actions = actionTree(
       }
     },
     async logout() {
-      API.users.logout()
-
+      await API.users.logout()
+      $storex.init()
     },
     async saveUser({ state }, user) {
       await API.users.save(user)
+      $storex.session.onInfo("User account updated")
     }
   }
 )

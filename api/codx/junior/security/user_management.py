@@ -38,6 +38,7 @@ class UserSecurityManager():
         if existing_user:
             existing_user.email = user.email
             existing_user.avatar = user.avatar
+            existing_user.theme = user.theme
         write_global_settings(self.global_settings)
         return existing_user
 
