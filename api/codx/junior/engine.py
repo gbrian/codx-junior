@@ -843,8 +843,6 @@ class CODXJuniorSession:
           if not mentions:
               return ""
 
-          keywords = self.get_keywords(query=" ".join([m.mention for m in mentions]))
-          
           self.send_notification(text=f"@codx {len(mentions)} mentions in {file_path.split('/')[-1]} profiles: {profile_names}")    
           self.log_info(f"{len(mentions)} mentions found for {file_path} profiles: {profile_names}")
 
@@ -857,7 +855,7 @@ class CODXJuniorSession:
               new_content = self.process_image_mention(image_mentions, file_path, content)
               return await self.check_file_for_mentions(file_path=file_path, content=new_content, silent=True)
 
-          use_knowledge = any(m.flags.knowledge for m in mentions) or keywords
+          use_knowledge = any(m.flags.knowledge for m in mentions)
           using_chat = any(m.flags.chat_id for m in mentions)
           run_code = any(m.flags.code for m in mentions)
 
@@ -878,6 +876,8 @@ class CODXJuniorSession:
               return f"User commented in line {mention.start_line}: {mention.mention}"
           
           query = "\n  *".join([mention_info(mention) for mention in mentions])
+          query_mentions = self.get_query_mentions(query=query)
+
           file_chat_name = "-".join(file_path.split("/")[-2:])
           
           self.log_info(f"Create mention chat {file_chat_name}")
@@ -913,6 +913,7 @@ class CODXJuniorSession:
                 column="changes",
                 parent_chat=analysis_chat.id if analysis_chat else None,
                 tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
+                profiles=[p.name for p in query_mentions["profiles"]],
                 messages=
                   [
                       Message(role="user", content=f"""
@@ -942,8 +943,7 @@ class CODXJuniorSession:
               changes_chat.messages.append(Message(role="user", content=f"""
               Rewrite full file content replacing codx instructions with the minimum changes as possible.
               Return only the file content without any further decoration or comments.
-              Do not surround response with '```' marks, just content:
-              {new_content}
+              Do not surround response with '```' marks, just content.
               """))
               
               self.log_info(f"Mentions generate changes {file_path}")

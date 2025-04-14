@@ -20,8 +20,7 @@ export const state = () => ({
   kanban: {},
   project_branches: {},
   projectLoading: false,
-  knowledge: null,
-  permissions: null
+  knowledge: null
 })
 
 export const mutations = mutationTree(state, {
@@ -116,7 +115,11 @@ export const getters = getterTree(state, {
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init () {
+    async init ({ state }) {
+      state.allProjects = []
+      state.activeProject = null
+      state.activeChat = null
+
       $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
@@ -152,7 +155,6 @@ export const actions = actionTree(
       state.chats = {}
       state.kanban = {}
       state.activeChat = null
-      state.permissions = API.permissions.projectSettings(project)
       await $storex.projects.loadProfiles()
     },
     async loadProjectKnowledge({ state }) {
