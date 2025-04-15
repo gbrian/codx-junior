@@ -36,10 +36,13 @@ export default {
     }
   },
   methods: {
-    handleLogin() {
+    async handleLogin() {
       if (this.username && this.password) {
         const { username, password } = this
-        this.$users.login({ username, password })
+        await this.$users.login({ username, password })
+        if (!this.$user) {
+          this.$storex.session.onError("Invalid user name or password")
+        }
       }
     }
   }

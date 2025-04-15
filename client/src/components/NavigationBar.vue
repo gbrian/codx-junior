@@ -2,26 +2,21 @@
 import ProjectIconVue from './ProjectIcon.vue'
 import UserList from './UserList.vue'
 import moment from 'moment';
+import Assistant from './codx-junior/Assistant.vue';
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
     :class="$ui.showApp && 'click'">
 
-    <div class="relative">
-    <ProjectIconVue
-      :right="right"
-      :online="$storex.session.connected"
-    />
-      <div class="absolute bottom-0 flex justify-center w-full"
-        v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
-        <span class="badge badge-xs bg-secondary text-white animate-pulse">thinking</span>
-      </div>
-    </div>
-
-    <UserList v-if="false" />
-
-
     <div class="flex w-full flex-col mt-4 flex">
+      <div class="relative">
+        <Assistant :class="$storex.session.connected ? '' : 'grayscale'" />
+        <div class="absolute bottom-0 flex justify-center w-full"
+          v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
+          <span class="badge badge-xs bg-secondary text-white animate-pulse">thinking</span>
+        </div>
+      </div>
+
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'wiki' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Wiki"

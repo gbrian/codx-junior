@@ -124,21 +124,24 @@ export const actions = actionTree(
     },
     async loadAllProjects() {
       if ($storex.api.user) {
-        await API.projects.list()
-        $storex.projects.setAllProjects(API.allProjects)
-        if (API.activeProject) {
-          try {
-            await $storex.projects.setActiveProject(API.activeProject)
-          } catch {}
+        try {
+          await API.projects.list()
+          $storex.projects.setAllProjects(API.allProjects)
+          if (API.activeProject) {
+            try {
+              await $storex.projects.setActiveProject(API.activeProject)
+            } catch {}
+          }
+          if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
+            $storex.projects.setActiveProject($storex.projects.allProjects[0])
+          }
+        } catch {
+          $storex.session.onError("Error loading projects")
         }
-        if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
-          $storex.projects.setActiveProject($storex.projects.allProjects[0])
-        }
-      } else { 
-        state.allProjects = []
-        state.activeProject = null
-        state.activeChat = null
-      }
+      } 
+      state.allProjects = []
+      state.activeProject = null
+      state.activeChat = null
     },
     async setActiveProject ({ state }, project) {
       if (project?.codx_path === state.activeProject?.codx_path) {

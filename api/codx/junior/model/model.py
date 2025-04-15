@@ -66,7 +66,9 @@ class CodxUserLogin(BaseModel):
     password: Optional[str] = Field(default="")
     email: Optional[str] = Field(default="")
     
-class CodxUser(CodxUserLogin):
+class CodxUser(BaseModel):
+    username: Optional[str] = Field(default="")
+    email: Optional[str] = Field(default="")
     avatar: Optional[str] = Field(default="")
     theme: Optional[str] = Field(default="dim")
     projects: Optional[List[ProjectPermission]] = Field(default=[])
@@ -256,6 +258,7 @@ class GlobalSettings(BaseModel):
     ]
 
     users: Optional[List[CodxUser]] = Field(default=[])
+    user_logins: Optional[List[CodxUserLogin]] = Field(default=[])
     secret: Optional[str] = Field(description="Encription secret", default="codx-junior-rules")
 
 class Screen(BaseModel):

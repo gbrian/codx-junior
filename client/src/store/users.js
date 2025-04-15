@@ -28,10 +28,10 @@ export const actions = actionTree(
     async login({ _ }, user) {
       try {
         await API.users.login(user)
-        $storex.init()
       } catch(ex) {
         $storex.session.onError("Login error")
       }
+      $storex.init()
     },
     async logout() {
       await API.users.logout()
