@@ -17,7 +17,9 @@ import Assistant from './codx-junior/Assistant.vue';
         </div>
       </div>
 
-      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'wiki' ? 'bg-base-100 text-primary': '',]">
+      <div class="divider"></div>
+
+      <div :class="['hidden hover:bg-base-100 click relative', $ui.tabIx === 'wiki' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Wiki"
           @click="$ui.setActiveTab('wiki')">

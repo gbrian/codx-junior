@@ -1,8 +1,8 @@
 <script setup>
 </script>
 <template>
-  <div class="flex gap-2 items-center group relative">
-    <div class="absolute right-0 w-96 hidden group-hover:flex transition-all">
+  <div class="flex gap-2 justify-center group relative">
+    <div class="absolute -mt-2 right-4 w-96 hidden group-hover:flex transition-all">
       <input type="text" placeholder="How can I help you?" class="input input-bordered w-full" />
     </div>
     <div class="avatar">

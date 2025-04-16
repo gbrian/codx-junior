@@ -105,7 +105,8 @@ const initializeAPI = (project) => {
       async login(user) {
         if (!user) {
           try {
-            user = JSON.parse(localStorage.getItem("CODX_USER"))
+            API.user = JSON.parse(localStorage.getItem("CODX_USER"))
+            API.initConnection()
           }catch{}
           if (!user) {
             return null
@@ -151,10 +152,8 @@ const initializeAPI = (project) => {
     projects: {
       async list() {
         const data = await API.get('/api/projects');
-        if (API.activeProject) {
-          API.allProjects = data;
-        }
-        return data;
+        API.allProjects = data;
+        return API.allProjects;
       },
       create(projectPath) {
         return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath), {});
@@ -430,7 +429,7 @@ const initializeAPI = (project) => {
       });
     },
     get permissions () {
-      const permissions = API.activeProject.permissions || []
+      const permissions = API.activeProject?.permissions || []
       const isAdmin = API.user?.role === 'admin'
       const isProjectAdmin = permissions.includes("admin")
       return {

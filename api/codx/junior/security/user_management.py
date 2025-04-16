@@ -14,13 +14,13 @@ class UserSecurityManager():
     def __init__(self):
         self.global_settings = read_global_settings()
 
-    def find_user(self, username: str = None, email: str = None) -> CodxUser:
+    def find_user(self, username: str = None) -> CodxUser:
         return next((user for user in self.global_settings.users
-                     if user.username == username or user.email == email), None)
+                     if user.username == username), None)
     
-    def find_user_login(self, username: str = None, email: str = None) -> CodxUserLogin:
+    def find_user_login(self, username: str = None) -> CodxUserLogin:
         return next((login for login in self.global_settings.user_logins
-                     if login.username == username or login.email == email), None)
+                     if login.username == username), None)
 
     def login_user(self, user: CodxUserLogin = None, token: str = None) -> CodxUser:
         try:
@@ -33,8 +33,8 @@ class UserSecurityManager():
                     if not user:
                         raise ex
 
-            stored_user = self.find_user(username=user.username, email=user.email)
-            stored_login = self.find_user_login(username=user.username, email=user.email)
+            stored_user = self.find_user(username=user.username)
+            stored_login = self.find_user_login(username=user.username)
 
             if stored_user:
                 if token:
@@ -43,7 +43,7 @@ class UserSecurityManager():
                         
                     # Verify existing password
                     if bcrypt.checkpw(user.password.encode('utf-8'), stored_login.password.encode('utf-8')):
-                        stored_user.token = jwt.encode({"email": stored_user.email}, self.global_settings.secret, algorithm="HS256")
+                        stored_user.token = jwt.encode({ "username": stored_user.username }, self.global_settings.secret, algorithm="HS256")
                         return stored_user
                     else:
                         logger.error("Invalid password")
@@ -54,13 +54,13 @@ class UserSecurityManager():
                     self.global_settings.user_logins.append(new_login)
                     write_global_settings(self.global_settings)
                     
-                    stored_user.token = jwt.encode({"email": stored_user.email}, self.global_settings.secret, algorithm="HS256")
+                    stored_user.token = jwt.encode({ "username": stored_user.username }, self.global_settings.secret, algorithm="HS256")
                     return stored_user
             else:
-                logger.error(f"Invalid login {ex} {user} token: {token}")    
+                logger.error(f"Invalid login, stored_user not found for {user}, token: {token}")    
             return None
         except Exception as ex:
-            logger.error(f"Invalid login {ex} {user} token: {token}")
+            logger.exception(f"Invalid login {ex} {user} token: {token}")
             return None
 
     def update_user(self, user: CodxUser, password: str = None):
@@ -94,5 +94,5 @@ async def get_authenticated_user(request: Request) -> CodxUser:
     user = None
     if token:
         user = user_security_manager.login_user(token=token)
-    logger.info(f"Authenticating request: {request.url} token {token}: {user}")
+    logger.info(f"Authenticating request: {request.url} token {token}: {user} - headers: {request.headers}")
     return user

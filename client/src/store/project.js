@@ -135,6 +135,7 @@ export const actions = actionTree(
           if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
             $storex.projects.setActiveProject($storex.projects.allProjects[0])
           }
+          return $storex.projects.allProjects
         } catch {
           $storex.session.onError("Error loading projects")
         }

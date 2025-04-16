@@ -15,11 +15,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.post("/users/login")
-async def user_login(request: Request, user: CodxUser = Depends(get_authenticated_user)):
+async def user_login(request: Request):
+    body = await request.json()
+    login_user = CodxUserLogin(**body)
+    user = await get_authenticated_user(request=request)
+    logger.info(f"user_login user: {user} - body: {login_user}")
     if user:
         return user
-    body = await request.json()
-    return UserSecurityManager().login_user(CodxUserLogin(**body))
+    return UserSecurityManager().login_user(user=login_user)
 
 @router.put("/users")
 async def user_update(request: Request, user: CodxUser = Depends(get_authenticated_user)):  
