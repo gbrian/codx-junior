@@ -105,7 +105,7 @@ const initializeAPI = (project) => {
       async login(user) {
         if (!user) {
           try {
-            API.user = JSON.parse(localStorage.getItem("CODX_USER"))
+            user = API.user = JSON.parse(localStorage.getItem("CODX_USER"))
             API.initConnection()
           }catch{}
           if (!user) {

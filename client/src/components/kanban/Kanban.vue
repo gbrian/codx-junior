@@ -79,7 +79,7 @@ import KanbanList from "./KanbanList.vue"
                   <div>{{column.title}}</div>
                 </div>
                 <div class="btn btn-sm" @click="column.showSubTasks = !column.showSubTasks"
-                  :class="column.showSubTasks && 'btn-info'"
+                  :class="(column.showSubTasks !== false) && 'btn-info'"
                 >
                   <i class="fa-regular fa-file-lines"></i>
                 </div>
@@ -119,7 +119,7 @@ import KanbanList from "./KanbanList.vue"
                       :itemKey="'id'"
                       class="click bg-base-100 overflow-hidden mt-2"
                       :class="[lastUpdatedTask.id == task.id ? 'border boder-primary border-dashed':'',
-                        !column.showSubTasks && task.parent_id && 'hidden'
+                        (column.showSubTasks !== false) || !task.parent_id ? '' : 'hidden'
                       ]"
                       @click="openChat(task)"
                     />

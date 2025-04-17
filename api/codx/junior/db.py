@@ -38,6 +38,7 @@ class Chat(BaseModel):
     tags: List[str] = Field(default=[], description="Informative set of tags")
     file_list: List[str] = Field(default=[])
     profiles: List[str] = Field(default=[])
+    users: List[str] = Field(default=[])
     name: str = Field(default='')
     messages: List[Message] = Field(default=[])
     created_at: str = Field(default=str(datetime.now()))
@@ -52,6 +53,7 @@ class Chat(BaseModel):
     branch: str = Field(default='')
     file_path: str = Field(default='')
     model: Optional[str] = Field(default='')
+    visibility: Optional[str] = Field(default='')
 
 class KanbanColumn(BaseModel):
     doc_id: Optional[str] = Field(default=None)

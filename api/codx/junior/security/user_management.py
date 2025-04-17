@@ -5,7 +5,11 @@ import bcrypt
 from fastapi import Request
 
 from codx.junior.settings import read_global_settings, write_global_settings
-from codx.junior.model.model import CodxUser, CodxUserLogin
+from codx.junior.model.model import (
+  CodxUser,
+  CodxUserLogin,
+  ProjectPermission
+)
 from codx.junior.settings import CODXJuniorSettings
 
 logger = logging.getLogger(__name__)
@@ -22,8 +26,11 @@ class UserSecurityManager():
         return next((login for login in self.global_settings.user_logins
                      if login.username == username), None)
 
+    def get_user_token(self, user: CodxUser):
+        return jwt.encode({ "username": user.username }, self.global_settings.secret, algorithm="HS256")
+    
     def login_user(self, user: CodxUserLogin = None, token: str = None) -> CodxUser:
-        try:
+        def do_login(user: CodxUserLogin, token: str):
             if token:
                 try:
                     decoded = jwt.decode(token, self.global_settings.secret, algorithms=["HS256"])
@@ -39,11 +46,9 @@ class UserSecurityManager():
             if stored_user:
                 if token:
                     return stored_user
-                if stored_login:
-                        
+                if stored_login:    
                     # Verify existing password
                     if bcrypt.checkpw(user.password.encode('utf-8'), stored_login.password.encode('utf-8')):
-                        stored_user.token = jwt.encode({ "username": stored_user.username }, self.global_settings.secret, algorithm="HS256")
                         return stored_user
                     else:
                         logger.error("Invalid password")
@@ -52,13 +57,17 @@ class UserSecurityManager():
                     hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
                     new_login = CodxUserLogin(username=user.username, email=user.email, password=hashed_password.decode('utf-8'))
                     self.global_settings.user_logins.append(new_login)
-                    write_global_settings(self.global_settings)
+                    self.save_settings()
                     
-                    stored_user.token = jwt.encode({ "username": stored_user.username }, self.global_settings.secret, algorithm="HS256")
                     return stored_user
             else:
                 logger.error(f"Invalid login, stored_user not found for {user}, token: {token}")    
             return None
+        try:
+            logged_user = do_login(user=user, token=token)
+            if logged_user:
+                logged_user.token = self.get_user_token(user=logged_user)
+            return logged_user
         except Exception as ex:
             logger.exception(f"Invalid login {ex} {user} token: {token}")
             return None
@@ -76,7 +85,7 @@ class UserSecurityManager():
                 if stored_login:
                     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                     stored_login.password = hashed_password.decode('utf-8')
-                    write_global_settings(self.global_settings)
+                    self.save_settings()
 
         return existing_user
 
@@ -87,6 +96,26 @@ class UserSecurityManager():
             if p.project_id == settings.project_id:
                 return p.permissions
         return []
+
+    def add_user_to_project(self, user: CodxUser, project_id: str, permissions: str):
+        global_user = next((u for u in self.global_settings.users if u.username == user.username))
+        project = next((p for p in global_user.projects if p.project_id == project_id), None)
+        save_settings = False
+        if project:
+            if project.permissions != permissions:
+                project.permissions = permissions
+                save_settings = True
+        else:
+            global_user.projects.append(ProjectPermission(
+              project_id=project_id,
+              permissions=permissions
+            ))
+            save_settings = True
+        if save_settings:
+            self.save_settings()
+
+    def save_settings(self):
+        write_global_settings(self.global_settings)
 
 async def get_authenticated_user(request: Request) -> CodxUser:
     user_security_manager = UserSecurityManager()

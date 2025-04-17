@@ -102,7 +102,7 @@ APPS_COMMANDS = {
 
 AGENT_DONE_WORD = "$$@@AGENT_DONE@@$$$"
 
-def create_project(project_path: str):
+def create_project(project_path: str, user: CodxUser):
     logger.info(f"Create new project {project_path}")
     projects_root_path = f"{os.environ['HOME']}/projects"
     os.makedirs(projects_root_path, exist_ok=True)
@@ -124,7 +124,10 @@ def create_project(project_path: str):
     _, stderr = exec_command("git branch")
     if stderr:
         exec_command("git init", cwd=project_path)
-    return CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
+    new_project = CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
+    if user:
+      UserSecurityManager().add_user_to_project(project_id=new_project.project_id, user=user, permissions='admin')
+    return new_project
 
 def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     logger.info(f"coder_open_file {file_name}")

@@ -37,10 +37,7 @@ import moment from 'moment'
           <div class="anchor" ref="anchor"></div>
           <div class="grid grid-cols-3 gap-2 mb-2 bg-base-100" v-if="childrenChats?.length">
             <div v-for="child in childrenChats" :key="child.id" class="relative">
-              <TaskCard class="click p-2 bg-base-300" :task="child" @click="$projects.setActiveChat(child)" />
-              <button class="absolute top-0 right-0 btn btn-sm hover:btn-error text-error btn-circle" @click="confirmDeleteTask(child)">
-                <i class="fa-solid fa-xmark"></i>
-              </button>
+              <TaskCard class="click p-2 bg-base-300 h-40" :task="child" @click="$projects.setActiveChat(child)" />
             </div>
           </div>
         </div>

@@ -4,9 +4,9 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
 import ProfileAvatar from '../profile/ProfileAvatar.vue';
 </script>
 <template>
-  <div :class="['p-2 shadow-lg rounded-lg flex flex-col gap-2', parentChat ? 'bg-base-100' : 'bg-base-300']">
+  <div :class="['p-2 shadow-lg rounded-lg', parentChat ? 'bg-base-100' : 'bg-base-300']">
     <div v-if="image" :style="`background-image: url(${image.src})`" class="bg-contain bg-no-repeat bg-center h-28 bg-base-300"></div>
-    <div class="flex flex-col gap-2">
+    <div class="h-full flex flex-col justify-between gap-2">
       <div>
         <div v-if="parentChat" class="text-xs text-primary/40 hover:text-primary text-nowrap overflow-hidden" @click.stop="$projects.setActiveChat(parentChat)">
           {{ parentChat.name }}
@@ -34,6 +34,7 @@ import ProfileAvatar from '../profile/ProfileAvatar.vue';
           </span>
         </div>
       </div>
+      <div class="grow"></div>
       <div class="flex justify-between items-center">
         <div class="flex justify-end">
           <button class="btn btn-circle btn-sm" @click.stop="openSettingsModal">

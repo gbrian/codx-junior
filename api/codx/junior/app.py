@@ -355,12 +355,12 @@ def api_project_readme(request: Request):
     return Response(content=document or "> Not found", media_type="text/html")
 
 @app.post("/api/projects")
-def api_project_create(request: Request):
+def api_project_create(request: Request, user: CodxUser = Depends(get_authenticated_user)):
     project_path = request.query_params.get("project_path")
     try:
         return CODXJuniorSettings.from_project_file(f"${project_path}/.codx/project.json")
     except:
-        return create_project(project_path=project_path)
+        return create_project(project_path=project_path, user=user)
 
 @app.delete("/api/projects")
 def api_project_delete(request: Request):
