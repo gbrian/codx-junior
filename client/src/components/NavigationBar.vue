@@ -116,7 +116,7 @@ import Assistant from './codx-junior/Assistant.vue';
           </div>
 				</a>
 			</div>
-      <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
+      <div :class="['hidden hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" 
           :class="right ? 'tooltip-left' : 'tooltip-right'" 
           :data-tip="showLogsTooltip"
@@ -195,6 +195,11 @@ import Assistant from './codx-junior/Assistant.vue';
                   </li>
                 </ul>
               </div>
+            </a>
+          </li>
+          <li>
+            <a @click="$ui.toggleLogs()">
+              <i class="fa-solid fa-chart-line"></i> Logs
             </a>
           </li>
           <li class="border"></li>

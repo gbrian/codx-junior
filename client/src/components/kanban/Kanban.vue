@@ -28,7 +28,7 @@ import KanbanList from "./KanbanList.vue"
     <div v-if="!$projects.activeChat && showKanban">
       <div class="flex gap-4 items-center">
         <div class="flex gap-2 items-center">
-          <div tabindex="0" class="text-xl py-1 px-2 click flex items-center gap-2" @click="toggleDropdown">
+          <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2" @click="toggleDropdown">
             <button class="btn btn-sm" @click="selectBoard()">
               <i class="fa-solid fa-caret-left"></i>
             </button>
@@ -39,7 +39,7 @@ import KanbanList from "./KanbanList.vue"
         <div class="flex gap-2">
           <div class="grow input input-sm input-bordered flex items-center gap-2">
             <input type="text" v-model="filter" class="grow" placeholder="Search tasks" />
-            <span class="click" v-if="filter" @click.stop="filter = ''">
+            <span class="cursor-pointer" v-if="filter" @click.stop="filter = ''">
               <i class="fa-regular fa-circle-xmark"></i>
             </span>
             <span v-else><i class="fa-solid fa-filter"></i></span>
@@ -69,7 +69,7 @@ import KanbanList from "./KanbanList.vue"
               :style="{ borderColor: column.color }"
             >
               <div class="group font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
-                <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
+                <div class="cursor-pointer w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
                   :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
                   <span class="hidden group-hover:block">
                     <i class="fa-solid fa-pen-to-square"></i>
@@ -117,7 +117,7 @@ import KanbanList from "./KanbanList.vue"
                       v-if="taskMatchesFilter(task)"
                       :task="task"
                       :itemKey="'id'"
-                      class="click bg-base-100 overflow-hidden mt-2"
+                      class="cursor-pointer bg-base-100 overflow-hidden mt-2"
                       :class="[lastUpdatedTask.id == task.id ? 'border boder-primary border-dashed':'',
                         (column.showSubTasks !== false) || !task.parent_id ? '' : 'hidden'
                       ]"
@@ -145,7 +145,6 @@ import KanbanList from "./KanbanList.vue"
         <button class="btn" @click="showBoardModal = false">Cancel</button>
       </div>
     </modal>
-
     <modal v-if="showColumnModal">
       <h2 class="font-bold text-lg">Add/Edit Column</h2>
       <div class="flex gap-1 items-center">
@@ -164,6 +163,24 @@ import KanbanList from "./KanbanList.vue"
         </div>
       </div>
       <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
+    </modal>
+    <modal v-if="showImportModalForColumn">
+      <h2 class="font-bold text-lg">Import Task</h2>
+      <div class="form-control">
+        <label class="label cursor-pointer">
+          <span class="label-text">Import from clipboard</span> 
+          <input type="radio" name="importOptions" value="clipboard" v-model="importOption" class="radio" />
+        </label>
+        <label class="label cursor-pointer">
+          <span class="label-text">Import from URL</span> 
+          <input type="radio" name="importOptions" value="url" v-model="importOption" class="radio" />
+        </label>
+        <input v-if="importOption === 'url'" type="text" v-model="importUrl" placeholder="Paste URL here" class="input input-bordered w-full mt-2"/>
+      </div>
+      <div class="modal-action">
+        <button class="btn" @click="confirmImportTask">Import</button>
+        <button class="btn" @click="showImportModalForColumn = false">Cancel</button>
+      </div>
     </modal>
   </div>
 </template>
@@ -212,7 +229,10 @@ export default {
       editBoardName: '',
       editBoardDescription: '',
       filteredColumns: [],
-      confirmDeleteColumn: false
+      confirmDeleteColumn: false,
+      showImportModalForColumn: null,
+      importOption: 'clipboard',
+      importUrl: ''
     }
   },
   created() {
@@ -357,14 +377,31 @@ export default {
       })
     },
     async importTask(column) {
-      const clipboardContent = await navigator.clipboard.readText();
-      const existingChat = JSON.parse(clipboardContent)
-      const newChat = await this.createNewChat({
-        ...existingChat,
-        id: null,
-        column,
-      })
-      this.$projects.saveChat(newChat)
+      this.showImportModalForColumn = column
+    },
+    async confirmImportTask() {
+      const column = this.activeBoard?.columns?.find(c => c.title === this.columnTitle)
+      if (this.importOption === 'clipboard') {
+        const clipboardContent = await navigator.clipboard.readText()
+        const existingChat = JSON.parse(clipboardContent)
+        const newChat = await this.createNewChat({
+          ...existingChat,
+          id: null,
+          column
+        })
+        this.$projects.saveChat(newChat)
+      } else if (this.importOption === 'url') {
+        const chat = {
+          board: this.board || "Default",
+          column: this.showImportModalForColumn,
+          name: "Import from url",
+          mode: 'chat',
+          url: this.importUrl
+        }
+        await this.$projects.createNewChatFromUrl(chat)
+      }
+      this.showImportModalForColumn = null
+      this.importUrl = null
     },
     async buildKanban() {
       if (this.kanban) {

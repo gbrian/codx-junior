@@ -220,6 +220,15 @@ async def api_chat(chat: Chat, request: Request):
     return chat
 
 @profile_function
+@app.post("/api/chats/from-url")
+async def api_chat_form_url(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.chat_event(chat=chat, message="Loading chat...")
+    codx_junior_session.init_chat_from_url(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@profile_function
 @app.post("/api/chats/sub-tasks")
 async def api_chat_subtasks(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
@@ -234,8 +243,8 @@ async def api_save_chat(chat: Chat, request: Request):
 @app.delete("/api/chats")
 def api_delete_chat(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    file_path = request.query_params.get("file_path")
-    codx_junior_session.delete_chat(file_path)
+    chat_id = request.query_params.get("chat_id")
+    codx_junior_session.delete_chat(chat_id)
 
 @app.get("/api/kanban")
 def api_kanban(request: Request):

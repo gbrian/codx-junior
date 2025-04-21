@@ -79,11 +79,19 @@ class ChatManager:
 
         return chat
 
-    def delete_chat(self, file_path):
+    def delete_chat(self, file_path: str = None, chat_id: str = None):
+        logger.info(f"Removing chat by file_path: {file_path}  - chat_id: {chat_id}")
+        
+        if chat_id:
+            chat = self.find_by_id(chat_id)
+            file_path = chat.file_path
+
         if os.path.isfile(file_path) \
             and file_path.startswith(self.chat_path):
             logger.info(f"Removing chat at {file_path}")
             os.remove(file_path)
+        else:
+            logger.error(f"Removing chat error {file_path}")
 
     def load_chat(self, board, column, chat_name):
         chat = Chat(board=board, column=column, name=chat_name)

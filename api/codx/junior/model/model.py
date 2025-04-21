@@ -54,7 +54,7 @@ class Tool(BaseModel):
     description: str = Field(default="")
 
 class CodxJuniorBaseTools(BaseModel):
-    knowledge:Tool = Tool(name="knowledge", description="Project's knowledge search")
+    knowledge: Tool = Tool(name="knowledge", description="Project's knowledge search")
     
 
 class ProjectPermission(BaseModel):
@@ -215,6 +215,15 @@ OLLAMA_WIKI_MODEL = AIModel(name="gemma:7b",
                                 settings=AILLMModelSettings(),
                                 url="https://llmfactory.com/library/gemma")
 
+class Workspace(BaseModel):
+    id: str = Field(default="")
+    name: str = Field(default="")
+    description: str = Field(default="")
+    project_ids: List[str] = Field(default=[])
+    workspace_port: Optional[int] = Field(default=0)
+    workspace_start_port: Optional[int] = Field(default=0)
+    workspace_end_port: Optional[int] = Field(default=0)
+
 
 class AgentSettings(BaseModel):
     max_agent_iteractions: int = 4
@@ -222,7 +231,7 @@ class AgentSettings(BaseModel):
 class GlobalSettings(BaseModel):
     log_ai: bool = Field(default=False)
     
-    embeddings_model:  str = Field(default="nomic-embed-text")
+    embeddings_model: str = Field(default="nomic-embed-text")
     llm_model: str = Field(default="gemma:7b")
     rag_model: str = Field(default="gemma:7b")
     wiki_model: str = Field(default="gemma:7b")
@@ -260,6 +269,11 @@ class GlobalSettings(BaseModel):
     users: Optional[List[CodxUser]] = Field(default=[])
     user_logins: Optional[List[CodxUserLogin]] = Field(default=[])
     secret: Optional[str] = Field(description="Encription secret", default="codx-junior-rules")
+
+    workspaces: Optional[List[Workspace]] = Field(default=[])
+    workspace_start_port: Optional[int] = Field(default=16000)
+    workspace_end_port: Optional[int] = Field(default=16000)
+    Workspace_docker_settings: Optional[dict] = Field(default={})
 
 class Screen(BaseModel):
     resolution: str = Field(default='')

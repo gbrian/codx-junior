@@ -7,6 +7,7 @@ import subprocess
 import shutil
 import asyncio
 import uuid
+import requests
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
@@ -304,8 +305,8 @@ class CODXJuniorSession:
         self.chat_event(chat=chat, event_type="changed")
         return chat
 
-    def delete_chat(self, file_path):
-        self.get_chat_manager().delete_chat(file_path)
+    def delete_chat(self, chat_id):
+        self.get_chat_manager().delete_chat(chat_id=chat_id)
 
     @profile_function
     def list_profiles(self):
@@ -333,6 +334,43 @@ class CODXJuniorSession:
             documents = knowledge.reload()
         return {"doc_count": len(documents) if documents else 0}
 
+    def init_chat_from_url(self, chat: Chat):
+        ai_content = None
+        try:
+            # Step 1: Download the content from the chat URL
+            response = requests.get(chat.url)
+            response.raise_for_status()  # This will raise an error for bad responses (4XX or 5XX)
+
+            # Ensure the response is text-based
+            downloaded_content = response.text
+
+            # Step 2: Use AI to parse the downloaded content
+            ai = self.get_ai()
+
+            # Step 3: Create a prompt to extract a title and content
+            prompt = f"""
+            Extract a concise title and all content from the following issue html page:
+            {downloaded_content}
+
+            Return the response in JSON format:
+            {{
+                "title": "Extracted title",
+                "content": "Extracted content"
+            }}
+            """
+            # Use AI to get the response
+            ai_responses = ai.chat(prompt=prompt)
+            ai_content = ai_responses[0].content
+            response_json = next(extract_json_blocks(ai_content))
+    
+            # Step 4: Set the extracted title as the name and the content as the first message of the chat
+            chat.name = response_json.get('title', 'Untitled Chat')  # Default to 'Untitled Chat' if no title is found
+            chat.messages.append(Message(role='user', content=response_json.get('content', '')))
+                
+        except Exception as e:
+            self.log_exception(f"Error initializing chat from URL {chat.url}: {e} - {ai_content}")
+            raise e
+    
     @profile_function
     async def knowledge_search(self, knowledge_search: KnowledgeSearch):
         self.settings.knowledge_search_type = knowledge_search.document_search_type
@@ -1043,9 +1081,9 @@ class CODXJuniorSession:
           
           INSTRUCTIONS:
            * Split main_task into tasks
-           * Each new task must have a clear name and a description 
-           * In the tag list don't use "#"
-           * Add tags only if requested
+           * Take the name of the task from the content if present
+           * Take the description from the content
+           * The name of the task must indicate the priority like: "Task 1: Perform analysis"
            * Description must explain the task and have instructions on what needs to be done.
            * Return a single JSON object like the one in the example below without further decoration or comments
               ```json
@@ -1159,7 +1197,7 @@ class CODXJuniorSession:
             def load_profiles():
                 query_profiles = query_mentions["profiles"]
                 chat_profiles = [profile_manager.read_profile(profile_name) for profile_name in chat.profiles]
-                all_profiles = [p for p in query_profiles + chat_profiles if p]
+                all_profiles = [p for p in chat_profiles + query_profiles if p]
                 all_profiles = self.get_profiles_and_parents(all_profiles)
                 profile_names = [p.name for p in all_profiles]
                 self.log_info(f"Loading profiles: {profile_names}")
@@ -1376,7 +1414,7 @@ class CODXJuniorSession:
             response_message.profiles = chat_profile_names
             
             chat.messages.append(response_message)
-            if is_refine:
+            if chat_mode == 'task':
                 for message in chat.messages[:-1]:
                     message.hide = True
 

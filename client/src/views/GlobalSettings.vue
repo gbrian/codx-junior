@@ -4,6 +4,7 @@ import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
 import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
 import ExportImportButton from '@/components/ExportImportButton.vue'
 import SecurityUserList from '@/components/security/SecurityUserList.vue'
+import Workspaces from '@/components/workspaces/Workspaces.vue'
 </script>
 
 <template>
@@ -16,13 +17,14 @@ import SecurityUserList from '@/components/security/SecurityUserList.vue'
         <ExportImportButton :data="settings" @change="submit">
           <li @click="activeTab = 'Settings'" :class="{ 'tab-active': activeTab === 'Settings' }" class=""><a>General</a></li>
           <li @click="activeTab = 'AI Models'" :class="{ 'tab-active': activeTab === 'AI Models' }" class=""><a>AI Models</a></li>
-          <li @click="activeTab = 'Agents'" :class="{ 'tab-active': activeTab === 'Agents' }" class=""><a>Agents</a></li>
+          <li @click="activeTab = 'Workspaces'" :class="{ 'tab-active': activeTab === 'Workspaces' }" class=""><a>Workspaces</a></li>
           <li @click="activeTab = 'Users'" :class="{ 'tab-active': activeTab === 'Users' }" class=""><a>Users</a></li>
           <li class="separator"></li>
         </ExportImportButton>
       </div>
     </div>
     <SecurityUserList :settings="settings" v-if="activeTab === 'Users'" />
+    <Workspaces :settings="settings" v-if="activeTab === 'Workspaces'" />
     <div v-if="activeTab === 'Settings'" class="flex flex-col gap-4">
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2 text-xs">

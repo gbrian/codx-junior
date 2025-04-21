@@ -454,7 +454,8 @@ export default {
         content: message,
         images: this.images.map(JSON.stringify),
         files,
-        profiles
+        profiles,
+        user: this.$user.username
       }
     },
     postMyMessage() {

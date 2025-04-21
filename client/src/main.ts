@@ -34,6 +34,9 @@ const globalMixin = {
     },
     $users () {
       return $storex.users
+    },
+    $globalSettings() {
+      return $storex.api.globalSettings
     }
   }
 }

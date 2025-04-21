@@ -267,6 +267,9 @@ const initializeAPI = (project) => {
       async message(chat) {
         return API.post('/api/chats?', chat);
       },
+      async fromUrl(chat) {
+        return API.post('/api/chats/from-url?', chat);
+      },
       async subTasks(chat) {
         return API.post('/api/chats/sub-tasks?', chat);
       },
@@ -277,7 +280,7 @@ const initializeAPI = (project) => {
         return API.put(`/api/chats?chatonly=1`, chat);
       },
       delete(chat) {
-        return API.del(`/api/chats?file_path=${chat.file_path}`);
+        return API.del(`/api/chats?chat_id=${chat.id}`);
       },
       kanban: {
         async load() {

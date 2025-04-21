@@ -365,6 +365,20 @@ export const actions = actionTree(
       }
       return chat
     },
+    async createNewChatFromUrl({ state}, chat) {
+      chat = {
+        id: uuidv4(),
+        mode: 'chat',
+        profiles: [],
+        chat_index: 0,
+        ...chat
+      }
+      state.chats[chat.id] = await API.chats.fromUrl(chat)
+      if (!chat.temp) {
+        state.activeChat = state.chats[chat.id]
+      }
+      return state.chats[chat.id]
+    },
     async loadKanban({ state }) {
       state.kanban = await  $storex.api.chats.kanban.load()
     },

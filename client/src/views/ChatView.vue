@@ -74,19 +74,35 @@ import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'
                         <a><i class="fa-solid fa-copy"></i> Export</a>
                       </li>
                       <div class="divider" v-if="childrenChats.length"></div>
-                      Sub project:
-                      <select v-model="chat.project_id" class="select select-sm select-bordered w-full mt-2">
-                        <option v-for="project in subProjects" :key="project.project_id" :value="project.project_id">
-                          <div class="flex items-center gap-1">
-                            <div class="avatar">
-                              <div class="w-6 rounded-full">
-                                <img :src="project.project_icon" />
-                              </div>
-                            </div>
-                            {{ project.project_name }}
+                      <li>
+                        <div class="flex gap-2 items-center">
+                          <div>Project</div>
+                          <div class="grow">
+                            <select v-model="chat.project_id" class="select select-sm select-bordered w-full mt-2">
+                              <option v-for="project in subProjects" :key="project.project_id" :value="project.project_id">
+                                <div class="flex items-center gap-1">
+                                  <div class="avatar">
+                                    <div class="w-6 rounded-full">
+                                      <img :src="project.project_icon" />
+                                    </div>
+                                  </div>
+                                  {{ project.project_name }}
+                                </div>
+                              </option>
+                            </select>
                           </div>
-                        </option>
-                      </select>
+                        </div>
+                      </li>
+                      <li>
+                        <a v-if="chat.mode !== 'chat'" @click="setChatMode('chat')">
+                          <i class="fa-solid fa-repeat"></i>
+                          Chat mode
+                        </a>
+                        <a @click="setChatMode('task')" v-else>
+                          <i class="fa-solid fa-repeat"></i>
+                          Document mode
+                        </a>
+                      </li>
                     </ul>
                   </div>
                 </div>

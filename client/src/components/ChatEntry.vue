@@ -6,19 +6,18 @@ import { CodeDiff } from 'v-code-diff'
 
 <template>
   <div class="chat-entry flex gap-1 items-start relative">
-    <div class="flex flex-col gap-2 ml-4 py-1" v-if="messageProfiles.length">
-      <div v-for="profile in messageProfiles" :key="profile.name">
-        <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
-          <div class="ring-primary ring-offset-base-100 w-6 h-6 rounded-full ring ring-offset-2">
-            <img :src="profile.avatar" :alt="profile.name" />
-          </div>
-        </div>
-      </div>
-    </div>
     <div class="grow overflow-auto">
       <div class="w-full flex flex-col gap-1 hover:rounded-md p-2 group">
         <div class="text-xs font-bold flex flex-col">
-          <div class="flex justify-start gap-2 items-center">
+          <div class="flex justify-start gap-4 items-center">
+            <div v-for="profile in messageProfiles" :key="profile.name">
+              <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
+                <div class="ring-primary ring-offset-base-100 w-6 h-6 rounded-full ring ring-offset-2">
+                  <img :src="profile.avatar" :alt="profile.name" />
+                </div>
+              </div>
+            </div>
+
             <div class="flex gap-2 grow">
               [{{ formatDate(message.updated_at) }}] <span v-if="timeTaken">({{ timeTaken }} s.)</span>
             </div>
@@ -77,8 +76,8 @@ import { CodeDiff } from 'v-code-diff'
             </div>
           </div>
           <div>
-              <div class="text-primary" v-if="message.role === 'user'">You</div>
-              <div class="text-secondary" v-else>codx-junior</div>
+              <div class="text-primary" v-if="message.role === 'user'">{{ message.user || 'You' }}</div>
+              <div class="text-secondary" v-else>{{ messageProfiles[0]?.name || 'codx-junior' }}</div>
             </div>
         </div>
         <div @copy.stop="onMessageCopy" :class="['max-w-full group border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
