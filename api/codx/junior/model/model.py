@@ -240,7 +240,7 @@ class GlobalSettings(BaseModel):
 
     agent_settings: AgentSettings = Field(description="Agent settings", default=AgentSettings())
 
-    projects_root_path: str = Field(default='/projects')
+    projects_root_path: str = Field(default=None)
     
     log_ignore: List[str] = Field(default=[])
 

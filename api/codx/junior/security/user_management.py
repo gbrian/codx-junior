@@ -85,7 +85,7 @@ class UserSecurityManager():
                 if stored_login:
                     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                     stored_login.password = hashed_password.decode('utf-8')
-                    self.save_settings()
+            self.save_settings()
 
         return existing_user
 

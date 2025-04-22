@@ -105,7 +105,8 @@ AGENT_DONE_WORD = "$$@@AGENT_DONE@@$$$"
 
 def create_project(project_path: str, user: CodxUser):
     logger.info(f"Create new project {project_path}")
-    projects_root_path = f"{os.environ['HOME']}/projects"
+    global_settings = read_global_settings()
+    projects_root_path = global_settings.projects_root_path or f"{os.environ['HOME']}/projects"
     os.makedirs(projects_root_path, exist_ok=True)
         
     if project_path.startswith("http"):
