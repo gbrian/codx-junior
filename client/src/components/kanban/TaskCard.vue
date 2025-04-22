@@ -1,9 +1,10 @@
 <script setup>
 import moment from 'moment'
-import ProfileSelector from '@/components/profile/ProfileSelector.vue'
-import ProfileAvatar from '../profile/ProfileAvatar.vue';
-import UserAvatar from '../user/UserAvatar.vue';
+import ProfileAvatar from '../profile/ProfileAvatar.vue'
+import UserAvatar from '../user/UserAvatar.vue'
+import TaskSettings from './TaskSettings.vue';
 </script>
+
 <template>
   <div :class="['p-2 shadow-lg rounded-lg', parentChat ? 'bg-base-100' : 'bg-base-300']">
     <div v-if="image" :style="`background-image: url(${image.src})`" class="bg-contain bg-no-repeat bg-center h-28 bg-base-300"></div>
@@ -14,12 +15,17 @@ import UserAvatar from '../user/UserAvatar.vue';
         </div>
         <div class="flex justify-between">
           <div class="font-semibold tracking-wide text-sm flex gap-2 mt-1">
+            <div class="avatar" :title="taskProject.project_name" v-if="taskProject !== $project">
+              <div class="w-6 h-6 rounded-full">
+                <img :src="taskProject.project_icon"/>
+              </div>
+            </div>
             <UserAvatar :width="7" :user="user" v-for="user in taskUsers" :key="user.username">
               <li @click="removeUser(user)" ><a>Remove</a></li>
             </UserAvatar>  
                     
             <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
-            <div class="overflow-hidden">{{ task.name }}</div>
+            <div class="overflow-hidden h-10 overflow-auto" :title="task.name">{{ task.name }}</div>
           </div>
           <div class="flex gap-2 items-center">
             <div :class="`badge badge-outline badge-${badgeColor[task.mode]}`">{{ task.mode }}</div>
@@ -58,50 +64,12 @@ import UserAvatar from '../user/UserAvatar.vue';
       </div>
     </div>
     <modal v-if="isSettingsModalOpen" @click.stop>
-      <h3 class="font-bold text-lg">Task Settings</h3>
-      <div class="py-4">
-        <label class="block">
-          <span>Task Name</span>
-          <input type="text" class="input input-bordered w-full" v-model="taskData.name">
-        </label>
-        <label class="block mt-4">
-          <span>Board</span>
-          <input type="text" class="input input-bordered w-full" v-model="taskData.board">
-        </label>
-        <label class="block mt-4">
-          <span>Column</span>
-          <input type="text" class="input input-bordered w-full" v-model="taskData.column">
-        </label>
-        <label class="block mt-4">
-          <span>Profiles</span>
-          <button class="btn btn-sm" @click="showProfileSelector = true">
-            <i class="fa-solid fa-plus"></i>
-          </button>
-          <div class="flex gap-2">
-            <div class="badge badge-sm badge-primary" v-for="profile in taskData.profiles" :key="profile">
-              {{ profile }}
-            </div>
-          </div>
-        </label>
-      </div>
-      <div class="modal-action">
-        <button class="btn btn-ghost" @click="discardChanges">Discard</button>
-        <button class="btn btn-primary" @click="saveChanges">Save</button>
-      </div>
-      <div tabindex="0" class="collapse">
-        <input type="checkbox" />
-        <div class="collapse-title font-semibold text-error">Delete</div>
-        <div class="collapse-content text-sm">
-          <button class="mt-2 btn btn-error btn-wide" @click.stop="deleteTask">Confirm delete</button>
-        </div>
-      </div>
-    </modal>
-    <modal close="true" @close="showProfileSelector = false" v-if="showProfileSelector">
-      <ProfileSelector @select="addProfile($event)" :project="$project" />
+      <TaskSettings :taskData="taskData" @close="discardChanges" />
     </modal>
     <progress class="progress w-full" v-if="updating"></progress>
   </div>
 </template>
+
 <script>
 export default {
   props: ['task'],
@@ -109,16 +77,11 @@ export default {
     return {
       showProfileSelector: false,
       isSettingsModalOpen: false,
-      taskData: {
-        name: this.task.name,
-        board: '',
-        column: '',
-        profiles: []
-      },
       badgeColor: {
         task: "primary",
         chat: "accent"
-      }
+      },
+      taskData: {}
     }
   },
   computed: {
@@ -153,36 +116,26 @@ export default {
         return false
       }
       return moment().diff(
-        moment(messages[messages.length - 1].updated_at)
-      , 'seconds') < 10
+        moment(messages[messages.length - 1].updated_at), 'seconds') < 10
     },
     profile() {
       return this.$projects.profiles.find(p => p.name === this.task.profiles[0])
+    },
+    taskProject() {
+      return this.$projects.allProjects.find(p => p.project_id === this.task.project_id) ||
+                this.$project
     }
   },
   methods: {
     openSettingsModal() {
       this.isSettingsModalOpen = true
+      this.taskData = { ...this.task }
     },
     closeSettingsModal() {
       this.isSettingsModalOpen = false
     },
     discardChanges() {
       this.closeSettingsModal()
-    },
-    saveChanges() {
-      this.$projects.saveChatInfo(this.taskData)
-      this.closeSettingsModal()
-    },
-    deleteTask() {
-      this.closeSettingsModal()
-      this.$projects.deleteChat(this.task)
-    },
-    addProfile(profile) {
-      if (!this.taskData.profiles.includes(profile.name)) {
-        this.taskData.profiles.push(profile.name)
-      }
-      this.showProfileSelector = false
     }
   }
 }

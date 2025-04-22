@@ -1,10 +1,8 @@
 <template>
-  <div class="dropdown dropdown-hover">
-    <div tabindex="0" role="button" class="">
-      <div class="avatar" v-if="profile">
-        <div class="rounded-full" :class="avatarWidth">
-          <img :src="profile.avatar" />
-        </div>
+  <div class="dropdown click">
+    <div tabindex="0" class="avatar" v-if="profile">
+      <div class="rounded-full" :class="avatarWidth">
+        <img :src="profile.avatar" />
       </div>
     </div>
     <div
@@ -27,7 +25,7 @@ export default {
       if (!width) {
         width = 6
       }
-      return `w-${width} h-${width}`
+      return `w-${width}`
     }
   }
 }

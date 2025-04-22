@@ -193,15 +193,6 @@ import moment from 'moment'
                   Voice mode
                 </a>
               </li>
-              <li class="btn btn-sm btn-error brn-circleZ tooltip"
-                data-tip="Delete?"
-                @click="$emit('delete')">
-                <a>
-                  <i class="fa-solid fa-cross"></i>
-                  Delete
-                </a>
-              </li>
-
             </ul>
           </div>
         </div>
@@ -483,17 +474,6 @@ export default {
         await this.sendChatMessage(this.theChat)
       }
       this.saveChat()
-    },
-    confirmDeleteTask(child) {
-      this.taskToDelete = child
-      this.showModal = true
-    },
-    deleteTask() {
-       if (this.taskToDelete) {
-         this.$projects.deleteChat(this.taskToDelete)
-       }
-       this.taskToDelete = null
-       this.showModal = false
     },
     async navigate() {
       if (!this.editorText) {

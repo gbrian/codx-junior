@@ -4,6 +4,8 @@ import os
 import json
 import uuid
 
+from slugify import slugify
+
 from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
@@ -23,7 +25,7 @@ class ChatManager:
         os.makedirs(f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}", exist_ok=True)
 
     def get_chat_file(self, chat: Chat):
-        chat_file = f"{self.chat_path}/{chat.board}/{chat.column}/{chat.name}.{chat.id}.md"
+        chat_file = f"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.md"
         return chat_file
 
     def chat_paths(self):

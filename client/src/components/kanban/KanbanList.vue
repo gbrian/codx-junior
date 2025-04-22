@@ -3,13 +3,7 @@ import moment from 'moment'
 </script>
 
 <template>
-  <div class="w-full h-full flex flex-col gap-2">
-    <h1 class="text-2xl font-bold mb-4">Kanban Boards Dashboard</h1>
-    <div class="flex justify-end">
-      <button class="btn btn-sm btn-warning btn-outline" @click="emitNewKanban">
-        <i class="fa-solid fa-plus"></i> New Kanban
-      </button>
-    </div>
+  <div class="w-full flex flex-col gap-2">
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" v-if="boards">
       <div
         v-for="board in sortedBoards"

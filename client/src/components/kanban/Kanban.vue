@@ -9,13 +9,16 @@ import KanbanList from "./KanbanList.vue"
 
 <template>
   <div class="h-full" v-if="kanban?.boards">
-    <KanbanList
-      :boards="boards"
-      @select="selectBoard"
-      @edit="onEditBoard"
-      @new="showNewBoardModal"
-      v-if="!$projects.activeChat && !board"
-    />
+    <div v-if="!$projects.activeChat && !board">
+      <h1 class="text-2xl font-bold mb-4">Kanban Boards Dashboard</h1>
+      <KanbanList
+        :boards="parentBoards"
+        @select="selectBoard"
+        @edit="onEditBoard"
+        @new="showNewBoardModal"
+      />
+    </div>
+
     <ChatViewVue
       class="h-full"
       @chats="onChatEditDone"
@@ -29,7 +32,7 @@ import KanbanList from "./KanbanList.vue"
       <div class="flex gap-4 items-center">
         <div class="flex gap-2 items-center">
           <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2" @click="toggleDropdown">
-            <button class="btn btn-sm" @click="selectBoard()">
+            <button class="btn btn-sm" @click="selectBoard(parentBoard?.title)">
               <i class="fa-solid fa-caret-left"></i>
             </button>
             {{ activeBoard?.title }}
@@ -48,6 +51,11 @@ import KanbanList from "./KanbanList.vue"
             <i class="fa-solid fa-plus"></i>
             <span class="text-xs md:text-md">Column</span>
           </button>
+          <button class="btn btn-sm btn-warning btn-outline" @click="showChildrenBoards = !showChildrenBoards" v-if="columnList?.length">
+            <i class="fa-solid fa-caret-up" v-if="showChildrenBoards"></i>
+            <i class="fa-solid fa-caret-down" v-else></i>
+            <span class="text-xs md:text-md">Boards</span>
+          </button>
         </div>
       </div>
       <div class="mt-3 grow">
@@ -55,6 +63,17 @@ import KanbanList from "./KanbanList.vue"
           <i class="fa-solid fa-plus"></i>
           <span class="text-xs md:text-md">Column</span>
         </button>
+        <div class="transition-all pb-2" v-if="showChildrenBoards">
+          <KanbanList
+            class="mb-2"
+            :boards="childBoards"
+            @select="selectBoard"
+            @edit="onEditBoard"
+            @new="showNewBoardModal"
+          />
+        </div>
+        
+
         <draggable
           v-model="filteredColumns"
           group="columns"
@@ -132,7 +151,8 @@ import KanbanList from "./KanbanList.vue"
       </div>
     </div>
     <modal v-if="showBoardModal">
-      <h2 class="font-bold text-lg">Add New Board</h2>
+      <h2 class="font-bold text-3xl">Add New Board</h2>
+      <div class="text-xl text-info font-bold" v-if="activeBoard">Parent {{ activeBoard.title }}</div>
       <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
       <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
       <input type="text" v-model="newBoardBranch" placeholder="Enter branch name" class="input input-bordered w-full mt-2"/>
@@ -206,6 +226,7 @@ export default {
       editColumnError: null,
       columns: [],
       selectedTemplate: null,
+      showChildrenBoards: false,
       templates: [
         {
           name: "Scrum",
@@ -276,6 +297,9 @@ export default {
     columnList() {
       return this.boards[this.board]?.columns?.map(c => c.title) || []
     },
+    parentBoard() {
+      return this.boards[this.activeBoard?.parent_id]
+    },
     boards() {
       const { kanban: { boards }, chats } = this
       return [
@@ -288,6 +312,12 @@ export default {
         ...b,
         tasks: chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.id)
       }}), {})
+    },
+    parentBoards() {
+      return Object.values(this.boards).filter(b => !b.parent_id)
+    },
+    childBoards() {
+      return Object.values(this.boards).filter(b => b.parent_id === this.activeBoard?.id)
     },
     visibleTasks() {
       return this.filteredColumns.reduce((a, b) => a.concat(b.tasks || []), [])
@@ -333,6 +363,7 @@ export default {
       this.board = board
       this.$ui.setKanban(board)
       this.isDropdownOpen = false
+      this.showChildrenBoards = !!this.childBoards.length
       await this.$projects.loadChats()
       if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
         Object.keys(this.kanban.boards)
@@ -516,6 +547,7 @@ export default {
         const selectedTemplate = this.selectedTemplate
         this.kanban.boards[boardName] = {
           id: uuidv4(),
+          parent_id: this.activeBoard?.id,
           description: this.newBoardDescription.trim() || selectedTemplate.description,
           branch: this.newBoardBranch.trim(),
           columns: selectedTemplate?.columns || [],

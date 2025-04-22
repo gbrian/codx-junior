@@ -1,13 +1,13 @@
 <script setup>
+import moment from 'moment'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
-import TaskCard from '@/components/kanban/TaskCard.vue'
 import Kanban from '@/components/kanban/Kanban.vue'
-import moment from 'moment'
 import ProfileSelector from '@/components/profile/ProfileSelector.vue'
 import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'
 import UserSelector from '@/components/user/UserSelector.vue'
 import UserAvatar from '@/components/user/UserAvatar.vue'
+import TaskSettings from '@/components/kanban/TaskSettings.vue'
 </script>
 
 <template>
@@ -23,12 +23,18 @@ import UserAvatar from '@/components/user/UserAvatar.vue'
                   <i class="fa-solid fa-turn-up"></i> {{ parentChat?.name || kanban?.title }} ...
                 </div>
                 <div class="flex items-center gap-2">
-                  <div class="flex">
+                  <div class="flex gap-1">
+                    <div class="avatar" :title="taskProject.project_name" v-if="taskProject !== $project">
+                      <div class="w-7 h-7 rounded-full">
+                        <img :src="taskProject.project_icon"/>
+                      </div>
+                    </div>
                     <UserAvatar :width="7" :user="user" v-for="user in chatUsers" :key="user.username">
                       <li @click="removeUser(user)" ><a>Remove</a></li>
                     </UserAvatar>  
-                    <ProfileAvatar :profile="chatProfiles[0]" 
-                      width="14"
+                    <ProfileAvatar :profile="chatProfiles[0]"
+                      :project="taskProject"
+                      width="7"
                       v-if="chatProfiles.length">
                         <div class="flex justify-end gap-2">
                           <div class="badge badge-xs badge-warning click" @click="removeProfile(chatProfiles[0])">
@@ -39,7 +45,7 @@ import UserAvatar from '@/components/user/UserAvatar.vue'
 
                     <button class="btn btn-sm btn-circle tooltip" data-tip="Add profile"
                       @click="onAddProfile">
-                      <i class="fa-solid fa-user-plus"></i>
+                      <i class="fa-solid fa-plus"></i>
                     </button>
                   </div>
 
@@ -62,9 +68,6 @@ import UserAvatar from '@/components/user/UserAvatar.vue'
                       <i class="fa-solid fa-eye"></i>
                     </span>
                   </button>
-                  <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                  </button>
                   <div class="grow"></div>
                   <div class="dropdown dropdown-end dropdown-bottom">
                     <div tabindex="0" class="btn btn-sm flex items-center indicator">
@@ -80,35 +83,12 @@ import UserAvatar from '@/components/user/UserAvatar.vue'
                       <li @click="onExport">
                         <a><i class="fa-solid fa-copy"></i> Export</a>
                       </li>
-                      <div class="divider" v-if="childrenChats.length"></div>
-                      <li>
-                        <div class="flex gap-2 items-center">
-                          <div>Project</div>
-                          <div class="grow">
-                            <select v-model="chat.project_id" class="select select-sm select-bordered w-full mt-2">
-                              <option v-for="project in subProjects" :key="project.project_id" :value="project.project_id">
-                                <div class="flex items-center gap-1">
-                                  <div class="avatar">
-                                    <div class="w-6 rounded-full">
-                                      <img :src="project.project_icon" />
-                                    </div>
-                                  </div>
-                                  {{ project.project_name }}
-                                </div>
-                              </option>
-                            </select>
-                          </div>
-                        </div>
+                      <li @click="saveChat">
+                        <a><i class="fa-solid fa-floppy-disk"></i> Save</a>
                       </li>
-                      <li>
-                        <a v-if="chat.mode !== 'chat'" @click="setChatMode('chat')">
-                          <i class="fa-solid fa-repeat"></i>
-                          Chat mode
-                        </a>
-                        <a @click="setChatMode('task')" v-else>
-                          <i class="fa-solid fa-repeat"></i>
-                          Document mode
-                        </a>
+                      <div class="divider" v-if="childrenChats.length"></div>
+                      <li @click="showTaskSettings = true">
+                        <a><i class="fa-solid fa-gear"></i> Settings</a>
                       </li>
                     </ul>
                   </div>
@@ -234,6 +214,9 @@ import UserAvatar from '@/components/user/UserAvatar.vue'
             </div>
           </div>
         </modal>
+        <modal v-if="showTaskSettings">
+          <TaskSettings :taskData="chat" @close="showTaskSettings = false" />
+        </modal>
       </div>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
@@ -261,22 +244,27 @@ export default {
       toggleChatOptions: false,
       showSubtaskModal: false,
       showSubtasksModal: false,
+      showTaskSettings: false,
       subtaskName: '',
       subtaskDescription: '',
       showAddProfile: false,
-      createTasksInstructions: ''
+      createTasksInstructions: '',
+      chatProfiles: []
     }
   },
-  mounted () {
+  async mounted () {
     this.toggleChatOptions = !this.$ui.isMobile
+    this.chatProfiles = await this.$storex.api.project(this.taskProject)
+                                .then(p => p.profiles.list())
+                                .then(profiles => profiles.filter(p => this.chat.profiles.includes(p.name)))
   },
   computed: {
+    taskProject() {
+      return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) ||
+                this.$project
+    },
     chatUsers() {
       return this.$storex.api.users.filter(({ username }) => this.chat.users.includes(username))
-    },
-    chatProfiles () {
-      const { profiles } = this.$projects
-      return profiles.filter(p => this.chat.profiles?.includes(p.name))
     },
     chatModes () {
       return this.$projects.chatModes
