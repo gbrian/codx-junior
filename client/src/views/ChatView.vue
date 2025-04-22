@@ -6,6 +6,8 @@ import Kanban from '@/components/kanban/Kanban.vue'
 import moment from 'moment'
 import ProfileSelector from '@/components/profile/ProfileSelector.vue'
 import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'
+import UserSelector from '@/components/user/UserSelector.vue'
+import UserAvatar from '@/components/user/UserAvatar.vue'
 </script>
 
 <template>
@@ -21,20 +23,25 @@ import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'
                   <i class="fa-solid fa-turn-up"></i> {{ parentChat?.name || kanban?.title }} ...
                 </div>
                 <div class="flex items-center gap-2">
-                  <ProfileAvatar :profile="chatProfiles[0]" 
-                    width="14"
-                    v-if="chatProfiles.length">
-                      <div class="flex justify-end gap-2">
-                        <div class="badge badge-xs badge-warning click" @click="removeProfile(chatProfiles[0])">
-                          change
+                  <div class="flex">
+                    <UserAvatar :width="7" :user="user" v-for="user in chatUsers" :key="user.username">
+                      <li @click="removeUser(user)" ><a>Remove</a></li>
+                    </UserAvatar>  
+                    <ProfileAvatar :profile="chatProfiles[0]" 
+                      width="14"
+                      v-if="chatProfiles.length">
+                        <div class="flex justify-end gap-2">
+                          <div class="badge badge-xs badge-warning click" @click="removeProfile(chatProfiles[0])">
+                            change
+                          </div>
                         </div>
-                      </div>
-                  </ProfileAvatar>
+                    </ProfileAvatar>
 
-                  <button class="btn btn-sm btn-circle tooltip" data-tip="Add profile"
-                    @click="onAddProfile" v-else>
-                    <i class="fa-solid fa-user-plus"></i>
-                  </button>
+                    <button class="btn btn-sm btn-circle tooltip" data-tip="Add profile"
+                      @click="onAddProfile">
+                      <i class="fa-solid fa-user-plus"></i>
+                    </button>
+                  </div>
 
                   <div class="click text-xs md:text-xl" @click="editName = true">
                     {{ chat.name }}
@@ -231,6 +238,7 @@ import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
     <modal class="max-w-full w-1/3" v-if="showAddProfile" :close="true" @close="showAddProfile = false">
+      <UserSelector @select="addUserToChat($event)" />
       <ProfileSelector @select="addProfile($event.name)" :project="chatProject" />
     </modal>
   </div>
@@ -263,6 +271,9 @@ export default {
     this.toggleChatOptions = !this.$ui.isMobile
   },
   computed: {
+    chatUsers() {
+      return this.$storex.api.users.filter(({ username }) => this.chat.users.includes(username))
+    },
     chatProfiles () {
       const { profiles } = this.$projects
       return profiles.filter(p => this.chat.profiles?.includes(p.name))
@@ -365,6 +376,19 @@ export default {
         await this.saveChat()
       }
       this.showAddProfile = false
+    },
+    async addUserToChat(user) {
+      if (!this.chat.users?.includes(user.username)) {
+        this.chat.users = [...this.chat.users || [], user.username]
+        await this.saveChat()
+      }
+      this.showAddProfile = false
+    },
+    async removeUser(user) {
+      if (this.chat.users?.includes(user.username)) {
+        this.chat.users = this.chat.users.filter(u => u !== user.username)
+        await this.saveChat()
+      }
     },
     removeProfile(profile) {
       if (this.chat.profiles?.includes(profile.name)) {

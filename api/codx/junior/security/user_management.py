@@ -26,6 +26,12 @@ class UserSecurityManager():
         return next((login for login in self.global_settings.user_logins
                      if login.username == username), None)
 
+    def list_user(self):
+        return [{
+            "username": user.username,
+            "avatar": user.avatar
+        } for user in self.global_settings.users]
+
     def get_user_token(self, user: CodxUser):
         return jwt.encode({ "username": user.username }, self.global_settings.secret, algorithm="HS256")
     

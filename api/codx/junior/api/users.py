@@ -33,3 +33,7 @@ async def user_update(request: Request, user: CodxUser = Depends(get_authenticat
       logger.error(f"User {user} not match {user_changes}")
       raise Exception("Invalid data")
     return user_security_manager.update_user(user_changes)
+
+@router.get("/users")
+def list_update():
+    return UserSecurityManager().list_user()

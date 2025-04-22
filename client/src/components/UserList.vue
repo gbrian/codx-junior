@@ -1,5 +1,5 @@
 <script setup>
-import UserAvatar from './UserAvatar.vue';
+import UserAvatar from './user/UserAvatar.vue';
 </script>
 <template>
   <div class="flex flex-col gap-1">

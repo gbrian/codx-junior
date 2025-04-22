@@ -84,6 +84,11 @@ export const getters = getterTree(state, {
   currentBranch: state => state.project_branches.current_branch,
   mentionList: () => {
     return [
+      ...$storex.api.users.map(user => ({ 
+        name: user.username,
+        user,
+        tooltip: `User @${user.username}` 
+      })),
       ...$storex.projects.profiles.map(profile => ({ 
           name: profile.name,
           profile,

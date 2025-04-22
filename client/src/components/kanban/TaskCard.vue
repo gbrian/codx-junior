@@ -2,6 +2,7 @@
 import moment from 'moment'
 import ProfileSelector from '@/components/profile/ProfileSelector.vue'
 import ProfileAvatar from '../profile/ProfileAvatar.vue';
+import UserAvatar from '../user/UserAvatar.vue';
 </script>
 <template>
   <div :class="['p-2 shadow-lg rounded-lg', parentChat ? 'bg-base-100' : 'bg-base-300']">
@@ -12,7 +13,11 @@ import ProfileAvatar from '../profile/ProfileAvatar.vue';
           {{ parentChat.name }}
         </div>
         <div class="flex justify-between">
-          <div class="font-semibold tracking-wide text-sm flex gap-2">
+          <div class="font-semibold tracking-wide text-sm flex gap-2 mt-1">
+            <UserAvatar :width="7" :user="user" v-for="user in taskUsers" :key="user.username">
+              <li @click="removeUser(user)" ><a>Remove</a></li>
+            </UserAvatar>  
+                    
             <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
             <div class="overflow-hidden">{{ task.name }}</div>
           </div>
@@ -117,6 +122,9 @@ export default {
     }
   },
   computed: {
+    taskUsers() {
+      return this.$storex.api.users.filter(({ username }) => this.task.users.includes(username))
+    },
     image() {
       let image = this.task.messages?.find(m => m.images.length)?.images[0]
       return image ? JSON.parse(image) : null

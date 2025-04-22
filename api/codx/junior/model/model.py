@@ -273,7 +273,7 @@ class GlobalSettings(BaseModel):
     workspaces: Optional[List[Workspace]] = Field(default=[])
     workspace_start_port: Optional[int] = Field(default=16000)
     workspace_end_port: Optional[int] = Field(default=17000)
-    Workspace_docker_settings: Optional[dict] = Field(default={})
+    workspace_docker_settings: Optional[dict] = Field(default={})
 
 class Screen(BaseModel):
     resolution: str = Field(default='')

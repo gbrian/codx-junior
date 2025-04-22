@@ -102,6 +102,9 @@ const initializeAPI = (project) => {
       return API.connection.put(url, data)
     },
     users: {
+      async list() {
+        API.users = await API.get('/api/users');
+      },
       async login(user) {
         if (!user) {
           try {
@@ -369,7 +372,8 @@ const initializeAPI = (project) => {
       }
       await Promise.all([
         API.screen.getScreenResolution(),
-        API.settings.global.read()
+        API.settings.global.read(),
+        API.users.list()
       ])
     },
     async setActiveProject({ project_id }) {

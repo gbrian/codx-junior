@@ -448,7 +448,9 @@ def api_apps_run(request: Request):
 
 
 @app.get("/api/global/settings")
-def api_read_global_settings():
+def api_read_global_settings(user: CodxUser = Depends(get_authenticated_user)):
+    if not user or user.role != 'admin':
+        return {}
     return read_global_settings()
 
 @app.post("/api/global/settings")
