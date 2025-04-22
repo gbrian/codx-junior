@@ -223,7 +223,7 @@ class Workspace(BaseModel):
     workspace_port: Optional[int] = Field(default=0)
     workspace_start_port: Optional[int] = Field(default=0)
     workspace_end_port: Optional[int] = Field(default=0)
-
+    updated_at: Optional[str] = Field(default=None)    
 
 class AgentSettings(BaseModel):
     max_agent_iteractions: int = 4
@@ -272,7 +272,7 @@ class GlobalSettings(BaseModel):
 
     workspaces: Optional[List[Workspace]] = Field(default=[])
     workspace_start_port: Optional[int] = Field(default=16000)
-    workspace_end_port: Optional[int] = Field(default=16000)
+    workspace_end_port: Optional[int] = Field(default=17000)
     Workspace_docker_settings: Optional[dict] = Field(default={})
 
 class Screen(BaseModel):

@@ -19,7 +19,7 @@ import highlight from 'markdown-it-highlightjs'
     <Code
       v-for="code in codeBlocks"
       class="code-block"
-      :key="code.id"
+      :key="new Date()"
       :code="code"
       @generate-code="$emit('generate-code', $event)"
     />
