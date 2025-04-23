@@ -30,8 +30,8 @@ def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvide
         raise Exception(f"LLM AI provider not found: {ai_provider}")
     
     ai_provider = ai_provider_settings[0]
-    ai_provider.api_url = os.path.expandvars(ai_provider.api_url)
-    ai_provider.api_key = os.path.expandvars(ai_provider.api_key)
+    ai_provider.api_url = os.path.expandvars(ai_provider.api_url or "")
+    ai_provider.api_key = os.path.expandvars(ai_provider.api_key or "")
 
     return ai_provider
 
