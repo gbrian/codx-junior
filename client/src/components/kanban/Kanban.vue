@@ -331,6 +331,11 @@ export default {
     },
     project() {
       this.projectChanged()
+    },
+    chats(newValue, oldValue) {
+      if (newValue.map(c => c.id).sort().join()
+      !== oldValue.map(c => c.id).sort().join())
+      this.buildColumns()
     }
   },
   methods: {

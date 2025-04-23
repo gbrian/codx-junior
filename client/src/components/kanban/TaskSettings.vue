@@ -106,7 +106,7 @@ export default {
       this.$emit('close')
     },
     deleteTask() {
-      this.$projects.deleteChat(this.task)
+      this.$projects.deleteChat(this.taskData)
       this.$emit('close')
     },
     addProfile(profile) {
