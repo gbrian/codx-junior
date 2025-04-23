@@ -491,7 +491,7 @@ export default {
       this.buildKanban()
     },
     async createSubTask({ parent, name, description }) {
-      const chat = this.createNewChat({
+      const chat = await this.createNewChat({
         board: parent.board,
         name,
         column: parent.column,
@@ -499,7 +499,7 @@ export default {
         project_id: parent.project_id,
         messages: [{ role: "user", content: description }]
       })
-      this.$projects.newChat(chat)
+      this.$projects.saveChat(chat)
     },
     async createSubTasks(event) {
       this.$projects.createSubtasks(event)

@@ -44,7 +44,7 @@ class UserSecurityManager():
                 except Exception as ex:
                     logging.error(f"Invalid token {ex}")
                     if not user:
-                        raise ex
+                        return None
 
             stored_user = self.find_user(username=user.username)
             stored_login = self.find_user_login(username=user.username)

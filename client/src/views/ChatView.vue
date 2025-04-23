@@ -292,7 +292,7 @@ export default {
       return this.$projects.allChats
     },
     chat() {
-      return this.$projects.chats[this.openChat?.id || this.$projects.activeChat.id]
+      return this.$projects.chats[this.openChat?.id || this.$projects.activeChat?.id]
     },
     childrenChats() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
@@ -303,7 +303,7 @@ export default {
               this.$project
     },
     parentChat () {
-      return this.$projects.allChats.find(c => c.id === this.chat.parent_id)
+      return this.$projects.allChats.find(c => c.id === this.chat?.parent_id)
     },
     chatFiles() {
       return [...this.chat.file_list||[], ...this.parentChat?.file_list||[]]

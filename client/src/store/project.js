@@ -356,7 +356,7 @@ export const actions = actionTree(
         }
       }
     },
-    createNewChat({ state}, chat) {
+    createNewChat({ state }, chat) {
       chat = {
         id: uuidv4(),
         mode: 'chat',
