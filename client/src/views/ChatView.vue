@@ -19,8 +19,14 @@ import TaskSettings from '@/components/kanban/TaskSettings.vue'
             <div class="flex gap-2 items-start">
               <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else>
-                <div class="my-2 text-xs hover:underline click font-bold text-primary" @click="naviageToParent" v-if="parentChat || Kanban">
-                  <i class="fa-solid fa-turn-up"></i> {{ parentChat?.name || kanban?.title }} ...
+                <div class="flex gap-2">
+                  <div class="my-2 text-xs hover:underline click font-bold text-primary" @click="naviageToParent()">
+                    <i class="fa-solid fa-caret-left"></i> {{ kanban?.title }}
+                  </div>
+                  <div class="my-2 text-xs hover:underline click font-bold text-secondary" @click="naviageToParent(parentChat)" v-if="parentChat">
+                    <i class="fa-brands fa-trello"></i>
+                    {{ parentChat.name }}
+                  </div>
                 </div>
                 <div class="flex items-center gap-2">
                   <div class="flex gap-1">
@@ -438,9 +444,9 @@ export default {
         this.createTasksInstructions = ""
       }
     },
-    naviageToParent() {
-      if (this.parentChat) {
-        this.$emit('chat', this.parentChat)
+    naviageToParent(parentChat) {
+      if (parentChat) {
+        this.$emit('chat', parentChat)
       } else {
         this.navigateToChats()
       }
