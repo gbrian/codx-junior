@@ -73,7 +73,7 @@ export default {
     sanitizedText() {
       let text = this.text || ""
       const lines = text.split("\n")
-      const isMdFence = ["```md", "```markdown", "```"].includes(lines[0])
+      const isMdFence = lines[0].trim().startsWith("```")
 
       if (isMdFence) {
         lines.splice(0, 1)
