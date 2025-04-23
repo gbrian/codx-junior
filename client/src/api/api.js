@@ -103,7 +103,7 @@ const initializeAPI = (project) => {
     },
     users: {
       async list() {
-        API.users = await API.get('/api/users');
+        API.userNetwork = await API.get('/api/users');
       },
       async login(user) {
         if (!user) {

@@ -86,7 +86,7 @@ export default {
   },
   computed: {
     taskUsers() {
-      return this.$storex.api.users.filter(({ username }) => this.task.users.includes(username))
+      return this.$storex.api.userNetwork.filter(({ username }) => this.task.users.includes(username))
     },
     image() {
       let image = this.task.messages?.find(m => m.images.length)?.images[0]

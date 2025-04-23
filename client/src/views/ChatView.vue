@@ -264,7 +264,7 @@ export default {
                 this.$project
     },
     chatUsers() {
-      return this.$storex.api.users.filter(({ username }) => this.chat.users.includes(username))
+      return this.$storex.api.userNetwork.filter(({ username }) => this.chat.users?.includes(username))
     },
     chatModes () {
       return this.$projects.chatModes

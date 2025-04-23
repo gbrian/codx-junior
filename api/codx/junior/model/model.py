@@ -240,13 +240,13 @@ class GlobalSettings(BaseModel):
 
     agent_settings: AgentSettings = Field(description="Agent settings", default=AgentSettings())
 
-    projects_root_path: str = Field(default=None)
+    projects_root_path: Optional[str] = Field(default=None)
     
     log_ignore: List[str] = Field(default=[])
 
-    codx_junior_avatar: str = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
+    codx_junior_avatar: Optional[str] = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
 
-    enable_file_manager: bool = Field(default=False)
+    enable_file_manager: Optional[bool] = Field(default=False)
 
     project_scripts: Optional[List[ProjectScript]] = Field(default=[])
 
@@ -266,7 +266,7 @@ class GlobalSettings(BaseModel):
       OLLAMA_EMBEDDINGS_MODEL
     ]
 
-    users: Optional[List[CodxUser]] = Field(default=[])
+    users: Optional[List[CodxUser]] = Field(default=[CodxUser(username="admin", role="admin")])
     user_logins: Optional[List[CodxUserLogin]] = Field(default=[])
     secret: Optional[str] = Field(description="Encription secret", default="codx-junior-rules")
 

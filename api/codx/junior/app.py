@@ -55,7 +55,8 @@ disable_logs([
 
 from flask import send_file
 
-from fastapi import FastAPI, Request, Response, UploadFile, Depends
+from fastapi import FastAPI, Request, status, Response, UploadFile, Depends
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
@@ -117,12 +118,21 @@ app = FastAPI(
     ssl_context='adhoc'
 )
 
+app = FastAPI()
+
 sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
 app.mount("/api/socket.io", sio_asgi_app)
 
 app.include_router(chatgpt_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+	exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
+	logger.error(f"{request}: {exc_str}")
+	content = {'status_code': 10422, 'message': exc_str, 'data': None}
+	return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 @app.on_event("startup")
 def startup_event():

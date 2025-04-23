@@ -18,7 +18,7 @@ export default {
   },
   computed: {
     users() {
-      return this.$storex.api.users
+      return this.$storex.api.userNetwork
     }
   },
   methods: {
