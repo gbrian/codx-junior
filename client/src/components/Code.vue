@@ -46,7 +46,7 @@ const languageMapping = {
   "markdown": "md"
 }
 export default {
-  props: ['code'],
+  props: ['code', 'text', 'text-language'],
   data () {
     return {
       codeText: null,
@@ -58,17 +58,20 @@ export default {
   created () {
     const language = languageMapping[this.codeLanguage] || this.codeLanguage
     this.languages = [[ language, language.toUpperCase() ]]
-    this.codeText = this.code.innerText
+    this.codeText = this.text || this.code.innerText
     console.log("Code block created", language)
   },
   mounted () {
-    this.code.parentNode.after(this.$el)
-    this.code.parentNode.remove()
-    this.$el.querySelector('.header.border')?.append(this.$refs.toolbar)
+    if (this.code) {
+      this.code.parentNode.after(this.$el)
+      this.code.parentNode.remove()
+      this.$el.querySelector('.header.border')?.append(this.$refs.toolbar)
+    }
   },
   computed: {
     language() {
-      const lang = this.code.attributes["class"].value.split("-").reverse()[0]
+      const lang = this.textLanguage ||
+        this.code?.attributes["class"].value.split("-").reverse()[0]         
       return languageMapping[lang] || lang
     },
     codeLanguage () {
@@ -91,7 +94,7 @@ export default {
     },
     codeBlockInfo() {
       return {
-        code: this.code.innerText,
+        code: this.text || this.code.innerText,
         language: this.language
       }
     }

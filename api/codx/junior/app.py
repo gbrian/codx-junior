@@ -181,11 +181,10 @@ async def api_knowledge_reload(request: Request):
     return codx_junior_session.check_knowledge_status()
 
 @app.post("/api/knowledge/reload-path")
-async def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
+def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
     codx_junior_session = request.state.codx_junior_session
     logger.info(f"**** API:knowledge_reload_path {knowledge_reload_path}")
-    await codx_junior_session.check_file(file_path=knowledge_reload_path.path, force=True)
-    return codx_junior_session.check_knowledge_status()
+    exec_command(f"touch {knowledge_reload_path.path}")
 
 @app.post("/api/knowledge/delete")
 def api_knowledge_reload_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):

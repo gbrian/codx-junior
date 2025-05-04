@@ -182,6 +182,7 @@ export const actions = actionTree(
       if (API.user?.theme) {
         state.theme = API.user.theme
       }
+      state.coderProjectCodxPath = null
     },
     saveState({ state }) {
       const data = { ...state, uiReady: false }

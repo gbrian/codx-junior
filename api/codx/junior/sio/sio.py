@@ -37,11 +37,15 @@ async def connect(sid, env):
     logger.info("New Client Connected to This id :"+" "+str(sid))
     USERS[sid] = {}
 
+
 @sio.on("disconnect")
 async def disconnect(sid):
     logger.info("Client Disconnected: "+" "+str(sid))
     if USERS.get(sid):
         del USERS[sid]
+    channel = SessionChannel(sio=sio, sid=sid)
+    channel.send_event('codx-junior-online-users', USERS)
+    
 
 @sio.on("codx-junior-ping")
 async def io_ping(sid, data: dict = None):
@@ -78,6 +82,8 @@ def sio_api_endpoint(func):
 @sio.on("codx-junior-login")
 def io_login(sid, data: dict):
     USERS[sid] = data
+    channel = SessionChannel(sio=sio, sid=sid)
+    channel.send_event('codx-junior-online-users', USERS)
     return USERS
 
 @sio.on("codx-junior-chat")

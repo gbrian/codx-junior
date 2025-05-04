@@ -1,6 +1,6 @@
 import os
 import logging
-
+from datetime import datetime
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -13,7 +13,7 @@ class AILogger:
     
     def write_log(self, content):
         with open(self.log_file, 'a') as f:
-            f.write(content +  "\n")
+            f.write(f'[{datetime.now():%Y-%m-%d %H:%M:%S%z}] {content}\n')
 
     def info(self, message):
         self.write_log(message)

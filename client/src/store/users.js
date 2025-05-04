@@ -5,6 +5,7 @@ export const namespaced = true
 
 import { API } from '../api/api'
 export const state = () => ({
+  onlineUsers: {}
 })
 
 export const getters = getterTree(state, {
@@ -18,6 +19,9 @@ export const getters = getterTree(state, {
 })
 
 export const mutations = mutationTree(state, {
+  setOnlineUsers(state, users) {
+    state.onlineUsers = users
+  }
 })
 
 export const actions = actionTree(

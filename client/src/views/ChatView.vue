@@ -8,6 +8,7 @@ import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'
 import UserSelector from '@/components/user/UserSelector.vue'
 import UserAvatar from '@/components/user/UserAvatar.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
+import ChatIcon from '@/components/chat/ChatIcon.vue'
 </script>
 
 <template>
@@ -89,6 +90,15 @@ import TaskSettings from '@/components/kanban/TaskSettings.vue'
                       <li @click="onExport">
                         <a><i class="fa-solid fa-copy"></i> Export</a>
                       </li>
+                      <li>
+                        <div class="flex gap-2 items-center">
+                          <ChatIcon :mode="chat.mode" />
+                          <select class="select select-sm" @change="setChatMode($event.target.value)">
+                            <option value="task" :selected="chat.mode === 'task'" >Document</option>
+                            <option value="chat" :selected="chat.mode !== 'task'">Chat</option>
+                          </select>
+                        </div>
+                      </li>
                       <li @click="saveChat">
                         <a><i class="fa-solid fa-floppy-disk"></i> Save</a>
                       </li>
@@ -130,7 +140,7 @@ import TaskSettings from '@/components/kanban/TaskSettings.vue'
               <i class="fa-solid fa-paperclip"></i>
             </span>
             <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 click text-accent" @click="$ui.openFile(file)">
-              <span>{{ file.split('/').reverse()[0] }}</span>
+              <span :title="file" >{{ file.split('/').reverse()[0] }}</span>
               <span class="ml-2 click" @click.stop="onRemoveFile(file)">
                 <i class="fa-regular fa-circle-xmark"></i>
               </span>
@@ -242,7 +252,6 @@ export default {
       addFile: null,
       showChatsTree: false,
       editName: false,
-      showSettings: false,
       addNewFile: null,
       showHidden: false,
       confirmDelete: false,
@@ -431,7 +440,7 @@ export default {
       this.chat.tags = this.chat.tags.filter(t => t !== tag)
       this.saveChat()
     },
-    setChatMode(mode, profile) {
+    setChatMode(mode) {
       this.chat.mode = mode
       this.saveChat()
     },

@@ -118,12 +118,10 @@ class Knowledge:
 
     def enrich_document (self, doc, metadata):
       if doc.metadata.get("indexed"):
-        raise Exception(f"Doc already indexed {doc.metadata}")
+          raise Exception(f"Doc already indexed {doc.metadata}")
       for k in metadata.keys():
-        doc.metadata[k] = metadata[k]
-      language = doc.metadata.get('language', '')
+          doc.metadata[k] = metadata[k]
       source = doc.metadata.get('source')
-      summary = ""
 
       if self.settings.knowledge_enrich_documents:
         try:

@@ -83,6 +83,16 @@ function copy_app_conf() {
   fi
 }
 
+function install_docker() {
+  codx docker
+  
+  app=$1
+  log_info "Copying supervisor conf for: $app"
+  conf_source="${HOME}/codx-junior/supervisor.${app}.conf"
+  conf_dest="/etc/supervisord/supervisor.${app}.conf"
+
+}
+
 echo "Load supervisor files"
 # Check if CODX_JUNIOR_APPS is not empty
 if [ -z "$CODX_JUNIOR_APPS" ]; then
@@ -103,6 +113,9 @@ for app in $CODX_JUNIOR_APPS; do
       ;;
     llm-factory)
       install_llmFactory
+      ;;
+    docker)
+      install_docker
       ;;
     *)
       echo "Unknown app: $app"

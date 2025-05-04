@@ -362,6 +362,7 @@ export const actions = actionTree(
         mode: 'chat',
         profiles: [],
         chat_index: 0,
+        messages: [],
         ...chat
       }
       state.chats[chat.id] = chat

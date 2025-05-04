@@ -505,9 +505,41 @@ class CODXJuniorSession:
             return docs, file_list
         return process_rag_query(rag_query=query)
 
-    async def generate_code(self, chat: Chat, code_block_info: dict):
+    async def excute_bash_code(self, chat: Chat, code_block_info: dict):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+        
         language = code_block_info["language"]
         code = code_block_info["code"]
+        try:
+            self.chat_event(chat=chat, message="Executing bash script")
+            stdout, stderr = exec_command(code, cwd=self.settings.project_path)
+            chat.messages.append(Message(role="user", content=f"""
+            Executing bash script
+            ```{language}
+            {code}
+            ```
+            stdout: {stdout}
+            stderr: {stderr}
+            """))
+            self.chat_event(chat=chat, message="Applying patch done.")
+            await self.save_chat(chat=chat)
+        except Exception as ex:
+            self.chat_event(chat=chat, message=f"Error applying patch: {ex}", event_type="error")
+            raise ex
+
+    async def generate_code(self, chat: Chat, code_block_info: dict):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+
+        language = code_block_info["language"]
+        code = code_block_info["code"]
+        ai = self.get_ai()
+        messages = ai.chat(prompt=f"Answer only (YES or NO). Is this something I can execute in a terminal?:\nScript:\n{code}")
+        
+        is_bash = "YES" in messages[-1].content
+        if is_bash:
+            return await self.excute_bash_code(chat=chat, code_block_info=code_block_info)
         
         try:
             chat.messages.append(Message(role="user", content=f"""

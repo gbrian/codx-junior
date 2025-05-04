@@ -65,6 +65,7 @@ class CodxUserLogin(BaseModel):
     username: Optional[str] = Field(default="")
     password: Optional[str] = Field(default="")
     email: Optional[str] = Field(default="")
+    token: Optional[str] = Field(default="")
     
 class CodxUser(BaseModel):
     username: Optional[str] = Field(default="")
@@ -74,6 +75,7 @@ class CodxUser(BaseModel):
     projects: Optional[List[ProjectPermission]] = Field(default=[])
     role: Optional[str] = Field(description="User role", default="user")
     token: Optional[str] = Field(default="")
+    enabled: Optional[bool] = Field(default=False)
 
 class ProfileApiSettings(BaseModel):
     active: bool = Field(description="Model is visible through API", default=False)

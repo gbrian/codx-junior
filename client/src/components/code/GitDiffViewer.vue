@@ -1,4 +1,6 @@
 <script setup>
+import Code from '../Code.vue'
+import MarkdownViewer from '../MarkdownViewer.vue';
 </script>
 
 <template>
@@ -7,14 +9,15 @@
     <div clas="flex gap-2 relative">
       <div class="click sticky top-0 hover:underline" @click="openFile(file)">
         <button class="btn btn-sm" @click.stop="toggleExpanded(file)">
-          <i class="fa-solid fa-caret-up" v-if="!collapsedFiles[file.path]"></i>
+          <i class="fa-solid fa-caret-up" v-if="!expandedFiles[file.path]"></i>
           <i class="fa-solid fa-caret-down" v-else></i>
         </button>
         {{ file.path }}
       </div>
     </div>
     <div>
-      <markdown :text="file.diff" v-if="!collapsedFiles[file.path]"></markdown>
+      <Code :text="diffText(file.diff)" :text-language="'diff'" v-if="false && expandedFiles[file.path]"></Code>
+      <MarkdownViewer :text="file.diff" v-if="expandedFiles[file.path]"/>
     </div>
   </div>
 </div>
@@ -25,7 +28,7 @@ export default {
   props:['diff'],
   data () {
     return {
-      collapsedFiles: {}
+      expandedFiles: {}
     }
   },
   computed: {
@@ -35,11 +38,15 @@ export default {
   },
   methods: {
     toggleExpanded(file) {
-      if (this.collapsedFiles[file.path]) {
-        this.collapsedFiles[file.path] = false
+      if (this.expandedFiles[file.path]) {
+        this.expandedFiles[file.path] = false
       } else {
-        this.collapsedFiles[file.path] = true
+        this.expandedFiles[file.path] = true
       }
+    },
+    diffText(diff) {
+      const lines = diff.split("\n")
+      return lines.slice(1, lines.length - 2).join("\n")
     },
     parseDiff(diffData) {
       const files = {}
@@ -66,14 +73,14 @@ export default {
       this.$ui.openFile(filePath)
     },
     toggleCollapse(filePath) {
-      if (this.collapsedFiles.has(filePath)) {
-        this.collapsedFiles.delete(filePath)
+      if (this.expandedFiles.has(filePath)) {
+        this.expandedFiles.delete(filePath)
       } else {
-        this.collapsedFiles.add(filePath)
+        this.expandedFiles.add(filePath)
       }
     },
     isCollapsed(filePath) {
-      return this.collapsedFiles.has(filePath)
+      return this.expandedFiles.has(filePath)
     }
   }
 }

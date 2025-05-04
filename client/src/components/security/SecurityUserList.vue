@@ -21,7 +21,13 @@ import UserSecurityDetail from './UserSecurityDetail.vue';
       </thead>
       <tbody>
         <tr class="click" v-for="(user, index) in users" :key="user.username" @click="openUserDetail(user)">
-          <td><img :src="user.avatar" alt="avatar" class="w-12 h-12" /></td>
+          <td>
+            <div class="avatar ring ring-red-600 rounded-md" :class="!user.enabled ? 'ring-red-800 grayscale' : 'ring-sky-800'">
+              <div class="w-12 rounded">
+                <img :src="user.avatar" />
+              </div>
+            </div>
+          </td>
           <td>{{ user.username }}</td>
           <td>{{ user.email }}</td>
           <td>{{ user.role }}</td>

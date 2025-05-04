@@ -5,7 +5,7 @@ import highlight from 'markdown-it-highlightjs'
 </script>
 
 <template>
-  <div class="text-md text-wrap overflow-y-auto prose h-60">
+  <div class="text-xs text-wrap overflow-y-auto prose max-w-full" v-html="html">
   </div>
 </template>
 

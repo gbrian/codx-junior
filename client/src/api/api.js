@@ -1,13 +1,15 @@
 import axios from 'axios'
 
-export const axiosInstance = axios.create({});
+
+let interceptors = {
+  request: [],
+  response: []
+}
 
 class CodxJuniorConnection {
   constructor({ settings, user } = {}) {
     this.user = user
-    this.settings = settings || {};
-    this.axiosInstance = axiosInstance;
-    this.liveRequests = 0;
+    this.settings = settings || {};    
   }
 
   get headers() {
@@ -15,6 +17,14 @@ class CodxJuniorConnection {
       "x-sid": this.settings.sid,
       "Authentication": `Bearer ${this.user?.token}`
     };
+  }
+
+  createConnection() {
+    this.axiosInstance = axios.create({});
+    this.liveRequests = 0;
+
+    this.axiosInstance.interceptors.request.use(...interceptors.request);
+    this.axiosInstance.interceptors.response.use(...interceptors.response);
   }
   
   prepareUrl(url) {
@@ -33,6 +43,7 @@ class CodxJuniorConnection {
   }
 
   get(url) {
+    this.createConnection()
     this.liveRequests++;
     return this.axiosInstance.get(this.prepareUrl(url), { headers: this.headers })
       .then(({ data }) => data)
@@ -40,12 +51,14 @@ class CodxJuniorConnection {
   }
 
   del(url) {
+    this.createConnection()
     this.liveRequests++;
     return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
       .finally(() => this.liveRequests--);
   }
 
   post(url, data) {
+    this.createConnection()
     this.liveRequests++;
     return this.axiosInstance.post(this.prepareUrl(url), data, { headers: this.headers })
       .then(({ data }) => data)
@@ -53,6 +66,7 @@ class CodxJuniorConnection {
   }
 
   put(url, data) {
+    this.createConnection()
     this.liveRequests++;
     return this.axiosInstance.put(this.prepareUrl(url), data, { headers: this.headers })
           .then(({ data }) => data)
@@ -86,8 +100,14 @@ const initializeAPI = (project) => {
         "Authentication": `Bearer ${API.user?.token}`
       };
     },
+    set interceptors(value) {
+      interceptors = value
+    },
     initConnection() {
-      API.connection = new CodxJuniorConnection({ settings: API.activeProject, user: API.user })
+      API.connection = new CodxJuniorConnection({
+        settings: API.activeProject,
+        user: API.user
+      })
     },
     get(url) {
       return API.connection.get(url)

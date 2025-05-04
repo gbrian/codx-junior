@@ -8,28 +8,32 @@ export const namespaced = true
 const EVENT_EXPIRE_SECONDS = 120
 setInterval(() => $storex.session.tick(), 1000)
 
-import { API, axiosInstance } from '../api/api'
+import { API } from '../api/api'
 // Add a request interceptor
-axiosInstance.interceptors.request.use(function (config) {
-    $storex.session.incApiCalls()
-    return config;
-  }, function (error) {
-    $storex.session.decApiCalls()
-    return Promise.reject(error);
-  });
-
-axiosInstance.interceptors.response.use(
-  (response) => {
-    $storex.session.decApiCalls()
-    return response
-  },
-  (error) => {
-    $storex.session.decApiCalls()
-    $storex.session.setLastError(error)
-    console.error("API ERROR:", error);
-    $storex.session.onError(error.toString())
-  });
-
+API.interceptors = { 
+  request: [
+    (config) => {
+      $storex.session.incApiCalls()
+      return config;
+    }, 
+    (error) => {
+      $storex.session.decApiCalls()
+      return Promise.reject(error);
+    }
+  ],
+  response: [
+    (response) => {
+      $storex.session.decApiCalls()
+      return response
+    },
+    (error) => {
+      $storex.session.decApiCalls()
+      $storex.session.setLastError(error)
+      console.error("API ERROR:", error);
+      $storex.session.onError(error.toString())
+    }
+  ]
+}
 
 export const state = () => ({
   socket: null,
@@ -108,7 +112,7 @@ export const actions = actionTree(
       socket.onAny((event, data) => $storex.session.onEvent({ event, data }))
     },
     login({ state }) {
-      $storex.session.socket.emit("codx-junior-login", { "user": state.user }, users => {
+      $storex.session.socket.emit("codx-junior-login", { "user": API.user }, users => {
         state.users = users
       })
     },
@@ -128,6 +132,9 @@ export const actions = actionTree(
       }
       if (type === 'notification') {
         $storex.ui.addNotification(data)
+      }
+      if (event === 'codx-junior-online-users') {
+        $storex.users.setOnlineUsers(data)
       }
     },
     onInfo(_, notification) {
