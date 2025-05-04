@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
 if [ -z "${CODX_JUNIOR_PATH}" ]; then
     export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")" && pwd)"
@@ -166,12 +165,14 @@ function run_noVNC() {
 }
 
 function run_supervisor {
+    mkdir -p $CODX_SUPERVISOR_LOG_FOLDER
     kill_apps
     if [ "$(id -u)" != "0" ]; then
       echo "Switching supervisor to root"
       sudo USER=$USER HOME=$HOME bash ${CODX_JUNIOR_PATH}/codx-junior supervisor
     else
       echo "Running supervisor $USER - $HOME"
+      chown -R codx-junior ${HOME}
       /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
     fi
 }
