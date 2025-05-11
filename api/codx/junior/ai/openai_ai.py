@@ -186,6 +186,6 @@ class OpenAI_AI:
                   embeddings = embeddings + data.embedding
               return embeddings
             except Exception as ex:
-              logger.exception(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
+              logger.error(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
               raise ex
         return embedding_func

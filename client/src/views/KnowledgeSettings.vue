@@ -27,44 +27,6 @@ import moment from 'moment'
       </span>
     </div>
 
-    <div class="stats stats-sm">
-      <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
-        <div class="stat-figure mt-6">
-          <i class="fa-2xl fa-solid fa-file"></i>
-        </div>
-        <div class="stat-title">Pending</div>
-        <div class="stat-value">{{ status?.pending_files?.length }}</div>
-        <div class="stat-desc"></div>
-      </div>
-      
-      <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
-        <div class="stat-figure mt-6 text-success">
-          <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
-        </div>
-        <div class="stat-title">Indexed</div>
-        <div class="stat-value">{{ status?.file_count }}</div>
-        <div class="stat-desc"></div>
-      </div>
-
-      <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
-        <div class="stat-figure mt-6 text-warning">
-          <i class="fa-2xl fa-solid fa-file"></i>
-        </div>
-        <div class="stat-title">Ignored</div>
-        <div class="stat-value">{{ ignoredFolders?.length }}</div>
-        <div class="stat-desc"></div>
-      </div>
-
-      <div class="stat">
-        <div class="stat-figure mt-6 text-info">
-          <i class="fa-2xl fa-solid fa-book"></i>
-        </div>
-        <div class="stat-title">Keywords</div>
-        <div class="stat-value">{{ status?.keyword_count }}</div>
-        <div class="stat-desc"></div>
-      </div>
-    </div>
-
     <div class="">
       <div role="tablist" class="tabs tabs-box flex gap-2">
         <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Search' }" @click="selectedTab = 'Search'">
@@ -148,6 +110,45 @@ import moment from 'moment'
     </div>
     
     <div class="grow" v-if="selectedTab === 'Index'">
+      <div class="stats stats-sm">
+      <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
+        <div class="stat-figure mt-6">
+          <i class="fa-2xl fa-solid fa-file"></i>
+        </div>
+        <div class="stat-title">Pending</div>
+        <div class="stat-value">{{ status?.pending_files?.length }}</div>
+        <div class="stat-desc"></div>
+      </div>
+      
+      <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
+        <div class="stat-figure mt-6 text-success">
+          <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
+        </div>
+        <div class="stat-title">Indexed</div>
+        <div class="stat-value">{{ status?.file_count }}</div>
+        <div class="stat-desc"></div>
+      </div>
+
+      <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
+        <div class="stat-figure mt-6 text-warning">
+          <i class="fa-2xl fa-solid fa-file"></i>
+        </div>
+        <div class="stat-title">Ignored</div>
+        <div class="stat-value">{{ ignoredFolders?.length }}</div>
+        <div class="stat-desc"></div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-figure mt-6 text-info">
+          <i class="fa-2xl fa-solid fa-book"></i>
+        </div>
+        <div class="stat-title">Keywords</div>
+        <div class="stat-value">{{ status?.keyword_count }}</div>
+        <div class="stat-desc"></div>
+      </div>
+    </div>
+
+
       <div class="index flex flex-col gap-2 justify-between">
         <div class="flex justify-between">
           <div class="text-xl font-bold">

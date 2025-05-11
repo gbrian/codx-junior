@@ -42,12 +42,12 @@ class Knowledge:
 
     def get_ai(self):
         if not self.ai:
-          self.ai = AI(settings=self.settings)
+            self.ai = AI(settings=self.settings)
         return self.ai
 
     def get_db(self):
         if not self.db:
-          self.db = KnowledgeDB(settings=self.settings)
+            self.db = KnowledgeDB(settings=self.settings)
         return self.db
 
     def refresh_last_update(self):

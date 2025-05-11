@@ -1,9 +1,9 @@
-# [[{"id": "0997c63b-85d5-4a08-a860-84a352e20b95", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": [], "profiles": ["analyst"], "name": "Channel Manager", "created_at": "2025-04-16 07:26:34.781262", "updated_at": "2025-04-16T14:05:50.207859", "mode": "task", "kanban_id": "", "column_id": "", "board": "Channels", "column": "Backlog", "chat_index": 0, "live_url": "", "branch": "", "file_path": "/home/codx-junior/codx-junior/api/.codx/tasks/Channels/Backlog/Channel Manager.0997c63b-85d5-4a08-a860-84a352e20b95.md", "model": ""}]]
-## [[{"doc_id": "98f92be4-2a02-49de-8d30-152446d1e4f6", "role": "user", "task_item": "", "hide": true, "improvement": false, "created_at": "2025-04-16 07:26:34.779869", "updated_at": "2025-04-16T13:56:25.095Z", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
+# [[{"id": "0997c63b-85d5-4a08-a860-84a352e20b95", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": [], "profiles": ["analyst"], "users": [], "name": "Channel Manager", "created_at": "2025-04-16 07:26:34.781262", "updated_at": "2025-05-05T10:59:00.801084", "mode": "task", "kanban_id": "", "column_id": "", "board": "Channels", "column": "In Development", "chat_index": 0, "url": "", "branch": "", "file_path": "/home/codx-junior/codx-junior/api/.codx/tasks/Channels/Backlog/Channel Manager.0997c63b-85d5-4a08-a860-84a352e20b95.md", "model": "", "visibility": ""}]]
+## [[{"doc_id": "98f92be4-2a02-49de-8d30-152446d1e4f6", "role": "user", "task_item": "", "hide": true, "improvement": false, "created_at": "2025-04-16 07:26:34.779869", "updated_at": "2025-04-16T13:56:25.095Z", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": null}]]
 We need a GroupChats manager for teams
 A GroupChat will extend Chat and add users list and visibility (public, private)
 We must manage a collection of GroupChat as they were slack channels where multiple users can chat and sahre information
-## [[{"doc_id": "97099113-ac72-4467-8c56-82a513629aa0", "role": "assistant", "task_item": "analysis", "hide": true, "improvement": false, "created_at": "2025-04-16 07:26:34.779869", "updated_at": "2025-04-16 07:26:34.779903", "images": [], "files": ["/codx/junior/chat_manager.py"], "meta_data": {"time_taken": 24.71785020828247, "first_chunk_time_taken": 7.392829895019531, "model": "gpt-4o"}, "profiles": ["analyst"]}]]
+## [[{"doc_id": "97099113-ac72-4467-8c56-82a513629aa0", "role": "assistant", "task_item": "analysis", "hide": true, "improvement": false, "created_at": "2025-04-16 07:26:34.779869", "updated_at": "2025-04-16 07:26:34.779903", "images": [], "files": ["/codx/junior/chat_manager.py"], "meta_data": {"time_taken": 24.71785020828247, "first_chunk_time_taken": 7.392829895019531, "model": "gpt-4o"}, "profiles": ["analyst"], "user": null}]]
 ### GroupChats Manager Architecture for `codx-api`
 
 #### Overview
@@ -107,14 +107,14 @@ Task will be considered done once all list entries are checked
  * [] GroupChats can be listed and retrieved
  * [] Test cases covering all functionalities are passed
 ```
-## [[{"doc_id": "45c9fd59-20ae-42a6-bc2b-2532c8080302", "role": "user", "task_item": "", "hide": true, "improvement": false, "created_at": "2025-04-16 07:26:34.779869", "updated_at": "2025-04-16 07:26:34.779903", "images": [], "files": [], "meta_data": {}, "profiles": []}]]
+## [[{"doc_id": "45c9fd59-20ae-42a6-bc2b-2532c8080302", "role": "user", "task_item": "", "hide": true, "improvement": false, "created_at": "2025-04-16 07:26:34.779869", "updated_at": "2025-04-16 07:26:34.779903", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": null}]]
 For the group_chats we need:
  * FASTAPI router for endpoints: create, update
  * service for managing the logic
  * data model 
 
 
-## [[{"doc_id": "c15391b3-579d-414c-b3a9-5923722a10b9", "role": "assistant", "task_item": "analysis", "hide": false, "improvement": false, "created_at": "2025-04-16 07:26:34.779869", "updated_at": "2025-04-16T14:05:49.885Z", "images": [], "files": [], "meta_data": {"time_taken": 17.98902916908264, "first_chunk_time_taken": 8.098212957382202, "model": "gpt-4o"}, "profiles": []}]]
+## [[{"doc_id": "c15391b3-579d-414c-b3a9-5923722a10b9", "role": "assistant", "task_item": "analysis", "hide": false, "improvement": false, "created_at": "2025-04-16 07:26:34.779869", "updated_at": "2025-04-16T14:05:49.885Z", "images": [], "files": [], "meta_data": {"time_taken": 17.98902916908264, "first_chunk_time_taken": 8.098212957382202, "model": "gpt-4o"}, "profiles": [], "user": null}]]
 ### GroupChats Manager Architecture for `codx-api`
 
 #### Overview

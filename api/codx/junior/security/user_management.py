@@ -42,46 +42,53 @@ class UserSecurityManager():
                     decoded = jwt.decode(token, self.global_settings.secret, algorithms=["HS256"])
                     user = CodxUserLogin(**decoded)
                 except Exception as ex:
-                    logging.error(f"Invalid token {ex}")
                     if not user:
+                        logging.error(f"Invalid token login {ex} {token}")
                         return None
 
-            stored_user = self.find_user(username=user.username)
-            stored_login = self.find_user_login(username=user.username)
+            try:
+                stored_user = self.find_user(username=user.username)
+                stored_login = self.find_user_login(username=user.username)
 
-            if stored_user:
-                if not stored_user.enabled:
-                    logger.error(f"Disabled user login attempt: {stored_user}")
-                    return None
-                if token == stored_login.token:
-                    return stored_user
-                if stored_login:    
-                    # Verify existing password
-                    if bcrypt.checkpw(user.password.encode('utf-8'), stored_login.password.encode('utf-8')):
+                if stored_user:
+                    if stored_user.disabled:
+                        logger.error(f"Disabled user login attempt: {stored_user}")
+                        return None
+                    if stored_login:
+                        if token == stored_login.token:
+                            return stored_user
+                        # Verify existing password
+                        if bcrypt.checkpw(user.password.encode('utf-8'), stored_login.password.encode('utf-8')):
+                            return stored_user
+                        else:
+                            logger.error("Invalid password")
+                    elif user.username and user.password:
+                        # Create a new user login with the hashed password
+                        hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+                        new_login = CodxUserLogin(username=user.username, email=user.email, password=hashed_password.decode('utf-8'))
+                        self.global_settings.user_logins.append(new_login)
+                        self.save_settings()
+                        
                         return stored_user
-                    else:
-                        logger.error("Invalid password")
-                elif user.username and user.password:
-                    # Create a new user login with the hashed password
-                    hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
-                    new_login = CodxUserLogin(username=user.username, email=user.email, password=hashed_password.decode('utf-8'))
-                    self.global_settings.user_logins.append(new_login)
-                    self.save_settings()
-                    
-                    return stored_user
-            else:
-                logger.error(f"Invalid login, stored_user not found for {user}, token: {token}")    
+                else:
+                    logger.error(f"Invalid login, stored_user not found for {user}, token: {token}")    
+            except Exception as ex:
+                logging.error(f"Invalid user login {ex} {user}")
+            
             return None
+            
         try:
             logged_user = do_login(user=user, token=token)
+            logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
             if logged_user:
                 user_login = self.find_user_login(username=logged_user.username)
+                logger.info(f"User logged {logged_user} and user login {user_login}")
                 user_login.token = self.get_user_token(user=logged_user)
                 self.save_settings()
                 logged_user.token = user_login.token
             return logged_user
         except Exception as ex:
-            logger.exception(f"Invalid login {ex} {user} token: {token}")
+            logger.error(f"Invalid login {ex} {user} token: {token}")
             return None
 
     def update_user(self, user: CodxUser, password: str = None):
@@ -102,11 +109,12 @@ class UserSecurityManager():
         return existing_user
 
     def get_user_project_access(self, user: CodxUser, settings: CODXJuniorSettings):
-        if user.role == 'admin':
-            return ['admin']
-        for p in user.projects:
-            if p.project_id == settings.project_id:
-                return p.permissions
+        if user:
+            if user.role == 'admin':
+                return ['admin']
+            for p in user.projects:
+                if p.project_id == settings.project_id:
+                    return p.permissions
         return []
 
     def add_user_to_project(self, user: CodxUser, project_id: str, permissions: str):

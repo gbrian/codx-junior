@@ -49,7 +49,7 @@ import LogViewerVue from './LogViewer.vue'
 
       <SplitterResizeHandle id="splitter-group-1-resize-handle-2" class="bg-stone-800 hover:bg-slate-600 w-1" v-if="$ui.showLogs"/>
 
-      <SplitterPanel id="splitter-group-1-panel-3" :order="2" :defaultSize="40" :min-size="10" class="flex items-center justify-center"
+      <SplitterPanel id="splitter-group-1-panel-3" :order="3" :defaultSize="25" :minSize="20" class="flex items-center justify-center"
         v-if="$ui.showLogs">
         <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
       </SplitterPanel>

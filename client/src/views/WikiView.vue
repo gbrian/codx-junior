@@ -48,7 +48,7 @@ export default {
     navigate (path) {
       this.history.push(path)
       API.wiki.read(path)
-      .then(({ data }) => this.homeContent = data)
+      .then(data => this.homeContent = data)
       .catch(() => this.homeContent = "## No project wiki yet!" )
     },
     onBack (path) {

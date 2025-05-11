@@ -1,4 +1,9 @@
 #!/bin/bash
+if [ -t "/tmp/codx-junior-installed" ]; then
+  exit 0
+fi
+touch /tmp/codx-junior-installed
+
 # Function to log messages
 log_info() {
   echo "[INFO] $1"
@@ -94,11 +99,6 @@ function install_docker() {
 }
 
 echo "Load supervisor files"
-# Check if CODX_JUNIOR_APPS is not empty
-if [ -z "$CODX_JUNIOR_APPS" ]; then
-  export CODX_JUNIOR_APPS="client api llm-factory"
-fi
-
 for app in $CODX_JUNIOR_APPS; do
   # Copy supervisor conf
   copy_app_conf $app

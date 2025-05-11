@@ -1482,12 +1482,17 @@ class CODXJuniorSession:
 
     def get_wiki_file(self, file_path:str):
         project_wiki_path = self.settings.get_project_wiki_path()
-        wiki_file = f"{project_wiki_path}{file_path}"
-        try:
-          with open(wiki_file, 'r', encoding='utf-8', errors='ignore') as f:
-              return f.read()
-        except:
-          return f"{wiki_file} not found"
+        if project_wiki_path:
+            if project_wiki_path[-1] != '/' and file_path[0] != '/':
+                file_path = f"/{file_path}"
+            wiki_file = f"{project_wiki_path}{file_path}"
+            try:
+              logger.info(f"Reading wiki file: {wiki_file}")
+              with open(wiki_file, 'r', encoding='utf-8', errors='ignore') as f:
+                  return f.read()
+            except:
+                pass
+        return f"> {wiki_file} not found"
 
     def get_readme(self):
         project_path = self.settings.project_path
@@ -1514,6 +1519,9 @@ class CODXJuniorSession:
         if os.path.isfile(project_wiki_home):
             with open(project_wiki_home, 'r', encoding='utf-8', errors='ignore') as f:
                 home_content = f.read()
+        else:
+            with open(project_wiki_home, 'w', encoding='utf-8', errors='ignore') as f:
+                f.write(home_content)
 
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             file_content = f.read()

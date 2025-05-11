@@ -3,12 +3,12 @@ import moment from 'moment'
 import ChatEntry from '../ChatEntry.vue';
 </script>
 <template>
-  <div class="flex gap-2 justify-center relative" @mouseenter="onOpen" @mouseleave="onClose">
-    <div class="absolute -mt-2 right-4 w-96 transition-all z-[100]" :class="!isOpen && 'hidden'">
+  <div class="flex gap-2 justify-center w-full" @mouseenter="onOpen" @mouseleave="onClose">
+    <div class="absolute transition-all w-[600px] z-[100] right-0 -mt-3 p-2 " :class="!showAssistant && 'hidden'">
       <input type="text" v-model="query" placeholder="How can I help you?"
         class="input input-bordered w-full" @keydown.enter="sendMessage" />
       <div class="p-2 flex flex-col gap-2 bg-base-300" v-if="chat">
-        <ChatEntry class="max-h-40 overflow-auto" :chat="chat" :message="lastAiMessage" v-if="lastAiMessage"  />
+        <ChatEntry class="max-h-96 overflow-auto" :chat="chat" :message="lastAiMessage" v-if="lastAiMessage"  />
         <div class="flex justify-end gap-2">
           <button class="btn btn-sm btn-outline" @click="resetChat">
             <i class="fa-solid fa-plus"></i> New
@@ -68,6 +68,15 @@ export default {
       if (!this.chat) {
         await this.newChat(this.query)
       }
+      const tabContext = this.getCurrentTabContext()
+      if (tabContext && !this.chat.messages.length) {
+        const msg = {
+          role: 'user',
+          content: tabContext,
+          user: this.$user.username
+        }
+        this.chat.messages.push(msg)  
+      }
       const msg = {
         role: 'user',
         content: this.query,
@@ -98,6 +107,17 @@ export default {
     },
     resetChat() {
       this.chat = null
+    },
+    getCurrentTabContext() {
+      if (this.$ui.activeTab === 'prview') {
+        if (this.$projects.project_branches) {
+          return ["User is reviewing project file changes:",
+            "```diff",
+            this.$projects.project_branches.git_diff,
+            "```"
+          ].join("\n")
+        }
+      }
     }
   }
 }
