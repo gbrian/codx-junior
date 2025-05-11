@@ -16,3 +16,4 @@ pids
 ollama_models
 logs
 .codx/logs/ai.md
+**/.vitepress/cache
