@@ -5,7 +5,7 @@ echo "CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
 
 su $USER -
 
-source ${CODX_JUNIOR_PATH}/.env
+source ${CODX_JUNIOR_PATH}/set_env.sh
 
 bash ${CODX_JUNIOR_PATH}/scripts/logo.sh
 

@@ -9,13 +9,16 @@ import KanbanList from "./KanbanList.vue"
 
 <template>
   <div class="h-full" v-if="kanban?.boards">
-    <KanbanList
-      :boards="boards"
-      @select="selectBoard"
-      @edit="onEditBoard"
-      @new="showNewBoardModal"
-      v-if="!$projects.activeChat && !board"
-    />
+    <div v-if="!$projects.activeChat && !board">
+      <h1 class="text-2xl font-bold mb-4">Kanban Boards Dashboard</h1>
+      <KanbanList
+        :boards="parentBoards"
+        @select="selectBoard"
+        @edit="onEditBoard"
+        @new="showNewBoardModal"
+      />
+    </div>
+
     <ChatViewVue
       class="h-full"
       @chats="onChatEditDone"
@@ -28,8 +31,8 @@ import KanbanList from "./KanbanList.vue"
     <div v-if="!$projects.activeChat && showKanban">
       <div class="flex gap-4 items-center">
         <div class="flex gap-2 items-center">
-          <div tabindex="0" class="text-xl py-1 px-2 click flex items-center gap-2" @click="toggleDropdown">
-            <button class="btn btn-sm" @click="selectBoard()">
+          <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2" @click="toggleDropdown">
+            <button class="btn btn-sm" @click="selectBoard(parentBoard?.title)">
               <i class="fa-solid fa-caret-left"></i>
             </button>
             {{ activeBoard?.title }}
@@ -39,7 +42,7 @@ import KanbanList from "./KanbanList.vue"
         <div class="flex gap-2">
           <div class="grow input input-sm input-bordered flex items-center gap-2">
             <input type="text" v-model="filter" class="grow" placeholder="Search tasks" />
-            <span class="click" v-if="filter" @click.stop="filter = ''">
+            <span class="cursor-pointer" v-if="filter" @click.stop="filter = ''">
               <i class="fa-regular fa-circle-xmark"></i>
             </span>
             <span v-else><i class="fa-solid fa-filter"></i></span>
@@ -48,6 +51,11 @@ import KanbanList from "./KanbanList.vue"
             <i class="fa-solid fa-plus"></i>
             <span class="text-xs md:text-md">Column</span>
           </button>
+          <button class="btn btn-sm btn-warning btn-outline" @click="showChildrenBoards = !showChildrenBoards" v-if="columnList?.length">
+            <i class="fa-solid fa-caret-up" v-if="showChildrenBoards"></i>
+            <i class="fa-solid fa-caret-down" v-else></i>
+            <span class="text-xs md:text-md">Boards</span>
+          </button>
         </div>
       </div>
       <div class="mt-3 grow">
@@ -55,6 +63,17 @@ import KanbanList from "./KanbanList.vue"
           <i class="fa-solid fa-plus"></i>
           <span class="text-xs md:text-md">Column</span>
         </button>
+        <div class="transition-all pb-2" v-if="showChildrenBoards">
+          <KanbanList
+            class="mb-2"
+            :boards="childBoards"
+            @select="selectBoard"
+            @edit="onEditBoard"
+            @new="showNewBoardModal"
+          />
+        </div>
+        
+
         <draggable
           v-model="filteredColumns"
           group="columns"
@@ -69,7 +88,7 @@ import KanbanList from "./KanbanList.vue"
               :style="{ borderColor: column.color }"
             >
               <div class="group font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
-                <div class="click w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
+                <div class="cursor-pointer w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
                   :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
                   <span class="hidden group-hover:block">
                     <i class="fa-solid fa-pen-to-square"></i>
@@ -79,7 +98,7 @@ import KanbanList from "./KanbanList.vue"
                   <div>{{column.title}}</div>
                 </div>
                 <div class="btn btn-sm" @click="column.showSubTasks = !column.showSubTasks"
-                  :class="column.showSubTasks && 'btn-info'"
+                  :class="(column.showSubTasks !== false) && 'btn-info'"
                 >
                   <i class="fa-regular fa-file-lines"></i>
                 </div>
@@ -117,9 +136,9 @@ import KanbanList from "./KanbanList.vue"
                       v-if="taskMatchesFilter(task)"
                       :task="task"
                       :itemKey="'id'"
-                      class="click bg-base-100 overflow-hidden mt-2"
+                      class="cursor-pointer bg-base-100 overflow-hidden mt-2"
                       :class="[lastUpdatedTask.id == task.id ? 'border boder-primary border-dashed':'',
-                        !column.showSubTasks && task.parent_id && 'hidden'
+                        (column.showSubTasks !== false) || !task.parent_id ? '' : 'hidden'
                       ]"
                       @click="openChat(task)"
                     />
@@ -132,7 +151,8 @@ import KanbanList from "./KanbanList.vue"
       </div>
     </div>
     <modal v-if="showBoardModal">
-      <h2 class="font-bold text-lg">Add New Board</h2>
+      <h2 class="font-bold text-3xl">Add New Board</h2>
+      <div class="text-xl text-info font-bold" v-if="activeBoard">Parent {{ activeBoard.title }}</div>
       <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
       <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
       <input type="text" v-model="newBoardBranch" placeholder="Enter branch name" class="input input-bordered w-full mt-2"/>
@@ -145,7 +165,6 @@ import KanbanList from "./KanbanList.vue"
         <button class="btn" @click="showBoardModal = false">Cancel</button>
       </div>
     </modal>
-
     <modal v-if="showColumnModal">
       <h2 class="font-bold text-lg">Add/Edit Column</h2>
       <div class="flex gap-1 items-center">
@@ -157,8 +176,31 @@ import KanbanList from "./KanbanList.vue"
       <div class="modal-action">
         <button class="btn" @click="addOrUpdateColumn">OK</button>
         <button class="btn" @click="showColumnModal = false">Cancel</button>
+        <button class="btn btn-error" @click="deleteColumn">Delete</button>
+        <div class="text-error text-xs" v-if="confirmDeleteColumn">
+          Are you sure you want to delete this column? 
+          All tasks will be removed.
+        </div>
       </div>
       <div class="badge badge-error" v-if="editColumnError">{{ editColumnError }}</div>
+    </modal>
+    <modal v-if="showImportModalForColumn">
+      <h2 class="font-bold text-lg">Import Task</h2>
+      <div class="form-control">
+        <label class="label cursor-pointer">
+          <span class="label-text">Import from clipboard</span> 
+          <input type="radio" name="importOptions" value="clipboard" v-model="importOption" class="radio" />
+        </label>
+        <label class="label cursor-pointer">
+          <span class="label-text">Import from URL</span> 
+          <input type="radio" name="importOptions" value="url" v-model="importOption" class="radio" />
+        </label>
+        <input v-if="importOption === 'url'" type="text" v-model="importUrl" placeholder="Paste URL here" class="input input-bordered w-full mt-2"/>
+      </div>
+      <div class="modal-action">
+        <button class="btn" @click="confirmImportTask">Import</button>
+        <button class="btn" @click="showImportModalForColumn = false">Cancel</button>
+      </div>
     </modal>
   </div>
 </template>
@@ -184,6 +226,7 @@ export default {
       editColumnError: null,
       columns: [],
       selectedTemplate: null,
+      showChildrenBoards: false,
       templates: [
         {
           name: "Scrum",
@@ -206,7 +249,11 @@ export default {
       ],
       editBoardName: '',
       editBoardDescription: '',
-      filteredColumns: []
+      filteredColumns: [],
+      confirmDeleteColumn: false,
+      showImportModalForColumn: null,
+      importOption: 'clipboard',
+      importUrl: ''
     }
   },
   created() {
@@ -250,6 +297,9 @@ export default {
     columnList() {
       return this.boards[this.board]?.columns?.map(c => c.title) || []
     },
+    parentBoard() {
+      return this.boards[this.activeBoard?.parent_id]
+    },
     boards() {
       const { kanban: { boards }, chats } = this
       return [
@@ -263,6 +313,12 @@ export default {
         tasks: chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.id)
       }}), {})
     },
+    parentBoards() {
+      return Object.values(this.boards).filter(b => !b.parent_id)
+    },
+    childBoards() {
+      return Object.values(this.boards).filter(b => b.parent_id === this.activeBoard?.id)
+    },
     visibleTasks() {
       return this.filteredColumns.reduce((a, b) => a.concat(b.tasks || []), [])
     }
@@ -275,6 +331,11 @@ export default {
     },
     project() {
       this.projectChanged()
+    },
+    chats(newValue, oldValue) {
+      if (newValue.map(c => c.id).sort().join()
+      !== oldValue.map(c => c.id).sort().join())
+      this.buildColumns()
     }
   },
   methods: {
@@ -307,6 +368,7 @@ export default {
       this.board = board
       this.$ui.setKanban(board)
       this.isDropdownOpen = false
+      this.showChildrenBoards = !!this.childBoards.length
       await this.$projects.loadChats()
       if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
         Object.keys(this.kanban.boards)
@@ -351,14 +413,31 @@ export default {
       })
     },
     async importTask(column) {
-      const clipboardContent = await navigator.clipboard.readText();
-      const existingChat = JSON.parse(clipboardContent)
-      const newChat = await this.createNewChat({
-        ...existingChat,
-        id: null,
-        column,
-      })
-      this.$projects.saveChat(newChat)
+      this.showImportModalForColumn = column
+    },
+    async confirmImportTask() {
+      const column = this.activeBoard?.columns?.find(c => c.title === this.columnTitle)
+      if (this.importOption === 'clipboard') {
+        const clipboardContent = await navigator.clipboard.readText()
+        const existingChat = JSON.parse(clipboardContent)
+        const newChat = await this.createNewChat({
+          ...existingChat,
+          id: null,
+          column
+        })
+        this.$projects.saveChat(newChat)
+      } else if (this.importOption === 'url') {
+        const chat = {
+          board: this.board || "Default",
+          column: this.showImportModalForColumn,
+          name: "Import from url",
+          mode: 'chat',
+          url: this.importUrl
+        }
+        await this.$projects.createNewChatFromUrl(chat)
+      }
+      this.showImportModalForColumn = null
+      this.importUrl = null
     },
     async buildKanban() {
       if (this.kanban) {
@@ -412,7 +491,7 @@ export default {
       this.buildKanban()
     },
     async createSubTask({ parent, name, description }) {
-      const chat = this.createNewChat({
+      const chat = await this.createNewChat({
         board: parent.board,
         name,
         column: parent.column,
@@ -420,7 +499,7 @@ export default {
         project_id: parent.project_id,
         messages: [{ role: "user", content: description }]
       })
-      this.$projects.newChat(chat)
+      this.$projects.saveChat(chat)
     },
     async createSubTasks(event) {
       this.$projects.createSubtasks(event)
@@ -450,6 +529,16 @@ export default {
       this.resetColumnModal()
       this.buildKanban()
     },
+    async deleteColumn() {
+      if (this.confirmDeleteColumn) {
+        this.activeKanbanBoard.columns = this.activeKanbanBoard.columns.filter(
+          column => column.id !== this.selectedColumn.id
+        )
+        await this.saveKanban(true)
+        this.resetColumnModal()
+      }
+      this.confirmDeleteColumn = !this.confirmDeleteColumn
+    },
     resetColumnModal() {
       this.showColumnModal = false
       this.columnTitle = ''
@@ -463,6 +552,7 @@ export default {
         const selectedTemplate = this.selectedTemplate
         this.kanban.boards[boardName] = {
           id: uuidv4(),
+          parent_id: this.activeBoard?.id,
           description: this.newBoardDescription.trim() || selectedTemplate.description,
           branch: this.newBoardBranch.trim(),
           columns: selectedTemplate?.columns || [],

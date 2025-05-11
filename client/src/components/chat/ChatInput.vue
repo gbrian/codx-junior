@@ -139,7 +139,7 @@ import { API } from '../../api/api'
               <li
                 class="btn btn-sm"
                 @click="testProject"
-                v-if="API.lastSettings.script_test"
+                v-if="API.activeProject.script_test"
               >
                 <a>
                   <i class="fa-solid fa-flask"></i>

@@ -103,12 +103,12 @@ class OpenAI_AI:
               "buffer": [],
               "ts": datetime.now()
             }
-            def send_callback(force=False):
-              if callbacks:
+            def send_callback(chunk_content, force=False):
+              if callbacks and chunk_content:
                   callback_data["buffer"].append(chunk_content)
                   if force or (datetime.now() - callback_data["ts"]).total_seconds() > 1:
                       callback_data["ts"] = datetime.now()
-                      message = "".join(callback_data["buffer"])
+                      message = "".join(callback_data["buffer"]) if callback_data["buffer"] else ""
                       callback_data["buffer"] = []
                       for cb in callbacks:
                           try:
@@ -126,7 +126,7 @@ class OpenAI_AI:
                 if not chunk_content:
                     continue
                 content_parts.append(chunk_content)
-                send_callback()
+                send_callback(chunk_content)
             # Last chunks...
             send_callback(True)  
         except Exception as ex:
@@ -186,6 +186,6 @@ class OpenAI_AI:
                   embeddings = embeddings + data.embedding
               return embeddings
             except Exception as ex:
-              logger.exception(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
+              logger.error(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
               raise ex
         return embedding_func

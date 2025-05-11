@@ -3,6 +3,7 @@ import re
 import logging
 import shutil
 import json
+import time
 from datetime import datetime
 from contextlib import contextmanager
     
@@ -18,6 +19,9 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.utils import calculate_md5
 
 logger = logging.getLogger(__name__)
+
+RETRY_CONNECT_COUNT = 5
+RETRY_SLEEP_SECONDS = 1
 
 class DBDocument (Document):
   db_id: str = None
@@ -57,12 +61,24 @@ class KnowledgeDB:
         if os.path.isfile(self.db_file_list):
             self.last_update = os.path.getmtime(self.db_file_list)
 
+    def connect_client(self):
+        retry_count = RETRY_CONNECT_COUNT
+        error = None
+        while retry_count:
+            try:
+                return MilvusClient(self.db_file)
+            except Exception as ex:
+                pass
+            time.sleep(RETRY_SLEEP_SECONDS)
+            retry_count = retry_count - 1
+        raise error
+    
     @contextmanager
     def get_db(self):
         db = None
         try:
-            db = MilvusClient(self.db_file)
-            yield db         
+            db = self.connect_client()
+            yield db
         finally:
             if db:
                   db.close()

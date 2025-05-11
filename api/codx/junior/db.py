@@ -28,6 +28,7 @@ class Message(BaseModel):
     files: List[str] = Field(default=[])
     meta_data: Optional[dict] = Field(default={})
     profiles: List[str] = Field(default=[])
+    user: Optional[str] = Field(default=None)
 
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
@@ -38,6 +39,7 @@ class Chat(BaseModel):
     tags: List[str] = Field(default=[], description="Informative set of tags")
     file_list: List[str] = Field(default=[])
     profiles: List[str] = Field(default=[])
+    users: List[str] = Field(default=[])
     name: str = Field(default='')
     messages: List[Message] = Field(default=[])
     created_at: str = Field(default=str(datetime.now()))
@@ -48,10 +50,11 @@ class Chat(BaseModel):
     board: str = Field(default='')
     column: str = Field(default='')
     chat_index: Optional[int] = Field(default=0)
-    live_url: str = Field(default='')
+    url: str = Field(default='')
     branch: str = Field(default='')
     file_path: str = Field(default='')
     model: Optional[str] = Field(default='')
+    visibility: Optional[str] = Field(default='')
 
 class KanbanColumn(BaseModel):
     doc_id: Optional[str] = Field(default=None)

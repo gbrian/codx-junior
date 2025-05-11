@@ -7,6 +7,7 @@ import subprocess
 import shutil
 import asyncio
 import uuid
+import requests
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
@@ -49,7 +50,8 @@ from codx.junior.model.model import (
     ImageUrl,
     LiveEdit,
     GlobalSettings,
-    Profile
+    Profile,
+    CodxUser
 )
 from codx.junior.context import (
     find_relevant_documents,
@@ -79,6 +81,8 @@ from codx.junior.db import (
 )
 
 from codx.junior.sio.session_channel import SessionChannel
+from codx.junior.security.user_management import UserSecurityManager
+
 
 """Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
 MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 300
@@ -99,9 +103,10 @@ APPS_COMMANDS = {
 
 AGENT_DONE_WORD = "$$@@AGENT_DONE@@$$$"
 
-def create_project(project_path: str):
+def create_project(project_path: str, user: CodxUser):
     logger.info(f"Create new project {project_path}")
-    projects_root_path = f"{os.environ['HOME']}/projects"
+    global_settings = read_global_settings()
+    projects_root_path = global_settings.projects_root_path or f"{os.environ['HOME']}/projects"
     os.makedirs(projects_root_path, exist_ok=True)
         
     if project_path.startswith("http"):
@@ -121,7 +126,10 @@ def create_project(project_path: str):
     _, stderr = exec_command("git branch")
     if stderr:
         exec_command("git init", cwd=project_path)
-    return CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
+    new_project = CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
+    if user:
+      UserSecurityManager().add_user_to_project(project_id=new_project.project_id, user=user, permissions='admin')
+    return new_project
 
 def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     logger.info(f"coder_open_file {file_name}")
@@ -132,7 +140,7 @@ def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
 
 def find_project_from_file_path(file_path: str):
     """Given a file path, find the project parent"""
-    all_projects = find_all_projects()
+    all_projects = find_all_projects().values()
     matches = [p for p in all_projects if file_path.startswith(p.project_path)]
     if matches:
         logger.info(f"Find projects for file {file_path}: {[m.project_name for m in matches]}")
@@ -141,19 +149,28 @@ def find_project_from_file_path(file_path: str):
   
 def find_project_by_id(project_id: str):
     """Given a project id, find the project"""
-    all_projects = find_all_projects()
+    all_projects = find_all_projects().values()
     matches = [p for p in all_projects if p.project_id == project_id]
     return matches[0] if matches else None
 
 def find_project_by_name(project_name: str):
     """Given a project project_name, find the project"""
-    all_projects = find_all_projects()
+    all_projects = find_all_projects().values()
     matches = [p for p in all_projects if p.project_name == project_name]
     return matches[0] if matches else None
 
+def find_all_user_projects(user: CodxUser):
+    user_security_manager = UserSecurityManager()
+    for settings in find_all_projects().values():
+        permissions = user_security_manager.get_user_project_access(user=user, settings=settings)
+        if permissions:
+            yield {
+                **settings.__dict__,
+                "permissions": permissions
+            }
 
 def find_all_projects():
-    all_projects = []
+    all_projects = {}
     project_path = "/"
     result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     all_codx_path = result.stdout.decode('utf-8').split("\n")
@@ -163,9 +180,9 @@ def find_all_projects():
         try:
             project_file_path = f"{codx_path}/project.json"
             settings = CODXJuniorSettings.from_project_file(project_file_path)
-            project_exists = [p for p in all_projects if p.project_name == settings.project_name] 
+            project_exists = [p for p in all_projects.values() if p.project_name == settings.project_name] 
             if not project_exists: 
-                all_projects.append(settings)
+                all_projects[settings.project_id] = settings
             else:
                 # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
                 pass 
@@ -173,7 +190,7 @@ def find_all_projects():
             logger.exception(f"Error loading project {str(codx_path)}")
     
     def update_projects_with_details():
-        for project in all_projects:
+        for project in all_projects.values():
             try:
                 command = ["git", "branch", "--show-current"]
                 result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -289,8 +306,8 @@ class CODXJuniorSession:
         self.chat_event(chat=chat, event_type="changed")
         return chat
 
-    def delete_chat(self, file_path):
-        self.get_chat_manager().delete_chat(file_path)
+    def delete_chat(self, chat_id):
+        self.get_chat_manager().delete_chat(chat_id=chat_id)
 
     @profile_function
     def list_profiles(self):
@@ -318,6 +335,43 @@ class CODXJuniorSession:
             documents = knowledge.reload()
         return {"doc_count": len(documents) if documents else 0}
 
+    def init_chat_from_url(self, chat: Chat):
+        ai_content = None
+        try:
+            # Step 1: Download the content from the chat URL
+            response = requests.get(chat.url)
+            response.raise_for_status()  # This will raise an error for bad responses (4XX or 5XX)
+
+            # Ensure the response is text-based
+            downloaded_content = response.text
+
+            # Step 2: Use AI to parse the downloaded content
+            ai = self.get_ai()
+
+            # Step 3: Create a prompt to extract a title and content
+            prompt = f"""
+            Extract a concise title and all content from the following issue html page:
+            {downloaded_content}
+
+            Return the response in JSON format:
+            {{
+                "title": "Extracted title",
+                "content": "Extracted content"
+            }}
+            """
+            # Use AI to get the response
+            ai_responses = ai.chat(prompt=prompt)
+            ai_content = ai_responses[0].content
+            response_json = next(extract_json_blocks(ai_content))
+    
+            # Step 4: Set the extracted title as the name and the content as the first message of the chat
+            chat.name = response_json.get('title', 'Untitled Chat')  # Default to 'Untitled Chat' if no title is found
+            chat.messages.append(Message(role='user', content=response_json.get('content', '')))
+                
+        except Exception as e:
+            self.log_exception(f"Error initializing chat from URL {chat.url}: {e} - {ai_content}")
+            raise e
+    
     @profile_function
     async def knowledge_search(self, knowledge_search: KnowledgeSearch):
         self.settings.knowledge_search_type = knowledge_search.document_search_type
@@ -451,9 +505,41 @@ class CODXJuniorSession:
             return docs, file_list
         return process_rag_query(rag_query=query)
 
-    async def generate_code(self, chat: Chat, code_block_info: dict):
+    async def excute_bash_code(self, chat: Chat, code_block_info: dict):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+        
         language = code_block_info["language"]
         code = code_block_info["code"]
+        try:
+            self.chat_event(chat=chat, message="Executing bash script")
+            stdout, stderr = exec_command(code, cwd=self.settings.project_path)
+            chat.messages.append(Message(role="user", content=f"""
+            Executing bash script
+            ```{language}
+            {code}
+            ```
+            stdout: {stdout}
+            stderr: {stderr}
+            """))
+            self.chat_event(chat=chat, message="Applying patch done.")
+            await self.save_chat(chat=chat)
+        except Exception as ex:
+            self.chat_event(chat=chat, message=f"Error applying patch: {ex}", event_type="error")
+            raise ex
+
+    async def generate_code(self, chat: Chat, code_block_info: dict):
+        # Invoke project based on project_id
+        self = self.switch_project(chat.project_id)
+
+        language = code_block_info["language"]
+        code = code_block_info["code"]
+        ai = self.get_ai()
+        messages = ai.chat(prompt=f"Answer only (YES or NO). Is this something I can execute in a terminal?:\nScript:\n{code}")
+        
+        is_bash = "YES" in messages[-1].content
+        if is_bash:
+            return await self.excute_bash_code(chat=chat, code_block_info=code_block_info)
         
         try:
             chat.messages.append(Message(role="user", content=f"""
@@ -831,8 +917,6 @@ class CODXJuniorSession:
           if not mentions:
               return ""
 
-          keywords = self.get_keywords(query=" ".join([m.mention for m in mentions]))
-          
           self.send_notification(text=f"@codx {len(mentions)} mentions in {file_path.split('/')[-1]} profiles: {profile_names}")    
           self.log_info(f"{len(mentions)} mentions found for {file_path} profiles: {profile_names}")
 
@@ -845,7 +929,7 @@ class CODXJuniorSession:
               new_content = self.process_image_mention(image_mentions, file_path, content)
               return await self.check_file_for_mentions(file_path=file_path, content=new_content, silent=True)
 
-          use_knowledge = any(m.flags.knowledge for m in mentions) or keywords
+          use_knowledge = any(m.flags.knowledge for m in mentions)
           using_chat = any(m.flags.chat_id for m in mentions)
           run_code = any(m.flags.code for m in mentions)
 
@@ -866,6 +950,8 @@ class CODXJuniorSession:
               return f"User commented in line {mention.start_line}: {mention.mention}"
           
           query = "\n  *".join([mention_info(mention) for mention in mentions])
+          query_mentions = self.get_query_mentions(query=query)
+
           file_chat_name = "-".join(file_path.split("/")[-2:])
           
           self.log_info(f"Create mention chat {file_chat_name}")
@@ -901,6 +987,7 @@ class CODXJuniorSession:
                 column="changes",
                 parent_chat=analysis_chat.id if analysis_chat else None,
                 tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
+                profiles=[p.name for p in query_mentions["profiles"]],
                 messages=
                   [
                       Message(role="user", content=f"""
@@ -930,8 +1017,7 @@ class CODXJuniorSession:
               changes_chat.messages.append(Message(role="user", content=f"""
               Rewrite full file content replacing codx instructions with the minimum changes as possible.
               Return only the file content without any further decoration or comments.
-              Do not surround response with '```' marks, just content:
-              {new_content}
+              Do not surround response with '```' marks, just content.
               """))
               
               self.log_info(f"Mentions generate changes {file_path}")
@@ -1028,9 +1114,9 @@ class CODXJuniorSession:
           
           INSTRUCTIONS:
            * Split main_task into tasks
-           * Each new task must have a clear name and a description 
-           * In the tag list don't use "#"
-           * Add tags only if requested
+           * Take the name of the task from the content if present
+           * Take the description from the content
+           * The name of the task must indicate the priority like: "Task 1: Perform analysis"
            * Description must explain the task and have instructions on what needs to be done.
            * Return a single JSON object like the one in the example below without further decoration or comments
               ```json
@@ -1144,7 +1230,7 @@ class CODXJuniorSession:
             def load_profiles():
                 query_profiles = query_mentions["profiles"]
                 chat_profiles = [profile_manager.read_profile(profile_name) for profile_name in chat.profiles]
-                all_profiles = [p for p in query_profiles + chat_profiles if p]
+                all_profiles = [p for p in chat_profiles + query_profiles if p]
                 all_profiles = self.get_profiles_and_parents(all_profiles)
                 profile_names = [p.name for p in all_profiles]
                 self.log_info(f"Loading profiles: {profile_names}")
@@ -1249,7 +1335,7 @@ class CODXJuniorSession:
             ai = self.get_ai(llm_model=ai_settings.model)
 
             # Read knowledge
-            search_projects = query_mentions["projects"]
+            search_projects = query_mentions["projects"] + [self.settings]
             if not disable_knowledge and self.settings.use_knowledge and search_projects:
                 self.log_info(f"chat_with_project start project search {search_projects}")
                 try:
@@ -1361,7 +1447,7 @@ class CODXJuniorSession:
             response_message.profiles = chat_profile_names
             
             chat.messages.append(response_message)
-            if is_refine:
+            if chat_mode == 'task':
                 for message in chat.messages[:-1]:
                     message.hide = True
 
@@ -1396,12 +1482,17 @@ class CODXJuniorSession:
 
     def get_wiki_file(self, file_path:str):
         project_wiki_path = self.settings.get_project_wiki_path()
-        wiki_file = f"{project_wiki_path}{file_path}"
-        try:
-          with open(wiki_file, 'r', encoding='utf-8', errors='ignore') as f:
-              return f.read()
-        except:
-          return f"{wiki_file} not found"
+        if project_wiki_path:
+            if project_wiki_path[-1] != '/' and file_path[0] != '/':
+                file_path = f"/{file_path}"
+            wiki_file = f"{project_wiki_path}{file_path}"
+            try:
+              logger.info(f"Reading wiki file: {wiki_file}")
+              with open(wiki_file, 'r', encoding='utf-8', errors='ignore') as f:
+                  return f.read()
+            except:
+                pass
+        return f"> {wiki_file} not found"
 
     def get_readme(self):
         project_path = self.settings.project_path
@@ -1428,6 +1519,9 @@ class CODXJuniorSession:
         if os.path.isfile(project_wiki_home):
             with open(project_wiki_home, 'r', encoding='utf-8', errors='ignore') as f:
                 home_content = f.read()
+        else:
+            with open(project_wiki_home, 'w', encoding='utf-8', errors='ignore') as f:
+                f.write(home_content)
 
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             file_content = f.read()

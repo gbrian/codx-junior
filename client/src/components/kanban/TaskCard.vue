@@ -1,21 +1,31 @@
 <script setup>
 import moment from 'moment'
-import ChatIcon from '../chat/ChatIcon.vue'
+import ProfileAvatar from '../profile/ProfileAvatar.vue'
+import UserAvatar from '../user/UserAvatar.vue'
+import TaskSettings from './TaskSettings.vue';
 </script>
+
 <template>
-  <div :class="['p-2 shadow-lg rounded-lg flex flex-col gap-2', parentChat ? 'bg-base-100' : 'bg-base-300']">
+  <div :class="['p-2 shadow-lg rounded-lg', parentChat ? 'bg-base-100' : 'bg-base-300']">
     <div v-if="image" :style="`background-image: url(${image.src})`" class="bg-contain bg-no-repeat bg-center h-28 bg-base-300"></div>
-    <div class="flex flex-col gap-2">
+    <div class="h-full flex flex-col justify-between gap-2">
       <div>
         <div v-if="parentChat" class="text-xs text-primary/40 hover:text-primary text-nowrap overflow-hidden" @click.stop="$projects.setActiveChat(parentChat)">
           {{ parentChat.name }}
         </div>
         <div class="flex justify-between">
-          <div class="font-semibold tracking-wide text-sm flex gap-2">
-            <div class="rounded-full">
-              <ChatIcon :mode="task.mode" />
+          <div class="font-semibold tracking-wide text-sm flex gap-2 mt-1">
+            <div class="avatar" :title="taskProject.project_name" v-if="taskProject !== $project">
+              <div class="w-6 h-6 rounded-full">
+                <img :src="taskProject.project_icon"/>
+              </div>
             </div>
-            <div class="overflow-hidden">{{ task.name }}</div>
+            <UserAvatar :width="7" :user="user" v-for="user in taskUsers" :key="user.username">
+              <li @click="removeUser(user)" ><a>Remove</a></li>
+            </UserAvatar>  
+                    
+            <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
+            <div class="overflow-hidden h-10 overflow-auto" :title="task.name">{{ task.name }}</div>
           </div>
           <div class="flex gap-2 items-center">
             <div :class="`badge badge-outline badge-${badgeColor[task.mode]}`">{{ task.mode }}</div>
@@ -35,6 +45,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
           </span>
         </div>
       </div>
+      <div class="grow"></div>
       <div class="flex justify-between items-center">
         <div class="flex justify-end">
           <button class="btn btn-circle btn-sm" @click.stop="openSettingsModal">
@@ -53,56 +64,32 @@ import ChatIcon from '../chat/ChatIcon.vue'
       </div>
     </div>
     <modal v-if="isSettingsModalOpen" @click.stop>
-      <h3 class="font-bold text-lg">Task Settings</h3>
-      <div class="py-4">
-        <label class="block">
-          <span>Task Name</span>
-          <input type="text" class="input input-bordered w-full" v-model="modalData.name">
-        </label>
-        <label class="block mt-4">
-          <span>Board</span>
-          <input type="text" class="input input-bordered w-full" v-model="modalData.board">
-        </label>
-        <label class="block mt-4">
-          <span>Column</span>
-          <input type="text" class="input input-bordered w-full" v-model="modalData.column">
-        </label>
-      </div>
-      <div class="modal-action">
-        <button class="btn btn-ghost" @click="discardChanges">Discard</button>
-        <button class="btn btn-primary" @click="saveChanges">Save</button>
-      </div>
-      <div tabindex="0" class="collapse">
-        <input type="checkbox" />
-        <div class="collapse-title font-semibold text-error">Delete</div>
-        <div class="collapse-content text-sm">
-          <button class="mt-2 btn btn-error btn-wide" @click.stop="deleteTask">Confirm delete</button>
-        </div>
-      </div>
+      <TaskSettings :taskData="taskData" @close="discardChanges" />
     </modal>
     <progress class="progress w-full" v-if="updating"></progress>
   </div>
 </template>
+
 <script>
 export default {
   props: ['task'],
   data() {
     return {
+      showProfileSelector: false,
       isSettingsModalOpen: false,
-      modalData: {
-        name: this.task.name,
-        board: '',
-        column: ''
-      },
       badgeColor: {
         task: "primary",
         chat: "accent"
-      }
+      },
+      taskData: {}
     }
   },
   computed: {
+    taskUsers() {
+      return this.$storex.api.userNetwork.filter(({ username }) => this.task.users?.includes(username))
+    },
     image() {
-      let image = this.task.messages?.find(m => m.images.length)?.images[0]
+      let image = this.task.messages?.find(m => m.images?.length)?.images[0]
       return image ? JSON.parse(image) : null
     },
     isToday() {
@@ -129,27 +116,26 @@ export default {
         return false
       }
       return moment().diff(
-          moment(messages[messages.length - 1].updated_at)
-        , 'seconds') < 10
+        moment(messages[messages.length - 1].updated_at), 'seconds') < 10
+    },
+    profile() {
+      return this.$projects.profiles.find(p => p.name === this.task.profiles[0])
+    },
+    taskProject() {
+      return this.$projects.allProjects.find(p => p.project_id === this.task.project_id) ||
+                this.$project
     }
   },
   methods: {
     openSettingsModal() {
       this.isSettingsModalOpen = true
+      this.taskData = { ...this.task }
     },
     closeSettingsModal() {
       this.isSettingsModalOpen = false
     },
     discardChanges() {
       this.closeSettingsModal()
-    },
-    saveChanges() {
-      console.log('Task Saved:', this.modalData)
-      this.closeSettingsModal()
-    },
-    deleteTask() {
-      this.closeSettingsModal()
-      this.$projects.deleteChat(this.task)
     }
   }
 }

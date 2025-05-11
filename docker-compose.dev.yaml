@@ -1,89 +1,33 @@
 services:
 
-  codx-junior-build:
-    env_file:
-      - .env
-    container_name: codx-junior-build
+  codx-junior-all:
     image: codx-junior:latest
     build: 
       context: .
+      # User permissions
       args:
         - USER_GID=${USER_GID:-1001}
         - USER_UID=${USER_UID:-1001}
-  
-  codx-junior-all:
-    # Includes code-server, preview and codx-junior web
-    depends_on:
-      - codx-junior-build
     container_name: codx-junior-all
-    image: codx-junior:latest
     shm_size: 4gb
     privileged: true
-    restart: unless-stopped
     environment:
-      - CODX_JUNIOR_APPS=api client llm-factory
+      # ALL IN ONE
+      - CODX_JUNIOR_APPS=api client llm-factory docker
+      # SETTINGS FILE
+      - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior-settings.json
+      # LLM Settings (Use any OpenAI compatible)
+      - CODX_JUNIOR_LLMFACTORY_API=https://api.openai.com/v1
+      - CODX_JUNIOR_LLMFACTORY_KEY=sk-********
+      - CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL=gpt-4o
+      - CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL=text-embedding-3-small
     volumes:
       - .:/home/codx-junior/codx-junior
     ports:
-      - 19981:19981 # CODX_JUNIOR_WEB_PORT
+      # CODX_JUNIOR_WEB_PORT
+      - 8080:19981
     networks:
       - codx-junior
-
-  codx-junior-llm-factory:
-    # Includes code-server, preview and codx-junior web
-    depends_on:
-      - codx-junior-build
-    container_name: codx-junior-llm-factory
-    image: codx-junior:latest
-    shm_size: 4gb
-    privileged: true
-    restart: unless-stopped
-    environment:
-      - CODX_JUNIOR_APPS=llm-factory
-    volumes:
-      - .:/home/codx-junior/codx-junior
-    ports:
-      - 19985:19985 # CODX_JUNIOR_LLMFACTORY_PORT
-    networks:
-      - codx-junior
-
-  codx-junior-api:
-    # Includes code-server, preview and codx-junior web
-    depends_on:
-      - codx-junior-llm-factory
-    container_name: codx-junior-api
-    image: codx-junior:latest
-    shm_size: 4gb
-    privileged: true
-    restart: unless-stopped
-    environment:
-      - CODX_JUNIOR_APPS=api
-      - CODX_JUNIOR_LLMFACTORY_URL=http://codx-junior-llm-factory:${CODX_JUNIOR_LLMFACTORY_PORT}
-    volumes:
-      - .:/home/codx-junior/codx-junior
-    ports:
-      - 19980:19980 # CODX_JUNIOR_API_PORT
-    networks:
-      - codx-junior
-
-  codx-junior-client:
-    # Includes code-server, preview and codx-junior web
-    depends_on:
-      - codx-junior-api
-    container_name: codx-junior-client
-    image: codx-junior:latest
-    shm_size: 4gb
-    privileged: true
-    restart: unless-stopped
-    environment:
-      - CODX_JUNIOR_APPS=client
-      - CODX_JUNIOR_API_URL=http://codx-junior-api:${CODX_JUNIOR_API_PORT}
-    networks:
-      - codx-junior
-    volumes:
-      - .:/home/codx-junior/codx-junior
-    ports:
-      - 19981:19981 # CODX_JUNIOR_WEB_PORT
 
 networks:
   codx-junior:

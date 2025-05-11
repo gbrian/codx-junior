@@ -7,7 +7,7 @@ echo "Starting noVNC USER: ${USER} HOME: ${HOME}"
 
 
 # Source the environment variables
-source ${CODX_JUNIOR_PATH}/.env
+source ${CODX_JUNIOR_PATH}/set_env.sh
 
 # Function to clean up background processes on exit
 cleanup() {

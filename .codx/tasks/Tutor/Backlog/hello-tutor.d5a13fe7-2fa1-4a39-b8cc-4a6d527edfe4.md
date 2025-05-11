@@ -1,0 +1,5 @@
+# [[{"id": "d5a13fe7-2fa1-4a39-b8cc-4a6d527edfe4", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": [], "profiles": ["analyst"], "users": [], "name": "Hello Tutor", "created_at": "2025-04-24 13:34:48.907237", "updated_at": "2025-04-25T06:15:48.415080", "mode": "task", "kanban_id": "", "column_id": "", "board": "Tutor", "column": "Backlog", "chat_index": 0, "url": "", "branch": "", "file_path": "/home/codx-junior/codx-junior/.codx/tasks/Tutor/Backlog/hello-tutor.d5a13fe7-2fa1-4a39-b8cc-4a6d527edfe4.md", "model": "", "visibility": ""}]]
+## [[{"doc_id": "09bd1c8e-6c9a-4e9f-969f-b7c2bc077a43", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-04-24 13:34:48.905629", "updated_at": "2025-04-24 13:34:48.905670", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin"}]]
+Tutor will teach new members about the project
+For this we'll convert all documents in the project into a wiki and index.
+Tutor will use that index to answer users questions.

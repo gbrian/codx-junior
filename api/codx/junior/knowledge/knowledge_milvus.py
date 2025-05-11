@@ -42,12 +42,12 @@ class Knowledge:
 
     def get_ai(self):
         if not self.ai:
-          self.ai = AI(settings=self.settings)
+            self.ai = AI(settings=self.settings)
         return self.ai
 
     def get_db(self):
         if not self.db:
-          self.db = KnowledgeDB(settings=self.settings)
+            self.db = KnowledgeDB(settings=self.settings)
         return self.db
 
     def refresh_last_update(self):
@@ -118,12 +118,10 @@ class Knowledge:
 
     def enrich_document (self, doc, metadata):
       if doc.metadata.get("indexed"):
-        raise Exception(f"Doc already indexed {doc.metadata}")
+          raise Exception(f"Doc already indexed {doc.metadata}")
       for k in metadata.keys():
-        doc.metadata[k] = metadata[k]
-      language = doc.metadata.get('language', '')
+          doc.metadata[k] = metadata[k]
       source = doc.metadata.get('source')
-      summary = ""
 
       if self.settings.knowledge_enrich_documents:
         try:

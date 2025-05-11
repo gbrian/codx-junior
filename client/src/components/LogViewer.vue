@@ -8,6 +8,7 @@ import Markdown from './Markdown.vue';
   <div class="px-2 pt-4 gap-2 w-full max-w-full overflow-auto flex flex-col relative">
     <header class="flex flex-row justify-between items-center">
       <h1 class="text-xl font-semibold">Dashboard</h1>
+      <!--
       <button class="btn btn-sm" :class="showMetrics && 'btn-outline'" @click="showMetrics = !showMetrics">
         Metrics
       </button>
@@ -22,6 +23,7 @@ import Markdown from './Markdown.vue';
       <button class="btn btn-sm" @click="toggleTimeFilter">
         <i class="fa-regular fa-clock"></i>
       </button>
+      -->
       <div class="flex gap-2 items-center">
         <button class="btn btn-sm" @click="clearLogs">
           <i class="fa-solid fa-trash-can"></i>
@@ -60,7 +62,7 @@ import Markdown from './Markdown.vue';
         {{ module }}
       </div>
     </div>
-    <div class="grow overflow-auto">
+    <div class="grow overflow-auto flex flex-col">
       <div class="p-2" v-if="showMetrics">
         <RequestMetrics :title="'Requests'" :subtitle="'Requests path'"
           @filter-module="toggleProfilerVisible"
@@ -88,7 +90,7 @@ import Markdown from './Markdown.vue';
         </div>
         <div class="grow"></div>
       </header>
-      <div class="my-2 flex flex-col gap-2 overflow-auto" style="height:600px" ref="logView">
+      <div class="grow my-2 flex flex-col gap-2 overflow-auto" style="height:600px" ref="logView">
         <div v-for="(log, ix) in filteredLogs" :key="ix">
           <div :title="log.id" class="flex flex-col w-full p-1 hover:bg-base-100" :class="log.styleClasses">
             <div class="flex gap-2">
@@ -97,9 +99,9 @@ import Markdown from './Markdown.vue';
               <div :style="{ color: $ui.colorsMap[log.module] }"
                 class="click"
                 @click="toggleModuleVisible(log.module)" 
+                v-if="log.module"
               >
-                [{{ log.module }}]</div> 
-              <div>(Line: {{ log.line }})</div>
+                [{{ log.module }}] (Line: {{ log.line }})</div>
             </div> 
             <div class="overflow-hidden click" :class="!log.showMore && 'max-h-40'" 
               @dblclick="log.editable = log.showMore = true"
@@ -111,17 +113,6 @@ import Markdown from './Markdown.vue';
                 v-if="Object.keys(log.data).length">{{ JSON.stringify(log.data, null, 2) }}</pre>
               <pre v-if="log.data.profiler">{{ log.data.profiler.profile_stats  }}</pre>
             </div>
-          </div>
-        </div>
-        <div class="text-xs click" v-for="event in events" :key="event.ts"
-          @click="event.collapsed = !event.collapsed"
-        >
-          <div class="p-2 bg-warning text-warning-content rounded-md font-medium">
-            <i class="fa-solid fa-bolt"></i> [{{ new Date(event.ts).toISOString() }}] [{{ event.event }}]
-          </div>
-          <div class="mt-2 bg-base-100 p-2" v-if="event.collapsed === true">
-            <Markdown :text="event.data.message.content" v-if="event.data.message.content" />
-            <pre>{{ JSON.stringify({ ...event.data, message: undefined }, null, 2) }}</pre>
           </div>
         </div>
         <div class="h-1 w-full" ref="logViewBottom"></div>
@@ -159,11 +150,6 @@ export default {
     autoRefresh(newVal) {
       if (newVal) {
         this.fetchLogs()
-      }
-    },
-    events(newValue) {
-      if (newValue.length) {
-        this.scrollToBottom()
       }
     }
   },
@@ -204,23 +190,6 @@ export default {
       return this.filteredLogs.filter(log => log.data.profiler)
                       .map(({ timestamp, data: { profiler: { module, method, time_taken }}}) => 
                                             ({ timestamp, path: `${module}.${method}` , time_taken }))
-    },
-    events() {
-      return $storex.session.events
-      .filter(e => !e.data.message)
-      .reduce((acc, ev) => {
-        const lastEv = acc[acc.length -1]
-        if (lastEv && 
-            lastEv?.data.message &&
-            ev.data.message?.id &&
-            lastEv?.data.message?.id === ev.data.message?.id
-          ) {
-            lastEv.data.message.content += ev.data.message.content 
-        } else {
-          acc.push(ev)
-        }
-        return acc
-      }, [])
     }
   },
   methods: {
@@ -254,8 +223,7 @@ export default {
     },
     async fetchLogNames() {
       try {
-        const response = await this.$storex.api.logs.list()
-        this.logNames = response.data
+        this.logNames = await this.$storex.api.logs.list()
         if (this.logNames.length) {
           this.selectedLog = this.logNames[0]
           this.fetchLogs()

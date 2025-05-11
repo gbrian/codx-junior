@@ -9,6 +9,7 @@
     </modal>
     <div tabindex="0" role="button" class="btn btn-sm m-1"><i class="fa-solid fa-bars"></i></div>
     <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-50 w-52 p-2 shadow-sm">
+      <slot></slot>
       <li @click="exportSettings"><a>Export</a></li>
       <li @click="importSettings"><a>Import</a></li>
     </ul>

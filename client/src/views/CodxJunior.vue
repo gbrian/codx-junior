@@ -19,9 +19,11 @@ import moment from 'moment'
           <i class="fa-solid fa-bars"></i>
         </button>
       </div>
-      <div class="text-xs text-info group relative" v-if="lastEvent">
-        {{ lastEvent }}
-        <div class="bg-base-300/60 flex flex-col gap-2 hidden group-hover:block absolute top-4 w-96 h-20 z-50">
+      <div class="text-xs text-info group relative hover-bg-base-300" 
+        @click="openLastEvent"
+        v-if="lastEvent">
+        <div class="overflow-hidden text-nowrap group-hover:text-wrap">{{ lastEvent }}</div>
+        <div class="flex flex-col gap-2 hidden group-hover:block absolute top-4 w-96 h-20 z-50">
           <div v-for="event in lastEvents" :key="event.ts">
             {{ formatEvent(event)  }}
           </div>
@@ -73,12 +75,12 @@ export default {
   },
   computed: {
     subProjects() {
-      return Array.isArray(this.lastSettings?.sub_projects)
-        ? this.lastSettings?.sub_projects
-        : this.lastSettings?.sub_projects?.split(",").filter(p => p.trim().length)
+      return Array.isArray(this.activeProject?.sub_projects)
+        ? this.activeProject?.sub_projects
+        : this.activeProject?.sub_projects?.split(",").filter(p => p.trim().length)
     },
     projectName() {
-      return this.lastSettings?.project_name
+      return this.activeProject?.project_name
     },
     lastNotification() {
       return this.notifications.length > 0 
@@ -112,6 +114,16 @@ export default {
     }
   },
   methods: {
+    openLastEvent() {
+      const { data: { chat: { id } } } = this.$session.events[this.$session.events.length-1]
+      const chat = this.$projects.chats[id];
+      if (chat) {
+        this.$projects.setActiveChat(chat)
+        if (!this.$ui.activeTab !== 'tasks') {
+          this.$ui.setActiveTab('tasks')
+        }
+      }
+    },
     formatEvent(event) {
       const message = event.data.message?.content || ""
       return `[${moment(event.ts).format('HH:mm:ss')}] ${event.event} ${event.data.text || ''}\n${message}`

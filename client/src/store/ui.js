@@ -179,6 +179,10 @@ export const actions = actionTree(
       if (!state.tabIx) {
         state.tabIx = 'home'
       }
+      if (API.user?.theme) {
+        state.theme = API.user.theme
+      }
+      state.coderProjectCodxPath = null
     },
     saveState({ state }) {
       const data = { ...state, uiReady: false }

@@ -30,15 +30,18 @@ const globalMixin = {
       return $storex.session
     },
     $user () {
-      return $storex.users.user
+      return $storex.api.user
     },
     $users () {
       return $storex.users
+    },
+    $globalSettings() {
+      return $storex.api.globalSettings
     }
   }
 }
 
-$storex.init($storex)
+$storex.users.login()
 
 const app = createApp(App)
               .mixin(globalMixin)

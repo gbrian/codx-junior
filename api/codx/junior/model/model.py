@@ -1,10 +1,15 @@
 import os
+import regex
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, constr, validator
 from enum import Enum
 from datetime import datetime
 
 from typing import List, Dict, Union, Optional
+
+
+KNOWLEDGE_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL')
+EMBEDDINGS_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL')
 
 
 class ImageUrl(BaseModel):
@@ -53,13 +58,35 @@ class Tool(BaseModel):
     description: str = Field(default="")
 
 class CodxJuniorBaseTools(BaseModel):
-    knowledge:Tool = Tool(name="knowledge", description="Project's knowledge search")
+    knowledge: Tool = Tool(name="knowledge", description="Project's knowledge search")
     
-class CodxUser(BaseModel):
-    name: str = Field(default="")
-    avatar: str = Field(default="")
-    personality: str = Field(default="")
 
+class ProjectPermission(BaseModel):
+    project_id: str
+    permissions: str = Field(description="User permissions fof the project", default=[])
+
+class CodxUserLogin(BaseModel):
+    username: Optional[str] = Field(default="")
+    password: Optional[str] = Field(default="")
+    email: Optional[str] = Field(default="")
+    token: Optional[str] = Field(default="")
+
+class CodxUserProjectProfile(BaseModel):
+    name: Optional[str] = Field(default="")
+    coder: Optional[bool] = Field(description="Can access to coder and change project files", default=False)
+    admin: Optional[bool] = Field(description="Can access to project's admin", default=False)
+
+class CodxUser(BaseModel):
+    username: Optional[str] = Field(default="")
+    email: Optional[str] = Field(default="")
+    avatar: Optional[str] = Field(default="")
+    theme: Optional[str] = Field(default="dim")
+    projects: Optional[List[ProjectPermission]] = Field(default=[])
+    role: Optional[str] = Field(description="User role", default="user")
+    token: Optional[str] = Field(default="")
+    disabled: Optional[bool] = Field(default=False)
+
+    
 class ProfileApiSettings(BaseModel):
     active: bool = Field(description="Model is visible through API", default=False)
     model_name: Optional[str] = Field(description="Model's name", default=None)
@@ -137,6 +164,7 @@ class AIProvider(BaseModel):
     provider: Optional[str] = Field(default="llmfactory", description="OpenAI compatible LLM protocols like: OpenAI, Ollama") 
     api_url: Optional[str] = Field(description="Optional url if provider is remote", default="http://0.0.0.0:11434/v1")
     api_key: Optional[str] = Field(description="Optional api key", default="sk-llmfactory")
+    admin_url: Optional[str] = Field(description="Optional url if provider has an admin url", default="")
 
 class AILLMModelSettings(BaseModel):
     temperature: Optional[float] = Field(default=1, description="Model temperature")
@@ -172,58 +200,58 @@ class AISettings(BaseModel):
     merge_messages: Optional[bool] = Field(default=False)
     model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
     url: Optional[str] = Field(description="Model info", default="")
-
     
-OPENAI_PROVIDER = AIProvider(name="openai",
-                            provider="openai",
-                            api_url=os.environ.get('OPENAI_API_BASE'),
-                            api_key=os.environ.get('OPENAI_API_KEY'))
-
-OPENAI_MODEL = AIModel(name="gpt-4o", 
-                      ai_provider="openai",
-                      model_type=AIModelType.llm,
-                      settings=AILLMModelSettings())
-
 OLLAMA_PROVIDER = AIProvider(name="llmfactory",
                             provider="llmfactory",
-                            api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_URL'),
+                            api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_API'),
                             api_key=os.environ.get('CODX_JUNIOR_LLMFACTORY_KEY'))
 
-OLLAMA_EMBEDDINGS_MODEL = AIModel(name="nomic-embed-text", 
+OLLAMA_EMBEDDINGS_MODEL = AIModel(name="embeddings",
+                                ai_model=EMBEDDINGS_MODEL, 
                                 model_type=AIModelType.embeddings,
                                 ai_provider="llmfactory",
                                 settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),
-                                url="https://llmfactory.com/library/nomic-embed-text")
+                                url=f"https://llmfactory.com/library/{EMBEDDINGS_MODEL}")
 
-OLLAMA_WIKI_MODEL = AIModel(name="gemma:7b", 
-                                model_type=AIModelType.llm,
-                                ai_provider="llmfactory",
-                                settings=AILLMModelSettings(),
-                                url="https://llmfactory.com/library/gemma")
+OLLAMA_KNOWLEDGE_MODEL = AIModel(name="knowledge",
+                            ai_model=KNOWLEDGE_MODEL,
+                            model_type=AIModelType.llm,
+                            ai_provider="llmfactory",
+                            settings=AILLMModelSettings(),
+                            url=f"https://llmfactory.com/library/{KNOWLEDGE_MODEL}")
 
+class Workspace(BaseModel):
+    id: str = Field(default="")
+    name: str = Field(default="")
+    description: str = Field(default="")
+    project_ids: List[str] = Field(default=[])
+    workspace_port: Optional[int] = Field(default=0)
+    workspace_start_port: Optional[int] = Field(default=0)
+    workspace_end_port: Optional[int] = Field(default=0)
+    updated_at: Optional[str] = Field(default=None)    
 
 class AgentSettings(BaseModel):
     max_agent_iteractions: int = 4
 
 class GlobalSettings(BaseModel):
-    log_ai: bool = Field(default=False)
+    log_ai: bool = Field(default=True)
     
-    embeddings_model:  str = Field(default="nomic-embed-text")
-    llm_model: str = Field(default="gemma:7b")
-    rag_model: str = Field(default="gemma:7b")
-    wiki_model: str = Field(default="gemma:7b")
+    embeddings_model: str = Field(default=OLLAMA_EMBEDDINGS_MODEL.name)
+    llm_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+    rag_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
+    wiki_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)
 
     git: GitSettings = Field(default=GitSettings())
 
     agent_settings: AgentSettings = Field(description="Agent settings", default=AgentSettings())
 
-    projects_root_path: str = Field(default='/projects')
+    projects_root_path: Optional[str] = Field(default=None)
     
     log_ignore: List[str] = Field(default=[])
 
-    codx_junior_avatar: str = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
+    codx_junior_avatar: Optional[str] = Field(default="https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp")
 
-    enable_file_manager: bool = Field(default=False)
+    enable_file_manager: Optional[bool] = Field(default=False)
 
     project_scripts: Optional[List[ProjectScript]] = Field(default=[])
 
@@ -233,15 +261,22 @@ class GlobalSettings(BaseModel):
     ])
 
     ai_providers: List[AIProvider] = [
-        OPENAI_PROVIDER,
         OLLAMA_PROVIDER
     ]
 
     ai_models: List[AIModel] = [
-      OPENAI_MODEL,
-      OLLAMA_WIKI_MODEL,
+      OLLAMA_KNOWLEDGE_MODEL,
       OLLAMA_EMBEDDINGS_MODEL
     ]
+
+    users: Optional[List[CodxUser]] = Field(default=[CodxUser(username="admin", role="admin", avatar="/only_icon.png")])
+    user_logins: Optional[List[CodxUserLogin]] = Field(default=[])
+    secret: Optional[str] = Field(description="Encription secret", default="codx-junior-rules")
+
+    workspaces: Optional[List[Workspace]] = Field(default=[])
+    workspace_start_port: Optional[int] = Field(default=16000)
+    workspace_end_port: Optional[int] = Field(default=17000)
+    workspace_docker_settings: Optional[dict] = Field(default={})
 
 class Screen(BaseModel):
     resolution: str = Field(default='')

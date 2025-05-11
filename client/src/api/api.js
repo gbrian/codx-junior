@@ -1,19 +1,30 @@
 import axios from 'axios'
 
-export const axiosInstance = axios.create({});
+
+let interceptors = {
+  request: [],
+  response: []
+}
 
 class CodxJuniorConnection {
-  constructor(settings) {
-    this.settings = settings || {};
-    this.axiosInstance = axiosInstance;
-    this.liveRequests = 0;
+  constructor({ settings, user } = {}) {
+    this.user = user
+    this.settings = settings || {};    
   }
 
   get headers() {
     return {
       "x-sid": this.settings.sid,
-      "Authentication": `Bearer ${this.settings.user?.token}`
+      "Authentication": `Bearer ${this.user?.token}`
     };
+  }
+
+  createConnection() {
+    this.axiosInstance = axios.create({});
+    this.liveRequests = 0;
+
+    this.axiosInstance.interceptors.request.use(...interceptors.request);
+    this.axiosInstance.interceptors.response.use(...interceptors.response);
   }
   
   prepareUrl(url) {
@@ -32,46 +43,56 @@ class CodxJuniorConnection {
   }
 
   get(url) {
+    this.createConnection()
     this.liveRequests++;
     return this.axiosInstance.get(this.prepareUrl(url), { headers: this.headers })
-      .catch(console.error)
+      .then(({ data }) => data)
       .finally(() => this.liveRequests--);
   }
 
   del(url) {
+    this.createConnection()
     this.liveRequests++;
     return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
-      .catch(console.error)
       .finally(() => this.liveRequests--);
   }
 
   post(url, data) {
+    this.createConnection()
     this.liveRequests++;
     return this.axiosInstance.post(this.prepareUrl(url), data, { headers: this.headers })
-      .catch(console.error)
+      .then(({ data }) => data)
       .finally(() => this.liveRequests--);
   }
 
   put(url, data) {
+    this.createConnection()
     this.liveRequests++;
     return this.axiosInstance.put(this.prepareUrl(url), data, { headers: this.headers })
-      .catch(console.error)
-      .finally(() => this.liveRequests--);
+          .then(({ data }) => data)
+          .finally(() => this.liveRequests--);
   }
 }
 
-const initializeAPI = () => {
+const initializeAPI = (project) => {
   const API = {
     sid: "",
-    user: null,
-    connection: new CodxJuniorConnection(),
-    _settings: {},
-    get lastSettings() {
-      return this._settings
+    connection: null,
+    _user: null,
+    get user () {
+      return API._user
     },
-    set lastSettings(value) {
-      this._settings = value
-      this.connection = new CodxJuniorConnection(value)
+    set user(user) {
+      API._user = user
+      API.initConnection()
+    },
+    _activeProject: project,
+    get activeProject() {
+      return this._activeProject
+    },
+    set activeProject(value) {
+      this._activeProject = value
+      API.initConnection()
     },
     get headers() {
       return {
@@ -79,43 +100,57 @@ const initializeAPI = () => {
         "Authentication": `Bearer ${API.user?.token}`
       };
     },
+    set interceptors(value) {
+      interceptors = value
+    },
+    initConnection() {
+      API.connection = new CodxJuniorConnection({
+        settings: API.activeProject,
+        user: API.user
+      })
+    },
     get(url) {
-      API.connection.liveRequests++;
       return API.connection.get(url)
-        .then(({ data }) => data)
-        .catch(console.error)
-        .finally(() => API.connection.liveRequests--);
     },
     del(url) {
-      API.connection.liveRequests++;
       return API.connection.del(url)
-        .catch(console.error)
-        .finally(() => API.connection.liveRequests--);
     },
     post(url, data) {
-      API.connection.liveRequests++;
       return API.connection.post(url, data)
-        .then(({ data }) => data)
-        .catch(console.error)
-        .finally(() => API.connection.liveRequests--);
     },
     put(url, data) {
-      API.connection.liveRequests++;
       return API.connection.put(url, data)
-        .then(({ data }) => data)
-        .catch(console.error)
-        .finally(() => API.connection.liveRequests--);
     },
-    user: {
+    users: {
+      async list() {
+        API.userNetwork = await API.get('/api/users');
+      },
       async login(user) {
+        if (!user) {
+          try {
+            user = API.user = JSON.parse(localStorage.getItem("CODX_USER"))
+            API.initConnection()
+          }catch{}
+          if (!user) {
+            return null
+          } 
+        }
         const data = await API.post('/api/users/login', user);
         API.user = data;
+        localStorage.setItem("CODX_USER", JSON.stringify(API.user))
+        await API.onUserLogin()
         return data;
       },
       async save(user) {
-        const data = await API.post('/api/users/update', user);
+        const data = await API.put('/api/users', user);
         API.user = data;
+        localStorage.setItem("CODX_USER", JSON.stringify(API.user))
         return data;
+      },
+      async logout() {
+        API.user = null;
+        API.activeProject = {}
+        localStorage.removeItem("CODX_USER")
       }
     },
     apps: {
@@ -135,15 +170,13 @@ const initializeAPI = () => {
       if (projectOrId.codx_path === API.settings.codx_path) {
         return API
       }
-      return initializeAPI().init(projectOrId.codx_path)
+      return initializeAPI(projectOrId)
     },
     projects: {
       async list() {
         const data = await API.get('/api/projects');
-        if (API.lastSettings) {
-          API.allProjects = data;
-        }
-        return data;
+        API.allProjects = data;
+        return API.allProjects;
       },
       create(projectPath) {
         return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath), {});
@@ -151,7 +184,7 @@ const initializeAPI = () => {
       delete() {
         localStorage.setItem("API_SETTINGS", "");
         API.del('/api/projects');
-        API.lastSettings = null;
+        API.activeProject = null;
       },
       async readme() {
         const data = await API.get('/api/projects/readme');
@@ -174,14 +207,14 @@ const initializeAPI = () => {
     settings: {
       async read() {
         const data = await API.get('/api/settings');
-        API.lastSettings = { ...API.lastSettings || {}, ...data };
-        if (API.lastSettings) {
+        API.activeProject = { ...API.activeProject || {}, ...data };
+        if (API.activeProject) {
           localStorage.setItem("API_SETTINGS", JSON.stringify(data));
         }
         return data;
       },
       async save(settings) {
-        await API.put('/api/settings?', settings || API.lastSettings);
+        await API.put('/api/settings?', settings || API.activeProject);
         return API.settings.read();
       },
       global: {
@@ -257,6 +290,9 @@ const initializeAPI = () => {
       async message(chat) {
         return API.post('/api/chats?', chat);
       },
+      async fromUrl(chat) {
+        return API.post('/api/chats/from-url?', chat);
+      },
       async subTasks(chat) {
         return API.post('/api/chats/sub-tasks?', chat);
       },
@@ -267,7 +303,7 @@ const initializeAPI = () => {
         return API.put(`/api/chats?chatonly=1`, chat);
       },
       delete(chat) {
-        return API.del(`/api/chats?file_path=${chat.file_path}`);
+        return API.del(`/api/chats?chat_id=${chat.id}`);
       },
       kanban: {
         async load() {
@@ -345,27 +381,26 @@ const initializeAPI = () => {
         return (await API.post(`/api/image-to-text`, formData)).data;
       }
     },
-    async init(codx_path) {
-      const codx_path_local_storage = localStorage.getItem("API_CODX_PATH");
-      if (!codx_path) {
-        codx_path = codx_path_local_storage
+    async onUserLogin() {
+      API.allProjects = await API.projects.list()
+      try {
+        const activeProject = JSON.parse(localStorage.getItem("API_SETTINGS"))
+        API.activeProject = API.allProjects.find(p => p.project_id === activeProject.project_id)
+      } catch {}
+      if (!API.activeProject && API.allProjects.length) {
+        API.activeProject = API.allProjects[0]
       }
-      API.connection.liveRequests++;
-      this.codx_path = codx_path;
-      const projects = await API.projects.list();
-      API.allProjects = projects;
-
-      if (codx_path) {
-        API.lastSettings = projects.find(p => p.codx_path === codx_path);
-        if (API.lastSettings) {
-          await API.settings.read();
-          localStorage.setItem("API_CODX_PATH", API.lastSettings.codx_path);
-        }        
+      await Promise.all([
+        API.screen.getScreenResolution(),
+        API.settings.global.read(),
+        API.users.list()
+      ])
+    },
+    async setActiveProject({ project_id }) {
+      if (project_id !== API.activeProject?.project_id) {
+        API.activeProject = API.allProjects?.find(p => p.project_id === project_id)
+        await API.settings.read()
       }
-      API.screen.getScreenResolution();
-      API.connection.liveRequests--;
-      await API.settings.global.read();
-      console.log("API init", codx_path, API);
       return API
     },
     logs: {
@@ -419,8 +454,18 @@ const initializeAPI = () => {
           }
         }, 5000);
       });
+    },
+    get permissions () {
+      const permissions = API.activeProject?.permissions || []
+      const isAdmin = API.user?.role === 'admin'
+      const isProjectAdmin = permissions.includes("admin")
+      return {
+        isAdmin,
+        isProjectAdmin
+      }
     }
   };
+  API.initConnection()
   return API;
 };
 

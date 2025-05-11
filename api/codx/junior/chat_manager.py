@@ -4,6 +4,8 @@ import os
 import json
 import uuid
 
+from slugify import slugify
+
 from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
@@ -23,7 +25,7 @@ class ChatManager:
         os.makedirs(f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}", exist_ok=True)
 
     def get_chat_file(self, chat: Chat):
-        chat_file = f"{self.chat_path}/{chat.board}/{chat.column}/{chat.name}.{chat.id}.md"
+        chat_file = f"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.md"
         return chat_file
 
     def chat_paths(self):
@@ -79,11 +81,19 @@ class ChatManager:
 
         return chat
 
-    def delete_chat(self, file_path):
+    def delete_chat(self, file_path: str = None, chat_id: str = None):
+        logger.info(f"Removing chat by file_path: {file_path}  - chat_id: {chat_id}")
+        
+        if chat_id:
+            chat = self.find_by_id(chat_id)
+            file_path = chat.file_path
+
         if os.path.isfile(file_path) \
             and file_path.startswith(self.chat_path):
             logger.info(f"Removing chat at {file_path}")
             os.remove(file_path)
+        else:
+            logger.error(f"Removing chat error {file_path}")
 
     def load_chat(self, board, column, chat_name):
         chat = Chat(board=board, column=column, name=chat_name)

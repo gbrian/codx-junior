@@ -87,7 +87,7 @@ const proxy = {
     },
 }
 
-console.log("proxy settings", proxy)
+console.log("proxy settings", proxy, process.env)
 
 const options = { pretty: true } // FIXME: pug pretty is deprecated!
 const locals = { }
@@ -103,7 +103,6 @@ export default defineConfig({
   },
   define: {
     'process.env': {
-      apiUrl,
       coderUrl,
       noVNCUrl
     }

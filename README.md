@@ -34,8 +34,16 @@ To run `codx-junior` using the provided scripts, follow these steps:
 2. **Set up your modules:**
    Define which modules you want to load:
    ```bash
-   export CODX_JUNIOR_APPS=client api llm-factory
+   export CODX_JUNIOR_APPS=client api llm-factory docker
    ```
+
+   |APP| Description|
+   |--|--|
+   | client | Web client to access codx-junior |
+   | api | codx-junior API | 
+   | llm-factory | LLM management and RAG | 
+   | docker | If you plan to use containers with your developments |
+
 3. **Install modules:**
    Execute the installation script:
    ```bash
@@ -53,11 +61,12 @@ If you prefer using Docker, make sure your configurations are set in `docker-com
    ```bash
    cd codx-junior
    ```
-2. **Run Docker Compose:**
+2. **Build condx-junior image:**
    Bring up your services with:
    ```bash
    docker-compose up -f docker-compose.dev.yaml
    ```
+
 
 ### Accessing Codx-Junior
 Once running, access the platform by navigating to `http://localhost:19981` (or any other port specified in your `.env` file).

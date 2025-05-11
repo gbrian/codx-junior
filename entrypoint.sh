@@ -16,6 +16,5 @@ echo "Installing codx-junior at ${HOME}/codx-junior"
 bash codx-junior install
 
 # Run supervisor
-echo "Running supervisor"
-mkdir -p $CODX_SUPERVISOR_LOG_FOLDER
-sudo bash -c "USER=$USER HOME=$HOME bash ${HOME}/codx-junior/codx-junior supervisor"
+echo "Installation done, running supervisor"
+sudo -E bash -c "bash ${HOME}/codx-junior/codx-junior supervisor"

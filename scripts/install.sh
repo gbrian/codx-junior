@@ -1,4 +1,9 @@
 #!/bin/bash
+if [ -t "/tmp/codx-junior-installed" ]; then
+  exit 0
+fi
+touch /tmp/codx-junior-installed
+
 # Function to log messages
 log_info() {
   echo "[INFO] $1"
@@ -12,7 +17,7 @@ log_error() {
 set -e
 
 # Load .env variables
-export $(grep -v '^#' ${CODX_JUNIOR_PATH}/.env | xargs)
+source ${CODX_JUNIOR_PATH}/set_env.sh
 
 bash scripts/logo.sh
 
@@ -83,12 +88,17 @@ function copy_app_conf() {
   fi
 }
 
-echo "Load supervisor files"
-# Check if CODX_JUNIOR_APPS is not empty
-if [ -z "$CODX_JUNIOR_APPS" ]; then
-  export CODX_JUNIOR_APPS="client api llm-factory"
-fi
+function install_docker() {
+  codx docker
+  
+  app=$1
+  log_info "Copying supervisor conf for: $app"
+  conf_source="${HOME}/codx-junior/supervisor.${app}.conf"
+  conf_dest="/etc/supervisord/supervisor.${app}.conf"
 
+}
+
+echo "Load supervisor files"
 for app in $CODX_JUNIOR_APPS; do
   # Copy supervisor conf
   copy_app_conf $app
@@ -103,6 +113,9 @@ for app in $CODX_JUNIOR_APPS; do
       ;;
     llm-factory)
       install_llmFactory
+      ;;
+    docker)
+      install_docker
       ;;
     *)
       echo "Unknown app: $app"

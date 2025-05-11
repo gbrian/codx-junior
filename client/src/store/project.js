@@ -16,7 +16,6 @@ export const state = () => ({
   selectedLog: null,
   autoRefresh: false,
   changesSummary: null,
-  profiles: [],
   selectedProfile: null,
   kanban: {},
   project_branches: {},
@@ -44,6 +43,7 @@ export const mutations = mutationTree(state, {
 })
 
 export const getters = getterTree(state, {
+  profiles: state => $storex.profiles.profiles[state.activeProject.project_id],
   allChats: state => Object.values(state.chats || {}),
   allTags: state => new Set(Object.values(state.chats||{})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   projectDependencies: state => {
@@ -84,6 +84,11 @@ export const getters = getterTree(state, {
   currentBranch: state => state.project_branches.current_branch,
   mentionList: () => {
     return [
+      ...$storex.api.userNetwork.map(user => ({ 
+        name: user.username,
+        user,
+        tooltip: `User @${user.username}` 
+      })),
       ...$storex.projects.profiles.map(profile => ({ 
           name: profile.name,
           profile,
@@ -115,20 +120,34 @@ export const getters = getterTree(state, {
 export const actions = actionTree(
   { state, getters, mutations },
   {
-    async init () {
-      await $storex.projects.loadAllProjects()
+    async init ({ state }) {
+      state.allProjects = []
+      state.activeProject = null
+      state.activeChat = null
+
+      $storex.projects.loadAllProjects()
     },
     async loadAllProjects() {
-      await API.projects.list()
-      $storex.projects.setAllProjects(API.allProjects)
-      if (API.lastSettings) {
+      if ($storex.api.user) {
         try {
-          await $storex.projects.setActiveProject(API.lastSettings)
-        } catch {}
-      }
-      if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
-        $storex.projects.setActiveProject($storex.projects.allProjects[0])
-      }
+          await API.projects.list()
+          $storex.projects.setAllProjects(API.allProjects)
+          if (API.activeProject) {
+            try {
+              await $storex.projects.setActiveProject(API.activeProject)
+            } catch {}
+          }
+          if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
+            $storex.projects.setActiveProject($storex.projects.allProjects[0])
+          }
+          return $storex.projects.allProjects
+        } catch {
+          $storex.session.onError("Error loading projects")
+        }
+      } 
+      state.allProjects = []
+      state.activeProject = null
+      state.activeChat = null
     },
     async setActiveProject ({ state }, project) {
       if (project?.codx_path === state.activeProject?.codx_path) {
@@ -136,12 +155,12 @@ export const actions = actionTree(
       }
       state.projectLoading = true
       try {
-        await API.init(project?.codx_path)
+        await API.setActiveProject(project)
       } finally {
         state.projectLoading = false
       }
       $storex.projects.loadProjectKnowledge()
-      state.activeProject = API.lastSettings
+      state.activeProject = API.activeProject
       state.chats = {}
       state.kanban = {}
       state.activeChat = null
@@ -153,8 +172,7 @@ export const actions = actionTree(
       state.knowledge = data
     },
     async loadProfiles({ state }) {
-      const profiles = await $storex.api.profiles.list();
-      state.profiles = profiles
+      await $storex.profiles.loadProjectProfiles(state.activeProject)
     },
     async loadBranches({ state }) {
       state.project_branches = await $storex.api.projects.branches()
@@ -216,7 +234,7 @@ export const actions = actionTree(
       } finally {
         state.projectLoading = false
       }
-      state.activeProject = API.lastSettings
+      state.activeProject = API.activeProject
     },
     async realoadProject({ state }) {
       state.projectLoading = true
@@ -225,7 +243,7 @@ export const actions = actionTree(
       } finally {
         state.projectLoading = false
       }
-      state.activeProject = API.lastSettings
+      state.activeProject = API.activeProject
       state.allProjects = (state.allProjects||[])
         .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p)
       return state.activeProject
@@ -338,12 +356,13 @@ export const actions = actionTree(
         }
       }
     },
-    createNewChat({ state}, chat) {
+    createNewChat({ state }, chat) {
       chat = {
         id: uuidv4(),
         mode: 'chat',
         profiles: [],
         chat_index: 0,
+        messages: [],
         ...chat
       }
       state.chats[chat.id] = chat
@@ -352,6 +371,20 @@ export const actions = actionTree(
       }
       return chat
     },
+    async createNewChatFromUrl({ state}, chat) {
+      chat = {
+        id: uuidv4(),
+        mode: 'chat',
+        profiles: [],
+        chat_index: 0,
+        ...chat
+      }
+      state.chats[chat.id] = await API.chats.fromUrl(chat)
+      if (!chat.temp) {
+        state.activeChat = state.chats[chat.id]
+      }
+      return state.chats[chat.id]
+    },
     async loadKanban({ state }) {
       state.kanban = await  $storex.api.chats.kanban.load()
     },
@@ -359,8 +392,7 @@ export const actions = actionTree(
       await $storex.api.chats.kanban.save(state.kanban)
     },
     async saveProfile({ state }, profile) {
-      const data = await $storex.api.profiles.save(profile)
-      state.profiles = [...state.profiles.filter(p => p.name !== data.name), data]
+      const data = await $storex.profiles.saveProfile({ profile, project: state.activeProject })
       if (state.selectedProfile.name === data.name) {
         state.selectedProfile = data
       }

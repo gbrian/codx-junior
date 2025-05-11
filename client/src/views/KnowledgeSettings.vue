@@ -27,44 +27,6 @@ import moment from 'moment'
       </span>
     </div>
 
-    <div class="stats stats-sm">
-      <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
-        <div class="stat-figure mt-6">
-          <i class="fa-2xl fa-solid fa-file"></i>
-        </div>
-        <div class="stat-title">Pending</div>
-        <div class="stat-value">{{ status?.pending_files?.length }}</div>
-        <div class="stat-desc"></div>
-      </div>
-      
-      <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
-        <div class="stat-figure mt-6 text-success">
-          <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
-        </div>
-        <div class="stat-title">Indexed</div>
-        <div class="stat-value">{{ status?.file_count }}</div>
-        <div class="stat-desc"></div>
-      </div>
-
-      <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
-        <div class="stat-figure mt-6 text-warning">
-          <i class="fa-2xl fa-solid fa-file"></i>
-        </div>
-        <div class="stat-title">Ignored</div>
-        <div class="stat-value">{{ ignoredFolders?.length }}</div>
-        <div class="stat-desc"></div>
-      </div>
-
-      <div class="stat">
-        <div class="stat-figure mt-6 text-info">
-          <i class="fa-2xl fa-solid fa-book"></i>
-        </div>
-        <div class="stat-title">Keywords</div>
-        <div class="stat-value">{{ status?.keyword_count }}</div>
-        <div class="stat-desc"></div>
-      </div>
-    </div>
-
     <div class="">
       <div role="tablist" class="tabs tabs-box flex gap-2">
         <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Search' }" @click="selectedTab = 'Search'">
@@ -148,6 +110,45 @@ import moment from 'moment'
     </div>
     
     <div class="grow" v-if="selectedTab === 'Index'">
+      <div class="stats stats-sm">
+      <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
+        <div class="stat-figure mt-6">
+          <i class="fa-2xl fa-solid fa-file"></i>
+        </div>
+        <div class="stat-title">Pending</div>
+        <div class="stat-value">{{ status?.pending_files?.length }}</div>
+        <div class="stat-desc"></div>
+      </div>
+      
+      <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
+        <div class="stat-figure mt-6 text-success">
+          <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
+        </div>
+        <div class="stat-title">Indexed</div>
+        <div class="stat-value">{{ status?.file_count }}</div>
+        <div class="stat-desc"></div>
+      </div>
+
+      <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
+        <div class="stat-figure mt-6 text-warning">
+          <i class="fa-2xl fa-solid fa-file"></i>
+        </div>
+        <div class="stat-title">Ignored</div>
+        <div class="stat-value">{{ ignoredFolders?.length }}</div>
+        <div class="stat-desc"></div>
+      </div>
+
+      <div class="stat">
+        <div class="stat-figure mt-6 text-info">
+          <i class="fa-2xl fa-solid fa-book"></i>
+        </div>
+        <div class="stat-title">Keywords</div>
+        <div class="stat-value">{{ status?.keyword_count }}</div>
+        <div class="stat-desc"></div>
+      </div>
+    </div>
+
+
       <div class="index flex flex-col gap-2 justify-between">
         <div class="flex justify-between">
           <div class="text-xl font-bold">
@@ -326,16 +327,16 @@ export default {
       searchResults: null,
       showDoc: null,
       searchType: "embeddings",
-      documentSearchType: API.lastSettings.knowledge_search_type,
-      cutoffRag: API.lastSettings.knowledge_context_rag_distance,
-      cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,
-      documentCount: API.lastSettings.knowledge_search_document_count,
-      enableKeywords: API.lastSettings.knowledge_extract_document_tags,
+      documentSearchType: API.activeProject.knowledge_search_type,
+      cutoffRag: API.activeProject.knowledge_context_rag_distance,
+      cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,
+      documentCount: API.activeProject.knowledge_search_document_count,
+      enableKeywords: API.activeProject.knowledge_extract_document_tags,
       selectedFiles: {},
       showIndexFiles: 0,
       fileFilter: null,
       addToIgnore: null,
-      settings: API.lastSettings,
+      settings: API.activeProject,
       resetKnowledge: false
     }
   },
@@ -419,7 +420,7 @@ export default {
   methods: {
     async reloadStatus() {
       const data = await API.knowledge.status()
-      this.settings = { ...API.lastSettings }
+      this.settings = { ...API.activeProject }
       this.status = data
     },
     async reloadFolder(folderToReload) {
@@ -461,17 +462,17 @@ export default {
     async addEntriesToIgnore(entries) {
       const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
       const newIgnore = new Set([...currIgnore, ...entries])
-      API.lastSettings.knowledge_file_ignore = [...newIgnore].join(",")
-      await API.settings.save(API.lastSettings)
+      API.activeProject.knowledge_file_ignore = [...newIgnore].join(",")
+      await API.settings.save(API.activeProject)
       await this.reloadStatus()
       this.selectedFiles = {}
       this.addToIgnore = null
     },
     async removeEntriesFromIgnore(entries) {
-      const currIgnore = API.lastSettings?.knowledge_file_ignore?.split(',') || []
+      const currIgnore = API.activeProject?.knowledge_file_ignore?.split(',') || []
       const newIgnore = currIgnore.filter(e => !entries.includes(e))
-      API.lastSettings.knowledge_file_ignore = newIgnore.join(",")
-      await API.settings.save(API.lastSettings)
+      API.activeProject.knowledge_file_ignore = newIgnore.join(",")
+      await API.settings.save(API.activeProject)
       await this.reloadStatus()
       this.selectedFiles = {}
       this.addToIgnore = null
@@ -524,7 +525,7 @@ export default {
     async saveKnowledgeSettings() {
       await API.settings.read()
       API.settings.save({
-        ...API.lastSettings,
+        ...API.activeProject,
         knowledge_search_type: this.documentSearchType,
         knowledge_context_cutoff_relevance_score: this.cutoffScore,
         knowledge_search_document_count: this.documentCount,
@@ -533,10 +534,10 @@ export default {
       this.reloadStatus()
     },
     async toggleWatch(watching) {
-      if (!API.lastSettings) {
+      if (!API.activeProject) {
         return
       }
-      API.lastSettings.watching = !API.lastSettings.watching
+      API.activeProject.watching = !API.activeProject.watching
       await API.settings.save()
       this.reloadStatus()
     },

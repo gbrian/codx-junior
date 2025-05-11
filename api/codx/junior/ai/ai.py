@@ -60,19 +60,21 @@ class AI:
     @profile_function
     def chat(
         self,
-        messages: List[Message] = [],
+        messages: List[Message] = None,
         prompt: Optional[str] = None,
         *,
         max_response_length: Optional[int] = None,
         callback = None
     ) -> List[Message]:
+        if not messages:
+            messages = []
         if prompt:
             messages.append(HumanMessage(content=prompt))
 
         response = None
-        md5Key = messages_md5(messages) if self.cache else None
-        if self.cache and md5Key in self.cache:
-            response = AIMessage(content=json.loads(self.cache[md5Key])["content"])
+        md5_key = messages_md5(messages) if self.cache else None
+        if self.cache and md5_key in self.cache:
+            response = AIMessage(content=json.loads(self.cache[md5_key])["content"])
 
         if not response:
             callbacks = []
@@ -87,7 +89,7 @@ class AI:
                 raise RuntimeError("Failed to process AI request after retries.")
 
             if self.cache:
-                self.cache[md5Key] = json.dumps(
+                self.cache[md5_key] = json.dumps(
                     {
                         "messages": serialize_messages(messages),
                         "content": response.content,

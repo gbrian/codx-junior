@@ -6,9 +6,6 @@ import ChatIcon from './chat/ChatIcon.vue';
   <div class="card w-full p-4 border border-gray-200 rounded-lg shadow-md text-center">
     <div class="flex justify-center">
       <div class="avatar indicator">
-        <span class="indicator-item badge">
-          <ChatIcon :mode="profile.chat_mode || 'chat'" />
-        </span>
         <div class="h-20 w-20 rounded-lg">
           <img :src="useAvatar" :alt="profile.name" />
         </div>

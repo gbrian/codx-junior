@@ -3,7 +3,7 @@
 export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")/.." && pwd)"
 echo "CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
 
-source ${CODX_JUNIOR_PATH}/.env
+source ${CODX_JUNIOR_PATH}/set_env.sh
 
 codx docker
 codx coder

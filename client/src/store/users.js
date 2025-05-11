@@ -5,37 +5,45 @@ export const namespaced = true
 
 import { API } from '../api/api'
 export const state = () => ({
-  codxJunior: null,
-  user: null,
-  users: []
+  onlineUsers: {}
 })
 
 export const getters = getterTree(state, {
-  allUsers: ({ codxJunior, users }) => codxJunior ? [ codxJunior, ...users ] : []
+  user: () => API.user,
+  isAdmin: () => API.user?.role === 'admin',
+  allUsers: ({ codxJunior, users }) => codxJunior ? [ codxJunior, ...users ] : [],
+  codxJunior: () => (      state.codxJunior = { 
+        userName: "codx-junior", 
+        avatar: API.globalSettings?.codx_junior_avatar
+      })
 })
 
 export const mutations = mutationTree(state, {
-  setUsers (state, users) {
-  },
+  setOnlineUsers(state, users) {
+    state.onlineUsers = users
+  }
 })
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
     async init ({ state }, $storex) {
-      state.codxJunior = { 
-        userName: "codx-junior", 
-        avatar: API.globalSettings.codx_junior_avatar
+    },
+    async login({ _ }, user) {
+      try {
+        await API.users.login(user)
+      } catch(ex) {
+        $storex.session.onError("Login error")
       }
+      $storex.init()
     },
-    async login({ state }, user) {
-      state.user = await API.user.login(user)
-    },
-    async logout({ state }) {
-      state.user = null
+    async logout() {
+      await API.users.logout()
+      $storex.init()
     },
     async saveUser({ state }, user) {
-      state.user = await API.user.save(user)
+      await API.users.save(user)
+      $storex.session.onInfo("User account updated")
     }
   }
 )

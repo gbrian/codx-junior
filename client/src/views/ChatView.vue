@@ -1,10 +1,14 @@
 <script setup>
+import moment from 'moment'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
-import TaskCard from '@/components/kanban/TaskCard.vue'
 import Kanban from '@/components/kanban/Kanban.vue'
-import moment from 'moment'
 import ProfileSelector from '@/components/profile/ProfileSelector.vue'
+import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'
+import UserSelector from '@/components/user/UserSelector.vue'
+import UserAvatar from '@/components/user/UserAvatar.vue'
+import TaskSettings from '@/components/kanban/TaskSettings.vue'
+import ChatIcon from '@/components/chat/ChatIcon.vue'
 </script>
 
 <template>
@@ -16,34 +20,42 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
             <div class="flex gap-2 items-start">
               <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
               <div class="font-bold flex flex-col" v-else>
-                <div class="my-2 text-xs hover:underline click font-bold text-primary" @click="naviageToParent" v-if="parentChat || Kanban">
-                  <i class="fa-solid fa-turn-up"></i> {{ parentChat?.name || kanban?.title }} ...
+                <div class="flex gap-2">
+                  <div class="my-2 text-xs hover:underline click font-bold text-primary" @click="naviageToParent()">
+                    <i class="fa-solid fa-caret-left"></i> {{ kanban?.title }}
+                  </div>
+                  <div class="my-2 text-xs hover:underline click font-bold text-secondary" @click="naviageToParent(parentChat)" v-if="parentChat">
+                    <i class="fa-brands fa-trello"></i>
+                    {{ parentChat.name }}
+                  </div>
                 </div>
                 <div class="flex items-center gap-2">
-                  <div class="dropdown">
-                    <div tabindex="0" role="button" class="btn btn-xs btn-outline flex gap-1 items-center">
-                      <i :class="chatModes[chat.mode].icon" class="fa-regular fa-comments"></i>
+                  <div class="flex gap-1">
+                    <div class="avatar" :title="taskProject.project_name" v-if="taskProject !== $project">
+                      <div class="w-7 h-7 rounded-full">
+                        <img :src="taskProject.project_icon"/>
+                      </div>
                     </div>
-                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                      <li v-for="info, mode in chatModes" :key="mode">
-                        <details open v-if="info.profiles.length > 1">
-                          <summary>
-                            <i :class="info.icon" class="fa-regular fa-comments"></i>
-                            {{ info.name }}
-                          </summary>
-                          <ul>
-                            <li @click="setChatMode(mode, profile)" v-for="profile in info.profiles" :key="profile">
-                              <a>{{ profile }}</a>
-                            </li>
-                          </ul>
-                        </details>
-                        <a class="flex items-center" @click="setChatMode(mode, info.profiles[0])" v-else>
-                          <i :class="info.icon" class="fa-regular fa-comments"></i>
-                          {{ info.name }}
-                        </a>
-                      </li>
-                    </ul>
+                    <UserAvatar :width="7" :user="user" v-for="user in chatUsers" :key="user.username">
+                      <li @click="removeUser(user)" ><a>Remove</a></li>
+                    </UserAvatar>  
+                    <ProfileAvatar :profile="chatProfiles[0]"
+                      :project="taskProject"
+                      width="7"
+                      v-if="chatProfiles.length">
+                        <div class="flex justify-end gap-2">
+                          <div class="badge badge-xs badge-warning click" @click="removeProfile(chatProfiles[0])">
+                            change
+                          </div>
+                        </div>
+                    </ProfileAvatar>
+
+                    <button class="btn btn-sm btn-circle tooltip" data-tip="Add profile"
+                      @click="onAddProfile">
+                      <i class="fa-solid fa-plus"></i>
+                    </button>
                   </div>
+
                   <div class="click text-xs md:text-xl" @click="editName = true">
                     {{ chat.name }}
                   </div>
@@ -63,9 +75,6 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
                       <i class="fa-solid fa-eye"></i>
                     </span>
                   </button>
-                  <button class="btn btn-xs hover:btn-info hover:text-white" @click="saveChat">
-                    <i class="fa-solid fa-floppy-disk"></i>
-                  </button>
                   <div class="grow"></div>
                   <div class="dropdown dropdown-end dropdown-bottom">
                     <div tabindex="0" class="btn btn-sm flex items-center indicator">
@@ -81,10 +90,22 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
                       <li @click="onExport">
                         <a><i class="fa-solid fa-copy"></i> Export</a>
                       </li>
+                      <li>
+                        <div class="flex gap-2 items-center">
+                          <ChatIcon :mode="chat.mode" />
+                          <select class="select select-sm" @change="setChatMode($event.target.value)">
+                            <option value="task" :selected="chat.mode === 'task'" >Document</option>
+                            <option value="chat" :selected="chat.mode !== 'task'">Chat</option>
+                          </select>
+                        </div>
+                      </li>
+                      <li @click="saveChat">
+                        <a><i class="fa-solid fa-floppy-disk"></i> Save</a>
+                      </li>
                       <div class="divider" v-if="childrenChats.length"></div>
-                      <div class="max-h-96 w-full overflow-auto flex flex-col gap-2 p-1">
-                        <TaskCard class="click p-2" :task="child" @click="$projects.setActiveChat(child)" v-for="child in childrenChats" :key="childrenChats.id" />
-                      </div>
+                      <li @click="showTaskSettings = true">
+                        <a><i class="fa-solid fa-gear"></i> Settings</a>
+                      </li>
                     </ul>
                   </div>
                 </div>
@@ -93,22 +114,6 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
                 </div>
               </div>
               <div class="flex justify-end items-center">
-                <div class="dropdown dropdown-end" v-for="profile in chatProfiles" :key="profile.name">
-                  <div tabindex="0" role="button" class="btn btn-xs m-1">
-                    <div class="avatar tooltip" :data-tip="profile.name">
-                      <div class="ring-primary ring-offset-base-100 w-4 h-4 rounded-full ring ring-offset-2">
-                        <img :src="profile.avatar" :alt="profile.name" />
-                      </div>
-                    </div>
-                  </div>
-                  <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-50 w-40 p-2 shadow-sm">
-                    <li class="text-error" @click="removeProfile(profile)"><a>Remove</a></li>
-                  </ul>
-                </div>
-                <button class="btn btn-sm btn-circle tooltip" data-tip="Add profile"
-                  @click="onAddProfile">
-                  <i class="fa-solid fa-user-plus"></i>
-                </button>
               </div>
             </div>
           </div>
@@ -127,29 +132,6 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
             </button>
           </div>
           <div class="flex gap-1 justify-end items-center">
-            <div class="dropdown dropdown-end">
-              <div tabindex="0" role="button" class="btn btn-sm m-1 flex gap-1 items-center">
-                <div class="avatar">
-                  <div class="w-6 rounded-full">
-                    <img :src="chatProject.project_icon" />
-                  </div>
-                </div>
-                {{ chatProject.project_name }}
-              </div>
-              <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-50 w-52 p-2 shadow-sm">
-                <li @click="chat.project_id = project.project_id"
-                  v-for="project in subProjects" :key="project.project_id">
-                  <a>
-                    <div class="avatar">
-                      <div class="w-6 rounded-full">
-                        <img :src="project.project_icon" />
-                      </div>
-                    </div>
-                    {{ project.project_name }}
-                  </a>
-                </li>
-              </ul>
-            </div>
           </div>
         </div>
         <div class="w-full overflow-auto" v-if="chatFiles.length">
@@ -158,7 +140,7 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
               <i class="fa-solid fa-paperclip"></i>
             </span>
             <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 click text-accent" @click="$ui.openFile(file)">
-              <span>{{ file.split('/').reverse()[0] }}</span>
+              <span :title="file" >{{ file.split('/').reverse()[0] }}</span>
               <span class="ml-2 click" @click.stop="onRemoveFile(file)">
                 <i class="fa-regular fa-circle-xmark"></i>
               </span>
@@ -248,10 +230,14 @@ import ProfileSelector from '@/components/profile/ProfileSelector.vue'
             </div>
           </div>
         </modal>
+        <modal v-if="showTaskSettings">
+          <TaskSettings :taskData="chat" @close="showTaskSettings = false" />
+        </modal>
       </div>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
     <modal class="max-w-full w-1/3" v-if="showAddProfile" :close="true" @close="showAddProfile = false">
+      <UserSelector @select="addUserToChat($event)" />
       <ProfileSelector @select="addProfile($event.name)" :project="chatProject" />
     </modal>
   </div>
@@ -266,7 +252,6 @@ export default {
       addFile: null,
       showChatsTree: false,
       editName: false,
-      showSettings: false,
       addNewFile: null,
       showHidden: false,
       confirmDelete: false,
@@ -274,19 +259,27 @@ export default {
       toggleChatOptions: false,
       showSubtaskModal: false,
       showSubtasksModal: false,
+      showTaskSettings: false,
       subtaskName: '',
       subtaskDescription: '',
       showAddProfile: false,
-      createTasksInstructions: ''
+      createTasksInstructions: '',
+      chatProfiles: []
     }
   },
-  mounted () {
+  async mounted () {
     this.toggleChatOptions = !this.$ui.isMobile
+    this.chatProfiles = await this.$storex.api.project(this.taskProject)
+                                .then(p => p.profiles.list())
+                                .then(profiles => profiles.filter(p => this.chat.profiles.includes(p.name)))
   },
   computed: {
-    chatProfiles () {
-      const { profiles } = this.$projects
-      return profiles.filter(p => this.chat.profiles?.includes(p.name))
+    taskProject() {
+      return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) ||
+                this.$project
+    },
+    chatUsers() {
+      return this.$storex.api.userNetwork.filter(({ username }) => this.chat.users?.includes(username))
     },
     chatModes () {
       return this.$projects.chatModes
@@ -314,7 +307,7 @@ export default {
       return this.$projects.allChats
     },
     chat() {
-      return this.$projects.chats[this.openChat?.id || this.$projects.activeChat.id]
+      return this.$projects.chats[this.openChat?.id || this.$projects.activeChat?.id]
     },
     childrenChats() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
@@ -325,7 +318,7 @@ export default {
               this.$project
     },
     parentChat () {
-      return this.$projects.allChats.find(c => c.id === this.chat.parent_id)
+      return this.$projects.allChats.find(c => c.id === this.chat?.parent_id)
     },
     chatFiles() {
       return [...this.chat.file_list||[], ...this.parentChat?.file_list||[]]
@@ -387,6 +380,19 @@ export default {
       }
       this.showAddProfile = false
     },
+    async addUserToChat(user) {
+      if (!this.chat.users?.includes(user.username)) {
+        this.chat.users = [...this.chat.users || [], user.username]
+        await this.saveChat()
+      }
+      this.showAddProfile = false
+    },
+    async removeUser(user) {
+      if (this.chat.users?.includes(user.username)) {
+        this.chat.users = this.chat.users.filter(u => u !== user.username)
+        await this.saveChat()
+      }
+    },
     removeProfile(profile) {
       if (this.chat.profiles?.includes(profile.name)) {
         this.chat.profiles = this.chat.profiles.filter(p => p !== profile.name)
@@ -434,7 +440,7 @@ export default {
       this.chat.tags = this.chat.tags.filter(t => t !== tag)
       this.saveChat()
     },
-    setChatMode(mode, profile) {
+    setChatMode(mode) {
       this.chat.mode = mode
       this.saveChat()
     },
@@ -447,9 +453,9 @@ export default {
         this.createTasksInstructions = ""
       }
     },
-    naviageToParent() {
-      if (this.parentChat) {
-        this.$emit('chat', this.parentChat)
+    naviageToParent(parentChat) {
+      if (parentChat) {
+        this.$emit('chat', parentChat)
       } else {
         this.navigateToChats()
       }

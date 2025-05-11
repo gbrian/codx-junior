@@ -2,44 +2,31 @@
 import AISettings from './AISettings.vue'
 import AgentSettings from '@/components/ai_settings/AgentSettings.vue'
 import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
-import ExportImportButton from '@/components/ExportImportButton.vue';
+import ExportImportButton from '@/components/ExportImportButton.vue'
+import SecurityUserList from '@/components/security/SecurityUserList.vue'
+import Workspaces from '@/components/workspaces/Workspaces.vue'
 </script>
 
 <template>
-  <div class="w-full h-full flex flex-col gap-2 p-4 overflow-auto">
+  <div class="w-full h-full flex flex-col gap-2 p-4 overflow-auto" v-if="settings">
     <div class="text-xl font-medium my-2 flex justify-between">
       Global Settings
       <div class="flex justify-end gap-2 items-center">
         <button class="btn btn-sm" @click="reloadSettings">Reload</button>
         <button class="btn btn-sm btn-primary" @click="saveSettings">Save</button>
-        <ExportImportButton :data="settings" @change="submit" />
+        <ExportImportButton :data="settings" @change="submit">
+          <li @click="activeTab = 'Settings'" :class="{ 'tab-active': activeTab === 'Settings' }" class=""><a>General</a></li>
+          <li @click="activeTab = 'AI Models'" :class="{ 'tab-active': activeTab === 'AI Models' }" class=""><a>AI Models</a></li>
+          <li @click="activeTab = 'Workspaces'" :class="{ 'tab-active': activeTab === 'Workspaces' }" class=""><a>Workspaces</a></li>
+          <li @click="activeTab = 'Users'" :class="{ 'tab-active': activeTab === 'Users' }" class=""><a>Users</a></li>
+          <li class="separator"></li>
+        </ExportImportButton>
       </div>
     </div>
-    <div role="tablist" class="tabs tabs-bordered">
-      <button
-        class="tab tab-lifted"
-        :class="{ 'tab-active': activeTab === 'Settings' }"
-        @click="activeTab = 'Settings'"
-      >
-        General
-      </button>
-      <button
-        class="tab tab-lifted"
-        :class="{ 'tab-active': activeTab === 'AI Models' }"
-        @click="activeTab = 'AI Models'"
-      >
-        AI Models
-      </button>
-      <button
-        class="tab tab-lifted"
-        :class="{ 'tab-active': activeTab === 'Agents' }"
-        @click="activeTab = 'Agents'"
-      >
-        Agents
-      </button>
-    </div>
+    <SecurityUserList :settings="settings" v-if="activeTab === 'Users'" />
+    <Workspaces :settings="settings" v-if="activeTab === 'Workspaces'" />
     <div v-if="activeTab === 'Settings'" class="flex flex-col gap-4">
-      <div class="flex flex-col gap-4" v-if="settings">
+      <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2 text-xs">
           <div class="text-xl font-bold">Global</div>
           <div class="ml-6 p-2 flex flex-col gap-2">
@@ -127,7 +114,7 @@ import ExportImportButton from '@/components/ExportImportButton.vue';
 
 <script>
 export default {
-  data () {
+  data() {
     return {
       activeTab: 'Settings',
       settings: null,
@@ -135,7 +122,7 @@ export default {
       showImport: false
     }
   },
-  created () {
+  created() {
     this.loadSettings()
   },
   methods: {

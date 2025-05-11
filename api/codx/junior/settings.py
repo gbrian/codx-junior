@@ -22,6 +22,10 @@ logger = logging.getLogger(__name__)
 
 ROOT_PATH = os.path.dirname(__file__)
 GLOBAL_SETTINGS = None
+HOME=os.environ.get("HOME")
+GLOBAL_SETTINGS_PATH=os.environ.get("CODX_JUNIOR_GLOBAL_SETTINGS_PATH", None) or f"{HOME}/global_settings.json"
+
+logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
 
 def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvider:
     global_settings = global_settings or GLOBAL_SETTINGS
@@ -30,8 +34,8 @@ def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvide
         raise Exception(f"LLM AI provider not found: {ai_provider}")
     
     ai_provider = ai_provider_settings[0]
-    ai_provider.api_url = os.path.expandvars(ai_provider.api_url)
-    ai_provider.api_key = os.path.expandvars(ai_provider.api_key)
+    ai_provider.api_url = os.path.expandvars(ai_provider.api_url or "")
+    ai_provider.api_key = os.path.expandvars(ai_provider.api_key or "")
 
     return ai_provider
 
@@ -56,19 +60,20 @@ def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
 def read_global_settings():
     global GLOBAL_SETTINGS
     try:
-        with open(f"global_settings.json") as f:
+        with open(GLOBAL_SETTINGS_PATH) as f:
             GLOBAL_SETTINGS = GlobalSettings(**json.loads(f.read()))
-    except:
+    except Exception as ex:
+        logger.error(f"Error {ex} loading global settings from {GLOBAL_SETTINGS_PATH}")
         GLOBAL_SETTINGS = GlobalSettings()
     return GLOBAL_SETTINGS
 
 
 def write_global_settings(global_settings: GlobalSettings):
     global GLOBAL_SETTINGS
-    logger.info(f"GLOBAL_SETTINGS: {global_settings}")
+    logger.info(f"GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}")
     try:
         old_settings = read_global_settings()
-        with open(f"global_settings.json", "w") as f:
+        with open(GLOBAL_SETTINGS_PATH, "w") as f:
             f.write(json.dumps(global_settings.dict()))
 
         if global_settings.git.username:
@@ -92,6 +97,8 @@ class CODXJuniorSettings(BaseModel):
 
     project_name: Optional[str] = Field(default=None)
     project_path: Optional[str] = Field(default="")
+    project_branches: Optional[List[str]] = Field(default=[])
+    
     codx_path: Optional[str] = Field(default=None)
     project_wiki: Optional[str] = Field(default=None)
     project_dependencies: Optional[str] = Field(default=None)

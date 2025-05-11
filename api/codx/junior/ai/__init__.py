@@ -16,6 +16,9 @@ class AIManager:
                             in global_settings.ai_models if ai_model.ai_provider == 'llmfactory'] 
         for ai_model in active_models:
             info = self.load_model(model=ai_model.name, global_settings=global_settings)
+            if not info:
+                logger.error(f"Error reloading model {ai_model}")
+                continue
             model_info = info['modelinfo']
             
             context_length_keys = [k for k in model_info.keys() if "context_length" in k]

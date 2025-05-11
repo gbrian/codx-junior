@@ -1,28 +1,24 @@
 <script setup>
 import ProjectIconVue from './ProjectIcon.vue'
 import UserList from './UserList.vue'
-import ThemeSelector from './ThemeSelector.vue'
 import moment from 'moment';
+import Assistant from './codx-junior/Assistant.vue';
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
     :class="$ui.showApp && 'click'">
 
-    <div class="relative">
-    <ProjectIconVue
-      :right="right"
-      :online="$storex.session.connected"
-    />
-      <div class="absolute bottom-0 flex justify-center w-full"
-        v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
-        <span class="badge badge-xs bg-secondary text-white animate-pulse">thinking</span>
-      </div>
-    </div>
-
-    <UserList v-if="false" />
-
-
     <div class="flex w-full flex-col mt-4 flex">
+      <div class="relative">
+        <Assistant :class="$storex.session.connected ? '' : 'grayscale'" />
+        <div class="absolute bottom-0 flex justify-center w-full"
+          v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
+          <span class="badge badge-xs bg-secondary text-white animate-pulse">thinking</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'wiki' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Wiki"
@@ -64,7 +60,7 @@ import moment from 'moment';
 
       <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'profiles' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Team"
+          data-tip="Profiles"
           @click="$ui.setActiveTab('profiles')">
            <div class="flex flex-col gap-4">
             <i class="fa-solid fa-user-group"></i>
@@ -120,7 +116,7 @@ import moment from 'moment';
           </div>
 				</a>
 			</div>
-      <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
+      <div :class="['hidden hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" 
           :class="right ? 'tooltip-left' : 'tooltip-right'" 
           :data-tip="showLogsTooltip"
@@ -139,13 +135,18 @@ import moment from 'moment';
       <div :class="['dropdown dropdown-end click',
         right ? 'dropdown-left' : 'dropdown-right']">
 				<a tabindex="0" class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
-          :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="More settings"
+          :class="right ? 'tooltip-left' : 'tooltip-right'" :data-tip="$users.user.username"
           @click="$ui.readScreenResolutions()">
-           <i class="fa-solid fa-gear"></i>
+          <div class="avatar">
+            <div class="w-8 ring rounded-full">
+              <img :src="$storex.api.user.avatar" />
+            </div>
+          </div>
 				</a>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-72 p-2 shadow-xl">
-          <li><a @click.stop="setActiveTab('settings')">Project settings</a></li>
-          <li><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
+          <li><a @click.stop="setActiveTab('account')">Account settings</a></li>
+          <li v-if="$storex.api.permissions.isProjectAdmin"><a @click.stop="setActiveTab('settings')">Project settings</a></li>
+          <li v-if="$storex.api.permissions.isAdmin"><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li><a @click.stop="setActiveTab('knowledge_settings')">Knowledge settings</a></li>
           <li class="border"></li>
           <li>
@@ -197,16 +198,12 @@ import moment from 'moment';
             </a>
           </li>
           <li>
-            <a class="flex gap-2">
-              <ThemeSelector /> {{ $ui.theme }}
+            <a @click="$ui.toggleLogs()">
+              <i class="fa-solid fa-chart-line"></i> Logs
             </a>
           </li>
-          <li>
-            <div class="click border rounded-md text-xs bg-error text-white w-full flex justify-center hover:animation-pulse"
-              @click="restartModal = true">
-              <div><i class="fa-solid fa-bomb"></i> Restart!</div>
-            </div>
-          </li>
+          <li class="border"></li>
+          <li><a @click.stop="$users.logout()">Log out</a></li>
         </ul>
 			</div>
     </div>

@@ -24,6 +24,7 @@ from codx.junior.browser import run_browser_manager
 
 from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
 from codx.junior.api.users import router as users_router
+from codx.junior.security.user_management import get_authenticated_user
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
@@ -54,7 +55,8 @@ disable_logs([
 
 from flask import send_file
 
-from fastapi import FastAPI, Request, Response, UploadFile
+from fastapi import FastAPI, Request, status, Response, UploadFile, Depends
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
@@ -72,7 +74,8 @@ from codx.junior.model.model import (
     Document,
     LiveEdit,
     GlobalSettings,
-    Screen
+    Screen,
+    CodxUser
 )
 
 from codx.junior.settings import (
@@ -88,6 +91,7 @@ from codx.junior.engine import (
     create_project,
     coder_open_file,
     find_all_projects,
+    find_all_user_projects,
     CODXJuniorSession,
     SessionChannel
 )
@@ -114,12 +118,21 @@ app = FastAPI(
     ssl_context='adhoc'
 )
 
+app = FastAPI()
+
 sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
 app.mount("/api/socket.io", sio_asgi_app)
 
 app.include_router(chatgpt_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+	exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
+	logger.error(f"{request}: {exc_str}")
+	content = {'status_code': 10422, 'message': exc_str, 'data': None}
+	return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 @app.on_event("startup")
 def startup_event():
@@ -168,11 +181,10 @@ async def api_knowledge_reload(request: Request):
     return codx_junior_session.check_knowledge_status()
 
 @app.post("/api/knowledge/reload-path")
-async def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
+def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
     codx_junior_session = request.state.codx_junior_session
     logger.info(f"**** API:knowledge_reload_path {knowledge_reload_path}")
-    await codx_junior_session.check_file(file_path=knowledge_reload_path.path, force=True)
-    return codx_junior_session.check_knowledge_status()
+    exec_command(f"touch {knowledge_reload_path.path}")
 
 @app.post("/api/knowledge/delete")
 def api_knowledge_reload_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):
@@ -217,6 +229,15 @@ async def api_chat(chat: Chat, request: Request):
     return chat
 
 @profile_function
+@app.post("/api/chats/from-url")
+async def api_chat_form_url(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.chat_event(chat=chat, message="Loading chat...")
+    codx_junior_session.init_chat_from_url(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@profile_function
 @app.post("/api/chats/sub-tasks")
 async def api_chat_subtasks(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
@@ -231,8 +252,8 @@ async def api_save_chat(chat: Chat, request: Request):
 @app.delete("/api/chats")
 def api_delete_chat(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    file_path = request.query_params.get("file_path")
-    codx_junior_session.delete_chat(file_path)
+    chat_id = request.query_params.get("chat_id")
+    codx_junior_session.delete_chat(chat_id)
 
 @app.get("/api/kanban")
 def api_kanban(request: Request):
@@ -330,9 +351,9 @@ def api_project_watch(request: Request):
     return { "OK": 1 }
 
 @app.get("/api/projects")
-def api_find_all_projects():
-    all_projects = find_all_projects()
-    return all_projects
+def api_find_all_projects(user: CodxUser = Depends(get_authenticated_user)):
+    all_projects = find_all_user_projects(user)
+    return list(all_projects)
 
 @app.get("/api/projects/repo/branches")
 def api_find_all_repo_branches(request: Request):
@@ -352,12 +373,12 @@ def api_project_readme(request: Request):
     return Response(content=document or "> Not found", media_type="text/html")
 
 @app.post("/api/projects")
-def api_project_create(request: Request):
+def api_project_create(request: Request, user: CodxUser = Depends(get_authenticated_user)):
     project_path = request.query_params.get("project_path")
     try:
         return CODXJuniorSettings.from_project_file(f"${project_path}/.codx/project.json")
     except:
-        return create_project(project_path=project_path)
+        return create_project(project_path=project_path, user=user)
 
 @app.delete("/api/projects")
 def api_project_delete(request: Request):
@@ -436,7 +457,9 @@ def api_apps_run(request: Request):
 
 
 @app.get("/api/global/settings")
-def api_read_global_settings():
+def api_read_global_settings(user: CodxUser = Depends(get_authenticated_user)):
+    if not user or user.role != 'admin':
+        return {}
     return read_global_settings()
 
 @app.post("/api/global/settings")
