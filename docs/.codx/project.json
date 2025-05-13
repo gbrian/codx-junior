@@ -22,7 +22,7 @@
   "log_ignore": "",
   "project_scripts": [],
   "embeddings_model": "",
-  "llm_model": "",
+  "llm_model": "mercury",
   "rag_model": "",
   "wiki_model": "",
   "last_error": "",

@@ -1,1 +1,1 @@
-{"version": 0.1, "boards": {"kanban": {"columns": [{"title": "tasks", "id": "ec3d4827-bfa0-4c59-b513-d73c5ac7bdd1"}]}}, "tags": {}}
+{"version": 0.1, "boards": {"kanban": {"columns": [{"title": "tasks", "id": "ec3d4827-bfa0-4c59-b513-d73c5ac7bdd1"}], "active": true}, "mentions": {"columns": [{"title": "changes", "id": "a9265fe9-4817-4416-a110-86190afaa5cc"}], "active": false}}, "tags": {}}

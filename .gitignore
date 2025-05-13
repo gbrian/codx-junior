@@ -17,3 +17,5 @@ ollama_models
 logs
 .codx/logs/ai.md
 **/.vitepress/cache
+**/dist
+client/public/wiki

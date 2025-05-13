@@ -10,7 +10,10 @@
     "build-only": "vite build",
     "type-check": "vue-tsc --build --force",
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
-    "format": "prettier --write src/"
+    "format": "prettier --write src/",
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
   },
   "dependencies": {
     "@novnc/novnc": "1.5.0",
@@ -64,6 +67,7 @@
     "typescript": "~5.4.0",
     "vite": "^6.2.5",
     "vite-plugin-pug": "^0.4.1",
+    "vitepress": "^1.6.3",
     "vue-pug-plugin": "^2.0.3",
     "vue-tsc": "^2.0.6"
   }

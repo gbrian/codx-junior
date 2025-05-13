@@ -26,4 +26,6 @@ USER ${USER}
 COPY --chown=${USER} entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+RUN /entrypoint.sh install
+
 CMD [ "/entrypoint.sh" ]

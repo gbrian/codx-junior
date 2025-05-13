@@ -991,11 +991,17 @@ class CODXJuniorSession:
                 messages=
                   [
                       Message(role="user", content=f"""
-                      ```
-                      {new_content}
-                      ```
+                      Given this document:
+                      <document>
                       
+                      {new_content}
+                      
+                      </document>
+                      
+                      User has added these comments:
+                      <comments>
                       {query}
+                      </comments>
                       """)
                   ])
               
@@ -1015,9 +1021,11 @@ class CODXJuniorSession:
                   """))
 
               changes_chat.messages.append(Message(role="user", content=f"""
-              Rewrite full file content replacing codx instructions with the minimum changes as possible.
-              Return only the file content without any further decoration or comments.
+              Apply codx comments and rewrite full content.
+              Return only the content without any further decoration or comments.
               Do not surround response with '```' marks, just content.
+              Remove codx comments from the final version. 
+              Do not return the <document> tags.
               """))
               
               self.log_info(f"Mentions generate changes {file_path}")

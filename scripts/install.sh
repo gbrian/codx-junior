@@ -1,8 +1,4 @@
 #!/bin/bash
-if [ -t "/tmp/codx-junior-installed" ]; then
-  exit 0
-fi
-touch /tmp/codx-junior-installed
 
 # Function to log messages
 log_info() {

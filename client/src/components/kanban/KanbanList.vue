@@ -9,7 +9,7 @@ import moment from 'moment'
         v-for="board in sortedBoards"
         :key="board.title"
         @click="selectBoard(board)"
-        class="card card-bordered bg-base-300 shadow-md rounded-lg cursor-pointer"
+        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer"
       >
         <div class="card-body flex flex-col">
           <span class="text-xs" v-if="board.last_update">[{{ moment(board.last_update).fromNow() }}]</span>

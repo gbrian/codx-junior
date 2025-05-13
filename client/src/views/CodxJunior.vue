@@ -30,7 +30,9 @@ import moment from 'moment'
         </div>
       </div>
 
-      <div class="grow p-2 bg-base-100 overflow-auto">
+      <div class="grow overflow-auto p-2"
+        :class="addSidePadding && 'mx-96'"
+      >
         <TabViewVue  :key="projectKey" />
       </div>
     </div>
@@ -74,6 +76,9 @@ export default {
     }
   },
   computed: {
+    addSidePadding () {
+      return !this.$ui.showApp && this.$ui.activeTab !== 'wiki'
+    },
     subProjects() {
       return Array.isArray(this.activeProject?.sub_projects)
         ? this.activeProject?.sub_projects

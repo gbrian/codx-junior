@@ -459,7 +459,9 @@ def api_apps_run(request: Request):
 @app.get("/api/global/settings")
 def api_read_global_settings(user: CodxUser = Depends(get_authenticated_user)):
     if not user or user.role != 'admin':
-        return {}
+        return {
+          "error": "User is not admin"
+        }
     return read_global_settings()
 
 @app.post("/api/global/settings")
