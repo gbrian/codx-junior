@@ -24,3 +24,4 @@ features:
   - title: <img class="feature-icon" src="https://static.vecteezy.com/system/resources/previews/027/142/043/non_2x/designer-girl-with-stylus-digital-illustrator-avatar-cartoon-flat-style-vector.jpg" /> Profiles
     details: Set the tone, quality, and expections with the profiles and save your precious time  
   
+---

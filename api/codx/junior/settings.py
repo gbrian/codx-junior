@@ -115,6 +115,8 @@ class CODXJuniorSettings(BaseModel):
     knowledge_query_subprojects: Optional[bool] = Field(default=True)
     knowledge_file_ignore: Optional[str] = Field(default=".codx")
 
+    save_mentions: Optional[bool] = Field(default=False)
+
     watching: Optional[bool] = Field(default=False)
     use_knowledge: Optional[bool] = Field(default=True)
     knowledge_hnsw_M: Optional[int] = Field(default=1024)

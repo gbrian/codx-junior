@@ -3,7 +3,7 @@ import moment from 'moment'
 import ChatEntry from '../ChatEntry.vue';
 </script>
 <template>
-  <div class="flex gap-2 justify-center w-full" @mouseenter="onOpen" @mouseleave="onClose">
+  <div class="flex gap-2 justify-center w-full bg-base-300" @mouseenter="onOpen" @mouseleave="onClose">
     <div class="absolute transition-all w-[600px] z-[100] right-0 -mt-3 p-2 " :class="!showAssistant && 'hidden'">
       <input type="text" v-model="query" placeholder="How can I help you?"
         class="input input-bordered w-full" @keydown.enter="sendMessage" />

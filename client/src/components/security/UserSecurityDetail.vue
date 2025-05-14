@@ -53,8 +53,8 @@
       </div>
       <div class="form-control w-52">
         <label class="label cursor-pointer">
-          <span class="label-text">Enabled</span>
-          <input type="checkbox" v-model="user.enabled" class="toggle" :class="user.enabled ? 'toggle-accent' : ''" checked="checked" />
+          <span class="label-text">Disabled</span>
+          <input type="checkbox" v-model="user.disabled" class="toggle" :class="user.disabled ? 'toggle-error' : ''" checked="checked" />
         </label>
       </div>
       <button class="btn btn-primary" @click="$emit('save', user)">

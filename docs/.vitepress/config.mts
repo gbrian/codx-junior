@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitepress'
+import tailwindcss from '@tailwindcss/vite'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
@@ -8,16 +9,26 @@ export default defineConfig({
     server: {
       host: true,
       port: 19000,
-      allowedHosts: true
-    }
+      allowedHosts: true,
+      watch: {
+        ignored: ['.codx']
+      }
+    },
+    plugins: [
+      tailwindcss()
+    ],
   },
   head: [['link', { rel: 'icon', href: '/only_icon.png' }]],
   themeConfig: {
+    search: {
+      provider: 'local'
+    },
     logo: 'public/only_icon.png',
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Getting Started', link: '/getting-started' },
-      { text: 'Team', link: '/team' }
+      { text: 'Team', link: '/team' },
+      { text: 'Demo', link: '/demo' }
     ],
     sidebar: [
       {

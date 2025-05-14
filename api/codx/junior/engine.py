@@ -933,6 +933,8 @@ class CODXJuniorSession:
           using_chat = any(m.flags.chat_id for m in mentions)
           run_code = any(m.flags.code for m in mentions)
 
+          save_mentions = self.settings.save_mentions
+
           if using_chat:
               use_knowledge = False       
               self.log_info(f"Skip KNOWLEDGE search for processing, using_chat={using_chat}")
@@ -976,7 +978,8 @@ class CODXJuniorSession:
                   ])
               self.log_info(f"Chat with project analysis {analysis_chat.name}")
               await self.chat_with_project(chat=analysis_chat)
-              analysis_chat = chat_manager.save_chat(analysis_chat)
+              if save_mentions:
+                  analysis_chat = chat_manager.save_chat(analysis_chat)
 
           if run_code:
               self.log_info(f"Mentions running code {file_path}")
@@ -1031,7 +1034,8 @@ class CODXJuniorSession:
               self.log_info(f"Mentions generate changes {file_path}")
               
               await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False)
-              chat_manager.save_chat(changes_chat)
+              if save_mentions:
+                  chat_manager.save_chat(changes_chat)
               response = changes_chat.messages[-1].content
               
               self.log_info(f"Mentions save file changes {file_path}")
