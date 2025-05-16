@@ -31,7 +31,7 @@ import moment from 'moment'
       </div>
 
       <div class="grow overflow-auto p-2"
-        :class="addSidePadding && 'mx-96'"
+        :class="addSidePadding && '2xl:mx-96 mx-20'"
       >
         <TabViewVue  :key="projectKey" />
       </div>

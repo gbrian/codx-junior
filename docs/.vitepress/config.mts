@@ -47,15 +47,15 @@ export default defineConfig({
       {
         text: 'Features',
         items: [
-          { text: 'Project\'s Dashboard', link: '/features' },
-          { text: 'Project Management', link: '/features' },
-          { text: 'Tasks', link: '/features' },
-          { text: 'Code Generation and Review', link: '/features' },
-          { text: 'Deployment and Operations', link: '/features' },
-          { text: 'Collaboration and Communication', link: '/collaboration' },
-          { text: 'Knowledge Sharing', link: '/knowledge-sharing' },
-          { text: 'Development Tools', link: '/development-tools' },
-          { text: 'Settings', link: '/settings' }
+          { text: 'Project\'s Dashboard', link: '/features/project-dashboard' },
+          { text: 'Project Management', link: '/features/project-management' },
+          { text: 'Tasks', link: '/features/tasks' },
+          { text: 'Code Generation and Review', link: '/features/code-generation-and-review' },
+          { text: 'Deployment and Operations', link: '/features/deployment-and-operations' },
+          { text: 'Collaboration and Communication', link: '/features/collaboration' },
+          { text: 'Knowledge Sharing', link: '/features/knowledge-sharing' },
+          { text: 'Development Tools', link: '/features/development-tools' },
+          { text: 'Settings', link: '/features/settings' }
         ]
       },
       {

@@ -4,7 +4,7 @@ layout: home
 hero:
   name: "codx-junior"
   text: "Your FullStackHero AI"
-  tagline: "You will never code alone"
+  tagline: "You will never code alone Iva!!"
   image:
     src: /only_icon.png
     alt: codx-junior
@@ -25,3 +25,4 @@ features:
     details: Set the tone, quality, and expections with the profiles and save your precious time  
   
 ---
+![codx-junior](/images/codx-junior-editor.png)

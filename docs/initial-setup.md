@@ -1,64 +1,96 @@
-After installing and running codx-junior navigate to http://localhost:19981 or any other port you set in the env settings.
+After installing and running **codx-junior**, navigate to `http://localhost:19981` or any other port defined in your environment settings.
 
-## Firts login
-Login with the "admin" user the first time with your choosen password. This password will be set as the admin password.
-You can change later from the "Account settings"
+## First Login
 
+Log in using the `admin` user and your chosen password. This password will be set as the admin password and can later be changed in **Account Settings**.
 
-## Adding a project
-After login you'll be presented with the project's dashboard where you'll see all projects that codx-junior is managing
-Click on project to work on it or add a new project
+## Projects
 
-### Adding a new project
-You can add a new project by cloning from a git repository o with a full path to its folder.
-Paste it on the input control and press + to start.
+Once logged in, the dashboard will display all projects managed by codx-junior. You can select an existing project or add a new one.
 
-The new project will become the active project and you can start working.
+### Adding a New Project
 
-### Project settings
-We recommend you to check the project settings and adapt for your needs. By default all new projects will use the models defined on the global settings
+New projects can be added in one of two ways:
 
-## Seting up the Knowlegde
-To help codx-junior have a better understanding and produce better results it's important to set up the knowledge settings.
-Knowledge allows codx-junior and any user to have a better understanding of the project.
+- Clone a project from a Git repository
+- Provide a full path to an existing folder
+
+Paste the URL or local path into the input field and click the `+` button. The added project becomes the active project.
+
+### Project Settings
+
+Review the **Project Settings** to configure options specific to the project.  
+By default, all new projects inherit the settings from the **Global Settings**.
+
+## Global Settings
+
+Global settings define the behavior of codx-junior across all projects. These include model configurations, access rules, and environment preferences.
+
+## Knowledge Setup
+
+To improve codx-junior’s understanding of your codebase, configure the **Knowledge Settings**.
 
 ### Profiles
-Profiles are the best way to define how you like your project to be maintained. You can defines as many profiles you need to ensure that your project will be maintained as you like.
 
-Profiles can be use in conversations and tasks, file changes, improve new content generation, keep code quality,...
+Profiles define how codx-junior should interact with your project. You can create multiple profiles to:
 
-Play with them!
+- Enforce coding standards
+- Control code generation
+- Guide change suggestions
 
-## Quick tour
-Here is a basic description of the most important things you can do in codx-junior
+Profiles are used across tasks, file updates, content generation, and code review.
+
+## Quick Tour
 
 ### Tasks
-The Kanban is a powerful project management section where codx-junior keeps task in order and where you and your team can start working.
-Use the tasks to analyze, discuss and create new content or changes for the project.
 
+The **Kanban board** organizes project tasks. Use it to:
 
-> It's possible to create new functionalities without having to write a single line once you manage the Kanban!
+- Manage backlog and priorities
+- Create and track new features
+- Collaborate with the team
 
-For better results we recomend to stop by the Profiles section and meet codx-junior assistants.
+Tasks can drive code generation and content creation without writing manual code.
 
-### Wiki (optional)
-codx-junior will keep an updated wiki from your project that will help you and your team to lear about the project.
+### Changes Review
 
-> You must enable the wiki in the project settings 
+The **Changes** view displays all tracked file modifications.
 
-### Changes review
-The changes view will give you an idea of all the changes done to your repository.
-Like a PR review tool, you can follow with the changes and ask codx-junior to explain or suggest improvements.
+- View diffs for committed and uncommitted changes
+- Ask codx-junior for explanations or improvement suggestions
 
 ### Coder
-The coder tool is a full featured vscode (coder)[] IDE that you can use to work with codx-junior and your team with the projects.
-You can install any extension and run containers (if you setup docker during installation)
 
-#### Mentions
-You can name @codx at any time and any file of your project to ask codx-junior to make changes in the file
+The **Coder** tool is a web-based IDE based on Visual Studio Code, integrated into the codx-junior environment.
+
+#### Features
+
+- Full-featured VS Code interface
+- Support for all standard VS Code extensions
+- Container support via Docker (if configured)
+
+#### Requirements
+
+Docker must be installed and set up during installation to support containerized environments.
+
+### Mentions
+
+You can mention `@codx` in any project file. This triggers codx-junior to:
+
+- Modify the file
+- Explain specific parts of the code
+- Suggest improvements
 
 ### Preview
-Preview icon will open a virtual Desktop where you can see you projects changes
 
+The **Preview** feature opens a desktop-like environment that allows you to inspect changes before committing them.
 
-### User and global settings
+### Wiki (Optional)
+
+The **Wiki** lets you document the project and share technical details with the team.
+
+> The Wiki must be enabled in the Project Settings to be available.
+
+### User and Global Settings
+
+Configure user-specific or global options to personalize the codx-junior environment.

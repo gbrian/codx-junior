@@ -1,21 +1,23 @@
-# [[{"id": "763c3cea-9535-4550-9d73-e00d01daf159", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": [], "profiles": [], "users": ["dime-sazdev", "iva"], "name": "Initial docs", "created_at": "2025-05-14 06:26:22.103693", "updated_at": "2025-05-14T08:56:58.580372", "mode": "task", "kanban_id": "", "column_id": "", "board": "Docs v0.1", "column": "Backlog", "chat_index": 0, "url": "", "branch": "", "file_path": "/home/codx-junior/codx-junior/docs/.codx/tasks/Docs v0.1/Backlog/initial-docs.763c3cea-9535-4550-9d73-e00d01daf159.md", "model": "", "visibility": ""}]]
-## [[{"doc_id": "59f061a5-60a3-46c5-bf45-494761780ca4", "role": "user", "task_item": "", "hide": true, "improvement": false, "created_at": "2025-05-14 06:26:22.101535", "updated_at": "2025-05-14 06:26:22.101570", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin"}]]
+# [[{"id": "763c3cea-9535-4550-9d73-e00d01daf159", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": [], "profiles": [], "users": ["dime-sazdev", "iva"], "name": "Initial docs", "created_at": "2025-05-14 06:26:22.103693", "updated_at": "2025-05-14T12:03:39.214584", "mode": "chat", "kanban_id": "", "column_id": "", "board": "Docs v0.1", "column": "Backlog", "chat_index": 0, "url": "", "branch": "", "file_path": "/home/codx-junior/codx-junior/docs/.codx/tasks/Docs v0.1/Backlog/initial-docs.763c3cea-9535-4550-9d73-e00d01daf159.md", "model": "", "visibility": ""}]]
+## [[{"doc_id": "59f061a5-60a3-46c5-bf45-494761780ca4", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-05-14 06:26:22.101535", "updated_at": "2025-05-14T12:03:39.000Z", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin"}]]
 First version of the docs must show to new uaers how to use cidx-junior from setup to run and make changes in a project
 
 
 Chapters to cover:
- * Whats cidx-junior
- * Installation
- * Basic setup
- * Load a project
- * Knownledge settings
- * Project settings
- * Global settings 
- * Profiles
- * Tasks  / Kanban
- * Coder
- * Preview
- * Wiki
+
+
+* Whats cidx-junior
+* Installation
+* Basic setup
+* Load a project
+* Knownledge settings
+* Project settings
+* Global settings 
+* Profiles
+* Tasks  / Kanban
+* Coder
+* Preview
+* Wiki
  
 For all chapters we'll add basic info and extend later
  * 

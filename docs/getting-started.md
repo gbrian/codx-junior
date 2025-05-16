@@ -1,17 +1,18 @@
-### Getting Started with codx-junior
+This document outlines the steps required to set up and run the `codx-junior` project locally using Docker Compose.
 
-Welcome to the `codx-junior` project! This document will guide you through the setup and initial configuration of the project. Follow these steps to get started:
+## Clone the Repository
 
-#### 1. Clone the Repository
-First, clone the repository from GitHub to your local machine.
+Clone the repository from GitHub and navigate into the project directory:
 
 ```sh
 git clone https://github.com/gbrian/codx-junior.git
 cd codx-junior
 ```
 
-#### 2. Setup Docker Compose
-Create a `docker-compose.yaml` file in the root directory of the project. This file will define the services required to build and run the `codx-junior` application.
+## Review `docker-compose.yaml`
+
+Review the `docker-compose.yaml` file in the root of the project and adapt to your needs. 
+This file defines the services necessary to build and run the `codx-junior` application.
 
 ```yaml
 version: '3.8'
@@ -73,21 +74,32 @@ networks:
   codx-junior:
 ```
 
-#### 3. Build the Docker Image
-Build the `codx-junior` image using Docker Compose. This step may take some time, typically around 5-8 minutes.
+## Build the Docker Image
+
+Use Docker Compose to build the `codx-junior` image. This process typically takes 5–8 minutes.
 
 ```sh
 docker-compose build codx-junior-build
 ```
 
-#### 4. Run the Application
-Once the image is built, you can start the `codx-junior` application.
+## Run the Application
+
+Start the application with the following command:
 
 ```sh
 docker-compose up -d codx-junior-all
 ```
 
-### Conclusion
-By following these steps, you should be able to set up and run the `codx-junior` project smoothly. If you encounter any issues or have questions, feel free to reach out to the project maintainers or community.
+This will run `codx-junior` in the background. Once running, you can access the application at `http://localhost:19981`.
+
+## Notes
+
+- Make sure Docker is installed and running.
+- Set a valid OpenAI-compatible API key in `CODX_JUNIOR_LLMFACTORY_KEY`.
+- If you need Docker-in-Docker support, ensure `privileged: true` is set (as shown).
+
+## Conclusion
+
+After completing these steps, `codx-junior` should be up and running. If you encounter issues, consult the repository README or contact the maintainers.
 
 Happy coding!

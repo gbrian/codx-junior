@@ -1,10 +1,11 @@
+
 <script setup>
 import ExportImportButton from './ExportImportButton.vue';
 import Markdown from './Markdown.vue';
 </script>
 
 <template>
-  <div class="edit-profile px-4 max-w-2xl mx-auto flex flex-col gap-2">
+  <div class="edit-profile px-4 mx-auto flex flex-col gap-2">
     <div class="text-xl flex items-center gap-2 font-bold">
       <button class="btn btn-sm" @click="cancelEdit">
         <i class="fa-solid fa-arrow-left"></i>
@@ -136,8 +137,8 @@ export default {
     },
     aiModels() {
       return this.$storex.api.globalSettings?.ai_models
-                .filter(m => m.model_type === 'llm')
-                .sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
+                ?.filter(m => m.model_type === 'llm')
+                ?.sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
     },
     isOverriden() {
       return this.profile.path?.startsWith(this.$project.project_path)

@@ -22,7 +22,7 @@ import { CodeDiff } from 'v-code-diff'
               [{{ formatDate(message.updated_at) }}] <span v-if="timeTaken">({{ timeTaken }} s.)</span>
             </div>
             <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end">
-              <div class="bg-base-300 px-2 flex flex-col">
+              <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
                   <div class="tooltip tooltip-bottom click"
                     :data-tip="message.hide ? 'Click to add message to conversation' : 
@@ -40,7 +40,7 @@ import { CodeDiff } from 'v-code-diff'
                       <i class="fa-solid fa-chevron-down"></i>
                     </span>
                   </button>
-                  <button class="btn btn-xs hover:btn-outline bg-base-100 tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
                     <i class="fa-solid fa-copy"></i>
                   </button>      
                   <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
@@ -62,7 +62,7 @@ import { CodeDiff } from 'v-code-diff'
                       <i class="fa-solid fa-trash"></i>
                       <span v-if="isRemove"> Confirm </span>
                     </button>
-                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box shadow w-28 p-2">
+                    <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-28 p-2 bg-base-300">
                       <li>
                         <a class="hover:underline" @click="confirmRemove">Yes</a>
                       </li>
@@ -93,7 +93,7 @@ import { CodeDiff } from 'v-code-diff'
             v-if="showDiff"
           />
           <div v-if="code_patches">
-            <div class="mt-2 p-2 bg-base-100 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
+            <div class="mt-2 p-2 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
               <div class="text-xs font-bold text-primary" :title="patch.file_path">
                 {{ patch.file_path.replace($project.project_path, '') }}
               </div>

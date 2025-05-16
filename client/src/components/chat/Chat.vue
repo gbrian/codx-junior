@@ -17,7 +17,7 @@ import moment from 'moment'
         </div>
         <div class="overflow-auto h-full">
           <div class="flex flex-col" v-for="message in messages" :key="message.id">
-            <ChatEntry :class="['mb-4 rounded-md bg-base-300 py-2',
+            <ChatEntry :class="['mb-4 rounded-md py-2 bg-base-100',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
               message.hide ? 'opacity-60' : '']"
               :chat="chat"
@@ -152,7 +152,7 @@ import moment from 'moment'
             v-if="!editMessage">
             <i class="fa-brands fa-chrome"></i>
           </button>
-          <button class="btn btn btn-sm btn-outline tooltip btn-warning"
+          <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
             data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
             <i class="fa-solid fa-code"></i>
           </button>

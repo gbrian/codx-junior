@@ -10,7 +10,7 @@ import ProfileSelector from '../profile/ProfileSelector.vue';
         <input type="text" class="input input-bordered w-full" v-model="taskData.name">
       </label>
       <label class="block mt-4">
-        <span>Project</span>
+        <span>Associated project</span>
         <select class="input input-bordered w-full" v-model="taskData.project_id">
           <option :value="null">{{ $project.project_name }}</option>
           <option v-for="project in projects" :key="project.project_id" :value="project.project_id">{{ project.project_name }}</option>
