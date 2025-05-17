@@ -66,24 +66,6 @@ function install_llmFactory () {
   bash ${CODX_JUNIOR_PATH}/scripts/install_llmFactory.sh
 }
 
-function copy_app_conf() {
-  if [ ! -d /etc/supervisord ]; then
-    sudo mkdir /etc/supervisord
-  fi
-  
-  app=$1
-  log_info "Copying supervisor conf for: $app"
-  conf_source="${HOME}/codx-junior/supervisor.${app}.conf"
-  conf_dest="/etc/supervisord/supervisor.${app}.conf"
-
-  if [ -f $conf_source ]; then
-    sudo cp $conf_source $conf_dest
-    log_info "Copied $conf_source to $conf_dest"
-  else
-    log_error "Configuration file $conf_source not found for app: $app"
-  fi
-}
-
 function install_docker() {
   codx docker
   
@@ -96,8 +78,6 @@ function install_docker() {
 
 echo "Load supervisor files"
 for app in $CODX_JUNIOR_APPS; do
-  # Copy supervisor conf
-  copy_app_conf $app
 
   # Execute custom instructions based on the app name
   case $app in

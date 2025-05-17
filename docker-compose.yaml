@@ -20,7 +20,36 @@ services:
     volumes:
       - .:/home/codx-junior/codx-junior
     command: echo "Done"
-  
+
+  milvus:
+    image: milvusdb/milvus:v2.5.11
+    container_name: milvus
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - ETCD_USE_EMBED=true
+      - ETCD_DATA_DIR=/var/lib/milvus/etcd
+      - ETCD_CONFIG_PATH=/milvus/configs/embedEtcd.yaml
+      - COMMON_STORAGETYPE=local
+    volumes:
+      - milvus:/var/lib/milvus
+      - ./milvus_embedEtcd.yaml:/milvus/configs/embedEtcd.yaml
+      - ./milvus_user.yaml:/milvus/configs/user.yaml
+    restart: unless-stopped
+    ports:
+      - 19530:19530
+      - 9091:9091
+      - 2379:2379
+    command: milvus run standalone  1> /dev/null
+    healthcheck:
+      test: "curl -f http://localhost:9091/healthz"
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+    networks:
+      - codx-junior-network
+
   codx-junior-all:
     # Build image first with "codx-junior-build"
     image: codx-junior:latest
@@ -36,6 +65,11 @@ services:
       - CODX_JUNIOR_LLMFACTORY_KEY=sk-********
       - CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL=gpt-4o
       - CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL=text-embedding-3-small
+      # APPS
+      - ./supervisor.api.conf:/etc/supervisord/supervisor.api.conf
+      - ./supervisor.client.conf:/etc/supervisord/supervisor.client.conf
+      - ./supervisor.llm-factory.conf:/etc/supervisord/supervisor.llm-factory.conf
+      - ./supervisor.docker.conf:/etc/supervisord/supervisor.docker.conf
     volumes:
       # Keep global settings
       - codx-junior:/home/codx-junior/.codx-junior
@@ -46,8 +80,7 @@ services:
       # Reserved ports to expose internal projects
       - 29000-29100:9000-9100
     networks:
-      - codx-junior
-
+      - codx-junior-network
 
   docs:
     image: node:latest
@@ -58,9 +91,13 @@ services:
     command: bash -c "npm i && npm run docs:dev"
     ports:
       - 19000:19000
+    networks:
+      - codx-junior-network
 
 volumes:
   codx-junior:
+  milvus:
 
 networks:
-  codx-junior:
+  codx-junior-network:
+    name: codx-junior-network

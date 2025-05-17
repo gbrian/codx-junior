@@ -20,12 +20,13 @@ def profile_function(func):
             all_args.append(f"{arg}={str(value)[0:50]}")
 
         start_time = time.time()
-        
+        logger.info(f"[{func.__module__}][{func.__name__}] <<<<<<<<<<<")
         yield
         
         end_time = time.time()
         time_taken = end_time - start_time
-
+        logger.info(f"[{func.__module__}][{func.__name__}] >>>>>>>>>>>> {time_taken}")
+        
         func_data = {
             "module": func.__module__,
             "method": func.__name__,

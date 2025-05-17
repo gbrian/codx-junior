@@ -6,22 +6,23 @@ import json
 import time
 from datetime import datetime
 from contextlib import contextmanager
-    
+from functools import reduce
 
 from slugify import slugify
 from pathlib import Path
 from pymilvus import MilvusClient
+
 from langchain.schema.document import Document
 
 from codx.junior.ai import AI
 from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.utils import calculate_md5
+from codx.junior.profiling.profiler import profile_function
+
+CODX_JUNIOR_MILVUS_URL = os.environ.get("CODX_JUNIOR_MILVUS_URL", "http://milvus:19530")
 
 logger = logging.getLogger(__name__)
-
-RETRY_CONNECT_COUNT = 5
-RETRY_SLEEP_SECONDS = 1
 
 class DBDocument (Document):
   db_id: str = None
@@ -49,8 +50,15 @@ class KnowledgeDB:
         self.db_file_list = f"{self.db_path}/{self.index_name}_file.json"
         self.embedding = None
         
+        self.db = None
+        self.connect_db()
+
         self.init_collection()
         self.refresh_last_update()
+
+    def __del__(self):
+        if self.db:
+            self.db.close()
 
     def get_ai(self):
         if not self.ai:
@@ -61,42 +69,31 @@ class KnowledgeDB:
         if os.path.isfile(self.db_file_list):
             self.last_update = os.path.getmtime(self.db_file_list)
 
-    def connect_client(self):
-        retry_count = RETRY_CONNECT_COUNT
-        error = None
-        while retry_count:
-            try:
-                return MilvusClient(self.db_file)
-            except Exception as ex:
-                pass
-            time.sleep(RETRY_SLEEP_SECONDS)
-            retry_count = retry_count - 1
-        raise error
-    
-    @contextmanager
-    def get_db(self):
-        db = None
+    def connect_db(self):
         try:
-            db = self.connect_client()
-            yield db
-        finally:
-            if db:
-                  db.close()
-
+            self.db = MilvusClient(
+                uri=CODX_JUNIOR_MILVUS_URL,
+                token="root:Milvus"
+            )
+            if self.index_name not in self.db.list_databases():
+                self.db.create_database(db_name=self.index_name)
+            self.db.use_database(db_name=self.index_name)
+        except Exception as ex:
+            logger.error(f"Error connecting to milvus DB: {ex}")
+    
     def init_collection(self):
-        with self.get_db() as db:
-            collections = db.list_collections()
-            if self.index_name in collections:
-                return
-            embeddings_ai_settings = self.settings.get_embeddings_settings()
-            try:
-                db.create_collection(
-                    collection_name=self.index_name,
-                    dimension=embeddings_ai_settings.vector_size,
-                    auto_id=True
-                )
-            except Exception as ex:
-                logger.exception(f"Error creating embeddings collection {ex}. Setting: {embeddings_ai_settings}")
+        collections = self.db.list_collections()
+        if self.index_name in collections:
+            return
+        embeddings_ai_settings = self.settings.get_embeddings_settings()
+        try:
+            self.db.create_collection(
+                collection_name=self.index_name,
+                dimension=embeddings_ai_settings.vector_size,
+                auto_id=True
+            )
+        except Exception as ex:
+            logger.exception(f"Error creating embeddings collection {ex}. Setting: {embeddings_ai_settings}")
 
     def get_all_files(self):
         all_files = {}
@@ -160,19 +157,18 @@ class KnowledgeDB:
 
         try:
           logger.info(f"Indexing {len(data)} documents")
-          with self.get_db() as db:
-              res = db.insert(
-                      collection_name=self.index_name,
-                      data=data
-                  )
-              new_docs = []
-              for ix, _id in enumerate(res["ids"]):
-                  doc = documents[ix]
-                  new_docs.append({
-                      "id": _id,
-                      "metadata": doc.metadata
-                  })
-              self.update_all_file(documents=new_docs)
+          res = self.db.insert(
+                  collection_name=self.index_name,
+                  data=data
+              )
+          new_docs = []
+          for ix, _id in enumerate(res["ids"]):
+              doc = documents[ix]
+              new_docs.append({
+                  "id": _id,
+                  "metadata": doc.metadata
+              })
+          self.update_all_file(documents=new_docs)
         except Exception as ex:
             if "float_vector" in str(ex):
                 logger.error(f"Error inserting new documents for project {self.settings.project_name} {ex}, trying to restart index")
@@ -191,77 +187,77 @@ class KnowledgeDB:
                 
         if ids_to_delete:
             logger.info(f"Document ids to delete: {ids_to_delete}: {sources}")
-            with self.get_db() as db:
-                db.delete(
-                    collection_name=self.index_name,
-                    filter=f"id in [{','.join(ids_to_delete)}]"
-                )
+            self.db.delete(
+                collection_name=self.index_name,
+                filter=f"id in [{','.join(ids_to_delete)}]"
+            )
             for source in sources:
                 if all_files.get(source):
                     del all_files[source]
             self.save_all_files(all_files)
 
     def reset(self):    
-        with self.get_db() as db:
-            db.drop_collection(
-                collection_name=self.index_name
-            )
+        self.db.drop_collection(
+            collection_name=self.index_name
+        )
         if os.path.isfile(self.db_file_list):
             os.remove(self.db_file_list)
         self.last_update = None
         
-        global CONNECTIONS_CACHE
-        del CONNECTIONS_CACHE[self.index_name]
-        self.init_db()
         self.init_collection()
 
     def search_in_source(self, query):
       documents = self.get_all_documents()
       matches = [doc.db_id for doc in documents if query.lower() in doc.metadata["source"].lower()]
-      with self.get_db() as db:
-          results = db.query(
-                collection_name=self.index_name,
-                ids=matches,
-                output_fields=["id", "page_content", "metadata"]
-            )
-          logger.info(f"Search in sources matches: {matches} results: {results}")
-          return [Document(id=res["id"],
-                            page_content=res["page_content"], 
-                            metadata=res["metadata"]) for res in list(results)]
+      results = self.db.query(
+            collection_name=self.index_name,
+            ids=matches,
+            output_fields=["id", "page_content", "metadata"]
+        )
+      logger.info(f"Search in sources matches: {matches} results: {results}")
+      return [Document(id=res["id"],
+                        page_content=res["page_content"], 
+                        metadata=res["metadata"]) for res in list(results)]
       
+    @profile_function
     def search(self, query: str):
         query_vector = self.get_ai().embeddings(content=query)
         limit = int(self.settings.knowledge_search_document_count or "10")
-        with self.get_db() as db:
-            results = db.search(
-                collection_name=self.index_name,
-                data=[query_vector],
-                limit=limit,
-                output_fields=["id", "page_content", "metadata"]
-            )
-            rag_distance = float(self.settings.knowledge_context_rag_distance or 0)
-            return self.db_results_to_documents(results=results, rag_distance=rag_distance)
+        
+        @profile_function
+        def milvus_search():
+            return self.db.search(
+                      collection_name=self.index_name,
+                      data=[query_vector],
+                      limit=limit,
+                      output_fields=["id", "page_content", "metadata"]
+                  )
+        results = reduce(lambda x,y: x + y, milvus_search())
+        rag_distance = float(self.settings.knowledge_context_rag_distance or 0)
+        
+        res = self.db_results_to_documents(results=results, rag_distance=rag_distance)
+        logger.info(f"DB search '{query}' returned {results} results, matching distance {rag_distance}: {len(res)}")
+        return res
 
     def db_results_to_documents(self, results, rag_distance):
         documents = []
         
-        # logger.info(f"search results: {list(results)}")
-        for level0 in list(results):
-            for level1 in level0:
-                _id = level1["id"]
-                entity = level1["entity"]
-                metadata = entity["metadata"]
+        logger.info(f"search results: {list(results)}")
+        for entry in list(results):
+            _id = entry["id"]
+            entity = entry["entity"]
+            metadata = entity["metadata"]
+            distance = float(entry.get("distance"))
                 
-                if rag_distance:
-                    distance = float(level1.get("distance"))
-                    if distance < rag_distance:
-                      continue
+            if rag_distance and int(rag_distance) != 0:
+                if distance < rag_distance:
+                  continue
 
-                metadata["db_distance"] = distance
-                documents.append(
-                    Document(id=_id,
-                        page_content=entity["page_content"], 
-                        metadata=metadata))
+            metadata["db_distance"] = distance
+            documents.append(
+                Document(id=_id,
+                    page_content=entity["page_content"], 
+                    metadata=metadata))
         return documents
 
     def get_all_sources(self):

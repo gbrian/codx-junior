@@ -61,6 +61,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
+from starlette.status import HTTP_504_GATEWAY_TIMEOUT
 
 from codx.junior.db import (
     Chat,
@@ -107,6 +108,8 @@ from codx.junior.background import start_background_services
 CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
+
+GLOBAL_REQUEST_TIMEOUT=60
 
 app = FastAPI(
     title="CODXJuniorAPI",
@@ -168,6 +171,20 @@ async def add_gpt_engineer_settings(request: Request, call_next):
         except Exception as ex:
             logger.error(f"Error loading settings {codx_path}: {ex}\n{request.url}")
     return await call_next(request)
+
+# Adding a middleware returning a 504 error if the request processing time is above a certain threshold
+@app.middleware("http")
+async def timeout_middleware(request: Request, call_next):
+    try:
+        start_time = time.time()
+        logger.info(f"HTTP starting: {request.url}")
+        return await asyncio.wait_for(call_next(request), timeout=GLOBAL_REQUEST_TIMEOUT)
+
+    except asyncio.TimeoutError:
+        process_time = time.time() - start_time
+        return JSONResponse({'detail': 'Request processing time excedeed limit',
+                             'processing_time': process_time},
+                            status_code=HTTP_504_GATEWAY_TIMEOUT)
 
 @app.get("/api/health")
 def api_health_check():
