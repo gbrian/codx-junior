@@ -25,14 +25,15 @@ sudo apt install -y tigervnc-standalone-server
 # Install a lightweight desktop environment, e.g., Xfce
 sudo apt install -y xfce4 xfce4-goodies dbus-x11
 
-# Install Firefox
-sudo apt install -y firefox-esr
+# Install Browser
+codx chrome
 
 # Clean up
 sudo apt autoremove -y
 
 # Copy desktop files
 cp -r ${CODX_JUNIOR_PATH}/scripts/Desktop ~/Desktop
+sudo chmod +x ~/Desktop/*.desktop
 
 [ ! -d $HOME/.vnc ] && mkdir $HOME/.vnc
 
@@ -44,7 +45,8 @@ EOF
 chmod 600 $HOME/.vnc/passwd
 chown -R codx-junior $HOME/.vnc
 touch $HOME/.Xauthority 
+chown -R codx-junior $HOME/.Xauthority 
 cp ${CODX_JUNIOR_PATH}/vnc/* ~/.vnc
 chmod +x ~/.vnc/xstartup
 
-echo "Installation of noVNC and its dependencies (including Firefox) completed successfully."
+echo "Installation of noVNC and its dependencies completed successfully."

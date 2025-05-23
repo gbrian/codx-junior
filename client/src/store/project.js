@@ -193,7 +193,7 @@ export const actions = actionTree(
       const loadedChat = await API.chats.loadChat(chat)
       state.chats[loadedChat.id] = loadedChat
       if (state.activeChat?.id === loadedChat.id) {
-        state.activeChat = loadedChat
+        state.activeChat = state.chats[loadedChat.id]
       }
       return loadedChat
     },

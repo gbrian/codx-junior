@@ -15,6 +15,12 @@ bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
 
 # Run the FastAPI application using uvicorn
 source ${CODX_JUNIOR_API_VENV}/bin/activate
-DEBUG=$DEBUG
 export CODX_JUNIOR_API_BACKGROUND=1
-uvicorn codx.junior.main:app --reload --host 0.0.0.0 --port $CODX_JUNIOR_API_PORT_BACKGROUND
+
+if [ "$DEBUG" != ""]; then
+  echo "*********** codx-junior api DEBUG ************"
+  uvicorn codx.junior.main:app --reload --host 0.0.0.0 --port $CODX_JUNIOR_API_PORT_BACKGROUND
+else
+  echo "*********** codx-junior api PRODUCTION ************"
+  uvicorn codx.junior.main:app --workers ${WEB_CONCURRENCY:-4} --host 0.0.0.0 --port $CODX_JUNIOR_API_PORT_BACKGROUND
+fi

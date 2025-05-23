@@ -26,9 +26,10 @@ import KanbanList from "./KanbanList.vue"
       @sub-tasks="createSubTasks"
       @chat="$projects.setActiveChat($event)"
       :kanban="activeBoard"
+      :chat="$projects.activeChat"
       v-if="$projects.activeChat"
     />
-    <div v-if="!$projects.activeChat && showKanban">
+    <div class="flex flex-col h-full" v-if="!$projects.activeChat && showKanban">
       <div class="flex gap-4 items-center">
         <div class="flex gap-2 items-center">
           <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2" @click="toggleDropdown">
@@ -58,7 +59,7 @@ import KanbanList from "./KanbanList.vue"
           </button>
         </div>
       </div>
-      <div class="mt-3 grow">
+      <div class="mt-3 grow relative">
         <button class="btn btn-sm btn-wide btn-primary" @click="showColumnModal = true" v-if="!columnList?.length">
           <i class="fa-solid fa-plus"></i>
           <span class="text-xs md:text-md">Column</span>
@@ -83,7 +84,7 @@ import KanbanList from "./KanbanList.vue"
           class="min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
         >
           <template #item="{ element: column }">
-            <div class="bg-info/20 rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col"
+            <div class="bg-info/20 rounded-lg px-3 py-3 w-80 rounded overflow-auto h-full flex flex-col"
               :class="column.color && 'border-t-4'"
               :style="{ borderColor: column.color }"
             >
@@ -97,11 +98,6 @@ import KanbanList from "./KanbanList.vue"
                 <div class="flex gap-2 items-center grow">
                   <div>{{column.title}}</div>
                 </div>
-                <div class="btn btn-sm" @click="column.showSubTasks = !column.showSubTasks"
-                  :class="(column.showSubTasks !== false) && 'btn-info'"
-                >
-                  <i class="fa-regular fa-file-lines"></i>
-                </div>
                 <div class="flex gap-2 items-center">
                   <div class="dropdown dropdown-end">
                     <div tabindex="0" role="button" class="btn btn-sm m-1 flex items-center">
@@ -109,11 +105,8 @@ import KanbanList from "./KanbanList.vue"
                       <i class="mt-1 fa-solid fa-plus"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                      <li class="flex gap-2" @click="newAnalysisTask(column.title)">
-                        <a>Analysis task</a>
-                      </li>
-                      <li class="flex gap-2" @click="newCodingTask(column.title)">
-                        <a>Coding task</a>
+                      <li class="flex gap-2" @click="newTask(column.title)">
+                        <a>New task</a>
                       </li>
                       <li class="flex gap-2" @click="importTask(column.title)">
                         <a>Import task</a>
@@ -396,20 +389,12 @@ export default {
         board: this.board || "Default",
       })
     },
-    newAnalysisTask(column) {
+    newTask(column) {
       this.createNewChat({
         column,
-        name: "New Analysis Task",
-        mode: 'task',
-        profiles: ["analyst"]
-      })
-    },
-    newCodingTask(column) {
-      this.createNewChat({
-        column,
-        name: "New Coding Task",
+        name: "New Task",
         mode: 'chat',
-        profiles: ["software_developer"]
+        profiles: []
       })
     },
     async importTask(column) {

@@ -70,3 +70,28 @@ class CodeToChunksPrompt(Prompt):
           page_content=page_content,
           format_instructions=self._parser.get_format_instructions()
         )
+
+def chat_with_project_prompt(instructions: str, context: str, previous_messages: str, request: str):
+    return f"""
+    <chat>
+        <!-- "instructions" node tells you how to generate the answer -->
+        <instructions>
+        { instructions }
+        </instructions>
+        <!-- "previous_messages" are previous content in the conversation -->
+        <previous_messages>
+        { previous_messages }
+        </previous_messages>
+        <!-- "request" answer user request --> 
+        <request>
+            <!-- context gives extra information to help answering the request -->
+            <context>
+            { context }
+            </context>
+            <!-- user_request contains the literal user request -->
+            <user_request>
+            { request }
+            </user_request>
+        </request>
+    </chat>
+    """

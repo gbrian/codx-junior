@@ -7,6 +7,9 @@ import asyncio
 import socketio
 import traceback
 
+import faulthandler
+faulthandler.enable()
+
 from multiprocessing.pool import ThreadPool
 from threading import Thread
 
@@ -109,7 +112,7 @@ CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
-GLOBAL_REQUEST_TIMEOUT=60
+GLOBAL_REQUEST_TIMEOUT=30
 
 app = FastAPI(
     title="CODXJuniorAPI",
@@ -139,7 +142,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.on_event("startup")
 def startup_event():
-    logger.info(f"Creating FASTAPI: {app.__dict__}")
+    logger.info(f"Creating FASTAPI (BACKGROUND: {CODX_JUNIOR_API_BACKGROUND}): {app.__dict__}")
 
 @app.exception_handler(Exception)
 async def my_exception_handler(request: Request, ex: Exception):

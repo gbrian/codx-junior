@@ -19,7 +19,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
               <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
-              <div class="font-bold flex flex-col" v-else>
+              <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2">
                   <div class="my-2 text-xs hover:underline click font-bold text-primary" @click="naviageToParent()">
                     <i class="fa-solid fa-caret-left"></i> {{ kanban?.title }}
@@ -29,8 +29,8 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                     {{ parentChat.name }}
                   </div>
                 </div>
-                <div class="flex items-center gap-2">
-                  <div class="flex gap-1">
+                <div class="flex gap-2">
+                  <div class="hidden flex gap-1">
                     <div class="avatar" :title="taskProject.project_name" v-if="taskProject !== $project">
                       <div class="w-7 h-7 rounded-full">
                         <img :src="taskProject.project_icon"/>
@@ -42,7 +42,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                     <ProfileAvatar :profile="chatProfiles[0]"
                       :project="taskProject"
                       width="7"
-                      v-if="chatProfiles.length">
+                      v-if="false && chatProfiles.length">
                         <div class="flex justify-end gap-2">
                           <div class="badge badge-xs badge-warning click" @click="removeProfile(chatProfiles[0])">
                             change
@@ -50,7 +50,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                         </div>
                     </ProfileAvatar>
 
-                    <button class="btn btn-sm btn-circle tooltip" data-tip="Add profile"
+                    <button class="hidden btn btn-sm btn-circle tooltip" data-tip="Add profile"
                       @click="onAddProfile">
                       <i class="fa-solid fa-plus"></i>
                     </button>
@@ -245,7 +245,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
 
 <script>
 export default {
-  props: ['chatMode', 'openChat', 'kanban'],
+  props: ['chatMode', 'chat', 'kanban'],
   data() {
     return {
       showFile: null,
@@ -305,9 +305,6 @@ export default {
     },
     chats() {
       return this.$projects.allChats
-    },
-    chat() {
-      return this.$projects.chats[this.openChat?.id || this.$projects.activeChat?.id]
     },
     childrenChats() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)

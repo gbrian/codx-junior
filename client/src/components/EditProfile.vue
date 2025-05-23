@@ -46,6 +46,12 @@ import Markdown from './Markdown.vue';
           <option value="agent">Agent</option>
         </select>
       </div>
+      <div class="w-1/2 flex flex-col gap-2">
+        <label for="fileMatch">File Match</label>
+        <input id="fileMatch" v-model="editProfile.file_match" type="text" 
+          :class="!isValidFileMatch && 'text-error'"
+          class="bg-base-300 input input-xs input-bordered w-full" />
+      </div>
     </div>
     <div class="form-group">
       <label for="description">Parent profiles</label>

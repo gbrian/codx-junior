@@ -3,7 +3,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 h-full">
+  <div class="flex flex-col gap-2 h-full" v-if="settings">
     <div class="text-xl font-medium my-2 flex justify-between px-2">
       Settings
       <div class="grow"></div>
@@ -215,6 +215,17 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
           <div class="w-2/3">
             <input v-model="settings.knowledge_search_type" type="text" class="input input-bordered w-full" />
           </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="font-bold mb-2">Miscellaneous</div>
+    <div class="ml-4 flex flex-col gap-1">
+      <div class="flex justify-between mb-2">
+        <div class="label-text">Save file mentions as tasks</div>
+        <div class="w-2/3">
+          <input v-model="settings.save_mentions" type="checkbox" class="toggle" />
+          <div class="text-xs">Enable/Disable saving file mentions as tasks in the "mentions" board.</div>
         </div>
       </div>
     </div>

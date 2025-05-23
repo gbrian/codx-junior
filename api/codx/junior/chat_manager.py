@@ -5,12 +5,18 @@ import json
 import uuid
 
 from slugify import slugify
+from collections import deque
 
 from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.db import Chat, Message
 from codx.junior.utils import write_file
+
+from codx.junior.profiling.profiler import profile_function
+
+from codx.junior.utils import exec_command
+
 
 logger = logging.getLogger(__name__)
 
@@ -40,14 +46,22 @@ class ChatManager:
         column = chat_parts[-2]
         board = chat_parts[-3]
         return board, column, name
-          
+
+    @profile_function
     def list_chats(self):
-        file_paths = self.chat_paths() 
-        def chat_info(file_path):
-            chat = self.load_chat_from_path(chat_file=file_path)
-            chat.messages = [c for c in chat.messages if not c.hide][0:1]
-            return chat
-        return sorted([chat_info(file_path) for file_path in file_paths],
+        file_paths = self.chat_paths()
+        @profile_function
+        def list_chat_chat_info(file_path):
+            try:
+                chat = self.load_chat_from_path(chat_file=file_path, chat_only=True)
+                return chat
+            except Exception as ex:
+                logger.exception(f"Error loading chat {ex}")
+            return None
+            
+        return sorted([chat \
+            for chat in [list_chat_chat_info(file_path) for file_path in file_paths] \
+            if chat],
             key=lambda x: str(x.chat_index or x.updated_at),
             reverse=True)
 
@@ -103,27 +117,33 @@ class ChatManager:
             return chat
         return self.load_chat_from_path(chat_file=chat_file)
 
-    def load_chat_from_path(self, chat_file):
+    @profile_function
+    def load_chat_from_path(self, chat_file: str, chat_only: bool = False):
         board, column, name = self.chat_board_column_name_from_path(chat_file)
         # wrong setup?
         if not board or not column:
             new_chat_file = f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}/{name}.md"
             if chat_file:
+              logger.info(f"load_chat_from_path rename chat file {chat_file} -> {new_chat_file}")
               os.rename(chat_file, new_chat_file)
             chat_file = new_chat_file
             board = DEFAULT_BOARD
             column = DEFAULT_COLUMN
 
+        chat = None
         with open(chat_file, 'r') as f:
-            chat = self.deserialize_chat(content=f.read())
-            if not chat.created_at:
-                stats = os.stat(chat_file)
-                chat.created_at = str(datetime.fromtimestamp(stats.st_ctime, tz=timezone.utc))
-                chat.updated_at = str(datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc))
-            chat.board = board
-            chat.column = column
-            chat.file_path = chat_file
-            return chat
+            logger.info(f"load_chat_from_path chat_only open file {chat_file}") 
+            content = f.read()
+            chat = self.deserialize_chat(content=content, chat_only=chat_only)
+
+        if not chat.created_at:
+            stats = os.stat(chat_file)
+            chat.created_at = str(datetime.fromtimestamp(stats.st_ctime, tz=timezone.utc))
+            chat.updated_at = str(datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc))
+        chat.board = board
+        chat.column = column
+        chat.file_path = chat_file
+        return chat
 
     def serialize_chat(self, chat: Chat):
         chat_json = { **chat.__dict__ }
@@ -143,22 +163,25 @@ class ChatManager:
         chat_content = "\n".join([header] + messages)
         return chat_content
 
-    def deserialize_chat(self, content) -> Chat:
+    @profile_function
+    def deserialize_chat(self, content, chat_only: bool = False) -> Chat:
+        logger.info(f"deserialize_chat content length: {len(content)}")
         lines = content.split("\n")
         chat_json = json.loads(lines[0][4:-2])
         chat = Chat(**chat_json)
         chat.messages = []
-        chat_message = None
-        for line in lines[1:]:
-            if line.startswith("## [[{") and line.endswith("}]]"):
-                chat_message = Message(**json.loads(line[5:-2]))
-                chat_message.content = ""
-                chat.messages.append(chat_message)
-                continue
-            if chat_message:
-                    chat_message.content = line \
-                        if not chat_message.content \
-                        else f"{chat_message.content}\n{line}"
+        if not chat_only:
+            chat_message = None
+            for line in lines[1:]:
+                if line.startswith("## [[{") and line.endswith("}]]"):
+                    chat_message = Message(**json.loads(line[5:-2]))
+                    chat_message.content = ""
+                    chat.messages.append(chat_message)
+                    continue
+                if chat_message:
+                        chat_message.content = line \
+                            if not chat_message.content \
+                            else f"{chat_message.content}\n{line}"
         return chat
 
     def chat_count(self):
@@ -186,9 +209,7 @@ class ChatManager:
               return self.load_chat_from_path(chat_file=chat.file_path)
         return None
 
-    def load_kanban(self):
-        kanban_file = f"{self.chat_path}/kanban.json"
-        all_chats = self.list_chats()
+    def load_kanban_from_file(self, kanban_file: str):
         kanban = {
           "version": 0.1,
           "boards": {},
@@ -204,11 +225,22 @@ class ChatManager:
                     "boards": kanban,
                     "tags": {}
                 }
+        return kanban
 
+
+    @profile_function
+    def load_kanban(self):
+        kanban_file = f"{self.chat_path}/kanban.json"
+        logger.info(f"load_kanban {kanban_file}")
+        all_chats = self.list_chats()
+        kanban = self.load_kanban_from_file(kanban_file=kanban_file)
+        
         all_board_dirs = [board for board in os.listdir(f"{self.chat_path}") \
                             if os.path.isdir(f"{self.chat_path}/{board}")]
         save_kanban = False
         boards = kanban["boards"]
+        logger.info(f"Process boards {kanban_file}")
+        
         for board in set([chat.board for chat in all_chats] + all_board_dirs):
             if not boards.get(board):
                 boards[board] = {}

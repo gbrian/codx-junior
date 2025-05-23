@@ -118,6 +118,7 @@ class KnowledgeDB:
                                         for doc in file_info["documents"]] 
         return documents
 
+    @profile_function
     def update_all_file (self, documents: [Document]):
         all_files = self.get_all_files()
         sources = list(set([doc["metadata"]["source"] for doc in documents]))
@@ -133,6 +134,7 @@ class KnowledgeDB:
             }
         self.save_all_files(all_files)
 
+    @profile_function
     def index_documents(self, documents: [Document]):
         data = []
         for doc in documents:
@@ -175,7 +177,8 @@ class KnowledgeDB:
                 self.reset()
             else:
                 raise ex
-        
+
+    @profile_function
     def delete_documents (self, sources: [str]):
         logger.info('Removing old documents')
         ids_to_delete = []

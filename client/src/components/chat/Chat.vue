@@ -4,6 +4,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
 import Browser from '@/components/browser/Browser.vue'
 import Markdown from '@/components/Markdown.vue'
 import TaskCard from '../kanban/TaskCard.vue'
+import UserSelector from './UserSelector.vue'
 import moment from 'moment'
 </script>
 
@@ -103,7 +104,7 @@ import moment from 'moment'
       </span>
     </div>
     <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
-          multiline ? 'flex-col' : '',
+          'flex-col',
           editMessage && 'border-warning',
           onDraggingOverInput ? 'bg-warning/10': '']"
       @dragover.prevent="onDraggingOverInput = true"
@@ -113,7 +114,8 @@ import moment from 'moment'
         :contenteditable="!waiting"
         ref="editor"
         @paste="onContentPaste"
-        @keydown="onEditMessageKeyDown">
+        @keydown="onEditMessageKeyDown"
+      >
       </div>
       <div class="flex justify-between items-end px-2">
         <div class="carousel rounded-box">
@@ -129,71 +131,78 @@ import moment from 'moment'
           </div>
         </div>
         <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
-        <div class="flex gap-1 items-center justify-end py-2" v-else>
-          <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
-            <i class="fa-solid fa-save"></i>
-            <div class="text-xs" v-if="editMessage">Edit</div>
-          </button>
-          <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
-            v-if="editMessage">
-            <i class="fa-regular fa-circle-xmark"></i>
-          </button>
-          <button class="btn btn btn-sm btn-circle btn-outline tooltip"
-            data-tip="Ask codx-junior"
-            :class="isVoiceSession && 'btn-success animate-pulse'"
-            @click="sendMessage"
-            v-if="!editMessage">
-            <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
-            <i :class="$projects.chatModes[theChat.mode].icon" v-else></i>
-          </button>
-          <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
-            :class="isBrowser && 'btn-warning'"
-            data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
-            v-if="!editMessage">
-            <i class="fa-brands fa-chrome"></i>
-          </button>
-          <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
-            data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
-            <i class="fa-solid fa-code"></i>
-          </button>
+        <div class="grow flex justify-between items-center" v-else>
+          <UserSelector 
+            :selectedUser="selectedUser"
+            @user-changed="selectedUser = $event"
+          />
+          <div class="flex gap-2 items-center justify-end py-2">
+            <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
+              <i class="fa-solid fa-save"></i>
+              <div class="text-xs" v-if="editMessage">Edit</div>
+            </button>
+            <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
+              v-if="editMessage">
+              <i class="fa-regular fa-circle-xmark"></i>
+            </button>
+            <button class="btn btn btn-sm btn-circle tooltip"
+              data-tip="Ask codx-junior"
+              :class="isVoiceSession && 'btn-success animate-pulse'"
+              @click="sendMessage"
+              ref="sendButton"
+              v-if="!editMessage">
+              <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
+              <i class="fa-solid fa-paper-plane" v-else></i>
+            </button>
+            <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
+              :class="isBrowser && 'btn-warning'"
+              data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
+              v-if="!editMessage">
+              <i class="fa-brands fa-chrome"></i>
+            </button>
+            <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
+              data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
+              <i class="fa-solid fa-code"></i>
+            </button>
 
-          <div class="dropdown dropdown-top dropdown-end">
-            <div tabindex="0" role="button" class="btn btn-sm m-1">
-              <i class="fa-solid fa-ellipsis-vertical"></i>
+            <div class="dropdown dropdown-top dropdown-end">
+              <div tabindex="1" role="button" class="btn btn-sm m-1">
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+              </div>
+              <ul tabindex="1" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow gap-2">
+                <li class="btn btn-sm tooltip"
+                  data-tip="Attach files"
+                  @click="selectFile = true">
+                  <a>
+                    <i class="fa-solid fa-paperclip"></i> Attach files
+                  </a>
+                </li>
+                <li class="btn btn-sm" @click="testProject" v-if="API.activeProject.script_test">
+                  <a>
+                    <i class="fa-solid fa-flask"></i>
+                    Test
+                  </a>
+                </li>
+                <li class="hidden btn btn-sm tooltip"
+                  :class="isBrowser && 'btn-success'"
+                  :data-tip="isBrowser ? 'Close browser' : 'Open browser'"
+                  @click="isBrowser = !isBrowser" v-if="!editMessage">
+                  <a>
+                    <i class="fa-brands fa-chrome"></i>
+                    {{ isBrowser ? 'Close' : 'Open' }} Browser
+                  </a>
+                </li>
+                <li class="btn btn-sm tooltip"
+                  :class="isVoiceSession && 'btn-success'"
+                  :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
+                  @click="toggleVoiceSession" v-if="!editMessage">
+                  <a>
+                    <i class="fa-solid fa-microphone-lines"></i>
+                    Voice mode
+                  </a>
+                </li>
+              </ul>
             </div>
-            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow gap-2">
-              <li class="btn btn-sm tooltip"
-                data-tip="Attach files"
-                @click="selectFile = true">
-                <a>
-                  <i class="fa-solid fa-paperclip"></i> Attach files
-                </a>
-              </li>
-              <li class="btn btn-sm" @click="testProject" v-if="API.activeProject.script_test">
-                <a>
-                  <i class="fa-solid fa-flask"></i>
-                  Test
-                </a>
-              </li>
-              <li class="btn btn-sm tooltip"
-                :class="isBrowser && 'btn-success'"
-                :data-tip="isBrowser ? 'Close browser' : 'Open browser'"
-                @click="isBrowser = !isBrowser" v-if="!editMessage">
-                <a>
-                  <i class="fa-brands fa-chrome"></i>
-                  {{ isBrowser ? 'Close' : 'Open' }} Browser
-                </a>
-              </li>
-              <li class="btn btn-sm tooltip"
-                :class="isVoiceSession && 'btn-success'"
-                :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
-                @click="toggleVoiceSession" v-if="!editMessage">
-                <a>
-                  <i class="fa-solid fa-microphone-lines"></i>
-                  Voice mode
-                </a>
-              </li>
-            </ul>
           </div>
         </div>
       </div>
@@ -282,10 +291,12 @@ export default {
       isBrowser: false,
       syncEditableTextInterval: null,
       showModal: false,
-      taskToDelete: null
+      taskToDelete: null,
+      selectedUser: null
     }
   },
   created() {
+    this.selectedUser = this.$user
   },
   mounted() {
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
@@ -370,6 +381,9 @@ export default {
         const message = event.data.message?.content || ""
         return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type || event.data.type || ''} ${event.data.text || ''}\n${message}`
       } 
+    },
+    usersList() {
+      return [this.$store.state.user, ...this.$store.state.projects.profiles]
     }
   },
   watch: {
@@ -440,6 +454,9 @@ export default {
       const message = this.$refs.editor.innerText
       const files = this.messageMentions.filter(m => m.file).map(m => m.file)
       const profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
+      if (this.selectedUser?.username !== this.$user.username) {
+        profiles.push(this.selectedUser.name)
+      }
       return {
         role: 'user',
         content: message,
