@@ -28,7 +28,7 @@ cd ${CODX_JUNIOR_PATH}/noVNC
 
 # Check if Firefox is already running, if not, start it
 if ! pgrep -x "firefox" > /dev/null; then
-    DISPLAY=${CODX_JUNIOR_DISPLAY} firefox &
+    firefox-esr &
 fi
 
 echo "Launch noVNC using websockify to bridge the VNC server to the web VNC client"

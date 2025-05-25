@@ -27,11 +27,15 @@ from codx.junior.browser import run_browser_manager
 
 from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
 from codx.junior.api.users import router as users_router
+from codx.junior.api.wiki import router as wiki_router
 from codx.junior.security.user_management import get_authenticated_user
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
-logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
+logging.basicConfig(level = logging.DEBUG,
+  format = '[%(asctime)s][%(levelname)s][%(name)s:%(lineno)s]: %(message)s',
+  datefmt='%Y-%m-%d %H:%M:%S',
+)
 logger = logging.getLogger(__name__)
 
 run_browser_manager()
@@ -107,6 +111,8 @@ from codx.junior.utils import (
 from codx.junior.context import AICodeGerator
 
 from codx.junior.background import start_background_services
+from codx.junior.wiki.wiki_manager import WikiManager
+
 
 CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
@@ -131,6 +137,7 @@ app.mount("/api/socket.io", sio_asgi_app)
 
 app.include_router(chatgpt_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
+app.include_router(wiki_router, prefix="/api")
 
 
 @app.exception_handler(RequestValidationError)
@@ -337,7 +344,8 @@ def api_settings_check(request: Request):
 @app.put("/api/settings")
 async def api_save_settings(request: Request):
     settings = await request.json()
-    CODXJuniorSettings.from_json(settings).save_project()
+    settings = CODXJuniorSettings.from_json(settings).save_project()
+    WikiManager(settings=settings)
     find_all_projects()
     return api_settings_check(request)
 
@@ -433,13 +441,6 @@ def api_list_chats(request: Request):
     settings = codx_junior_session = request.state.codx_junior_session.settings
     coder_open_file(settings=settings, file_name=file_name)
 
-@app.get("/api/wiki")
-def api_get_wiki(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    file_path = request.query_params.get("file_path")
-    document = codx_junior_session.get_wiki_file(file_path)
-    return Response(content=document or "> Not found", media_type="text/html")
-
 @app.get("/api/files")
 def api_get_files(request: Request):
     codx_junior_session = request.state.codx_junior_session
@@ -502,9 +503,12 @@ def api_logs_tail(log_name: str, request: Request):
     cmd = f"tail -n {log_size} {log_file}"
     try:
         logs, _ = exec_command(cmd)
-        logger.info(f"api logs {logs}")
-
-        return parse_logs(logs)
+        # return parse_logs(logs)
+        def is_valid_log(l):
+            if "GET /api/logs" in l:
+                return False
+            return True
+        return [l for l in logs.split("\n") if is_valid_log(l)]
     except Exception as ex:
         logger.exception(f"Error reading logs: {ex}")
 

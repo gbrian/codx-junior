@@ -1,10 +1,10 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=Chrome
+Name=Firefox ESR
 Comment=Browse the World Wide Web
-Exec=/usr/bin/chrome
-Icon=chrome
+Exec=/usr/lib/firefox-esr/firefox-esr %u
+Icon=firefox-esr
 Path=
 Terminal=false
 StartupNotify=true

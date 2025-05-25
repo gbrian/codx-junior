@@ -5,7 +5,7 @@ import { CodeDiff } from 'v-code-diff'
 </script>
 
 <template>
-  <div class="chat-entry flex gap-1 items-start relative">
+  <div class="chat-entry flex gap-1 items-start relative lg:p-2">
     <div class="grow overflow-auto">
       <div class="w-full flex flex-col gap-1 hover:rounded-md p-2 group">
         <div class="text-xs font-bold flex flex-col">

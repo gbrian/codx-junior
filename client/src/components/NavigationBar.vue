@@ -37,17 +37,6 @@ import Assistant from './codx-junior/Assistant.vue';
 				</a>
 			</div>
 
-      <div :class="['hover:bg-base-100 click relative', $ui.tabIx === 'prview' ? 'bg-base-100 text-primary': '',]">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" 
-          :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Changes details"
-          @click="$ui.setActiveTab('prview')">
-            <div class="flex flex-col gap-4">
-                <i class="fa-solid fa-code-compare"></i>
-            </div>
-        </a>
-      </div>
-
       <div :class="['hidden hover:bg-base-100 click relative', $ui.tabIx === 'knowledge_settings' ? 'bg-base-100 text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Knowledge"
@@ -86,24 +75,20 @@ import Assistant from './codx-junior/Assistant.vue';
     <div class="grow"></div>
     <div class="divider"></div>
       
-    <button class="hidden md:block" v-if="$ui.showApp" @click="$ui.setFloatinCodxJunior(!$ui.floatingCodxJunior)">
+    <button class="hidden" v-if="$ui.showApp" @click="$ui.setFloatinCodxJunior(!$ui.floatingCodxJunior)">
       <i class="fa-solid fa-right-from-bracket" :class="$ui.floatingCodxJunior && 'rotate-180'"></i>
     </button>
 
     <div class="flex w-full flex-col mt-4 flex">
       <div :class="['hover:bg-base-100 click relative', $ui.appActives[0] === 'coder' ? 'text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
-        @click.stop="$ui.setShowCoder(true)">
+        @click.stop="$ui.setShowCoder($ui.appActives[0] !== 'coder')">
           <div class="flex flex-col gap-4">
             <i class="fa-solid fa-code"></i>
-            <span class="text-xs text-error hover:underline opacity-50 hover:opacity-100 absolute top-2 right-2 tooltip" data-tip="close" 
-              @click.stop="$ui.setShowCoder(false)" v-if="$ui.showCoder">
-              <i class="fa-solid fa-power-off"></i>
-            </span>
           </div>
 				</a>
 			</div>
-      <div :class="['hover:bg-base-100 click', $ui.appActives[0] === 'browser' ? 'text-primary': '']">
+      <div :class="['hidden hover:bg-base-100 click', $ui.appActives[0] === 'browser' ? 'text-primary': '']">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" 
           data-tip="Show preview"
 					 @click.stop="$ui.setShowBrowser(true)">
@@ -116,7 +101,7 @@ import Assistant from './codx-junior/Assistant.vue';
           </div>
 				</a>
 			</div>
-      <div :class="['hidden hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
+      <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" 
           :class="right ? 'tooltip-left' : 'tooltip-right'" 
           :data-tip="showLogsTooltip"
@@ -131,6 +116,9 @@ import Assistant from './codx-junior/Assistant.vue';
 				</a>
 			</div>
     </div>
+
+    <div class="divider"></div>
+
     <div>
       <div :class="['dropdown dropdown-end click',
         right ? 'dropdown-left' : 'dropdown-right']">
@@ -146,8 +134,8 @@ import Assistant from './codx-junior/Assistant.vue';
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-72 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('account')">Account settings</a></li>
           <li v-if="$storex.api.permissions.isProjectAdmin"><a @click.stop="setActiveTab('settings')">Project settings</a></li>
-          <li v-if="$storex.api.permissions.isAdmin"><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li><a @click.stop="setActiveTab('knowledge_settings')">Knowledge settings</a></li>
+          <li v-if="$storex.api.permissions.isAdmin"><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li class="border"></li>
           <li>
             <a> 
@@ -159,7 +147,7 @@ import Assistant from './codx-junior/Assistant.vue';
               </select>
             </a>
           </li>
-          <li>
+          <li class="hidden">
             <a>
               <i class="fa-solid fa-table-columns"></i>
               <select class="select select-sm overflow-auto" @change="$ui.setAppDivided($event.target.value)">
@@ -169,7 +157,7 @@ import Assistant from './codx-junior/Assistant.vue';
               </select>
             </a>
           </li>
-          <li>
+          <li class="hidden">
             <a>
               <span class="click" @click="$storex.api.screen.getScreenResolution()"><i class="fa-solid fa-display"></i></span>
               <select class="select select-sm overflow-auto"
@@ -197,7 +185,7 @@ import Assistant from './codx-junior/Assistant.vue';
               </div>
             </a>
           </li>
-          <li>
+          <li class="hidden">
             <a @click="$ui.toggleLogs()">
               <i class="fa-solid fa-chart-line"></i> Logs
             </a>

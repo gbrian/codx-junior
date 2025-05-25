@@ -1,8 +1,7 @@
 services:
   codx-junior-build:
     #####################################
-    ## BUILD codx-junior IMAGE         ##
-    ## it takes time up to 5-8 min     ##
+    ## BUILD codx-junior               ##
     #####################################
     image: codx-junior:latest
     build: 
@@ -11,14 +10,7 @@ services:
       args:
         - USER_GID=${USER_GID:-1001}
         - USER_UID=${USER_UID:-1001}
-    environment:
-      # Basic
-      - CODX_JUNIOR_APPS=client api llm-factory
-      
-      # With docker in docker, remember to set "priviledged=true" in the containers
-      # - CODX_JUNIOR_APPS=client api llm-factory docker
-    volumes:
-      - .:/home/codx-junior/codx-junior
+        - CODX_JUNIOR_BRANCH=v1.0-hello-codx-junior
     command: echo "Done"
 
   milvus:
@@ -58,6 +50,7 @@ services:
     # Set to true if you want to use docker inside codx-junior
     privileged: true
     environment:
+      - DEBUG=
       # Settings file
       - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/.global_settings.json
       # LLM Settings (Use any OpenAI compatible)
@@ -65,15 +58,17 @@ services:
       - CODX_JUNIOR_LLMFACTORY_KEY=sk-********
       - CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL=gpt-4o
       - CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL=text-embedding-3-small
+    volumes:
+      # Keep global settings
+      - codx-junior:/home/codx-junior/.codx-junior
+      - .:/home/codx-junior/codx-junior
       # APPS
       - ./supervisor.api.conf:/etc/supervisord/supervisor.api.conf
       - ./supervisor.client.conf:/etc/supervisord/supervisor.client.conf
       - ./supervisor.llm-factory.conf:/etc/supervisord/supervisor.llm-factory.conf
       - ./supervisor.docker.conf:/etc/supervisord/supervisor.docker.conf
-    volumes:
-      # Keep global settings
-      - codx-junior:/home/codx-junior/.codx-junior
-      - .:/home/codx-junior/codx-junior
+      # DOCKER
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       # CODX_JUNIOR_WEB_PORT
       - 8080:19981

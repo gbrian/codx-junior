@@ -44,8 +44,6 @@ EOF
 
 chmod 600 $HOME/.vnc/passwd
 chown -R codx-junior $HOME/.vnc
-touch $HOME/.Xauthority 
-chown -R codx-junior $HOME/.Xauthority 
 cp ${CODX_JUNIOR_PATH}/vnc/* ~/.vnc
 chmod +x ~/.vnc/xstartup
 

@@ -214,7 +214,7 @@ class CODXJuniorSettings(BaseModel):
         logger.info(f"Saving project {valid_keys}: {data}")
         write_file(path, json.dumps(data, indent=2))
 
-        return self
+        return CODXJuniorSettings.from_project_file(path)
 
     def get_sub_projects(self):
         try:

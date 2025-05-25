@@ -6,6 +6,7 @@ export default defineConfig({
   title: "codx-junior",
   description: "Your FullStackHero AI",
   vite: {
+    base: "",
     server: {
       host: true,
       port: 19000,

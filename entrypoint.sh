@@ -10,7 +10,9 @@ if [ "$1" == "install" ]; then
 
   if [ ! -d "${HOME}/codx-junior" ]; then
     echo "Cloning codx-junior"
-    git clone --depth 1 https://github.com/gbrian/codx-junior.git ${HOME}/codx-junior
+    git clone --single-branch --branch $CODX_JUNIOR_BRANCH \
+       --depth 1 https://github.com/gbrian/codx-junior.git \
+       ${HOME}/codx-junior
   fi
 
   cd ${HOME}/codx-junior

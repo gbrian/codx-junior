@@ -56,8 +56,15 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                     </button>
                   </div>
 
-                  <div class="click text-xs md:text-xl" @click="editName = true">
-                    {{ chat.name }}
+                  <div class="click text-xs md:text-xl flex flex-col" @click="editName = true">
+                    <div> {{ chat.name }} 
+                      <span class="text-xs hover:underline text-info" 
+                        @click.stop="showDescription = !showDescription"
+                        v-if="chat.description">more</span>
+                    </div>
+                    <div class="text-xs" v-if="showDescription">
+                      {{ chat.description }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -264,7 +271,8 @@ export default {
       subtaskDescription: '',
       showAddProfile: false,
       createTasksInstructions: '',
-      chatProfiles: []
+      chatProfiles: [],
+      showDescription: false
     }
   },
   async mounted () {

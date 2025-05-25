@@ -9,6 +9,7 @@ export const state = () => ({
   showCoder: false,
   showBrowser: false,
   tabIx: 'home',
+  lastActiveTab: "",
   codxJuniorWidth: 30,
   isMobile: false,
   orientation: 'portrait',
@@ -71,10 +72,14 @@ export const mutations = mutationTree(state, {
   },
   setActiveTab(state, tabIx) {
     if (state.tabIx === tabIx) {
-      if (!$storex.ui.isMobile && $storex.ui.showApp) {
+      if (!$storex.ui.isMobile && $storex.ui.showApp
+          && state.appActives.length
+      ) {
+        state.lastActiveTab = state.tabIx
         state.tabIx = null
       }
     } else {
+      state.lastActiveTab = state.tabIx
       state.tabIx = tabIx
     }
     if (state.tabIx !== 'app' && state.isMobile) {
@@ -92,6 +97,9 @@ export const mutations = mutationTree(state, {
     }
     if (state.showCoder && state.isMobile && state.showBrowser) {
       $storex.ui.setShowBrowser(false)
+    }
+    if (!state.appActives.length) {
+      state.tabIx = state.lastActiveTab
     }
     $storex.ui.saveState()
   },

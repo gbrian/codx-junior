@@ -116,7 +116,6 @@ def create_project(project_path: str, user: CodxUser):
         command = f"git clone --depth=1 {url} {project_path}"
         logger.info(f"Cloning repo {url} {repo_name} {project_path}")
         exec_command(command=command)
-        open_readme = True
     
     settings = CODXJuniorSettings()
     settings.project_name = project_path.split("/")[-1]
@@ -187,7 +186,7 @@ def find_all_projects():
                 # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
                 pass 
         except Exception as ex:
-            logger.exception(f"Error loading project {str(codx_path)}")
+            logger.exception(f"Error loading project {str(codx_path)} : {ex}")
     
     def update_projects_with_details():
         for project in all_projects.values():
@@ -289,6 +288,10 @@ class CODXJuniorSession:
 
     def get_knowledge(self):
         return Knowledge(settings=self.settings)
+
+    def get_wiki(self):
+        from codx.junior.wiki.wiki_manager import WikiManager
+        return WikiManager(settings=self.settings)
 
     def get_browser(self):
         from codx.junior.browser.browser import Browser
@@ -1363,7 +1366,7 @@ class CODXJuniorSession:
             ai = self.get_ai(llm_model=ai_settings.model)
 
             # Read knowledge
-            search_projects = query_mentions["projects"] + [self.settings]
+            search_projects = query_mentions["projects"]
             if not disable_knowledge and self.settings.use_knowledge and search_projects:
                 self.log_info(f"chat_with_project start project search {search_projects}")
                 try:
@@ -1475,6 +1478,16 @@ class CODXJuniorSession:
             response_message.profiles = chat_profile_names
             
             chat.messages.append(response_message)
+
+            # Chat description
+            try:
+                description_message = ai.chat(messages=messages.copy(),
+                                              prompt="Create a 5 lines summary of the conversation")[-1]
+                chat.description = description_message.content
+            except Exception as ex:
+                logger.exception(f"Error chating with project: {ex} {chat.id}")
+                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
+
             if chat_mode == 'task':
                 for message in chat.messages[:-1]:
                     message.hide = True

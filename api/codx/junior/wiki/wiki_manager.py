@@ -1,47 +1,58 @@
 import os
 import shutil
 import json
+import logging
+
 from codx.junior.settings import CODXJuniorSettings
-from codx.junior.knowledge.knowledge_wiki import KnowledgeWiki
 from codx.junior.engine import Knowledge, ProfileManager
-from codx.junior.background import check_file_worker
-from codx.junior.utils import exec_command, find_project_from_file_path, find_all_projects
-from codx.junior.chat import ChatManager
-from codx.junior.ai import AICodeGenerator
-from codx.junior.logger import logger
-from threading import Thread
+from codx.junior.utils import exec_command
 
-
+logger = logging.getLogger(__name__)
 class WikiManager:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.wiki_path = self.settings.get_project_wiki_path()
+        self.vitepress_dir = os.path.join(self.wiki_path, '.vitepress')
+        self.dist_dir = os.path.join(self.vitepress_dir, 'dist')
         self.initialize_vitepress()
-        self.knowledge_wiki = KnowledgeWiki(settings=settings)
 
     def initialize_vitepress(self):
         if not self.wiki_path:
             return
-        if not os.path.exists(self.wiki_path):
-            os.makedirs(self.wiki_path)
+        if not os.path.exists(self.vitepress_dir):
             self.create_vitepress_config()
 
     def create_vitepress_config(self):
-        vitepress_dir = os.path.join(self.wiki_path, '.vitepress')
-        config_path = os.path.join(vitepress_dir, 'config.js')
+        index_path = os.path.join(self.wiki_path, 'index.md')
+        config_path = os.path.join(self.vitepress_dir, 'config.mts')
         template_dir = os.path.join(os.path.dirname(__file__), 'wiki_template')
 
-        if not os.path.exists(vitepress_dir):
-            os.makedirs(vitepress_dir)
-            shutil.copytree(template_dir, vitepress_dir, dirs_exist_ok=True)
-            config_content = None
-            with open(config_path, 'r') as f:
-                config_content = f.read()
-            config_content.replace("PROJECT_NAME", self.settings.project_name)
-            config_content.replace("PROJECT_DESCRIPTION", f"{self.settings.project_name} wiki")
-            with open(config_path, 'w') as f:
-                f.write(config_content)
+        if not os.path.exists(self.vitepress_dir):
+            os.makedirs(self.vitepress_dir)
+            shutil.copytree(template_dir, self.wiki_path, dirs_exist_ok=True)
+            self.replace_template_content_file(config_path)
+            self.replace_template_content_file(index_path)
+                
             
+            self.build_wiki()
+
+    def replace_template_content_file(self, path):
+        template_content = ""
+        with open(path, 'r') as f:
+            template_content = self.replace_template_content(f.read())
+        with open(path, 'w') as f:
+            f.write(template_content)
+
+    def replace_template_content(self, template_content):
+        template_content = template_content.replace("PROJECT_NAME", self.settings.project_name)
+        template_content = template_content.replace("PROJECT_DESCRIPTION", f"{self.settings.project_name} wiki")
+        template_content = template_content.replace("PROJECT_ICON", self.settings.project_icon)
+        return template_content
+            
+    def build_wiki(self):
+        std, err = exec_command('bash wiki-manager.sh', cwd=self.wiki_path)
+        if not os.path.isdir(self.dist_dir):
+            raise Exception(f"Error building wiki: {std} - {err}")
 
     def update_wiki(self, file_path):
         if not self.wiki_path:

@@ -90,8 +90,10 @@ import Markdown from './Markdown.vue';
         </div>
         <div class="grow"></div>
       </header>
-      <div class="grow my-2 flex flex-col gap-2 overflow-auto" style="height:600px" ref="logView">
-        <div v-for="(log, ix) in filteredLogs" :key="ix">
+      <div class="grow my-2 flex flex-col overflow-auto" style="height:600px" ref="logView">
+        <pre class="max-w-full" v-for="log in rawLogs" :key="log">{{ log }}</pre>
+
+        <!--div v-for="(log, ix) in filteredLogs" :key="ix">
           <div :title="log.id" class="flex flex-col w-full p-1 hover:bg-base-100" :class="log.styleClasses">
             <div class="flex gap-2">
               <div>{{ log.timestamp }}</div>
@@ -114,7 +116,7 @@ import Markdown from './Markdown.vue';
               <pre v-if="log.data.profiler">{{ log.data.profiler.profile_stats  }}</pre>
             </div>
           </div>
-        </div>
+        </div-->
         <div class="h-1 w-full" ref="logViewBottom"></div>
       </div>
     </div>
@@ -125,6 +127,7 @@ import Markdown from './Markdown.vue';
 export default {
   data() {
     return {
+      rawLogs: null,
       showMetrics: false,
       showTimeFilter: false,
       selectedLog: '',
@@ -235,6 +238,8 @@ export default {
     async fetchLogs() {
       const forceScroll = this.logs.length === 0
       const data = await this.$storex.api.logs.read(this.selectedLog, this.tailSize)
+      this.rawLogs = data
+      /*
       const newLogs = data.filter(l =>
         !["api/logs", "/var/log/"].some(pattern => l.content.includes(pattern)) &&
         !this.logs.find(ll => ll.id === l.id))
@@ -246,6 +251,7 @@ export default {
       })
       this.applyFilter()
       this.scrollToBottom(forceScroll)
+      */
       if (this.autoRefresh) {
         setTimeout(() => this.fetchLogs(), 3000)
       }

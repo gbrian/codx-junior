@@ -2,15 +2,27 @@
 import Iframe from '../components/Iframe.vue'
 </script>
 <template>
-  <Iframe class="flex flex-col gap-2 h-full mb-4" :url="url" 
+  <Iframe class="w-full h-full" :url="url" 
     @loaded="onLoaded"
+    v-if="$project.project_wiki"
   />
+  <div class="hero bg-base-200 w-full h-full" v-else>
+    <div class="hero-content text-center">
+      <div class="max-w-md">
+        <h1 class="text-5xl font-bold">Wiki</h1>
+        <p class="py-6">
+          Wiki is not ready. Go to project settings and define a wiki folder to start generating your wiki!
+        </p>
+        <button class="btn btn-primary" @click="$ui.setActiveTab('settings')" >Settings</button>
+      </div>
+    </div>
+  </div>
 </template>
 <script>
 export default {
   computed: {
     url() {
-      return `/wiki/${this.$project.project_name}/index.html`
+      return `/api/wiki/${this.$project.project_name}/`
     }
   },
   methods: {
@@ -19,7 +31,7 @@ export default {
       const refElement = document.body
       const { backgroundColor } = getComputedStyle(refElement) 
       style.innerHTML = `
-        body, .VPSidebar, .curtain, .content-body, .VPLocalNav {
+        body, .VPSidebar, .curtain, .content-body, .VPLocalNav, .VPNavBar {
           background-color: ${backgroundColor} !important;
         }
       `

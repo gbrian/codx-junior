@@ -57,6 +57,12 @@ import KanbanList from "./KanbanList.vue"
             <i class="fa-solid fa-caret-down" v-else></i>
             <span class="text-xs md:text-md">Boards</span>
           </button>
+          <button class="btn btn-sm btn-info btn-outline tooltip" data-tip="Changes details"
+            @click="$ui.setActiveTab('prview')">
+            <i class="fa-solid fa-code-compare"></i>
+            Changes
+          </button>
+          
         </div>
       </div>
       <div class="mt-3 grow relative">

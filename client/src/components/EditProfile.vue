@@ -38,8 +38,8 @@ import Markdown from './Markdown.vue';
     <div class="form-group flex space-x-4 text-xs">
       <div class="w-1/2 flex flex-col gap-2">
         <label for="category">Category</label>
-        <select v-model="editProfile.category" :disabled="profile.category" class="select select-xs select-bordered">
-          <option value="project">Project</option>
+        <select v-model="editProfile.category" :disabled="profile.category === 'project'" class="select select-xs select-bordered">
+          <option value="project" v-if="profile.category === 'project'">Project</option>
           <option value="assistant">Assistant</option>
           <option value="chat">Chat</option>
           <option value="file">File</option>

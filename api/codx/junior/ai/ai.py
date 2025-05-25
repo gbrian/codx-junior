@@ -67,7 +67,7 @@ class AI:
         callback = None
     ) -> List[Message]:
         if not messages:
-            messages = []
+            messages = list()
         if prompt:
             messages.append(HumanMessage(content=prompt))
 

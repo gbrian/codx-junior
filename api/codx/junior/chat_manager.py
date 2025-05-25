@@ -80,9 +80,16 @@ class ChatManager:
         current_chat = self.find_by_id(chat_id=chat.id)
         if chat_only and current_chat:
             chat.messages = current_chat.messages
+        users = []
+        profiles = []
         for msg in chat.messages:
             if not msg.doc_id: 
               msg.doc_id=str(uuid.uuid4())
+            if msg.user:
+                users.append(msg.user)
+            profiles = profiles + msg.profiles
+        chat.users = list(set(users))
+        chat.profiles = list(set(profiles))
 
         chat_file = self.get_chat_file(chat)
         logger.info(f"Save chat {chat.id} at {chat_file}")

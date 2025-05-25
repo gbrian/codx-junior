@@ -32,6 +32,17 @@ import TaskSettings from './TaskSettings.vue';
           </div>
         </div>
       </div>
+      <div class="text-xs overflow-auto"
+        :class="expandDescription ? '' : 'max-h-10'"
+      >
+        {{ task.description }}
+      </div>
+      <div class="text-xs text-info hover:underline click" 
+        v-if="task.description" 
+        @click.stop="expandDescription = !expandDescription">
+        {{ expandDescription ? 'less' : 'more' }}
+      </div>
+
       <div class="flex justify-between items-center">
         <span :class="['text-xs', isToday ? 'font-bold' : 'text-gray-600']">{{ formattedDate }}</span>
         <div class="flex gap-1 justify-end">
@@ -81,7 +92,8 @@ export default {
         task: "primary",
         chat: "accent"
       },
-      taskData: {}
+      taskData: {},
+      expandDescription: false
     }
   },
   computed: {
