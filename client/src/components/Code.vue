@@ -2,6 +2,7 @@
 import CodeEditor from 'simple-code-editor';
 import MermaidViewerVue from './MermaidViewer.vue'
 import MarkdownViewer from './MarkdownViewer.vue';
+import CodeViewer from './CodeViewer.vue'
 </script>
 <template>
   <div class="rounded-md">
@@ -19,14 +20,11 @@ import MarkdownViewer from './MarkdownViewer.vue';
         <span v-if="showMermaidSource">View diagram</span>
         <span v-else>View code</span>
       </button>
-      <button class="btn btn-xs tooltip" data-tip="Copy" @click="$ui.copyTextToClipboard(code.innerText)">
-        <i class="fa-solid fa-copy"></i> Copy
-      </button>
     </div>
     <MermaidViewerVue :diagram="codeText" theme="dark" 
       @click="showMermaidSource = !showMermaidSource"
       v-if="showMermaid && !showMermaidSource" />
-    <CodeEditor
+    <!--CodeEditor
       line-nums 
       :value="codeText"
       :languages="languages"
@@ -35,7 +33,8 @@ import MarkdownViewer from './MarkdownViewer.vue';
       theme="github-dark"
       :header="false"
       v-if="showCode"
-    ></CodeEditor>
+    ></CodeEditor -->
+    <CodeViewer :code="codeText" :language="language" v-if="showCode" /> 
     <MarkdownViewer :text="codeText" v-if="showMarkdown" />
     <div class="" v-html="codeText" v-if="htmlPreview"></div>
   </div>
@@ -65,7 +64,7 @@ export default {
     if (this.code) {
       this.code.parentNode.after(this.$el)
       this.code.parentNode.remove()
-      this.$el.querySelector('.header.border')?.append(this.$refs.toolbar)
+      // this.$el.querySelector('.header.border')?.append(this.$refs.toolbar)
     }
   },
   computed: {

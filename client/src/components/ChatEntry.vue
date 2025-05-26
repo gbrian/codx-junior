@@ -8,8 +8,9 @@ import { CodeDiff } from 'v-code-diff'
   <div class="chat-entry flex gap-1 items-start relative lg:p-2">
     <div class="grow overflow-auto">
       <div class="w-full flex flex-col gap-1 hover:rounded-md p-2 group">
-        <div class="text-xs font-bold flex flex-col">
-          <div class="flex justify-start gap-4 items-center">
+        <div class="text-xs font-bold flex flex-col click"
+        >
+          <div class="flex justify-start gap-4 items-center" @dblclick.stop="toggleCollapse">
             <div v-for="profile in messageProfiles" :key="profile.name">
               <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
                 <div class="ring-primary ring-offset-base-100 w-6 h-6 rounded-full ring ring-offset-2">
@@ -24,22 +25,6 @@ import { CodeDiff } from 'v-code-diff'
             <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end">
               <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
-                  <div class="tooltip tooltip-bottom click"
-                    :data-tip="message.hide ? 'Click to add message to conversation' : 
-                                              'Click to hide message from the conversation'"
-                    :checked="!message.hide" @click.stop="$emit('hide')"
-                    >
-                    <i class="fa-solid fa-eye" v-if="message.hide"></i>
-                    <i class="text-warning fa-solid fa-eye-slash" v-else></i>
-                  </div>  
-                  <button class="btn btn-xs tooltip tooltip-bottom" data-tip="Expand/Collapse" @click="toggleCollapse">
-                    <span v-if="message.collapse">
-                      <i class="fa-solid fa-chevron-up"></i>
-                    </span>
-                    <span v-else>
-                      <i class="fa-solid fa-chevron-down"></i>
-                    </span>
-                  </button>
                   <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
                     <i class="fa-solid fa-copy"></i>
                   </button>      
@@ -59,15 +44,18 @@ import { CodeDiff } from 'v-code-diff'
                   </button>
                   <div class="dropdown dropdown-hover dropdown-end">
                     <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
-                      <i class="fa-solid fa-trash"></i>
-                      <span v-if="isRemove"> Confirm </span>
+                      <i class="fa-solid fa-bars"></i>
                     </button>
                     <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-28 p-2 bg-base-300">
-                      <li>
-                        <a class="hover:underline" @click="confirmRemove">Yes</a>
+                      <li class="text-warning">
+                        <a @click.stop="$emit('hide')" class="text-left tooltip tooltip-bottom click"
+                            :data-tip="message.hide ? 'Click to add message to conversation' : 
+                                              'Click to hide message from the conversation'">
+                          {{ message.hide ? 'Show' : 'Hide' }}
+                        </a>                  
                       </li>
-                      <li>
-                        <a class="hover:underline" @click.stop="cancelRemove">No</a>
+                      <li class="text-error">
+                        <a class="hover:underline" @click="confirmRemove">Delete</a>
                       </li>
                     </ul>
                   </div>

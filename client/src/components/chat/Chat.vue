@@ -11,7 +11,7 @@ import moment from 'moment'
 <template>
   <div class="flex flex-col gap-1 grow">
     <div class="grow relative">
-      <div class="absolute top-0 left-0 right-0 bottom-0 overflow-y-auto overflow-x-hidden"
+      <div class="overflow-y-auto overflow-x-hidden"
         :class="isBrowser && 'flex gap-1'">
         <div class="w-3/4" v-if="isBrowser">
           <Browser :token="$ui.monitors['shared']" />
@@ -59,149 +59,151 @@ import moment from 'moment'
         </div>
       </div>
     </div>
-    <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
-      {{  lastChatEvent }}
-    </div>
-    <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
-      <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2 hidden">
-        <div class="flex p-1 items-center text-sky-600">
-          <i class="fa-solid fa-at"></i>
-          <input type="text" v-model="termSearchQuery"
-            ref="termSearcher"
-            class="-ml-1 input input-xs text-lg bg-transparent" placeholder="search term..."
-            @keydown.down.stop="onSelNext"
-            @keydown.up.stop="onSelPrev"
-            @keydown.enter.stop="addSerchTerm(searchTerms[searchTermSelIx])"
-            @keydown.esc="closeTermSearch" />
-          <button class="btn btn-xs btn-circle btn-outline btn-error"
-            @click="closeTermSearch"
-            v-if="termSearchQuery">
-            <i class="fa-solid fa-circle-xmark"></i>
-          </button>
-        </div>
+    <div class="sticky -bottom-2 bg-base-300">
+      <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
+        {{  lastChatEvent }}
       </div>
-      <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
-        <li class="tooltip" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
-          <a @click="addSerchTerm(term)">
-            <div :class="[searchTermSelIx === ix ? 'underline':'']">
-              <span class="text-sky-600 font-bold">@{{ term.name }}</span>
-            </div>
-          </a>
-        </li>
-      </ul>
-    </div>
-    <div class="flex gap-2">
-      <span class="badge tooltip flex gap-2 items-center"
-        :data-tip="mention.tooltip"
-        :class="{ 'badge-primary': mention.project, 'badge-success badge-outline': mention.profile }"
-        v-for="mention in messageMentions" :key="mention.name">
-        <i class="fa-solid fa-magnifying-glass" v-if="mention.project"></i>
-        <img class="w-4 rounded-full" :src="mention.profile.avatar" v-if="mention.profile?.avatar" />
-        <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.avatar"></i>
-        <div class="-mt-1">
-          {{ mention.name }}
-        </div>
-      </span>
-    </div>
-    <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
-          'flex-col',
-          editMessage && 'border-warning',
-          onDraggingOverInput ? 'bg-warning/10': '']"
-      @dragover.prevent="onDraggingOverInput = true"
-      @dragleave.prevent="onDraggingOverInput = false"
-      @drop.prevent="onDrop">
-      <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
-        :contenteditable="!waiting"
-        ref="editor"
-        @paste="onContentPaste"
-        @keydown="onEditMessageKeyDown"
-      >
-      </div>
-      <div class="flex justify-between items-end px-2">
-        <div class="carousel rounded-box">
-          <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
-            <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
-              :style="`background-image: url(${image.src})`" @click="imagePreview = image">
-            </div>
-            <p class="text-xs">{{ image.alt.slice(0, 10) }}</p>
-            <button class="btn btn-xs btn-circle btn-error absolute right-0 top-0"
-              @click="removeImage(ix)">
-              X
+      <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
+        <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2 hidden">
+          <div class="flex p-1 items-center text-sky-600">
+            <i class="fa-solid fa-at"></i>
+            <input type="text" v-model="termSearchQuery"
+              ref="termSearcher"
+              class="-ml-1 input input-xs text-lg bg-transparent" placeholder="search term..."
+              @keydown.down.stop="onSelNext"
+              @keydown.up.stop="onSelPrev"
+              @keydown.enter.stop="addSerchTerm(searchTerms[searchTermSelIx])"
+              @keydown.esc="closeTermSearch" />
+            <button class="btn btn-xs btn-circle btn-outline btn-error"
+              @click="closeTermSearch"
+              v-if="termSearchQuery">
+              <i class="fa-solid fa-circle-xmark"></i>
             </button>
           </div>
         </div>
-        <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
-        <div class="grow flex justify-between items-center" v-else>
-          <UserSelector 
-            :selectedUser="selectedUser"
-            @user-changed="selectedUser = $event"
-          />
-          <div class="flex gap-2 items-center justify-end py-2">
-            <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
-              <i class="fa-solid fa-save"></i>
-              <div class="text-xs" v-if="editMessage">Edit</div>
-            </button>
-            <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
-              v-if="editMessage">
-              <i class="fa-regular fa-circle-xmark"></i>
-            </button>
-            <button class="btn btn btn-sm btn-circle tooltip"
-              data-tip="Ask codx-junior"
-              :class="isVoiceSession && 'btn-success animate-pulse'"
-              @click="sendMessage"
-              ref="sendButton"
-              v-if="!editMessage">
-              <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
-              <i class="fa-solid fa-paper-plane" v-else></i>
-            </button>
-            <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
-              :class="isBrowser && 'btn-warning'"
-              data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
-              v-if="!editMessage">
-              <i class="fa-brands fa-chrome"></i>
-            </button>
-            <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
-              data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
-              <i class="fa-solid fa-code"></i>
-            </button>
-
-            <div class="dropdown dropdown-top dropdown-end">
-              <div tabindex="1" role="button" class="btn btn-sm m-1">
-                <i class="fa-solid fa-ellipsis-vertical"></i>
+        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
+          <li class="tooltip" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
+            <a @click="addSerchTerm(term)">
+              <div :class="[searchTermSelIx === ix ? 'underline':'']">
+                <span class="text-sky-600 font-bold">@{{ term.name }}</span>
               </div>
-              <ul tabindex="1" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow gap-2">
-                <li class="btn btn-sm tooltip"
-                  data-tip="Attach files"
-                  @click="selectFile = true">
-                  <a>
-                    <i class="fa-solid fa-paperclip"></i> Attach files
-                  </a>
-                </li>
-                <li class="btn btn-sm" @click="testProject" v-if="API.activeProject.script_test">
-                  <a>
-                    <i class="fa-solid fa-flask"></i>
-                    Test
-                  </a>
-                </li>
-                <li class="hidden btn btn-sm tooltip"
-                  :class="isBrowser && 'btn-success'"
-                  :data-tip="isBrowser ? 'Close browser' : 'Open browser'"
-                  @click="isBrowser = !isBrowser" v-if="!editMessage">
-                  <a>
-                    <i class="fa-brands fa-chrome"></i>
-                    {{ isBrowser ? 'Close' : 'Open' }} Browser
-                  </a>
-                </li>
-                <li class="btn btn-sm tooltip"
-                  :class="isVoiceSession && 'btn-success'"
-                  :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
-                  @click="toggleVoiceSession" v-if="!editMessage">
-                  <a>
-                    <i class="fa-solid fa-microphone-lines"></i>
-                    Voice mode
-                  </a>
-                </li>
-              </ul>
+            </a>
+          </li>
+        </ul>
+      </div>
+      <div class="flex gap-2">
+        <span class="badge tooltip flex gap-2 items-center"
+          :data-tip="mention.tooltip"
+          :class="{ 'badge-primary': mention.project, 'badge-success badge-outline': mention.profile }"
+          v-for="mention in messageMentions" :key="mention.name">
+          <i class="fa-solid fa-magnifying-glass" v-if="mention.project"></i>
+          <img class="w-4 rounded-full" :src="mention.profile.avatar" v-if="mention.profile?.avatar" />
+          <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.avatar"></i>
+          <div class="-mt-1">
+            {{ mention.name }}
+          </div>
+        </span>
+      </div>
+      <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
+            'flex-col',
+            editMessage && 'border-warning',
+            onDraggingOverInput ? 'bg-warning/10': '']"
+        @dragover.prevent="onDraggingOverInput = true"
+        @dragleave.prevent="onDraggingOverInput = false"
+        @drop.prevent="onDrop">
+        <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
+          :contenteditable="!waiting"
+          ref="editor"
+          @paste="onContentPaste"
+          @keydown="onEditMessageKeyDown"
+        >
+        </div>
+        <div class="flex justify-between items-end px-2">
+          <div class="carousel rounded-box">
+            <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
+              <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
+                :style="`background-image: url(${image.src})`" @click="imagePreview = image">
+              </div>
+              <p class="text-xs">{{ image.alt.slice(0, 10) }}</p>
+              <button class="btn btn-xs btn-circle btn-error absolute right-0 top-0"
+                @click="removeImage(ix)">
+                X
+              </button>
+            </div>
+          </div>
+          <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
+          <div class="grow flex justify-between items-center" v-else>
+            <UserSelector 
+              :selectedUser="selectedUser"
+              @user-changed="selectedUser = $event"
+            />
+            <div class="flex gap-2 items-center justify-end py-2">
+              <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
+                <i class="fa-solid fa-save"></i>
+                <div class="text-xs" v-if="editMessage">Edit</div>
+              </button>
+              <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
+                v-if="editMessage">
+                <i class="fa-regular fa-circle-xmark"></i>
+              </button>
+              <button class="btn btn btn-sm btn-circle tooltip"
+                data-tip="Ask codx-junior"
+                :class="isVoiceSession && 'btn-success animate-pulse'"
+                @click="sendMessage"
+                ref="sendButton"
+                v-if="!editMessage">
+                <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
+                <i class="fa-solid fa-paper-plane" v-else></i>
+              </button>
+              <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
+                :class="isBrowser && 'btn-warning'"
+                data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
+                v-if="!editMessage">
+                <i class="fa-brands fa-chrome"></i>
+              </button>
+              <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
+                data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
+                <i class="fa-solid fa-code"></i>
+              </button>
+
+              <div class="dropdown dropdown-top dropdown-end">
+                <div tabindex="1" role="button" class="btn btn-sm m-1">
+                  <i class="fa-solid fa-ellipsis-vertical"></i>
+                </div>
+                <ul tabindex="1" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow gap-2">
+                  <li class="btn btn-sm tooltip"
+                    data-tip="Attach files"
+                    @click="selectFile = true">
+                    <a>
+                      <i class="fa-solid fa-paperclip"></i> Attach files
+                    </a>
+                  </li>
+                  <li class="btn btn-sm" @click="testProject" v-if="API.activeProject.script_test">
+                    <a>
+                      <i class="fa-solid fa-flask"></i>
+                      Test
+                    </a>
+                  </li>
+                  <li class="hidden btn btn-sm tooltip"
+                    :class="isBrowser && 'btn-success'"
+                    :data-tip="isBrowser ? 'Close browser' : 'Open browser'"
+                    @click="isBrowser = !isBrowser" v-if="!editMessage">
+                    <a>
+                      <i class="fa-brands fa-chrome"></i>
+                      {{ isBrowser ? 'Close' : 'Open' }} Browser
+                    </a>
+                  </li>
+                  <li class="btn btn-sm tooltip"
+                    :class="isVoiceSession && 'btn-success'"
+                    :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
+                    @click="toggleVoiceSession" v-if="!editMessage">
+                    <a>
+                      <i class="fa-solid fa-microphone-lines"></i>
+                      Voice mode
+                    </a>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>

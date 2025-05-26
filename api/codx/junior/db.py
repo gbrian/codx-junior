@@ -29,6 +29,7 @@ class Message(BaseModel):
     meta_data: Optional[dict] = Field(default={})
     profiles: List[str] = Field(default=[])
     user: Optional[str] = Field(default=None)
+    knowledge_topics: List[str] = Field(description="This message will be indexed for knowledge and tagged with this topics", default=[])
 
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
@@ -56,6 +57,8 @@ class Chat(BaseModel):
     file_path: str = Field(default='')
     model: Optional[str] = Field(default='')
     visibility: Optional[str] = Field(default='')
+    knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
+
 
 class KanbanColumn(BaseModel):
     doc_id: Optional[str] = Field(default=None)

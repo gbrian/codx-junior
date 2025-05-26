@@ -141,7 +141,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
           <div class="flex gap-1 justify-end items-center">
           </div>
         </div>
-        <div class="w-full overflow-auto" v-if="chatFiles.length">
+        <div class="w-full" v-if="chatFiles.length">
           <div class="my-2 text-xs">
             <span>
               <i class="fa-solid fa-paperclip"></i>

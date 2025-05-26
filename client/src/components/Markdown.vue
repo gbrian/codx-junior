@@ -4,6 +4,7 @@ import YoutubeViewer from './YoutubeViewer.vue'
 import { full as emoji } from 'markdown-it-emoji'
 import MarkdownIt from 'markdown-it'
 import highlight from 'markdown-it-highlightjs'
+import hljs from'highlight.js/lib/core'
 </script>
 
 <template>
@@ -33,7 +34,7 @@ const md = new MarkdownIt({
   typographer: true
 })
 md.use(emoji)
-md.use(highlight)
+md.use(highlight, { hljs })
 
 export default {
   props: ['text'],
