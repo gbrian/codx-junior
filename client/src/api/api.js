@@ -202,6 +202,9 @@ const initializeAPI = (project) => {
       async branches() {
         const branches = await API.get('/api/projects/repo/branches');
         return branches;
+      },
+      helpWantedIssues() {
+        return API.get('/api/github/issues/help-wanted')
       }
     },
     settings: {

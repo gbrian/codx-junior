@@ -150,21 +150,30 @@ export const actions = actionTree(
       state.activeChat = null
     },
     async setActiveProject ({ state }, project) {
-      if (project?.codx_path === state.activeProject?.codx_path) {
+      const { project_name, codx_path } = project
+      if ( project_name && !codx_path ) {
+        project = $storex.projects.allProjects.find(p => p.project_name === project_name)
+      }
+      if (project?.codx_path === state.activeProject?.codx_path ) {
         return
       }
-      state.projectLoading = true
-      try {
-        await API.setActiveProject(project)
-      } finally {
-        state.projectLoading = false
-      }
-      $storex.projects.loadProjectKnowledge()
-      state.activeProject = API.activeProject
+
+      state.activeProject = null 
       state.chats = {}
       state.kanban = {}
       state.activeChat = null
-      await $storex.projects.loadProfiles()
+
+      if (project?.codx_path) {
+        state.projectLoading = true
+        try {
+          await API.setActiveProject(project)
+        } finally {
+          state.projectLoading = false
+        }
+        $storex.projects.loadProjectKnowledge()
+        state.activeProject = API.activeProject
+        await $storex.projects.loadProfiles()
+      }
     },
     async loadProjectKnowledge({ state }) {
       state.knowledge = null
@@ -205,11 +214,11 @@ export const actions = actionTree(
         delete state.chats[chat.id]
       }
     },
-    async setActiveChat({ state }, chat) {
-      if (chat) {
-        await $storex.projects.loadChat(chat)
+    async setActiveChat({ state }, { id }) {
+      if (id) {
+        await $storex.projects.loadChat({ id })
       }
-      state.activeChat = chat ? state.chats[chat.id] : null
+      state.activeChat = state.chats[id]
     },
     async addLogIgnore({ state }, ignore) {
       let ignores = state.activeProject.log_ignore?.split(",") || []

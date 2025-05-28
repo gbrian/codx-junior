@@ -70,7 +70,7 @@ export default {
       return this.$ui.appDivided === 'horizontal'
     },
     showCodxJunior() {
-      return !!this.$ui.tabIx
+      return !!this.$ui.activeTab
     }
   },
   methods: {

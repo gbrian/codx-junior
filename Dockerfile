@@ -27,6 +27,12 @@ RUN echo "$USER ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 USER ${USER}
 
+COPY --chown=${USER} client ${HOME}/codx-junior/client
+COPY --chown=${USER} api ${HOME}/codx-junior/api
+COPY --chown=${USER} scripts ${HOME}/codx-junior/scripts
+COPY --chown=${USER} codx-junior ${HOME}/codx-junior/codx-junior
+COPY --chown=${USER} lxde ${HOME}/codx-junior/lxde
+
 COPY --chown=${USER} entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

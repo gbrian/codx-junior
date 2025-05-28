@@ -11,9 +11,11 @@ import moment from 'moment'
       <div class="text-2xl">Loading...</div>
     </div>
     <div class="grow flex flex-col relative bg-base-100 gap-2 overflow-auto bg-base-300">
-      <div class="p-2 flex gap-2 items-center relative justify-between">
+      <div class="p-2 flex gap-2 items-center relative justify-between"
+        v-if="!isWelcomeView"
+      >
         <div class="flex gap-4 items-start">
-          <ProjectDropdown v-if="!isHelpTabActive" />
+          <ProjectDropdown />
         </div>
         <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
           <i class="fa-solid fa-bars"></i>
@@ -30,8 +32,8 @@ import moment from 'moment'
         </div>
       </div>
 
-      <div class="grow overflow-auto p-2"
-        :class="addSidePadding && '2xl:mx-70 3xl:mx-96 mx-20'"
+      <div class="grow overflow-auto"
+        :class="addSidePadding && '2xl:mx-70 4xl:mx-96 mx-20'"
       >
         <TabViewVue  :key="projectKey" />
       </div>
@@ -101,8 +103,8 @@ export default {
     projectKey() {
       return this.$project?.codx_path || 'no-project'
     },
-    isHelpTabActive() {
-      return this.$ui.activeTab === 'help'
+    isWelcomeView() {
+      return this.$ui.activeTab === 'home'
     },
     projectPlaceholder() {
       return this.codxPath || "Project's absolute path"

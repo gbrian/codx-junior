@@ -3,8 +3,8 @@
 layout: home
 
 hero:
-  name: "codx-junior wiki"
-  text: "codx-junior project's wiki"
+  name: "codx-junior"
+  text: "codx-junior wiki"
   tagline: My great project tagline
   actions:
     - theme: brand

@@ -2,10 +2,12 @@
 import Iframe from '../components/Iframe.vue'
 </script>
 <template>
-  <Iframe class="w-full h-full" :url="url" 
-    @loaded="onLoaded"
-    v-if="$project.project_wiki"
-  />
+  <div class="w-full h-full" v-if="$project.project_wiki">
+    <progress class="progress w-full" v-if="!loaded"></progress>
+    <Iframe class="w-full h-full" :url="url" 
+      @loaded="onLoaded"      
+    />
+  </div>
   <div class="hero bg-base-200 w-full h-full" v-else>
     <div class="hero-content text-center">
       <div class="max-w-md">
@@ -20,6 +22,11 @@ import Iframe from '../components/Iframe.vue'
 </template>
 <script>
 export default {
+  data() {
+    return {
+      loaded: false
+    }
+  },
   computed: {
     url() {
       return `/api/wiki/${this.$project.project_name}/`
@@ -36,6 +43,7 @@ export default {
         }
       `
       iframe.contentDocument.body.appendChild(style)
+      this.loaded = true
     }
   }
 }

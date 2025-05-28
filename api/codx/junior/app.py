@@ -30,6 +30,8 @@ from codx.junior.api.users import router as users_router
 from codx.junior.api.wiki import router as wiki_router
 from codx.junior.security.user_management import get_authenticated_user
 
+from codx.junior.misc.github import search_github_issues
+
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
 logging.basicConfig(level = logging.DEBUG,
@@ -540,6 +542,10 @@ async def api_image_to_text_endpoint(file: UploadFile):
 def api_restart():
     logger.info(f"****************** API RESTARTING... bye *******************")
     exec_command("sudo kill 7")
+
+@app.get('/api/github/issues/help-wanted')
+def get_github_issues_help_wanted():
+    return search_github_issues()
 
 if CODX_JUNIOR_STATIC_FOLDER:
     os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)

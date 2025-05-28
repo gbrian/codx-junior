@@ -1,4 +1,18 @@
-<script setup>
+# [[{"id": "386a9d63-805d-4a94-88ce-70762f4511b8", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": ["skip_knowledge"], "file_list": [], "profiles": ["Vue files", "daisyui_components"], "users": [], "name": "changes-at-components-navigationbar-vue-2025-05-28-06-14-58-808003", "description": "The conversation involves rewriting a Vue.js file to adhere to certain best practices. It includes using DaisyUI components, following a specified structure, and ensuring Vue files contain only the appropriate sections. Comments suggest disabling certain options if a project doesn't exist. Additionally, the conversation covers ensuring proper use of TailwindCSS for styling, avoiding lengthy functions, and using specific methods for accessing and manipulating store data. The final code is refactored to align with these guidelines.", "created_at": "2025-05-25 07:17:19.885536", "updated_at": "2025-05-28T06:16:04.094507", "mode": "chat", "kanban_id": "", "column_id": "", "board": "mentions", "column": "changes", "chat_index": 0, "url": "", "branch": "", "file_path": "", "model": "", "visibility": ""}]]
+## [[{"doc_id": "3f861fd8-3666-4f3c-92ef-76da43ce5939", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-05-25 07:17:19.883911", "updated_at": "2025-05-25 07:17:19.883947", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": null}]]
+
+                Apply codx comments and rewrite full content.
+                Return only the content without any further decoration or comments.
+                Do not surround response with '```' marks, just content.
+                Remove codx comments from the final version. 
+                Do not return the <document> tags.
+                
+## [[{"doc_id": "4dc97132-1570-450f-8ef9-7b83af2c9b86", "role": "user", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-05-25 07:17:19.883911", "updated_at": "2025-05-25 07:17:19.883947", "images": [], "files": ["/home/codx-junior/codx-junior/client/src/components/NavigationBar.vue"], "meta_data": {}, "profiles": ["daisyui_components", "Vue files"], "user": null}]]
+
+                                Given this document:
+                                <document>
+                                
+                                <script setup>
 import ProjectIconVue from './ProjectIcon.vue'
 import UserList from './UserList.vue'
 import moment from 'moment';
@@ -18,37 +32,39 @@ import Assistant from './codx-junior/Assistant.vue';
       </div>
 
       <div class="divider"></div>
+      @codx-ok, please-wait...: Disable "wiki", "tasks" and "profiles" options if "!$project" 
+      <div :class="['hover:bg-base-100 click relative', $ui.activeTab === 'wiki' ? 'bg-base-100 text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Wiki"
+          @click="$router.push('/wiki')">
+          <i class="fa-solid fa-book-medical"></i>
+				</a>
+			</div>
       
-      <div :class="['hover:bg-base-100 click relative', 
-        !$project ? 'text-slate-400' :
-          ($ui.activeTab === 'tasks' ? 'bg-base-100 text-primary': '')
-        ,]">
+      <div :class="['hover:bg-base-100 click relative', $ui.activeTab === 'tasks' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Kanban"
-          @click="setProjectTab('tasks')">
+          @click="$router.push('/tasks')">
            <div class="flex flex-col gap-4">
             <i class="fa-brands fa-trello"></i>
           </div>
 				</a>
 			</div>
 
-      <div :class="['hover:bg-base-100 click relative', 
-            !$project ? 'text-slate-400' :
-              ($ui.activeTab === 'wiki' ? 'bg-base-100 text-primary': '')
-          ]">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Wiki"
-          @click="setProjectTab('wiki')">
-          <i class="fa-solid fa-book"></i>
-				</a>
-			</div>
-      
-      <div :class="['hover:bg-base-100 click relative',
-          !$project ? 'text-slate-400' :
-              ($ui.activeTab === 'profiles' ? 'bg-base-100 text-primary': ''),]">
+      <div :class="['hidden hover:bg-base-100 click relative', $ui.activeTab === 'knowledge_settings' ? 'bg-base-100 text-primary': '',]">
+        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="Knowledge"
+          @click="$router.push('/knowledge_settings')">
+          <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-book"></i>
+          </div>
+        </a>
+      </div>
+
+      <div :class="['hover:bg-base-100 click relative', $ui.activeTab === 'profiles' ? 'bg-base-100 text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Profiles"
-          @click="setProjectTab('profiles')">
+          @click="$router.push('/profiles')">
            <div class="flex flex-col gap-4">
             <i class="fa-solid fa-user-group"></i>
           </div>
@@ -59,7 +75,7 @@ import Assistant from './codx-junior/Assistant.vue';
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
           :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Add project"
-          @click="setProjectTab('')">
+          @click="$router.push('/')">
             <div class="flex flex-col gap-4">
               <i class="fa-solid fa-plus"></i>
           </div>
@@ -86,7 +102,19 @@ import Assistant from './codx-junior/Assistant.vue';
           </div>
 				</a>
 			</div>
-
+      <div :class="['hidden hover:bg-base-100 click', $ui.appActives[0] === 'browser' ? 'text-primary': '']">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" 
+          data-tip="Show preview"
+					 @click.stop="$ui.setShowBrowser(true)">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-display"></i>
+            <span class="text-xs text-error hover:underline opacity-50 hover:opacity-100 absolute top-2 right-2 tooltip" data-tip="close" 
+              @click.stop="$ui.setShowBrowser(false)" v-if="$ui.showBrowser">
+              <i class="fa-solid fa-power-off"></i>
+            </span>
+          </div>
+				</a>
+			</div>
       <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" 
           :class="right ? 'tooltip-left' : 'tooltip-right'" 
@@ -119,8 +147,8 @@ import Assistant from './codx-junior/Assistant.vue';
 				</a>
         <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-72 p-2 shadow-xl">
           <li><a @click.stop="setActiveTab('account')">Account settings</a></li>
-          <li v-if="$project && $storex.api.permissions.isProjectAdmin"><a @click.stop="setProjectTab('settings')">Project settings</a></li>
-          <li v-if="$project"><a @click.stop="setProjectTab('knowledge_settings')">Knowledge settings</a></li>
+          <li v-if="$storex.api.permissions.isProjectAdmin"><a @click.stop="setActiveTab('settings')">Project settings</a></li>
+          <li><a @click.stop="setActiveTab('knowledge_settings')">Knowledge settings</a></li>
           <li v-if="$storex.api.permissions.isAdmin"><a @click.stop="setActiveTab('global-settings')">Global settings</a></li>
           <li class="border"></li>
           <li>
@@ -234,21 +262,67 @@ export default {
   },
   methods: {
     setActiveTab (tab) {
-      this.$ui.setActiveTab(tab)
+      this.$router.push("/tab")
     },
     setActiveProject(project) {
       this.$projects.setActiveProject(project)
     },
     async newQuickChat() {
       await this.$projects.createNewChat({ temp: true })
-    },
-    setProjectTab(tab) {
-      if (this.$project) { 
-        this.setActiveTab(tab)
-      } else {
-        this.$session.onError("No project selected")
-      }
     }
   }
 };
 </script>
+                                
+                                </document>
+                                
+                                User has added these comments:
+                                <comments>
+                                @codx-ui User commented in line 20: Disable "wiki", "tasks" and "profiles" options if "!$project"
+                                </comments>
+
+                                Best practices for this file:
+                    Project uses DaisyUI for components, use them instead basic HTML elements
+When writing vue files always follow this best parctices:
+Vue files must always follow this structure in this order.
+No other elements are valid:
+```example vue file
+<script setup>
+import Component from './component.vue'
+import markdown from 'mardown'
+</script>
+<template>
+<div class="w.full h-full flex gap-2">
+</div>
+</template>
+<script>
+export default {
+props: [].
+data (){
+// Reactive data, don't use "ref"
+ return { myVariable: null }
+},
+computed: {},
+watch: {},
+methods: {}
+}
+</sctipt>
+```
+* No need to import ref, computed or mapState 
+* export default component object
+* Use component "data" method to return an object variables
+* Use component "computed" to define computed properties
+" Use component "methods" to define component methods 
+* Use "this.$storex" or "$storex" to access store data.
+* To access vue store data use "$storex"
+* "script setup" section contains ONLY imports, no variables, properties bnor methods
+* Use TailwindCSS classes for styling, always consider mobile styles
+* Vue component definition will be exporting a default object like, without ref, nor computed imports
+* Don't use ";" in the javascript or typescript code
+* Avoid long functions
+* Add short and concise comments for complex functions
+* Don't use <style> elements, use TailWindCSS classes
+                    
+                                
+## [[{"doc_id": "b58c7071-f92e-4ffa-8cb8-dfe2d648f7af", "role": "assistant", "task_item": "", "hide": false, "improvement": false, "created_at": "2025-05-25 07:17:19.883911", "updated_at": "2025-05-25 07:17:19.883947", "images": [], "files": [], "meta_data": {"time_taken": 62.99364519119263, "first_chunk_time_taken": 38.63394021987915, "model": "gpt-4o"}, "profiles": ["daisyui_components", "Vue files"], "user": null}]]
+The conversation involves rewriting a Vue.js file to adhere to certain best practices. It includes using DaisyUI components, following a specified structure, and ensuring Vue files contain only the appropriate sections. Comments suggest disabling certain options if a project doesn't exist. Additionally, the conversation covers ensuring proper use of Tailwind

@@ -8,7 +8,6 @@ export const namespaced = true
 export const state = () => ({
   showCoder: false,
   showBrowser: false,
-  tabIx: 'home',
   lastActiveTab: "",
   codxJuniorWidth: 30,
   isMobile: false,
@@ -38,7 +37,8 @@ export const state = () => ({
   noVNCSettings: {
     resize: 'scale'
   },
-  theme: 'dark'
+  theme: 'dark',
+  activeTab: 'home'
 })
 
 export const getters = getterTree(state, {
@@ -47,10 +47,12 @@ export const getters = getterTree(state, {
   monitorToken: state => state.monitors[state.monitor],
   isSharedScreen: () => window.location.pathname === '/shared',
   enableFileManger: () => API.globalSettings?.enable_file_manager,
-  activeTab: state => state.tabIx
 })
 
 export const mutations = mutationTree(state, {
+  setActiveTab(state, tab) {
+    state.activeTab = tab || 'home'
+  },
   loadState(state) {
     const savedState = localStorage.getItem('uiState')
     if (savedState) {
@@ -69,24 +71,6 @@ export const mutations = mutationTree(state, {
   },
   toggleBrowser(state) {
     $storex.ui.setShowBrowser(!state.showBrowser)
-  },
-  setActiveTab(state, tabIx) {
-    if (state.tabIx === tabIx) {
-      if (!$storex.ui.isMobile && $storex.ui.showApp
-          && state.appActives.length
-      ) {
-        state.lastActiveTab = state.tabIx
-        state.tabIx = null
-      }
-    } else {
-      state.lastActiveTab = state.tabIx
-      state.tabIx = tabIx
-    }
-    if (state.tabIx !== 'app' && state.isMobile) {
-      state.showCoder = false
-      state.showBrowser = false
-    }
-    $storex.ui.saveState()
   },
   setShowCoder(state, show) {
     state.showCoder = show
@@ -147,10 +131,6 @@ export const mutations = mutationTree(state, {
   },
   setUIready(state) {
     state.uiReady = true
-    // If no user projects, go to help
-    if (!state.tabIx || !$storex.projects.allProjects?.find(p => p.project_path.indexOf("codx-junior") === -1)) {
-      $storex.ui.setActiveTab('help')
-    }
   },
   setFloatinCodxJunior(state, floating) {
     state.floatingCodxJunior = floating
@@ -194,6 +174,7 @@ export const actions = actionTree(
     },
     saveState({ state }) {
       const data = { ...state, uiReady: false }
+      delete data.activeTab
       localStorage.setItem('uiState', JSON.stringify(data))
     },
     handleResize({ state }) {
@@ -205,7 +186,6 @@ export const actions = actionTree(
       state.orientation = orientation  
     },
     loadTask (_, task) {
-      $storex.ui.setActiveTab('tasks')
       $storex.projects.setActiveChat(task)
     },
     async openFile({ state }, file) {

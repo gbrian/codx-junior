@@ -2,17 +2,73 @@
 </script>
 
 <template>
-  <div class="profile-container flex flex-col h-full">
-    <h1 class="text-3xl font-bold mb-2">Welcome to codx-junior</h1>
-    <div class="text-sm text-secondary font-bold">You'll Never Code Alone!</div>
-    <div class="flex flex-col gap-4 mt-4">
-      <div class="flex items-center gap-2 mb-2">
-        <input type="text" class="input input-sm input-bordered" placeholder="Filter projects..." v-model="filterQuery" />
-        <button class="btn btn-sm" @click="filterQuery = null">
-          <i class="fa-solid fa-circle-xmark"></i>
-        </button>
+  <div class="profile-container flex flex-col h-full py-2">
+    <ul class="menu menu-horizontal">
+      <li @click="selection = 'home'">
+        <a>
+          <i class="fa-solid fa-house"></i>
+          Home
+        </a>
+      </li>
+      <li @click="selection = 'projects'">
+        <a>
+          Projects
+          <span class="badge badge-sm">{{ this.$projects.allProjects.length }}</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="py-10 flex flex-col" v-if="selection === 'home'">
+      <div class="px-20 flex flex-col">
+        <h1 class="text-center text-3xl font-bold flex gap-2 justify-center items-center">
+          <img class="h-14" src="/only_icon.png" />
+          Welcome
+        </h1>
+        <p class="py-6 text-center">
+          I'm codx-junior and I'm here to help you maintining 
+          your open source projects.
+        </p>
+        <div class="flex gap-2 items-center mb-2">
+          <div class="badge font-bold badge-primary hover:badge-ghost click">
+            Try me!
+          </div>
+           Give me an issue and I'll help you fixing it!
+        </div>
+        <div class="flex flex-col gap-2 rounded-md">
+          <div class="group input input-bordered flex gap-1 items-center">
+            <i class="fa-solid fa-link group-hover:animate-pulse"></i>
+            <input type="text" class="grow"
+              placeholder="Paste a git issue link to start!" 
+              v-model="newProjectPath" />
+            <button class="btn btn-sm" @click="createNewProject">
+              Go
+            </button>
+          </div>
+          <p class="text-xs italic text-center">
+            Paste a git issue link to start!
+          </p>
+        </div>    
       </div>
-      <div class="text-xl font-bold">Projects</div>
+      <div class="">Trending issues from oss community you may help with!</div>
+      <div class="flex flex-col">
+        <div v-for="issue in issues" :key="issue.hl_title">
+          <div>{{ issue.hl_title }}</div>
+          <div>{{ hl_text }}</div>
+        </div>
+      </div>
+    </div>    
+    
+
+    <div class="flex flex-col gap-4 mt-4" v-if="selection === 'projects'">
+      <div class="flex justify-between">
+        <div class="text-xl font-bold">Projects</div>
+        <div class="flex items-center gap-2 mb-2">
+          <input type="text" class="input input-sm input-bordered" placeholder="Filter projects..." v-model="filterQuery" />
+          <button class="btn btn-sm" @click="filterQuery = null">
+            <i class="fa-solid fa-circle-xmark"></i>
+          </button>
+        </div>
+      </div>
       <div class="grid grid-cols-3 gap-2">
         <div
           v-for="project in filteredProjects"
@@ -31,17 +87,6 @@
           <div class="grow"></div>
         </div>
       </div>
-      <div class="font-bold">Add project</div>
-      <div class="flex flex-col gap-2 rounded-md">
-        <div class="group input input-bordered flex gap-1 items-center">
-          <i class="fa-solid fa-i-cursor group-hover:animate-pulse"></i>
-          <input type="text" class="grow" v-model="newProjectPath" />
-          <button class="btn btn-sm" @click="createNewProject">
-            <i class="fa-solid fa-plus"></i>
-          </button>
-        </div>
-        <p class="text-xs italic text-center">Project name, git url or path</p>
-      </div>
       <div class="">
         <div class="text-xl font-semibold mb-4">Get Started with codx-junior</div>
         <ul class="text-xs flex flex-col gap-2 ml-4">
@@ -53,20 +98,20 @@
             <i class="fa-solid fa-gear"></i><span class="font-bold"> Set your settings</span>
             <div class="ml-6 text-xs">
               Review important settings like
-              <span class="text-warning underline click" @click="$ui.setActiveTab('global-settings')"
+              <span class="text-warning underline click" @click="$router.push('/global-settings')"
                 >AI provider settings</span
               >
               and
-              <span class="underline click" @click="$ui.setActiveTab('settings')">Project settings</span>
+              <span class="underline click" @click="$router.push('/settings')">Project settings</span>
             </div>
           </li>
           <li>
             <i class="fa-solid fa-book"></i> <span class="font-bold"> Review knowledge settings and profiles (optional)</span>
             <div class="ml-6 text-xs">
               Knowledge allows codx-junior to learn from the code base
-              <span class="text-secondary underline click" @click="$ui.setActiveTab('knowledge')"> check it here</span>
+              <span class="text-secondary underline click" @click="$router.push('/knowledge')"> check it here</span>
               and profiles improves codx-junior performance...
-              <span class="text-info underline click" @click="$ui.setActiveTab('profiles')"> check it at profiles</span>
+              <span class="text-info underline click" @click="$router.push('/profiles')"> check it at profiles</span>
             </div>
           </li>
         </ul>
@@ -75,7 +120,7 @@
           <button
             class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
             data-tip="Solve issues chatting with codx!"
-            @click="$ui.setActiveTab('tasks')"
+            @click="$router.push('/tasks')"
           >
             <i class="fa-solid fa-list-check"></i>
             Tasks
@@ -91,7 +136,7 @@
           <button
             class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
             data-tip="Preview your changes"
-            @click="$ui.setActiveTab('profiles')"
+            @click="$router.push('/profiles')"
           >
             <i class="fa-solid fa-circle-user"></i>
             Profiles
@@ -111,9 +156,14 @@
 export default {
   data() {
     return {
+      selection: 'home',
       newProjectPath: "",
-      filterQuery: ""
+      filterQuery: "",
+      issues: []
     }
+  },
+  async created () {
+    this.issues = await this.$storex.api.projects.helpWantedIssues()
   },
   computed: {
     filteredProjects() {
@@ -129,11 +179,11 @@ export default {
     async createNewProject() {
       await this.$projects.createNewProject(this.newProjectPath)
       this.newProjectPath = null
-      this.$ui.setActiveTab('tasks')
+      this.$router.push('/tasks')
     },
     setActiveProject(project) {
       this.$projects.setActiveProject(project)
-      this.$ui.setActiveTab('tasks')
+      this.$router.push(`/${project.project_name}/tasks`)
     }
   }
 }

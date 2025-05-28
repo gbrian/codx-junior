@@ -2,7 +2,7 @@
 import KnowledgeViewVue from "../views/KnowledgeView.vue"
 import KnowledgeSettingsVue from "../views/KnowledgeSettings.vue"
 import ProfileViewVue from "../views/ProfileView.vue"
-import ProjectProfileVue from "../views/ProjectProfile.vue"
+import CodxWelcomeView from "../views/CodxWelcomeView.vue"
 import ProjectSettingsVue from "../views/ProjectSettings.vue"
 import WikiViewVue from "../views/WikiView.vue"
 import GlobalSettingsVue from "../views/GlobalSettings.vue"
@@ -10,28 +10,26 @@ import CodeEditorVue from "./CodeEditor.vue"
 import KanbanVue from "./kanban/Kanban.vue"
 import NoVNCVue from "./NoVNC.vue"
 import Files from "./apps/Files.vue"
-import HelpView from "@/views/HelpView.vue"
 import PRView from "@/views/PRView.vue"
 import MetricsViewer from "./metrics/MetricsViewer.vue"
 import PreviewVue from "./apps/Preview.vue"
 import AccountSettings from './security/AccountSettings.vue'
 </script>
 <template>
-  <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder":class="$ui.tabIx" />
-  <KanbanVue v-if="$ui.tabIx === 'tasks'" />
-  <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge'":class="$ui.tabIx" />
-  <KnowledgeSettingsVue class="" v-bind="$attrs" v-if="$ui.tabIx === 'knowledge_settings'":class="$ui.tabIx" />
-  <WikiViewVue v-bind="$attrs" v-if="$ui.tabIx == 'wiki'"></WikiViewVue>
-  <ProjectSettingsVue  v-bind="$attrs" v-if="$ui.tabIx === 'settings'":class="$ui.tabIx" />
-  <GlobalSettingsVue v-bind="$attrs" v-if="$ui.tabIx === 'global-settings'":class="$ui.tabIx" />
-  <ProfileViewVue v-bind="$attrs" v-if="$ui.tabIx === 'profiles'":class="$ui.tabIx" />
-  <ProjectProfileVue v-bind="$attrs" v-if="$ui.tabIx == 'home'":class="$ui.tabIx" />
-  <Files class="w-full h-full" v-if="$ui.tabIx == 'files'":class="$ui.tabIx" />
-  <HelpView class="w-full h-full" v-if="$ui.tabIx == 'help'":class="$ui.tabIx" />
-  <PRView class="w-full h-full" v-if="$ui.tabIx == 'prview'":class="$ui.tabIx" />
-  <MetricsViewer class="w-full h-full" v-if="$ui.tabIx == 'metrics'":class="$ui.tabIx" />
+  <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder" :class="$ui.activeTab" />
+  <KanbanVue v-if="$ui.activeTab === 'tasks'" />
+  <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.activeTab === 'knowledge'" :class="$ui.activeTab" />
+  <KnowledgeSettingsVue class="" v-bind="$attrs" v-if="$ui.activeTab === 'knowledge_settings'" :class="$ui.activeTab" />
+  <WikiViewVue v-bind="$attrs" v-if="$ui.activeTab == 'wiki'"></WikiViewVue>
+  <ProjectSettingsVue  v-bind="$attrs" v-if="$ui.activeTab === 'settings'" :class="$ui.activeTab" />
+  <GlobalSettingsVue v-bind="$attrs" v-if="$ui.activeTab === 'global-settings'" :class="$ui.activeTab" />
+  <ProfileViewVue v-bind="$attrs" v-if="$ui.activeTab === 'profiles'" :class="$ui.activeTab" />
+  <CodxWelcomeView v-bind="$attrs" v-if="$ui.activeTab == 'home'" :class="$ui.activeTab" />
+  <Files class="w-full h-full" v-if="$ui.activeTab == 'files'" :class="$ui.activeTab" />
+  <PRView class="w-full h-full" v-if="$ui.activeTab == 'prview'" :class="$ui.activeTab" />
+  <MetricsViewer class="w-full h-full" v-if="$ui.activeTab == 'metrics'" :class="$ui.activeTab" />
   <PreviewVue class="h-full w-full" :token="$ui.monitorToken" v-if="$ui.showBrowser && $ui.isMobile" />
-  <AccountSettings v-if="$ui.tabIx == 'account'":class="$ui.tabIx" />
+  <AccountSettings v-if="$ui.activeTab == 'account'" :class="$ui.activeTab" />
 </template>
 <script>
 export default {
