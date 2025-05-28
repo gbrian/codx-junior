@@ -1,16 +1,35 @@
 import requests
 import json
-import logging
+import os
+import time
 
-logger = logging.getLogger(__name__)
+CACHE_FILE = 'cache.json'
+CACHE_EXPIRATION = 3 * 86400  # 3 days in seconds
+
+def load_cache():
+    if os.path.exists(CACHE_FILE):
+        with open(CACHE_FILE, 'r') as f:
+            cache_data = json.load(f)
+            if time.time() - cache_data.get('timestamp', 0) < CACHE_EXPIRATION:
+                return cache_data.get('results', [])
+    return None
+
+def save_cache(results):
+    with open(CACHE_FILE, 'w') as f:
+        json.dump({'timestamp': time.time(), 'results': results}, f)
 
 def search_github_issues():
     """
-    Search GitHub issues and return the 'results' key from the JSON in the script tag.
+    Searches GitHub for issues labeled as "help wanted", with a cached
+    response for 3 days to enhance performance.
 
-    :return: Data contained in the 'results' key of the JSON.
-    :raises: ValueError if the script tag or JSON is not properly formatted.
+    :return: Data contained in the 'results' key of the JSON if available, otherwise the full response text.
+    :raises: ValueError if the JSON cannot be decoded.
     """
+    cached_results = load_cache()
+    if cached_results is not None:
+        return cached_results
+
     url = "https://github.com/search?q=help+wanted&type=issues&s=updated&o=desc"
     headers = {
         "Accept": "*/*",
@@ -31,20 +50,17 @@ def search_github_issues():
     response = requests.get(url, headers=headers)
     response.raise_for_status()  # Raise an error on a failed request
 
-    # Retrieve and process the webpage content line-by-line
     for line in response.iter_lines(decode_unicode=True):
-        # Identify the line with the JSON data
-        if 'react-app.embeddedData' in line:
-            # Clean up the line to extract JSON content
+        if '<script type="application/json" data-target="react-app.embeddedData">' in line:
             json_text = line.split('>', 1)[1].rsplit('<', 1)[0].strip()
             
             try:
                 json_data = json.loads(json_text)
+                results = json_data["payload"]["results"]
+                save_cache(results)
+                return results
             except json.JSONDecodeError as e:
                 raise ValueError("Error decoding JSON content.") from e
 
-            # Return the 'results' key from the JSON data
-            return json_data["payload"]["results"]
-
-    # Raise an error if the desired script tag was not found
-    raise ValueError("Script tag containing JSON data not found.")
+    # If the JSON data is not found, return the full response content
+    return response.text

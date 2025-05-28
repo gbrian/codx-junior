@@ -1,4 +1,5 @@
 <script setup>
+import IssuePreview from '../components/IssuePreview.vue'
 </script>
 
 <template>
@@ -49,11 +50,15 @@
           </p>
         </div>    
       </div>
-      <div class="">Trending issues from oss community you may help with!</div>
-      <div class="flex flex-col">
-        <div v-for="issue in issues" :key="issue.hl_title">
-          <div>{{ issue.hl_title }}</div>
-          <div>{{ hl_text }}</div>
+      <div class="px-10 flex flex-col justify-center">
+        <div class="text-center text-2xl py-2">Trending issues from oss community you may help with!</div>
+        <div class="flex flex-col gap-2">
+          <IssuePreview 
+            class="click" 
+            :issue="issue" v-for="issue in issues" :key="issue.hl_title"
+            @click.ctrl.stop="openLink(issue.link)"
+            @click="newProjectPath = issue.link"
+          />
         </div>
       </div>
     </div>    
@@ -164,6 +169,8 @@ export default {
   },
   async created () {
     this.issues = await this.$storex.api.projects.helpWantedIssues()
+    this.issues = this.issues.filter(i => i.hl_text)
+                    .map(issue => ({ ...issue, link: `https://github.com/${issue.repo.repository.owner_login}/${issue.repo.repository.name}/issues/${issue.number}`}))
   },
   computed: {
     filteredProjects() {
@@ -184,6 +191,9 @@ export default {
     setActiveProject(project) {
       this.$projects.setActiveProject(project)
       this.$router.push(`/${project.project_name}/tasks`)
+    },
+    openLink(link) {
+      window.open(link, '_blank')
     }
   }
 }

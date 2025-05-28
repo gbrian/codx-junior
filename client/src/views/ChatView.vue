@@ -82,6 +82,19 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                       <i class="fa-solid fa-eye"></i>
                     </span>
                   </button>
+                  <div class="dropdown dropdown-end">
+                    <div tabindex="0" role="button" class="btn btn-xs m-1">
+                      <ChatIcon :mode="chat.mode" />
+                    </div>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                      <li @click="setChatMode('chat')">
+                        <a>Conversation</a>
+                      </li>
+                      <li @click="setChatMode('task')">
+                        <a>Canvan</a>
+                      </li>
+                    </ul>
+                  </div>
                   <div class="grow"></div>
                   <div class="dropdown dropdown-end dropdown-bottom">
                     <div tabindex="0" class="btn btn-sm flex items-center indicator">
@@ -96,15 +109,6 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                       </li>
                       <li @click="onExport">
                         <a><i class="fa-solid fa-copy"></i> Export</a>
-                      </li>
-                      <li>
-                        <div class="flex gap-2 items-center">
-                          <ChatIcon :mode="chat.mode" />
-                          <select class="select select-sm" @change="setChatMode($event.target.value)">
-                            <option value="task" :selected="chat.mode === 'task'" >Document</option>
-                            <option value="chat" :selected="chat.mode !== 'task'">Chat</option>
-                          </select>
-                        </div>
                       </li>
                       <li @click="saveChat">
                         <a><i class="fa-solid fa-floppy-disk"></i> Save</a>
