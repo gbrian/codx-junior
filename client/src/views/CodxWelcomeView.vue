@@ -1,5 +1,6 @@
 <script setup>
 import IssuePreview from '../components/IssuePreview.vue'
+import { GitIssueWizard } from '../wizards/gitIssue.js'
 </script>
 
 <template>
@@ -14,7 +15,7 @@ import IssuePreview from '../components/IssuePreview.vue'
       <li @click="selection = 'projects'">
         <a>
           Projects
-          <span class="badge badge-sm">{{ this.$projects.allProjects.length }}</span>
+          <span class="badge badge-sm">{{ $projects.allProjects.length }}</span>
         </a>
       </li>
     </ul>
@@ -41,7 +42,7 @@ import IssuePreview from '../components/IssuePreview.vue'
             <input type="text" class="grow"
               placeholder="Paste a git issue link to start!" 
               v-model="newProjectPath" />
-            <button class="btn btn-sm" @click="createNewProject">
+            <button class="btn btn-sm" :disabled="newProjectPath?.length < 10" @click="createNewProject">
               Go
             </button>
           </div>
@@ -103,20 +104,20 @@ import IssuePreview from '../components/IssuePreview.vue'
             <i class="fa-solid fa-gear"></i><span class="font-bold"> Set your settings</span>
             <div class="ml-6 text-xs">
               Review important settings like
-              <span class="text-warning underline click" @click="$router.push('/global-settings')"
+              <span class="text-warning underline click" @click="$ui.setActiveTab('global-settings')"
                 >AI provider settings</span
               >
               and
-              <span class="underline click" @click="$router.push('/settings')">Project settings</span>
+              <span class="underline click" @click="$ui.setActiveTab('settings')">Project settings</span>
             </div>
           </li>
           <li>
             <i class="fa-solid fa-book"></i> <span class="font-bold"> Review knowledge settings and profiles (optional)</span>
             <div class="ml-6 text-xs">
               Knowledge allows codx-junior to learn from the code base
-              <span class="text-secondary underline click" @click="$router.push('/knowledge')"> check it here</span>
+              <span class="text-secondary underline click" @click="$ui.setActiveTab('knowledge')"> check it here</span>
               and profiles improves codx-junior performance...
-              <span class="text-info underline click" @click="$router.push('/profiles')"> check it at profiles</span>
+              <span class="text-info underline click" @click="$ui.setActiveTab('profiles')"> check it at profiles</span>
             </div>
           </li>
         </ul>
@@ -125,7 +126,7 @@ import IssuePreview from '../components/IssuePreview.vue'
           <button
             class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
             data-tip="Solve issues chatting with codx!"
-            @click="$router.push('/tasks')"
+            @click="$ui.setActiveTab('tasks')"
           >
             <i class="fa-solid fa-list-check"></i>
             Tasks
@@ -141,7 +142,7 @@ import IssuePreview from '../components/IssuePreview.vue'
           <button
             class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
             data-tip="Preview your changes"
-            @click="$router.push('/profiles')"
+            @click="$ui.setActiveTab('profiles')"
           >
             <i class="fa-solid fa-circle-user"></i>
             Profiles
@@ -164,7 +165,7 @@ export default {
       selection: 'home',
       newProjectPath: "",
       filterQuery: "",
-      issues: []
+      issues: [],
     }
   },
   async created () {
@@ -184,13 +185,21 @@ export default {
   },
   methods: {
     async createNewProject() {
-      await this.$projects.createNewProject(this.newProjectPath)
-      this.newProjectPath = null
-      this.$router.push('/tasks')
+      if (!this.newProjectPath) {
+        return
+      }
+      if (this.newProjectPath.includes("github.com") &&
+        this.newProjectPath.includes("/issues/")) {
+        this.$root.launchIssueWizard(new GitIssueWizard(this.$service, this.newProjectPath))
+      } else {
+        await this.$projects.createNewProject(this.newProjectPath)
+        this.newProjectPath = null
+        this.$ui.setActiveTab('tasks')
+      }
     },
     setActiveProject(project) {
       this.$projects.setActiveProject(project)
-      this.$router.push(`/${project.project_name}/tasks`)
+      this.$ui.setActiveTab("tasks")
     },
     openLink(link) {
       window.open(link, '_blank')

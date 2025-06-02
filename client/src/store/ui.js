@@ -13,7 +13,6 @@ export const state = () => ({
   isMobile: false,
   orientation: 'portrait',
   openedFile: null,
-  kanban: null,
   showLogs: false,
   voiceLanguage: 'en-US',
   voiceLanguages: {
@@ -51,7 +50,14 @@ export const getters = getterTree(state, {
 
 export const mutations = mutationTree(state, {
   setActiveTab(state, tab) {
-    state.activeTab = tab || 'home'
+    tab = tab || 'hme'
+    if (state.activeTab === tab) {
+      if (state.appActives.length) {
+        state.activeTab = null  
+      }
+    } else {
+      state.activeTab = tab
+    }
   },
   loadState(state) {
     const savedState = localStorage.getItem('uiState')
@@ -101,10 +107,6 @@ export const mutations = mutationTree(state, {
   },
   setCodxJuniorWidth(state, width) {
     state.codxJuniorWidth = width
-    $storex.ui.saveState()
-  },
-  setKanban(state, kanban) {
-    state.kanban = kanban
     $storex.ui.saveState()
   },
   toggleLogs(state) {

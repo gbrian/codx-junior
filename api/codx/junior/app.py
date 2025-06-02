@@ -28,9 +28,10 @@ from codx.junior.browser import run_browser_manager
 from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
 from codx.junior.api.users import router as users_router
 from codx.junior.api.wiki import router as wiki_router
+from codx.junior.api.github import router as github_router
+
 from codx.junior.security.user_management import get_authenticated_user
 
-from codx.junior.misc.github import search_github_issues
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
@@ -120,7 +121,7 @@ CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
-GLOBAL_REQUEST_TIMEOUT=30
+GLOBAL_REQUEST_TIMEOUT=280
 
 app = FastAPI(
     title="CODXJuniorAPI",
@@ -140,6 +141,8 @@ app.mount("/api/socket.io", sio_asgi_app)
 app.include_router(chatgpt_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(wiki_router, prefix="/api")
+app.include_router(github_router, prefix="/api")
+
 
 
 @app.exception_handler(RequestValidationError)
@@ -295,6 +298,11 @@ async def api_set_kanban(request: Request):
     kanban = await request.json()
     codx_junior_session.get_chat_manager().save_kanban(kanban)
 
+@app.delete("/api/kanban")
+def api_delete_kanban(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    kanban_title = request.query_params.get("kanban_title")
+    return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)
 
 @app.post("/api/images")
 def api_image_upload(file: UploadFile):
@@ -543,10 +551,6 @@ def api_restart():
     logger.info(f"****************** API RESTARTING... bye *******************")
     exec_command("sudo kill 7")
 
-@app.get('/api/github/issues/help-wanted')
-def get_github_issues_help_wanted():
-    return search_github_issues()
-
 if CODX_JUNIOR_STATIC_FOLDER:
     os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)
     logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")
@@ -554,6 +558,5 @@ if CODX_JUNIOR_STATIC_FOLDER:
 
 app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
 
-if CODX_JUNIOR_API_BACKGROUND:
-    start_background_services(app)
+start_background_services(app)
 

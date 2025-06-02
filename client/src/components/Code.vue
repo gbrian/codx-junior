@@ -7,9 +7,6 @@ import CodeViewer from './CodeViewer.vue'
 <template>
   <div class="rounded-md">
     <div class="flex gap-2 w-full justify-end bg-base-100 p-2 rounded-t" ref="toolbar">
-      <button class="btn btn-xs tooltip" data-tip="Generate code" @click="$emit('generate-code', codeBlockInfo)">
-        <i class="fa-solid fa-file-code"></i> Generate code
-      </button>
       <button class="btn btn-xs tooltip" data-tip="Preview HTML"
         @click="htmlPreview = !htmlPreview" v-if="language === 'html'"
       >

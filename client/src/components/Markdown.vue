@@ -42,7 +42,7 @@ export default {
     return {
       codeBlocks: [],
       showDoc: false,
-      youtubeLinks: []
+      youtubeLinks: [],
     }
   },
   mounted() {

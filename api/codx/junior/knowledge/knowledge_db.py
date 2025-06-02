@@ -43,6 +43,7 @@ class KnowledgeDB:
 
         self.path = self.settings.project_path
         self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(str(self.path)))
+        assert self.index_name
         self.db_path = f"{settings.codx_path}/db/{self.index_name}"
         os.makedirs(self.db_path, exist_ok=True)
         
@@ -93,8 +94,9 @@ class KnowledgeDB:
                 auto_id=True
             )
         except Exception as ex:
-            logger.exception(f"Error creating embeddings collection {ex}. Setting: {embeddings_ai_settings}")
-
+            logger.error(f"Error creating embeddings collection. Setting: {embeddings_ai_settings} project: {self.settings} index name: {self.index_name}\n{ex}")
+            raise ex
+            
     def get_all_files(self):
         all_files = {}
         try:

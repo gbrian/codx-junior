@@ -87,6 +87,8 @@ from codx.junior.security.user_management import UserSecurityManager
 """Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
 MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 300
 
+CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
+
 logger = logging.getLogger(__name__)
 
 APPS = [
@@ -175,12 +177,18 @@ def find_all_projects():
     all_codx_path = result.stdout.decode('utf-8').split("\n")
     paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
     #logger.info(f"[find_all_projects] paths: {paths}")
+    def is_valid_project(settings):
+        if not settings or not settings.project_name:
+            return False
+        if [p for p in all_projects.values() if p.project_name == settings.project_name]:
+            return False
+        return True
+
     for codx_path in paths:
         try:
             project_file_path = f"{codx_path}/project.json"
             settings = CODXJuniorSettings.from_project_file(project_file_path)
-            project_exists = [p for p in all_projects.values() if p.project_name == settings.project_name] 
-            if not project_exists: 
+            if is_valid_project(settings): 
                 all_projects[settings.project_id] = settings
             else:
                 # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
@@ -485,6 +493,11 @@ class CODXJuniorSession:
         }
 
     @profile_function
+    def find_project_documents(self, query: str):
+        documents, _ = self.select_afefcted_documents_from_knowledge(chat=None, ai=self.get_ai(), query=query, search_projects=[])
+        return documents
+    
+    @profile_function
     def select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str, ignore_documents=[], search_projects = []):
         for search_project in search_projects:
             query = query.replace(f"@{search_project.project_name}", "")
@@ -495,8 +508,9 @@ class CODXJuniorSession:
             file_list = []
 
             self.log_info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
-            for search_project in search_projects:    
-                self.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.project_path}")
+            for search_project in search_projects:
+                if chat:    
+                    self.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.project_path}")
                 project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, ignore_documents=ignore_documents)
                 project_file_list = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
                 if project_docs:
@@ -776,9 +790,10 @@ class CODXJuniorSession:
         res = await self.check_file_for_mentions(file_path=file_path)
         self.log_info(f"Check file {file_path} for mentions: {res}")
         # Reload knowledge 
-        if res != "processing" and (force or self.settings.watching):
-            knowledge = self.get_knowledge()
-            knowledge.reload_path(path=file_path)
+        if CODX_JUNIOR_API_BACKGROUND:
+            if res != "processing" and (force or self.settings.watching):
+                knowledge = self.get_knowledge()
+                knowledge.reload_path(path=file_path)
 
     async def process_project_changes(self):
         if not self.settings.is_valid_project():
@@ -919,6 +934,10 @@ class CODXJuniorSession:
             
             if not mentions:
                 return ""
+
+            # Don't process in background, mentions will be taken by main API module
+            if CODX_JUNIOR_API_BACKGROUND:
+                return "processing"
 
             self.send_notification(text=f"@codx {len(mentions)} mentions in {file_path.split('/')[-1]} profiles: {profile_names}")    
             self.log_info(f"{len(mentions)} mentions found for {file_path} profiles: {profile_names}")
@@ -1308,7 +1327,7 @@ class CODXJuniorSession:
 
             if chat_profiles:
                 valid_profiles = [profile for profile in chat_profiles if profile]
-                chat_profiles_content = "\n".join([profile.content for profile in valid_profiles])
+                chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in valid_profiles])
                 chat_profile_names = [profile.name for profile in valid_profiles]
                 if not chat_model:
                     chat_models = list(set([profile.llm_model for profile in valid_profiles if profile.llm_model]))
@@ -1355,7 +1374,11 @@ class CODXJuniorSession:
                       doc_context = document_to_context(
                         Document(page_content=f.read(), metadata={ "source": chat_file })
                       )
-                      context += f"{doc_context}\n"
+                      messages.append(HumanMessage(content=f"""
+                      * To change existing file '{chat_file_full_path}' generate a diff patch block
+                      
+                      {doc_context}
+                      """))
                 except Exception as ex:
                     logger.error(f"Error adding context file to chat {ex}")
 

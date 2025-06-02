@@ -15,7 +15,7 @@ import moment from 'moment'
           <span class="text-xs" v-if="board.last_update">[{{ moment(board.last_update).fromNow() }}]</span>
           <h2 class="card-title flex justify-between tooltip group" :data-tip="board.title">
             <div class="text-nowrap overflow-hidden">{{ board.title }}</div>
-            <span @click.stop="emitEditEvent(board)" class="hidden group-hover:block click text-warning">
+            <span @click.stop="onEditBoard(board)" class="hidden group-hover:block click text-warning">
               <i class="fas fa-cogs"></i>
             </span>
           </h2>
@@ -41,12 +41,39 @@ import moment from 'moment'
         </div>
       </div>
     </div>
+    <modal :close="true" @close="editBoard = null" v-if="editBoard">
+      <div>
+        <label class="block mb-2">Name</label>
+        <input v-model="editBoard.title" type="text" class="input input-bordered w-full mb-4" />
+        <label class="block mb-2">Description</label>
+        <textarea v-model="editBoard.description" class="textarea textarea-bordered w-full mb-4"></textarea>
+        <div class="flex justify-between">
+          <button @click="saveBoard" class="btn">Save</button>
+          <button @click="deleteBoard" class="btn btn-error">
+            <span v-if="confirmDelete">Confirm delete</span>
+            <span v-else>Delete</span>
+          </button>
+        </div>
+      </div>
+              <div class="mt-2 flex justify-end font-bold text-warning gap-2" v-if="confirmDelete">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          All tasks will be deleted
+          <span @click="confirmDelete = false" class="text-error click underline">cancel</span>
+        </div>
+
+    </modal>
   </div>
 </template>
 
 <script>
 export default {
   props: ['boards'],
+  data () {
+    return {
+      editBoard: null,
+      confirmDelete: false
+    }
+  },
   created() {
     this.$projects.loadKanban()
   },
@@ -67,8 +94,20 @@ export default {
     emitNewKanban() {
       this.$emit('new') // Emit new Kanban event
     },
-    emitEditEvent(board) {
-      this.$emit('edit', board) // Emit edit event with board object
+    saveBoard() {
+      this.$emit('save', this.editBoard) // Emit save event with updated board
+    },
+    deleteBoard() {
+      if (this.confirmDelete) {
+        this.$emit('delete', this.editBoard) // Emit delete event with board to be deleted
+        this.editBoard = null
+      } else {
+        this.confirmDelete = true
+      }
+    },
+    onEditBoard({ title, description }) {
+      this.editBoard = { title, description }
+      this.confirmDelete = false
     }
   }
 }

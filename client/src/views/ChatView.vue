@@ -12,7 +12,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full pb-2" v-if="chat">
+  <div class="flex flex-col h-full pb-2 px-2" v-if="chat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col gap-2 w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">
@@ -42,7 +42,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                     <ProfileAvatar :profile="chatProfiles[0]"
                       :project="taskProject"
                       width="7"
-                      v-if="false && chatProfiles.length">
+                      v-if="chatProfiles.length">
                         <div class="flex justify-end gap-2">
                           <div class="badge badge-xs badge-warning click" @click="removeProfile(chatProfiles[0])">
                             change
@@ -75,7 +75,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                 <div class="flex gap-2 p-1 items-center -top-1" v-if="toggleChatOptions">
                   <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
                     <div class="flex items-center gap-2" v-if="!showHidden">
-                      ({{ hiddenCount }})
+                      ({{ hiddenCount }}/{{ messageCount }})
                       <i class="fa-solid fa-eye-slash"></i>
                     </div>
                     <span class="text-warning" v-else>
@@ -305,6 +305,9 @@ export default {
     },
     hiddenCount() {
       return this.chat.messages?.filter(m => m.hide).length
+    },
+    messageCount() {
+      return this.chat.messages?.length
     },
     messages() {
       return this.chat.messages.filter(m => !m.hide || this.showHidden)

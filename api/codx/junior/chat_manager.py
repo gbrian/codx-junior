@@ -3,6 +3,7 @@ import pathlib
 import os
 import json
 import uuid
+import shutil
 
 from slugify import slugify
 from collections import deque
@@ -169,6 +170,10 @@ class ChatManager:
         messages = [serialize_message(message) for message in chat.messages]
         chat_content = "\n".join([header] + messages)
         return chat_content
+
+    def delete_kanban(self, kanban_title: str):
+        shutil.rmtree(f"{self.chat_path}/{kanban_title}")
+
 
     @profile_function
     def deserialize_chat(self, content, chat_only: bool = False) -> Chat:

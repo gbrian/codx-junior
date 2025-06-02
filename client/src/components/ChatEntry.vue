@@ -75,8 +75,8 @@ import { CodeDiff } from 'v-code-diff'
             @generate-code="onGenerateCode" 
             v-if="!showDiff && !srcView && !code_patches" />
           <CodeDiff
-            :old-string="message.diffMessage.content"
-            :new-string="messageContent"
+            :new-string="message.diffMessage.content"
+            :old-string="messageContent"
             theme="dark"
             v-if="showDiff"
           />

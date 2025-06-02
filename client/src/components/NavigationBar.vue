@@ -59,7 +59,7 @@ import Assistant from './codx-junior/Assistant.vue';
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
           :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Add project"
-          @click="setProjectTab('')">
+          @click="setActiveTab('home')">
             <div class="flex flex-col gap-4">
               <i class="fa-solid fa-plus"></i>
           </div>

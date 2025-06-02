@@ -60,15 +60,13 @@ export default {
   methods: {
     setActiveTab(tabName) {
       if (!this.disableProjectTabs || tabName === 'home') {
-        this.$router.push(`/${tabName}`);
+        this.$ui.setActiveTab(tabName);
       }
     },
     showCoder() {
-      this.$router.push('/app');
       this.$ui.setShowCoder(true)
     },
     showBrowser() {
-      this.$router.push('/app');
       this.$ui.setShowBrowser(true)
     }
   }

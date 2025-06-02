@@ -10,12 +10,18 @@ import KanbanList from "./KanbanList.vue"
 <template>
   <div class="h-full" v-if="kanban?.boards">
     <div v-if="!$projects.activeChat && !board">
-      <h1 class="text-2xl font-bold mb-4">Kanban Boards Dashboard</h1>
+      <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between">
+        <div>Boards Dashboard</div>
+        <button class="btn btn-sm btn-warning btn-outline" @click="showNewBoardModal">
+          New kanban
+        </button>
+      </h1>
       <KanbanList
         :boards="parentBoards"
         @select="selectBoard"
         @edit="onEditBoard"
         @new="showNewBoardModal"
+        @delete="onDeleteBoard"
       />
     </div>
 
@@ -151,14 +157,30 @@ import KanbanList from "./KanbanList.vue"
     </div>
     <modal v-if="showBoardModal">
       <h2 class="font-bold text-3xl">Add New Board</h2>
-      <div class="text-xl text-info font-bold" v-if="activeBoard">Parent {{ activeBoard.title }}</div>
-      <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
-      <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
-      <input type="text" v-model="newBoardBranch" placeholder="Enter branch name" class="input input-bordered w-full mt-2"/>
-      <select v-model="selectedTemplate" class="select select-bordered w-full mt-2">
-        <option disabled value="">Select a Template</option>
-        <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
-      </select>
+
+      <div class="collapse">
+        <input type="radio" name="newboard" v-model="newBoardType" value="issue" />
+        <div class="collapse-title text-xl font-medium"><i class="fa-solid fa-link"></i> From issue</div>
+        <div class="collapse-content">
+          <input type="text" v-model="newBoardIssueLink" placeholder="Enter isue url" class="input input-bordered w-full mt-2"/>
+        </div>
+      </div>
+
+      <div class="collapse">
+        <input type="radio" name="newboard"  v-model="newBoardType" value="manual" />
+        <div class="collapse-title text-xl font-medium"><i class="fa-solid fa-gear"></i> Manual settings</div>
+        <div class="collapse-content">
+          <div class="text-xl text-info font-bold" v-if="activeBoard">Parent {{ activeBoard.title }}</div>
+          <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
+          <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
+          <input type="text" v-model="newBoardBranch" placeholder="Enter branch name" class="input input-bordered w-full mt-2"/>
+          <select v-model="selectedTemplate" class="select select-bordered w-full mt-2">
+            <option disabled value="">Select a Template</option>
+            <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
+          </select>
+        </div>
+      </div>
+
       <div class="modal-action">
         <button class="btn" @click="addBoard">OK</button>
         <button class="btn" @click="showBoardModal = false">Cancel</button>
@@ -210,11 +232,11 @@ const ALL_BOARD_TITLE_ID = "$ALL"
 export default {
   data() {
     return {
-      board: null,
       filter: null,
       showBoardModal: false,
       showColumnModal: false,
-      showEditKanbanModal: false,
+      newBoardType: 'issue',
+      newBoardIssueLink: '',
       newBoardName: '',
       newBoardDescription: '',
       newBoardBranch: '',
@@ -226,26 +248,6 @@ export default {
       columns: [],
       selectedTemplate: null,
       showChildrenBoards: false,
-      templates: [
-        {
-          name: "Scrum",
-          description: "Scrum board",
-          columns: [
-            { title: "To Do", color: "#FF5733" },
-            { title: "In Progress", color: "#33FF57" },
-            { title: "Done", color: "#3357FF" }
-          ]
-        },
-        {
-          name: "Backlog",
-          description: "Backlog board",
-          columns: [
-            { title: "Backlog", color: "#FFC300" },
-            { title: "In Development", color: "#DAF7A6" },
-            { title: "Completed", color: "#C70039" }
-          ]
-        }
-      ],
       editBoardName: '',
       editBoardDescription: '',
       filteredColumns: [],
@@ -259,6 +261,9 @@ export default {
     this.projectChanged()
   },
   computed: {
+    board() {
+      return this.$projects.activeBoard
+    },
     lastUpdatedTask() {
       return this.visibleTasks.sort((a, b) => 
         (a.updated_at || new Date(1900, 1, 1, 0, 0, 0, 0)) > 
@@ -288,7 +293,7 @@ export default {
       return this.$projects.activeProject
     },
     activeBoard() {
-      return this.boards[this.board]
+      return this.boards[this.$projects.activeBoard]
     },
     boardColumns() {
       return this.boards[this.board]?.columns
@@ -335,6 +340,12 @@ export default {
       if (newValue.map(c => c.id).sort().join()
       !== oldValue.map(c => c.id).sort().join())
       this.buildColumns()
+    },
+    kanban() {
+      this.buildKanban()
+    },
+    templates() {
+      return this.$projects.kanbanTemplates
     }
   },
   methods: {
@@ -364,8 +375,7 @@ export default {
       this.isDropdownOpen = !this.isDropdownOpen
     },
     async selectBoard(board) {
-      this.board = board
-      this.$ui.setKanban(board)
+      this.$projects.setActiveBoard(board)
       this.isDropdownOpen = false
       this.showChildrenBoards = !!this.childBoards.length
       await this.$projects.loadChats()
@@ -380,12 +390,11 @@ export default {
       if (!this.editBoardName.trim()) {
         return
       }
-      const board = this.activeBoard
+      const board = this.$projects.activeBoard
       if (board) {
         board.title = this.editBoardName
         board.description = this.editBoardDescription
         await this.saveKanban(true)
-        this.showEditKanbanModal = false
       }
     },
     async createNewChat(base) {
@@ -538,26 +547,29 @@ export default {
       this.editColumnError = null
     },
     async addBoard() {
+      if (this.newBoardType === 'issue') {
+        this.$session.addInfo("Isssue")
+        return
+      }
       const boardName = this.newBoardName.trim()
       if (boardName && !this.boards[boardName]) {
         const selectedTemplate = this.selectedTemplate
-        this.kanban.boards[boardName] = {
-          id: uuidv4(),
+        await this.$projects.addBoard({
+          boardName,
           parent_id: this.activeBoard?.id,
           description: this.newBoardDescription.trim() || selectedTemplate.description,
-          branch: this.newBoardBranch.trim(),
           columns: selectedTemplate?.columns || [],
-          last_update: new Date().toISOString()
-        }
-        await this.saveKanban()
+        })
       }
+      this.showBoardModal = false
+      this.buildKanban()
+    },
+    resetNewBoardInfo () {
       this.newBoardName = ''
       this.newBoardDescription = ''
       this.newBoardBranch = ''
       this.selectedTemplate = null
-      this.showBoardModal = false
-      this.board = boardName
-      this.buildKanban()
+      this.newBoardIssueLink = ''
     },
     openColumnPropertiesModal(column) {
       this.selectedColumn = this.activeKanbanBoard.columns.find(c => c.id === column.id)
@@ -583,9 +595,9 @@ export default {
       return taskNameMatches || messageContentMatches
     },
     onEditBoard (board) {
-      this.selectBoard(board)
-
-      this.showEditKanbanModal = true
+    },
+    onDeleteBoard (board) {
+      this.$projects.deleteBoard(board)
     }
   }
 }

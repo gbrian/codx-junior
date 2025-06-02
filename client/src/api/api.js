@@ -72,6 +72,14 @@ class CodxJuniorConnection {
           .then(({ data }) => data)
           .finally(() => this.liveRequests--);
   }
+
+  delete(url) {
+    this.createConnection()
+    this.liveRequests++;
+    return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
+          .then(({ data }) => data)
+          .finally(() => this.liveRequests--);
+  }
 }
 
 const initializeAPI = (project) => {
@@ -120,6 +128,9 @@ const initializeAPI = (project) => {
     },
     put(url, data) {
       return API.connection.put(url, data)
+    },
+    delete(url) {
+      return API.connection.delete(url)
     },
     users: {
       async list() {
@@ -205,6 +216,9 @@ const initializeAPI = (project) => {
       },
       helpWantedIssues() {
         return API.get('/api/github/issues/help-wanted')
+      },
+      loadIssue(url) {
+        return API.get('/api/github/issues/read?issue_url=' + encodeURIComponent(url)) 
       }
     },
     settings: {
@@ -315,6 +329,9 @@ const initializeAPI = (project) => {
         },
         async save(kanban) {
           API.post('/api/kanban', kanban);
+        },
+        delete(kanban_title) {
+          API.delete('/api/kanban?kanban_title=' + kanban_title);
         }
       }
     },
