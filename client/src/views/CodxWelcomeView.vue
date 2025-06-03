@@ -190,7 +190,7 @@ export default {
       }
       if (this.newProjectPath.includes("github.com") &&
         this.newProjectPath.includes("/issues/")) {
-        this.$root.launchIssueWizard(new GitIssueWizard(this.$service, this.newProjectPath))
+        this.$projects.addWizard(new GitIssueWizard(this.$service, this.newProjectPath))
       } else {
         await this.$projects.createNewProject(this.newProjectPath)
         this.newProjectPath = null

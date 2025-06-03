@@ -3,7 +3,6 @@ import HomeViewVue from '@/views/HomeView.vue'
 import SplitViewVue from '@/views/SplitView.vue'
 import SharedView from '@/views/SharedView.vue'
 import Login from './components/user/Login.vue';
-import Wizard from './components/wizards/Wizard.vue'
 </script>
 
 <template>
@@ -26,9 +25,6 @@ import Wizard from './components/wizards/Wizard.vue'
         </div>
       </div>
     </div>
-    <modal v-if="openWizard">
-      <Wizard :wizard="openWizard" @close="openWizard = null" />
-    </modal>
   </div>
   <div class="flex flex-col items-center justify-center w-full h-full font-2xl px-4 py-2" v-else>
     <div class="animate-pulse font-mono text-green-600">Wake up, codx-junior...</div>
@@ -38,7 +34,6 @@ import Wizard from './components/wizards/Wizard.vue'
 export default {
   data () {
     return {
-      openWizard: false
     }
   },
   created () {
@@ -66,10 +61,7 @@ export default {
   watch: {
   },
   methods: {
-    launchIssueWizard(wizard) {
-      this.openWizard = wizard
-    }
   },
-  expose: ['launchIssueWizard']
+  expose: []
 }
 </script>

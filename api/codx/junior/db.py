@@ -30,6 +30,7 @@ class Message(BaseModel):
     profiles: List[str] = Field(default=[])
     user: Optional[str] = Field(default=None)
     knowledge_topics: List[str] = Field(description="This message will be indexed for knowledge and tagged with this topics", default=[])
+    done: Optional[bool] = Field(default=True, description="Indicates if user is done writing")
 
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)

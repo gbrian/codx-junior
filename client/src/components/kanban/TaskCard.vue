@@ -123,12 +123,8 @@ export default {
       return this.$projects.chats[this.task.parent_id]
     },
     updating() {
-      const { messages } = this.task
-      if (!messages?.length) {
-        return false
-      }
-      return moment().diff(
-        moment(messages[messages.length - 1].updated_at), 'seconds') < 10
+      const { chat, message } = this.$session.lastEvent || {}
+      return message && chat?.id === this.task.id
     },
     profile() {
       return this.$projects.profiles.find(p => p.name === this.task.profiles[0])

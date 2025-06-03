@@ -1,4 +1,7 @@
+import { $storex } from "../store"
 import { ChatService } from "./chat"
+
 export default {
-  chat: new ChatService()
+  $storex,
+  chat: new ChatService($storex)
 }

@@ -1,9 +1,8 @@
-import { $storex } from '../store'
-
-export class Service {
-  get $storex() {
-    return $storex
+export default class Service {
+  constructor($storex) {
+    this.$storex = $storex
   }
+  
   get api() {
     return $storex.api
   }

@@ -130,7 +130,7 @@ def search_github_issues(query: Optional[str] = None) -> Union[List, str]:
     :return: List of results or response text if JSON parsing fails.
     """
     if not query:
-        query = "help+wanted"
+        query = "label%3Ahelp+python"
     query.replace(" ", "+")
     url = f"https://github.com/search?q={query}&type=issues&s=updated&o=desc"
 
@@ -162,7 +162,7 @@ def search_github_issues(query: Optional[str] = None) -> Union[List, str]:
             json_text = line.split('>', 1)[1].rsplit('<', 1)[0].strip()
             try:
                 json_data = json.loads(json_text)
-                results = json_data["payload"]["results"]
+                results = [r for r in json_data["payload"]["results"] ]
                 save_cache_for_url(url, results)
                 logger.info("Parsed and cached results for URL: %s", url)
                 return results

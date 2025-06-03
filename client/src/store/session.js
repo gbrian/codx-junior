@@ -51,6 +51,7 @@ export const state = () => ({
 })
 
 export const getters = getterTree(state, {
+  lastEvent: state => state.events[state.events.length - 1]?.data
 })
 
 export const mutations = mutationTree(state, {

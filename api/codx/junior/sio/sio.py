@@ -99,7 +99,9 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
 @sio_api_endpoint
 async def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSession):
     sio_chat = SioChatMessage(**data)
-    return await codxjunior_session.generate_tasks(chat=sio_chat.chat, instructions=data.get("instructions"))
+    instructions = data.get("instructions")
+    return await codxjunior_session.generate_tasks(chat=sio_chat.chat, 
+                                                    instructions=instructions)
 
 @sio.on("codx-junior-improve")
 @sio_api_endpoint

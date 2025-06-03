@@ -41,7 +41,8 @@ export const state = () => ({
         { title: "Done", color: "#3357FF" }
       ]
     },
-  ]
+  ],
+  activeWizards: []
 })
 
 export const mutations = mutationTree(state, {
@@ -63,6 +64,13 @@ export const mutations = mutationTree(state, {
   },
   setActiveBoard(state, boardName) {
     state.activeBoard = boardName
+  },
+  addWizard(state, wizard) {
+    wizard.id = wizard.id || new Date().getTime()
+    state.activeWizards.push(wizard)
+  },
+  removeWizard(state, wizard) {
+    state.activeWizards = state.activeWizards.filter(w => w !== wizard)
   }
 })
 

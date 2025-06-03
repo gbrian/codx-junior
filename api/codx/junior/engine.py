@@ -1278,7 +1278,7 @@ class CODXJuniorSession:
             response_message = Message(role="assistant",
                                       doc_id=str(uuid.uuid4()))
 
-            def send_message_event(content):
+            def send_message_event(content, done):
                 if not timing_info.get("first_response"):
                     timing_info["first_response"] = time.time() - timing_info["start_time"]
                 response_message.content = content
@@ -1287,6 +1287,7 @@ class CODXJuniorSession:
                     sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))
                 response_message.files = sources
                 response_message.task_item = task_item
+                response_message.done = done
                 self.message_event(chat=chat, message=response_message)
 
             valid_messages = [m for m in chat.messages if not m.hide and not m.improvement]
@@ -1487,10 +1488,11 @@ class CODXJuniorSession:
             self.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
 
             if not callback:
-                callback = lambda content: send_message_event(content=content)
+                callback = lambda content: send_message_event(content=content, done=False)
             try:
                 messages = ai.chat(messages, callback=callback)
                 response_message.content = messages[-1].content
+                send_message_event(content="", done=True)
             except Exception as ex:
                 logger.exception(f"Error chating with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
