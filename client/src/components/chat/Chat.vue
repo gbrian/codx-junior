@@ -36,9 +36,9 @@ import moment from 'moment'
               v-if="!message.hide || showHidden" />
           </div>
           <div class="anchor" ref="anchor"></div>
-          <div class="grid grid-cols-3 gap-2 mb-2 bg-base-100" v-if="childrenChats?.length">
+          <div class="grid grid-cols-3 gap-2 mb-2" v-if="childrenChats?.length">
             <div v-for="child in childrenChats" :key="child.id" class="relative">
-              <TaskCard class="click p-2 bg-base-300 h-40" :task="child" @click="$projects.setActiveChat(child)" />
+              <TaskCard class="click p-2 bg-base-100 h-40" :task="child" @click="$projects.setActiveChat(child)" />
             </div>
           </div>
         </div>

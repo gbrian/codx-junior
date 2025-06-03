@@ -398,7 +398,7 @@ export const actions = actionTree(
         }
       }
     },
-    createNewChat({ state }, chat) {
+    async createNewChat({ state }, chat) {
       chat = {
         id: uuidv4(),
         mode: 'chat',
@@ -410,6 +410,7 @@ export const actions = actionTree(
       state.chats[chat.id] = chat
       if (!chat.temp) {
         state.activeChat = chat
+        await $storex.projects.saveChat(chat)
       }
       return chat
     },
@@ -423,7 +424,7 @@ export const actions = actionTree(
                         .columns.find(({ title }) => title === columnTitle)
       column.chats = [...column.chats||[], chat.id]
       $storex.projects.saveKanban(state.kanban)
-      return chat
+      return $storex.projects.allChats.find(c => c.id === chat.id)
     },
     async createNewChatFromUrl({ state}, chat) {
       chat = {

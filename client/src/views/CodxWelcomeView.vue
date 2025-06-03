@@ -53,7 +53,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
       </div>
       <div class="px-10 flex flex-col justify-center">
         <div class="text-center text-2xl py-2">Trending issues from oss community you may help with!</div>
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-4">
           <IssuePreview 
             class="click" 
             :issue="issue" v-for="issue in issues" :key="issue.hl_title"

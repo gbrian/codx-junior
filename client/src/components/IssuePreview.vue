@@ -2,7 +2,7 @@
 import moment from 'moment'
 </script>
 <template>
-  <div class="p-2 bg-base-100 rounded-md">
+  <div class="py-2 px-4 bg-base-100 rounded-md">
     <h3 class="font-semibold">
       <div>
         <a class="text-blue-600 text-xs hover:underline">

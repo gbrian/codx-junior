@@ -14,7 +14,6 @@ export class ChatService extends Service {
 
   async sendMessage({ chat, message }) {
     chat.messages.push(message)
-    await this.$storex.projects.saveChat(chat)
     return this.$storex.projects.chatWihProject(chat)
   }
 }

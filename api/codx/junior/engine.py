@@ -1492,7 +1492,7 @@ class CODXJuniorSession:
             try:
                 messages = ai.chat(messages, callback=callback)
                 response_message.content = messages[-1].content
-                send_message_event(content="", done=True)
+                send_message_event(content=response_message.content, done=True)
             except Exception as ex:
                 logger.exception(f"Error chating with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
