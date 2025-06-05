@@ -26,9 +26,8 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
           <img class="h-14" src="/only_icon.png" />
           Welcome
         </h1>
-        <p class="py-6 text-center">
-          I'm codx-junior and I'm here to help you maintining 
-          your open source projects.
+        <p class="py-6 text-center text-2xl">
+          I'm codx-junior and I'm here to maintain your open source projects.
         </p>
         <div class="flex gap-2 items-center mb-2">
            Give me an issue and I'll help you fixing it!
@@ -53,17 +52,53 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
         </div>    
       </div>
       <div class="px-10 flex flex-col justify-center">
-        <div class="text-center text-2xl py-2">Trending issues from oss community you may help with!</div>
-        <div class="flex flex-col gap-4">
-          <IssuePreview 
-            class="click"
-            :class="issue.selected && 'border'" 
-            :issue="issue" v-for="issue in issues" :key="issue.hl_title"
-            @click.ctrl.stop="openLink(issue.link)"
-            @open="openLink(issue.link)"
-            @try-me="selectIssue(issue)"
-            @click="highlightIssue(issue)"
-          />
+        <div class="text-center text-2xl py-2 click" @click="showIssues = !showIssues">
+          Not sure what to ask codx-junior? Try this 
+          <span v-if="showIssues">👇</span>
+          <span v-else>👉</span>
+        </div>
+        <div class="bg-base-200 p-4 rounded-md" v-if="showIssues">
+          <div class="text-center text-xs py-2">
+            codx-junior won't be possible without all those great oss we use 
+            join codx-junior and let's show them some ❤️ fixing some of their issues! 
+            <span>🍉</span>
+          </div>
+          <div class="grid grid-cols-4 gap-2 py-2">
+
+            <div class="badge badge-info badge-outline badge-sm click" @click="openLink('https://github.com/vuejs/vue')">vue:3.2.47</div>
+
+            <div class="badge badge-info badge-outline badge-sm click" @click="openLink('https://github.com/tailwindlabs/tailwindcss')">tailwindcss:3.2.0</div>
+
+            <div class="badge badge-info badge-outline badge-sm click" @click="openLink('https://github.com/axios/axios')">axios:1.3.5</div>
+
+            <div class="badge badge-info badge-outline badge-sm click" @click="openLink('https://github.com/vitejs/vite')">vite:4.0.0</div>
+
+            <div class="badge badge-warning badge-outline badge-sm click" @click="openLink('https://github.com/pallets/flask')">flask:2.3.5</div>
+
+            <div class="badge badge-warning badge-outline badge-sm click" @click="openLink('https://github.com/tiangolo/fastapi')">fastapi:0.95.0</div>
+
+            <div class="badge badge-warning badge-outline badge-sm click" @click="openLink('https://github.com/pytest-dev/pytest')">pytest:6.2.5</div>
+
+            <div class="badge badge-warning badge-outline badge-sm click" @click="openLink('https://github.com/encode/uvicorn')">uvicorn:0.18.3</div>
+
+            <div class="badge badge-warning badge-outline badge-sm click" @click="openLink('https://github.com/milvus-io/pymilvus')">pymilvus:2.1.0</div>
+
+            <div class="badge badge-warning badge-outline badge-sm click" @click="openLink('https://github.com/openai/openai-python')">openai:0.12.0</div>
+          </div>
+          <div class="flex flex-col gap-4">
+            <div class="text-xl">
+              Latest issues:
+            </div>
+            <IssuePreview 
+              class="click"
+              :class="issue.selected && 'border'" 
+              :issue="issue" v-for="issue in issues" :key="issue.hl_title"
+              @click.ctrl.stop="openLink(issue.link)"
+              @open="openLink(issue.link)"
+              @try-me="selectIssue(issue)"
+              @click="highlightIssue(issue)"
+            />
+          </div>
         </div>
       </div>
     </div>    
@@ -169,7 +204,8 @@ export default {
       selection: 'home',
       newProjectPath: "",
       filterQuery: "",
-      issues: []
+      issues: [],
+      showIssues: false
     }
   },
   async created () {

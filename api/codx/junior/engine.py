@@ -1495,7 +1495,7 @@ class CODXJuniorSession:
                 messages.append(self.convert_message(user_message))
 
             if chat_profiles_content:
-                messages.append(HumanMessage(content=chat_profiles_content))
+                messages[-1].content += f"\nInstructions:\n{chat_profiles_content}"
             self.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
 
             if not callback:

@@ -4,6 +4,7 @@ import os
 import time
 import tempfile
 import logging
+from urllib.parse import quote_plus
 from typing import List, Optional, Union
 
 # Configure logger for this module
@@ -123,6 +124,27 @@ def save_cache_for_url(url: str, results: Union[List, str]) -> None:
     except Exception as e:
         logger.warning("Failed to save cache for URL: %s, error: %s", url, e)
 
+def search_codx_junior_dependencies_project_isssues():
+    repos = [
+      "BerriAI/litellm",
+      "ollama/ollama",
+      "milvus-io/pymilvus",
+      "gbrian/codx-junior",
+      "vuejs/vitepress",
+      "encode/uvicorn",
+      "fastapi/fastapi",
+      "axios/axios",
+      "vitejs/vite",
+      "openai/openai-python"
+    ]
+    query = lambda r: f"repo%3A{quote_plus(r)}"
+    res = []
+    for repo in repos:
+      try:
+        res = res + search_github_issues(query=query(repo))[0:2]
+      except:
+        pass
+    return res
 
 def search_github_issues(query: Optional[str] = None) -> Union[List, str]:
     """
@@ -131,10 +153,8 @@ def search_github_issues(query: Optional[str] = None) -> Union[List, str]:
     :param url: Optional URL to fetch data from; if None, defaults to GitHub search.
     :return: List of results or response text if JSON parsing fails.
     """
-    if not query:
-        query = 'is%3Aissue+is%3Aopen+label%3A"good+first+issue"'
     query.replace(" ", "+")
-    url = f"https://github.com/search?q={query}&type=issues&s=updated&o=desc"
+    url = f"https://github.com/search?q={query}+type%3Aissue+is%3Aopen&type=issues&s=updated&o=desc"
 
     # Check cache first
     cached_results = load_cache_for_url(url)
@@ -172,9 +192,7 @@ def search_github_issues(query: Optional[str] = None) -> Union[List, str]:
                 logger.error("JSON decoding error for URL: %s, error: %s", url, e)
                 raise ValueError("Error decoding JSON content.") from e
 
-    logger.warning("JSON data not found in response for URL: %s", url)
-    # Return full response text if JSON not found
-    return response.text
+    raise Exception(f"JSON data not found in response for URL: {url}")
 
 
 def download_issue_info(issue_url: str) -> Union[Issue, str]:

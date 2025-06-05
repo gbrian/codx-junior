@@ -8,7 +8,7 @@ import KanbanList from "./KanbanList.vue"
 </script>
 
 <template>
-  <div class="h-full" v-if="kanban?.boards">
+  <div class="h-full px-2" v-if="kanban?.boards">
     <div v-if="!$projects.activeChat && !board">
       <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between">
         <div>Boards Dashboard</div>
