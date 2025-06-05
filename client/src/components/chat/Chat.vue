@@ -134,6 +134,7 @@ import moment from 'moment'
           <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
           <div class="grow flex justify-between items-center" v-else>
             <UserSelector 
+              class="dropdown-top"
               :selectedUser="selectedUser"
               @user-changed="selectedUser = $event"
             />

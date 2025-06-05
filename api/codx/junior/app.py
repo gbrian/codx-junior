@@ -114,7 +114,6 @@ from codx.junior.utils import (
 from codx.junior.context import AICodeGerator
 
 from codx.junior.background import start_background_services
-from codx.junior.wiki.wiki_manager import WikiManager
 
 
 CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
@@ -355,7 +354,6 @@ def api_settings_check(request: Request):
 async def api_save_settings(request: Request):
     settings = await request.json()
     settings = CODXJuniorSettings.from_json(settings).save_project()
-    WikiManager(settings=settings)
     find_all_projects()
     return api_settings_check(request)
 

@@ -119,6 +119,11 @@ def create_project(project_path: str, user: CodxUser):
         logger.info(f"Cloning repo {url} {repo_name} {project_path}")
         exec_command(command=command)
     
+    existing_project = find_project_by_project_path(project_path=project_path)
+    if existing_project:
+        logger.info(f"Project already esists {url} {repo_name} {project_path}")
+        return existing_project
+
     settings = CODXJuniorSettings()
     settings.project_name = project_path.split("/")[-1]
     settings.codx_path = f"{project_path}/.codx"
@@ -152,6 +157,12 @@ def find_project_by_id(project_id: str):
     """Given a project id, find the project"""
     all_projects = find_all_projects().values()
     matches = [p for p in all_projects if p.project_id == project_id]
+    return matches[0] if matches else None
+
+def find_project_by_project_path(project_path: str):
+    """Given a project id, find the project"""
+    all_projects = find_all_projects().values()
+    matches = [p for p in all_projects if p.project_path == project_path]
     return matches[0] if matches else None
 
 def find_project_by_name(project_name: str):
@@ -299,7 +310,7 @@ class CODXJuniorSession:
 
     def get_wiki(self):
         from codx.junior.wiki.wiki_manager import WikiManager
-        return WikiManager(settings=self.settings)
+        return WikiManager(session=self)
 
     def get_browser(self):
         from codx.junior.browser.browser import Browser

@@ -12,7 +12,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
           Home
         </a>
       </li>
-      <li @click="selection = 'projects'">
+      <li @click="showProjects">
         <a>
           Projects
           <span class="badge badge-sm">{{ $projects.allProjects.length }}</span>
@@ -31,18 +31,19 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
           your open source projects.
         </p>
         <div class="flex gap-2 items-center mb-2">
-          <div class="badge font-bold badge-primary hover:badge-ghost click">
-            Try me!
-          </div>
            Give me an issue and I'll help you fixing it!
         </div>
         <div class="flex flex-col gap-2 rounded-md">
-          <div class="group input input-bordered flex gap-1 items-center">
+          <div class="group input input-bordered flex gap-1 items-center"
+            :class="newProjectPath && 'border-warning'"
+          >
             <i class="fa-solid fa-link group-hover:animate-pulse"></i>
             <input type="text" class="grow"
               placeholder="Paste a git issue link to start!" 
               v-model="newProjectPath" />
-            <button class="btn btn-sm" :disabled="newProjectPath?.length < 10" @click="createNewProject">
+            <button class="btn btn-sm"
+              :class="newProjectPath && 'btn-warning border-warning border'"
+              :disabled="newProjectPath?.length < 10" @click="createNewProject(newProjectPath)">
               Go
             </button>
           </div>
@@ -55,10 +56,13 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
         <div class="text-center text-2xl py-2">Trending issues from oss community you may help with!</div>
         <div class="flex flex-col gap-4">
           <IssuePreview 
-            class="click" 
+            class="click"
+            :class="issue.selected && 'border'" 
             :issue="issue" v-for="issue in issues" :key="issue.hl_title"
             @click.ctrl.stop="openLink(issue.link)"
-            @click="newProjectPath = issue.link"
+            @open="openLink(issue.link)"
+            @try-me="selectIssue(issue)"
+            @click="highlightIssue(issue)"
           />
         </div>
       </div>
@@ -165,13 +169,14 @@ export default {
       selection: 'home',
       newProjectPath: "",
       filterQuery: "",
-      issues: [],
+      issues: []
     }
   },
   async created () {
     this.issues = await this.$storex.api.projects.helpWantedIssues()
     this.issues = this.issues.filter(i => i.hl_text)
                     .map(issue => ({ ...issue, link: `https://github.com/${issue.repo.repository.owner_login}/${issue.repo.repository.name}/issues/${issue.number}`}))
+                    .sort((a, b) => a.created > b.created ? -1 : 1)
   },
   computed: {
     filteredProjects() {
@@ -184,18 +189,18 @@ export default {
     }
   },
   methods: {
-    async createNewProject() {
-      if (!this.newProjectPath) {
+    async createNewProject(newProjectPath) {
+      if (!newProjectPath) {
         return
       }
-      if (this.newProjectPath.includes("github.com") &&
-        this.newProjectPath.includes("/issues/")) {
-        this.$projects.addWizard(new GitIssueWizard(this.$service, this.newProjectPath))
+      await this.$service.project.cloneProject(newProjectPath)
+      if (newProjectPath.includes("github.com") &&
+        newProjectPath.includes("/issues/")) {
+        this.$projects.addWizard(new GitIssueWizard(this.$service, newProjectPath))
       } else {
-        await this.$projects.createNewProject(this.newProjectPath)
-        this.newProjectPath = null
         this.$ui.setActiveTab('tasks')
       }
+      this.newProjectPath = null
     },
     setActiveProject(project) {
       this.$projects.setActiveProject(project)
@@ -203,6 +208,17 @@ export default {
     },
     openLink(link) {
       window.open(link, '_blank')
+    },
+    selectIssue(issue) {
+      this.createNewProject(issue.link)
+    },
+    highlightIssue(issue) {
+      this.issues.forEach(i => { i.selected = false })
+      issue.selected = true
+    },
+    async showProjects() {
+      await this.$projects.loadAllProjects()
+      this.selection = 'projects'
     }
   }
 }

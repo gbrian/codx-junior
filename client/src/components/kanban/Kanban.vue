@@ -377,7 +377,6 @@ export default {
     async selectBoard(board) {
       this.$projects.setActiveBoard(board)
       this.isDropdownOpen = false
-      this.showChildrenBoards = !!this.childBoards.length
       await this.$projects.loadChats()
       if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
         Object.keys(this.kanban.boards)
@@ -385,6 +384,7 @@ export default {
         this.saveKanban()
       }
       this.buildKanban()
+      this.showChildrenBoards = !!this.childBoards?.length
     },
     async editKanban() {
       if (!this.editBoardName.trim()) {

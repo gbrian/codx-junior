@@ -4,7 +4,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 
 from codx.junior.engine import (
-  find_project_by_name
+  find_project_by_name,
+  CODXJuniorSession
 )
 
 from codx.junior.security.user_management import UserSecurityManager, get_authenticated_user
@@ -25,5 +26,10 @@ async def wiki_page(request: Request, project_name: str, wiki_path: str):
 
     if not wiki_path:
         wiki_path = "index.html"
-    dist_path = WikiManager(settings=project).dist_dir    
+    dist_path = CODXJuniorSession(settings=project).get_wiki().dist_dir    
     return FileResponse(f"{dist_path}/{wiki_path}")
+
+@router.get("/wiki-engine/build")
+async def wiki_engine_build(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_wiki().build_wiki()

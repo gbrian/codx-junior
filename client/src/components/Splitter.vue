@@ -56,10 +56,11 @@ import Wizard from '../components/wizards/Wizard.vue'
       </SplitterPanel>
 
     </SplitterGroup>
-    <div class="flex flex-col w-90 h-full overflow-auto" v-if="$projects.activeWizards.length">
-      <Wizard :wizard="wizard" 
-          v-for="wizard in $projects.activeWizards" :key="wizard.id" 
-          @close="$projects.removeWizard(wizard)" />
+    <div class="flex flex-col w-2/5 h-full overflow-auto" v-if="$projects.activeWizards.length">
+      <Wizard 
+        :wizard="wizard" 
+        v-for="wizard in $projects.activeWizards" :key="wizard.id" 
+        @close="$projects.removeWizard(wizard)" />
     </div>
     <NavigationBar :right="true" v-if="$ui.isLandscape" />
 

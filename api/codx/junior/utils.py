@@ -54,6 +54,11 @@ def document_to_context(doc):
     lines = [line for line in raw_lines if line]
     return "\n".join(lines)
 
+def remove_starting_block(content):
+    if content.startswith("```"):
+        return "\n".join(content.split("\n")[1:-1])
+    return content
+
 def extract_blocks(content):
     add_line = False
     block_type = None

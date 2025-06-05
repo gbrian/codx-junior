@@ -57,7 +57,8 @@ class Issue:
         self,
         title: str,
         url: str,
-        comments: Optional[List[IssueComment]] = None
+        extra_data: dict,
+        comments: Optional[List[IssueComment]] = None,
     ):
         """
         Initialize an Issue instance.
@@ -69,6 +70,7 @@ class Issue:
         self.title: str = title
         self.url: str = url
         self.comments: List[IssueComment] = comments if comments is not None else []
+        self.extra_data: dict = extra_data
 
 
 def get_cache_filepath(url: str) -> str:
@@ -130,7 +132,7 @@ def search_github_issues(query: Optional[str] = None) -> Union[List, str]:
     :return: List of results or response text if JSON parsing fails.
     """
     if not query:
-        query = "label%3Ahelp+python"
+        query = 'is%3Aissue+is%3Aopen+label%3A"good+first+issue"'
     query.replace(" ", "+")
     url = f"https://github.com/search?q={query}&type=issues&s=updated&o=desc"
 
@@ -205,7 +207,14 @@ def download_issue_info(issue_url: str) -> Union[Issue, str]:
                 issue_json_data = json.loads(json_text)
                 issue_data = issue_json_data['payload']['preloadedQueries'][0]['result']['data']['repository']['issue']
                 nodes = issue_data['frontTimelineItems']['edges']
-                comments: List[IssueComment] = []
+                comments: List[IssueComment] = [
+                  IssueComment(createdAt=issue_data['createdAt'],
+                            author=issue_data['author']['login'],
+                            body=issue_data['body'],
+                            summary='',
+                            url=issue_url,
+                            authorAssociation='Author')
+                ]
                 for node in nodes:
                     comment_node = node.get('node', {})
                     if comment_node.get('__typename') == 'IssueComment':
@@ -221,7 +230,8 @@ def download_issue_info(issue_url: str) -> Union[Issue, str]:
                 issue = Issue(
                     title=issue_data['title'],
                     url=issue_url,
-                    comments=comments
+                    comments=comments,
+                    extra_data=issue_json_data
                 )
                 logger.info("Parsed issue data with comments from URL: %s", issue_url)
                 return issue

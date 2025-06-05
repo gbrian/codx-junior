@@ -3,10 +3,10 @@ import UserAvatar from '../user/UserAvatar.vue'
 </script>
 
 <template>
-    <div class="dropdown dropdown-top click" @click.stop="">
+    <div class="dropdown click" @click.stop="">
         <div tabindex="0" class="flex items-end gap-1 text-xs font-bold" @click="toggleDropdown">
           <UserAvatar class="ring rounded-full h-6" :user="selectedUser" width="6" />
-          <div>
+          <div v-if="!mini">
             {{ selectedUser.name || selectedUser.username }}
           </div>
         </div>
@@ -23,7 +23,7 @@ import UserAvatar from '../user/UserAvatar.vue'
 
 <script>
 export default {
-  props: ['selectedUser'],
+  props: ['selectedUser', 'mini', 'open'],
   data() {
     return {
       isOpen: false,

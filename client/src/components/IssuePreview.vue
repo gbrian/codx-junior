@@ -2,7 +2,7 @@
 import moment from 'moment'
 </script>
 <template>
-  <div class="py-2 px-4 bg-base-100 rounded-md">
+  <div class="py-2 px-4 bg-base-100 rounded-md group hover:border">
     <h3 class="font-semibold">
       <div>
         <a class="text-blue-600 text-xs hover:underline">
@@ -15,7 +15,7 @@ import moment from 'moment'
         </a>
       </div>
     </h3>
-    <div class="text-xs">
+    <div class="text-xs group-hover:text-base">
     {{ issue.hl_text }}
     </div>
     <div class="flex justify-between">
@@ -40,13 +40,23 @@ import moment from 'moment'
         </div>
       </div>
     </div>  
+    <div class="hidden mt-2 group-hover:flex gap-2 items-center justify-end transition transition-all">
+      <div class="font-bold text-info underline text-xs click"
+        @click="$emit('open')"
+      >
+        more info
+      </div>
+      <div class="badge font-bold badge-primary hover:badge-ghost click"
+        @click="$emit('try-me')"
+      >
+        Try me!
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 export default {
-  props: {
-    issue: Object
-  }
+  props: ['issue', 'selected']
 }
 </script>

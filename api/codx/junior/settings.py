@@ -267,6 +267,8 @@ class CODXJuniorSettings(BaseModel):
 
     def get_ignore_patterns(self):
         ignore_patterns = [".git", "node_modules"]
+        if self.project_wiki:
+            ignore_patterns.append(self.project_wiki)
         if self.knowledge_file_ignore:
             ignore_patterns = ignore_patterns + \
                             [i.strip() for i  in self.knowledge_file_ignore.split(",")] + \
@@ -275,3 +277,6 @@ class CODXJuniorSettings(BaseModel):
 
     def is_valid_project_file(self, file_path: str):
         return not [p for p in self.get_ignore_patterns() if p in file_path]
+
+    def get_wiki_model(self):
+        return self.wiki_model or GLOBAL_SETTINGS.wiki_model
