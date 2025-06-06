@@ -22,3 +22,11 @@ html, body {
 .click {
   cursor: pointer;
 }
+
+.codx-primary {
+  color: #cc0099;
+}
+
+.codx-secondary {
+  color: #8f008f;
+}
