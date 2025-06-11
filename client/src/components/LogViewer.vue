@@ -236,31 +236,17 @@ export default {
       }
     },
     async fetchLogs() {
-      const forceScroll = this.logs.length === 0
       const data = await this.$storex.api.logs.read(this.selectedLog, this.tailSize)
       this.rawLogs = data
-      /*
-      const newLogs = data.filter(l =>
-        !["api/logs", "/var/log/"].some(pattern => l.content.includes(pattern)) &&
-        !this.logs.find(ll => ll.id === l.id))
-        .sort((a, b) => a.timestamp < b.timestamp ? -1 : 1)
-      this.logs.push(...newLogs)
-      this.logModules = {}
-      this.logs.forEach(({ module }) => {
-        this.logModules[module] = { visible: true }
-      })
-      this.applyFilter()
-      this.scrollToBottom(forceScroll)
-      */
       if (this.autoRefresh) {
         setTimeout(() => this.fetchLogs(), 3000)
       }
     },
     clearLogs() {
-      this.logs = []
+      this.rawLogs = []
     },
     onLogChange() {
-      this.logs = []
+      this.clearLogs()
       this.fetchLogs()
     },
     scrollToBottom() {

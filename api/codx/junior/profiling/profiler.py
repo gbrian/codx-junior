@@ -9,7 +9,6 @@ from pstats import SortKey
 
 # Configure logger
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 def profile_function(func):
     """Decorator to profile a function and log the execution time."""

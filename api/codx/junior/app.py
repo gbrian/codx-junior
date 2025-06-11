@@ -35,10 +35,6 @@ from codx.junior.security.user_management import get_authenticated_user
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
-logging.basicConfig(level = logging.DEBUG,
-  format = '[%(asctime)s][%(levelname)s][%(name)s:%(lineno)s]: %(message)s',
-  datefmt='%Y-%m-%d %H:%M:%S',
-)
 logger = logging.getLogger(__name__)
 
 run_browser_manager()
@@ -513,7 +509,7 @@ def api_logs_tail(log_name: str, request: Request):
         logs, _ = exec_command(cmd)
         # return parse_logs(logs)
         def is_valid_log(l):
-            if "GET /api/logs" in l:
+            if "/api/logs" in l:
                 return False
             return True
         return [l for l in logs.split("\n") if is_valid_log(l)]

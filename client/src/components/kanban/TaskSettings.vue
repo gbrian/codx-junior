@@ -85,12 +85,13 @@ export default {
     },
     projects() {
       return this.$projects.allProjects
+        .sort((a, b) => a.project_name.toLowerCase() > b.project_name.toLowerCase() ? 1: -1)
     },
     taskProject() {
       if (this.taskData.project_id) {
         return this.projects.find(p => p.project_id === this.taskData.project_id)
       }
-      return $project
+      return this.$project
     }
   },
   watch: {

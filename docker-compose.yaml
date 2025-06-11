@@ -50,7 +50,7 @@ services:
     # Set to true if you want to use docker inside codx-junior
     privileged: true
     environment:
-      - DEBUG=
+      - DEBU
       # Settings file
       - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/.global_settings.json
       # LLM Settings (Use any OpenAI compatible)

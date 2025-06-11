@@ -19,7 +19,7 @@ import AccountSettings from './security/AccountSettings.vue'
   <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder" :class="$ui.activeTab" />
   <KanbanVue v-if="$ui.activeTab === 'tasks'" />
   <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.activeTab === 'knowledge'" :class="$ui.activeTab" />
-  <KnowledgeSettingsVue class="" v-bind="$attrs" v-if="$ui.activeTab === 'knowledge_settings'" :class="$ui.activeTab" />
+  <KnowledgeSettingsVue class="px-2" v-bind="$attrs" v-if="$ui.activeTab === 'knowledge_settings'" :class="$ui.activeTab" />
   <WikiViewVue v-bind="$attrs" v-if="$ui.activeTab == 'wiki'"></WikiViewVue>
   <ProjectSettingsVue  v-bind="$attrs" v-if="$ui.activeTab === 'settings'" :class="$ui.activeTab" />
   <GlobalSettingsVue v-bind="$attrs" v-if="$ui.activeTab === 'global-settings'" :class="$ui.activeTab" />

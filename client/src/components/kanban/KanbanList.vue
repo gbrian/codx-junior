@@ -89,24 +89,26 @@ export default {
   },
   methods: {
     selectBoard(board) {
-      this.$emit('select', board.title) // Emit select event with board title
+      this.$emit('select', board.title)
     },
     emitNewKanban() {
-      this.$emit('new') // Emit new Kanban event
+      this.$emit('new')
     },
     saveBoard() {
-      this.$emit('save', this.editBoard) // Emit save event with updated board
+      this.$emit('edit', this.editBoard)
+      this.editBoard = null
     },
     deleteBoard() {
       if (this.confirmDelete) {
-        this.$emit('delete', this.editBoard) // Emit delete event with board to be deleted
+        this.$emit('delete', this.editBoard)
         this.editBoard = null
       } else {
         this.confirmDelete = true
       }
     },
-    onEditBoard({ title, description }) {
-      this.editBoard = { title, description }
+    onEditBoard(board) {
+      const { title, description } = board
+      this.editBoard = { board, title, description }
       this.confirmDelete = false
     }
   }

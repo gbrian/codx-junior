@@ -5,7 +5,7 @@ import { CodeDiff } from 'v-code-diff'
 </script>
 
 <template>
-  <div class="chat-entry flex gap-1 items-start relative lg:p-2">
+  <div class="chat-entry flex gap-1 items-start relative lg:p-2 reltive">
     <div class="grow overflow-auto">
       <div class="w-full flex flex-col gap-1 hover:rounded-md p-2 group">
         <div class="text-xs font-bold flex flex-col click"
@@ -68,6 +68,21 @@ import { CodeDiff } from 'v-code-diff'
               <div class="text-secondary" v-else>{{ messageProfiles[0]?.name || 'codx-junior' }}</div>
             </div>
         </div>
+        <div v-if="message.think">
+          <div class="chat chat-start click"
+            @click="message.full_think = !message.full_think"
+          >
+            <div class="chat-bubble">
+              <div class="badge badge-info badge-outline">think</div>
+              {{ thinkText }}
+              <div class="chat-footer opacity-50" v-if="message.is_thinking">
+                <span class="loading loading-dots"></span>
+              </div>
+              <span class="underline" v-if="message.full_think">close</span>
+            </div>
+            
+          </div>                
+        </div>
         <div @copy.stop="onMessageCopy" :class="['max-w-full group border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
           <pre v-if="srcView">{{ message.content }}</pre>
           <Markdown 
@@ -99,6 +114,9 @@ import { CodeDiff } from 'v-code-diff'
               </div>
             </div>
           </div>
+          <div class="chat-footer opacity-50" v-if="message.content && !message.done">
+            <span class="loading loading-dots"></span>
+          </div>
           <div v-if="images">
             <div class="carousel gap-2">
               <div class="carousel-item click mt-2" v-for="image in images" :key="image.src" @click="$emit('image', image)" :alt="image.alt" :title="image.alt">
@@ -112,7 +130,7 @@ import { CodeDiff } from 'v-code-diff'
           <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="message.files?.length">
             Linked files:
             <div v-for="file in message.files" :key="file" :title="file" class="flex gap-2 items-center click">
-              <div class="flex gap-2 click hover:underline" @click="$ui.openFile(file)">
+              <div class="flex gap-2 click hover:underline" @click="openFile(file)">
                 <div class="click tooltip tooltip-right" data-tip="Attach file" @click.stop="$emit('add-file-to-chat', file)">
                   <i class="fa-solid fa-file-arrow-up"></i>
                 </div>
@@ -143,6 +161,11 @@ export default {
     }
   },
   computed: {
+    thinkText () {
+      const { full_think, is_thinking, think } = this.message 
+      return (full_think || is_thinking) 
+        ? think : `${think.slice(0, 50)}...`
+    },
     messageProfiles() {
       return  this.$projects.profiles.filter(p => this.message.profiles?.includes(p.name))
     },
@@ -188,6 +211,12 @@ export default {
       const seconds = Math.floor(this.message.meta_data.time_taken)
       const baseMoment = moment({h:0, m:0, s:0, ms:0})
       return `${this.message.meta_data.model} ${baseMoment.add(seconds, 'seconds').format("mm:ss")}`
+    },
+    chatProject() {
+      if (this.chat.project_id) {
+        return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id)
+      }
+      return this.$project
     }
   },
   methods: {
@@ -262,6 +291,10 @@ export default {
     },
     onGenerateCode(codeBlockInfo) {
       this.$emit('generate-code', codeBlockInfo)
+    },
+    openFile(file) {
+      const { project_path } = this.chatProject
+      this.$ui.openFile(project_path + file)
     }
   },
   mounted() {

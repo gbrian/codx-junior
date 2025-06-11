@@ -157,15 +157,6 @@ import KanbanList from "./KanbanList.vue"
     </div>
     <modal v-if="showBoardModal">
       <h2 class="font-bold text-3xl">Add New Board</h2>
-
-      <div class="collapse">
-        <input type="radio" name="newboard" v-model="newBoardType" value="issue" />
-        <div class="collapse-title text-xl font-medium"><i class="fa-solid fa-link"></i> From issue</div>
-        <div class="collapse-content">
-          <input type="text" v-model="newBoardIssueLink" placeholder="Enter isue url" class="input input-bordered w-full mt-2"/>
-        </div>
-      </div>
-
       <div class="collapse">
         <input type="radio" name="newboard"  v-model="newBoardType" value="manual" />
         <div class="collapse-title text-xl font-medium"><i class="fa-solid fa-gear"></i> Manual settings</div>
@@ -178,6 +169,13 @@ import KanbanList from "./KanbanList.vue"
             <option disabled value="">Select a Template</option>
             <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
           </select>
+        </div>
+      </div>
+      <div class="collapse">
+        <input type="radio" name="newboard" v-model="newBoardType" value="issue" />
+        <div class="collapse-title text-xl font-medium"><i class="fa-solid fa-link"></i> From issue</div>
+        <div class="collapse-content">
+          <input type="text" v-model="newBoardIssueLink" placeholder="Enter isue url" class="input input-bordered w-full mt-2"/>
         </div>
       </div>
 
@@ -235,7 +233,7 @@ export default {
       filter: null,
       showBoardModal: false,
       showColumnModal: false,
-      newBoardType: 'issue',
+      newBoardType: 'manual',
       newBoardIssueLink: '',
       newBoardName: '',
       newBoardDescription: '',
@@ -325,6 +323,9 @@ export default {
     },
     visibleTasks() {
       return this.filteredColumns.reduce((a, b) => a.concat(b.tasks || []), [])
+    },
+    templates() {
+      return this.$projects.kanbanTemplates
     }
   },
   watch: {
@@ -343,9 +344,6 @@ export default {
     },
     kanban() {
       this.buildKanban()
-    },
-    templates() {
-      return this.$projects.kanbanTemplates
     }
   },
   methods: {
@@ -594,7 +592,18 @@ export default {
       )
       return taskNameMatches || messageContentMatches
     },
-    onEditBoard (board) {
+    onEditBoard ({ board, title, description }) {
+      const existingBoard = this.kanban.boards[board.title]
+      delete this.kanban.boards[board.title]
+      this.kanban.boards[title] = {
+        ...existingBoard,
+        title,
+        description
+      }
+      this.saveKanban()
+      if (board.title === this.board) {
+        this.selectBoard(title)
+      }
     },
     onDeleteBoard (board) {
       this.$projects.deleteBoard(board)

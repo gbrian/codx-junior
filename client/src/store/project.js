@@ -390,7 +390,13 @@ export const actions = actionTree(
         if (chat && message) {
           const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
           if (currentMessage) {
-            currentMessage.content += message.content
+            currentMessage.is_thinking = message.is_thinking
+            currentMessage.done = message.done
+            if (message.is_thinking) {
+              currentMessage.think += message.think
+            } else {
+              currentMessage.content += message.content
+            }
             currentMessage.updated_at = new Date().toISOString()
           } else {
             chat.messages.push(message)

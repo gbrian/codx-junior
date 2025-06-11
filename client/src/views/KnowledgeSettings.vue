@@ -60,6 +60,8 @@ import moment from 'moment'
           <div class="flex gap-2 items-center tooltip" data-tip="Use keywords in search">Keywords:
             <input type="checkbox" v-model="enableKeywords" class="w-20 checkbox checkbox-xs" />
           </div>
+          
+          <div class="grow"></div>
           <button class="btn btn-sm tooltip hover:text-info" data-tip="Save these settings" @click="saveKnowledgeSettings">
             <i class="fa-solid fa-floppy-disk"></i>
           </button>
@@ -94,6 +96,9 @@ import moment from 'moment'
                 <div>{{ doc.metadata.source.split('/').reverse()[0] }}</div>
               </div>
               <markdown :text="doc.metadata.score_analysis" class="grow"></markdown>
+              <div class="alert alert-sm alert-error" v-if="doc.metadata.score_error">
+                {{ doc.metadata.score_error }}
+              </div>
               <div class="flex gap-2 items-center">
                 <i class="fa-solid fa-scale-unbalanced"></i>
                 {{ `${doc.metadata.db_distance||''}`.slice(0, 4) }}

@@ -57,10 +57,16 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                   </div>
 
                   <div class="click text-xs md:text-xl flex flex-col" @click="editName = true">
-                    <div> {{ chat.name }} 
+                    <div>
+                       {{ chat.name }} 
                       <span class="text-xs hover:underline text-info" 
                         @click.stop="showDescription = !showDescription"
-                        v-if="chat.description">more</span>
+                        v-if="chat.description">more
+                      </span>
+                      <span class="badge badge-md badge-outline" v-if="taskProject">
+                        <img :src="taskProject.project_icon" class="w-3 rounded-full mr-1" />
+                        {{ taskProject.project_name }}
+                      </span>
                     </div>
                     <div class="text-xs" v-if="showDescription">
                       {{ chat.description }}

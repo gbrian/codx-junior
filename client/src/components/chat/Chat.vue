@@ -18,10 +18,19 @@ import moment from 'moment'
         </div>
         <div class="overflow-auto h-full">
           <div class="flex flex-col" v-for="message in messages" :key="message.id">
+            <div class="flex w-full flex-col gap-4 bg-base-100 p-2 mb-2 rounded-md" v-if="!message.content && !message.think">
+              <div class="flex items-center gap-4">
+                <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
+                <div class="flex flex-col gap-4">
+                  <div class="skeleton h-4 w-20"></div>
+                </div>
+              </div>
+              <div class="skeleton h-32 w-full"></div>
+            </div>
             <ChatEntry :class="['mb-4 rounded-md py-2 bg-base-100',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
               message.hide ? 'opacity-60' : '']"
-              :chat="chat"
+              :chat="theChat"
               :message="message"
               @edit="onEditMessage(message)"
               @enhance="onEditMessage(message, true)"
@@ -33,7 +42,7 @@ import moment from 'moment'
               @add-file-to-chat="$emit('add-file', $event)"
               @image="imagePreview = { ...$event, readonly: true }"
               @generate-code="onGenerateCode"
-              v-if="!message.hide || showHidden" />
+              v-else />
           </div>
           <div class="anchor" ref="anchor"></div>
           <div class="grid grid-cols-3 gap-2 mb-2" v-if="childrenChats?.length">
@@ -353,7 +362,7 @@ export default {
           return res
         }
       }
-      return messages
+      return messages.filter(message => !message.hide || this.showHidden)
     },
     multiline() {
       return this.editorText?.split("\n").length > 1 || this.images?.length
@@ -476,6 +485,7 @@ export default {
         userMessage.files.forEach(file => this.$emit('add-file', file))
         this.addMessage(userMessage)
         this.cleanUserInputAndWaitAnswer()
+        return true
       }
     },
     cleanUserInputAndWaitAnswer() {
@@ -490,11 +500,13 @@ export default {
 
       if (this.editMessage !== null) {
         this.updateMessage()
+        this.saveChat()
       } else {
-        this.postMyMessage()
+        if (this.postMyMessage()) {
+          await this.saveChat()
+        }
         await this.sendChatMessage(this.theChat)
-      }
-      this.saveChat()
+      }      
     },
     async navigate() {
       if (!this.editorText) {

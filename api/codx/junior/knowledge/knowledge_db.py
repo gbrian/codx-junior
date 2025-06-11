@@ -126,6 +126,7 @@ class KnowledgeDB:
     def update_all_file (self, documents: [Document]):
         all_files = self.get_all_files()
         sources = list(set([doc["metadata"]["source"] for doc in documents]))
+        logger.info(f"update_all_file adding {len(sources)} sources {sources}")
 
         for file in sources:
             new_docs = [doc for doc in documents if doc["metadata"]["source"] == file]

@@ -78,6 +78,7 @@ from codx.junior.db import (
     Kanban,
     Chat,
     Message,
+    MessageTaskItem
 )
 
 from codx.junior.sio.session_channel import SessionChannel
@@ -139,8 +140,6 @@ def create_project(project_path: str, user: CodxUser):
 
 def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
     logger.info(f"coder_open_file {file_name}")
-    if not file_name.startswith(settings.project_path):
-        file_name = f"{settings.project_path}{file_name}".replace("//", "/")
     os.system(f"code-server -r {file_name}")
 
 
@@ -460,6 +459,11 @@ class CODXJuniorSession:
         project_child_projects = self.settings.get_sub_projects()
         project_dependencies = [find_project_by_name(project_name) for project_name in self.settings.get_project_dependencies()]
         return project_child_projects, project_dependencies
+
+    def get_all_search_projects(self):
+        project_child_projects, project_dependencies = self.get_project_dependencies()
+        all_projects = [self.settings] + project_child_projects + project_dependencies
+        return all_projects
         
     def extract_query_mentions(self, query: str):
         mentions = re.findall(r'@[a-zA-Z0-9\-\_\.]+', query)
@@ -1100,99 +1104,177 @@ class CODXJuniorSession:
         return self.get_profile_manager().read_profile("project")
 
     @profile_function
+    async def summarize_chat(self, chat: Chat, instructions: str = ""):
+        if chat.messages[-1].task_item == MessageTaskItem.SUMMARY:
+            return chat.messages[-1]
+
+        org_messages = chat.messages
+        summary_prompt = f"""
+        Create a summary of the conversarion.
+        Make sure to do not loose any important detail.
+        Syntetize text, no need for verbosity
+        Add keywords at the end
+        { instructions }
+        """
+        chat.messages = chat.messages.copy() + [Message(role="user", content=summary_prompt)]
+        await self.chat_with_project(chat=chat)
+        response_message = chat.messages[-1]
+        response_message.task_item = MessageTaskItem.SUMMARY
+        response_message.hide = True
+        chat.messages = org_messages + [response_message]
+        return response_message
+          
+    @profile_function
     async def generate_tasks(self, chat: Chat, instructions: str = ""):
-        from codx.junior.db import Chat
-        from pydantic import BaseModel, Field
-        from typing import List
-        from langchain.output_parsers import PydanticOutputParser
-
-        class AITasks(BaseModel):
-            tasks: List[Chat] = Field(description="List of tasks. chat mode will be chat.")
-
-        AI_TASKS_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AITasks)
-
         with self.chat_action(chat=chat, event="Creating sub-tasks"):
 
-          ai = self.get_ai()
-          
-          content = "\n".join([m.content for m in chat.messages[:-1] if not m.hide])
-          last_message = chat.messages[-1]
+            ai = self.get_ai()
+            
+            summary = await self.summarize_chat(chat=chat)
+            content = summary.content
+            last_message = chat.messages[-1]
 
-          def format_project_info(project):
-              logger.info(f"format_project_info: {project.__dict__}")
-              return f"""<project name="{project.settings.project_name}" id="{project.settings.project_id}">
-              { project.get_project_profile().content }
-              </project>
-              """
+            def format_project_info(project):
+                logger.info(f"format_project_info: {project.__dict__}")
+                return f"""<project name="{project.settings.project_name}" id="{project.settings.project_id}">
+                { project.get_project_profile().content }
+                </project>
+                """
 
-          def get_format_instructions():
-              return """
-              {
-                "tasks": [
-                  {
-                    "name": "Design the `project_departments` Junction Table Schema",
-                    "tags": ["ux", "to-do", "whatever"],
-                    "messages": [
-                      { 
-                        "role": "assistent",
-                        "content":"Define the schema for the `project_departments` junction table.  It should have columns for `project_id` (foreign key referencing the Project table) and `department_id` (foreign key referencing the Department table). Consider adding a timestamp column for tracking assignment history."
-                      }
-                    ],
-                  }
-                ]
+            def get_format_instructions():
+                return """
+                {
+                  "tasks": [
+                    {
+                      "name": "Design the `project_departments` Junction Table Schema",
+                      "tags": ["ux", "to-do", "whatever"],
+                      "messages": [
+                        { 
+                          "role": "assistent",
+                          "content":"Define the schema for the `project_departments` junction table.  It should have columns for `project_id` (foreign key referencing the Project table) and `department_id` (foreign key referencing the Department table). Consider adding a timestamp column for tracking assignment history."
+                        }
+                      ],
+                    }
+                  ]
+                }
+                """
+
+            project_child_projects, project_dependencies = self.get_project_dependencies()
+            logger.info(f"project_child_projects: {[p.__dict__ for p in project_child_projects]}")
+            logger.info(f"project_dependencies: {[p.__dict__ for p in project_dependencies]}")
+            all_projects = [self] + [CODXJuniorSession(settings=settings) for settings in project_child_projects + project_dependencies]
+            projects_section = "\n".join([format_project_info(project=project) for project in all_projects])
+
+            output_example = """
+            [
+              { 
+                "name": "Task1. Subtask name ",
+                "description": "A detailed description with clear instructions about what to do"
+              },
+              { 
+                "name": "Task2. Second task name ",
+                "description": "This is  the task description with clear instructions about what to do",
+                "tags": ["ui", "angular"]
               }
-              """
+            ]
+            """
+            prompt = f"""
+            Split into subtasks:
 
-          project_child_projects, project_dependencies = self.get_project_dependencies()
-          logger.info(f"project_child_projects: {[p.__dict__ for p in project_child_projects]}")
-          logger.info(f"project_dependencies: {[p.__dict__ for p in project_dependencies]}")
-          all_projects = [self] + [CODXJuniorSession(settings=settings) for settings in project_child_projects + project_dependencies]
-          projects_section = "\n".join([format_project_info(project=project) for project in all_projects])
+            <content>
+            { self.get_chat_analysis_parents(chat=chat) }
+            { content }
+            </content>
 
-          prompt = f"""
-          <projects>
-          { projects_section }
-          </projects>
+            <main_task>
+            { last_message.content }
+            </main_task>
+            
+            <instructions>
+              * Take the name of the task from the content if present
+              * Take the description from the content
+              * The name of the task must indicate the priority like: "Task 1: Perform analysis"
+              * Description must be super detailed, explaing all the actions to take, things to change,
+              * Make sure to add any relevant information and have instructions for all that needs to be done.
+              * Don't forget to enclose the subtasks JSON object with "```json" as the first line, and "```" at the end
+              * { instructions }
+            </instructions>
 
-          <content>
-          {self.get_chat_analysis_parents(chat=chat)}
-          { content }
-          </content>
+            <output_format>
+              * Return a single JSON block like the one in the example below without further decoration or comments
+                ```json
+                { output_example }
+                ```
+              </output_format>
+            """
 
-          <main_task>
-          { last_message.content }
-          </main_task>
-          
-          INSTRUCTIONS:
-           * Split main_task into tasks
-           * Take the name of the task from the content if present
-           * Take the description from the content
-           * The name of the task must indicate the priority like: "Task 1: Perform analysis"
-           * Description must explain the task and have instructions on what needs to be done.
-           * Return a single JSON object like the one in the example below without further decoration or comments
-              ```json
-              { get_format_instructions() }
-              ```
-           * { instructions }
-          """
-          
-          messages = ai.chat(prompt=prompt)
+            response_message = Message(role="assistant",
+                                        doc_id=str(uuid.uuid4()))
+            chat.messages.append(response_message)
+            
+            def send_message_event(content):
+                if not response_message.is_thinking:
+                    response_message.is_thinking = True if "<think>" in content else None
+                elif response_message.is_thinking and \
+                    "</think>" in content:
+                        response_message.is_thinking = False
+                
+                content = content.replace("<think>", "").replace("</think>", "")
 
-          response = messages[-1].content
+                if response_message.is_thinking:
+                    response_message.think = content
+                else:
+                    response_message.content = content
+                self.message_event(chat=chat, message=response_message)
+            
+            retry_count = 2
+            ai_tasks = None
+            while retry_count:
+                retry_count = retry_count - 1
+                messages = ai.chat(prompt=prompt, callback=send_message_event)
 
-          ai_tasks = AI_TASKS_RESPONSE_PARSER.invoke(response)
-          self.chat_event(chat=chat, message=f"Generating {len(ai_tasks.tasks)} sub tasks")
+                response = messages[-1].content
 
-          chat_manager = self.get_chat_manager()
-          for sub_task in ai_tasks.tasks:
-              sub_task.parent_id = chat.id
-              sub_task.board = chat.board
-              sub_task.column = chat.column
-              sub_task.project_id = chat.project_id
-              init_message = "\n".join([m.content for m in sub_task.messages])
-              sub_task.messages = [Message(role="assistant", content=init_message)]
-              sub_task = chat_manager.save_chat(sub_task)
-              self.chat_event(chat=sub_task, message=f"Saving subtask {sub_task.name}", event_type="created")
+                ai_tasks = next(extract_json_blocks(response), None)
+                if ai_tasks:
+                    break
+                
+            if not ai_tasks:
+                raise Exception(f"Not valid response from AI")
+
+            response_message.hide = True
+            self.save_chat(chat=chat)
+            
+            self.chat_event(chat=chat, message=f"Generating {len(ai_tasks)} sub tasks")
+
+            chat_manager = self.get_chat_manager()
+            for task in ai_tasks:
+                sub_task = Chat(**task)
+                sub_task.parent_id = chat.id
+                sub_task.board = chat.board
+                sub_task.column = chat.column
+                sub_task.project_id = chat.project_id
+                sub_task.messages = [Message(role="user", content=f""" 
+                ```xml
+                <context>
+                { content }
+                </context>
+
+                <task>
+                { sub_task.description }
+                </task>
+                ```
+                
+                Given the "context" improve the "task" description.
+                Return a detailed task description
+                Add all important information
+                Generate a clear and easy redeable description 
+                """
+                )]
+                await self.chat_with_project(chat=sub_task)
+                sub_task.messages[0].hide = True
+                sub_task = chat_manager.save_chat(sub_task)
+                self.chat_event(chat=sub_task, message=f"Saving subtask {sub_task.name}", event_type="created")
 
     def get_chat_analysis_parents(self, chat: Chat):
         """Given a chat, traverse all parents and return all analysis"""
@@ -1288,11 +1370,22 @@ class CODXJuniorSession:
 
             response_message = Message(role="assistant",
                                       doc_id=str(uuid.uuid4()))
-
             def send_message_event(content, done):
+                if not response_message.is_thinking:
+                    response_message.is_thinking = True if "<think>" in content else None
+                elif response_message.is_thinking and \
+                    "</think>" in content:
+                        response_message.is_thinking = False
+                
+                content = content.replace("<think>", "").replace("</think>", "")
+
                 if not timing_info.get("first_response"):
                     timing_info["first_response"] = time.time() - timing_info["start_time"]
-                response_message.content = content
+
+                if response_message.is_thinking:
+                    response_message.think = content
+                else:
+                    response_message.content = content
                 sources =  []
                 if documents:
                     sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))
@@ -1300,6 +1393,8 @@ class CODXJuniorSession:
                 response_message.task_item = task_item
                 response_message.done = done
                 self.message_event(chat=chat, message=response_message)
+
+            send_message_event("", False)
 
             valid_messages = [m for m in chat.messages if not m.hide and not m.improvement]
             ai_messages = [m for m in valid_messages if m.role == "assistant"]
@@ -1327,10 +1422,6 @@ class CODXJuniorSession:
             
             chat_profiles = load_profiles()
             
-            # No profiles nor projects: nothing to do
-            if not chat_profiles and not query_mentions["projects"]:
-                return
-
             chat_profiles_content = ""
             chat_profile_names = []
             chat_model = chat.model
@@ -1401,7 +1492,10 @@ class CODXJuniorSession:
             ai = self.get_ai(llm_model=ai_settings.model)
 
             # Read knowledge
-            search_projects = query_mentions["projects"]
+            search_projects = ({
+                    settings.codx_path:settings for settings in (query_mentions["projects"] + self.get_all_search_projects())
+                }).values()
+            
             if not disable_knowledge and self.settings.use_knowledge and search_projects:
                 self.log_info(f"chat_with_project start project search {search_projects}")
                 try:
@@ -1502,7 +1596,11 @@ class CODXJuniorSession:
                 callback = lambda content: send_message_event(content=content, done=False)
             try:
                 messages = ai.chat(messages, callback=callback)
-                response_message.content = messages[-1].content
+                message_parts = messages[-1].content.replace("<think>", "").split("</think>")
+                is_thinking = len(message_parts) == 2
+                response_message.think = message_parts[0] if is_thinking else None
+                response_message.content = message_parts[-1]
+                response_message.is_thinking = False
                 send_message_event(content=response_message.content, done=True)
             except Exception as ex:
                 logger.exception(f"Error chating with project: {ex} {chat.id}")

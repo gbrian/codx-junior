@@ -3,7 +3,6 @@ from codx.junior.engine import CODXJuniorSession
 
 # Set up logging for this module
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 class AgentBase:
     """

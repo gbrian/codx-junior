@@ -73,12 +73,18 @@ export default {
     },
     sanitizedText() {
       let text = this.text || ""
-      const lines = text.split("\n")
-      const isMdFence = lines[0].trim().startsWith("```")
+      const lines = text.trim().split("\n")
+      const firstLine = lines[0]
+      const isMdFence = !![
+          "```",
+          "```md",
+          "```markdown",
+        ].find(pattern => firstLine.trim() === pattern)
 
       if (isMdFence) {
+        // Unnecessary
         lines.splice(0, 1)
-        const ix = lines.findIndex(l => l === '```')
+        const ix = lines.findLastIndex(l => l === '```')
         if (ix !== -1) {
           lines.splice(ix, 1)
         }
