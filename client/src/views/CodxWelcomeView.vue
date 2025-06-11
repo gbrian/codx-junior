@@ -5,7 +5,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
 
 <template>
   <div class="profile-container flex flex-col h-full py-2">
-    <ul class="menu menu-horizontal">
+    <ul class="menu menu-horizontal flex">
       <li @click="selection = 'home'">
         <a>
           <i class="fa-solid fa-house"></i>
@@ -14,8 +14,22 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
       </li>
       <li @click="showProjects">
         <a>
+        <i class="fa-solid fa-cubes"></i>
           Projects
           <span class="badge badge-sm">{{ $projects.allProjects.length }}</span>
+        </a>
+      </li>
+      <li @click="$ui.setActiveTab('docs')">
+        <a>
+        <i class="fa-solid fa-circle-info"></i>
+          Docs
+        </a>
+      </li>
+      <div class="grow"></div>
+      <li>
+        <a href="https://github.com/gbrian/codx-junior" target="_blank">
+          <i class="fa-brands fa-github"></i>
+          codx-junior
         </a>
       </li>
     </ul>

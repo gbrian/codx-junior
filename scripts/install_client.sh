@@ -23,3 +23,9 @@ rm -rf node_modules
 rm -rf dist
 npm i
 npm run build-only
+
+cd $CODX_JUNIOR_PATH/docs
+rm -rf node_modules
+rm -rf dist
+npm i
+npm run docs:build

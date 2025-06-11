@@ -5,6 +5,7 @@ import ProfileViewVue from "../views/ProfileView.vue"
 import CodxWelcomeView from "../views/CodxWelcomeView.vue"
 import ProjectSettingsVue from "../views/ProjectSettings.vue"
 import WikiViewVue from "../views/WikiView.vue"
+import DocsViewVue from "../views/DocsView.vue"
 import GlobalSettingsVue from "../views/GlobalSettings.vue"
 import CodeEditorVue from "./CodeEditor.vue"
 import KanbanVue from "./kanban/Kanban.vue"
@@ -21,6 +22,7 @@ import AccountSettings from './security/AccountSettings.vue'
   <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.activeTab === 'knowledge'" :class="$ui.activeTab" />
   <KnowledgeSettingsVue class="px-2" v-bind="$attrs" v-if="$ui.activeTab === 'knowledge_settings'" :class="$ui.activeTab" />
   <WikiViewVue v-bind="$attrs" v-if="$ui.activeTab == 'wiki'"></WikiViewVue>
+  <DocsViewVue v-bind="$attrs" v-if="$ui.activeTab == 'docs'"></DocsViewVue>
   <ProjectSettingsVue  v-bind="$attrs" v-if="$ui.activeTab === 'settings'" :class="$ui.activeTab" />
   <GlobalSettingsVue v-bind="$attrs" v-if="$ui.activeTab === 'global-settings'" :class="$ui.activeTab" />
   <ProfileViewVue v-bind="$attrs" v-if="$ui.activeTab === 'profiles'" :class="$ui.activeTab" />
