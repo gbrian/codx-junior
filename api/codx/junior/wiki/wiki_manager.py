@@ -43,6 +43,13 @@ class WikiManager:
         
         self.initialize_vitepress()
 
+    def send_wiki_event(self, event_type, message):
+        self.session.send_notification(**{
+          "type": "wiki",
+          "event_type": event_type,
+          "message": message
+        })
+
     def get_ai(self):
         return self.session.get_ai(llm_model=self.settings.get_wiki_model())
 
@@ -79,21 +86,34 @@ class WikiManager:
         template_dir = os.path.join(os.path.dirname(__file__), 'wiki_template')
 
         if not os.path.exists(self.vitepress_dir):
+            self.send_wiki_event("create_vitepress_config", "Creating wiki structure")
             # Create VitePress directory and copy templates into the wiki path
             os.makedirs(self.vitepress_dir)
             shutil.copytree(template_dir, self.wiki_path, dirs_exist_ok=True)
             self.build_wiki()            
 
-    def build_wiki(self):        
-        self.create_config()
-        self.create_wiki_tree()
-        self.build_config_sidebar()
-        self.build_home()
-        self.compile_wiki()
-        return self.get_config()
+    def rebuild_wiki(self):
+        self.send_wiki_event("rebuild_wiki", "Starting to rebuild project wiki")
+        if os.path.exists(self.vitepress_dir):
+            shutil.rmtree(self.vitepress_dir)
+        self.create_vitepress_config()
+
+    def build_wiki(self):
+        try:
+            self.create_config()
+            self.create_wiki_tree()
+            self.build_config_sidebar()
+            self.build_home()
+            self.compile_wiki()
+            return self.get_config()
+        except Exception as ex:
+            self.send_wiki_event("error", f"ERROR: Error creating wiki: {ex}")
+        finally:
+            self.send_wiki_event(__name__, "Build wiki done")        
             
     def create_config(self):
         """Replace template content in a specified file."""
+        self.send_wiki_event(__name__, "Create wiki config")
         config = self.get_config()
 
         config.project.name = self.settings.project_name
@@ -108,9 +128,13 @@ class WikiManager:
 
     def compile_wiki(self):
         """Execute the wiki build process using a shell command."""
+        self.send_wiki_event(__name__, "Compile wiki")
         std, err = exec_command('bash wiki-manager.sh', cwd=self.wiki_path)
         if not os.path.isdir(self.dist_dir):
             raise Exception(f"Error building wiki: {std} - {err}")
+        config = self.get_config()
+        config.last_update = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%SZ")
+        self.save_config(ConfigFiles.CONFIG, config.model_dump())
 
     def get_sources(self):
         knowledge = self.session.get_knowledge()
@@ -120,6 +144,7 @@ class WikiManager:
         """
         Based on project config and project files will return a sidebar definition
         """
+        self.send_wiki_event(__name__, "Create wiki tree")
         valid_sources = self.get_sources()
         sources = "\n".join(valid_sources)
 
@@ -177,77 +202,89 @@ class WikiManager:
         return categories
 
     def build_config_sidebar(self):
+        self.send_wiki_event(__name__, "Create sidebar")
+        
         categories = self.get_categories()
         config = self.get_config()
-        if config.sidebar:
-            return config
+            
         config.sidebar = []
         for category in categories.categories:
+            config.sidebar.append(SidebarSection(
+                text=category.category,
+                items=[SidebarItem(text=category.category, link=f"/{slugify(category.category)}.md")]
+            ))
             self.build_category_file(config=config, category=category)
         
         self.save_config(ConfigFiles.CONFIG, config.model_dump())
         return config
 
     def build_category_file(self, config: WikiConfig, category:ProjectCategoryFiles):
+        self.send_wiki_event(__name__, f"Build category: {category.category}")
+        
         category_file = os.path.join(self.wiki_path, f"{slugify(category.category)}.md")
-        file_content = f"# {category.category}"
-        if os.path.isfile(category_file):
-            with open(category_file, 'r') as f:
-              file_content = f.read()
         wiki_profile = self.session.read_profile("wiki").content
-        config = self.get_config()
         
         for file in category.files:
             if not os.path.isfile(file):
                 continue
-            file_changes = ""
-            extension = ""
-            if "." in file:
-                extension = file.split('.')[-1] 
-            with open(file, 'r') as f:
-              file_changes = f.read()
-            prompt = f"""
-            { wiki_profile }
+            exec_command(f"touch {file}")
 
-            Project configuration:
-            ```json
-            { config.model_dump_json() }
-            ```
-            Update wiki page with the latest file changes.
-            
-            ## Current wiki page:
-            ```md
-            { file_content }
-            ```
+    def build_file(self, file_path):
+        categories = self.get_categories()
+        category = [c for c in categories if file_path in c.files][0]
+        
+        file_name = file_path.split("/")[-1]
+        self.send_wiki_event(__name__, f"Processing file: {file_name} ({category.category})")
+        
+        file_content = f"# {category.category}"
+        if os.path.isfile(category_file):
+            with open(category_file, 'r') as f:
+              file_content = f.read()
 
-            ## Latest file changes:
-            File: {file}
-            ```{extension}
-            { file_changes }
-            ```
+        file_changes = ""
+        extension = ""
+        if "." in file:
+            extension = file.split('.')[-1] 
+        with open(file_path, 'r') as f:
+          file_changes = f.read()
+        prompt = f"""
+        { wiki_profile }
 
-            ## Instructions
-            * Use repository url if present for the project files references
-            * Wiki page must start with the name of the category in H1
-            * Analyze file content and extract useful information for the wiki
-            * Generate useful and clear documentation pages based on code changes
-            * Do not add any reference to this instruction or conversation
-            * Add parts of the file content to enrich documentation
-            * Add examples of usage or hints if they are relevant
-            * Add mermaid diagrams for complex parts of the documentation
-            * Return file content without surronding it by any block decorator like "```"
-            """
-            response = self.get_ai().chat(prompt=prompt)[-1]
-            file_content = remove_starting_block(response.content)
-            with open(category_file, 'w') as f:
-              f.write(file_content)
+        Project configuration:
+        ```json
+        { config.model_dump_json() }
+        ```
+        Update wiki page with the latest file changes.
+        
+        ## Current wiki page:
+        ```md
+        { file_content }
+        ```
 
-        config.sidebar.append(SidebarSection(
-            text=category.category,
-            items=[SidebarItem(text=category.category, link=f"/{slugify(category.category)}.md")]
-        ))
+        ## Latest file changes:
+        File: {file}
+        ```{extension}
+        { file_changes }
+        ```
+
+        ## Instructions
+        * Use repository url if present for the project files references
+        * Wiki page must start with the name of the category in H1
+        * Analyze file content and extract useful information for the wiki
+        * Generate useful and clear documentation pages based on code changes
+        * Do not add any reference to this instruction or conversation
+        * Add parts of the file content to enrich documentation
+        * Add examples of usage or hints if they are relevant
+        * Add mermaid diagrams for complex parts of the documentation
+        * Return file content without surronding it by any block decorator like "```"
+        """
+        response = self.get_ai().chat(prompt=prompt)[-1]
+        file_content = remove_starting_block(response.content)
+        with open(category_file, 'w') as f:
+          f.write(file_content)
 
     def build_home(self):
+        self.send_wiki_event(__name__, "Build home page")
         config = self.get_config()
         home_path = os.path.join(self.wiki_path, "index.md")
         home_content = ""

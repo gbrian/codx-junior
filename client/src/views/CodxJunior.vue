@@ -24,8 +24,8 @@ import moment from 'moment'
       <div class="text-xs text-info group relative hover:bg-base-300 opacity-10 hover:opacity-100" 
         @click="openLastEvent"
         v-if="lastEvent && $user.role === 'admin'">
-        <div class="overflow-hidden text-nowrap group-hover:text-wrap">{{ lastEvent }}</div>
-        <div class="flex flex-col gap-2 hidden group-hover:block absolute top-4 w-96 h-20 z-50">
+        <div class="overflow-hidden text-nowrap group-hover:opacity-0">{{ lastEvent }}</div>
+        <div class="flex flex-col gap-2 hidden group-hover:block group-hover:bg-base-300 absolute top-4 w-96 h-20 z-50">
           <div v-for="event in lastEvents" :key="event.ts">
             {{ formatEvent(event)  }}
           </div>
@@ -132,7 +132,7 @@ export default {
       }
     },
     formatEvent(event) {
-      const message = event.data.message?.content || ""
+      const message = event.data.message?.content || event.data.message || ""
       return `[${moment(event.ts).format('HH:mm:ss')}] ${event.event} ${event.data.text || ''}\n${message}`
     },
     async onOpenProject(path) {

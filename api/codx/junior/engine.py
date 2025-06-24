@@ -263,11 +263,15 @@ class CODXJuniorSession:
         return data
 
     def send_notification(self, **kwargs):
-        self.get_channel().send_event('codx-junior', self.event_data({ **kwargs, "type": "notification" }))
+        if not kwargs.get("type"):
+            kwargs["type"] = "notification"
+        self.get_channel().send_event('codx-junior', self.event_data(kwargs))
 
     def send_event(self, message: str):
         self.get_channel().send_event('codx-junior', self.event_data({ 'text': message, "type": "event" }))
-        # self.log_info(f"SEND MESSAGE {message}- SENT!")
+        # self.log_info(f"Sending event {message}- SENT!")
+    def send_knowled_event(self, **kwargs):
+        self.get_channel().send_event('knowledge-event', self.event_data(kwargs))
 
     def chat_event(self, chat: Chat, message: str = None, event_type: str = None):
         self.get_channel().send_event('chat-event', self.event_data({ 'chat': { 'id': chat.id }, 'text': message, 'type': event_type }))
@@ -277,6 +281,12 @@ class CODXJuniorSession:
         self.get_channel().send_event('message-event', self.event_data({ 'chat': { 'id': chat.id }, 'message': message.model_dump() }))
         # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
 
+    def coder_open_file(self, file_name: str):
+        if not file_name.startswith(self.settings.project_path):
+            file_name = f"{self.settings.project_path}/{file_name}".replace("//", "/")
+        os.system(f"code-server -r {file_name}")
+        return [self.settings.project_path, file_name, file_name.startswith(self.settings.project_path)]
+      
     @contextmanager
     def chat_action(self, chat: Chat, event: str):
         self.chat_event(chat=chat, message=f"{event} starting")
@@ -804,11 +814,19 @@ class CODXJuniorSession:
     async def check_file(self, file_path: str, force: bool = False):
         res = await self.check_file_for_mentions(file_path=file_path)
         self.log_info(f"Check file {file_path} for mentions: {res}")
-        # Reload knowledge 
+        if res == "processing":
+            return
+
         if CODX_JUNIOR_API_BACKGROUND:
-            if res != "processing" and (force or self.settings.watching):
+            self.send_event(f"Check file: {file_path}")
+
+            # Reload knowledge 
+            if force or self.settings.watching:
                 knowledge = self.get_knowledge()
                 knowledge.reload_path(path=file_path)
+                self.send_event(f"Kownledge updated for: {file_path}")
+            if self.settings.project_wiki:
+                self.get_wiki().build_file(file_path=file_path)
 
     async def process_project_changes(self):
         if not self.settings.is_valid_project():
@@ -830,12 +848,13 @@ class CODXJuniorSession:
             return
 
         res = await self.check_file_for_mentions(file_path=file_path)
-        if res == "processing":
+        if res == "processing" or not CODX_JUNIOR_API_BACKGROUND:
             return
 
         if self.settings.watching:
-            self.log_info(f"Reload knowledge files {new_files}")
-            knowledge.reload_path(path=file_path)
+            self.log_info(f"Reload knowledge files {file_path}")
+            docs = knowledge.reload_path(path=file_path)
+            self.send_knowled_event(type="loaded", file_path=file_path)
 
     def extract_changes(self, content):
         for block in extract_json_blocks(content):
@@ -912,7 +931,7 @@ class CODXJuniorSession:
 
     @profile_function
     async def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False):
-
+        
         async def check_file_for_mentions_inner(file_path: str, content: str = None, silent: bool = False):
             profile_manager = self.get_profile_manager()
             chat_manager = self.get_chat_manager()
@@ -1254,22 +1273,27 @@ class CODXJuniorSession:
                 sub_task.board = chat.board
                 sub_task.column = chat.column
                 sub_task.project_id = chat.project_id
-                sub_task.messages = [Message(role="user", content=f""" 
-                ```xml
-                <context>
-                { content }
-                </context>
+                sub_task.messages = [
+                    Message(role="user",
+                    content=f""" 
+                    ```xml
+                    <context>
+                    { content }
+                    </context>
 
-                <task>
-                { sub_task.description }
-                </task>
-                ```
-                
-                Given the "context" improve the "task" description.
-                Return a detailed task description
-                Add all important information
-                Generate a clear and easy redeable description 
-                """
+                    <task>
+                    { sub_task.description }
+                    </task>
+                    ```
+                    
+                    Given the "context" improve the "task" description.
+                    Return a detailed task description
+                    Add all important information
+                    Generate a clear and easy redeable description 
+                    """,
+                    profiles=last_message.profiles,
+                    files=last_message.files,
+                    user=last_message.user
                 )]
                 await self.chat_with_project(chat=sub_task)
                 sub_task.messages[0].hide = True
@@ -1428,6 +1452,10 @@ class CODXJuniorSession:
             profiles_with_knowledge = []
             messages = []
 
+            parent_content = self.get_chat_analysis_parents(chat=chat)
+            if parent_content:
+                messages.append(HumanMessage(content=parent_content))
+
             if chat_profiles:
                 valid_profiles = [profile for profile in chat_profiles if profile]
                 chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in valid_profiles])
@@ -1478,7 +1506,6 @@ class CODXJuniorSession:
                         Document(page_content=f.read(), metadata={ "source": chat_file })
                       )
                       messages.append(HumanMessage(content=f"""
-                      * To change existing file '{chat_file_full_path}' generate a diff patch block
                       
                       {doc_context}
                       """))

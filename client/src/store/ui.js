@@ -34,7 +34,8 @@ export const state = () => ({
   floatingCodxJunior: false,
   notifications: [],
   noVNCSettings: {
-    resize: 'scale'
+    resize: 'remote',
+
   },
   theme: 'dark',
   activeTab: 'home'

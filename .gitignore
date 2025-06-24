@@ -7,7 +7,6 @@ global_settings*
 **/.codx/db
 filebrowser.
 core
-filebrowser.db
 .idea
 .vscode
 static
@@ -19,3 +18,6 @@ logs
 **/.vitepress/cache
 **/dist
 client/public/wiki
+*.db
+*.wal
+*.lock

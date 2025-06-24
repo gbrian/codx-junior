@@ -14,7 +14,7 @@ const {
 } = process.env
 const apiUrl = CODX_JUNIOR_API_URL || `http://0.0.0.0:${CODX_JUNIOR_API_PORT}`
 const coderUrl = `http://0.0.0.0:${CODX_JUNIOR_CODER_PORT}`
-const noVNCUrl = `http://0.0.0.0:${CODX_JUNIOR_NOVNC_PORT}`
+const noVNCUrl = `http://localhost:${CODX_JUNIOR_NOVNC_PORT}`
 
 const proxy = {
   '/api': {

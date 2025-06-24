@@ -19,34 +19,6 @@ bash scripts/logo.sh
 
 echo "Starting installation..."
 
-# Function to update and install packages
-install_packages() {
-    echo "Updating package list and installing packages..."
-    sudo apt-get update
-    sudo apt-get install -y \
-        curl wget supervisor nano \
-        locales python3.11 python3.11-venv firefox-esr \
-        procps git tesseract-ocr
-    sudo apt-get clean
-    sudo rm -rf /var/lib/apt/lists/*
-}
-
-# Invoke the function to install packages
-install_packages
-
-# Configure Git
-echo "Configuring Git..."
-git config --global --add safe.directory '*'
-
-# Create necessary directories
-echo "Creating necessary directories..."
-sudo mkdir -p "${CODX_SUPERVISOR_LOG_FOLDER}"
-
-# Install codx APPS
-echo "Installing codx APPS..."
-curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
-
-
 # Installers
 function install_client() {
   echo "Install web client"
@@ -99,10 +71,5 @@ for app in $CODX_JUNIOR_APPS; do
   esac
 
 done
-
-
-# Create FileSync directory
-echo "Creating FileSync directory..."
-mkdir -p "${HOME}/FileSync"
 
 echo "Installation complete!"

@@ -384,6 +384,9 @@ const initializeAPI = (project) => {
         return API.get(`/api/wiki?file_path=${path}`);
       },
       rebuild() {
+        return API.get('/api/wiki-engine/rebuild')
+      },
+      build() {
         return API.get('/api/wiki-engine/build')
       }
     },

@@ -51,7 +51,8 @@ export const state = () => ({
 })
 
 export const getters = getterTree(state, {
-  lastEvent: state => state.events[state.events.length - 1]?.data
+  lastEvent: state => state.events[state.events.length - 1]?.data,
+  wikiEvents: ({ events }) => events.filter(e => e.data?.type === 'wiki')
 })
 
 export const mutations = mutationTree(state, {
@@ -155,6 +156,13 @@ export const actions = actionTree(
         notification = { text: notification }
       }
       $storex.session.addNotification({ ...notification, type: 'error' })
+    },
+    emit({ state }, { event, data }) {
+      data = {
+        ...data || {},
+        codx_path: $storex.projects.activeProject.codx_path
+      }
+      state.socket.emit(event, data)
     }
   },
 )

@@ -8,18 +8,14 @@ hero:
   tagline: My great project tagline
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
-    - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: Welcome
+      link: /welcome
 
 features:
-  - title: Feature A
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature B
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
-  - title: Feature C
-    details: Lorem ipsum dolor sit amet, consectetur adipiscing elit
+  - title: AI
+    details: Explore our advanced AI capabilities including AI models and utilities.
+  - title: API
+    details: Learn about our robust API infrastructure and how to integrate it with your applications.
+  - title: Knowledge
+    details: Discover our comprehensive knowledge modules and document processing features.
 ---
-

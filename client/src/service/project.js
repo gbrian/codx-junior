@@ -6,6 +6,6 @@ export class ProjectService extends Service {
         projectPath.includes("/issues/")) {
         projectPath = projectPath.split("/issues/")[0]
     } 
-    await this.$projects.createNewProject(projectPath)
+    await this.projects.createNewProject(projectPath)
   }
 }

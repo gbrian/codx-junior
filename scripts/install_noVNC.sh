@@ -1,4 +1,5 @@
 #!/bin/bash
+export DEBIAN_FRONTEND=noninteractive
 
 # Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
 export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")/.." && pwd)"

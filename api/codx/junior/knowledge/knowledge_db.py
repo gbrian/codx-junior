@@ -31,6 +31,7 @@ class DBDocument (Document):
     self.db_id = db_id
 
 class KnowledgeDB:
+    db: None
     db_path: str
     db_file_list: str
     index_name: str
@@ -43,8 +44,6 @@ class KnowledgeDB:
 
         self.path = self.settings.project_path
         self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(str(self.path))).strip()
-        if not self.index_name:
-            raise Exception("Index project path can not be empty")
 
         self.db_path = f"{settings.codx_path}/db/{self.index_name}"
         os.makedirs(self.db_path, exist_ok=True)
@@ -53,14 +52,13 @@ class KnowledgeDB:
         self.db_file_list = f"{self.db_path}/{self.index_name}_file.json"
         self.embedding = None
         
-        self.db = None
         self.connect_db()
 
         self.init_collection()
         self.refresh_last_update()
 
     def __del__(self):
-        if self.db:
+        if hasattr(self, 'db') and self.db:
             self.db.close()
 
     def get_ai(self):
@@ -230,14 +228,14 @@ class KnowledgeDB:
     @profile_function
     def search(self, query: str):
         query_vector = self.get_ai().embeddings(content=query)
-        limit = int(self.settings.knowledge_search_document_count or "10")
+        doc_rag_limit = int(self.settings.knowledge_search_document_count or 20)
         
         @profile_function
         def milvus_search():
             return self.db.search(
                       collection_name=self.index_name,
                       data=[query_vector],
-                      limit=limit,
+                      limit=500,
                       output_fields=["id", "page_content", "metadata"]
                   )
         results = reduce(lambda x,y: x + y, milvus_search())
@@ -245,7 +243,7 @@ class KnowledgeDB:
         
         res = self.db_results_to_documents(results=results, rag_distance=rag_distance)
         logger.info(f"DB search '{query}' returned {results} results, matching distance {rag_distance}: {len(res)}")
-        return res
+        return res[0:doc_rag_limit]
 
     def db_results_to_documents(self, results, rag_distance):
         documents = []

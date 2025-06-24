@@ -268,7 +268,8 @@ class CODXJuniorSettings(BaseModel):
     def get_ignore_patterns(self):
         ignore_patterns = [".git", "node_modules"]
         if self.project_wiki:
-            ignore_patterns.append(self.project_wiki)
+            wiki_path = os.path.join(self.project_path, self.project_wiki)
+            ignore_patterns.append(wiki_path)
         if self.knowledge_file_ignore:
             ignore_patterns = ignore_patterns + \
                             [i.strip() for i  in self.knowledge_file_ignore.split(",")] + \

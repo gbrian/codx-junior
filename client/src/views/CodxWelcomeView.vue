@@ -68,7 +68,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
               Hello, this is <span class="font-bold">@analyst</span>.<br/>
               I'll keep your Kanban tasks tiddy, create subtasks, and assign users to them.
             </div>
-            <div class="chat-footer opacity-50">Keep your docs always up-to-date with @biblio and auto-wiki</div>
+            <div class="chat-footer opacity-50">Project management made easy!</div>
           </div>
         </div>
         <div class="flex justify-center items-start mt-2">
@@ -83,13 +83,10 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
               <br/>
               I'll can write high quality code non-stop
             </div>
-            <div class="chat-footer opacity-50">Keep your docs always up-to-date with @biblio and auto-wiki</div>
+            <div class="chat-footer opacity-50">Write code like a champ with @software_developer</div>
           </div>
         </div>
       </div>
-
-
-
 
       <div class="mt-10 px-32 flex flex-col gap-2 justify-center align-center">
           <div class="chat chat-start">

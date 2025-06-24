@@ -78,7 +78,7 @@ import Markdown from './Markdown.vue';
           </select>
           <label class="input input-xs input-bordered flex items-center gap-2">
             <input type="text" class="grow" placeholder="Search" v-model="filter" @keydown.enter="applyFilter" />
-            <span v-if="filterMatchCount">{{ filterMatchCount }}</span>
+            <span v-if="filter">{{ matchCount }}</span>
             <span class="click" @click="clearFilter" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
             <span @click="applyFilter" v-else>
               <i class="fa-solid fa-magnifying-glass"></i>
@@ -91,32 +91,11 @@ import Markdown from './Markdown.vue';
         <div class="grow"></div>
       </header>
       <div class="grow my-2 flex flex-col overflow-auto" style="height:600px" ref="logView">
-        <pre class="max-w-full" v-for="log in rawLogs" :key="log">{{ log }}</pre>
+        <pre class="max-full mb-1" v-for="log in rawLogs" :key="log"
+          :class="logClasses(log)"
+        >{{ log.replace(']:', ']\n') }}</pre>
 
-        <!--div v-for="(log, ix) in filteredLogs" :key="ix">
-          <div :title="log.id" class="flex flex-col w-full p-1 hover:bg-base-100" :class="log.styleClasses">
-            <div class="flex gap-2">
-              <div>{{ log.timestamp }}</div>
-              <div class="font-bold" :class="logLevelColors[log.level]">{{ log.level }}</div> 
-              <div :style="{ color: $ui.colorsMap[log.module] }"
-                class="click"
-                @click="toggleModuleVisible(log.module)" 
-                v-if="log.module"
-              >
-                [{{ log.module }}] (Line: {{ log.line }})</div>
-            </div> 
-            <div class="overflow-hidden click" :class="!log.showMore && 'max-h-40'" 
-              @dblclick="log.editable = log.showMore = true"
-              @keydown.esc="log.editable = false"
-              @click="!log.editable && (log.showMore = !log.showMore)">
-              <pre class="text-wrap" :contenteditable="log.editable">{{ log.content }}</pre>
-              <pre class="text-warning text-wrap"
-                :contenteditable="log.editable"
-                v-if="Object.keys(log.data).length">{{ JSON.stringify(log.data, null, 2) }}</pre>
-              <pre v-if="log.data.profiler">{{ log.data.profiler.profile_stats  }}</pre>
-            </div>
-          </div>
-        </div-->
+        
         <div class="h-1 w-full" ref="logViewBottom"></div>
       </div>
     </div>
@@ -135,7 +114,6 @@ export default {
       autoRefresh: false,
       logNames: [],
       filter: null,
-      filterMatchCount: 0,
       logModules: {},
       visibleModules: [],
       profilerModuleFilter: [],
@@ -190,9 +168,14 @@ export default {
                       .map(({ timestamp, data: { request: { url, time_taken }}}) => ({ timestamp, path: new URL(url).pathname , time_taken }))
     },
     profilerLogs() {
-      return this.filteredLogs.filter(log => log.data.profiler)
+      return []
+      this.filteredLogs.filter(log => log.data.profiler)
                       .map(({ timestamp, data: { profiler: { module, method, time_taken }}}) => 
                                             ({ timestamp, path: `${module}.${method}` , time_taken }))
+    },
+    matchCount() {
+      return this.filter ? 
+          this.rawLogs?.filter(this.isFilterMatch.bind(this)).length : 0
     }
   },
   methods: {
@@ -259,30 +242,20 @@ export default {
       }
       this.$el.scrollTop = this.$el.scrollHeight
     },
+    isFilterMatch(log) {
+      return log.toLowerCase().includes(this.filter.toLowerCase())
+    },
     logClasses(log) {
-      const classes = []
-      const lowerLogContent = log.content?.toLowerCase() || ""
-      const filter = this.filter?.toLowerCase()
-      if (filter) {
-        if (lowerLogContent.indexOf(filter) === -1) {
-          classes.push('opacity-30')
-        } else {
-          classes.push('font-bold', 'match')
-        }
+      if (!this.filter) {
+        return ""
       }
-      log.hidden = false
-      if (!this.logModules[log.module]?.visible) {
-        log.hidden = true
-      }
-      log.styleClasses = classes
+      return this.isFilterMatch(log) ? "": "opacity-20"
     },
     ignorePattern() {
       this.$projects.addLogIgnore(this.filter?.toLowerCase())
       this.filter = null
     },
     applyFilter() {
-      this.logs.forEach(flog => this.logClasses(flog))
-      this.filterMatchCount = this.logs.filter(({ styleClasses }) => styleClasses.includes('match')).length
     },
     clearFilter() {
       this.filter = null

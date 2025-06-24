@@ -96,7 +96,6 @@ from codx.junior.chat_manager import ChatManager
 
 from codx.junior.engine import (
     create_project,
-    coder_open_file,
     find_all_projects,
     find_all_user_projects,
     CODXJuniorSession,
@@ -137,8 +136,6 @@ app.include_router(chatgpt_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(wiki_router, prefix="/api")
 app.include_router(github_router, prefix="/api")
-
-
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -339,6 +336,12 @@ def api_changes_summary(request: Request):
     refresh = request.query_params.get("refresh")
     return codx_junior_session.build_code_changes_summary(force=refresh == "true")
 
+@app.get("/api/test/sio")
+def test_sio(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    message = request.query_params.get("message") or "sio_test"
+    return codx_junior_session.send_event(message=message)
+
 @app.get("/api/settings")
 def api_settings_check(request: Request):
     logger.info("/api/settings")
@@ -442,8 +445,8 @@ def api_extract_tags(doc: Document, request: Request):
 @app.get("/api/code-server/file/open")
 def api_list_chats(request: Request):
     file_name = request.query_params.get("file_name")
-    settings = codx_junior_session = request.state.codx_junior_session.settings
-    coder_open_file(settings=settings, file_name=file_name)
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.coder_open_file(file_name=file_name)
 
 @app.get("/api/files")
 def api_get_files(request: Request):
@@ -498,23 +501,35 @@ def api_write_global_settings(global_settings: GlobalSettings):
 @app.get("/api/logs")
 def api_logs_list():
     stdout, _ = exec_command(f"ls {os.environ['CODX_SUPERVISOR_LOG_FOLDER']}")
-    return [log for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+    codx_logs = [log for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+
+    stdout, _ = exec_command("docker ps --format {{.Names}}")
+    containers = [f"🐋:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+   
+    
+    return codx_logs + containers
+
+
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
-    log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
     log_size = request.query_params.get("log_size") or "100"
-    cmd = f"tail -n {log_size} {log_file}"
-    try:
-        logs, _ = exec_command(cmd)
-        # return parse_logs(logs)
-        def is_valid_log(l):
-            if "/api/logs" in l:
-                return False
-            return True
-        return [l for l in logs.split("\n") if is_valid_log(l)]
-    except Exception as ex:
-        logger.exception(f"Error reading logs: {ex}")
+    if "🐋" in log_name:
+        stdout, _ = exec_command(f"docker logs -n {log_size} {log_name.split(':')[1]}")
+        return stdout.split("\n")
+    else:   
+        log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
+        cmd = f"tail -n {log_size} {log_file}"
+        try:
+            logs, _ = exec_command(cmd)
+            # return parse_logs(logs)
+            def is_valid_log(l):
+                if "/api/logs" in l:
+                    return False
+                return True
+            return [l for l in logs.split("\n") if is_valid_log(l)]
+        except Exception as ex:
+            logger.exception(f"Error reading logs: {ex}")
 
 @app.post("/api/screen")
 def api_screen_set(screen: Screen):

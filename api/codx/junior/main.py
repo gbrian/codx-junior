@@ -16,3 +16,4 @@ from codx.junior.app import app
 logging.getLogger(__name__).info("Change logging formater")
 
 app = app
+

@@ -553,7 +553,7 @@ export default {
       if (boardName && !this.boards[boardName]) {
         const selectedTemplate = this.selectedTemplate
         await this.$projects.addBoard({
-          boardName,
+          title: boardName,
           parent_id: this.activeBoard?.id,
           description: this.newBoardDescription.trim() || selectedTemplate.description,
           columns: selectedTemplate?.columns || [],

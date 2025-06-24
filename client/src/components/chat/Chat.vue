@@ -590,14 +590,14 @@ export default {
       this.$emit("delete-message", message)
     },
     async searchKeywords() {
-      if (!this.refreshngMentions) {
+      const searchQuery = this.termSearchQuery?.toLowerCase()
+      this.searchTerms = this.$projects.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
+      this.searchTermSelIx = 0
+            if (!this.refreshngMentions) {
         // Prevent reloading multiple times
         this.refreshngMentions = this.$projects.loadProjectKnowledge()
         this.refreshngMentions.then(() => this.refreshngMentions = null)
       }
-      const searchQuery = this.termSearchQuery?.toLowerCase()
-      this.searchTerms = this.$projects.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
-      this.searchTermSelIx = 0
     },
     addSerchTerm(term) {
       let text = this.$refs.editor.innerText

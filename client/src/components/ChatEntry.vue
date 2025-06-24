@@ -293,8 +293,7 @@ export default {
       this.$emit('generate-code', codeBlockInfo)
     },
     openFile(file) {
-      const { project_path } = this.chatProject
-      this.$ui.openFile(project_path + file)
+      this.$ui.openFile(file)
     }
   },
   mounted() {

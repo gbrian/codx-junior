@@ -1,6 +1,7 @@
 <script setup>
 import { API } from '../api/api'
 import MarkdownVue from '@/components/Markdown.vue'
+import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
 import moment from 'moment'
 </script>
 
@@ -35,8 +36,13 @@ import moment from 'moment'
         <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Index' }" @click="selectedTab = 'Index'">
           <i class="fa-solid fa-file-import"></i> Index
         </a>
+        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Wiki' }" @click="selectedTab = 'Wiki'">
+          <i class="fa-solid fa-file"></i> Wiki
+        </a>
       </div>
     </div>
+
+    <WikiSettingsVue v-if="selectedTab === 'Wiki'" />
 
     <div v-if="selectedTab === 'Search'">
       <div class="search flex flex-col gap-2" v-if="settings?.use_knowledge">
@@ -341,11 +347,16 @@ export default {
       fileFilter: null,
       addToIgnore: null,
       settings: API.activeProject,
-      resetKnowledge: false
+      resetKnowledge: false,
+      refreshIx: null
     }
   },
   async created() {
     this.reloadStatus()
+    this.refreshIx = setInterval(() => this.reloadStatus(), 20000)
+  },
+  unmounted () {
+    clearInterval(this.refreshIx)
   },
   computed: {
     projectPath() {
@@ -418,7 +429,8 @@ export default {
         this.searchResults.response
     },
     searchResultsDocuments() {
-      return Object.values(this.searchResults?.documents || {}).sort((a, b) => a.metadata.source < b.metadata.source ? -1: 1)
+      return Object.values(this.searchResults?.documents || {})
+              .sort((a, b) => a.metadata.relevance_score > b.metadata.relevance_score ? -1: 1)
     }
   },
   methods: {

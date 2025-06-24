@@ -13,8 +13,7 @@ if [ "$1" == "install" ]; then
 
 else
 
-    # Run supervisor
-    echo "Installation done, running supervisor"
-    sudo -E bash -c "bash ${HOME}/codx-junior/codx-junior supervisor"
-
+  # Run supervisor
+  echo "Entrypoint: running supervisor"
+  sudo -E bash -c "bash ${HOME}/codx-junior/codx-junior supervisor"
 fi

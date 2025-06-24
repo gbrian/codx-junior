@@ -6,7 +6,7 @@ export default class Service {
   get api() {
     return $storex.api
   }
-  get $projects() {
+  get projects() {
     return $storex.projects
   }
   get project() {

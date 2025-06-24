@@ -3,16 +3,13 @@
 layout: home
 
 hero:
-  name: "codx-junior"
-  text: "codx-junior wiki"
+  name: "PROJECT_NAME"
+  text: "PROJECT_DESCRIPTION"
   tagline: My great project tagline
   actions:
     - theme: brand
-      text: Markdown Examples
-      link: /markdown-examples
-    - theme: alt
-      text: API Examples
-      link: /api-examples
+      text: Welcome
+      link: /welcome
 
 features:
   - title: Feature A

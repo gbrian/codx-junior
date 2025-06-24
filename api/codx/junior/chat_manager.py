@@ -16,8 +16,6 @@ from codx.junior.utils import write_file
 
 from codx.junior.profiling.profiler import profile_function
 
-from codx.junior.utils import exec_command
-
 
 logger = logging.getLogger(__name__)
 
@@ -216,9 +214,10 @@ class ChatManager:
         return [load_chat(c["chat_path"]) for c in last_updated_chats]
 
     def find_by_id(self, chat_id):
-        for chat in self.list_chats():
-          if chat.id == chat_id:
-              return self.load_chat_from_path(chat_file=chat.file_path)
+        if chat_id:
+            file_path = next((path for path in self.chat_paths() if chat_id in path), None)
+            if file_path:
+                return self.load_chat_from_path(chat_file=file_path)
         return None
 
     def load_kanban_from_file(self, kanban_file: str):

@@ -1,0 +1,10 @@
+{
+  "project": {
+    "name": "codx-junior",
+    "description": "codx-junior wiki",
+    "icon": "https://codx-dev.meetnav.com/only_icon.png",
+    "repository": "https://github.com/gbrian/codx-junior.git\n"
+  },
+  "sidebar": [],
+  "last_update": null
+}

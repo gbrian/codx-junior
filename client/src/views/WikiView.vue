@@ -3,7 +3,7 @@ import Iframe from '../components/Iframe.vue'
 </script>
 <template>
   <div class="w-full h-full" v-if="$project.project_wiki">
-    <progress class="progress w-full" v-if="!loaded"></progress>
+    <div class="animate-pulse bg-primary h-1 w-full rounded-full" v-if="!loaded"></div>
     <Iframe class="w-full h-full" :url="url" 
       @loaded="onLoaded"      
     />

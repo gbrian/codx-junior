@@ -78,9 +78,18 @@ import Assistant from './codx-junior/Assistant.vue';
     </button>
 
     <div class="flex w-full flex-col mt-4 flex">
-      <div :class="['hover:bg-base-100 click relative', $ui.appActives[0] === 'coder' ? 'text-primary': '',]">
+      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('browser') ? 'text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
-        @click.stop="$ui.setShowCoder($ui.appActives[0] !== 'coder')">
+          @click.stop="$ui.setShowBrowser(!$ui.appActives.includes('browser'))">
+          <div class="flex flex-col gap-4">
+            <i class="fa-brands fa-firefox"></i>
+          </div>
+				</a>
+			</div>
+      
+      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('coder') ? 'text-primary': '',]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
+        @click.stop="$ui.setShowCoder(!$ui.appActives.includes('coder'))">
           <div class="flex flex-col gap-4">
             <i class="fa-solid fa-code"></i>
           </div>

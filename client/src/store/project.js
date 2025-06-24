@@ -47,7 +47,8 @@ export const state = () => ({
 
 export const mutations = mutationTree(state, {
   setAllProjects(state, allProjects) {
-    state.allProjects = allProjects
+    state.allProjects = allProjects.sort((a, b) =>
+        a.project_name.toLowerCase() > b.project_name.toLowerCase() ? 1 : -1)
     state.activeChat = null
   },
   setLogs(state, logs) {
@@ -209,7 +210,6 @@ export const actions = actionTree(
       }
     },
     async loadProjectKnowledge({ state }) {
-      state.knowledge = null
       const data = await API.knowledge.status()
       state.knowledge = data
     },
@@ -320,10 +320,9 @@ export const actions = actionTree(
     },
     async chatWihProject({ state }, chat) {
       const data = {
-        codx_path: state.activeProject.codx_path,
         chat
       }
-      $storex.session.socket.emit('codx-junior-chat', data)
+      $storex.session.emit({ event: 'codx-junior-chat', data })
     },
     async createSubTasks({ state }, { chat, instructions }) {
       const data = {
@@ -331,7 +330,7 @@ export const actions = actionTree(
         chat,
         instructions
       }
-      $storex.session.socket.emit('codx-junior-subtasks', data)
+      $storex.session.socket.emit({ event: 'codx-junior-subtasks', data })
     },
     async codeImprove({ state }, chat) {
       const data = {

@@ -30,7 +30,9 @@ class ProjectConfig(BaseModel):
 
 class WikiConfig(BaseModel):
     project: ProjectConfig = Field(default=ProjectConfig())
-    sidebar: List[SidebarSection] = Field(default=[])
+    sidebar: List[SidebarSection] = Field(default=None)
+    last_update: Optional[str] = Field(default=None)
+
 
 
 WIKI_CATEGORY_PARSER = PydanticOutputParser(pydantic_object=ProjectCategories)

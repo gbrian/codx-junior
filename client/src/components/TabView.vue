@@ -9,7 +9,6 @@ import DocsViewVue from "../views/DocsView.vue"
 import GlobalSettingsVue from "../views/GlobalSettings.vue"
 import CodeEditorVue from "./CodeEditor.vue"
 import KanbanVue from "./kanban/Kanban.vue"
-import NoVNCVue from "./NoVNC.vue"
 import Files from "./apps/Files.vue"
 import PRView from "@/views/PRView.vue"
 import MetricsViewer from "./metrics/MetricsViewer.vue"
@@ -35,5 +34,7 @@ import AccountSettings from './security/AccountSettings.vue'
 </template>
 <script>
 export default {
+  computed: {
+  }
 }
 </script>
