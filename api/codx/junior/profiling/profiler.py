@@ -9,7 +9,6 @@ from pstats import SortKey
 
 # Configure logger
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 def profile_function(func):
     """Decorator to profile a function and log the execution time."""
@@ -20,12 +19,13 @@ def profile_function(func):
             all_args.append(f"{arg}={str(value)[0:50]}")
 
         start_time = time.time()
-        
+        logger.info(f"[{func.__module__}][{func.__name__}] <<<<<<<<<<< {all_args}")
         yield
         
         end_time = time.time()
         time_taken = end_time - start_time
-
+        logger.info(f"[{func.__module__}][{func.__name__}] >>>>>>>>>>>> {time_taken}")
+        
         func_data = {
             "module": func.__module__,
             "method": func.__name__,

@@ -11,5 +11,12 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 cd ${CODX_JUNIOR_PATH}/client
-npm i
-npm run dev
+
+if [ "$DEBUG" != "" ]; then
+  echo "*********** codx-junior client DEBUG ************"
+  npm install
+  npm run dev
+else
+  echo "*********** codx-junior client PRODUCTION ************"
+  npm run preview
+fi

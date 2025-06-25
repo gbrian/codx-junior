@@ -63,7 +63,7 @@ export default {
     filteredProjects() {
       return this.projects.filter(project => 
         project.project_name.toLowerCase().includes(this.filterValue?.toLowerCase())
-      ).sort((a, b) => a.project_name < b.project_name ? -1: 1);
+      )
     }
   },
   watch: {

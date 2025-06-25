@@ -1,4 +1,7 @@
 #!/bin/bash
+echo "codx-junior scripts ENV:"
+env
+
 # Dynamically set CODX_JUNIOR_PATH to the parent directory of the script
 if [ -z "${CODX_JUNIOR_PATH}" ]; then
     export CODX_JUNIOR_PATH="$(cd "$(dirname "$0")" && pwd)"
@@ -171,7 +174,8 @@ function run_supervisor {
       echo "Switching supervisor to root"
       sudo USER=$USER HOME=$HOME bash ${CODX_JUNIOR_PATH}/codx-junior supervisor
     else
-      echo "Running supervisor $USER - $HOME"
+      echo "Running supervisor $USER - $HOME - CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
+
       chown -R codx-junior ${HOME}
       /usr/bin/supervisord -c ${CODX_JUNIOR_PATH}/supervisor.conf
     fi

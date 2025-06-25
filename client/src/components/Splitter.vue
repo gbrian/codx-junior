@@ -6,6 +6,7 @@ import PreviewVue from '../components/apps/Preview.vue'
 import CodxJuniorVue from '../views/CodxJunior.vue'
 import NavigationBar from '../components/NavigationBar.vue'
 import LogViewerVue from './LogViewer.vue'
+import Wizard from '../components/wizards/Wizard.vue'
 </script>
 
 <template>
@@ -55,6 +56,12 @@ import LogViewerVue from './LogViewer.vue'
       </SplitterPanel>
 
     </SplitterGroup>
+    <div class="flex flex-col w-2/5 h-full overflow-auto" v-if="$projects.activeWizards.length">
+      <Wizard 
+        :wizard="wizard" 
+        v-for="wizard in $projects.activeWizards" :key="wizard.id" 
+        @close="$projects.removeWizard(wizard)" />
+    </div>
     <NavigationBar :right="true" v-if="$ui.isLandscape" />
 
   </div>
@@ -70,7 +77,7 @@ export default {
       return this.$ui.appDivided === 'horizontal'
     },
     showCodxJunior() {
-      return !!this.$ui.tabIx
+      return !!this.$ui.activeTab
     }
   },
   methods: {

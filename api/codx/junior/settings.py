@@ -115,6 +115,8 @@ class CODXJuniorSettings(BaseModel):
     knowledge_query_subprojects: Optional[bool] = Field(default=True)
     knowledge_file_ignore: Optional[str] = Field(default=".codx")
 
+    save_mentions: Optional[bool] = Field(default=False)
+
     watching: Optional[bool] = Field(default=False)
     use_knowledge: Optional[bool] = Field(default=True)
     knowledge_hnsw_M: Optional[int] = Field(default=1024)
@@ -212,7 +214,7 @@ class CODXJuniorSettings(BaseModel):
         logger.info(f"Saving project {valid_keys}: {data}")
         write_file(path, json.dumps(data, indent=2))
 
-        return self
+        return CODXJuniorSettings.from_project_file(path)
 
     def get_sub_projects(self):
         try:
@@ -265,6 +267,9 @@ class CODXJuniorSettings(BaseModel):
 
     def get_ignore_patterns(self):
         ignore_patterns = [".git", "node_modules"]
+        if self.project_wiki:
+            wiki_path = os.path.join(self.project_path, self.project_wiki)
+            ignore_patterns.append(wiki_path)
         if self.knowledge_file_ignore:
             ignore_patterns = ignore_patterns + \
                             [i.strip() for i  in self.knowledge_file_ignore.split(",")] + \
@@ -273,3 +278,6 @@ class CODXJuniorSettings(BaseModel):
 
     def is_valid_project_file(self, file_path: str):
         return not [p for p in self.get_ignore_patterns() if p in file_path]
+
+    def get_wiki_model(self):
+        return self.wiki_model or GLOBAL_SETTINGS.wiki_model

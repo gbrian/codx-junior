@@ -7,6 +7,9 @@ import asyncio
 import socketio
 import traceback
 
+import faulthandler
+faulthandler.enable()
+
 from multiprocessing.pool import ThreadPool
 from threading import Thread
 
@@ -24,11 +27,14 @@ from codx.junior.browser import run_browser_manager
 
 from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
 from codx.junior.api.users import router as users_router
+from codx.junior.api.wiki import router as wiki_router
+from codx.junior.api.github import router as github_router
+
 from codx.junior.security.user_management import get_authenticated_user
+
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
-logging.basicConfig(level = logging.DEBUG,format = '[%(asctime)s] %(levelname)s [%(name)s:%(lineno)s] %(message)s')
 logger = logging.getLogger(__name__)
 
 run_browser_manager()
@@ -61,6 +67,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
+from starlette.status import HTTP_504_GATEWAY_TIMEOUT
 
 from codx.junior.db import (
     Chat,
@@ -89,7 +96,6 @@ from codx.junior.chat_manager import ChatManager
 
 from codx.junior.engine import (
     create_project,
-    coder_open_file,
     find_all_projects,
     find_all_user_projects,
     CODXJuniorSession,
@@ -104,9 +110,12 @@ from codx.junior.context import AICodeGerator
 
 from codx.junior.background import start_background_services
 
+
 CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
 IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
+
+GLOBAL_REQUEST_TIMEOUT=280
 
 app = FastAPI(
     title="CODXJuniorAPI",
@@ -125,7 +134,8 @@ app.mount("/api/socket.io", sio_asgi_app)
 
 app.include_router(chatgpt_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
-
+app.include_router(wiki_router, prefix="/api")
+app.include_router(github_router, prefix="/api")
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -136,7 +146,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.on_event("startup")
 def startup_event():
-    logger.info(f"Creating FASTAPI: {app.__dict__}")
+    logger.info(f"Creating FASTAPI (BACKGROUND: {CODX_JUNIOR_API_BACKGROUND}): {app.__dict__}")
 
 @app.exception_handler(Exception)
 async def my_exception_handler(request: Request, ex: Exception):
@@ -168,6 +178,20 @@ async def add_gpt_engineer_settings(request: Request, call_next):
         except Exception as ex:
             logger.error(f"Error loading settings {codx_path}: {ex}\n{request.url}")
     return await call_next(request)
+
+# Adding a middleware returning a 504 error if the request processing time is above a certain threshold
+@app.middleware("http")
+async def timeout_middleware(request: Request, call_next):
+    try:
+        start_time = time.time()
+        logger.info(f"HTTP starting: {request.url}")
+        return await asyncio.wait_for(call_next(request), timeout=GLOBAL_REQUEST_TIMEOUT)
+
+    except asyncio.TimeoutError:
+        process_time = time.time() - start_time
+        return JSONResponse({'detail': 'Request processing time excedeed limit',
+                             'processing_time': process_time},
+                            status_code=HTTP_504_GATEWAY_TIMEOUT)
 
 @app.get("/api/health")
 def api_health_check():
@@ -266,6 +290,11 @@ async def api_set_kanban(request: Request):
     kanban = await request.json()
     codx_junior_session.get_chat_manager().save_kanban(kanban)
 
+@app.delete("/api/kanban")
+def api_delete_kanban(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    kanban_title = request.query_params.get("kanban_title")
+    return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)
 
 @app.post("/api/images")
 def api_image_upload(file: UploadFile):
@@ -307,6 +336,12 @@ def api_changes_summary(request: Request):
     refresh = request.query_params.get("refresh")
     return codx_junior_session.build_code_changes_summary(force=refresh == "true")
 
+@app.get("/api/test/sio")
+def test_sio(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    message = request.query_params.get("message") or "sio_test"
+    return codx_junior_session.send_event(message=message)
+
 @app.get("/api/settings")
 def api_settings_check(request: Request):
     logger.info("/api/settings")
@@ -317,7 +352,7 @@ def api_settings_check(request: Request):
 @app.put("/api/settings")
 async def api_save_settings(request: Request):
     settings = await request.json()
-    CODXJuniorSettings.from_json(settings).save_project()
+    settings = CODXJuniorSettings.from_json(settings).save_project()
     find_all_projects()
     return api_settings_check(request)
 
@@ -410,15 +445,8 @@ def api_extract_tags(doc: Document, request: Request):
 @app.get("/api/code-server/file/open")
 def api_list_chats(request: Request):
     file_name = request.query_params.get("file_name")
-    settings = codx_junior_session = request.state.codx_junior_session.settings
-    coder_open_file(settings=settings, file_name=file_name)
-
-@app.get("/api/wiki")
-def api_get_wiki(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    file_path = request.query_params.get("file_path")
-    document = codx_junior_session.get_wiki_file(file_path)
-    return Response(content=document or "> Not found", media_type="text/html")
+    return codx_junior_session.coder_open_file(file_name=file_name)
 
 @app.get("/api/files")
 def api_get_files(request: Request):
@@ -459,7 +487,9 @@ def api_apps_run(request: Request):
 @app.get("/api/global/settings")
 def api_read_global_settings(user: CodxUser = Depends(get_authenticated_user)):
     if not user or user.role != 'admin':
-        return {}
+        return {
+          "error": "User is not admin"
+        }
     return read_global_settings()
 
 @app.post("/api/global/settings")
@@ -471,20 +501,35 @@ def api_write_global_settings(global_settings: GlobalSettings):
 @app.get("/api/logs")
 def api_logs_list():
     stdout, _ = exec_command(f"ls {os.environ['CODX_SUPERVISOR_LOG_FOLDER']}")
-    return [log for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+    codx_logs = [log for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+
+    stdout, _ = exec_command("docker ps --format {{.Names}}")
+    containers = [f"🐋:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+   
+    
+    return codx_logs + containers
+
+
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
-    log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
     log_size = request.query_params.get("log_size") or "100"
-    cmd = f"tail -n {log_size} {log_file}"
-    try:
-        logs, _ = exec_command(cmd)
-        logger.info(f"api logs {logs}")
-
-        return parse_logs(logs)
-    except Exception as ex:
-        logger.exception(f"Error reading logs: {ex}")
+    if "🐋" in log_name:
+        stdout, _ = exec_command(f"docker logs -n {log_size} {log_name.split(':')[1]}")
+        return stdout.split("\n")
+    else:   
+        log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
+        cmd = f"tail -n {log_size} {log_file}"
+        try:
+            logs, _ = exec_command(cmd)
+            # return parse_logs(logs)
+            def is_valid_log(l):
+                if "/api/logs" in l:
+                    return False
+                return True
+            return [l for l in logs.split("\n") if is_valid_log(l)]
+        except Exception as ex:
+            logger.exception(f"Error reading logs: {ex}")
 
 @app.post("/api/screen")
 def api_screen_set(screen: Screen):
@@ -522,6 +567,5 @@ if CODX_JUNIOR_STATIC_FOLDER:
 
 app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
 
-if CODX_JUNIOR_API_BACKGROUND:
-    start_background_services(app)
+start_background_services(app)
 

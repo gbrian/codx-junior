@@ -1,24 +1,28 @@
 # API virtual env
-export CODX_JUNIOR_API_VENV=/tmp/.venv_codx_junior_api
+export CODX_JUNIOR_API_VENV=${CODX_JUNIOR_API_VENV:-/tmp/.venv_codx_junior_api}
 # Browser virtual env
 export BROWSER_VENV=/tmp/.venv_codx_junior_browser
 # codx-junior API port
-export CODX_JUNIOR_API_PORT=19980
+export CODX_JUNIOR_API_PORT=${CODX_JUNIOR_API_PORT:-19980}
 # codx-junior API URL
 export CODX_JUNIOR_API_URL=http://0.0.0.0:${CODX_JUNIOR_API_PORT}
 # codx-junior web port
-export CODX_JUNIOR_WEB_PORT=19981
+export CODX_JUNIOR_WEB_PORT=${CODX_JUNIOR_WEB_PORT:-19981}
 # codx-junior code-server port
-export CODX_JUNIOR_CODER_PORT=19982
+export CODX_JUNIOR_CODER_PORT=${CODX_JUNIOR_CODER_PORT:-19982}
 # Desktop port
-export CODX_JUNIOR_NOVNC_PORT=19983
+export CODX_JUNIOR_NOVNC_PORT=${CODX_JUNIOR_NOVNC_PORT:-19983}
 # codx-junior API background port
-export CODX_JUNIOR_API_PORT_BACKGROUND=19984
+export CODX_JUNIOR_API_PORT_BACKGROUND=${CODX_JUNIOR_API_PORT_BACKGROUND:-19984}
 # llmfactory server port
-export CODX_JUNIOR_LLMFACTORY_PORT=19985
+export CODX_JUNIOR_LLMFACTORY_PORT=${CODX_JUNIOR_LLMFACTORY_PORT:-19985}
 export CODX_JUNIOR_LLMFACTORY_URL=http://0.0.0.0:${CODX_JUNIOR_LLMFACTORY_PORT}
 export CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL=${CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL:-"qwen3:4b"}
 export CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL=${CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL:-"nomic-embed-text"}
+
+# milvus vector DB
+export CODX_JUNIOR_MILVUS_UI_URL=${CODX_JUNIOR_MILVUS_UI_URL:-"http://milvus:9091"}
+export CODX_JUNIOR_MILVUS_URL=${CODX_JUNIOR_MILVUS_URL:-"http://milvus:19530"}
 
 # codx-junior preview display
 export CODX_JUNIOR_DISPLAY=:55
@@ -29,7 +33,7 @@ export CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-supervisor
 export CODX_JUNIOR_APPS=${CODX_JUNIOR_APPS:-"client api llm-factory docker"}
 
 #Global settings path
-export CODX_JUNIOR_GLOBAL_SETTINGS_PATH=${CODX_JUNIOR_GLOBAL_SETTINGS_PATH}
+export CODX_JUNIOR_GLOBAL_SETTINGS_PATH=${CODX_JUNIOR_GLOBAL_SETTINGS_PATH:-/home/codx-junior/codx-junior-global-settings.json}
 
 ### OLLAMA
 export CODX_JUNIOR_EMBEDDINGS_MODEL=nomic-embed-text

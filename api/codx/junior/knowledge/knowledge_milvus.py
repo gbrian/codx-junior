@@ -27,13 +27,13 @@ from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
 logger = logging.getLogger(__name__)
 
 class Knowledge:
-    db: KnowledgeDB = None
+    db: KnowledgeDB
     ai: AI
 
     def __init__(self, settings: CODXJuniorSettings):
         self.ai = None
+        self.db = None
         self.settings = settings
-
         self.path = self.settings.project_path
         self.knowledge_prompts = KnowledgePrompts(settings=settings)
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)

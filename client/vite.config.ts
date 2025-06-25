@@ -10,13 +10,11 @@ const {
   NOTEBOOKS_URL,
   CODX_JUNIOR_CODER_PORT,
   CODX_JUNIOR_NOVNC_PORT,
-  CODX_JUNIOR_FILEBROWSER_PORT,
-  CODX_JUNIOR_API_URL
+  CODX_JUNIOR_API_URL,
 } = process.env
 const apiUrl = CODX_JUNIOR_API_URL || `http://0.0.0.0:${CODX_JUNIOR_API_PORT}`
 const coderUrl = `http://0.0.0.0:${CODX_JUNIOR_CODER_PORT}`
-const noVNCUrl = `http://0.0.0.0:${CODX_JUNIOR_NOVNC_PORT}`
-const filebrowserUrl = `http://0.0.0.0:${CODX_JUNIOR_FILEBROWSER_PORT}/filebrowser`
+const noVNCUrl = `http://localhost:${CODX_JUNIOR_NOVNC_PORT}`
 
 const proxy = {
   '/api': {
@@ -27,11 +25,6 @@ const proxy = {
     target: apiUrl,
     changeOrigin: true,
     ws: true,
-  },
-  '/filebrowser': {
-    target: filebrowserUrl,
-    changeOrigin: true,
-    rewrite: (path) => path.replace(/^\/filebrowser/, ''),
   },
   '/coder': {
     target: coderUrl,

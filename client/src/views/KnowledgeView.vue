@@ -2,7 +2,7 @@
 import ChatView from './ChatView.vue';
 </script>
 <template>
-  <ChatView :chatMode="false" class="chat-view w-full h-full" :openChat="chat" /> 
+  <ChatView :chatMode="false" class="chat-view w-full h-full" :chat="chat" /> 
 </template>
 <script>
 export default {

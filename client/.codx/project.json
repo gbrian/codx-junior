@@ -2,6 +2,7 @@
   "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
   "project_name": "codx-ui",
   "project_path": null,
+  "project_branches": [],
   "project_wiki": null,
   "project_dependencies": null,
   "project_preview_url": "https://codx-dev.meetnav.com/chat/1786/W2F---New",
@@ -14,6 +15,7 @@
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx,assets,public",
+  "save_mentions": true,
   "watching": true,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
@@ -24,5 +26,6 @@
   "llm_model": "gpt-4o",
   "rag_model": "codellama",
   "wiki_model": "codellama",
+  "last_error": "",
   "urls": []
 }

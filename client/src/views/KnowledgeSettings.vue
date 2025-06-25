@@ -1,6 +1,7 @@
 <script setup>
 import { API } from '../api/api'
 import MarkdownVue from '@/components/Markdown.vue'
+import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
 import moment from 'moment'
 </script>
 
@@ -35,8 +36,13 @@ import moment from 'moment'
         <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Index' }" @click="selectedTab = 'Index'">
           <i class="fa-solid fa-file-import"></i> Index
         </a>
+        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Wiki' }" @click="selectedTab = 'Wiki'">
+          <i class="fa-solid fa-file"></i> Wiki
+        </a>
       </div>
     </div>
+
+    <WikiSettingsVue v-if="selectedTab === 'Wiki'" />
 
     <div v-if="selectedTab === 'Search'">
       <div class="search flex flex-col gap-2" v-if="settings?.use_knowledge">
@@ -60,6 +66,8 @@ import moment from 'moment'
           <div class="flex gap-2 items-center tooltip" data-tip="Use keywords in search">Keywords:
             <input type="checkbox" v-model="enableKeywords" class="w-20 checkbox checkbox-xs" />
           </div>
+          
+          <div class="grow"></div>
           <button class="btn btn-sm tooltip hover:text-info" data-tip="Save these settings" @click="saveKnowledgeSettings">
             <i class="fa-solid fa-floppy-disk"></i>
           </button>
@@ -91,10 +99,12 @@ import moment from 'moment'
             >
               <div class="p-1 rounded font-bold flex flex-col gap-2" :title="doc.metadata.source"
                 :class="doc.metadata.relevance_score >= cutoffScore ? 'text-primary' : 'text-error'">
-                <div>{{ doc.metadata.source.split("/").reverse()[0] }}</div>
+                <div>{{ doc.metadata.source.split('/').reverse()[0] }}</div>
               </div>
-              <markdown :text="doc.metadata.score_analysis" class="grow">
-              </markdown>
+              <markdown :text="doc.metadata.score_analysis" class="grow"></markdown>
+              <div class="alert alert-sm alert-error" v-if="doc.metadata.score_error">
+                {{ doc.metadata.score_error }}
+              </div>
               <div class="flex gap-2 items-center">
                 <i class="fa-solid fa-scale-unbalanced"></i>
                 {{ `${doc.metadata.db_distance||''}`.slice(0, 4) }}
@@ -257,11 +267,11 @@ import moment from 'moment'
           </div>
         </div>
         <div class="pb-2">
-          <button class="btn btn-error flex gap-2 w-full mt-2" @click="deleteKnowledge" >
+          <button class="btn btn-error flex gap-2 w-full mt-2" @click="deleteKnowledge">
             DELETE ALL
             <div v-if="resetKnowledge">
-              (Really? 
-              <span class="hover:underline">YES</span> / 
+              (Really?
+              <span class="hover:underline">YES</span> /
               <span class="hover:underline" @click.stop="resetKnowledge = false">NO</span>)
             </div>
           </button>
@@ -271,7 +281,7 @@ import moment from 'moment'
     <dialog class="modal modal-bottom sm:modal-middle modal-open" v-if="showDoc">
       <div class="modal-box flex flex-col gap-2 w-full max-w-full">
         <div class="font-bold text-wrap">
-          {{ showDoc.metadata.source.split("/").reverse()[0] }}
+          {{ showDoc.metadata.source.split('/').reverse()[0] }}
         </div>
         <div class="flex flex-col gap-2 grow">
           <div class="flex gap-2 items-center">
@@ -337,11 +347,16 @@ export default {
       fileFilter: null,
       addToIgnore: null,
       settings: API.activeProject,
-      resetKnowledge: false
+      resetKnowledge: false,
+      refreshIx: null
     }
   },
   async created() {
     this.reloadStatus()
+    this.refreshIx = setInterval(() => this.reloadStatus(), 20000)
+  },
+  unmounted () {
+    clearInterval(this.refreshIx)
   },
   computed: {
     projectPath() {
@@ -414,7 +429,8 @@ export default {
         this.searchResults.response
     },
     searchResultsDocuments() {
-      return Object.values(this.searchResults?.documents || {}).sort((a, b) => a.metadata.source < b.metadata.source ? -1: 1)
+      return Object.values(this.searchResults?.documents || {})
+              .sort((a, b) => a.metadata.relevance_score > b.metadata.relevance_score ? -1: 1)
     }
   },
   methods: {
@@ -496,8 +512,8 @@ export default {
         searchTerm,
         searchType,
         documentSearchType,
-        cutoffScore: 0.1,
-        cutoffRag: 0.1,
+        cutoffScore: 0,
+        cutoffRag: 0,
         documentCount
       })
       data.documents = data.documents.reduce((acc, doc) => {

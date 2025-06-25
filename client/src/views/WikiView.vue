@@ -1,78 +1,49 @@
 <script setup>
-import { API } from '../api/api'
-import MarkdownVue from '@/components/Markdown.vue'
+import Iframe from '../components/Iframe.vue'
 </script>
 <template>
-  <div class="flex flex-col gap-2 h-full mb-4">
-    <div class="badge badge-warning flex gap-1" v-if="!settings.project_wiki">Set <span><strong>project_wiki path</strong></span> to enable.</div>
-    <div class="flex items-center gap-2">
-      <div class="breadcrumbs text-xs shrink-0">
-        <ul>
-          <li class="badge badge-outline" v-for="path in history" :key="path"
-            @click="onBack(path)"
-          >
-            <a>{{ path }}</a>
-          </li>
-        </ul>
+  <div class="w-full h-full" v-if="$project.project_wiki">
+    <div class="animate-pulse bg-primary h-1 w-full rounded-full" v-if="!loaded"></div>
+    <Iframe class="w-full h-full" :url="url" 
+      @loaded="onLoaded"      
+    />
+  </div>
+  <div class="hero bg-base-200 w-full h-full" v-else>
+    <div class="hero-content text-center">
+      <div class="max-w-md">
+        <h1 class="text-5xl font-bold">Wiki</h1>
+        <p class="py-6">
+          Wiki is not ready. Go to project settings and define a wiki folder to start generating your wiki!
+        </p>
+        <button class="btn btn-primary" @click="$ui.setActiveTab('settings')" >Settings</button>
       </div>
-      <button class="hidden btn btn-xs btn-ghost" @click="editDocument">
-        <span v-if="isEditing"><i class="fa-solid fa-floppy-disk"></i></span>
-        <span v-else><i class="fa-solid fa-file-pen"></i></span>
-      </button>
     </div>
-    <MarkdownVue
-      class="grow w-full overflow-auto" :text="homeContent"
-      @link="onLink"
-    ></MarkdownVue>
   </div>
 </template>
 <script>
 export default {
-  props: ['showEditor'],
-  data () {
+  data() {
     return {
-      history: [],
-      homeContent: "",
-      isEditing: false
+      loaded: false
     }
   },
-  created () {
-    this.navigate("/home.md")
-  },
   computed: {
-    settings () {
-      return API.activeProject
+    url() {
+      return `/api/wiki/${this.$project.project_name}/`
     }
   },
   methods: {
-    navigate (path) {
-      this.history.push(path)
-      API.wiki.read(path)
-      .then(data => this.homeContent = data)
-      .catch(() => this.homeContent = "## No project wiki yet!" )
-    },
-    onBack (path) {
-      const ix = this.history.indexOf(path)
-      this.history.splice(ix)
-      this.navigate(path)
-    },
-    onLink (link) {
-      console.log("On markdown link", link)
-      let { url } = link
-      if (!url.startsWith("/")) {
-        url = "/" + url
-      } 
-      this.navigate(url)
-    },
-    editDocument () {
-      if (this.isEditing) {
-        this.saveDocument()
-      } else {
-        this.isEditing = true
-      }
-    },
-    saveDocument () {
-      this.isEditing = false
+    onLoaded(iframe) {
+      const style = document.createElement('style')
+      const refElement = document.body
+      const { backgroundColor } = getComputedStyle(refElement) 
+      style.innerHTML = `
+        body, .VPSidebar, .curtain, .content-body, .VPLocalNav, .VPNavBar {
+          background-color: ${backgroundColor} !important;
+        }
+      `
+      iframe.contentDocument.body.appendChild(style)
+      this.loaded = true
     }
   }
 }

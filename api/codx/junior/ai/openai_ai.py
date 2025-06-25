@@ -114,7 +114,7 @@ class OpenAI_AI:
                           try:
                               cb(message)
                           except Exception as ex:
-                              logger.error(f"ERROR IN CALLBACKS: {ex}")
+                              logger.exception(f"ERROR IN CALLBACKS: {ex}")
 
             for chunk in response_stream:
                 # Check for tools

@@ -7,7 +7,6 @@ global_settings*
 **/.codx/db
 filebrowser.
 core
-filebrowser.db
 .idea
 .vscode
 static
@@ -16,3 +15,9 @@ pids
 ollama_models
 logs
 .codx/logs/ai.md
+**/.vitepress/cache
+**/dist
+client/public/wiki
+*.db
+*.wal
+*.lock

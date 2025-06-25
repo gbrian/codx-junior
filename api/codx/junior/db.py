@@ -11,15 +11,19 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 
 from datetime import datetime
-
+from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+class MessageTaskItem(Enum):
+    SUMMARY = "summary"
 
 class Message(BaseModel):
     doc_id: Optional[str] = Field(default=None)
     role: str = Field(default='')
     task_item: str = Field(default='')
     content: str = Field(default='')
+    think: Optional[str] = Field(default='')
     hide: bool = Field(default=False)
     improvement: bool = Field(default=False)
     created_at: str = Field(default=str(datetime.now()))
@@ -29,7 +33,10 @@ class Message(BaseModel):
     meta_data: Optional[dict] = Field(default={})
     profiles: List[str] = Field(default=[])
     user: Optional[str] = Field(default=None)
-
+    knowledge_topics: List[str] = Field(description="This message will be indexed for knowledge and tagged with this topics", default=[])
+    done: Optional[bool] = Field(default=True, description="Indicates if user is done writing")
+    is_thinking: Optional[bool] = Field(default=False)
+    
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
@@ -41,6 +48,7 @@ class Chat(BaseModel):
     profiles: List[str] = Field(default=[])
     users: List[str] = Field(default=[])
     name: str = Field(default='')
+    description: str = Field(default='')
     messages: List[Message] = Field(default=[])
     created_at: str = Field(default=str(datetime.now()))
     updated_at: str = Field(default=str(datetime.now()))
@@ -55,6 +63,8 @@ class Chat(BaseModel):
     file_path: str = Field(default='')
     model: Optional[str] = Field(default='')
     visibility: Optional[str] = Field(default='')
+    knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
+
 
 class KanbanColumn(BaseModel):
     doc_id: Optional[str] = Field(default=None)

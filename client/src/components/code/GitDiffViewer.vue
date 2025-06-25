@@ -31,6 +31,11 @@ export default {
       expandedFiles: {}
     }
   },
+  created () {
+    const parsedDiff = this.parsedDiff
+    Object.keys(parsedDiff)
+      .slice(0, 5).forEach(k => this.toggleExpanded(parsedDiff[k]))
+  },
   computed: {
     parsedDiff() {
       return this.parseDiff(this.diff)

@@ -1,0 +1,93 @@
+{
+  "categories": [
+    {
+      "category": "AI",
+      "files": [
+        "/home/codx-junior/codx-junior/api/codx/junior/ai/ai.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/ai/__init__.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/ai/ai_logger.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/ai/anthropic.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/ai/llmfactory.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/ai/mistral_ai.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/ai/openai_ai.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/ai/utils.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/chat_manager.py"
+      ]
+    },
+    {
+      "category": "API",
+      "files": [
+        "/home/codx-junior/codx-junior/api/codx/junior/api/chatGPTLikeApi.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/api/github.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/api/users.py"
+      ]
+    },
+    {
+      "category": "Knowledge",
+      "files": [
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/README.md",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/__init__.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge_code_splitter.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge_keywords.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge_code_to_dcouments.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge_loader.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge_milvus.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge_prompts.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge_qa_splitter.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge_splitter.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/prepromts/code_to_chunks.md",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/prepromts/enrich_document.md",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/prepromts/extract_document_tags.md",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/prepromts/extract_query_tags.md",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/settings.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/knowledge/knowledge_db.py"
+      ]
+    },
+    {
+      "category": "Profiles and Profiling",
+      "files": [
+        "/home/codx-junior/codx-junior/api/codx/junior/profiles/agent-coding-task.md",
+        "/home/codx-junior/codx-junior/api/codx/junior/profiles/analyst.profile",
+        "/home/codx-junior/codx-junior/api/codx/junior/profiles/analyst.profile.md",
+        "/home/codx-junior/codx-junior/api/codx/junior/profiles/browser.profile",
+        "/home/codx-junior/codx-junior/api/codx/junior/profiles/coding_profiles.json",
+        "/home/codx-junior/codx-junior/api/codx/junior/profiles/profile_manager.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/profiles/project.profile",
+        "/home/codx-junior/codx-junior/api/codx/junior/profiles/software_developer.profile",
+        "/home/codx-junior/codx-junior/api/codx/junior/profiling/profiler.py"
+      ]
+    },
+    {
+      "category": "Miscellaneous",
+      "files": [
+        "/home/codx-junior/codx-junior/api/codx/junior/background.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/agents/git_issues_agent.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/app.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/context.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/db.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/main.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/misc/github.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/model/model.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/model/user.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/security/user_management.py",
+        "/home/codx-junior/codx-junior/api/pyproject.toml",
+        "/home/codx-junior/codx-junior/api/tests/db/sharedcodxjuniorapitestsdb.db.json",
+        "/home/codx-junior/codx-junior/api/codx/junior/engines.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/agents/base_agent.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/task_manager.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/utils.py",
+        "/home/codx-junior/codx-junior/api/codx/junior/workspace/workspace_manager.py",
+        "/home/codx-junior/codx-junior/api/tests/db/test_db.py",
+        "/home/codx-junior/codx-junior/api/tests/test_watcher.py"
+      ]
+    },
+    {
+      "category": "Welcome",
+      "files": [
+        "/home/codx-junior/codx-junior/api/README.md"
+      ]
+    }
+  ],
+  "last_update": null
+}

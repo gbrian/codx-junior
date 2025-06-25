@@ -79,8 +79,8 @@ class AIDocValidateResponse(BaseModel):
 @profile_function
 def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
     ai = AI(settings=settings)
-    score = float(settings.knowledge_context_cutoff_relevance_score)
-    if not score:
+    score = float(settings.knowledge_context_cutoff_relevance_score or 0)
+    if score == -1:
       logger.info(f"Validating RAG documents disabled!!")
       return documents
     
@@ -103,7 +103,6 @@ def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
 @profile_function
 def ai_validate_context(ai, prompt, doc, retry_count=0):
     assert prompt
-    parser = PydanticOutputParser(pydantic_object=AIDocValidateResponse)
     
     json_example = """{
       "score": 0.8,
@@ -132,21 +131,15 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
     doc.metadata["relevance_score"] = -1
     try:
         messages = ai.chat(messages=messages)
-        response = parser.invoke(messages[-1].content.strip())
-        score = float(response.score)
+        response = next(extract_json_blocks(messages[-1].content))
+        doc.metadata["relevance_score"] = float(response["score"])
+        doc.metadata["score_analysis"] = response["analysis"]
     except Exception as ex:
+        doc.metadata["score_error"] = str(ex)
         logger.error(f"Error parsing content validation: {ex}")
 
-    if score is not None:
-        doc.metadata["relevance_score"] = score
-        doc.metadata["score_analysis"] = response.analysis
-        logger.debug(f"[validate_context] {doc.metadata.get('source')}: {score}")
-    else:
-        if not retry_count:
-            logger.exception(f"[validate_context] re-trying failed validation\n{prompt}\n{response}")
-            return ai_validate_context(ai, prompt, doc, retry_count=1)
-
-        logger.error(f"[validate_context] failed to validate. Messages: {messages}")
+    if score is None:
+        logger.error(f"[validate_context] failed to validate. Messages: {messages[-1]}")
 
     return doc
 

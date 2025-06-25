@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* .vitepress/theme/custom.css */
+:root {
+  --vp-c-brand-1: #8f008f;
+  --vp-c-brand-2: #cc0099;
+  --vp-c-brand-3: #550e57;
+}
+
+.feature-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  float: left;
+  margin-right: 8px;
+}

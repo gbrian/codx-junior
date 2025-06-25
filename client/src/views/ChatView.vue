@@ -12,14 +12,14 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full pb-2" v-if="chat">
+  <div class="flex flex-col h-full pb-2 px-2" v-if="chat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col gap-2 w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
               <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
-              <div class="font-bold flex flex-col" v-else>
+              <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2">
                   <div class="my-2 text-xs hover:underline click font-bold text-primary" @click="naviageToParent()">
                     <i class="fa-solid fa-caret-left"></i> {{ kanban?.title }}
@@ -29,8 +29,8 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                     {{ parentChat.name }}
                   </div>
                 </div>
-                <div class="flex items-center gap-2">
-                  <div class="flex gap-1">
+                <div class="flex gap-2">
+                  <div class="hidden flex gap-1">
                     <div class="avatar" :title="taskProject.project_name" v-if="taskProject !== $project">
                       <div class="w-7 h-7 rounded-full">
                         <img :src="taskProject.project_icon"/>
@@ -50,14 +50,27 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                         </div>
                     </ProfileAvatar>
 
-                    <button class="btn btn-sm btn-circle tooltip" data-tip="Add profile"
+                    <button class="hidden btn btn-sm btn-circle tooltip" data-tip="Add profile"
                       @click="onAddProfile">
                       <i class="fa-solid fa-plus"></i>
                     </button>
                   </div>
 
-                  <div class="click text-xs md:text-xl" @click="editName = true">
-                    {{ chat.name }}
+                  <div class="click text-xs md:text-xl flex flex-col" @click="editName = true">
+                    <div>
+                       {{ chat.name }} 
+                      <span class="text-xs hover:underline text-info" 
+                        @click.stop="showDescription = !showDescription"
+                        v-if="chat.description">more
+                      </span>
+                      <span class="badge badge-md badge-outline" v-if="taskProject">
+                        <img :src="taskProject.project_icon" class="w-3 rounded-full mr-1" />
+                        {{ taskProject.project_name }}
+                      </span>
+                    </div>
+                    <div class="text-xs" v-if="showDescription">
+                      {{ chat.description }}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -68,13 +81,26 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                 <div class="flex gap-2 p-1 items-center -top-1" v-if="toggleChatOptions">
                   <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
                     <div class="flex items-center gap-2" v-if="!showHidden">
-                      ({{ hiddenCount }})
+                      ({{ hiddenCount }}/{{ messageCount }})
                       <i class="fa-solid fa-eye-slash"></i>
                     </div>
                     <span class="text-warning" v-else>
                       <i class="fa-solid fa-eye"></i>
                     </span>
                   </button>
+                  <div class="dropdown dropdown-end">
+                    <div tabindex="0" role="button" class="btn btn-xs m-1">
+                      <ChatIcon :mode="chat.mode" />
+                    </div>
+                    <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                      <li @click="setChatMode('chat')">
+                        <a>Conversation</a>
+                      </li>
+                      <li @click="setChatMode('task')">
+                        <a>Canvan</a>
+                      </li>
+                    </ul>
+                  </div>
                   <div class="grow"></div>
                   <div class="dropdown dropdown-end dropdown-bottom">
                     <div tabindex="0" class="btn btn-sm flex items-center indicator">
@@ -89,15 +115,6 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                       </li>
                       <li @click="onExport">
                         <a><i class="fa-solid fa-copy"></i> Export</a>
-                      </li>
-                      <li>
-                        <div class="flex gap-2 items-center">
-                          <ChatIcon :mode="chat.mode" />
-                          <select class="select select-sm" @change="setChatMode($event.target.value)">
-                            <option value="task" :selected="chat.mode === 'task'" >Document</option>
-                            <option value="chat" :selected="chat.mode !== 'task'">Chat</option>
-                          </select>
-                        </div>
                       </li>
                       <li @click="saveChat">
                         <a><i class="fa-solid fa-floppy-disk"></i> Save</a>
@@ -134,7 +151,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
           <div class="flex gap-1 justify-end items-center">
           </div>
         </div>
-        <div class="w-full overflow-auto" v-if="chatFiles.length">
+        <div class="w-full" v-if="chatFiles.length">
           <div class="my-2 text-xs">
             <span>
               <i class="fa-solid fa-paperclip"></i>
@@ -245,7 +262,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
 
 <script>
 export default {
-  props: ['chatMode', 'openChat', 'kanban'],
+  props: ['chatMode', 'chat', 'kanban'],
   data() {
     return {
       showFile: null,
@@ -264,7 +281,8 @@ export default {
       subtaskDescription: '',
       showAddProfile: false,
       createTasksInstructions: '',
-      chatProfiles: []
+      chatProfiles: [],
+      showDescription: false
     }
   },
   async mounted () {
@@ -294,6 +312,9 @@ export default {
     hiddenCount() {
       return this.chat.messages?.filter(m => m.hide).length
     },
+    messageCount() {
+      return this.chat.messages?.length
+    },
     messages() {
       return this.chat.messages.filter(m => !m.hide || this.showHidden)
     },
@@ -305,9 +326,6 @@ export default {
     },
     chats() {
       return this.$projects.allChats
-    },
-    chat() {
-      return this.$projects.chats[this.openChat?.id || this.$projects.activeChat?.id]
     },
     childrenChats() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)

@@ -2,6 +2,7 @@ import './assets/main.css'
 
 import { createApp } from 'vue'
 import store, { $storex } from "./store";
+import service from "./service"
 
 import App from './App.vue'
 import Modal from './components/Modal.vue'
@@ -37,6 +38,9 @@ const globalMixin = {
     },
     $globalSettings() {
       return $storex.api.globalSettings
+    },
+    $service () {
+      return service
     }
   }
 }

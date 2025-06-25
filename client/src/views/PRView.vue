@@ -8,7 +8,7 @@ import Collapsible from '@/components/Collapsible.vue'
     <header class="flex justify-between items-start">
       <div class="flex flex-col gap-2">
         <h1 class="md:text-3xl text-xl font-bold">Changes review</h1>
-        <div class="flex gap-2 items-center">
+        <div class="flex gap-2 items-center hidden">
           <div class="flex items-center gap-2">
             <label class="block text-xs font-bold" for="branchSource">Source</label>
             <select id="branchSource" class="select select-bordered select-sm w-full max-w-xs" v-model="selectedBranchSource">

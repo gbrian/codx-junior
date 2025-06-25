@@ -58,7 +58,8 @@ def start_background_services(app):
         file_key = f"{settings.project_name}:{file_path}"
         if FILES_CHECKING.get(file_path):
             return
-        if not Knowledge(settings=settings).is_valid_project_file(file_path=file_path):
+        if not settings.project_path or \
+            not Knowledge(settings=settings).is_valid_project_file(file_path=file_path):
             return
         logger.info(f"project_file_changed processing event. {file_key} - {settings.project_name}")
         Thread(target=check_file_worker, args=(file_path,)).start()

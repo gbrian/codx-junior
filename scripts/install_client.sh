@@ -19,5 +19,13 @@ cp ${CODX_JUNIOR_PATH}/code-server/User/settings.json ${HOME}/.local/share/code-
 
 echo "Compiling client"
 cd $CODX_JUNIOR_PATH/client
+rm -rf node_modules
+rm -rf dist
 npm i
 npm run build-only
+
+cd $CODX_JUNIOR_PATH/docs
+rm -rf node_modules
+rm -rf dist
+npm i
+npm run docs:build

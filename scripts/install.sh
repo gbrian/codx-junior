@@ -1,8 +1,4 @@
 #!/bin/bash
-if [ -t "/tmp/codx-junior-installed" ]; then
-  exit 0
-fi
-touch /tmp/codx-junior-installed
 
 # Function to log messages
 log_info() {
@@ -23,34 +19,6 @@ bash scripts/logo.sh
 
 echo "Starting installation..."
 
-# Function to update and install packages
-install_packages() {
-    echo "Updating package list and installing packages..."
-    sudo apt-get update
-    sudo apt-get install -y \
-        curl wget supervisor nano \
-        locales python3.11 python3.11-venv firefox-esr \
-        procps git tesseract-ocr
-    sudo apt-get clean
-    sudo rm -rf /var/lib/apt/lists/*
-}
-
-# Invoke the function to install packages
-install_packages
-
-# Configure Git
-echo "Configuring Git..."
-git config --global --add safe.directory '*'
-
-# Create necessary directories
-echo "Creating necessary directories..."
-sudo mkdir -p "${CODX_SUPERVISOR_LOG_FOLDER}"
-
-# Install codx APPS
-echo "Installing codx APPS..."
-curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
-
-
 # Installers
 function install_client() {
   echo "Install web client"
@@ -70,24 +38,6 @@ function install_llmFactory () {
   bash ${CODX_JUNIOR_PATH}/scripts/install_llmFactory.sh
 }
 
-function copy_app_conf() {
-  if [ ! -d /etc/supervisord ]; then
-    sudo mkdir /etc/supervisord
-  fi
-  
-  app=$1
-  log_info "Copying supervisor conf for: $app"
-  conf_source="${HOME}/codx-junior/supervisor.${app}.conf"
-  conf_dest="/etc/supervisord/supervisor.${app}.conf"
-
-  if [ -f $conf_source ]; then
-    sudo cp $conf_source $conf_dest
-    log_info "Copied $conf_source to $conf_dest"
-  else
-    log_error "Configuration file $conf_source not found for app: $app"
-  fi
-}
-
 function install_docker() {
   codx docker
   
@@ -100,8 +50,6 @@ function install_docker() {
 
 echo "Load supervisor files"
 for app in $CODX_JUNIOR_APPS; do
-  # Copy supervisor conf
-  copy_app_conf $app
 
   # Execute custom instructions based on the app name
   case $app in
@@ -123,10 +71,5 @@ for app in $CODX_JUNIOR_APPS; do
   esac
 
 done
-
-
-# Create FileSync directory
-echo "Creating FileSync directory..."
-mkdir -p "${HOME}/FileSync"
 
 echo "Installation complete!"

@@ -1,3 +1,4 @@
+import os
 import time
 import asyncio
 import logging
@@ -7,6 +8,8 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from concurrent.futures import ThreadPoolExecutor
+
+CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
 logger = logging.getLogger(__name__)
 
@@ -19,11 +22,19 @@ EVENT_QUEUE: List[IOEvent] = []
 
 def process_event_queue():
     from codx.junior.sio.sio import sio
+    from codx.junior.sio.sio_background import sio_client
+                    
     while True:
         if EVENT_QUEUE:
             try:
                 event: IOEvent = EVENT_QUEUE.pop(0)
-                asyncio.run(sio.emit(event.event, event.data))
+                    
+                if CODX_JUNIOR_API_BACKGROUND:
+                    resend_event = { "event": event.event, "data": event.data }
+                    logger.info(f"Sending event bacground: {resend_event}")
+                    sio_client.emit("background-event", resend_event)
+                else:
+                    asyncio.run(sio.emit(event.event, event.data))
             except Exception as e:
                 logger.error(f"Error processing event: {e}")
         else:
@@ -37,15 +48,7 @@ class SessionChannel:
 
     def send_event(self, event, data):
         data["ts"] = int(time.time())
-        """
-        try:
-            asyncio.get_running_loop() # Triggers RuntimeError if no running event loop
-            # Create a separate thread so we can block before returning
-            with ThreadPoolExecutor(1) as pool:
-                pool.submit(lambda: asyncio.run(self.sio.emit(event, data))).result()
-        except RuntimeError:
-            asyncio.run(self.sio.emit(event, data))
-        """
+        logger.info(f"SessionChannel send_event {event}")
         EVENT_QUEUE.append(IOEvent(sid=self.sid, event=event, data=data))
 
         

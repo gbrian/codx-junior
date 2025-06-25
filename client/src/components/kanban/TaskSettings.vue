@@ -10,7 +10,7 @@ import ProfileSelector from '../profile/ProfileSelector.vue';
         <input type="text" class="input input-bordered w-full" v-model="taskData.name">
       </label>
       <label class="block mt-4">
-        <span>Project</span>
+        <span>Associated project</span>
         <select class="input input-bordered w-full" v-model="taskData.project_id">
           <option :value="null">{{ $project.project_name }}</option>
           <option v-for="project in projects" :key="project.project_id" :value="project.project_id">{{ project.project_name }}</option>
@@ -85,12 +85,13 @@ export default {
     },
     projects() {
       return this.$projects.allProjects
+        .sort((a, b) => a.project_name.toLowerCase() > b.project_name.toLowerCase() ? 1: -1)
     },
     taskProject() {
       if (this.taskData.project_id) {
         return this.projects.find(p => p.project_id === this.taskData.project_id)
       }
-      return $project
+      return this.$project
     }
   },
   watch: {

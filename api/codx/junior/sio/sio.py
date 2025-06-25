@@ -1,3 +1,4 @@
+import os
 import logging
 import socketio
 import functools
@@ -18,6 +19,8 @@ from codx.junior.sio.model import (
 )
 
 from codx.junior.ai import AIManager
+
+CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
 USERS = {}
 
@@ -50,6 +53,15 @@ async def disconnect(sid):
 @sio.on("codx-junior-ping")
 async def io_ping(sid, data: dict = None):
     return True
+
+
+@sio.on("background-event")
+async def on_background_event(sid, data: dict):
+    logger.info(f"***************** On event bacground: {data}")
+    event = data["event"]
+    if event == "hello":
+        return f"Hi! Is back: {CODX_JUNIOR_API_BACKGROUND}"
+    await sio.emit(data["event"], data["data"])
 
 
 def sio_api_endpoint(func):
@@ -99,7 +111,9 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
 @sio_api_endpoint
 async def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSession):
     sio_chat = SioChatMessage(**data)
-    return await codxjunior_session.generate_tasks(chat=sio_chat.chat, instructions=data.get("instructions"))
+    instructions = data.get("instructions")
+    return await codxjunior_session.generate_tasks(chat=sio_chat.chat, 
+                                                    instructions=instructions)
 
 @sio.on("codx-junior-improve")
 @sio_api_endpoint

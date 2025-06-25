@@ -1,10 +1,11 @@
+
 <script setup>
 import ExportImportButton from './ExportImportButton.vue';
 import Markdown from './Markdown.vue';
 </script>
 
 <template>
-  <div class="edit-profile px-4 max-w-2xl mx-auto flex flex-col gap-2">
+  <div class="edit-profile px-4 mx-auto flex flex-col gap-2">
     <div class="text-xl flex items-center gap-2 font-bold">
       <button class="btn btn-sm" @click="cancelEdit">
         <i class="fa-solid fa-arrow-left"></i>
@@ -37,13 +38,19 @@ import Markdown from './Markdown.vue';
     <div class="form-group flex space-x-4 text-xs">
       <div class="w-1/2 flex flex-col gap-2">
         <label for="category">Category</label>
-        <select v-model="editProfile.category" :disabled="profile.category" class="select select-xs select-bordered">
-          <option value="project">Project</option>
+        <select v-model="editProfile.category" :disabled="profile.category === 'project'" class="select select-xs select-bordered">
+          <option value="project" v-if="profile.category === 'project'">Project</option>
           <option value="assistant">Assistant</option>
           <option value="chat">Chat</option>
           <option value="file">File</option>
           <option value="agent">Agent</option>
         </select>
+      </div>
+      <div class="w-1/2 flex flex-col gap-2">
+        <label for="fileMatch">File Match</label>
+        <input id="fileMatch" v-model="editProfile.file_match" type="text" 
+          :class="!isValidFileMatch && 'text-error'"
+          class="bg-base-300 input input-xs input-bordered w-full" />
       </div>
     </div>
     <div class="form-group">
@@ -136,8 +143,8 @@ export default {
     },
     aiModels() {
       return this.$storex.api.globalSettings?.ai_models
-                .filter(m => m.model_type === 'llm')
-                .sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
+                ?.filter(m => m.model_type === 'llm')
+                ?.sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
     },
     isOverriden() {
       return this.profile.path?.startsWith(this.$project.project_path)
