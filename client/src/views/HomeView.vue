@@ -1,7 +1,6 @@
 <script setup>
 import NavigationBarVue from '../components/NavigationBar.vue';
 import LogoVue from '../components/Logo.vue';
-import TabNavigationVue from '../components/TabNavigation.vue';
 import TabViewVue from '../components/TabView.vue';
 import ProjectDropdown from '@/components/ProjectDropdown.vue';
 </script>
@@ -11,14 +10,13 @@ import ProjectDropdown from '@/components/ProjectDropdown.vue';
     <div class="w-full h-full flex flex-col justify-center items-center bg-base-100/30" v-if="$projects.allProjects === null">
       <div class="text-2xl">LOADING <span class="loading loading-dots loading-xs"></span></div>
     </div>
-    <div ref="contentRef" class="drawer-content p-2 flex flex-col gap-2 overflow-auto bg-base-100">
-      <div class="flex justify-between">
-        <ProjectDropdown class="flex flex-col" />
+    <div ref="contentRef" class="drawer-content flex flex-col gap-2 overflow-auto">
+      <div class="flex justify-between" v-if="$ui.activeTab !== 'home'">
+        <ProjectDropdown class="flex flex-col"  />
         <label for="my-drawer-4" class="drawer-button btn btn-sm">
           <LogoVue />
         </label>
       </div>
-      <TabNavigationVue v-if="!$projects.activeChat" />
       <TabViewVue />
     </div>
     <div class="drawer-side">

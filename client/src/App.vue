@@ -6,7 +6,7 @@ import Login from './components/user/Login.vue';
 </script>
 
 <template>
-  <div class="w-full h-full flex relative bg-base-100 relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
+  <div class="w-full h-full flex relative bg-base-300 relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <div class="absolute top-0 h-1" 
       :class="$session.apiCalls && 'w-full bg-secondary/70 animate-pulse z-50'"></div>
     <SharedView v-if="isSharedScreen" />

@@ -9,7 +9,7 @@ import Assistant from './codx-junior/Assistant.vue';
     :class="$ui.showApp && 'click'">
 
     <div class="flex w-full flex-col mt-4 flex">
-      <div class="relative">
+      <div class="">
         <Assistant :class="$storex.session.connected ? '' : 'grayscale'" />
         <div class="absolute bottom-0 flex justify-center w-full"
           v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">

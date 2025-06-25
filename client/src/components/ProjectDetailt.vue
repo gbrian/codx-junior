@@ -3,8 +3,8 @@ import ProjectChip from './ProjectChip.vue';
 </script>
 <template>
   <div v-if="$project">
-    <div tabindex="0" role="button" class="flex flex-col gap-2 text-2xl">
-      <div class="flex gap-2 items-center">
+    <div tabindex="0" role="button" class="flex flex-col gap-2 text-xl md:text-2xl">
+      <div class="flex gap-2 items-center py-1 px-2">
         <div class="avatar">
           <div class="w-6 h-6 rounded-full bg-white">
             <img :src="$projects.activeProject.project_icon" />

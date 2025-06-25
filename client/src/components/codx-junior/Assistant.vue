@@ -5,8 +5,8 @@ import UserSelector from '../chat/UserSelector.vue'
 
 </script>
 <template>
-  <div class="flex gap-2 justify-center w-full bg-base-300" @mouseenter="onOpen" @mouseleave="onClose">
-    <div class="absolute transition-all w-[600px] z-[100] right-0 -mt-3 p-2 " :class="!showAssistant && 'hidden'">
+  <div class="absolute md:relative top-0 left-0 right-0 p-4 flex gap-2 justify-center w-full bg-base-300" @mouseenter="onOpen" @mouseleave="onClose">
+    <div class="absolute transition-all w-full md:w-[600px] z-[100] right-0 -mt-3 p-2 " :class="!showAssistant && 'hidden'">
       
       <div class="input input-bordered w-full flex gap-2 items-center">
         <UserSelector

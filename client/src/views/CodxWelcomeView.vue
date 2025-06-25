@@ -4,24 +4,30 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
 </script>
 
 <template>
-  <div class="profile-container flex flex-col h-full py-2">
-    <ul class="menu menu-horizontal flex">
+  <div class="flex flex-col h-full md:py-2">
+    <ul class="menu menu-horizontal flex p-0 m-0">
       <li @click="selection = 'home'">
         <a>
-          <i class="fa-solid fa-house"></i>
+          <span class="hidden md:block">
+            <i class="fa-solid fa-house"></i>
+          </span>
           Home
         </a>
       </li>
       <li @click="showProjects">
         <a>
-        <i class="fa-solid fa-cubes"></i>
+          <span class="hidden md:block">
+            <i class="fa-solid fa-cubes"></i>
+          </span>
           Projects
           <span class="badge badge-sm">{{ $projects.allProjects.length }}</span>
         </a>
       </li>
       <li @click="$ui.setActiveTab('docs')">
         <a>
-        <i class="fa-solid fa-circle-info"></i>
+          <span class="hidden md:block">
+            <i class="fa-solid fa-circle-info"></i>
+          </span>
           Docs
         </a>
       </li>
@@ -29,22 +35,23 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
       <li>
         <a href="https://github.com/gbrian/codx-junior" target="_blank">
           <i class="fa-brands fa-github"></i>
-          codx-junior
+          <span class="hidden md:block">codx-junior</span>
         </a>
       </li>
     </ul>
 
-    <div class="py-10 flex flex-col" v-if="selection === 'home'">
-      <div class="px-20 flex flex-col">
-        <h1 class="text-center text-3xl font-bold flex gap-2 justify-center items-center">
-          Hi there!
-        </h1>
-        <p class="pb-6 text-center text-2xl">
-          codx-junior is here to maintain your open source projects
-        </p>
+    <div class="md:py-10 flex flex-col" v-if="selection === 'home'">
+      <div class="flex flex-col">
+        <div class="py-4">
+          <h1 class="text-center text-xl md:text-3xl font-bold flex gap-2 justify-center items-center">
+            👋 this is codx-junior team
+          </h1>
+          <p class="text-center md:text-xl">
+            We're here to maintain your open source projects!
+          </p>
+        </div>
 
-        <div class="text-3xl py-2">Meet the team</div>
-        <div class="flex justify-between items-start">
+        <div class="mx-4 rounded-xl bg-base-100 grow flex flex-col gap-2 px-4 py-2 lg:py-6">
           <div class="chat chat-start">
             <div class="chat-image avatar">
               <div class="w-10 rounded-full">
@@ -55,7 +62,6 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
               Hi, this is <span class="font-bold">@wiki</span>.<br/>
               I'll write updated and clear documentation for you.
             </div>
-            <div class="chat-footer opacity-50">Keep your docs always up-to-date with @biblio and auto-wiki</div>
           </div>
 
           <div class="chat chat-end">
@@ -68,10 +74,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
               Hello, this is <span class="font-bold">@analyst</span>.<br/>
               I'll keep your Kanban tasks tiddy, create subtasks, and assign users to them.
             </div>
-            <div class="chat-footer opacity-50">Project management made easy!</div>
           </div>
-        </div>
-        <div class="flex justify-center items-start mt-2">
           <div class="chat chat-start">
             <div class="chat-image avatar">
               <div class="w-10 rounded-full">
@@ -81,50 +84,39 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
             <div class="chat-bubble">
               <span class="font-bold">@software_developer</span> here!
               <br/>
-              I'll can write high quality code non-stop
+              I write high quality code non-stop
             </div>
-            <div class="chat-footer opacity-50">Write code like a champ with @software_developer</div>
           </div>
         </div>
       </div>
 
-      <div class="mt-10 px-32 flex flex-col gap-2 justify-center align-center">
-          <div class="chat chat-start">
-            <div class="chat-image avatar">
-              <div class="w-10 rounded-full">
-                <img class="h-8" src="/only_icon.png" />
-              </div>
-            </div>
-            <div class="chat-bubble w-full">
-              And this is <span class="font-bold codx-primary">@codx-junior</span>,
-              <br/>
-              Let's start working together!
-              <div class="my-2 flex flex-col gap-2 rounded-md">
-                <div class="group input input-bordered flex gap-1 items-center"
-                  :class="newProjectPath && 'border-warning'"
-                >
-                  <i class="fa-solid fa-link group-hover:animate-pulse"></i>
-                  <input type="text" class="grow"
-                    placeholder="Paste a git issue link to start!" 
-                    v-model="newProjectPath" />
-                  <button class="btn btn-sm"
-                    :class="newProjectPath && 'btn-warning border-warning border'"
-                    :disabled="newProjectPath?.length < 10" @click="createNewProject(newProjectPath)">
-                    Go
-                  </button>
-                </div>
-              </div>  
-              <div class="chat-footer opacity-50">
-                Paste a git issue link to start!
-              </div>
-            </div>
+      <div class="mt-4 grow px-3 xl:px-10 flex flex-col md:gap-2 justify-center align-center">
+        <div>
+          Let's start working together!
+        </div>
+        <div class="my-2 flex flex-col md:gap-2 rounded-md">
+          <div class="group input input-bordered flex gap-1 items-center"
+            :class="newProjectPath && 'border-warning'"
+          >
+            <i class="fa-solid fa-link group-hover:animate-pulse"></i>
+            <input type="text" class="grow"
+              placeholder="Paste a git issue link to start!" 
+              v-model="newProjectPath" />
+            <button class="btn btn-sm shrink-0"
+              :class="newProjectPath && 'btn-warning border-warning border'"
+              :disabled="newProjectPath?.length < 10" @click="createNewProject(newProjectPath)">
+              Go
+            </button>
           </div>
-
+        </div>  
+        <div class="chat-footer opacity-50">
+          Paste a git issue link to start!
+        </div>
         
       </div>
 
       <div class="mt-8 px-10 flex flex-col justify-center">
-        <div class="text-center text-xl py-2 click" @click="showIssues = !showIssues">
+        <div class="text-center md:text-xl py-2 click" @click="showIssues = !showIssues">
           Or take one from the os community list 
           <span v-if="showIssues">👇</span>
           <span v-else>👉</span>
@@ -176,7 +168,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
     </div>    
     
 
-    <div class="flex flex-col gap-4 mt-4" v-if="selection === 'projects'">
+    <div class="flex flex-col gap-4 mt-4 px-2" v-if="selection === 'projects'">
       <div class="flex justify-between">
         <div class="text-xl font-bold">Projects</div>
         <div class="flex items-center gap-2 mb-2">
@@ -186,7 +178,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
           </button>
         </div>
       </div>
-      <div class="grid grid-cols-3 gap-2">
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
         <div
           v-for="project in filteredProjects"
           :key="project.project_id"
