@@ -3,7 +3,7 @@
 <template>
   <div class="w-full h-full flex flex-col items-center justify-center gap-4 p-4">
     <form @submit.prevent="handleLogin" class="card w-full max-w-md shadow-lg p-6 rounded-lg bg-base-300/80">
-      <h2 class="text-5xl font-semibold mb-4 flex gap-2 items-center text-nowrap">
+      <h2 class="text-3xl lg:text-5xl font-semibold mb-4 flex gap-2 items-center text-nowrap">
         <div class="avatar">
           <div class="w-24 rounded-full">
             <img src="/only_icon.png" />
