@@ -10,7 +10,6 @@ services:
       args:
         - USER_GID=${USER_GID:-1001}
         - USER_UID=${USER_UID:-1001}
-        - CODX_JUNIOR_BRANCH=v1.0-hello-codx-junior
     command: echo "Done"
 
   milvus:
@@ -50,7 +49,7 @@ services:
     # Set to true if you want to use docker inside codx-junior
     privileged: true
     environment:
-      - DEBU
+      - DEBUG
       # Settings file
       - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/.global_settings.json
       # LLM Settings (Use any OpenAI compatible)
@@ -69,11 +68,6 @@ services:
       - ./supervisor.docker.conf:/etc/supervisord/supervisor.docker.conf
       # DOCKER
       - /var/run/docker.sock:/var/run/docker.sock
-    ports:
-      # CODX_JUNIOR_WEB_PORT
-      - 8080:19981
-      # Reserved ports to expose internal projects
-      - 29000-29100:9000-9100
     networks:
       - codx-junior-network
 
@@ -95,4 +89,4 @@ volumes:
 
 networks:
   codx-junior-network:
-    name: codx-junior-network
+    external: true

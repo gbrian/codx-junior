@@ -1,5 +1,5 @@
 # Base
-FROM debian:latest as base
+FROM debian:latest AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CODX_JUNIOR_API_VENV=/tmp/.venv_codx_junior_api
@@ -39,7 +39,7 @@ RUN bash scripts/install_base.sh
 RUN bash scripts/install_noVNC.sh
 
 ## Install API
-FROM base as api
+FROM base AS api
 
 USER ${USER}
 WORKDIR ${HOME}/codx-junior
