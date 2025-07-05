@@ -218,7 +218,8 @@ def api_knowledge_reload_path(knowledge_delete_sources: KnowledgeDeleteSources, 
 @app.delete("/api/knowledge/delete")
 def api_knowledge_reload_all(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.delete_knowledge()
+    index = request.query_params.get("index")
+    return codx_junior_session.delete_knowledge(index=index)
 
 
 @app.post("/api/knowledge/reload-search")
@@ -353,7 +354,7 @@ def api_settings_check(request: Request):
 async def api_save_settings(request: Request):
     settings = await request.json()
     settings = CODXJuniorSettings.from_json(settings).save_project()
-    find_all_projects()
+    find_all_projects(with_metrics=True)
     return api_settings_check(request)
 
 @app.get("/api/profiles")
@@ -382,12 +383,12 @@ def api_project_watch(request: Request):
     codx_junior_session = request.state.codx_junior_session
     settings.watching = True
     settings.save_project()
-    find_all_projects()
+    find_all_projects(with_metrics=True)
     return { "OK": 1 }
 
 @app.get("/api/projects")
 def api_find_all_projects(user: CodxUser = Depends(get_authenticated_user)):
-    all_projects = find_all_user_projects(user)
+    all_projects = find_all_user_projects(user, with_metrics=True)
     return list(all_projects)
 
 @app.get("/api/projects/repo/branches")
@@ -426,7 +427,7 @@ def api_project_unwatch(request: Request):
     codx_junior_session = request.state.codx_junior_session
     settings.watching = False
     settings.save_project()
-    find_all_projects()
+    find_all_projects(with_metrics=True)
     return { "OK": 1 }
 
 @app.get("/api/knowledge/keywords")

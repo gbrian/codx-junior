@@ -1,29 +1,13 @@
 <script setup>
 import RequestMetrics from './metrics/RequestMetrics.vue'
 import TimeSelector from './TimeSelector.vue'
-import Markdown from './Markdown.vue';
+import Markdown from './Markdown.vue'
 </script>
 
 <template>
   <div class="px-2 pt-4 gap-2 w-full max-w-full overflow-auto flex flex-col relative">
     <header class="flex flex-row justify-between items-center">
       <h1 class="text-xl font-semibold">Dashboard</h1>
-      <!--
-      <button class="btn btn-sm" :class="showMetrics && 'btn-outline'" @click="showMetrics = !showMetrics">
-        Metrics
-      </button>
-      <TimeSelector
-        :start="timeSelection?.start"
-        :end="timeSelection?.end"
-        :times="logTimes"
-        @time-change="onTimeSelectorChanged"
-        @reset="showTimeFilter = false"
-        v-if="showTimeFilter"
-      />
-      <button class="btn btn-sm" @click="toggleTimeFilter">
-        <i class="fa-regular fa-clock"></i>
-      </button>
-      -->
       <div class="flex gap-2 items-center">
         <button class="btn btn-sm" @click="clearLogs">
           <i class="fa-solid fa-trash-can"></i>
@@ -71,11 +55,14 @@ import Markdown from './Markdown.vue';
           @filter-module="toggleProfilerVisible"
           :logs="profilerLogs" class="mb-6" />
       </div>
-      <header class="flex flex-row justify-between items-center">
+      <select v-model="selectedLog" @change="onLogChange" class="border select-xs rounded w-1/3">
+        <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
+      </select>
+      <header class="flex flex-row justify-between items-center mt-2">
         <div class="flex gap-1 items-center">
-          <select v-model="selectedLog" @change="onLogChange" class="border select-xs rounded">
-            <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
-          </select>
+          <input class="input input-xs input-bordered" placeholder="CSV patterns to discard"
+            v-model="discardPatterns" />
+
           <label class="input input-xs input-bordered flex items-center gap-2">
             <input type="text" class="grow" placeholder="Search" v-model="filter" @keydown.enter="applyFilter" />
             <span v-if="filter">{{ matchCount }}</span>
@@ -90,13 +77,17 @@ import Markdown from './Markdown.vue';
         </div>
         <div class="grow"></div>
       </header>
-      <div class="grow my-2 flex flex-col overflow-auto" style="height:600px" ref="logView">
-        <pre class="max-full mb-1" v-for="log in rawLogs" :key="log"
+      <div class="grow my-2 flex flex-col gap-2 overflow-auto"
+        style="height:600px" ref="logView">
+        <div class="" v-for="log in filteredLogs" :key="log"
           :class="logClasses(log)"
-        >{{ log.replace(']:', ']\n') }}</pre>
-
-        
-        <div class="h-1 w-full" ref="logViewBottom"></div>
+          ref="logView"
+        >
+            {{ log }}
+        </div>
+        <div class="h-20 text-primary animate-pulse w-full">
+          ...
+        </div>
       </div>
     </div>
   </div>
@@ -106,7 +97,7 @@ import Markdown from './Markdown.vue';
 export default {
   data() {
     return {
-      rawLogs: null,
+      rawLogs: [],
       showMetrics: false,
       showTimeFilter: false,
       selectedLog: '',
@@ -118,6 +109,7 @@ export default {
       visibleModules: [],
       profilerModuleFilter: [],
       tailSize: 100,
+      discardPatterns: '',
       logLevelColors: {
         "INFO": "text-success",
         "DEBUG": "text-blue-600",
@@ -143,33 +135,20 @@ export default {
     },
     filteredLogs() {
       const isLogVisible = log => {
-        if (log.hidden || log.data.url?.includes("/api/logs")) {
-          return false
-        }
-        if (this.timeSelection) {
-          const { start, end } = this.timeSelection
-          if ((start && log.timestamp < start) || (end && log.timestamp > end)) {
-            return false
-          }
-        }
-        if (this.profilerModuleFilter.length) {
-          return this.profilerModuleFilter.includes(
-            `${log.data?.profiler?.module}.${log.data?.profiler?.method}`) 
-        }
-        if (this.visibleModules.length) {
-          return this.visibleModules.includes(log.module)
+        if (this.discardPatterns?.length) {
+          const patterns = this.discardPatterns.split(',').map(p => p.trim().toLowerCase())
+          return !patterns.some(pattern => log.toLowerCase().includes(pattern))
         }
         return true
       }
-      return this.logs?.filter(isLogVisible)
+      return this.rawLogs?.filter(isLogVisible)
     },
     requestLogs() {
       return this.logs.filter(log => log.data.request)
                       .map(({ timestamp, data: { request: { url, time_taken }}}) => ({ timestamp, path: new URL(url).pathname , time_taken }))
     },
     profilerLogs() {
-      return []
-      this.filteredLogs.filter(log => log.data.profiler)
+      return this.filteredLogs.filter(log => log.data.profiler)
                       .map(({ timestamp, data: { profiler: { module, method, time_taken }}}) => 
                                             ({ timestamp, path: `${module}.${method}` , time_taken }))
     },
@@ -190,6 +169,8 @@ export default {
     toggleTimeFilter() {
       this.showTimeFilter = !this.showTimeFilter
     },
+
+    // Function to map log modules to colors
     colorMap() {
       const modules = new Set()
       this.logs.forEach(log => {
@@ -207,6 +188,8 @@ export default {
       }
       return this.$ui.colorsMap
     },
+    
+    // Fetch and set available log names
     async fetchLogNames() {
       try {
         this.logNames = await this.$storex.api.logs.list()
@@ -218,49 +201,74 @@ export default {
         console.error('Error fetching log names:', error)
       }
     },
+    
+    // Fetch logs based on selection
     async fetchLogs() {
       const data = await this.$storex.api.logs.read(this.selectedLog, this.tailSize)
-      this.rawLogs = data
+      if (!this.autoRefresh) {
+        this.rawLogs = []
+      }
+      this.rawLogs = [
+        ...this.rawLogs,
+        ...data.filter(l => !this.rawLogs.includes(l))
+      ]
       if (this.autoRefresh) {
         setTimeout(() => this.fetchLogs(), 3000)
       }
+
+      // Check if the bottom element is visible, then scroll the parent container
+      const { scrollTop, clientHeight, scrollHeight } = this.$refs.logView
+      if (scrollTop + clientHeight >= scrollHeight - 1) {
+        setTimeout(() => this.scrollToBottom(), 100)
+      }
     },
+    
     clearLogs() {
       this.rawLogs = []
     },
+    
     onLogChange() {
       this.clearLogs()
       this.fetchLogs()
     },
+    
     scrollToBottom() {
-      if (true || !this.$refs.logViewBottom?.checkVisibility()) {
-        return
-      }
       const { logView } = this.$refs
       if (logView) {
         logView.scrollTop = logView.scrollHeight
       }
       this.$el.scrollTop = this.$el.scrollHeight
     },
+    
     isFilterMatch(log) {
       return log.toLowerCase().includes(this.filter.toLowerCase())
     },
+    
     logClasses(log) {
-      if (!this.filter) {
-        return ""
+      const classes = []
+      if (this.filter && this.isFilterMatch(log)) {
+        classes.push("text-success")
       }
-      return this.isFilterMatch(log) ? "": "opacity-20"
+      const isError = log.toLocaleLowerCase().includes("error")
+      if (isError) {
+        classes.push("text-error")
+      }
+      return classes
     },
+    
     ignorePattern() {
       this.$projects.addLogIgnore(this.filter?.toLowerCase())
       this.filter = null
     },
+    
     applyFilter() {
     },
+    
     clearFilter() {
       this.filter = null
       this.applyFilter()
     },
+    
     toggleProfilerVisible(module) {
       if (this.profilerModuleFilter.includes(module)) {
         this.profilerModuleFilter.splice(this.profilerModuleFilter.indexOf(module), 1)
@@ -268,6 +276,7 @@ export default {
         this.profilerModuleFilter.push(module)
       }
     },
+    
     onTimeSelectorChanged(selection) {
       this.timeSelection = selection
     }

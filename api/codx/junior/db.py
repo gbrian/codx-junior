@@ -36,6 +36,7 @@ class Message(BaseModel):
     knowledge_topics: List[str] = Field(description="This message will be indexed for knowledge and tagged with this topics", default=[])
     done: Optional[bool] = Field(default=True, description="Indicates if user is done writing")
     is_thinking: Optional[bool] = Field(default=False)
+    disable_knowledge: Optional[bool] = Field(default=False)
     
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)

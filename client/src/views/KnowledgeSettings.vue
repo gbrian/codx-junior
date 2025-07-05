@@ -76,6 +76,7 @@ import moment from 'moment'
           <select class="select select-xs" v-model="searchType">
             <option value="embeddings">Embeddings</option>
             <option value="source">Source</option>
+            <option value="fulltext">Full text</option>
           </select>
           <input type="text" class="flex-grow" placeholder="Search in knowledge"
             @keypress.enter="onKnowledgeSearch"
@@ -266,9 +267,17 @@ import moment from 'moment'
             </span>
           </div>
         </div>
-        <div class="pb-2">
-          <button class="btn btn-error flex gap-2 w-full mt-2" @click="deleteKnowledge">
-            DELETE ALL
+        <div class="pb-2 flex gap-2 mt-4">
+          <button class="btn btn-sm btn-error flex gap-2" @click="deleteKnowledge('embeddings')">
+            Delete Embeddings ({{ status?.db_info?.embeddings?.row_count }})
+            <div v-if="resetKnowledge">
+              (Really?
+              <span class="hover:underline">YES</span> /
+              <span class="hover:underline" @click.stop="resetKnowledge = false">NO</span>)
+            </div>
+          </button>
+          <button class="btn btn-sm btn-error flex gap-2" @click="deleteKnowledge('fulltext')">
+            Delete Full text ({{ status?.db_info?.fulltext?.row_count }})
             <div v-if="resetKnowledge">
               (Really?
               <span class="hover:underline">YES</span> /
@@ -571,9 +580,9 @@ export default {
         }), {})
       }
     },
-    async deleteKnowledge() {
+    async deleteKnowledge(index) {
       if (this.resetKnowledge) {
-        await API.knowledge.deleteAll()
+        await API.knowledge.deleteIndex(index)
         this.reloadStatus()
         this.resetKnowledge = false
       } else {

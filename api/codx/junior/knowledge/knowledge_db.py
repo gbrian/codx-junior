@@ -10,7 +10,7 @@ from functools import reduce
 
 from slugify import slugify
 from pathlib import Path
-from pymilvus import MilvusClient
+from pymilvus import MilvusClient, DataType, Function, FunctionType
 
 from langchain.schema.document import Document
 
@@ -23,6 +23,11 @@ from codx.junior.profiling.profiler import profile_function
 CODX_JUNIOR_MILVUS_URL = os.environ.get("CODX_JUNIOR_MILVUS_URL", "http://milvus:19530")
 
 logger = logging.getLogger(__name__)
+
+MILVUS_CLIENT = MilvusClient(
+                    uri=CODX_JUNIOR_MILVUS_URL,
+                    token="root:Milvus"
+                )
 
 class DBDocument (Document):
   db_id: str = None
@@ -44,6 +49,7 @@ class KnowledgeDB:
 
         self.path = self.settings.project_path
         self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(str(self.path))).strip()
+        self.index_fulltext_name = f"{self.index_name}_full_text"
 
         self.db_path = f"{settings.codx_path}/db/{self.index_name}"
         os.makedirs(self.db_path, exist_ok=True)
@@ -58,8 +64,9 @@ class KnowledgeDB:
         self.refresh_last_update()
 
     def __del__(self):
-        if hasattr(self, 'db') and self.db:
-            self.db.close()
+        #if hasattr(self, 'db') and self.db:
+        #    self.db.close()
+        pass
 
     def get_ai(self):
         if not self.ai:
@@ -72,16 +79,56 @@ class KnowledgeDB:
 
     def connect_db(self):
         try:
-            self.db = MilvusClient(
-                uri=CODX_JUNIOR_MILVUS_URL,
-                token="root:Milvus"
-            )
-            if self.index_name not in self.db.list_databases():
+            def connect():
+                return MILVUS_CLIENT
+            self.db = connect() 
+            data_base_list = self.db.list_databases()
+
+            if self.index_name not in data_base_list:
                 self.db.create_database(db_name=self.index_name)
-            self.db.use_database(db_name=self.index_name)
+            
+            if self.index_fulltext_name not in data_base_list:
+                self.db.create_database(db_name=self.index_fulltext_name)
+                self.create_full_text_search()
+            
         except Exception as ex:
-            logger.error(f"Error connecting to milvus DB: {ex}")
+            logger.error(f"Error connecting to milvus DB: {ex} -  settings: {self.settings}")
     
+    def create_full_text_search(self):
+        schema = self.db.create_schema()
+        schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True, auto_id=True)
+        schema.add_field(field_name="source", datatype=DataType.VARCHAR, max_length=2000, enable_analyzer=True)
+        schema.add_field(field_name="text", datatype=DataType.VARCHAR, max_length=10000, enable_analyzer=True)
+        schema.add_field(field_name="sparse", datatype=DataType.SPARSE_FLOAT_VECTOR)
+
+        bm25_function = Function(
+            name="text_bm25_emb", # Function name
+            input_field_names=["text"], # Name of the VARCHAR field containing raw text data
+            output_field_names=["sparse"], # Name of the SPARSE_FLOAT_VECTOR field reserved to store generated embeddings
+            function_type=FunctionType.BM25, # Set to `BM25`
+        )
+
+        schema.add_function(bm25_function)
+
+        index_params = self.db.prepare_index_params()
+        index_params.add_index(
+            field_name="sparse",
+            index_type="SPARSE_INVERTED_INDEX",
+            metric_type="BM25",
+            params={
+                "inverted_index_algo": "DAAT_MAXSCORE",
+                "bm25_k1": 1.2,
+                "bm25_b": 0.75
+            }
+        )
+
+        self.db.create_collection(
+            collection_name=self.index_fulltext_name, 
+            schema=schema, 
+            index_params=index_params
+        )
+
+
     def init_collection(self):
         collections = self.db.list_collections()
         if self.index_name in collections:
@@ -140,6 +187,7 @@ class KnowledgeDB:
     @profile_function
     def index_documents(self, documents: [Document]):
         data = []
+        data_search = []
         for doc in documents:
             try:
                 content = list(filter(lambda x: x,
@@ -150,13 +198,20 @@ class KnowledgeDB:
                     doc.metadata.get("tags")
                   ]
                 ))
-                vector = self.get_ai().embeddings(content="\n".join(content))
+                text = "\n".join(content)
+                vector = self.get_ai().embeddings(content=text)
                 doc_data = {
                   "vector": vector,
                   "page_content": doc.page_content,
                   "metadata": doc.metadata
                 }
+                search_doc = {
+                  "source": doc.metadata["source"],
+                  "text": text
+                }
                 data.append(doc_data)
+                data_search.append(search_doc)
+
             except Exception as ex:
                 logger.error(f"Error processing document, len {len(doc.page_content)}, {doc.metadata}: {ex}")
 
@@ -176,10 +231,24 @@ class KnowledgeDB:
           self.update_all_file(documents=new_docs)
         except Exception as ex:
             if "float_vector" in str(ex):
-                logger.error(f"Error inserting new documents for project {self.settings.project_name} {ex}, trying to restart index")
-                self.reset()
+                logger.error(f"Error inserting new documents for project {self.settings.project_name} - index {self.index_name} {ex}, trying to restart index")
+                self.reset(index="embeddings")
             else:
                 raise ex
+
+        try:
+            logger.info(f"[Full text] Adding {len(data_search)} documents")
+            self.db.insert(
+                collection_name=self.index_fulltext_name,
+                data=data_search
+            )
+        except Exception as ex:
+            if "float_vector" in str(ex):
+                logger.error(f"Error inserting new documents for project {self.settings.project_name} - index {self.index_fulltext_name} {ex}, trying to restart index")
+                self.reset(index="fulltext")
+            else:
+                raise ex
+
 
     @profile_function
     def delete_documents (self, sources: [str]):
@@ -202,15 +271,25 @@ class KnowledgeDB:
                     del all_files[source]
             self.save_all_files(all_files)
 
-    def reset(self):    
-        self.db.drop_collection(
-            collection_name=self.index_name
-        )
-        if os.path.isfile(self.db_file_list):
-            os.remove(self.db_file_list)
-        self.last_update = None
+    def reset(self, index: str):
+        if index == "embeddings":
+            logger.info(f"Deleting index {self.settings.project_name}: {self.index_name}")
         
-        self.init_collection()
+            self.db.drop_collection(
+                collection_name=self.index_name
+            )
+            if os.path.isfile(self.db_file_list):
+               os.remove(self.db_file_list)
+            self.last_update = None
+        
+            self.init_collection()
+        if index == "fulltext":
+            logger.info(f"Deleting index {self.settings.project_name}: {self.index_name}")
+        
+            self.db.drop_collection(
+                collection_name=self.index_fulltext_name
+            )
+            self.create_full_text_search()
 
     def search_in_source(self, query):
       documents = self.get_all_documents()
@@ -244,6 +323,41 @@ class KnowledgeDB:
         res = self.db_results_to_documents(results=results, rag_distance=rag_distance)
         logger.info(f"DB search '{query}' returned {results} results, matching distance {rag_distance}: {len(res)}")
         return res[0:doc_rag_limit]
+
+    def get_db_info(self):
+        return {
+            "embeddings": {
+                "index": self.index_name,
+                **self.db.get_collection_stats(
+                          collection_name=self.index_name, 
+                          timeout=5)
+            },
+            "fulltext": {
+                "name": self.index_fulltext_name,
+                **self.db.get_collection_stats(
+                          collection_name=self.index_fulltext_name, 
+                          timeout=5)
+            },
+        }
+        
+
+    @profile_function
+    def full_text_search(self, query: str):
+        search_params = {
+            'params': {'drop_ratio_search': 0.2},
+        }
+        logger.info(f"[Full text search] {query}")
+        res = self.db.search(
+            collection_name=self.index_fulltext_name, 
+            data=[query],
+            anns_field='sparse',
+            output_fields=['text'], # Fields to return in search results; sparse field cannot be output
+            limit=50,
+            search_params=search_params
+        )
+        logger.info(f"[Full text search] Results: {res}")
+        
+        return res
 
     def db_results_to_documents(self, results, rag_distance):
         documents = []

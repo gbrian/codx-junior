@@ -86,7 +86,7 @@ from codx.junior.security.user_management import UserSecurityManager
 
 
 """Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
-MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 300
+MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 60 * 60
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
@@ -170,9 +170,9 @@ def find_project_by_name(project_name: str):
     matches = [p for p in all_projects if p.project_name == project_name]
     return matches[0] if matches else None
 
-def find_all_user_projects(user: CodxUser):
+def find_all_user_projects(user: CodxUser, with_metrics:bool = False):
     user_security_manager = UserSecurityManager()
-    for settings in find_all_projects().values():
+    for settings in find_all_projects(with_metrics=with_metrics).values():
         permissions = user_security_manager.get_user_project_access(user=user, settings=settings)
         if permissions:
             yield {
@@ -180,7 +180,7 @@ def find_all_user_projects(user: CodxUser):
                 "permissions": permissions
             }
 
-def find_all_projects():
+def find_all_projects(with_metrics: bool = False):
     all_projects = {}
     project_path = "/"
     result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -209,14 +209,11 @@ def find_all_projects():
     def update_projects_with_details():
         for project in all_projects.values():
             try:
-                command = ["git", "branch", "--show-current"]
-                result = subprocess.run(command, cwd=project.project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                project.__dict__["_current_git_branch"] = result.stdout.decode('utf-8')
+                project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
             except Exception as ex:
-                project.__dict__["_current_git_branch"] = f"Error: {ex}"
-            project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
-            project.__dict__["_sub_projects"] = [sp.project_name for sp in project.get_sub_projects()]
-    return all_projects
+                project.__dict__["_error"] = str(ex)
+        return all_projects
+    return update_projects_with_details() if with_metrics else all_projects
 
 def update_engine():
     try:
@@ -419,6 +416,9 @@ class CODXJuniorSession:
         
         documents = []
         response = ""
+        if knowledge_search.search_type == "fulltext":
+            documents = Knowledge(settings=self.settings).full_text_search(knowledge_search.search_term)
+        
         if knowledge_search.search_type == "embeddings":
             documents, file_list = find_relevant_documents(query=knowledge_search.search_term,
                                                     settings=self.settings, 
@@ -439,7 +439,8 @@ class CODXJuniorSession:
             ])
             chat, _ = await self.chat_with_project(chat=chat, disable_knowledge=True)
             response = chat.messages[-1].content
-        elif knowledge_search.search_type == "source":
+
+        if knowledge_search.search_type == "source":
             documents = Knowledge(settings=self.settings).search_in_source(knowledge_search.search_term)
         
         return {
@@ -460,8 +461,8 @@ class CODXJuniorSession:
         find_all_projects()
         return {"ok": 1}
 
-    def delete_knowledge(self):
-        Knowledge(settings=self.settings).reset()
+    def delete_knowledge(self, index: str):
+        Knowledge(settings=self.settings).reset(index=index)
         return {"ok": 1}
 
     def get_project_dependencies(self):
@@ -1426,6 +1427,9 @@ class CODXJuniorSession:
                 
             user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
             query = user_message.content
+
+            if user_message.disable_knowledge:
+                disable_knowledge = user_message.disable_knowledge
 
             query_mentions = self.get_query_mentions(query=query)
             

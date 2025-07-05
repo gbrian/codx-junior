@@ -16,7 +16,7 @@
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx,assets,public",
   "save_mentions": false,
-  "watching": true,
+  "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",

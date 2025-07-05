@@ -1,5 +1,7 @@
 <script setup>
 import IssuePreview from '../components/IssuePreview.vue'
+import ProjectCard from '../components/project/ProjectCard.vue'
+
 import { GitIssueWizard } from '../wizards/gitIssue.js'
 </script>
 
@@ -176,25 +178,19 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
           <button class="btn btn-sm" @click="filterQuery = null">
             <i class="fa-solid fa-circle-xmark"></i>
           </button>
+          <button class="btn btn-sm" @click="$projects.loadAllProjects()">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+
         </div>
       </div>
       <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-        <div
+        <ProjectCard
           v-for="project in filteredProjects"
           :key="project.project_id"
-          class="p-4 rounded-md flex flex-col gap-2 bg-base-200 click"
+          :project="project"
           @click="setActiveProject(project)"
-        >
-          <p class="text-xs flex gap-1 tooltip" :data-tip="project.project_path"
-            ><i class="fa-solid fa-folder"></i>
-            <span class="text-nowrap overflow-hidden text-ellipsis">{{ project.project_path }}</span>
-          </p>
-          <div class="font-bold flex gap-2 items-start">
-            <img class="w-6 h-6 rounded-full bg-white" :src="project.project_icon" />
-            {{ project.project_name }}
-          </div>
-          <div class="grow"></div>
-        </div>
+        />
       </div>
       <div class="">
         <div class="text-xl font-semibold mb-4">Get Started with codx-junior</div>

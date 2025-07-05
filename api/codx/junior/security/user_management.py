@@ -82,7 +82,7 @@ class UserSecurityManager():
             logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
             if logged_user:
                 user_login = self.find_user_login(username=logged_user.username)
-                logger.info(f"User logged {logged_user} and user login {user_login}")
+                logger.info(f"User logged {logged_user}")
                 user_login.token = self.get_user_token(user=logged_user)
                 self.save_settings()
                 logged_user.token = user_login.token

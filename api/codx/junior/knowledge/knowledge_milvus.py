@@ -226,15 +226,18 @@ class Knowledge:
         for source in sources:
             self.knowledge_keywords.remove_keywords(source)
 
-    def reset(self):
+    def reset(self, index: str):
         logger.info('Reseting retriever')
-        self.get_db().reset()
+        self.get_db().reset(index=index)
 
     def search(self, query):
       return self.get_db().search(query=query)
       
     def search_in_source(self, query):
       return self.get_db().search_in_source(query=query)
+
+    def full_text_search(self, query):
+        return self.get_db().full_text_search(query=query)
 
     def doc_from_project_file(self, file_path):
         file_path = f"{self.settings.project_path}/{file_path}"
@@ -297,6 +300,9 @@ class Knowledge:
 
     def get_all_sources (self):
         return self.get_db().get_all_sources()
+
+    def get_db_info (self):
+        return self.get_db().get_db_info()
       
     def is_valid_project_file(self, file_path):
         sources = self.loader.list_repository_files()
@@ -321,7 +327,8 @@ class Knowledge:
           "file_count": file_count,
           "folders": folders,
           "keyword_count": keyword_count,
-          "files": doc_sources
+          "files": doc_sources,
+          "db_info": self.get_db_info()
         }
         return status_info
 

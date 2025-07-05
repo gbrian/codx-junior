@@ -68,7 +68,7 @@ import moment from 'moment'
         </div>
       </div>
     </div>
-    <div class="sticky -bottom-2 bg-base-300">
+    <div class="sticky bottom-0 bg-base-300">
       <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
         {{  lastChatEvent }}
       </div>
@@ -155,6 +155,13 @@ import moment from 'moment'
               <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
                 v-if="editMessage">
                 <i class="fa-regular fa-circle-xmark"></i>
+              </button>
+              <button class="btn btn-sm btn-circle tooltip relative" :class="disableKnowledge ? 'text-gray-600' : 'text-info'"
+                @click="disableKnowledge = !disableKnowledge"
+                :data-tip="disableKnowledge ? 'Knowledge disabled' : 'Knowledge enabled'"
+              >
+                <i class="absolute right-2 top-1 fa-solid fa-file-lines opacity-50"></i>
+                <i class="absolute right-0 top-2 fa-solid fa-magnifying-glass"></i>
               </button>
               <button class="btn btn btn-sm btn-circle tooltip"
                 data-tip="Ask codx-junior"
@@ -305,7 +312,8 @@ export default {
       showModal: false,
       taskToDelete: null,
       selectedUser: null,
-      refreshngMentions: null
+      refreshngMentions: null,
+      disableKnowledge: true
     }
   },
   created() {
@@ -476,7 +484,8 @@ export default {
         images: this.images.map(JSON.stringify),
         files,
         profiles,
-        user: this.$user.username
+        user: this.$user.username,
+        disable_knowledge: this.disableKnowledge
       }
     },
     postMyMessage() {

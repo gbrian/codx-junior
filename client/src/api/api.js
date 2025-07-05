@@ -82,11 +82,11 @@ class CodxJuniorConnection {
   }
 }
 
-const initializeAPI = (project) => {
+const initializeAPI = ({ project, user } = {}) => {
   const API = {
     sid: "",
     connection: null,
-    _user: null,
+    _user: user,
     get user () {
       return API._user
     },
@@ -181,7 +181,7 @@ const initializeAPI = (project) => {
       if (projectOrId.codx_path === API.settings.codx_path) {
         return API
       }
-      return initializeAPI(projectOrId)
+      return initializeAPI({ ...API, project: projectOrId })
     },
     projects: {
       async list() {
@@ -276,8 +276,8 @@ const initializeAPI = (project) => {
       delete(sources) {
         return API.post(`/api/knowledge/delete`, { sources });
       },
-      deleteAll() {
-        return API.del(`/api/knowledge/delete`);
+      deleteIndex(index) {
+        return API.del(`/api/knowledge/delete?index=${index}`);
       },
       keywords() {
         return API.get(`/api/knowledge/keywords`);
