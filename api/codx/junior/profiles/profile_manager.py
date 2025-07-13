@@ -94,3 +94,21 @@ class ProfileManager:
     def get_file_profiles(self, file_path: str):
         return [profile for profile in self.list_profiles() \
           if self.is_profile_match(profile=profile, file_path=file_path)]
+
+    def get_profiles_and_parents(self, profiles: []):
+        """
+        Return all inmediate parent profiles from a profile list
+        """
+        project_profiles = self.list_profiles()
+
+        all_profiles = list(profiles)
+        def add_profile(profile_name):
+            profile = next((p for p in project_profiles if p.name == profile_name), None)
+            if profile and profile not in all_profiles:
+                all_profiles.append(profile)
+
+        for profile in profiles:
+            for profile_name in profile.profiles:
+                add_profile(profile_name)
+        
+        return all_profiles

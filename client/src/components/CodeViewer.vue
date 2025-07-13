@@ -23,7 +23,7 @@ export default {
   },
   methods: {
     applyPatch() {
-      this.$projects.patch(this.code)
+      this.$projects.applyPatch({ patch: this.code })
     }
   }
 }

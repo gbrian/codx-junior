@@ -70,10 +70,12 @@ export const actions = actionTree(
     },
     async fetchLogs({ state }) {
       const data = await API.logs.read(state.selectedLog, state.tailSize)
-      $storex.logs.setRawLogs(data.filter(l => !state.rawLogs.includes(l)))
-
       if (state.autoRefresh) {
+        const newLogs = data.filter(l => !state.rawLogs.includes(l))
+        $storex.logs.setRawLogs([...state.rawLogs, ...newLogs])
         setTimeout(() => $storex.logs.fetchLogs(), 3000)
+      } else {
+        $storex.logs.setRawLogs(data)
       }
     },
   }

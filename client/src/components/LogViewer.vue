@@ -1,7 +1,5 @@
 <script setup>
 import RequestMetrics from './metrics/RequestMetrics.vue'
-import TimeSelector from './TimeSelector.vue'
-import Markdown from './Markdown.vue'
 </script>
 
 <template>
@@ -81,7 +79,6 @@ import Markdown from './Markdown.vue'
         style="height:600px" ref="logView">
         <div class="" v-for="log in $storex.logs.filteredLogs" :key="log"
           :class="logClasses(log)"
-          ref="logView"
         >
             {{ log }}
         </div>
@@ -128,6 +125,7 @@ export default {
                                             ({ timestamp, path: `${module}.${method}` , time_taken }))
     }
   },
+  // @codx: watch $storex.logs.rawLogs and if it changed and $refa.logView was scrolled to the bottom, scroll it back to the bottom after the new logs has been rendered
   methods: {
     toggleModuleVisible(module) {
       const ix = this.visibleModules.indexOf(module)

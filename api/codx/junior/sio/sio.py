@@ -103,7 +103,7 @@ def io_login(sid, data: dict):
 async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
     data = SioChatMessage(**data)
     logger.info(f"codx-junior-chat {data.chat.name} {codxjunior_session.settings.project_name}")
-    codxjunior_session.chat_event(chat=data.chat, message="Chatting with project...")
+    codxjunior_session.event_manager.chat_event(chat=data.chat, message="Chatting with project...")
     await codxjunior_session.chat_with_project(chat=data.chat)
     await codxjunior_session.save_chat(data.chat)
 

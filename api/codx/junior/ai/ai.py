@@ -72,7 +72,6 @@ class AI:
         global_model_instructions = """Please remember this basic instructions:
         * When writing file changes blocks add the the file name in the starting block line like this: "```python /my/python/file.py"
         * Don't trim file names
-        * Create file patches using diff syntax to apply changes to existing files where you have the file's path. Each patch with a single change 
         """
 
         if prompt:

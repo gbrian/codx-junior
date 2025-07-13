@@ -8,6 +8,9 @@ import shutil
 import asyncio
 import uuid
 import requests
+
+import anyio
+
 from datetime import datetime
 from pathlib import Path
 from threading import Thread
@@ -66,14 +69,9 @@ from codx.junior.knowledge.knowledge_milvus import Knowledge
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
 from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
 
-from codx.junior.mention_manager import (
-    extract_mentions,
-    replace_mentions,
-    notify_mentions_in_progress,
-    notify_mentions_error,
-    strip_mentions,
-    is_processing_mentions
-)
+from codx.junior.mentions.mention_manager import MentionManager
+from codx.junior.events.event_manager import EventManager
+
 from codx.junior.db import (
     Kanban,
     Chat,
@@ -84,147 +82,20 @@ from codx.junior.db import (
 from codx.junior.sio.session_channel import SessionChannel
 from codx.junior.security.user_management import UserSecurityManager
 
+from codx.junior.globals import (
+  MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,
+  CODX_JUNIOR_API_BACKGROUND,
+  APPS,
+  APPS_COMMANDS,
+  AGENT_DONE_WORD,
+  coder_open_file,
+  find_project_by_id,
+  find_project_by_name,
+  find_all_projects
+)
 
-"""Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
-MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 60 * 60
-
-CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
 logger = logging.getLogger(__name__)
-
-APPS = [
-    {
-        "name": "chrome",
-        "icon": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Google_Chrome_icon_%28February_2022%29.svg/768px-Google_Chrome_icon_%28February_2022%29.svg.png",
-        "description": "Google chrome engine",
-    }
-]
-
-APPS_COMMANDS = {
-    "chrome": "google-chrome --no-sandbox --no-default-browser-check"
-}
-
-AGENT_DONE_WORD = "$$@@AGENT_DONE@@$$$"
-
-def create_project(project_path: str, user: CodxUser):
-    logger.info(f"Create new project {project_path}")
-    global_settings = read_global_settings()
-    projects_root_path = global_settings.projects_root_path or f"{os.environ['HOME']}/projects"
-    os.makedirs(projects_root_path, exist_ok=True)
-
-    repo_url = None 
-    if project_path.startswith("http"):
-        repo_url = project_path
-        repo_name = repo_url.split("/")[-1].split(".")[0]
-        project_path = f"{projects_root_path}/{repo_name}"
-        command = f"git clone --depth=1 {repo_url} {project_path}"
-        logger.info(f"Cloning repo {repo_url} {repo_name} {project_path}")
-        exec_command(command=command)
-    
-    existing_project = find_project_by_project_path(project_path=project_path)
-    if existing_project:
-        logger.info(f"Project already esists {repo_url} {repo_name} {project_path}")
-        return existing_project
-
-    settings = CODXJuniorSettings()
-    settings.project_name = project_path.split("/")[-1]
-    settings.codx_path = f"{project_path}/.codx"
-    settings.watching = True
-    settings.repo_url = repo_url
-    settings.save_project()
-    _, stderr = exec_command("git branch")
-    if stderr:
-        exec_command("git init", cwd=project_path)
-    new_project = CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
-    if user:
-      UserSecurityManager().add_user_to_project(project_id=new_project.project_id, user=user, permissions='admin')
-    return new_project
-
-def coder_open_file(settings: CODXJuniorSettings,  file_name: str):
-    logger.info(f"coder_open_file {file_name}")
-    os.system(f"code-server -r {file_name}")
-
-
-def find_project_from_file_path(file_path: str):
-    """Given a file path, find the project parent"""
-    all_projects = find_all_projects().values()
-    matches = [p for p in all_projects if file_path.startswith(p.project_path)]
-    if matches:
-        logger.info(f"Find projects for file {file_path}: {[m.project_name for m in matches]}")
-        return sorted(matches, key=lambda p: len(p.project_path))[-1]
-    return None
-  
-def find_project_by_id(project_id: str):
-    """Given a project id, find the project"""
-    all_projects = find_all_projects().values()
-    matches = [p for p in all_projects if p.project_id == project_id]
-    return matches[0] if matches else None
-
-def find_project_by_project_path(project_path: str):
-    """Given a project id, find the project"""
-    all_projects = find_all_projects().values()
-    matches = [p for p in all_projects if p.project_path == project_path]
-    return matches[0] if matches else None
-
-def find_project_by_name(project_name: str):
-    """Given a project project_name, find the project"""
-    all_projects = find_all_projects().values()
-    matches = [p for p in all_projects if p.project_name == project_name]
-    return matches[0] if matches else None
-
-def find_all_user_projects(user: CodxUser, with_metrics:bool = False):
-    user_security_manager = UserSecurityManager()
-    for settings in find_all_projects(with_metrics=with_metrics).values():
-        permissions = user_security_manager.get_user_project_access(user=user, settings=settings)
-        if permissions:
-            yield {
-                **settings.__dict__,
-                "permissions": permissions
-            }
-
-def find_all_projects(with_metrics: bool = False):
-    all_projects = {}
-    project_path = "/"
-    result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    all_codx_path = result.stdout.decode('utf-8').split("\n")
-    paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
-    #logger.info(f"[find_all_projects] paths: {paths}")
-    def is_valid_project(settings):
-        if not settings or not settings.project_name:
-            return False
-        if [p for p in all_projects.values() if p.project_name == settings.project_name]:
-            return False
-        return True
-
-    for codx_path in paths:
-        try:
-            project_file_path = f"{codx_path}/project.json"
-            settings = CODXJuniorSettings.from_project_file(project_file_path)
-            if is_valid_project(settings): 
-                all_projects[settings.project_id] = settings
-            else:
-                # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
-                pass 
-        except Exception as ex:
-            logger.exception(f"Error loading project {str(codx_path)} : {ex}")
-    
-    def update_projects_with_details():
-        for project in all_projects.values():
-            try:
-                project.__dict__["_metrics"] = CODXJuniorSession(settings=project).get_project_metrics()
-            except Exception as ex:
-                project.__dict__["_error"] = str(ex)
-        return all_projects
-    return update_projects_with_details() if with_metrics else all_projects
-
-def update_engine():
-    try:
-        command = ["git", "pull"]
-        subprocess.run(command)
-    except Exception as ex:
-        logger.exception(ex)
-        return ex
-
 
 class CODXJuniorSession:
     def __init__(self,
@@ -232,11 +103,9 @@ class CODXJuniorSession:
             codx_path: str = None,
             channel: SessionChannel = None):
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
-        self.channel = channel
-        
-        if not channel:
-            from codx.junior.sio.sio import sio
-            self.channel = SessionChannel(sio=sio)
+        self.event_manager = EventManager(
+                                codx_path=codx_path,         
+                                channel=channel)
 
     def switch_project(self, project_id: str):
         if not project_id or project_id == self.settings.project_id:
@@ -254,32 +123,6 @@ class CODXJuniorSession:
     def log_exception(self, msg):
         logger.exception(f"[{self.settings.project_name}] {msg}")
 
-    def get_channel(self):
-        return self.channel
-
-    def event_data(self, data: dict):
-        data['codx_path'] = self.settings.codx_path
-        return data
-
-    def send_notification(self, **kwargs):
-        if not kwargs.get("type"):
-            kwargs["type"] = "notification"
-        self.get_channel().send_event('codx-junior', self.event_data(kwargs))
-
-    def send_event(self, message: str):
-        self.get_channel().send_event('codx-junior', self.event_data({ 'text': message, "type": "event" }))
-        # self.log_info(f"Sending event {message}- SENT!")
-    def send_knowled_event(self, **kwargs):
-        self.get_channel().send_event('knowledge-event', self.event_data(kwargs))
-
-    def chat_event(self, chat: Chat, message: str = None, event_type: str = None):
-        self.get_channel().send_event('chat-event', self.event_data({ 'chat': { 'id': chat.id }, 'text': message, 'type': event_type }))
-        # self.log_info(f"SEND MESSAGE {message}- SENT!")
-
-    def message_event(self, chat: Chat, message: Message):
-        self.get_channel().send_event('message-event', self.event_data({ 'chat': { 'id': chat.id }, 'message': message.model_dump() }))
-        # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
-
     def coder_open_file(self, file_name: str):
         if not file_name.startswith(self.settings.project_path):
             file_name = f"{self.settings.project_path}/{file_name}".replace("//", "/")
@@ -288,21 +131,25 @@ class CODXJuniorSession:
       
     @contextmanager
     def chat_action(self, chat: Chat, event: str):
-        self.chat_event(chat=chat, message=f"{event} starting")
+        self.event_manager.chat_event(chat=chat, message=f"{event} starting")
         self.log_info(f"Start chat {chat.name}")
         try:
             yield
         except Exception as ex:
-            self.chat_event(chat=chat, message=f"{event} error: {ex}", event_type="error")
+            self.event_manager.chat_event(chat=chat, message=f"{event} error: {ex}", event_type="error")
             self.log_exception(f"Chat {chat.name} {event} error: {ex}")
         finally:
-            self.chat_event(chat=chat, message=f"{event} done")
+            self.event_manager.chat_event(chat=chat, message=f"{event} done")
             self.log_info(f"Chat done {chat.name}")
 
     
     def delete_project(self):
         shutil.rmtree(self.settings.codx_path)
         logger.error(f"PROJECT REMOVED {self.settings.codx_path}")
+
+    def get_mention_manager(self):
+        return MentionManager(chat_manager=self.get_chat_manager(),
+                              profile_manager=self.get_profile_manager())
 
     def get_chat_manager(self):
         return ChatManager(settings=self.settings)
@@ -333,7 +180,7 @@ class CODXJuniorSession:
 
     async def save_chat(self, chat: Chat, chat_only=False):
         chat = self.get_chat_manager().save_chat(chat, chat_only)
-        self.chat_event(chat=chat, event_type="changed")
+        self.event_manager.chat_event(chat=chat, event_type="changed")
         return chat
 
     def delete_chat(self, chat_id):
@@ -486,30 +333,11 @@ class CODXJuniorSession:
     def find_projects_by_mentions(self, mentions: [str]):
         return [project for project in [find_project_by_name(mention[1:]) for mention in mentions] if project]
 
-    def get_profiles_and_parents(self, profiles: []):
-        """
-        Return all inmediate parent profiles from a profile list
-        """
-        profile_manager = self.get_profile_manager()
-        project_profiles = profile_manager.list_profiles()
-
-        all_profiles = list(profiles)
-        def add_profile(profile_name):
-            profile = next((p for p in project_profiles if p.name == profile_name), None)
-            if profile and profile not in all_profiles:
-                all_profiles.append(profile)
-
-        for profile in profiles:
-            for profile_name in profile.profiles:
-                add_profile(profile_name)
-        
-        return all_profiles
-    
     def find_profiles_by_mentions(self, mentions: [str]):
         profile_manager = self.get_profile_manager()
         profiles = profile_manager.list_profiles()
         mention_profiles = [p for p in profiles if p.name in mentions]
-        return self.get_profiles_and_parents(mention_profiles)
+        return profile_manager.get_profiles_and_parents(mention_profiles)
 
     def get_query_mentions(self, query: str):
         mentions = self.extract_query_mentions(query=query)
@@ -538,7 +366,7 @@ class CODXJuniorSession:
             self.log_info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
             for search_project in search_projects:
                 if chat:    
-                    self.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.project_path}")
+                    self.event_manager.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.project_path}")
                 project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, ignore_documents=ignore_documents)
                 project_file_list = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
                 if project_docs:
@@ -557,7 +385,7 @@ class CODXJuniorSession:
         language = code_block_info["language"]
         code = code_block_info["code"]
         try:
-            self.chat_event(chat=chat, message="Executing bash script")
+            self.event_manager.chat_event(chat=chat, message="Executing bash script")
             stdout, stderr = exec_command(code, cwd=self.settings.project_path)
             chat.messages.append(Message(role="user", content=f"""
             Executing bash script
@@ -567,10 +395,10 @@ class CODXJuniorSession:
             stdout: {stdout}
             stderr: {stderr}
             """))
-            self.chat_event(chat=chat, message="Applying patch done.")
+            self.event_manager.chat_event(chat=chat, message="Applying patch done.")
             await self.save_chat(chat=chat)
         except Exception as ex:
-            self.chat_event(chat=chat, message=f"Error applying patch: {ex}", event_type="error")
+            self.event_manager.chat_event(chat=chat, message=f"Error applying patch: {ex}", event_type="error")
             raise ex
 
     async def generate_code(self, chat: Chat, code_block_info: dict):
@@ -593,11 +421,11 @@ class CODXJuniorSession:
             {code}
             ```
             """))
-            self.chat_event(chat=chat, message="Applying patch")
+            self.event_manager.chat_event(chat=chat, message="Applying patch")
             await self.improve_existing_code(chat=chat, apply_changes=True)
-            self.chat_event(chat=chat, message="Applying patch done.")
+            self.event_manager.chat_event(chat=chat, message="Applying patch done.")
         except Exception as ex:
-            self.chat_event(chat=chat, message=f"Error applying patch: {ex}", event_type="error")
+            self.event_manager.chat_event(chat=chat, message=f"Error applying patch: {ex}", event_type="error")
             raise ex
                       
     async def improve_existing_code_patch(self, chat:Chat, code_generator: AICodeGerator):
@@ -856,12 +684,6 @@ class CODXJuniorSession:
 
         # Prepare the new content by appending the patch in the required format
         new_content = existing_content + f"""
-        <codx>
-        Apply this patch:
-        ```diff {file_path}
-        {patch}
-        ```
-        </codx>
         """
 
         # Create directories if they do not exist
@@ -899,7 +721,7 @@ class CODXJuniorSession:
         if self.settings.watching:
             self.log_info(f"Reload knowledge files {file_path}")
             docs = knowledge.reload_path(path=file_path)
-            self.send_knowled_event(type="loaded", file_path=file_path)
+            self.event_manager.send_knowled_event(type="loaded", file_path=file_path)
 
     def extract_changes(self, content):
         for block in extract_json_blocks(content):
@@ -973,201 +795,6 @@ class CODXJuniorSession:
         finally:
             if save_changes:
                 await self.save_chat(chat=chat)
-
-    @profile_function
-    async def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False):
-        
-        async def check_file_for_mentions_inner(file_path: str, content: str = None, silent: bool = False):
-            profile_manager = self.get_profile_manager()
-            chat_manager = self.get_chat_manager()
-            mentions = None
-            file_profiles = profile_manager.get_file_profiles(file_path=file_path)
-            file_profiles = self.get_profiles_and_parents(file_profiles)
-            profile_names = [p.name for p in file_profiles]
-
-            def read_file():
-                def prepare_ipynb_for_llm():
-                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
-                        notebook_data = json.loads(file.read())
-                    
-                        # Remove outputs from each cell
-                        for cell in notebook_data.get('cells', []):
-                            if 'outputs' in cell:
-                                del cell['outputs']
-                    
-                        return json.dumps(notebook_data)
-
-                if  file_path.endswith(".ipynb"):
-                    return prepare_ipynb_for_llm()
-            
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    return f.read()
-
-            if not content:
-                content = read_file()
-            
-            if is_processing_mentions(content=content):
-                return "processing"
-
-            mentions = extract_mentions(content)
-            
-            if not mentions:
-                return ""
-
-            # Don't process in background, mentions will be taken by main API module
-            if CODX_JUNIOR_API_BACKGROUND:
-                return "processing"
-
-            self.send_notification(text=f"@codx {len(mentions)} mentions in {file_path.split('/')[-1]} profiles: {profile_names}")    
-            self.log_info(f"{len(mentions)} mentions found for {file_path} profiles: {profile_names}")
-
-            new_content = notify_mentions_in_progress(content)
-            if not silent:
-                write_file(file_path=file_path, content=new_content)
-
-            image_mentions = [m for m in mentions if m.flags.image]
-            if image_mentions:
-                new_content = self.process_image_mention(image_mentions, file_path, content)
-                return await self.check_file_for_mentions(file_path=file_path, content=new_content, silent=True)
-
-            use_knowledge = any(m.flags.knowledge for m in mentions)
-            using_chat = any(m.flags.chat_id for m in mentions)
-            run_code = any(m.flags.code for m in mentions)
-
-            save_mentions = self.settings.save_mentions
-
-            if using_chat:
-                use_knowledge = False       
-                self.log_info(f"Skip KNOWLEDGE search for processing, using_chat={using_chat}")
-            
-            def mention_info(mention):
-                chat = chat_manager.find_by_id(mention.flags.chat_id) if mention.flags.chat_id else None
-                if chat:
-                    self.log_info(f"using CHAT for processing mention: {mention.mention}")
-                    return f"""Based on this conversation:
-                    ```markdown
-                    {chat_manager.serialize_chat(chat)}
-                    ```
-                    User commented in line {mention.start_line}: {mention.mention}
-                    """
-                return f"User commented in line {mention.start_line}: {mention.mention}"
-            
-            query = "\n  *".join([mention_info(mention) for mention in mentions])
-            query_mentions = self.get_query_mentions(query=query)
-
-            file_chat_name = "-".join(file_path.split("/")[-2:])
-            
-            self.log_info(f"Create mention chat {file_chat_name}")
-            analysis_chat = None
-            if use_knowledge:
-                analysis_chat = Chat(name=slugify(f"analysis_at_{file_chat_name}-{datetime.now()}"), 
-                    board="mentions",
-                    column="analysis",
-                    mode="chat",
-                    tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
-                    messages=
-                    [
-                        Message(role="user", content="\n".join([
-                        f"Find at @{self.settings.project_name} all information needed to apply all changes to file: {file_path}",
-                        "",
-                        f"Changes:",
-                        query,
-                        "",
-                        "File content:",
-                        new_content
-                        ]))
-                    ])
-                self.log_info(f"Chat with project analysis {analysis_chat.name}")
-                await self.chat_with_project(chat=analysis_chat)
-                if save_mentions:
-                    analysis_chat = chat_manager.save_chat(analysis_chat)
-
-            if run_code:
-                self.log_info(f"Mentions running code {file_path}")
-                await self.improve_existing_code(chat=chat, apply_changes=True)
-            else:
-                changes_chat = Chat(name=slugify(f"changes_at_{file_chat_name}-{datetime.now()}"), 
-                    board="mentions",
-                    column="changes",
-                    parent_chat=analysis_chat.id if analysis_chat else None,
-                    tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
-                    profiles=[p.name for p in query_mentions["profiles"]],
-                    messages=[])
-                
-                if analysis_chat:
-                    changes_chat.messages.append(analysis_chat.messages[-1])
-
-                file_profile_content = ""
-                if file_profiles:
-                    file_profile_content = "\n".join([
-                        profile.content for profile in file_profiles
-                    ])
-                    
-                    file_profile_content=f"""Best practices for this file:
-                    {file_profile_content}
-                    """
-
-                changes_chat.messages.append(Message(role="user", content=f"""
-                Apply codx comments and rewrite full content.
-                Return only the content without any further decoration or comments.
-                Do not surround response with '```' marks, just content.
-                Remove codx comments from the final version. 
-                Do not return the <document> tags but respect tags present of the original content.
-                """))
-
-
-                changes_chat.messages.append(
-                        Message(
-                            role="user",
-                            profiles=[profile.name for profile in file_profiles],
-                            files=[file_path],
-                            content=f"""
-                                Given this document:
-                                <document>
-                                
-                                {new_content}
-                                
-                                </document>
-                                
-                                User has added these comments:
-                                <comments>
-                                @{self.settings.project_name} {query}
-                                </comments>
-
-                                {file_profile_content}
-                                """)
-                    )
-                
-                self.log_info(f"Mentions generate changes {file_path}")
-                
-                with open(file_path, 'w') as file:
-                    def write_new_file_content(content):
-                        file.write(content)
-                        file.flush()
-
-                    await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False, callback=write_new_file_content)
-                if save_mentions:
-                    chat_manager.save_chat(changes_chat)
-                #response = changes_chat.messages[-1].content
-                
-                self.log_info(f"Mentions done file changes {file_path}")
-                # write_file(file_path=file_path, content=response)
-            
-            self.send_notification(text=f"@codx done for {file_path.split('/')[-1]}")
-        
-            return "done"
-        try:
-            res = await check_file_for_mentions_inner(file_path=file_path, content=content, silent=silent)
-            self.log_info(f"[{self.settings.project_name}] Mentions manager done for {file_path}")
-            return res
-        except Exception as ex:
-            self.log_exception(f"Error processing mentions at {file_path}: {ex}")
-
-    def process_image_mention(self, image_mentions, file_path: str, content: str):
-        ai = self.get_ai()
-        for image_mention in image_mentions:
-            image_mention.new_content = ai.image(image_mention.content)
-        return replace_mentions(content, image_mentions)
 
     def get_project_profile(self):
         return self.get_profile_manager().read_profile("project")
@@ -1294,7 +921,7 @@ class CODXJuniorSession:
                     response_message.think = content
                 else:
                     response_message.content = content
-                self.message_event(chat=chat, message=response_message)
+                self.event_manager.message_event(chat=chat, message=response_message)
             
             retry_count = 2
             ai_tasks = None
@@ -1314,7 +941,7 @@ class CODXJuniorSession:
             response_message.hide = True
             self.save_chat(chat=chat)
             
-            self.chat_event(chat=chat, message=f"Generating {len(ai_tasks)} sub tasks")
+            self.event_manager.chat_event(chat=chat, message=f"Generating {len(ai_tasks)} sub tasks")
 
             chat_manager = self.get_chat_manager()
             for task in ai_tasks:
@@ -1348,7 +975,7 @@ class CODXJuniorSession:
                 await self.chat_with_project(chat=sub_task)
                 sub_task.messages[0].hide = True
                 sub_task = chat_manager.save_chat(sub_task)
-                self.chat_event(chat=sub_task, message=f"Saving subtask {sub_task.name}", event_type="created")
+                self.event_manager.chat_event(chat=sub_task, message=f"Saving subtask {sub_task.name}", event_type="created")
 
     def get_chat_analysis_parents(self, chat: Chat):
         """Given a chat, traverse all parents and return all analysis"""
@@ -1427,7 +1054,7 @@ class CODXJuniorSession:
             chat_mode = chat_mode or chat.mode or "chat"
             if chat_mode == "browser":
                 self.log_info(f"chat_with_project browser mode")
-                self.chat_event(chat=chat, message=f"connecting with browser...")
+                self.event_manager.chat_event(chat=chat, message=f"connecting with browser...")
                 return self.get_browser().chat_with_browser(chat)
 
             documents = []
@@ -1466,7 +1093,7 @@ class CODXJuniorSession:
                 response_message.files = sources
                 response_message.task_item = task_item
                 response_message.done = done
-                self.message_event(chat=chat, message=response_message)
+                self.event_manager.message_event(chat=chat, message=response_message)
 
             send_message_event("", False)
 
@@ -1489,7 +1116,7 @@ class CODXJuniorSession:
                                     for profile_name \
                                     in chat.profiles + (user_message.profiles or [])]
                 all_profiles = [p for p in chat_profiles + query_profiles if p]
-                all_profiles = self.get_profiles_and_parents(all_profiles)
+                all_profiles = profile_manager.get_profiles_and_parents(all_profiles)
                 profile_names = [p.name for p in all_profiles]
                 self.log_info(f"Loading profiles: {profile_names}")
                 return all_profiles
@@ -1545,7 +1172,7 @@ class CODXJuniorSession:
                 ignore_documents.append(f"/{chat.name}")
 
             if chat_profile_names:
-                self.chat_event(chat=chat, message=f"Chat profiles: {chat_profile_names}")
+                self.event_manager.chat_event(chat=chat, message=f"Chat profiles: {chat_profile_names}")
 
             for chat_file in chat_files:
                 chat_file_full_path = chat_file
@@ -1584,7 +1211,7 @@ class CODXJuniorSession:
                         query_context = "\n".join([m.content for m in messages])
                         search_query = self.create_knowledge_search_query(query=f"{query_context}\n{query}")
           
-                        self.chat_event(chat=chat, message=f"Knowledge searching for: {search_query}")
+                        self.event_manager.chat_event(chat=chat, message=f"Knowledge searching for: {search_query}")
                         
                         documents, file_list = self.select_afefcted_documents_from_knowledge(ai=ai, chat=chat, query=search_query, ignore_documents=ignore_documents, search_projects=search_projects)
                         for doc in documents:
@@ -1593,12 +1220,12 @@ class CODXJuniorSession:
                     
                         response_message.files = file_list
                         doc_length = len(documents)
-                    self.chat_event(chat=chat, message=f"Knowledge search found {doc_length} relevant documents")
+                    self.event_manager.chat_event(chat=chat, message=f"Knowledge search found {doc_length} relevant documents")
                 except Exception as ex:
-                    self.chat_event(chat=chat, message=f"!!Error searching in knowledge {ex}", event_type="error")
+                    self.event_manager.chat_event(chat=chat, message=f"!!Error searching in knowledge {ex}", event_type="error")
                     self.log_exception(f"!!Error searching in knowledge {ex}")
             else:
-                self.chat_event(chat=chat, message="! Knowledge search is disabled !")
+                self.event_manager.chat_event(chat=chat, message="! Knowledge search is disabled !")
             if context:
                 messages.append(self.convert_message(
                     Message(role="user", content=f"""
@@ -1670,7 +1297,7 @@ class CODXJuniorSession:
 
             if chat_profiles_content:
                 messages[-1].content += f"\nInstructions:\n{chat_profiles_content}"
-            self.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
+            self.event_manager.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
 
             if not callback:
                 callback = lambda content: send_message_event(content=content, done=False)
@@ -1708,7 +1335,7 @@ class CODXJuniorSession:
 
             is_agent_done = AGENT_DONE_WORD in response_message.content
             if is_agent and not is_agent_done and iterations_left:
-              self.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")
+              self.event_manager.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")
               return self.chat_with_project(chat=chat,
                     disable_knowledge=disable_knowledge,
                     callback=callback,
@@ -1716,7 +1343,7 @@ class CODXJuniorSession:
                     chat_mode=chat_mode,
                     iteration=iteration + 1)
             else:    
-              self.chat_event(chat=chat, message="done")
+              self.event_manager.chat_event(chat=chat, message="done")
             return chat, documents
             
     def check_project(self):

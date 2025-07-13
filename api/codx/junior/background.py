@@ -7,7 +7,10 @@ from datetime import datetime, timedelta
 from threading import Thread, Lock
 
 from codx.junior.engine import (
-    CODXJuniorSession,
+    CODXJuniorSession
+)
+
+from codx.junior.globals import (
     find_project_from_file_path,
     find_all_projects
 )

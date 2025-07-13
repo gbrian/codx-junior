@@ -95,11 +95,14 @@ from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.chat_manager import ChatManager
 
 from codx.junior.engine import (
-    create_project,
-    find_all_projects,
-    find_all_user_projects,
     CODXJuniorSession,
     SessionChannel
+)
+
+from codx.junior.globals import (
+      create_project,
+    find_all_projects,
+    find_all_user_projects,  
 )
 
 from codx.junior.utils import (
@@ -323,9 +326,9 @@ async def api_run_improve(chat: Chat, request: Request):
     return chat
 
 @app.post("/api/run/improve/patch")
-async def api_run_improve_patch(patch: str, request: Request):
+async def api_run_improve_patch(data: dict, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.apply_patch(patch=patch)
+    return codx_junior_session.apply_patch(patch=data["patch"])
 
 @app.get("/api/run/changes/summary")
 def api_changes_summary(request: Request):
