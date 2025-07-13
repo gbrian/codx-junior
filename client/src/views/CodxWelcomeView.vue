@@ -178,7 +178,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
           <button class="btn btn-sm" @click="filterQuery = null">
             <i class="fa-solid fa-circle-xmark"></i>
           </button>
-          <button class="btn btn-sm" @click="$projects.loadAllProjects()">
+          <button class="btn btn-sm" @click="$projects.loadAllProjects(true)">
             <i class="fa-solid fa-arrows-rotate"></i>
           </button>
 
@@ -313,7 +313,7 @@ export default {
       issue.selected = true
     },
     async showProjects() {
-      await this.$projects.loadAllProjects()
+      this.$projects.loadAllProjects(true)
       this.selection = 'projects'
     }
   }

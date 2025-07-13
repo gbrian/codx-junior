@@ -184,8 +184,8 @@ const initializeAPI = ({ project, user } = {}) => {
       return initializeAPI({ ...API, project: projectOrId })
     },
     projects: {
-      async list() {
-        const data = await API.get('/api/projects');
+      async list(withMetrics) {
+        const data = await API.get(`/api/projects?with_metrics=${withMetrics ? 1 : 0}`);
         API.allProjects = data;
         return API.allProjects;
       },
@@ -339,8 +339,8 @@ const initializeAPI = ({ project, user } = {}) => {
       improve(chat) {
         return API.post('/api/run/improve?', chat);
       },
-      patch(aiCodeGenerator) {
-        return API.post('/api/run/improve/patch?', aiCodeGenerator).then(({ data }) => data);
+      patch(patch) {
+        return API.post('/api/run/improve/patch?', patch).then(({ data }) => data);
       },
       edit(chat) {
         return API.post('/api/run/edit?', chat);

@@ -149,6 +149,10 @@ export const getters = getterTree(state, {
                         tooltip: `Use file ${filePath}` })),
     ].map(m => ({ ...m, searchIndex: m.name.toLowerCase() }))
   },
+  lastAssistantChats: () =>
+        $storex.projects.allChats
+          .filter(c => c.board === 'codx-junior')
+          .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6)
 })
 
 export const actions = actionTree(
@@ -161,10 +165,10 @@ export const actions = actionTree(
 
       $storex.projects.loadAllProjects()
     },
-    async loadAllProjects() {
+    async loadAllProjects(_, withMetrics) {
       if ($storex.api.user) {
         try {
-          await API.projects.list()
+          await API.projects.list(withMetrics)
           $storex.projects.setAllProjects(API.allProjects)
           if (API.activeProject) {
             try {
@@ -207,6 +211,7 @@ export const actions = actionTree(
         $storex.projects.loadProjectKnowledge()
         state.activeProject = API.activeProject
         await $storex.projects.loadProfiles()
+        $storex.projects.loadChats()
       }
     },
     async loadProjectKnowledge({ state }) {
@@ -503,6 +508,9 @@ export const actions = actionTree(
       // Delete board chats
       await $storex.api.chats.kanban.delete(title)
       $storex.projects.saveKanban()
+    },
+    async applyPatch(_,patch) {
+      return API.run.patch(patch)
     }
   }
 )

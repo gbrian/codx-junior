@@ -31,6 +31,7 @@ class Column(BaseModel):
 class Board(BaseModel):
     name: str = Field(default='')
     description: str = Field(default='')
+    remote_url: str = Field(default='')
     columns: List[Column] = Field(default=[])
 
 class Logprobs(BaseModel):

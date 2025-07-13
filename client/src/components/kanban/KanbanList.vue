@@ -29,6 +29,13 @@ import moment from 'moment'
               <span class="-mt-1">{{ board.tasks?.length || 0 }}</span>
             </div>
           </div>
+          <div class="text-xs underline overflow-hidden click"
+            :title="board.remote_url"
+            @click.stop="openRemoteBoard(board)"
+            v-if="board.remote_url">
+            {{ board.remote_url }}
+          </div>
+
         </div>
       </div>
       <div
@@ -47,6 +54,8 @@ import moment from 'moment'
         <input v-model="editBoard.title" type="text" class="input input-bordered w-full mb-4" />
         <label class="block mb-2">Description</label>
         <textarea v-model="editBoard.description" class="textarea textarea-bordered w-full mb-4"></textarea>
+        <label class="block mb-2">Remote board <i class="fa-solid fa-link"></i> </label>
+        <input v-model="editBoard.remote_url" type="text" class="input input-bordered w-full mb-4" />
         <div class="flex justify-between">
           <button @click="saveBoard" class="btn">Save</button>
           <button @click="deleteBoard" class="btn btn-error">
@@ -110,6 +119,9 @@ export default {
       const { title, description } = board
       this.editBoard = { board, title, description }
       this.confirmDelete = false
+    },
+    openRemoteBoard(board) {
+      window.open(board.remote_url, '_blank')
     }
   }
 }

@@ -64,6 +64,7 @@ class Chat(BaseModel):
     file_path: str = Field(default='')
     model: Optional[str] = Field(default='')
     visibility: Optional[str] = Field(default='')
+    remote_url: Optional[str] = Field(default='')
     knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
 
 

@@ -592,13 +592,14 @@ export default {
       )
       return taskNameMatches || messageContentMatches
     },
-    onEditBoard ({ board, title, description }) {
+    onEditBoard ({ board, title, description, remote_url }) {
       const existingBoard = this.kanban.boards[board.title]
       delete this.kanban.boards[board.title]
       this.kanban.boards[title] = {
         ...existingBoard,
         title,
-        description
+        description,
+        remote_url
       }
       this.saveKanban()
       if (board.title === this.board) {

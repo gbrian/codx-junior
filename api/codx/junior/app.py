@@ -323,13 +323,9 @@ async def api_run_improve(chat: Chat, request: Request):
     return chat
 
 @app.post("/api/run/improve/patch")
-async def api_run_improve_patch(code_generator: AICodeGerator, request: Request):
+async def api_run_improve_patch(patch: str, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)
-    return {
-        "info": info, 
-        "error": error
-    }
+    return codx_junior_session.apply_patch(patch=patch)
 
 @app.get("/api/run/changes/summary")
 def api_changes_summary(request: Request):
@@ -387,8 +383,9 @@ def api_project_watch(request: Request):
     return { "OK": 1 }
 
 @app.get("/api/projects")
-def api_find_all_projects(user: CodxUser = Depends(get_authenticated_user)):
-    all_projects = find_all_user_projects(user, with_metrics=True)
+def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
+    with_metrics = request.query_params.get("with_metrics") == "1"
+    all_projects = find_all_user_projects(user, with_metrics=with_metrics)
     return list(all_projects)
 
 @app.get("/api/projects/repo/branches")

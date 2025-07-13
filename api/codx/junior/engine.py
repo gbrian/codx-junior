@@ -111,24 +111,26 @@ def create_project(project_path: str, user: CodxUser):
     global_settings = read_global_settings()
     projects_root_path = global_settings.projects_root_path or f"{os.environ['HOME']}/projects"
     os.makedirs(projects_root_path, exist_ok=True)
-        
+
+    repo_url = None 
     if project_path.startswith("http"):
-        url = project_path
-        repo_name = url.split("/")[-1].split(".")[0]
+        repo_url = project_path
+        repo_name = repo_url.split("/")[-1].split(".")[0]
         project_path = f"{projects_root_path}/{repo_name}"
-        command = f"git clone --depth=1 {url} {project_path}"
-        logger.info(f"Cloning repo {url} {repo_name} {project_path}")
+        command = f"git clone --depth=1 {repo_url} {project_path}"
+        logger.info(f"Cloning repo {repo_url} {repo_name} {project_path}")
         exec_command(command=command)
     
     existing_project = find_project_by_project_path(project_path=project_path)
     if existing_project:
-        logger.info(f"Project already esists {url} {repo_name} {project_path}")
+        logger.info(f"Project already esists {repo_url} {repo_name} {project_path}")
         return existing_project
 
     settings = CODXJuniorSettings()
     settings.project_name = project_path.split("/")[-1]
     settings.codx_path = f"{project_path}/.codx"
     settings.watching = True
+    settings.repo_url = repo_url
     settings.save_project()
     _, stderr = exec_command("git branch")
     if stderr:
@@ -787,7 +789,6 @@ class CODXJuniorSession:
         await self.chat_with_project(chat=chat, disable_knowledge=True, append_references=False)
         return chat.messages[-1].content
 
-    @profile_function
     def check_knowledge_status(self):
         knowledge = Knowledge(settings=self.settings)
         status = knowledge.status()
@@ -828,6 +829,49 @@ class CODXJuniorSession:
                 self.send_event(f"Kownledge updated for: {file_path}")
             if self.settings.project_wiki:
                 self.get_wiki().build_file(file_path=file_path)
+
+    def apply_patch(self, patch: str):
+        # Extract the file path from the diff
+        file_diff_lines = patch.split('\n')
+        file_path = None
+
+        for line in file_diff_lines:
+            if line.startswith('+++ b/'):
+                file_path = line[6:]  # Removes '+++ b/' to get the file path
+                break
+
+        if not file_path:
+            logger.error("No file path found in patch.")
+            return
+        
+        # Determine the full path.
+        if not file_path.startswith(self.settings.project_path):
+            file_path = os.path.join(self.settings.project_path, file_path)
+
+        # Read the existing content of the file if it exists
+        existing_content = ""
+        if os.path.exists(file_path):
+            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                existing_content = f.read()
+
+        # Prepare the new content by appending the patch in the required format
+        new_content = existing_content + f"""
+        <codx>
+        Apply this patch:
+        ```diff {file_path}
+        {patch}
+        ```
+        </codx>
+        """
+
+        # Create directories if they do not exist
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+
+        # Save the updated content back to the file
+        with open(file_path, 'w', encoding='utf-8', errors='ignore') as f:
+            f.write(new_content)
+
+        logger.info(f"Patch applied and saved to {file_path}")
 
     async def process_project_changes(self):
         if not self.settings.is_valid_project():
@@ -1068,7 +1112,7 @@ class CODXJuniorSession:
                 Return only the content without any further decoration or comments.
                 Do not surround response with '```' marks, just content.
                 Remove codx comments from the final version. 
-                Do not return the <document> tags.
+                Do not return the <document> tags but respect tags present of the original content.
                 """))
 
 
@@ -1096,13 +1140,18 @@ class CODXJuniorSession:
                 
                 self.log_info(f"Mentions generate changes {file_path}")
                 
-                await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False)
+                with open(file_path, 'w') as file:
+                    def write_new_file_content(content):
+                        file.write(content)
+                        file.flush()
+
+                    await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False, callback=write_new_file_content)
                 if save_mentions:
                     chat_manager.save_chat(changes_chat)
-                response = changes_chat.messages[-1].content
+                #response = changes_chat.messages[-1].content
                 
-                self.log_info(f"Mentions save file changes {file_path}")
-                write_file(file_path=file_path, content=response)
+                self.log_info(f"Mentions done file changes {file_path}")
+                # write_file(file_path=file_path, content=response)
             
             self.send_notification(text=f"@codx done for {file_path.split('/')[-1]}")
         

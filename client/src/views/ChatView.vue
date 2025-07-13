@@ -63,7 +63,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                         @click.stop="showDescription = !showDescription"
                         v-if="chat.description">more
                       </span>
-                      <span class="badge badge-md badge-outline" v-if="taskProject">
+                      <span class="badge badge-md badge-outline" v-if="showTaskProjectName">
                         <img :src="taskProject.project_icon" class="w-3 rounded-full mr-1" />
                         {{ taskProject.project_name }}
                       </span>
@@ -292,6 +292,9 @@ export default {
                                 .then(profiles => profiles.filter(p => this.chat.profiles.includes(p.name)))
   },
   computed: {
+    showTaskProjectName() {
+      return this.taskProject && this.taskProject.project_id != this.$project.project_id 
+    },
     taskProject() {
       return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) ||
                 this.$project

@@ -93,7 +93,7 @@ export default {
         chat: "accent"
       },
       taskData: {},
-      expandDescription: false
+      expandDescription: true
     }
   },
   computed: {

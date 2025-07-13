@@ -8,7 +8,7 @@
     "context_length": 0,
     "temperature": 0.8
   },
-  "project_name": "llm-factory",
+  "project_name": "codx-llm-factory",
   "project_path": null,
   "project_wiki": null,
   "project_dependencies": null,

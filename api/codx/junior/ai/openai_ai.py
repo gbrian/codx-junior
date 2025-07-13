@@ -103,18 +103,20 @@ class OpenAI_AI:
               "buffer": [],
               "ts": datetime.now()
             }
-            def send_callback(chunk_content, force=False):
-              if callbacks and chunk_content:
-                  callback_data["buffer"].append(chunk_content)
-                  if force or (datetime.now() - callback_data["ts"]).total_seconds() > 1:
-                      callback_data["ts"] = datetime.now()
-                      message = "".join(callback_data["buffer"]) if callback_data["buffer"] else ""
-                      callback_data["buffer"] = []
-                      for cb in callbacks:
-                          try:
-                              cb(message)
-                          except Exception as ex:
-                              logger.exception(f"ERROR IN CALLBACKS: {ex}")
+            def send_callback(chunk_content, flush=False):
+              if not callbacks:
+                  return
+              
+              callback_data["buffer"].append(chunk_content or "")
+              if flush or (datetime.now() - callback_data["ts"]).total_seconds() > 1:
+                  callback_data["ts"] = datetime.now()
+                  message = "".join(callback_data["buffer"]) if callback_data["buffer"] else ""
+                  callback_data["buffer"] = []
+                  for cb in callbacks:
+                      try:
+                          cb(message)
+                      except Exception as ex:
+                          logger.exception(f"ERROR IN CALLBACKS: {ex}")
 
             for chunk in response_stream:
                 # Check for tools
@@ -128,7 +130,7 @@ class OpenAI_AI:
                 content_parts.append(chunk_content)
                 send_callback(chunk_content)
             # Last chunks...
-            send_callback(True)  
+            send_callback("", flush=True)  
         except Exception as ex:
             logger.exception(f"Error reading AI response {ex}")
         

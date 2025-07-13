@@ -201,7 +201,7 @@ import moment from 'moment'
               <div class="text-xs" v-for="file in showFiles" :key="file">
                 <div class="flex gap-2">
                   <input type="checkbox" v-model="selectedFiles[file]" class="checkbox" />
-                  {{ file.replace(projectPath, "") }}
+                  <a class="underline click" @click="$ui.openFile(file)">{{ file.replace(projectPath, "") }}</a>
                 </div>
               </div>
             </div>
@@ -336,7 +336,7 @@ import moment from 'moment'
 export default {
   data() {
     return {
-      selectedTab: 'Search',
+      selectedTab: 'Index',
       documents: 0,
       embeddings: 0,
       status: null,

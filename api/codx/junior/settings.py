@@ -92,6 +92,11 @@ read_global_settings()
 logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
 
 
+class DevOpsRepository(BaseModel):
+    def __init__(self, repo_url: str):
+        self.repo_url = repo_url
+        
+
 class CODXJuniorSettings(BaseModel):
     project_id: Optional[str] = Field(default=None)
 
@@ -134,6 +139,8 @@ class CODXJuniorSettings(BaseModel):
     last_error: str = Field(default="")
 
     urls: Optional[List[str]] = Field(default=[])
+
+    repo_url: Optional[str] = Field(default=None)
 
     def __str__(self):
         return str(self.model_dump())
