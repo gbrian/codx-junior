@@ -18,7 +18,7 @@ from codx.junior.knowledge.settings import (
     CODE_PARSER_FROM_EXTENSION
 )
 
-from codx.junior.utils import exec_command
+from codx.junior.utils.utils import exec_command
 
 CURRENT_SPLITTER_LANGUAGES = [lang.lower() for lang in dir(Language)]
 LANGUAGE_PARSER_MAPPING = {

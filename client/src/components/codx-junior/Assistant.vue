@@ -15,7 +15,7 @@ import UserSelector from '../chat/UserSelector.vue'
         />
         <input type="text" class="grow" v-model="query" placeholder="How can I help you?"
           @keydown.enter="sendMessage" />
-        <div class="dropdown dropdown-end dropdown-open">
+        <div class="dropdown dropdown-end">
           <div tabindex="0" role="button" class="btn btn-sm m-1">
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </div>

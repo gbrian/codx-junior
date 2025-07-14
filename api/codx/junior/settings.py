@@ -6,7 +6,10 @@ import uuid
 from pydantic import BaseModel, Field
 from typing import Optional, List
 
-from codx.junior.utils import write_file
+from codx.junior.utils.utils import (
+  write_file,
+  exec_command
+)
 from codx.junior.model.model import (
     GlobalSettings,
     ProjectScript,
@@ -16,7 +19,6 @@ from codx.junior.model.model import (
     AILLMModelSettings,
     AIModelType
 )
-from codx.junior.utils import exec_command
 
 logger = logging.getLogger(__name__)
 

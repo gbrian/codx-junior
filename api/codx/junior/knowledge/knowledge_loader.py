@@ -9,12 +9,15 @@ from datetime import datetime
 from langchain.document_loaders.generic import GenericLoader
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 
-from codx.junior.utils import calculate_md5
+
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_code_splitter import KnowledgeCodeSplitter
 from codx.junior.knowledge.knowledge_code_to_dcouments import KnowledgeCodeToDocuments
 
-from codx.junior.utils import exec_command
+from codx.junior.utils.utils import (
+  exec_command,
+  calculate_md5
+)
 
 logger = logging.getLogger(__name__)
 

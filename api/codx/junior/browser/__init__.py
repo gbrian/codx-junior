@@ -12,7 +12,7 @@ from selenium.common.exceptions import WebDriverException
 from codx.junior.db import (
     Chat,
 )
-from codx.junior.utils import exec_command
+from codx.junior.utils.utils import exec_command
 from langchain.schema import AIMessage, HumanMessage
 
 from bs4 import BeautifulSoup

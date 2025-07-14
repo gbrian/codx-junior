@@ -4,7 +4,7 @@ import sqlite3
 from slugify import slugify
 from codx.junior.settings import CODXJuniorSettings
 
-from codx.junior.utils import write_file
+from codx.junior.utils.utils import write_file
 
 logger = logging.getLogger(__name__)
 

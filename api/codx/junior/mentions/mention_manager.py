@@ -1,13 +1,32 @@
 import re
 import json
 import logging
+import anyio
+from slugify import slugify
+
+from datetime import datetime
+
 from typing import Optional
 
 # Add missing imports
 from codx.junior.chat_manager import ChatManager
 from codx.junior.profiles.profile_manager import ProfileManager
+from codx.junior.events.event_manager import EventManager
+
+from codx.junior.db import (
+  Chat,
+  Message
+)
+
+from pydantic import BaseModel
 
 from codx.junior.profiling.profiler import profile_function
+
+from codx.junior.utils.utils import (
+    write_file
+)
+from codx.junior.utils.chat_utils import ChatUtils
+
 
 # Define the logger
 logger = logging.getLogger(__name__)
@@ -21,19 +40,19 @@ SINGLE_LINE_MENTION_START_PROGRESS = "@" + "codx-ok, please-wait...:"
 MULTI_LINE_MENTION_START_PROGRESS = "<" + "codx-ok, please-wait..."
 MULTI_LINE_MENTION_END_PROGRESS = "<" + "/codx-ok, please-wait...>"
 
-class MentionFlags:
-    knowledge: bool
-    model: str
-    chat_id: str
-    code: bool
-    image: bool
+class MentionFlags(BaseModel):
+    knowledge: bool = False
+    model: str = ''
+    chat_id: str = ''
+    code: bool = False
+    image: bool = False
 
-class Mention:
-    mention: str
+class Mention(BaseModel):
+    mention: str = ''
     start_line: int = 0
     end_line: int = 0
     flags: MentionFlags = MentionFlags()
-    new_content: str
+    new_content: str = ''
 
     def __str__(self):
         data = {
@@ -72,22 +91,29 @@ class Mention:
 class MentionManager:
 
     # Constructor for MentionManager
-    def __init__(self, chat_manager: ChatManager, profile_manager: ProfileManager):
+    def __init__(self,
+                settings,
+                chat_manager: ChatManager,
+                profile_manager: ProfileManager,
+                event_manager: EventManager):
+        self.settings = settings
         self.chat_manager = chat_manager
         self.profile_manager = profile_manager
+        self.event_manager = event_manager
+        self.chat_utils = ChatUtils(profile_manager=profile_manager)
 
     def is_processing_mentions(self, content):
         if MULTI_LINE_MENTION_START_PROGRESS in content or SINGLE_LINE_MENTION_START_PROGRESS in content:
             return True
         return False
 
-    def extract_mentions(self, content):
+    def extract_mentions(self, content: str) -> list[Mention]:
         if self.is_processing_mentions(content=content):
             return []
 
         content_lines = content.split("\n")
-        mentions = []
-        mention = None
+        mentions: list[Mention] = []
+        mention: Optional[Mention] = None
 
         for ix, line in enumerate(content_lines):
             if SINGLE_LINE_MENTION_START in line:
@@ -97,20 +123,28 @@ class MentionManager:
                 mentions.append(mention)
                 mention = None
             elif MULTI_LINE_MENTION_START in line:
-                mention = Mention()
-                mention.start_line = ix
-                mentions.append(mention)
+                _, *rest = line.split(MULTI_LINE_MENTION_START, 1)
+                if rest:  # If there is content after the codx tag, capture it
+                    mention = Mention()
+                    mention.start_line = ix
+                    mention.add_line(rest[0].strip())  # adding initial line content after codx
+                    mentions.append(mention)
+                else:  # Only the start of a multi-line mention, no content on the same line
+                    mention = Mention()
+                    mention.start_line = ix
+                    mentions.append(mention)
             elif mention and MULTI_LINE_MENTION_END in line:
                 mention.end_line = ix
                 mention = None
             elif mention:
                 mention.add_line(line)
+
         return mentions
 
     def notify_mentions_in_progress(self, content):
         return content.replace(SINGLE_LINE_MENTION_START, SINGLE_LINE_MENTION_START_PROGRESS) \
                       .replace(MULTI_LINE_MENTION_START, MULTI_LINE_MENTION_START_PROGRESS) \
-                      .replace(MULTI_LINE_MMENTION_END, MULTI_LINE_MENTION_END_PROGRESS)
+                      .replace(MULTI_LINE_MENTION_END, MULTI_LINE_MENTION_END_PROGRESS)
 
     def notify_mentions_error(self, content, error):
         return content.replace("codx-ok, please-wait...", f"codx-error: {error}")
@@ -156,15 +190,16 @@ class MentionManager:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
 
+    @profile_function
     async def check_file_for_mentions_inner(self, mentions, file_path: str, content: str = None, callback=None):
-        chat_manager = self.chat_manager
+        logger.info(f"Inside check_file_for_mentions_inner for {file_path}")
         
         file_profiles = self.profile_manager.get_file_profiles(file_path=file_path)
         file_profiles = self.profile_manager.get_profiles_and_parents(file_profiles)
         profile_names = [p.name for p in file_profiles]
 
-        self.send_notification(text=f"@codx {len(mentions)} mentions in {file_path.split('/')[-1]} profiles: {profile_names}")
-        self.log_info(f"{len(mentions)} mentions found for {file_path} profiles: {profile_names}")
+        self.event_manager.send_notification(text=f"codx {len(mentions)} mentions in {file_path.split('/')[-1]} profiles: {profile_names}")
+        logger.info(f"{len(mentions)} mentions found for {file_path} profiles: {profile_names}")
 
         use_knowledge = any(m.flags.knowledge for m in mentions)
         using_chat = any(m.flags.chat_id for m in mentions)
@@ -173,29 +208,29 @@ class MentionManager:
 
         if using_chat:
             use_knowledge = False
-            self.log_info(f"Skip KNOWLEDGE search for processing, using_chat={using_chat}")
+            logger.info(f"Skip KNOWLEDGE search for processing, using_chat={using_chat}")
 
         def mention_info(mention):
-            chat = chat_manager.find_by_id(mention.flags.chat_id) if mention.flags.chat_id else None
+            chat = self.chat_manager.find_by_id(mention.flags.chat_id) if mention.flags.chat_id else None
             if chat:
-                self.log_info(f"using CHAT for processing mention: {mention.mention}")
+                logger.info(f"using CHAT for processing mention: {mention.mention}")
                 return f"""Based on this conversation:
                 ```markdown
-                {chat_manager.serialize_chat(chat)}
+                {self.chat_manager.serialize_chat(chat)}
                 ```
                 User commented in line {mention.start_line}: {mention.mention}
                 """
             return f"User commented in line {mention.start_line}: {mention.mention}"
 
         query = "\n  *".join([mention_info(mention) for mention in mentions])
-        query_mentions = self.get_query_mentions(query=query)
+        query_mentions = self.chat_utils.get_query_mentions(query=query)
 
         file_chat_name = "-".join(file_path.split("/")[-2:])
 
-        self.log_info(f"Create mention chat {file_chat_name}")
+        logger.info(f"Create mention chat {file_chat_name}")
         analysis_chat = None
         if use_knowledge:
-            analysis_chat = Chat(name=slugify(f"analysis_at_{file_chat_name}-{datetime.now()}"),
+            analysis_chat = Chat(name=slugify(f"analysis_at_{file_chat_name}-{datetime.datetime.now()}"),
                                  board="mentions",
                                  column="analysis",
                                  mode="chat",
@@ -209,13 +244,13 @@ class MentionManager:
                                          query,
                                          "",
                                          "File content:",
-                                         new_content
+                                         content
                                      ]))
                                  ])
-            self.log_info(f"Chat with project analysis {analysis_chat.name}")
+            logger.info(f"Chat with project analysis {analysis_chat.name}")
             await self.chat_with_project(chat=analysis_chat)
             if save_mentions:
-                analysis_chat = chat_manager.save_chat(analysis_chat)
+                analysis_chat = self.chat_manager.save_chat(analysis_chat)
 
         changes_chat = Chat(name=slugify(f"changes_at_{file_chat_name}-{datetime.now()}"),
                             board="mentions",
@@ -255,7 +290,7 @@ class MentionManager:
                     Given this document:
                     <document>
 
-                    {new_content}
+                    {content}
 
                     </document>
 
@@ -268,28 +303,28 @@ class MentionManager:
                     """)
         )
 
-        self.log_info(f"Mentions generate changes {file_path}")
+        logger.info(f"Mentions generate changes {file_path}")
 
         # Process mentions
         await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False, callback=callback)
 
         if save_mentions:
-            chat_manager.save_chat(changes_chat)
+            self.chat_manager.save_chat(changes_chat)
 
-        self.log_info(f"Mentions done file changes {file_path}")
+        logger.info(f"Mentions done file changes {file_path}")
 
-        self.send_notification(text=f"@codx done for {file_path.split('/')[-1]}")
+        self.event_manager.send_notification(text=f"codx mentions done for {file_path.split('/')[-1]}")
 
         return changes_chat.messages[-1].content
 
-    @profile_function
     async def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False, callback=None):
         mentions = None
 
         if not content:
-            content = self.read_file()
+            content = self.read_file(file_path=file_path)
 
         if self.is_processing_mentions(content=content):
+            logger.info(f"File already in processing state. {file_path}")
             return "processing"
 
         mentions = self.extract_mentions(content)
@@ -297,23 +332,33 @@ class MentionManager:
         if not mentions:
             return ""
 
+        logger.info(f"Processing mentions for file:. {file_path}")    
         new_content = self.notify_mentions_in_progress(content)
         if not silent:
+            logger.debug(f"Writing progress notification to file: {file_path}")
             write_file(file_path=file_path, content=new_content)
 
+        async def open_file_to_write():
+            return await anyio.open_file(file_path, 'w')
+        stream_file = None
         try:
             if not callback:
-                async with await anyio.open_file(file_path, 'w') as file:
-                    async def write_new_file_content(content):
-                        if content:
-                            await file.write(content)
-                            await file.flush()
-                    callback = write_new_file_content
+                logger.debug(f"Open file to write: {file_path}")
+                async def write_new_file_content(content):
+                    if content:
+                        if not stream_file:
+                            file = await open_file_to_write()
+                        await file.write(content)
+                        await file.flush()
+                callback = write_new_file_content
             res = await self.check_file_for_mentions_inner(file_path=file_path,
-                                                           content=content,
+                                                           content=new_content,
                                                            mentions=mentions,
                                                            callback=callback)
-            self.log_info(f"[{self.settings.project_name}] Mentions manager done for {file_path}")
+            logger.info(f"[{self.settings.project_name}] Mentions manager done for {file_path}")
             return res
         except Exception as ex:
-            self.log_exception(f"Error processing mentions at {file_path}: {ex}")
+            logger.exception(f"Error processing mentions at {file_path}: {ex}")
+        finally:
+            if stream_file:
+                await stream_file.close()

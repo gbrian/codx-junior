@@ -152,7 +152,8 @@ export const getters = getterTree(state, {
   lastAssistantChats: () =>
         $storex.projects.allChats
           .filter(c => c.board === 'codx-junior')
-          .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6)
+          .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),
+  userList: () => [$storex.users.user, ...$storex.projects.profiles]
 })
 
 export const actions = actionTree(

@@ -1,3 +1,7 @@
+"""
+Chat + AI
+This modules is responsible for the AI chat intreaction
+"""
 import logging
 import pathlib
 import os
@@ -12,7 +16,11 @@ from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.db import Chat, Message
-from codx.junior.utils import write_file
+from codx.junior.utils.utils import write_file
+
+from codx.junior.globals import (
+  find_project_by_name
+)
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -115,7 +123,7 @@ class ChatManager:
         else:
             logger.error(f"Removing chat error {file_path}")
 
-    def load_chat(self, board, column, chat_name):
+    def load_chat(self, board, column = None, chat_name = None):
         chat = Chat(board=board, column=column, name=chat_name)
         chat_file = self.get_chat_file(chat)
         if not os.path.isfile(chat_file):
@@ -281,3 +289,4 @@ class ChatManager:
         kanban_file = f"{self.chat_path}/kanban.json"
         with open(kanban_file, 'w') as f:
             f.write(json.dumps(kanban))
+

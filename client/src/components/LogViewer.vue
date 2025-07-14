@@ -77,7 +77,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
       </header>
       <div class="grow my-2 flex flex-col gap-2 overflow-auto"
         style="height:600px" ref="logView">
-        <div class="" v-for="log in $storex.logs.filteredLogs" :key="log"
+        <div class="" v-for="log in filteredLogs" :key="log"
           :class="logClasses(log)"
         >
             {{ log }}
@@ -91,6 +91,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
 </template>
 
 <script>
+// codx: logView $refs.logView scrolled to bottom after detecting changes in fileterdLogs if it was at bottom 
 export default {
   data() {
     return {
@@ -123,9 +124,13 @@ export default {
       return this.$storex.logs.filteredLogs.filter(log => log.data.profiler)
                       .map(({ timestamp, data: { profiler: { module, method, time_taken }}}) => 
                                             ({ timestamp, path: `${module}.${method}` , time_taken }))
+    },
+    filteredLogs() {
+      const discards = this.discardPatterns?.toLowerCase().split(",")
+      return this.$storex.logs.rawLogs?.filter(log => !discards?.length ||
+        !discards.find(d => log.toLowerCase().includes(d)))
     }
   },
-  // @codx: watch $storex.logs.rawLogs and if it changed and $refa.logView was scrolled to the bottom, scroll it back to the bottom after the new logs has been rendered
   methods: {
     toggleModuleVisible(module) {
       const ix = this.visibleModules.indexOf(module)
@@ -150,9 +155,6 @@ export default {
     
     async fetchLogs() {
       await this.$storex.logs.fetchLogs()
-      if (this.$storex.logs.autoRefresh) {
-        setTimeout(() => this.fetchLogs(), 3000)
-      }
     },
     toggleAutoRefresh() {
       this.$storex.logs.setAutoRefresh(!this.$storex.logs.autoRefresh)
@@ -178,7 +180,7 @@ export default {
     
     logClasses(log) {
       const classes = []
-      if (this.filter && this.$storex.logs.isFilterMatch(log)) {
+      if (this.filter && this.isFilterMatch(log)) {
         classes.push("text-success")
       }
       const isError = log.toLocaleLowerCase().includes("error")
@@ -186,6 +188,14 @@ export default {
         classes.push("text-error")
       }
       return classes
+    },
+
+    isFilterMatch(log) {
+      if (!this.filter) {
+        return true
+      }
+      const lowerLog = log.toLowerCase()
+      return this.filter.toLowerCase().split(",").find(e => lowerLog.includes(e))
     },
     
     ignorePattern() {

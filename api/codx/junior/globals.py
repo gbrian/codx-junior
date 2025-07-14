@@ -3,7 +3,7 @@ import subprocess
 import logging
 
 from codx.junior.settings import CODXJuniorSettings, read_global_settings
-from codx.junior.utils import exec_command
+from codx.junior.utils.utils import exec_command
 from codx.junior.security.user_management import UserSecurityManager
 from codx.junior.model.model import CodxUser
 from codx.junior.db import Chat

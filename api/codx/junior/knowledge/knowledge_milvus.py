@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from langchain.schema.document import Document
 
-from codx.junior.utils import (
+from codx.junior.utils.utils import (
   calculate_md5,
   extract_blocks,
   exec_command

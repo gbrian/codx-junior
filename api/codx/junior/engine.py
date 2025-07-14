@@ -27,7 +27,7 @@ from langchain.schema import (
     SystemMessage
 )
 
-from codx.junior.utils import (
+from codx.junior.utils.utils import (
     document_to_context,
     extract_code_blocks,
     extract_json_blocks,
@@ -71,6 +71,9 @@ from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
 
 from codx.junior.mentions.mention_manager import MentionManager
 from codx.junior.events.event_manager import EventManager
+from codx.junior.chat.chat_engine import ChatEngine
+
+from codx.junior.utils.chat_utils import ChatUtils
 
 from codx.junior.db import (
     Kanban,
@@ -103,6 +106,7 @@ class CODXJuniorSession:
             codx_path: str = None,
             channel: SessionChannel = None):
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
+        self.channel = channel
         self.event_manager = EventManager(
                                 codx_path=codx_path,         
                                 channel=channel)
@@ -148,8 +152,10 @@ class CODXJuniorSession:
         logger.error(f"PROJECT REMOVED {self.settings.codx_path}")
 
     def get_mention_manager(self):
-        return MentionManager(chat_manager=self.get_chat_manager(),
-                              profile_manager=self.get_profile_manager())
+        return MentionManager(settings=self.settings, 
+                              chat_manager=self.get_chat_manager(),
+                              profile_manager=self.get_profile_manager(),
+                              event_manager=self.event_manager)
 
     def get_chat_manager(self):
         return ChatManager(settings=self.settings)
@@ -192,7 +198,7 @@ class CODXJuniorSession:
 
     async def save_profile(self, profile):
         profile = self.get_profile_manager().save_profile(profile=profile)
-        await self.check_file_for_mentions(file_path=profile.content_path)
+        await self.get_mention_manager().check_file_for_mentions(file_path=profile.content_path)
         return self.read_profile(profile_name=profile.name)
 
     def read_profile(self, profile_name):
@@ -326,27 +332,20 @@ class CODXJuniorSession:
         return all_projects
         
     def extract_query_mentions(self, query: str):
-        mentions = re.findall(r'@[a-zA-Z0-9\-\_\.]+', query)
-        self.log_info(f"Extracted mentions: {mentions}")
-        return mentions
+        chat_utils = ChatUtils(profile_manager=self.get_profile_manager())
+        return chat_utils.extract_query_mentions(query=query)
 
     def find_projects_by_mentions(self, mentions: [str]):
-        return [project for project in [find_project_by_name(mention[1:]) for mention in mentions] if project]
+        chat_utils = ChatUtils(profile_manager=self.get_profile_manager())
+        return chat_utils.find_projects_by_mentions(mentions=mentions)
 
     def find_profiles_by_mentions(self, mentions: [str]):
-        profile_manager = self.get_profile_manager()
-        profiles = profile_manager.list_profiles()
-        mention_profiles = [p for p in profiles if p.name in mentions]
-        return profile_manager.get_profiles_and_parents(mention_profiles)
+        chat_utils = ChatUtils(profile_manager=self.get_profile_manager())
+        return chat_utils.find_profiles_by_mentions(mentions=mentions)
 
     def get_query_mentions(self, query: str):
-        mentions = self.extract_query_mentions(query=query)
-        projects = self.find_projects_by_mentions(mentions=mentions)
-        profiles = self.find_profiles_by_mentions(mentions=mentions)
-        return {
-          "projects": projects,
-          "profiles": profiles
-        }
+        chat_utils = ChatUtils(profile_manager=self.get_profile_manager())
+        return chat_utils.get_query_mentions(query=query)
 
     @profile_function
     def find_project_documents(self, query: str):
@@ -642,7 +641,7 @@ class CODXJuniorSession:
 
     @profile_function
     async def check_file(self, file_path: str, force: bool = False):
-        res = await self.check_file_for_mentions(file_path=file_path)
+        res = await self.get_mention_manager().check_file_for_mentions(file_path=file_path)
         self.log_info(f"Check file {file_path} for mentions: {res}")
         if res == "processing":
             return
@@ -714,7 +713,7 @@ class CODXJuniorSession:
         if not file_path:
             return
 
-        res = await self.check_file_for_mentions(file_path=file_path)
+        res = await self.get_mention_manager().check_file_for_mentions(file_path=file_path)
         if res == "processing" or not CODX_JUNIOR_API_BACKGROUND:
             return
 
@@ -1042,6 +1041,18 @@ class CODXJuniorSession:
 
     @profile_function
     async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0):
+        
+        chat_engine = ChatEngine(settings=self.settings,
+                                event_manager=self.event_manager)
+        return await chat_engine.chat_with_project(
+                            chat=chat,
+                            disable_knowledge=disable_knowledge,
+                            callback=callback,
+                            append_references=append_references,
+                            chat_mode=chat_mode,
+                            iteration=iteration
+                          )
+        
         timing_info = {
             "start_time": time.time(),
             "first_response": None

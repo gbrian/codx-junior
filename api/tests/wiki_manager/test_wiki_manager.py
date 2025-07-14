@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import Mock, patch, mock_open
 import os
 
-from codx.junior.api.codx.junior.wiki.wiki_manager import WikiManager
+from codx.junior.wiki.wiki_manager import WikiManager
 from codx.junior.settings import CODXJuniorSettings
 
 

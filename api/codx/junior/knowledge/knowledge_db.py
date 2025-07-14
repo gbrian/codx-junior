@@ -17,7 +17,7 @@ from langchain.schema.document import Document
 from codx.junior.ai import AI
 from codx.junior.settings import CODXJuniorSettings
 
-from codx.junior.utils import calculate_md5
+from codx.junior.utils.utils import calculate_md5
 from codx.junior.profiling.profiler import profile_function
 
 CODX_JUNIOR_MILVUS_URL = os.environ.get("CODX_JUNIOR_MILVUS_URL", "http://milvus:19530")

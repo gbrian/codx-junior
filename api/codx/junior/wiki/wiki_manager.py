@@ -9,7 +9,7 @@ from pydantic import BaseModel
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.engine import CODXJuniorSession
-from codx.junior.utils import (
+from codx.junior.utils.utils import (
   exec_command,
   extract_blocks,
   remove_starting_block

@@ -32,7 +32,7 @@ export default {
   computed: {
     // Combine users from user and project profiles
     usersList() {
-      return [this.$user, ...this.$storex.projects.profiles]
+      return this.$projects.userList
     }
   },
   methods: {

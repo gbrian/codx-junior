@@ -321,6 +321,7 @@ export default {
   },
   mounted() {
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
+    this.initSelectedUserFromChat()
   },
   unmounted() {
     clearInterval(this.syncEditableTextInterval)
@@ -340,6 +341,11 @@ export default {
         return { ...aiMsgs[aiMsgs.length - 1], diffMessage }
       }
       return null
+    },
+    lastUserMessage() {
+      const { messages } = this.theChat
+      const msgs = messages?.filter(m => !m.hide && m.role !== 'assistant')
+      return msgs ? msgs[msgs.length - 1] : null
     },
     diffMessage() {
       if (this.isTask) {
@@ -415,8 +421,19 @@ export default {
         this.searchTerms = null
       }
     },
+    theChat() {
+      this.initSelectedUserFromChat()
+    }
   },
   methods: {
+    initSelectedUserFromChat() {
+      const { lastUserMessage } = this
+      if (lastUserMessage?.profiles.length) {
+        const userName = lastUserMessage.profiles[0]
+        const user = this.$projects.userList.find(u => u.name === userName) 
+        this.selectedUser = user
+      }
+    },
     zoomIn() {
       this.previewStyle.zoom += 0.1
     },

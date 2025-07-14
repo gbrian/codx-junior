@@ -105,7 +105,7 @@ from codx.junior.globals import (
     find_all_user_projects,  
 )
 
-from codx.junior.utils import (
+from codx.junior.utils.utils import (
     exec_command,
 )
 
@@ -516,13 +516,17 @@ def api_logs_list():
 def api_logs_tail(log_name: str, request: Request):
     log_size = request.query_params.get("log_size") or "100"
     if "🐋" in log_name:
-        stdout, _ = exec_command(f"docker logs -n {log_size} {log_name.split(':')[1]}")
+        stdout, err_logs = exec_command(f"docker logs -n {log_size} {log_name.split(':')[1]}")
+        if err_logs:
+            logger.error(f"Error reading logs {log_name}: {err_logs}")
         return stdout.split("\n")
     else:   
         log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
         cmd = f"tail -n {log_size} {log_file}"
         try:
-            logs, _ = exec_command(cmd)
+            logs, err_logs = exec_command(cmd)
+            if err_logs:
+                logger.error(f"Error reading logs {log_name}: {err_logs}")
             # return parse_logs(logs)
             def is_valid_log(l):
                 if "/api/logs" in l:
