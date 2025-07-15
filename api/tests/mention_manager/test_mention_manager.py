@@ -4,6 +4,7 @@ import logging
 from unittest.mock import MagicMock, patch
 from typing import List
 from codx.junior.mentions.mention_manager import MentionManager, Mention, MentionFlags
+from codx.junior.settings import CODXJuniorSettings
 
 # Configure logging for the testing module
 logger = logging.getLogger(__name__)
@@ -16,11 +17,10 @@ class TestMentionManager(unittest.TestCase):
         This ensures isolation and prevents dependency on external modules
         during testing.
         """
-        chat_manager = MagicMock()
-        profile_manager = MagicMock()
         event_manager = MagicMock()
+        settings = CODXJuniorSettings()
         
-        self.mention_manager = MentionManager(chat_manager, profile_manager, event_manager)
+        self.mention_manager = MentionManager(settings, event_manager)
 
     def test_extract_mentions_single_line(self) -> None:
         """

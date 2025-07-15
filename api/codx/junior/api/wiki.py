@@ -4,7 +4,6 @@ from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse
 
 from codx.junior.engine import (
-  find_project_by_name,
   CODXJuniorSession
 )
 

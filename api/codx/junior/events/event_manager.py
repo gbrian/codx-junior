@@ -5,12 +5,12 @@ class EventManager:
     def __init__(self,
             codx_path: str,
             channel: SessionChannel = None):
-        self.codx_path = codx_path
-        self.channel = channel
-        
         if not channel:
             from codx.junior.sio.sio import sio
-            self.channel = SessionChannel(sio=sio)
+            channel = SessionChannel(sio=sio)
+
+        self.codx_path = codx_path
+        self.channel = channel
 
     def event_data(self, data: dict):
         data['codx_path'] = self.codx_path

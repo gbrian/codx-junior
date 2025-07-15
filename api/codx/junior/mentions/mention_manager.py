@@ -8,6 +8,7 @@ from datetime import datetime
 
 from typing import Optional
 
+from codx.junior.chat.chat_engine import ChatEngine
 # Add missing imports
 from codx.junior.chat_manager import ChatManager
 from codx.junior.profiles.profile_manager import ProfileManager
@@ -93,14 +94,13 @@ class MentionManager:
     # Constructor for MentionManager
     def __init__(self,
                 settings,
-                chat_manager: ChatManager,
-                profile_manager: ProfileManager,
                 event_manager: EventManager):
         self.settings = settings
-        self.chat_manager = chat_manager
-        self.profile_manager = profile_manager
+        self.chat_manager = ChatManager(settings=settings)
+        self.profile_manager = ProfileManager(settings=settings)
         self.event_manager = event_manager
-        self.chat_utils = ChatUtils(profile_manager=profile_manager)
+        self.chat_utils = ChatUtils(profile_manager=self.profile_manager)
+        self.chat_engine = ChatEngine(settings=settings, event_manager=event_manager)
 
     def is_processing_mentions(self, content):
         if MULTI_LINE_MENTION_START_PROGRESS in content or SINGLE_LINE_MENTION_START_PROGRESS in content:
@@ -248,7 +248,7 @@ class MentionManager:
                                      ]))
                                  ])
             logger.info(f"Chat with project analysis {analysis_chat.name}")
-            await self.chat_with_project(chat=analysis_chat)
+            await self.chat_engine.chat_with_project(chat=analysis_chat)
             if save_mentions:
                 analysis_chat = self.chat_manager.save_chat(analysis_chat)
 
@@ -306,7 +306,7 @@ class MentionManager:
         logger.info(f"Mentions generate changes {file_path}")
 
         # Process mentions
-        await self.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False, callback=callback)
+        await self.chat_engine.chat_with_project(chat=changes_chat, disable_knowledge=True, append_references=False, callback=callback)
 
         if save_mentions:
             self.chat_manager.save_chat(changes_chat)

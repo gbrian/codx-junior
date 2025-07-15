@@ -3,8 +3,7 @@ import datetime
 from fastapi import APIRouter, Request
 
 from codx.junior.engine import (
-  CODXJuniorSession,
-  find_all_projects
+  CODXJuniorSession
 )
 from codx.junior.profiles.profile_manager import ProfileManager
 
