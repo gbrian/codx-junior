@@ -1,6 +1,6 @@
 {
   "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
-  "project_name": "codx-ui",
+  "project_name": "codx-junior-ui",
   "project_path": null,
   "project_branches": [],
   "project_wiki": null,
@@ -16,10 +16,10 @@
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx,assets,public",
   "save_mentions": true,
-  "watching": false,
+  "watching": true,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
-  "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
+  "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSvsXyz8eDobC4MvaRkM3zmOZ9ETdrS0ozGCQ&s",
   "log_ignore": "",
   "project_scripts": [],
   "embeddings_model": "",
@@ -27,5 +27,6 @@
   "rag_model": "",
   "wiki_model": "",
   "last_error": "",
-  "urls": []
+  "urls": [],
+  "repo_url": null
 }

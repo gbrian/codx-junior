@@ -1,11 +1,12 @@
 <script setup>
+import moment from 'moment'
 import { API } from '../../api/api'
 import ChatEntry from '@/components/ChatEntry.vue'
 import Browser from '@/components/browser/Browser.vue'
 import Markdown from '@/components/Markdown.vue'
 import TaskCard from '../kanban/TaskCard.vue'
 import UserSelector from './UserSelector.vue'
-import moment from 'moment'
+import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
 </script>
 
 <template>
@@ -156,12 +157,10 @@ import moment from 'moment'
                 v-if="editMessage">
                 <i class="fa-regular fa-circle-xmark"></i>
               </button>
-              <button class="btn btn-sm btn-circle tooltip relative" :class="disableKnowledge ? 'text-gray-600' : 'text-info'"
-                @click="disableKnowledge = !disableKnowledge"
-                :data-tip="disableKnowledge ? 'Knowledge disabled' : 'Knowledge enabled'"
-              >
-                <i class="absolute right-2 top-1 fa-solid fa-file-lines opacity-50"></i>
-                <i class="absolute right-0 top-2 fa-solid fa-magnifying-glass"></i>
+              <button class="btn btn-sm btn-circle btn-info tooltip relative"
+                :data-tip="'Search documents'"
+                @click="openDocumentSearch">
+                <i class="fa-solid fa-file-lines"></i>
               </button>
               <button class="btn btn btn-sm btn-circle tooltip"
                 data-tip="Ask codx-junior"
@@ -278,6 +277,9 @@ import moment from 'moment'
         </div>
       </div>
     </modal>
+    <modal close="true" class="h-2/3 w-2/3" @close="showDocumentSearchModal = false" v-if="showDocumentSearchModal">
+      <KnowledgeSearch @select="onAddDocuments" />
+    </modal>
   </div>
 </template>
 
@@ -313,7 +315,8 @@ export default {
       taskToDelete: null,
       selectedUser: null,
       refreshngMentions: null,
-      disableKnowledge: true
+      selectedDocuments: null,
+      showDocumentSearchModal: false
     }
   },
   created() {
@@ -619,8 +622,7 @@ export default {
       const searchQuery = this.termSearchQuery?.toLowerCase()
       this.searchTerms = this.$projects.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
       this.searchTermSelIx = 0
-            if (!this.refreshngMentions) {
-        // Prevent reloading multiple times
+      if (!this.refreshngMentions) {
         this.refreshngMentions = this.$projects.loadProjectKnowledge()
         this.refreshngMentions.then(() => this.refreshngMentions = null)
       }
@@ -643,16 +645,13 @@ export default {
         preCaretRange.selectNodeContents(element)
         preCaretRange.setEnd(range.endContainer, range.endOffset)
         caretOffset = preCaretRange.toString().length
-      }
-
-      else if (document.selection && document.selection.type != "Control") {
+      } else if (document.selection && document.selection.type != "Control") {
         var textRange = document.selection.createRange()
         var preCaretTextRange = document.body.createTextRange()
         preCaretTextRange.moveToElementText(element)
         preCaretTextRange.setEndPoint("EndToEnd", textRange)
         caretOffset = preCaretTextRange.text.length
       }
-
       return caretOffset
     },
     getCursorWord() {
@@ -838,6 +837,15 @@ export default {
         event.preventDefault()
         return false
       }
+    },
+    openDocumentSearch() {
+      this.showDocumentSearchModal = true
+    },
+    onAddDocuments(documents) {
+      const sources = documents.map(doc => doc.metadata.source)
+      this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], ...sources])]
+      this.saveChat()
+      this.showDocumentSearchModal = false
     }
   }
 }
