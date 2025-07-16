@@ -95,7 +95,7 @@ def check_projects() -> None:
         except Exception as ex:
             update_quarantine_status(project.project_name, success=False)
             project.last_error = str(ex)
-            logger.error(f"Error processing project changes: {project.project_name}\n{ex}")
+            logger.exception(f"Error processing project changes: {project.project_name}\n{ex}")
 
     while True:
         try:

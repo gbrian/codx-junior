@@ -8,4 +8,9 @@ export class ProjectService extends Service {
     } 
     await this.projects.createNewProject(projectPath)
   }
+  
+  async watch(watching) {
+    this.project.watching = watching
+    this.projects.saveSettings(this.project)
+  }
 }

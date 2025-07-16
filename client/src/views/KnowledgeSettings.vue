@@ -17,8 +17,8 @@ import moment from 'moment'
         {{ $projects.embeddingsModel }}
       </div>
       <button class="btn btn-sm" @click="toggleWatch()">
-        <span class="label-text mr-2">Watch changes</span> 
-        <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="settings.watching" />
+        <span class="label-text mr-2">Watch changes</span>
+        <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="$project.watching" />
       </button>
     </div>
     <div class="text-xs flex gap-2" v-if="subProjects?.length">
@@ -28,15 +28,57 @@ import moment from 'moment'
       </span>
     </div>
 
+          <div class="stats stats-sm">
+        <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
+          <div class="stat-figure mt-6">
+            <i class="fa-2xl fa-solid fa-file"></i>
+          </div>
+          <div class="stat-title">Pending</div>
+          <div class="stat-value">{{ status?.pending_files?.length }}</div>
+          <div class="stat-desc"></div>
+        </div>
+
+        <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
+          <div class="stat-figure mt-6 text-success">
+            <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
+          </div>
+          <div class="stat-title">Indexed</div>
+          <div class="stat-value">{{ status?.file_count }}</div>
+          <div class="stat-desc"></div>
+        </div>
+
+        <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
+          <div class="stat-figure mt-6 text-warning">
+            <i class="fa-2xl fa-solid fa-file"></i>
+          </div>
+          <div class="stat-title">Ignored</div>
+          <div class="stat-value">{{ ignoredFolders?.length }}</div>
+          <div class="stat-desc"></div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-figure mt-6 text-info">
+            <i class="fa-2xl fa-solid fa-book"></i>
+          </div>
+          <div class="stat-title">Keywords</div>
+          <div class="stat-value">{{ status?.keyword_count }}</div>
+          <div class="stat-desc"></div>
+        </div>
+      </div>
+
+
     <div class="">
       <div role="tablist" class="tabs tabs-box flex gap-2">
-        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Search' }" @click="selectedTab = 'Search'">
+        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Search' }"
+          @click="selectedTab = 'Search'">
           <i class="fa-solid fa-magnifying-glass"></i> Search
         </a>
-        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Index' }" @click="selectedTab = 'Index'">
+        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Index' }"
+          @click="selectedTab = 'Index'">
           <i class="fa-solid fa-file-import"></i> Index
         </a>
-        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Wiki' }" @click="selectedTab = 'Wiki'">
+        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Wiki' }"
+          @click="selectedTab = 'Wiki'">
           <i class="fa-solid fa-file"></i> Wiki
         </a>
       </div>
@@ -49,7 +91,7 @@ import moment from 'moment'
         <div class="text-xl font-bold">Fine tune codx-junior knowledge search</div>
         <div class="text-xs flex gap-2 items-center">
           <i class="fa-solid fa-sliders"></i>
-          <div class="flex gap-2 items-center tooltip" data-tip="Search type">Search: 
+          <div class="flex gap-2 items-center tooltip" data-tip="Search type">Search:
             <select v-model="documentSearchType" class="w-20 select select-bordered select-xs">
               <option value="similarity">similarity</option>
             </select>
@@ -66,9 +108,10 @@ import moment from 'moment'
           <div class="flex gap-2 items-center tooltip" data-tip="Use keywords in search">Keywords:
             <input type="checkbox" v-model="enableKeywords" class="w-20 checkbox checkbox-xs" />
           </div>
-          
+
           <div class="grow"></div>
-          <button class="btn btn-sm tooltip hover:text-info" data-tip="Save these settings" @click="saveKnowledgeSettings">
+          <button class="btn btn-sm tooltip hover:text-info" data-tip="Save these settings"
+            @click="saveKnowledgeSettings">
             <i class="fa-solid fa-floppy-disk"></i>
           </button>
         </div>
@@ -78,8 +121,7 @@ import moment from 'moment'
             <option value="source">Source</option>
             <option value="fulltext">Full text</option>
           </select>
-          <input type="text" class="flex-grow" placeholder="Search in knowledge"
-            @keypress.enter="onKnowledgeSearch"
+          <input type="text" class="flex-grow" placeholder="Search in knowledge" @keypress.enter="onKnowledgeSearch"
             v-model="searchTerm" />
           <i class="fa-solid fa-magnifying-glass" @click="onKnowledgeSearch"></i>
         </label>
@@ -94,21 +136,20 @@ import moment from 'moment'
             No documents associated...
           </span>
           <div class="grid grid-cols-2 gap-2">
-            <div class="border p-2 border-info cursor-pointer rounded-md bg-base-300 flex flex-col justify-between gap-2 text-xs"
-                v-for="doc,ix in searchResultsDocuments" :key="ix"
-                @click="showDoc = { ...doc, docSelected: 0 }"
-            >
+            <div
+              class="border p-2 border-info cursor-pointer rounded-md bg-base-300 flex flex-col justify-between gap-2 text-xs"
+              v-for="doc, ix in searchResultsDocuments" :key="ix" @click="showDoc = { ...doc, docSelected: 0 }">
               <div class="p-1 rounded font-bold flex flex-col gap-2" :title="doc.metadata.source"
                 :class="doc.metadata.relevance_score >= cutoffScore ? 'text-primary' : 'text-error'">
                 <div>{{ doc.metadata.source.split('/').reverse()[0] }}</div>
               </div>
-              <markdown :text="doc.metadata.score_analysis" class="grow"></markdown>
+              <markdown :text="doc.metadata.score_analysis || doc.page_content" class="grow"></markdown>
               <div class="alert alert-sm alert-error" v-if="doc.metadata.score_error">
                 {{ doc.metadata.score_error }}
               </div>
               <div class="flex gap-2 items-center">
                 <i class="fa-solid fa-scale-unbalanced"></i>
-                {{ `${doc.metadata.db_distance||''}`.slice(0, 4) }}
+                {{ `${doc.distance || doc.metadata.db_distance || ''}`.slice(0, 4) }}
                 <i class="fa-solid fa-brain"></i>
                 {{ doc.metadata.relevance_score }} - {{ doc.metadata.language }}
                 <i class="fa-solid fa-file-lines"></i>
@@ -119,46 +160,8 @@ import moment from 'moment'
         </div>
       </div>
     </div>
-    
+
     <div class="grow" v-if="selectedTab === 'Index'">
-      <div class="stats stats-sm">
-      <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
-        <div class="stat-figure mt-6">
-          <i class="fa-2xl fa-solid fa-file"></i>
-        </div>
-        <div class="stat-title">Pending</div>
-        <div class="stat-value">{{ status?.pending_files?.length }}</div>
-        <div class="stat-desc"></div>
-      </div>
-      
-      <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
-        <div class="stat-figure mt-6 text-success">
-          <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
-        </div>
-        <div class="stat-title">Indexed</div>
-        <div class="stat-value">{{ status?.file_count }}</div>
-        <div class="stat-desc"></div>
-      </div>
-
-      <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
-        <div class="stat-figure mt-6 text-warning">
-          <i class="fa-2xl fa-solid fa-file"></i>
-        </div>
-        <div class="stat-title">Ignored</div>
-        <div class="stat-value">{{ ignoredFolders?.length }}</div>
-        <div class="stat-desc"></div>
-      </div>
-
-      <div class="stat">
-        <div class="stat-figure mt-6 text-info">
-          <i class="fa-2xl fa-solid fa-book"></i>
-        </div>
-        <div class="stat-title">Keywords</div>
-        <div class="stat-value">{{ status?.keyword_count }}</div>
-        <div class="stat-desc"></div>
-      </div>
-    </div>
-
 
       <div class="index flex flex-col gap-2 justify-between">
         <div class="flex justify-between">
@@ -191,11 +194,10 @@ import moment from 'moment'
               </label>
             </div>
             <div class="flex my-2">
-                <div class="badge badge-xs click" v-for="count, extension in extensions" :key="extension"
-                    @click="fileFilter = '.' + extension"
-                >
-                    {{ extension }} ({{ count }})
-                </div>
+              <div class="badge badge-xs click" v-for="count, extension in extensions" :key="extension"
+                @click="fileFilter = '.' + extension">
+                {{ extension }} ({{ count }})
+              </div>
             </div>
             <div class="max-h-60 overflow-auto" v-if="showFiles?.length">
               <div class="text-xs" v-for="file in showFiles" :key="file">
@@ -209,19 +211,20 @@ import moment from 'moment'
               <button class="btn btn-primary btn-sm" @click="reloadKnowledge" v-if="selectedFileCount">
                 <i class="fa-solid fa-circle-info"></i> Index ({{ selectedFileCount }}) files now
               </button>
-              <button class="btn btn-primary btn-sm btn-error text-white"
-                @click="ignoreSelectedFiles(true)" v-if="selectedFileCount && showIndexFiles !== 2">
+              <button class="btn btn-primary btn-sm btn-error text-white" @click="ignoreSelectedFiles(true)"
+                v-if="selectedFileCount && showIndexFiles !== 2">
                 <i class="fa-solid fa-folder"></i> Ignore ({{ selectedFileCount }}) folder
               </button>
-              <button class="btn btn-primary btn-sm btn-error text-white"
-                @click="ignoreSelectedFiles(false)" v-if="selectedFileCount && showIndexFiles !== 2">
+              <button class="btn btn-primary btn-sm btn-error text-white" @click="ignoreSelectedFiles(false)"
+                v-if="selectedFileCount && showIndexFiles !== 2">
                 <i class="fa-solid fa-file"></i> Ignore ({{ selectedFileCount }}) files
               </button>
-              <button class="btn btn-primary btn-sm btn-success text-white"
-                @click="ignoreSelectedFiles(false)" v-if="selectedFileCount && showIndexFiles === 2">
+              <button class="btn btn-primary btn-sm btn-success text-white" @click="ignoreSelectedFiles(false)"
+                v-if="selectedFileCount && showIndexFiles === 2">
                 <i class="fa-solid fa-plus"></i> Add ({{ selectedFileCount }}) files
               </button>
-              <button class="btn btn-primary btn-sm btn-warning text-white" @click="dropSelectedFiles" v-if="selectedFileCount">
+              <button class="btn btn-primary btn-sm btn-warning text-white" @click="dropSelectedFiles"
+                v-if="selectedFileCount">
                 <i class="fa-solid fa-trash-can"></i> Drop ({{ selectedFileCount }}) files
               </button>
             </div>
@@ -242,10 +245,9 @@ import moment from 'moment'
           <div class="dropdown dropdown-open" v-if="folderResulst">
             <div class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-fit">
               <ul>
-                <li class="" v-for="folder in folderResulst" :key="folder"
-                  @click="folderFilter = folder"
-                >
-                  <a>{{ folder }}</a></li>
+                <li class="" v-for="folder in folderResulst" :key="folder" @click="folderFilter = folder">
+                  <a>{{ folder }}</a>
+                </li>
               </ul>
             </div>
           </div>
@@ -259,7 +261,8 @@ import moment from 'moment'
             </div>
           </div>
           <div class="grid grid-cols-4 gap-2">
-            <span class="badge badge-xs flex gap-2 items-center w-fit rounded-full text-warning-content bg-warning" v-for="folder, ix in ignoredFolders" :key="ix">
+            <span class="badge badge-xs flex gap-2 items-center w-fit rounded-full text-warning-content bg-warning"
+              v-for="folder, ix in ignoredFolders" :key="ix">
               {{ folder }}
               <div class="btn btn-xs btn-circle" @click="removeEntriesFromIgnore([folder])">
                 <i class="fa-solid fa-minus"></i>
@@ -292,20 +295,19 @@ import moment from 'moment'
         <div class="font-bold text-wrap">
           {{ showDoc.metadata.source.split('/').reverse()[0] }}
         </div>
-        <div class="flex flex-col gap-2 grow">
+        <div class="flex flex-col gap-2 grow h-96 overflow-auto">
           <div class="flex gap-2 items-center">
-            <button class="btn btn-xs btn-info" @click.stop="showDoc.docSelected--"
-              :disabled="!showDoc.docSelected">
+            <button class="btn btn-xs btn-info" @click.stop="showDoc.docSelected--" :disabled="!showDoc.docSelected">
               <i class="fa-solid fa-backward"></i>
             </button>
-            Doc: {{ showDoc.docSelected||0 }} / {{ showDoc.docs.length - 1 }}
+            Doc: {{ showDoc.docSelected || 0 }} / {{ showDoc.docs.length - 1 }}
             <button class="btn btn-xs btn-warning" @click.stop="showDoc.docSelected++"
-              :disabled="!((showDoc.docSelected||0) < (showDoc.docs.length-1))">
+              :disabled="!((showDoc.docSelected || 0) < (showDoc.docs.length - 1))">
               <i class="fa-solid fa-forward"></i>
             </button>
-          </div>    
-          <MarkdownVue class="prose h-60 overflow-auto"
-            :text="'```json\n' + showDoc.docs[showDoc.docSelected||0].page_content + '\n```'" />
+          </div>
+          <MarkdownVue class="prose"
+            :text="'```json\n' + showDoc.docs[showDoc.docSelected || 0].page_content + '\n```'" />
         </div>
         <div class="text-xs">
           <pre>{{ showDoc.metadata }}</pre>
@@ -345,7 +347,7 @@ export default {
       searchTerm: null,
       searchResults: null,
       showDoc: null,
-      searchType: "embeddings",
+      searchType: "fulltext",
       documentSearchType: API.activeProject.knowledge_search_type,
       cutoffRag: API.activeProject.knowledge_context_rag_distance,
       cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,
@@ -364,7 +366,7 @@ export default {
     this.reloadStatus()
     this.refreshIx = setInterval(() => this.reloadStatus(), 20000)
   },
-  unmounted () {
+  unmounted() {
     clearInterval(this.refreshIx)
   },
   computed: {
@@ -439,7 +441,7 @@ export default {
     },
     searchResultsDocuments() {
       return Object.values(this.searchResults?.documents || {})
-              .sort((a, b) => a.metadata.relevance_score > b.metadata.relevance_score ? -1: 1)
+        .sort((a, b) => a.metadata.relevance_score > b.metadata.relevance_score ? -1 : 1)
     }
   },
   methods: {
@@ -527,7 +529,12 @@ export default {
       })
       data.documents = data.documents.reduce((acc, doc) => {
         if (!acc[doc.metadata.source]) {
-          acc[doc.metadata.source] = { metadata: doc.metadata, docs: [] }
+          acc[doc.metadata.source] = {
+            distance: doc.distance ? (1 / parseInt(doc.distance)) : null,
+            page_content: doc.page_content.slice(0, 250),
+            metadata: doc.metadata,
+            docs: []
+          }
         }
         acc[doc.metadata.source].docs.push(doc)
         return acc
@@ -558,12 +565,8 @@ export default {
       })
       this.reloadStatus()
     },
-    async toggleWatch(watching) {
-      if (!API.activeProject) {
-        return
-      }
-      API.activeProject.watching = !API.activeProject.watching
-      await API.settings.save()
+    async toggleWatch() {
+      await this.$service.project.watch(!this.settings.watching)
       this.reloadStatus()
     },
     setTab(ix) {

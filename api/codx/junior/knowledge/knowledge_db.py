@@ -97,13 +97,13 @@ class KnowledgeDB:
     def create_full_text_search(self):
         schema = self.db.create_schema()
         schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True, auto_id=True)
-        schema.add_field(field_name="source", datatype=DataType.VARCHAR, max_length=2000, enable_analyzer=True)
-        schema.add_field(field_name="text", datatype=DataType.VARCHAR, max_length=10000, enable_analyzer=True)
+        schema.add_field(field_name="metadata", datatype=DataType.JSON, enable_analyzer=False)
+        schema.add_field(field_name="page_content", datatype=DataType.VARCHAR, max_length=10000, enable_analyzer=True)
         schema.add_field(field_name="sparse", datatype=DataType.SPARSE_FLOAT_VECTOR)
 
         bm25_function = Function(
             name="text_bm25_emb", # Function name
-            input_field_names=["text"], # Name of the VARCHAR field containing raw text data
+            input_field_names=["page_content"], # Name of the VARCHAR field containing raw page_content data
             output_field_names=["sparse"], # Name of the SPARSE_FLOAT_VECTOR field reserved to store generated embeddings
             function_type=FunctionType.BM25, # Set to `BM25`
         )
@@ -127,6 +127,12 @@ class KnowledgeDB:
             schema=schema, 
             index_params=index_params
         )
+
+        index_fulltext_name_view = self.db.describe_collection(
+            collection_name=self.index_fulltext_name
+        )
+
+        logger.info(f"New full-text index collection created {index_fulltext_name_view}")
 
 
     def init_collection(self):
@@ -198,16 +204,16 @@ class KnowledgeDB:
                     doc.metadata.get("tags")
                   ]
                 ))
-                text = "\n".join(content)
-                vector = self.get_ai().embeddings(content=text)
+                page_content = "\n".join(content)
+                vector = self.get_ai().embeddings(content=page_content)
                 doc_data = {
                   "vector": vector,
                   "page_content": doc.page_content,
                   "metadata": doc.metadata
                 }
                 search_doc = {
-                  "source": doc.metadata["source"],
-                  "text": text
+                  "metadata": doc.metadata,
+                  "page_content": page_content
                 }
                 data.append(doc_data)
                 data_search.append(search_doc)
@@ -351,13 +357,13 @@ class KnowledgeDB:
             collection_name=self.index_fulltext_name, 
             data=[query],
             anns_field='sparse',
-            output_fields=['text'], # Fields to return in search results; sparse field cannot be output
+            output_fields=['page_content', 'metadata'], # Fields to return in search results; sparse field cannot be output
             limit=50,
             search_params=search_params
         )
-        logger.info(f"[Full text search] Results: {res}")
+        logger.info(f"[Full text search] Results: {res[0]}")
         
-        return res
+        return [{ **r, **r["entity"] } for r in res[0]]
 
     def db_results_to_documents(self, results, rag_distance):
         documents = []

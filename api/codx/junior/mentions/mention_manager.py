@@ -338,18 +338,18 @@ class MentionManager:
             logger.debug(f"Writing progress notification to file: {file_path}")
             write_file(file_path=file_path, content=new_content)
 
-        async def open_file_to_write():
-            return await anyio.open_file(file_path, 'w')
-        stream_file = None
+        def open_file_to_write():
+            return open(file_path, 'w')
+        stream_file = {}
         try:
             if not callback:
                 logger.debug(f"Open file to write: {file_path}")
-                async def write_new_file_content(content):
+                def write_new_file_content(content):
                     if content:
-                        if not stream_file:
-                            file = await open_file_to_write()
-                        await file.write(content)
-                        await file.flush()
+                        if not stream_file.get("file"):
+                            stream_file["file"] = open_file_to_write()
+                        stream_file["file"].write(content)
+                        stream_file["file"].flush()
                 callback = write_new_file_content
             res = await self.check_file_for_mentions_inner(file_path=file_path,
                                                            content=new_content,
@@ -360,5 +360,5 @@ class MentionManager:
         except Exception as ex:
             logger.exception(f"Error processing mentions at {file_path}: {ex}")
         finally:
-            if stream_file:
-                await stream_file.close()
+            if stream_file.get("file"):
+                stream_file["file"].close()

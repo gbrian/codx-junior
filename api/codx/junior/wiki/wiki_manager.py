@@ -18,8 +18,11 @@ from codx.junior.utils.utils import (
 from codx.junior.context import (
     generate_markdown_tree,
 )
+from tests.db.test_db import settings
 
 from .model import *
+from ..ai import AI
+from ..events.event_manager import EventManager
 
 logger = logging.getLogger(__name__)
 
@@ -34,24 +37,25 @@ class ConfigFiles(Enum):
         return self.value
 
 class WikiManager:
-    def __init__(self, session: CODXJuniorSession):
-        self.session = session
-        self.settings = session.settings
+    def __init__(self, settings: CODXJuniorSettings):
+        self.settings = settings
+        self.event_manager = EventManager(codx_path=settings.codx_path)
         self.wiki_path = self.settings.get_project_wiki_path()
-        self.vitepress_dir = os.path.join(self.wiki_path, '.vitepress')
-        self.dist_dir = os.path.join(self.vitepress_dir, 'dist')
-        
-        self.initialize_vitepress()
+        if self.wiki_path:
+            self.vitepress_dir = os.path.join(self.wiki_path, '.vitepress')
+            self.dist_dir = os.path.join(self.vitepress_dir, 'dist')
+
+            self.initialize_vitepress()
 
     def send_wiki_event(self, event_type, message):
-        self.session.send_notification(**{
+        self.event_manager.send_notification(**{
           "type": "wiki",
           "event_type": event_type,
           "message": message
         })
 
     def get_ai(self):
-        return self.session.get_ai(llm_model=self.settings.get_wiki_model())
+        return AI(settings=self.settings, llm_model=self.settings.get_wiki_model())
 
     def get_categories(self):
         return ProjectCategories(**self.load_config(ConfigFiles.CATEGORIES, {}))
@@ -233,8 +237,8 @@ class WikiManager:
         categories = self.get_categories()
         category = [c for c in categories if file_path in c.files][0]
         
-        file_name = file_path.split("/")[-1]
-        self.send_wiki_event(__name__, f"Processing file: {file_name} ({category.category})")
+        category_file = file_path.split("/")[-1]
+        self.send_wiki_event(__name__, f"Processing file: {category_file} ({category.category})")
         
         file_content = f"# {category.category}"
         if os.path.isfile(category_file):
@@ -243,8 +247,8 @@ class WikiManager:
 
         file_changes = ""
         extension = ""
-        if "." in file:
-            extension = file.split('.')[-1] 
+        if "." in category_file:
+            extension = category_file.split('.')[-1]
         with open(file_path, 'r') as f:
           file_changes = f.read()
         prompt = f"""

@@ -154,7 +154,7 @@ export default {
     },
     
     async fetchLogs() {
-      await this.$storex.logs.fetchLogs()
+      await this.$storex.logs.fetchLogs(this.tailSize)
     },
     toggleAutoRefresh() {
       this.$storex.logs.setAutoRefresh(!this.$storex.logs.autoRefresh)

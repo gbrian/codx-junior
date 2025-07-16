@@ -201,11 +201,9 @@ const initializeAPI = ({ project, user } = {}) => {
         const data = await API.get('/api/projects/readme');
         return data;
       },
-      watch() {
-        return API.get('/api/project/watch');
-      },
-      unwatch() {
-        return API.get('/api/project/unwatch');
+      watch(watching) {
+        API.activeProject.watching = watching
+        API.settings.save()
       },
       test() {
         return API.get('/api/project/script/test');

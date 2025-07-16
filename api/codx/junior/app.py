@@ -1,28 +1,23 @@
+import asyncio
+import faulthandler
+import logging
 import os
-import uuid
 import shutil
 import time
-import logging
-import asyncio
-import socketio
 import traceback
+import uuid
 
-import faulthandler
+import socketio
+from flask import jsonify
+
 faulthandler.enable()
-
-from multiprocessing.pool import ThreadPool
-from threading import Thread
-
-from pathlib import Path
 
 from codx.junior.ai import AIManager
 
 from codx.junior.sio.sio import sio
-from codx.junior.sio.session_channel import SessionChannel
 
 from codx.junior.profiling.profiler import profile_function
 
-from codx.junior.log_parser import parse_logs
 from codx.junior.browser import run_browser_manager
 
 from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
@@ -58,20 +53,14 @@ disable_logs([
     'selenium.webdriver.common.selenium_manager'
 ])
 
-
-from flask import send_file
-
 from fastapi import FastAPI, Request, status, Response, UploadFile, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
-from fastapi.responses import StreamingResponse
 from starlette.status import HTTP_504_GATEWAY_TIMEOUT
 
 from codx.junior.db import (
-    Chat,
-    Message
+    Chat
 )
 from codx.junior.model.model import (
     KnowledgeReloadPath,
@@ -79,7 +68,6 @@ from codx.junior.model.model import (
     KnowledgeDeleteSources,
     Profile,
     Document,
-    LiveEdit,
     GlobalSettings,
     Screen,
     CodxUser
@@ -90,9 +78,6 @@ from codx.junior.settings import (
   read_global_settings,
   write_global_settings
 )
-
-from codx.junior.profiles.profile_manager import ProfileManager
-from codx.junior.chat_manager import ChatManager
 
 from codx.junior.engine import (
     CODXJuniorSession,
@@ -108,8 +93,6 @@ from codx.junior.globals import (
 from codx.junior.utils.utils import (
     exec_command,
 )
-
-from codx.junior.context import AICodeGerator
 
 from codx.junior.background import start_background_services
 
@@ -129,8 +112,6 @@ app = FastAPI(
     redoc_url="/api/redoc",
     ssl_context='adhoc'
 )
-
-app = FastAPI()
 
 sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
 app.mount("/api/socket.io", sio_asgi_app)
@@ -380,8 +361,7 @@ def api_delete_profile(profile_name, request: Request):
 @app.get("/api/project/watch")
 def api_project_watch(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    settings.watching = True
-    settings.save_project()
+    codx_junior_session.watch_project(True)
     find_all_projects(with_metrics=True)
     return { "OK": 1 }
 
@@ -425,8 +405,7 @@ def api_project_delete(request: Request):
 @app.get("/api/project/unwatch")
 def api_project_unwatch(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    settings.watching = False
-    settings.save_project()
+    codx_junior_session.watch_project(False)
     find_all_projects(with_metrics=True)
     return { "OK": 1 }
 
@@ -556,9 +535,10 @@ def api_screen_get():
     return screen
 
 @app.post("/api/image-to-text")
-async def api_image_to_text_endpoint(file: UploadFile):
+async def api_image_to_text_endpoint(file: UploadFile, request):
+    codx_junior_session = request.state.codx_junior_session
     file_bytes = await file.read()            
-    return api_image_to_text(file_bytes)
+    return codx_junior_session.api_image_to_text(file_bytes)
 
 @app.post("/api/restart")
 def api_restart():

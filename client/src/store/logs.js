@@ -10,7 +10,6 @@ export const state = () => ({
   autoRefresh: false,
   showMetrics: false,
   showTimeFilter: false,
-  tailSize: 100,
   filter: null
 })
 
@@ -68,8 +67,8 @@ export const actions = actionTree(
         console.error('Error fetching log names:', error)
       }
     },
-    async fetchLogs({ state }) {
-      const data = await API.logs.read(state.selectedLog, state.tailSize)
+    async fetchLogs({ state }, tailSize) {
+      const data = await API.logs.read(state.selectedLog, tailSize)
       if (state.autoRefresh) {
         const newLogs = data.filter(l => !state.rawLogs.includes(l))
         $storex.logs.setRawLogs([...state.rawLogs, ...newLogs])

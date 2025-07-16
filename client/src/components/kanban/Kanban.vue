@@ -12,12 +12,13 @@ import KanbanList from "./KanbanList.vue"
     <div v-if="!$projects.activeChat && !board">
       <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between">
         <div>Boards Dashboard</div>
+        <input type="text" v-model="boardFilter" class="input input-sm input-bordered" placeholder="Search boards" />
         <button class="btn btn-sm btn-warning btn-outline" @click="showNewBoardModal">
           New kanban
         </button>
       </h1>
       <KanbanList
-        :boards="parentBoards"
+        :boards="filteredParentBoards"
         @select="selectBoard"
         @edit="onEditBoard"
         @new="showNewBoardModal"
@@ -46,7 +47,7 @@ import KanbanList from "./KanbanList.vue"
           </div>
         </div>
         <div class="grow"></div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 items-center">
           <div class="grow input input-sm input-bordered flex items-center gap-2">
             <input type="text" v-model="filter" class="grow" placeholder="Search tasks" />
             <span class="cursor-pointer" v-if="filter" @click.stop="filter = ''">
@@ -68,7 +69,6 @@ import KanbanList from "./KanbanList.vue"
             <i class="fa-solid fa-code-compare"></i>
             Changes
           </button>
-          
         </div>
       </div>
       <div class="mt-3 grow relative">
@@ -86,7 +86,6 @@ import KanbanList from "./KanbanList.vue"
           />
         </div>
         
-
         <draggable
           v-model="filteredColumns"
           group="columns"
@@ -230,6 +229,7 @@ const ALL_BOARD_TITLE_ID = "$ALL"
 export default {
   data() {
     return {
+      boardFilter: '',
       filter: null,
       showBoardModal: false,
       showColumnModal: false,
@@ -259,13 +259,18 @@ export default {
     this.projectChanged()
   },
   computed: {
+    filteredParentBoards() {
+      return this.parentBoards.filter(board => 
+        board.title.toLowerCase().includes(this.boardFilter.toLowerCase())
+      )
+    },
     board() {
       return this.$projects.activeBoard
     },
     lastUpdatedTask() {
       return this.visibleTasks.sort((a, b) => 
-        (a.updated_at || new Date(1900, 1, 1, 0, 0, 0, 0)) > 
-        (b.updated_at || new Date(1900, 1, 1, 0, 0, 0, 0)) ? -1 : 1)
+        (a.updated_at || new Date(1900, 1, 1)) > 
+        (b.updated_at || new Date(1900, 1, 1)) ? -1 : 1)
         .slice(0, 1)[0] || {}
     },
     showKanban() {
