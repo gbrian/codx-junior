@@ -217,6 +217,17 @@ export const actions = actionTree(
       document.execCommand('copy')
       document.body.removeChild(textArea)
       $storex.ui.addNotification({ text: "Text copied" })
+    },
+    async readClipboardText(_, itemType = "text/plain") {
+      const items = await navigator.clipboard.read()
+      const getText = async item => {
+        const blob = await item.getType(itemType);
+        return await blob.text();
+      }
+      const allTexts = await Promise.all(
+                        items.filter(i => i.types.includes(itemType))
+                              .map(i => getText(i)))
+      return allTexts.reduce((a, b) => a + b, "")
     }
   },
 )

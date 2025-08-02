@@ -36,6 +36,7 @@ import Wizard from '../components/wizards/Wizard.vue'
       </SplitterPanel>
 
       <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="bg-stone-800 hover:bg-slate-600 w-1"
+        @dragging="setZoom"
         v-if="$ui.showApp && showCodxJunior" />
 
       <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="$ui.floatingCodxJunior ? 0 : $ui.showApp ?  20 : 100"
@@ -44,8 +45,12 @@ import Wizard from '../components/wizards/Wizard.vue'
         :class="$ui.floatingCodxJunior ? 'absolute z-50 right-0 top-0 bottom-0 border-red-600 w-2 opacity-30 hover:w-2/4 hover:opacity-90' : ''"
         @resize="size => $ui.setCodxJuniorWidth(size)"
         v-if="showCodxJunior">
-
-        <CodxJuniorVue class="w-full h-full" />
+        <div class="hidden absolute right-4 top-4 z-[1000] badge badge-warning">
+          zoom: {{  zoom  }}
+        </div>
+        <CodxJuniorVue ref="codxJunior" class="w-full h-full" :class="`zoom:${zoom}`"
+          :style="`zoom:${zoom}`" 
+        />
       </SplitterPanel>
 
       <SplitterResizeHandle id="splitter-group-1-resize-handle-2" class="bg-stone-800 hover:bg-slate-600 w-1" v-if="$ui.showLogs"/>
@@ -70,6 +75,7 @@ import Wizard from '../components/wizards/Wizard.vue'
 export default {
   data() {
     return {
+      zoom: 1
     }
   },
   computed: {
@@ -78,9 +84,32 @@ export default {
     },
     showCodxJunior() {
       return !!this.$ui.activeTab
+    },
+    showApp() {
+      return this.$ui.showApp
+    }
+  },
+  mounted() {
+    this.setZoom()
+  },
+  watch: {
+    showApp() {
+      this.setZoom()
     }
   },
   methods: {
+    setZoom() {
+      if (!this.$ui.showApp || !this.$refs.codxJunior) {
+        this.zoom = 1
+      } else {
+        const parts = 16
+        const parentWidth = this.$el.clientWidth
+        const codxJuniorWidth = this.$refs.codxJunior.$el.clientWidth
+        const portion = parts - Math.trunc(parts / parentWidth * codxJuniorWidth)
+        const reduce = 1 - (0.25 / parts * portion) 
+        this.zoom = Math.max(0.75, Math.min(1, reduce))
+      }
+    },
     onDblclickCodxJunior() {
       console.log("onDblclickCodxJunior")
     }

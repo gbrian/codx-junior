@@ -42,7 +42,10 @@ export const state = () => ({
       ]
     },
   ],
-  activeWizards: []
+  activeWizards: [],
+  ai: {
+    models: []
+  }
 })
 
 export const mutations = mutationTree(state, {
@@ -153,7 +156,7 @@ export const getters = getterTree(state, {
         $storex.projects.allChats
           .filter(c => c.board === 'codx-junior')
           .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),
-  userList: () => [$storex.users.user, ...$storex.projects.profiles]
+  userList: () => [$storex.users.user, ...$storex.projects.profiles.map(p => ({ ...p, isProfile: true }))]
 })
 
 export const actions = actionTree(
@@ -205,7 +208,11 @@ export const actions = actionTree(
       if (project?.codx_path) {
         state.projectLoading = true
         try {
-          await API.setActiveProject(project)
+          const [_, models ] = await Promise.all([
+            API.setActiveProject(project),
+            API.projects.ai.models.list()
+          ])
+          state.ai.models = models
         } finally {
           state.projectLoading = false
         }
@@ -287,7 +294,11 @@ export const actions = actionTree(
     async realoadProject({ state }) {
       state.projectLoading = true
       try {
-        await API.settings.read()
+        const [_, models] = await Promise.all([
+          API.settings.read(),
+          API.projects.ai.models.list()
+        ])
+        state.ai.models = models
       } finally {
         state.projectLoading = false
       }

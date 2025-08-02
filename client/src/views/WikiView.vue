@@ -2,7 +2,7 @@
 import Iframe from '../components/Iframe.vue'
 </script>
 <template>
-  <div class="w-full h-full" v-if="$project.project_wiki">
+  <div class="w-full h-full" v-if="$project?.project_wiki && !wikiError">
     <div class="animate-pulse bg-primary h-1 w-full rounded-full" v-if="!loaded"></div>
     <Iframe class="w-full h-full" :url="url" 
       @loaded="onLoaded"      
@@ -15,7 +15,7 @@ import Iframe from '../components/Iframe.vue'
         <p class="py-6">
           Wiki is not ready. Go to project settings and define a wiki folder to start generating your wiki!
         </p>
-        <button class="btn btn-primary" @click="$ui.setActiveTab('settings')" >Settings</button>
+        <button class="btn btn-primary" @click="$ui.setActiveTab('wiki_settings')" >Settings</button>
       </div>
     </div>
   </div>
@@ -24,8 +24,12 @@ import Iframe from '../components/Iframe.vue'
 export default {
   data() {
     return {
-      loaded: false
+      loaded: false,
+      wikiError: false
     }
+  },
+  created() {
+    fetch(this.url).then(res => { this.wikiError = !res.ok })
   },
   computed: {
     url() {

@@ -217,6 +217,13 @@ const initializeAPI = ({ project, user } = {}) => {
       },
       loadIssue(url) {
         return API.get('/api/github/issues/read?issue_url=' + encodeURIComponent(url)) 
+      },
+      ai: {
+        models: {
+          list() {
+            return API.get('/api/projects/ai/models')
+          }
+        }
       }
     },
     settings: {
@@ -441,6 +448,9 @@ const initializeAPI = ({ project, user } = {}) => {
       },
       read(path) {
         return API.get(`/api/files/read?path=${path}`);
+      },
+      diff({ path, content }) {
+        return API.post(`/api/files/diff`, { path, content });
       },
       search(search) {
         return API.get(`/api/files/find?search=${search}`);

@@ -18,7 +18,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
         <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <input v-if="editName" type="text" class="input input-xs input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
+              <input v-if="editName" type="text" class="input input input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
               <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2">
                   <div class="my-2 text-xs hover:underline click font-bold text-primary" @click="naviageToParent()">
@@ -149,6 +149,9 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
             </button>
           </div>
           <div class="flex gap-1 justify-end items-center">
+            <div class="badge badge-sm badge-warning badge-outline p-3 gap-2" v-if="taskAIModel">
+              <i class="fa-solid fa-brain"></i> {{ taskAIModel.name }}
+            </div>
           </div>
         </div>
         <div class="w-full" v-if="chatFiles.length">
@@ -292,6 +295,12 @@ export default {
                                 .then(profiles => profiles.filter(p => this.chat.profiles.includes(p.name)))
   },
   computed: {
+    taskAIModel() {
+      return this.aiModels.find(m => m.name === this.chat.llm_model)
+    },
+    aiModels() {
+      return this.$projects.ai.models
+    },
     showTaskProjectName() {
       return this.taskProject && this.taskProject.project_id != this.$project.project_id 
     },

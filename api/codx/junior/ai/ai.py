@@ -32,6 +32,11 @@ Message = Union[AIMessage, HumanMessage, SystemMessage]
 # Set up logging
 logger = logging.getLogger(__name__)
 
+GLOBAL_CHAT_INSTRUCTIONS = """
+Follow this instructions when generating your response:
+* When creating file content add the file name after the code block extension like in "```js /file/path/file.js"
+"""
+
 
 class LogginCallbackHandler(StreamingStdOutCallbackHandler):
     pass
@@ -69,11 +74,6 @@ class AI:
         if not messages:
             messages = []
 
-        global_model_instructions = """Please remember this basic instructions:
-        * When writing file changes blocks add the the file name in the starting block line like this: "```python /my/python/file.py"
-        * Don't trim file names
-        """
-
         if prompt:
             messages.append(HumanMessage(content=prompt))
 
@@ -87,17 +87,14 @@ class AI:
             if callback:
                 callbacks.append(callback)
             
-            org_message_content = messages[-1].content
             try:
                 self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
                 # Apply global instructions
-                messages[-1].content = f"{org_message_content}\n{global_model_instructions}"
+                messages[-1].content = f"{messages[-1].content}{GLOBAL_CHAT_INSTRUCTIONS}"
                 response = self.llm(messages=messages, config={"callbacks": callbacks})
             except Exception as ex:
                 logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model} {self.settings}")
                 raise RuntimeError("Failed to process AI request after retries.")
-            finally:
-                messages[-1].content = org_message_content
 
             if self.cache:
                 self.cache[md5_key] = json.dumps(

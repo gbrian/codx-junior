@@ -388,6 +388,11 @@ def api_project_readme(request: Request):
     document = codx_junior_session.get_readme()
     return Response(content=document or "> Not found", media_type="text/html")
 
+@app.get("/api/projects/ai/models")
+def api_project_ai_models(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.settings.get_project_ai_models()
+
 @app.post("/api/projects")
 def api_project_create(request: Request, user: CodxUser = Depends(get_authenticated_user)):
     project_path = request.query_params.get("project_path")
@@ -439,6 +444,12 @@ def api_get_file(request: Request):
     codx_junior_session = request.state.codx_junior_session
     path = request.query_params.get("path")
     return codx_junior_session.read_file(path=path)
+
+@app.post("/api/files/diff")
+async def api_get_file_diff(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    data = await request.json()
+    return codx_junior_session.diff_file(path=data["path"], content=data["content"])
 
 @app.post("/api/files/write")
 def api_post_file(doc: Document, request: Request):

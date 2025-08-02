@@ -72,7 +72,7 @@ export const actions = actionTree(
       if (state.autoRefresh) {
         const newLogs = data.filter(l => !state.rawLogs.includes(l))
         $storex.logs.setRawLogs([...state.rawLogs, ...newLogs])
-        setTimeout(() => $storex.logs.fetchLogs(), 3000)
+        setTimeout(() => $storex.logs.fetchLogs(tailSize), 3000)
       } else {
         $storex.logs.setRawLogs(data)
       }

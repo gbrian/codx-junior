@@ -136,7 +136,7 @@ class CODXJuniorSession:
 
     def get_wiki(self):
         from codx.junior.wiki.wiki_manager import WikiManager
-        return WikiManager(session=self)
+        return WikiManager(settings=self.settings)
 
     def get_browser(self):
         from codx.junior.browser.browser import Browser
@@ -1073,6 +1073,15 @@ class CODXJuniorSession:
     def read_file(self, path: str):
         with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
+
+    def diff_file(self, path: str, content: str):
+        git_command = f"""
+        cat << EOF | git --no-pager diff --no-index -- - {path}
+        {content}
+        EOF
+        """
+
+        return os.popen(git_command).read()
       
     @profile_function
     async def process_project_file_before_saving(self, file_path: str, content: str):

@@ -1,8 +1,7 @@
-# codx/junior/changes/change_manager.py
-
 import os
 import time
 import logging
+import asyncio  # Import asyncio for concurrency
 
 from codx.junior.events.event_manager import EventManager
 from codx.junior.knowledge.knowledge_milvus import Knowledge
@@ -13,9 +12,8 @@ from codx.junior.wiki.wiki_manager import WikiManager
 
 logger = logging.getLogger(__name__)
 
-
 class ChangeManager:
-    def __init__(self, settings, event_manager = None):
+    def __init__(self, settings, event_manager=None):
         self.settings = settings
         if not event_manager:
             event_manager = EventManager(codx_path=settings.codx_path)
@@ -46,28 +44,34 @@ class ChangeManager:
         if not new_files:
             return
 
+        tasks = []  # List to hold tasks
+
         def changed_file():
             for file_path in new_files:
                 if (int(time.time()) - int(
                         os.stat(file_path).st_mtime) < MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS):
                     return file_path
             return None
-        file_path = changed_file()
-        while file_path != None:  # process one file at a time by modified time
-            new_files.remove(file_path)
-            
-            logger.info(f"[process_project_changes] Processing file changes {file_path}")
-            res = await self.mention_manager.check_file_for_mentions(file_path=file_path)
-            if res == "processing":
-                logger.info(f"[process_project_changes] Skipping file {file_path} - mentions: {res}")
-                return
 
-            if self.settings.watching:
-                logger.info(f"Reload knowledge files {file_path}")
-                self.knowledge.reload_path(path=file_path)
-                self.event_manager.send_knowled_event(type="loaded", file_path=file_path)
-            
+        file_path = changed_file()
+        while file_path is not None:  # Process files concurrently
+            new_files.remove(file_path)
+            tasks.append(self.process_project_change(file_path=file_path))  # Append coroutine to tasks
             file_path = changed_file()
+
+        await asyncio.gather(*tasks)  # Run tasks concurrently
+
+    async def process_project_change(self, file_path: str):
+        logger.info(f"[process_project_changes] Processing file changes {file_path}")
+        res = await self.mention_manager.check_file_for_mentions(file_path=file_path)
+        if res == "processing":
+            logger.info(f"[process_project_changes] Skipping file {file_path} - mentions: {res}")
+            return
+
+        if self.settings.watching:
+            logger.info(f"Reload knowledge files {file_path}")
+            self.knowledge.reload_path(path=file_path)
+            self.event_manager.send_knowled_event(type="loaded", file_path=file_path)
 
     @profile_function
     async def check_file(self, file_path: str, force: bool = False):
@@ -85,3 +89,4 @@ class ChangeManager:
                 self.event_manager.send_event(f"Kownledge updated for: {file_path}")
             if self.settings.project_wiki:
                 self.wiki_manager.build_file(file_path=file_path)
+

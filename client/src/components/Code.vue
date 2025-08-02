@@ -31,7 +31,7 @@ import CodeViewer from './CodeViewer.vue'
       :header="false"
       v-if="showCode"
     ></CodeEditor -->
-    <CodeViewer :code="codeText" :language="language" v-if="showCode" /> 
+    <CodeViewer :code="codeText" :language="language" :file="file" v-if="showCode" /> 
     <MarkdownViewer :text="codeText" v-if="showMarkdown" />
     <div class="" v-html="codeText" v-if="htmlPreview"></div>
   </div>
@@ -48,13 +48,15 @@ export default {
       codeText: null,
       languages: null,
       htmlPreview: false,
-      showMermaidSource: false
+      showMermaidSource: false,
+      file: null
     }
   },
   created () {
     const language = languageMapping[this.codeLanguage] || this.codeLanguage
     this.languages = [[ language, language.toUpperCase() ]]
     this.codeText = this.text || this.code.innerText
+    this.file = this.code.attributes["data-file"]?.value
     console.log("Code block created", language)
   },
   mounted () {

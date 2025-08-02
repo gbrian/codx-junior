@@ -1,8 +1,7 @@
 <script setup>
-import ProjectIconVue from './ProjectIcon.vue'
-import UserList from './UserList.vue'
 import moment from 'moment';
 import Assistant from './codx-junior/Assistant.vue';
+import EventList from '@/components/events/EventList.vue'
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
@@ -96,7 +95,7 @@ import Assistant from './codx-junior/Assistant.vue';
 				</a>
 			</div>
 
-      <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
+      <div :class="['hover:bg-base-100 click relative group', $ui.showLogs ? 'text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" 
           :class="right ? 'tooltip-left' : 'tooltip-right'" 
           :data-tip="showLogsTooltip"
@@ -109,6 +108,9 @@ import Assistant from './codx-junior/Assistant.vue';
             </span>
           </div>
 				</a>
+        <EventList class="absolute bottom-20 right-2 hidden group-hover:flex" 
+          v-if="$storex.session.events?.length"
+        />
 			</div>
     </div>
 

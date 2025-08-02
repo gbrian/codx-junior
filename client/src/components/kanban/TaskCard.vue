@@ -3,6 +3,7 @@ import moment from 'moment'
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
 import UserAvatar from '../user/UserAvatar.vue'
 import TaskSettings from './TaskSettings.vue';
+import CheckLists from '../chat/CheckLists.vue'
 </script>
 
 <template>
@@ -74,6 +75,8 @@ import TaskSettings from './TaskSettings.vue';
         </div>
       </div>
     </div>
+    <CheckLists class="mb-2" :chat="task" @change="saveTask" />
+      
     <modal v-if="isSettingsModalOpen" @click.stop>
       <TaskSettings :taskData="taskData" @close="discardChanges" />
     </modal>
@@ -144,6 +147,9 @@ export default {
     },
     discardChanges() {
       this.closeSettingsModal()
+    },
+    saveTask() {
+      this.$projects.saveChatInfo(this.task)
     }
   }
 }

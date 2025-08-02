@@ -2,64 +2,9 @@
   "project": {
     "name": "codx-api",
     "description": "codx-api wiki",
-    "icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
+    "icon": "https://codx-dev.meetnav.com/only_icon.png",
     "repository": "https://github.com/gbrian/codx-junior.git\n"
   },
-  "sidebar": [
-    {
-      "text": "AI",
-      "items": [
-        {
-          "text": "AI",
-          "link": "/ai.md"
-        }
-      ]
-    },
-    {
-      "text": "API",
-      "items": [
-        {
-          "text": "API",
-          "link": "/api.md"
-        }
-      ]
-    },
-    {
-      "text": "Knowledge",
-      "items": [
-        {
-          "text": "Knowledge",
-          "link": "/knowledge.md"
-        }
-      ]
-    },
-    {
-      "text": "Profiles and Profiling",
-      "items": [
-        {
-          "text": "Profiles and Profiling",
-          "link": "/profiles-and-profiling.md"
-        }
-      ]
-    },
-    {
-      "text": "Miscellaneous",
-      "items": [
-        {
-          "text": "Miscellaneous",
-          "link": "/miscellaneous.md"
-        }
-      ]
-    },
-    {
-      "text": "Welcome",
-      "items": [
-        {
-          "text": "Welcome",
-          "link": "/welcome.md"
-        }
-      ]
-    }
-  ],
-  "last_update": "20250614T162904Z"
+  "sidebar": [],
+  "last_update": null
 }

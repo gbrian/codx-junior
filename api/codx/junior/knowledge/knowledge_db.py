@@ -277,25 +277,24 @@ class KnowledgeDB:
                     del all_files[source]
             self.save_all_files(all_files)
 
-    def reset(self, index: str):
-        if index == "embeddings":
-            logger.info(f"Deleting index {self.settings.project_name}: {self.index_name}")
-        
-            self.db.drop_collection(
-                collection_name=self.index_name
-            )
-            if os.path.isfile(self.db_file_list):
-               os.remove(self.db_file_list)
-            self.last_update = None
-        
-            self.init_collection()
-        if index == "fulltext":
-            logger.info(f"Deleting index {self.settings.project_name}: {self.index_name}")
-        
-            self.db.drop_collection(
-                collection_name=self.index_fulltext_name
-            )
-            self.create_full_text_search()
+    def reset(self, index: str = None):
+        logger.info(f"Deleting index {self.settings.project_name}")
+    
+        self.db.drop_collection(
+            collection_name=self.index_name
+        )
+        if os.path.isfile(self.db_file_list):
+            os.remove(self.db_file_list)
+        self.last_update = None
+    
+        self.init_collection()
+
+        logger.info(f"Deleting index {self.settings.project_name}")
+    
+        self.db.drop_collection(
+            collection_name=self.index_fulltext_name
+        )
+        self.create_full_text_search()
 
     def search_in_source(self, query):
       documents = self.get_all_documents()

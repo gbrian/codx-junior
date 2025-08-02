@@ -151,7 +151,7 @@ class ChatEngine:
             
             chat_profiles_content = ""
             chat_profile_names = []
-            chat_model = chat.model
+            chat_model = chat.llm_model
             profiles_with_knowledge = []
             messages = []
 

@@ -4,7 +4,6 @@ import YoutubeViewer from './YoutubeViewer.vue'
 import { full as emoji } from 'markdown-it-emoji'
 import MarkdownIt from 'markdown-it'
 import highlight from 'markdown-it-highlightjs'
-import hljs from'highlight.js/lib/core'
 </script>
 
 <template>
@@ -28,13 +27,27 @@ import hljs from'highlight.js/lib/core'
 </template>
 
 <script>
+import hljs from 'highlight.js'
 const md = new MarkdownIt({
   html: true,
   linkify: true,
-  typographer: true
+  typographer: true,
+  highlight: function (str, lang, file) {
+    if (lang && hljs.getLanguage(lang)) {
+      const render = body =>`<pre>
+        <code class="hljs language-${lang}" data-file="${file}">${body}</code>
+      </pre>`
+      try {
+        return render(hljs.highlight(str, { language: lang, ignoreIllegals: true }).value)
+      } catch (__) {}
+    }
+    return render(md.utils.escapeHtml(str))
+  }
 })
+
+
 md.use(emoji)
-md.use(highlight, { hljs })
+// md.use(highlight, { hljs })
 
 export default {
   props: ['text'],

@@ -1,8 +1,8 @@
 <script setup>
+import moment from 'moment'
 import { API } from '../api/api'
 import MarkdownVue from '@/components/Markdown.vue'
 import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
-import moment from 'moment'
 </script>
 
 <template>
@@ -271,16 +271,8 @@ import moment from 'moment'
           </div>
         </div>
         <div class="pb-2 flex gap-2 mt-4">
-          <button class="btn btn-sm btn-error flex gap-2" @click="deleteKnowledge('embeddings')">
-            Delete Embeddings ({{ status?.db_info?.embeddings?.row_count }})
-            <div v-if="resetKnowledge">
-              (Really?
-              <span class="hover:underline">YES</span> /
-              <span class="hover:underline" @click.stop="resetKnowledge = false">NO</span>)
-            </div>
-          </button>
-          <button class="btn btn-sm btn-error flex gap-2" @click="deleteKnowledge('fulltext')">
-            Delete Full text ({{ status?.db_info?.fulltext?.row_count }})
+          <button class="btn btn-sm btn-error flex gap-2" @click="deleteKnowledge('')">
+            Delete Index ({{ status?.db_info?.embeddings?.row_count }})
             <div v-if="resetKnowledge">
               (Really?
               <span class="hover:underline">YES</span> /
@@ -338,7 +330,7 @@ import moment from 'moment'
 export default {
   data() {
     return {
-      selectedTab: 'Index',
+      selectedTab: 'Wiki',
       documents: 0,
       embeddings: 0,
       status: null,
@@ -365,6 +357,9 @@ export default {
   async created() {
     this.reloadStatus()
     this.refreshIx = setInterval(() => this.reloadStatus(), 20000)
+    if (this.$ui.activeTab === 'wiki_settings') {
+      this.selectedTab = 'Wiki'
+    }
   },
   unmounted() {
     clearInterval(this.refreshIx)

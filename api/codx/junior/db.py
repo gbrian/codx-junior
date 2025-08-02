@@ -37,7 +37,7 @@ class Message(BaseModel):
     done: Optional[bool] = Field(default=True, description="Indicates if user is done writing")
     is_thinking: Optional[bool] = Field(default=False)
     disable_knowledge: Optional[bool] = Field(default=False)
-    
+
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
@@ -46,6 +46,7 @@ class Chat(BaseModel):
     status: str = Field(default='')
     tags: List[str] = Field(default=[], description="Informative set of tags")
     file_list: List[str] = Field(default=[])
+    check_lists: Optional[List[dict]] = Field(default=[])
     profiles: List[str] = Field(default=[])
     users: List[str] = Field(default=[])
     name: str = Field(default='')
@@ -62,7 +63,7 @@ class Chat(BaseModel):
     url: str = Field(default='')
     branch: str = Field(default='')
     file_path: str = Field(default='')
-    model: Optional[str] = Field(default='')
+    llm_model: Optional[str] = Field(default='')
     visibility: Optional[str] = Field(default='')
     remote_url: Optional[str] = Field(default='')
     knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])

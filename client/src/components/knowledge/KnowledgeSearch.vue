@@ -34,11 +34,13 @@ import MarkdownVue from '@/components/Markdown.vue'
           class="border p-2 border cursor-pointer rounded-md bg-base-300 flex flex-col justify-between gap-2 text-xs"
             :class="doc.selected && 'border-info border-2'"
           v-for="doc, key in searchResults.documents" :key="key" 
-            @click="doc.selected = !doc.selected">
+            @click="$emit('select', doc)">
           <div class="p-1 rounded font-bold flex flex-col gap-2" :title="doc.metadata.source"
             :class="doc.metadata.relevance_score >= cutoffScore ? 'text-primary' : 'text-error'">
-            <div class="click underline" @click.stop="$ui.openFile(doc.metadata.source)" >
-              <i class="fa-solid fa-up-right-from-square"></i> {{ doc.metadata.source.split('/').reverse()[0] }}
+            <div class="click underline" >
+              <span @click.stop="$ui.openFile(doc.metadata.source)">
+                <i class="fa-solid fa-up-right-from-square"></i> {{ doc.metadata.source.split('/').reverse()[0] }}
+              </span>
             </div>
           </div>
           <markdown-vue :text="doc.page_content" class="hidden prose-xs text-xs overflow-auto"></markdown-vue>
@@ -55,13 +57,6 @@ import MarkdownVue from '@/components/Markdown.vue'
           </div>
         </div>
       </div>
-    </div>
-    <div class="flex justify-end">
-      <button class="btn" :disabled="!selectedDocuments.length"
-        @click="$emit('select', selectedDocuments)"
-      >
-        Select ({{ selectedDocuments.length  }})
-      </button>
     </div>
   </div>
 </template>
@@ -85,10 +80,6 @@ export default {
     }
   },
   computed: {
-    selectedDocuments () {
-      return this.searchResults?.documents ? 
-        Object.values(this.searchResults.documents).filter(d => d.selected) : []
-    },
     noResults() {
       return this.searchResults &&
         !Object.keys(this.searchResults.documents).length &&

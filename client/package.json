@@ -16,13 +16,15 @@
     "docs:preview": "vitepress preview"
   },
   "dependencies": {
+    "@git-diff-view/file": "^0.0.30",
+    "@git-diff-view/vue": "^0.0.30",
     "@novnc/novnc": "1.5.0",
     "@replit/novnc": "^2.2.0",
     "@tailwindcss/typography": "^0.5.10",
     "axios": "^1.6.8",
     "highlight.js": "^11.11.1",
     "linkify-it": "^5.0.0",
-    "markdown-it": "^14.0.0",
+    "markdown-it": "^14.1.0",
     "markdown-it-emoji": "^3.0.0",
     "markdown-it-highlightjs": "4.1.0",
     "markdown-it-link-preview": "^1.1.4",

@@ -5,6 +5,8 @@ from datetime import datetime
 from functools import reduce
 from pathlib import Path
 
+from concurrent.futures import ThreadPoolExecutor
+
 from codx.junior.knowledge.knowledge_db import KnowledgeDB
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -71,7 +73,7 @@ class Knowledge:
             return
         self.refresh_last_update()
         if full:
-          self.reset()
+            self.reset()
         try:
             logger.info('Reloading knowledge')
             # Load the knowledge from the filesystem
@@ -90,14 +92,24 @@ class Knowledge:
             return documents
         except Exception as ex:
             logger.error(f"Error loading knowledge {ex}")
-            pass
 
     def reload_path(self, path: str):
-        documents = self.loader.load(last_update=None, path=path)
-        if documents:
-            self.index_documents(documents, raiseIfError=True)
-        logger.info(f"reload_path DONE {path} {len(documents)} documents")
-        return documents
+        # Define the task for reloading the path
+        def task(path: str):
+            try:
+                documents = self.loader.load(last_update=None, path=path)
+                if documents:
+                    self.index_documents(documents, raiseIfError=True)
+                logger.info(f"reload_path DONE {path} {len(documents)} documents")
+            except Exception as e:
+                logger.error(f"Error in reload_path for {path}: {e}")
+
+        # Launch the task in a separate thread to ensure fire-and-forget behavior
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(task, path)
+
+        # Return None immediately to signal fire-and-forget
+        return None
 
     def get_all_documents (self, include=[]):
         return self.get_db().get_all_documents(include=include)

@@ -7,11 +7,13 @@ import Markdown from '@/components/Markdown.vue'
 import TaskCard from '../kanban/TaskCard.vue'
 import UserSelector from './UserSelector.vue'
 import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
+import CheckLists from './CheckLists.vue'
 </script>
 
 <template>
   <div class="flex flex-col gap-1 grow">
     <div class="grow relative">
+      <CheckLists class="mb-2" :chat="theChat" @change="saveChat" />
       <div class="overflow-y-auto overflow-x-hidden"
         :class="isBrowser && 'flex gap-1'">
         <div class="w-3/4" v-if="isBrowser">
@@ -69,7 +71,7 @@ import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
         </div>
       </div>
     </div>
-    <div class="sticky bottom-0 bg-base-300">
+    <div class="sticky bottom-0 z-50 bg-base-300">
       <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
         {{  lastChatEvent }}
       </div>
@@ -121,7 +123,11 @@ import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
         @dragover.prevent="onDraggingOverInput = true"
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop">
-        <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
+        <KnowledgeSearch class="p-2 h-60"
+          @select="onAddDocument"
+          v-if="showDocumentSearchModal"
+        />
+        <div v-else :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
           :contenteditable="!waiting"
           ref="editor"
           @paste="onContentPaste"
@@ -151,23 +157,25 @@ import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
             <div class="flex gap-2 items-center justify-end py-2">
               <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
                 <i class="fa-solid fa-save"></i>
-                <div class="text-xs" v-if="editMessage">Edit</div>
+                <div class="text-xs" v-if="editMessage && !showDocumentSearchModal">Edit</div>
               </button>
               <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
                 v-if="editMessage">
                 <i class="fa-regular fa-circle-xmark"></i>
               </button>
-              <button class="btn btn-sm btn-circle btn-info tooltip relative"
+              <button class="btn btn-sm btn-circle tooltip relative"
+                :class="showDocumentSearchModal ? 'btn-error' : 'btn-info'"
                 :data-tip="'Search documents'"
                 @click="openDocumentSearch">
-                <i class="fa-solid fa-file-lines"></i>
+                <i class="fa-solid fa-xmark" v-if="showDocumentSearchModal"></i>
+                <i class="fa-solid fa-file-lines" v-else></i>
               </button>
               <button class="btn btn btn-sm btn-circle tooltip"
                 data-tip="Ask codx-junior"
                 :class="isVoiceSession && 'btn-success animate-pulse'"
                 @click="sendMessage"
                 ref="sendButton"
-                v-if="!editMessage">
+                v-if="!editMessage && !showDocumentSearchModal">
                 <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
                 <i class="fa-solid fa-paper-plane" v-else></i>
               </button>
@@ -277,9 +285,6 @@ import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
         </div>
       </div>
     </modal>
-    <modal close="true" class="h-2/3 w-2/3" @close="showDocumentSearchModal = false" v-if="showDocumentSearchModal">
-      <KnowledgeSearch @select="onAddDocuments" />
-    </modal>
   </div>
 </template>
 
@@ -349,6 +354,10 @@ export default {
       const { messages } = this.theChat
       const msgs = messages?.filter(m => !m.hide && m.role !== 'assistant')
       return msgs ? msgs[msgs.length - 1] : null
+    },
+    lastMessage() {
+      const { messages } = this.theChat
+      return messages ? messages[messages.length - 1] : null
     },
     diffMessage() {
       if (this.isTask) {
@@ -430,11 +439,14 @@ export default {
   },
   methods: {
     initSelectedUserFromChat() {
-      const { lastUserMessage } = this
-      if (lastUserMessage?.profiles.length) {
-        const userName = lastUserMessage.profiles[0]
+      const messages = this.theChat.messages.filter(m => !m.hide && m.profiles?.length)
+      const lastProfileMessage = messages[messages.length - 1]
+      if (lastProfileMessage) {
+        const userName = lastProfileMessage.profiles[0]
         const user = this.$projects.userList.find(u => u.name === userName) 
         this.selectedUser = user
+      } else if (!this.selectedUser) {
+        this.selectedUser = this.$user
       }
     },
     zoomIn() {
@@ -450,9 +462,12 @@ export default {
       if (this.editMessage === message) {
         return this.onResetEdit()
       }
-      console.log("onEditMessage", message)
       this.editMessageId = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)
       this.editMessage = this.theChat.messages[this.editMessageId]
+      const profile = this.editMessage.profiles[0]?.name
+      if (profile) {
+        this.selectedUser = profile
+      } 
       try {
         this.images = message.images.map(JSON.parse)
       } catch { }
@@ -491,21 +506,26 @@ export default {
         msg
       ]
     },
+    getMessageProfiles() {
+      const profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
+      if (this.selectedUser?.isProfile) {
+         profiles.push(this.selectedUser.name)
+      }
+      return profiles
+    },
     getUserMessage() {
       const message = this.$refs.editor.innerText
       const files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      const profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
-      if (this.selectedUser?.username !== this.$user.username) {
-        profiles.push(this.selectedUser.name)
-      }
+      
       return {
         role: 'user',
         content: message,
         images: this.images.map(JSON.stringify),
         files,
-        profiles,
+        profiles: this.getMessageProfiles(),
         user: this.$user.username,
-        disable_knowledge: this.disableKnowledge
+        disable_knowledge: true,
+        user: this.$user.username
       }
     },
     postMyMessage() {
@@ -514,7 +534,7 @@ export default {
         userMessage.files.forEach(file => this.$emit('add-file', file))
         this.addMessage(userMessage)
         this.cleanUserInputAndWaitAnswer()
-        return true
+        return userMessage
       }
     },
     cleanUserInputAndWaitAnswer() {
@@ -534,7 +554,9 @@ export default {
         if (this.postMyMessage()) {
           await this.saveChat()
         }
-        await this.sendChatMessage(this.theChat)
+        if (this.lastMessage?.profiles?.length || this.theChat.llm_model) {
+          await this.sendChatMessage(this.theChat)
+        }
       }      
     },
     async navigate() {
@@ -602,8 +624,7 @@ export default {
       const images = this.images.map(JSON.stringify)
       
       this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      this.editMessage.profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
-
+      this.editMessage.profiles = this.getMessageProfiles()
       this.editMessage.content = innerText
       this.editMessage.images = images
       this.editMessage.updated_at = new Date().toISOString()
@@ -826,26 +847,29 @@ export default {
       setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)
     },
     onEditMessageKeyDown(event) {
-      if (event.key === 'Escape') {
-        this.onResetEdit()
-        event.stopPropagation()
-        event.preventDefault()
-        return false
-      } else if (event.key === 'Tab' && this.showTermSearch) {
-        this.addSerchTerm(this.searchTerms[this.searchTermSelIx])
+      const stop = () => {
         event.stopPropagation()
         event.preventDefault()
         return false
       }
+      if (event.key === 'Escape') {
+        this.onResetEdit()
+      } else if (event.key === 'Tab' && this.showTermSearch) {
+        this.addSerchTerm(this.searchTerms[this.searchTermSelIx])
+      } else if(event.key === 'Enter' && event.ctrlKey) {
+        this.sendMessage()
+      } else {
+        return true
+      }
+      return stop()
     },
     openDocumentSearch() {
-      this.showDocumentSearchModal = true
+      this.showDocumentSearchModal = !this.showDocumentSearchModal
     },
-    onAddDocuments(documents) {
-      const sources = documents.map(doc => doc.metadata.source)
-      this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], ...sources])]
+    onAddDocument(doc) {
+      const source = doc.metadata.source
+      this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], source])]
       this.saveChat()
-      this.showDocumentSearchModal = false
     }
   }
 }
