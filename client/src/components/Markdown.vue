@@ -74,7 +74,7 @@ export default {
               return `<a class="file-link btn btn-link" href="${filePath}${lineInfo}">${filePath}${lineInfo}</a>`
             }
           )
-          return md.render(textWithLinks)
+          return md.render(this.sanitizedText)
         } catch (ex) {
           console.error("Message can't be rendered", this.text)
         }

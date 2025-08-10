@@ -136,7 +136,7 @@ class CODXJuniorSession:
 
     def get_wiki(self):
         from codx.junior.wiki.wiki_manager import WikiManager
-        return WikiManager(settings=self.settings)
+        return pwiwki(settings=self.settings)
 
     def get_browser(self):
         from codx.junior.browser.browser import Browser
@@ -635,6 +635,7 @@ class CODXJuniorSession:
     async def process_project_changes(self):
         if not self.settings.is_valid_project():
             return
+
         knowledge = Knowledge(settings=self.settings)
         knowledge.clean_deleted_documents()
         new_files, _ = knowledge.detect_changes()
@@ -651,14 +652,21 @@ class CODXJuniorSession:
         if not file_path:
             return
 
-        res = await self.get_mention_manager().check_file_for_mentions(file_path=file_path)
-        if res == "processing" or not CODX_JUNIOR_API_BACKGROUND:
+        mention_manager = self.get_mention_manager()
+        if not CODX_JUNIOR_API_BACKGROUND:
+            return await self.get_mention_manager().check_file_for_mentions(file_path=file_path)
+
+        if not self.settings.watching:
             return
 
-        if self.settings.watching:
-            self.log_info(f"Reload knowledge files {file_path}")
-            docs = knowledge.reload_path(path=file_path)
-            self.event_manager.send_knowled_event(type="loaded", file_path=file_path)
+        file_has_mentions = mention_manager.check_if_file_has_mentions(file_path=file_path)  
+        if file_has_mentions:
+            return
+        self.log_info(f"Reload knowledge files {file_path}")
+        knowledge.reload_path(path=file_path)
+        self.event_manager.send_knowled_event(type="loaded", file_path=file_path)
+
+        self.get_wiki().process_file_change(file_path=file_path)
 
     def extract_changes(self, content):
         for block in extract_json_blocks(content):
@@ -1115,9 +1123,10 @@ class CODXJuniorSession:
         await self.chat_with_project(chat=chat, disable_knowledge=True)
         return chat.messages[-1].content
 
-    async def write_project_file(self, file_path: str, content: str):
+    async def write_project_file(self, file_path: str, content: str, process: bool = True):
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        content = await self.process_project_file_before_saving(file_path=file_path, content=content)
+        if process:
+            content = await self.process_project_file_before_saving(file_path=file_path, content=content)
         write_file(file_path=file_path, content=content)
 
     def search_files(self, search: str):

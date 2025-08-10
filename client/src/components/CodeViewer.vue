@@ -8,10 +8,17 @@ import DiffViewer from './DiffViewer.vue'
   <div class="flex flex-col gap-2">
     <div class="underline click text-link flex gap-2" v-if="fileName">
       <div @click="$ui.openFile(file)">{{ fileName }}</div>
-      <div @click="onShowDiff"><i class="fa-solid fa-code-compare"></i></div>
+      <div @click="onShowDiff">
+        <i class="fa-solid fa-code-compare"></i>
+      </div>
+      <div @click="saveFile">
+        <i class="fa-solid fa-floppy-disk"></i>
+      </div>
     </div>
-    <VueCodeHighlighter :code="diff" :lang="'diff'" :title="fileName" v-if="showDiff" />
-    <VueCodeHighlighter :code="code" :lang="language" :title="fileName" v-else />
+    <div class="view-code">
+      <VueCodeHighlighter :code="diff" :lang="'diff'" :title="fileName" v-if="showDiff" />
+      <VueCodeHighlighter :code="code" :lang="language" :title="fileName" v-else />
+    </div>
     <div class="flex justify-end gap-2">
       <button class="btn btn-sm btn-warning" @click="applyPatch" v-if="isPatch">
         Apply
@@ -45,13 +52,10 @@ export default {
         this.diff = await this.$storex.api.files.diff({ path: this.file, content: this.code })
       }
       this.showDiff = !this.showDiff
+    },
+    saveFile() {
+      this.$storex.api.files.write(this.file, this.code)
     }
   }
 }
 </script>
-
-<style scoped>
-.pre .code {
-  font-size: 8px !important;
-}
-</style>

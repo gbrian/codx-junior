@@ -154,7 +154,7 @@ import CheckLists from './CheckLists.vue'
               :selectedUser="selectedUser"
               @user-changed="selectedUser = $event"
             />
-            <div class="flex gap-2 items-center justify-end py-2">
+            <div class="flex gap-2 items-center justify-end py-2" v-if="!searchingInKnowledge">
               <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
                 <i class="fa-solid fa-save"></i>
                 <div class="text-xs" v-if="editMessage && !showDocumentSearchModal">Edit</div>
@@ -166,9 +166,8 @@ import CheckLists from './CheckLists.vue'
               <button class="btn btn-sm btn-circle tooltip relative"
                 :class="showDocumentSearchModal ? 'btn-error' : 'btn-info'"
                 :data-tip="'Search documents'"
-                @click="openDocumentSearch">
-                <i class="fa-solid fa-xmark" v-if="showDocumentSearchModal"></i>
-                <i class="fa-solid fa-file-lines" v-else></i>
+                @click="askKnowledge">
+                <i class="fa-solid fa-file-lines"></i>
               </button>
               <button class="btn btn btn-sm btn-circle tooltip"
                 data-tip="Ask codx-junior"
@@ -228,6 +227,9 @@ import CheckLists from './CheckLists.vue'
                   </li>
                 </ul>
               </div>
+            </div>
+            <div class="flex gap-2 items-center justify-end py-2 animate-pulse" v-else>
+              Searching...
             </div>
           </div>
         </div>
@@ -321,7 +323,8 @@ export default {
       selectedUser: null,
       refreshngMentions: null,
       selectedDocuments: null,
-      showDocumentSearchModal: false
+      showDocumentSearchModal: false,
+      searchingInKnowledge: false
     }
   },
   created() {
@@ -516,16 +519,15 @@ export default {
     getUserMessage() {
       const message = this.$refs.editor.innerText
       const files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      
+      const profiles = this.getMessageProfiles()
       return {
         role: 'user',
         content: message,
         images: this.images.map(JSON.stringify),
         files,
-        profiles: this.getMessageProfiles(),
+        profiles,
         user: this.$user.username,
         disable_knowledge: true,
-        user: this.$user.username
       }
     },
     postMyMessage() {
@@ -554,31 +556,8 @@ export default {
         if (this.postMyMessage()) {
           await this.saveChat()
         }
-        if (this.lastMessage?.profiles?.length || this.theChat.llm_model) {
-          await this.sendChatMessage(this.theChat)
-        }
-      }      
-    },
-    async navigate() {
-      if (!this.editorText) {
-        if (this.isBrowser = !this.isBrowser) {
-          if (this.lastAIMessage) {
-            this.lastAIMessage.hide
-          }
-        }
-        return
+        await this.sendChatMessage(this.theChat)
       }
-      const message = this.getUserMessage()
-      const data = await this.sendChatMessage({
-        mode: 'browser',
-        messages: [
-          ...this.theChat.messages,
-          message
-        ]
-      })
-      this.theChat.messages = data.messages
-      this.saveChat()
-      this.cleanUserInputAndWaitAnswer()
     },
     getSendMessage() {
       return this.editMessage ||
@@ -586,6 +565,9 @@ export default {
     },
     async askKnowledge() {
       const searchTerm = this.$refs.editor.innerText
+      if (!searchTerm || searchTerm.length <= 10) {
+        return
+      }
       const knowledgeSearch = {
         searchTerm,
         searchType: 'embeddings',
@@ -593,9 +575,34 @@ export default {
         cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,
         documentCount: API.activeProject.knowledge_search_document_count
       }
-      const { documents } = await API.knowledge.search(knowledgeSearch)
-      const docs = documents.map(doc => `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``)
-      this.$refs.editor.innerText = docs.join("\n")
+      this.searchingInKnowledge = true
+      try {
+        const { response, documents } = await API.knowledge.search(knowledgeSearch)
+        const docs = documents.map(({ metadata: { score_analysis, source}}) => {
+            const file = source
+            const fileName = file.split("/").reverse()[0] 
+            return [
+                    `### ${fileName}`,
+                    score_analysis,
+                  ].join("\n")
+          }).join("\n")
+        const message = [
+          response,
+          "",
+          docs
+        ].join("\n")
+        const searchMessage = {
+          role: 'assistant',
+          content: message,
+          files: documents.map(doc => doc.metadata.source),
+          disable_knowledge: true,
+        }
+        this.addMessage(searchMessage)
+        this.saveChat()
+        this.cleanUserInputAndWaitAnswer()
+      } finally {
+        this.searchingInKnowledge = false
+      }
     },
     async sendApiRequest(apiCall, formater = defFormater) {
       try {

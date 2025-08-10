@@ -1,0 +1,8 @@
+# [[{"id": "ba01956b-06e8-4a14-9649-cfbb58f17fb7", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": [], "check_lists": [], "profiles": [], "users": [], "name": "Fromat knowledge search message", "description": "", "created_at": "2025-08-08 09:34:39.216637", "updated_at": "2025-08-08T10:04:16.896200", "mode": "chat", "kanban_id": "", "column_id": "", "board": "Chat manager", "column": "To do", "chat_index": 0, "url": "", "branch": "", "file_path": "/shared/codx-junior/.codx/tasks/Chat manager/To do/fromat-knowledge-search-message.ba01956b-06e8-4a14-9649-cfbb58f17fb7.md", "llm_model": "", "visibility": "", "remote_url": "", "knowledge_topics": []}]]
+## [[{"doc_id": "2401fef9-ce6f-4af6-99c6-d861e5fdbd0b", "role": "assistant", "task_item": "", "think": "", "hide": false, "improvement": false, "created_at": "2025-08-08 09:34:39.214748", "updated_at": "2025-08-08 09:34:39.214774", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true}]]
+It seems there is no prior context about formatting a chat message. Could you please provide more details or specify the platform you're referring to?
+
+
+## [[{"doc_id": "54d95286-485f-436b-95db-66e30b08d335", "role": "assistant", "task_item": "", "think": "", "hide": false, "improvement": false, "created_at": "2025-08-08 09:34:39.214748", "updated_at": "2025-08-08 09:34:39.214774", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true}]]
+You can format a chat message using markdown syntax.
+

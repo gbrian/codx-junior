@@ -11,16 +11,18 @@ from pydantic import BaseModel
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.engine import CODXJuniorSession
-from codx.junior.utils.utils import exec_command, extract_blocks, remove_starting_block
-from codx.junior.context import generate_markdown_tree
+from codx.junior.utils.utils import exec_command, remove_starting_block
 from .model import *
 from ..ai import AI
 from ..events.event_manager import EventManager
+from codx.junior.knowledge.knowledge_milvus import Knowledge
+from codx.junior.profiles.profile_manager import ProfileManager
 
 logger = logging.getLogger(__name__)
 
 class ConfigFiles(Enum):
-    """Enum for different configuration files."""
+    """Enum for different configuration files used in the wiki management."""
+    
     CONFIG = 'config.json'
     CATEGORIES = 'categories.json'
 
@@ -31,11 +33,21 @@ class ConfigFiles(Enum):
         return self.value
 
 class WikiManager:
-    """Manager class to handle operations for generating and maintaining a project wiki."""
+    """
+    Manager class responsible for the creation and maintenance of a project wiki
+    using VitePress. It initializes, builds, and updates a wiki based on the project's
+    structure and changes in files. The wiki is organized into categories extracted 
+    from the project's source files.
+    
+    This class facilitates converting project documentation into a structured 
+    and browsable format for easy knowledge dissemination among team members.
+    """
     
     def __init__(self, settings: CODXJuniorSettings) -> None:
         self.settings: CODXJuniorSettings = settings
         self.event_manager = EventManager(codx_path=settings.codx_path)
+        self.knowledge = Knowledge(settings=settings)
+        self.profile_manager = ProfileManager(settings=settings)
         self.wiki_path: str = self.settings.get_project_wiki_path()
         self.vitepress_dir: str = ''
         self.dist_dir: str = ''
@@ -69,6 +81,7 @@ class WikiManager:
 
     def load_config(self, config_type: ConfigFiles, default: Dict = None) -> Dict:
         """Load configuration file of the given type."""
+        
         if default is None:
             default = {}
         
@@ -77,8 +90,8 @@ class WikiManager:
             if os.path.isfile(config_path):
                 with open(config_path, 'r', encoding='utf-8') as file:
                     return json.load(file)
-        except json.JSONDecodeError as e:
-            logger.error("Error loading configuration file %s: %s", config_path, e)
+        except json.JSONDecodeError as error:
+            logger.error("Error loading configuration file %s: %s", config_path, error)
         return default
 
     def save_config(self, config_type: ConfigFiles, config: Dict) -> None:
@@ -113,8 +126,8 @@ class WikiManager:
             self.build_home()
             self.compile_wiki()
             return self.get_config()
-        except Exception as ex:
-            self.send_wiki_event("error", "ERROR: Error creating wiki: %s" % ex)
+        except Exception as exception:
+            self.send_wiki_event("error", "ERROR: Error creating wiki: %s" % exception)
         finally:
             self.send_wiki_event(__name__, "Build wiki done")
 
@@ -128,21 +141,21 @@ class WikiManager:
         config.project.icon = self.settings.project_icon
 
         try:
-            std, err = exec_command("git config --get remote.origin.url", cwd=self.settings.project_path)
-            if std and std.startswith("http"):
-                config.project.repository = std
-        except Exception as ex:
-            logger.warning("Error fetching repository URL: %s", ex)
+            output, error = exec_command("git config --get remote.origin.url", cwd=self.settings.project_path)
+            if output and output.startswith("http"):
+                config.project.repository = output
+        except Exception as exception:
+            logger.warning("Error fetching repository URL: %s", exception)
 
         self.save_config(ConfigFiles.CONFIG, config.model_dump())
 
     def compile_wiki(self) -> None:
         """Execute the wiki build process using a shell command."""
         self.send_wiki_event(__name__, "Compile wiki")
-        std, err = exec_command('bash wiki-manager.sh', cwd=self.wiki_path)
+        output, error = exec_command('bash wiki-manager.sh', cwd=self.wiki_path)
         
         if not os.path.isdir(self.dist_dir):
-            raise RuntimeError("Error building wiki: %s - %s" % (std, err))
+            raise RuntimeError("Error building wiki: %s - %s" % (output, error))
         
         config = self.get_config()
         config.last_update = datetime.datetime.now(datetime.UTC).strftime("%Y%m%dT%H%M%SZ")
@@ -150,7 +163,7 @@ class WikiManager:
 
     def get_sources(self) -> List[str]:
         """Retrieve a list of project knowledge sources."""
-        return [source for source in self.session.get_knowledge().get_all_sources() if self.wiki_path not in source]
+        return [source for source in self.knowledge.get_all_sources() if self.wiki_path not in source]
         
     def create_wiki_tree(self) -> ProjectCategories:
         """Create a hierarchical tree of the wiki structure based on project content."""
@@ -162,7 +175,7 @@ class WikiManager:
         if categories.categories:
             return categories
 
-        wiki_profile = self.session.read_profile("wiki").content
+        wiki_profile = self.profile_manager.read_profile("wiki").content
         side_bar_example = ProjectCategories(
             categories=[
                 ProjectCategoryFiles(
@@ -184,13 +197,11 @@ class WikiManager:
 
         return categories
 
-    def _generate_prompt_from_sources(
-        self, 
-        wiki_profile: str, 
-        sources: str, 
-        categories: ProjectCategories, 
-        side_bar_example: ProjectCategories
-    ) -> str:
+    def _generate_prompt_from_sources(self, 
+                                      wiki_profile: str, 
+                                      sources: str, 
+                                      categories: ProjectCategories, 
+                                      side_bar_example: ProjectCategories) -> str:
         """Generate AI prompt to derive categories from sources."""
         return f"""
         {wiki_profile}
@@ -247,13 +258,13 @@ class WikiManager:
         self.send_wiki_event(__name__, f"Build category: {category.category}")
         
         category_file_path = os.path.join(self.wiki_path, f"{slugify(category.category)}.md")
-        wiki_profile = self.session.read_profile("wiki").content
+        wiki_profile = self.profile_manager.read_profile("wiki").content
 
         # Create files in the category.
         for file in category.files:
             if not os.path.isfile(file):
                 continue
-            _output, _err = exec_command(f"touch {file}")
+            exec_command(f"touch {file}")
 
     def build_file(self, file_path: str) -> None:
         """Build a specific markdown file for the wiki."""
@@ -278,21 +289,24 @@ class WikiManager:
     def _read_existing_file_content(self, category_file: str) -> str:
         """Read content from the existing wiki file, if it exists."""
         if os.path.isfile(category_file):
-            with open(category_file, 'r', encoding='utf-8') as f:
-                return f.read()
-        return f"# {category_file.split('/')[-1]}"
+            with open(category_file, 'r', encoding='utf-8') as file:
+                return file.read()
+        return "# {}".format(category_file.split('/')[-1])
 
     def _read_file_changes(self, file_path: str) -> Tuple[str, str]:
         """Read the latest file changes and determine the file extension."""
-        with open(file_path, 'r', encoding='utf-8') as f:
-            file_changes = f.read()
+        with open(file_path, 'r', encoding='utf-8') as file:
+            file_changes = file.read()
         
         extension = file_path.split('.')[-1] if '.' in file_path else ''
         return file_changes, extension
 
-    def _update_wiki_content(self, file_content: str, file_changes: str, extension: str, category: ProjectCategoryFiles) -> Any:
+    def _update_wiki_content(self, file_content: str, 
+                             file_changes: str, 
+                             extension: str, 
+                             category: ProjectCategoryFiles) -> Any:
         """Generate updated content for the wiki file based on the latest changes."""
-        wiki_profile = self.session.read_profile("wiki").content
+        wiki_profile = self.profile_manager.read_profile("wiki").content
         config = self.get_config()
 
         prompt = f"""
@@ -330,8 +344,8 @@ class WikiManager:
 
     def _write_to_file(self, file_path: str, content: str) -> None:
         """Write content to a file, ensuring any existing content is overwritten."""
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(content)
+        with open(file_path, 'w', encoding='utf-8') as file:
+            file.write(content)
 
     def build_home(self) -> None:
         """Construct or update the home page for the wiki."""
@@ -339,19 +353,22 @@ class WikiManager:
         config = self.get_config()
         
         home_path = os.path.join(self.wiki_path, "index.md")
-        with open(home_path, 'r', encoding='utf-8') as f:
-            home_content = f.read()
+        with open(home_path, 'r', encoding='utf-8') as file:
+            home_content = file.read()
 
         valid_sources = self.get_sources()
         sources = "\n".join(valid_sources)
 
-        wiki_profile = self.session.read_profile("wiki").content
+        wiki_profile = self.profile_manager.read_profile("wiki").content
         prompt = self._generate_home_page_prompt(wiki_profile, config, sources, home_content)
 
         response = self.get_ai().chat(prompt=prompt)[-1]
         self._write_to_file(home_path, remove_starting_block(response.content))
 
-    def _generate_home_page_prompt(self, wiki_profile: str, config: WikiConfig, sources: str, home_content: str) -> str:
+    def _generate_home_page_prompt(self, wiki_profile: str, 
+                                   config: WikiConfig, 
+                                   sources: str, 
+                                   home_content: str) -> str:
         """Generate a prompt for updating the wiki's home page."""
         return f"""
         {wiki_profile}
@@ -382,7 +399,8 @@ class WikiManager:
          * Keep actions as it is
         """
 
-    def process_file_changes(self, new_files: List[str], deleted_files: List[str]) -> None:
+    def process_file_changes(self, new_files: List[str], 
+                             deleted_files: List[str]) -> None:
         """Process updates and deletions in project files, updating the wiki accordingly."""
         for file_path in new_files:
             self.update_wiki(file_path)
@@ -393,7 +411,7 @@ class WikiManager:
         """Update or create wiki content for an individual file."""
         if not self.wiki_path:
             return
-        wiki_content = self.knowledge_wiki.generate_wiki(file_path)
+        wiki_content = self.knowledge.generate_wiki(file_path)
         self._write_wiki_file(file_path, wiki_content)
 
     def _write_wiki_file(self, file_path: str, content: str) -> None:
@@ -428,15 +446,17 @@ class WikiManager:
         with open(config_path, 'w', encoding='utf-8') as file:
             file.writelines(config_lines)
 
-    def _update_config_with_files(self, config_lines: List[str], new_files: List[str], deleted_files: List[str]) -> List[str]:
+    def _update_config_with_files(self, config_lines: List[str], 
+                                  new_files: List[str], 
+                                  deleted_files: List[str]) -> List[str]:
         """Update configuration lines with new and deleted files."""
         for file_path in new_files:
             relative_path = os.path.relpath(file_path, self.settings.project_path)
-            config_lines.append(f'.pages.push("/{relative_path}.md");\n')
+            config_lines.append('.pages.push("/{0}.md");\n'.format(relative_path))
 
         for file_path in deleted_files:
             relative_path = os.path.relpath(file_path, self.settings.project_path)
-            pattern = f'"/{relative_path}.md"'
+            pattern = '"/{0}.md"'.format(relative_path)
             config_lines = [line for line in config_lines if pattern not in line]
 
         return config_lines
@@ -474,7 +494,8 @@ class WikiManager:
             if not root.startswith(self.wiki_path)
         ]
 
-    def _generate_wiki_tree(self, folder_structure: List[str], current_wiki_tree: Dict) -> Dict:
+    def _generate_wiki_tree(self, folder_structure: List[str], 
+                            current_wiki_tree: Dict) -> Dict:
         """Generate a wiki tree structure based on the current folder setup."""
         updated_tree = current_wiki_tree
 

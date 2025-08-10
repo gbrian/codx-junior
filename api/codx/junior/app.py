@@ -452,10 +452,10 @@ async def api_get_file_diff(request: Request):
     return codx_junior_session.diff_file(path=data["path"], content=data["content"])
 
 @app.post("/api/files/write")
-def api_post_file(doc: Document, request: Request):
+async def api_post_file(doc: Document, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    path = request.query_params.get("path")
-    return codx_junior_session.write_file(path=path, content=doc.page_content)
+    file_path = request.query_params.get("path")
+    return await codx_junior_session.write_project_file(file_path=file_path, content=doc.page_content, process=False)
 
 @app.get("/api/files/find")
 def api_get_file(request: Request):

@@ -43,6 +43,7 @@ export default {
         if (!this.$user) {
           this.$storex.session.onError("Invalid user name or password")
         }
+        window.location.reload()
       }
     }
   }

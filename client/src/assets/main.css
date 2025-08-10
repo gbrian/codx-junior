@@ -5,6 +5,11 @@
 @import 'floating-vue/dist/style.css';
 @import 'floating-vue/style.css';
 
+@font-face {
+  font-family: Droid Sans Mono;
+  src: url("https://fonts.googleapis.com/css?family=Droid Sans Mono");
+}
+
 html, body {
   height: 100% !important;
   width: 100% !important;
@@ -29,4 +34,19 @@ html, body {
 
 .codx-secondary {
   color: #8f008f;
+}
+
+.view-code pre,
+.view-code code.hljs {
+  background-color: var(--fallback-b3, oklch(var(--b3) / var(--tw-bg-opacity, 1))) !important;
+  max-height: 600px !important;
+  overflow: auto !important;
+  
+  font-family: "Droid Sans Mono", "monospace", monospace !important;
+  font-weight: normal !important;
+  font-size: 16px !important;
+  font-feature-settings: "liga" 0, "calt" 0 !important;
+  font-variation-settings: normal !important;
+  line-height: 19px !important;
+  letter-spacing: 0px !important;
 }

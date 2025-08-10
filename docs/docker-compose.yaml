@@ -1,0 +1,12 @@
+services:
+  vite:
+    image: node
+    container_name: vite-container
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: bash -c "npm i && npm run docs:dev"
+    ports:
+      - "7856:3000"
+    environment:
+      - NODE_ENV=development

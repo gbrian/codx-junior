@@ -49,33 +49,25 @@ import KanbanList from "./KanbanList.vue"
         <div class="grow"></div>
         <div class="flex gap-2 items-center">
           <div class="grow input input-sm input-bordered flex items-center gap-2">
-            <input type="text" v-model="filter" class="grow" placeholder="Search tasks" />
+            <input type="text" v-model="filter" class="grow" placeholder="Search..." />
             <span class="cursor-pointer" v-if="filter" @click.stop="filter = ''">
               <i class="fa-regular fa-circle-xmark"></i>
             </span>
             <span v-else><i class="fa-solid fa-filter"></i></span>
           </div>
-          <button class="btn btn-sm btn-outline" @click="showColumnModal = true" v-if="columnList?.length">
-            <i class="fa-solid fa-plus"></i>
-            <span class="text-xs md:text-md">Column</span>
-          </button>
-          <button class="btn btn-sm btn-warning btn-outline" @click="showChildrenBoards = !showChildrenBoards" v-if="columnList?.length">
-            <i class="fa-solid fa-caret-up" v-if="showChildrenBoards"></i>
-            <i class="fa-solid fa-caret-down" v-else></i>
-            <span class="text-xs md:text-md">Boards</span>
-          </button>
-          <button class="btn btn-sm btn-info btn-outline tooltip" data-tip="Changes details"
-            @click="$ui.setActiveTab('prview')">
-            <i class="fa-solid fa-code-compare"></i>
-            Changes
-          </button>
+          <div class="dropdown dropdown-left">
+            <div tabindex="0" class="btn btn-sm mt-1">
+              <i class="fa-solid fa-ellipsis-vertical"></i>
+            </div>
+            <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+              <li @click="addNewFile"><a><i class="fa-solid fa-plus"></i> File</a></li>
+              <li @click="showColumnModal = true"><a><i class="fa-solid fa-plus"></i> Column</a></li>
+              <li @click="showChildrenBoards = !showChildrenBoards"><a><i class="fa-solid fa-eye"></i> Show Boards</a></li>
+            </ul>
+          </div>
         </div>
       </div>
-      <div class="mt-3 grow relative">
-        <button class="btn btn-sm btn-wide btn-primary" @click="showColumnModal = true" v-if="!columnList?.length">
-          <i class="fa-solid fa-plus"></i>
-          <span class="text-xs md:text-md">Column</span>
-        </button>
+      <div class="mt-3 grow relative flex flex-col gap-2">
         <div class="transition-all pb-2" v-if="showChildrenBoards">
           <KanbanList
             class="mb-2"
@@ -158,19 +150,14 @@ import KanbanList from "./KanbanList.vue"
       <h2 class="font-bold text-3xl">Add New Board</h2>
       <div class="collapse">
         <input type="radio" name="newboard"  v-model="newBoardType" value="manual" />
-        <div class="collapse-title text-xl font-medium"><i class="fa-solid fa-gear"></i> Manual settings</div>
+        <div class="hidden collapse-title text-xl font-medium"><i class="fa-solid fa-gear"></i> Manual settings</div>
         <div class="collapse-content">
           <div class="text-xl text-info font-bold" v-if="activeBoard">Parent {{ activeBoard.title }}</div>
           <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
           <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
-          <input type="text" v-model="newBoardBranch" placeholder="Enter branch name" class="input input-bordered w-full mt-2"/>
-          <select v-model="selectedTemplate" class="select select-bordered w-full mt-2">
-            <option disabled value="">Select a Template</option>
-            <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
-          </select>
         </div>
       </div>
-      <div class="collapse">
+      <div class="collapse hidden">
         <input type="radio" name="newboard" v-model="newBoardType" value="issue" />
         <div class="collapse-title text-xl font-medium"><i class="fa-solid fa-link"></i> From issue</div>
         <div class="collapse-content">
@@ -225,7 +212,7 @@ import KanbanList from "./KanbanList.vue"
 
 <script>
 const ALL_BOARD_TITLE_ID = "$ALL"
-
+const FILES_COLUMN = "__files__"
 export default {
   data() {
     return {
@@ -302,7 +289,8 @@ export default {
       return this.boards[this.board]?.columns
     },
     columnList() {
-      return this.boards[this.board]?.columns?.map(c => c.title) || []
+      return (this.boards[this.board]?.columns?.map(c => c.title) || [])
+              //.filter(title => title !== FILES_COLUMN)
     },
     parentBoard() {
       return this.boards[this.activeBoard?.parent_id]
@@ -406,6 +394,9 @@ export default {
         id: uuidv4(),
         board: this.board || "Default",
       })
+    },
+    addNewFile() {
+      this.newTask(FILES_COLUMN)
     },
     newTask(column) {
       this.createNewChat({
@@ -534,11 +525,11 @@ export default {
     },
     async deleteColumn() {
       if (this.confirmDeleteColumn) {
+        this.resetColumnModal()
         this.activeKanbanBoard.columns = this.activeKanbanBoard.columns.filter(
           column => column.id !== this.selectedColumn.id
         )
         await this.saveKanban(true)
-        this.resetColumnModal()
       }
       this.confirmDeleteColumn = !this.confirmDeleteColumn
     },
@@ -556,12 +547,11 @@ export default {
       }
       const boardName = this.newBoardName.trim()
       if (boardName && !this.boards[boardName]) {
-        const selectedTemplate = this.selectedTemplate
         await this.$projects.addBoard({
           title: boardName,
           parent_id: this.activeBoard?.id,
-          description: this.newBoardDescription.trim() || selectedTemplate.description,
-          columns: selectedTemplate?.columns || [],
+          description: this.newBoardDescription.trim(),
+          columns: [],
         })
       }
       this.showBoardModal = false

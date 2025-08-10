@@ -33,8 +33,11 @@ Message = Union[AIMessage, HumanMessage, SystemMessage]
 logger = logging.getLogger(__name__)
 
 GLOBAL_CHAT_INSTRUCTIONS = """
-Follow this instructions when generating your response:
-* When creating file content add the file name after the code block extension like in "```js /file/path/file.js"
+<instructions info="General to follow when generating your response">
+  <instruction>
+    When creating file content add the file name after the code block extension like in "```js /file/path/file.js"
+  </instruction>
+</instructions>
 """
 
 
@@ -90,8 +93,9 @@ class AI:
             try:
                 self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
                 # Apply global instructions
-                messages[-1].content = f"{messages[-1].content}{GLOBAL_CHAT_INSTRUCTIONS}"
-                response = self.llm(messages=messages, config={"callbacks": callbacks})
+                
+                response = self.llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
+                                               + messages, config={"callbacks": callbacks})
             except Exception as ex:
                 logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model} {self.settings}")
                 raise RuntimeError("Failed to process AI request after retries.")

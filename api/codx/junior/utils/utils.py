@@ -46,8 +46,7 @@ def document_to_context(doc):
     analysis = doc.metadata.get('analysis') or ""
     raw_lines = [
                 analysis,
-                f"```{doc.metadata.get('language')}",
-                f"{Path(doc.metadata['source']).absolute()}",
+                f"```{doc.metadata.get('language')} {Path(doc.metadata['source']).absolute()}",
                 doc.page_content,
                 "```"
               ]

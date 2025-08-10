@@ -92,8 +92,12 @@ class ChatEngine:
             max_iterations = self.settings.get_agent_max_iterations()
             iterations_left = max_iterations - iteration
 
-            response_message = Message(role="assistant",
-                                      doc_id=str(uuid.uuid4()))
+            def new_chat_message(role, content = ""):
+                return Message(role=role,
+                                content=content,
+                                doc_id=str(uuid.uuid4()))
+
+            response_message = new_chat_message("assistant")
             def send_message_event(content, done):
                 if not response_message.is_thinking:
                     response_message.is_thinking = True if "<think>" in content else None
@@ -127,9 +131,6 @@ class ChatEngine:
             user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
             query = user_message.content
 
-            if user_message.disable_knowledge:
-                disable_knowledge = user_message.disable_knowledge
-
             query_mentions = self.get_query_mentions(query=query)
             
             def load_profiles():
@@ -159,6 +160,14 @@ class ChatEngine:
             if parent_content:
                 messages.append(HumanMessage(content=parent_content))
 
+
+            # Find projects for this
+            query_mention_projects = [p for p in query_mentions["projects"] + self.get_all_search_projects() if p and hasattr(p, "codx_path")]
+            search_projects = ({
+                    settings.codx_path: settings for settings in query_mention_projects
+                }).values()
+
+
             if chat_profiles:
                 valid_profiles = [profile for profile in chat_profiles if profile]
                 chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in valid_profiles])
@@ -174,6 +183,18 @@ class ChatEngine:
                 if next((p for p in valid_profiles if p.chat_mode == 'task'), None):
                     is_refine = True
 
+            if not search_projects:
+                disable_knowledge = True
+                self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: No search projects found")
+            if disable_knowledge:
+                self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: Disabled by invocation")
+            if not self.settings.use_knowledge:
+                disable_knowledge = True
+                self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: Project settings disabled")
+            if user_message.disable_knowledge:
+                disable_knowledge = True
+                self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: Disabled by user message")
+    
             if is_refine:
                 task_item = "analysis"
           
@@ -221,13 +242,9 @@ class ChatEngine:
                 ai_settings.model = chat_model
             ai = self.get_ai(llm_model=ai_settings.model)
 
-            # Read knowledge
-            search_projects = ({
-                    settings.codx_path:settings for settings in (query_mentions["projects"] +
-                      self.get_all_search_projects())
-                }).values()
             
-            if not disable_knowledge and self.settings.use_knowledge and search_projects:
+            if not disable_knowledge and search_projects:
+                chat.messages.append(new_chat_message("assistant", content=f"Searching in {[p.project_name for p in search_projects]}"))
                 logger.info(f"chat_with_project start project search {search_projects}")
                 try:
                     doc_length = 0
@@ -248,16 +265,10 @@ class ChatEngine:
                 except Exception as ex:
                     self.event_manager.chat_event(chat=chat, message=f"!!Error searching in knowledge {ex}", event_type="error")
                     logger.exception(f"!!Error searching in knowledge {ex}")
-            else:
-                self.event_manager.chat_event(chat=chat, message="! Knowledge search is disabled !")
+                
             if context:
                 messages.append(self.convert_message(
-                    Message(role="user", content=f"""
-                      THIS INFORMATION IS COMING FROM PROJECT'S FILES.
-                      HOPE IT HELPS TO ANSWER USER REQUEST.
-                      KEEP FILE SOURCE WHEN WRITING CODE BLOCKS (EXISTING OR NEWS).
-                      {context}
-                      """)))
+                    new_chat_message(role="user", content=f"""<project_files>{context}</project_files>""")))
 
             if is_refine:
                 existing_document = last_ai_message.content if last_ai_message else "" 
@@ -290,13 +301,15 @@ class ChatEngine:
                     {user_message.content}
                     """
 
-                task_content += f"""
-                Important: Always return the mardown document without any comments before or after, to keep it clean."""
+                task_content += "Important: Always return the mardown document without any comments before or after, to keep it clean."
 
-                refine_message = Message(role="user", content=task_content)
+                refine_message = new_chat_message(role="user", content=task_content)
                 messages.append(self.convert_message(refine_message))
+                refine_message.hide = True
+                chat.messages.append(refine_message)
+
             elif is_agent:
-                refine_message = Message(role="user", content=f"""
+                refine_message = new_chat_message(role="user", content=f"""
                 You are responsible to end this task.
                 Follow instructions and try to solve it with the minimun iterations needed.
                 <task>
@@ -308,7 +321,6 @@ class ChatEngine:
                 </parent_context>
 
                 <user_request>
-                Refine document with this comments:
                 {user_message.content}
                 </user_request>
                 
@@ -316,6 +328,9 @@ class ChatEngine:
                 Return { AGENT_DONE_WORD } when the task is done.
                 """)
                 messages.append(self.convert_message(refine_message))
+                history_agent_instructions = self.convert_message(refine_message)
+                history_agent_instructions.hide = True
+                chat.messages.append(history_agent_instructions)
             else:
                 messages.append(self.convert_message(user_message))
 

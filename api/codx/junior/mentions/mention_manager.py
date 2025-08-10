@@ -107,6 +107,13 @@ class MentionManager:
             return True
         return False
 
+    def check_if_file_has_mentions(self, file_path: str) -> bool:
+        with open(file_path, 'r') as file:
+            content = file.read()
+            if self.extract_mentions(content=content):
+                return True
+        return False
+
     def extract_mentions(self, content: str) -> list[Mention]:
         if self.is_processing_mentions(content=content):
             return []

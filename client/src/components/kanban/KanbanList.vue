@@ -1,5 +1,6 @@
 <script setup>
 import moment from 'moment'
+import KanbanSettings from './KanbanSettings.vue';
 </script>
 
 <template>
@@ -49,27 +50,11 @@ import moment from 'moment'
       </div>
     </div>
     <modal :close="true" @close="editBoard = null" v-if="editBoard">
-      <div>
-        <label class="block mb-2">Name</label>
-        <input v-model="editBoard.title" type="text" class="input input-bordered w-full mb-4" />
-        <label class="block mb-2">Description</label>
-        <textarea v-model="editBoard.description" class="textarea textarea-bordered w-full mb-4"></textarea>
-        <label class="block mb-2">Remote board <i class="fa-solid fa-link"></i> </label>
-        <input v-model="editBoard.remote_url" type="text" class="input input-bordered w-full mb-4" />
-        <div class="flex justify-between">
-          <button @click="saveBoard" class="btn">Save</button>
-          <button @click="deleteBoard" class="btn btn-error">
-            <span v-if="confirmDelete">Confirm delete</span>
-            <span v-else>Delete</span>
-          </button>
-        </div>
-      </div>
-              <div class="mt-2 flex justify-end font-bold text-warning gap-2" v-if="confirmDelete">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          All tasks will be deleted
-          <span @click="confirmDelete = false" class="text-error click underline">cancel</span>
-        </div>
-
+      <KanbanSettings :board="editBoard"
+        @cancel-edit="editBoard = null"
+        @delete="onDeleteBoard"
+        @change="saveBoard"
+      />
     </modal>
   </div>
 </template>
@@ -107,18 +92,13 @@ export default {
       this.$emit('edit', this.editBoard)
       this.editBoard = null
     },
-    deleteBoard() {
-      if (this.confirmDelete) {
-        this.$emit('delete', this.editBoard)
-        this.editBoard = null
-      } else {
-        this.confirmDelete = true
-      }
+    onDeleteBoard() {
+      this.$emit('delete', this.editBoard)
+      this.editBoard = null
     },
     onEditBoard(board) {
       const { title, description } = board
       this.editBoard = { board, title, description }
-      this.confirmDelete = false
     },
     openRemoteBoard(board) {
       window.open(board.remote_url, '_blank')

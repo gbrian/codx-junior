@@ -90,15 +90,16 @@ class OpenAI_AI:
             message = "\n".join([message['content'] for message in openai_messages])
             openai_messages = [{ "role": "user", "content": message }]
         self.log(f"USER REQUEST:\n{openai_messages}")
-        response_stream = self.client.chat.completions.create(
-            **kwargs,
-            messages=openai_messages
-        )
-        callbacks = config.get("callbacks", None)
-        content_parts = []
         if self.settings.get_log_ai():
             self.log("\nReceived AI response, start reading stream\n")
         try:
+            response_stream = self.client.chat.completions.create(
+                **kwargs,
+                messages=openai_messages
+            )
+            callbacks = config.get("callbacks", None)
+            content_parts = []
+
             callback_data = {
               "buffer": [],
               "ts": datetime.now()
@@ -132,7 +133,8 @@ class OpenAI_AI:
             # Last chunks...
             send_callback("", flush=True)  
         except Exception as ex:
-            logger.exception(f"Error reading AI response {ex}")
+            logger.exception(f"Error reading AI response {ex} \n {self.llm_settings}")
+            raise ex
         
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")

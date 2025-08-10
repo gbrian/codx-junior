@@ -108,9 +108,6 @@ class Knowledge:
         with ThreadPoolExecutor(max_workers=1) as executor:
             executor.submit(task, path)
 
-        # Return None immediately to signal fire-and-forget
-        return None
-
     def get_all_documents (self, include=[]):
         return self.get_db().get_all_documents(include=include)
         
