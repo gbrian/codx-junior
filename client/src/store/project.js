@@ -150,7 +150,11 @@ export const getters = getterTree(state, {
         .map(({ file, name, filePath }) => ({ name, 
                         file, 
                         tooltip: `Use file ${filePath}` })),
-    ].map(m => ({ ...m, searchIndex: m.name.toLowerCase() }))
+    ].map(m => ({ 
+      ...m,
+      searchIndex: m.name.toLowerCase(),
+      mention: encodeURIComponent(m.name)
+    }))
   },
   lastAssistantChats: () =>
         $storex.projects.allChats
@@ -200,11 +204,6 @@ export const actions = actionTree(
         return
       }
 
-      state.activeProject = null 
-      state.chats = {}
-      state.kanban = null
-      state.activeChat = null
-
       if (project?.codx_path) {
         state.projectLoading = true
         try {
@@ -216,8 +215,11 @@ export const actions = actionTree(
         } finally {
           state.projectLoading = false
         }
-        $storex.projects.loadProjectKnowledge()
+
         state.activeProject = API.activeProject
+        state.activeChat = null
+
+        $storex.projects.loadProjectKnowledge()
         await $storex.projects.loadProfiles()
         $storex.projects.loadChats()
       }

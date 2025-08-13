@@ -34,7 +34,7 @@ import CheckLists from '../chat/CheckLists.vue'
         </div>
       </div>
       <div class="text-xs overflow-auto"
-        :class="expandDescription ? '' : 'max-h-10'"
+        :class="'max-h-72'"
       >
         {{ task.description }}
       </div>

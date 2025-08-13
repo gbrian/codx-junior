@@ -10,6 +10,7 @@ from functools import reduce
 
 from slugify import slugify
 from pathlib import Path
+
 from pymilvus import MilvusClient, DataType, Function, FunctionType
 
 from langchain.schema.document import Document

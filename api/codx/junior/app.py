@@ -488,6 +488,11 @@ def api_write_global_settings(global_settings: GlobalSettings):
     AIManager().reload_models(global_settings)
     write_global_settings(global_settings=global_settings)
     
+@app.post("/api/run/script")
+def run_script(data: dict, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    std, _ = exec_command(data["script"], cwd=codx_junior_session.settings.project_path)
+    return std
 
 @app.get("/api/logs")
 def api_logs_list():
@@ -499,8 +504,6 @@ def api_logs_list():
    
     
     return codx_logs + containers
-
-
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):

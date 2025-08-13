@@ -5,12 +5,11 @@ import { CodeDiff } from 'v-code-diff'
 </script>
 
 <template>
-  <div class="chat-entry flex gap-1 items-start relative lg:p-2 reltive">
+  <div class="chat-entry flex gap-1 items-start relative reltive">
     <div class="grow overflow-auto">
-      <div class="w-full flex flex-col gap-1 hover:rounded-md p-2 group">
-        <div class="text-xs font-bold flex flex-col click"
-        >
-          <div class="flex justify-start gap-4 items-center" @dblclick.stop="toggleCollapse">
+      <div class="w-full flex flex-col gap-1 hover:rounded-md group">
+        <div class="text-xs font-bold flex flex-col click">
+          <div class="flex justify-start gap-4 items-center p-2" @dblclick.stop="toggleCollapse">
             <div v-for="profile in messageProfiles" :key="profile.name">
               <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
                 <div class="ring-primary ring-offset-base-100 w-6 h-6 rounded-full ring ring-offset-2">
@@ -35,7 +34,7 @@ import { CodeDiff } from 'v-code-diff'
                     <i class="fa-regular fa-file-lines"></i>
                     <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
                   </button>
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')">
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')" v-if="canEditMessage">
                     <i class="fa-solid fa-pencil"></i>
                   </button>
                   <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
@@ -63,10 +62,6 @@ import { CodeDiff } from 'v-code-diff'
               </div>
             </div>
           </div>
-          <div>
-              <div class="text-primary" v-if="message.role === 'user'">{{ message.user || 'You' }}</div>
-              <div class="text-secondary" v-else>{{ messageProfiles[0]?.name || 'codx-junior' }}</div>
-            </div>
         </div>
         <div v-if="message.think">
           <div class="chat chat-start click"
@@ -118,7 +113,7 @@ import { CodeDiff } from 'v-code-diff'
             <span class="loading loading-dots"></span>
           </div>
           <div v-if="images">
-            <div class="carousel gap-2">
+            <div class="carousel gap-2" v-if="images?.length">
               <div class="carousel-item click mt-2" v-for="image in images" :key="image.src" @click="$emit('image', image)" :alt="image.alt" :title="image.alt">
                 <div class="flex flex-col">
                   <div class="bg-contain bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
@@ -161,13 +156,26 @@ export default {
     }
   },
   computed: {
+    isMyMessage() {
+      return this.message.user === this.$user.username
+    },
+    isChannelMessage() {
+      return this.chat.mode === 'channel'
+    },
+    canEditMessage() {
+      return !this.isChannelMessage ||
+        this.isMyMessage ||
+        this.message.role === 'assistant'
+    },
     thinkText () {
       const { full_think, is_thinking, think } = this.message 
       return (full_think || is_thinking) 
         ? think : `${think.slice(0, 50)}...`
     },
     messageProfiles() {
-      return  this.$projects.profiles.filter(p => this.message.profiles?.includes(p.name))
+      let profiles = this.$projects.profiles.filter(p => this.message.profiles?.includes(p.name))
+      const user = this.$project.users.find(({ username }) => username === this.message.user)
+      return [user, ...profiles].filter(u => !!u)
     },
     html() {
       if (!this.showDoc) {

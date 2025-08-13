@@ -108,6 +108,7 @@ def find_all_user_projects(user: CodxUser, with_metrics: bool = False):
             }
 
 def find_all_projects(with_metrics: bool = False):
+    user_security_manager = UserSecurityManager()
     all_projects = {}
     project_path = "/"
     result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -127,6 +128,7 @@ def find_all_projects(with_metrics: bool = False):
             settings = CODXJuniorSettings.from_project_file(project_file_path)
             if is_valid_project(settings): 
                 all_projects[settings.project_id] = settings
+                settings.__dict__["users"] = user_security_manager.get_users_with_project_access(project_id=settings.project_id)
             else:
                 # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
                 pass 

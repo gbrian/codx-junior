@@ -6,82 +6,99 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 h-full">
-    <div class="text-3xl font-medium flex justify-between items-center gap-2">
-      Knowledge
-      <div class="flex-grow">
-        <div class="text-error text-xs" v-if="!settings?.use_knowledge">Knowledge search is disabled!</div>
+  <div class="flex flex-col gap-2 h-full px-4
+  ">
+    <div class="font-medium flex flex-col gap-2">
+      <div class="text-3xl flex justify-between items-center">
+        Knowledge
+
+        <div class="">
+          <div role="tablist" class="tabs tabs-box flex gap-2">
+            <a role="tab" class="tab flex gap-2 text-xl" :class="{ 'tab-active text-warning': selectedTab === 'Search' }"
+              @click="selectedTab = 'Search'">
+              <i class="fa-solid fa-magnifying-glass"></i> Search
+            </a>
+            <a role="tab" class="tab flex gap-2 text-xl" :class="{ 'tab-active text-warning': selectedTab === 'Index' }"
+              @click="selectedTab = 'Index'">
+              <i class="fa-solid fa-file-import"></i> Index
+            </a>
+            <a role="tab" class="tab flex gap-2 text-xl" :class="{ 'tab-active text-warning': selectedTab === 'Wiki' }"
+              @click="selectedTab = 'Wiki'">
+              <i class="fa-solid fa-file"></i> Wiki
+            </a>
+          </div>
+        </div>
+
       </div>
-      <div class="badge flex gap-2">
-        <span class="text-info"><i class="fa-solid fa-file"></i></span>
-        {{ $projects.embeddingsModel }}
+      <div class="card border">
+        <div class="card-body">
+          <div class="text-xl">Settings</div>
+          <div class="flex-grow">
+            <div class="text-error text-xs" v-if="!settings?.use_knowledge">Knowledge search is disabled!</div>
+          </div>
+          <div class="flex gap-2 items-center">
+            <div class="badge flex gap-2">
+              <span class="text-info"><i class="fa-solid fa-file"></i></span>
+              {{ $projects.embeddingsModel }}
+            </div>
+            <button class="btn btn-sm" @click="toggleWatch()">
+              <span class="label-text mr-2">Watch changes</span>
+              <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="$project.watching" />
+            </button>
+            <button class="btn btn-sm"
+              @click="setSettings({ knowledge_enrich_documents: !$project.knowledge_enrich_documents })">
+              <span class="label-text mr-2">Enrich documents</span>
+              <input type="checkbox" class="toggle toggle-sm toggle-primary"
+                :checked="$project.knowledge_enrich_documents" />
+            </button>
+          </div>
+          <div class="stats stats-sm">
+            <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
+              <div class="stat-figure mt-6">
+                <i class="fa-2xl fa-solid fa-file"></i>
+              </div>
+              <div class="stat-title">Pending</div>
+              <div class="stat-value">{{ status?.pending_files?.length }}</div>
+              <div class="stat-desc"></div>
+            </div>
+
+            <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
+              <div class="stat-figure mt-6 text-success">
+                <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
+              </div>
+              <div class="stat-title">Indexed</div>
+              <div class="stat-value">{{ status?.file_count }}</div>
+              <div class="stat-desc"></div>
+            </div>
+
+            <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
+              <div class="stat-figure mt-6 text-warning">
+                <i class="fa-2xl fa-solid fa-file"></i>
+              </div>
+              <div class="stat-title">Ignored</div>
+              <div class="stat-value">{{ ignoredFolders?.length }}</div>
+              <div class="stat-desc"></div>
+            </div>
+
+            <div class="stat">
+              <div class="stat-figure mt-6 text-info">
+                <i class="fa-2xl fa-solid fa-book"></i>
+              </div>
+              <div class="stat-title">Keywords</div>
+              <div class="stat-value">{{ status?.keyword_count }}</div>
+              <div class="stat-desc"></div>
+            </div>
+          </div>
+
+        </div>
       </div>
-      <button class="btn btn-sm" @click="toggleWatch()">
-        <span class="label-text mr-2">Watch changes</span>
-        <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="$project.watching" />
-      </button>
+
     </div>
     <div class="text-xs flex gap-2" v-if="subProjects?.length">
       Linked projects:
       <span class="badge badge-xs badge-warning" v-for="sp in subProjects" :key="sp">
         {{ sp }}
       </span>
-    </div>
-
-          <div class="stats stats-sm">
-        <div :class="['stat click', showIndexFiles === 0 && 'bg-primary/20']" @click="setTab(0)">
-          <div class="stat-figure mt-6">
-            <i class="fa-2xl fa-solid fa-file"></i>
-          </div>
-          <div class="stat-title">Pending</div>
-          <div class="stat-value">{{ status?.pending_files?.length }}</div>
-          <div class="stat-desc"></div>
-        </div>
-
-        <div :class="['stat click', showIndexFiles === 1 && 'bg-primary/20']" @click="setTab(1)">
-          <div class="stat-figure mt-6 text-success">
-            <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
-          </div>
-          <div class="stat-title">Indexed</div>
-          <div class="stat-value">{{ status?.file_count }}</div>
-          <div class="stat-desc"></div>
-        </div>
-
-        <div :class="['stat click', showIndexFiles === 2 && 'bg-primary/20']" @click="setTab(2)">
-          <div class="stat-figure mt-6 text-warning">
-            <i class="fa-2xl fa-solid fa-file"></i>
-          </div>
-          <div class="stat-title">Ignored</div>
-          <div class="stat-value">{{ ignoredFolders?.length }}</div>
-          <div class="stat-desc"></div>
-        </div>
-
-        <div class="stat">
-          <div class="stat-figure mt-6 text-info">
-            <i class="fa-2xl fa-solid fa-book"></i>
-          </div>
-          <div class="stat-title">Keywords</div>
-          <div class="stat-value">{{ status?.keyword_count }}</div>
-          <div class="stat-desc"></div>
-        </div>
-      </div>
-
-
-    <div class="">
-      <div role="tablist" class="tabs tabs-box flex gap-2">
-        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Search' }"
-          @click="selectedTab = 'Search'">
-          <i class="fa-solid fa-magnifying-glass"></i> Search
-        </a>
-        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Index' }"
-          @click="selectedTab = 'Index'">
-          <i class="fa-solid fa-file-import"></i> Index
-        </a>
-        <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Wiki' }"
-          @click="selectedTab = 'Wiki'">
-          <i class="fa-solid fa-file"></i> Wiki
-        </a>
-      </div>
     </div>
 
     <WikiSettingsVue v-if="selectedTab === 'Wiki'" />
@@ -563,6 +580,13 @@ export default {
     async toggleWatch() {
       await this.$service.project.watch(!this.settings.watching)
       this.reloadStatus()
+    },
+    async setSettings(settings) {
+      await API.settings.read()
+      this.$projects.saveSettings({
+        ...API.activeProject,
+        ...settings
+      })
     },
     setTab(ix) {
       this.showIndexFiles = ix

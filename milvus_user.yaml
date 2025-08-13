@@ -1,1 +1,3 @@
 # Extra config to override default milvus.yaml
+rootCoord:
+  maxDatabaseNum: 128 # Maximum number of database

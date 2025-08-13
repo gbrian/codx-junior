@@ -15,6 +15,9 @@ import DiffViewer from './DiffViewer.vue'
         <i class="fa-solid fa-floppy-disk"></i>
       </div>
     </div>
+    <div @click="runCommand" v-if="isCommand">
+      <i class="fa-solid fa-terminal"></i>
+    </div>
     <div class="view-code">
       <VueCodeHighlighter :code="diff" :lang="'diff'" :title="fileName" v-if="showDiff" />
       <VueCodeHighlighter :code="code" :lang="language" :title="fileName" v-else />
@@ -41,6 +44,9 @@ export default {
     },
     fileName() {
       return this.file?.split("/").reverse()[0]
+    },  
+    isCommand() {
+      return this.language === "bash"
     }
   },
   methods: {
@@ -55,6 +61,9 @@ export default {
     },
     saveFile() {
       this.$storex.api.files.write(this.file, this.code)
+    },
+    runCommand() {
+      this.$storex.api.apps.runScript(this.code)
     }
   }
 }

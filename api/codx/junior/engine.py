@@ -18,11 +18,14 @@ from langchain.schema import (
     BaseMessage
 )
 
+from langchain.schema.document import Document
+
 from codx.junior.ai import AI
 from codx.junior.chat.chat_engine import ChatEngine
 from codx.junior.chat_manager import ChatManager
 from codx.junior.context import (
     find_relevant_documents,
+    validate_search_documents,
     AI_CODE_VALIDATE_RESPONSE_PARSER,
     generate_markdown_tree,
     AI_CODE_GENERATOR_PARSER,
@@ -65,6 +68,8 @@ from codx.junior.utils.utils import (
     write_file
 )
 
+from codx.junior.whisper.audio_manager import AudioManager
+
 logger = logging.getLogger(__name__)
 
 class CODXJuniorSession:
@@ -77,6 +82,7 @@ class CODXJuniorSession:
         self.event_manager = EventManager(
                                 codx_path=codx_path,         
                                 channel=channel)
+        self.audio_manager = AudioManager()
 
     def switch_project(self, project_id: str):
         if not project_id or project_id == self.settings.project_id:
@@ -136,7 +142,7 @@ class CODXJuniorSession:
 
     def get_wiki(self):
         from codx.junior.wiki.wiki_manager import WikiManager
-        return pwiwki(settings=self.settings)
+        return WikiManager(settings=self.settings)
 
     def get_browser(self):
         from codx.junior.browser.browser import Browser
@@ -241,32 +247,35 @@ class CODXJuniorSession:
         documents = []
         response = ""
         if knowledge_search.search_type == "fulltext":
-            documents = Knowledge(settings=self.settings).full_text_search(knowledge_search.search_term)
+            documents = [Document(**d['entity']) for d in Knowledge(settings=self.settings).full_text_search(knowledge_search.search_term)]
         
         if knowledge_search.search_type == "embeddings":
-            documents, file_list = find_relevant_documents(query=knowledge_search.search_term,
+            documents, _ = find_relevant_documents(query=knowledge_search.search_term,
                                                     settings=self.settings, 
                                                     ignore_documents=[],
                                                     ai_validate=True)
             
-            chat = Chat(messages=
-                [
-                    Message(
-                        role="user",
-                        content=doc.page_content)
-                    for doc in documents] +  
-                [
+        if knowledge_search.search_type == "source":
+            documents = Knowledge(settings=self.settings).search_in_source(knowledge_search.search_term)
+
+        logger.info(f"validate search res docs {documents[0]}")
+        documents = validate_search_documents(query=knowledge_search.search_term,
+                                              documents=documents,
+                                              settings=self.settings)
+        chat = Chat(messages=
+            [
+                Message(
+                    role="user",
+                    content=doc.page_content)
+                for doc in documents] + [
                     Message(
                         role="user",
                         content=f"Based on previos messages, give me really short answer about: {knowledge_search.search_term}"
-                )
+                    )
             ])
-            chat, _ = await self.chat_with_project(chat=chat, disable_knowledge=True)
-            response = chat.messages[-1].content
+        chat, _ = await self.chat_with_project(chat=chat, disable_knowledge=True)
+        response = chat.messages[-1].content
 
-        if knowledge_search.search_type == "source":
-            documents = Knowledge(settings=self.settings).search_in_source(knowledge_search.search_term)
-        
         return {
             "response": response,
             "documents": documents,
@@ -662,7 +671,14 @@ class CODXJuniorSession:
         file_has_mentions = mention_manager.check_if_file_has_mentions(file_path=file_path)  
         if file_has_mentions:
             return
-        self.log_info(f"Reload knowledge files {file_path}")
+        is_media_file = self.audio_manager.is_valid_media_file(file_path=file_path)
+        self.log_info(f"Reload knowledge file {file_path} - is media: {is_media_file}")
+        
+        if is_media_file:
+            logger.info(f"Converting media file {file_path}")
+            transcript_info = self.audio_manager.transcribe_from_file(file_path=file_path)
+            file_path = transcript_info["transcript_file_path"]
+            
         knowledge.reload_path(path=file_path)
         self.event_manager.send_knowled_event(type="loaded", file_path=file_path)
 

@@ -13,4 +13,20 @@ export class ProjectService extends Service {
     this.project.watching = watching
     this.projects.saveSettings(this.project)
   }
+
+  async openUserChat(user) {
+    const chat = this.projects.allChats.find(({ column, board, name }) => 
+      column === "chats" && board === "chats" && name === user.username
+    ) ||  await this.projects.createNewChat({
+      board: "chats",
+      column: "chats",
+      name: user.username,
+      mode: 'channel'
+    })
+    this.projects.setActiveChat(chat)
+   
+    if ($storex.ui.activeTab !== 'tasks') {
+      this.$storex.ui.setActiveTab('tasks')
+    }
+  }
 }

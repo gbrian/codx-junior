@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 def extract_code_blocks(content):
     in_fence = False
     content_lines = []
-    def is_fence_start(line):
-        return True if re.match('^```[a-zA-Z]*$', line.strip()) else False
+    def is_fence_line(line):
+        return line.strip().startswith("```")
 
     for line in content.split("\n"):
-      if is_fence_start(line=line):
+      if is_fence_line(line=line):
           if in_fence:
               yield "\n".join(content_lines)
               in_fence = False

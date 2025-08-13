@@ -14,6 +14,7 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_code_splitter import KnowledgeCodeSplitter
 from codx.junior.knowledge.knowledge_code_to_dcouments import KnowledgeCodeToDocuments
 
+
 from codx.junior.utils.utils import (
   exec_command,
   calculate_md5

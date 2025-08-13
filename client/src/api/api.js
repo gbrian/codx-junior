@@ -172,6 +172,10 @@ const initializeAPI = ({ project, user } = {}) => {
       async run(appName) {
         const data = await API.get(`/api/apps/run?app=${appName}`);
         return data;
+      },
+      async runScript(script) {
+        const data = await API.post('/api/run/script', { script });
+        return data;
       }
     },
     async project(projectOrId) {

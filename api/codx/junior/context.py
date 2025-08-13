@@ -137,7 +137,8 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
     try:
         messages = ai.chat(messages=messages)
         response = next(extract_json_blocks(messages[-1].content))
-        doc.metadata["relevance_score"] = float(response["score"])
+        score = float(response["score"])
+        doc.metadata["relevance_score"] = score
         doc.metadata["score_analysis"] = response["analysis"]
     except Exception as ex:
         doc.metadata["score_error"] = str(ex)
@@ -171,14 +172,18 @@ def find_relevant_documents(query: str, settings, ignore_documents=[], ai_valida
         # Filter out irrelevant documents based on a relevance score
         relevant_documents = documents
         if ai_validate:
-            relevant_documents = [doc for doc in \
-                                parallel_validate_contexts(query, 
-                                                    documents, 
-                                                    settings) if doc]
+            relevant_documents = validate_search_documents(query, documents, settings)
         file_list = [os.path.join(settings.project_path, str(Path(doc.metadata["source"]).absolute())) for doc in relevant_documents]
         file_list = list(dict.fromkeys(file_list))  # Remove duplicates
         return relevant_documents, file_list
     return [], []
+
+@profile_function
+def validate_search_documents(query, documents, settings):
+    return [doc for doc in \
+        parallel_validate_contexts(query, 
+                            documents, 
+                            settings) if doc]
 
 class DisplayablePath:
     display_filename_prefix_middle = "├── "

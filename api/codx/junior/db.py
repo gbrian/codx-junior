@@ -37,6 +37,7 @@ class Message(BaseModel):
     done: Optional[bool] = Field(default=True, description="Indicates if user is done writing")
     is_thinking: Optional[bool] = Field(default=False)
     disable_knowledge: Optional[bool] = Field(default=False)
+    read_by: List[str] = Field(default=[])
 
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)

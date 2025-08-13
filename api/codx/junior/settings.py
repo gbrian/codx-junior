@@ -122,6 +122,8 @@ class CODXJuniorSettings(BaseModel):
     knowledge_query_subprojects: Optional[bool] = Field(default=True)
     knowledge_file_ignore: Optional[str] = Field(default=".codx")
 
+    knowledge_generate_training_dataset: Optional[bool] = Field(default=False)
+
     save_mentions: Optional[bool] = Field(default=False)
 
     watching: Optional[bool] = Field(default=False)

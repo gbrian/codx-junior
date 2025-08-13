@@ -136,7 +136,7 @@ export const actions = actionTree(
         $storex.ui.addNotification(data)
       }
       if (event === 'codx-junior-online-users') {
-        $storex.users.setOnlineUsers(data)
+        $storex.users.setOnlineUsers(data.users)
       }
     },
     onInfo(_, notification) {

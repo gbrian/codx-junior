@@ -33,13 +33,16 @@ const md = new MarkdownIt({
   linkify: true,
   typographer: true,
   highlight: function (str, lang, file) {
-    if (lang && hljs.getLanguage(lang)) {
-      const render = body =>`<pre>
-        <code class="hljs language-${lang}" data-file="${file}">${body}</code>
-      </pre>`
-      try {
-        return render(hljs.highlight(str, { language: lang, ignoreIllegals: true }).value)
-      } catch (__) {}
+    lang = lang || "txt"
+    const render = body =>`
+    <pre>
+      <code class="hljs language-${lang}" data-file="${file}">${body}</code>
+    </pre>
+    `
+    try {
+      return render(hljs.highlight(str, { language: lang, ignoreIllegals: true }).value)
+    } catch (ex) {
+      console.error("Error rendering markdown", { ex, str, lang, file })
     }
     return render(md.utils.escapeHtml(str))
   }

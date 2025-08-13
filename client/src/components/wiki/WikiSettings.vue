@@ -5,7 +5,6 @@ import moment from 'moment'
 <template>
   <div class="w-full flex flex-col gap-4">
     <div class="card w-full p-4">
-      <h2 class="card-title text-xl font-semibold">Wiki Settings</h2>
       <div class="text-xs text-info">
         Last build: {{ moment(lastBuild).fromNow() }}
       </div>

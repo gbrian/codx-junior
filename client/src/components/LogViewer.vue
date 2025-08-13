@@ -17,6 +17,10 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
           <input type="checkbox" @click="toggleAutoRefresh" :cheked="$storex.logs.autoRefresh" class="checkbox checkbox-xs" />
           <span>Auto-refresh</span>
         </label>
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" @click="follow = !follow" :cheked="follow" class="checkbox checkbox-xs" />
+          <span>Follow</span>
+        </label>
         <div class="grow"></div>
         <div>
           <input class="input input-xs w-10" v-model="tailSize" />
@@ -63,7 +67,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
             v-model="discardPatterns" />
           <label class="input input-xs input-bordered flex items-center gap-2">
             <input type="text" class="grow" placeholder="Search" v-model="filter" @keydown.enter="applyFilter" />
-            <span v-if="filter">{{ $storex.logs.matchCount }}</span>
+            <span v-if="filter">{{ matchCount }}</span>
             <span class="click" @click="clearFilter" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
             <span @click="applyFilter" v-else>
               <i class="fa-solid fa-magnifying-glass"></i>
@@ -75,13 +79,18 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
         </div>
         <div class="grow"></div>
       </header>
-      <div class="grow my-2 flex flex-col gap-2 overflow-auto"
+      <div class="grow my-2 overflow-auto"
         style="height:600px" ref="logView">
-        <div class="" v-for="log in filteredLogs" :key="log"
+        <!--div class="" v-for="log in filteredLogs" :key="log"
           :class="logClasses(log)"
         >
             {{ log }}
-        </div>
+        </div-->
+        <pre class="-mb-3 text-wrap" v-for="log, ix in filteredLogs" :key="`${log}-${ix}`"
+          :class="log.includes('MATCH') && 'text-success'"
+        >
+          {{ log  }}
+        </pre>
         <div class="h-20 text-primary animate-pulse w-full">
           ...
         </div>
@@ -111,6 +120,7 @@ export default {
         "WARNING": "text-warning"
       },
       timeSelection: null,
+      follow: false
     }
   },
   created() {
@@ -127,8 +137,23 @@ export default {
     },
     filteredLogs() {
       const discards = this.discardPatterns?.toLowerCase().split(",")
+      const filters = this.filter?.toLowerCase().split(",")
       return this.$storex.logs.rawLogs?.filter(log => !discards?.length ||
         !discards.find(d => log.toLowerCase().includes(d)))
+        .map(log => !filters ? log : 
+            filters.find(f => log.toLocaleLowerCase().includes(f)) ?
+              `[MATCH] ${log}` : log)
+    },
+    matchCount() {
+      return this.filteredLogs.filter(l => l.includes("[MATCH]")).length
+    }
+  },
+  watch: {
+    filteredLogs() {
+      if (this.follow) {
+        const { logView } = this.$refs
+        requestAnimationFrame(() => logView.scrollTo(0, logView.scrollHeight))
+      }
     }
   },
   methods: {

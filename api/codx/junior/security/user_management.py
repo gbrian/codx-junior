@@ -134,6 +134,22 @@ class UserSecurityManager():
         if save_settings:
             self.save_settings()
 
+    def get_users_with_project_access(self, project_id: str):
+        users_with_access = []
+        for user in self.global_settings.users:
+            add = user.role == 'admin'
+            if not add:
+                for project in user.projects:
+                    if project.project_id == project_id:
+                        add = True
+                        break
+            if add:
+                users_with_access.append({
+                    "username": user.username,
+                    "avatar": user.avatar
+                })
+                        
+        return users_with_access
     def save_settings(self):
         write_global_settings(self.global_settings)
 
@@ -145,3 +161,4 @@ async def get_authenticated_user(request: Request) -> CodxUser:
         user = user_security_manager.login_user(token=token)
     logger.info(f"Authenticating request: {request.url} token {token}: {user} - headers: {request.headers}")
     return user
+

@@ -2,11 +2,12 @@
 import moment from 'moment';
 import Assistant from './codx-junior/Assistant.vue';
 import EventList from '@/components/events/EventList.vue'
+import ChatBar from './user/ChatBar.vue';
+import ProjectIconSelector from './project/ProjectIconSelector.vue';
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
     :class="$ui.showApp && 'click'">
-
     <div class="flex w-full flex-col mt-4 flex">
       <div class="">
         <Assistant :class="$storex.session.connected ? '' : 'grayscale'" />
@@ -17,6 +18,8 @@ import EventList from '@/components/events/EventList.vue'
       </div>
 
       <div class="divider"></div>
+
+      <ProjectIconSelector />
       
       <div :class="['hover:bg-base-100 click relative', 
         !$project ? 'text-slate-400' :
@@ -67,7 +70,9 @@ import EventList from '@/components/events/EventList.vue'
 
     </div>
 
-
+    <div class="divider"></div>
+    
+    <ChatBar />
 
     <div class="grow"></div>
     <div class="divider"></div>

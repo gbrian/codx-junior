@@ -16,7 +16,9 @@ from langchain.schema.document import Document
 from codx.junior.utils.utils import (
   calculate_md5,
   extract_blocks,
-  exec_command
+  exec_command,
+  extract_json_blocks,
+ 
 )
 
 from codx.junior.ai import AI
@@ -146,11 +148,28 @@ class Knowledge:
           doc.metadata["summary"] = messages[-1].content.strip()
         except Exception as ex:
           logger.info(f"Error enriching document {source}: {ex}")
+
+      if self.settings.knowledge_generate_training_dataset:
+        try:
+          summary_prompt=f"""
+          Given this document:
+          <document>
+          { doc.page_content }
+          </document>
+
+          Generate a training dataset for finetuning a model.
+          Return a JSON list with {10} entries. 
+          Each entry having fields:
+           * "user_request": Create a user request using the document content.
+           * "ai_response": Create a response for the generated user_request using the document content.
           
-      # NOT WOIRKING FINE
-      #if self.settings.knowledge_extract_document_tags:
-      #    self.extract_doc_keywords(doc)
-       
+          """
+          messages = self.get_ai().chat(prompt=summary_prompt)
+          training = next(extract_json_blocks(messages[-1].content))
+          doc.metadata["training"] = training 
+        except Exception as ex:
+          logger.info(f"Error creating training dataset {source}: {ex}")
+           
       doc.metadata["indexed"] = 1
       return doc
 

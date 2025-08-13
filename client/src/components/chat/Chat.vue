@@ -30,7 +30,8 @@ import CheckLists from './CheckLists.vue'
               </div>
               <div class="skeleton h-32 w-full"></div>
             </div>
-            <ChatEntry :class="['mb-4 rounded-md py-2 bg-base-100',
+            <ChatEntry :class="['mb-4 rounded-md',
+              isChannel ? '': 'bg-base-100 py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
               message.hide ? 'opacity-60' : '']"
               :chat="theChat"
@@ -411,7 +412,7 @@ export default {
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
         .map(w => w[1])
-      return this.$projects.mentionList.filter(m => mentions.includes(m.name))
+      return this.$projects.mentionList.filter(m => mentions.includes(m.mention))
     },
     showTermSearch() {
       return this.searchTerms?.length
@@ -426,6 +427,9 @@ export default {
     },
     usersList() {
       return [this.$store.state.user, ...this.$store.state.projects.profiles]
+    },
+    isChannel() {
+      return this.theChat.mode === 'channel'
     }
   },
   watch: {
@@ -556,7 +560,9 @@ export default {
         if (this.postMyMessage()) {
           await this.saveChat()
         }
-        await this.sendChatMessage(this.theChat)
+        if (!this.isChannel || this.lastMessage?.profiles.length) {
+          await this.sendChatMessage(this.theChat)
+        }
       }
     },
     getSendMessage() {
@@ -660,7 +666,7 @@ export default {
       const replaceWord = this.getCursorWord()
       const caretIndex = this.getEditorCaretCharOffset()
       const startIndex = caretIndex - replaceWord.length
-      const newText = [text.slice(0, startIndex), '@' + term.name, text.slice(caretIndex)].join('')
+      const newText = [text.slice(0, startIndex), '@' + term.mention, text.slice(caretIndex)].join('')
       this.$refs.editor.innerText = newText
       this.closeTermSearch()
     },

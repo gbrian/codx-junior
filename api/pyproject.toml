@@ -36,7 +36,9 @@ dependencies = [
   'tinydb>=4.8.2',
   'ollama>=0.4.7',
   'pyjwt>=2.10.1',
-  'bcrypt>=4.3.0'
+  'bcrypt>=4.3.0',
+  'faster_whisper>=1.2.0',
+  'ffmpeg>=1.4'
 ]
 
 classifiers = [
