@@ -57,6 +57,18 @@ import ProjectIconSelector from './project/ProjectIconSelector.vue';
 				</a>
 			</div>
 
+      <div :class="['hover:bg-base-100 click relative',
+          !$project ? 'text-slate-400' :
+              ($ui.activeTab === 'file-finder' ? 'bg-base-100 text-primary': ''),]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="File finder"
+          @click="setProjectTab('file-finder')">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-folder"></i>
+          </div>
+				</a>
+			</div>
+
       <div :class="['hover:bg-base-100 click relative', $ui.activeTab === 'home' ? 'bg-base-100 text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip"
           :class="right ? 'tooltip-left' : 'tooltip-right'"

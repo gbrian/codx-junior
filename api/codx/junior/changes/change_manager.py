@@ -51,9 +51,6 @@ class ChangeManager:
             
         tasks = []  # List to hold tasks
 
-        if self.settings.project_name == "der-viewer":
-            logger.info(f"Checking project {self.settings.project_name} - files: {new_files}") 
-        
         def is_valid_file(file_path):
             if self.settings.project_name == "der-viewer":
                 return True
@@ -98,23 +95,12 @@ class ChangeManager:
                 file_path = transcript_info["transcript_file_path"]
             else:
                 return
+        
         self.knowledge.reload_path(path=file_path)
         self.event_manager.send_knowled_event(type="loaded", file_path=file_path)
-
-    @profile_function
-    async def check_file(self, file_path: str, force: bool = False):
-        res = await self.mention_manager.check_file_for_mentions(file_path=file_path)
-        logger.info(f"Check file {file_path} for mentions: {res}")
-        if res == "processing":
-            return
-
-        if CODX_JUNIOR_API_BACKGROUND:
-            self.event_manager.send_event(f"Check file: {file_path}")
-
-            # Reload knowledge
-            if force or self.settings.watching:
-                self.knowledge.reload_path(path=file_path)
-                self.event_manager.send_event(f"Kownledge updated for: {file_path}")
-            if self.settings.project_wiki:
-                self.wiki_manager.build_file(file_path=file_path)
-
+        
+        if self.settings.project_wiki:
+            try:
+                await self.wiki_manager.build_file(file_path=file_path)
+            except Exception as ex:
+                logger.exception(f"Error processing wiki changes for file {file_path}", ex)

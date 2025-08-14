@@ -662,12 +662,9 @@ export default {
       }
     },
     addSerchTerm(term) {
-      let text = this.$refs.editor.innerText
-      const replaceWord = this.getCursorWord()
-      const caretIndex = this.getEditorCaretCharOffset()
-      const startIndex = caretIndex - replaceWord.length
-      const newText = [text.slice(0, startIndex), '@' + term.mention, text.slice(caretIndex)].join('')
-      this.$refs.editor.innerText = newText
+      if (term.file) {
+        this.$emit('add-file', term.file)
+      }
       this.closeTermSearch()
     },
     getEditorCaretCharOffset() {

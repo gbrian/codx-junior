@@ -10,6 +10,9 @@ import router from './router'
 import Markdown from '@/components/Markdown.vue'
 import FloatingVue from 'floating-vue'
 
+import 'vuefinder/dist/style.css'
+import VueFinder from 'vuefinder/dist/vuefinder'
+
 // BUG: error loading module. Keep it here
 import highlightjs from 'highlight.js'
 
@@ -52,6 +55,7 @@ const app = createApp(App)
               .use(store)
               .use(router)
               .use(FloatingVue)
+              .use(VueFinder)
               .component('modal', Modal)
               .component('Markdown', Markdown)
               .mount('#app')

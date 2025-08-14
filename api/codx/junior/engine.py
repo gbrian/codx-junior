@@ -1140,6 +1140,11 @@ class CODXJuniorSession:
         return chat.messages[-1].content
 
     async def write_project_file(self, file_path: str, content: str, process: bool = True):
+        if not file_path.startswith(self.settings.project_path):
+            if file_path[0] == '/':
+                file_path = file_path[1:]
+            file_path = os.path.join(self.settings.project_path, file_path)
+        logger.info(f"write_project_file {file_path}")
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         if process:
             content = await self.process_project_file_before_saving(file_path=file_path, content=content)

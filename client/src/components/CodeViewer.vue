@@ -7,7 +7,7 @@ import DiffViewer from './DiffViewer.vue'
 <template>
   <div class="flex flex-col gap-2">
     <div class="underline click text-link flex gap-2" v-if="fileName">
-      <div @click="$ui.openFile(file)">{{ fileName }}</div>
+      <div @click="$ui.openFile(file)" :title="file">{{ fileName }}</div>
       <div @click="onShowDiff">
         <i class="fa-solid fa-code-compare"></i>
       </div>

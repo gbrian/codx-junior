@@ -1,5 +1,5 @@
 <template>
-  <div class="flex flex-col -space-y-6 hover:-space-y-1">
+  <div class="flex flex-col">
     <div v-for="user in users" :key="user.username" class="avatar tooltip"
       :data-tip="user.username"
       @click="$service.project.openUserChat(user)"

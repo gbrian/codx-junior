@@ -5,9 +5,13 @@ import { CodeDiff } from 'v-code-diff'
 </script>
 
 <template>
-  <div class="chat-entry flex gap-1 items-start relative reltive">
-    <div class="grow overflow-auto">
+  <div class="chat-entry flex gap-1 items-start relative reltive"
+    :class="!message.done && 'border border-dashed border-sky-800 p-1'"
+  >
+    <div class="w-full overflow-y-auto">
       <div class="w-full flex flex-col gap-1 hover:rounded-md group">
+        <progress class="progress w-full" v-if="!message.done"></progress>
+    
         <div class="text-xs font-bold flex flex-col click">
           <div class="flex justify-start gap-4 items-center p-2" @dblclick.stop="toggleCollapse">
             <div v-for="profile in messageProfiles" :key="profile.name">
