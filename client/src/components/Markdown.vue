@@ -34,11 +34,7 @@ const md = new MarkdownIt({
   typographer: true,
   highlight: function (str, lang, file) {
     lang = lang || "txt"
-    const render = body =>`
-    <pre>
-      <code class="hljs language-${lang}" data-file="${file}">${body}</code>
-    </pre>
-    `
+    const render = body =>`<pre><code class="hljs language-${lang}" data-file="${file}">${body}</code></pre>`
     try {
       return render(hljs.highlight(str, { language: lang, ignoreIllegals: true }).value)
     } catch (ex) {

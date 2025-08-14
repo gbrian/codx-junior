@@ -79,17 +79,16 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
             <div class="flex flex-col gap-2">
               <div class="flex gap-1 items-center">
                 <div class="flex gap-2 p-1 items-center -top-1" v-if="toggleChatOptions">
-                  <button class="btn btn-xs" v-if="hiddenCount" @click="showHidden = !showHidden">
-                    <div class="flex items-center gap-2" v-if="!showHidden">
+                  <button class="btn" v-if="hiddenCount" @click="showHidden = !showHidden">
+                    <div class="flex items-center gap-2 tooltip"
+                      data-tip="Archived messages" 
+                      :class="showHidden ? 'text-warning':''">
                       ({{ hiddenCount }}/{{ messageCount }})
-                      <i class="fa-solid fa-eye-slash"></i>
+                      <i class="fa-solid fa-box-archive"></i>
                     </div>
-                    <span class="text-warning" v-else>
-                      <i class="fa-solid fa-eye"></i>
-                    </span>
                   </button>
                   <div class="dropdown dropdown-end">
-                    <div tabindex="0" role="button" class="btn btn-xs m-1">
+                    <div tabindex="0" role="button" class="btn m-1">
                       <ChatIcon :mode="chat.mode" />
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -140,11 +139,11 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
             <div class="text-xs">{{ formattedChatUpdatedDate }}</div>
             <div class="badge badge-sm badge-info flex gap-2" v-for="tag in chat.tags" :key="tag">
               {{ tag }}
-              <button class="btn btn-xs btn-ghost" @click="removeTag(tag)">
+              <button class="btn btn-ghost" @click="removeTag(tag)">
                 x
               </button>
             </div>
-            <button class="btn btn-xs" @click="newTag = ''">
+            <button class="btn" @click="newTag = ''">
               + tag
             </button>
           </div>

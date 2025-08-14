@@ -33,7 +33,7 @@ import CheckLists from './CheckLists.vue'
             <ChatEntry :class="['mb-4 rounded-md',
               isChannel ? '': 'bg-base-100 py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
-              message.hide ? 'opacity-60' : '']"
+              message.hide ? 'opacity-80 border border-dashed p-2 border-warning' : '']"
               :chat="theChat"
               :message="message"
               @edit="onEditMessage(message)"

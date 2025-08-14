@@ -144,12 +144,14 @@ export const getters = getterTree(state, {
         ...$storex.projects.knowledge?.pending_files || []
       ]
         .map(file => ({ file,
-                        name: `file://${file.split('/').reverse()[0]}`,
+                        name: file.split('/').reverse()[0],
                         filePath: file.split('/').reverse().slice(0, 3).reverse().join('/')
                       }))
-        .map(({ file, name, filePath }) => ({ name, 
+        .map(({ file, name, filePath }) => ({ 
+                        name, 
                         file, 
-                        tooltip: `Use file ${filePath}` })),
+                        tooltip: `Use file ${filePath}`
+                      })),
     ].map(m => ({ 
       ...m,
       searchIndex: m.name.toLowerCase(),

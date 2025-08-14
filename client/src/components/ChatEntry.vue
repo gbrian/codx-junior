@@ -19,7 +19,9 @@ import { CodeDiff } from 'v-code-diff'
             </div>
 
             <div class="flex gap-2 grow">
-              [{{ formatDate(message.updated_at) }}] <span v-if="timeTaken">({{ timeTaken }} s.)</span>
+              [{{ formatDate(message.updated_at) }}] 
+              <span v-if="timeTaken">({{ timeTaken }} s.)</span>
+              <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             </div>
             <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end">
               <div class="px-2 flex flex-col">
@@ -49,8 +51,8 @@ import { CodeDiff } from 'v-code-diff'
                       <li class="text-warning">
                         <a @click.stop="$emit('hide')" class="text-left tooltip tooltip-bottom click"
                             :data-tip="message.hide ? 'Click to add message to conversation' : 
-                                              'Click to hide message from the conversation'">
-                          {{ message.hide ? 'Show' : 'Hide' }}
+                                              'Click to archive message from the conversation'">
+                          {{ message.hide ? 'Show' : 'Archive' }}
                         </a>                  
                       </li>
                       <li class="text-error">
@@ -78,7 +80,8 @@ import { CodeDiff } from 'v-code-diff'
             
           </div>                
         </div>
-        <div @copy.stop="onMessageCopy" :class="['max-w-full group border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', message.hide ? 'text-slate-200/20': '']">
+        <div @copy.stop="onMessageCopy" :class="['max-w-full group border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', 
+            message.hide ? 'text-slate-200': '']">
           <pre v-if="srcView">{{ message.content }}</pre>
           <Markdown 
             :text="messageContent"
@@ -124,7 +127,7 @@ import { CodeDiff } from 'v-code-diff'
           </div>
           <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="message.files?.length">
             Linked files:
-            <div v-for="file in message.files" :key="file" :title="file" class="flex gap-2 items-center click">
+            <div v-for="file in allFiles" :key="file" :title="file" class="flex gap-2 items-center click">
               <div class="flex gap-2 click hover:underline" @click="openFile(file)">
                 <div class="click tooltip tooltip-right" data-tip="Attach file" @click.stop="$emit('add-file-to-chat', file)">
                   <i class="fa-solid fa-file-arrow-up"></i>
@@ -225,6 +228,14 @@ export default {
         return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id)
       }
       return this.$project
+    },
+    messageContentProjectFiles() {
+      return this.messageContent.split(" ")
+              .filter(word => word.startsWith(this.$project.project_path))
+    },
+    allFiles() {
+      return [...new Set([...this.message.files, ...this.messageContentProjectFiles])]
+        
     }
   },
   methods: {
