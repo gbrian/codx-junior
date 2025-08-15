@@ -40,7 +40,7 @@ async def find_files(request: Request) -> Dict:
 
     logger.info("Processing file finder request with adapter: %s, path: %s, q: %s", adapter, path, q)
 
-    if q == 'download':
+    if q in ['download', 'preview']:
         file_path = file_manager.get_file_path(path)
         return FileResponse(file_path)
 

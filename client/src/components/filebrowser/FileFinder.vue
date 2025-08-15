@@ -25,9 +25,13 @@ export default {
           return req
         },
         fetchResponseInterceptor: async res => {
+          if (res.headers.get("content-type") !== 'application/json') {
+            return res
+          }
+          
           const body = await res.clone().json()
           console.log("file finder res", res, body)
-          body.files.map(file => ({
+          body.files?.map(file => ({
             ...file,
             url: `/api/files?codx_path=${codx_path}&path=${file.path}`
           }))
@@ -43,6 +47,9 @@ export default {
 }
 </script>
 <style>
+.vuefinder > div {
+  height: 100%;
+}
 .vuefinder__main__relative.vuefinder__main__container {
   background-color: transparent !important;
   max-height: none !important;

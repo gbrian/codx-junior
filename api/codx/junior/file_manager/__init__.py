@@ -78,6 +78,56 @@ class FileManager:
 
         return result
 
+    def get_mime_type(self, file_path: str) -> str:
+        extension_to_mime = {
+            # Image MIME types
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+            ".png": "image/png",
+            ".gif": "image/gif",
+            ".bmp": "image/bmp",
+            ".ico": "image/x-icon",
+            ".tif": "image/tiff",
+            ".tiff": "image/tiff",
+            ".eps": "image/eps",
+            ".raw": "image/raw",
+            ".cr2": "image/x-canon-cr2",
+            ".nef": "image/x-nikon-nef",
+            ".orf": "image/x-olympus-orf",
+            ".sr2": "image/x-sony-sr2",
+            ".ppm": "image/x-portable-pixmap",
+            ".heif": "image/heif",
+
+            # Application MIME types
+            ".zip": "application/zip",
+            ".pdf": "application/pdf",
+            ".profile": "application/x-profile",
+
+            # Video MIME types
+            ".flv": "video/x-flv",
+            ".avi": "video/x-msvideo",
+            ".mp4": "video/mp4",
+            ".3gp": "video/3gpp",
+            ".mov": "video/quicktime",
+            ".webm": "video/webm",
+            ".ogg": "video/ogg",
+            ".qt": "video/quicktime",
+            ".avchd": "video/avchd",
+
+            # Audio MIME types
+            ".flac": "audio/flac",
+            ".mp3": "audio/mpeg",
+            ".wav": "audio/wav",
+            ".wma": "audio/x-ms-wma",
+            ".aac": "audio/aac",
+        }
+
+        # Extract the file extension from the path
+        ext = "." + file_path.split(".")[-1]
+
+        # Get the MIME type from the dictionary, default to "text/plain" if not found
+        return extension_to_mime.get(ext, "text/plain")
+
     def _get_file_info(self, item: Path) -> Dict[str, Any]:
         """
         Get detailed information about a file or directory.
@@ -88,8 +138,9 @@ class FileManager:
         Returns:
             Dict[str, Any]: A dictionary containing information about the file or directory.
         """
+        file_path = str(item)
         file_type = FILE_TYPE_DIR if item.is_dir() else FILE_TYPE_FILE
-        file_name = str(item).replace(self.settings.project_path, '')
+        file_name = file_path.replace(self.settings.project_path, '')
         info = {
             "type": file_type,
             "path": file_name,
@@ -103,7 +154,6 @@ class FileManager:
 
         if file_type == FILE_TYPE_FILE:
             info["file_size"] = item.stat().st_size
-            # For the sake of this example, assuming mime_type cannot be determined here.
-            info["mime_type"] = None
+            info["mime_type"] = self.get_mime_type(item.name)
 
         return info

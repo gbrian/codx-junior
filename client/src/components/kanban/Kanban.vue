@@ -49,12 +49,15 @@ import KanbanList from "./KanbanList.vue"
         <div class="grow"></div>
         <div class="flex gap-2 items-center">
           <div class="grow input input-sm input-bordered flex items-center gap-2">
-            <input type="text" v-model="filter" class="grow" placeholder="Search..." />
-            <span class="cursor-pointer" v-if="filter" @click.stop="filter = ''">
+            <input type="text" :class="{ hidden: !searchVisible }" v-model="filter" class="grow" placeholder="Search..." />
+            <span class="cursor-pointer" v-if="filter" @click.stop="[filter = '', searchVisible = false]">
               <i class="fa-regular fa-circle-xmark"></i>
             </span>
-            <span v-else><i class="fa-solid fa-filter"></i></span>
+            <span v-else><i class="fa-solid fa-filter click" @click="searchVisible = !searchVisible"></i></span>
           </div>
+          <button class="btn btn-sm" @click="showColumnModal = true">
+            <i class="fa-solid fa-table-columns"></i>
+          </button>
           <div class="dropdown dropdown-left">
             <div tabindex="0" class="btn btn-sm mt-1">
               <i class="fa-solid fa-ellipsis-vertical"></i>
@@ -173,9 +176,10 @@ import KanbanList from "./KanbanList.vue"
     <modal v-if="showColumnModal">
       <h2 class="font-bold text-lg">Add/Edit Column</h2>
       <div class="flex gap-1 items-center">
+        <VSwatches v-model="columnColor" class="h-full mt-1" />
         <input type="text" v-model="columnTitle" placeholder="Enter column name"
           class="grow input input-bordered w-full"/>
-        <VSwatches v-model="columnColor" class="h-full mt-1" />
+        
       </div>
       <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
       <div class="modal-action">
@@ -239,7 +243,8 @@ export default {
       confirmDeleteColumn: false,
       showImportModalForColumn: null,
       importOption: 'clipboard',
-      importUrl: ''
+      importUrl: '',
+      searchVisible: false
     }
   },
   created() {
