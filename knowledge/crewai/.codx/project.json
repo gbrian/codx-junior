@@ -13,7 +13,7 @@
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx",
-  "watching": true,
+  "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://yt3.googleusercontent.com/ZjHTUCoM7Hj2VCwrg8FEulFlzJEoRLKf6li0wrVVOzR7N2NJnPLKRK6E-MtopMiX9-0Qb9IBXw=s900-c-k-c0x00ffffff-no-rj",

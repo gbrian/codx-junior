@@ -16,7 +16,7 @@
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx,build,ollama-data,checkpoints,out",
   "save_mentions": false,
-  "watching": true,
+  "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://ollama.com/public/ollama.png",

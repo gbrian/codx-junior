@@ -246,19 +246,13 @@ class CODXJuniorSession:
         
         documents = []
         response = ""
-        if knowledge_search.search_type == "fulltext":
-            documents = [Document(**d['entity']) for d in Knowledge(settings=self.settings).full_text_search(knowledge_search.search_term)]
+        search_type = knowledge_search.search_type
+        documents = Knowledge(settings=self.settings).search(
+            knowledge_search.search_term,
+            search_type=search_type,
+            limit=knowledge_search.document_count
+        )
         
-        if knowledge_search.search_type == "embeddings":
-            documents, _ = find_relevant_documents(query=knowledge_search.search_term,
-                                                    settings=self.settings, 
-                                                    ignore_documents=[],
-                                                    ai_validate=True)
-            
-        if knowledge_search.search_type == "source":
-            documents = Knowledge(settings=self.settings).search_in_source(knowledge_search.search_term)
-
-        logger.info(f"validate search res docs {documents[0]}")
         documents = validate_search_documents(query=knowledge_search.search_term,
                                               documents=documents,
                                               settings=self.settings)
@@ -289,13 +283,16 @@ class CODXJuniorSession:
 
     def delete_knowledge_source(self, sources: [str]):
         Knowledge(settings=self.settings).delete_documents(sources=sources)
-        self.settings.watching = False
-        self.settings.save_project()
-        find_all_projects()
         return {"ok": 1}
 
-    def delete_knowledge(self, index: str):
-        Knowledge(settings=self.settings).reset(index=index)
+    def index_knowledge_source(self, sources: [str]):
+        knowledge = Knowledge(settings=self.settings)
+        for path in sources:
+            knowledge.reload_path(path=path)
+        return {"ok": 1}
+
+    def delete_knowledge(self):
+        Knowledge(settings=self.settings).reset()
         return {"ok": 1}
 
     def get_project_dependencies(self):

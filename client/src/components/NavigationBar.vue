@@ -1,16 +1,16 @@
 <script setup>
 import moment from 'moment';
-import Assistant from './codx-junior/Assistant.vue';
-import EventList from '@/components/events/EventList.vue'
 import ChatBar from './user/ChatBar.vue';
 import ProjectIconSelector from './project/ProjectIconSelector.vue';
+import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
     :class="$ui.showApp && 'click'">
     <div class="flex w-full flex-col mt-4 flex">
       <div class="">
-        <Assistant :class="$storex.session.connected ? '' : 'grayscale'" />
+        <CodxJuniorLogo @click="setProjectTab('wiki')" />
+
         <div class="absolute bottom-0 flex justify-center w-full"
           v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
           <span class="badge badge-xs bg-secondary text-white animate-pulse">thinking</span>
@@ -34,17 +34,6 @@ import ProjectIconSelector from './project/ProjectIconSelector.vue';
 				</a>
 			</div>
 
-      <div :class="['hover:bg-base-100 click relative', 
-            !$project ? 'text-slate-400' :
-              ($ui.activeTab === 'wiki' ? 'bg-base-100 text-primary': '')
-          ]">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Wiki"
-          @click="setProjectTab('wiki')">
-          <i class="fa-solid fa-book"></i>
-				</a>
-			</div>
-      
       <div :class="['hover:bg-base-100 click relative',
           !$project ? 'text-slate-400' :
               ($ui.activeTab === 'profiles' ? 'bg-base-100 text-primary': ''),]">
@@ -125,9 +114,6 @@ import ProjectIconSelector from './project/ProjectIconSelector.vue';
             </span>
           </div>
 				</a>
-        <EventList class="absolute bottom-20 right-2 hidden group-hover:flex" 
-          v-if="$storex.session.events?.length"
-        />
 			</div>
     </div>
 

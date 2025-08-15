@@ -16,7 +16,7 @@
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx,deps_temp_1e239b0e,.png",
   "save_mentions": false,
-  "watching": true,
+  "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://vitepress.dev/vitepress-logo-mini.svg",

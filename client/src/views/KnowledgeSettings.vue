@@ -134,9 +134,8 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
         </div>
         <label class="input input-bordered flex items-center gap-2">
           <select class="select select-xs" v-model="searchType">
-            <option value="embeddings">Embeddings</option>
-            <option value="source">Source</option>
             <option value="fulltext">Full text</option>
+            <option value="raw">Query</option>
           </select>
           <input type="text" class="flex-grow" placeholder="Search in knowledge" @keypress.enter="onKnowledgeSearch"
             v-model="searchTerm" />

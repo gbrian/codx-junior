@@ -58,16 +58,16 @@ async def wiki_engine_rebuild(request: Request):
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.get_wiki().rebuild_wiki()
 
-@router.get("/wiki-engine/categories")
-async def wiki_engine_categories(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.get_wiki().get_categories()
-
 @router.get("/wiki-engine/config")
 async def wiki_engine_config(request: Request):
     codx_junior_session = request.state.codx_junior_session
     wiki_manager = codx_junior_session.get_wiki()
-    return wiki_manager.get_config()
+    categories = wiki_manager.get_categories()
+    config = wiki_manager.get_config()
+    return {
+      "categories": categories,
+      "config": config
+    }
 
 @sio.on("codx-junior-wiki-rebuild")
 @sio_api_endpoint

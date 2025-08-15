@@ -194,18 +194,17 @@ async def api_knowledge_reload(request: Request):
 def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
     codx_junior_session = request.state.codx_junior_session
     logger.info(f"**** API:knowledge_reload_path {knowledge_reload_path}")
-    exec_command(f"touch {knowledge_reload_path.path}")
+    codx_junior_session.index_knowledge_source(sources=[knowledge_reload_path.path])
 
 @app.post("/api/knowledge/delete")
-def api_knowledge_reload_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):
+def api_knowledge_delete_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.delete_knowledge_source(sources=knowledge_delete_sources.sources)
 
 @app.delete("/api/knowledge/delete")
 def api_knowledge_reload_all(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    index = request.query_params.get("index")
-    return codx_junior_session.delete_knowledge(index=index)
+    return codx_junior_session.delete_knowledge()
 
 
 @app.post("/api/knowledge/reload-search")
@@ -505,7 +504,7 @@ def api_logs_list():
     containers = [f"🐋:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
    
     
-    return codx_logs + containers
+    return sorted(codx_logs) + containers
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):

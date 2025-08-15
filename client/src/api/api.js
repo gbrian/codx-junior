@@ -397,6 +397,9 @@ const initializeAPI = ({ project, user } = {}) => {
       },
       build() {
         return API.get('/api/wiki-engine/build')
+      },
+      config() {
+        return API.get('/api/wiki-engine/config')
       }
     },
     engine: {

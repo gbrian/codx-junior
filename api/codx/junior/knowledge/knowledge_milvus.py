@@ -42,7 +42,6 @@ class Knowledge:
         self.knowledge_prompts = KnowledgePrompts(settings=settings)
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
-        self.last_changed_file_paths = []
 
     def get_ai(self):
         if not self.ai:
@@ -87,7 +86,6 @@ class Knowledge:
             if documents:
                 self.index_documents(documents)
 
-            self.last_changed_file_paths = list(dict.fromkeys([d.metadata["source"] for d in documents]))
             self.get_db().build_summary()
             logger.info('Knowledge reloaded')
             self.refresh_last_update()
@@ -104,7 +102,7 @@ class Knowledge:
                     self.index_documents(documents, raiseIfError=True)
                 logger.info(f"reload_path DONE {path} {len(documents)} documents")
             except Exception as e:
-                logger.error(f"Error in reload_path for {path}: {e}")
+                logger.exception(f"Error in reload_path for {path}: {e}")
 
         # Launch the task in a separate thread to ensure fire-and-forget behavior
         with ThreadPoolExecutor(max_workers=1) as executor:
@@ -114,20 +112,15 @@ class Knowledge:
         return self.get_db().get_all_documents(include=include)
         
     def clean_deleted_documents(self):
-        documents = self.get_all_documents()
-        sources = []
-        for doc in documents:
-          source = doc.metadata["source"]
-          if not self.loader.is_valid_file(source):
-            sources.append(source)
-
+        sources = [ source for source in self.get_db().get_all_sources() \
+                      if not self.loader.is_valid_file(source)]
         if sources:
-          logger.info(f'Documents to delete: {sources}')
-          self.get_db().delete_documents(sources=sources)
-          return True
+            logger.info(f'Documents to delete: {sources}')
+            self.get_db().delete_documents(sources=sources)
+            return True
         return False
 
-    def enrich_document (self, doc, metadata):
+    def enrich_document (self, doc, metadata, categories=[]):
       if doc.metadata.get("indexed"):
           raise Exception(f"Doc already indexed {doc.metadata}")
       for k in metadata.keys():
@@ -137,15 +130,24 @@ class Knowledge:
       if self.settings.knowledge_enrich_documents:
         try:
           summary_prompt=f"""
-          Given this document:
+          Analyze this document:
           <document>
           { doc.page_content }
           </document>
+          <categories>
+          { ",".join(categories)}
+          </categories>
 
-          Return a 10 lines summary with all important concepts and keywords.
+          Return a JSON object with this information:
+           * "summary": A 10 lines summarization of the content, focusing on important and business related concept.
+           * "keywords": A array of keywords. Use "-" insteas spaces for keywords.
+           * "category": Choose a category from the list fot this document or return a new one if doesn't fit 
           """
           messages = self.get_ai().chat(prompt=summary_prompt)
-          doc.metadata["summary"] = messages[-1].content.strip()
+          doc.metadata = {
+            **doc.metadata,
+            **next(extract_json_blocks(messages[-1].content))
+          }
         except Exception as ex:
           logger.info(f"Error enriching document {source}: {ex}")
 
@@ -173,36 +175,14 @@ class Knowledge:
       doc.metadata["indexed"] = 1
       return doc
 
-    def extract_doc_keywords(self, doc):
-      keywords = doc.metadata.get("keywords")
-      try:
-        if not keywords:
-            keywords_prompt = f"""
-            Given this document:
-            <document>
-            { doc.page_content }
-            </document>
-
-            Generate only one line with keywords separated by comma.
-            """
-            messages = self.get_ai().chat(prompt=keywords_prompt)
-            response = messages[-1].content.strip()
-            
-            keywords = response.split("\n")[-1]
-            doc.metadata["keywords"] = keywords
-        source = doc.metadata['source']
-        logger.info(f"Extracted keywords from {source}: {keywords}")
-        self.knowledge_keywords.add_keywords(source, keywords)
-      except Exception as ex:
-        logger.exception(f"Error extracting document keywords {doc.metadata}: {ex}")
-
     def parallel_enrich(self, documents, metadata):
       with ThreadPoolExecutor() as executor:
         futures = {
           executor.submit(
             self.enrich_document,
             doc=doc,
-            metadata=metadata): doc for doc in documents
+            metadata=metadata,
+            categories=self.get_categories()): doc for doc in documents
         }
         valid_documents = []
         for future in as_completed(futures):
@@ -210,6 +190,9 @@ class Knowledge:
           if result is not None:
               valid_documents.append(result)
         return valid_documents
+
+    def get_categories(self):
+        return self.get_db().get_all_categoties()
   
     def index_documents (self, documents, raiseIfError=False):
         self.delete_documents(documents)
@@ -226,10 +209,8 @@ class Knowledge:
 
         
         for enriched_doc in enriched_documents:
-            source = enriched_doc.metadata["source"]
+            source = enriched_doc.metadata.get("source")
             try:
-                #if self.settings.knowledge_extract_document_tags:
-                #    self.extract_doc_keywords(enriched_doc)
                 enriched_doc.metadata["index_date"] = index_date
                 enriched_doc.metadata["file_md5"] = all_sources_with_md5[source]
                 # logger.info(f"Indexing document: {enriched_doc}")
@@ -238,35 +219,27 @@ class Knowledge:
                 # logger.info(f"Indexing document DONE: {enriched_doc}")
                 
             except Exception as ex:
-                logger.exception(f"Error indexing document {enriched_doc.metadata['source']}: {ex} at project {self.settings.project_path}")
+                logger.exception(f"Error indexing document {source}: {ex} at project {self.settings.project_path}")
                 if "float data" in str(ex):
                   logger.error(f"{self.settings.project_path}: float data error, trying to reset index")
                   self.reset()
                 elif raiseIfError:
                     raise ex
 
-    def get_last_changed_file_paths (self):
-      return self.last_changed_file_paths
-
     def delete_documents (self, documents=None, sources=None):
         sources = set(sources or [doc.metadata["source"] for doc in documents])
         self.get_db().delete_documents(sources=sources)
-        for source in sources:
-            self.knowledge_keywords.remove_keywords(source)
-
-    def reset(self, index: str):
+    def reset(self):
         logger.info('Reseting retriever')
-        self.get_db().reset(index=index)
+        self.get_db().reset()
 
-    def search(self, query):
-      return self.get_db().search(query=query)
+    def search(self, query, search_type='fulltext', limit=100):
+        if search_type == 'fulltext':
+            return self.get_db().search(query=query)
+        if search_type == 'raw':
+            return self.get_db().raw_search(search_filter=query, limit=limit)
+        raise Exception(f"Invalid search_type: {search_type}")
       
-    def search_in_source(self, query):
-      return self.get_db().search_in_source(query=query)
-
-    def full_text_search(self, query):
-        return self.get_db().full_text_search(query=query)
-
     def doc_from_project_file(self, file_path):
         file_path = f"{self.settings.project_path}/{file_path}"
 
@@ -323,7 +296,10 @@ class Knowledge:
 
     def index_document(self, text, metadata):
         documents = [Document(page_content=text, metadata=metadata)]
-        self.delete_documents(documents)
+        try:
+            self.delete_documents(documents)
+        except:
+            pass
         self.index_documents(documents)
 
     def get_all_sources (self):
@@ -337,10 +313,8 @@ class Knowledge:
         return True if file_path in sources else False
 
     def status (self):
-        documents = self.get_all_documents()
-        doc_count = len(documents)
-        doc_sources = list(dict.fromkeys([doc.metadata["source"] for doc in documents]))
-
+        doc_sources = self.get_db().get_all_sources()
+        
         folders = list(dict.fromkeys([Path(file_path).parent for file_path in doc_sources]))      
         
         file_count = len(doc_sources)
@@ -351,7 +325,6 @@ class Knowledge:
             keyword_count += len(value)
         
         status_info = {
-          "doc_count": doc_count,
           "file_count": file_count,
           "folders": folders,
           "keyword_count": keyword_count,
