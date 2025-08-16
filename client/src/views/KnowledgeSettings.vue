@@ -1,17 +1,15 @@
 <script setup>
 import moment from 'moment'
 import { API } from '../api/api'
-import MarkdownVue from '@/components/Markdown.vue'
 import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
+import DataExplorerVue from '../components/data/DataExplorer.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 h-full px-4
-  ">
+  <div class="flex flex-col gap-2 h-full px-4">
     <div class="font-medium flex flex-col gap-2">
       <div class="text-3xl flex justify-between items-center">
         Knowledge
-
         <div class="">
           <div role="tablist" class="tabs tabs-box flex gap-2">
             <a role="tab" class="tab flex gap-2 text-xl" :class="{ 'tab-active text-warning': selectedTab === 'Search' }"
@@ -26,12 +24,15 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
               @click="selectedTab = 'Wiki'">
               <i class="fa-solid fa-file"></i> Wiki
             </a>
+            <a role="tab" class="tab flex gap-2 text-xl" :class="{ 'tab-active text-warning': selectedTab === 'Data' }"
+              @click="selectedTab = 'Data'">
+              <i class="fa-solid fa-database"></i> Data
+            </a>
           </div>
         </div>
-
       </div>
-      <div class="card border">
-        <div class="card-body">
+      <div class="card">
+        <div class="flex flex-col gap-2">
           <div class="text-xl">Settings</div>
           <div class="flex-grow">
             <div class="text-error text-xs" v-if="!settings?.use_knowledge">Knowledge search is disabled!</div>
@@ -50,6 +51,12 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
               <span class="label-text mr-2">Enrich documents</span>
               <input type="checkbox" class="toggle toggle-sm toggle-primary"
                 :checked="$project.knowledge_enrich_documents" />
+            </button>
+            <button class="btn btn-sm"
+              @click="setSettings({ knowledge_generate_training_dataset: !$project.knowledge_generate_training_dataset })">
+              <span class="label-text mr-2">Training data</span>
+              <input type="checkbox" class="toggle toggle-sm toggle-primary"
+                :checked="$project.knowledge_generate_training_dataset" />
             </button>
           </div>
           <div class="stats stats-sm">
@@ -154,7 +161,7 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
           <div class="grid grid-cols-2 gap-2">
             <div
               class="border p-2 border-info cursor-pointer rounded-md bg-base-300 flex flex-col justify-between gap-2 text-xs"
-              v-for="doc, ix in searchResultsDocuments" :key="ix" @click="showDoc = { ...doc, docSelected: 0 }">
+              v-for="(doc, ix) in searchResultsDocuments" :key="ix" @click="showDoc = { ...doc, docSelected: 0 }">
               <div class="p-1 rounded font-bold flex flex-col gap-2" :title="doc.metadata.source"
                 :class="doc.metadata.relevance_score >= cutoffScore ? 'text-primary' : 'text-error'">
                 <div>{{ doc.metadata.source.split('/').reverse()[0] }}</div>
@@ -210,7 +217,7 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
               </label>
             </div>
             <div class="flex my-2">
-              <div class="badge badge-xs click" v-for="count, extension in extensions" :key="extension"
+              <div class="badge badge-xs click" v-for="(count, extension) in extensions" :key="extension"
                 @click="fileFilter = '.' + extension">
                 {{ extension }} ({{ count }})
               </div>
@@ -239,7 +246,7 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
                 v-if="selectedFileCount && showIndexFiles === 2">
                 <i class="fa-solid fa-plus"></i> Add ({{ selectedFileCount }}) files
               </button>
-              <button class="btn btn-primary btn-sm btn-warning text-white" @click="dropSelectedFiles"
+              <button class="btn btn-primary btn-sm btn-warning text-white" @click="dropSelectedFiles(this.selectedFilePaths)"
                 v-if="selectedFileCount">
                 <i class="fa-solid fa-trash-can"></i> Drop ({{ selectedFileCount }}) files
               </button>
@@ -248,7 +255,7 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
           <div class="text-xl flex gap-2 items-center mt-2">
             <i class="fa-solid fa-hand"></i> Manual folder indexing
           </div>
-          <div class="text-xs">Allows to index new floders or re-index existing ones</div>
+          <div class="text-xs">Allows to index new folders or re-index existing ones</div>
           <label class="input input-bordered flex items-center gap-2">
             <input type="text" class="grow" :placeholder="projectPath" v-model="folderFilter" />
             <span v-if="folderFilter" @click="reloadFolder(folderFilter)">
@@ -278,7 +285,7 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
           </div>
           <div class="grid grid-cols-4 gap-2">
             <span class="badge badge-xs flex gap-2 items-center w-fit rounded-full text-warning-content bg-warning"
-              v-for="folder, ix in ignoredFolders" :key="ix">
+              v-for="(folder, ix) in ignoredFolders" :key="ix">
               {{ folder }}
               <div class="btn btn-xs btn-circle" @click="removeEntriesFromIgnore([folder])">
                 <i class="fa-solid fa-minus"></i>
@@ -298,47 +305,10 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
         </div>
       </div>
     </div>
-    <dialog class="modal modal-bottom sm:modal-middle modal-open" v-if="showDoc">
-      <div class="modal-box flex flex-col gap-2 w-full max-w-full">
-        <div class="font-bold text-wrap">
-          {{ showDoc.metadata.source.split('/').reverse()[0] }}
-        </div>
-        <div class="flex flex-col gap-2 grow h-96 overflow-auto">
-          <div class="flex gap-2 items-center">
-            <button class="btn btn-xs btn-info" @click.stop="showDoc.docSelected--" :disabled="!showDoc.docSelected">
-              <i class="fa-solid fa-backward"></i>
-            </button>
-            Doc: {{ showDoc.docSelected || 0 }} / {{ showDoc.docs.length - 1 }}
-            <button class="btn btn-xs btn-warning" @click.stop="showDoc.docSelected++"
-              :disabled="!((showDoc.docSelected || 0) < (showDoc.docs.length - 1))">
-              <i class="fa-solid fa-forward"></i>
-            </button>
-          </div>
-          <MarkdownVue class="prose"
-            :text="'```json\n' + showDoc.docs[showDoc.docSelected || 0].page_content + '\n```'" />
-        </div>
-        <div class="text-xs">
-          <pre>{{ showDoc.metadata }}</pre>
-        </div>
-        <div>
-          <form class="flex gap-2" method="dialog">
-            <button class="btn btn-info text-white" @click="reIndexFile(showDoc)">
-              Re-index
-            </button>
-            <button class="btn btn-info text-white" @click="extractKeywords(showDoc)">
-              Keywords
-            </button>
-            <button class="btn btn-error text-white" @click="unIndexFile(showDoc)">
-              Drop file
-            </button>
-            <div class="grow"></div>
-            <button class="btn" @click="showDoc = null">
-              Close
-            </button>
-          </form>
-        </div>
-      </div>
-    </dialog>
+
+    <div v-if="selectedTab === 'Data'">
+      <DataExplorerVue @drop="dropSelectedFiles" />
+    </div>
   </div>
 </template>
 
@@ -515,8 +485,8 @@ export default {
       this.selectedFiles = {}
       this.addToIgnore = null
     },
-    async dropSelectedFiles() {
-      await API.knowledge.delete(this.selectedFilePaths)
+    async dropSelectedFiles(selectedFilePaths) {
+      await API.knowledge.delete(selectedFilePaths)
       this.selectedFiles = {}
       await this.reloadStatus()
     },

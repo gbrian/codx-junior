@@ -27,19 +27,6 @@ class ChangeManager:
         self.wiki_manager = WikiManager(settings=settings)
         self.audio_manager = AudioManager()
 
-    def check_project_changes(self):
-        if not self.settings.is_valid_project():
-            return False
-
-        self.knowledge.clean_deleted_documents()
-        new_files = self.knowledge.detect_changes()
-
-        if not new_files:
-            logger.info(f"check_project_changes {self.settings.project_name} no changes")
-            return False
-
-        return True
-
     async def process_project_changes(self):
         if not self.settings.is_valid_project():
             logger.error(f"Checking project error, not valid: {self.settings.project_name}") 
@@ -47,7 +34,8 @@ class ChangeManager:
             return
 
         self.knowledge.clean_deleted_documents()
-        new_files, _ = self.knowledge.detect_changes()
+        current_sources_and_updates = self.knowledge.get_db().get_all_sources()
+        new_files, _ = self.knowledge.detect_changes(current_sources_and_updates)
             
         tasks = []  # List to hold tasks
 

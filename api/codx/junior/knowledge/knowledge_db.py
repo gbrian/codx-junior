@@ -36,6 +36,16 @@ class DBDocument (Document):
     Document.__init__(self, page_content=page_content, metadata=metadata)
     self.db_id = db_id
 
+KNOWLEDGE_FIELDS = {
+    "id":           { "datatype": DataType.INT64, "is_primary": True, "auto_id": True },
+    "metadata":     { "datatype": DataType.JSON, "enable_analyzer": False },
+    "page_content": { "datatype": DataType.VARCHAR, "max_length": 10000, "enable_analyzer": True },
+    "source":       { "datatype": DataType.VARCHAR, "max_length": 200, "enable_analyzer": True },
+    "keywords":     { "datatype": DataType.VARCHAR, "max_length": 5000, "enable_analyzer": True },
+    "category":     { "datatype": DataType.VARCHAR, "max_length": 300, "enable_analyzer": True },
+    "last_update":  { "datatype": DataType.INT32, "enable_analyzer": True },
+}
+
 class KnowledgeDB:
     db: None
     db_path: str
@@ -97,14 +107,12 @@ class KnowledgeDB:
             return
 
         schema = self.db.create_schema()
-        schema.add_field(field_name="id", datatype=DataType.INT64, is_primary=True, auto_id=True)
-        schema.add_field(field_name="metadata", datatype=DataType.JSON, enable_analyzer=False)
-        schema.add_field(field_name="page_content", datatype=DataType.VARCHAR, max_length=10000, enable_analyzer=True)
-        schema.add_field(field_name="source", datatype=DataType.VARCHAR, max_length=200, enable_analyzer=True)
-        schema.add_field(field_name="keywords", datatype=DataType.VARCHAR, max_length=5000, enable_analyzer=True)
-        schema.add_field(field_name="category", datatype=DataType.VARCHAR, max_length=300, enable_analyzer=True)
+        for field_name, settings in KNOWLEDGE_FIELDS.items():
+            schema.add_field(field_name=field_name, **settings)
+        # Add sparse field
         schema.add_field(field_name="sparse", datatype=DataType.SPARSE_FLOAT_VECTOR)
-
+        
+        
         bm25_function = Function(
             name="text_bm25_emb", # Function name
             input_field_names=["page_content"], # Name of the VARCHAR field containing raw page_content data
@@ -171,7 +179,8 @@ class KnowledgeDB:
                   "page_content": page_content,
                   "source": doc.metadata["source"],
                   "keywords": ",".join(doc.metadata.get("keywords",[])),
-                  "category": doc.metadata.get("category",'')
+                  "category": doc.metadata.get("category",''),
+                  "last_update": int(time.time())
                 }
                 data_search.append(search_doc)
 
@@ -180,11 +189,12 @@ class KnowledgeDB:
 
   
         try:
-            logger.info(f"[Full text] Adding {len(data_search)} documents")
             self.db.insert(
                 collection_name=self.index_fulltext_name,
                 data=data_search
             )
+            logger.info(f"[Full text] Adding {len(data_search)} documents")
+            
         except Exception as ex:
             if "float_vector" in str(ex):
                 logger.error(f"Error inserting new documents for project {self.settings.project_name} - index {self.index_fulltext_name} {ex}, trying to restart index")
@@ -198,18 +208,25 @@ class KnowledgeDB:
         logger.info('Removing old documents')
         try:
             logger.info(f"Document ids to delete: {sources}")
+            source_filters = "".join([
+              'source in ["',
+              '","'.join(sources),
+             '"]'
+            ])
             self.db.delete(
                 collection_name=self.index_fulltext_name,
-                filter=f"source in [{','.join(sources)}]"
+                filter=source_filters
             )
         except Exception as ex:
             logger.error("Error deleting sources: %s", sources)
 
 
     def raw_search(self, 
-                      search_filter: str,
-                      output_fields=["id", "page_content", "metadata", "source"],
-                      limit=None):
+                  search_filter: str,
+                  output_fields=None,
+                  limit=None):
+        if not output_fields:
+            output_fields = list(KNOWLEDGE_FIELDS.keys())
         logger.info("raw_search: %s, %s", search_filter, output_fields)
         results = self.db.query(
             collection_name=self.index_fulltext_name,
@@ -250,8 +267,6 @@ class KnowledgeDB:
 
     def db_results_to_documents(self, results):
         documents = []
-        logger.exception("db_results_to_documents: %s", results[0] if results else "NO RESULTS")
-
         try:
             for entry in list(results):
                 _id = entry.get("id", 0)
@@ -260,10 +275,10 @@ class KnowledgeDB:
                 entity["db_distance"] = distance
                 
                 metadata = entity.get("metadata", { })
-                for prop in ["source", "keywords", "category"]:
+                for prop in ["source", "keywords", "category", "last_update"]:
                     value = entry.get(prop)
                     if value:
-                        metadata[prop] = value 
+                        metadata[prop] = value
 
                 documents.append(
                     Document(id=_id,
@@ -275,10 +290,28 @@ class KnowledgeDB:
         
 
     def get_all_sources(self):
-        documents = self.raw_search(search_filter='source != ""', output_fields=["metadata"])
-        return list(set([
-                doc.metadata["source"] for doc in documents 
-            ]))
+        try:
+            documents = self.raw_search(search_filter='source != ""', output_fields=["source", "last_update"])
+            result = {}
+
+            for doc in documents:
+                source = doc.metadata["source"]
+                last_update = doc.metadata["last_update"]
+
+                if source in result:
+                    if result[source].metadata["last_update"] >= last_update:
+                        continue
+
+                result[source] = doc
+
+            return result
+
+        # Log any exceptions encountered during execution.
+        except Exception as ex:
+            logger.error("Error reading project '%s' sources: %s", self.settings.project_name, ex)
+
+        # Fall back to returning an empty list if an error occurs.
+        return {}
 
     def get_all_categoties(self):
         documents = self.raw_search(search_filter='source != ""', output_fields=["category"])

@@ -1,0 +1,43 @@
+{
+  "categories": [
+    {
+      "category": "About codx-junior",
+      "files": [
+        "/README.md",
+        "/file_with_info_about_the_project.md",
+        "/docs/installation.md",
+        "/docs/usage.md",
+        "/CONTRIBUTING.md"
+      ]
+    },
+    {
+      "category": "Installation & Setup",
+      "files": [
+        "/docs/installation.md"
+      ]
+    },
+    {
+      "category": "Usage",
+      "files": [
+        "/docs/usage.md",
+        "/examples/example_script.py"
+      ]
+    },
+    {
+      "category": "Code Examples",
+      "files": [
+        "/examples/example_script.py"
+      ]
+    },
+    {
+      "category": "Documentation",
+      "files": [
+        "/README.md",
+        "/docs/installation.md",
+        "/docs/usage.md",
+        "/CONTRIBUTING.md"
+      ]
+    }
+  ],
+  "last_update": null
+}

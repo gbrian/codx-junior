@@ -445,6 +445,9 @@ class CODXJuniorSession:
         if apply_changes is None:
             apply_changes = True if chat.mode == 'task' else False
 
+        sources = knowledge.get_all_sources()
+        sources_tree = generate_markdown_tree(sources)
+
         request = f"""
         Assist the user on generating file changes for the project "{self.settings.project_name}" based on the comments below.
         Make sure that all proposed changes follow strictly the best practices.
@@ -455,7 +458,7 @@ class CODXJuniorSession:
         ```
         Info about the project:
         - Root path: {self.settings.project_path}
-        - Files tree view: {generate_markdown_tree(knowledge.get_all_sources())}
+        - Files tree view: {sources_tree}
         Use this information for generating file paths and understanding the project's folder structure.
 
         Create a list of find&replace instructions for each change needed:
@@ -593,9 +596,10 @@ class CODXJuniorSession:
     def check_knowledge_status(self):
         knowledge = Knowledge(settings=self.settings)
         status = knowledge.status()
-        pending_files, last_update = knowledge.detect_changes()
+        current_sources_and_updates = self.get_knowledge().get_db().get_all_sources()
+        pending_files, _ = knowledge.detect_changes(current_sources_and_updates=current_sources_and_updates)
         return {
-            "last_update": str(last_update),
+            "current_sources_and_updates": current_sources_and_updates,
             "pending_files": pending_files[0:2000],
             "total_pending_changes": len(pending_files),
             **status
@@ -644,7 +648,8 @@ class CODXJuniorSession:
 
         knowledge = Knowledge(settings=self.settings)
         knowledge.clean_deleted_documents()
-        new_files, _ = knowledge.detect_changes()
+        current_sources_and_updates = self.get_knowledge().get_db().get_all_sources()
+        new_files, _ = knowledge.detect_changes(current_sources_and_updates)
         if not new_files:
             return    
 
@@ -1148,7 +1153,8 @@ class CODXJuniorSession:
         write_file(file_path=file_path, content=content)
 
     def search_files(self, search: str):
-        all_sources = [s for s in self.get_knowledge().get_all_sources().keys() if search in s]
+        sources = self.get_knowledge().get_all_sources()        
+        all_sources = [s for s in sources if search in s]
         base_path = self.settings.project_path
         return [self.parse_file_line(file, base_path) for file in sorted(all_sources)]
 

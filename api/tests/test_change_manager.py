@@ -20,18 +20,7 @@ class TestChangeManager(unittest.TestCase):
         # Create an instance of ChangeManager
         self.change_manager = ChangeManager(settings=self.settings, event_manager=self.event_manager)
 
-    @patch.object(Knowledge, 'clean_deleted_documents')
-    @patch.object(Knowledge, 'detect_changes')
-    def test_check_project_changes_no_new_files(self, mock_detect_changes, mock_clean_deleted_documents):
-        # Arrange
-        mock_detect_changes.return_value = []  # No new files detected
-
-        # Act
-        result = self.change_manager.check_project_changes()
-
-        # Assert
-        self.assertFalse(result)
-
+  
     @patch.object(Knowledge, 'clean_deleted_documents')
     @patch.object(Knowledge, 'detect_changes')
     def test_check_project_changes_with_new_files(self, mock_detect_changes, mock_clean_deleted_documents):

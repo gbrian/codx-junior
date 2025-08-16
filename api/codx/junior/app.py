@@ -25,6 +25,7 @@ from codx.junior.api.users import router as users_router
 from codx.junior.api.wiki import router as wiki_router
 from codx.junior.api.github import router as github_router
 from codx.junior.api.file_finder import router as file_finder_router
+from codx.junior.api.db_router import router as db_router
 
 from codx.junior.security.user_management import get_authenticated_user
 
@@ -122,6 +123,7 @@ app.include_router(users_router, prefix="/api")
 app.include_router(wiki_router, prefix="/api")
 app.include_router(github_router, prefix="/api")
 app.include_router(file_finder_router, prefix="/api")
+app.include_router(db_router, prefix="/api")
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

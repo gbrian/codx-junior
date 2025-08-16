@@ -56,23 +56,18 @@ class Knowledge:
     def refresh_last_update(self):
         self.get_db().refresh_last_update()
 
-    def detect_changes(self, last_update = None):
-      current_sources = self.get_all_sources()
-      if not last_update:
-          last_update = self.get_db().last_update
-      changes = self.loader.list_repository_files(
-                          last_update=last_update if current_sources else None,
-                          current_sources=current_sources,
+    def detect_changes(self, current_sources_and_updates = None):
+        changes = self.loader.list_repository_files(
+                          current_sources=current_sources_and_updates,
                           ignore_paths=self.settings.get_ignore_patterns())
       
-      def is_empty(file_path):
-          return False if os.stat(file_path).st_size else True
-      return [file_path for file_path in changes if not is_empty(file_path)], self.get_db().last_update
+        def is_empty(file_path):
+            return False if os.stat(file_path).st_size else True
+        return [file_path for file_path in changes if not is_empty(file_path)], current_sources_and_updates
 
     def reload(self, full: bool = False):
         if not self.settings.use_knowledge:
             return
-        self.refresh_last_update()
         if full:
             self.reset()
         try:
@@ -97,10 +92,10 @@ class Knowledge:
         # Define the task for reloading the path
         def task(path: str):
             try:
-                documents = self.loader.load(last_update=None, path=path)
+                documents = self.loader.load(path=path)
                 if documents:
                     self.index_documents(documents, raiseIfError=True)
-                logger.info(f"reload_path DONE {path} {len(documents)} documents")
+                    logger.info(f"reload_path DONE {path} {len(documents)} documents")
             except Exception as e:
                 logger.exception(f"Error in reload_path for {path}: {e}")
 
@@ -112,7 +107,7 @@ class Knowledge:
         return self.get_db().get_all_documents(include=include)
         
     def clean_deleted_documents(self):
-        sources = [ source for source in self.get_db().get_all_sources() \
+        sources = [ source for source in self.get_all_sources() \
                       if not self.loader.is_valid_file(source)]
         if sources:
             logger.info(f'Documents to delete: {sources}')
@@ -150,6 +145,7 @@ class Knowledge:
           }
         except Exception as ex:
           logger.info(f"Error enriching document {source}: {ex}")
+          doc.metadata["error"] = doc.metadata.get("error", []) + [ex.message]
 
       if self.settings.knowledge_generate_training_dataset:
         try:
@@ -171,7 +167,7 @@ class Knowledge:
           doc.metadata["training"] = training 
         except Exception as ex:
           logger.info(f"Error creating training dataset {source}: {ex}")
-           
+          doc.metadata["error"] = doc.metadata.get("error", []) + [ex.message]
       doc.metadata["indexed"] = 1
       return doc
 
@@ -229,9 +225,14 @@ class Knowledge:
     def delete_documents (self, documents=None, sources=None):
         sources = set(sources or [doc.metadata["source"] for doc in documents])
         self.get_db().delete_documents(sources=sources)
+    
     def reset(self):
         logger.info('Reseting retriever')
         self.get_db().reset()
+        changes, _ = self.detect_changes()
+        for file in changes:
+            exec_command(f"touch {file}", cwd=self.settings.project_path)
+    
 
     def search(self, query, search_type='fulltext', limit=100):
         if search_type == 'fulltext':
@@ -303,7 +304,8 @@ class Knowledge:
         self.index_documents(documents)
 
     def get_all_sources (self):
-        return self.get_db().get_all_sources()
+        sources = [d.metadata["source"] for d in self.get_db().get_all_sources().values()]
+        return sources
 
     def get_db_info (self):
         return self.get_db().get_db_info()
@@ -313,7 +315,7 @@ class Knowledge:
         return True if file_path in sources else False
 
     def status (self):
-        doc_sources = self.get_db().get_all_sources()
+        doc_sources = self.get_all_sources()
         
         folders = list(dict.fromkeys([Path(file_path).parent for file_path in doc_sources]))      
         

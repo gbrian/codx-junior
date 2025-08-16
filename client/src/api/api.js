@@ -388,6 +388,11 @@ const initializeAPI = ({ project, user } = {}) => {
         return window.location.origin + url;
       }
     },
+    data: {
+      rawQuery({ filter, limit }) {
+        return API.get(`/api//data/query?search_filter=${filter}&limit=${limit}`)
+      }
+    },
     wiki: {
       read(path) {
         return API.get(`/api/wiki?file_path=${path}`);
