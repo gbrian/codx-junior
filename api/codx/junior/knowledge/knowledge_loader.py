@@ -46,6 +46,8 @@ class KnowledgeLoader:
                 return False
 
         last_doc_update = int(os.path.getmtime(file_path))
+        logger.info("File last update check last_update: %s - last_doc_update: %s", last_update, last_doc_update)
+        
         if not last_update or last_doc_update > last_update:
           return True
 
@@ -65,7 +67,7 @@ class KnowledgeLoader:
         if current_sources_and_updates and file in current_sources_and_updates:
             last_update = current_sources_and_updates[file]["metadata"]["last_update"]
             last_update = datetime.fromisoformat(last_update)
-        
+            
         if not self.should_index_doc(file_path=file, last_update=last_update, current_sources=current_sources):
             return False
     

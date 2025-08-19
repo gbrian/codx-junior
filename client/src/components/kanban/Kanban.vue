@@ -65,6 +65,7 @@ import KanbanList from "./KanbanList.vue"
             <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
               <li @click="addNewFile"><a><i class="fa-solid fa-plus"></i> File</a></li>
               <li @click="showColumnModal = true"><a><i class="fa-solid fa-plus"></i> Column</a></li>
+              <li @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> Board</a></li>
               <li @click="showChildrenBoards = !showChildrenBoards"><a><i class="fa-solid fa-eye"></i> Show Boards</a></li>
             </ul>
           </div>
@@ -75,6 +76,7 @@ import KanbanList from "./KanbanList.vue"
           <KanbanList
             class="mb-2"
             :boards="childBoards"
+            :options="{ addNew: false }"
             @select="selectBoard"
             @edit="onEditBoard"
             @new="showNewBoardModal"
@@ -489,13 +491,13 @@ export default {
       await this.$projects.setActiveChat()
       this.buildKanban()
     },
-    async createSubTask({ parent, name, description }) {
+    async createSubTask({ parent, name, description, project_id }) {
       const chat = await this.createNewChat({
         board: parent.board,
         name,
         column: parent.column,
         parent_id: parent.id,
-        project_id: parent.project_id,
+        project_id: project_id || parent.project_id,
         messages: [{ role: "user", content: description }]
       })
       this.$projects.saveChat(chat)
@@ -555,7 +557,7 @@ export default {
         await this.$projects.addBoard({
           title: boardName,
           parent_id: this.activeBoard?.id,
-          description: this.newBoardDescription.trim(),
+          description: this.newBoardDescription?.trim(),
           columns: [],
         })
       }
@@ -582,6 +584,8 @@ export default {
       await this.$projects.saveKanban()
     },
     showNewBoardModal() {
+      this.newBoardName = null
+      this.newBoardDescription = null
       this.showBoardModal = true
     },
     taskMatchesFilter(task) {

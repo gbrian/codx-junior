@@ -1,7 +1,8 @@
 import logging
+import os
 from typing import Dict, Any, Union, List, Optional
 
-from fastapi import APIRouter, Request, Depends, UploadFile
+from fastapi import APIRouter, Request, Depends, UploadFile, Body
 from fastapi.responses import FileResponse
 
 from codx.junior.engine import (
@@ -55,7 +56,7 @@ async def find_files(request: Request) -> Dict:
     return file_response
 
 @router.post("/file-finder")
-async def upload_files(request: Request, file: UploadFile) -> Dict:
+async def upload_files(request: Request, file: UploadFile = None) -> Dict:
     """
     Process file finder requests and return file information based on the request query parameters.
 
@@ -75,6 +76,13 @@ async def upload_files(request: Request, file: UploadFile) -> Dict:
     path = request.query_params.get("path") or "local:///"
     q = request.query_params.get("q")
 
+    if q == 'newfolder':
+        payload = await request.json()
+        name = payload.get("name")
+        path = os.path.join(settings.project_path, name)
+        os.makedirs(path, exist_ok=True)
+        return file_manager.find_files(adapter=adapter, path=path)
+    
     logger.info("Processing file finder request with adapter: %s, path: %s, q: %s", adapter, path, q)
 
     file_path = file.filename if path == '/' else f"{path}/{file.filename}"

@@ -84,7 +84,7 @@ import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
 
     <div class="flex w-full flex-col mt-4 flex">
       <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('browser') ? 'text-primary': '',]">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show display"
           @click.stop="$ui.setShowBrowser(!$ui.appActives.includes('browser'))">
           <div class="flex flex-col gap-4">
             <i class="fa-brands fa-firefox"></i>

@@ -56,9 +56,10 @@ def create_project(project_path: str, user: CodxUser):
     settings.watching = True
     settings.repo_url = repo_url
     settings.save_project()
-    _, stderr = exec_command("git branch")
-    if stderr:
+    if not os.path.isdir(os.path.join(project_path, ".git")):
         exec_command("git init", cwd=project_path)
+    
+    _, stderr = exec_command("git branch")
     new_project = CODXJuniorSettings.from_project_file(f"{project_path}/.codx/project.json")
     if user:
         UserSecurityManager().add_user_to_project(project_id=new_project.project_id, user=user, permissions='admin')

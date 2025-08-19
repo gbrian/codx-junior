@@ -162,7 +162,7 @@ class ChatEngine:
 
 
             # Find projects for this
-            query_mention_projects = [p for p in query_mentions["projects"] + self.get_all_search_projects() if p and hasattr(p, "codx_path")]
+            query_mention_projects = [p for p in query_mentions["projects"] if p and hasattr(p, "codx_path")]
             search_projects = ({
                     settings.codx_path: settings for settings in query_mention_projects
                 }).values()

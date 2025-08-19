@@ -315,4 +315,4 @@ class KnowledgeDB:
 
     def get_all_categoties(self):
         documents = self.raw_search(search_filter='source != ""', output_fields=["category"])
-        return list(set([ doc.metadata["category"] for doc in documents]))
+        return list(set([ doc.metadata.get("category", "Unknown") for doc in documents]))

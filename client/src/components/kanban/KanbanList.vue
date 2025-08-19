@@ -42,6 +42,7 @@ import KanbanSettings from './KanbanSettings.vue';
       <div
         @click="emitNewKanban"
         class="card card-bordered card-dashed bg-base-200 border-slate-600 border-dashed shadow-md p-4 rounded-lg flex items-center justify-center cursor-pointer"
+        v-if="options?.addNew !== false"
       >
         <div class="card-body flex items-center justify-center">
           <i class="fas fa-plus text-gray-600 mr-2"></i>
@@ -49,19 +50,12 @@ import KanbanSettings from './KanbanSettings.vue';
         </div>
       </div>
     </div>
-    <modal :close="true" @close="editBoard = null" v-if="editBoard">
-      <KanbanSettings :board="editBoard"
-        @cancel-edit="editBoard = null"
-        @delete="onDeleteBoard"
-        @change="saveBoard"
-      />
-    </modal>
   </div>
 </template>
 
 <script>
 export default {
-  props: ['boards'],
+  props: ['boards', 'options'],
   data () {
     return {
       editBoard: null,

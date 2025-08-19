@@ -39,7 +39,8 @@ dependencies = [
   'bcrypt>=4.3.0',
   'faster_whisper>=1.2.0',
   'ffmpeg>=1.4',
-  'aiofiles>=24.1.0'
+  'aiofiles>=24.1.0',
+  'docling>=2.45.0',
 ]
 
 classifiers = [

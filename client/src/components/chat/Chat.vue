@@ -95,7 +95,7 @@ import CheckLists from './CheckLists.vue'
           </div>
         </div>
         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
-          <li class="tooltip" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
+          <li class="tooltip text-lg" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
             <a @click="addSerchTerm(term)">
               <div :class="[searchTermSelIx === ix ? 'underline':'']">
                 <span class="text-sky-600 font-bold">@{{ term.name }}</span>
@@ -325,11 +325,13 @@ export default {
       refreshngMentions: null,
       selectedDocuments: null,
       showDocumentSearchModal: false,
-      searchingInKnowledge: false
+      searchingInKnowledge: false,
+      projectContext: null
     }
   },
   created() {
     this.selectedUser = this.$user
+    this.setProjectContext()
   },
   mounted() {
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
@@ -346,13 +348,14 @@ export default {
       return this.theChat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
     lastAIMessage() {
-      const { messages } = this.theChat
-      const aiMsgs = messages.filter(m => !m.hide && m.role === 'assistant')
-      if (aiMsgs.length) {
-        const { diffMessage } = this
-        return { ...aiMsgs[aiMsgs.length - 1], diffMessage }
+      const { activeMessages } = this
+      const lastAiMessages = activeMessages.filter(m => m.role === 'assistant').reverse()
+      if (lastAiMessages.length < 2) {
+        return lastAiMessages[0]
       }
-      return null
+      const [ last, ...previous ] = lastAiMessages  
+      
+      return { ...last, diffMessage: previous[0] }
     },
     lastUserMessage() {
       const { messages } = this.theChat
@@ -373,11 +376,15 @@ export default {
       }
       return null
     },
+    activeMessages() {
+      const { messages } = this.theChat
+      return messages.filter(m => !m.hide)
+    },
     messages() {
-      if (!this.theChat?.messages?.length) {
+      const messages = this.theChat?.messages
+      if (!messages?.length) {
         return []
       }
-      const { messages } = this.theChat
       if (this.isTask) {
         const aiMsg = this.lastAIMessage
         const lastMsg = messages[messages.length - 1]
@@ -388,9 +395,7 @@ export default {
         if (lastMsg && lastMsg?.role !== 'assistant') {
           res.push(lastMsg)
         }
-        if (res.length) {
-          return res
-        }
+        return res
       }
       return messages.filter(message => !message.hide || this.showHidden)
     },
@@ -426,10 +431,14 @@ export default {
       } 
     },
     usersList() {
-      return [this.$store.state.user, ...this.$store.state.projects.profiles]
+      return [this.$store.state.user, ...this.projectContext.profiles]
     },
     isChannel() {
       return this.theChat.mode === 'channel'
+    },
+    chatProject() {
+      return this.$projects.allProjects.find(p => p.project_id === this.theChat.project_id) ||
+                this.$project
     }
   },
   watch: {
@@ -442,9 +451,13 @@ export default {
     },
     theChat() {
       this.initSelectedUserFromChat()
+      this.setProjectContext()
     }
   },
   methods: {
+    async setProjectContext() {
+      this.projectContext = await this.$service.project.loadProjectContext(this.chatProject)
+    },
     initSelectedUserFromChat() {
       const messages = this.theChat.messages.filter(m => !m.hide && m.profiles?.length)
       const lastProfileMessage = messages[messages.length - 1]
@@ -654,7 +667,7 @@ export default {
     },
     async searchKeywords() {
       const searchQuery = this.termSearchQuery?.toLowerCase()
-      this.searchTerms = this.$projects.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
+      this.searchTerms = this.projectContext.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
       this.searchTermSelIx = 0
       if (!this.refreshngMentions) {
         this.refreshngMentions = this.$projects.loadProjectKnowledge()

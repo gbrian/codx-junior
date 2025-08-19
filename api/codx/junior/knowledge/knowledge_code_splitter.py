@@ -12,11 +12,14 @@ from codx.junior.settings import CODXJuniorSettings
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+
 from llama_index.core.node_parser import CodeSplitter
 from codx.junior.knowledge.settings import (
     LANGUAGE_FROM_EXTENSION,
     CODE_PARSER_FROM_EXTENSION
 )
+
+from docling.document_converter import DocumentConverter
 
 from codx.junior.utils.utils import exec_command
 
@@ -58,6 +61,12 @@ class KnowledgeCodeSplitter:
             return self.load_with_language_parser(file_path=file_path, code_parser_language=code_parser_language)
         except Exception as ex:
             #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
+            pass
+          
+        try:
+            return self.load_with_docling(file_path=file_path, code_parser_language=code_parser_language)
+        except Exception as ex:
+            logger.exception(f"[KnowledgeCodeSplitter] load_with_docling load error: {ex} - {file_path}")
             pass
           
         try:
@@ -114,6 +123,26 @@ class KnowledgeCodeSplitter:
                 doc.metadata["loader_type"] = "code"
                 doc.metadata["splitter"] = "LanguageParser"
             return docs
+
+    def load_with_docling(self, file_path, code_parser_language):
+        converter = DocumentConverter()
+        result = converter.convert(file_path)
+        markdown = result.document.export_to_markdown()
+        logger.info("[load_with_docling] done, markdown length: %d", len(markdown))
+        
+        def build_document(page_content):
+            metadata = {
+                "source": file_path,
+                "language": file_path.split(".")[-1] if "." in file_path else "",
+                "code_parser_language": code_parser_language,
+                "parser": "docling",
+                "loader_type": "text",
+                "splitter": "TextSplitter"
+            }    
+            return Document(page_content=page_content, metadata=metadata)
+
+        
+        return [build_document(doc) for doc in self.text_splitter.split_text(markdown)]
 
     def load_as_text(self, file_path):
       docs = TextLoader(file_path).load_and_split(

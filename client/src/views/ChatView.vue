@@ -232,6 +232,14 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
             <h3 class="font-bold text-lg">Create New Subtask</h3>
             <input v-model="subtaskName" type="text" class="input input-bordered" placeholder="Subtask Name" />
             <textarea v-model="subtaskDescription" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
+            <select class="select" v-model="subtaskProject">
+              <option v-for="project in taskProjects" :key="project.project_name"
+                :value="project.project_id"
+              >
+              {{ project.project_name }}
+              </option>
+            </select>
+            
             <div class="flex gap-2 justify-end">
               <button class="btn btn-error" @click="cancelSubtask">Cancel</button>
               <button class="btn btn-primary" @click="createSubtask">Create</button>
@@ -281,11 +289,16 @@ export default {
       showTaskSettings: false,
       subtaskName: '',
       subtaskDescription: '',
+      subtaskProject: null,
       showAddProfile: false,
       createTasksInstructions: '',
       chatProfiles: [],
-      showDescription: false
+      showDescription: false,
+      projectContext: null
     }
+  },
+  created() {
+    this.setProjectContext()
   },
   async mounted () {
     this.toggleChatOptions = !this.$ui.isMobile
@@ -351,9 +364,15 @@ export default {
     },
     chatFiles() {
       return [...this.chat.file_list||[], ...this.parentChat?.file_list||[]]
+    },
+    taskProjects() {
+      return [this.$project, ...this.$projects.childProjects]
     }
   },
   methods: {
+    async setProjectContext() {
+      this.projectContext = await this.$service.project.loadProjectContext(this.$project)
+    },
     async saveChat() {
       this.editName = false
       await this.$projects.saveChat(this.chat)
@@ -440,6 +459,7 @@ export default {
       this.$emit('chats')
     },
     async newSubChat() {
+      this.subtaskProject = this.$project.project_id
       this.showSubtaskModal = true
     },
     createSubtask() {
@@ -447,7 +467,8 @@ export default {
         this.$emit('sub-task', {
           parent: this.chat,
           name: this.subtaskName,
-          description: this.subtaskDescription
+          description: this.subtaskDescription,
+          project_id: this.subtaskProject 
         })
         this.resetSubtaskModal()
       }

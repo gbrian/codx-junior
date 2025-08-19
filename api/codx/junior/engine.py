@@ -598,6 +598,7 @@ class CODXJuniorSession:
         status = knowledge.status()
         current_sources_and_updates = self.get_knowledge().get_db().get_all_sources()
         pending_files, _ = knowledge.detect_changes(current_sources_and_updates=current_sources_and_updates)
+        pending_files = [f for f in pending_files if f not in list(current_sources_and_updates.keys())]
         return {
             "current_sources_and_updates": current_sources_and_updates,
             "pending_files": pending_files[0:2000],

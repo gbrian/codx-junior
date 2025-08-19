@@ -31,7 +31,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
           </div>
         </div>
       </div>
-      <div class="card">
+      <div class="card" v-if="selectedTab == 'Index'">
         <div class="flex flex-col gap-2">
           <div class="text-xl">Settings</div>
           <div class="flex-grow">
@@ -293,7 +293,8 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
             </span>
           </div>
         </div>
-        <div class="pb-2 flex gap-2 mt-4">
+        <div class="pb-2 flex gap-2 mt-4 justify-between">
+          <div></div>
           <button class="btn btn-sm btn-error flex gap-2" @click="deleteKnowledge('')">
             Delete Index ({{ status?.db_info?.embeddings?.row_count }})
             <div v-if="resetKnowledge">

@@ -135,8 +135,10 @@ class Knowledge:
 
           Return a JSON object with this information:
            * "summary": A 10 lines summarization of the content, focusing on important and business related concept.
+           * "wiki": A wiki version of the file with enchanced information and nice formatting to make it easy for users to understand this content. Use examples.For coding files make sure to document all elements: classes, methods, dependencies
            * "keywords": A array of keywords. Use "-" insteas spaces for keywords.
            * "category": Choose a category from the list fot this document or return a new one if doesn't fit 
+           * "content_graph": Create a graph representation of the content using nodes and relations.
           """
           messages = self.get_ai().chat(prompt=summary_prompt)
           doc.metadata = {
