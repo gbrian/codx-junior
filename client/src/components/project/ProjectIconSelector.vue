@@ -1,11 +1,16 @@
 <script setup>
 import ProjectIconSquare from './ProjectIconSquare.vue';
 </script>
+
 <template>
-  <div class="dropdown">
-    <ProjectIconSquare tabindex="0" role="button" :project="$project" v-if="$project" />
+  <div class="dropdown" :class="filter?.length && 'dropdown-open'">
+    <ProjectIconSquare tabindex="0" role="button" :project="$project" 
+    @click="filter = ''"
+    @keydown.stop="handleKeydown"
+    v-if="$project" />
     <div class="spin spin-dots" v-else></div>
     <ul tabindex="0" class="dropdown-content bg-base-100 ml-2 rounded-box z-[150] p-2 max-h-60 overflow-auto shadow-sm">
+      <li><div class="text-xs text-center mb-2" :key="filter">{{ filter }}</div></li>
       <li v-for="project in projects" :key="project.project_id">
         <ProjectIconSquare :project="project" @click="selectProject(project)" />
       </li>
@@ -24,29 +29,44 @@ import ProjectIconSquare from './ProjectIconSquare.vue';
         </a>
       </li>
     </ul>
-  </div>  
+  </div>
 </template>
+
 <script>
 export default {
   data() {
     return {
       showSearch: false,
-      filter: null
-    }
+      filter: ""
+    };
   },
   computed: {
     projects() {
       return this.$projects.allProjects
-                .filter(p => p !== this.$project && (
-                  !this.filter || p.project_name.toLowerCase().includes(this.filter.toLowerCase())
-                ))
+        .filter(p => p !== this.$project && (
+          !this.filter || p.project_name.toLowerCase().includes(this.filter.toLowerCase())
+        ));
     }
   },
   methods: {
+    handleKeydown(event) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        // Handle arrow keys for navigation
+        // This is a placeholder for actual navigation logic
+      } else if (event.key === 'Escape') {
+        this.filter = ""
+      } else if (event.key === 'Backspace') {
+        this.filter = this.filter?.slice(0, this.filter?.length - 1)
+      } else {
+        this.filter += event.key;
+      }
+      console.log("Project icon handleKeydown", event, this.filter)
+    },
     selectProject(project) {
-      this.$projects.setActiveProject(project)
-      this.$el.parentNode.focus()
+      this.filter = ""
+      this.$projects.setActiveProject(project);
+      this.$el.parentNode.focus();
     }
   }
-}
+};
 </script>

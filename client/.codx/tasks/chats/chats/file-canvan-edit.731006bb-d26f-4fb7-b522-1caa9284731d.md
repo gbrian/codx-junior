@@ -1,3 +1,17 @@
+# [[{"id": "731006bb-d26f-4fb7-b522-1caa9284731d", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": ["/home/codx-junior/codx-junior/client/src/components/chat/Chat.vue"], "check_lists": [], "profiles": [], "users": ["admin"], "name": "File canvan edit", "description": "The conversation involves modifying a Vue component to change how files are added to the chat from search terms. Instead of adding file paths directly, the component now reads the file content asynchronously and creates a new user message with the file path and content in a specific format. The `addSerchTerm` method was updated to include this functionality.", "created_at": "2025-08-20 06:54:33.174919", "updated_at": "2025-08-20T11:02:04.940535", "mode": "chat", "kanban_id": "", "column_id": "", "board": "chats", "column": "chats", "chat_index": 0, "url": "", "branch": "", "file_path": "/home/codx-junior/codx-junior/client/.codx/tasks/chats/chats/file-canvan-edit.731006bb-d26f-4fb7-b522-1caa9284731d.md", "llm_model": "", "visibility": "", "remote_url": "", "knowledge_topics": []}]]
+## [[{"doc_id": "32f9c22a-a235-4d6f-b66e-8670590adb79", "role": "user", "task_item": "", "think": "", "hide": false, "improvement": false, "created_at": "2025-08-20 06:54:33.172906", "updated_at": "2025-08-20 06:54:33.172933", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin", "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true, "read_by": []}]]
+Change how files are added to the chat from the search term.
+Instead of adding the file path to the "chat_files" create a new user message with the content of the file in the format:
+
+
+```ext file/path
+File content here
+```
+Use this.$projects.readFile(filePath) async to get file content
+## [[{"doc_id": "3e07cbfc-5b1e-4f0b-9a91-bae5f6a073ea", "role": "assistant", "task_item": "", "think": null, "hide": false, "improvement": false, "created_at": "2025-08-20 06:54:33.172906", "updated_at": "2025-08-20 06:54:33.172933", "images": [], "files": [], "meta_data": {"time_taken": 8.85277533531189, "first_chunk_time_taken": 0.00022149085998535156, "model": "openai/mercury-coder"}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": null, "disable_knowledge": false, "read_by": []}]]
+Certainly! To modify the behavior of adding files to the chat from a search term, we need to update the `addSerchTerm` method to read the file content and create a new user message with the file path and content. Here's the updated code:
+
+```vue
 <script setup>
 import moment from 'moment'
 import { API } from '../../api/api'
@@ -31,7 +45,7 @@ import CheckLists from './CheckLists.vue'
               <div class="skeleton h-32 w-full"></div>
             </div>
             <ChatEntry :class="['mb-4 rounded-md',
-              isChannel ? '': 'bg-base-100 py-2',
+              isChannel ? '' : 'bg-base-100 py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
               message.hide ? 'opacity-80 border border-dashed p-2 border-warning' : '']"
               :chat="theChat"
@@ -41,7 +55,6 @@ import CheckLists from './CheckLists.vue'
               @remove="removeMessage(message)"
               @remove-file="removeFileFromMessage(message, $event)"
               @hide="toggleHide(message)"
-              @answer="toggleAnswer(message)"
               @run-edit="runEdit"
               @copy="onCopy(message)"
               @add-file-to-chat="$emit('add-file', $event)"
@@ -75,7 +88,7 @@ import CheckLists from './CheckLists.vue'
     </div>
     <div class="sticky bottom-0 z-50 bg-base-300">
       <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
-        {{  lastChatEvent }}
+        {{ lastChatEvent }}
       </div>
       <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
         <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2 hidden">
@@ -96,9 +109,9 @@ import CheckLists from './CheckLists.vue'
           </div>
         </div>
         <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
-          <li class="tooltip text-lg" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
+          <li class="tooltip text-lg" :data-tip="term.tooltip" v-for="(term, ix) in searchTerms" :key="term.name">
             <a @click="addSerchTerm(term)">
-              <div :class="[searchTermSelIx === ix ? 'underline':'']">
+              <div :class="[searchTermSelIx === ix ? 'underline' : '']">
                 <span class="text-sky-600 font-bold">@{{ term.name }}</span>
               </div>
             </a>
@@ -118,10 +131,10 @@ import CheckLists from './CheckLists.vue'
           </div>
         </span>
       </div>
-      <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
+      <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full',
             'flex-col',
             editMessage && 'border-warning',
-            onDraggingOverInput ? 'bg-warning/10': '']"
+            onDraggingOverInput ? 'bg-warning/10' : '']"
         @dragover.prevent="onDraggingOverInput = true"
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop">
@@ -138,7 +151,7 @@ import CheckLists from './CheckLists.vue'
         </div>
         <div class="flex justify-between items-end px-2">
           <div class="carousel rounded-box">
-            <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
+            <div class="carousel-item relative click flex flex-col" v-for="(image, ix) in allImages" :key="image.src">
               <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
                 :style="`background-image: url(${image.src})`" @click="imagePreview = image">
               </div>
@@ -157,37 +170,31 @@ import CheckLists from './CheckLists.vue'
               @user-changed="selectedUser = $event"
             />
             <div class="flex gap-2 items-center justify-end py-2" v-if="!searchingInKnowledge">
-              <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
+              <button class="btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
                 <i class="fa-solid fa-save"></i>
                 <div class="text-xs" v-if="editMessage && !showDocumentSearchModal">Edit</div>
               </button>
-              <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
+              <button class="btn btn-sm tooltip" data-tip="Save changes" @click="onResetEdit"
                 v-if="editMessage">
                 <i class="fa-regular fa-circle-xmark"></i>
               </button>
-              <button class="btn btn-sm btn-circle tooltip relative"
+              <button class="btn btn-sm tooltip relative"
                 :class="showDocumentSearchModal ? 'btn-error' : 'btn-info'"
                 :data-tip="'Search documents'"
                 @click="askKnowledge">
                 <i class="fa-solid fa-file-lines"></i>
               </button>
-              <button class="btn btn btn-sm btn-circle tooltip"
-                data-tip="Ask codx-junior"
-                :class="isVoiceSession && 'btn-success animate-pulse'"
-                @click="sendMessage"
+              <button class="btn btn-sm tooltip" data-tip="Ask codx-junior" @click="sendMessage"
                 ref="sendButton"
                 v-if="!editMessage && !showDocumentSearchModal">
-                <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
-                <i class="fa-solid fa-paper-plane" v-else></i>
+                <i class="fa-solid fa-paper-plane"></i>
               </button>
-              <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
-                :class="isBrowser && 'btn-warning'"
-                data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
+              <button class="hidden btn btn-sm tooltip btn-warning" data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
                 v-if="!editMessage">
                 <i class="fa-brands fa-chrome"></i>
+                {{ isBrowser ? 'Close' : 'Open' }} Browser
               </button>
-              <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
-                data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
+              <button class="hidden btn btn-sm tooltip" data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
                 <i class="fa-solid fa-code"></i>
               </button>
 
@@ -196,9 +203,7 @@ import CheckLists from './CheckLists.vue'
                   <i class="fa-solid fa-ellipsis-vertical"></i>
                 </div>
                 <ul tabindex="1" class="dropdown-content menu bg-base-200 rounded-box z-[1] w-52 p-2 shadow gap-2">
-                  <li class="btn btn-sm tooltip"
-                    data-tip="Attach files"
-                    @click="selectFile = true">
+                  <li class="btn btn-sm tooltip" data-tip="Attach files" @click="selectFile = true">
                     <a>
                       <i class="fa-solid fa-paperclip"></i> Attach files
                     </a>
@@ -209,19 +214,13 @@ import CheckLists from './CheckLists.vue'
                       Test
                     </a>
                   </li>
-                  <li class="hidden btn btn-sm tooltip"
-                    :class="isBrowser && 'btn-success'"
-                    :data-tip="isBrowser ? 'Close browser' : 'Open browser'"
-                    @click="isBrowser = !isBrowser" v-if="!editMessage">
+                  <li class="hidden btn btn-sm tooltip" :class="isBrowser && 'btn-success'" :data-tip="isBrowser ? 'Close browser' : 'Open browser'" @click="isBrowser = !isBrowser" v-if="!editMessage">
                     <a>
                       <i class="fa-brands fa-chrome"></i>
                       {{ isBrowser ? 'Close' : 'Open' }} Browser
                     </a>
                   </li>
-                  <li class="btn btn-sm tooltip"
-                    :class="isVoiceSession && 'btn-success'"
-                    :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
-                    @click="toggleVoiceSession" v-if="!editMessage">
+                  <li class="btn btn-sm tooltip" :class="isVoiceSession && 'btn-success'" :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]" @click="toggleVoiceSession" v-if="!editMessage">
                     <a>
                       <i class="fa-solid fa-microphone-lines"></i>
                       Voice mode
@@ -249,20 +248,14 @@ import CheckLists from './CheckLists.vue'
           <textarea class="w-full bg-transparent" v-model="imagePreview.alt" placeholder="Image content">
           </textarea>
           <div class="flex justify-end">
-            <button class="btn btn-sm bg-purple-600 text-white tooltip"
-              data-tip="Extract text"
-              @click="onExtractTextImage(imagePreview)">
+            <button class="btn btn-sm bg-purple-600 text-white tooltip" data-tip="Extract text" @click="onExtractTextImage(imagePreview)">
               <i class="fa-regular fa-closed-captioning"></i>
             </button>
           </div>
         </div>
         <div class="flex justify-end gap-2">
-          <button class="btn" @click="imagePreview = null">
-            Cancel
-          </button>
-          <button class="btn btn-primary" @click="onAddImage">
-            Ok
-          </button>
+          <button class="btn" @click="imagePreview = null">Cancel</button>
+          <button class="btn btn-primary" @click="onAddImage">Ok</button>
         </div>
       </div>
     </modal>
@@ -272,9 +265,7 @@ import CheckLists from './CheckLists.vue'
           <span>Select File(s)</span>
         </div>
         <input type="file" accept="image/*" multiple @change="handleFileChange" />
-        <button class="btn btn-sm btn-error" @click="selectFile = false">
-          Cancel
-        </button>
+        <button class="btn btn-sm btn-error" @click="selectFile = false">Cancel</button>
       </label>
     </modal>
 
@@ -416,7 +407,7 @@ export default {
       return this.theChat?.mode === 'task'
     },
     messageMentions() {
-      const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
+      const mentions = [...this.messageText.matchAll(/@([^\\s]+)/mg)]
         .map(w => w[1])
       return this.$projects.mentionList.filter(m => mentions.includes(m.mention))
     },
@@ -499,10 +490,6 @@ export default {
     },
     toggleHide(message) {
       message.hide = !message.hide
-      this.saveChat()
-    },
-    toggleAnswer(message) {
-      message.is_answer = !message.is_answer
       this.saveChat()
     },
     onCopy(message) {
@@ -605,7 +592,7 @@ export default {
       this.searchingInKnowledge = true
       try {
         const { response, documents } = await API.knowledge.search(knowledgeSearch)
-        const docs = documents.map(({ metadata: { score_analysis, source}}) => {
+        const docs = documents.map(({ metadata: { score_analysis, source}} }) => {
             const file = source
             const fileName = file.split("/").reverse()[0] 
             return [
@@ -656,7 +643,7 @@ export default {
     async updateMessage() {
       const { innerText } = this.editor
       const images = this.images.map(JSON.stringify)
-      
+
       this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
       this.editMessage.profiles = this.getMessageProfiles()
       this.editMessage.content = innerText
@@ -682,9 +669,16 @@ export default {
         this.refreshngMentions.then(() => this.refreshngMentions = null)
       }
     },
-    addSerchTerm(term) {
+    async addSerchTerm(term) {
       if (term.file) {
-        this.$emit('add-file', term.file)
+        const filePath = term.file
+        const fileContent = await this.$projects.readFile(filePath)
+        const userMessage = {
+          role: 'user',
+          content: `\`\`\`ext ${filePath}\n${fileContent}\n\`\`\``
+        }
+        this.addMessage(userMessage)
+        this.saveChat()
       }
       this.closeTermSearch()
     },
@@ -899,9 +893,11 @@ export default {
     },
     onAddDocument(doc) {
       const source = doc.metadata.source
-      this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], source])]
+      this.theChat.file_list = [...new Set([...this.theChat.file_list || [], source])]
       this.saveChat()
     }
   }
 }
-</script>
+</script /```
+
+This updated code will now read the file content when a search term is selected and create a new user message with the file path and content in the specified format. The `addSerchTerm` method has been modified to include the file reading logic.

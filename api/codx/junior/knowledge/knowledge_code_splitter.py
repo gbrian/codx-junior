@@ -1,4 +1,5 @@
 import logging
+import os
 
 from langchain.schema.document import Document
 from langchain.text_splitter import Language
@@ -63,12 +64,13 @@ class KnowledgeCodeSplitter:
             #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
             pass
           
-        try:
-            return self.load_with_docling(file_path=file_path, code_parser_language=code_parser_language)
-        except Exception as ex:
-            logger.exception(f"[KnowledgeCodeSplitter] load_with_docling load error: {ex} - {file_path}")
-            pass
-          
+        if not file_path.endswith(".md"):
+            try:
+                return self.load_with_docling(file_path=file_path, code_parser_language=code_parser_language)
+            except Exception as ex:
+                logger.exception(f"[KnowledgeCodeSplitter] load_with_docling load error: {ex} - {file_path}")
+                pass
+              
         try:
             return self.load_as_text(file_path=file_path)
         except Exception as ex:
@@ -125,25 +127,19 @@ class KnowledgeCodeSplitter:
             return docs
 
     def load_with_docling(self, file_path, code_parser_language):
-        converter = DocumentConverter()
-        result = converter.convert(file_path)
-        markdown = result.document.export_to_markdown()
-        logger.info("[load_with_docling] done, markdown length: %d", len(markdown))
+        markdown_path = file_path + ".md"
+        if os.path.getmtime(markdown_path) > os.path.getmtime(file_path):
+            logger.info("load_with_docling SKIP '%s' is newer than '%s'", markdown_path, file_path)
+        else:
+            converter = DocumentConverter()
+            result = converter.convert(file_path)
+            markdown = result.document.export_to_markdown()
+            with open(markdown_path, 'w') as file:
+                file.write(markdown)
+            logger.info("[load_with_docling] done, markdown length: %d", len(markdown))
         
-        def build_document(page_content):
-            metadata = {
-                "source": file_path,
-                "language": file_path.split(".")[-1] if "." in file_path else "",
-                "code_parser_language": code_parser_language,
-                "parser": "docling",
-                "loader_type": "text",
-                "splitter": "TextSplitter"
-            }    
-            return Document(page_content=page_content, metadata=metadata)
-
+        raise Exception("Let markdown take it!")
         
-        return [build_document(doc) for doc in self.text_splitter.split_text(markdown)]
-
     def load_as_text(self, file_path):
       docs = TextLoader(file_path).load_and_split(
                     text_splitter=self.text_splitter)

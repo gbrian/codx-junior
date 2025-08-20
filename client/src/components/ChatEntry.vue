@@ -6,7 +6,10 @@ import { CodeDiff } from 'v-code-diff'
 
 <template>
   <div class="chat-entry flex gap-1 items-start relative reltive"
-    :class="!message.done && 'border border-dashed border-sky-800 p-1'"
+    :class="[
+      !message.done && 'border border-dashed border-sky-800 p-1',
+      message.is_answer && 'border border-dashed p-2 bg-success/10 border-success'
+    ]"
   >
     <div class="w-full overflow-y-auto">
       <div class="w-full flex flex-col gap-1 hover:rounded-md group">
@@ -24,12 +27,18 @@ import { CodeDiff } from 'v-code-diff'
 
             <div class="flex gap-2 grow">
               [{{ formatDate(message.updated_at) }}] 
+              <div class="badge badge-sm badge-success" v-if="message.is_answer">
+                <i class="fa-solid fa-check-double"></i> Answer 
+              </div>
               <span v-if="timeTaken">({{ timeTaken }} s.)</span>
               <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             </div>
             <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end">
               <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
+                  <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer')">
+                    <i class="fa-solid fa-check-double"></i>
+                  </button>      
                   <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
                     <i class="fa-solid fa-copy"></i>
                   </button>      

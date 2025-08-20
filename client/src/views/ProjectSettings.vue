@@ -241,6 +241,9 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
       </button>
     </div>
   </div>
+  <div v-else>
+  No settings found for {{ $project }}
+  </div>
 </template>
 
 <script>
@@ -268,8 +271,8 @@ export default {
     }
   },
   methods: {
-    async reloadSettings() {
-      this.settings = { ...this.$projects.activeProject }
+    reloadSettings() {
+      this.settings = { ...this.$project }
     },
     async saveSettings() {
       await this.$projects.saveSettings(this.settings)

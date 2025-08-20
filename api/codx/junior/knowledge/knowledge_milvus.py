@@ -233,16 +233,12 @@ class Knowledge:
         self.get_db().reset()
         changes, _ = self.detect_changes()
         for file in changes:
-            exec_command(f"touch {file}", cwd=self.settings.project_path)
+            exec_command(f'touch "{file}"', cwd=self.settings.project_path)
     
 
     def search(self, query, search_type='fulltext', limit=100):
-        if search_type == 'fulltext':
-            return self.get_db().search(query=query)
-        if search_type == 'raw':
-            return self.get_db().raw_search(search_filter=query, limit=limit)
-        raise Exception(f"Invalid search_type: {search_type}")
-      
+        return self.get_db().search(query=query)
+
     def doc_from_project_file(self, file_path):
         file_path = f"{self.settings.project_path}/{file_path}"
 

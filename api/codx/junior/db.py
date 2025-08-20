@@ -25,6 +25,7 @@ class Message(BaseModel):
     content: str = Field(default='')
     think: Optional[str] = Field(default='')
     hide: bool = Field(default=False)
+    is_answer: bool = Field(default=False)
     improvement: bool = Field(default=False)
     created_at: str = Field(default=str(datetime.now()))
     updated_at: str = Field(default=str(datetime.now()))
