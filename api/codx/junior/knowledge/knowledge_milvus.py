@@ -26,6 +26,7 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
 from codx.junior.knowledge.knowledge_prompts import KnowledgePrompts
 from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
+from codx.junior.wiki.wiki_manager import WikiManager
 
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class Knowledge:
         self.knowledge_prompts = KnowledgePrompts(settings=settings)
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
+        self.wiki_manager = WikiManager(settings=settings)
 
     def get_ai(self):
         if not self.ai:
@@ -135,7 +137,6 @@ class Knowledge:
 
           Return a JSON object with this information:
            * "summary": A 10 lines summarization of the content, focusing on important and business related concept.
-           * "wiki": A wiki version of the file with enchanced information and nice formatting to make it easy for users to understand this content. Use examples.For coding files make sure to document all elements: classes, methods, dependencies
            * "keywords": A array of keywords. Use "-" insteas spaces for keywords.
            * "category": Choose a category from the list fot this document or return a new one if doesn't fit 
            * "content_graph": Create a graph representation of the content using nodes and relations.
@@ -193,8 +194,6 @@ class Knowledge:
         return self.get_db().get_all_categoties()
   
     def index_documents (self, documents, raiseIfError=False):
-        self.delete_documents(documents)
-        # logger.info(f"Indexing documents. {documents}")
         
         index_date = datetime.now().strftime("%m/%d/%YT%H:%M:%S")
         all_sources = list(set([doc.metadata["source"] for doc in documents]))
@@ -205,16 +204,19 @@ class Knowledge:
         }
         enriched_documents = self.parallel_enrich(documents=documents, metadata=metadata)
 
+        all_documents = enriched_documents
+        self.delete_documents(all_documents)
         
-        for enriched_doc in enriched_documents:
-            source = enriched_doc.metadata.get("source")
+        for doc in all_documents:
+            source = doc.metadata.get("source")
+            logger.info("Indexing document: %s", source)
             try:
-                enriched_doc.metadata["index_date"] = index_date
-                enriched_doc.metadata["file_md5"] = all_sources_with_md5[source]
-                # logger.info(f"Indexing document: {enriched_doc}")
+                doc.metadata["index_date"] = index_date
+                doc.metadata["file_md5"] = all_sources_with_md5.get(source, '')
+                # logger.info(f"Indexing document: {doc}")
                 
-                self.get_db().index_documents(documents=[enriched_doc])
-                # logger.info(f"Indexing document DONE: {enriched_doc}")
+                self.get_db().index_documents(documents=[doc])
+                # logger.info(f"Indexing document DONE: {doc}")
                 
             except Exception as ex:
                 logger.exception(f"Error indexing document {source}: {ex} at project {self.settings.project_path}")

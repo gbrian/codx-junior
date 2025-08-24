@@ -75,7 +75,7 @@ export default {
   },
   computed: {
     zoom() {
-      return this.$ui.showApp && this.showCodxJunior ? 1.3 : 1
+      return this.$ui.showApp && this.showCodxJunior ? 1.2 : 1
     },
     isHorizontal() {
       return this.$ui.appDivided === 'horizontal'

@@ -39,6 +39,7 @@ from codx.junior.db import (
 from codx.junior.events.event_manager import EventManager
 from codx.junior.globals import (
     MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,
+    MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS,
     CODX_JUNIOR_API_BACKGROUND,
     APPS,
     APPS_COMMANDS,
@@ -643,6 +644,30 @@ class CODXJuniorSession:
 
         logger.info(f"Patch applied and saved to {file_path}")
 
+    async def process_project_mentions(self):
+        if not self.settings.is_valid_project():
+            return
+
+        knowledge = Knowledge(settings=self.settings)
+        knowledge.clean_deleted_documents()
+        current_sources_and_updates = self.get_knowledge().get_db().get_all_sources()
+        new_files, _ = knowledge.detect_changes(current_sources_and_updates)
+        if not new_files:
+            return    
+
+        def changed_file():
+            for file_path in new_files:
+                if (int(time.time()) - int(os.stat(file_path).st_mtime) < MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS):
+                    return file_path
+            return None
+
+        file_path = changed_file() # one at a time by modified time
+        if not file_path:
+            return
+
+        mention_manager = self.get_mention_manager()
+        await mention_manager.check_file_for_mentions(file_path=file_path)
+
     async def process_project_changes(self):
         if not self.settings.is_valid_project():
             return
@@ -665,10 +690,9 @@ class CODXJuniorSession:
             return
 
         mention_manager = self.get_mention_manager()
-        if not CODX_JUNIOR_API_BACKGROUND:
-            return await self.get_mention_manager().check_file_for_mentions(file_path=file_path)
-
-        if not self.settings.watching:
+        # Don't index files with mentions
+        if not self.settings.watching or \
+            self.get_mention_manager().check_if_file_has_mentions(file_path=file_path):
             return
 
         file_has_mentions = mention_manager.check_if_file_has_mentions(file_path=file_path)  
@@ -1152,6 +1176,7 @@ class CODXJuniorSession:
         if process:
             content = await self.process_project_file_before_saving(file_path=file_path, content=content)
         write_file(file_path=file_path, content=content)
+        return { "file_path": file_path }
 
     def search_files(self, search: str):
         sources = self.get_knowledge().get_all_sources()        

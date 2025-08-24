@@ -321,8 +321,10 @@ class MentionManager:
         logger.info(f"Mentions done file changes {file_path}")
 
         self.event_manager.send_notification(text=f"codx mentions done for {file_path.split('/')[-1]}")
-
-        return changes_chat.messages[-1].content
+        response = changes_chat.messages[-1].content.strip()
+        if response.startswith("<document>") and response.endsswith("</document>"):
+            response = response[9:-10]
+        return response
 
     async def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False, callback=None):
         mentions = None

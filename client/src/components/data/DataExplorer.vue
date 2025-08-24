@@ -3,7 +3,13 @@ import DataRow from './DataRow.vue';
 </script>
 <template>
   <div class="w-full h-full flex gap-2 flex-col">
-    <div>Data Explorer</div>
+    <div class="flex justify-between">
+      <div>Data Explorer</div>
+      <div class="flex gap-2">
+        <div class="badge badge-success">Results: {{ results?.length }}</div>
+        <div class="badge badge-info">Indexed docs: {{ indexDocCount }}</div>
+      </div>
+    </div>
     <div class="query-toolbar flex justify-between items-center gap-4">
       <input v-model="filter" placeholder="Filter" class="grow input input-bordered" 
         @keydown.enter="search"
@@ -18,10 +24,8 @@ import DataRow from './DataRow.vue';
         <thead>
           <tr class="font-bold">
             <th>Source</th>
-            <th>Language</th>
-            <th>Splitter</th>
-            <th>Index</th>
-            <th>Total Docs</th>
+            <th>Category</th>
+            <th>Keywords</th>
             <th>Length</th>
             <th>Last Update</th>
             <th>Training</th>
@@ -47,15 +51,19 @@ import DataRow from './DataRow.vue';
 
 <script>
 export default {
+  props: ['status'],
   data() {
     return {
       filter: "source != ''",
-      limit: 3,
+      limit: 10,
       page: 1,
       results: []
     }
   },
   computed: {
+    indexDocCount() {
+      return this.status?.db_info.embeddings.row_count
+    },
     itemsSelected() {
       return this.results.filter(i => i.selected)
     }

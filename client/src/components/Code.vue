@@ -31,7 +31,13 @@ import CodeViewer from './CodeViewer.vue'
       :header="false"
       v-if="showCode"
     ></CodeEditor -->
-    <CodeViewer :code="codeText" :language="language" :file="file" v-if="showCode" /> 
+    <CodeViewer :code="codeText" 
+      @reload-file="$emit('reload-file', $event)"
+      @open-file="$emit('open-file', $event)"
+      @save-file="$emit('save-file', $event)" 
+      :language="language" 
+      :file="file" 
+      v-if="showCode" /> 
     <MarkdownViewer :text="codeText" v-if="showMarkdown" />
     <div class="" v-html="codeText" v-if="htmlPreview"></div>
   </div>
@@ -64,6 +70,7 @@ export default {
       this.code.parentNode.after(this.$el)
       this.code.parentNode.remove()
       // this.$el.querySelector('.header.border')?.append(this.$refs.toolbar)
+      this.$bubble('code-file-shown', { somedata: true })
     }
   },
   computed: {

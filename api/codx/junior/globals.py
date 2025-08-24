@@ -12,6 +12,8 @@ from codx.junior.db import Chat
 """Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
 MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 60 * 60
 
+MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS = 3 * 60
+
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
 logger = logging.getLogger(__name__)

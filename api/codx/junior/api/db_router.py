@@ -22,7 +22,7 @@ async def db_query_records(request: Request) -> List[Dict[str, Any]]:
         logger.info("Fetching query_records with filter: %s", search_filter)
         codx_junior_session: CODXJuniorSession = request.state.codx_junior_session
         knowledge_db: KnowledgeDB = codx_junior_session.get_knowledge().get_db()
-        records = knowledge_db.raw_search(search_filter=search_filter, limit=limit)
+        records = knowledge_db.raw_search(search_filter=search_filter, output_fields=[], limit=limit)
         return [record.dict() for record in records]
     except ValueError as ex:
         logger.error("Invalid search filter provided: %s", str(ex))

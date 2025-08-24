@@ -308,7 +308,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
     </div>
 
     <div v-if="selectedTab === 'Data'">
-      <DataExplorerVue @drop="dropSelectedFiles" />
+      <DataExplorerVue :status="status" @drop="dropSelectedFiles" />
     </div>
   </div>
 </template>
@@ -317,7 +317,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
 export default {
   data() {
     return {
-      selectedTab: 'Wiki',
+      selectedTab: 'Search',
       documents: 0,
       embeddings: 0,
       status: null,

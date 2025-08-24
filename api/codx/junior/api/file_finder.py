@@ -9,6 +9,8 @@ from codx.junior.engine import (
   CODXJuniorSession,
 )
 
+from codx.junior.utils.utils import path_join
+
 from codx.junior.file_manager import FileManager
 
 logger = logging.getLogger(__name__)
@@ -76,11 +78,37 @@ async def upload_files(request: Request, file: UploadFile = None) -> Dict:
     path = request.query_params.get("path") or "local:///"
     q = request.query_params.get("q")
 
+    if q == 'delere':
+        # {items: [{path: "/java", type: "dir"}]}
+        payload = await request.json()
+        raise Exception(f'not implemented: {q}')
+
     if q == 'newfolder':
         payload = await request.json()
         name = payload.get("name")
-        path = os.path.join(settings.project_path, name)
-        os.makedirs(path, exist_ok=True)
+        folder_path = path_join(settings.project_path, path, name)
+        logger.info("Creating new foler: %s", folder_path)
+        os.makedirs(folder_path, exist_ok=True)
+        return file_manager.find_files(adapter=adapter, path=folder_path)
+    
+    if q == 'newfile':
+        payload = await request.json()
+        name = payload.get("name")
+        folder_path = path_join(settings.project_path, path)
+        file_path = path_join(folder_path, name)
+        if os.path.isfile(file_path) or os.path.isdir(file_path):
+            raise Exception(f'File already exists: {file_path}')
+        os.makedirs(folder_path, exist_ok=True)
+        with open(file_path, 'w') as f:
+            pass
+        return file_manager.find_files(adapter=adapter, path=folder_path)
+    
+    if q == 'save':
+        payload = await request.json()
+        content = payload.get("content")
+        file_path = path_join(settings.project_path, path)
+        with open(file_path, 'w') as f:
+            f.write(content)
         return file_manager.find_files(adapter=adapter, path=path)
     
     logger.info("Processing file finder request with adapter: %s, path: %s, q: %s", adapter, path, q)

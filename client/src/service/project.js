@@ -110,6 +110,7 @@ export class ProjectService extends Service {
     const mentionList = this.mentionList(project, profiles, knowledge)
     return {
       ...project,
+      api: API,
       models,
       profiles,
       knowledge,

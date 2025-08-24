@@ -35,7 +35,7 @@ class KnowledgeCodeSplitter:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.embeddings_ai_settings = self.settings.get_embeddings_settings()
-        chunk_size = self.embeddings_ai_settings.chunk_size or 1000
+        chunk_size = self.embeddings_ai_settings.chunk_size or 65535
         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=10)
 
     def load(self, file_path):
@@ -128,7 +128,9 @@ class KnowledgeCodeSplitter:
 
     def load_with_docling(self, file_path, code_parser_language):
         markdown_path = file_path + ".md"
-        if os.path.getmtime(markdown_path) > os.path.getmtime(file_path):
+        if os.path.isfile(markdown_path) and \
+            os.path.getmtime(markdown_path) > os.path.getmtime(file_path):
+            
             logger.info("load_with_docling SKIP '%s' is newer than '%s'", markdown_path, file_path)
         else:
             converter = DocumentConverter()

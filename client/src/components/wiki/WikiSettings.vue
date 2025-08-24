@@ -1,43 +1,60 @@
 <script setup>
-import moment from 'moment'
+import { TreeItem, TreeRoot } from 'radix-vue'
 </script>
 
 <template>
-  <div class="w-full flex flex-col gap-4">
-    <div class="card w-full p-4">
-      <div class="text-xs text-info">
-        Last build: {{ moment(lastBuild).fromNow() }}
-      </div>
-      <div class="form-control w-full my-4">
-        <label class="label" for="projectWikiPath">
-          <span class="label-text">Project Wiki (Path to wiki folder)</span>
-        </label>
-        <input id="projectWikiPath" type="text" v-model="projectWikiPath" placeholder="Enter path relative to project_path or absolute" class="input input-bordered w-full"/>
-      </div>
-      <div class="flex gap-2 justify-end mt-4">
-        <button @click.stop="loadCategories" class="btn btn-sm">
-          <i class="fas fa-sync-alt"></i>
-          Load categories
-        </button>
-        <button class="btn btn-sm btn-secondary" @click="resetProjectWikiPath">Reset</button>
-        <button class="btn btn-sm btn-accent" @click="saveWikiPath" v-if="projectWikiPath !== $project.project_wiki">Save</button>
-        <div class="dropdown">
-          <button tabindex="0" class="btn btn-sm btn-accent" aria-haspopup="true" aria-expanded="false">
-            Recreate Wiki
-          </button>
-          <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-72 p-2 shadow-xl">
-            <li><a class="dropdown-item" @click="buildWiki('create_config')">Create Configuration</a></li>
-            <li><a class="dropdown-item" @click="buildWiki('create_wiki_tree')">Create Wiki Tree</a></li>
-            <li><a class="dropdown-item" @click="buildWiki('build_config_sidebar')">Build Config Sidebar</a></li>
-            <li><a class="dropdown-item" @click="buildWiki('build_home')">Build Home</a></li>
-            <li><a class="dropdown-item" @click="buildWiki('compile_wiki')">Compile Wiki</a></li>
-            <hr/>
-            <li><a class="dropdown-item" @click="recreateWiki('rebuild')">Rebuild All</a></li>
-          </ul>
+  <div class="w-full flex gap-2">
+    <TreeRoot
+      v-slot="{ flattenItems }"
+      class="shrink-0 list-none select-none w-56 text-blackA11 rounded-lg p-2 text-sm font-medium"
+      :items="wikiTree"
+      :get-key="(item) => item.title"
+      :default-expanded="['components']"
+    >
+      <h2 class="font-semibold !text-base text-blackA11 px-2 pt-1">
+        Directory Structure
+      </h2>
+      <TreeItem
+        v-for="item in flattenItems"
+        v-slot="{ isExpanded }"
+        :key="item._id"
+        :style="{ 'padding-left': `${item.level - 0.5}rem` }"
+        v-bind="item.bind"
+        class="click flex items-center py-1 px-2 my-0.5 rounded outline-none focus:ring-grass8 focus:ring-2 data-[selected]:bg-grass4"
+      >
+        <template v-if="item.value.children?.length">
+          <span v-if="isExpanded">-</span>
+          <span v-else>+</span>
+        </template>
+        <div class="pl-2 hover:underline" @click.stop="editItem(item.value)">
+          {{ item.value.title }}
         </div>
+      </TreeItem>
+    </TreeRoot>
+    <div class="grow flex flex-col gap-2" v-if="selectedItem" >
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Title</span>
+        </label>
+        <input type="text" v-model="selectedItem.title" placeholder="Title" class="input input-bordered">
+      </div>
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Description</span>
+        </label>
+        <textarea v-model="selectedItem.description" placeholder="Description" class="textarea textarea-bordered"></textarea>
+      </div>
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text">Keywords</span>
+        </label>
+        <input type="text" v-model="selectedItem.keywords" placeholder="Keywords" class="input input-bordered">
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary">Save</button>
+        <button type="button" class="btn btn-sm btn-secondary" @click="discardChanges">Discard</button>
       </div>
     </div>
-    <Markdown :text="configJson"/>
   </div>
 </template>
 
@@ -45,51 +62,50 @@ import moment from 'moment'
 export default {
   data() {
     return {
-      projectWikiPath: null,
-      configJson: null,
-      lastBuild: null
+      selectedItem: null,
+      wikiTree: [
+        {
+          id: "home",
+          title: "Home",
+          keywords: [],
+          description: "Wiki home page. Add all basic information about the project and welcome the user",
+          children: [
+            {
+              id: "get_started",
+              title: "Get started",
+              keywords: ["npm", "python", "install", "start", "run"],
+              description: "Instructions for running the project",
+              children: [],
+            },    
+          ],
+        },
+        {
+          id: "fastapi_documentation",
+          title: "FastAPI Documentation",
+          keywords: ["FastAPI", "Python", "RESTful API", "Documentation"],
+          description: "How to document a FastAPI Python project using Swagger UI and other tools",
+          children: [
+            {
+              id: "swagger_ui",
+              title: "Swagger UI",
+              keywords: ["Swagger", "UI", "API documentation"],
+              description: "Using Swagger UI to generate interactive API documentation for your FastAPI project",
+              children: [],
+            },
+            {
+              id: "other_tools",
+              title: "Other Tools",
+              keywords: ["ReDoc", "Sphinx", "API Blueprint"],
+              description: "Alternative tools for documenting your FastAPI project",
+              children: [],
+            }]
+          },
+      ]
     }
   },
-  created() {
-    this.projectWikiPath = this.$project.project_wiki
-    this.loadCategories()
-  },
   methods: {
-    async loadCategories() {
-      try {
-        const [config, categories] = await Promise.all([
-          this.$service.wiki.getConfig(),
-          this.$service.wiki.getCategories()
-        ])
-        this.lastBuild = config.last_update
-        const toJsonBlock = json => [
-                                      "```json", 
-                                      JSON.stringify(json, null, 2),
-                                      "```"
-                                    ].join("\n")
-
-        this.configJson = [
-          "# Configuration",
-          "## Config",
-          toJsonBlock(config),
-          "## Categories",
-          toJsonBlock(categories.categories)
-        ].join("\n")
-      } catch (error) {
-        console.error('Failed to load categories:', error)
-      }
-    },
-    resetProjectWikiPath() {
-      this.projectWikiPath = this.$project.project_wiki
-    },
-    recreateWiki() {
-      this.$service.wiki.rebuild()
-    },
-    buildWiki(step) {
-      this.$service.wiki.buildStep(step)
-    },
-    saveWikiPath() {
-      // Save the new wiki path
+    editItem(item) {
+      this.selectedItem = { ...item }
     }
   }
 }

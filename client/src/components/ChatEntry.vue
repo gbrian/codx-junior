@@ -2,6 +2,7 @@
 import Markdown from './Markdown.vue'
 import moment from 'moment'
 import { CodeDiff } from 'v-code-diff'
+
 </script>
 
 <template>
@@ -99,6 +100,9 @@ import { CodeDiff } from 'v-code-diff'
           <Markdown 
             :text="messageContent"
             @generate-code="onGenerateCode" 
+            @reload-file="$emit('reload-file', { file: $event, message })"
+            @open-file="$emit('open-file', $event)"
+            @save-file="$emit('save-file', $event)"
             v-if="!showDiff && !srcView && !code_patches" />
           <CodeDiff
             :new-string="message.diffMessage.content"

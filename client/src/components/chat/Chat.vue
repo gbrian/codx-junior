@@ -47,6 +47,10 @@ import CheckLists from './CheckLists.vue'
               @add-file-to-chat="$emit('add-file', $event)"
               @image="imagePreview = { ...$event, readonly: true }"
               @generate-code="onGenerateCode"
+              @reload-file="onReloadMessageFile"
+              @open-file="onOpenFile"
+              @save-file="onSaveFile"
+              @code-file-shown.stop="console.log"
               v-else />
           </div>
           <div class="anchor" ref="anchor"></div>
@@ -514,7 +518,7 @@ export default {
       .catch(console.error)
     },
     async improveCode() {
-      this.postMyMessage()
+      this.postMyMessage(this.editorText)
       await this.$projects.codeImprove(this.theChat)
       this.testProject()
     },
@@ -541,8 +545,7 @@ export default {
       }
       return profiles
     },
-    getUserMessage() {
-      const message = this.editor.innerText
+    getUserMessage(message) {
       const files = this.messageMentions.filter(m => m.file).map(m => m.file)
       const profiles = this.getMessageProfiles()
       return {
@@ -555,14 +558,12 @@ export default {
         disable_knowledge: true,
       }
     },
-    postMyMessage() {
-      if (this.canPost) {
-        const userMessage = this.getUserMessage()
-        userMessage.files.forEach(file => this.$emit('add-file', file))
-        this.addMessage(userMessage)
-        this.cleanUserInputAndWaitAnswer()
-        return userMessage
-      }
+    postMyMessage(message) {
+      const userMessage = this.getUserMessage(message)
+      userMessage.files.forEach(file => this.$emit('add-file', file))
+      this.addMessage(userMessage)
+      this.cleanUserInputAndWaitAnswer()
+      return userMessage
     },
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
@@ -578,7 +579,8 @@ export default {
         this.updateMessage()
         this.saveChat()
       } else {
-        if (this.postMyMessage()) {
+        const message = this.editor.innerText        
+        if (this.canPost && this.postMyMessage(message)) {
           await this.saveChat()
         }
         if (!this.isChannel || this.lastMessage?.profiles.length) {
@@ -682,9 +684,22 @@ export default {
         this.refreshngMentions.then(() => this.refreshngMentions = null)
       }
     },
-    addSerchTerm(term) {
+    async fileToMessage(file) {
+      const content = await this.$storex.api.files.read(file)
+      const ext = file.split(".").reverse()[0]
+      return [
+        "```" + `${ext} ${file}`,
+        content,
+        "```"
+      ].join("\n")
+      
+    },
+    async addSerchTerm(term) {
       if (term.file) {
         this.$emit('add-file', term.file)
+        const message = await this.fileToMessage(term.file)
+        const editorText = this.editorText += "\n" + message
+        this.setEditorText(editorText)
       }
       this.closeTermSearch()
     },
@@ -901,6 +916,16 @@ export default {
       const source = doc.metadata.source
       this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], source])]
       this.saveChat()
+    },
+    async onReloadMessageFile({ file, message }) {
+      message.content = await this.fileToMessage(file)
+      this.saveChat()
+    },
+    onSaveFile({ file, content }) {
+      this.projectContext.api.files.write(file, content)
+    },
+    onOpenFile(file) {
+      this.projectContext.api.coder.openFile(file)
     }
   }
 }

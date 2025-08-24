@@ -7,7 +7,10 @@ import DiffViewer from './DiffViewer.vue'
 <template>
   <div class="flex flex-col gap-2">
     <div class="underline click text-link flex gap-2" v-if="fileName">
-      <div @click="$ui.openFile(file)" :title="file">{{ fileName }}</div>
+      <div @click="$emit('open-file', file)" :title="file">{{ fileName }}</div>
+      <div @click="$emit('reload-file', file)">
+        <i class="fa-solid fa-file-arrow-up"></i>
+      </div>
       <div @click="onShowDiff">
         <i class="fa-solid fa-code-compare"></i>
       </div>
@@ -60,7 +63,7 @@ export default {
       this.showDiff = !this.showDiff
     },
     saveFile() {
-      this.$storex.api.files.write(this.file, this.code)
+      this.$emit('save-file', { file: this.file, content: this.code })
     },
     runCommand() {
       this.$storex.api.apps.runScript(this.code)

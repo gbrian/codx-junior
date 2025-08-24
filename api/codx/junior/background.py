@@ -36,6 +36,9 @@ def start_background_services(app) -> None:
     reload_models()
 
     # Start the project checking in a separate thread
+    Thread(target=check_projects, args=(True,)).start()
+
+    # Start the project checking in a separate thread
     Thread(target=check_projects).start()
 
 
@@ -79,7 +82,7 @@ def update_quarantine_status(project_name: str, success: bool) -> None:
         quarantine_info["last_checked"] = datetime.now()
 
 
-def check_projects() -> None:
+def check_projects(mention_only = False) -> None:
     """
     Continuously checks for updates in all projects.
     """
@@ -90,7 +93,7 @@ def check_projects() -> None:
         """
         try:
             session = ChangeManager(settings=project)
-            await session.process_project_changes()
+            await session.process_project_changes(mention_only)
             update_quarantine_status(project.project_name, success=True)
         except Exception as ex:
             update_quarantine_status(project.project_name, success=False)

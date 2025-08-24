@@ -22,6 +22,9 @@ import highlight from 'markdown-it-highlightjs'
       :key="new Date()"
       :code="code"
       @generate-code="$emit('generate-code', $event)"
+      @reload-file="$emit('reload-file', $event)"
+      @open-file="$emit('open-file', $event)"
+      @save-file="$emit('save-file', $event)"
     />
   </div>
 </template>

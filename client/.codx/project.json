@@ -24,7 +24,7 @@
   "log_ignore": "",
   "project_scripts": [],
   "embeddings_model": "",
-  "llm_model": "mercury-coder",
+  "llm_model": "gpt-4o",
   "rag_model": "",
   "wiki_model": "",
   "last_error": "",

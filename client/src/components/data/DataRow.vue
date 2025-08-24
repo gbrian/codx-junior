@@ -21,10 +21,8 @@ import DataDetails from './DataDetails.vue';
         {{ source }}
       </div>
     </td>
-    <td>{{ item.metadata.language }}</td>
-    <td>{{ item.metadata.splitter }}</td>
-    <td>{{ item.metadata.index }}</td>
-    <td>{{ item.metadata.total_docs }}</td>
+    <td><div class="w-20 overflow-auto text-nowrap">{{ item.metadata.category }}</div></td>
+    <td> <div class="w-20 overflow-auto text-nowrap">{{ item.metadata.keywords.split(",").join(" ") }}</div></td>
     <td>{{ item.metadata.length }}</td>
     <td>{{ moment(item.metadata.last_update * 1000).fromNow() }}</td>
     <td>

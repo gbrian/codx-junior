@@ -39,7 +39,7 @@ class DBDocument (Document):
 KNOWLEDGE_FIELDS = {
     "id":           { "datatype": DataType.INT64, "is_primary": True, "auto_id": True },
     "metadata":     { "datatype": DataType.JSON, "enable_analyzer": False },
-    "page_content": { "datatype": DataType.VARCHAR, "max_length": 10000, "enable_analyzer": True },
+    "page_content": { "datatype": DataType.VARCHAR, "max_length": 65535, "enable_analyzer": True },
     "source":       { "datatype": DataType.VARCHAR, "max_length": 200, "enable_analyzer": True },
     "keywords":     { "datatype": DataType.VARCHAR, "max_length": 5000, "enable_analyzer": True },
     "category":     { "datatype": DataType.VARCHAR, "max_length": 300, "enable_analyzer": True },
@@ -183,17 +183,18 @@ class KnowledgeDB:
                   "last_update": int(time.time())
                 }
                 data_search.append(search_doc)
+                logger.info(f"Data processing document, len {len(doc.page_content)}, {doc.metadata}")
 
             except Exception as ex:
                 logger.error(f"Error processing document, len {len(doc.page_content)}, {doc.metadata}: {ex}")
 
   
         try:
-            self.db.insert(
+            res = self.db.insert(
                 collection_name=self.index_fulltext_name,
                 data=data_search
             )
-            logger.info(f"[Full text] Adding {len(data_search)} documents")
+            logger.info(f"[Full text] Adding {data_search} documents: response {res}")
             
         except Exception as ex:
             if "float_vector" in str(ex):

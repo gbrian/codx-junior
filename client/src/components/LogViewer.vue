@@ -111,7 +111,7 @@ export default {
       logModules: {},
       visibleModules: [],
       profilerModuleFilter: [],
-      tailSize: 100,
+      tailSize: 250,
       filter: null,
       logLevelColors: {
         "INFO": "text-success",

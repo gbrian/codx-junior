@@ -98,3 +98,12 @@ def write_file(file_path: str, content: str):
         f.write(content)
     set_file_permissions(file_path)
     
+def read_file(file_path: str, project_path: str = ""):
+    if project_path and not file_path.startswith(project_path):
+        file_path = path_join(project_path, file_path)
+    with open(file_path, 'r') as f:
+        return f.read()
+
+def path_join(path, *paths):
+  paths = [p[1:] if p[0] == '/' else p for p in paths]
+  return "/".join([path] + paths)

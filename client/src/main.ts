@@ -1,6 +1,6 @@
 import './assets/main.css'
 
-import { createApp } from 'vue'
+import { createApp, onBeforeMount, onBeforeUnmount } from 'vue'
 import store, { $storex } from "./store";
 import service from "./service"
 
@@ -17,6 +17,12 @@ import VueFinder from 'vuefinder/dist/vuefinder'
 import highlightjs from 'highlight.js'
 
 const globalMixin = {
+  onBeforeMount() {
+    console.log("Before mount. Events: ", this.events, this.$root)
+  },
+  onBeforeUnmount() {
+    console.log("Before Unmount. Events: ", this.events)
+  },
   computed: {
     $storex () {
       return $storex
@@ -44,6 +50,10 @@ const globalMixin = {
     },
     $service () {
       return service
+    }
+  },
+  methods: {
+    $bubble(event: string, data: EventInit) {
     }
   }
 }
