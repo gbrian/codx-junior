@@ -4,6 +4,8 @@ import datetime
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import FileResponse
 
+from typing import Any, Dict
+
 from codx.junior.engine import (
   CODXJuniorSession
 )
@@ -41,6 +43,7 @@ async def wiki_engine_build(request: Request):
     codx_junior_session = request.state.codx_junior_session
     wiki_manager = codx_junior_session.get_wiki()
     step = request.query_params.get("step")
+    file_path = request.query_params.get("file_path")
     if step == "create_config":
         return wiki_manager.create_config()
     if step == "create_wiki_tree":
@@ -51,6 +54,8 @@ async def wiki_engine_build(request: Request):
         return wiki_manager.build_home()
     if step == "compile_wiki":
         return wiki_manager.compile_wiki()
+    if step == "create_wiki_document":
+        return wiki_manager.create_wiki_document(file_path)
     return wiki_manager.build_wiki()
 
 @router.get("/wiki-engine/rebuild")
@@ -62,12 +67,16 @@ async def wiki_engine_rebuild(request: Request):
 async def wiki_engine_config(request: Request):
     codx_junior_session = request.state.codx_junior_session
     wiki_manager = codx_junior_session.get_wiki()
-    categories = wiki_manager.get_categories()
-    config = wiki_manager.get_config()
-    return {
-      "categories": categories,
-      "config": config
-    }
+    return wiki_manager.load_wiki_settings(with_files=True)
+
+
+@router.put('/wiki-engine')
+async def save_wiki_settings(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    wiki_manager = codx_junior_session.get_wiki()
+    wiki_settings = await request.json()
+    return wiki_manager.save_wiki_settings(wiki_settings)
+  
 
 @sio.on("codx-junior-wiki-rebuild")
 @sio_api_endpoint

@@ -90,7 +90,8 @@ import CheckLists from './CheckLists.vue'
               class="-ml-1 input input-xs text-lg bg-transparent" placeholder="search term..."
               @keydown.down.stop="onSelNext"
               @keydown.up.stop="onSelPrev"
-              @keydown.enter.stop="addSerchTerm(searchTerms[searchTermSelIx])"
+              @keydown.ctrl.enter.exact.stop="addSerchTerm(searchTerms[searchTermSelIx], true)"
+              @keydown.enter.exact.stop="addSerchTerm(searchTerms[searchTermSelIx])"
               @keydown.esc="closeTermSearch" />
             <button class="btn btn-xs btn-circle btn-outline btn-error"
               @click="closeTermSearch"
@@ -694,12 +695,14 @@ export default {
       ].join("\n")
       
     },
-    async addSerchTerm(term) {
+    async addSerchTerm(term, addToMessage) {
       if (term.file) {
         this.$emit('add-file', term.file)
-        const message = await this.fileToMessage(term.file)
-        const editorText = this.editorText += "\n" + message
-        this.setEditorText(editorText)
+        if (addToMessage) {
+          const message = await this.fileToMessage(term.file)
+          const editorText = this.editorText += "\n" + message
+          this.setEditorText(editorText)
+        }
       }
       this.closeTermSearch()
     },

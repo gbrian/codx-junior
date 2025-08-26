@@ -400,11 +400,15 @@ const initializeAPI = ({ project, user } = {}) => {
       rebuild() {
         return API.get('/api/wiki-engine/rebuild')
       },
-      build() {
-        return API.get('/api/wiki-engine/build')
+      build(settings) {
+        const search = Object.keys(settings).map(k => `${k}=${settings[k]}`).join("&")
+        return API.get('/api/wiki-engine/build?' + search)
       },
       config() {
         return API.get('/api/wiki-engine/config')
+      },
+      save(wikiSettings) {
+        return API.put('/api/wiki-engine', wikiSettings)
       }
     },
     engine: {

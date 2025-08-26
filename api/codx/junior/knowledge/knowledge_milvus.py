@@ -226,6 +226,10 @@ class Knowledge:
                 elif raiseIfError:
                     raise ex
 
+        for source in all_sources:
+            self.wiki_manager.create_wiki_document(source)
+        
+
     def delete_documents (self, documents=None, sources=None):
         sources = set(sources or [doc.metadata["source"] for doc in documents])
         self.get_db().delete_documents(sources=sources)

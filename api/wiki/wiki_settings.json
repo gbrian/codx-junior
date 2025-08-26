@@ -1,0 +1,374 @@
+{
+  "categories": [
+    {
+      "title": "App Module",
+      "description": "The App Module initializes the FastAPI application and defines its configuration, routes, and middleware. It sets up various API endpoints to handle requests related to chats, projects, files, and more. Additionally, it manages background tasks and integrates with Socket.IO for real-time communication.",
+      "keywords": [
+        "app",
+        "fastapi",
+        "routes",
+        "middleware",
+        "background",
+        "socket.io"
+      ],
+      "children": [
+        {
+          "title": "Initialization",
+          "description": "This section covers the initialization of the FastAPI application, including setting up the main instance and configuring essential components.",
+          "keywords": [
+            "init",
+            "initialize",
+            "main.py"
+          ],
+          "id": "initialization",
+          "path": "app-module/initialization"
+        },
+        {
+          "title": "Routes",
+          "description": "This section details the different routes defined in the app module, which handle various types of requests such as chat, project, and file management.",
+          "keywords": [
+            "route",
+            "endpoint",
+            "chat",
+            "project",
+            "file"
+          ],
+          "id": "routes",
+          "path": "app-module/routes"
+        },
+        {
+          "title": "Middleware",
+          "description": "This section explains the middleware used in the app module, which can include logging, authentication, and other request/response processing mechanisms.",
+          "keywords": [
+            "middleware",
+            "logging",
+            "authentication"
+          ],
+          "id": "middleware",
+          "path": "app-module/middleware"
+        },
+        {
+          "title": "Background Tasks",
+          "description": "This section describes the background tasks managed by the app module, which are executed asynchronously to perform long-running operations without blocking the main application flow.",
+          "keywords": [
+            "background",
+            "task",
+            "asynchronous"
+          ],
+          "id": "background-tasks",
+          "path": "app-module/background-tasks"
+        },
+        {
+          "title": "Socket.IO Integration",
+          "description": "This section outlines how the app module integrates with Socket.IO to enable real-time communication between the server and clients.",
+          "keywords": [
+            "socket.io",
+            "real-time",
+            "communication"
+          ],
+          "id": "socket-io-integration",
+          "path": "app-module/socket-io-integration"
+        }
+      ],
+      "id": "app-module",
+      "path": "app-module"
+    },
+    {
+      "title": "Engine Module",
+      "description": "The Engine Module handles core functionalities such as project creation, session management, and other high-level operations crucial for the application's objectives. It provides the necessary backend logic to support the features exposed by the app module.",
+      "keywords": [
+        "engine",
+        "core",
+        "project",
+        "session",
+        "high-level",
+        "backend"
+      ],
+      "children": [
+        {
+          "title": "Project Creation",
+          "description": "This section covers the process of creating new projects within the codx-api system, including the steps and configurations required.",
+          "keywords": [
+            "project",
+            "create",
+            "creation"
+          ],
+          "id": "project-creation",
+          "path": "engine-module/project-creation"
+        },
+        {
+          "title": "Session Management",
+          "description": "This section explains how sessions are managed within the engine module, including session lifecycle, user sessions, and session data handling.",
+          "keywords": [
+            "session",
+            "manage",
+            "lifecycle",
+            "user",
+            "data"
+          ],
+          "id": "session-management",
+          "path": "engine-module/session-management"
+        },
+        {
+          "title": "High-Level Operations",
+          "description": "This section details the high-level operations performed by the engine module, which are essential for the application's functionality and performance.",
+          "keywords": [
+            "operation",
+            "high-level",
+            "essential",
+            "functionality",
+            "performance"
+          ],
+          "id": "high-level-operations",
+          "path": "engine-module/high-level-operations"
+        }
+      ],
+      "id": "engine-module",
+      "path": "engine-module"
+    },
+    {
+      "title": "AI and Machine Learning",
+      "description": "This category encompasses all AI and machine learning-related functionalities within the codx-api project, including models, training, and integration with external services like OpenAI and Anthropic.",
+      "keywords": [
+        "ai",
+        "machine learning",
+        "model",
+        "training",
+        "openai",
+        "anthropic"
+      ],
+      "children": [
+        {
+          "title": "Models",
+          "description": "This section lists and describes the different AI models used in the project, including their purposes and integrations.",
+          "keywords": [
+            "model",
+            "models",
+            "integration",
+            "purpose"
+          ],
+          "id": "models",
+          "path": "ai-and-machine-learning/models"
+        },
+        {
+          "title": "Training",
+          "description": "This section covers the training processes for the AI models, including data preparation, model selection, and training parameters.",
+          "keywords": [
+            "training",
+            "train",
+            "data",
+            "selection",
+            "parameters"
+          ],
+          "id": "training",
+          "path": "ai-and-machine-learning/training"
+        },
+        {
+          "title": "External Services",
+          "description": "This section outlines the integration with external AI services such as OpenAI and Anthropic, including the APIs and methods used for interaction.",
+          "keywords": [
+            "external",
+            "service",
+            "openai",
+            "anthropic",
+            "api",
+            "method"
+          ],
+          "id": "external-services",
+          "path": "ai-and-machine-learning/external-services"
+        }
+      ],
+      "id": "ai-and-machine-learning",
+      "path": "ai-and-machine-learning"
+    },
+    {
+      "title": "Knowledge Management",
+      "description": "This category focuses on the knowledge management aspects of the codx-api project, including code splitting, document enrichment, and keyword extraction.",
+      "keywords": [
+        "knowledge",
+        "management",
+        "code",
+        "document",
+        "enrichment",
+        "keyword",
+        "extraction"
+      ],
+      "children": [
+        {
+          "title": "Code Splitting",
+          "description": "This section explains how code is split into smaller chunks or documents for better management and analysis within the project.",
+          "keywords": [
+            "code",
+            "split",
+            "chunk",
+            "document"
+          ],
+          "id": "code-splitting",
+          "path": "knowledge-management/code-splitting"
+        },
+        {
+          "title": "Document Enrichment",
+          "description": "This section covers the process of enriching documents with additional metadata or content to enhance their utility and relevance.",
+          "keywords": [
+            "document",
+            "enrich",
+            "metadata",
+            "content"
+          ],
+          "id": "document-enrichment",
+          "path": "knowledge-management/document-enrichment"
+        },
+        {
+          "title": "Keyword Extraction",
+          "description": "This section details the methods and techniques used to extract keywords from documents, which are then used for indexing and search capabilities.",
+          "keywords": [
+            "keyword",
+            "extract",
+            "index",
+            "search"
+          ],
+          "id": "keyword-extraction",
+          "path": "knowledge-management/keyword-extraction"
+        },
+        {
+          "title": "Database Integration",
+          "description": "This section outlines how knowledge data is stored and retrieved from the database, including schema design and query optimization.",
+          "keywords": [
+            "database",
+            "store",
+            "retrieve",
+            "schema",
+            "query"
+          ],
+          "id": "database-integration",
+          "path": "knowledge-management/database-integration"
+        }
+      ],
+      "id": "knowledge-management",
+      "path": "knowledge-management"
+    },
+    {
+      "title": "User and Session Management",
+      "description": "This category deals with user and session management functionalities, including user profiles, session tracking, and security measures.",
+      "keywords": [
+        "user",
+        "session",
+        "profile",
+        "tracking",
+        "security",
+        "authenticating"
+      ],
+      "children": [
+        {
+          "title": "User Profiles",
+          "description": "This section explains how user profiles are created, managed, and utilized within the project, including profile attributes and customization options.",
+          "keywords": [
+            "user",
+            "profile",
+            "create",
+            "manage",
+            "attribute",
+            "customization"
+          ],
+          "id": "user-profiles",
+          "path": "user-and-session-management/user-profiles"
+        },
+        {
+          "title": "Session Tracking",
+          "description": "This section covers the tracking of user sessions, including session start, end, and state transitions.",
+          "keywords": [
+            "session",
+            "track",
+            "start",
+            "end",
+            "state"
+          ],
+          "id": "session-tracking",
+          "path": "user-and-session-management/session-tracking"
+        },
+        {
+          "title": "Security Measures",
+          "description": "This section outlines the security measures implemented to protect user data and ensure secure access to the application.",
+          "keywords": [
+            "security",
+            "measure",
+            "protect",
+            "access"
+          ],
+          "id": "security-measures",
+          "path": "user-and-session-management/security-measures"
+        }
+      ],
+      "id": "user-and-session-management",
+      "path": "user-and-session-management"
+    },
+    {
+      "title": "Utility Functions and Tools",
+      "description": "This category includes various utility functions and tools used throughout the project to support specific functionalities and improve overall efficiency.",
+      "keywords": [
+        "utility",
+        "tool",
+        "function",
+        "support",
+        "efficiency"
+      ],
+      "children": [
+        {
+          "title": "Chat Utilities",
+          "description": "This section covers the utility functions specifically designed for chat management, including message formatting, validation, and storage.",
+          "keywords": [
+            "chat",
+            "utility",
+            "format",
+            "validate",
+            "store"
+          ],
+          "id": "chat-utilities",
+          "path": "utility-functions-and-tools/chat-utilities"
+        },
+        {
+          "title": "File Management",
+          "description": "This section explains the file management utilities, including file upload, download, and organization within the project.",
+          "keywords": [
+            "file",
+            "manage",
+            "upload",
+            "download",
+            "organization"
+          ],
+          "id": "file-management",
+          "path": "utility-functions-and-tools/file-management"
+        },
+        {
+          "title": "Browser Interaction",
+          "description": "This section details the utilities used for browser interaction, including web scraping, automation, and data retrieval from web pages.",
+          "keywords": [
+            "browser",
+            "interaction",
+            "scrape",
+            "automate",
+            "retrieval"
+          ],
+          "id": "browser-interaction",
+          "path": "utility-functions-and-tools/browser-interaction"
+        },
+        {
+          "title": "Logging and Profiling",
+          "description": "This section covers the logging and profiling utilities, which help in monitoring and optimizing the performance of the application.",
+          "keywords": [
+            "log",
+            "profile",
+            "monitor",
+            "optimize",
+            "performance"
+          ],
+          "id": "logging-and-profiling",
+          "path": "utility-functions-and-tools/logging-and-profiling"
+        }
+      ],
+      "id": "utility-functions-and-tools",
+      "path": "utility-functions-and-tools"
+    }
+  ],
+  "error": {}
+}

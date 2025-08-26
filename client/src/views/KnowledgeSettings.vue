@@ -12,19 +12,19 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
         Knowledge
         <div class="">
           <div role="tablist" class="tabs tabs-box flex gap-2">
-            <a role="tab" class="tab flex gap-2 text-xl" :class="{ 'tab-active text-warning': selectedTab === 'Search' }"
+            <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Search' }"
               @click="selectedTab = 'Search'">
               <i class="fa-solid fa-magnifying-glass"></i> Search
             </a>
-            <a role="tab" class="tab flex gap-2 text-xl" :class="{ 'tab-active text-warning': selectedTab === 'Index' }"
+            <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Index' }"
               @click="selectedTab = 'Index'">
               <i class="fa-solid fa-file-import"></i> Index
             </a>
-            <a role="tab" class="tab flex gap-2 text-xl" :class="{ 'tab-active text-warning': selectedTab === 'Wiki' }"
+            <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Wiki' }"
               @click="selectedTab = 'Wiki'">
               <i class="fa-solid fa-file"></i> Wiki
             </a>
-            <a role="tab" class="tab flex gap-2 text-xl" :class="{ 'tab-active text-warning': selectedTab === 'Data' }"
+            <a role="tab" class="tab flex gap-2" :class="{ 'tab-active text-warning': selectedTab === 'Data' }"
               @click="selectedTab = 'Data'">
               <i class="fa-solid fa-database"></i> Data
             </a>

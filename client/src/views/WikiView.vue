@@ -1,6 +1,7 @@
 <script setup>
 import AssistantChat from '@/components/codx-junior/AssistantChat.vue';
 import MenuDropDown from '@/components/MenuDropDown.vue'
+import WikiSections from '../components/wiki/WikiSections.vue';
 </script>
 <template>
   <div class="w-full flex flex-col gap-2">
@@ -16,10 +17,12 @@ import MenuDropDown from '@/components/MenuDropDown.vue'
       </div>
     </div>
     <AssistantChat profile-name="wiki" />
+    <wiki-sections />
   </div>
 </template>
 <script>
 export default {
+  components: { WikiSections },
   data() {
     return {
       loaded: false,
