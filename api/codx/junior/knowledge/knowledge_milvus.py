@@ -227,8 +227,10 @@ class Knowledge:
                     raise ex
 
         for source in all_sources:
-            self.wiki_manager.create_wiki_document(source)
-        
+            try:
+                self.wiki_manager.create_wiki_document(source)
+            except Exception as ex:
+                logger.exception("Error creating wiki document: %s", ex)
 
     def delete_documents (self, documents=None, sources=None):
         sources = set(sources or [doc.metadata["source"] for doc in documents])

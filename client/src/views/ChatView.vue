@@ -2,10 +2,8 @@
 import moment from 'moment'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
-import Kanban from '@/components/kanban/Kanban.vue'
-import ProfileSelector from '@/components/profile/ProfileSelector.vue'
 import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'
-import UserSelector from '@/components/user/UserSelector.vue'
+import UserSelector from '@/components/chat/UserSelector.vue'
 import UserAvatar from '@/components/user/UserAvatar.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
@@ -20,18 +18,19 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
             <div class="flex gap-2 items-start">
               <input v-if="editName" type="text" class="input input input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
               <div class="font-bold flex flex-col -space-y-2" v-else>
-                <div class="flex gap-2">
-                  <div class="my-2 text-xs hover:underline click font-bold text-primary" @click="naviageToParent()">
+                <div class="flex gap-2 mb-2">
+                  <div class="my-2 hover:underline click font-bold text-primary" @click="naviageToParent()">
                     <i class="fa-solid fa-caret-left"></i> {{ kanban?.title }}
                   </div>
-                  <div class="my-2 text-xs hover:underline click font-bold text-secondary" @click="naviageToParent(parentChat)" v-if="parentChat">
+                  <div class="my-2 hover:underline click font-bold text-secondary" @click="naviageToParent(parentChat)" v-if="parentChat">
                     <i class="fa-brands fa-trello"></i>
                     {{ parentChat.name }}
                   </div>
                 </div>
                 <div class="flex gap-2">
-                  <div class="hidden flex gap-1">
-                    <div class="avatar" :title="taskProject.project_name" v-if="taskProject !== $project">
+                  <div class="flex gap-1">
+                    <div class="avatar" :title="taskProject.project_name"
+                      v-if="taskProject.project_id !== $project.project_id">
                       <div class="w-7 h-7 rounded-full">
                         <img :src="taskProject.project_icon"/>
                       </div>
@@ -50,10 +49,12 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                         </div>
                     </ProfileAvatar>
 
-                    <button class="hidden btn btn-sm btn-circle tooltip" data-tip="Add profile"
-                      @click="onAddProfile">
-                      <i class="fa-solid fa-plus"></i>
-                    </button>
+                    <UserSelector 
+                      class="dropdown-bottom"
+                      :allUsers="true"
+                      @user-changed="onAddProfile($event)"
+                    />
+                
                   </div>
 
                   <div class="click text-xs md:text-xl flex flex-col" @click="editName = true">
@@ -93,10 +94,13 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                       <li @click="setChatMode('chat')">
-                        <a>Conversation</a>
+                        <a><ChatIcon mode="chat" /> Conversation</a>
                       </li>
                       <li @click="setChatMode('task')">
-                        <a>Canvan</a>
+                        <a><ChatIcon mode="task" /> Canvan</a>
+                      </li>
+                      <li @click="setChatMode('topic')">
+                        <a><ChatIcon mode="topic" /> Discussion</a>
                       </li>
                     </ul>
                   </div>
@@ -263,10 +267,6 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
       </div>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
-    <modal class="max-w-full w-1/3" v-if="showAddProfile" :close="true" @close="showAddProfile = false">
-      <UserSelector @select="addUserToChat($event)" />
-      <ProfileSelector @select="addProfile($event.name)" :project="chatProject" />
-    </modal>
   </div>
 </template>
 

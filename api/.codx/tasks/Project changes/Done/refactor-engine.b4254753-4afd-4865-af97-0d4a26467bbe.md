@@ -49,7 +49,7 @@ from codx.junior.context import (
     AI_CODE_VALIDATE_RESPONSE_PARSER,
     generate_markdown_tree,
     AI_CODE_GENERATOR_PARSER,
-    AICodeGerator,
+    AICodeGenerator,
     AICodePatch
 )
 
@@ -86,10 +86,10 @@ logger = logging.getLogger(__name__)
 
 class CODXJuniorSession:
     def __init__(
-        self,
-        settings: CODXJuniorSettings = None,
-        codx_path: str = None,
-        channel: Optional[SessionChannel] = None,
+            self,
+            settings: CODXJuniorSettings = None,
+            codx_path: str = None,
+            channel: Optional[SessionChannel] = None,
     ) -> None:
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
         self.channel = channel

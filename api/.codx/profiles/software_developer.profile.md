@@ -30,3 +30,5 @@ Best practices for coding:
 * Specify exception types in `except` blocks to ensure only appropriate exceptions are caught or reraised.
 * Correct indentation levels to align with the expected number of spaces, ensuring there's no misalignment in the code structure.
 * Use FastApi routers to group endpoints by topic like `@router.get("/topic/path")`
+* Include mermaid diagrams in complex classes and methods to help users understand the logic.
+* Always updated documentation of the parts changed 

@@ -1,9 +1,9 @@
 import os
 import logging
-import inspect
 import subprocess
+import string
 from pathlib import Path
-import json, re
+import json
 import hashlib
 
 HOST_USER = os.environ.get("HOST_USER")
@@ -95,7 +95,7 @@ def set_file_permissions(file_path: str):
 def write_file(file_path: str, content: str):
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
     with open(file_path, 'w') as f:
-        f.write(content)
+        f.write(clean_string(content))
     set_file_permissions(file_path)
     
 def read_file(file_path: str, project_path: str = ""):
@@ -107,3 +107,7 @@ def read_file(file_path: str, project_path: str = ""):
 def path_join(path, *paths):
   paths = [p[1:] if p[0] == '/' else p for p in paths]
   return "/".join([path] + paths)
+
+def clean_string(string_to_clean: str) -> str:
+    """Removes invalid characters from a string"""
+    return ''.join(c if c in string.printable else ' ' for c in string_to_clean)

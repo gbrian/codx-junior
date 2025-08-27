@@ -69,6 +69,7 @@ class WikiManager:
         self.wiki_path: str = settings.get_project_wiki_path()
         self.db = KnowledgeDB(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
+        self.is_wiki_active = True if self.wiki_path else False
 
     def save_wiki_settings(self, wiki_settings: Any) -> None:
         """
@@ -144,13 +145,16 @@ class WikiManager:
           return wiki_settings
 
         except Exception as ex:
-          logger.exception(f"Error creating wiki document: {ex}")
-          return {
-            **wiki_settings,
-            "error": ex
-          }    
+            logger.exception(f"Error creating wiki document: {ex}")
+            return {
+              **wiki_settings,
+              "error": ex
+            }    
         
     def create_wiki_document(self, source):
+        if not self.is_wiki_active:
+            return 
+            
         file_content = self._read_file(source)
         wiki_settings = self.load_wiki_settings()
         categories = self._get_all_categories(wiki_settings["categories"])

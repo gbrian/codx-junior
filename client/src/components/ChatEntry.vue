@@ -2,21 +2,29 @@
 import Markdown from './Markdown.vue'
 import moment from 'moment'
 import { CodeDiff } from 'v-code-diff'
-
+import ChatIcon from './chat/ChatIcon.vue'
 </script>
 
 <template>
-  <div class="chat-entry flex gap-1 items-start relative reltive"
+  <div class="chat-entry flex gap-1 items-start relative p-2"
     :class="[
       !message.done && 'border border-dashed border-sky-800 p-1',
-      message.is_answer && 'border border-dashed p-2 bg-success/10 border-success'
+      message.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
+      isTopic && 'border border-dashed p-2 bg-info/20 border-info',
+      editting && 'border border-dashed p-2 bg-warning/50 border-warning',
     ]"
   >
-    <div class="w-full overflow-y-auto">
+    <div class="w-full">
       <div class="w-full flex flex-col gap-1 hover:rounded-md group">
         <progress class="progress w-full" v-if="!message.done"></progress>
     
         <div class="text-xs font-bold flex flex-col click">
+          <div class="badge badge-sm badge-success flex gap-1" v-if="message.is_answer">
+            <ChatIcon mode="answer" />Answer 
+          </div>
+          <div class="badge badge-sm badge-success flex gap-1" v-if="isTopic">
+            <ChatIcon mode="topic" /> Topic 
+          </div>              
           <div class="flex justify-start gap-4 items-center p-2" @dblclick.stop="toggleCollapse">
             <div v-for="profile in messageProfiles" :key="profile.name">
               <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
@@ -25,16 +33,12 @@ import { CodeDiff } from 'v-code-diff'
                 </div>
               </div>
             </div>
-
             <div class="flex gap-2 grow">
               [{{ formatDate(message.updated_at) }}] 
-              <div class="badge badge-sm badge-success" v-if="message.is_answer">
-                <i class="fa-solid fa-check-double"></i> Answer 
-              </div>
               <span v-if="timeTaken">({{ timeTaken }} s.)</span>
               <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             </div>
-            <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end">
+            <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end" v-if="message.done">
               <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
                   <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer')">
@@ -50,9 +54,11 @@ import { CodeDiff } from 'v-code-diff'
                     <i class="fa-regular fa-file-lines"></i>
                     <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
                   </button>
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="$emit('edit')" v-if="canEditMessage">
+                  <button v-if="canEditMessage && !editting" class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="editting = message.content">
                     <i class="fa-solid fa-pencil"></i>
                   </button>
+                  <button v-if="editting" class="btn btn-xs btn-success" @click="saveEditting">Save</button>
+                  <button v-if="editting" class="btn btn-xs btn-error" @click="cancelEditting">Cancel</button>
                   <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
                     @click="$emit('enhance')">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -91,11 +97,12 @@ import { CodeDiff } from 'v-code-diff'
               </div>
               <span class="underline" v-if="message.full_think">close</span>
             </div>
-            
           </div>                
         </div>
         <div @copy.stop="onMessageCopy" :class="['max-w-full group border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', 
             message.hide ? 'text-slate-200': '']">
+          
+          <textarea v-if="editting" v-model="editting" class="h-96 input input-bordered w-full p-2"/>                
           <pre v-if="srcView">{{ message.content }}</pre>
           <Markdown 
             :text="messageContent"
@@ -103,7 +110,7 @@ import { CodeDiff } from 'v-code-diff'
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
             @save-file="$emit('save-file', $event)"
-            v-if="!showDiff && !srcView && !code_patches" />
+            v-if="!showDiff && !editting && !srcView && !code_patches" />
           <CodeDiff
             :new-string="message.diffMessage.content"
             :old-string="messageContent"
@@ -166,13 +173,14 @@ import { CodeDiff } from 'v-code-diff'
 
 <script>
 export default {
-  props: ['chat', 'message'],
+  props: ['chat', 'message', 'isTopic'],
   data() {
     return {
       srcView: false,
       isRemove: false,
       improvementData: null,
-      showDiff: false
+      showDiff: false,
+      editting: false
     }
   },
   computed: {
@@ -330,6 +338,14 @@ export default {
     },
     openFile(file) {
       this.$ui.openFile(file)
+    },
+    saveEditting() {
+      this.message.content = this.editting
+      this.editting = null
+      this.$emit('edited')
+    },
+    cancelEditting() {
+      this.editting = null
     }
   },
   mounted() {

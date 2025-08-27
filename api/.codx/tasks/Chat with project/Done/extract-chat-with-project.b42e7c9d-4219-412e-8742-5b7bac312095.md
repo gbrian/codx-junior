@@ -170,7 +170,7 @@ from codx.junior.context import (
     AI_CODE_VALIDATE_RESPONSE_PARSER,
     generate_markdown_tree,
     AI_CODE_GENERATOR_PARSER,
-    AICodeGerator,
+    AICodeGenerator,
     AICodePatch
 )
 
@@ -258,7 +258,7 @@ from codx.junior.model.model import (
 from codx.junior.ai import AI
 from codx.junior.db import Chat, Message
 from codx.junior.context import (
-    AICodeGerator, find_relevant_documents
+    AICodeGenerator, find_relevant_documents
 )
 from codx.junior.utils.utils import document_to_context
 from codx.junior.globals import AGENT_DONE_WORD
@@ -266,11 +266,13 @@ from codx.junior.globals import AGENT_DONE_WORD
 # Set up logging
 logger = logging.getLogger(__name__)
 
+
 class ChatEngine:
     def __init__(self, session):
         self.session = session
 
-    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool = True, chat_mode: str = None, iteration: int = 0):
+    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None,
+                                append_references: bool = True, chat_mode: str = None, iteration: int = 0):
         """
         Handles the communication with the project, processing chat content and interacting with the AI.
 
@@ -302,7 +304,7 @@ class ChatEngine:
         if not project_id or project_id == self.session.settings.project_id:
             logger.debug(f"Already in project {project_id}")
             return self
-        
+
         settings = find_project_by_id(project_id=project_id)
         if settings:
             self.session = CODXJuniorSession(settings=settings, channel=self.session.channel)
@@ -323,23 +325,25 @@ class ChatEngine:
         logger.debug(f"AI instance created with model {llm_model}")
         return ai_instance
 
-    def get_ai_code_generator_changes(self, response: str) -> AICodeGerator:
+    def get_ai_code_generator_changes(self, response: str) -> AICodeGenerator:
         """
         Process the response string to generate AI code generator changes.
 
         :param response: The string output from the AI model.
         :return: An instance of AICodeGerator containing the parsed changes.
         """
-        code_generator = AICodeGerator.from_response(response)
+        code_generator = AICodeGenerator.from_response(response)
         for change in code_generator.code_changes:
             file_path = change.file_path
             if not file_path.startswith(self.session.settings.project_path):
                 change.file_path = os.path.join(self.session.settings.project_path, file_path)
-        
+
         logger.info(f"Code generator changes retrieved from response")
         return code_generator
 
-    def select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str, ignore_documents: List[str] = [], search_projects: List['CODXJuniorSession'] = []) -> Tuple[List[Document], List[str]]:
+    def select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str, ignore_documents: List[str] = [],
+                                                 search_projects: List['CODXJuniorSession'] = []) -> Tuple[
+        List[Document], List[str]]:
         """
         Select documents from knowledge base that are affected by a given query.
 
@@ -350,18 +354,23 @@ class ChatEngine:
         :param search_projects: Projects to search within.
         :return: Tuple of a list of documents and a list of file paths.
         """
+
         def process_rag_query(rag_query: str) -> Tuple[List[Document], List[str]]:
             docs = []
             file_list = []
             logger.debug(f"Searching projects for query: {rag_query}")
             for search_project in search_projects:
                 if chat:
-                    self.session.event_manager.chat_event(chat=chat, message=f"Searching knowledge in {search_project.settings.project_name}")
-                project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project.settings, ignore_documents=ignore_documents)
-                project_file_list = [os.path.join(search_project.settings.project_path, file_path) for file_path in project_file_list]
+                    self.session.event_manager.chat_event(chat=chat,
+                                                          message=f"Searching knowledge in {search_project.settings.project_name}")
+                project_docs, project_file_list = find_relevant_documents(query=rag_query,
+                                                                          settings=search_project.settings,
+                                                                          ignore_documents=ignore_documents)
+                project_file_list = [os.path.join(search_project.settings.project_path, file_path) for file_path in
+                                     project_file_list]
                 docs.extend(project_docs)
                 file_list.extend(project_file_list)
-            
+
             logger.info(f"Documents selected from knowledge: {len(docs)}")
             return docs, file_list
 
@@ -384,7 +393,7 @@ class ChatEngine:
         Extract keywords from the text to help searching in the knowledge base.
         Return just the search string without further decoration or comments.
         """)[-1].content.strip()
-        
+
         logger.debug(f"Knowledge search query created: {enhanced_query}")
         return enhanced_query
 

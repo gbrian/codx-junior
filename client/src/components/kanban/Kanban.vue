@@ -5,6 +5,7 @@ import ChatViewVue from "../../views/ChatView.vue"
 import { v4 as uuidv4 } from "uuid"
 import VSwatches from "../VSwatches.vue"
 import KanbanList from "./KanbanList.vue"
+import ChatIcon from "../chat/ChatIcon.vue"
 </script>
 
 <template>
@@ -113,8 +114,14 @@ import KanbanList from "./KanbanList.vue"
                       <i class="mt-1 fa-solid fa-plus"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                      <li class="flex gap-2" @click="newTask(column.title)">
-                        <a>New task</a>
+                      <li class="flex gap-2" @click="newTask(column.title, 'chat')">
+                        <a><ChatIcon mode="chat" /> Chat</a>
+                      </li>
+                      <li class="flex gap-2" @click="newTask(column.title, 'task')">
+                        <a><ChatIcon mode="task" /> Canvan</a>
+                      </li>
+                      <li class="flex gap-2" @click="newTask(column.title, 'topic')">
+                        <a><ChatIcon mode="topic" /> Discussion</a>
                       </li>
                       <li class="flex gap-2" @click="importTask(column.title)">
                         <a>Import task</a>
@@ -405,11 +412,11 @@ export default {
     addNewFile() {
       this.newTask(FILES_COLUMN)
     },
-    newTask(column) {
+    newTask(column, mode) {
       this.createNewChat({
         column,
         name: "New Task",
-        mode: 'chat',
+        mode: mode || 'chat',
         profiles: []
       })
     },

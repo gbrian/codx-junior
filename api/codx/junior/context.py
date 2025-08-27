@@ -37,7 +37,7 @@ class AICodePatch(BaseModel):
     patch: str = Field(description="A file patch with the changes to be applied to the file")
     description: str = Field(description="Brief human friendly description about the change highlighting the most important changes", default="")
 
-class AICodeGerator(BaseModel):
+class AICodeGenerator(BaseModel):
     code_changes: List[AICodeChange] = Field(description="Code changes")
     code_patches: List[AICodePatch] = Field(description="A list of file patches for each modified file")
 
@@ -52,7 +52,7 @@ class AIRAGValidate(BaseModel):
     documents: List[AIRAGDocument] = Field(description="List of documents found from user's request")
 
 AI_CODE_VALIDATE_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AICodeValidateResponse)
-AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGerator)
+AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGenerator)
 AI_RAG_VALIDATE_PARSER = PydanticOutputParser(pydantic_object=AIRAGValidate)
 
 analysis_example = \

@@ -29,7 +29,7 @@ from codx.junior.context import (
     AI_CODE_VALIDATE_RESPONSE_PARSER,
     generate_markdown_tree,
     AI_CODE_GENERATOR_PARSER,
-    AICodeGerator
+    AICodeGenerator
 )
 from codx.junior.db import (
     Chat,
@@ -66,7 +66,8 @@ from codx.junior.utils.chat_utils import ChatUtils
 from codx.junior.utils.utils import (
     extract_json_blocks,
     exec_command,
-    write_file
+    write_file,
+    clean_string
 )
 
 from codx.junior.whisper.audio_manager import AudioManager
@@ -403,7 +404,7 @@ class CODXJuniorSession:
             self.event_manager.chat_event(chat=chat, message=f"Error applying patch: {ex}", event_type="error")
             raise ex
                       
-    async def improve_existing_code_patch(self, chat:Chat, code_generator: AICodeGerator):
+    async def improve_existing_code_patch(self, chat:Chat, code_generator: AICodeGenerator):
         # Invoke project based on project_id
         self = self.switch_project(chat.project_id)
 
@@ -411,7 +412,7 @@ class CODXJuniorSession:
         ts = datetime.now().strftime('%H%M%S')
         patch_file = f"{self.settings.project_path}/{ts}.patch"
         with open(patch_file, 'w') as f:
-            f.write(patch.patch)
+            f.write(clean_string(patch.patch))
         git_patch = f"git apply {patch_file}"
         stdout, stderr = exec_command(git_patch, cwd=self.settings.project_path)
         os.remove(patch_file)
@@ -474,7 +475,7 @@ class CODXJuniorSession:
         retry_count = 1
         request_msg = Message(role="user", content=request)
         chat.messages.append(request_msg)
-        async def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGerator:
+        async def try_chat_code_changes(attempt: int, error: str=None) -> AICodeGenerator:
             if error:
                 chat.messages.append(Message(role="user", content=f"There was an error last time:\n {error}"))
             
@@ -531,7 +532,7 @@ class CODXJuniorSession:
         return ""
 
     @profile_function
-    async def apply_improve_code_changes(self, code_generator: AICodeGerator, chat: Chat = None):
+    async def apply_improve_code_changes(self, code_generator: AICodeGenerator, chat: Chat = None):
         # Invoke project based on project_id
         self = self.switch_project(chat.project_id)
         
@@ -640,7 +641,7 @@ class CODXJuniorSession:
 
         # Save the updated content back to the file
         with open(file_path, 'w', encoding='utf-8', errors='ignore') as f:
-            f.write(new_content)
+            f.write(clean_string(new_content))
 
         logger.info(f"Patch applied and saved to {file_path}")
 
@@ -1038,7 +1039,7 @@ class CODXJuniorSession:
                 home_content = f.read()
         else:
             with open(project_wiki_home, 'w', encoding='utf-8', errors='ignore') as f:
-                f.write(home_content)
+                f.write(clean_string(home_content))
 
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             file_content = f.read()
@@ -1071,7 +1072,7 @@ class CODXJuniorSession:
                 wiki_changes = [change for change in code_generator.code_changes if project_wiki_path in change.file_path]
                 self.log_info(f"update_wiki file_path: {file_path}, wiki changes: {wiki_changes}")
                 if wiki_changes:
-                    await self.apply_improve_code_changes(code_generator=AICodeGerator(code_changes=wiki_changes))
+                    await self.apply_improve_code_changes(code_generator=AICodeGenerator(code_changes=wiki_changes))
 
     def update_project_profile(self, file_path: str):
         return  # deprecated
@@ -1175,6 +1176,8 @@ class CODXJuniorSession:
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         if process:
             content = await self.process_project_file_before_saving(file_path=file_path, content=content)
+        if not file_path.startswith(self.settings.project_path):
+            raise Exception(f"Can't write outside the project's path: {file_path}")
         write_file(file_path=file_path, content=content)
         return { "file_path": file_path }
 

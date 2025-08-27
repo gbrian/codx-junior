@@ -20,7 +20,7 @@ import CheckLists from './CheckLists.vue'
           <Browser :token="$ui.monitors['shared']" />
         </div>
         <div class="overflow-auto h-full">
-          <div class="flex flex-col" v-for="message in messages" :key="message.id">
+          <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
             <div class="flex w-full flex-col gap-4 bg-base-100 p-2 mb-2 rounded-md" v-if="!message.content && !message.think">
               <div class="flex items-center gap-4">
                 <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
@@ -36,7 +36,8 @@ import CheckLists from './CheckLists.vue'
               message.hide ? 'opacity-80 border border-dashed p-2 border-warning' : '']"
               :chat="theChat"
               :message="message"
-              @edit="onEditMessage(message)"
+              :isTopic="isTopic && !ix"
+              @edited="saveChat"
               @enhance="onEditMessage(message, true)"
               @remove="removeMessage(message)"
               @remove-file="removeFileFromMessage(message, $event)"
@@ -419,6 +420,12 @@ export default {
     },
     isTask() {
       return this.theChat?.mode === 'task'
+    },
+    isTopic() {
+      return this.theChat?.mode === 'topic'
+    },
+    topicMessage() {
+      return this.messages[0]
     },
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]

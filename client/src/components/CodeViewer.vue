@@ -6,23 +6,34 @@ import DiffViewer from './DiffViewer.vue'
 
 <template>
   <div class="flex flex-col gap-2">
-    <div class="underline click text-link flex gap-2" v-if="fileName">
-      <div @click="$emit('open-file', file)" :title="file">{{ fileName }}</div>
-      <div @click="$emit('reload-file', file)">
-        <i class="fa-solid fa-file-arrow-up"></i>
+    <div class="flex gap-1 click">
+      <div class="underline click text-link flex gap-2" v-if="fileName">
+        <div class="hover:text-info" @click="$emit('open-file', file)" :title="file">{{ fileName }}</div>
+        <div class="hover:text-info" @click="$emit('reload-file', file)">
+          <i class="fa-solid fa-file-arrow-up"></i>
+        </div>
+        <div class="hover:text-info" @click="onShowDiff">
+          <i class="fa-solid fa-code-compare"></i>
+        </div>
+        <div class="hover:text-info" @click="saveFile" v-if="$user.role === 'admin'">
+          <i class="fa-solid fa-floppy-disk"></i>
+        </div>
       </div>
-      <div @click="onShowDiff">
-        <i class="fa-solid fa-code-compare"></i>
+      <div class="hover:text-info" @click="zoomOut">
+        <i class="fa-solid fa-magnifying-glass-minus"></i>
       </div>
-      <div @click="saveFile">
-        <i class="fa-solid fa-floppy-disk"></i>
+      <div class="hover:text-info" @click="zoomIn">
+        <i class="fa-solid fa-magnifying-glass-plus"></i>
       </div>
+      <div class="hover:text-info" @click="onCopy">
+        <i class="fa-solid fa-copy"></i>
+      </div>      
     </div>
     <div @click="runCommand" v-if="isCommand">
       <i class="fa-solid fa-terminal"></i>
     </div>
-    <div class="view-code">
-      <VueCodeHighlighter :code="diff" :lang="'diff'" :title="fileName" v-if="showDiff" />
+    <div class="view-code" :style="{ zoom }">
+      <VueCodeHighlighter :code="diff" :lang="'diff'" :header="false" :title="fileName" v-if="showDiff" />
       <VueCodeHighlighter :code="code" :lang="language" :title="fileName" v-else />
     </div>
     <div class="flex justify-end gap-2">
@@ -38,7 +49,8 @@ export default {
   data() {
     return {
       showDiff: false,
-      diff: null
+      diff: null,
+      zoom: 0.6
     }
   },
   computed: {
@@ -67,7 +79,21 @@ export default {
     },
     runCommand() {
       this.$storex.api.apps.runScript(this.code)
+    },
+    zoomOut() {
+      this.zoom -= .1
+    },
+    zoomIn() {
+      this.zoom += .1
+    },
+    onCopy() {
+      this.$ui.copyTextToClipboard(this.code)
     }
   }
 }
 </script>
+<style>
+.header-code-highlight {
+  display: none !important;
+}
+</style>

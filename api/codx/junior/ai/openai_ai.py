@@ -18,6 +18,8 @@ from langchain.schema import (
 
 from codx.junior.profiling.profiler import profile_function
 
+from codx.junior.utils.utils import clean_string
+
 logger = logging.getLogger(__name__)
 
 tools = [
@@ -128,6 +130,7 @@ class OpenAI_AI:
                 chunk_content = chunk.choices[0].delta.content
                 if not chunk_content:
                     continue
+                chunk_content = clean_string(chunk_content)
                 content_parts.append(chunk_content)
                 send_callback(chunk_content)
             # Last chunks...

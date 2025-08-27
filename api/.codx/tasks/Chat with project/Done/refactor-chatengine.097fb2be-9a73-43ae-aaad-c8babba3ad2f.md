@@ -23,7 +23,7 @@ Certainly! Let's examine the code for missing imports, potential errors, and opp
 Let's go through the code and rewrite it with the issues addressed:
 
 ```python
-/shared/codx-junior/api/codx/junior/chat/chat_engine.py
+/ shared / codx - junior / api / codx / junior / chat / chat_engine.py
 import logging
 import os
 import time
@@ -34,13 +34,14 @@ from typing import List, Tuple, Dict, Optional
 from codx.junior.model.model import KnowledgeSearch, Document, Profile
 from codx.junior.ai import AI
 from codx.junior.db import Chat, Message
-from codx.junior.context import AICodeGerator, find_relevant_documents
+from codx.junior.context import AICodeGenerator, find_relevant_documents
 from codx.junior.utils.utils import document_to_context, profile_function, HumanMessage
 from codx.junior.globals import AGENT_DONE_WORD
 
 # Set up logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)  # Set appropriate logging level.
+
 
 class ChatEngine:
     def __init__(self, settings, event_manager, profile_manager):
@@ -74,7 +75,8 @@ class ChatEngine:
             self.log_info(f"Chat done {chat.name}")
 
     @profile_function
-    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool = True, chat_mode: str = None, iteration: int = 0):
+    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None,
+                                append_references: bool = True, chat_mode: str = None, iteration: int = 0):
         """
         Perform a chat with a project, optionally utilizing knowledge search and append references.
 

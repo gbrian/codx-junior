@@ -1,45 +1,40 @@
+import json
+import logging
 import os
 import time
 import uuid
-import logging
-import json
-
-from typing import List, Tuple, Dict, Optional
-
 from contextlib import contextmanager
+from json import JSONDecodeError
+from typing import List, Tuple, Optional
 
 from langchain.schema import (
     BaseMessage,
     AIMessage,
     HumanMessage,
 )
+from langchain.schema.document import Document
 
-from codx.junior.profiling.profiler import profile_function
-
-from codx.junior.model.model import (
-    Document,
-    Profile
-)
 from codx.junior.ai import AI
-from codx.junior.db import Chat, Message
-from codx.junior.context import (
-    AICodeGerator, find_relevant_documents
-)
-from codx.junior.utils.utils import document_to_context
-from codx.junior.globals import (
-  AGENT_DONE_WORD,
-  find_project_by_id,
-  find_project_by_name
-)
-
-from codx.junior.utils.chat_utils import ChatUtils
-
 from codx.junior.chat_manager import ChatManager
+from codx.junior.context import (
+    AICodeGenerator, find_relevant_documents
+)
+from codx.junior.db import Chat, Message
+from codx.junior.globals import (
+    AGENT_DONE_WORD,
+    find_project_by_id,
+    find_project_by_name
+)
+from codx.junior.knowledge.knowledge_milvus import Knowledge
 from codx.junior.profiles.profile_manager import ProfileManager
-
+from codx.junior.profiling.profiler import profile_function
+from codx.junior.settings import CODXJuniorSettings
+from codx.junior.utils.chat_utils import ChatUtils, QueryMentions
+from codx.junior.utils.utils import document_to_context
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
 
 class ChatEngine:
     def __init__(self,
@@ -47,12 +42,16 @@ class ChatEngine:
                 event_manager):
         self.settings = settings
         self.event_manager = event_manager
+        self.knowledge = Knowledge(settings=settings)
+
 
     def get_profile_manager(self):
         return ProfileManager(settings=self.settings)
 
+
     def get_chat_manager(self):
         return ChatManager(settings=self.settings)
+
 
     @contextmanager
     def chat_action(self, chat: Chat, event: str):
@@ -70,13 +69,18 @@ class ChatEngine:
 
     @profile_function
     async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0):
-        timing_info = {
+        timing_info: dict[str, float | None] = {
             "start_time": time.time(),
             "first_response": None
         }
-
-        # Invoke project based on project_id
-        self = self.switch_project(chat.project_id)
+        if chat.project_id and chat.project_id != self.settings.project_id:
+            # Invoke project based on project_id
+            return await self.switch_project(chat.project_id).chat_with_project(chat=chat,
+                                                                            disable_knowledge=disable_knowledge,
+                                                                            callback=callback,
+                                                                            append_references=append_references,
+                                                                            chat_mode=chat_mode,
+                                                                            iteration=iteration)
 
         with self.chat_action(chat=chat, event=f"Processing AI request {chat.name}"):
             chat_mode = chat_mode or chat.mode or "chat"
@@ -87,7 +91,6 @@ class ChatEngine:
             if chat.parent_id:
                 chat_manager = self.get_chat_manager()
                 parent_chat = chat_manager.find_by_id(chat.parent_id)
-
 
             max_iterations = self.settings.get_agent_max_iterations()
             iterations_left = max_iterations - iteration
@@ -116,7 +119,7 @@ class ChatEngine:
                     response_message.content = content
                 sources =  []
                 if documents:
-                    sources = list(set([doc.metadata["source"].replace(self.settings.project_path, "") for doc in documents]))
+                    sources = list(set([d.metadata["source"].replace(self.settings.project_path, "") for d in documents]))
                 response_message.files = sources
                 response_message.task_item = task_item
                 response_message.done = done
@@ -131,15 +134,15 @@ class ChatEngine:
             user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
             query = user_message.content
 
-            query_mentions = self.get_query_mentions(query=query)
+            query_mentions: QueryMentions = self.get_query_mentions(query=query)
             
             def load_profiles():
                 profile_manager = self.get_profile_manager()
-                query_profiles = query_mentions["profiles"]
-                chat_profiles = [profile_manager.read_profile(profile_name) \
-                                    for profile_name \
-                                    in chat.profiles + (user_message.profiles or [])]
-                all_profiles = [p for p in chat_profiles + query_profiles if p]
+                query_profiles = query_mentions.profiles
+                chat_and_message_profiles = [profile_manager.read_profile(profile_name) \
+                                             for profile_name \
+                                             in chat.profiles + (user_message.profiles or [])]
+                all_profiles = [p for p in chat_and_message_profiles + query_profiles if p]
                 all_profiles = profile_manager.get_profiles_and_parents(all_profiles)
                 profile_names = [p.name for p in all_profiles]
                 logger.info(f"Loading profiles: {profile_names}")
@@ -153,20 +156,17 @@ class ChatEngine:
             chat_profiles_content = ""
             chat_profile_names = []
             chat_model = chat.llm_model
-            profiles_with_knowledge = []
             messages = []
 
             parent_content = self.get_chat_analysis_parents(chat=chat)
             if parent_content:
                 messages.append(HumanMessage(content=parent_content))
 
-
             # Find projects for this
-            query_mention_projects = [p for p in query_mentions["projects"] if p and hasattr(p, "codx_path")]
-            search_projects = ({
+            query_mention_projects: List[CODXJuniorSettings] = [p for p in query_mentions["projects"] if p and hasattr(p, "codx_path")]
+            search_projects: List[CODXJuniorSettings] = list(({
                     settings.codx_path: settings for settings in query_mention_projects
-                }).values()
-
+                }).values())
 
             if chat_profiles:
                 valid_profiles = [profile for profile in chat_profiles if profile]
@@ -178,8 +178,6 @@ class ChatEngine:
                 if valid_profiles[0].chat_mode:
                     chat_mode = valid_profiles[0].chat_mode
                 # None profile uses knowledge, disable knowledge
-                if not disable_knowledge:
-                    profiles_with_knowledge = [p for p in valid_profiles if p.use_knowledge]
                 if next((p for p in valid_profiles if p.chat_mode == 'task'), None):
                     is_refine = True
 
@@ -242,7 +240,6 @@ class ChatEngine:
                 ai_settings.model = chat_model
             ai = self.get_ai(llm_model=ai_settings.model)
 
-            
             if not disable_knowledge and search_projects:
                 chat.messages.append(new_chat_message("assistant", content=f"Searching in {[p.project_name for p in search_projects]}"))
                 logger.info(f"chat_with_project start project search {search_projects}")
@@ -254,7 +251,10 @@ class ChatEngine:
           
                         self.event_manager.chat_event(chat=chat, message=f"Knowledge searching for: {search_query}")
                         
-                        documents, file_list = self.select_afefcted_documents_from_knowledge(ai=ai, chat=chat, query=search_query, ignore_documents=ignore_documents, search_projects=search_projects)
+                        documents, file_list = self.select_documents_from_knowledge(chat=chat,
+                                                                                    query=search_query,
+                                                                                    ignore_documents=ignore_documents,
+                                                                                    search_projects=search_projects)
                         for doc in documents:
                             doc_context = document_to_context(doc)
                             context += f"{doc_context}\n"
@@ -272,13 +272,12 @@ class ChatEngine:
 
             if is_refine:
                 existing_document = last_ai_message.content if last_ai_message else "" 
-                refine_request = user_message.content
                 parent_task = self.get_chat_analysis_parents(chat=chat)
                 task_content = user_message.content
 
                 if parent_task:
                     task_content = f"""
-                    You are writting a child document.
+                    You are writing a child document.
                     This information comes from the parent document for your information:
                     <parent_document>
                     {parent_task}
@@ -301,42 +300,49 @@ class ChatEngine:
                     {user_message.content}
                     """
 
-                task_content += "Important: Always return the mardown document without any comments before or after, to keep it clean."
+
+                task_content += "Important: Always return the markdown document without any comments before or after, to keep it clean."
+
 
                 refine_message = new_chat_message(role="user", content=task_content)
                 messages.append(self.convert_message(refine_message))
                 refine_message.hide = True
                 chat.messages.append(refine_message)
 
+
             elif is_agent:
                 refine_message = new_chat_message(role="user", content=f"""
                 You are responsible to end this task.
-                Follow instructions and try to solve it with the minimun iterations needed.
+                Follow instructions and try to solve it with the minimum iterations needed.
                 <task>
                 { chat.name }
                 </task>
+
 
                 <parent_context>
                 {self.get_chat_analysis_parents(chat=chat)}
                 </parent_context>
 
+
                 <user_request>
                 {user_message.content}
                 </user_request>
                 
-                You still have { iterations_left } attemps more to finish the task. 
+                You still have { iterations_left } attempts more to finish the task. 
                 Return { AGENT_DONE_WORD } when the task is done.
                 """)
                 messages.append(self.convert_message(refine_message))
-                history_agent_instructions = self.convert_message(refine_message)
+                history_agent_instructions = refine_message
                 history_agent_instructions.hide = True
                 chat.messages.append(history_agent_instructions)
             else:
                 messages.append(self.convert_message(user_message))
 
+
             if chat_profiles_content:
                 messages[-1].content += f"\nInstructions:\n{chat_profiles_content}"
             self.event_manager.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
+
 
             if not callback:
                 callback = lambda content: send_message_event(content=content, done=False)
@@ -349,8 +355,9 @@ class ChatEngine:
                 response_message.is_thinking = False
                 send_message_event(content=response_message.content, done=True)
             except Exception as ex:
-                logger.exception(f"Error chating with project: {ex} {chat.id}")
+                logger.exception(f"Error chatting with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
+
 
             response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
             response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
@@ -359,18 +366,21 @@ class ChatEngine:
             
             chat.messages.append(response_message)
 
+
             # Chat description
             try:
                 description_message = ai.chat(messages=messages.copy(),
                                               prompt="Create a 5 lines summary of the conversation")[-1]
                 chat.description = description_message.content
             except Exception as ex:
-                logger.exception(f"Error chating with project: {ex} {chat.id}")
+                logger.exception(f"Error chatting with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
+
 
             if chat_mode == 'task':
                 for message in chat.messages[:-1]:
                     message.hide = True
+
 
             is_agent_done = AGENT_DONE_WORD in response_message.content
             if is_agent and not is_agent_done and iterations_left:
@@ -384,6 +394,7 @@ class ChatEngine:
             else:    
               self.event_manager.chat_event(chat=chat, message="done")
             return chat, documents
+
 
     def switch_project(self, project_id: str) -> 'ChatEngine':
         """
@@ -405,6 +416,7 @@ class ChatEngine:
 
         return self
 
+
     def get_ai(self, llm_model: Optional[str] = None) -> AI:
         """
         Get an AI instance configured for a specific model.
@@ -416,14 +428,15 @@ class ChatEngine:
         logger.debug(f"AI instance created with model {llm_model}")
         return ai_instance
 
-    def get_ai_code_generator_changes(self, response: str) -> AICodeGerator:
+
+    def get_ai_code_generator_changes(self, response: str) -> AICodeGenerator:
         """
         Process the response string to generate AI code generator changes.
 
         :param response: The string output from the AI model.
-        :return: An instance of AICodeGerator containing the parsed changes.
+        :return: An instance of AICodeGenerator containing the parsed changes.
         """
-        code_generator = AICodeGerator.from_response(response)
+        code_generator = AICodeGenerator.from_response(response)
         for change in code_generator.code_changes:
             file_path = change.file_path
             if not file_path.startswith(self.settings.project_path):
@@ -432,34 +445,43 @@ class ChatEngine:
         logger.info(f"Code generator changes retrieved from response")
         return code_generator
 
-    def select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str, ignore_documents: List[str] = [], search_projects: List = []) -> Tuple[List[Document], List[str]]:
+
+    def select_documents_from_knowledge(self, chat: Chat, query: str, ignore_documents=None,
+                                                 search_projects=None) -> Tuple[List[Document], List[str]]:
         """
         Select documents from knowledge base that are affected by a given query.
 
         :param chat: Current chat object.
-        :param ai: AI instance for processing.
         :param query: Search query for selecting documents.
         :param ignore_documents: List of documents to ignore during search.
         :param search_projects: Projects to search within.
         :return: Tuple of a list of documents and a list of file paths.
         """
+        if search_projects is None:
+            search_projects = []
+        if ignore_documents is None:
+            ignore_documents = []
+
         def process_rag_query(rag_query: str) -> Tuple[List[Document], List[str]]:
-            docs = []
-            file_list = []
+            docs: List[Document] = []
+            file_list: Optional[List[str]] = None
             logger.debug(f"Searching projects for query: {rag_query}")
             for search_project in search_projects:
                 if chat:
                     self.event_manager.chat_event(chat=chat, message=f"Searching knowledge in {search_project.project_name}")
                 project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, ignore_documents=ignore_documents)
-                project_file_list = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
+                project_file_list: list[str] = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
                 docs.extend(project_docs)
-                file_list.extend(project_file_list)
-            
+                if file_list:
+                    file_list.extend(project_file_list)
+                else:
+                    file_list = project_file_list
             logger.info(f"Documents selected from knowledge: {len(docs)}")
             return docs, file_list
 
         logger.debug(f"Starting document selection with query: {query}")
         return process_rag_query(query)
+
 
     def create_knowledge_search_query(self, query: str) -> str:
         """
@@ -481,7 +503,8 @@ class ChatEngine:
         logger.debug(f"Knowledge search query created: {enhanced_query}")
         return enhanced_query
 
-    def get_query_mentions(self, query: str) -> Dict[str, List[Profile]]:
+
+    def get_query_mentions(self, query: str) -> QueryMentions:
         """
         Extract mentions of profiles and projects from the given query.
 
@@ -489,9 +512,10 @@ class ChatEngine:
         :return: A dictionary containing lists of mentioned profiles and projects.
         """
         chat_utils = ChatUtils(profile_manager=self.get_profile_manager())
-        query_mentions = chat_utils.get_query_mentions(query=query)
+        query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
         logger.debug(f"Query mentions extracted: {query_mentions}")
         return query_mentions
+
 
     def get_chat_analysis_parents(self, chat: Chat):
         """Given a chat, traverse all parents and return all analysis"""
@@ -505,12 +529,12 @@ class ChatEngine:
             parent_chat = chat_manager.find_by_id(parent_chat.parent_id)
         return "\n".join(parent_content)
     
-    def convert_message(self, message):
-        msg = None
+    @staticmethod
+    def convert_message(message):
         def parse_image(image):
             try:
                 return json.loads(image)
-            except:
+            except JSONDecodeError as _:
                 return {"src": image, "alt": ""}
         if message.images:
             images = [parse_image(image) for image in message.images]
@@ -540,10 +564,34 @@ class ChatEngine:
         all_projects = [self.settings] + project_child_projects + project_dependencies
         return all_projects
 
+
     def get_project_dependencies(self):
         """Returns all projects related with this project, including child projects and links"""
         project_child_projects = self.settings.get_sub_projects()
         project_dependencies = [find_project_by_name(project_name) for project_name in self.settings.get_project_dependencies()]
         return project_child_projects, project_dependencies
 
+    def index_chat(self, chat: Chat):
+        """
+        Index the chat as a Document in the knowledge system.
+        Converts valid chat messages into a single Document with appropriate metadata.
 
+        :param chat: The chat to index.
+        """
+        # Extract valid messages
+        valid_messages = [message.content for message in chat.messages if not message.hide and not message.improvement]
+
+        # Create Document from valid messages
+        page_content = "\n".join(valid_messages)
+        metadata = {
+            "source": chat.file_path,
+            "parser": "chat",
+            "loader_type": "chat"
+        }
+
+        # Call the indexing function (assuming it exists)
+        try:
+            self.knowledge.index_document(page_content, metadata)
+            logger.info(f"Chat indexed successfully: {chat.file_path}")
+        except Exception as ex:
+            logger.exception(f"Failed to index chat: {chat.file_path}, error: {ex}")

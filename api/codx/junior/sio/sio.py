@@ -10,7 +10,7 @@ from codx.junior.sio.session_channel import SessionChannel
 from codx.junior.engine import CODXJuniorSession
 
 from codx.junior.context import (
-    AICodeGerator
+    AICodeGenerator
 )
 
 from codx.junior.sio.model import (
@@ -135,7 +135,7 @@ async def io_create_chat_tasks(sid, data: dict, codxjunior_session: CODXJuniorSe
 @sio.on("codx-junior-improve-patch")
 @sio_api_endpoint
 async def sio_run_improve_patch(sid, data: dict, codxjunior_session: CODXJuniorSession):
-    code_generator = AICodeGerator(**data["code_generator"])
+    code_generator = AICodeGenerator(**data["code_generator"])
     data = SioChatMessage(**data)
     info, error = await codxjunior_session.improve_existing_code_patch(
                             chat=data.chat,

@@ -285,7 +285,6 @@ class MentionManager:
         Return only the content without any further decoration or comments.
         Do not surround response with '```' marks, just content.
         Remove codx comments from the final version.
-        Do not return the <document> tags but respect tags present of the original content.
         """))
 
         changes_chat.messages.append(
@@ -294,19 +293,21 @@ class MentionManager:
                 profiles=[profile.name for profile in file_profiles],
                 files=[file_path],
                 content=f"""
-                    Given this document:
-                    <document>
-
+                    Processing user's file comments.
+                  
+                    File:
+                    ```document {file_path}
                     {content}
+                    ```
 
-                    </document>
-
-                    User has added these comments:
-                    <comments>
-                    @{self.settings.project_name} {query}
-                    </comments>
-
-                    {file_profile_content}
+                    User comments:
+                      {query}
+                    
+                    Instructions:
+                      {file_profile_content}
+                      Apply all comments to the document and return a final version.
+                      Pay attention to do not loose any detail or part of the document.
+                      Return only the file content 
                     """)
         )
 

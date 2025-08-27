@@ -1,6 +1,6 @@
 """
 Chat + AI
-This modules is responsible for the AI chat intreaction
+This module is responsible for the AI chat interaction
 """
 import logging
 import pathlib
@@ -103,7 +103,7 @@ class ChatManager:
         write_file(chat_file, self.serialize_chat(chat))
         # remove old chat
         if current_chat:
-            logger.info(f"Save chat, curren_chat {current_chat.id} at {current_chat.file_path}")
+            logger.info(f"Save chat, current_chat {current_chat.id} at {current_chat.file_path}")
             if chat_file != current_chat.file_path:
                 self.delete_chat(current_chat.file_path)
 
@@ -144,7 +144,6 @@ class ChatManager:
             board = DEFAULT_BOARD
             column = DEFAULT_COLUMN
 
-        chat = None
         with open(chat_file, 'r') as f:
             logger.info(f"load_chat_from_path chat_only open file {chat_file}") 
             content = f.read()

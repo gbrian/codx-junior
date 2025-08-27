@@ -72,3 +72,23 @@ const app = createApp(App)
 
 $storex.app = app
 $storex.$router = router
+
+// eruda
+window.setTimeout(() =>
+  (function() {
+    function isMobile() {
+      return /Mobi|Android/i.test(navigator.userAgent);
+    }
+
+    if (isMobile()) {
+      var script1 = document.createElement('script');
+      script1.src = "https://cdn.jsdelivr.net/npm/eruda";
+      document.body.appendChild(script1);
+
+      script1.onload = function() {
+        var script2 = document.createElement('script');
+        script2.innerHTML = "eruda.init();";
+        document.body.appendChild(script2);
+      };
+    }
+  })(), 2000)
