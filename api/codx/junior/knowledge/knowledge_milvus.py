@@ -148,7 +148,7 @@ class Knowledge:
           }
         except Exception as ex:
           logger.info(f"Error enriching document {source}: {ex}")
-          doc.metadata["error"] = doc.metadata.get("error", []) + [ex.message]
+          doc.metadata["error"] = doc.metadata.get("error", []) + [str(ex)]
 
       if self.settings.knowledge_generate_training_dataset:
         try:
@@ -192,6 +192,14 @@ class Knowledge:
 
     def get_categories(self):
         return self.get_db().get_all_categoties()
+
+
+    def create_wiki_doc(self, source):
+        try:
+            return self.wiki_manager.create_wiki_document(source)
+        except Exception as ex:
+            logger.exception("Error generating document wiki: %s - %s", source, ex)
+            return None
   
     def index_documents (self, documents, raiseIfError=False):
         
@@ -206,15 +214,28 @@ class Knowledge:
 
         all_documents = enriched_documents
         self.delete_documents(all_documents)
+
+        wiki_documents = {}
+        for source in all_sources:
+            wiki_doc = self.create_wiki_doc(source)
+            if wiki_doc:
+                logger.info("Indexing document and wiki doc: %s", wiki_doc)
+                wiki_documents[source] = wiki_doc 
         
         for doc in all_documents:
             source = doc.metadata.get("source")
+            category = None
+            if source in wiki_documents:
+                category = wiki_documents[source].metadata["category"]
             logger.info("Indexing document: %s", source)
             try:
                 doc.metadata["index_date"] = index_date
                 doc.metadata["file_md5"] = all_sources_with_md5.get(source, '')
                 # logger.info(f"Indexing document: {doc}")
-                
+                if category:
+                    doc.metadata["category"] = category
+                    doc.metadata["wiki_category"] = category
+
                 self.get_db().index_documents(documents=[doc])
                 # logger.info(f"Indexing document DONE: {doc}")
                 
@@ -225,12 +246,6 @@ class Knowledge:
                   self.reset()
                 elif raiseIfError:
                     raise ex
-
-        for source in all_sources:
-            try:
-                self.wiki_manager.create_wiki_document(source)
-            except Exception as ex:
-                logger.exception("Error creating wiki document: %s", ex)
 
     def delete_documents (self, documents=None, sources=None):
         sources = set(sources or [doc.metadata["source"] for doc in documents])

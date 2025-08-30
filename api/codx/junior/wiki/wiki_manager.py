@@ -32,6 +32,8 @@ from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.knowledge.knowledge_db import KnowledgeDB
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
 
+from codx.junior.utils.utils import write_file
+
 from langchain.schema.document import Document
 
 logger = logging.getLogger(__name__)
@@ -81,8 +83,7 @@ class WikiManager:
         self._fix_wiki_categories(wiki_settings)
         file_path = self._get_settings_path()
         wiki_settings["path"] = file_path
-        with open(file_path, 'w') as file:
-            json.dump(wiki_settings, file, indent=2)
+        write_file(file_path, json.dumps(wiki_settings, indent=2))
         logger.info(f"Wiki settings successfully saved to {file_path}")
         return self.load_wiki_settings()
 
@@ -151,15 +152,18 @@ class WikiManager:
               "error": ex
             }    
         
-    def create_wiki_document(self, source):
+    def update_category_home(self, documents: List[Document]):
+        pass
+
+    def create_wiki_document(self, source: str) -> Document:
         if not self.is_wiki_active:
-            return 
+            return None
             
         file_content = self._read_file(source)
         wiki_settings = self.load_wiki_settings()
         categories = self._get_all_categories(wiki_settings["categories"])
         # Check if we have already assigned a caregory 
-        category = next((c for c in categories if source in c["files"]), None)
+        category = next((c for c in categories if source in c.get("files", [])), None)
 
         if not category:
             categories_and_keywords = [{
@@ -182,6 +186,7 @@ class WikiManager:
             """
             messages = self._get_ai().chat(prompt=summary_prompt)
             metadata = next(extract_json_blocks(messages[-1].content))
+            wiki_path = metadata["path"]
             category = next(filter(lambda x: x["path"] == wiki_path, categories))
             # Update category
             if "files" not in category:
@@ -200,19 +205,26 @@ class WikiManager:
         { file_content }
         </document>
 
-        Given this document generate a full detailed, 
-        fine grained wiki with examples and tips documentation page 
-        including all the parts of the document.
+        Given this document generate a full detailed, fine grained wiki documentation with examples and tips.
         Resulting document must be in mardown syntax without further decoration or enclosing marks.
         Do not include the name of the file in the document.
+        Important: Use only information from the document don't make it from other sources and add references to the document sections.
         """
         messages = self._get_ai().chat(prompt=summary_prompt)
         page_content = messages[-1].content
         
         wiki_file_path = path_join(self.wiki_path, wiki_path, self._get_file_wiki_name(source))
+        logger.info("Creating wiki document at %s", wiki_file_path)
         os.makedirs(os.path.dirname(wiki_file_path), exist_ok=True)
-        with open(wiki_file_path, 'w') as f:
-            f.write(page_content)
+        write_file(wiki_file_path, page_content)
+        metadata = {
+          "keywords": keywords,
+          "category": title,
+          "source": source,
+          "language": "md",
+          "wiki_path": wiki_path
+        }
+        return Document(page_content, metadata=metadata)
 
     def _get_settings_path(self):
         return os.path.join(self.wiki_path, "wiki_settings.json")
@@ -271,9 +283,9 @@ class WikiManager:
                 # List all files under the category path
                 root, _, files = next(os.walk(category_path))
                 set_path = lambda f: os.path.join(self.wiki_path, category_path, f)
-                category["files"] = [set_path(f) for f in files]
+                category["wiki_files"] = [set_path(f) for f in files]
             else:
-                category["files"] = []      
+                category["wiki_files"] = []      
     
     def _search_documents(self, search_filter):
         return self.db.raw_search(search_filter)
@@ -282,7 +294,7 @@ class WikiManager:
         return read_file(file_path, self.settings.project_path)
 
     def _get_file_wiki_name(self, source):
-        return slugify(source.replace(self.settings.project_path, "")) + ".md"
+        return slugify(source.replace(self.settings.project_path, "")) + ".wiki_file"
 
     def _get_ai(self) -> AI:
         """Create and return an AI engine instance for processing."""

@@ -1,16 +1,29 @@
 <template>
   <div class="flex gap-2 items-center">
-    <div v-for="checkList in checkLists" :key="checkList.title"
-      class="badge flex gap-2"
-      @click.stop="onEditChecklist(checkList)">
-      <div>{{ checkList.title }}</div>
-      <div>
-        {{ checkList.items.filter(item => item.checked).length }}/{{ checkList.items.length }}
-        <i class="fa-regular fa-square-check"></i>
-      </div>
-      <div class="flex gap-1 items-center" v-if="checkList.items.find(i => i.time)">
-        {{ checkList.items.reduce((a, b) => a + parseInt((b.time || 0)), 0) }}
-        <i class="fa-solid fa-user-clock"></i>
+    <div v-for="checkList in checkLists" :key="checkList.title">
+      <div class="dropdown">
+        <div tabindex="0"
+          class="badge badge-outline badge-sm flex gap-1">
+          <i class="fa-solid fa-list-check"></i>
+
+          <div>{{ checkList.title }}</div>
+          {{ checkList.items.filter(item => item.checked).length }}/{{ checkList.items.length }}
+          <div class="flex gap-1 items-center" v-if="checkList.items.find(i => i.time)">
+            {{ checkList.items.reduce((a, b) => a + parseInt((b.time || 0)), 0) }}
+            <i class="fa-solid fa-user-clock"></i>
+          </div>
+        </div>
+        <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[100] w-96 p-2 shadow-sm text-xs">
+          <li v-for="(item, index) in checkList.items" :key="index">
+            <a class="flex gap-2 items-center">
+              <input type="checkbox" v-model="item.checked" class="checkbox checkbox-xs"/>
+              {{ item.title }}
+            </a>
+          </li>
+          <li @click.stop="onEditChecklist(checkList)">
+            <a><i class="fa-solid fa-gear"></i> Edit</a>
+          </li>
+        </ul>
       </div>
     </div>
     <button class="btn btn-xs" @click.stop="onEditChecklist()">

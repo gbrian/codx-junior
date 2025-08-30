@@ -107,7 +107,10 @@
             "data"
           ],
           "id": "session-management",
-          "path": "engine-module/session-management"
+          "path": "engine-module/session-management",
+          "files": [
+            "/shared/codx-junior/api/codx/junior/agents/base_agent.py"
+          ]
         },
         {
           "title": "High-Level Operations",
@@ -370,5 +373,6 @@
       "path": "utility-functions-and-tools"
     }
   ],
-  "error": {}
+  "error": {},
+  "path": "/shared/codx-junior/api/wiki/wiki_settings.json"
 }

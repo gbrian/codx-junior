@@ -139,6 +139,10 @@ export const mutations = mutationTree(state, {
     state.floatingCodxJunior = floating
     $storex.ui.saveState()
   },
+  toggleFloatinCodxJunior(state) {
+    state.floatingCodxJunior = !state.floatingCodxJunior
+    $storex.ui.saveState()
+  },
   addNotification(state, { text, type }) {
     const notif = {
       ts: moment().format("hh:mm:ss"),

@@ -108,7 +108,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
       </span>
     </div>
 
-    <WikiSettingsVue v-if="selectedTab === 'Wiki'" />
+    <WikiSettingsVue class="mt-2" v-if="selectedTab === 'Wiki'" />
 
     <div v-if="selectedTab === 'Search'">
       <div class="search flex flex-col gap-2" v-if="settings?.use_knowledge">

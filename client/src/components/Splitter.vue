@@ -41,7 +41,10 @@ import Wizard from '../components/wizards/Wizard.vue'
       <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="$ui.floatingCodxJunior ? 0 : $ui.showApp ?  20 : 100"
         :defaultSize="$ui.floatingCodxJunior ? 0 : $ui.codxJuniorWidth"
         class="flex items-center justify-center transition-all transition-discrete"
-        :class="$ui.floatingCodxJunior ? 'absolute z-50 right-0 top-0 bottom-0 border-red-600 w-2 opacity-30 hover:w-2/4 hover:opacity-90' : ''"
+        :class="[
+          $ui.floatingCodxJunior ? 'absolute z-50 right-0 top-0 bottom-0 border-red-600 w-2 opacity-30 hover:w-2/4 hover:opacity-90' : '',
+          ($ui.floatingCodxJunior && mouseOnNavigation) && 'w-2/4 opacity-90'
+        ]"
         @resize="size => $ui.setCodxJuniorWidth(size)"
         v-if="showCodxJunior">
         <CodxJuniorVue ref="codxJunior" class="w-full h-full" :class="`zoom:${zoom}`"
@@ -63,7 +66,12 @@ import Wizard from '../components/wizards/Wizard.vue'
         v-for="wizard in $projects.activeWizards" :key="wizard.id" 
         @close="$projects.removeWizard(wizard)" />
     </div>
-    <NavigationBar :right="true" v-if="$ui.isLandscape" />
+    <NavigationBar :right="true" 
+      @mouseenter="mouseOnNavigation = true" 
+      @mouseover="mouseOnNavigation = true"
+      @mouseleave="mouseOnNavigation = false"
+      @blur="mouseOnNavigation = false"
+      v-if="$ui.isLandscape" />
 
   </div>
 </template>
@@ -71,6 +79,7 @@ import Wizard from '../components/wizards/Wizard.vue'
 export default {
   data() {
     return {
+      mouseOnNavigation: false
     }
   },
   computed: {

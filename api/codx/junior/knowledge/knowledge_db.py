@@ -199,7 +199,7 @@ class KnowledgeDB:
         except Exception as ex:
             if "float_vector" in str(ex):
                 logger.error(f"Error inserting new documents for project {self.settings.project_name} - index {self.index_fulltext_name} {ex}, trying to restart index")
-                self.reset(index="fulltext")
+                self.reset()
             else:
                 raise ex
 
@@ -228,7 +228,7 @@ class KnowledgeDB:
                   limit=None):
         if not output_fields:
             output_fields = list(KNOWLEDGE_FIELDS.keys())
-        logger.info("raw_search: %s, %s", search_filter, output_fields)
+        # logger.info("raw_search: %s, %s", search_filter, output_fields)
         results = self.db.query(
             collection_name=self.index_fulltext_name,
             filter=search_filter,
@@ -310,6 +310,11 @@ class KnowledgeDB:
         # Log any exceptions encountered during execution.
         except Exception as ex:
             logger.error("Error reading project '%s' sources: %s", self.settings.project_name, ex)
+            error = str(ex)
+            if "field source not exist" in error or \
+                "field last_update not exist" in error:
+                # Corrupted index
+                self.reset()
 
         # Fall back to returning an empty list if an error occurs.
         return {}

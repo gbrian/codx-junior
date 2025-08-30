@@ -1,7 +1,7 @@
 <script setup>
 import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
-import DiffViewer from './DiffViewer.vue'
+import hljs from 'highlight.js';
 </script>
 
 <template>
@@ -34,7 +34,7 @@ import DiffViewer from './DiffViewer.vue'
     </div>
     <div class="view-code" :style="{ zoom }">
       <VueCodeHighlighter :code="diff" :lang="'diff'" :header="false" :title="fileName" v-if="showDiff" />
-      <VueCodeHighlighter :code="code" :lang="language" :title="fileName" v-else />
+      <VueCodeHighlighter :code="code" :lang="fileLanguage" :title="fileName" v-else />
     </div>
     <div class="flex justify-end gap-2">
       <button class="btn btn-sm btn-warning" @click="applyPatch" v-if="isPatch">
@@ -62,6 +62,13 @@ export default {
     },  
     isCommand() {
       return this.language === "bash"
+    },
+    fileLanguage() {
+      const languages = hljs.listLanguages()
+      if (!languages.includes(this.language)) {
+        return "markdown"
+      }
+      return this.language
     }
   },
   methods: {

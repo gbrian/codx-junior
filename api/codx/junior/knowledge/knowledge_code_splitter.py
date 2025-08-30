@@ -127,18 +127,20 @@ class KnowledgeCodeSplitter:
             return docs
 
     def load_with_docling(self, file_path, code_parser_language):
-        markdown_path = file_path + ".md"
-        if os.path.isfile(markdown_path) and \
-            os.path.getmtime(markdown_path) > os.path.getmtime(file_path):
-            
-            logger.info("load_with_docling SKIP '%s' is newer than '%s'", markdown_path, file_path)
-        else:
-            converter = DocumentConverter()
-            result = converter.convert(file_path)
-            markdown = result.document.export_to_markdown()
-            with open(markdown_path, 'w') as file:
-                file.write(markdown)
-            logger.info("[load_with_docling] done, markdown length: %d", len(markdown))
+        extension = file_path.split(".")[-1]
+        if extension in ["pdf", "docx", "xls", "jpg"]:
+            markdown_path = file_path + ".md"
+            if os.path.isfile(markdown_path) and \
+                os.path.getmtime(markdown_path) > os.path.getmtime(file_path):
+                
+                logger.info("load_with_docling SKIP '%s' is newer than '%s'", markdown_path, file_path)
+            else:
+                converter = DocumentConverter()
+                result = converter.convert(file_path)
+                markdown = result.document.export_to_markdown()
+                with open(markdown_path, 'w') as file:
+                    file.write(markdown)
+                logger.info("[load_with_docling] done, markdown length: %d", len(markdown))
         
         raise Exception("Let markdown take it!")
         

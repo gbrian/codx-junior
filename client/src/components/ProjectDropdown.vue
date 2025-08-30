@@ -5,7 +5,9 @@ import ProjectDetailt from './ProjectDetailt.vue';
 <div class="dropdown dropdown-bottom flex flex-col h-full"
     :class="isOpen ? 'dropdown-open': ''" 
     v-if="$project">
-    <ProjectDetailt @click="isOpen = !isOpen" />
+    <div class="flex items-start">
+      <ProjectDetailt @click="isOpen = !isOpen" />
+    </div>
     <ul class="dropdown-content menu bg-base-300 rounded-box z-50 w-52 p-2 shadow"
       @mouseleave="isOpen = false"
       @blur="isOpen = false"

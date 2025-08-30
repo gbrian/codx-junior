@@ -264,7 +264,7 @@ class MentionManager:
                             column="changes",
                             parent_chat=analysis_chat.id if analysis_chat else None,
                             tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
-                            profiles=[p.name for p in query_mentions["profiles"]],
+                            profiles=[p.name for p in query_mentions.profiles],
                             messages=[])
 
         if analysis_chat:

@@ -22,7 +22,7 @@ import DataDetails from './DataDetails.vue';
       </div>
     </td>
     <td><div class="w-20 overflow-auto text-nowrap">{{ item.metadata.category }}</div></td>
-    <td> <div class="w-20 overflow-auto text-nowrap">{{ item.metadata.keywords.split(",").join(" ") }}</div></td>
+    <td> <div class="w-20 overflow-auto text-nowrap">{{ item.metadata.keywords?.split(",").join(" ") }}</div></td>
     <td>{{ item.metadata.length }}</td>
     <td>{{ moment(item.metadata.last_update * 1000).fromNow() }}</td>
     <td>

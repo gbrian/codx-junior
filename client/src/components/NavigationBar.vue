@@ -1,7 +1,6 @@
 <script setup>
 import moment from 'moment';
 import ChatBar from './user/ChatBar.vue';
-import ProjectIconSelector from './project/ProjectIconSelector.vue';
 import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
 </script>
 <template>
@@ -19,7 +18,6 @@ import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
 
       <div class="divider"></div>
 
-      <ProjectIconSelector />
       
       <div :class="['hover:bg-base-100 click relative', 
         !$project ? 'text-slate-400' :

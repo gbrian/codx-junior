@@ -1,6 +1,5 @@
 <script setup>
 import AssistantChat from '@/components/codx-junior/AssistantChat.vue';
-import MenuDropDown from '@/components/MenuDropDown.vue'
 import WikiSections from '../components/wiki/WikiSections.vue';
 </script>
 <template>
@@ -11,9 +10,6 @@ import WikiSections from '../components/wiki/WikiSections.vue';
         Wiki
       </div>
       <div class="w-1/12">
-        <MenuDropDown class="dropdown-left">
-          <li @click="$ui.setActiveTab('knowledge_settings')" ><a>Wiki settings</a></li>
-        </MenuDropDown>
       </div>
     </div>
     <AssistantChat profile-name="wiki" />

@@ -49,8 +49,9 @@ import { TreeItem, TreeRoot } from 'radix-vue'
             </template>
             <div class="grow ml-2 hover:underline justify-between flex gap-1 items-end" @click.stop="editItem(item.value)">
               {{ item.value.title }} 
-              <div class="grow justify-end flex items-center gap-1">
-                {{ item.value.files?.length || 0 }} <i class="fa-regular fa-file-lines"></i>
+              <div class="grow justify-end flex items-center gap-1" v-if="item.value.wiki_files?.length">
+                <div>{{ item.value.wiki_files?.length || 0 }}</div>
+                <i class="fa-regular fa-file-lines"></i>
               </div>
             </div>
             <div class="ml-2 text-error opacity-0 group-hover:opacity-100 tooltip"

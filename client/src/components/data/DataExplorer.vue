@@ -54,7 +54,7 @@ export default {
   props: ['status'],
   data() {
     return {
-      filter: "source != ''",
+      filter: "source LIKE '%%'",
       limit: 10,
       page: 1,
       results: []

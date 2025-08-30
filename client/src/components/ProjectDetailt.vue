@@ -11,7 +11,6 @@ import ProjectChip from './ProjectChip.vue';
           </div>
         </div>
         <span class="mr-2">{{ $project.project_name }}</span>
-        <i class="fa-solid fa-caret-down"></i>
       </div>
     </div>
     <div class="text-xs flex gap-2 items-center">

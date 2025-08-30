@@ -1,3 +1,23 @@
+# [[{"id": "4dd38b56-dc25-419b-ba81-77bc1d7008d9", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": ["/shared/codx-junior/api/codx/junior/model/model.py"], "check_lists": [], "profiles": [], "users": ["admin"], "name": "Integrate github oauth", "description": "The user provided a Python script that defines various models using Pydantic to manage configurations and data for a project. They specifically requested the addition of an OAuth provider list to the global settings, specifying the need for attributes like name, client_id, and secret. The script was updated accordingly to include an `OAuthProvider` model and a corresponding field in the `GlobalSettings` class. The modified script encapsulates various configurations, AI models, providers, user profiles, and other settings pertinent to the project's functionality. The response was formatted to adhere to the specified file and path guidelines provided by the user.", "created_at": "2025-08-30 14:15:50.876894", "updated_at": "2025-08-30T16:59:37.359481", "mode": "task", "kanban_id": "", "column_id": "", "board": "OAuth", "column": "Done", "chat_index": 0, "url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/OAuth/ToDo/integrate-github-oauth.4dd38b56-dc25-419b-ba81-77bc1d7008d9.md", "llm_model": "", "visibility": "", "remote_url": "", "knowledge_topics": []}]]
+## [[{"doc_id": "ecb41f24-97a4-4b83-bf77-722fe2520d32", "role": "user", "task_item": "", "think": "", "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-08-30 14:15:50.874876", "updated_at": "2025-08-30 14:15:50.874912", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin", "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true, "read_by": []}]]
+Add OAuth provider list to global settings with:
+* name
+* client_id
+* secret
+## [[{"doc_id": "cead20e1-00fe-47ad-9e0b-8b1ec0ed8604", "role": "user", "task_item": "", "think": "", "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-08-30 14:15:50.874876", "updated_at": "2025-08-30 14:15:50.874912", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": false, "read_by": []}]]
+Add OAuth provider list to global settings with:
+* name
+* client_id
+* secret
+                    Create new document based on user comments.
+                    User comments:
+                    Add OAuth provider list to global settings with:
+* name
+* client_id
+* secret
+                    Important: Always return the markdown document without any comments before or after, to keep it clean.
+## [[{"doc_id": "ac8eceb4-7c92-4b4b-b704-c829016d8345", "role": "assistant", "task_item": "analysis", "think": null, "hide": false, "is_answer": false, "improvement": false, "created_at": "2025-08-30 14:15:50.874876", "updated_at": "2025-08-30 14:15:50.874912", "images": [], "files": [], "meta_data": {"time_taken": 82.45687913894653, "first_chunk_time_taken": 0.00020766258239746094, "model": "openai/gpt-4o"}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": null, "disable_knowledge": false, "read_by": []}]]
+```python /shared/codx-junior/api/codx/junior/model/model.py
 import os
 import regex
 
@@ -299,3 +319,4 @@ class Screen(BaseModel):
       "800x600",
       "640x480"
     ])
+```
