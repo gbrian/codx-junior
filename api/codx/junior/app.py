@@ -10,6 +10,8 @@ import uuid
 import socketio
 from flask import jsonify
 
+from concurrent.futures import ThreadPoolExecutor
+
 faulthandler.enable()
 
 from codx.junior.ai import AIManager
@@ -86,10 +88,13 @@ from codx.junior.engine import (
     SessionChannel
 )
 
-from codx.junior.globals import (
-      create_project,
+from codx.junior.project.project_discover import (
     find_all_projects,
     find_all_user_projects,  
+)
+
+from codx.junior.project.project_manager import (
+    create_project,
 )
 
 from codx.junior.utils.utils import (
@@ -104,6 +109,7 @@ IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
 GLOBAL_REQUEST_TIMEOUT=280
+
 
 app = FastAPI(
     title="CODXJuniorAPI",
@@ -156,7 +162,7 @@ async def add_process_time_header(request: Request, call_next):
 @app.middleware("http")
 async def add_gpt_engineer_settings(request: Request, call_next):
     codx_path = request.query_params.get("codx_path")
-    if codx_path:
+    if codx_path and codx_path not in ["undefined", "null"]:
         try:
             sid = request.headers.get("x-sid")
             channel = SessionChannel(sid=sid, sio=sio)
@@ -337,7 +343,7 @@ def api_settings_check(request: Request):
 async def api_save_settings(request: Request):
     settings = await request.json()
     settings = CODXJuniorSettings.from_json(settings).save_project()
-    find_all_projects(with_metrics=True)
+    find_all_projects()
     return api_settings_check(request)
 
 @app.get("/api/profiles")
@@ -365,14 +371,13 @@ def api_delete_profile(profile_name, request: Request):
 def api_project_watch(request: Request):
     codx_junior_session = request.state.codx_junior_session
     codx_junior_session.watch_project(True)
-    find_all_projects(with_metrics=True)
+    find_all_projects()
     return { "OK": 1 }
 
 @app.get("/api/projects")
 def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    with_metrics = request.query_params.get("with_metrics") == "1"
-    all_projects = find_all_user_projects(user, with_metrics=with_metrics)
-    return list(all_projects)
+    all_projects = find_all_user_projects(user)
+    return all_projects
 
 @app.get("/api/projects/repo/branches")
 def api_find_all_repo_branches(request: Request):
@@ -414,7 +419,7 @@ def api_project_delete(request: Request):
 def api_project_unwatch(request: Request):
     codx_junior_session = request.state.codx_junior_session
     codx_junior_session.watch_project(False)
-    find_all_projects(with_metrics=True)
+    find_all_projects()
     return { "OK": 1 }
 
 @app.get("/api/knowledge/keywords")

@@ -9,6 +9,8 @@ from codx.junior.ai import AIManager
 from codx.junior.changes.change_manager import ChangeManager
 from codx.junior.globals import (
     CODX_JUNIOR_API_BACKGROUND,
+)
+from codx.junior.project.project_discover import (
     find_all_projects
 )
 from codx.junior.settings import read_global_settings
@@ -40,7 +42,6 @@ def start_background_services(app) -> None:
 
     # Start the project checking in a separate thread
     Thread(target=check_projects).start()
-
 
 def reload_models() -> None:
     """
@@ -93,6 +94,8 @@ def check_projects(mention_only = False) -> None:
         """
         try:
             session = ChangeManager(settings=project)
+            #if not session.settings.metrics:
+            #    session.update_project_metrics()
             await session.process_project_changes(mention_only)
             update_quarantine_status(project.project_name, success=True)
         except Exception as ex:
