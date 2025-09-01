@@ -50,8 +50,11 @@ export const state = () => ({
 
 export const mutations = mutationTree(state, {
   setAllProjects(state, allProjects) {
-    state.allProjects = allProjects.sort((a, b) =>
-        a.project_name.toLowerCase() > b.project_name.toLowerCase() ? 1 : -1)
+    state.allProjects = allProjects?.sort((a, b) => {
+        const aUpdated = a._metrics?.last_update || ""
+        const bUpdated = b._metrics?.last_update || ""
+        return aUpdated > bUpdated ? -1 : 1
+      })
     state.activeChat = null
   },
   setLogs(state, logs) {
@@ -169,7 +172,7 @@ export const actions = actionTree(
   { state, getters, mutations },
   {
     async init ({ state }) {
-      state.allProjects = []
+      $storex.projects.setAllProjects([])
       state.activeProject = null
       state.activeChat = null
 
@@ -193,7 +196,7 @@ export const actions = actionTree(
           $storex.session.onError("Error loading projects")
         }
       } 
-      state.allProjects = []
+      $storex.projects.setAllProjects([])
       state.activeProject = null
       state.activeChat = null
     },
@@ -307,8 +310,8 @@ export const actions = actionTree(
         state.projectLoading = false
       }
       state.activeProject = API.activeProject
-      state.allProjects = (state.allProjects||[])
-        .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p)
+      $storex.projects.setAllProjects((state.allProjects||[])
+        .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p))
       return state.activeProject
     },
     async createNewProject(_, projectPath) {

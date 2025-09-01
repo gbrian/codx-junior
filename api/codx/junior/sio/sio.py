@@ -45,7 +45,7 @@ def send_online_users(sid):
       "username": USERS[sid].get("username"),
       "avatar": USERS[sid].get("avatar"),
       "sid": sid
-    } for sid in USERS.keys() if USERS[sid].get("username")]
+    } for sid in USERS.keys() if USERS.get("sid",{}).get("username")]
     channel.send_event('codx-junior-online-users', { "users": online_users })
   
 

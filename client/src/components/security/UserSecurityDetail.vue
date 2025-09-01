@@ -29,6 +29,9 @@
       <div>Avatar URL</div>
       <input type="text" placeholder="Avatar URL" class="input input-bordered input-sm" v-model="user.avatar" />
 
+      <div>Github name</div>
+      <input type="text" placeholder="Name like 'gbrian'" class="input input-bordered input-sm" v-model="user.github" />
+
       <div class="flex flex-col gap-2">
         <div>
           Projects

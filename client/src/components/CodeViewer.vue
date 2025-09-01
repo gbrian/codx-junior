@@ -64,8 +64,7 @@ export default {
       return this.language === "bash"
     },
     fileLanguage() {
-      const languages = hljs.listLanguages()
-      if (!languages.includes(this.language)) {
+      if (!hljs.getLanguage(this.language)) {
         return "markdown"
       }
       return this.language

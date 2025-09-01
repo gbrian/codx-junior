@@ -4,7 +4,7 @@ import logging
 import pathlib
 import uuid
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from codx.junior.utils.utils import (
   write_file,
@@ -89,6 +89,10 @@ def write_global_settings(global_settings: GlobalSettings):
     except Exception as ex:
         logger.exception(f"Error saving global settings: {ex}")
 
+def get_oauth_provider(oauth_provider: str):
+    global_settings = read_global_settings()
+    return next((provider for provider in global_settings.oauth_providers \
+                if provider.name == oauth_provider), None)
 
 read_global_settings()
 logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
@@ -145,6 +149,8 @@ class CODXJuniorSettings(BaseModel):
     urls: Optional[List[str]] = Field(default=[])
 
     repo_url: Optional[str] = Field(default=None)
+
+    metrics: Optional[Dict] = Field(default={})
 
     def __str__(self):
         return str(self.model_dump())

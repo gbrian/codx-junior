@@ -4,6 +4,8 @@ import bcrypt
 
 from fastapi import Request
 
+from typing import Optional
+
 from codx.junior.settings import read_global_settings, write_global_settings
 from codx.junior.model.model import (
   CodxUser,
@@ -18,11 +20,15 @@ class UserSecurityManager():
     def __init__(self):
         self.global_settings = read_global_settings()
 
-    def find_user(self, username: str = None) -> CodxUser:
+    def find_user(self, username: str = None) -> Optional[CodxUser]:
         return next((user for user in self.global_settings.users
                      if user.username == username), None)
+
+    def find_github_user(self, account) -> Optional[CodxUser]:
+        return next((user for user in self.global_settings.users
+                     if user.github == account), None)
     
-    def find_user_login(self, username: str = None) -> CodxUserLogin:
+    def find_user_login(self, username: str = None) -> Optional[CodxUserLogin]:
         return next((login for login in self.global_settings.user_logins
                      if login.username == username), None)
 
@@ -35,7 +41,7 @@ class UserSecurityManager():
     def get_user_token(self, user: CodxUser):
         return jwt.encode({ "username": user.username }, self.global_settings.secret, algorithm="HS256")
     
-    def login_user(self, user: CodxUserLogin = None, token: str = None) -> CodxUser:
+    def login_user(self, user: CodxUserLogin = None, token: str = None, oauth_password: str = None) -> CodxUser:
         def do_login(user: CodxUserLogin, token: str):
             if token:
                 try:
@@ -57,14 +63,17 @@ class UserSecurityManager():
                     if stored_login:
                         if token == stored_login.token:
                             return stored_user
+                        if not user.password and oauth_password:
+                            return stored_user
                         # Verify existing password
                         if bcrypt.checkpw(user.password.encode('utf-8'), stored_login.password.encode('utf-8')):
                             return stored_user
                         else:
                             logger.error("Invalid password")
-                    elif user.username and user.password:
+                    elif user.username and (user.password or oauth_password):
+                        password = user.password or oauth_password
                         # Create a new user login with the hashed password
-                        hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+                        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                         new_login = CodxUserLogin(username=user.username, email=user.email, password=hashed_password.decode('utf-8'))
                         self.global_settings.user_logins.append(new_login)
                         self.save_settings()

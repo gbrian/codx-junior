@@ -83,6 +83,7 @@ class CodxUser(BaseModel):
     role: Optional[str] = Field(description="User role", default="user")
     token: Optional[str] = Field(default="")
     disabled: Optional[bool] = Field(default=False)
+    github: Optional[str] = Field(default="")
     
 class ProfileApiSettings(BaseModel):
     active: bool = Field(description="Model is visible through API", default=False)
@@ -222,7 +223,7 @@ class Workspace(BaseModel):
     name: str = Field(default="")
     description: str = Field(default="")
     project_ids: List[str] = Field(default=[])
-    workspace_port: Optional[int] = Field(default=0)
+    vnc_port: Optional[int] = Field(default=3000)
     workspace_start_port: Optional[int] = Field(default=0)
     workspace_end_port: Optional[int] = Field(default=0)
     updated_at: Optional[str] = Field(default=None)    
@@ -231,9 +232,10 @@ class AgentSettings(BaseModel):
     max_agent_iteractions: int = 4
 
 class OAuthProvider(BaseModel):
-    name: str
-    client_id: str
-    secret: str
+    name: str = Field(default="")
+    client_id: str = Field(default="")
+    secret: str = Field(default="")
+    token_url: str = Field(default="")
 
 class GlobalSettings(BaseModel):
     log_ai: bool = Field(default=True)

@@ -4,7 +4,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from codx.junior.globals import (
+from codx.junior.project.project_discover import (
   find_project_by_name,
 )
 from codx.junior.model.model import Profile

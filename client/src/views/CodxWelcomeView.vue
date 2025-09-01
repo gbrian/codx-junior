@@ -313,7 +313,6 @@ export default {
       issue.selected = true
     },
     async showProjects() {
-      this.$projects.loadAllProjects(true)
       this.selection = 'projects'
     }
   }

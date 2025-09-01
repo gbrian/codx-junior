@@ -18,10 +18,6 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.db import Chat, Message
 from codx.junior.utils.utils import write_file
 
-from codx.junior.globals import (
-  find_project_by_name
-)
-
 from codx.junior.profiling.profiler import profile_function
 
 

@@ -1,3 +1,6 @@
+<script setup>
+import moment from 'moment';
+</script>
 <template>
   <div class="p-4 rounded-md flex flex-col gap-2 bg-base-200 click">
     <div class="font-bold flex gap-2 items-start">
@@ -10,6 +13,9 @@
       <span class="text-nowrap overflow-hidden text-ellipsis">{{ project.project_path }}</span>
     </div>
     <div class="grow"></div>
+    <div class="text-xs" v-if="metrics?.last_update">
+      {{ moment(metrics?.last_update).fromNow() }}
+    </div>
     <div class="flex gap-2 items-center">
       <div class="text-xs text-info flex gap-1 items-center">
         <div class="flex gap-2 items-center">
@@ -33,7 +39,7 @@ export default {
   props: ['project'],
   computed: {
     metrics () {
-      return this.project._metrics || {}
+      return this.project.metrics || {}
     }
   }
 }

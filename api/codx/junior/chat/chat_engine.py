@@ -22,9 +22,12 @@ from codx.junior.context import (
 from codx.junior.db import Chat, Message
 from codx.junior.globals import (
     AGENT_DONE_WORD,
-    find_project_by_id,
-    find_project_by_name
 )
+from codx.junior.project.project_discover import (
+  find_project_by_id,
+  get_project_dependencies
+)
+
 from codx.junior.knowledge.knowledge_milvus import Knowledge
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.profiling.profiler import profile_function
@@ -560,16 +563,10 @@ class ChatEngine:
         return msg
         
     def get_all_search_projects(self):
-        project_child_projects, project_dependencies = self.get_project_dependencies()
+        project_child_projects, project_dependencies = get_project_dependencies(settings=self.settings)
         all_projects = [self.settings] + project_child_projects + project_dependencies
         return all_projects
 
-
-    def get_project_dependencies(self):
-        """Returns all projects related with this project, including child projects and links"""
-        project_child_projects = self.settings.get_sub_projects()
-        project_dependencies = [find_project_by_name(project_name) for project_name in self.settings.get_project_dependencies()]
-        return project_child_projects, project_dependencies
 
     def index_chat(self, chat: Chat):
         """

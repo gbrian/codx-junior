@@ -37,6 +37,16 @@ export const actions = actionTree(
       }
       $storex.init()
     },
+    async oauthLogin({ _ }, { provider, code, state }) {
+      try {
+        await API.oauth.oauthLogin({ oauth_provider: provider, code, state });
+        window.location.reload()
+      } catch (ex) {
+        $storex.session.onError("OAuth login error")
+        throw ex;
+      }
+      $storex.init()
+    },
     async logout() {
       await API.users.logout()
       $storex.init()

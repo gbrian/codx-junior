@@ -76,6 +76,12 @@ import { v4 as uuidv4 } from 'uuid'
             </div>
             <div class="form-control mt-4">
               <label class="label">
+                <span class="label-text">VNC Port</span>
+              </label>
+              <textarea v-model="selectedWorkspace.vnc_port" placeholder="Workspace Description" class="textarea textarea-bordered w-full max-w-xs" required></textarea>
+            </div>
+            <div class="form-control mt-4">
+              <label class="label">
                 <span class="label-text">Associated Projects</span>
               </label>
               <div class="flex gap-1 items-center">

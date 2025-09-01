@@ -24,9 +24,13 @@
         <input type="password" v-model="password" class="input input-bordered w-full" placeholder="Enter your password" required />
       </div>
       <button type="submit" class="btn btn-primary w-full">Login</button>
+      <button @click="handleGithubLogin" class="btn w-full">
+        Login <i class="fa-brands fa-github"></i>
+      </button>
     </form>
   </div>
 </template>
+
 <script>
 export default {
   data() {
@@ -44,6 +48,14 @@ export default {
           this.$storex.session.onError("Invalid user name or password")
         }
         window.location.reload()
+      }
+    },
+    async handleGithubLogin() {
+      try {
+        const { auth_url } = await this.$storex.api.oauth.getOAuthLoginUrl('github');
+        window.location.href = auth_url;
+      } catch (error) {
+        this.$storex.session.onError("Failed to initiate GitHub login");
       }
     }
   }

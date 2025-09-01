@@ -1,3 +1,127 @@
+# [[{"id": "cd8acd28-f062-4ed5-a93e-ce587e3a7944", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": ["/home/codx-junior/codx-junior/client/src/components/user/Login.vue", "/home/codx-junior/codx-junior/client/src/store/users.js", "/home/codx-junior/codx-junior/client/src/api/api.js"], "check_lists": [], "profiles": [], "users": ["admin"], "name": "OAuth login", "description": "The conversation was about adding GitHub login functionality to an existing application. Changes were made in three areas:\n\n1. Updated the `Login.vue` component to include a \"Login with GitHub\" button and handle GitHub login.\n2. Modified the `users.js` store to support GitHub login actions.\n3. Enhanced the `api.js` to handle OAuth provider information during the login process.", "created_at": "2025-08-30 16:43:53.391710", "updated_at": "2025-08-30T17:04:39.639726", "mode": "task", "kanban_id": "", "column_id": "", "board": "OAuth", "column": "Todo", "chat_index": 0, "url": "", "branch": "", "file_path": "/home/codx-junior/codx-junior/client/.codx/tasks/OAuth/Todo/oauth-login.cd8acd28-f062-4ed5-a93e-ce587e3a7944.md", "llm_model": "", "visibility": "", "remote_url": "", "knowledge_topics": []}]]
+## [[{"doc_id": "2f4179cc-c687-4b95-af44-dca517d9354f", "role": "user", "task_item": "", "think": "", "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-08-30 16:43:53.389655", "updated_at": "2025-08-30 16:43:53.389682", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin", "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true, "read_by": []}]]
+Add the option to login using github, it will the add the aouth_priver: "github" to the login post
+Make the changes to the component, store and api
+## [[{"doc_id": "c5b0814e-55ff-40ee-8a49-883480b46e64", "role": "user", "task_item": "", "think": "", "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-08-30 16:43:53.389655", "updated_at": "2025-08-30 16:43:53.389682", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": false, "read_by": []}]]
+Add the option to login using github, it will the add the aouth_priver: "github" to the login post
+Make the changes to the component, store and api
+                    Create new document based on user comments.
+                    User comments:
+                    Add the option to login using github, it will the add the aouth_priver: "github" to the login post
+Make the changes to the component, store and api
+                    Important: Always return the markdown document without any comments before or after, to keep it clean.
+## [[{"doc_id": "2b04b8a0-d6d7-4f74-9018-7cb16a8ffda3", "role": "assistant", "task_item": "analysis", "think": null, "hide": false, "is_answer": false, "improvement": false, "created_at": "2025-08-30 16:43:53.389655", "updated_at": "2025-08-30 16:43:53.389682", "images": [], "files": [], "meta_data": {"time_taken": 121.55995512008667, "first_chunk_time_taken": 0.00026607513427734375, "model": "openai/gpt-4o"}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": null, "disable_knowledge": false, "read_by": []}]]
+```vue /home/codx-junior/codx-junior/client/src/components/user/Login.vue
+<script setup>
+</script>
+<template>
+  <div class="w-full h-full flex flex-col items-center justify-center gap-4 p-4">
+    <form @submit.prevent="handleLogin" class="card w-full max-w-md shadow-lg p-6 rounded-lg bg-base-300/80">
+      <h2 class="text-3xl lg:text-5xl font-semibold mb-4 flex gap-2 items-center text-nowrap">
+        <div class="avatar">
+          <div class="w-24 rounded-full">
+            <img src="/only_icon.png" />
+          </div>
+        </div>
+        codx-junior
+      </h2>
+      <div class="form-control mb-4">
+        <label class="label">
+          <span class="label-text">Username</span>
+        </label>
+        <input type="text" v-model="username" class="input input-bordered w-full" placeholder="Enter your username" required />
+      </div>
+      <div class="form-control mb-6">
+        <label class="label">
+          <span class="label-text">Password</span>
+        </label>
+        <input type="password" v-model="password" class="input input-bordered w-full" placeholder="Enter your password" required />
+      </div>
+      <button type="submit" class="btn btn-primary w-full">Login</button>
+    </form>
+    <button @click="handleGithubLogin" class="btn btn-secondary w-full">Login with GitHub</button>
+  </div>
+</template>
+<script>
+export default {
+  data() {
+    return { 
+      username: '', 
+      password: '' 
+    }
+  },
+  methods: {
+    async handleLogin() {
+      if (this.username && this.password) {
+        const { username, password } = this
+        await this.$users.login({ username, password })
+        if (!this.$user) {
+          this.$storex.session.onError("Invalid user name or password")
+        }
+        window.location.reload()
+      }
+    },
+    handleGithubLogin() {
+      this.$users.login({ oauth_provider: "github" })
+    }
+  }
+}
+</script>
+```
+
+```js /home/codx-junior/codx-junior/client/src/store/users.js
+import { getterTree, mutationTree, actionTree } from 'typed-vuex'
+import { $storex } from '.'
+
+export const namespaced = true
+
+import { API } from '../api/api'
+export const state = () => ({
+  onlineUsers: {}
+})
+
+export const getters = getterTree(state, {
+  user: () => API.user,
+  isAdmin: () => API.user?.role === 'admin',
+  allUsers: ({ codxJunior, users }) => codxJunior ? [ codxJunior, ...users ] : [],
+  codxJunior: () => (      state.codxJunior = { 
+        userName: "codx-junior", 
+        avatar: API.globalSettings?.codx_junior_avatar
+      })
+})
+
+export const mutations = mutationTree(state, {
+  setOnlineUsers(state, users) {
+    state.onlineUsers = users
+  }
+})
+
+export const actions = actionTree(
+  { state, getters, mutations },
+  {
+    async init ({ state }, $storex) {
+    },
+    async login({ _ }, user) {
+      try {
+        await API.users.login(user)
+      } catch(ex) {
+        $storex.session.onError("Login error")
+      }
+      $storex.init()
+    },
+    async logout() {
+      await API.users.logout()
+      $storex.init()
+    },
+    async saveUser({ state }, user) {
+      await API.users.save(user)
+      $storex.session.onInfo("User account updated")
+    }
+  }
+)
+```
+
+```js /home/codx-junior/codx-junior/client/src/api/api.js
 import axios from 'axios'
 
 
@@ -131,25 +255,6 @@ const initializeAPI = ({ project, user } = {}) => {
     },
     delete(url) {
       return API.connection.delete(url)
-    },
-    oauth: {
-      async getOAuthLoginUrl(provider) {
-        const redirect_uri = encodeURIComponent(window.location.origin + `/auth/${provider}`)
-        return await API.get(`/api/users/oauth-login-url/${provider}?redirect_uri=${redirect_uri}`);
-      },
-      async oauthLogin({ oauth_provider, code, state }) {
-        const redirect_uri = encodeURIComponent(window.location.origin + `/auth/${oauth_provider}`)
-        const data = await API.post('/api/users/oauth-login', {
-          oauth_provider,
-          code,
-          state,
-          redirect_uri
-        });
-        API.user = data;
-        localStorage.setItem("CODX_USER", JSON.stringify(API.user));
-        await API.onUserLogin();
-        return data;
-      }
     },
     users: {
       async list() {
@@ -539,3 +644,4 @@ const initializeAPI = ({ project, user } = {}) => {
 };
 
 export const API = initializeAPI()
+```

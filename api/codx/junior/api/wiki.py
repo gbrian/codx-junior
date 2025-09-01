@@ -10,7 +10,7 @@ from codx.junior.engine import (
   CODXJuniorSession
 )
 
-from codx.junior.globals import find_project_by_name
+from codx.junior.project.project_discover import find_project_by_name
 
 from codx.junior.security.user_management import UserSecurityManager, get_authenticated_user
 from codx.junior.model.model import CodxUser, CodxUserLogin

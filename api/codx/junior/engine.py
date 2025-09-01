@@ -44,9 +44,10 @@ from codx.junior.globals import (
     APPS,
     APPS_COMMANDS,
     coder_open_file,
+)
+from codx.junior.project.project_discover import (
     find_project_by_id,
     find_project_by_name,
-    find_all_projects
 )
 from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
@@ -595,10 +596,34 @@ class CODXJuniorSession:
         await self.chat_with_project(chat=chat, disable_knowledge=True, append_references=False)
         return chat.messages[-1].content
 
+    def get_project_metrics(self):
+        try:
+            chat_manager = self.get_chat_manager()
+
+            number_of_chats = chat_manager.chat_count()
+            chat_changed_last = chat_manager.last_chats()
+            
+            status = self.check_knowledge_status()
+
+            last_update = None
+            if chat_changed_last:
+                last_update = chat_changed_last[0].updated_at
+            return {
+                "last_update": last_update,
+                "number_of_chats": number_of_chats,
+                "chats_changed_last": chat_changed_last,
+                **status
+            }
+        except Exception as ex:
+            logger.exception("Error processing proejct metric: %s - %s", settings.project_name, ex)
+            return {
+              "error": str(ex)
+            }
+
     def check_knowledge_status(self):
-        knowledge = Knowledge(settings=self.settings)
+        knowledge = self.get_knowledge()
         status = knowledge.status()
-        current_sources_and_updates = self.get_knowledge().get_db().get_all_sources()
+        current_sources_and_updates = knowledge.get_db().get_all_sources()
         pending_files, _ = knowledge.detect_changes(current_sources_and_updates=current_sources_and_updates)
         pending_files = [f for f in pending_files if f not in list(current_sources_and_updates.keys())]
         return {
@@ -607,7 +632,7 @@ class CODXJuniorSession:
             "total_pending_changes": len(pending_files),
             **status
         }
-
+    
     def apply_patch(self, patch: str):
         # Extract the file path from the diff
         file_diff_lines = patch.split('\n')
@@ -1076,20 +1101,6 @@ class CODXJuniorSession:
 
     def update_project_profile(self, file_path: str):
         return  # deprecated
-
-    def get_project_metrics(self):
-        chat_manager = ChatManager(settings=self.settings)
-
-        number_of_chats = chat_manager.chat_count()
-        chat_changed_last = chat_manager.last_chats()
-        
-        status = self.check_knowledge_status()
-        
-        return {
-            "number_of_chats": number_of_chats,
-            "chats_changed_last": chat_changed_last,
-            **status
-        }
 
     def api_image_to_text(self, image_bytes):
         from PIL import Image
