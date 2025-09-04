@@ -5,6 +5,7 @@
   <span class="text-info" v-if="mode === 'browser'"><i class="fa-brands fa-chrome"></i></span>
   <span class="text-info" v-if="mode === 'topic'"><i class="fa-regular fa-comments"></i></span>
   <span class="text-info" v-if="mode === 'answer'"><i class="fa-solid fa-check-double"></i></span>
+  <span class="text-info" v-if="mode === 'prview'"><i class="fa-solid fa-code-pull-request"></i></span>
 </template>
 
 <script>

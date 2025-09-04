@@ -106,7 +106,10 @@ class ChatEngine:
             response_message = new_chat_message("assistant")
             def send_message_event(content, done):
                 if not response_message.is_thinking:
-                    response_message.is_thinking = True if "<think>" in content else None
+                    if content and content.startswith("<think>") \
+                      and not response_message.content:
+                          response_message.is_thinking = True
+
                 elif response_message.is_thinking and \
                     "</think>" in content:
                         response_message.is_thinking = False

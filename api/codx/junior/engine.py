@@ -1209,32 +1209,20 @@ class CODXJuniorSession:
         stdout, _ = exec_command("git branch",
             cwd=self.settings.project_path)
         branches = [s.strip() for s in stdout.split("\n") if s.strip()]
-        current_branch = [b for b in branches if b.startswith('* ')]
-        if current_branch:
-            current_branch = current_branch[0].replace('* ', '')
-        else:
-            current_branch = ""
-
-        branches = [b.replace('* ', '') for b in branches]
-
-        branch_details = self.get_branch_details(current_branch)
-        parent_branch = branch_details["parent_branch"]
-
-        git_diff = ""
-        if current_branch and parent_branch:
-            head_ix = len(branch_details["commits"]) - 1
-            stdout, _ = exec_command(f"git diff HEAD~{head_ix}",
-              cwd=self.settings.project_path)
-            git_diff = stdout
-
-
         return {
           "branches": branches,
-          "current_branch": current_branch.strip(),
-          "parent_branch": parent_branch,
-          "git_diff": git_diff,
-          "branch_details": branch_details
         }
+
+    def get_repo_changes(self, from_branch: str, to_branch: str):
+        stdout, _ = exec_command(f"git diff {from_branch} {to_branch}",
+            cwd=self.settings.project_path)
+        return {
+          "diff": stdout,
+        }
+
+    def get_project_pr(self, from_branch: str, to_branch: str):
+        
+        pass
 
     def get_branch_details(self, branch_name: str):
         """

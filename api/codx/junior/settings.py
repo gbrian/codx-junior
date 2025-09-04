@@ -264,7 +264,8 @@ class CODXJuniorSettings(BaseModel):
 
     def get_project_wiki_path(self):
         if not self.project_wiki:
-            return None
+            return os.path.join(self.codx_path, "wiki")
+
         if self.project_wiki[0] == "/":
             return self.project_wiki
         return os.path.join(self.project_path, self.project_wiki)

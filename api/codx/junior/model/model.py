@@ -63,6 +63,10 @@ class ProjectPermission(BaseModel):
     project_id: str
     permissions: str = Field(description="User permissions for the project", default=[])
 
+class PRView(BaseModel):
+    from_branch: Optional[str] = Field(default="")
+    to_branch: Optional[str] = Field(default="")
+
 class CodxUserLogin(BaseModel):
     username: Optional[str] = Field(default="")
     password: Optional[str] = Field(default="")

@@ -1,6 +1,7 @@
 <script setup>
 import draggable from "vuedraggable"
 import TaskCard from "./TaskCard.vue"
+import TaskCardLite from "./TaskCardLite.vue"
 import ChatViewVue from "../../views/ChatView.vue"
 import { v4 as uuidv4 } from "uuid"
 import VSwatches from "../VSwatches.vue"
@@ -10,7 +11,17 @@ import ChatIcon from "../chat/ChatIcon.vue"
 
 <template>
   <div class="h-full px-2" v-if="kanban?.boards">
-    <div v-if="!$projects.activeChat && !board">
+    <div class="flex flex-col gap-2" v-if="!$projects.activeChat && !board">
+      <div v-if="lastUpdatedTasks?.length">
+        <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between">
+          <div>Last tasks</div>
+        </h1>
+        <div class="grid grid-cols-2 grid-flow-row gap-2">
+          <TaskCardLite @click="$projects.setActiveChat(task)" 
+            :task="task" class="click h-40 overflow-hidden border rounded-md border-slate-600" v-for="task in lastUpdatedTasks" :key="task.id"/>
+        </div>
+      </div>
+
       <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between">
         <div>Boards Dashboard</div>
         <input type="text" v-model="boardFilter" class="input input-sm input-bordered" placeholder="Search boards" />
@@ -118,10 +129,13 @@ import ChatIcon from "../chat/ChatIcon.vue"
                         <a><ChatIcon mode="chat" /> Chat</a>
                       </li>
                       <li class="flex gap-2" @click="newTask(column.title, 'task')">
-                        <a><ChatIcon mode="task" /> Canvan</a>
+                        <a><ChatIcon mode="task" /> Document</a>
                       </li>
                       <li class="flex gap-2" @click="newTask(column.title, 'topic')">
                         <a><ChatIcon mode="topic" /> Discussion</a>
+                      </li>
+                      <li class="flex gap-2" @click="newTask(column.title, 'prview')">
+                        <a><ChatIcon mode="prview" /> Changes review</a>
                       </li>
                       <li class="flex gap-2" @click="importTask(column.title)">
                         <a>Import task</a>
@@ -160,13 +174,16 @@ import ChatIcon from "../chat/ChatIcon.vue"
     </div>
     <modal v-if="showBoardModal">
       <h2 class="font-bold text-3xl">Add New Board</h2>
-      <div class="collapse">
+      <div class="collapse"
+        :style="{ 'background-image': newBoardBackground }"
+      >
         <input type="radio" name="newboard"  v-model="newBoardType" value="manual" />
         <div class="hidden collapse-title text-xl font-medium"><i class="fa-solid fa-gear"></i> Manual settings</div>
         <div class="collapse-content">
           <div class="text-xl text-info font-bold" v-if="activeBoard">Parent {{ activeBoard.title }}</div>
           <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
           <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
+          <input type="text" v-model="newBoardBackground" placeholder="Enter board backgorund image" class="input input-bordered w-full mt-2"/>
         </div>
       </div>
       <div class="collapse hidden">
@@ -237,6 +254,7 @@ export default {
       newBoardIssueLink: '',
       newBoardName: '',
       newBoardDescription: '',
+      newBoardBackground: '',
       newBoardBranch: '',
       columnTitle: '',
       columnColor: '#000000',
@@ -274,6 +292,13 @@ export default {
         (b.updated_at || new Date(1900, 1, 1)) ? -1 : 1)
         .slice(0, 1)[0] || {}
     },
+    lastUpdatedTasks() {
+      return this.chats.sort((a, b) => 
+        (a.updated_at || new Date(1900, 1, 1)) > 
+        (b.updated_at || new Date(1900, 1, 1)) ? -1 : 1)
+        .slice(0, 3) || []
+    },
+    
     showKanban() {
       return this.kanban && this.activeKanbanBoard
     },
@@ -565,6 +590,7 @@ export default {
           title: boardName,
           parent_id: this.activeBoard?.id,
           description: this.newBoardDescription?.trim(),
+          background: this.newBoardBackground,
           columns: [],
         })
       }
@@ -574,6 +600,7 @@ export default {
     resetNewBoardInfo () {
       this.newBoardName = ''
       this.newBoardDescription = ''
+      this.newBoardBackground = ''
       this.newBoardBranch = ''
       this.selectedTemplate = null
       this.newBoardIssueLink = ''
@@ -603,19 +630,12 @@ export default {
       )
       return taskNameMatches || messageContentMatches
     },
-    onEditBoard ({ board, title, description, remote_url }) {
-      const existingBoard = this.kanban.boards[board.title]
-      delete this.kanban.boards[board.title]
-      this.kanban.boards[title] = {
-        ...existingBoard,
-        title,
-        description,
-        remote_url
-      }
-      this.saveKanban()
-      if (board.title === this.board) {
-        this.selectBoard(title)
-      }
+    onEditBoard ({ title, description, remote_url, background }) {
+      this.newBoardBackground = background
+      this.newBoardDescription = description
+      this.newBoardIssueLink = remote_url
+      this.newBoardName = title
+      this.showBoardModal = true
     },
     onDeleteBoard (board) {
       this.$projects.deleteBoard(board)

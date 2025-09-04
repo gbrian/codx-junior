@@ -1,8 +1,8 @@
 <template>
   <div class="p-4 flex flex-col gap-2">
     <div class="flex flex-col gap-2" v-if="selectedCategory">
-      <div class="text-2xl flex gap-2">
-        <span @click="back()" >
+      <div class="text-2xl flex gap-2 click" @click="back()">
+        <span >
         <i class="fa-solid fa-circle-arrow-left"></i></span>
         {{ selectedCategory.title }}
       </div>
@@ -29,24 +29,19 @@
       </div>
     </div>
     <div class="flex flex-col gap-2" v-if="selectedCategory?.wiki_files?.length">
-      <div class="badge badge-xs badge-outline badge-info gap-2" v-if="selectedFile">
-        {{  selectedFile.split("/").reverse()[0] }}
-        <span class="hover:underline click" @click="showFile(null)" >
-          <i class="fa-solid fa-xmark"></i>
-        </span>
-      </div>
-      <div class="text-2xl" v-else>Files</div>
       
-      <markdown class="" :text="fileContent" v-if="fileContent" />
-
-      <div class="shrink-0 grid grid-cols-1 sm:grid-cols-2 gap-4 md:grid-cols-3" v-else>
-        <div class="badge badge-xs badge-outline click"
+      <div role="tablist" class="tabs tabs-border overflow-auto gap-2">
+        <a role="tab" class="tab text-nowrap border rounded-md"
+          :class="selectedFile == file && 'text-info'"
           v-for="file in selectedCategory.wiki_files" :key="file"
           @click="showFile(file)"
         >
-          {{  file.split("/").reverse()[0] }}
-        </div>
+          {{  file.split("/").reverse()[0].split(".")[0] }}
+        </a>
       </div>
+
+      <markdown class="" :text="fileContent" v-if="fileContent" />
+
     </div>
   </div>
 </template>
@@ -100,6 +95,9 @@ export default {
       if (category) {
         const parent = category?.parent || this.selectedCategory 
         this.selectedCategory = { ...category, parent }
+        if (this.selectedCategory.wiki_files) {
+          this.showFile(this.selectedCategory.wiki_files[0])
+        }
       } else {
         this.selectedCategory = null
       }

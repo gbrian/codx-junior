@@ -7,43 +7,45 @@ import UserSelector from '@/components/chat/UserSelector.vue'
 import UserAvatar from '@/components/user/UserAvatar.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
+import ChatSelector from '@/components/chat/ChatSelector.vue'
+import PRBranchSelectoor from '@/components/repo/PRBranchSelectoor.vue'
+import PRView from '@/components/repo/PRView.vue'
 </script>
 
 <template>
   <div class="flex flex-col h-full pb-2 px-2" v-if="chat">
     <div class="grow flex gap-2 h-full justify-between">
-      <div class="grow flex flex-col gap-2 w-full">
+      <div class="grow flex flex-col w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <input v-if="editName" type="text" class="input input input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
+              <input v-if="editName" type="text" class="input input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
               <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2 mb-2">
-                  <div class="my-2 hover:underline click font-bold text-primary" @click="naviageToParent()">
+                  <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
                     <i class="fa-solid fa-caret-left"></i> {{ kanban?.title }}
                   </div>
-                  <div class="my-2 hover:underline click font-bold text-secondary" @click="naviageToParent(parentChat)" v-if="parentChat">
+                  <div class="my-2 hover:underline cursor-pointer font-bold text-secondary" @click="navigateToParent(parentChat)" v-if="parentChat">
                     <i class="fa-brands fa-trello"></i>
                     {{ parentChat.name }}
                   </div>
                 </div>
                 <div class="flex gap-2">
                   <div class="flex gap-1">
-                    <div class="avatar" :title="taskProject.project_name"
-                      v-if="taskProject.project_id !== $project.project_id">
+                    <div class="avatar" :title="taskProject.project_name" v-if="taskProject.project_id !== $project.project_id">
                       <div class="w-7 h-7 rounded-full">
                         <img :src="taskProject.project_icon"/>
                       </div>
                     </div>
                     <UserAvatar :width="7" :user="user" v-for="user in chatUsers" :key="user.username">
-                      <li @click="removeUser(user)" ><a>Remove</a></li>
+                      <li @click="removeUser(user)"><a>Remove</a></li>
                     </UserAvatar>  
                     <ProfileAvatar :profile="chatProfiles[0]"
                       :project="taskProject"
                       width="7"
                       v-if="chatProfiles.length">
                         <div class="flex justify-end gap-2">
-                          <div class="badge badge-xs badge-warning click" @click="removeProfile(chatProfiles[0])">
+                          <div class="badge badge-xs badge-warning cursor-pointer" @click="removeProfile(chatProfiles[0])">
                             change
                           </div>
                         </div>
@@ -57,7 +59,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                 
                   </div>
 
-                  <div class="click text-xs md:text-xl flex flex-col" @click="editName = true">
+                  <div class="cursor-pointer text-xs md:text-xl flex flex-col" @click="editName = true">
                     <div>
                        {{ chat.name }} 
                       <span class="text-xs hover:underline text-info" 
@@ -77,7 +79,7 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
               </div>
             </div>
             <div class="grow"></div>
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-col">
               <div class="flex gap-1 items-center">
                 <div class="flex gap-2 p-1 items-center -top-1" v-if="toggleChatOptions">
                   <button class="btn" v-if="hiddenCount" @click="showHidden = !showHidden">
@@ -97,10 +99,13 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                         <a><ChatIcon mode="chat" /> Conversation</a>
                       </li>
                       <li @click="setChatMode('task')">
-                        <a><ChatIcon mode="task" /> Canvan</a>
+                        <a><ChatIcon mode="task" /> Document</a>
                       </li>
                       <li @click="setChatMode('topic')">
                         <a><ChatIcon mode="topic" /> Discussion</a>
+                      </li>
+                      <li @click="openChatSearchModal">
+                        <a><i class="fa-solid fa-link"></i> Link</a>
                       </li>
                     </ul>
                   </div>
@@ -118,6 +123,9 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
                       </li>
                       <li @click="onExport">
                         <a><i class="fa-solid fa-copy"></i> Export</a>
+                      </li>
+                      <li @click="showChatSelector = true">
+                        <a><i class="fa-solid fa-link"></i> Link chats</a>
                       </li>
                       <li @click="saveChat">
                         <a><i class="fa-solid fa-floppy-disk"></i> Save</a>
@@ -162,24 +170,31 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
             <span>
               <i class="fa-solid fa-paperclip"></i>
             </span>
-            <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 click text-accent" @click="$ui.openFile(file)">
+            <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 cursor-pointer text-accent" @click="$ui.openFile(file)">
               <span :title="file" >{{ file.split('/').reverse()[0] }}</span>
-              <span class="ml-2 click" @click.stop="onRemoveFile(file)">
+              <span class="ml-2 cursor-pointer" @click.stop="onRemoveFile(file)">
                 <i class="fa-regular fa-circle-xmark"></i>
               </span>
             </a>
           </div>
         </div>
-        <Chat :chatId="chat.id"
-          :showHidden="showHidden"
-          :childrenChats="childrenChats"
-          @refresh-chat="loadChat(chat)"
-          @add-file="onAddFile"
-          @remove-file="onRemoveFile" 
-          @delete-message="onRemoveMessage"
-          @delete="confirmDelete = true"
-          @save="saveChat" 
-          v-if="chat"/>
+        <div class="flex grow gap-2 items-start">
+          <Chat class="h-full overflow-auto" 
+            :chatId="chat.id"
+            :showHidden="showHidden"
+            :childrenChats="childrenChats"
+            @refresh-chat="loadChat(chat)"
+            @add-file="onAddFile"
+            @remove-file="onRemoveFile" 
+            @delete-message="onRemoveMessage"
+            @delete="confirmDelete = true"
+            @save="saveChat" />
+          <PRView class="h-full overflow-auto" 
+            :fromBranch="chat.pr_view?.from_branch"
+            :toBranch="chat.pr_view?.to_branch"
+            @change="onPRViewBranchChanged"
+            v-if="isPRView" />
+        </div>
         <modal v-if="confirmDelete">
           <div class="">
             <h3 class="font-bold text-lg">Confirm Delete</h3>
@@ -237,13 +252,10 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
             <input v-model="subtaskName" type="text" class="input input-bordered" placeholder="Subtask Name" />
             <textarea v-model="subtaskDescription" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
             <select class="select" v-model="subtaskProject">
-              <option v-for="project in taskProjects" :key="project.project_name"
-                :value="project.project_id"
-              >
-              {{ project.project_name }}
+              <option v-for="project in taskProjects" :key="project.project_name" :value="project.project_id">
+                {{ project.project_name }}
               </option>
             </select>
-            
             <div class="flex gap-2 justify-end">
               <button class="btn btn-error" @click="cancelSubtask">Cancel</button>
               <button class="btn btn-primary" @click="createSubtask">Create</button>
@@ -265,6 +277,9 @@ import ChatIcon from '@/components/chat/ChatIcon.vue'
           <TaskSettings :taskData="chat" @close="showTaskSettings = false" />
         </modal>
       </div>
+      <modal close="true" @close="showChatSelector = false" v-if="showChatSelector">
+        <ChatSelector />
+      </modal>
       <add-file-dialog v-if="addNewFile" @open="onAddFile" @close="addNewFile = false" />
     </div>
   </div>
@@ -294,19 +309,29 @@ export default {
       createTasksInstructions: '',
       chatProfiles: [],
       showDescription: false,
-      projectContext: null
+      projectContext: null,
+      showChatSelector: false,
     }
   },
   created() {
     this.setProjectContext()
   },
-  async mounted () {
+  async mounted() {
     this.toggleChatOptions = !this.$ui.isMobile
     this.chatProfiles = await this.$storex.api.project(this.taskProject)
-                                .then(p => p.profiles.list())
-                                .then(profiles => profiles.filter(p => this.chat.profiles.includes(p.name)))
+      .then(p => p.profiles.list())
+      .then(profiles => profiles.filter(p => this.chat.profiles.includes(p.name)))
+    if (this.isPRView) {
+      await this.$projects.loadBranches()
+    }
   },
   computed: {
+    branches() {
+      return this.$projects.project_branches || []
+    },
+    isPRView() {
+      return this.chat.mode === 'prview'
+    },
     taskAIModel() {
       return this.aiModels.find(m => m.name === this.chat.llm_model)
     },
@@ -318,15 +343,15 @@ export default {
     },
     taskProject() {
       return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) ||
-                this.$project
+        this.$project
     },
     chatUsers() {
       return this.$storex.api.userNetwork.filter(({ username }) => this.chat.users?.includes(username))
     },
-    chatModes () {
+    chatModes() {
       return this.$projects.chatModes
     },
-    subProjects () {
+    subProjects() {
       return [
         this.$project,
         ...this.$projects.childProjects || [],
@@ -357,13 +382,13 @@ export default {
     },
     chatProject() {
       return this.subProjects.find(p => p.project_id === this.chat.project_id) ||
-              this.$project
+        this.$project
     },
-    parentChat () {
+    parentChat() {
       return this.$projects.allChats.find(c => c.id === this.chat?.parent_id)
     },
     chatFiles() {
-      return [...this.chat.file_list||[], ...this.parentChat?.file_list||[]]
+      return [...this.chat.file_list || [], ...this.parentChat?.file_list || []]
     },
     taskProjects() {
       return [this.$project, ...this.$projects.childProjects]
@@ -503,7 +528,7 @@ export default {
         this.createTasksInstructions = ""
       }
     },
-    naviageToParent(parentChat) {
+    navigateToParent(parentChat) {
       if (parentChat) {
         this.$emit('chat', parentChat)
       } else {
@@ -513,8 +538,20 @@ export default {
     onExport() {
       this.$ui.copyTextToClipboard(JSON.stringify(this.chat, null, 2))
     },
+    async openChatSearchModal() {
+      // Open a modal for linking chat
+    },
     async onAddProfile() {
       this.showAddProfile = true
+    },
+    onPRViewBranchChanged({ fromBranch: from_branch, toBranch: to_branch }) {
+      this.chat.pr_view = {
+        from_branch, to_branch
+      }
+    },
+    async refreshPRView() {
+      await this.saveChat()
+      await this.$storex.api.repo.changes(this.chat) 
     }
   }
 }

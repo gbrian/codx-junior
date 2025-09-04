@@ -91,8 +91,7 @@ export default {
       this.editBoard = null
     },
     onEditBoard(board) {
-      const { title, description } = board
-      this.editBoard = { board, title, description }
+      this.$emit('edit', board)
     },
     openRemoteBoard(board) {
       window.open(board.remote_url, '_blank')

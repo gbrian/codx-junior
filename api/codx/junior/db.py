@@ -13,6 +13,8 @@ from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 
+from codx.junior.model.model import PRView
+
 logger = logging.getLogger(__name__)
 
 class MessageTaskItem(Enum):
@@ -40,6 +42,11 @@ class Message(BaseModel):
     disable_knowledge: Optional[bool] = Field(default=False)
     read_by: List[str] = Field(default=[])
 
+
+class ChatId(BaseModel):
+    chat_id: str = Field(default=None, description="Chat id")
+    project_id: str = Field(default=None, description="Defines the project which this chat belongs")
+    
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
@@ -69,7 +76,8 @@ class Chat(BaseModel):
     visibility: Optional[str] = Field(default='')
     remote_url: Optional[str] = Field(default='')
     knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
-
+    chat_links: List[ChatId] = Field(default=[])
+    pr_view: Optional[dict] = Field(default={}, description="Pull request view")
 
 class KanbanColumn(BaseModel):
     doc_id: Optional[str] = Field(default=None)

@@ -231,10 +231,6 @@ const initializeAPI = ({ project, user } = {}) => {
       test() {
         return API.get('/api/project/script/test');
       },
-      async branches() {
-        const branches = await API.get('/api/projects/repo/branches');
-        return branches;
-      },
       helpWantedIssues() {
         return API.get('/api/github/issues/help-wanted')
       },
@@ -248,6 +244,14 @@ const initializeAPI = ({ project, user } = {}) => {
           }
         }
       }
+    },
+    repo: {
+      branches() {
+        return API.get('/api/projects/repo/branches');
+      },
+      changes({ from_branch, to_branch }) {
+        return API.get(`/api/projects/repo/changes?from_branch=${from_branch}&to_branch=${to_branch}`);
+      },
     },
     settings: {
       async read() {

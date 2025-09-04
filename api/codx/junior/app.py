@@ -387,8 +387,9 @@ def api_find_all_repo_branches(request: Request):
 @app.get("/api/projects/repo/changes")
 def api_find_all_repo_changes(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    main_branch = request.query_params.get("main_branch")
-    return codx_junior_session.get_project_changes(main_branch=main_branch)
+    from_branch = request.query_params.get("from_branch")
+    to_branch = request.query_params.get("to_branch")
+    return codx_junior_session.get_repo_changes(from_branch=from_branch, to_branch=to_branch)
 
 @app.get("/api/projects/readme")
 def api_project_readme(request: Request):

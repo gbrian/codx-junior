@@ -110,4 +110,6 @@ def path_join(path, *paths):
 
 def clean_string(string_to_clean: str) -> str:
     """Removes invalid characters from a string"""
-    return ''.join(c if c in string.printable else ' ' for c in string_to_clean)
+    # NOT WORKING WITH SPANISH LANGUAGE, IT REMOVES VALID CHARS
+    return string_to_clean
+    # return ''.join(c if c in string.printable else ' ' for c in string_to_clean)

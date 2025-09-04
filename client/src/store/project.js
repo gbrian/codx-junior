@@ -86,6 +86,7 @@ export const getters = getterTree(state, {
   allChats: state => Object.values(state.chats || {}),
   allBoards: state => Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] })),
   allTags: state => new Set(Object.values(state.chats||{})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
+  allPRs: () => $storex.projects.allChats().filter(c => c.pr_view?.from_branch),
   projectDependencies: state => {
     const { project_dependencies } = state.activeProject
     return project_dependencies?.split(",")
@@ -217,16 +218,18 @@ export const actions = actionTree(
             API.projects.ai.models.list()
           ])
           state.ai.models = models
+
+          state.activeProject = API.activeProject
+          state.activeChat = null
+
+          await Promise.all([
+            $storex.projects.loadProjectKnowledge(),
+            $storex.projects.loadProfiles(),
+            $storex.projects.loadChats()
+          ])
         } finally {
           state.projectLoading = false
         }
-
-        state.activeProject = API.activeProject
-        state.activeChat = null
-
-        $storex.projects.loadProjectKnowledge()
-        await $storex.projects.loadProfiles()
-        $storex.projects.loadChats()
       }
     },
     async loadProjectKnowledge({ state }) {
@@ -237,7 +240,13 @@ export const actions = actionTree(
       await $storex.profiles.loadProjectProfiles(state.activeProject)
     },
     async loadBranches({ state }) {
-      state.project_branches = await $storex.api.projects.branches()
+      state.project_branches = await $storex.api.repo.branches()
+    },
+    async loadPR({ state }, { fromBranch, toBranch }) {
+      state.activePR = await $storex.api.repo.changes({ fromBranch, toBranch })
+    },
+    async createPR({ state }, { fromBranch, toBranch }) {
+      state.activePR = await $storex.api.repo.changes({ fromBranch, toBranch })
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()

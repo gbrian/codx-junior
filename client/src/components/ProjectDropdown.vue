@@ -8,7 +8,7 @@ import ProjectDetailt from './ProjectDetailt.vue';
     <div class="flex items-start">
       <ProjectDetailt @click="isOpen = !isOpen" />
     </div>
-    <ul class="dropdown-content menu bg-base-300 rounded-box z-50 w-52 p-2 shadow"
+    <ul class="dropdown-content menu bg-base-300 rounded-box z-[150] w-52 p-2 shadow"
       @mouseleave="isOpen = false"
       @blur="isOpen = false"
       v-if="isOpen">
