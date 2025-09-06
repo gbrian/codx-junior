@@ -5,14 +5,13 @@ import { DiffFile, generateDiffFile } from "@git-diff-view/file";
 </script>
 <template>
   <DiffView
-    :data="data"
+    :diff-file="diffFile"
     :diff-view-font-size="14"
     :diff-view-mode="DiffModeEnum.Split"
     :diff-view-highlight="true"
     :diff-view-add-widget="false"
     :diff-view-wrap="false"
     :diff-view-theme="'dark'"
-    :extend-data="{oldFile: {10: {data: 'foo'}}, newFile: {20: {data: 'bar'}}}"
     v-if="data"
   />
 </template>
@@ -21,10 +20,21 @@ export default {
   props: ['orgContent', 'newContent', 'file', 'language', 'diff'],
   data() {
     return {
-      data: null
+      data: null,
+      diffFile: null
     }
   },
   async created() {
+    const language = this.language || this.file.split(".").reverse()[0]
+    this.diffFile = generateDiffFile(
+                  this.file, 
+                  this.orgContent,
+                  this.file,
+                  this.newContent, 
+                  language,
+                  language)
+    this.diffFile.initRaw()
+
     this.data = {
       oldFile: {
         fileName: this.file,
@@ -36,7 +46,7 @@ export default {
         fileLang: this.language,
         content: this.newContent
       },
-      hunks: [this.diff]
+      hunks: this.diff ? [this.diff]: []
     }
   }
 }

@@ -348,25 +348,13 @@ class MentionManager:
             logger.debug(f"Writing progress notification to file: {file_path}")
             write_file(file_path=file_path, content=new_content)
 
-        def open_file_to_write():
-            return open(file_path, 'w')
-        stream_file = {}
         try:
-            if not callback:
-                logger.debug(f"Open file to write: {file_path}")
-                def write_new_file_content(content):
-                    if content:
-                        if not stream_file.get("file"):
-                            stream_file["file"] = open_file_to_write()
-                        stream_file["file"].write(content)
-                        stream_file["file"].flush()
-                callback = write_new_file_content
             res = await self.check_file_for_mentions_inner(file_path=file_path,
                                                            content=new_content,
                                                            mentions=mentions,
                                                            callback=callback)
             logger.info(f"[{self.settings.project_name}] Mentions manager done for {file_path}")
-            return res
+            write_file(file_path=file_path, content=res)
         except Exception as ex:
             logger.exception(f"Error processing mentions at {file_path}: {ex}")
         finally:

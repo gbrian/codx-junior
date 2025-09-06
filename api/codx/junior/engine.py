@@ -104,7 +104,8 @@ class CODXJuniorSession:
         logger.exception(f"[{self.settings.project_name}] {msg}")
 
     def coder_open_file(self, file_name: str):
-        if not file_name.startswith(self.settings.project_path):
+        if not os.path.isfile(file_name) and \
+            not file_name.startswith(self.settings.project_path):
             file_name = f"{self.settings.project_path}/{file_name}".replace("//", "/")
         os.system(f"code-server -r {file_name}")
         return [self.settings.project_path, file_name, file_name.startswith(self.settings.project_path)]

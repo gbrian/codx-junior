@@ -38,7 +38,7 @@ import ChatIcon from './chat/ChatIcon.vue'
               <span v-if="timeTaken">({{ timeTaken }} s.)</span>
               <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             </div>
-            <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end" v-if="message.done">
+            <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end">
               <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
                   <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer')">

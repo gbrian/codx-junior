@@ -210,6 +210,12 @@ const initializeAPI = ({ project, user } = {}) => {
       async list(withMetrics) {
         const data = await API.get(`/api/projects?with_metrics=${withMetrics ? 1 : 0}`);
         API.allProjects = data;
+        API.allProjects.forEach(p => {
+          const projectPath = p.project_path
+          p.parentProject = API.allProjects
+                              .filter(p => p.project_path != projectPath && projectPath.startsWith(p.project_path))
+                              .sort((a, b) => a.project_path > b.project_path ? -1 : 1)[0]
+        })
         return API.allProjects;
       },
       create(projectPath) {

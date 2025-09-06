@@ -273,15 +273,24 @@ import CheckLists from './CheckLists.vue'
       </div>
     </modal>
     <modal v-if="selectFile">
-      <label class="file-select">
-        <div class="select-button">
-          <span>Select File(s)</span>
-        </div>
-        <input type="file" accept="image/*" multiple @change="handleFileChange" />
-        <button class="btn btn-sm btn-error" @click="selectFile = false">
-          Cancel
+      <div class="flex flex-col">
+        <div class="text-xl">Project file</div>
+        <input type="text" class="input input-bordered" placeholder="File path" v-model="uploadProjectFile" />
+        <button class="btn btn-sm" @click="addChatFile">
+          Add file
         </button>
-      </label>
+        
+        
+        <label class="file-select">
+          <div class="select-button">
+            <span>Select File(s)</span>
+          </div>
+          <input type="file" accept="image/*" multiple @change="handleFileChange" />
+          <button class="btn btn-sm btn-error" @click="selectFile = false">
+            Cancel
+          </button>
+        </label>
+      </div>
     </modal>
 
     <modal v-if="showModal">
@@ -333,7 +342,8 @@ export default {
       selectedDocuments: null,
       showDocumentSearchModal: false,
       searchingInKnowledge: false,
-      projectContext: null
+      projectContext: null,
+      uploadProjectFile: null
     }
   },
   created() {
@@ -392,9 +402,9 @@ export default {
       if (!messages?.length) {
         return []
       }
-      if (this.isTask) {
+      if (this.isTask && !this.showHidden) {
         const aiMsg = this.lastAIMessage
-        const lastMsg = messages[messages.length - 1]
+        const lastMsg = this.activeMessages[this.activeMessages.length - 1]
         const res = []
         if (aiMsg) {
           res.push(aiMsg)
@@ -614,7 +624,7 @@ export default {
       }
       this.searchingInKnowledge = true
       try {
-        const { response, documents } = await API.knowledge.search(knowledgeSearch)
+        const { response, documents } = await this.projectContext.api.knowledge.search(knowledgeSearch)
         const docs = documents.map(({ metadata: { score_analysis, source}}) => {
             const file = source
             const fileName = file.split("/").reverse()[0] 
@@ -936,6 +946,11 @@ export default {
     },
     onOpenFile(file) {
       this.projectContext.api.coder.openFile(file)
+    },
+    addChatFile() {
+      this.$emit('add-file', this.uploadProjectFile)
+      this.uploadProjectFile = null
+      this.selectFile = false
     }
   }
 }

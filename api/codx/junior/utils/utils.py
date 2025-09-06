@@ -43,14 +43,18 @@ def calculate_md5(file_path):
     return hasher.hexdigest()
 
 def document_to_context(doc):
-    doc = {
-      "content": doc.metadata.get('summary', doc.page_content),
-      "keywords": doc.metadata.get('keywords'),
-      "category": doc.metadata.get('category'),
-      "source": str(Path(doc.metadata['source']).absolute()),
-      "language": doc.metadata.get('language')
-    }
-    return json.dumps(doc) 
+
+    content = doc.metadata.get('summary', doc.page_content)
+    keywords = doc.metadata.get('keywords')
+    category = doc.metadata.get('category')
+    source = str(Path(doc.metadata['source']).absolute())
+    language = doc.metadata.get('language')
+    
+    return f"""
+    <document keywords="{keywords}" category="{category}" source="{source}" language="{language}">
+    {content}
+    </document>
+    """
 
 def remove_starting_block(content):
     if content.startswith("```"):

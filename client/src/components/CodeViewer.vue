@@ -2,6 +2,7 @@
 import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
 import hljs from 'highlight.js';
+import DiffViewer from './DiffViewer.vue';
 </script>
 
 <template>
@@ -33,7 +34,7 @@ import hljs from 'highlight.js';
       <i class="fa-solid fa-terminal"></i>
     </div>
     <div class="view-code" :style="{ zoom }">
-      <VueCodeHighlighter :code="diff" :lang="'diff'" :header="false" :title="fileName" v-if="showDiff" />
+      <DiffViewer :file="file" :orgContent="orgContent" :newContent="code" :diff="diff" v-if="showDiff"></DiffViewer>
       <VueCodeHighlighter :code="code" :lang="fileLanguage" :title="fileName" v-else />
     </div>
     <div class="flex justify-end gap-2">
@@ -49,6 +50,7 @@ export default {
   data() {
     return {
       showDiff: false,
+      orgContent: null,
       diff: null,
       zoom: 0.6
     }
@@ -75,9 +77,8 @@ export default {
       this.$projects.applyPatch({ patch: this.code })
     },
     async onShowDiff() {
-      if (!this.diff) {
-        this.diff = await this.$storex.api.files.diff({ path: this.file, content: this.code })
-      }
+      this.diff = await this.$storex.api.files.diff({ path: this.file, content: this.code })
+      this.orgContent = await this.$storex.api.files.read(this.file)
       this.showDiff = !this.showDiff
     },
     saveFile() {

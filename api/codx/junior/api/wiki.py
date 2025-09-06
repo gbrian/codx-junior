@@ -48,8 +48,9 @@ async def wiki_engine_build(request: Request):
         return wiki_manager.create_config()
     if step == "create_wiki_tree":
         return wiki_manager.create_wiki_tree()
-    if step == "build_config_sidebar":
-        return wiki_manager.build_config_sidebar()
+    if step == "build_wiki_category":
+        path = request.query_params.get("path")
+        return wiki_manager.build_wiki_category(path=path)
     if step == "build_home":
         return wiki_manager.build_home()
     if step == "compile_wiki":

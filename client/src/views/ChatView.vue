@@ -104,6 +104,9 @@ import PRView from '@/components/repo/PRView.vue'
                       <li @click="setChatMode('topic')">
                         <a><ChatIcon mode="topic" /> Discussion</a>
                       </li>
+                      <li class="flex gap-2" @click="setChatMode('prview')">
+                        <a><ChatIcon mode="prview" /> Changes review</a>
+                      </li>
                       <li @click="openChatSearchModal">
                         <a><i class="fa-solid fa-link"></i> Link</a>
                       </li>
@@ -178,23 +181,24 @@ import PRView from '@/components/repo/PRView.vue'
             </a>
           </div>
         </div>
-        <div class="flex grow gap-2 items-start">
-          <Chat class="h-full overflow-auto" 
-            :chatId="chat.id"
-            :showHidden="showHidden"
-            :childrenChats="childrenChats"
-            @refresh-chat="loadChat(chat)"
-            @add-file="onAddFile"
-            @remove-file="onRemoveFile" 
-            @delete-message="onRemoveMessage"
-            @delete="confirmDelete = true"
-            @save="saveChat" />
-          <PRView class="h-full overflow-auto" 
-            :fromBranch="chat.pr_view?.from_branch"
-            :toBranch="chat.pr_view?.to_branch"
-            @change="onPRViewBranchChanged"
-            v-if="isPRView" />
-        </div>
+        <PRView class="h-full overflow-auto" 
+          :fromBranch="chat.pr_view?.from_branch"
+          :toBranch="chat.pr_view?.to_branch"
+          :extendedData="extendedData"
+          @select="onPRViewBranchChanged"
+          @comment="onPRFileComment"
+          v-if="isPRView" />
+        <Chat class="h-full overflow-auto" 
+          :chatId="chat.id"
+          :showHidden="showHidden"
+          :childrenChats="childrenChats"
+          @refresh-chat="loadChat(chat)"
+          @add-file="onAddFile"
+          @remove-file="onRemoveFile" 
+          @delete-message="onRemoveMessage"
+          @delete="confirmDelete = true"
+          @save="saveChat" 
+          v-else />
         <modal v-if="confirmDelete">
           <div class="">
             <h3 class="font-bold text-lg">Confirm Delete</h3>
@@ -311,6 +315,7 @@ export default {
       showDescription: false,
       projectContext: null,
       showChatSelector: false,
+      extendedData: {}
     }
   },
   created() {
@@ -552,6 +557,12 @@ export default {
     async refreshPRView() {
       await this.saveChat()
       await this.$storex.api.repo.changes(this.chat) 
+    },
+    onPRFileComment(file) {
+      const fileName = file.oldFile.fileName || file.newFile.fileName
+      this.subtaskName = `Review ${fileName}`
+      this.subtaskDescription = file.hunks[0] 
+      this.newSubChat()
     }
   }
 }

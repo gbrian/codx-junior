@@ -1,3 +1,33 @@
+# [[{"id": "d08c311e-4c83-43b7-9b32-98e139e3ee04", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": ["/shared/codx-junior/api/codx/junior/wiki/wiki_manager.py"], "check_lists": [], "profiles": [], "users": ["admin"], "name": "mkdocs", "description": "In the conversation, the user requested an update to the `WikiManager` class to manage the `mkdocs.yaml` file when creating a new file in `mkdocs` mode. The response included an explanation and implementation of a new `_update_mkdocs` method to update or create the `mkdocs.yaml` file based on the current wiki structure. The integration ensures that the navigation structure in `mkdocs.yaml` reflects the available categories and files, maintaining accuracy whenever a new document is added. This update helps manage the project's wiki efficiently using MkDocs.", "created_at": "2025-09-06 14:29:38.790111", "updated_at": "2025-09-06T14:40:23.357526", "mode": "task", "kanban_id": "", "column_id": "", "board": "Wiki manager", "column": "Requirements", "chat_index": 0, "url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/Wiki manager/Requirements/mkdocs.d08c311e-4c83-43b7-9b32-98e139e3ee04.md", "llm_model": "", "visibility": "", "remote_url": "", "knowledge_topics": [], "chat_links": [], "pr_view": {}}]]
+## [[{"doc_id": "3b51b38f-036a-4933-adc9-0da2964f7630", "role": "user", "task_item": "", "think": "", "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-09-06 14:29:38.787671", "updated_at": "2025-09-06 14:29:38.787699", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin", "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true, "read_by": []}]]
+wiki could be of type "mkdocs" check the settings wiki_settings.mode === 'mkdocs'.
+
+
+For the mkdocs mode we must keep the "mkdocs.yaml" file updated after new file is created.
+
+
+For this add a new method _update_mkdocs that will list all files in the wiki_path and update the yaml definition.
+
+
+Use the categories and the files names to give friendly names.
+Method will update existing file or create new one
+
+
+Example of mkdocs:
+```yaml
+site_name: der-viewer-api
+nav:
+  - Home: index.md
+
+
+plugins:
+  - techdocs-core
+```
+```
+## [[{"doc_id": "f4f33054-c892-41f8-a158-66c6c3b94e5e", "role": "assistant", "task_item": "analysis", "think": null, "hide": false, "is_answer": false, "improvement": false, "created_at": "2025-09-06 14:29:38.787671", "updated_at": "2025-09-06 14:29:38.787699", "images": [], "files": [], "meta_data": {"time_taken": 128.06156468391418, "first_chunk_time_taken": 0.00021457672119140625, "model": "openai/gpt-4o"}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": false, "read_by": []}]]
+To accommodate the user's comments, we need to implement an additional method in the `WikiManager` class to update or create the `mkdocs.yaml` file whenever a new file is created in the `mkdocs` mode. Below is the updated version of the `wiki_manager.py` file with the new `_update_mkdocs` method implemented:
+
+```python /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py
 import os
 import shutil
 import json
@@ -453,3 +483,13 @@ class WikiManager:
         messages = self._get_ai().chat(prompt=prompt, headers=headers)
         prompt = "Review last message and return the wiki document without any extra comment or surrounding decorators, just the wiki markdown"
         return self._get_ai().chat(messages=[messages[-1]], headers=headers)
+```
+
+### Explanation:
+1. **Import YAML Library**: Added the `yaml` library to handle reading and writing YAML files for `mkdocs.yaml`.
+   
+2. **`_update_mkdocs` Method**: A new method `_update_mkdocs` has been created to update or create the `mkdocs.yaml` file. It constructs a navigation structure based on the available categories and files, then writes this structure to the `mkdocs.yaml` file.
+
+3. **Integration with `create_wiki_document`**: After creating a new wiki document, the code checks if the current mode is `mkdocs` and calls `_update_mkdocs` to ensure the `mkdocs.yaml` is up-to-date.
+
+This implementation ensures that the `mkdocs.yaml` file is kept current with the project's wiki structure whenever a new document is added.

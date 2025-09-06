@@ -1,3 +1,11 @@
+# [[{"id": "b66c1adf-ef06-4b43-9f9e-f18b948f7010", "doc_id": null, "project_id": null, "parent_id": null, "status": "", "tags": [], "file_list": ["/shared/codx-junior/client/src/store/project.js", "/shared/codx-junior/client/src/components/ProjectDropdown.vue"], "check_lists": [], "profiles": [], "users": ["admin"], "name": "Recent projects", "description": "The conversation involves instructions for modifying the `ProjectDropdown.vue` component to display recent projects at the top of a dropdown menu. The provided solution includes adding a \"Recent Projects\" section above the full project list and making use of a computed property to retrieve recent projects from the Vuex store. The component is updated to filter projects based on user input and manage the dropdown's open/close state. The code ensures that recent projects are displayed prominently for easier access.", "created_at": "2025-09-06 13:56:26.797668", "updated_at": "2025-09-06T14:19:52.920338", "mode": "task", "kanban_id": "", "column_id": "", "board": "Project selector", "column": "To Do", "chat_index": 0, "url": "", "branch": "", "file_path": "/shared/codx-junior/client/.codx/tasks/Project selector/To Do/recent-projects.b66c1adf-ef06-4b43-9f9e-f18b948f7010.md", "llm_model": "", "visibility": "", "remote_url": "", "knowledge_topics": [], "chat_links": [], "pr_view": {}}]]
+## [[{"doc_id": "ccf56d43-750d-4357-a560-841f6992b023", "role": "user", "task_item": "", "think": "", "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-09-06 13:56:26.795389", "updated_at": "2025-09-06 13:56:26.795418", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin", "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true, "read_by": []}]]
+Keep a list of recent visited projects: recentProjects
+Update the list everytime setActiveProject is called
+## [[{"doc_id": "bff88456-a33d-4900-b309-8283dffff45e", "role": "assistant", "task_item": "analysis", "think": null, "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-09-06 13:56:26.795389", "updated_at": "2025-09-06 13:56:26.795418", "images": [], "files": [], "meta_data": {"time_taken": 158.4507188796997, "first_chunk_time_taken": 0.00010728836059570312, "model": "openai/gpt-4o"}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": false, "read_by": []}]]
+To implement a feature that keeps track of recently visited projects, we can modify the Vuex store to include a `recentProjects` list in the state. We will then update this list every time the `setActiveProject` action is called. Here is the modified version of the `project.js` file:
+
+```js /shared/codx-junior/client/src/store/project.js
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import store, { $storex } from '.'
 import { API } from '../api/api'
@@ -548,3 +556,127 @@ export const actions = actionTree(
     }
   }
 )
+```
+
+In this updated code, a new state property `recentProjects` is added to keep track of the recent projects. A new mutation `addRecentProject` is added to handle adding projects to this list. The `setActiveProject` action has been updated to commit this mutation whenever a project is set as active. The list is limited to the last five projects to keep it manageable.
+## [[{"doc_id": "79500b60-4030-4eac-aad6-4eefb5d768bc", "role": "user", "task_item": "", "think": "", "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-09-06 13:56:26.795389", "updated_at": "2025-09-06 13:56:26.795418", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin", "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true, "read_by": []}]]
+Add to the top of the selector the recent projects
+## [[{"doc_id": "22d21f07-c41f-4ecb-bf5f-280c8813fb06", "role": "assistant", "task_item": "analysis", "think": null, "hide": false, "is_answer": false, "improvement": false, "created_at": "2025-09-06 13:56:26.795389", "updated_at": "2025-09-06 13:56:26.795418", "images": [], "files": [], "meta_data": {"time_taken": 40.62599062919617, "first_chunk_time_taken": 0.00020599365234375, "model": "openai/gpt-4o"}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": false, "read_by": []}]]
+To add recent projects to the top of the selector in the `ProjectDropdown.vue` component, you can modify the component to include a section for recent projects and ensure they are displayed above the full project list. Here's how you can implement it:
+
+```vue /shared/codx-junior/client/src/components/ProjectDropdown.vue
+<script setup>
+import ProjectDetailt from './ProjectDetailt.vue';
+</script>
+<template>
+<div class="dropdown dropdown-bottom flex flex-col h-full"
+    :class="isOpen ? 'dropdown-open': ''" 
+    v-if="$project">
+    <div class="flex items-start">
+      <ProjectDetailt @click="isOpen = !isOpen" />
+    </div>
+    <ul class="dropdown-content menu bg-base-300 rounded-box z-[150] w-52 p-2 shadow"
+      @mouseleave="isOpen = false"
+      @blur="isOpen = false"
+      v-if="isOpen">
+        <div class="mb-2 flex justify-between px-1">
+          <span class="click text-xl" @click="isOpen = false">
+            <i class="fa-solid fa-caret-up"></i>
+          </span>
+          <input 
+              type="text" 
+              class="p-2 bg-base-100 input input-xs w-2/3 items-center" 
+              placeholder="Filter projects..." 
+              v-model="filterValue" 
+          />
+          <span class="click" @click="$projects.loadAllProjects()">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </span>
+        </div>
+        <div v-if="recentProjects.length" class="mb-2">
+          <h3 class="text-sm font-bold">Recent Projects</h3>
+          <ul>
+            <li 
+                v-for="project in recentProjects" 
+                :key="project.codx_path" 
+                @click.prevent.stop="setActiveProject(project)"
+            >
+                <a class="flex gap-2 items-center">
+                    <div class="avatar indicator">
+                        <span class="indicator-item w-2 h-2 rounded-full bg-secondary" v-if="project.watching"></span>
+                        <div class="w-6 h-6 rounded-full">
+                            <img :src="project.project_icon" alt="Project Icon" />
+                        </div>
+                    </div>
+                    {{ project.project_name }}
+                </a>
+            </li>
+          </ul>
+        </div>
+        <div class="h-96 overflow-auto">
+            <li 
+                v-for="project in filteredProjects" 
+                :key="project.codx_path" 
+                @click.prevent.stop="setActiveProject(project)"
+            >
+                <a class="flex gap-2 items-center">
+                    <div class="avatar indicator">
+                        <span class="indicator-item w-2 h-2 rounded-full bg-secondary" v-if="project.watching"></span>
+                        <div class="w-6 h-6 rounded-full">
+                            <img :src="project.project_icon" alt="Project Icon" />
+                        </div>
+                    </div>
+                    {{ project.project_name }}
+                </a>
+            </li>
+        </div>
+    </ul>
+</div>
+</template>
+<script>
+export default {
+  props: {},
+  data () {
+    return {
+      isOpen: false,
+      filterValue: ""
+    }
+  },
+  computed: {
+    projects () {
+      return this.$projects.allParentProjects;
+    },
+    recentProjects () {
+      return this.$projects.recentProjects;
+    },
+    showFilter () {
+      return this.projects?.length > 10;
+    },
+    filteredProjects() {
+      return this.projects.filter(project => 
+        project.project_name.toLowerCase().includes(this.filterValue?.toLowerCase())
+      )
+    }
+  },
+  watch: {
+    filterValue(newValue) {
+      // You can add any required logic here
+    }
+  },
+  methods: {
+    resetFilterValue() {
+      this.filterValue = null;
+    },
+    setActiveProject(project) {
+      this.isOpen = false
+      this.$projects.setActiveProject(project)
+    }
+  }
+}
+</script>
+```
+
+### Changes Made:
+- Added a section for "Recent Projects" at the top of the dropdown.
+- Created a computed property `recentProjects` to retrieve recent projects from the Vuex store.
+- Ensured that recent projects are displayed above the list of all projects.

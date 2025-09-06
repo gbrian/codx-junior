@@ -134,14 +134,15 @@ class ChatEngine:
             send_message_event("", False)
 
             valid_messages = [message for message in chat.messages if not message.hide and not message.improvement]
-            ai_messages = [message for message in valid_messages if message.role == "assistant"]
-            last_ai_message = ai_messages[-1] if ai_messages else None
+            
+            last_ai_messages = [m for m in valid_messages if m.role == "assistant"]
+            last_ai_message = last_ai_messages[-1] if last_ai_messages else None
                 
             user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
             query = user_message.content
 
             query_mentions: QueryMentions = self.get_query_mentions(query=query)
-            
+
             def load_profiles():
                 profile_manager = self.get_profile_manager()
                 query_profiles = query_mentions.profiles
@@ -174,6 +175,7 @@ class ChatEngine:
                     settings.codx_path: settings for settings in query_mention_projects
                 }).values())
 
+            valid_profiles = []
             if chat_profiles:
                 valid_profiles = [profile for profile in chat_profiles if profile]
                 chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in valid_profiles])
@@ -224,17 +226,20 @@ class ChatEngine:
 
             for chat_file in chat_files:
                 chat_file_full_path = chat_file
-                if self.settings.project_path not in chat_file_full_path:
+                if self.settings.project_path not in chat_file_full_path and \
+                    not os.path.isfile(chat_file_full_path):
                     if chat_file[0] == '/':
                         chat_file = chat_file[1:]
                     chat_file_full_path = f"{self.settings.project_path}/{chat_file}"
                 try:
                   with open(chat_file_full_path, 'r') as f:
                       doc_context = document_to_context(
-                        Document(page_content=f.read(), metadata={ "source": chat_file })
+                        Document(page_content=f.read(),
+                          metadata={ "source": chat_file }
+                        )
                       )
                       messages.append(HumanMessage(content=f"""
-                      
+                      ATTACHMENT: {chat_file}
                       {doc_context}
                       """))
                 except Exception as ex:
@@ -245,6 +250,22 @@ class ChatEngine:
             if chat_model:
                 ai_settings.model = chat_model
             ai = self.get_ai(llm_model=ai_settings.model)
+            tags  = [
+                      f"{chat.mode}"
+                    ] + [p.name for p in valid_profiles]
+            if is_agent:
+                tags.append("agent")
+            ai_headers = {
+              "tags": ",".join(tags)
+            }
+            def ai_chat(messages=[], prompt="", tags="", callback=None):
+                headers = ai_headers
+                if tags:
+                    headers = { 
+                      **ai_headers, 
+                      "tags": ai_headers["tags"] + "," + tags 
+                    }
+                return ai.chat(messages=messages, prompt=prompt, callback=callback, headers=headers)
 
             if not disable_knowledge and search_projects:
                 chat.messages.append(new_chat_message("assistant", content=f"Searching in {[p.project_name for p in search_projects]}"))
@@ -279,7 +300,7 @@ class ChatEngine:
             if is_refine:
                 existing_document = last_ai_message.content if last_ai_message else "" 
                 parent_task = self.get_chat_analysis_parents(chat=chat)
-                task_content = user_message.content
+                task_content = ""
 
                 if parent_task:
                     task_content = f"""
@@ -292,12 +313,17 @@ class ChatEngine:
                 
                 if existing_document:
                     task_content += f"""
-                    Update the document with user comments:
                     <document>
                     {existing_document}
                     </document>
-                    User comments:
+                    
+                    <comments>
                     {user_message.content}
+                    </comments>
+
+                    INSTRUCTIONS:
+                     * Update the document with the comments
+                     * Return only the document content with comments applied
                     """
                 else:
                     task_content += f"""
@@ -306,15 +332,8 @@ class ChatEngine:
                     {user_message.content}
                     """
 
-
-                task_content += "Important: Always return the markdown document without any comments before or after, to keep it clean."
-
-
                 refine_message = new_chat_message(role="user", content=task_content)
                 messages.append(self.convert_message(refine_message))
-                refine_message.hide = True
-                chat.messages.append(refine_message)
-
 
             elif is_agent:
                 refine_message = new_chat_message(role="user", content=f"""
@@ -338,9 +357,6 @@ class ChatEngine:
                 Return { AGENT_DONE_WORD } when the task is done.
                 """)
                 messages.append(self.convert_message(refine_message))
-                history_agent_instructions = refine_message
-                history_agent_instructions.hide = True
-                chat.messages.append(history_agent_instructions)
             else:
                 messages.append(self.convert_message(user_message))
 
@@ -352,8 +368,9 @@ class ChatEngine:
 
             if not callback:
                 callback = lambda content: send_message_event(content=content, done=False)
+
             try:
-                messages = ai.chat(messages, callback=callback)
+                messages = ai_chat(messages=messages, callback=callback)
                 message_parts = messages[-1].content.replace("<think>", "").split("</think>")
                 is_thinking = len(message_parts) == 2
                 response_message.think = message_parts[0] if is_thinking else None
@@ -375,8 +392,12 @@ class ChatEngine:
 
             # Chat description
             try:
-                description_message = ai.chat(messages=messages.copy(),
-                                              prompt="Create a 5 lines summary of the conversation")[-1]
+                messages = messages.copy()
+                if is_refine:
+                    messages=[messages[-1]]
+                description_message = ai_chat(messages=messages,
+                                            prompt="Create a 5 lines summary of the conversation",
+                                            tags="chat-summary")[-1]
                 chat.description = description_message.content
             except Exception as ex:
                 logger.exception(f"Error chatting with project: {ex} {chat.id}")

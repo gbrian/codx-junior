@@ -72,7 +72,8 @@ class AI:
         prompt: Optional[str] = None,
         *,
         max_response_length: Optional[int] = None,
-        callback = None
+        callback = None,
+        headers = {}
     ) -> List[Message]:
         if not messages:
             messages = []
@@ -95,7 +96,8 @@ class AI:
                 # Apply global instructions
                 
                 response = self.llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
-                                               + messages, config={"callbacks": callbacks})
+                                               + messages, 
+                                               config={"callbacks": callbacks, "headers": headers})
             except Exception as ex:
                 logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model} {self.settings}")
                 raise RuntimeError("Failed to process AI request after retries.")

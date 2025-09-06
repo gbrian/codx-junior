@@ -26,6 +26,27 @@ import ProjectDetailt from './ProjectDetailt.vue';
             <i class="fa-solid fa-arrows-rotate"></i>
           </span>
         </div>
+        <div v-if="recentProjects.length" class="mb-2">
+          <h3 class="text-sm font-bold">Recent Projects</h3>
+          <ul>
+            <li 
+                v-for="project in recentProjects" 
+                :key="project.codx_path" 
+                @click.prevent.stop="setActiveProject(project)"
+            >
+                <a class="flex gap-2 items-center">
+                    <div class="avatar indicator">
+                        <span class="indicator-item w-2 h-2 rounded-full bg-secondary" v-if="project.watching"></span>
+                        <div class="w-6 h-6 rounded-full">
+                            <img :src="project.project_icon" alt="Project Icon" />
+                        </div>
+                    </div>
+                    {{ project.project_name }}
+                </a>
+            </li>
+          </ul>
+          <div class="divider"></div>
+        </div>
         <div class="h-96 overflow-auto">
             <li 
                 v-for="project in filteredProjects" 
@@ -57,7 +78,11 @@ export default {
   },
   computed: {
     projects () {
-      return this.$projects.allProjects;
+      return this.$projects.allParentProjects;
+    },
+    recentProjects () {
+      return this.$projects
+        .recentProjects?.filter(p => p.project_id !== this.$project.project_id);
     },
     showFilter () {
       return this.projects?.length > 10;

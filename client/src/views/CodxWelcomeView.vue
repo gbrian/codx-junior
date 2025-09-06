@@ -22,7 +22,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
             <i class="fa-solid fa-cubes"></i>
           </span>
           Projects
-          <span class="badge badge-sm">{{ $projects.allProjects.length }}</span>
+          <span class="badge badge-sm">{{ $projects.allParentProjects.length }}</span>
         </a>
       </li>
       <li @click="$ui.setActiveTab('docs')">
@@ -276,7 +276,7 @@ export default {
   },
   computed: {
     filteredProjects() {
-      return this.$projects.allProjects.filter(project => {
+      return this.$projects.allParentProjects.filter(project => {
         return !this.filterQuery || (
           project.project_name.toLowerCase().includes(this.filterQuery.toLowerCase()) ||
           project.project_path.toLowerCase().includes(this.filterQuery.toLowerCase())

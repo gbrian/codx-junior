@@ -81,7 +81,7 @@ class OpenAI_AI:
             "stream":True
         }
 
-        if self.llm_settings.temperature:
+        if self.llm_settings.temperature >= 0:
             kwargs["temperature"] = float(self.llm_settings.temperature) 
 
         self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
@@ -93,11 +93,20 @@ class OpenAI_AI:
             openai_messages = [{ "role": "user", "content": message }]
         self.log(f"USER REQUEST:\n{openai_messages}")
         if self.settings.get_log_ai():
-            self.log("\nReceived AI response, start reading stream\n")
+            self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
         try:
+            request_headers = config.get("headers", {})
+            tags = request_headers.get("tags", "")
+            tags = tags.split(",") + [
+              f"temp-{self.llm_settings.temperature}",
+              self.settings.project_name
+            ]
+            request_headers["x-litellm-tags"] = ",".join(tags)
+
             response_stream = self.client.chat.completions.create(
                 **kwargs,
-                messages=openai_messages
+                messages=openai_messages,
+                extra_headers=request_headers
             )
             callbacks = config.get("callbacks", None)
             content_parts = []
