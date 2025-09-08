@@ -10,8 +10,8 @@ import KanbanSettings from './KanbanSettings.vue';
         v-for="board in sortedBoards"
         :key="board.title"
         @click="selectBoard(board)"
-        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer"
-      >
+        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative">
+        <img class="absolute top-0 left-0 bottom-0 right-0 opacity-30" :src="board.background" v-if="board.background" />
         <div class="card-body flex flex-col">
           <span class="text-xs" v-if="board.last_update">[{{ moment(board.last_update).fromNow() }}]</span>
           <h2 class="card-title flex justify-between tooltip group" :data-tip="board.title">

@@ -150,9 +150,7 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
     return doc
 
 @profile_function
-def find_relevant_documents(query: str, settings, ignore_documents=[], ai_validate=True):
-    knowledge_documents = Knowledge(settings=settings).search(query)
-
+def find_relevant_documents(query: str, settings, knowledge_documents, ignore_documents=[], ai_validate=True):
     def is_valid_document(doc):
         source = doc.metadata["source"]
         checks = [check for check in ignore_documents if check in source]

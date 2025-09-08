@@ -67,16 +67,21 @@ import ChatIcon from './chat/ChatIcon.vue'
                     <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
                       <i class="fa-solid fa-bars"></i>
                     </button>
-                    <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-28 p-2 bg-base-300">
+                    <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300">
+                      <li @click="$emit('subtask')">
+                        <a><i class="fa-solid fa-comment-dots"></i> Thread</a>
+                      </li>
                       <li class="text-warning">
                         <a @click.stop="$emit('hide')" class="text-left tooltip tooltip-bottom click"
                             :data-tip="message.hide ? 'Click to add message to conversation' : 
                                               'Click to archive message from the conversation'">
-                          {{ message.hide ? 'Show' : 'Archive' }}
+                          <i class="fa-solid fa-box-archive"></i> {{ message.hide ? 'Show' : 'Archive' }}
                         </a>                  
                       </li>
                       <li class="text-error">
-                        <a class="hover:underline" @click="confirmRemove">Delete</a>
+                        <a class="hover:underline" @click="confirmRemove">
+                          <i class="fa-solid fa-trash-can"></i> Delete
+                        </a>
                       </li>
                     </ul>
                   </div>

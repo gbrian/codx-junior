@@ -52,6 +52,7 @@ import CheckLists from './CheckLists.vue'
               @open-file="onOpenFile"
               @save-file="onSaveFile"
               @code-file-shown.stop="console.log"
+              @subtask="$emit('subtask', { chat: theChat, message })"
               v-else />
           </div>
           <div class="anchor" ref="anchor"></div>

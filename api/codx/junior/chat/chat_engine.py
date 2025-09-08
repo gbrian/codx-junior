@@ -496,7 +496,9 @@ class ChatEngine:
             for search_project in search_projects:
                 if chat:
                     self.event_manager.chat_event(chat=chat, message=f"Searching knowledge in {search_project.project_name}")
-                project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, ignore_documents=ignore_documents)
+                knowledge_documents = self.knowledge(settings=settings).search(query)
+                
+                project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project,knowledge_documents=knowledge_documents, ignore_documents=ignore_documents)
                 project_file_list: list[str] = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
                 docs.extend(project_docs)
                 if file_list:

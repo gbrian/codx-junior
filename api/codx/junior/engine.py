@@ -345,7 +345,8 @@ class CODXJuniorSession:
             for search_project in search_projects:
                 if chat:    
                     self.event_manager.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.project_path}")
-                project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, ignore_documents=ignore_documents)
+                knowledge_documents = Knowledge(settings=search_project).search(query)
+                project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, knowledge_documents=knowledge_documents, ignore_documents=ignore_documents)
                 project_file_list = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
                 if project_docs:
                     docs = docs + project_docs

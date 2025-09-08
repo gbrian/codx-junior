@@ -3,7 +3,10 @@ import shutil
 import json
 import logging
 import datetime
-import yaml  # Import yaml for handling mkdocs.yaml
+import yaml
+
+from pathlib import Path
+
 from slugify import slugify
 from enum import Enum
 from typing import List, Dict, Tuple, Any, Optional, Any
@@ -45,7 +48,7 @@ CATEGORY_NOT_FOUND_MESSAGE = "No matching category found for file: %s"
 WIKI_FILE_PATH_TEMPLATE = "/{slug}.md"
 HOME_PAGE_UPDATE_EVENT = "Build home page"
 WIKI_TREE_FILE_NAME = 'wiki_tree.json'
-MKDOCS_YAML_FILE_NAME = 'mkdocs.yaml'  # Define mkdocs.yaml file name
+MKDOCS_YAML_FILE_NAME = 'mkdocs.yml'
 
 class WikiCategory(BaseModel):
     """Defines a wiki category"""
@@ -77,6 +80,7 @@ class WikiManager:
         self.loader = KnowledgeLoader(settings=settings)
         self.is_wiki_active = True if self.wiki_path else False
         self.wiki_home_path = os.path.join(self.wiki_path, "index.md")
+        self.wiki_settings_path = os.path.join(self.settings.codx_path, "wiki_settings.json")
 
     def save_wiki_settings(self, wiki_settings: Any) -> None:
         """
@@ -115,8 +119,19 @@ class WikiManager:
 
     def create_wiki_tree(self):
         repository_files = self.loader.list_repository_files()
-        repository_files = [f for f in repository_files if not f.startswith(self.wiki_path)]
+        ignore_patters = [
+          MKDOCS_YAML_FILE_NAME,
+          self.wiki_path
+        ]
+        def is_valid_file(file_path):
+            for ignore in ignore_patters:
+                if ignore in file_path:
+                    return False
+            return True
+        repository_files = [f for f in repository_files if is_valid_file(f)]
         repository_files = "\n".join(sorted(repository_files))
+
+        logger.info("Valid wiki files:\n%s", repository_files)
         
         wiki_settings = self.load_wiki_settings()
         user_language = wiki_settings.get("language", "English")
@@ -151,7 +166,9 @@ class WikiManager:
                 * "keywords": List of keyword to check if a file belongs to the category
                 * "children": An array of category entries
                 * "files": (Mandatory) The list of files matching this category. Remove the category if you can't find any matching file.
-            Return updated wiki_settings JSON object
+            Remove all files from the tree that are not present in project_files.
+            Make sure all project_files has been assigned to a category.
+            Return updated wiki_settings JSON object.
             Generated content must be in user_language: { user_language }
             """
             messages = self._ai_chat(prompt=summary_prompt)
@@ -333,7 +350,8 @@ class WikiManager:
         that should be included in the front page of the wiki. If relevant, update the home page content 
         with this information. Ensure that content is coherent and well-structured.
         Remember that the home page must show a high level overview don't deep down into details user will navigate the wiki for this.
-        Generated content must be in user_language: {user_language}
+        Generated content must be in user_language: {user_language}.
+        Generate the final "home" document content without any extra comments. 
         """
         
         try:
@@ -347,35 +365,74 @@ class WikiManager:
         except Exception as e:
             logger.exception(f"Error updating wiki home page: {e}")
 
+    def compile_wiki(self):
+        wiki_settings = self.load_wiki_settings()
+        # Update mkdocs.yaml if mode is mkdocs
+        if wiki_settings.get("mode") == "mkdocs":
+            self._update_mkdocs()
+
     def _update_mkdocs(self) -> None:
         """
-        Update or create the mkdocs.yaml file to reflect the current wiki structure.
+        Use AI to update the mkdocs.yaml file, taking into account the current content
+        of the mkdocs.yaml file and all the files and folders from the wiki_path.
         """
-        site_name = self.settings.project_name
-        nav = []
+        mkdocs_file_path = Path(self.settings.project_path) / MKDOCS_YAML_FILE_NAME
+
+        wiki_settings = self.load_wiki_settings()
+        user_language = wiki_settings.get("language", "English")
+        user_instructions = wiki_settings.get("prompt", "")
         
-        # Load current wiki settings
-        wiki_settings = self.load_wiki_settings(with_files=True)
-        categories = self._get_all_categories(wiki_settings["categories"])
+        # Read the existing mkdocs.yaml content
+        current_mkdocs_content = {}
+        if mkdocs_file_path.exists():
+            with open(mkdocs_file_path, 'r') as mkdocs_file:
+                current_mkdocs_content = yaml.safe_load(mkdocs_file)
 
-        # Build navigation structure
-        for category in categories:
-            category_nav = {category['title']: [os.path.relpath(file, self.wiki_path) for file in category.get("wiki_files", [])]}
-            nav.append(category_nav)
+        # Gather all files and folders from the wiki_path
+        wiki_files = []
+        for root, dirs, files in os.walk(self.wiki_path):
+            for file in files:
+                if file != MKDOCS_YAML_FILE_NAME:
+                    wiki_files.append(os.path.relpath(os.path.join(root, file), self.wiki_path))
+        wiki_files.sort()
+        wiki_files = '\n'.join(wiki_files)
+        # Prepare the prompt for AI
+        update_prompt = f"""
+        <current_mkdocs_content>
+        {yaml.dump(current_mkdocs_content, default_flow_style=False)}
+        </current_mkdocs_content>
+        <wiki_files>
+        { wiki_files}
+        </wiki_files>
+        <user_instructions>
+        {user_instructions}
+        </user_instructions>
+        <user_language>
+        {user_language}
+        </user_language>
 
-        mkdocs_content = {
-            "site_name": site_name,
-            "nav": nav,
-            "plugins": ["techdocs-core"]
-        }
+        Update the mkdocs.yaml content to reflect any changes in the wiki structure, 
+        including new or removed files and folders. Ensure that the navigation structure 
+        remains clear and logical.
+        Don't change any other setting, focus on the navigation.
+        Generate only yaml valid object without further decoration or comments.
+        Generated content must be in user_language: {user_language}
+        """
 
-        mkdocs_file_path = os.path.join(self.wiki_path, MKDOCS_YAML_FILE_NAME)
-        with open(mkdocs_file_path, 'w') as mkdocs_file:
-            yaml.dump(mkdocs_content, mkdocs_file, default_flow_style=False)
-        logger.info(f"mkdocs.yaml successfully updated at {mkdocs_file_path}")
+        try:
+            messages = self._ai_chat(prompt=update_prompt)
+            updated_mkdocs_content = messages[-1].content
+
+            # Write the updated content to the mkdocs.yaml file
+            with open(mkdocs_file_path, 'w') as mkdocs_file:
+                mkdocs_file.write(updated_mkdocs_content)
+            logger.info(f"mkdocs.yaml successfully updated at {mkdocs_file_path}")
+
+        except Exception as e:
+            logger.exception(f"Error updating mkdocs.yaml: {e}")
 
     def _get_settings_path(self):
-        return os.path.join(self.wiki_path, "wiki_settings.json")
+        return self.wiki_settings_path
 
     def _get_all_categories(
         self, 
@@ -439,7 +496,7 @@ class WikiManager:
         return read_file(file_path, self.settings.project_path)
 
     def _get_file_wiki_name(self, source):
-        return slugify(source.replace(self.settings.project_path, "")) + ".wiki_file"
+        return slugify(source.replace(self.settings.project_path, "")) + ".md"
 
     def _get_ai(self) -> AI:
         """Create and return an AI engine instance for processing."""
@@ -451,5 +508,8 @@ class WikiManager:
             "tags": tags
         }
         messages = self._get_ai().chat(prompt=prompt, headers=headers)
-        prompt = "Review last message and return the wiki document without any extra comment or surrounding decorators, just the wiki markdown"
-        return self._get_ai().chat(messages=[messages[-1]], headers=headers)
+        content = messages[-1].content.strip()
+        if content.startswith("```"):
+            content = "\n".join(content.split("\n")[1:-1])
+            messages[-1].content = content
+        return messages

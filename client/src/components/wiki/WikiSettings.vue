@@ -105,6 +105,10 @@ import { TreeItem, TreeRoot } from 'radix-vue'
           </div>
           <div class="flex flex-col gap-2">
             <div class="flex gap-1 group" v-for="file in selectedItem.files" :key="file">
+              <div class="ml-2 text-error opacity-0 group-hover:opacity-100 tooltip click"
+                data-tip="Delete file" @click.stop="deleteFile(file)">
+                <i class="fa-solid fa-trash-can"></i>
+              </div>
               <div class="ml-2 text-warning opacity-0 group-hover:opacity-100 tooltip click"
                 data-tip="Build wiki" @click.stop="buildWiki(file)">
                 <i class="fa-solid fa-rotate-right"></i>
@@ -158,6 +162,11 @@ import { TreeItem, TreeRoot } from 'radix-vue'
               data-tip="Automagically wiki tree"
               @click.stop="buildTree()">
               Build tree <i class="fa-solid fa-wand-magic-sparkles"></i>
+            </button>
+            <button class="btn btn-xs ml-2 text-white tooltip"
+              data-tip="Compile wiki"
+              @click.stop="compileWiki()">
+              Compile
             </button>
           </div>
         </div>
@@ -218,6 +227,9 @@ export default {
       await this.saveSettings()
       this.wikiTree = await this.$storex.api.wiki.build({ step: "create_wiki_tree" })
     },
+    async compileWiki() {
+      await this.$storex.api.wiki.build({ step: "compile_wiki"})
+    },
     async saveSettings() {
       this.allItems.map(c => {
         c.keywords = Array.isArray(c.keywords) ? c.keywords : 
@@ -231,6 +243,13 @@ export default {
     },
     async buildWikiCategory(path) {
       this.$storex.api.wiki.build({ step: "build_wiki_category", path })
+    },
+    deleteFile(file) {
+      const index = this.selectedItem.files.indexOf(file)
+      if (index > -1) {
+        this.selectedItem.files.splice(index, 1)
+        this.saveSettings()
+      }
     }
   }
 }

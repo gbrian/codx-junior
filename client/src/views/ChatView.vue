@@ -23,7 +23,7 @@ import PRView from '@/components/repo/PRView.vue'
               <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2 mb-2">
                   <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
-                    <i class="fa-solid fa-caret-left"></i> {{ kanban?.title }}
+                    <i class="fa-solid fa-caret-left"></i> {{ kanban?.title || chat.board }}
                   </div>
                   <div class="my-2 hover:underline cursor-pointer font-bold text-secondary" @click="navigateToParent(parentChat)" v-if="parentChat">
                     <i class="fa-brands fa-trello"></i>
@@ -198,6 +198,7 @@ import PRView from '@/components/repo/PRView.vue'
           @delete-message="onRemoveMessage"
           @delete="confirmDelete = true"
           @save="saveChat" 
+          @subtask="onNewMessageSubtask"
           v-else />
         <modal v-if="confirmDelete">
           <div class="">
@@ -309,6 +310,8 @@ export default {
       subtaskName: '',
       subtaskDescription: '',
       subtaskProject: null,
+      subtaskParentId: null,
+      subtaskMessageId: null,
       showAddProfile: false,
       createTasksInstructions: '',
       chatProfiles: [],
@@ -486,11 +489,23 @@ export default {
       this.saveChat()
     },
     navigateToChats() {
-      this.$emit('chats')
+      if (this.$ui.activeTab !== 'tasks') {
+        this.$ui.setActiveTab('tasks')
+      }
+      this.$emit('chats', this.kanban?.title || this.chat.board)
     },
-    async newSubChat() {
+    newSubChat() {
       this.subtaskProject = this.$project.project_id
+      this.subtaskParentId = null
+      this.subtaskMessageId = null
       this.showSubtaskModal = true
+    },
+    onNewMessageSubtask({ chat: { id: subtaskParentId }, message: { id: subtaskMessageId }}) {
+      this.subtaskProject = this.$project.project_id
+      this.subtaskParentId = subtaskParentId
+      this.subtaskMessageId = subtaskMessageId
+      this.showSubtaskModal = true
+
     },
     createSubtask() {
       if (this.subtaskName.trim()) {
@@ -498,7 +513,9 @@ export default {
           parent: this.chat,
           name: this.subtaskName,
           description: this.subtaskDescription,
-          project_id: this.subtaskProject 
+          project_id: this.subtaskProject,
+          parent_id: this.subtaskParentId,
+          message_id: this.subtaskMessageId
         })
         this.resetSubtaskModal()
       }
