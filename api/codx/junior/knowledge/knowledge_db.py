@@ -25,10 +25,30 @@ CODX_JUNIOR_MILVUS_URL = os.environ.get("CODX_JUNIOR_MILVUS_URL", "http://milvus
 
 logger = logging.getLogger(__name__)
 
-MILVUS_CLIENT = MilvusClient(
+MILVUS = {
+  "client": MilvusClient(
+                uri=CODX_JUNIOR_MILVUS_URL,
+                token="root:Milvus"
+            )
+}
+def connect_milvus_client():
+    MILVUS["client"] = MilvusClient(
                     uri=CODX_JUNIOR_MILVUS_URL,
                     token="root:Milvus"
                 )
+
+def get_milvus_client():
+    client = MILVUS["client"]
+    if not client:
+        connect_milvus_client()
+    try:
+        client.list_databases()
+        return client
+    except Exception as ex:
+        logger.exception("Error connecting to MilvusDB: %s", ex)
+      
+    connect_milvus_client()
+    return MILVUS["client"]
 
 class DBDocument (Document):
   db_id: str = None
@@ -89,9 +109,7 @@ class KnowledgeDB:
 
     def connect_db(self):
         try:
-            def connect():
-                return MILVUS_CLIENT
-            self.db = connect() 
+            self.db = get_milvus_client() 
             self.create_db()
             
         except Exception as ex:

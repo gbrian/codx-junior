@@ -7,11 +7,22 @@ import { v4 as uuidv4 } from "uuid"
 import VSwatches from "../VSwatches.vue"
 import KanbanList from "./KanbanList.vue"
 import ChatIcon from "../chat/ChatIcon.vue"
+import ProjectIcon from "../ProjectIcon.vue"
 </script>
 
 <template>
   <div class="h-full px-2" v-if="kanban?.boards">
     <div class="flex flex-col gap-2" v-if="!$projects.activeChat && !board">
+      <div class="font-bold" v-if="topProjects?.length">Related projects</div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4" v-if="$storex.projects.childProjects">
+        <ProjectIcon v-for="project in topProjects" :key="project.project_id"
+          :project="project" 
+          :online="true" 
+          :right="false"
+          @click="$projects.setActiveProject(project)"
+          />
+      </div>
+      
       <div v-if="lastUpdatedTasks?.length">
         <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between">
           <div>Last tasks</div>
@@ -278,6 +289,11 @@ export default {
     this.projectChanged()
   },
   computed: {
+    topProjects() {
+      const children = this.$storex.projects.childProjects
+      const parent = this.$project.parentProject
+      return parent ? [parent, ...children] : children
+    },
     filteredParentBoards() {
       return this.parentBoards.filter(board => 
         board.title.toLowerCase().includes(this.boardFilter.toLowerCase())
@@ -529,7 +545,7 @@ export default {
       await this.$projects.setActiveChat()
       this.buildKanban()
     },
-    async createSubTask({ parent, name, description, project_id, parent_id, message_id }) {
+    async createSubTask({ parent, name, description, project_id, parent_id, message_id, file_list }) {
       const chat = await this.createNewChat({
         board: parent.board,
         name,
@@ -537,9 +553,14 @@ export default {
         parent_id: parent_id || parent.id,
         message_id,
         project_id: project_id || parent.project_id,
-        messages: [{ role: "user", content: description }]
+        messages: description ? [{ role: "user", content: description }] : [],
+        file_list
       })
+      
       this.$projects.saveChat(chat)
+      if (description) {
+        this.$storex.projects.chatWihProject(chat)
+      }
     },
     async createSubTasks(event) {
       this.$projects.createSubtasks(event)

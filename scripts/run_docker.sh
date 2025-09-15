@@ -6,11 +6,4 @@ echo "Starting llmfactory USER: ${USER} HOME: ${HOME}"
 
 source ${CODX_JUNIOR_PATH}/set_env.sh
 
-if [[ "$CODX_JUNIOR_APPS" =~ "docker" ]]
-then
-    while true; do
-      sleep 60
-    done
-else
-    dockerd
-fi
+dockerd

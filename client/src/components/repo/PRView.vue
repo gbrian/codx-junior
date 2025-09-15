@@ -2,6 +2,7 @@
 import "@git-diff-view/vue/styles/diff-view.css";
 import { DiffView, DiffModeEnum, DiffParser } from "@git-diff-view/vue";
 import PRBranchSelectoor from './PRBranchSelectoor.vue';
+import CodeComment from "./CodeComment.vue";
 </script>
 
 <template>
@@ -20,36 +21,44 @@ import PRBranchSelectoor from './PRBranchSelectoor.vue';
         </div>
       </div>
     </header>
-
-    <div class="bg-base-100 border border-slate-600 rounded-md p-2 mb-2" v-for="file, ix in files" :key="ix">
+    <div class="flex justify-end gap-2 py-2" v-if="files?.length">
+      <div class="badge badge-outline gap-2 badge-error">{{ deleteCount }} <i class="fa-regular fa-file-lines"></i></div>
+      <div class="badge badge-outline gap-2 badge-success">{{ newCount }} <i class="fa-regular fa-file-lines"></i></div>
+      <div class="badge badge-outline gap-2">{{ changeCount }} <i class="fa-regular fa-file-lines"></i></div>
+    </div>
+    <div class="bg-base-100 border border-slate-600 rounded-md p-2 mb-2"
+       v-for="file, ix in files" :key="ix"
+       @dblclick="file.extended = !file.extended"
+    >
       <div class="flex gap-2 text-xl py-2">
-        <i class="fa-regular fa-file-lines"></i> {{ file.oldFile.fileName }}
+        <span class="click flex gap-2 items-center" @click="openFile(file.fileName)">
+          <i class="fa-regular fa-file-lines"></i>
+          <span :class="[file.isDeleted && 'text-error', file.isNewFile && 'text-success']">{{ file.oldFile.fileName }}</span>
+        </span> 
         <div class="grow"></div>
-        <button class="btn btn-sm" @click="$emit('comment', file)">
+        <button class="btn btn-sm" @click="file.extended = !file.extended">
+          <i class="fa-solid fa-caret-up" v-if="file.extended"></i>
+          <i class="fa-solid fa-caret-down" v-else></i>
+        </button>
+        <button class="btn btn-sm" 
+          @click="copyDiff(file)">
+          <i class="fa-regular fa-copy"></i>
+        </button>
+        <button class="btn btn-sm" 
+          :class="prChats[file.fileName] && 'btn-info'"
+          @click="onFileComment(file)">
           <i class="fa-regular fa-comment-dots"></i>
         </button>
       </div>
       <DiffView
         :data="file"
         :diff-view-theme="'dark'" 
-        :diff-view-add-widget="false"
+        :diff-view-add-widget="true"
         :extend-data="extendData"
+        v-if="file.extended"
       >
       <template #widget="{ onClose, lineNumber, side }">
-        <div class="flex w-full flex-col border px-[4px] py-[8px]">
-          <textarea class="min-h-[80px] w-full border p-[2px]"  />
-          <div class="m-[5px] mt-[0.8em] text-right">
-            <div class="inline-flex justify-end gap-x-[12px]">
-              <button class="rounded-[4px] border px-[12px] py-[6px]" @click="onClose">cancel</button>
-              <button
-                class="rounded-[4px] border px-[12px] py-[6px]"
-                @click="onAddComment(file, lineNumber, side, onClose)"
-              >
-                submit
-              </button>
-            </div>
-          </div>
-        </div>
+        <CodeComment @save="onAddComment($event, file, lineNumber, side, onClose)" />
       </template>
       <template #extend="{ data }">
         <div class="flex border bg-slate-400 px-[10px] py-[8px]">
@@ -64,7 +73,7 @@ import PRBranchSelectoor from './PRBranchSelectoor.vue';
 <script>
 export default {
 
-  props: ['fromBranch', 'toBranch', 'extendedData'],
+  props: ['fromBranch', 'toBranch', 'extendedData', 'chat', 'prChats'],
   data() {
     return {
       overviewChecked: true,
@@ -74,7 +83,8 @@ export default {
       files: null,
       fromBranchSelected: this.fromBranch,
       toBranchSelected: this.toBranch,
-      extendData: { oldFile: {}, newFile: {} }
+      extendData: { oldFile: {}, newFile: {} },
+      codeComment: null
     }
   },
   created() {
@@ -85,7 +95,16 @@ export default {
   computed: {
     branches() {
       return this.$projects.project_branches.branches
-    }
+    },
+    newCount() {
+      return this.files.filter(f => f.isNewFile).length
+    },
+    deleteCount() {
+      return this.files.filter(f => f.isDeleted).length
+    },
+    changeCount() {
+      return this.files.filter(f => f.isChanged).length
+    },
   },
   watch: {
   },
@@ -96,22 +115,35 @@ export default {
     async refreshSummary() {
       this.loading = true
       try {
-        const { fromBranch: from_branch, toBranch: to_branch } = this
-        const changes = await this.$storex.api.repo.changes({ from_branch, to_branch })
-        this.files = changes.diff.split("diff --git")
+        const { fromBranch, toBranch } = this
+        const changes = await this.$storex.api.repo.changes({ from_branch: fromBranch, to_branch: toBranch })
+        const parser = new DiffParser()
+        this.files = changes.diff.split("diff --git ")
           .filter(d => d)
-          .map(file => {
-            const lines = file.split("\n")
+          .map(diff => {
+            const lines = diff.split("\n")
             const [oldFile, newFile] = lines[0].trim().split(" ")
-            const diff = lines.slice(2).join("\n")
+            // const diff = lines.slice(2).join("\n")
+            const oldName = oldFile.replace("a/", "")
+            const newName = newFile.replace("b/", "")
+            const parsed = parser.parse(diff)
+            const isDeleted = parsed.header.includes("deleted")
+            const isNewFile =  parsed.hunks.length === 1 && !isDeleted
+            const isChanged =  parsed.hunks.length === 2
+
             return {
+              fileName: oldName || newName,
               oldFile: {
-                fileName: oldFile.replace("a/", "")
+                fileName: oldName
               },
               newFile: {
-                fileName: newFile.replace("b/", "")
+                fileName: newName
               },
-              hunks: [diff]
+              hunks: [diff],
+              isDeleted,
+              isNewFile,
+              isChanged,
+              parsed,
             }
           })      
       } finally {
@@ -124,10 +156,37 @@ export default {
     onBranchChanged({ fromBranch, toBranch }) {
       this.$emit('select', { fromBranch, toBranch })
     },
-    onAddComment(file, lineNumber, side, onClose) {
+    onAddComment(comment, file, lineNumber, side, onClose) {
+      const metadata = {
+        file: file.fileName,
+        lineNumber,
+        side
+      }
+      const message = {
+        metadata,
+        content: comment
+      }
+      
       const _side = side === 1 ? 'oldFile' : 'newFile';
       this.extendData[_side][lineNumber] = { data: "comment" };
       onClose()
+    },
+    onFileComment(file) {
+      const fileName = file.fileName
+      const chat = this.prChats[fileName]
+      if (chat) {
+        this.$projects.setActiveChat(chat)
+      } else {
+        const description = ["```diff", file.hunks[0], "```"].join("\n")
+        this.$emit('comment', { fileName, description })
+      }
+    },
+    copyDiff(file) {
+      const diffBlock = ["```diff", file.hunks[0], "```"].join("\n") 
+      this.$ui.copyTextToClipboard(diffBlock)
+    },
+    openFile(fileName) {
+      this.$ui.openProjectFile(fileName)
     }
   },
   mounted() {

@@ -21,15 +21,13 @@ import CheckLists from './CheckLists.vue'
         </div>
         <div class="overflow-auto h-full">
           <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
-            <div class="flex w-full flex-col gap-4 bg-base-100 p-2 mb-2 rounded-md" v-if="!message.content && !message.think">
-              <div class="flex items-center gap-4">
-                <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
-                <div class="flex flex-col gap-4">
-                  <div class="skeleton h-4 w-20"></div>
-                </div>
-              </div>
-              <div class="skeleton h-32 w-full"></div>
-            </div>
+            <ChatEntry v-for="knowledgeMessage in knowledgeMessages"
+              :key="knowledgeMessages.id" 
+              :chat="theChat"
+              :message="knowledgeMessage"
+              :isTopic="isTopic && !ix"
+            />
+            
             <ChatEntry :class="['mb-4 rounded-md',
               isChannel ? '': 'bg-base-100 py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
@@ -51,9 +49,10 @@ import CheckLists from './CheckLists.vue'
               @reload-file="onReloadMessageFile"
               @open-file="onOpenFile"
               @save-file="onSaveFile"
+              @edit-message="onEditMessage($event, message)"
               @code-file-shown.stop="console.log"
               @subtask="$emit('subtask', { chat: theChat, message })"
-              v-else />
+            />
           </div>
           <div class="anchor" ref="anchor"></div>
           <div class="grid grid-cols-3 gap-2 mb-2" v-if="childrenChats?.length">
@@ -397,6 +396,10 @@ export default {
     activeMessages() {
       const { messages } = this.theChat
       return messages.filter(m => !m.hide)
+    },
+    knowledgeMessages() {
+      return this.activeMessages.filter(m => m.is_answer)
+                .map(m => ({ ...m, collapse: true }))
     },
     messages() {
       const messages = this.theChat?.messages
@@ -952,6 +955,10 @@ export default {
       this.$emit('add-file', this.uploadProjectFile)
       this.uploadProjectFile = null
       this.selectFile = false
+    },
+    onEditMessage({ orgContent, newContent }, message) {
+      message.content = message.content.replace(orgContent, newContent)
+      this.saveChat()
     }
   }
 }

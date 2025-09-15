@@ -228,8 +228,8 @@ export const actions = actionTree(
 
           commit('addRecentProject', state.activeProject) // Update recent projects
 
+          $storex.projects.loadProjectKnowledge()            
           await Promise.all([
-            $storex.projects.loadProjectKnowledge(),
             $storex.projects.loadProfiles(),
             $storex.projects.loadChats()
           ])
@@ -335,9 +335,7 @@ export const actions = actionTree(
         return null
       }
       await $storex.projects.loadAllProjects()
-      const project = $storex.projects.allProjects.find(p => p.project_path === newProject.project_path)
-      $storex.projects.setActiveProject(project)
-      $storex.ui.coderOpenPath(project)
+      $storex.projects.setActiveProject(newProject)
     },
     getProjectDependencies({ state }, project) {
       const { project_dependencies } = project
@@ -362,6 +360,9 @@ export const actions = actionTree(
         chat
       }
       $storex.session.emit({ event: 'codx-junior-chat', data })
+    },
+    async codxWiki(_, data) {
+      $storex.session.emit({ event: 'codx-junior-wiki', data })
     },
     async createSubTasks({ state }, { chat, instructions }) {
       const data = {

@@ -62,6 +62,7 @@ class CodxJuniorBaseTools(BaseModel):
 class ProjectPermission(BaseModel):
     project_id: str
     permissions: str = Field(description="User permissions for the project", default=[])
+    apps: Optional[List[str]] = Field(default=[])
 
 class PRView(BaseModel):
     from_branch: Optional[str] = Field(default="")
@@ -88,6 +89,7 @@ class CodxUser(BaseModel):
     token: Optional[str] = Field(default="")
     disabled: Optional[bool] = Field(default=False)
     github: Optional[str] = Field(default="")
+    apps: Optional[List[str]] = Field(default=[])
     
 class ProfileApiSettings(BaseModel):
     active: bool = Field(description="Model is visible through API", default=False)

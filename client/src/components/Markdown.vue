@@ -25,6 +25,7 @@ import highlight from 'markdown-it-highlightjs'
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"
       @save-file="$emit('save-file', $event)"
+      @edit-message="$emit('edit-message', $event)"
     />
   </div>
 </template>

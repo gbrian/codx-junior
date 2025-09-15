@@ -357,6 +357,3 @@ class MentionManager:
             write_file(file_path=file_path, content=res)
         except Exception as ex:
             logger.exception(f"Error processing mentions at {file_path}: {ex}")
-        finally:
-            if stream_file.get("file"):
-                stream_file["file"].close()

@@ -81,12 +81,17 @@ class AI:
         if prompt:
             messages.append(HumanMessage(content=prompt))
 
-        response = None
+        response_messages = None
         md5_key = messages_md5(messages) if self.cache else None
         if self.cache and md5_key in self.cache:
-            response = AIMessage(content=json.loads(self.cache[md5_key])["content"])
+            response_messages.append(
+                AIMessage(content=json.loads(self.cache[md5_key])["content"])
+            )
+            if self.settings.get_log_ai():
+                self.ai_logger.debug(f"Response from cache: {messages} {response}")
 
-        if not response:
+        else:
+
             callbacks = []
             if callback:
                 callbacks.append(callback)
@@ -95,7 +100,7 @@ class AI:
                 self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
                 # Apply global instructions
                 
-                response = self.llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
+                response_messages = self.llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
                                                + messages, 
                                                config={"callbacks": callbacks, "headers": headers})
             except Exception as ex:
@@ -106,14 +111,11 @@ class AI:
                 self.cache[md5_key] = json.dumps(
                     {
                         "messages": serialize_messages(messages),
-                        "content": response.content,
+                        "content": response_messages[-1].content,
                     }
                 )
-        elif self.settings.get_log_ai():
-            self.ai_logger.debug(f"Response from cache: {messages} {response}")
-
-        messages.append(response)
-        return messages
+      
+        return response_messages
 
     @profile_function
     def embeddings(self, content: str):

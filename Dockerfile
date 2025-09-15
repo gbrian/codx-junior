@@ -1,5 +1,5 @@
 # Base
-FROM debian:latest AS base
+FROM debian:12 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CODX_JUNIOR_API_VENV=/tmp/.venv_codx_junior_api

@@ -24,10 +24,11 @@
   "log_ignore": "",
   "project_scripts": [],
   "embeddings_model": "",
-  "llm_model": "gpt-4o",
+  "llm_model": "",
   "rag_model": "",
   "wiki_model": "",
   "last_error": "",
   "urls": [],
-  "repo_url": null
+  "repo_url": null,
+  "metrics": {}
 }

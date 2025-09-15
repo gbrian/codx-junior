@@ -1,0 +1,277 @@
+{
+  "categories": [
+    {
+      "title": "Project Overview",
+      "description": "This section provides an overview of the codx-api project, including its purpose, architecture, and key components.",
+      "keywords": [
+        "overview",
+        "architecture",
+        "purpose"
+      ],
+      "children": [],
+      "files": [
+        {
+          "name": "README.md",
+          "path": "/shared/codx-junior/api/README.md"
+        }
+      ],
+      "id": "project-overview",
+      "path": "project-overview"
+    },
+    {
+      "title": "App Module",
+      "description": "The App Module initializes the FastAPI application and defines its configuration, routes, and middleware. It also manages background tasks and integrates with Socket.IO for real-time communication.",
+      "keywords": [
+        "app",
+        "fastapi",
+        "middleware",
+        "socket.io",
+        "background tasks"
+      ],
+      "children": [],
+      "files": [
+        {
+          "name": "app.py",
+          "path": "/shared/codx-junior/api/codx/junior/app.py"
+        },
+        {
+          "name": "background.py",
+          "path": "/shared/codx-junior/api/codx/junior/background.py"
+        },
+        {
+          "name": "main.py",
+          "path": "/shared/codx-junior/api/codx/junior/main.py"
+        }
+      ],
+      "id": "app-module",
+      "path": "app-module"
+    },
+    {
+      "title": "Engine Module",
+      "description": "The Engine Module handles core functionalities such as project creation, session management, and other high-level operations crucial for the application's objectives. It provides the necessary backend logic to support the features exposed by the app module.",
+      "keywords": [
+        "engine",
+        "project creation",
+        "session management",
+        "backend logic"
+      ],
+      "children": [],
+      "files": [
+        {
+          "name": "engine.py",
+          "path": "/shared/codx-junior/api/codx/junior/engine.py"
+        }
+      ],
+      "id": "engine-module",
+      "path": "engine-module"
+    },
+    {
+      "title": "AI and Knowledge Management",
+      "description": "This section covers the AI and knowledge management aspects of the project, including various agents, models, and utilities used for processing and storing data.",
+      "keywords": [
+        "ai",
+        "knowledge",
+        "agents",
+        "models",
+        "utilities"
+      ],
+      "children": [
+        {
+          "title": "Agents",
+          "description": "The Agents category includes different types of agents designed to handle specific tasks within the project, such as DevOps, Git Issues, and Base Agent.",
+          "keywords": [
+            "agents",
+            "devops",
+            "git issues",
+            "base agent"
+          ],
+          "children": [],
+          "files": [
+            {
+              "name": "Base Agent",
+              "path": "/shared/codx-junior/api/codx/junior/agents/base_agent.py"
+            },
+            {
+              "name": "DevOps Agent",
+              "path": "/shared/codx-junior/api/codx/junior/agents/devops_agent.py"
+            },
+            {
+              "name": "Git Issues Agent",
+              "path": "/shared/codx-junior/api/codx/junior/agents/git_issues_agent.py"
+            }
+          ],
+          "id": "agents",
+          "path": "ai-and-knowledge-management/agents"
+        },
+        {
+          "title": "Models",
+          "description": "The Models category includes the main model and user-specific model definitions.",
+          "keywords": [
+            "models",
+            "model",
+            "user model"
+          ],
+          "children": [],
+          "files": [
+            {
+              "name": "Model",
+              "path": "/shared/codx-junior/api/codx/junior/model/model.py"
+            },
+            {
+              "name": "User Model",
+              "path": "/shared/codx-junior/api/codx/junior/model/user.py"
+            }
+          ],
+          "id": "models",
+          "path": "ai-and-knowledge-management/models"
+        },
+        {
+          "title": "Knowledge",
+          "description": "The Knowledge category includes modules for managing and processing knowledge data, such as code splitting, document enrichment, and keyword extraction.",
+          "keywords": [
+            "knowledge",
+            "code splitting",
+            "document enrichment",
+            "keyword extraction"
+          ],
+          "children": [],
+          "files": [
+            {
+              "name": "Code Splitter",
+              "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_code_splitter.py"
+            },
+            {
+              "name": "Code to Documents",
+              "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_code_to_documents.py"
+            },
+            {
+              "name": "Keyword Extraction",
+              "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_keywords.py"
+            },
+            {
+              "name": "Document Enrichment",
+              "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_loader.py"
+            },
+            {
+              "name": "Query Tags",
+              "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_prompts.py"
+            },
+            {
+              "name": "QA Splitter",
+              "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_qa_splitter.py"
+            },
+            {
+              "name": "Training",
+              "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_training.py"
+            },
+            {
+              "name": "Wiki Integration",
+              "path": "/shared/codx-junior/api/codx/junior/knowledge/knowledge_wiki.py"
+            }
+          ],
+          "id": "knowledge",
+          "path": "ai-and-knowledge-management/knowledge"
+        }
+      ],
+      "files": [],
+      "id": "ai-and-knowledge-management",
+      "path": "ai-and-knowledge-management"
+    },
+    {
+      "title": "Database and Data Storage",
+      "description": "This section covers the database and data storage functionalities of the project, including the database router and settings.",
+      "keywords": [
+        "database",
+        "data storage",
+        "router",
+        "settings"
+      ],
+      "children": [],
+      "files": [
+        {
+          "name": "DB Router",
+          "path": "/shared/codx-junior/api/codx/junior/api/db_router.py"
+        },
+        {
+          "name": "DB Settings",
+          "path": "/shared/codx-junior/api/codx/junior/settings.py"
+        }
+      ],
+      "id": "database-and-data-storage",
+      "path": "database-and-data-storage"
+    },
+    {
+      "title": "Security and Authentication",
+      "description": "This section covers the security and authentication functionalities of the project, including GitHub OAuth and user management.",
+      "keywords": [
+        "security",
+        "authentication",
+        "github oauth",
+        "user management"
+      ],
+      "children": [],
+      "files": [
+        {
+          "name": "GitHub OAuth",
+          "path": "/shared/codx-junior/api/codx/junior/security/github_oauth.py"
+        },
+        {
+          "name": "User Management",
+          "path": "/shared/codx-junior/api/codx/junior/security/user_management.py"
+        }
+      ],
+      "id": "security-and-authentication",
+      "path": "security-and-authentication"
+    },
+    {
+      "title": "Session Management",
+      "description": "This section covers the session management functionalities of the project, including session channels and session manager.",
+      "keywords": [
+        "session management",
+        "channels",
+        "manager"
+      ],
+      "children": [],
+      "files": [
+        {
+          "name": "Session Channel",
+          "path": "/shared/codx-junior/api/codx/junior/sio/session_channel.py"
+        },
+        {
+          "name": "Session Manager",
+          "path": "/shared/codx-junior/api/codx/junior/session/session_manager.py"
+        }
+      ],
+      "id": "session-management",
+      "path": "session-management"
+    },
+    {
+      "title": "Utility Functions",
+      "description": "This section covers the utility functions and scripts used throughout the project, including chat utils, browser use, and log parser.",
+      "keywords": [
+        "utility functions",
+        "chat utils",
+        "browser use",
+        "log parser"
+      ],
+      "children": [],
+      "files": [
+        {
+          "name": "Chat Utils",
+          "path": "/shared/codx-junior/api/codx/junior/utils/chat_utils.py"
+        },
+        {
+          "name": "Browser Use",
+          "path": "/shared/codx-junior/api/codx/junior/browser/browseruse.py"
+        },
+        {
+          "name": "Log Parser",
+          "path": "/shared/codx-junior/api/codx/junior/log_parser.py"
+        }
+      ],
+      "id": "utility-functions",
+      "path": "utility-functions"
+    }
+  ],
+  "path": "/shared/codx-junior/api/.codx/wiki_settings.json"
+}

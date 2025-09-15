@@ -34,7 +34,9 @@ import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
 
       <div :class="['hover:bg-base-100 click relative',
           !$project ? 'text-slate-400' :
-              ($ui.activeTab === 'profiles' ? 'bg-base-100 text-primary': ''),]">
+              ($ui.activeTab === 'profiles' ? 'bg-base-100 text-primary': ''),]"
+          v-if="$users.isProjectAdmin"
+        >
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Profiles"
           @click="setProjectTab('profiles')">
@@ -81,7 +83,9 @@ import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
     </button>
 
     <div class="flex w-full flex-col mt-4 flex">
-      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('browser') ? 'text-primary': '',]">
+      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('browser') ? 'text-primary': '',]"
+        v-if="canShowBrowser"
+      >
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show display"
           @click.stop="$ui.setShowBrowser(!$ui.appActives.includes('browser'))">
           <div class="flex flex-col gap-4">
@@ -90,7 +94,9 @@ import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
 				</a>
 			</div>
       
-      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('coder') ? 'text-primary': '',]">
+      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('coder') ? 'text-primary': '',]"
+        v-if="canShowCoder"
+      >
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
         @click.stop="$ui.setShowCoder(!$ui.appActives.includes('coder'))">
           <div class="flex flex-col gap-4">
@@ -229,6 +235,15 @@ export default {
     this.$storex.api.screen.getScreenResolution()
   },
   computed: {
+    canShowBrowser() {
+      return this.$users.isAdmin || this.$user?.apps.includes("viewer")
+    },
+    canShowCoder() {
+      return this.$users.isAdmin ||this.$user?.apps.includes("coder")
+    },
+    canShowAutogenStudio() {
+      return this.$users.isAdmin ||this.$user?.apps.includes("autogenstudio")
+    },
     isSettings () {
       return ['settings', 'profiles', 'global-settings'].includes(this.$ui.activeTab)
     },

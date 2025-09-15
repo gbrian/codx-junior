@@ -8,7 +8,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
 <template>
   <div class="flex flex-col h-full md:py-2">
     <ul class="menu menu-horizontal flex p-0 m-0">
-      <li @click="selection = 'home'">
+      <li @click="selection = 'home'" v-if="$users.isProjectAdmin">
         <a>
           <span class="hidden md:block">
             <i class="fa-solid fa-house"></i>
@@ -269,6 +269,9 @@ export default {
     }
   },
   async created () {
+    if (!this.$users.isProjectAdmin) {
+      this.selection = 'projects'
+    }
     this.issues = await this.$storex.api.projects.helpWantedIssues()
     this.issues = this.issues.filter(i => i.hl_text)
                     .map(issue => ({ ...issue, link: `https://github.com/${issue.repo.repository.owner_login}/${issue.repo.repository.name}/issues/${issue.number}`}))

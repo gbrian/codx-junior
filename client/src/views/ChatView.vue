@@ -8,7 +8,6 @@ import UserAvatar from '@/components/user/UserAvatar.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
 import ChatSelector from '@/components/chat/ChatSelector.vue'
-import PRBranchSelectoor from '@/components/repo/PRBranchSelectoor.vue'
 import PRView from '@/components/repo/PRView.vue'
 </script>
 
@@ -161,6 +160,14 @@ import PRView from '@/components/repo/PRView.vue'
             <button class="btn" @click="newTag = ''">
               + tag
             </button>
+            
+            <div class="avatar-group -space-x-6 relative" v-if="images.length">
+              <div class="avatar" v-for="image, ix in images" :key="ix">
+                <div class="w-8">
+                  <img :src="image.src" />
+                </div>
+              </div>
+            </div>
           </div>
           <div class="flex gap-1 justify-end items-center">
             <div class="badge badge-sm badge-warning badge-outline p-3 gap-2" v-if="taskAIModel">
@@ -185,6 +192,8 @@ import PRView from '@/components/repo/PRView.vue'
           :fromBranch="chat.pr_view?.from_branch"
           :toBranch="chat.pr_view?.to_branch"
           :extendedData="extendedData"
+          :prChats="prChats"
+          :chat="chat"
           @select="onPRViewBranchChanged"
           @comment="onPRFileComment"
           v-if="isPRView" />
@@ -309,6 +318,7 @@ export default {
       showTaskSettings: false,
       subtaskName: '',
       subtaskDescription: '',
+      subtaskFiles: [],
       subtaskProject: null,
       subtaskParentId: null,
       subtaskMessageId: null,
@@ -384,6 +394,10 @@ export default {
     chats() {
       return this.$projects.allChats
     },
+    prChats() {
+      return this.childrenChats.filter(c => c.file_list?.length === 1)
+            .reduce((acc, c) => ({ ...acc, [c.file_list[0]]: c }), {})
+    },
     childrenChats() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
         .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
@@ -400,6 +414,17 @@ export default {
     },
     taskProjects() {
       return [this.$project, ...this.$projects.childProjects]
+    },
+    images() {
+      return (this.chat.messages ||[]).map(m => m.images || [])
+                .reduce((a, b) => a.concat(b), [])
+                .map(i => {
+                  try {
+                    return i ? JSON.parse(i) : null
+                  } catch {}
+                  return null
+                })
+                .filter(i => !!i)
     }
   },
   methods: {
@@ -515,7 +540,8 @@ export default {
           description: this.subtaskDescription,
           project_id: this.subtaskProject,
           parent_id: this.subtaskParentId,
-          message_id: this.subtaskMessageId
+          message_id: this.subtaskMessageId,
+          file_list: this.subtaskFiles
         })
         this.resetSubtaskModal()
       }
@@ -527,6 +553,7 @@ export default {
       this.showSubtaskModal = false
       this.subtaskName = ''
       this.subtaskDescription = ''
+      this.subtaskFiles = []
     },
     addNewTag() {
       this.chat.tags = [...new Set([...this.chat.tags || [], this.newTag])]
@@ -570,15 +597,16 @@ export default {
       this.chat.pr_view = {
         from_branch, to_branch
       }
+      this.saveChat()
     },
     async refreshPRView() {
       await this.saveChat()
       await this.$storex.api.repo.changes(this.chat) 
     },
-    onPRFileComment(file) {
-      const fileName = file.oldFile.fileName || file.newFile.fileName
+    onPRFileComment({ fileName, description }) {
       this.subtaskName = `Review ${fileName}`
-      this.subtaskDescription = file.hunks[0] 
+      this.subtaskDescription = description
+      this.subtaskFiles = [fileName]
       this.newSubChat()
     }
   }

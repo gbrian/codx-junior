@@ -20,7 +20,7 @@ import ChatIcon from './chat/ChatIcon.vue'
     
         <div class="text-xs font-bold flex flex-col click">
           <div class="badge badge-sm badge-success flex gap-1" v-if="message.is_answer">
-            <ChatIcon mode="answer" />Answer 
+            <ChatIcon mode="answer" /> Knowledge 
           </div>
           <div class="badge badge-sm badge-success flex gap-1" v-if="isTopic">
             <ChatIcon mode="topic" /> Topic 
@@ -68,10 +68,10 @@ import ChatIcon from './chat/ChatIcon.vue'
                       <i class="fa-solid fa-bars"></i>
                     </button>
                     <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300">
-                      <li @click="$emit('subtask')">
+                      <li @click="$emit('subtask')"  v-if="message.done">
                         <a><i class="fa-solid fa-comment-dots"></i> Thread</a>
                       </li>
-                      <li class="text-warning">
+                      <li class="text-warning" v-if="message.done">
                         <a @click.stop="$emit('hide')" class="text-left tooltip tooltip-bottom click"
                             :data-tip="message.hide ? 'Click to add message to conversation' : 
                                               'Click to archive message from the conversation'">
@@ -90,6 +90,17 @@ import ChatIcon from './chat/ChatIcon.vue'
             </div>
           </div>
         </div>
+        <div class="flex w-full flex-col gap-4 bg-base-100 p-2 mb-2 rounded-md" 
+              v-if="!message.content && !message.think">
+          <div class="flex items-center gap-4">
+            <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
+            <div class="flex flex-col gap-4">
+              <div class="skeleton h-4 w-20"></div>
+            </div>
+          </div>
+          <div class="skeleton h-32 w-full"></div>
+        </div>
+        
         <div v-if="message.think">
           <div class="chat chat-start click"
             @click="message.full_think = !message.full_think"
@@ -115,6 +126,7 @@ import ChatIcon from './chat/ChatIcon.vue'
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
             @save-file="$emit('save-file', $event)"
+            @edit-message="$emit('edit-message', $event)"
             v-if="!showDiff && !editting && !srcView && !code_patches" />
           <CodeDiff
             :new-string="message.diffMessage.content"

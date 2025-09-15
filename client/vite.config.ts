@@ -11,10 +11,13 @@ const {
   CODX_JUNIOR_CODER_PORT,
   CODX_JUNIOR_NOVNC_PORT,
   CODX_JUNIOR_API_URL,
+  CODX_JUNIOR_AUTOGEN_STUDIO_PORT,
+  CODX_JUNIOR_AUTOGEN_PREFIX_PATH_VALUE
 } = process.env
 const apiUrl = CODX_JUNIOR_API_URL || `http://0.0.0.0:${CODX_JUNIOR_API_PORT}`
 const coderUrl = `http://0.0.0.0:${CODX_JUNIOR_CODER_PORT}`
 const noVNCUrl = `http://localhost:${CODX_JUNIOR_NOVNC_PORT}`
+const autogenStudio = `http://0.0.0.0:${CODX_JUNIOR_AUTOGEN_STUDIO_PORT}`
 
 const proxy = {
   '/api': {
@@ -31,6 +34,11 @@ const proxy = {
     changeOrigin: true,
     ws: true,
     rewrite: (path) => path.replace(/^\/coder/, ''),
+  },
+  ['/' + CODX_JUNIOR_AUTOGEN_PREFIX_PATH_VALUE]: {
+    target: autogenStudio,
+    changeOrigin: true,
+    ws: true,
   },
   '/novnc': {
     target: noVNCUrl,
@@ -58,23 +66,20 @@ const proxy = {
     changeOrigin: false,
     ws: true,
   },
-  '/__vite_dev_proxy__': {
+  '/workspace': {
       changeOrigin: true,
-
       // Just make Vite happy
       target: 'https://example.com',
       rewrite(path: string) {
+        return "/"
         const proxyUrl = new URL(path, 'file:'),
           url = new URL(proxyUrl.searchParams.get('url'))
         return url.pathname + url.search
       },
       configure(proxy: any, options: any) {
         proxy.on('proxyReq', (proxyReq, req) => {
-          const query = req['_parsedUrl']['query'],
-            url = new URL(new URLSearchParams(query).get('url'))
-
-          // Change target here
-          options.target = url.origin
+          console.log("/workspace request", { options, url: req['_parsedUrl'], proxyReq })
+          options.target = "https://www.google.com"
         })
       },
     },

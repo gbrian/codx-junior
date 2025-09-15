@@ -15,7 +15,9 @@ export const getters = getterTree(state, {
   codxJunior: () => (      state.codxJunior = { 
         userName: "codx-junior", 
         avatar: API.globalSettings?.codx_junior_avatar
-      })
+      }),
+  projectRole: () => $storex.users.isAdmin ? 'admin' : API.user.projects.find(p => p.project_id === $storex.projects.activeProject?.project_id)?.role,
+  isProjectAdmin: () => $storex.users.isAdmin || $storex.users.projectRole === 'admin'
 })
 
 export const mutations = mutationTree(state, {

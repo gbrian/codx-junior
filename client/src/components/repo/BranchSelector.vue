@@ -11,7 +11,7 @@
 </template>
 <script>
 export default {
-  props: ['modelValue'],
+  props: ['modelValue', 'localChanges'],
   emits: ['update:modelValue'],
   data() {
     return {
@@ -27,7 +27,8 @@ export default {
   computed: {
     // Get the list of branches from the store
     branches() {
-      return this.$storex.projects.project_branches.branches
+      return this.localChanges ?  ['local', ...this.$storex.projects.project_branches.branches || []] :
+                 this.$storex.projects.project_branches.branches
     }
   }
 }

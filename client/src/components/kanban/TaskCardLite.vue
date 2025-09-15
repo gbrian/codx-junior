@@ -98,7 +98,7 @@ export default {
       return message && chat?.id === this.task.id
     },
     profile() {
-      return this.$projects.profiles.find(p => p.name === this.task.profiles[0])
+      return this.$projects.profiles?.find(p => p.name === this.task.profiles[0])
     },
     taskProject() {
       return this.$projects.allProjects.find(p => p.project_id === this.task.project_id) ||

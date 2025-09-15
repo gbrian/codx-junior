@@ -34,3 +34,7 @@ class EventManager:
     def message_event(self, chat: Chat, message: Message):
         self.channel.send_event('message-event', self.event_data({ 'chat': { 'id': chat.id }, 'message': message.model_dump() }))
         # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
+
+    def wiki_event(self, message: str):
+        self.channel.send_event('wiki-event', self.event_data({ "info": message }))
+        # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")

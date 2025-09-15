@@ -47,6 +47,7 @@ import ProfileSelector from '../profile/ProfileSelector.vue'
       <label class="block mt-4">
         <span>AI Model</span>
         <select class="input input-bordered w-full" v-model="taskData.llm_model">
+          <option value="">-- default --</option>
           <option v-for="model in aiModels" :key="model.name" :value="model.name">
             {{ model.name }} <span v-if="model.ai_model"> ({{ model.ai_model }})</span>
           </option>

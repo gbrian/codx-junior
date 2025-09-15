@@ -204,6 +204,17 @@ export const actions = actionTree(
       }
       state.showCoder = true
     },
+    async openProjectFile({ state }, file) {
+      const { project_path } = $storex.projects.activeProject
+      if (!file.startsWith(project_path)) {
+        if (!file.startsWith("/") && !project_path.endsWith("/")) {
+          file = "/" + file
+        }
+        file = project_path + file
+      }
+      await API.coder.openFile(file)
+      state.showCoder = true
+    },
     setScreenResolution(_, resolution) {
       API.screen.setScreenResolution(resolution)
     },

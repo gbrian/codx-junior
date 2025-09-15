@@ -26,7 +26,6 @@ def find_all_projects():
         logger.info("Waiting for _ALL_PROJECTS_PROC")
         _ALL_PROJECTS_PROC.join(timeout=60)
     
-    logger.info("find_all_projects: %s", _ALL_PROJECTS)
     return _ALL_PROJECTS
 
 def find_project_from_file_path(file_path: str):

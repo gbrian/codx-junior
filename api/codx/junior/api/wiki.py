@@ -17,8 +17,11 @@ from codx.junior.model.model import CodxUser, CodxUserLogin
 
 from codx.junior.wiki.wiki_manager import WikiManager
 
-from codx.junior.sio.sio import sio, sio_api_endpoint
-
+from codx.junior.sio.sio import (
+  sio,
+  sio_api_endpoint,
+  sio_send_event
+)
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +41,35 @@ async def wiki_page(request: Request, project_name: str, wiki_path: str, respons
         return FileResponse(file_path)
     response.status_code = status.HTTP_404_NOT_FOUND
 
+@sio.on("codx-junior-wiki")
+@sio_api_endpoint
+async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
+    wiki_manager = codxjunior_session.get_wiki()
+    step = data.get("step")
+    file_path = data.get("file_path")
+
+    async def return_data(result):
+        await sio_send_event("codx-junior-wiki", { 
+                                          "info": f"End processing wiki step: {step}",
+                                          "step": step
+                                      })
+    await sio_send_event("codx-junior-wiki", { "info": f"Start processing wiki step: {step}" })
+    if step == "create_config":
+        await return_data(wiki_manager.create_config())
+    if step == "create_wiki_tree":
+        await return_data(wiki_manager.create_wiki_tree())
+    if step == "build_wiki_category":
+        path = data.get("path")
+        await return_data(wiki_manager.build_wiki_category(path=path))
+    if step == "build_home":
+        await return_data(wiki_manager.build_home())
+    if step == "compile_wiki":
+        await return_data(wiki_manager.compile_wiki())
+    if step == "create_wiki_document":
+        await return_data(wiki_manager.create_wiki_document(file_path))
+    if step == "rebuild_wiki":
+        await return_data(wiki_manager.rebuild_wiki())
+        
 @router.get("/wiki-engine/build")
 async def wiki_engine_build(request: Request):
     codx_junior_session = request.state.codx_junior_session
@@ -57,6 +89,9 @@ async def wiki_engine_build(request: Request):
         return wiki_manager.compile_wiki()
     if step == "create_wiki_document":
         return wiki_manager.create_wiki_document(file_path)
+    if step == "rebuild_wiki":
+        return wiki_manager.rebuild_wiki()
+        
     return wiki_manager.build_wiki()
 
 @router.get("/wiki-engine/rebuild")

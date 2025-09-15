@@ -1,71 +1,42 @@
 import logging
 import json
-from datetime import datetime
 
+from datetime import datetime
 from typing import Union
 from openai import OpenAI
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
-
 from codx.junior.ai.ai_logger import AILogger
-
 from codx.junior.settings import CODXJuniorSettings
-from langchain.schema import (
-    AIMessage,
-    HumanMessage,
-    BaseMessage
-)
-
+from langchain.schema import AIMessage, HumanMessage, BaseMessage
 from codx.junior.profiling.profiler import profile_function
-
 from codx.junior.utils.utils import clean_string
+from codx.junior.tools import TOOLS
 
 logger = logging.getLogger(__name__)
-
-tools = [
-  {
-    "type": "function",
-    "function": {
-      "name": "read_file",
-      "description": "use to read the full content of a file reference.",
-      "parameters": {
-        "type": "string",
-        "properties": {
-          "file_path": {
-            "type": "string",
-            "description": "Absolute file path",
-          }
-        },
-        "required": ["file_path"],
-      },
-    }
-  }
-]
 
 class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings, llm_model: str = None):
         self.settings = settings
         self.llm_settings = settings.get_llm_settings(llm_model=llm_model)
-                
         self.model = self.llm_settings.model
         self.api_key = self.llm_settings.api_key
         self.base_url = self.llm_settings.api_url
 
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url
-        )
+        try:
+            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+        except Exception as ex:
+            logger.error("Error creating OpenAI client: %s, %s*****", self.base_url, self.api_key[0:5])
         self.ai_logger = AILogger(settings=settings)
-
 
     def log(self, msg):
         if self.settings.get_log_ai():
             self.ai_logger.info(msg)
 
-    def convert_message(self, gpt_message: Union[AIMessage, HumanMessage, BaseMessage]): 
+    def convert_message_to_openai(self, gpt_message: Union[AIMessage, HumanMessage, BaseMessage]):
         if gpt_message.type == "image":
             try:
-                return { "content": json.loads(gpt_message.content), "role": "user" }
+                return {"content": json.loads(gpt_message.content), "role": "user"}
             except Exception as ex:
                 self.log(f"Error converting image message '{ex}': {gpt_message}")
                 raise ex
@@ -77,20 +48,21 @@ class OpenAI_AI:
     @profile_function
     def chat_completions(self, messages, config: dict = {}):
         kwargs = {
-            "model":self.model,
-            "stream":True
+            "model": self.model,
+            "stream": True,
+            "tools": [tool["tool_json"] for tool in TOOLS]
         }
 
         if self.llm_settings.temperature >= 0:
-            kwargs["temperature"] = float(self.llm_settings.temperature) 
+            kwargs["temperature"] = float(self.llm_settings.temperature)
 
         self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
 
-        openai_messages = [self.convert_message(msg) for msg in messages]
+        openai_messages = [self.convert_message_to_openai(msg) for msg in messages]
 
         if self.llm_settings.merge_messages:
             message = "\n".join([message['content'] for message in openai_messages])
-            openai_messages = [{ "role": "user", "content": message }]
+            openai_messages = [{"role": "user", "content": message}]
         self.log(f"USER REQUEST:\n{openai_messages}")
         if self.settings.get_log_ai():
             self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
@@ -98,8 +70,8 @@ class OpenAI_AI:
             request_headers = config.get("headers", {})
             tags = request_headers.get("tags", "")
             tags = tags.split(",") + [
-              f"temp-{self.llm_settings.temperature}",
-              self.settings.project_name
+                f"temp-{self.llm_settings.temperature}",
+                self.settings.project_name
             ]
             request_headers["x-litellm-tags"] = ",".join(tags)
 
@@ -112,67 +84,97 @@ class OpenAI_AI:
             content_parts = []
 
             callback_data = {
-              "buffer": [],
-              "ts": datetime.now()
+                "buffer": [],
+                "ts": datetime.now(),
             }
+
+            tool_call_data = {
+                "id": None,
+                "function": None,
+                "arguments": ""
+            }
+            tool_call_active = False
+
             def send_callback(chunk_content, flush=False):
-              if not callbacks:
-                  return
-              
-              callback_data["buffer"].append(chunk_content or "")
-              if flush or (datetime.now() - callback_data["ts"]).total_seconds() > 1:
-                  callback_data["ts"] = datetime.now()
-                  message = "".join(callback_data["buffer"]) if callback_data["buffer"] else ""
-                  callback_data["buffer"] = []
-                  for cb in callbacks:
-                      try:
-                          cb(message)
-                      except Exception as ex:
-                          logger.exception(f"ERROR IN CALLBACKS: {ex}")
+                if not callbacks:
+                    return
+
+                callback_data["buffer"].append(chunk_content or "")
+                if flush or (datetime.now() - callback_data["ts"]).total_seconds() > 1:
+                    callback_data["ts"] = datetime.now()
+                    message = "".join(callback_data["buffer"]) if callback_data["buffer"] else ""
+                    callback_data["buffer"] = []
+                    for cb in callbacks:
+                        try:
+                            cb(message)
+                        except Exception as ex:
+                            logger.exception(f"ERROR IN CALLBACKS: {ex}")
 
             for chunk in response_stream:
                 # Check for tools
-                #tool_calls = self.process_tool_calls(chunk.choices[0].message)
-                #if tool_calls:
-                #    messages.append(HumanMessage(content=tool_calls))
-                #    return self.chat_completions(messages=messages)
-                chunk_content = chunk.choices[0].delta.content
+                choice = chunk.choices[0]
+                tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None 
+                
+                if tool_calls:
+                    tool_call_active = True
+                    if tool_call_data["id"] is None:
+                        # First part of the tool call
+                        tool_call_data["id"] = tool_calls[0].id
+                        tool_call_data["function"] = tool_calls[0].function.name
+                    # Append arguments
+                    tool_call_data["arguments"] += tool_calls[0].function.arguments
+                
+                if choice.finish_reason == 'tool_calls' and tool_call_active:
+                    tools_response = self.process_tool_calls(tool_call_data)
+                    tool_output = tools_response["output"]
+                    func_name = tool_call_data["function"]
+                    content = f"{func_name} returned:\n\n```\n{tool_output}\n```"
+                    message = AIMessage(content=content)
+                    messages.append(message)
+                    return self.chat_completions(messages=messages, config=config)
+                
+                chunk_content = choice.delta.content
                 if not chunk_content:
                     continue
                 chunk_content = clean_string(chunk_content)
                 content_parts.append(chunk_content)
                 send_callback(chunk_content)
+
             # Last chunks...
-            send_callback("", flush=True)  
+            send_callback("", flush=True)
         except Exception as ex:
-            logger.exception(f"Error reading AI response {ex} \n {self.llm_settings}")
+            logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
             raise ex
-        
+
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
-        
-        return AIMessage(content=response_content)
 
-    def process_tool_calls(self, message):
+        messages.append(AIMessage(content=response_content))
+        return messages
+
+    @profile_function
+    def process_tool_calls(self, tool_call_data):
         tool_responses = []
-        for tool_call in message.tool_calls or []:
-            self.log(f"process_tool_calls: {tool_call}")
-            func = json.loads(tool_call.function)
-            name = func["name"]
-            params = func["arguments"]
+        self.log(f"process_tool_calls: {tool_call_data}")
+        func_name = tool_call_data["function"]
+        params = json.loads(tool_call_data["arguments"])
 
-            if name == "read_file":
-              file_path = params["file_path"]
-              content = self.tool_read_file(file_path)
-              tool_responses.append(f"Content for {file_path}:\n{content}")
+        # Find the tool and execute the tool_call
+        for tool in TOOLS:
+            if tool["tool_json"]["function"]["name"] == func_name:
+                content = tool["tool_call"](**params)
+                tool_responses.append(content)
 
-        return "\n".join(tool_responses)
+        # Format the tool response as specified
+        tool_output = {
+            "type": "function_call_output",
+            "call_id": tool_call_data["id"],
+            "output": json.dumps(tool_responses)
+        }
 
-    def tool_read_file(self, file_path):
-        with open(file_path, 'r') as f:
-            return f.read()
-
-    @profile_function        
+        return tool_output
+    
+    @profile_function
     def generate_image(self, prompt):
         response = self.client.images.generate(
             model="dall-e-3",
@@ -191,17 +193,19 @@ class OpenAI_AI:
             api_key=embeddings_ai_settings.api_key,
             base_url=embeddings_ai_settings.api_url
         )
+
         def embedding_func(content: str):
             try:
-              response = client.embeddings.create(
-                  input=content,
-                  model=embeddings_ai_settings.model
-              )
-              embeddings = []
-              for data in response.data:
-                  embeddings = embeddings + data.embedding
-              return embeddings
+                response = client.embeddings.create(
+                    input=content,
+                    model=embeddings_ai_settings.model
+                )
+                embeddings = []
+                for data in response.data:
+                    embeddings = embeddings + data.embedding
+                return embeddings
             except Exception as ex:
-              logger.error(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
-              raise ex
+                logger.error(f"Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}")
+                raise ex
+
         return embedding_func

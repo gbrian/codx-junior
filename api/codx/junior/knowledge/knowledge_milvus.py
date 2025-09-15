@@ -170,7 +170,7 @@ class Knowledge:
           doc.metadata["training"] = training 
         except Exception as ex:
           logger.info(f"Error creating training dataset {source}: {ex}")
-          doc.metadata["error"] = doc.metadata.get("error", []) + [ex.message]
+          doc.metadata["error"] = doc.metadata.get("error", []) + str(ex)
       doc.metadata["indexed"] = 1
       return doc
 

@@ -3,6 +3,7 @@ import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
 import hljs from 'highlight.js';
 import DiffViewer from './DiffViewer.vue';
+import CodeEditor from 'simple-code-editor'
 </script>
 
 <template>
@@ -16,9 +17,6 @@ import DiffViewer from './DiffViewer.vue';
         <div class="hover:text-info" @click="onShowDiff">
           <i class="fa-solid fa-code-compare"></i>
         </div>
-        <div class="hover:text-info" @click="saveFile" v-if="$user.role === 'admin'">
-          <i class="fa-solid fa-floppy-disk"></i>
-        </div>
       </div>
       <div class="hover:text-info" @click="zoomOut">
         <i class="fa-solid fa-magnifying-glass-minus"></i>
@@ -28,14 +26,27 @@ import DiffViewer from './DiffViewer.vue';
       </div>
       <div class="hover:text-info" @click="onCopy">
         <i class="fa-solid fa-copy"></i>
+      </div>
+      <div class="hover:text-info" :class="edit && 'text-warning'" @click="onEdit">
+        <i class="fa-solid fa-edit"></i>
       </div>      
+      <div class="hover:text-info" @click="saveFile" v-if="canSave">
+        <i class="fa-solid fa-floppy-disk"></i>
+      </div>
     </div>
     <div @click="runCommand" v-if="isCommand">
       <i class="fa-solid fa-terminal"></i>
     </div>
     <div class="view-code" :style="{ zoom }">
       <DiffViewer :file="file" :orgContent="orgContent" :newContent="code" :diff="diff" v-if="showDiff"></DiffViewer>
-      <VueCodeHighlighter :code="code" :lang="fileLanguage" :title="fileName" v-else />
+      <CodeEditor v-model="edit"
+            width="100%"
+            :header="false"
+            :languages="[[fileLanguage, fileLanguage]]"
+            v-if="edit"
+          />
+      <VueCodeHighlighter :code="code" :lang="fileLanguage" :title="fileName" 
+        v-if="!edit && !diff" />
     </div>
     <div class="flex justify-end gap-2">
       <button class="btn btn-sm btn-warning" @click="applyPatch" v-if="isPatch">
@@ -52,7 +63,8 @@ export default {
       showDiff: false,
       orgContent: null,
       diff: null,
-      zoom: 0.6
+      zoom: 1,
+      edit: false
     }
   },
   computed: {
@@ -70,6 +82,9 @@ export default {
         return "markdown"
       }
       return this.language
+    },
+    canSave() {
+      return this.edit || this.file
     }
   },
   methods: {
@@ -82,7 +97,12 @@ export default {
       this.showDiff = !this.showDiff
     },
     saveFile() {
-      this.$emit('save-file', { file: this.file, content: this.code })
+      if (this.edit) {
+        this.$emit('edit-message', { orgContent: this.code, newContent: this.edit })
+        this.edit = null
+      } else { 
+        this.$emit('save-file', { file: this.file, content: this.code })
+      }
     },
     runCommand() {
       this.$storex.api.apps.runScript(this.code)
@@ -95,6 +115,13 @@ export default {
     },
     onCopy() {
       this.$ui.copyTextToClipboard(this.code)
+    },
+    onEdit() {
+      if (!this.edit) {
+        this.edit = this.code
+      } else {
+        this.edit = null
+      }
     }
   }
 }

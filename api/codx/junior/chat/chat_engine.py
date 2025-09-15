@@ -326,11 +326,7 @@ class ChatEngine:
                      * Return only the document content with comments applied
                     """
                 else:
-                    task_content += f"""
-                    Create new document based on user comments.
-                    User comments:
-                    {user_message.content}
-                    """
+                    task_content += user_message.content
 
                 refine_message = new_chat_message(role="user", content=task_content)
                 messages.append(self.convert_message(refine_message))
@@ -370,8 +366,18 @@ class ChatEngine:
                 callback = lambda content: send_message_event(content=content, done=False)
 
             try:
-                messages = ai_chat(messages=messages, callback=callback)
-                message_parts = messages[-1].content.replace("<think>", "").split("</think>")
+                input_messages_count = len(messages)
+                response_messages = ai_chat(messages=messages, callback=callback)
+                
+                new_message_count = len(response_messages) - input_messages_count
+                if new_message_count > 1: # Intermediate reasoning messages                
+                    for reasoning_message in response_messages[input_messages_count + 1:-1]:
+                        msg = new_chat_message(role=reasoning_message.type, content=reasoning_message.content)
+                        msg.hide = True
+                        chat.messages.append(msg)
+                
+                # Resposne message
+                message_parts = response_messages[-1].content.replace("<think>", "").split("</think>")
                 is_thinking = len(message_parts) == 2
                 response_message.think = message_parts[0] if is_thinking else None
                 response_message.content = message_parts[-1]
@@ -406,7 +412,8 @@ class ChatEngine:
 
             if chat_mode == 'task':
                 for message in chat.messages[:-1]:
-                    message.hide = True
+                    if not message.is_answer:
+                        message.hide = True
 
 
             is_agent_done = AGENT_DONE_WORD in response_message.content

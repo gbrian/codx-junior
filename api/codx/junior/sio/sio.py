@@ -31,6 +31,36 @@ sio = socketio.AsyncServer(cors_allowed_origins='*',async_mode='asgi')
 
 SIO_POOL = ThreadPoolExecutor(max_workers=10)
 
+def sio_api_endpoint(func):
+    """Decorator to process sio API requests."""
+    @functools.wraps(func)
+    async def wrapper(sid: str, data: dict):
+        logger.info(f"SIO REquest {sid} {data}")
+        base_data = SioMessage(**data)
+        channel = SessionChannel(sio=sio, sid=sid)
+        codxjunior_session = CODXJuniorSession(
+                                channel=channel,
+                                codx_path=base_data.codx_path) if base_data.codx_path \
+                                  else None # Global requests
+        try:
+            if not asyncio.iscoroutinefunction(func):
+                return SIO_POOL.submit(func, sid, data, codxjunior_session).result
+            else:
+                def worker():
+                    try:
+                        return asyncio.run(func(sid, data, codxjunior_session))
+                    except Exception as ex:
+                        logger.exception(f"Error processing async sio message")
+                    return None
+                return SIO_POOL.submit(worker)
+        except Exception as ex:
+            logger.exception(f"Error processing sio message")
+        return None
+    return wrapper
+
+async def sio_send_event(event, data):
+    return await sio.emit(event, data)
+
 @sio.on("error")
 async def error():
     logger.error(f"Socket error")
@@ -67,35 +97,7 @@ async def on_background_event(sid, data: dict):
     event = data["event"]
     if event == "hello":
         return f"Hi! Is back: {CODX_JUNIOR_API_BACKGROUND}"
-    await sio.emit(data["event"], data["data"])
-
-
-def sio_api_endpoint(func):
-    """Decorator to process sio API requests."""
-    @functools.wraps(func)
-    async def wrapper(sid: str, data: dict):
-        logger.info(f"SIO REquest {sid} {data}")
-        base_data = SioMessage(**data)
-        channel = SessionChannel(sio=sio, sid=sid)
-        codxjunior_session = CODXJuniorSession(
-                                channel=channel,
-                                codx_path=base_data.codx_path) if base_data.codx_path \
-                                  else None # Global requests
-        try:
-            if not asyncio.iscoroutinefunction(func):
-                return SIO_POOL.submit(func, sid, data, codxjunior_session).result
-            else:
-                def worker():
-                    try:
-                        return asyncio.run(func(sid, data, codxjunior_session))
-                    except Exception as ex:
-                        logger.exception(f"Error processing async sio message")
-                    return None
-                return SIO_POOL.submit(worker)
-        except Exception as ex:
-            logger.exception(f"Error processing sio message")
-        return None
-    return wrapper
+    await sio_send_event(data["event"], data["data"])
 
 @sio.on("codx-junior-login")
 def io_login(sid, data: dict):

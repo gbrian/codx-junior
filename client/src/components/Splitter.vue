@@ -25,12 +25,12 @@ import Wizard from '../components/wizards/Wizard.vue'
           <SplitterResizeHandle id="splitter-group-2-resize-handle-1" class="bg-stone-800 hover:bg-slate-600"
             :class="isHorizontal ? 'w-1' : 'h-1'" v-if="$ui.showBrowser && $ui.showCoder" />
           <SplitterPanel id="splitter-group-2-panel-2" :min-size="20" class="" :order="1" v-if="$ui.showBrowser">
-            <PreviewVue class="h-full w-full" :token="$ui.monitorToken" />
+            <PreviewVue class="h-full w-full" :app="'preview'" />
           </SplitterPanel>
         </SplitterGroup>
         <div class="h-full w-full" v-if="$ui.showApp && $ui.appDivided === 'none'">
           <CoderVue class="h-full w-full" v-if="$ui.showCoder" />
-          <PreviewVue class="h-full w-full" :token="$ui.monitorToken"
+          <PreviewVue class="h-full w-full" :app="'preview'"
             v-if="$ui.showBrowser" />
         </div>
       </SplitterPanel>

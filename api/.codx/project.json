@@ -26,8 +26,9 @@
   "embeddings_model": "",
   "llm_model": "",
   "rag_model": "",
-  "wiki_model": "mercury-coder",
+  "wiki_model": "",
   "last_error": "",
   "urls": [],
-  "repo_url": null
+  "repo_url": null,
+  "metrics": {}
 }

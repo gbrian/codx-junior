@@ -15,6 +15,20 @@ set -e
 # Load .env variables
 source ${CODX_JUNIOR_PATH}/set_env.sh
 
+# Fix user id
+if [ "$USER_ID" != "" ];then
+  echo "Setting codx-junior ID: $USER_ID"
+  usermod -u $USER_ID codx-junior
+  if [ "$USER_GROUP" != "" ];then
+    echo "Setting codx-junior GROUP: $USER_GROUP"
+    groupmod -g $USER_GROUP codx-junior
+  fi
+  
+  sudo chown -R codx-junior $HOME
+  sudo chown -R codx-junior $CODX_JUNIOR_API_VENV
+fi
+
+
 bash scripts/logo.sh
 
 echo "Starting installation..."

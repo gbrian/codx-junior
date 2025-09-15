@@ -43,11 +43,18 @@ import { TreeItem, TreeRoot } from 'radix-vue'
               <span v-if="isExpanded"><i class="fa-solid fa-caret-down"></i></span>
               <span v-else><i class="fa-solid fa-caret-right"></i></span>
             </template>
-            <div class="grow ml-2 hover:underline justify-between flex gap-1 items-end" @click.stop="editItem(item.value)">
+            <div class="grow ml-2 hover:underline justify-between flex gap-1 items-end"
+              :class="item.value.title === selectedItem?.title && 'text-warning underline'"
+              @click.stop="editItem(item.value)">
               {{ item.value.title }} 
               <div class="grow justify-end flex items-center gap-1" v-if="item.value.files?.length">
                 <div>{{ item.value.files?.length || 0 }}</div>
-                <i class="fa-regular fa-file-lines"></i>
+                <div class="ml-2 relative">
+                  <i class="fa-regular fa-file-lines"></i>
+                  <span class="absolute bottom-1 right-2 bg-base-100"
+                    v-if="!item.value.single_file"
+                  ><i class="fa-regular fa-file-lines"></i></span>
+                </div>
               </div>
             </div>
             <div class="ml-2 text-error opacity-0 group-hover:opacity-100 tooltip"
@@ -66,21 +73,13 @@ import { TreeItem, TreeRoot } from 'radix-vue'
       <div class="grow flex flex-col gap-2">
         <div class="grow flex flex-col gap-2" v-if="selectedItem">
           <div class="form-control">
-            <label class="label flex justify-between">
-              <span class="label-text">Parent</span>
-              <button class="btn btn-xs btn-circle btn-ghost btn-error" @click="selectedItem = null">
-                <i class="fa-solid fa-circle-xmark"></i>
-              </button>
-            </label>
-            <select v-model="selectedItem.parentProject" 
-              placeholder="Title" class="select select-bordered">
-              <option v-for="item in allItems" :key="item.title"
-                :value="item.title">{{ item.title }}</option>
-            </select>
-          </div>
-          <div class="form-control">
             <label class="label">
-              <span class="label-text">Title</span>
+              <div>
+                <button class="btn btn-xs text-white btn-error" @click="selectedItem = null">
+                  <i class="fa-solid fa-circle-xmark"></i>
+                </button>
+                <span class="ml-2 label-text">Title</span>
+              </div>
             </label>
             <input type="text" v-model="selectedItem.title" placeholder="Title" class="input input-bordered">
           </div>
@@ -96,6 +95,12 @@ import { TreeItem, TreeRoot } from 'radix-vue'
             </label>
             <input type="text" v-model="selectedItem.keywords" placeholder="Keywords" class="input input-bordered">
           </div>
+          <div class="form-control">
+            <label class="label  flex gap-2">
+              <span class="label-text">Single file</span>
+              <input type="checkbox" v-model="selectedItem.single_file" class="checkbox">
+            </label>
+          </div>
           <div class="text-xl">
             Files: {{ selectedItem.files?.length || 0 }}
             <div class="ml-2 text-warning tooltip click"
@@ -105,15 +110,22 @@ import { TreeItem, TreeRoot } from 'radix-vue'
           </div>
           <div class="flex flex-col gap-2">
             <div class="flex gap-1 group" v-for="file in selectedItem.files" :key="file">
-              <div class="ml-2 text-error opacity-0 group-hover:opacity-100 tooltip click"
-                data-tip="Delete file" @click.stop="deleteFile(file)">
-                <i class="fa-solid fa-trash-can"></i>
+              <div class="ml-2 text-info opacity-0 group-hover:opacity-100 tooltip click"
+                data-tip="Open file" @click.stop="$ui.openFile(file.path)">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
               </div>
               <div class="ml-2 text-warning opacity-0 group-hover:opacity-100 tooltip click"
                 data-tip="Build wiki" @click.stop="buildWiki(file)">
                 <i class="fa-solid fa-rotate-right"></i>
               </div>
-              {{ file.replace($project.project_path, '') }}
+              <div :title="file.path.replace($project.project_path, '')">
+                {{ file.name }}
+              </div>
+              <div class="grow"></div>
+              <div class="ml-2 text-error opacity-0 group-hover:opacity-100 tooltip click"
+                data-tip="Delete file" @click.stop="deleteFile(file)">
+                <i class="fa-solid fa-trash-can"></i>
+              </div>
             </div>
           </div>
         </div>
@@ -167,6 +179,11 @@ import { TreeItem, TreeRoot } from 'radix-vue'
               data-tip="Compile wiki"
               @click.stop="compileWiki()">
               Compile
+            </button>
+            <button class="btn btn-xs ml-2 btn-warning tooltip"
+              data-tip="rebuild all wiki documents"
+              @click.stop="rebuildWiki()">
+              Rebuild
             </button>
           </div>
         </div>
@@ -228,21 +245,28 @@ export default {
       this.wikiTree = await this.$storex.api.wiki.build({ step: "create_wiki_tree" })
     },
     async compileWiki() {
-      await this.$storex.api.wiki.build({ step: "compile_wiki"})
+      await this.$projects.codxWiki({ step: "compile_wiki"})
+    },
+    async rebuildWiki() {
+      await this.$projects.codxWiki({ step: "rebuild_wiki"})
     },
     async saveSettings() {
+
       this.allItems.map(c => {
         c.keywords = Array.isArray(c.keywords) ? c.keywords : 
           c.keywords?.split(",").map(k => k.trim()).filter(k => !!k)
+        if (c.parent) {
+          delete c.parent
+        }
       })
       await this.$storex.api.wiki.save(this.wikiTree)
     },
-    async buildWiki(file_path) {
+    async buildWiki(file) {
       await this.saveSettings()
-      this.$storex.api.wiki.build({ step: "create_wiki_document", file_path })
+      this.$projects.codxWiki({ step: "create_wiki_document", file_path: file.path })
     },
     async buildWikiCategory(path) {
-      this.$storex.api.wiki.build({ step: "build_wiki_category", path })
+      this.$projects.codxWiki({ step: "build_wiki_category", path })
     },
     deleteFile(file) {
       const index = this.selectedItem.files.indexOf(file)

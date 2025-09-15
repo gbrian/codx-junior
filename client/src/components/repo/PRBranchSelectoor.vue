@@ -4,7 +4,7 @@ import BranchSelector from './BranchSelector.vue'
 <template lang="pug">
   div.flex.gap-2.items-center
     span From 
-    BranchSelector(v-model="fromBranchSelected")
+    BranchSelector(v-model="fromBranchSelected", :local-changes="true")
     span To 
     BranchSelector(v-model="toBranchSelected")
 </template>

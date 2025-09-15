@@ -28,15 +28,15 @@
         </div>
       </div>
     </div>
-    <div class="flex flex-col gap-2" v-if="selectedCategory?.wiki_files?.length">
+    <div class="flex flex-col gap-2" v-if="selectedCategory?.files?.length">
       
       <div role="tablist" class="tabs tabs-border overflow-auto gap-2">
         <a role="tab" class="tab text-nowrap border rounded-md"
           :class="selectedFile == file && 'text-info'"
-          v-for="file in selectedCategory.wiki_files" :key="file"
+          v-for="file in selectedCategory.files" :key="file"
           @click="showFile(file)"
         >
-          {{  file.split("/").reverse()[0].split(".")[0] }}
+          {{  file.slug }}
         </a>
       </div>
 
@@ -85,7 +85,7 @@ export default {
   methods: {
     categoryFileCount(category) {
       return this.allItems.filter(({ path }) => path.startsWith(category.path))
-                .map(c => c.wiki_files?.length || 0)
+                .map(c => c.files?.length || 0)
                 .reduce((acc, v) => acc + v, 0)
     },
     async resetWikiSettings() {
@@ -108,7 +108,7 @@ export default {
     },
     async showFile(file) {
       this.selectedFile = file
-      this.fileContent = file ? await this.$storex.api.files.read(file) : null
+      this.fileContent = file ? await this.$storex.api.files.read(file.wiki_file) : null
     }
   }
 }

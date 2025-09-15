@@ -107,8 +107,15 @@ class CODXJuniorSession:
         if not os.path.isfile(file_name) and \
             not file_name.startswith(self.settings.project_path):
             file_name = f"{self.settings.project_path}/{file_name}".replace("//", "/")
-        os.system(f"code-server -r {file_name}")
-        return [self.settings.project_path, file_name, file_name.startswith(self.settings.project_path)]
+
+
+        cmd = f'code-server -r "{file_name}"'
+        os.system(cmd)
+        return {
+          "cmd": cmd,
+          "project_path": self.settings.project_path, 
+          "file_name": file_name
+        }
       
     @contextmanager
     def chat_action(self, chat: Chat, event: str):
@@ -1216,10 +1223,19 @@ class CODXJuniorSession:
         }
 
     def get_repo_changes(self, from_branch: str, to_branch: str):
-        stdout, _ = exec_command(f"git diff {from_branch} {to_branch}",
-            cwd=self.settings.project_path)
+        if from_branch and from_branch.startswith("* "):
+            from_branch = from_branch[2:]
+        if to_branch.startswith("* "):
+            to_branch = to_branch[2:]
+        
+        git_diff_cmd = f"git diff {to_branch} {from_branch}" if from_branch != 'local' \
+                        else f"git diff {to_branch}"
+
+        stdout, _ = exec_command(git_diff_cmd,
+                cwd=self.settings.project_path)
         return {
           "diff": stdout,
+          "git_diff_cmd": git_diff_cmd
         }
 
     def get_project_pr(self, from_branch: str, to_branch: str):

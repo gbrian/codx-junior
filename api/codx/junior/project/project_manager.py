@@ -1,10 +1,17 @@
 import logging
+import os
+
 from multiprocessing import Process
 
 from codx.junior.security.user_management import UserSecurityManager
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.engine import CODXJuniorSession
 from codx.junior.model.model import CodxUser
+
+from codx.junior.settings import read_global_settings
+from codx.junior.utils.utils import exec_command
+
+from codx.junior.project.project_discover import find_project_by_project_path
     
 logger = logging.getLogger(__name__)
     
@@ -15,6 +22,7 @@ def create_project(project_path: str, user: CodxUser):
     os.makedirs(projects_root_path, exist_ok=True)
 
     repo_url = None 
+    repo_name = None
     if project_path.startswith("http"):
         repo_url = project_path
         repo_name = repo_url.split("/")[-1].split(".")[0]
