@@ -1,13 +1,13 @@
 <script setup>
-import draggable from "vuedraggable"
-import TaskCard from "./TaskCard.vue"
-import TaskCardLite from "./TaskCardLite.vue"
-import ChatViewVue from "../../views/ChatView.vue"
-import { v4 as uuidv4 } from "uuid"
-import VSwatches from "../VSwatches.vue"
-import KanbanList from "./KanbanList.vue"
-import ChatIcon from "../chat/ChatIcon.vue"
-import ProjectIcon from "../ProjectIcon.vue"
+import draggable from 'vuedraggable'
+import TaskCard from './TaskCard.vue'
+import TaskCardLite from './TaskCardLite.vue'
+import ChatViewVue from '../../views/ChatView.vue'
+import { v4 as uuidv4 } from 'uuid'
+import VSwatches from '../VSwatches.vue'
+import KanbanList from './KanbanList.vue'
+import ChatIcon from '../chat/ChatIcon.vue'
+import ProjectIcon from '../ProjectIcon.vue'
 </script>
 
 <template>
@@ -195,6 +195,9 @@ import ProjectIcon from "../ProjectIcon.vue"
           <input type="text" v-model="newBoardName" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
           <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
           <input type="text" v-model="newBoardBackground" placeholder="Enter board backgorund image" class="input input-bordered w-full mt-2"/>
+          <select v-model="newBoardParent" class="select select-bordered w-full mt-2">
+            <option v-for="board in boards" :key="board.id" :value="board.id">{{ board.title }}</option>
+          </select>
         </div>
       </div>
       <div class="collapse hidden">
@@ -252,8 +255,8 @@ import ProjectIcon from "../ProjectIcon.vue"
 </template>
 
 <script>
-const ALL_BOARD_TITLE_ID = "$ALL"
-const FILES_COLUMN = "__files__"
+const ALL_BOARD_TITLE_ID = '$ALL'
+const FILES_COLUMN = '__files__'
 export default {
   data() {
     return {
@@ -267,6 +270,7 @@ export default {
       newBoardDescription: '',
       newBoardBackground: '',
       newBoardBranch: '',
+      newBoardParent: null,
       columnTitle: '',
       columnColor: '#000000',
       isDropdownOpen: false,
@@ -327,7 +331,7 @@ export default {
       const allChats = this.$projects.allChats
       return Object.values(allChats || {}).map(c => ({
         ...c,
-        column: c.column || "--none--"
+        column: c.column || '--none--'
       }))
     },
     chat() {
@@ -374,7 +378,7 @@ export default {
       return this.$projects.kanbanTemplates
     },
     isBoardNameTaken() {
-      return this.newBoardName && this.newBoardName !== this.originalBoardName && this.kanban.boards[this.newBoardName];
+      return this.newBoardName && this.newBoardName !== this.originalBoardName && this.kanban.boards[this.newBoardName]
     }
   },
   watch: {
@@ -443,13 +447,14 @@ export default {
       board.description = this.newBoardDescription
       board.background = this.newBoardBackground
       board.last_update = new Date().toISOString()
+      board.parent_id = this.newBoardParent
       await this.saveKanban()
     },
     async createNewChat(base) {
       return this.$projects.createNewChat({
         ...base,
         id: uuidv4(),
-        board: this.board || "Default",
+        board: this.board || 'Default',
       })
     },
     addNewFile() {
@@ -458,7 +463,7 @@ export default {
     newTask(column, mode) {
       this.createNewChat({
         column,
-        name: "New Task",
+        name: 'New Task',
         mode: mode || 'chat',
         profiles: []
       })
@@ -479,9 +484,9 @@ export default {
         this.$projects.saveChat(newChat)
       } else if (this.importOption === 'url') {
         const chat = {
-          board: this.board || "Default",
+          board: this.board || 'Default',
           column: this.showImportModalForColumn,
-          name: "Import from url",
+          name: 'Import from url',
           mode: 'chat',
           url: this.importUrl
         }
@@ -508,7 +513,7 @@ export default {
             title: col,
             ...boardColumn,
             tasks: this.activeBoard.tasks
-              .filter(t => (t.column || "--none--") === col)
+              .filter(t => (t.column || '--none--') === col)
               .sort((a, b) => getChatIndex(a) < getChatIndex(b) ? -1 : 1),
             position: ix
           }
@@ -553,7 +558,7 @@ export default {
         parent_id: parent_id || parent.id,
         message_id,
         project_id: project_id || parent.project_id,
-        messages: description ? [{ role: "user", content: description }] : [],
+        messages: description ? [{ role: 'user', content: description }] : [],
         file_list
       })
       
@@ -572,7 +577,7 @@ export default {
       }
       const existingColumnTitle = this.activeKanbanBoard.columns.find(c => c.title === this.columnTitle)
       if (existingColumnTitle && existingColumnTitle.id !== this.selectedColumn?.id) {
-        this.editColumnError = "Name already used"
+        this.editColumnError = 'Name already used'
         return
       }
       if (this.selectedColumn) {
@@ -609,7 +614,7 @@ export default {
       this.editColumnError = null
     },
     async addOrUpdateBoard() {
-      const oldBoardName = this.originalBoardName;
+      const oldBoardName = this.originalBoardName
       const boardName = this.newBoardName.trim()
       let board = this.editBoard ? this.kanban.boards[oldBoardName] :
                                     {
@@ -617,28 +622,30 @@ export default {
                                       columns: [],
                                     }
       if (this.editBoard && boardName !== this.originalBoardName) {
-        delete this.kanban.boards[oldBoardName];
-        board.title = boardName;
+        delete this.kanban.boards[oldBoardName]
+        board.title = boardName
         this.chats.forEach(chat => {
           if (chat.board === oldBoardName) {
-            chat.board = boardName;
+            chat.board = boardName
             this.$projects.saveChatInfo(chat)
           }
-        });
+        })
       }
       
       this.kanban.boards[boardName] = board 
       board.description = this.newBoardDescription?.trim()
       board.background = this.newBoardBackground?.trim()
+      board.parent_id = this.newBoardParent
 
-      await this.saveKanban();
-      this.showBoardModal = false;
-      this.resetNewBoardInfo();
-      this.buildKanban();
+      await this.saveKanban()
+      this.showBoardModal = false
+      this.resetNewBoardInfo()
+      this.buildKanban()
     },
     resetNewBoardInfo () {
       this.newBoardName = ''
       this.newBoardDescription = ''
+      this.newBoardParent = null
       this.newBoardBackground = ''
       this.newBoardBranch = ''
       this.selectedTemplate = null
@@ -657,6 +664,7 @@ export default {
       this.newBoardName = null
       this.newBoardDescription = null
       this.showBoardModal = true
+      this.newBoardParent = this.activeBoard?.id
     },
     taskMatchesFilter(task) {
       const filterText = this.filter?.toLowerCase() || ''
@@ -667,12 +675,13 @@ export default {
       return taskNameMatches || messageContentMatches
     },
     onEditBoard(board) {
-      this.editBoard = board;
-      this.originalBoardName = board.title;
-      this.newBoardBackground = board.background;
-      this.newBoardDescription = board.description;
-      this.newBoardName = board.title;
-      this.showBoardModal = true;
+      this.editBoard = board
+      this.originalBoardName = board.title
+      this.newBoardBackground = board.background
+      this.newBoardDescription = board.description
+      this.newBoardName = board.title
+      this.newBoardParent = board.parent_id
+      this.showBoardModal = true
     },
     onDeleteBoard(board) {
       this.$projects.deleteBoard(board)
