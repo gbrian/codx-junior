@@ -1,3 +1,4 @@
+```vue /shared/codx-junior/client/src/components/Markdown.vue
 <script setup>
 import Code from './Code.vue'
 import YoutubeViewer from './YoutubeViewer.vue'
@@ -48,12 +49,10 @@ const md = new MarkdownIt({
   }
 })
 
-
 md.use(emoji)
-// md.use(highlight, { hljs })
 
 export default {
-  props: ['text'],
+  props: ['text', 'mentionList'],
   data() {
     return {
       codeBlocks: [],
@@ -68,16 +67,24 @@ export default {
     html() {
       if (!this.showDoc) {
         try {
-          const textWithLinks = this.sanitizedText.replace(
-            /`((?:\/[^\s:]+)+)(?::(\d+))?`/g,
-            (match, filePath, lineNumber) => {
-              const slashCount = (filePath.match(/\//g) || []).length
-              if (slashCount < 2) return match
-              const lineInfo = lineNumber ? `:${lineNumber}` : ''
-              return `<a class="file-link btn btn-link" href="${filePath}${lineInfo}">${filePath}${lineInfo}</a>`
-            }
-          )
-          return md.render(this.sanitizedText)
+          let { sanitizedText } = this 
+          const avatarHtml = (mention) => {
+            const { user, profile } = mention  
+            const name = mention.name
+            const avatar = mention.avatar
+            return `
+              <div class="avatar flex gap-2">
+                <img src="${user.avatar}" class="w-10" />
+                ${user.username}
+              </div>
+            `
+          }
+          this.mentionList.filter(m => m.avatar)
+              .forEach(mention => {
+                const mentionPattern = new RegExp(`@${mention.name}`, 'g')
+                sanitizedText = sanitizedText.replace(mentionPattern, avatarHtml(mention))
+              })
+          return md.render(sanitizedText)
         } catch (ex) {
           console.error("Message can't be rendered", this.text)
         }
@@ -98,7 +105,6 @@ export default {
         ].find(pattern => firstLine.trim() === pattern)
 
       if (isMdFence) {
-        // Unnecessary
         lines.splice(0, 1)
         const ix = lines.findLastIndex(l => l === '```')
         if (ix !== -1) {
@@ -122,7 +128,6 @@ export default {
   },
   methods: {
     initializeComponent() {
-      // Initialize component by capturing links and extracting necessary data
       this.updateCodeBlocks()
       this.captureLinks()
       this.extractYoutubeLinks()
@@ -163,3 +168,4 @@ export default {
   }
 }
 </script>
+```

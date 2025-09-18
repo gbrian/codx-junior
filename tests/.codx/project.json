@@ -4,7 +4,7 @@
   "ai_model": "gpt-4o",
   "project_name": "tests",
   "project_path": null,
-  "project_wiki": "",
+  "project_wiki": false, "project_wiki_path": "",
   "project_dependencies": "",
   "knowledge_extract_document_tags": false,
   "knowledge_search_type": "similarity",

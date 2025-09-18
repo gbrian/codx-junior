@@ -86,7 +86,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
         >
             {{ log }}
         </div-->
-        <pre class="-mb-3 text-wrap text-lg/6 2xl:text-md/6 " v-for="log, ix in filteredLogs" :key="`${log}-${ix}`"
+        <pre class="-mb-3 text-wrap text-md/6 " v-for="log, ix in filteredLogs" :key="`${log}-${ix}`"
           :class="log.includes('MATCH') ? 'text-success' :
             log.includes('[ERROR]') ? 'text-error' : ''"
         >

@@ -38,12 +38,12 @@ import Wizard from '../components/wizards/Wizard.vue'
       <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="bg-stone-800 hover:bg-slate-600 w-1"
         v-if="$ui.showApp && showCodxJunior" />
 
-      <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="$ui.floatingCodxJunior ? 0 : $ui.showApp ?  20 : 100"
-        :defaultSize="$ui.floatingCodxJunior ? 0 : $ui.codxJuniorWidth"
+      <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="showCodxJuniorFloating ? 0 : $ui.showApp ?  20 : 100"
+        :defaultSize="showCodxJuniorFloating ? 0 : $ui.codxJuniorWidth"
         class="flex items-center justify-center transition-all transition-discrete"
         :class="[
-          $ui.floatingCodxJunior ? 'absolute z-50 right-0 top-0 bottom-0 border-red-600 w-2 opacity-30 hover:w-2/4 hover:opacity-90' : '',
-          ($ui.floatingCodxJunior && mouseOnNavigation) && 'w-2/4 opacity-90'
+          showCodxJuniorFloating ? 'absolute z-50 right-0 top-0 bottom-0 border-red-600 w-2 opacity-30 hover:w-2/4 hover:opacity-90' : '',
+          (showCodxJuniorFloating && mouseOnNavigation) && 'w-2/4 opacity-90'
         ]"
         @resize="size => $ui.setCodxJuniorWidth(size)"
         v-if="showCodxJunior">
@@ -94,6 +94,9 @@ export default {
     },
     showApp() {
       return this.$ui.showApp
+    },
+    showCodxJuniorFloating() {
+      return this.$ui.floatingCodxJunior || (this.$ui.showBrowser && this.$ui.showCoder)
     }
   },
   mounted() {

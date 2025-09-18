@@ -26,6 +26,13 @@ import CheckLists from '../chat/CheckLists.vue'
             </UserAvatar>  
                     
             <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
+            <span class="click tooltip" @click.stop="toggleChatPinned"
+              data-tip="Bookmark"
+            >
+              <i class="text-warning fa-solid fa-bookmark" v-if="task.pinned" ></i>
+              <i class="fa-regular fa-bookmark" v-else></i>
+            </span>
+                      
             <div class="overflow-hidden h-10 overflow-auto" :title="task.name">{{ task.name }}</div>
           </div>
           <div class="flex gap-2 items-center">
@@ -150,6 +157,10 @@ export default {
     },
     saveTask() {
       this.$projects.saveChatInfo(this.task)
+    },
+    toggleChatPinned() {
+      this.task.pinned = !this.task.pinned
+      this.saveTask()  
     }
   }
 }

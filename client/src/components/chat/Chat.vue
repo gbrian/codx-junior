@@ -14,8 +14,7 @@ import CheckLists from './CheckLists.vue'
   <div class="flex flex-col gap-1 grow">
     <div class="grow relative">
       <CheckLists class="mb-2" :chat="theChat" @change="saveChat" />
-      <div class="overflow-y-auto overflow-x-hidden"
-        :class="isBrowser && 'flex gap-1'">
+      <div class="overflow-y-auto overflow-x-hidden" :class="isBrowser && 'flex gap-1'">
         <div class="w-3/4" v-if="isBrowser">
           <Browser :token="$ui.monitors['shared']" />
         </div>
@@ -26,6 +25,7 @@ import CheckLists from './CheckLists.vue'
               :chat="theChat"
               :message="knowledgeMessage"
               :isTopic="isTopic && !ix"
+              :mentionList="mentionList"
             />
             
             <ChatEntry :class="['mb-4 rounded-md',
@@ -35,6 +35,7 @@ import CheckLists from './CheckLists.vue'
               :chat="theChat"
               :message="message"
               :isTopic="isTopic && !ix"
+              :mentionList="mentionList"
               @edited="saveChat"
               @enhance="onEditMessage(message, true)"
               @remove="removeMessage(message)"
@@ -170,12 +171,6 @@ import CheckLists from './CheckLists.vue'
               <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
                 v-if="editMessage">
                 <i class="fa-regular fa-circle-xmark"></i>
-              </button>
-              <button class="btn btn-sm btn-circle tooltip relative"
-                :class="showDocumentSearchModal ? 'btn-error' : 'btn-info'"
-                :data-tip="'Search documents'"
-                @click="askKnowledge">
-                <i class="fa-solid fa-file-lines"></i>
               </button>
               <button class="btn btn btn-sm btn-circle tooltip"
                 data-tip="Ask codx-junior"
@@ -441,10 +436,16 @@ export default {
     topicMessage() {
       return this.messages[0]
     },
+    chatProject() {
+      return this.$projectContext || this.$project
+    },
+    mentionList() {
+      return this.chatProject.mentionList || []
+    },
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
         .map(w => w[1])
-      return this.$projects.mentionList.filter(m => mentions.includes(m.mention))
+      return this.mentionList.filter(m => mentions.includes(m.mention))
     },
     showTermSearch() {
       return this.searchTerms?.length
@@ -461,7 +462,7 @@ export default {
       return [this.$store.state.user, ...this.projectContext.profiles]
     },
     isChannel() {
-      return this.theChat.mode === 'channel'
+      return this.theChat.mode === 'topic'
     },
     chatProject() {
       return this.$projects.allProjects.find(p => p.project_id === this.theChat.project_id) ||
@@ -629,12 +630,13 @@ export default {
       this.searchingInKnowledge = true
       try {
         const { response, documents } = await this.projectContext.api.knowledge.search(knowledgeSearch)
-        const docs = documents.map(({ metadata: { score_analysis, source}}) => {
+        const docs = documents.map(({ page_content, metadata: { language, score_analysis, source}}) => {
             const file = source
             const fileName = file.split("/").reverse()[0] 
             return [
-                    `### ${fileName}`,
-                    score_analysis,
+                    "```" + language + " " + fileName,
+                    page_content,
+                    "```",
                   ].join("\n")
           }).join("\n")
         const message = [
@@ -699,7 +701,7 @@ export default {
     },
     async searchKeywords() {
       const searchQuery = this.termSearchQuery?.toLowerCase()
-      this.searchTerms = this.projectContext.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
+      this.searchTerms = this.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
       this.searchTermSelIx = 0
       if (!this.refreshngMentions) {
         this.refreshngMentions = this.$projects.loadProjectKnowledge()
@@ -758,7 +760,7 @@ export default {
       const lastWord = this.getCursorWord()
       const mention = lastWord[0] === '@' ? lastWord?.slice(1) : null
       if (mention?.length >= 3 &&
-        !this.$projects.mentionList.find(m => m.name === mention)) {
+        !this.mentionList.find(m => m.name === mention)) {
         this.termSearchQuery = mention
       }
       if (this.showTermSearch && !mention) {

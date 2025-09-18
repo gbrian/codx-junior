@@ -7,7 +7,7 @@ import WikiSections from '../components/wiki/WikiSections.vue';
     <div class="w-full flex justify-between items-center">
       <div class="w-1/12"></div>
       <div class="grow text-4xl text-center">
-        Wiki
+        TheMoreYouKnow
       </div>
       <div class="w-1/12">
       </div>

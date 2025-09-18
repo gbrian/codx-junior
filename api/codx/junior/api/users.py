@@ -73,7 +73,7 @@ async def user_login(request: Request):
         return oauth_data
 
     login_user = CodxUserLogin(**body)
-    user = await get_authenticated_user(request=request)
+    user = get_authenticated_user(request=request)
     logger.info(f"user_login user: {user} - body: {login_user}")
     if user:
         return user

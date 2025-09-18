@@ -35,7 +35,8 @@ async def find_files(request: Request) -> Dict:
     
     # Extracting query parameters for adapter and path
     adapter = request.query_params.get("adapter", "local")
-    path = request.query_params.get("path") or "/"
+    path = request.query_params.get("path", "/")
+    search_filter = request.query_params.get("filter")
     path = path.split("://")[-1]
     if "local:" in path:
         path = "/"
@@ -49,7 +50,7 @@ async def find_files(request: Request) -> Dict:
 
     try:
         # Use FileManager to retrieve file information
-        file_response = file_manager.find_files(adapter=adapter, path=path)
+        file_response = file_manager.find_files(adapter=adapter, path=path, search=search_filter)
     except ValueError as e:
         # Specific exception on file processing
         logger.error("An error occurred: %s", e)

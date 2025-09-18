@@ -7,34 +7,15 @@ import { v4 as uuidv4 } from 'uuid'
 import VSwatches from '../VSwatches.vue'
 import KanbanList from './KanbanList.vue'
 import ChatIcon from '../chat/ChatIcon.vue'
-import ProjectIcon from '../ProjectIcon.vue'
+import FileFinder from '../filebrowser/FileFinder.vue'
 </script>
 
 <template>
   <div class="h-full px-2" v-if="kanban?.boards">
-    <div class="flex flex-col gap-2" v-if="!$projects.activeChat && !board">
-      <div class="font-bold" v-if="topProjects?.length">Related projects</div>
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4" v-if="$storex.projects.childProjects">
-        <ProjectIcon v-for="project in topProjects" :key="project.project_id"
-          :project="project" 
-          :online="true" 
-          :right="false"
-          @click="$projects.setActiveProject(project)"
-          />
-      </div>
-      
-      <div v-if="lastUpdatedTasks?.length">
-        <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between">
-          <div>Last tasks</div>
-        </h1>
-        <div class="grid grid-cols-2 grid-flow-row gap-2">
-          <TaskCardLite @click="$projects.setActiveChat(task)" 
-            :task="task" class="click h-40 overflow-hidden border rounded-md border-slate-600" v-for="task in lastUpdatedTasks" :key="task.id"/>
-        </div>
-      </div>
-
-      <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between">
-        <div>Boards Dashboard</div>
+    <div class="flex flex-col gap-2" v-if="!$projects.activeChat && !board">  
+      <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between gap-2 border-b  border-slate-700 pb-2">
+        <div>Boards</div>
+        <div class="grow"></div>
         <input type="text" v-model="boardFilter" class="input input-sm input-bordered" placeholder="Search boards" />
         <button class="btn btn-sm btn-warning btn-outline" @click="showNewBoardModal">
           New kanban
@@ -95,7 +76,23 @@ import ProjectIcon from '../ProjectIcon.vue'
         </div>
       </div>
       <div class="mt-3 grow relative flex flex-col gap-2">
+        <div v-if="topChats?.length">
+          <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between border-b border-slate-700">
+            <div>Bookmarks</div>
+          </h1>
+          <div class="grid grid-cols-2 grid-flow-row gap-2">
+            <TaskCardLite @click="$projects.setActiveChat(task)" 
+              :task="task" class="click h-20 overflow-hidden border rounded-md border-slate-600"
+              :class="task.pinned && 'border-warning'"
+              v-for="task in topChats" :key="task.id"/>
+          </div>
+        </div>
+
         <div class="transition-all pb-2" v-if="showChildrenBoards">
+          <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between border-b border-slate-700">
+            <div>Child Boards</div>
+          </h1>
+          
           <KanbanList
             class="mb-2"
             :boards="childBoards"
@@ -105,7 +102,9 @@ import ProjectIcon from '../ProjectIcon.vue'
             @new="showNewBoardModal"
           />
         </div>
-        
+        <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between border-b border-slate-700">
+          <div>Tasks</div>
+        </h1>
         <draggable
           v-model="filteredColumns"
           group="columns"
@@ -165,16 +164,18 @@ import ProjectIcon from '../ProjectIcon.vue'
                   class="mt-3"
                 >
                   <template #item="{ element: task }">
-                    <task-card
+                    <TaskCard
                       v-if="taskMatchesFilter(task)"
                       :task="task"
                       :itemKey="'id'"
                       class="cursor-pointer bg-base-100 overflow-hidden mt-2"
-                      :class="[lastUpdatedTask.id == task.id ? 'border boder-primary border-dashed':'',
+                      :class="[
+                        task.pinned && 'border-warning',
+                        lastUpdatedTask.id == task.id ? 'border boder-primary border-dashed':'',
                         (column.showSubTasks !== false) || !task.parent_id ? '' : 'hidden'
                       ]"
                       @click="openChat(task)"
-                    />
+                    ></TaskCard>
                   </template>
                 </draggable>
               </div>
@@ -196,6 +197,7 @@ import ProjectIcon from '../ProjectIcon.vue'
           <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
           <input type="text" v-model="newBoardBackground" placeholder="Enter board backgorund image" class="input input-bordered w-full mt-2"/>
           <select v-model="newBoardParent" class="select select-bordered w-full mt-2">
+            <option value="">-- none --</option>
             <option v-for="board in boards" :key="board.id" :value="board.id">{{ board.title }}</option>
           </select>
         </div>
@@ -251,6 +253,9 @@ import ProjectIcon from '../ProjectIcon.vue'
         <button class="btn" @click="showImportModalForColumn = false">Cancel</button>
       </div>
     </modal>
+    <modal close="true" @close="showFileFinder = false" v-if="showFileFinder">
+      <FileFinder @select="onAddFile" />
+    </modal>
   </div>
 </template>
 
@@ -286,7 +291,10 @@ export default {
       showImportModalForColumn: null,
       importOption: 'clipboard',
       importUrl: '',
-      searchVisible: false
+      searchVisible: false,
+      showFileFinder: false,
+      pinnedChats: [],
+      topChats: []
     }
   },
   created() {
@@ -311,12 +319,6 @@ export default {
         (a.updated_at || new Date(1900, 1, 1)) > 
         (b.updated_at || new Date(1900, 1, 1)) ? -1 : 1)
         .slice(0, 1)[0] || {}
-    },
-    lastUpdatedTasks() {
-      return this.chats.sort((a, b) => 
-        (a.updated_at || new Date(1900, 1, 1)) > 
-        (b.updated_at || new Date(1900, 1, 1)) ? -1 : 1)
-        .slice(0, 3) || []
     },
     showKanban() {
       return this.kanban && this.activeKanbanBoard
@@ -362,7 +364,9 @@ export default {
         }))
       ].reduce((acc, b) => ({ ...acc, [b.id]: {
         ...b,
-        tasks: chats.filter(c => !c.message_id && (b.id === ALL_BOARD_TITLE_ID || c.board === b.id))
+        tasks: chats.filter(c => 
+                  !c.message_id && (b.id === ALL_BOARD_TITLE_ID || c.board === b.id))
+                .sort((a, b) => a.pinned && !b.pinned ? -1 : 1)
       }}), {})
     },
     parentBoards() {
@@ -458,7 +462,7 @@ export default {
       })
     },
     addNewFile() {
-      this.newTask(FILES_COLUMN)
+      this.showFileFinder = true
     },
     newTask(column, mode) {
       this.createNewChat({
@@ -513,13 +517,16 @@ export default {
             title: col,
             ...boardColumn,
             tasks: this.activeBoard.tasks
-              .filter(t => (t.column || '--none--') === col)
-              .sort((a, b) => getChatIndex(a) < getChatIndex(b) ? -1 : 1),
+              .filter(t => (t.column || '--none--') === col && !t.pinned)
+              .sort((a, b) => a.pinned || (getChatIndex(a) < getChatIndex(b)) ? -1 : 1),
             position: ix
           }
         }).sort((a, b) => a.position < b.position ? -1: 1)
         || []
         this.buildFilteredColumns()
+
+      this.pinnedChats = this.activeBoard?.tasks.filter(t => t.pinned) || []
+      this.topChats = this.pinnedChats
     },
     async onColumnTaskListChanged() {
       if (this.$ui.isMobile) {
@@ -685,6 +692,11 @@ export default {
     },
     onDeleteBoard(board) {
       this.$projects.deleteBoard(board)
+    },
+    onAddFile(filePaths) {
+      if (this.activeBoard) {
+        this.activeBoard.file_list = [...(this.activeBoard.file_list || []), ...filePaths]
+      }
     }
   }
 }

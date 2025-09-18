@@ -88,10 +88,10 @@ class UserSecurityManager():
             
         try:
             logged_user = do_login(user=user, token=token)
-            logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
+            # logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
             if logged_user:
                 user_login = self.find_user_login(username=logged_user.username)
-                logger.info(f"User logged {logged_user}")
+                # logger.info(f"User logged {logged_user}")
                 user_login.token = self.get_user_token(user=logged_user)
                 self.save_settings()
                 logged_user.token = user_login.token
@@ -120,11 +120,11 @@ class UserSecurityManager():
     def get_user_project_access(self, user: CodxUser, settings: CODXJuniorSettings):
         if user:
             if user.role == 'admin':
-                return ['admin']
+                return 'admin'
             for p in user.projects:
                 if p.project_id == settings.project_id:
                     return p.permissions
-        return []
+        return ''
 
     def add_user_to_project(self, user: CodxUser, project_id: str, permissions: str):
         global_user = next((u for u in self.global_settings.users if u.username == user.username))
@@ -162,12 +162,22 @@ class UserSecurityManager():
     def save_settings(self):
         write_global_settings(self.global_settings)
 
-async def get_authenticated_user(request: Request) -> CodxUser:
+def get_authenticated_user(request: Request) -> CodxUser:
     user_security_manager = UserSecurityManager()
     token = request.headers.get("authentication", " ").split(" ")[-1]
     user = None
     if token:
         user = user_security_manager.login_user(token=token)
-    logger.info(f"Authenticating request: {request.url} token {token}: {user} - headers: {request.headers}")
+    user_name = user.username if user else ""
+    logger.info(f"Authenticating request: {request.url} token {token}: {user_name} - headers: {request.headers}")
     return user
 
+
+def get_authenticated_user_from_token(token: str) -> CodxUser:
+    user_security_manager = UserSecurityManager()
+    user = None
+    if token:
+        user = user_security_manager.login_user(token=token)
+    user_name = user.username if user else ""
+    logger.info(f"Authenticating request: WS token {token}: {user_name}")
+    return user

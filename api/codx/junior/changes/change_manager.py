@@ -1,7 +1,9 @@
 import os
 import time
 import logging
-import asyncio  # Import asyncio for concurrency
+import asyncio 
+
+from datetime import datetime
 
 from codx.junior.events.event_manager import EventManager
 from codx.junior.knowledge.knowledge_milvus import Knowledge
@@ -13,6 +15,7 @@ from codx.junior.globals import (
 from codx.junior.mentions.mention_manager import MentionManager
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.wiki.wiki_manager import WikiManager
+from codx.junior.chat_manager import ChatManager
 
 from codx.junior.whisper.audio_manager import AudioManager
 
@@ -30,6 +33,7 @@ class ChangeManager:
         self.knowledge = Knowledge(settings=self.settings)
         self.wiki_manager = WikiManager(settings=settings)
         self.audio_manager = AudioManager()
+        self.chat_manager = ChatManager(settings=self.settings)
 
     async def process_project_changes(self, mention_only: bool):
         if not self.settings.is_valid_project():
@@ -95,3 +99,27 @@ class ChangeManager:
                 await self.wiki_manager.build_file(file_path=file_path)
             except Exception as ex:
                 logger.exception(f"Error processing wiki changes for file {file_path}", ex)
+
+    def update_project_metrics(self):
+        last_check = datetime.now().isoformat(),
+                
+        # if self.settings.metrics.get("last_check", last_check)
+        try:
+            number_of_chats = self.chat_manager.chat_count()
+            chat_changed_last = self.chat_manager.last_chats()
+            
+            last_update = None
+            if chat_changed_last:
+                last_update = chat_changed_last[0].updated_at
+            return {
+                "last_check": datetime.now().isoformat(),
+                "last_update": last_update,
+                "number_of_chats": number_of_chats,
+                "chats_changed_last": chat_changed_last
+            }
+        except Exception as ex:
+            logger.error("Error processing proejct metric: %s - %s", self.settings.project_name, ex)
+            return {
+              "error": str(ex)
+            }
+

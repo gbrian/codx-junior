@@ -249,6 +249,9 @@ const initializeAPI = ({ project, user } = {}) => {
             return API.get('/api/projects/ai/models')
           }
         }
+      },
+      metrics() {
+        return API.get('/api/projects/metrics')
       }
     },
     repo: {

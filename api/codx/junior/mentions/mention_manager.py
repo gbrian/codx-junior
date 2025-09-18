@@ -14,6 +14,8 @@ from codx.junior.chat_manager import ChatManager
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.events.event_manager import EventManager
 
+from codx.junior.model.model import CodxUser
+
 from codx.junior.db import (
   Chat,
   Message
@@ -100,7 +102,9 @@ class MentionManager:
         self.profile_manager = ProfileManager(settings=settings)
         self.event_manager = event_manager
         self.chat_utils = ChatUtils(profile_manager=self.profile_manager)
-        self.chat_engine = ChatEngine(settings=settings, event_manager=event_manager)
+        self.chat_engine = ChatEngine(settings=settings,
+                                      event_manager=event_manager,
+                                      user=CodxUser(username="mention_manager"))
 
     def is_processing_mentions(self, content):
         if MULTI_LINE_MENTION_START_PROGRESS in content or SINGLE_LINE_MENTION_START_PROGRESS in content:

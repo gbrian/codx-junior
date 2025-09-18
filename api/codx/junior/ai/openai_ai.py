@@ -11,22 +11,31 @@ from codx.junior.settings import CODXJuniorSettings
 from langchain.schema import AIMessage, HumanMessage, BaseMessage
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.utils.utils import clean_string
-from codx.junior.tools import TOOLS
+from codx.junior.model.model import CodxUser
+
 
 logger = logging.getLogger(__name__)
 
 class OpenAI_AI:
-    def __init__(self, settings: CODXJuniorSettings, llm_model: str = None):
+    def __init__(self, settings: CODXJuniorSettings, llm_model: str = None, user: CodxUser = None):
+        from codx.junior.tools import TOOLS
+        self.tools = TOOLS
+        
         self.settings = settings
         self.llm_settings = settings.get_llm_settings(llm_model=llm_model)
         self.model = self.llm_settings.model
-        self.api_key = self.llm_settings.api_key
+        self.user = user
+        self.api_key = self.user.api_key if self.user and self.user.api_key else self.llm_settings.api_key
         self.base_url = self.llm_settings.api_url
 
         try:
             self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
+            logger.info("Creating OpenAI client. USER: %s, URL: %s, API: %s*****", 
+                self.user.username if self.user else "NONE",
+                self.base_url,
+                self.api_key[0:15])
         except Exception as ex:
-            logger.error("Error creating OpenAI client: %s, %s*****", self.base_url, self.api_key[0:5])
+            logger.error("Error creating OpenAI client: %s, %s*****", self.base_url, self.api_key[0:15])
         self.ai_logger = AILogger(settings=settings)
 
     def log(self, msg):
@@ -50,7 +59,7 @@ class OpenAI_AI:
         kwargs = {
             "model": self.model,
             "stream": True,
-            "tools": [tool["tool_json"] for tool in TOOLS]
+            "tools": [tool["tool_json"] for tool in self.tools]
         }
 
         if self.llm_settings.temperature >= 0:
@@ -70,9 +79,11 @@ class OpenAI_AI:
             request_headers = config.get("headers", {})
             tags = request_headers.get("tags", "")
             tags = tags.split(",") + [
-                f"temp-{self.llm_settings.temperature}",
+                f"temperature:{self.llm_settings.temperature}",
                 self.settings.project_name
             ]
+            if self.user:
+                tags.append(f"user:{self.user.username}")
             request_headers["x-litellm-tags"] = ",".join(tags)
 
             response_stream = self.client.chat.completions.create(
@@ -125,12 +136,18 @@ class OpenAI_AI:
                     tool_call_data["arguments"] += tool_calls[0].function.arguments
                 
                 if choice.finish_reason == 'tool_calls' and tool_call_active:
-                    tools_response = self.process_tool_calls(tool_call_data)
-                    tool_output = tools_response["output"]
-                    func_name = tool_call_data["function"]
-                    content = f"{func_name} returned:\n\n```\n{tool_output}\n```"
-                    message = AIMessage(content=content)
-                    messages.append(message)
+                    ai_tool_response = None
+                    func_name = tool_call_data["function"]                        
+                    try:
+                        tools_response = self.process_tool_calls(tool_call_data)
+                        tool_output = tools_response["output"]
+                        content = f"{func_name} returned:\n\n```\n{tool_output}\n```"
+                        ai_tool_response = AIMessage(content=content)
+                    except Exception as ex:
+                        error = f"Error processing {func_name}:\n{ex}"
+                        ai_tool_response = AIMessage(content=error)
+
+                    messages.append(ai_tool_response)
                     return self.chat_completions(messages=messages, config=config)
                 
                 chunk_content = choice.delta.content
@@ -158,10 +175,12 @@ class OpenAI_AI:
         self.log(f"process_tool_calls: {tool_call_data}")
         func_name = tool_call_data["function"]
         params = json.loads(tool_call_data["arguments"])
-
+        
         # Find the tool and execute the tool_call
-        for tool in TOOLS:
+        for tool in self.tools:
             if tool["tool_json"]["function"]["name"] == func_name:
+                if tool["tool_json"]["settings"].get("project_settings"):
+                    params["settings"] = self.settings
                 content = tool["tool_call"](**params)
                 tool_responses.append(content)
 

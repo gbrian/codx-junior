@@ -39,7 +39,7 @@ class FileManager:
         return os.path.join(self.settings.project_path, local_path)         
         
 
-    def find_files(self, adapter: str, path: str) -> Dict[str, Union[str, List[Dict[str, Any]]]]:
+    def find_files(self, adapter: str, path: str, search: str = None) -> Dict[str, Union[str, List[Dict[str, Any]]]]:
         """
         Find files in the specified path using the given adapter.
 

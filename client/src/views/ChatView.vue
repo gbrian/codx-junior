@@ -58,9 +58,16 @@ import PRView from '@/components/repo/PRView.vue'
                 
                   </div>
 
-                  <div class="cursor-pointer text-xs md:text-xl flex flex-col" @click="editName = true">
+                  <div class="cursor-pointer text-xs @md:text-md @xl:text-xl flex flex-col" @click="editName = true">
                     <div>
-                       {{ chat.name }} 
+                      <span class="click tooltip" @click.stop="toggleChatPinned"
+                        data-tip="Bookmark"
+                      >
+                        <i class="text-warning fa-solid fa-bookmark" v-if="chat.pinned" ></i>
+                        <i class="fa-regular fa-bookmark" v-else></i>
+                      </span>
+                      
+                      {{ chat.name }} 
                       <span class="text-xs hover:underline text-info" 
                         @click.stop="showDescription = !showDescription"
                         v-if="chat.description">more
@@ -608,6 +615,10 @@ export default {
       this.subtaskDescription = description
       this.subtaskFiles = [fileName]
       this.newSubChat()
+    },
+    toggleChatPinned() {
+      this.chat.pinned = !this.chat.pinned
+      this.saveChat()  
     }
   }
 }

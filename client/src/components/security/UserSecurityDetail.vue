@@ -31,6 +31,9 @@
       <div>Github name</div>
       <input type="text" placeholder="Name like 'gbrian'" class="input input-bordered input-sm" v-model="user.github" />
 
+      <div>API Key</div>
+      <input type="text" placeholder="API Key" class="input input-bordered input-sm" v-model="user.api_key" />
+
       <div class="flex flex-col gap-2">
         <div>
           Projects
@@ -48,6 +51,11 @@
             <option value="admin">admin</option>
             <option value="user">user</option>
           </select>
+
+          <input type="checkbox" checked="checked" class="checkbox tooltip"
+            data-tip="Same for children"
+            v-model="project.children" />
+
           <button type="button" class="btn btn-error btn-sm" @click="removeProject(index)">
             <i class="fa-solid fa-minus"></i>
           </button>

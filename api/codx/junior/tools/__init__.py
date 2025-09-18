@@ -3,41 +3,17 @@ from typing import Optional, Dict
 
 # Import tools
 from .fetch_webpage import fetch_webpage
+from .project_search import project_search
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
-
-def tool_read_file(file_path):
-    with open(file_path, 'r') as f:
-        return f.read()
 
 def test_tool():
     return "test ok!"
 
 # Define TOOLS
 TOOLS = [
-    {
-        "tool_json": {
-            "type": "function",
-            "function": {
-                "name": "read_file",
-                "description": "use to read the full content of a file reference.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Absolute file path",
-                        }
-                    },
-                    "required": ["file_path"],
-                },
-            }
-        },
-        "settings": {"async": False},
-        "tool_call": tool_read_file
-    },
     {
         "tool_json": {
             "type": "function",
@@ -86,5 +62,29 @@ TOOLS = [
         },
         "settings": {"async": False},
         "tool_call": test_tool
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "project_search",
+                "description": "Search for documents within a project using the provided search string.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search": {
+                            "type": "string",
+                            "description": "The search query string used to find relevant documents."
+                        }
+                    },
+                    "required": ["search"]
+                }
+            }
+        },
+        "settings": {"async": False, "project_settings": True},
+        "tool_call": project_search
     }
 ]
+
+# Documentation advice
+# Don't document **kwargs parameters. They are internal.

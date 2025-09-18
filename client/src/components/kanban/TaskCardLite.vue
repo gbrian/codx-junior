@@ -20,6 +20,9 @@ import UserAvatar from '../user/UserAvatar.vue'
             </UserAvatar>  
             <div>
               <div class="flex gap-2">
+                <span class="click tooltip" data-tip="Bookmark" v-if="task.pinned">
+                  <i class="text-warning fa-solid fa-bookmark" ></i>
+                </span>
                 <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
                 <div class="overflow-hidden overflow-auto font-bold" :title="task.name">
                   {{ task.name }}
@@ -31,21 +34,6 @@ import UserAvatar from '../user/UserAvatar.vue'
           <div class="flex gap-2 items-center">
             <div :class="`badge badge-sm badge-outline badge-${badgeColor[task.mode]}`">{{ task.mode }}</div>
           </div>
-        </div>
-      </div>
-      <div class="text-xs overflow-auto h-16">
-        {{ task.description }}
-      </div>
-      <div class="flex justify-between items-center">
-        <div class="flex gap-1 justify-end">
-          <div v-for="tag in task.tags" :key="tag" class="font-bold text-xs text-info flex gap-2">
-            #{{ tag }}
-          </div>
-          <span class="text-xs tooltip"
-            :data-tip="`${task.file_list?.length} files`"
-            v-if="task.file_list?.length">
-            <i class="fa-solid fa-paperclip"></i>
-          </span>
         </div>
       </div>
     </div>

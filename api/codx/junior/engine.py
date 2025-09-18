@@ -73,15 +73,19 @@ from codx.junior.utils.utils import (
 
 from codx.junior.whisper.audio_manager import AudioManager
 
+from codx.junior.model.model import CodxUser
+
 logger = logging.getLogger(__name__)
 
 class CODXJuniorSession:
     def __init__(self,
             settings: CODXJuniorSettings = None,
             codx_path: str = None,
-            channel: SessionChannel = None):
+            channel: SessionChannel = None,
+            user: CodxUser = None):
         self.settings = settings or CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
         self.channel = channel
+        self.user = user
         self.event_manager = EventManager(
                                 codx_path=codx_path,         
                                 channel=channel)
@@ -146,7 +150,7 @@ class CODXJuniorSession:
         return ProfileManager(settings=self.settings)
 
     def get_ai(self, llm_model: str = None):
-        return AI(settings=self.settings, llm_model=llm_model)
+        return AI(settings=self.settings, llm_model=llm_model, user=self.user)
 
     def get_knowledge(self):
         return Knowledge(settings=self.settings)
@@ -605,30 +609,6 @@ class CODXJuniorSession:
         await self.chat_with_project(chat=chat, disable_knowledge=True, append_references=False)
         return chat.messages[-1].content
 
-    def get_project_metrics(self):
-        try:
-            chat_manager = self.get_chat_manager()
-
-            number_of_chats = chat_manager.chat_count()
-            chat_changed_last = chat_manager.last_chats()
-            
-            status = self.check_knowledge_status()
-
-            last_update = None
-            if chat_changed_last:
-                last_update = chat_changed_last[0].updated_at
-            return {
-                "last_update": last_update,
-                "number_of_chats": number_of_chats,
-                "chats_changed_last": chat_changed_last,
-                **status
-            }
-        except Exception as ex:
-            logger.exception("Error processing proejct metric: %s - %s", settings.project_name, ex)
-            return {
-              "error": str(ex)
-            }
-
     def check_knowledge_status(self):
         knowledge = self.get_knowledge()
         status = knowledge.status()
@@ -1005,9 +985,9 @@ class CODXJuniorSession:
 
     @profile_function
     async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0):
-        
         chat_engine = ChatEngine(settings=self.settings,
-                                event_manager=self.event_manager)
+                                event_manager=self.event_manager,
+                                user=self.user)
         return await chat_engine.chat_with_project(
                             chat=chat,
                             disable_knowledge=disable_knowledge,

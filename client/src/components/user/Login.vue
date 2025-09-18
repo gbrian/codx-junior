@@ -23,10 +23,12 @@
         </label>
         <input type="password" v-model="password" class="input input-bordered w-full" placeholder="Enter your password" required />
       </div>
-      <button type="submit" class="btn btn-primary w-full">Login</button>
-      <button @click="handleGithubLogin" class="btn w-full">
-        Login <i class="fa-brands fa-github"></i>
-      </button>
+      <div class="flex flex-col gap-2">
+        <button type="submit" class="btn btn-primary w-full">Login</button>
+        <button @click="handleGithubLogin" class="btn w-full">
+          Login <i class="fa-brands fa-github"></i>
+        </button>
+      </div>
     </form>
   </div>
 </template>

@@ -26,6 +26,8 @@ from codx.junior.ai.ai_logger import AILogger
 
 from codx.junior.profiling.profiler import profile_function
 
+from codx.junior.model.model import CodxUser
+
 # Type hint for a chat message
 Message = Union[AIMessage, HumanMessage, SystemMessage]
 
@@ -47,14 +49,17 @@ class LogginCallbackHandler(StreamingStdOutCallbackHandler):
 class AI:
     def __init__(
         self, settings: CODXJuniorSettings,
-        llm_model: str = None
+        llm_model: str = None,
+        user: CodxUser = None
     ):
+        self.user = user
         self.settings = settings
         self.llm_model = llm_model
         self.llm = self.create_chat_model(llm_model=llm_model)
         self.embeddings = self.create_embeddings_model()
         self.cache = False
         self.ai_logger = AILogger(settings=settings)
+        
 
     @profile_function
     def image(self, prompt):
@@ -141,13 +146,13 @@ class AI:
 
 
     def create_chat_model(self, llm_model: str) -> BaseChatModel:
-        return OpenAI_AI(settings=self.settings, llm_model=llm_model).chat_completions
+        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).chat_completions
 
     def get_openai_chat_client(self, llm_model: str = None):
-        return OpenAI_AI(settings=self.settings, llm_model=llm_model).client
+        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).client
 
     def create_embeddings_model(self):
-        return OpenAI_AI(settings=self.settings).embeddings()
+        return OpenAI_AI(settings=self.settings, user=self.user).embeddings()
 
 def serialize_messages(messages: List[Message]) -> str:
     return AI.serialize_messages(messages)

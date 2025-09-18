@@ -12,6 +12,9 @@ from codx.junior.utils.utils import (
   document_to_context,
   extract_json_blocks
 )
+
+from codx.junior.model.model import CodxUser
+
 from codx.junior.ai.ai import AI
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_milvus import Knowledge 

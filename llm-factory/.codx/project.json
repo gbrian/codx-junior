@@ -3,7 +3,7 @@
   "project_name": "codx-llm-factory",
   "project_path": null,
   "project_branches": [],
-  "project_wiki": null,
+  "project_wiki": false, "project_wiki_path": null,
   "project_dependencies": null,
   "project_preview_url": null,
   "knowledge_extract_document_tags": false,

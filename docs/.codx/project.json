@@ -3,7 +3,7 @@
   "project_name": "codx-docs",
   "project_path": null,
   "project_branches": [],
-  "project_wiki": null,
+  "project_wiki": false, "project_wiki_path": null,
   "project_dependencies": "codx-api,codx-ui",
   "project_preview_url": null,
   "knowledge_extract_document_tags": false,

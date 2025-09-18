@@ -160,13 +160,16 @@ async def add_process_time_header(request: Request, call_next):
         logger.info(f"Request {request.url} - {time.time() - start_time} ms")
 
 @app.middleware("http")
-async def add_gpt_engineer_settings(request: Request, call_next):
+async def add_codx_junior_settings(request: Request, call_next):
     codx_path = request.query_params.get("codx_path")
     if codx_path and codx_path not in ["undefined", "null"]:
         try:
+            user = get_authenticated_user(request=request)
             sid = request.headers.get("x-sid")
             channel = SessionChannel(sid=sid, sio=sio)
-            request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, channel=channel)
+            request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, 
+                                                                  channel=channel,
+                                                                  user=user)
             settings = request.state.codx_junior_session.settings
             # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:
@@ -376,8 +379,7 @@ def api_project_watch(request: Request):
 
 @app.get("/api/projects")
 def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    all_projects = find_all_user_projects(user)
-    return all_projects
+    return find_all_user_projects(user)
 
 @app.get("/api/projects/repo/branches")
 def api_find_all_repo_branches(request: Request):

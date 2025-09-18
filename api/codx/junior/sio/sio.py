@@ -19,6 +19,7 @@ from codx.junior.sio.model import (
 )
 
 from codx.junior.ai import AIManager
+from codx.junior.security.user_management import get_authenticated_user_from_token
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
@@ -38,8 +39,10 @@ def sio_api_endpoint(func):
         logger.info(f"SIO REquest {sid} {data}")
         base_data = SioMessage(**data)
         channel = SessionChannel(sio=sio, sid=sid)
+        user = get_authenticated_user_from_token(USERS[sid]["user"]["token"])
         codxjunior_session = CODXJuniorSession(
                                 channel=channel,
+                                user=user,
                                 codx_path=base_data.codx_path) if base_data.codx_path \
                                   else None # Global requests
         try:
@@ -72,10 +75,10 @@ async def connect(sid, env):
 def send_online_users(sid):
     channel = SessionChannel(sio=sio, sid=sid)
     online_users = [{
-      "username": USERS[sid].get("username"),
-      "avatar": USERS[sid].get("avatar"),
+      "username": USERS[sid]["user"].get("username"),
+      "avatar": USERS[sid]["user"].get("avatar"),
       "sid": sid
-    } for sid in USERS.keys() if USERS.get("sid",{}).get("username")]
+    } for sid in USERS.keys() if USERS.get("sid",{}).get("user")]
     channel.send_event('codx-junior-online-users', { "users": online_users })
   
 
@@ -101,7 +104,7 @@ async def on_background_event(sid, data: dict):
 
 @sio.on("codx-junior-login")
 def io_login(sid, data: dict):
-    USERS[sid] = data.get("user")
+    USERS[sid] = data
     send_online_users(sid)
 
 @sio.on("codx-junior-chat")

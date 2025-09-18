@@ -7,7 +7,6 @@ from bs4 import BeautifulSoup
 import html2text
 
 # Configure logging
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def fetch_webpage(

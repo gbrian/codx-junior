@@ -60,6 +60,7 @@ class Chat(BaseModel):
     profiles: List[str] = Field(default=[])
     users: List[str] = Field(default=[])
     name: str = Field(default='')
+    pinned: Optional[bool] = Field(default=False)
     description: str = Field(default='')
     messages: List[Message] = Field(default=[])
     created_at: str = Field(default=str(datetime.now()))

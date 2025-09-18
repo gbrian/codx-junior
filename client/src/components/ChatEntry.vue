@@ -127,6 +127,7 @@ import ChatIcon from './chat/ChatIcon.vue'
             @open-file="$emit('open-file', $event)"
             @save-file="$emit('save-file', $event)"
             @edit-message="$emit('edit-message', $event)"
+            :mentionList="mentionList"
             v-if="!showDiff && !editting && !srcView && !code_patches" />
           <CodeDiff
             :new-string="message.diffMessage.content"
@@ -190,7 +191,7 @@ import ChatIcon from './chat/ChatIcon.vue'
 
 <script>
 export default {
-  props: ['chat', 'message', 'isTopic'],
+  props: ['chat', 'message', 'isTopic', 'mentionList'],
   data() {
     return {
       srcView: false,

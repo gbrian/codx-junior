@@ -84,10 +84,20 @@ export const mutations = mutationTree(state, {
   }
 })
 
+
+function createProjectChat(project, chat) {
+  return {
+    ...chat,
+    get chatLink() {
+      return `/project/${project.project_id}/chat/${chat.id}`
+    }
+  }
+}
+
 export const getters = getterTree(state, {
   allParentProjects: () => $storex.api.allProjects.filter(p => !p.parentProject),
   profiles: state => $storex.profiles.profiles[state.activeProject.project_id],
-  allChats: state => Object.values(state.chats || {}),
+  allChats: state => Object.values(state.chats || {}).map(chat =>createProjectChat(state.activeProject, chat)),
   allBoards: state => Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] })),
   allTags: state => new Set(Object.values(state.chats||{})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   allPRs: () => $storex.projects.allChats().filter(c => c.pr_view?.from_branch),
@@ -162,6 +172,7 @@ export const getters = getterTree(state, {
                       })),
     ].map(m => ({ 
       ...m,
+      avatar: m.user?.avatar || m.profile?.avatar || m.project?.project_icon,
       searchIndex: m.name.toLowerCase(),
       mention: encodeURIComponent(m.name)
     }))

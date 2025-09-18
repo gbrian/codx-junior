@@ -35,6 +35,8 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.utils.chat_utils import ChatUtils, QueryMentions
 from codx.junior.utils.utils import document_to_context
 
+from codx.junior.model.model import CodxUser
+
 # Set up logging
 logger = logging.getLogger(__name__)
 
@@ -42,11 +44,12 @@ logger = logging.getLogger(__name__)
 class ChatEngine:
     def __init__(self,
                 settings,
-                event_manager):
+                event_manager,
+                user: CodxUser = None):
         self.settings = settings
         self.event_manager = event_manager
         self.knowledge = Knowledge(settings=settings)
-
+        self.user = user
 
     def get_profile_manager(self):
         return ProfileManager(settings=self.settings)
@@ -458,7 +461,7 @@ class ChatEngine:
         :param llm_model: The name of the large language model.
         :return: An AI instance.
         """
-        ai_instance = AI(settings=self.settings, llm_model=llm_model)
+        ai_instance = AI(settings=self.settings, llm_model=llm_model, user=self.user)
         logger.debug(f"AI instance created with model {llm_model}")
         return ai_instance
 
