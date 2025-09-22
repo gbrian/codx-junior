@@ -66,21 +66,18 @@ const proxy = {
     changeOrigin: false,
     ws: true,
   },
-  '/workspace': {
+  '^/codx-workspace': {
       changeOrigin: true,
       // Just make Vite happy
-      target: 'https://example.com',
-      rewrite(path: string) {
-        return "/"
-        const proxyUrl = new URL(path, 'file:'),
-          url = new URL(proxyUrl.searchParams.get('url'))
-        return url.pathname + url.search
+      target: (req) => {
+        const port = req.path.split("/").reverse()[0]
+        const target = `http://0.0.0.0:${port}`
+        console.log("codx-workspace", req.path, target)
+        return target
       },
-      configure(proxy: any, options: any) {
-        proxy.on('proxyReq', (proxyReq, req) => {
-          console.log("/workspace request", { options, url: req['_parsedUrl'], proxyReq })
-          options.target = "https://www.google.com"
-        })
+      rewrite(path: string) {
+        const parts = path.split("/")
+        return parts.slice(2).join("/")
       },
     },
 }

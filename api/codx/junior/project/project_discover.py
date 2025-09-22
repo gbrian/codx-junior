@@ -122,3 +122,10 @@ def _update_all_projects():
     _ALL_PROJECTS = all_projects
     logger.info("All projects: %s", _ALL_PROJECTS)
     _ALL_PROJECTS_PROC = None
+
+
+def find_project_parents(project: CODXJuniorSettings, user: CodxUser):
+    all_user_projects = find_all_user_projects(user)
+    project_path = project.project_path
+    all_parents = [p for p in all_user_projects if project_path.startswith(p.project_path)]
+    return all_parents

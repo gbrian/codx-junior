@@ -4,6 +4,7 @@ from typing import Optional, Dict
 # Import tools
 from .fetch_webpage import fetch_webpage
 from .project_search import project_search
+from .code_writer import code_writer
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)

@@ -59,6 +59,105 @@ class OpenAI_AI:
         kwargs = {
             "model": self.model,
             "stream": True,
+        }
+
+        if self.llm_settings.temperature >= 0:
+            kwargs["temperature"] = float(self.llm_settings.temperature)
+
+        self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
+
+        openai_messages = [self.convert_message_to_openai(msg) for msg in messages]
+
+        if self.llm_settings.merge_messages:
+            message = "\n".join([message['content'] for message in openai_messages])
+            openai_messages = [{"role": "user", "content": message}]
+        self.log(f"USER REQUEST:\n{openai_messages}")
+        if self.settings.get_log_ai():
+            self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
+        try:
+            request_headers = config.get("headers", {})
+            tags = request_headers.get("tags", "")
+            tags = tags.split(",") + [
+                f"temperature:{self.llm_settings.temperature}",
+                self.settings.project_name
+            ]
+            if self.user:
+                tags.append(f"user:{self.user.username}")
+            request_headers["x-litellm-tags"] = ",".join(tags)
+
+            response_stream = self.client.chat.completions.create(
+                **kwargs,
+                messages=openai_messages,
+                extra_headers=request_headers
+            )
+            callbacks = config.get("callbacks", None)
+            content_parts = []
+
+            callback_data = {
+                "buffer": [],
+                "ts": datetime.now(),
+            }
+
+            tool_call_data = {
+                "id": None,
+                "function": None,
+                "arguments": ""
+            }
+            tool_call_active = False
+
+            def send_callback(chunk_content, flush=False):
+                if not callbacks:
+                    return
+
+                callback_data["buffer"].append(chunk_content or "")
+                if flush or (datetime.now() - callback_data["ts"]).total_seconds() > 1:
+                    callback_data["ts"] = datetime.now()
+                    message = "".join(callback_data["buffer"]) if callback_data["buffer"] else ""
+                    callback_data["buffer"] = []
+                    for cb in callbacks:
+                        try:
+                            cb(message)
+                        except Exception as ex:
+                            logger.exception(f"ERROR IN CALLBACKS: {ex}")
+
+            for chunk in response_stream:
+                # Check for tools
+                choice = chunk.choices[0]
+                tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None 
+                
+                if tool_calls:
+                    tool_call_active = True
+                    if tool_call_data["id"] is None:
+                        # First part of the tool call
+                        tool_call_data["id"] = tool_calls[0].id
+                        tool_call_data["function"] = tool_calls[0].function.name
+                    # Append arguments
+                    tool_call_data["arguments"] += tool_calls[0].function.arguments
+                                
+                chunk_content = choice.delta.content
+                if not chunk_content:
+                    continue
+                chunk_content = clean_string(chunk_content)
+                content_parts.append(chunk_content)
+                send_callback(chunk_content)
+
+            # Last chunks...
+            send_callback("", flush=True)
+        except Exception as ex:
+            logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
+            raise ex
+
+        response_content = "".join(content_parts)
+        self.log(f"AI RESPONSE:\n{response_content}")
+
+        messages.append(AIMessage(content=response_content))
+        return messages
+
+    @profile_function
+    async def a_chat_completions(self, messages, config: dict = {}):
+        kwargs = {
+            "model": self.model,
+            "stream": True,
             "tools": [tool["tool_json"] for tool in self.tools]
         }
 
@@ -144,6 +243,7 @@ class OpenAI_AI:
                         content = f"{func_name} returned:\n\n```\n{tool_output}\n```"
                         ai_tool_response = AIMessage(content=content)
                     except Exception as ex:
+                        logger.exception("Error processing: %s", func_name)
                         error = f"Error processing {func_name}:\n{ex}"
                         ai_tool_response = AIMessage(content=error)
 
@@ -170,7 +270,7 @@ class OpenAI_AI:
         return messages
 
     @profile_function
-    def process_tool_calls(self, tool_call_data):
+    async def process_tool_calls(self, tool_call_data):
         tool_responses = []
         self.log(f"process_tool_calls: {tool_call_data}")
         func_name = tool_call_data["function"]
@@ -179,9 +279,14 @@ class OpenAI_AI:
         # Find the tool and execute the tool_call
         for tool in self.tools:
             if tool["tool_json"]["function"]["name"] == func_name:
-                if tool["tool_json"]["settings"].get("project_settings"):
+                project_settings = tool["tool_json"].get("settings", {}).get("project_settings")
+                is_async = tool["tool_json"].get("settings", {}).get("async")
+                if tool["tool_json"].get("settings", {}).get("project_settings"):
                     params["settings"] = self.settings
+                
                 content = tool["tool_call"](**params)
+                if is_async:
+                    content = await content
                 tool_responses.append(content)
 
         # Format the tool response as specified

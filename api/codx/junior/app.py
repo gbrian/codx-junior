@@ -379,7 +379,10 @@ def api_project_watch(request: Request):
 
 @app.get("/api/projects")
 def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    return find_all_user_projects(user)
+    return [{
+      **project.__dict__,
+      "workspaces": project.get_project_workspaces()
+    } for project in find_all_user_projects(user)]
 
 @app.get("/api/projects/repo/branches")
 def api_find_all_repo_branches(request: Request):
@@ -461,6 +464,12 @@ async def api_get_file_diff(request: Request):
     codx_junior_session = request.state.codx_junior_session
     data = await request.json()
     return codx_junior_session.diff_file(path=data["path"], content=data["content"])
+
+@app.post("/api/files/diff/comments")
+async def api_get_file_diff(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    data = await request.json()
+    return codx_junior_session.diff_file_comments(path=data["path"], content=data["content"], comments=data["comments"])
 
 @app.post("/api/files/write")
 async def api_post_file(doc: Document, request: Request):

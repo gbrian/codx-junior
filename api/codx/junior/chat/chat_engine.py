@@ -261,14 +261,14 @@ class ChatEngine:
             ai_headers = {
               "tags": ",".join(tags)
             }
-            def ai_chat(messages=[], prompt="", tags="", callback=None):
+            async def ai_chat(messages=[], prompt="", tags="", callback=None):
                 headers = ai_headers
                 if tags:
                     headers = { 
                       **ai_headers, 
                       "tags": ai_headers["tags"] + "," + tags 
                     }
-                return ai.chat(messages=messages, prompt=prompt, callback=callback, headers=headers)
+                return await ai.a_chat(messages=messages, prompt=prompt, callback=callback, headers=headers)
 
             if not disable_knowledge and search_projects:
                 chat.messages.append(new_chat_message("assistant", content=f"Searching in {[p.project_name for p in search_projects]}"))
@@ -370,7 +370,7 @@ class ChatEngine:
 
             try:
                 input_messages_count = len(messages)
-                response_messages = ai_chat(messages=messages, callback=callback)
+                response_messages = await ai_chat(messages=messages, callback=callback)
                 
                 new_message_count = len(response_messages) - input_messages_count
                 if new_message_count > 1: # Intermediate reasoning messages                
@@ -404,9 +404,9 @@ class ChatEngine:
                 messages = messages.copy()
                 if is_refine:
                     messages=[messages[-1]]
-                description_message = ai_chat(messages=messages,
+                description_message = (await ai_chat(messages=messages,
                                             prompt="Create a 5 lines summary of the conversation",
-                                            tags="chat-summary")[-1]
+                                            tags="chat-summary"))[-1]
                 chat.description = description_message.content
             except Exception as ex:
                 logger.exception(f"Error chatting with project: {ex} {chat.id}")

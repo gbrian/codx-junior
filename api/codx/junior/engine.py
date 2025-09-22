@@ -48,6 +48,7 @@ from codx.junior.globals import (
 from codx.junior.project.project_discover import (
     find_project_by_id,
     find_project_by_name,
+    find_project_parents
 )
 from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
@@ -146,8 +147,8 @@ class CODXJuniorSession:
     def get_chat_manager(self):
         return ChatManager(settings=self.settings)
 
-    def get_profile_manager(self):
-        return ProfileManager(settings=self.settings)
+    def get_profile_manager(self, settings = None):
+        return ProfileManager(settings=settings or self.settings)
 
     def get_ai(self, llm_model: str = None):
         return AI(settings=self.settings, llm_model=llm_model, user=self.user)
@@ -180,7 +181,18 @@ class CODXJuniorSession:
 
     @profile_function
     def list_profiles(self):
-        return self.get_profile_manager().list_profiles()
+        all_parents = find_project_parents(project=self.settings, user=self.user)
+        profiles = {}
+        for project in all_parents + [self.settings]:
+            for profile in self.get_profile_manager(settings=project).list_profiles():
+                profiles[profile.name] = {
+                  **profile.__dict__,
+                  "project": {
+                    "project_id": project.project_id,
+                    "project_name": project.project_name
+                  }
+                }
+        return list(profiles.values())
 
     async def save_profile(self, profile):
         profile = self.get_profile_manager().save_profile(profile=profile)
@@ -1133,8 +1145,25 @@ class CODXJuniorSession:
         EOF
         """
 
-        return os.popen(git_command).read()
+        diff_out = os.popen(git_command).read()
+        
+        git_command = f"""
+        cat << EOF | git --no-pager diff --shortstat --no-index -- - {path}
+        {content}
+        EOF
+        """
+
+        diff_stats_out = os.popen(git_command).read()
+
+        return {
+          "diff": diff_out.strip(),
+          "stats": diff_stats_out.strip()
+        }
       
+
+    def diff_file_comments(self, path: str, content: str, comments: dict = {}):
+        pass
+    
     @profile_function
     async def process_project_file_before_saving(self, file_path: str, content: str):
         file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)
@@ -1203,7 +1232,8 @@ class CODXJuniorSession:
         }
 
     def get_repo_changes(self, from_branch: str, to_branch: str):
-        if from_branch and from_branch.startswith("* "):
+        is_current_branch = from_branch.startswith("* ")
+        if from_branch and is_current_branch:
             from_branch = from_branch[2:]
         if to_branch.startswith("* "):
             to_branch = to_branch[2:]
@@ -1211,11 +1241,29 @@ class CODXJuniorSession:
         git_diff_cmd = f"git diff {to_branch} {from_branch}" if from_branch != 'local' \
                         else f"git diff {to_branch}"
 
-        stdout, _ = exec_command(git_diff_cmd,
+        git_diff_cmd_out, _ = exec_command(git_diff_cmd,
                 cwd=self.settings.project_path)
+
+        git_diff_cmd_stat_out, _ = exec_command(git_diff_cmd.replace("git diff", "git diff --shortstat"),
+                cwd=self.settings.project_path)
+
+        local_changes = {}
+            
+        if is_current_branch:
+            git_local, _ = exec_command("git status -s", cwd=self.settings.project_path)
+            local_files = [f.strip().split(" ")[-1] for f in git_local.split("\n")]
+            for file in local_files:
+                if os.path.isfile(os.path.join(self.settings.project_path, file)):
+                    git_diff_local_out, _ = exec_command(f"git diff {to_branch} {file}",
+                        cwd=self.settings.project_path)
+                    local_changes[file] = git_diff_local_out if git_diff_local_out else \
+                                            f"diff --git a/ b/{file}\nnew file mode" 
+
         return {
-          "diff": stdout,
-          "git_diff_cmd": git_diff_cmd
+          "diff": git_diff_cmd_out,
+          "stat": git_diff_cmd_stat_out,
+          "git_diff_cmd": git_diff_cmd,
+          "local_changes": local_changes
         }
 
     def get_project_pr(self, from_branch: str, to_branch: str):
@@ -1287,9 +1335,16 @@ class CODXJuniorSession:
             #parent_branch = self.get_project_parent_branch()
             parent_branch = parent_branch or "HEAD@{1}"
             self.log_info(f"get_project_changes parent_branch {parent_branch}")
-        stdout, _ = exec_command(f"git diff {parent_branch}",
+        
+        diff_out, _ = exec_command(f"git diff {parent_branch}",
                       cwd=self.settings.project_path)
-        return stdout
+
+        diff_stat_out, _ = exec_command(f"git diff --shortstat {parent_branch}",
+                      cwd=self.settings.project_path)
+        return {
+          "diff": diff_out,
+          "stats": diff_stat_out
+        }
 
     def build_code_changes_summary(self, force = False):
         project_branches = self.get_project_branches()

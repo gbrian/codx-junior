@@ -226,14 +226,19 @@ OLLAMA_KNOWLEDGE_MODEL = AIModel(name="knowledge",
                             settings=AILLMModelSettings(),
                             url=f"https://llmfactory.com/library/{KNOWLEDGE_MODEL}")
 
+class WorkspaceApp(BaseModel):
+    name: str = Field(default="")
+    description: str = Field(default="")
+    icon: str = Field(default="")
+    port: Optional[int] = Field(default=3000)
+    is_vnc: Optional[bool] = Field(default=False)
+
 class Workspace(BaseModel):
     id: str = Field(default="")
     name: str = Field(default="")
     description: str = Field(default="")
     project_ids: List[str] = Field(default=[])
-    vnc_port: Optional[int] = Field(default=3000)
-    workspace_start_port: Optional[int] = Field(default=0)
-    workspace_end_port: Optional[int] = Field(default=0)
+    apps: Optional[List[WorkspaceApp]] = Field(default=[])
     updated_at: Optional[str] = Field(default=None)    
 
 class AgentSettings(BaseModel):

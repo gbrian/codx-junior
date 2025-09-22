@@ -86,7 +86,7 @@ class AIDocValidateResponse(BaseModel):
 
 @profile_function
 def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
-    ai = AI(settings=settings)
+    ai = AI(settings=settings, user=CodxUser(username=__name__))
     score = float(settings.knowledge_context_cutoff_relevance_score or 0)
     if score == -1:
       logger.info(f"Validating RAG documents disabled!!")

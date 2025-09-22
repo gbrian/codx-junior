@@ -42,6 +42,8 @@ from codx.junior.utils.utils import write_file
 
 from langchain.schema.document import Document
 
+from codx.junior.model.model import CodxUser
+
 logger = logging.getLogger(__name__)
 
 CATEGORY_NOT_FOUND_MESSAGE = "No matching category found for file: %s"
@@ -577,7 +579,7 @@ class WikiManager:
 
     def _get_ai(self) -> AI:
         """Create and return an AI engine instance for processing."""
-        return AI(settings=self.settings, llm_model=self.settings.get_wiki_model())
+        return AI(settings=self.settings, llm_model=self.settings.get_wiki_model(), user=CodxUser(username=__name__))
 
     def _ai_chat(self, prompt, tags="", clean=True):
         tags = f"{tags},wiki" if tags else "wiki"

@@ -56,6 +56,7 @@ class AI:
         self.settings = settings
         self.llm_model = llm_model
         self.llm = self.create_chat_model(llm_model=llm_model)
+        self.a_llm = self.create_a_chat_model(llm_model=llm_model)
         self.embeddings = self.create_embeddings_model()
         self.cache = False
         self.ai_logger = AILogger(settings=settings)
@@ -122,6 +123,59 @@ class AI:
       
         return response_messages
 
+
+    @profile_function
+    async def a_chat(
+        self,
+        messages: List[Message] = None,
+        prompt: Optional[str] = None,
+        *,
+        max_response_length: Optional[int] = None,
+        callback = None,
+        headers = {}
+    ) -> List[Message]:
+        if not messages:
+            messages = []
+
+        if prompt:
+            messages.append(HumanMessage(content=prompt))
+
+        response_messages = None
+        md5_key = messages_md5(messages) if self.cache else None
+        if self.cache and md5_key in self.cache:
+            response_messages.append(
+                AIMessage(content=json.loads(self.cache[md5_key])["content"])
+            )
+            if self.settings.get_log_ai():
+                self.ai_logger.debug(f"Response from cache: {messages} {response}")
+
+        else:
+
+            callbacks = []
+            if callback:
+                callbacks.append(callback)
+            
+            try:
+                self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
+                # Apply global instructions
+                
+                response_messages = await self.a_llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
+                                               + messages, 
+                                               config={"callbacks": callbacks, "headers": headers})
+            except Exception as ex:
+                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model} {self.settings}")
+                raise RuntimeError("Failed to process AI request after retries.")
+
+            if self.cache:
+                self.cache[md5_key] = json.dumps(
+                    {
+                        "messages": serialize_messages(messages),
+                        "content": response_messages[-1].content,
+                    }
+                )
+      
+        return response_messages
+
     @profile_function
     def embeddings(self, content: str):
         return self.embeddings(content=content)
@@ -147,6 +201,9 @@ class AI:
 
     def create_chat_model(self, llm_model: str) -> BaseChatModel:
         return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).chat_completions
+
+    def create_a_chat_model(self, llm_model: str) -> BaseChatModel:
+        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).a_chat_completions
 
     def get_openai_chat_client(self, llm_model: str = None):
         return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).client

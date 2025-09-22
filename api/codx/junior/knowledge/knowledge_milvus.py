@@ -11,6 +11,8 @@ from codx.junior.knowledge.knowledge_db import KnowledgeDB
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from codx.junior.model.model import CodxUser
+
 from langchain.schema.document import Document
 
 from codx.junior.utils.utils import (
@@ -47,7 +49,7 @@ class Knowledge:
 
     def get_ai(self):
         if not self.ai:
-            self.ai = AI(settings=self.settings)
+            self.ai = AI(settings=self.settings, user=CodxUser(username=__name__))
         return self.ai
 
     def get_db(self):

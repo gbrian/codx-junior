@@ -175,6 +175,10 @@ class CODXJuniorSettings(BaseModel):
     def get_project_settings_file(self):
         return f"{self.codx_path}/project.json"
 
+    def get_project_workspaces(self):
+        global_settings = read_global_settings()
+        return [w for w in global_settings.workspaces if self.project_id in w.project_ids]
+
     @classmethod
     def from_codx_path(cls, codx_path: str):
         return CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")

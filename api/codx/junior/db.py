@@ -80,6 +80,7 @@ class Chat(BaseModel):
     knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
     chat_links: List[ChatId] = Field(default=[])
     pr_view: Optional[dict] = Field(default={}, description="Pull request view")
+    
 
 class KanbanColumn(BaseModel):
     doc_id: Optional[str] = Field(default=None)

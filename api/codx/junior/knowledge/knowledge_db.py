@@ -15,6 +15,8 @@ from pymilvus import MilvusClient, DataType, Function, FunctionType
 
 from langchain.schema.document import Document
 
+from codx.junior.model.model import CodxUser
+
 from codx.junior.ai import AI
 from codx.junior.settings import CODXJuniorSettings
 
@@ -100,7 +102,7 @@ class KnowledgeDB:
 
     def get_ai(self):
         if not self.ai:
-            self.ai = AI(settings=self.settings)
+            self.ai = AI(settings=self.settings, user=CodxUser(username=__name__))
         return self.ai
 
     def refresh_last_update(self):
