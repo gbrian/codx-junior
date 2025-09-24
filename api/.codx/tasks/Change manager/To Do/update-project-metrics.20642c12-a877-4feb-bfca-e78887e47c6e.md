@@ -1,7 +1,7 @@
-# [[{"id": "20642c12-a877-4feb-bfca-e78887e47c6e", "doc_id": null, "project_id": null, "parent_id": null, "message_id": null, "status": "", "tags": [], "file_list": ["/shared/codx-junior/api/codx/junior/changes/change_manager.py"], "check_lists": [], "profiles": [], "users": ["admin"], "name": "update_project_metrics", "pinned": false, "description": "The user is requesting a fix for the `update_project_metrics` function, specifically to check if the settings metrics are older than 5 minutes or if there are no metrics at all, and update accordingly. They also provided instructions on how to format file content when generating responses. The conversation focuses on implementing a solution to ensure that the project metrics are up-to-date.", "created_at": "2025-09-16 07:45:16.353568", "updated_at": "2025-09-16T07:49:04.241191", "mode": "task", "kanban_id": "", "column_id": "", "board": "Change manager", "column": "To Do", "chat_index": 0, "url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/Change manager/To Do/update-project-metrics.20642c12-a877-4feb-bfca-e78887e47c6e.md", "llm_model": "", "visibility": "", "remote_url": "", "knowledge_topics": [], "chat_links": [], "pr_view": {}}]]
+# [[{"id": "20642c12-a877-4feb-bfca-e78887e47c6e", "doc_id": null, "project_id": null, "parent_id": null, "message_id": null, "status": "", "tags": [], "file_list": ["/shared/codx-junior/api/codx/junior/changes/change_manager.py"], "check_lists": [], "profiles": [], "users": ["admin"], "name": "update_project_metrics", "pinned": false, "description": "The user provided instructions about formatting file content with specific file paths in code blocks. They then requested an update to a function named `update_project_metrics` to include a condition that skips execution if the `last_check` was less than 2 minutes ago.", "created_at": "2025-09-16 07:45:16.353568", "updated_at": "2025-09-24T04:36:03.024634", "mode": "task", "kanban_id": "", "column_id": "", "board": "Change manager", "column": "To Do", "chat_index": 0, "url": "", "branch": "", "file_path": "/shared/codx-junior/api/.codx/tasks/Change manager/To Do/update-project-metrics.20642c12-a877-4feb-bfca-e78887e47c6e.md", "llm_model": "", "visibility": "", "remote_url": "", "knowledge_topics": [], "chat_links": [], "pr_view": {}}]]
 ## [[{"doc_id": "6b022a4d-e3f8-4788-8042-049f64b14297", "role": "user", "task_item": "", "think": "", "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-09-16 07:45:16.351137", "updated_at": "2025-09-16 07:45:16.351162", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin", "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true, "read_by": []}]]
 Fix update_project_metrics check if the settings metrics are older than 5 minutes or no metrics and update
-## [[{"doc_id": "f07fe221-c82a-446a-aab3-b0eacd5c3176", "role": "assistant", "task_item": "analysis", "think": null, "hide": false, "is_answer": false, "improvement": false, "created_at": "2025-09-16 07:45:16.351137", "updated_at": "2025-09-16 07:45:16.351162", "images": [], "files": [], "meta_data": {"time_taken": 8.902253150939941, "first_chunk_time_taken": 0.00022220611572265625, "model": "openai/gpt-4o"}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": false, "read_by": []}]]
+## [[{"doc_id": "f07fe221-c82a-446a-aab3-b0eacd5c3176", "role": "assistant", "task_item": "analysis", "think": null, "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-09-16 07:45:16.351137", "updated_at": "2025-09-16 07:45:16.351162", "images": [], "files": [], "meta_data": {"time_taken": 8.902253150939941, "first_chunk_time_taken": 0.00022220611572265625, "model": "openai/gpt-4o"}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": false, "read_by": []}]]
 To fix the `update_project_metrics` method to check if the settings metrics are older than 5 minutes or if there are no metrics, we need to:
 
 1. Check if there are existing metrics.
@@ -57,3 +57,49 @@ class ChangeManager:
 - Used `datetime.now()` to get the current time and calculated `five_minutes_ago`.
 - Checked if `last_check` exists and if it is older than 5 minutes.
 - Updated the metrics if necessary and returned the updated metrics.
+## [[{"doc_id": "7b1a7f3a-f971-4513-a37b-476be431491c", "role": "user", "task_item": "", "think": "", "hide": true, "is_answer": false, "improvement": false, "created_at": "2025-09-22 18:26:49.779615", "updated_at": "2025-09-22 18:26:49.779641", "images": [], "files": [], "meta_data": {}, "profiles": [], "user": "admin", "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": true, "read_by": []}]]
+Update update_project_metrics, if last_check was in less than 2 min just skip.
+
+
+## [[{"doc_id": "850666a6-b07c-47f0-b105-3fa15abc29ea", "role": "assistant", "task_item": "analysis", "think": null, "hide": false, "is_answer": false, "improvement": false, "created_at": "2025-09-22 18:26:49.779615", "updated_at": "2025-09-22 18:26:49.779641", "images": [], "files": [], "meta_data": {"time_taken": 5.867217540740967, "first_chunk_time_taken": 0.00012564659118652344, "model": "openai/gpt-4o"}, "profiles": [], "user": null, "knowledge_topics": [], "done": true, "is_thinking": false, "disable_knowledge": false, "read_by": []}]]
+To implement the functionality where the `update_project_metrics` method skips updating if `last_check` was within the last 2 minutes, you need to add a condition to compare the current time with the `last_check` time. Here's how you can update the method:
+
+```python /shared/codx-junior/api/codx/junior/changes/change_manager.py
+from datetime import datetime, timedelta
+
+class ChangeManager:
+    # ... other methods ...
+
+    def update_project_metrics(self):
+        last_check_str = self.settings.metrics.get("last_check", None)
+        if last_check_str:
+            last_check = datetime.fromisoformat(last_check_str)
+            if datetime.now() - last_check < timedelta(minutes=2):
+                logger.info("Skipping update_project_metrics as last_check was within the last 2 minutes.")
+                return
+
+        last_check = datetime.now().isoformat()
+
+        try:
+            number_of_chats = self.chat_manager.chat_count()
+            chat_changed_last = self.chat_manager.last_chats()
+
+            last_update = None
+            if chat_changed_last:
+                last_update = chat_changed_last[0].updated_at
+            return {
+                "last_check": last_check,
+                "last_update": last_update,
+                "number_of_chats": number_of_chats,
+                "chats_changed_last": chat_changed_last
+            }
+        except Exception as ex:
+            logger.error("Error processing project metrics: %s - %s", self.settings.project_name, ex)
+            return {
+                "error": str(ex)
+            }
+```
+
+### Key Changes:
+- Added a condition to check if `last_check` exists in `self.settings.metrics` and if the difference between the current time and `last_check` is less than 2 minutes.
+- If the condition is met, the method logs a message and returns immediately, skipping the update process.

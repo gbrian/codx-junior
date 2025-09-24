@@ -7,11 +7,6 @@ import CodeViewer from './CodeViewer.vue'
 <template>
   <div class="rounded-md">
     <div class="flex gap-2 w-full justify-end bg-base-100 p-2 rounded-t" ref="toolbar">
-      <button class="btn btn-xs tooltip" data-tip="Preview HTML"
-        @click="htmlPreview = !htmlPreview" v-if="language === 'html'"
-      >
-        <i class="fa-brands fa-chrome"></i>
-      </button>
       <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource"
         v-if="showMermaid">
         <span v-if="showMermaidSource">View diagram</span>
@@ -48,7 +43,7 @@ const languageMapping = {
   "markdown": "md"
 }
 export default {
-  props: ['code', 'text', 'text-language'],
+  props: ['code', 'text', 'text-language', 'file-name'],
   data () {
     return {
       codeText: null,
@@ -62,7 +57,7 @@ export default {
     const language = languageMapping[this.codeLanguage] || this.codeLanguage
     this.languages = [[ language, language.toUpperCase() ]]
     this.codeText = this.text || this.code.innerText
-    this.file = this.code.attributes["data-file"]?.value
+    this.file = this.fileName || this.code?.attributes["data-file"]?.value
     console.log("Code block created", language)
   },
   mounted () {

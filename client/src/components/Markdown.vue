@@ -1,4 +1,3 @@
-```vue /shared/codx-junior/client/src/components/Markdown.vue
 <script setup>
 import Code from './Code.vue'
 import YoutubeViewer from './YoutubeViewer.vue'
@@ -79,11 +78,13 @@ export default {
               </div>
             `
           }
-          this.mentionList.filter(m => m.avatar)
+          /*
+          this.mentionList?.filter(m => m.avatar)
               .forEach(mention => {
                 const mentionPattern = new RegExp(`@${mention.name}`, 'g')
                 sanitizedText = sanitizedText.replace(mentionPattern, avatarHtml(mention))
               })
+          */
           return md.render(sanitizedText)
         } catch (ex) {
           console.error("Message can't be rendered", this.text)
@@ -168,4 +169,3 @@ export default {
   }
 }
 </script>
-```

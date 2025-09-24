@@ -92,7 +92,9 @@ export default {
       this.$projects.applyPatch({ patch: this.code })
     },
     async onShowDiff() {
-      this.diff = await this.$storex.api.files.diff({ path: this.file, content: this.code })
+      const { diff, stats } = await this.$storex.api.files.diff({ path: this.file, content: this.code }) 
+      this.diff = diff
+      this.stats = stats
       this.orgContent = await this.$storex.api.files.read(this.file)
       this.showDiff = !this.showDiff
     },

@@ -6,4 +6,8 @@ echo "Starting llmfactory USER: ${USER} HOME: ${HOME}"
 
 source ${CODX_JUNIOR_PATH}/set_env.sh
 
+codx docker
+
+sudo apt install -y fuse fuse-overlayfs
+
 dockerd

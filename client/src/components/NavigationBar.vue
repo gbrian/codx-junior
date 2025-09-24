@@ -2,6 +2,7 @@
 import moment from 'moment';
 import ChatBar from './user/ChatBar.vue';
 import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
+import WorkspacesSelector from './workspaces/WorkspacesSelector.vue';
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
@@ -73,10 +74,23 @@ import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
 
     <div class="divider"></div>
     
-    <ChatBar />
+    <ChatBar v-if="false" />
 
     <div class="grow"></div>
     <div class="divider"></div>
+
+    <div class="dropdown dropdown-left" v-if="$projects.workspaces.length">
+      <div tabindex="0" role="button" class="btn m-1">
+        <i class="fa-solid fa-grip"></i>
+      </div>
+      <WorkspacesSelector tabindex="0"
+        class="dropdown-content bg-base-300 rounded-box z-1 w-52 p-2 shadow-sm"
+        :workspaces="$projects.workspaces"
+        @select="onOpenWorkspace"
+        v-if="$projects.workspaces"
+      >
+      </WorkspacesSelector>
+    </div>
       
     <button class="hidden" v-if="$ui.showApp" @click="$ui.setFloatinCodxJunior(!$ui.floatingCodxJunior)">
       <i class="fa-solid fa-right-from-bracket" :class="$ui.floatingCodxJunior && 'rotate-180'"></i>
@@ -275,6 +289,9 @@ export default {
       } else {
         this.$session.onError("No project selected")
       }
+    },
+    onOpenWorkspace({ workspace, app }) {
+      this.$projects.openWorkspaceApp({ workspace, app })
     }
   }
 };

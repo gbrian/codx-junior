@@ -8,6 +8,7 @@ import TaskCard from '../kanban/TaskCard.vue'
 import UserSelector from './UserSelector.vue'
 import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
 import CheckLists from './CheckLists.vue'
+import MentionSelector from '../mentions/MentionSelector.vue'
 </script>
 
 <template>
@@ -83,35 +84,6 @@ import CheckLists from './CheckLists.vue'
       <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
         {{  lastChatEvent }}
       </div>
-      <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
-        <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2 hidden">
-          <div class="flex p-1 items-center text-sky-600">
-            <i class="fa-solid fa-at"></i>
-            <input type="text" v-model="termSearchQuery"
-              ref="termSearcher"
-              class="-ml-1 input input-xs text-lg bg-transparent" placeholder="search term..."
-              @keydown.down.stop="onSelNext"
-              @keydown.up.stop="onSelPrev"
-              @keydown.ctrl.enter.exact.stop="addSerchTerm(searchTerms[searchTermSelIx], true)"
-              @keydown.enter.exact.stop="addSerchTerm(searchTerms[searchTermSelIx])"
-              @keydown.esc="closeTermSearch" />
-            <button class="btn btn-xs btn-circle btn-outline btn-error"
-              @click="closeTermSearch"
-              v-if="termSearchQuery">
-              <i class="fa-solid fa-circle-xmark"></i>
-            </button>
-          </div>
-        </div>
-        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
-          <li class="tooltip text-lg" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
-            <a @click="addSerchTerm(term)">
-              <div :class="[searchTermSelIx === ix ? 'underline':'']">
-                <span class="text-sky-600 font-bold">@{{ term.name }}</span>
-              </div>
-            </a>
-          </li>
-        </ul>
-      </div>
       <div class="flex gap-2">
         <span class="badge tooltip flex gap-2 items-center"
           :data-tip="mention.tooltip"
@@ -125,6 +97,8 @@ import CheckLists from './CheckLists.vue'
           </div>
         </span>
       </div>
+
+      <MentionSelector :content="editorText" :mentionList="mentionList" @select="onMentionReplace" />
       <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
             'flex-col',
             editMessage && 'border-warning',
@@ -270,7 +244,11 @@ import CheckLists from './CheckLists.vue'
     <modal v-if="selectFile">
       <div class="flex flex-col">
         <div class="text-xl">Project file</div>
-        <input type="text" class="input input-bordered" placeholder="File path" v-model="uploadProjectFile" />
+        
+        <input type="text" class="input input-bordered"
+          placeholder="File path" 
+          v-model="uploadProjectFile" 
+          />
         <button class="btn btn-sm" @click="addChatFile">
           Add file
         </button>
@@ -312,9 +290,6 @@ export default {
       waiting: false,
       editMessage: null,
       editMessageId: null,
-      termSearchQuery: null,
-      searchTerms: null,
-      searchTermSelIx: -1,
       files: [],
       images: [],
       previewImage: null,
@@ -440,15 +415,12 @@ export default {
       return this.$projectContext || this.$project
     },
     mentionList() {
-      return this.chatProject.mentionList || []
+      return (this.projectContext || this.$projects).mentionList
     },
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
         .map(w => w[1])
       return this.mentionList.filter(m => mentions.includes(m.mention))
-    },
-    showTermSearch() {
-      return this.searchTerms?.length
     },
     lastChatEvent() {
       const { events } = this.$storex.session
@@ -473,16 +445,14 @@ export default {
     }
   },
   watch: {
-    termSearchQuery(newVal) {
-      if (newVal?.length > 2) {
-        this.searchKeywords()
-      } else {
-        this.searchTerms = null
-      }
-    },
     theChat() {
       this.initSelectedUserFromChat()
       this.setProjectContext()
+    },
+    uploadProjectFile(newVal, oldVal) {
+      if (newVal?.length >= 3 && newVal?.length > oldVal?.length) {
+        this.detectSearchTerm()
+      }
     }
   },
   methods: {
@@ -603,7 +573,8 @@ export default {
         this.saveChat()
       } else {
         const message = this.editor.innerText        
-        if (this.canPost && this.postMyMessage(message)) {
+        if (message?.length &&
+          this.canPost && this.postMyMessage(message)) {
           await this.saveChat()
         }
         if (!this.isChannel || this.lastMessage?.profiles.length) {
@@ -699,15 +670,6 @@ export default {
     removeMessage(message) {
       this.$emit("delete-message", message)
     },
-    async searchKeywords() {
-      const searchQuery = this.termSearchQuery?.toLowerCase()
-      this.searchTerms = this.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
-      this.searchTermSelIx = 0
-      if (!this.refreshngMentions) {
-        this.refreshngMentions = this.$projects.loadProjectKnowledge()
-        this.refreshngMentions.then(() => this.refreshngMentions = null)
-      }
-    },
     async fileToMessage(file) {
       const content = await this.$storex.api.files.read(file)
       const ext = file.split(".").reverse()[0]
@@ -727,7 +689,9 @@ export default {
           this.setEditorText(editorText)
         }
       }
-      this.closeTermSearch()
+    },
+    onMentionReplace({ mention, orgText }) {
+      this.addSerchTerm(mention)
     },
     getEditorCaretCharOffset() {
       let caretOffset = 0
@@ -756,33 +720,6 @@ export default {
       const lastWorkIndex = text.slice(0, caretIndex).split(/\s/g).length - 1
       return text.split(/\s/g)[lastWorkIndex]
     },
-    detectSearchTerm() {
-      const lastWord = this.getCursorWord()
-      const mention = lastWord[0] === '@' ? lastWord?.slice(1) : null
-      if (mention?.length >= 3 &&
-        !this.mentionList.find(m => m.name === mention)) {
-        this.termSearchQuery = mention
-      }
-      if (this.showTermSearch && !mention) {
-        this.closeTermSearch()
-      }
-    },
-    closeTermSearch() {
-      this.searchTerms = null
-      this.termSearchQuery = null
-    },
-    onSelNext() {
-      this.searchTermSelIx++
-      if (this.searchTermSelIx === this.searchTerms?.length) {
-        this.searchTermSelIx = 0
-      }
-    },
-    onSelPrev() {
-      this.searchTermSelIx--
-      if (this.searchTermSelIx === -1) {
-        this.searchTermSelIx = this.searchTerms?.length - 1
-      }
-    },
     saveChat() {
       if (!this.theChat.temp) { 
         return API.chats.save(this.theChat)
@@ -806,6 +743,15 @@ export default {
       if (file) {
         this.onInputImage(file)
         e.preventDefault()
+        return false
+      }
+      const text = [...e.clipboardData?.items].filter(f => f.type.indexOf("text") !== -1)[0]
+      if (text) {
+        const textContent = await new Promise(ok => text.getAsString(ok))
+        const fileMention = this.mentionList.find(m => m.file === textContent)
+        if (fileMention) {
+          this.addFileToChat(fileMention.file)
+        }
         return false
       }
     },
@@ -868,7 +814,6 @@ export default {
       if (this.editor &&
         this.editor.innerText != this.editorText) {
         this.editorText = this.editor.innerText
-        this.detectSearchTerm()
       }
     },
     async testProject() {
@@ -926,8 +871,6 @@ export default {
       }
       if (event.key === 'Escape') {
         this.onResetEdit()
-      } else if (event.key === 'Tab' && this.showTermSearch) {
-        this.addSerchTerm(this.searchTerms[this.searchTermSelIx])
       } else if(event.key === 'Enter' && event.ctrlKey) {
         this.sendMessage()
       } else {
@@ -940,8 +883,11 @@ export default {
     },
     onAddDocument(doc) {
       const source = doc.metadata.source
-      this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], source])]
+      this.addFileToChat(source)
       this.saveChat()
+    },
+    addFileToChat(filePath) {
+      this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], filePath])]
     },
     async onReloadMessageFile({ file, message }) {
       message.content = await this.fileToMessage(file)

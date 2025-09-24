@@ -5,7 +5,7 @@
 <template>
   <div class="text-xl animate-pulse" v-if="!profiles.length">Loading profiles...</div>
     
-  <div class="w-full h-full flex flex-col gap-2 h-96" v-else>
+  <div class="w-full h-full flex flex-col gap-2 h-96" v-else><
     <div class="flex gap-2 shrink-0 items-center justify-between">
       <ProjectBadge :project="project" />
       <input type="text" placeholder="Filter profiles..." class="input input-sm input-bordered" v-model="filterText" />

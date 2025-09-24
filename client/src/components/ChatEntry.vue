@@ -3,6 +3,7 @@ import Markdown from './Markdown.vue'
 import moment from 'moment'
 import { CodeDiff } from 'v-code-diff'
 import ChatIcon from './chat/ChatIcon.vue'
+import Document from './document/Document.vue'
 </script>
 
 <template>
@@ -38,7 +39,9 @@ import ChatIcon from './chat/ChatIcon.vue'
               <span v-if="timeTaken">({{ timeTaken }} s.)</span>
               <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             </div>
-            <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end">
+            <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end"
+              v-if="menuLess !== true"
+            >
               <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
                   <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer')">
@@ -120,8 +123,8 @@ import ChatIcon from './chat/ChatIcon.vue'
           
           <textarea v-if="editting" v-model="editting" class="h-96 input input-bordered w-full p-2"/>                
           <pre v-if="srcView">{{ message.content }}</pre>
-          <Markdown 
-            :text="messageContent"
+          <Document 
+            :content="messageContent"
             @generate-code="onGenerateCode" 
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
@@ -191,7 +194,7 @@ import ChatIcon from './chat/ChatIcon.vue'
 
 <script>
 export default {
-  props: ['chat', 'message', 'isTopic', 'mentionList'],
+  props: ['chat', 'message', 'isTopic', 'mentionList', 'menu-less'],
   data() {
     return {
       srcView: false,

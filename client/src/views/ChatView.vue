@@ -277,6 +277,9 @@ import PRView from '@/components/repo/PRView.vue'
                 {{ project.project_name }}
               </option>
             </select>
+            <div class="flex" v-for="profile in subtaskProfiles" :key="profile.name">
+              <div class="badge">{{ profile.name }}</div>
+            </div>
             <div class="flex gap-2 justify-end">
               <button class="btn btn-error" @click="cancelSubtask">Cancel</button>
               <button class="btn btn-primary" @click="createSubtask">Create</button>
@@ -323,8 +326,10 @@ export default {
       showSubtaskModal: false,
       showSubtasksModal: false,
       showTaskSettings: false,
+      subtaskProfiles: [],
       subtaskName: '',
       subtaskDescription: '',
+      subtaskMode: '',
       subtaskFiles: [],
       subtaskProject: null,
       subtaskParentId: null,
@@ -339,7 +344,7 @@ export default {
     }
   },
   created() {
-    this.setProjectContext()
+    this.init()
   },
   async mounted() {
     this.toggleChatOptions = !this.$ui.isMobile
@@ -434,7 +439,18 @@ export default {
                 .filter(i => !!i)
     }
   },
+  watch: {
+    chat() {
+      this.init()
+    }
+  },
   methods: {
+    async init() {
+      this.setProjectContext()
+      await Promise.all(
+        this.childrenChats.map(chat => this.$projects.loadChat(chat))
+      )
+    },
     async setProjectContext() {
       this.projectContext = await this.$service.project.loadProjectContext(this.$project)
     },
@@ -444,7 +460,6 @@ export default {
     },
     async confirmDeleteChat() {
       this.confirmDelete = false
-      const parent_id = this.chat.parent_id
       await this.$projects.deleteChat(this.chat)
       const parentChat = this.parentChat
       if (parentChat) {
@@ -548,7 +563,9 @@ export default {
           project_id: this.subtaskProject,
           parent_id: this.subtaskParentId,
           message_id: this.subtaskMessageId,
-          file_list: this.subtaskFiles
+          file_list: this.subtaskFiles,
+          profiles: this.subtaskProfiles,
+          mode: this.subtaskMode
         })
         this.resetSubtaskModal()
       }
@@ -560,7 +577,9 @@ export default {
       this.showSubtaskModal = false
       this.subtaskName = ''
       this.subtaskDescription = ''
+      this.subtaskMode = 'chat'
       this.subtaskFiles = []
+      this.subtaskProfiles = []
     },
     addNewTag() {
       this.chat.tags = [...new Set([...this.chat.tags || [], this.newTag])]
@@ -610,11 +629,24 @@ export default {
       await this.saveChat()
       await this.$storex.api.repo.changes(this.chat) 
     },
-    onPRFileComment({ fileName, description }) {
-      this.subtaskName = `Review ${fileName}`
-      this.subtaskDescription = description
-      this.subtaskFiles = [fileName]
-      this.newSubChat()
+    async onPRFileComment({ chat, title, files, description, profiles, mode }) {
+      if (chat) {
+        chat.messages.push({
+          user: this.$user.name,
+          profiles,
+          content: description
+        })
+        await this.saveChat()
+        await this.$storex.projects.chatWihProject(chat)
+        
+      } else {
+        this.subtaskName = title
+        this.subtaskDescription = description
+        this.subtaskFiles = files
+        this.subtaskProfiles = profiles
+        this.subtaskMode = mode
+        this.createSubtask()
+      }
     },
     toggleChatPinned() {
       this.chat.pinned = !this.chat.pinned

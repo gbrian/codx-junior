@@ -86,11 +86,12 @@ export class ProjectService extends Service {
         .map(({ file, name, filePath }) => ({ 
                         name, 
                         file, 
+                        searchIndex: filePath,
                         tooltip: `Use file ${filePath}`
                       })),
     ].map(m => ({ 
       ...m,
-      searchIndex: m.name.toLowerCase(),
+      searchIndex: m.searchIndex || m.name.toLowerCase(),
       mention: encodeURIComponent(m.name)
     }))
   }

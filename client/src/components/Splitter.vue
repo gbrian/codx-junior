@@ -7,6 +7,7 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
 import NavigationBar from '../components/NavigationBar.vue'
 import LogViewerVue from './LogViewer.vue'
 import Wizard from '../components/wizards/Wizard.vue'
+import WorkspacesViewer from './workspaces/WorkspacesViewer.vue'
 </script>
 
 <template>
@@ -59,6 +60,14 @@ import Wizard from '../components/wizards/Wizard.vue'
         <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
       </SplitterPanel>
 
+      <!-- New SplitterPanel for WorkspacesViewer -->
+      <SplitterResizeHandle id="splitter-group-1-resize-handle-3" class="bg-stone-800 hover:bg-slate-600 w-1" v-if="showWorkspaces" />
+
+      <SplitterPanel id="splitter-group-1-panel-4" :order="4" :defaultSize="25" :minSize="20" class="flex items-center justify-center"
+        v-if="showWorkspaces">
+        <WorkspacesViewer class="w-full h-full" />
+      </SplitterPanel>
+
     </SplitterGroup>
     <div class="flex flex-col w-2/5 h-full overflow-auto" v-if="$projects.activeWizards.length">
       <Wizard 
@@ -97,6 +106,9 @@ export default {
     },
     showCodxJuniorFloating() {
       return this.$ui.floatingCodxJunior || (this.$ui.showBrowser && this.$ui.showCoder)
+    },
+    showWorkspaces() {
+      return this.$storex.projects.openedWorkspaces.length
     }
   },
   mounted() {

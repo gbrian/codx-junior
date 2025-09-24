@@ -45,7 +45,8 @@ export const state = () => ({
   activeWizards: [],
   ai: {
     models: []
-  }
+  },
+  openedWorkspaces: []
 })
 
 export const mutations = mutationTree(state, {
@@ -168,12 +169,13 @@ export const getters = getterTree(state, {
         .map(({ file, name, filePath }) => ({ 
                         name, 
                         file, 
+                        searchIndex: filePath,
                         tooltip: `Use file ${filePath}`
                       })),
     ].map(m => ({ 
       ...m,
       avatar: m.user?.avatar || m.profile?.avatar || m.project?.project_icon,
-      searchIndex: m.name.toLowerCase(),
+      searchIndex: m.searchIndex || m.name.toLowerCase(),
       mention: encodeURIComponent(m.name)
     }))
   },
@@ -181,7 +183,10 @@ export const getters = getterTree(state, {
         $storex.projects.allChats
           .filter(c => c.board === 'codx-junior')
           .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),
-  userList: () => [$storex.users.user, ...$storex.projects.profiles.map(p => ({ ...p, isProfile: true }))]
+  userList: () => [$storex.users.user, ...$storex.projects.profiles.map(p => ({ ...p, isProfile: true }))],
+  workspaces: state => Object.values(state.allProjects.map(p => p.workspaces)
+                          .reduce((a, b) => a.concat(b), [])
+                          .reduce((acc, ws) => ({ ...acc, [ws.id]: ws }) , {}))
 })
 
 export const actions = actionTree(
@@ -504,9 +509,10 @@ export const actions = actionTree(
     },
     async saveProfile({ state }, profile) {
       const data = await $storex.profiles.saveProfile({ profile, project: state.activeProject })
+      await $storex.projects.loadProfiles()
       if (state.selectedProfile.name === data.name) {
-        state.selectedProfile = data
-      }
+        state.selectedProfile = $storex.projects.profiles.find(p => p.name === data.name)
+      }      
     },
     deleteProfile({ state }, profile) {
       if (profile.name === state.selectedProfile?.name) {
@@ -557,6 +563,14 @@ export const actions = actionTree(
     },
     async applyPatch(_,patch) {
       return API.run.patch(patch)
+    },
+    openWorkspaceApp({ state }, { workspace, app }) {
+      const ix = state.openedWorkspaces.findIndex(ows => ows.workspace.id === workspace.id && app.port === ows.app.port)
+      if (ix !== -1) {
+        state.openedWorkspaces = state.openedWorkspaces.filter((_, iix) => iix != ix)
+      } else {
+        state.openedWorkspaces = [...state.openedWorkspaces, { workspace, app }]
+      }
     }
   }
 )
