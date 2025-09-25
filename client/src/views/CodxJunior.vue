@@ -10,8 +10,8 @@ import moment from 'moment'
     <div class="text-2xl">Loading...</div>
   </div>
   <div class="codx-junior flex min-h-full relative group-codxjunior @container" v-else>
-    <div class="grow flex flex-col relative gap-2 overflow-auto bg-base-300">
-      <div class="p-2 flex gap-2 items-center relative justify-between"
+    <div class="grow flex flex-col relative overflow-auto bg-base-300">
+      <div class="px-2 flex gap-2 items-center relative justify-between"
         v-if="!isWelcomeView"
       >
         <div class="flex gap-4 items-start">

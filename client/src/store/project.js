@@ -470,7 +470,6 @@ export const actions = actionTree(
       }
       state.chats[chat.id] = chat
       if (!chat.temp) {
-        state.activeChat = chat
         await $storex.projects.saveChat(chat)
       }
       return chat
@@ -481,6 +480,7 @@ export const actions = actionTree(
         column: columnTitle,
         ...chat
       })
+      this.$projects.setActiveChat(chat)
       const column = $storex.projects.allBoards.find(({ title }) => title === boardTitle)
                         .columns.find(({ title }) => title === columnTitle)
       column.chats = [...column.chats||[], chat.id]

@@ -29,6 +29,8 @@ GLOBAL_SETTINGS_PATH=os.environ.get("CODX_JUNIOR_GLOBAL_SETTINGS_PATH", None) or
 
 # logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
 
+CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = ["codx_path", "metrics", "users", "is_git_root"]
+
 def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvider:
     global_settings = global_settings or GLOBAL_SETTINGS
     ai_provider_settings = [p for p in global_settings.ai_providers if p.name == ai_provider]
@@ -151,6 +153,8 @@ class CODXJuniorSettings(BaseModel):
 
     repo_url: Optional[str] = Field(default=None)
 
+    is_git_root: Optional[bool] = Field(default=False)
+
     def __str__(self):
         return str(self.model_dump())
 
@@ -197,6 +201,7 @@ class CODXJuniorSettings(BaseModel):
                 settings.project_path = base.project_path
             if not settings.project_id:
                 return settings.save_project()
+            settings.is_git_root = os.path.isdir(f"{settings.project_path}/.git")
             return settings
 
     @classmethod
@@ -210,7 +215,7 @@ class CODXJuniorSettings(BaseModel):
     @classmethod
     def get_valid_keys(cls):
         keys = CODXJuniorSettings().__dict__.keys()
-        return [k for k in keys if k not in ["codx_path", "metrics", "users"]]
+        return [k for k in keys if k not in CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES]
 
     def save_project(self):
         valid_keys = CODXJuniorSettings.get_valid_keys()

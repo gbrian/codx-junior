@@ -5,7 +5,7 @@ import Code from '../Code.vue';
 </script>
 <template>
   <div class="flex flex-col">
-    <div v-for="(block, index) in blocks" :key="index">
+    <div v-for="block in blocks" :key="block.hash">
       <MarkdownViewer v-if="block.renderer === 'md'" :text="block.content" />
       <Code 
         :text="block.content"
@@ -21,6 +21,14 @@ import Code from '../Code.vue';
   </div>
 </template>
 <script>
+function generateHash(str) {
+  let hash = 0;
+  for (const char of str) {
+    hash = (hash << 5) - hash + char.charCodeAt(0);
+    hash |= 0; // Constrain to 32bit integer
+  }
+  return hash;
+};
 // Define a function to parse the content into an array of objects with type and content
 function parseContent(content) {
   const blocks = [];
@@ -30,9 +38,12 @@ function parseContent(content) {
   let currentFileName = '';
 
   function addBlock() {
+    const content = currentContent.join('\n')
+    const hash = generateHash(content)
     blocks.push({
       type: currentType,
-      content: currentContent.join('\n'),
+      content,
+      hash,
       fileName: currentFileName,
       renderer: ['markdown', 'md'].includes(currentType) ? 'md': 'code'
     });

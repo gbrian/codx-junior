@@ -11,7 +11,7 @@ import ProjectDetailt from './ProjectDetailt.vue';
     <ul class="dropdown-content menu bg-base-300 rounded-box z-[150] w-52 p-2 shadow"
       @mouseleave="isOpen = false"
       @blur="isOpen = false"
-      v-if="isOpen">
+      v-if="isOpen && false">
         <div class="mb-2 flex justify-between px-1">
           <span class="click text-xl" @click="isOpen = false">
             <i class="fa-solid fa-caret-up"></i>

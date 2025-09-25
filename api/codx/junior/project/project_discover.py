@@ -112,7 +112,7 @@ def _update_all_projects():
             if is_valid_project(settings):
                 project_users = user_security_manager.get_users_with_project_access(project_id=settings.project_id)
                 settings.users = project_users
-                logger.info("Project %s users: %s", settings.project_name, settings.users)
+                # logger.info("Project %s users: %s", settings.project_name, settings.users)
                 all_projects[settings.project_id] = settings
             else:
                 # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
@@ -120,12 +120,12 @@ def _update_all_projects():
         except Exception as ex:
             logger.exception(f"Error loading project {str(codx_path)} : {ex}")
     _ALL_PROJECTS = all_projects
-    logger.info("All projects: %s", _ALL_PROJECTS)
+    # logger.info("All projects: %s", _ALL_PROJECTS)
     _ALL_PROJECTS_PROC = None
 
 
-def find_project_parents(project: CODXJuniorSettings, user: CodxUser):
-    all_user_projects = find_all_user_projects(user)
+def find_project_parents(project: CODXJuniorSettings, user: CodxUser = None):
+    all_user_projects = find_all_user_projects(user) if user else find_all_projects().values()
     project_path = project.project_path
     all_parents = [p for p in all_user_projects if project_path.startswith(p.project_path)]
     return all_parents

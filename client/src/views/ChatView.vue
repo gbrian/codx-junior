@@ -554,7 +554,7 @@ export default {
       this.showSubtaskModal = true
 
     },
-    createSubtask() {
+    createSubtask(activateChat) {
       if (this.subtaskName.trim()) {
         this.$emit('sub-task', {
           parent: this.chat,
@@ -565,7 +565,8 @@ export default {
           message_id: this.subtaskMessageId,
           file_list: this.subtaskFiles,
           profiles: this.subtaskProfiles,
-          mode: this.subtaskMode
+          mode: this.subtaskMode,
+          activateChat
         })
         this.resetSubtaskModal()
       }
@@ -632,11 +633,12 @@ export default {
     async onPRFileComment({ chat, title, files, description, profiles, mode }) {
       if (chat) {
         chat.messages.push({
-          user: this.$user.name,
-          profiles,
+          user: this.$user.username,
+          role: "user",
           content: description
         })
-        await this.saveChat()
+        chat.profiles = profiles.map(p => p.name)
+        await this.$projects.saveChatInfo(chat)
         await this.$storex.projects.chatWihProject(chat)
         
       } else {
@@ -645,7 +647,7 @@ export default {
         this.subtaskFiles = files
         this.subtaskProfiles = profiles
         this.subtaskMode = mode
-        this.createSubtask()
+        this.createSubtask(false)
       }
     },
     toggleChatPinned() {

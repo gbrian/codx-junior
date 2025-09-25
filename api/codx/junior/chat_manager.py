@@ -134,14 +134,14 @@ class ChatManager:
         if not board or not column:
             new_chat_file = f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}/{name}.md"
             if chat_file:
-              logger.info(f"load_chat_from_path rename chat file {chat_file} -> {new_chat_file}")
+              # logger.info(f"load_chat_from_path rename chat file {chat_file} -> {new_chat_file}")
               os.rename(chat_file, new_chat_file)
             chat_file = new_chat_file
             board = DEFAULT_BOARD
             column = DEFAULT_COLUMN
 
         with open(chat_file, 'r') as f:
-            logger.info(f"load_chat_from_path chat_only open file {chat_file}") 
+            # logger.info(f"load_chat_from_path chat_only open file {chat_file}") 
             content = f.read()
             chat = self.deserialize_chat(content=content, chat_only=chat_only)
 

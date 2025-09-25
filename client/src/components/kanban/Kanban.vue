@@ -455,11 +455,13 @@ export default {
       await this.saveKanban()
     },
     async createNewChat(base) {
-      return this.$projects.createNewChat({
+      const chat = await this.$projects.createNewChat({
         ...base,
         id: uuidv4(),
         board: this.board || 'Default',
       })
+      this.$projects.setActiveChat(chat)
+      return chat
     },
     addNewFile() {
       this.showFileFinder = true
@@ -557,7 +559,7 @@ export default {
       await this.$projects.setActiveChat()
       this.buildKanban()
     },
-    async createSubTask({ parent, name, description, project_id, parent_id, message_id, file_list }) {
+    async createSubTask({ parent, name, description, project_id, parent_id, message_id, file_list, activateChat }) {
       const chat = await this.createNewChat({
         board: parent.board,
         name,

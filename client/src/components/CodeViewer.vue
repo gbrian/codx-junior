@@ -10,11 +10,15 @@ import CodeEditor from 'simple-code-editor'
   <div class="flex flex-col gap-2">
     <div class="flex gap-1 click">
       <div class="underline click text-link flex gap-2" v-if="fileName">
-        <div class="hover:text-info" @click="$emit('open-file', file)" :title="file">{{ fileName }}</div>
-        <div class="hover:text-info" @click="$emit('reload-file', file)">
-          <i class="fa-solid fa-file-arrow-up"></i>
+        <div class="hover:text-info" @click="$emit('open-file', file)" :title="file">
+          {{ fileName }}
         </div>
-        <div class="hover:text-info" @click="onShowDiff">
+        <div class="hover:text-info" @click="$emit('reload-file', file)">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </div>
+        <div class="hover:text-info" @click="onShowDiff"
+          v-if="diffOption !== false"
+        >
           <i class="fa-solid fa-code-compare"></i>
         </div>
       </div>
@@ -57,12 +61,12 @@ import CodeEditor from 'simple-code-editor'
 </template>
 <script>
 export default {
-  props: ['code', 'language', 'file'],
+  props: ['code', 'language', 'file', 'diff-option', 'file-diff'],
   data() {
     return {
       showDiff: false,
       orgContent: null,
-      diff: null,
+      diff: this.fileDiff,
       zoom: 1,
       edit: false
     }
@@ -92,9 +96,11 @@ export default {
       this.$projects.applyPatch({ patch: this.code })
     },
     async onShowDiff() {
-      const { diff, stats } = await this.$storex.api.files.diff({ path: this.file, content: this.code }) 
-      this.diff = diff
-      this.stats = stats
+      if (!this.diff) {
+        const { diff, stats } = await this.$storex.api.files.diff({ path: this.file, content: this.code }) 
+        this.diff = diff
+        this.stats = stats
+      }
       this.orgContent = await this.$storex.api.files.read(this.file)
       this.showDiff = !this.showDiff
     },

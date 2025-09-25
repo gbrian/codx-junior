@@ -56,14 +56,14 @@ export default {
   created () {
     const language = languageMapping[this.codeLanguage] || this.codeLanguage
     this.languages = [[ language, language.toUpperCase() ]]
-    this.codeText = this.text || this.code.innerText
+    this.codeText = this.text || this.code?.innerText
     this.file = this.fileName || this.code?.attributes["data-file"]?.value
     console.log("Code block created", language)
   },
   mounted () {
     if (this.code) {
-      this.code.parentNode.after(this.$el)
-      this.code.parentNode.remove()
+      this.code?.parentNode.after(this.$el)
+      this.code?.parentNode.remove()
       // this.$el.querySelector('.header.border')?.append(this.$refs.toolbar)
       this.$bubble('code-file-shown', { somedata: true })
     }
@@ -94,7 +94,7 @@ export default {
     },
     codeBlockInfo() {
       return {
-        code: this.text || this.code.innerText,
+        code: this.text || this.code?.innerText,
         language: this.language
       }
     }

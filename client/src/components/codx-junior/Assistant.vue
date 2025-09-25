@@ -115,6 +115,7 @@ export default {
         name
       })
       this.chatId = chat.id
+      this.$projects.setActiveChat(chat)
     },
     async sendMessage() {
       if (!this.chat) {

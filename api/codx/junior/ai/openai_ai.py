@@ -238,7 +238,7 @@ class OpenAI_AI:
                     ai_tool_response = None
                     func_name = tool_call_data["function"]                        
                     try:
-                        tools_response = self.process_tool_calls(tool_call_data)
+                        tools_response = await self.process_tool_calls(tool_call_data)
                         tool_output = tools_response["output"]
                         content = f"{func_name} returned:\n\n```\n{tool_output}\n```"
                         ai_tool_response = AIMessage(content=content)

@@ -1231,6 +1231,14 @@ class CODXJuniorSession:
           "branches": branches,
         }
 
+    def find_git_root_path(self):
+        if self.settings.is_git_root:
+           return self.settings.project_path
+        for parent in find_project_parents(project=self.settings):
+            if parent.is_git_root:
+                return parent.project_path
+        return ""
+
     def get_repo_changes(self, from_branch: str, to_branch: str):
         is_current_branch = from_branch.startswith("* ")
         if from_branch and is_current_branch:
@@ -1263,7 +1271,8 @@ class CODXJuniorSession:
           "diff": git_diff_cmd_out,
           "stat": git_diff_cmd_stat_out,
           "git_diff_cmd": git_diff_cmd,
-          "local_changes": local_changes
+          "local_changes": local_changes,
+          "repo_path": self.find_git_root_path()
         }
 
     def get_project_pr(self, from_branch: str, to_branch: str):
