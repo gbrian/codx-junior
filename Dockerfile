@@ -4,7 +4,7 @@ FROM debian:12 AS base
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CODX_JUNIOR_API_VENV=/tmp/.venv_codx_junior_api
 
-RUN apt update && apt install -y sudo locales git
+RUN apt update && apt install -y sudo locales git fuse3 fuse-overlayfs
 
 RUN echo "LC_ALL=en_US.UTF-8" >> /etc/environment
 RUN echo "en_US.UTF-8 UTF-8" >> /etc/locale.gen
@@ -60,5 +60,8 @@ RUN chmod +x /home/codx-junior/codx-junior/entrypoint.sh
 
 ENV CODX_JUNIOR_APPS="client llm-factory docker"
 RUN /home/codx-junior/codx-junior/entrypoint.sh install
+
+# Set up Docker volume  
+VOLUME /var/lib/docker  
 
 CMD [ "/home/codx-junior/codx-junior/entrypoint.sh" ]

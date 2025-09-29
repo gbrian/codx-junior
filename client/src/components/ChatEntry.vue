@@ -363,7 +363,7 @@ export default {
     saveEditting() {
       this.message.content = this.editting
       this.editting = null
-      this.$emit('edited')
+      this.$emit('edited', this.message)
     },
     cancelEditting() {
       this.editting = null

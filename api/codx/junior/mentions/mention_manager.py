@@ -284,28 +284,18 @@ class MentionManager:
             {file_profile_content}
             """
 
-        changes_chat.messages.append(Message(role="user", content="""
-        Apply codx comments and rewrite full content.
-        Return only the content without any further decoration or comments.
-        Do not surround response with '```' marks, just content.
-        Remove codx comments from the final version.
-        """))
-
         changes_chat.messages.append(
             Message(
                 role="user",
                 profiles=[profile.name for profile in file_profiles],
                 files=[file_path],
                 content=f"""
-                    Processing user's file comments.
-                  
-                    File:
                     ```document {file_path}
                     {content}
                     ```
 
-                    User comments:
-                      {query}
+                    Apply these changes to {file_path}:
+                    {query}
                     
                     Instructions:
                       {file_profile_content}
@@ -327,8 +317,16 @@ class MentionManager:
 
         self.event_manager.send_notification(text=f"codx mentions done for {file_path.split('/')[-1]}")
         response = changes_chat.messages[-1].content.strip()
-        if response.startswith("<document>") and response.endsswith("</document>"):
-            response = response[9:-10]
+
+        INVALID_HEADERS = ["<document>", "```"]
+        def startswithInvalidHeaders(text):
+            return next((h for h in INVALID_HEADERS if text.startswith(h)), None)
+
+        org_content_starts_with_invalid_headers = startswithInvalidHeaders(content)
+        strip_head_tail = startswithInvalidHeaders(response)
+        if not org_content_starts_with_invalid_headers and strip_head_tail:
+            response = "\n".join(response.split("\n")[1:-1])          
+
         return response
 
     async def check_file_for_mentions(self, file_path: str, content: str = None, silent: bool = False, callback=None):

@@ -1197,7 +1197,8 @@ class CODXJuniorSession:
         return chat.messages[-1].content
 
     async def write_project_file(self, file_path: str, content: str, process: bool = True):
-        if not file_path.startswith(self.settings.project_path):
+        if not os.path.isfile(file_path) and \
+            not file_path.startswith(self.settings.project_path):
             if file_path[0] == '/':
                 file_path = file_path[1:]
             file_path = os.path.join(self.settings.project_path, file_path)

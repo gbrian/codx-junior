@@ -37,7 +37,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
               :message="message"
               :isTopic="isTopic && !ix"
               :mentionList="mentionList"
-              @edited="saveChat"
+              @edited="onMessageEdited"
               @enhance="onEditMessage(message, true)"
               @remove="removeMessage(message)"
               @remove-file="removeFileFromMessage(message, $event)"
@@ -906,6 +906,11 @@ export default {
     },
     onEditMessage({ orgContent, newContent }, message) {
       message.content = message.content.replace(orgContent, newContent)
+      this.saveChat()
+    },
+    onMessageEdited(message) {
+      const existng = this.theChat.messages.find(m => m.doc_id === message.doc_id)
+      existng.content = message.content
       this.saveChat()
     }
   }
