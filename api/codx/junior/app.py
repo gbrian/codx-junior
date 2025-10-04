@@ -391,8 +391,6 @@ def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authent
                       if with_metrics else {}
     } for project in find_all_user_projects(user)]
 
-    
-
 @app.get("/api/projects/metrics")
 async def api_chat_metrics(request: Request):
     codx_junior_session = request.state.codx_junior_session

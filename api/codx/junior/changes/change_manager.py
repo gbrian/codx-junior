@@ -100,31 +100,3 @@ class ChangeManager:
             except Exception as ex:
                 logger.exception(f"Error processing wiki changes for file {file_path}", ex)
 
-    def update_project_metrics(self):
-        last_check_str = self.settings.metrics.get("last_check", None)
-        if last_check_str:
-            last_check = datetime.fromisoformat(last_check_str)
-            if datetime.now() - last_check < timedelta(minutes=2):
-                return self.settings.metrics
-
-        last_check = datetime.now().isoformat()
-
-        try:
-            number_of_chats = self.chat_manager.chat_count()
-            chat_changed_last = self.chat_manager.last_chats()
-
-            last_update = None
-            if chat_changed_last:
-                last_update = chat_changed_last[0].updated_at
-            return {
-                "last_check": last_check,
-                "last_update": last_update,
-                "number_of_chats": number_of_chats,
-                "chats_changed_last": chat_changed_last
-            }
-        except Exception as ex:
-            logger.error("Error processing project metrics: %s - %s", self.settings.project_name, ex)
-            return {
-                "error": str(ex)
-            }
-

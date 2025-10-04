@@ -178,6 +178,9 @@ class ChatManager:
         chat.board = board
         chat.column = column
         chat.file_path = chat_file
+        # Save chat to migrate to yaml
+        if not chat_only:
+            self.save_chat(chat)
         return chat
 
     def serialize_chat(self, chat: Chat):

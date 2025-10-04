@@ -1,0 +1,245 @@
+board: kanban
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: tasks
+column_id: ''
+created_at: '2024-11-06T18:35:01.308457'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/codx/junior/browser/.codx/tasks/kanban/tasks/helimn-cheatsheet.0.yaml
+id: '0'
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Given this document create a cheatsheet table with all commenads, description\
+    \ and usage example:\n\n\n\n# Helium cheatsheet\n\n\nThis page very quickly teaches\
+    \ you the most important parts of Helium's API.\n\n\n## Importing\n\n\nAll of\
+    \ Helium's public functions lie directly in the module `helium`.\nYou can for\
+    \ instance import them as follows:\n\n\n```python\nfrom helium import *\n```\n\
+    \n\n## Starting a browser\n\n\nHelium currently supports Chrome and Firefox. You\
+    \ can start them with the\nfollowing functions:\n\n\n```python\nstart_chrome()\n\
+    start_firefox()\n```\n\n\nYou can optionally pass a URL to open (eg. `start_chrome('google.com')`)\n\
+    \n\n## Headless browser\n\n\nWhen you type the above commands, you will actually\
+    \ see a browser window open.\nThis is useful for developing your scripts. However,\
+    \ once you run them, you may\nnot want this window to appear. You can achieve\
+    \ this by adding `headless=True`:\n\n\n```python\nstart_chrome(headless=True)\n\
+    start_chrome('google.com', headless=True)\n```\n\n\n(Similarly for `start_firefox(...)`\
+    \ of course.)\n\n\n## Interacting with a web site\n\n\nThe following example shows\
+    \ the most typical statements in a Helium script:\n\n\n```python\nfrom helium\
+    \ import *\nstart_chrome('google.com')\nwrite('helium selenium github')\npress(ENTER)\n\
+    click('mherrmann/helium')\ngo_to('github.com/login')\nwrite('username', into='Username')\n\
+    write('password', into='Password')\nclick('Sign in')\nkill_browser()\n```\n\n\n\
+    Most of your own code will (hopefully) be as simple as the above.\n\n\n## Element\
+    \ types\n\n\nThe above example used pure strings such as `Sign in` to identify\
+    \ elements on\nthe web page. But Helium also lets you target elements more specifically.\n\
+    For instance:\n\n\n\_* [`Link('Sign in')`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L643)\n\
+    \_* [`Button('Sign in')`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L706)\n\
+    \_* [`TextField('First name')`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L768)\n\
+    \_* [`CheckBox('I accept')`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L867)\n\
+    \_* [`RadioButton('Windows')`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L907)\n\
+    \_* [`Image(alt='Helium logo')`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L739)\n\
+    \n\nYou can pass them into other functions such as `click(Link('Sign in'))`.\n\
+    But you can also use them to _read_ data from the web site. For instance:\n\n\n\
+    ```python\nprint(TextField('First name').value)\n```\n\n\nA common use case is\
+    \ to use `.exists()` to check for the existence of an\nelement. For example:\n\
+    \n\n```python\nif Text('Accept cookies?').exists():\n\_ \_ click('I accept')\n\
+    ```\n\n\nI also often find `Text(...).value` useful for reading out data:\n\n\n\
+    ```python\nname = Text(to_right_of='Name:', below=Image(alt='Profile picture')).value\n\
+    ```\n\n\nFor a full list of element types and their properties, please see\n[the\
+    \ source code](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L470-L1008).\n\
+    \n\n## Finding elements relative to others\n\n\nYou already saw in the previous\
+    \ section how `above=...` and `to_right_of=...`\nlet you find elements relative\
+    \ to other elements. You can similarly use\n`below=...` and `to_left_of`. Here\
+    \ are some more examples.\n\n\n```python\nText(above='Balance', below='Transactions').value\n\
+    Link(to_right_of='Invoice:')\nImage(to_right_of=Link('Sign in', below=Text('Navigation')))\n\
+    ```\n\n\n## Waiting for elements to appear (or other conditions)\n\n\nUse\n[`wait_until(...)`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L410)\n\
+    to wait for a condition to become true. For example:\n\n\n```python\nwait_until(Button('Download').exists)\n\
+    ```\n\n\nBut you can also use this to wait for an arbitrary condition:\n\n\n```python\n\
+    wait_until(lambda: TextField('Balance').value == '$2M')\n```\n\n\n## jQuery-style\
+    \ selectors\n\n\nSometimes, you do need to fall back to using HTML IDs, CSS Selectors\
+    \ or XPaths\nto identify an element on the web page. Helium's\n[`S(...)`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L568)\n\
+    predicate lets you do this. The parameter you pass to it is interpreted as\nfollows:\n\
+    \n\n* If it starts with an ``@``, then it identifies elements by HTML ``name``.\n\
+    \_ Eg. ``S(\"@btnName\")`` identifies an element with ``name=\"btnName\"``.\n\
+    * If it starts with ``//``, then Helium interprets it as an XPath.\n* Otherwise,\
+    \ Helium interprets it as a CSS selector. This in particular\n\_ lets you write\
+    \ ``S(\"#myId\")`` to identify an element with ``id=\"myId\"``,\n\_ or ``S(\"\
+    .myClass\")`` to identify elements with ``class=\"myClass\"``.\n\n\nAs before,\
+    \ you can combine `S(...)` with other functions such as\n`click(S(...))`, or use\
+    \ it to extract data. For an example of this, see\n[below](#finding-all-elements).\n\
+    \n\n## Combining Helium and Selenium's APIs\n\n\nAll Helium does is translate\
+    \ your high-level commands into low-level Selenium\nfunction calls. Because of\
+    \ this, you can freely mix Selenium and Helium. For\nexample:\n\n\n```python\n\
+    # A Helium function:\ndriver = start_chrome()\n# A Selenium API:\ndriver.execute_script(\"\
+    alert('Hi!');\")\n```\n\n\nYou can also get / set the Selenium WebDriver which\
+    \ Helium uses via\n[`get_driver()`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L104)\n\
+    and\n[`set_driver(...)`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L97).\n\
+    \n\nWith the WebDriver instance, you can execute any Selenium commands you want.\n\
+    \n\nTo use Helium's API's to obtain Selenium `WebElement`s, use the `.web_element`\n\
+    property of Helium's various GUI elements. For instance:\n\n\n```python\n# Get\
+    \ the CSS class of the \"Helium\" link:\nLink('Helium').web_element.get_attribute('class')\n\
+    ```\n\n\nHere, `.get_attribute(...)` is a Selenium API.\n\n\n\n\n## Finding all\
+    \ elements\n\n\nThe `.web_element` property and the `S(...)` predicate are particularly\
+    \ useful\nfor extracting multiple pieces of data from a web page. To do this,\
+    \ you can use\nHelium's [`find_all(...)`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L281)\
+    \ function.\nAs its name implies, it lets you find all occurrences of an element\
+    \ on a page.\nFor example:\n\n\n```python\nemail_cells = find_all(S(\"table >\
+    \ tr > td\", below=\"Email\"))\nemails = [cell.web_element.text for cell in email_cells]\n\
+    ```\n\n\n## Implicit waits\n\n\nWhen you issue a command such as `click('Download')`,\
+    \ Helium by default waits\nup to 10 seconds for the respective element to appear.\
+    \ This feature is called\n\"implicit waiting\". You can change the 10 second default\
+    \ to a different value\nvia the\n[`Config` class](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L437):\n\
+    \n\n```python\nConfig.implicit_wait_secs = 30\n```\n\n\nHowever, before you do\
+    \ this, it may be better to add explicit waits to your\ncode, such as `wait_until(Button('Download').exists)`.\n\
+    \n\n## Alerts\n\n\nThe\n[`Alert` class](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L970)\n\
+    lets you interface with JavaScript popup boxes. Use `Alert().accept()`,\n`Alert().dismiss()`\
+    \ to click \"Ok\" or \"Cancel\", `Alert().text` to read the\nmessage shown, or\
+    \ `write(..., into=Alert())` to enter a value.\n\n\n## File uploads, drag and\
+    \ drop, combo boxes, popups\n\n\nUse\n[`attach_file(...)`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L388),\n\
+    [`drag_file(...)`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L375),\n\
+    [`drag(...)`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L252),\n\
+    [`select(...)`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L362),\n\
+    [`switch_to(...)`](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L1057).\n\
+    \n\n## Clicking at x, y coordinates\n\n\nSometimes, you may want to click at a\
+    \ specific `(x, y)` coordinate, or at an\noffset of an element. See the\n[`Point`\
+    \ class](https://github.com/mherrmann/helium/blob/0667ddb9be531367a0d707ad8f5fcfb75c528521/helium/__init__.py#L1010)\n\
+    for how.\n\n\n## Taking a screenshot\n\n\nUse Selenium's API:\n\n\n```python\n\
+    get_driver().save_screenshot(r'C:\\screenshot.png')\n```\n\n\nNote the leading\
+    \ `r`. This is required because the string contains a backslash\n`\\`.\n\n"
+  created_at: '2024-11-06T18:35:01.308520'
+  disable_knowledge: false
+  doc_id: a43d7a9f-b705-4b31-b839-08be3ca5ca82
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: ''
+  user: null
+- content: 'Here''s a cheatsheet table for the Helium API:
+
+
+    | Command                          | Description                                           |
+    Usage Example                                       |
+
+    |----------------------------------|------------------------------------------------------|-----------------------------------------------------|
+
+    | `from helium import *`          | Import all public functions from Helium module.     |
+    ```python from helium import * ```                  |
+
+    | `start_chrome()`                | Start a Chrome browser.                             |
+    ```python start_chrome() ```                        |
+
+    | `start_firefox()`               | Start a Firefox browser.                            |
+    ```python start_firefox() ```                       |
+
+    | `start_chrome(''url'')`           | Start Chrome and open a specific URL.              |
+    ```python start_chrome(''google.com'') ```           |
+
+    | `start_firefox(''url'')`          | Start Firefox and open a specific URL.             |
+    ```python start_firefox(''google.com'') ```          |
+
+    | `headless=True`                 | Run the browser in headless mode.                   |
+    ```python start_chrome(headless=True) ```          |
+
+    | `write(text)`                   | Type text into the currently focused input.         |
+    ```python write(''helium selenium github'') ```      |
+
+    | `press(key)`                    | Press a specific key.                               |
+    ```python press(ENTER) ```                          |
+
+    | `click(element)`                | Click on a specified web element.                   |
+    ```python click(''Sign in'') ```                      |
+
+    | `go_to(url)`                    | Navigate to a specific URL.                         |
+    ```python go_to(''github.com/login'') ```            |
+
+    | `kill_browser()`                 | Close the currently open browser.                   |
+    ```python kill_browser() ```                        |
+
+    | `Text(''text'').exists()`         | Check if a specific text exists on the page.       |
+    ```python if Text(''Accept cookies?'').exists(): click(''I accept'') ``` |
+
+    | `wait_until(condition)`          | Wait for a condition to become true.                |
+    ```python wait_until(Button(''Download'').exists) ```|
+
+    | `S(selector)`                    | Use jQuery-style selectors to find elements.        |
+    ```python click(S(''#myId'')) ```                    |
+
+    | `find_all(selector)`            | Find all occurrences of an element on a page.      |
+    ```python email_cells = find_all(S("table > tr > td", below="Email")) ``` |
+
+    | `Config.implicit_wait_secs`     | Set implicit wait duration (in seconds).            |
+    ```python Config.implicit_wait_secs = 30 ```       |
+
+    | `Alert().accept()`               | Accept a JavaScript alert.                          |
+    ```python Alert().accept() ```                      |
+
+    | `Alert().dismiss()`              | Dismiss a JavaScript alert.                         |
+    ```python Alert().dismiss() ```                     |
+
+    | `attach_file(path)`             | Attach a file to an input element.                  |
+    ```python attach_file(''/path/to/file.txt'') ```     |
+
+    | `drag_file(source, target)`     | Drag a file from source to target.                  |
+    ```python drag_file(''/path/to/file.txt'', target) ```|
+
+    | `get_driver()`                   | Get the current Selenium WebDriver instance.        |
+    ```python driver = get_driver() ```                 |
+
+    | `save_screenshot(path)`          | Take a screenshot of the current page.              |
+    ```python get_driver().save_screenshot(r''C:\screenshot.png'') ``` |
+
+
+    This table summarizes the essential commands, their descriptions, and usage examples
+    for quick reference.'
+  created_at: '2024-11-06T18:35:01.308559'
+  disable_knowledge: false
+  doc_id: b03522f7-0b15-43a0-a52d-b6820eb2dda4
+  done: true
+  files:
+  - /puppeter.py
+  - /__init__.py
+  - /helium.md
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: ''
+  user: null
+mode: chat
+name: Helimn cheatsheet
+parent_id: ''
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-04T10:03:37.678610'
+url: ''
+users: []
+visibility: ''

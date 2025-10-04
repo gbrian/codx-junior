@@ -315,5 +315,6 @@ class CODXJuniorSettings(BaseModel):
 
 class CODXJuniorProject(CODXJuniorSettings):
     metrics: Optional[Dict] = Field(default={})
+    workspaces: Optional[List[Dict]] = Field(default=[])
     users: Optional[List[dict]] = Field(default=[])
     permissions: Optional[str] = Field(default="")

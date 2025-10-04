@@ -23,7 +23,7 @@ const userPortEnd = parseInt(USER_PORT_RANGE_END, 10)
 
 const userPortCount = userPortEnd - userPortStart
 
-const userPorts = ...[new Array(userPortCount)].reduce((acc, v) => 
+const userPorts = [...new Array(userPortCount)].reduce((acc, v) => 
       ({ 
         ...acc, 
           [`/user-${userPortStart + v}`]: {
