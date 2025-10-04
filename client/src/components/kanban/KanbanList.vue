@@ -1,5 +1,7 @@
 <script setup>
 import moment from 'moment'
+import KanbanSettings from './KanbanSettings.vue';
+import ProjectIcon from '../ProjectIcon.vue';
 </script>
 
 <template>
@@ -9,8 +11,10 @@ import moment from 'moment'
         v-for="board in sortedBoards"
         :key="board.title"
         @click="selectBoard(board)"
-        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer"
-      >
+        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative">
+        <div class="absolute top-0 left-0 bottom-0 right-0 opacity-30 rounded-md bg-cover"
+           :style="`background-image: url(${board.background})`" v-if="board.background">
+        </div>
         <div class="card-body flex flex-col">
           <span class="text-xs" v-if="board.last_update">[{{ moment(board.last_update).fromNow() }}]</span>
           <h2 class="card-title flex justify-between tooltip group" :data-tip="board.title">
@@ -29,11 +33,19 @@ import moment from 'moment'
               <span class="-mt-1">{{ board.tasks?.length || 0 }}</span>
             </div>
           </div>
+          <div class="text-xs underline overflow-hidden click"
+            :title="board.remote_url"
+            @click.stop="openRemoteBoard(board)"
+            v-if="board.remote_url">
+            {{ board.remote_url }}
+          </div>
+
         </div>
       </div>
       <div
         @click="emitNewKanban"
         class="card card-bordered card-dashed bg-base-200 border-slate-600 border-dashed shadow-md p-4 rounded-lg flex items-center justify-center cursor-pointer"
+        v-if="options?.addNew !== false"
       >
         <div class="card-body flex items-center justify-center">
           <i class="fas fa-plus text-gray-600 mr-2"></i>
@@ -41,33 +53,12 @@ import moment from 'moment'
         </div>
       </div>
     </div>
-    <modal :close="true" @close="editBoard = null" v-if="editBoard">
-      <div>
-        <label class="block mb-2">Name</label>
-        <input v-model="editBoard.title" type="text" class="input input-bordered w-full mb-4" />
-        <label class="block mb-2">Description</label>
-        <textarea v-model="editBoard.description" class="textarea textarea-bordered w-full mb-4"></textarea>
-        <div class="flex justify-between">
-          <button @click="saveBoard" class="btn">Save</button>
-          <button @click="deleteBoard" class="btn btn-error">
-            <span v-if="confirmDelete">Confirm delete</span>
-            <span v-else>Delete</span>
-          </button>
-        </div>
-      </div>
-              <div class="mt-2 flex justify-end font-bold text-warning gap-2" v-if="confirmDelete">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          All tasks will be deleted
-          <span @click="confirmDelete = false" class="text-error click underline">cancel</span>
-        </div>
-
-    </modal>
   </div>
 </template>
 
 <script>
 export default {
-  props: ['boards'],
+  props: ['boards', 'options'],
   data () {
     return {
       editBoard: null,
@@ -98,18 +89,15 @@ export default {
       this.$emit('edit', this.editBoard)
       this.editBoard = null
     },
-    deleteBoard() {
-      if (this.confirmDelete) {
-        this.$emit('delete', this.editBoard)
-        this.editBoard = null
-      } else {
-        this.confirmDelete = true
-      }
+    onDeleteBoard() {
+      this.$emit('delete', this.editBoard)
+      this.editBoard = null
     },
     onEditBoard(board) {
-      const { title, description } = board
-      this.editBoard = { board, title, description }
-      this.confirmDelete = false
+      this.$emit('edit', board)
+    },
+    openRemoteBoard(board) {
+      window.open(board.remote_url, '_blank')
     }
   }
 }

@@ -5,6 +5,8 @@ from browser_use import Agent
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.ai import AI
 
+from codx.junior.model.model import CodxUser
+
 logger = logging.getLogger(__name__)
 
 class BrowserUse:
@@ -14,6 +16,6 @@ class BrowserUse:
     async def run_search(self, task):
         agent = Agent(
             task=task,
-            llm=AI(settings=self.settings).get_openai_chat_client())
+            llm=AI(settings=self.settings, user=CodxUser(username=__name__)).get_openai_chat_client())
         result = await agent.run()
         logger.info(f"Browser use response: {result}")

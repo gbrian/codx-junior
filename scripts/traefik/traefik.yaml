@@ -1,0 +1,26 @@
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+
+api:
+  dashboard: true
+  insecure: true # Enable the API and dashboard (for development only)
+
+log:
+  level: DEBUG
+
+accessLog: {}
+
+# Optional: Define specific routers, services, or middleware here if needed
+http:
+  routers:
+    dashboard:
+      rule: "Host(`traefik.localhost`)"
+      service: api@internal
+      entryPoints:
+        - web

@@ -1,0 +1,7 @@
+
+
+services:
+  autogen:
+    image: ghcr.io/lludlow/autogen-studio
+    ports: 
+      - 8081:8081

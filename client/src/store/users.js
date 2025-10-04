@@ -15,7 +15,11 @@ export const getters = getterTree(state, {
   codxJunior: () => (      state.codxJunior = { 
         userName: "codx-junior", 
         avatar: API.globalSettings?.codx_junior_avatar
-      })
+      }),
+  projectRole: () => $storex.users.isAdmin ? 'admin' : API.user.projects.find(p => p.project_id === $storex.projects.activeProject?.project_id)?.role,
+  isProjectAdmin: () => $storex.users.isAdmin || $storex.users.projectRole === 'admin',
+  canShowCoder: () => $storex.users.isAdmin || $storex.users.user?.apps.includes("coder"),
+  canShowBrowser: () => $storex.users.isAdmin || $storex.users.user?.apps.includes("viewer")
 })
 
 export const mutations = mutationTree(state, {
@@ -34,6 +38,16 @@ export const actions = actionTree(
         await API.users.login(user)
       } catch(ex) {
         $storex.session.onError("Login error")
+      }
+      $storex.init()
+    },
+    async oauthLogin({ _ }, { provider, code, state }) {
+      try {
+        await API.oauth.oauthLogin({ oauth_provider: provider, code, state });
+        window.location.reload()
+      } catch (ex) {
+        $storex.session.onError("OAuth login error")
+        throw ex;
       }
       $storex.init()
     },

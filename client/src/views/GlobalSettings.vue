@@ -5,6 +5,8 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
 import ExportImportButton from '@/components/ExportImportButton.vue'
 import SecurityUserList from '@/components/security/SecurityUserList.vue'
 import Workspaces from '@/components/workspaces/Workspaces.vue'
+import ProjectScripts from '@/components/project/ProjectScripts.vue'
+import OAuthSettings from '@/components/oauth_settings/OAuthSettings.vue'
 </script>
 
 <template>
@@ -19,12 +21,16 @@ import Workspaces from '@/components/workspaces/Workspaces.vue'
           <li @click="activeTab = 'AI Models'" :class="{ 'tab-active': activeTab === 'AI Models' }" class=""><a>AI Models</a></li>
           <li @click="activeTab = 'Workspaces'" :class="{ 'tab-active': activeTab === 'Workspaces' }" class=""><a>Workspaces</a></li>
           <li @click="activeTab = 'Users'" :class="{ 'tab-active': activeTab === 'Users' }" class=""><a>Users</a></li>
+          <li @click="activeTab = 'Scripts'" :class="{ 'tab-active': activeTab === 'Scripts' }" class=""><a>Scripts</a></li>
+          <li @click="activeTab = 'OAuth'" :class="{ 'tab-active': activeTab === 'OAuth' }" class=""><a>OAuth</a></li>
           <li class="separator"></li>
         </ExportImportButton>
       </div>
     </div>
     <SecurityUserList :settings="settings" v-if="activeTab === 'Users'" />
     <Workspaces :settings="settings" v-if="activeTab === 'Workspaces'" />
+    <ProjectScripts :settings="settings" v-if="activeTab === 'Scripts'" />
+    <OAuthSettings  :settings="settings" v-if="activeTab === 'OAuth'" />
     <div v-if="activeTab === 'Settings'" class="flex flex-col gap-4">
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2 text-xs">

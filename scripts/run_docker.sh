@@ -6,11 +6,7 @@ echo "Starting llmfactory USER: ${USER} HOME: ${HOME}"
 
 source ${CODX_JUNIOR_PATH}/set_env.sh
 
-if [[ "$CODX_JUNIOR_APPS" =~ "docker" ]]
-then
-    while true; do
-      sleep 60
-    done
-else
-    dockerd
-fi
+# explicitly remove Docker's default PID file to ensure that it can start properly if it was stopped uncleanly (and thus didn't clean up the PID file)
+find /run /var/run -iname 'docker*.pid' -delete || :
+
+dockerd

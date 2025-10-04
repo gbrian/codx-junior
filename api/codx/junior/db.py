@@ -13,6 +13,8 @@ from typing import Optional, List
 from datetime import datetime
 from enum import Enum
 
+from codx.junior.model.model import PRView
+
 logger = logging.getLogger(__name__)
 
 class MessageTaskItem(Enum):
@@ -25,6 +27,7 @@ class Message(BaseModel):
     content: str = Field(default='')
     think: Optional[str] = Field(default='')
     hide: bool = Field(default=False)
+    is_answer: bool = Field(default=False)
     improvement: bool = Field(default=False)
     created_at: str = Field(default=str(datetime.now()))
     updated_at: str = Field(default=str(datetime.now()))
@@ -36,18 +39,28 @@ class Message(BaseModel):
     knowledge_topics: List[str] = Field(description="This message will be indexed for knowledge and tagged with this topics", default=[])
     done: Optional[bool] = Field(default=True, description="Indicates if user is done writing")
     is_thinking: Optional[bool] = Field(default=False)
+    disable_knowledge: Optional[bool] = Field(default=False)
+    read_by: List[str] = Field(default=[])
+
+
+class ChatId(BaseModel):
+    chat_id: str = Field(default=None, description="Chat id")
+    project_id: str = Field(default=None, description="Defines the project which this chat belongs")
     
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
     project_id: Optional[str] = Field(default=None, description="Defines the project which this chat belongs")
     parent_id: Optional[str] = Field(default=None, description="Parent chat")
+    message_id: Optional[str] = Field(default=None, description="Parent message for threads")
     status: str = Field(default='')
     tags: List[str] = Field(default=[], description="Informative set of tags")
     file_list: List[str] = Field(default=[])
+    check_lists: Optional[List[dict]] = Field(default=[])
     profiles: List[str] = Field(default=[])
     users: List[str] = Field(default=[])
     name: str = Field(default='')
+    pinned: Optional[bool] = Field(default=False)
     description: str = Field(default='')
     messages: List[Message] = Field(default=[])
     created_at: str = Field(default=str(datetime.now()))
@@ -61,10 +74,13 @@ class Chat(BaseModel):
     url: str = Field(default='')
     branch: str = Field(default='')
     file_path: str = Field(default='')
-    model: Optional[str] = Field(default='')
+    llm_model: Optional[str] = Field(default='')
     visibility: Optional[str] = Field(default='')
+    remote_url: Optional[str] = Field(default='')
     knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
-
+    chat_links: List[ChatId] = Field(default=[])
+    pr_view: Optional[dict] = Field(default={}, description="Pull request view")
+    
 
 class KanbanColumn(BaseModel):
     doc_id: Optional[str] = Field(default=None)

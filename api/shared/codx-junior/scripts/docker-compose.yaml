@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:latest
+    command:
+      - "--api.insecure=true" # Enable Traefik dashboard (for development only)
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"     # Expose port 80 for HTTP
+      - "8080:8080" # Expose Traefik dashboard (for development only)
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock" # Allow Traefik to listen to Docker events
+    networks:
+      - internal
+
+  # Placeholder for the workspace management service
+  workspace_manager:
+    build: ./app # Assuming your Flask app is in the ./app directory
+    volumes:
+      - ./app:/app
+    networks:
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.workspace-manager.rule=Host(`workspace-manager.localhost`)"
+      - "traefik.http.services.workspace-manager.loadbalancer.server.port=5000"
+
+networks:
+  internal:
+    driver: bridge

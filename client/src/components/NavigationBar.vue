@@ -1,16 +1,16 @@
 <script setup>
-import ProjectIconVue from './ProjectIcon.vue'
-import UserList from './UserList.vue'
 import moment from 'moment';
-import Assistant from './codx-junior/Assistant.vue';
+import ChatBar from './user/ChatBar.vue';
+import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
+import WorkspacesSelector from './workspaces/WorkspacesSelector.vue';
 </script>
 <template>
   <div class="flex flex-col items-center shadow h-full"
     :class="$ui.showApp && 'click'">
-
     <div class="flex w-full flex-col mt-4 flex">
       <div class="">
-        <Assistant :class="$storex.session.connected ? '' : 'grayscale'" />
+        <CodxJuniorLogo @click="setProjectTab('wiki')" />
+
         <div class="absolute bottom-0 flex justify-center w-full"
           v-if="$session.apiCalls" @dblclick="$storex.session.decApiCalls()">
           <span class="badge badge-xs bg-secondary text-white animate-pulse">thinking</span>
@@ -18,6 +18,7 @@ import Assistant from './codx-junior/Assistant.vue';
       </div>
 
       <div class="divider"></div>
+
       
       <div :class="['hover:bg-base-100 click relative', 
         !$project ? 'text-slate-400' :
@@ -32,25 +33,28 @@ import Assistant from './codx-junior/Assistant.vue';
 				</a>
 			</div>
 
-      <div :class="['hover:bg-base-100 click relative', 
-            !$project ? 'text-slate-400' :
-              ($ui.activeTab === 'wiki' ? 'bg-base-100 text-primary': '')
-          ]">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
-          data-tip="Wiki"
-          @click="setProjectTab('wiki')">
-          <i class="fa-solid fa-book"></i>
-				</a>
-			</div>
-      
       <div :class="['hover:bg-base-100 click relative',
           !$project ? 'text-slate-400' :
-              ($ui.activeTab === 'profiles' ? 'bg-base-100 text-primary': ''),]">
+              ($ui.activeTab === 'profiles' ? 'bg-base-100 text-primary': ''),]"
+          v-if="$users.isProjectAdmin"
+        >
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
           data-tip="Profiles"
           @click="setProjectTab('profiles')">
            <div class="flex flex-col gap-4">
             <i class="fa-solid fa-user-group"></i>
+          </div>
+				</a>
+			</div>
+
+      <div :class="['hover:bg-base-100 click relative',
+          !$project ? 'text-slate-400' :
+              ($ui.activeTab === 'file-finder' ? 'bg-base-100 text-primary': ''),]">
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'"
+          data-tip="File finder"
+          @click="setProjectTab('file-finder')">
+           <div class="flex flex-col gap-4">
+            <i class="fa-solid fa-folder"></i>
           </div>
 				</a>
 			</div>
@@ -68,18 +72,35 @@ import Assistant from './codx-junior/Assistant.vue';
 
     </div>
 
-
+    <div class="divider"></div>
+    
+    <ChatBar v-if="false" />
 
     <div class="grow"></div>
     <div class="divider"></div>
+
+    <div class="dropdown dropdown-left" v-if="$projects.workspaces.length">
+      <div tabindex="0" role="button" class="btn m-1">
+        <i class="fa-solid fa-grip"></i>
+      </div>
+      <WorkspacesSelector tabindex="0"
+        class="dropdown-content bg-base-300 rounded-box z-1 w-52 p-2 shadow-sm"
+        :workspaces="$projects.workspaces"
+        @select="onOpenWorkspace"
+        v-if="$projects.workspaces"
+      >
+      </WorkspacesSelector>
+    </div>
       
     <button class="hidden" v-if="$ui.showApp" @click="$ui.setFloatinCodxJunior(!$ui.floatingCodxJunior)">
       <i class="fa-solid fa-right-from-bracket" :class="$ui.floatingCodxJunior && 'rotate-180'"></i>
     </button>
 
     <div class="flex w-full flex-col mt-4 flex">
-      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('browser') ? 'text-primary': '',]">
-				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
+      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('browser') ? 'text-primary': '',]"
+        v-if="canShowBrowser"
+      >
+				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show display"
           @click.stop="$ui.setShowBrowser(!$ui.appActives.includes('browser'))">
           <div class="flex flex-col gap-4">
             <i class="fa-brands fa-firefox"></i>
@@ -96,7 +117,7 @@ import Assistant from './codx-junior/Assistant.vue';
 				</a>
 			</div>
 
-      <div :class="['hover:bg-base-100 click relative', $ui.showLogs ? 'text-primary': '',]">
+      <div :class="['hover:bg-base-100 click relative group', $ui.showLogs ? 'text-primary': '',]">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" 
           :class="right ? 'tooltip-left' : 'tooltip-right'" 
           :data-tip="showLogsTooltip"
@@ -226,6 +247,9 @@ export default {
     this.$storex.api.screen.getScreenResolution()
   },
   computed: {
+    canShowBrowser() {
+      return this.$users.canShowBrowser
+    },
     isSettings () {
       return ['settings', 'profiles', 'global-settings'].includes(this.$ui.activeTab)
     },
@@ -257,6 +281,9 @@ export default {
       } else {
         this.$session.onError("No project selected")
       }
+    },
+    onOpenWorkspace({ workspace, app }) {
+      this.$projects.openWorkspaceApp({ workspace, app })
     }
   }
 };

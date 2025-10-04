@@ -82,11 +82,11 @@ class CodxJuniorConnection {
   }
 }
 
-const initializeAPI = (project) => {
+const initializeAPI = ({ project, user } = {}) => {
   const API = {
     sid: "",
     connection: null,
-    _user: null,
+    _user: user,
     get user () {
       return API._user
     },
@@ -132,6 +132,25 @@ const initializeAPI = (project) => {
     delete(url) {
       return API.connection.delete(url)
     },
+    oauth: {
+      async getOAuthLoginUrl(provider) {
+        const redirect_uri = encodeURIComponent(window.location.origin + `/auth/${provider}`)
+        return await API.get(`/api/users/oauth-login-url/${provider}?redirect_uri=${redirect_uri}`);
+      },
+      async oauthLogin({ oauth_provider, code, state }) {
+        const redirect_uri = encodeURIComponent(window.location.origin + `/auth/${oauth_provider}`)
+        const data = await API.post('/api/users/oauth-login', {
+          oauth_provider,
+          code,
+          state,
+          redirect_uri
+        });
+        API.user = data;
+        localStorage.setItem("CODX_USER", JSON.stringify(API.user));
+        await API.onUserLogin();
+        return data;
+      }
+    },
     users: {
       async list() {
         API.userNetwork = await API.get('/api/users');
@@ -172,6 +191,10 @@ const initializeAPI = (project) => {
       async run(appName) {
         const data = await API.get(`/api/apps/run?app=${appName}`);
         return data;
+      },
+      async runScript(script) {
+        const data = await API.post('/api/run/script', { script });
+        return data;
       }
     },
     async project(projectOrId) {
@@ -181,12 +204,18 @@ const initializeAPI = (project) => {
       if (projectOrId.codx_path === API.settings.codx_path) {
         return API
       }
-      return initializeAPI(projectOrId)
+      return initializeAPI({ ...API, project: projectOrId })
     },
     projects: {
-      async list() {
-        const data = await API.get('/api/projects');
+      async list(withMetrics) {
+        const data = await API.get(`/api/projects?with_metrics=${withMetrics ? 1 : 0}`);
         API.allProjects = data;
+        API.allProjects.forEach(p => {
+          const projectPath = p.project_path
+          p.parentProject = API.allProjects
+                              .filter(p => p.project_path != projectPath && projectPath.startsWith(p.project_path))
+                              .sort((a, b) => a.project_path > b.project_path ? -1 : 1)[0]
+        })
         return API.allProjects;
       },
       create(projectPath) {
@@ -201,25 +230,38 @@ const initializeAPI = (project) => {
         const data = await API.get('/api/projects/readme');
         return data;
       },
-      watch() {
-        return API.get('/api/project/watch');
-      },
-      unwatch() {
-        return API.get('/api/project/unwatch');
+      watch(watching) {
+        API.activeProject.watching = watching
+        API.settings.save()
       },
       test() {
         return API.get('/api/project/script/test');
-      },
-      async branches() {
-        const branches = await API.get('/api/projects/repo/branches');
-        return branches;
       },
       helpWantedIssues() {
         return API.get('/api/github/issues/help-wanted')
       },
       loadIssue(url) {
         return API.get('/api/github/issues/read?issue_url=' + encodeURIComponent(url)) 
+      },
+      ai: {
+        models: {
+          list() {
+            return API.get('/api/projects/ai/models')
+          }
+        }
+      },
+      async metrics() {
+        const data = await API.get('/api/projects/metrics')
+        return data
       }
+    },
+    repo: {
+      branches() {
+        return API.get('/api/projects/repo/branches');
+      },
+      changes({ from_branch, to_branch }) {
+        return API.get(`/api/projects/repo/changes?from_branch=${from_branch}&to_branch=${to_branch}`);
+      },
     },
     settings: {
       async read() {
@@ -276,8 +318,8 @@ const initializeAPI = (project) => {
       delete(sources) {
         return API.post(`/api/knowledge/delete`, { sources });
       },
-      deleteAll() {
-        return API.del(`/api/knowledge/delete`);
+      deleteIndex(index) {
+        return API.del(`/api/knowledge/delete?index=${index}`);
       },
       keywords() {
         return API.get(`/api/knowledge/keywords`);
@@ -339,8 +381,8 @@ const initializeAPI = (project) => {
       improve(chat) {
         return API.post('/api/run/improve?', chat);
       },
-      patch(aiCodeGenerator) {
-        return API.post('/api/run/improve/patch?', aiCodeGenerator).then(({ data }) => data);
+      patch(patch) {
+        return API.post('/api/run/improve/patch?', patch).then(({ data }) => data);
       },
       edit(chat) {
         return API.post('/api/run/edit?', chat);
@@ -379,6 +421,11 @@ const initializeAPI = (project) => {
         return window.location.origin + url;
       }
     },
+    data: {
+      rawQuery({ filter, limit }) {
+        return API.get(`/api//data/query?search_filter=${filter}&limit=${limit}`)
+      }
+    },
     wiki: {
       read(path) {
         return API.get(`/api/wiki?file_path=${path}`);
@@ -386,8 +433,15 @@ const initializeAPI = (project) => {
       rebuild() {
         return API.get('/api/wiki-engine/rebuild')
       },
-      build() {
-        return API.get('/api/wiki-engine/build')
+      build(settings) {
+        const search = Object.keys(settings).map(k => `${k}=${settings[k]}`).join("&")
+        return API.get('/api/wiki-engine/build?' + search)
+      },
+      config() {
+        return API.get('/api/wiki-engine/config')
+      },
+      save(wikiSettings) {
+        return API.put('/api/wiki-engine', wikiSettings)
       }
     },
     engine: {
@@ -443,6 +497,9 @@ const initializeAPI = (project) => {
       },
       read(path) {
         return API.get(`/api/files/read?path=${path}`);
+      },
+      diff({ path, content }) {
+        return API.post(`/api/files/diff`, { path, content });
       },
       search(search) {
         return API.get(`/api/files/find?search=${search}`);

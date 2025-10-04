@@ -5,12 +5,15 @@ import UserAvatar from '../user/UserAvatar.vue'
 <template>
     <div class="dropdown click" @click.stop="">
         <div tabindex="0" class="flex items-end gap-1 text-xs font-bold" @click="toggleDropdown">
-          <UserAvatar class="ring rounded-full h-6" :user="selectedUser" width="6" />
+          <UserAvatar class="ring rounded-full h-6" :user="selectedUser" width="6" v-if="selectedUser" />
+          <div v-else>
+            <i class="fa-solid fa-plus"></i>
+          </div>
           <div v-if="!mini">
-            {{ selectedUser.name || selectedUser.username }}
+            {{ selectedUser?.name || selectedUser?.username }}
           </div>
         </div>
-        <ul v-if="isOpen" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[50] w-52 p-2 shadow">
+        <ul v-if="isOpen" tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[150] w-52 p-2 shadow">
         <li v-for="user in usersList" :key="user.id" @click="selectUser(user)">
             <a>
               <UserAvatar :user="user" width="6" />
@@ -23,7 +26,7 @@ import UserAvatar from '../user/UserAvatar.vue'
 
 <script>
 export default {
-  props: ['selectedUser', 'mini', 'open'],
+  props: ['selectedUser', 'mini', 'open', 'allUsers'],
   data() {
     return {
       isOpen: false,
@@ -32,7 +35,11 @@ export default {
   computed: {
     // Combine users from user and project profiles
     usersList() {
-      return [this.$user, ...this.$storex.projects.profiles]
+      const users = [...this.$projects.userList]
+      if (this.allUsers) {
+        users.push(this.$project.users.map(u => ({ ...u, name: u.username })))
+      }
+      return users.filter((v,ix,arr) => arr.findIndex(u => u.name === v.name) === ix)
     }
   },
   methods: {

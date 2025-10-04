@@ -1,29 +1,11 @@
 <script setup>
 import RequestMetrics from './metrics/RequestMetrics.vue'
-import TimeSelector from './TimeSelector.vue'
-import Markdown from './Markdown.vue';
 </script>
 
 <template>
   <div class="px-2 pt-4 gap-2 w-full max-w-full overflow-auto flex flex-col relative">
     <header class="flex flex-row justify-between items-center">
       <h1 class="text-xl font-semibold">Dashboard</h1>
-      <!--
-      <button class="btn btn-sm" :class="showMetrics && 'btn-outline'" @click="showMetrics = !showMetrics">
-        Metrics
-      </button>
-      <TimeSelector
-        :start="timeSelection?.start"
-        :end="timeSelection?.end"
-        :times="logTimes"
-        @time-change="onTimeSelectorChanged"
-        @reset="showTimeFilter = false"
-        v-if="showTimeFilter"
-      />
-      <button class="btn btn-sm" @click="toggleTimeFilter">
-        <i class="fa-regular fa-clock"></i>
-      </button>
-      -->
       <div class="flex gap-2 items-center">
         <button class="btn btn-sm" @click="clearLogs">
           <i class="fa-solid fa-trash-can"></i>
@@ -32,14 +14,18 @@ import Markdown from './Markdown.vue';
           <i class="fa-solid fa-rotate"></i>
         </button>
         <label class="flex items-center space-x-2">
-          <input type="checkbox" v-model="autoRefresh" class="checkbox checkbox-xs" />
+          <input type="checkbox" @click="toggleAutoRefresh" :cheked="$storex.logs.autoRefresh" class="checkbox checkbox-xs" />
           <span>Auto-refresh</span>
+        </label>
+        <label class="flex items-center space-x-2">
+          <input type="checkbox" @click="follow = !follow" :cheked="follow" class="checkbox checkbox-xs" />
+          <span>Follow</span>
         </label>
         <div class="grow"></div>
         <div>
           <input class="input input-xs w-10" v-model="tailSize" />
         </div>
-        <div class="px-2">({{ filteredLogs.length }})</div>
+        <div class="px-2">({{ $storex.logs.filteredLogs.length }})</div>
       </div>
     </header>
     <div class="grid grid-cols-4 gap-1 my-2">
@@ -71,11 +57,14 @@ import Markdown from './Markdown.vue';
           @filter-module="toggleProfilerVisible"
           :logs="profilerLogs" class="mb-6" />
       </div>
-      <header class="flex flex-row justify-between items-center">
+      <select @change="onLogChange" class="border select-xs rounded w-1/3">
+        <option :selected="log === $storex.logs.selectedLog" 
+          v-for="log in $storex.logs.logNames" :key="log" :value="log">{{ log }}</option>
+      </select>
+      <header class="flex flex-row justify-between items-center mt-2">
         <div class="flex gap-1 items-center">
-          <select v-model="selectedLog" @change="onLogChange" class="border select-xs rounded">
-            <option v-for="log in logNames" :key="log" :value="log">{{ log }}</option>
-          </select>
+          <input class="input input-xs input-bordered" placeholder="CSV patterns to discard"
+            v-model="discardPatterns" />
           <label class="input input-xs input-bordered flex items-center gap-2">
             <input type="text" class="grow" placeholder="Search" v-model="filter" @keydown.enter="applyFilter" />
             <span v-if="filter">{{ matchCount }}</span>
@@ -90,92 +79,82 @@ import Markdown from './Markdown.vue';
         </div>
         <div class="grow"></div>
       </header>
-      <div class="grow my-2 flex flex-col overflow-auto" style="height:600px" ref="logView">
-        <pre class="max-full mb-1" v-for="log in rawLogs" :key="log"
+      <div class="grow my-2 overflow-auto"
+        style="height:600px" ref="logView">
+        <!--div class="" v-for="log in filteredLogs" :key="log"
           :class="logClasses(log)"
-        >{{ log.replace(']:', ']\n') }}</pre>
-
-        
-        <div class="h-1 w-full" ref="logViewBottom"></div>
+        >
+            {{ log }}
+        </div-->
+        <pre class="-mb-3 text-wrap text-md/6 " v-for="log, ix in filteredLogs" :key="`${log}-${ix}`"
+          :class="log.includes('MATCH') ? 'text-success' :
+            log.includes('[ERROR]') ? 'text-error' : ''"
+        >
+          {{ log  }}
+        </pre>
+        <div class="h-20 text-primary animate-pulse w-full">
+          ...
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script>
+// codx: logView $refs.logView scrolled to bottom after detecting changes in fileterdLogs if it was at bottom 
 export default {
   data() {
     return {
-      rawLogs: null,
       showMetrics: false,
       showTimeFilter: false,
-      selectedLog: '',
       logs: [],
-      autoRefresh: false,
-      logNames: [],
-      filter: null,
+      discardPatterns: '',
       logModules: {},
       visibleModules: [],
       profilerModuleFilter: [],
-      tailSize: 100,
+      tailSize: 250,
+      filter: null,
       logLevelColors: {
         "INFO": "text-success",
         "DEBUG": "text-blue-600",
         "ERROR": "text-error",
         "WARNING": "text-warning"
       },
-      timeSelection: null
+      timeSelection: null,
+      follow: false
     }
   },
-  watch: {
-    autoRefresh(newVal) {
-      if (newVal) {
-        this.fetchLogs()
-      }
-    }
+  created() {
   },
   computed: {
-    logTimes() {
-      return new Set(this.logs.map(l => l.timestamp.split(",")[0]))
-    },
-    distinctModules() {
-      return [...new Set(this.logs.map(log => log.module))]
-    },
-    filteredLogs() {
-      const isLogVisible = log => {
-        if (log.hidden || log.data.url?.includes("/api/logs")) {
-          return false
-        }
-        if (this.timeSelection) {
-          const { start, end } = this.timeSelection
-          if ((start && log.timestamp < start) || (end && log.timestamp > end)) {
-            return false
-          }
-        }
-        if (this.profilerModuleFilter.length) {
-          return this.profilerModuleFilter.includes(
-            `${log.data?.profiler?.module}.${log.data?.profiler?.method}`) 
-        }
-        if (this.visibleModules.length) {
-          return this.visibleModules.includes(log.module)
-        }
-        return true
-      }
-      return this.logs?.filter(isLogVisible)
-    },
     requestLogs() {
       return this.logs.filter(log => log.data.request)
                       .map(({ timestamp, data: { request: { url, time_taken }}}) => ({ timestamp, path: new URL(url).pathname , time_taken }))
     },
     profilerLogs() {
-      return []
-      this.filteredLogs.filter(log => log.data.profiler)
+      return this.$storex.logs.filteredLogs.filter(log => log.data.profiler)
                       .map(({ timestamp, data: { profiler: { module, method, time_taken }}}) => 
                                             ({ timestamp, path: `${module}.${method}` , time_taken }))
     },
+    filteredLogs() {
+      const discards = this.discardPatterns?.toLowerCase().split(",")
+      const filters = this.filter?.toLowerCase().split(",")
+      return this.$storex.logs.rawLogs?.filter(log => !discards?.length ||
+        !discards.find(d => log.toLowerCase().includes(d)))
+        .map(log => !filters ? log : 
+            filters.find(f => log.toLocaleLowerCase().includes(f)) ?
+              `[MATCH] ${log}` : log)
+    },
     matchCount() {
-      return this.filter ? 
-          this.rawLogs?.filter(this.isFilterMatch.bind(this)).length : 0
+      return this.filteredLogs.filter(l => l.includes("[MATCH]")).length
+    }
+  },
+  watch: {
+    filteredLogs() {
+      if (this.follow) {
+        const { logView } = this.$refs
+        requestAnimationFrame(() => logView.scrollTo(0, logView.scrollHeight))
+      }
     }
   },
   methods: {
@@ -190,93 +169,88 @@ export default {
     toggleTimeFilter() {
       this.showTimeFilter = !this.showTimeFilter
     },
-    colorMap() {
-      const modules = new Set()
-      this.logs.forEach(log => {
-        if (log.module) {
-          modules.add(log.module)
-        }
-      })
-      const colors = this.$ui.colorsMap
-      const newModules = [...modules].filter(m => !colors[m])
-      if (newModules) {
-        newModules.forEach(module => {
-          colors[module] = `#${Math.floor(Math.random() * 16777215).toString(16)}`
-        })
-        this.$ui.setColorsMap(colors)
-      }
-      return this.$ui.colorsMap
-    },
+
     async fetchLogNames() {
       try {
-        this.logNames = await this.$storex.api.logs.list()
-        if (this.logNames.length) {
-          this.selectedLog = this.logNames[0]
-          this.fetchLogs()
-        }
+        await this.$storex.logs.fetchLogNames()
+        this.fetchLogs()
       } catch (error) {
         console.error('Error fetching log names:', error)
       }
     },
+    
     async fetchLogs() {
-      const data = await this.$storex.api.logs.read(this.selectedLog, this.tailSize)
-      this.rawLogs = data
-      if (this.autoRefresh) {
-        setTimeout(() => this.fetchLogs(), 3000)
-      }
+      await this.$storex.logs.fetchLogs(this.tailSize)
+    },
+    toggleAutoRefresh() {
+      this.$storex.logs.setAutoRefresh(!this.$storex.logs.autoRefresh)
+      this.fetchLogs()
     },
     clearLogs() {
-      this.rawLogs = []
+      this.$storex.logs.clearLogs()
     },
-    onLogChange() {
+    
+    onLogChange(ev) {
+      this.$storex.logs.setSelectedLog(ev.target.value)
       this.clearLogs()
       this.fetchLogs()
     },
+    
     scrollToBottom() {
-      if (true || !this.$refs.logViewBottom?.checkVisibility()) {
-        return
-      }
       const { logView } = this.$refs
       if (logView) {
         logView.scrollTop = logView.scrollHeight
       }
       this.$el.scrollTop = this.$el.scrollHeight
     },
-    isFilterMatch(log) {
-      return log.toLowerCase().includes(this.filter.toLowerCase())
-    },
+    
     logClasses(log) {
-      if (!this.filter) {
-        return ""
+      const classes = []
+      if (this.filter && this.isFilterMatch(log)) {
+        classes.push("text-success")
       }
-      return this.isFilterMatch(log) ? "": "opacity-20"
+      const isError = log.toLocaleLowerCase().includes("error")
+      if (isError) {
+        classes.push("text-error")
+      }
+      return classes
     },
+
+    isFilterMatch(log) {
+      if (!this.filter) {
+        return true
+      }
+      const lowerLog = log.toLowerCase()
+      return this.filter.toLowerCase().split(",").find(e => lowerLog.includes(e))
+    },
+    
     ignorePattern() {
       this.$projects.addLogIgnore(this.filter?.toLowerCase())
       this.filter = null
     },
+
     applyFilter() {
+      // Implementation for applying filter
     },
+    
     clearFilter() {
       this.filter = null
       this.applyFilter()
     },
+    
     toggleProfilerVisible(module) {
       if (this.profilerModuleFilter.includes(module)) {
         this.profilerModuleFilter.splice(this.profilerModuleFilter.indexOf(module), 1)
       } else {
         this.profilerModuleFilter.push(module)
       }
-    },
-    onTimeSelectorChanged(selection) {
-      this.timeSelection = selection
     }
   },
   mounted() {
     this.fetchLogNames()
   },
   beforeUnmount() {
-    this.autoRefresh = false
+    this.$storex.logs.setAutoRefresh(false)
   }
 }
 </script>

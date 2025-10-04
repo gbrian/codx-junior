@@ -1,7 +1,7 @@
 <template>
-  <div class="dropdown dropdown-left">
+  <div class="dropdown dropdown-right">
     <div tabindex="0" role="button" class="btn" :style="{ backgroundColor: modelValue }"></div>
-    <div tabindex="0" class="grid grid-cols-8 gap-2 dropdown-content menu bg-base-300 rounded-box z-50 w-96 h-28 p-2 shadow">
+    <div tabindex="0" class="grid grid-cols-8 gap-2 dropdown-content menu bg-base-300 rounded-box z-50 w-60 h-20 p-2 shadow">
       <div v-for="color in colors" :key="color" :style="{ backgroundColor: color }"
         class="click w-full h-full rounded-md" 
            @click="selectColor(color)">

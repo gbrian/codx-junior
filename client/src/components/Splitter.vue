@@ -7,6 +7,7 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
 import NavigationBar from '../components/NavigationBar.vue'
 import LogViewerVue from './LogViewer.vue'
 import Wizard from '../components/wizards/Wizard.vue'
+import WorkspacesViewer from './workspaces/WorkspacesViewer.vue'
 </script>
 
 <template>
@@ -25,12 +26,12 @@ import Wizard from '../components/wizards/Wizard.vue'
           <SplitterResizeHandle id="splitter-group-2-resize-handle-1" class="bg-stone-800 hover:bg-slate-600"
             :class="isHorizontal ? 'w-1' : 'h-1'" v-if="$ui.showBrowser && $ui.showCoder" />
           <SplitterPanel id="splitter-group-2-panel-2" :min-size="20" class="" :order="1" v-if="$ui.showBrowser">
-            <PreviewVue class="h-full w-full" :token="$ui.monitorToken" />
+            <PreviewVue class="h-full w-full" :app="'preview'" />
           </SplitterPanel>
         </SplitterGroup>
         <div class="h-full w-full" v-if="$ui.showApp && $ui.appDivided === 'none'">
           <CoderVue class="h-full w-full" v-if="$ui.showCoder" />
-          <PreviewVue class="h-full w-full" :token="$ui.monitorToken"
+          <PreviewVue class="h-full w-full" :app="'preview'"
             v-if="$ui.showBrowser" />
         </div>
       </SplitterPanel>
@@ -38,14 +39,18 @@ import Wizard from '../components/wizards/Wizard.vue'
       <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="bg-stone-800 hover:bg-slate-600 w-1"
         v-if="$ui.showApp && showCodxJunior" />
 
-      <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="$ui.floatingCodxJunior ? 0 : $ui.showApp ?  20 : 100"
-        :defaultSize="$ui.floatingCodxJunior ? 0 : $ui.codxJuniorWidth"
+      <SplitterPanel id="splitter-group-1-panel-2" :order="1" :min-size="showCodxJuniorFloating ? 0 : $ui.showApp ?  20 : 100"
+        :defaultSize="showCodxJuniorFloating ? 0 : $ui.codxJuniorWidth"
         class="flex items-center justify-center transition-all transition-discrete"
-        :class="$ui.floatingCodxJunior ? 'absolute z-50 right-0 top-0 bottom-0 border-red-600 w-2 opacity-30 hover:w-2/4 hover:opacity-90' : ''"
+        :class="[
+          showCodxJuniorFloating ? 'absolute z-50 right-0 top-0 bottom-0 border-red-600 w-2 opacity-30 hover:w-2/4 hover:opacity-90' : '',
+          (showCodxJuniorFloating && mouseOnNavigation) && 'w-2/4 opacity-90'
+        ]"
         @resize="size => $ui.setCodxJuniorWidth(size)"
         v-if="showCodxJunior">
-
-        <CodxJuniorVue class="w-full h-full" />
+        <CodxJuniorVue ref="codxJunior" class="h-full" :class="[ showApp ? 'w-full' : 'w-8/12' ]"
+          :style="`zoom:${ zoom }`" 
+        />
       </SplitterPanel>
 
       <SplitterResizeHandle id="splitter-group-1-resize-handle-2" class="bg-stone-800 hover:bg-slate-600 w-1" v-if="$ui.showLogs"/>
@@ -55,6 +60,14 @@ import Wizard from '../components/wizards/Wizard.vue'
         <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
       </SplitterPanel>
 
+      <!-- New SplitterPanel for WorkspacesViewer -->
+      <SplitterResizeHandle id="splitter-group-1-resize-handle-3" class="bg-stone-800 hover:bg-slate-600 w-1" v-if="showWorkspaces" />
+
+      <SplitterPanel id="splitter-group-1-panel-4" :order="4" :defaultSize="25" :minSize="20" class="flex items-center justify-center"
+        v-if="showWorkspaces">
+        <WorkspacesViewer class="w-full h-full" />
+      </SplitterPanel>
+
     </SplitterGroup>
     <div class="flex flex-col w-2/5 h-full overflow-auto" v-if="$projects.activeWizards.length">
       <Wizard 
@@ -62,7 +75,12 @@ import Wizard from '../components/wizards/Wizard.vue'
         v-for="wizard in $projects.activeWizards" :key="wizard.id" 
         @close="$projects.removeWizard(wizard)" />
     </div>
-    <NavigationBar :right="true" v-if="$ui.isLandscape" />
+    <NavigationBar :right="true" 
+      @mouseenter="mouseOnNavigation = true" 
+      @mouseover="mouseOnNavigation = true"
+      @mouseleave="mouseOnNavigation = false"
+      @blur="mouseOnNavigation = false"
+      v-if="$ui.isLandscape" />
 
   </div>
 </template>
@@ -70,15 +88,32 @@ import Wizard from '../components/wizards/Wizard.vue'
 export default {
   data() {
     return {
+      mouseOnNavigation: false
     }
   },
   computed: {
+    zoom() {
+      return this.$ui.showApp && this.showCodxJunior ? 1.2 : 1
+    },
     isHorizontal() {
       return this.$ui.appDivided === 'horizontal'
     },
     showCodxJunior() {
       return !!this.$ui.activeTab
+    },
+    showApp() {
+      return this.$ui.showApp
+    },
+    showCodxJuniorFloating() {
+      return this.$ui.floatingCodxJunior || (this.$ui.showBrowser && this.$ui.showCoder)
+    },
+    showWorkspaces() {
+      return this.$storex.projects.openedWorkspaces.length
     }
+  },
+  mounted() {
+  },
+  watch: {
   },
   methods: {
     onDblclickCodxJunior() {

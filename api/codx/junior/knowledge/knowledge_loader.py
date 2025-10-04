@@ -9,12 +9,16 @@ from datetime import datetime
 from langchain.document_loaders.generic import GenericLoader
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 
-from codx.junior.utils import calculate_md5
+
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_code_splitter import KnowledgeCodeSplitter
 from codx.junior.knowledge.knowledge_code_to_dcouments import KnowledgeCodeToDocuments
 
-from codx.junior.utils import exec_command
+
+from codx.junior.utils.utils import (
+  exec_command,
+  calculate_md5
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,13 +45,15 @@ class KnowledgeLoader:
             if file_md5 == current_file_md5:
                 return False
 
-        last_doc_update = os.path.getmtime(file_path)
-        if last_doc_update > last_update:
+        last_doc_update = int(os.path.getmtime(file_path))
+        logger.info("File last update check last_update: %s - last_doc_update: %s", last_update, last_doc_update)
+        
+        if not last_update or last_doc_update > last_update:
           return True
 
         return False
 
-    def is_valid_file(self, file, last_update=None, path=None, current_sources=None, knowledge_file_ignore: [str] =[]):
+    def is_valid_file(self, file, current_sources_and_updates=None, path=None, current_sources=None, knowledge_file_ignore: [str] =[]):
         if not os.path.isfile(file):
             return False
 
@@ -57,18 +63,23 @@ class KnowledgeLoader:
         file_errors = [err for err in knowledge_file_ignore if err in file]
         if file_errors:
             return False
-        
+        last_update = None
+        if current_sources_and_updates and file in current_sources_and_updates:
+            last_update = current_sources_and_updates[file]["metadata"]["last_update"]
+            last_update = datetime.fromisoformat(last_update)
+            
         if not self.should_index_doc(file_path=file, last_update=last_update, current_sources=current_sources):
             return False
     
         return True
 
-    def load(self, last_update: datetime = None, path: str = None, current_sources=None, ignore_paths=[]):
+    def load(self, current_sources_and_updates: datetime = None, path: str = None, current_sources=None, ignore_paths=[]):
         documents = []
         code_splitter = KnowledgeCodeSplitter(settings=self.settings)
         #code_splitter = KnowledgeCodeToDocuments(settings=self.settings)
         files = self.list_repository_files(
-            last_update=last_update, path=path,
+            path=path,
+            current_sources_and_updates=current_sources_and_updates,
             current_sources=current_sources,
             ignore_paths=ignore_paths
         )
@@ -124,7 +135,7 @@ class KnowledgeLoader:
         error = result.stderr.decode('utf-8') if result.stderr else None
         return file_paths, error
 
-    def list_repository_files(self, last_update = None, path: str = None, current_sources=None, ignore_paths=[]):        
+    def list_repository_files(self, current_sources_and_updates = None, path: str = None, current_sources=None, ignore_paths=[]):        
         full_file_paths = None
         if path:
             if os.path.isfile(path):
@@ -147,7 +158,7 @@ class KnowledgeLoader:
         # logger.info(f"knowledge ignore files {knowledge_file_ignore}")
         changed_file_paths = [file for file in full_file_paths \
                             if self.is_valid_file(file,
-                                last_update=last_update,
+                                current_sources_and_updates=current_sources_and_updates,
                                 path=path,
                                 current_sources=current_sources,
                                 knowledge_file_ignore=knowledge_file_ignore) ]

@@ -11,10 +11,28 @@ const {
   CODX_JUNIOR_CODER_PORT,
   CODX_JUNIOR_NOVNC_PORT,
   CODX_JUNIOR_API_URL,
+  USER_PORT_RANGE_START,
+  USER_PORT_RANGE_END
 } = process.env
 const apiUrl = CODX_JUNIOR_API_URL || `http://0.0.0.0:${CODX_JUNIOR_API_PORT}`
 const coderUrl = `http://0.0.0.0:${CODX_JUNIOR_CODER_PORT}`
 const noVNCUrl = `http://localhost:${CODX_JUNIOR_NOVNC_PORT}`
+
+const userPortStart = parseInt(USER_PORT_RANGE_START, 10)
+const userPortEnd = parseInt(USER_PORT_RANGE_END, 10)
+
+const userPortCount = userPortEnd - userPortStart
+
+const userPorts = ...[new Array(userPortCount)].reduce((acc, v) => 
+      ({ 
+        ...acc, 
+          [`/user-${userPortStart + v}`]: {
+            target: `http://0.0.0.0:${userPortStart + v}`,
+            changeOrigin: true,
+            ws: true,
+            rewrite: (path) => path.replace(/^\/user-[0-9]+/, ''),
+          }
+      }) , {})
 
 const proxy = {
   '/api': {
@@ -58,26 +76,8 @@ const proxy = {
     changeOrigin: false,
     ws: true,
   },
-  '/__vite_dev_proxy__': {
-      changeOrigin: true,
-
-      // Just make Vite happy
-      target: 'https://example.com',
-      rewrite(path: string) {
-        const proxyUrl = new URL(path, 'file:'),
-          url = new URL(proxyUrl.searchParams.get('url'))
-        return url.pathname + url.search
-      },
-      configure(proxy: any, options: any) {
-        proxy.on('proxyReq', (proxyReq, req) => {
-          const query = req['_parsedUrl']['query'],
-            url = new URL(new URLSearchParams(query).get('url'))
-
-          // Change target here
-          options.target = url.origin
-        })
-      },
-    },
+  // User ports
+  ...userPorts
 }
 
 console.log("proxy settings", proxy, process.env)
@@ -97,7 +97,9 @@ export default defineConfig({
   define: {
     'process.env': {
       coderUrl,
-      noVNCUrl
+      noVNCUrl,
+      USER_PORT_RANGE_START,
+      USER_PORT_RANGE_END
     }
   },
   plugins: [

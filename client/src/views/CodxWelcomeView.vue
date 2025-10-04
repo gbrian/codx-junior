@@ -1,12 +1,15 @@
 <script setup>
 import IssuePreview from '../components/IssuePreview.vue'
+import ProjectCard from '../components/project/ProjectCard.vue'
+
 import { GitIssueWizard } from '../wizards/gitIssue.js'
+import Wall from '../components/wall/Wall.vue'
 </script>
 
 <template>
   <div class="flex flex-col h-full md:py-2">
     <ul class="menu menu-horizontal flex p-0 m-0">
-      <li @click="selection = 'home'">
+      <li @click="selection = 'home'" v-if="$users.isProjectAdmin">
         <a>
           <span class="hidden md:block">
             <i class="fa-solid fa-house"></i>
@@ -40,7 +43,8 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
       </li>
     </ul>
 
-    <div class="md:py-10 flex flex-col" v-if="selection === 'home'">
+    <Wall class="p-4" v-if="selection === 'home'"></Wall>
+    <div class="md:py-10 flex flex-col" v-if="selection === 'old-welcome'">
       <div class="flex flex-col">
         <div class="py-4">
           <h1 class="text-center text-xl md:text-3xl font-bold flex gap-2 justify-center items-center">
@@ -170,31 +174,28 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
 
     <div class="flex flex-col gap-4 mt-4 px-2" v-if="selection === 'projects'">
       <div class="flex justify-between">
-        <div class="text-xl font-bold">Projects</div>
+        <div class="text-xl font-bold">
+          <span v-if="filterQuery">Find projects: '{{ filterQuery }}'</span>
+          <span v-else>Top projects</span>
+        </div>
         <div class="flex items-center gap-2 mb-2">
           <input type="text" class="input input-sm input-bordered" placeholder="Filter projects..." v-model="filterQuery" />
           <button class="btn btn-sm" @click="filterQuery = null">
             <i class="fa-solid fa-circle-xmark"></i>
           </button>
+          <button class="btn btn-sm" @click="$projects.loadAllProjects(true)">
+            <i class="fa-solid fa-arrows-rotate"></i>
+          </button>
+
         </div>
       </div>
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
-        <div
+      <div class="grid grid-cols-2 md:grid-cols-2 gap-2">
+        <ProjectCard
           v-for="project in filteredProjects"
           :key="project.project_id"
-          class="p-4 rounded-md flex flex-col gap-2 bg-base-200 click"
+          :project="project"
           @click="setActiveProject(project)"
-        >
-          <p class="text-xs flex gap-1 tooltip" :data-tip="project.project_path"
-            ><i class="fa-solid fa-folder"></i>
-            <span class="text-nowrap overflow-hidden text-ellipsis">{{ project.project_path }}</span>
-          </p>
-          <div class="font-bold flex gap-2 items-start">
-            <img class="w-6 h-6 rounded-full bg-white" :src="project.project_icon" />
-            {{ project.project_name }}
-          </div>
-          <div class="grow"></div>
-        </div>
+        />
       </div>
       <div class="">
         <div class="text-xl font-semibold mb-4">Get Started with codx-junior</div>
@@ -273,6 +274,9 @@ export default {
     }
   },
   async created () {
+    if (!this.$users.isProjectAdmin) {
+      this.selection = 'projects'
+    }
     this.issues = await this.$storex.api.projects.helpWantedIssues()
     this.issues = this.issues.filter(i => i.hl_text)
                     .map(issue => ({ ...issue, link: `https://github.com/${issue.repo.repository.owner_login}/${issue.repo.repository.name}/issues/${issue.number}`}))
@@ -280,12 +284,14 @@ export default {
   },
   computed: {
     filteredProjects() {
-      return this.$projects.allProjects.filter(project => {
-        return !this.filterQuery || (
-          project.project_name.toLowerCase().includes(this.filterQuery.toLowerCase()) ||
-          project.project_path.toLowerCase().includes(this.filterQuery.toLowerCase())
+      const projects = this.$projects.allProjects
+        .sort((a, b) => Object.keys(a.metrics?.heatmap || {}).length >
+                        Object.keys(b.metrics?.heatmap || {}).length ? -1 : 1 
         )
-      })
+      return this.filterQuery ? projects.filter(project =>
+          project.project_name.toLowerCase().includes(this.filterQuery.toLowerCase()) ||
+          project.project_path.toLowerCase().includes(this.filterQuery.toLowerCase())) :
+          projects.slice(0, 6)
     }
   },
   methods: {
@@ -317,7 +323,6 @@ export default {
       issue.selected = true
     },
     async showProjects() {
-      await this.$projects.loadAllProjects()
       this.selection = 'projects'
     }
   }

@@ -139,6 +139,10 @@ export const mutations = mutationTree(state, {
     state.floatingCodxJunior = floating
     $storex.ui.saveState()
   },
+  toggleFloatinCodxJunior(state) {
+    state.floatingCodxJunior = !state.floatingCodxJunior
+    $storex.ui.saveState()
+  },
   addNotification(state, { text, type }) {
     const notif = {
       ts: moment().format("hh:mm:ss"),
@@ -200,6 +204,17 @@ export const actions = actionTree(
       }
       state.showCoder = true
     },
+    async openProjectFile({ state }, file) {
+      const { project_path } = $storex.projects.activeProject
+      if (!file.startsWith(project_path)) {
+        if (!file.startsWith("/") && !project_path.endsWith("/")) {
+          file = "/" + file
+        }
+        file = project_path + file
+      }
+      await API.coder.openFile(file)
+      state.showCoder = true
+    },
     setScreenResolution(_, resolution) {
       API.screen.setScreenResolution(resolution)
     },
@@ -217,6 +232,17 @@ export const actions = actionTree(
       document.execCommand('copy')
       document.body.removeChild(textArea)
       $storex.ui.addNotification({ text: "Text copied" })
+    },
+    async readClipboardText(_, itemType = "text/plain") {
+      const items = await navigator.clipboard.read()
+      const getText = async item => {
+        const blob = await item.getType(itemType);
+        return await blob.text();
+      }
+      const allTexts = await Promise.all(
+                        items.filter(i => i.types.includes(itemType))
+                              .map(i => getText(i)))
+      return allTexts.reduce((a, b) => a + b, "")
     }
   },
 )

@@ -3,7 +3,7 @@
   "project_name": "codx-junior",
   "project_path": null,
   "project_branches": [],
-  "project_wiki": "wiki",
+  "project_wiki": false, "project_wiki_path": "wiki",
   "project_dependencies": "litellm",
   "project_preview_url": null,
   "knowledge_extract_document_tags": false,
@@ -15,6 +15,7 @@
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": "api/,client/,.codx,assets,/.gitignore,xdg,browser",
+  "knowledge_generate_training_dataset": false,
   "save_mentions": false,
   "watching": false,
   "use_knowledge": true,
@@ -27,5 +28,6 @@
   "rag_model": "",
   "wiki_model": "",
   "last_error": "",
-  "urls": []
+  "urls": [],
+  "repo_url": null
 }

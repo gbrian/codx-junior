@@ -1,6 +1,6 @@
 import './assets/main.css'
 
-import { createApp } from 'vue'
+import { createApp, onBeforeMount, onBeforeUnmount } from 'vue'
 import store, { $storex } from "./store";
 import service from "./service"
 
@@ -10,10 +10,19 @@ import router from './router'
 import Markdown from '@/components/Markdown.vue'
 import FloatingVue from 'floating-vue'
 
+import 'vuefinder/dist/style.css'
+import VueFinder from 'vuefinder/dist/vuefinder'
+
 // BUG: error loading module. Keep it here
 import highlightjs from 'highlight.js'
 
 const globalMixin = {
+  onBeforeMount() {
+    console.log("Before mount. Events: ", this.events, this.$root)
+  },
+  onBeforeUnmount() {
+    console.log("Before Unmount. Events: ", this.events)
+  },
   computed: {
     $storex () {
       return $storex
@@ -42,6 +51,10 @@ const globalMixin = {
     $service () {
       return service
     }
+  },
+  methods: {
+    $bubble(event: string, data: EventInit) {
+    }
   }
 }
 
@@ -52,9 +65,30 @@ const app = createApp(App)
               .use(store)
               .use(router)
               .use(FloatingVue)
+              .use(VueFinder)
               .component('modal', Modal)
               .component('Markdown', Markdown)
               .mount('#app')
 
 $storex.app = app
 $storex.$router = router
+
+// eruda
+window.setTimeout(() =>
+  (function() {
+    function isMobile() {
+      return /Mobi|Android/i.test(navigator.userAgent);
+    }
+
+    if (isMobile()) {
+      var script1 = document.createElement('script');
+      script1.src = "https://cdn.jsdelivr.net/npm/eruda";
+      document.body.appendChild(script1);
+
+      script1.onload = function() {
+        var script2 = document.createElement('script');
+        script2.innerHTML = "eruda.init();";
+        document.body.appendChild(script2);
+      };
+    }
+  })(), 2000)

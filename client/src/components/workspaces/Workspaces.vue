@@ -76,6 +76,41 @@ import { v4 as uuidv4 } from 'uuid'
             </div>
             <div class="form-control mt-4">
               <label class="label">
+                <span class="label-text">Apps</span>
+              </label>
+              <div v-for="(app, index) in selectedWorkspace.apps" :key="index" class="flex gap-2 items-center mt-2">
+                <select v-model="app.name" class="select select-bordered">
+                  <option value="coder">Code Server</option>
+                  <option value="desktop">Virtual Desktop</option>
+                </select>
+                <input v-model="app.description" placeholder="App Description" class="input input-bordered w-36" />
+                <input v-model="app.port" type="number" placeholder="Port" class="input input-bordered w-20" />
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="app.is_vnc" class="checkbox checkbox-xs" />
+                  <span class="ml-1">VNC</span>
+                </label>
+                <button class="btn btn-error btn-xs" @click="removeApp(index)">
+                  <i class="fa-solid fa-circle-xmark"></i>
+                </button>
+              </div>
+              <div class="flex gap-2 items-center mt-2">
+                <select v-model="newApp.name" class="select select-bordered">
+                  <option value="coder">Code Server</option>
+                  <option value="desktop">Virtual Desktop</option>
+                </select>
+                <input v-model="newApp.description" placeholder="App Description" class="input input-bordered w-36" />
+                <input v-model="newApp.port" type="number" placeholder="Port" class="input input-bordered w-20" />
+                <label class="flex items-center">
+                  <input type="checkbox" v-model="newApp.is_vnc" class="checkbox checkbox-xs" />
+                  <span class="ml-1">VNC</span>
+                </label>
+                <button class="btn btn-sm btn-primary" @click="addApp">
+                  <i class="fa-solid fa-plus"></i>
+                </button>
+              </div>
+            </div>
+            <div class="form-control mt-4">
+              <label class="label">
                 <span class="label-text">Associated Projects</span>
               </label>
               <div class="flex gap-1 items-center">
@@ -117,10 +152,12 @@ export default {
     return {
       showModal: false,
       newDockerSetting: { key: '', value: '' },
+      newApp: { name: '', description: '', port: null, is_vnc: false },
       selectedWorkspace: {
         name: '',
         description: '',
-        project_ids: []
+        project_ids: [],
+        apps: [] // Initialize apps array
       },
       selectedProjectId: null,
       showSettings: false
@@ -136,7 +173,7 @@ export default {
   },
   methods: {
     addWorkspace() {
-      this.selectedWorkspace = { name: '', description: '', project_ids: [] }
+      this.selectedWorkspace = { name: '', description: '', project_ids: [], apps: [] }
       this.showModal = true
     },
     editWorkspace(workspace) {
@@ -183,6 +220,15 @@ export default {
     },
     removeDockerSetting(key) {
       this.$delete(this.settings.workspace_docker_settings, key)
+    },
+    addApp() {
+      if (this.newApp.name && this.newApp.port) {
+        this.selectedWorkspace.apps.push({ ...this.newApp })
+        this.newApp = { name: '', description: '', port: null, is_vnc: false }
+      }
+    },
+    removeApp(index) {
+      this.selectedWorkspace.apps.splice(index, 1)
     }
   }
 }

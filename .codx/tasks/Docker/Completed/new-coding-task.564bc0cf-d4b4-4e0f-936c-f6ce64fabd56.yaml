@@ -1,0 +1,110 @@
+board: Docker
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Completed
+column_id: ''
+created_at: '2025-03-19 14:01:16.093380'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Docker/Completed/new-coding-task.564bc0cf-d4b4-4e0f-936c-f6ce64fabd56.yaml
+id: 564bc0cf-d4b4-4e0f-936c-f6ce64fabd56
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'We are running codx-junior in docker. We need to match host user uid so
+    we create the codx-junior user in the entrypoint.
+
+    Create bash script to check if /home/codx-junior folder exists and if not:
+
+    * create codx-junior user with $USER_UID and $USER_GID (or 1000) with home, no
+    password and add to sudoers'
+  created_at: '2025-03-19 14:01:16.090377'
+  disable_knowledge: false
+  doc_id: bb543a60-c80e-420b-b94d-d235ec6f31f7
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-19 14:01:16.090430'
+  user: null
+- content: "You can create a bash script that checks for the existence of the `/home/codx-junior`\
+    \ directory, and if it does not exist, creates the user `codx-junior` with the\
+    \ specified `USER_UID` and `USER_GID`. Here's a script that does exactly that:\n\
+    \n```bash\n#!/bin/bash\n\n# Check if USER_UID and USER_GID are set; otherwise,\
+    \ use default value 1000\nUSER_UID=${USER_UID:-1000}\nUSER_GID=${USER_GID:-1000}\n\
+    USERNAME=\"codx-junior\"\nHOME_DIR=\"/home/$USERNAME\"\n\n# Check if home directory\
+    \ exists\nif [ ! -d \"$HOME_DIR\" ]; then\n    echo \"Creating user $USERNAME\
+    \ with UID:$USER_UID and GID:$USER_GID\"\n\n    # Create group if it doesn't exist\n\
+    \    if ! getent group $USER_GID > /dev/null 2>&1; then\n        groupadd -g $USER_GID\
+    \ $USERNAME\n    fi\n\n    # Create user with specified UID and GID\n    useradd\
+    \ -m -u $USER_UID -g $USER_GID -s /bin/bash -d $HOME_DIR $USERNAME\n\n    # Add\
+    \ user to sudoers with no password\n    echo \"$USERNAME ALL=(ALL) NOPASSWD:ALL\"\
+    \ >> /etc/sudoers\n\n    echo \"User $USERNAME created with home directory at\
+    \ $HOME_DIR\"\nelse\n    echo \"User $USERNAME already exists with home directory\
+    \ at $HOME_DIR\"\nfi\n```\n\n### Explanation\n\n1. **Environment Variables**:\
+    \ The script uses `USER_UID` and `USER_GID` from the environment variables. If\
+    \ they are not set, defaults to `1000`.\n\n2. **Check Home Directory**: It checks\
+    \ if the `/home/codx-junior` directory exists.\n\n3. **Group Creation**: The script\
+    \ ensures the group associated with the user doesn't already exist. If the group\
+    \ with the specified `USER_GID` does not exist, it creates one.\n\n4. **User Creation**:\
+    \ It creates a new user with the specified or default UID, GID, no password, and\
+    \ sets their shell to `/bin/bash`.\n\n5. **Sudo Setup**: The user is granted passwordless\
+    \ sudo access by appending the appropriate permissions to the `/etc/sudoers` file.\n\
+    \n6. **Feedback**: Provides feedback on whether the user was created or already\
+    \ exists.\n\n### Usage\n\n- Save this script in your Docker container, perhaps\
+    \ in `/usr/local/bin/setup-user.sh`.\n- Make sure the script is executable: `chmod\
+    \ +x /usr/local/bin/setup-user.sh`.\n- You can run this script from your `Dockerfile`\
+    \ or set it as your container entrypoint.\n\nNote: Ensure your Docker container\
+    \ has the necessary permissions to modify user accounts and the `/etc/sudoers`\
+    \ file. This typically requires running the container with elevated privileges."
+  created_at: '2025-03-19 14:01:16.090377'
+  disable_knowledge: false
+  doc_id: 3ffce109-5472-4b82-93a1-c4996fc89bbb
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 4.46506142616272
+    model: gpt-4o
+    time_taken: 12.82780933380127
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-19 14:01:16.090430'
+  user: null
+mode: chat
+name: New Coding Task
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-04T07:55:39.593586'
+url: ''
+users: []
+visibility: ''

@@ -7,11 +7,6 @@ import CodeViewer from './CodeViewer.vue'
 <template>
   <div class="rounded-md">
     <div class="flex gap-2 w-full justify-end bg-base-100 p-2 rounded-t" ref="toolbar">
-      <button class="btn btn-xs tooltip" data-tip="Preview HTML"
-        @click="htmlPreview = !htmlPreview" v-if="language === 'html'"
-      >
-        <i class="fa-brands fa-chrome"></i>
-      </button>
       <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource"
         v-if="showMermaid">
         <span v-if="showMermaidSource">View diagram</span>
@@ -31,7 +26,13 @@ import CodeViewer from './CodeViewer.vue'
       :header="false"
       v-if="showCode"
     ></CodeEditor -->
-    <CodeViewer :code="codeText" :language="language" v-if="showCode" /> 
+    <CodeViewer :code="codeText" 
+      @reload-file="$emit('reload-file', $event)"
+      @open-file="$emit('open-file', $event)"
+      @save-file="$emit('save-file', $event)" 
+      :language="language" 
+      :file="file" 
+      v-if="showCode" /> 
     <MarkdownViewer :text="codeText" v-if="showMarkdown" />
     <div class="" v-html="codeText" v-if="htmlPreview"></div>
   </div>
@@ -42,26 +43,29 @@ const languageMapping = {
   "markdown": "md"
 }
 export default {
-  props: ['code', 'text', 'text-language'],
+  props: ['code', 'text', 'text-language', 'file-name'],
   data () {
     return {
       codeText: null,
       languages: null,
       htmlPreview: false,
-      showMermaidSource: false
+      showMermaidSource: false,
+      file: null
     }
   },
   created () {
     const language = languageMapping[this.codeLanguage] || this.codeLanguage
     this.languages = [[ language, language.toUpperCase() ]]
-    this.codeText = this.text || this.code.innerText
+    this.codeText = this.text || this.code?.innerText
+    this.file = this.fileName || this.code?.attributes["data-file"]?.value
     console.log("Code block created", language)
   },
   mounted () {
     if (this.code) {
-      this.code.parentNode.after(this.$el)
-      this.code.parentNode.remove()
+      this.code?.parentNode.after(this.$el)
+      this.code?.parentNode.remove()
       // this.$el.querySelector('.header.border')?.append(this.$refs.toolbar)
+      this.$bubble('code-file-shown', { somedata: true })
     }
   },
   computed: {
@@ -90,7 +94,7 @@ export default {
     },
     codeBlockInfo() {
       return {
-        code: this.text || this.code.innerText,
+        code: this.text || this.code?.innerText,
         language: this.language
       }
     }

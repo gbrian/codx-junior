@@ -5,16 +5,22 @@ from datetime import datetime
 from functools import reduce
 from pathlib import Path
 
+from concurrent.futures import ThreadPoolExecutor
+
 from codx.junior.knowledge.knowledge_db import KnowledgeDB
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from codx.junior.model.model import CodxUser
+
 from langchain.schema.document import Document
 
-from codx.junior.utils import (
+from codx.junior.utils.utils import (
   calculate_md5,
   extract_blocks,
-  exec_command
+  exec_command,
+  extract_json_blocks,
+ 
 )
 
 from codx.junior.ai import AI
@@ -22,6 +28,7 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
 from codx.junior.knowledge.knowledge_prompts import KnowledgePrompts
 from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
+from codx.junior.wiki.wiki_manager import WikiManager
 
 
 logger = logging.getLogger(__name__)
@@ -38,11 +45,11 @@ class Knowledge:
         self.knowledge_prompts = KnowledgePrompts(settings=settings)
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
-        self.last_changed_file_paths = []
+        self.wiki_manager = WikiManager(settings=settings)
 
     def get_ai(self):
         if not self.ai:
-            self.ai = AI(settings=self.settings)
+            self.ai = AI(settings=self.settings, user=CodxUser(username=__name__))
         return self.ai
 
     def get_db(self):
@@ -53,25 +60,20 @@ class Knowledge:
     def refresh_last_update(self):
         self.get_db().refresh_last_update()
 
-    def detect_changes(self, last_update = None):
-      current_sources = self.get_all_sources()
-      if not last_update:
-          last_update = self.get_db().last_update
-      changes = self.loader.list_repository_files(
-                          last_update=last_update if current_sources else None,
-                          current_sources=current_sources,
+    def detect_changes(self, current_sources_and_updates = None):
+        changes = self.loader.list_repository_files(
+                          current_sources=current_sources_and_updates,
                           ignore_paths=self.settings.get_ignore_patterns())
       
-      def is_empty(file_path):
-          return False if os.stat(file_path).st_size else True
-      return [file_path for file_path in changes if not is_empty(file_path)], self.get_db().last_update
+        def is_empty(file_path):
+            return False if os.stat(file_path).st_size else True
+        return [file_path for file_path in changes if not is_empty(file_path)], current_sources_and_updates
 
     def reload(self, full: bool = False):
         if not self.settings.use_knowledge:
             return
-        self.refresh_last_update()
         if full:
-          self.reset()
+            self.reset()
         try:
             logger.info('Reloading knowledge')
             # Load the knowledge from the filesystem
@@ -83,40 +85,41 @@ class Knowledge:
             if documents:
                 self.index_documents(documents)
 
-            self.last_changed_file_paths = list(dict.fromkeys([d.metadata["source"] for d in documents]))
             self.get_db().build_summary()
             logger.info('Knowledge reloaded')
             self.refresh_last_update()
             return documents
         except Exception as ex:
             logger.error(f"Error loading knowledge {ex}")
-            pass
 
     def reload_path(self, path: str):
-        documents = self.loader.load(last_update=None, path=path)
-        if documents:
-            self.index_documents(documents, raiseIfError=True)
-        logger.info(f"reload_path DONE {path} {len(documents)} documents")
-        return documents
+        # Define the task for reloading the path
+        def task(path: str):
+            try:
+                documents = self.loader.load(path=path)
+                if documents:
+                    self.index_documents(documents, raiseIfError=True)
+                    logger.info(f"reload_path DONE {path} {len(documents)} documents")
+            except Exception as e:
+                logger.exception(f"Error in reload_path for {path}: {e}")
+
+        # Launch the task in a separate thread to ensure fire-and-forget behavior
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(task, path)
 
     def get_all_documents (self, include=[]):
         return self.get_db().get_all_documents(include=include)
         
     def clean_deleted_documents(self):
-        documents = self.get_all_documents()
-        sources = []
-        for doc in documents:
-          source = doc.metadata["source"]
-          if not self.loader.is_valid_file(source):
-            sources.append(source)
-
+        sources = [ source for source in self.get_all_sources() \
+                      if not self.loader.is_valid_file(source)]
         if sources:
-          logger.info(f'Documents to delete: {sources}')
-          self.get_db().delete_documents(sources=sources)
-          return True
+            logger.info(f'Documents to delete: {sources}')
+            self.get_db().delete_documents(sources=sources)
+            return True
         return False
 
-    def enrich_document (self, doc, metadata):
+    def enrich_document (self, doc, metadata, categories=[]):
       if doc.metadata.get("indexed"):
           raise Exception(f"Doc already indexed {doc.metadata}")
       for k in metadata.keys():
@@ -126,47 +129,52 @@ class Knowledge:
       if self.settings.knowledge_enrich_documents:
         try:
           summary_prompt=f"""
+          Analyze this document:
+          <document>
+          { doc.page_content }
+          </document>
+          <categories>
+          { ",".join(categories)}
+          </categories>
+
+          Return a JSON object with this information:
+           * "summary": A 10 lines summarization of the content, focusing on important and business related concept.
+           * "keywords": A array of keywords. Use "-" insteas spaces for keywords.
+           * "category": Choose a category from the list fot this document or return a new one if doesn't fit 
+           * "content_graph": Create a graph representation of the content using nodes and relations.
+          """
+          messages = self.get_ai().chat(prompt=summary_prompt)
+          doc.metadata = {
+            **doc.metadata,
+            **next(extract_json_blocks(messages[-1].content))
+          }
+        except Exception as ex:
+          logger.info(f"Error enriching document {source}: {ex}")
+          doc.metadata["error"] = doc.metadata.get("error", []) + [str(ex)]
+
+      if self.settings.knowledge_generate_training_dataset:
+        try:
+          summary_prompt=f"""
           Given this document:
           <document>
           { doc.page_content }
           </document>
 
-          Return a 10 lines summary with all important concepts and keywords.
+          Generate a training dataset for finetuning a model.
+          Return a JSON list with {10} entries. 
+          Each entry having fields:
+           * "user_request": Create a user request using the document content.
+           * "ai_response": Create a response for the generated user_request using the document content.
+          
           """
           messages = self.get_ai().chat(prompt=summary_prompt)
-          doc.metadata["summary"] = messages[-1].content.strip()
+          training = next(extract_json_blocks(messages[-1].content))
+          doc.metadata["training"] = training 
         except Exception as ex:
-          logger.info(f"Error enriching document {source}: {ex}")
-          
-      # NOT WOIRKING FINE
-      #if self.settings.knowledge_extract_document_tags:
-      #    self.extract_doc_keywords(doc)
-       
+          logger.info(f"Error creating training dataset {source}: {ex}")
+          doc.metadata["error"] = doc.metadata.get("error", []) + str(ex)
       doc.metadata["indexed"] = 1
       return doc
-
-    def extract_doc_keywords(self, doc):
-      keywords = doc.metadata.get("keywords")
-      try:
-        if not keywords:
-            keywords_prompt = f"""
-            Given this document:
-            <document>
-            { doc.page_content }
-            </document>
-
-            Generate only one line with keywords separated by comma.
-            """
-            messages = self.get_ai().chat(prompt=keywords_prompt)
-            response = messages[-1].content.strip()
-            
-            keywords = response.split("\n")[-1]
-            doc.metadata["keywords"] = keywords
-        source = doc.metadata['source']
-        logger.info(f"Extracted keywords from {source}: {keywords}")
-        self.knowledge_keywords.add_keywords(source, keywords)
-      except Exception as ex:
-        logger.exception(f"Error extracting document keywords {doc.metadata}: {ex}")
 
     def parallel_enrich(self, documents, metadata):
       with ThreadPoolExecutor() as executor:
@@ -174,7 +182,8 @@ class Knowledge:
           executor.submit(
             self.enrich_document,
             doc=doc,
-            metadata=metadata): doc for doc in documents
+            metadata=metadata,
+            categories=self.get_categories()): doc for doc in documents
         }
         valid_documents = []
         for future in as_completed(futures):
@@ -182,10 +191,19 @@ class Knowledge:
           if result is not None:
               valid_documents.append(result)
         return valid_documents
+
+    def get_categories(self):
+        return self.get_db().get_all_categoties()
+
+
+    def create_wiki_doc(self, source):
+        try:
+            return self.wiki_manager.create_wiki_document(source)
+        except Exception as ex:
+            logger.exception("Error generating document wiki: %s - %s", source, ex)
+            return None
   
     def index_documents (self, documents, raiseIfError=False):
-        self.delete_documents(documents)
-        # logger.info(f"Indexing documents. {documents}")
         
         index_date = datetime.now().strftime("%m/%d/%YT%H:%M:%S")
         all_sources = list(set([doc.metadata["source"] for doc in documents]))
@@ -196,45 +214,55 @@ class Knowledge:
         }
         enriched_documents = self.parallel_enrich(documents=documents, metadata=metadata)
 
+        all_documents = enriched_documents
+        self.delete_documents(all_documents)
+
+        wiki_documents = {}
+        for source in all_sources:
+            wiki_doc = self.create_wiki_doc(source)
+            if wiki_doc:
+                logger.info("Indexing document and wiki doc: %s", wiki_doc)
+                wiki_documents[source] = wiki_doc 
         
-        for enriched_doc in enriched_documents:
-            source = enriched_doc.metadata["source"]
+        for doc in all_documents:
+            source = doc.metadata.get("source")
+            category = None
+            if source in wiki_documents:
+                category = wiki_documents[source].metadata["category"]
+            logger.info("Indexing document: %s", source)
             try:
-                #if self.settings.knowledge_extract_document_tags:
-                #    self.extract_doc_keywords(enriched_doc)
-                enriched_doc.metadata["index_date"] = index_date
-                enriched_doc.metadata["file_md5"] = all_sources_with_md5[source]
-                # logger.info(f"Indexing document: {enriched_doc}")
-                
-                self.get_db().index_documents(documents=[enriched_doc])
-                # logger.info(f"Indexing document DONE: {enriched_doc}")
+                doc.metadata["index_date"] = index_date
+                doc.metadata["file_md5"] = all_sources_with_md5.get(source, '')
+                # logger.info(f"Indexing document: {doc}")
+                if category:
+                    doc.metadata["category"] = category
+                    doc.metadata["wiki_category"] = category
+
+                self.get_db().index_documents(documents=[doc])
+                # logger.info(f"Indexing document DONE: {doc}")
                 
             except Exception as ex:
-                logger.exception(f"Error indexing document {enriched_doc.metadata['source']}: {ex} at project {self.settings.project_path}")
+                logger.exception(f"Error indexing document {source}: {ex} at project {self.settings.project_path}")
                 if "float data" in str(ex):
                   logger.error(f"{self.settings.project_path}: float data error, trying to reset index")
                   self.reset()
                 elif raiseIfError:
                     raise ex
 
-    def get_last_changed_file_paths (self):
-      return self.last_changed_file_paths
-
     def delete_documents (self, documents=None, sources=None):
         sources = set(sources or [doc.metadata["source"] for doc in documents])
         self.get_db().delete_documents(sources=sources)
-        for source in sources:
-            self.knowledge_keywords.remove_keywords(source)
-
+    
     def reset(self):
         logger.info('Reseting retriever')
         self.get_db().reset()
+        changes, _ = self.detect_changes()
+        for file in changes:
+            exec_command(f'touch "{file}"', cwd=self.settings.project_path)
+    
 
-    def search(self, query):
-      return self.get_db().search(query=query)
-      
-    def search_in_source(self, query):
-      return self.get_db().search_in_source(query=query)
+    def search(self, query, search_type='fulltext', limit=100):
+        return self.get_db().search(query=query)
 
     def doc_from_project_file(self, file_path):
         file_path = f"{self.settings.project_path}/{file_path}"
@@ -292,21 +320,26 @@ class Knowledge:
 
     def index_document(self, text, metadata):
         documents = [Document(page_content=text, metadata=metadata)]
-        self.delete_documents(documents)
+        try:
+            self.delete_documents(documents)
+        except:
+            pass
         self.index_documents(documents)
 
     def get_all_sources (self):
-        return self.get_db().get_all_sources()
+        sources = [d.metadata["source"] for d in self.get_db().get_all_sources().values()]
+        return sources
+
+    def get_db_info (self):
+        return self.get_db().get_db_info()
       
     def is_valid_project_file(self, file_path):
         sources = self.loader.list_repository_files()
         return True if file_path in sources else False
 
     def status (self):
-        documents = self.get_all_documents()
-        doc_count = len(documents)
-        doc_sources = list(dict.fromkeys([doc.metadata["source"] for doc in documents]))
-
+        doc_sources = self.get_all_sources()
+        
         folders = list(dict.fromkeys([Path(file_path).parent for file_path in doc_sources]))      
         
         file_count = len(doc_sources)
@@ -317,11 +350,11 @@ class Knowledge:
             keyword_count += len(value)
         
         status_info = {
-          "doc_count": doc_count,
           "file_count": file_count,
           "folders": folders,
           "keyword_count": keyword_count,
-          "files": doc_sources
+          "files": doc_sources,
+          "db_info": self.get_db_info()
         }
         return status_info
 

@@ -4,9 +4,12 @@ import logging
 import pathlib
 import uuid
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
-from codx.junior.utils import write_file
+from codx.junior.utils.utils import (
+  write_file,
+  exec_command
+)
 from codx.junior.model.model import (
     GlobalSettings,
     ProjectScript,
@@ -16,7 +19,6 @@ from codx.junior.model.model import (
     AILLMModelSettings,
     AIModelType
 )
-from codx.junior.utils import exec_command
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +27,9 @@ GLOBAL_SETTINGS = None
 HOME=os.environ.get("HOME")
 GLOBAL_SETTINGS_PATH=os.environ.get("CODX_JUNIOR_GLOBAL_SETTINGS_PATH", None) or f"{HOME}/global_settings.json"
 
-logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
+# logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
+
+CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = ["codx_path", "metrics", "users", "is_git_root"]
 
 def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvider:
     global_settings = global_settings or GLOBAL_SETTINGS
@@ -70,7 +74,7 @@ def read_global_settings():
 
 def write_global_settings(global_settings: GlobalSettings):
     global GLOBAL_SETTINGS
-    logger.info(f"GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}")
+    # logger.info(f"GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}")
     try:
         old_settings = read_global_settings()
         with open(GLOBAL_SETTINGS_PATH, "w") as f:
@@ -87,10 +91,19 @@ def write_global_settings(global_settings: GlobalSettings):
     except Exception as ex:
         logger.exception(f"Error saving global settings: {ex}")
 
+def get_oauth_provider(oauth_provider: str):
+    global_settings = read_global_settings()
+    return next((provider for provider in global_settings.oauth_providers \
+                if provider.name == oauth_provider), None)
 
 read_global_settings()
-logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
+# logger.info(f"GLOBAL_SETTINGS: {GLOBAL_SETTINGS}")
 
+
+class DevOpsRepository(BaseModel):
+    def __init__(self, repo_url: str):
+        self.repo_url = repo_url
+        
 
 class CODXJuniorSettings(BaseModel):
     project_id: Optional[str] = Field(default=None)
@@ -100,7 +113,8 @@ class CODXJuniorSettings(BaseModel):
     project_branches: Optional[List[str]] = Field(default=[])
     
     codx_path: Optional[str] = Field(default=None)
-    project_wiki: Optional[str] = Field(default=None)
+    project_wiki: Optional[bool] = Field(default=False)
+    project_wiki_path: Optional[str] = Field(default=None)
     project_dependencies: Optional[str] = Field(default=None)
 
     project_preview_url: Optional[str] = Field(default=None)
@@ -114,6 +128,8 @@ class CODXJuniorSettings(BaseModel):
     knowledge_external_folders: Optional[str] = Field(default="")
     knowledge_query_subprojects: Optional[bool] = Field(default=True)
     knowledge_file_ignore: Optional[str] = Field(default=".codx")
+
+    knowledge_generate_training_dataset: Optional[bool] = Field(default=False)
 
     save_mentions: Optional[bool] = Field(default=False)
 
@@ -134,6 +150,10 @@ class CODXJuniorSettings(BaseModel):
     last_error: str = Field(default="")
 
     urls: Optional[List[str]] = Field(default=[])
+
+    repo_url: Optional[str] = Field(default=None)
+
+    is_git_root: Optional[bool] = Field(default=False)
 
     def __str__(self):
         return str(self.model_dump())
@@ -159,6 +179,10 @@ class CODXJuniorSettings(BaseModel):
     def get_project_settings_file(self):
         return f"{self.codx_path}/project.json"
 
+    def get_project_workspaces(self):
+        global_settings = read_global_settings()
+        return [w for w in global_settings.workspaces if self.project_id in w.project_ids]
+
     @classmethod
     def from_codx_path(cls, codx_path: str):
         return CODXJuniorSettings.from_project_file(f"{codx_path}/project.json")
@@ -177,6 +201,7 @@ class CODXJuniorSettings(BaseModel):
                 settings.project_path = base.project_path
             if not settings.project_id:
                 return settings.save_project()
+            settings.is_git_root = os.path.isdir(f"{settings.project_path}/.git")
             return settings
 
     @classmethod
@@ -190,7 +215,7 @@ class CODXJuniorSettings(BaseModel):
     @classmethod
     def get_valid_keys(cls):
         keys = CODXJuniorSettings().__dict__.keys()
-        return [k for k in keys if k not in ["codx_path"]]
+        return [k for k in keys if k not in CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES]
 
     def save_project(self):
         valid_keys = CODXJuniorSettings.get_valid_keys()
@@ -246,11 +271,12 @@ class CODXJuniorSettings(BaseModel):
         return build_ai(settings=self)
 
     def get_project_wiki_path(self):
-        if not self.project_wiki:
-            return None
-        if self.project_wiki[0] == "/":
-            return self.project_wiki
-        return os.path.join(self.project_path, self.project_wiki)
+        if not self.project_wiki_path:
+            return os.path.join(self.codx_path, "wiki")
+
+        if self.project_wiki_path[0] == "/":
+            return self.project_wiki_path
+        return os.path.join(self.project_path, self.project_wiki_path)
 
     def get_project_dependencies(self):
         if self.project_dependencies:
@@ -267,8 +293,8 @@ class CODXJuniorSettings(BaseModel):
 
     def get_ignore_patterns(self):
         ignore_patterns = [".git", "node_modules"]
-        if self.project_wiki:
-            wiki_path = os.path.join(self.project_path, self.project_wiki)
+        if self.project_wiki_path:
+            wiki_path = os.path.join(self.project_path, self.project_wiki_path)
             ignore_patterns.append(wiki_path)
         if self.knowledge_file_ignore:
             ignore_patterns = ignore_patterns + \
@@ -281,3 +307,13 @@ class CODXJuniorSettings(BaseModel):
 
     def get_wiki_model(self):
         return self.wiki_model or GLOBAL_SETTINGS.wiki_model
+
+    def get_project_ai_models(self):
+        return GLOBAL_SETTINGS.ai_models
+
+
+
+class CODXJuniorProject(CODXJuniorSettings):
+    metrics: Optional[Dict] = Field(default={})
+    users: Optional[List[dict]] = Field(default=[])
+    permissions: Optional[str] = Field(default="")

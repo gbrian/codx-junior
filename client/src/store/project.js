@@ -3,7 +3,6 @@ import store, { $storex } from '.'
 import { API } from '../api/api'
 import { v4 as uuidv4 } from 'uuid'
 
-
 export const namespaced = true
 
 export const state = () => ({
@@ -11,6 +10,7 @@ export const state = () => ({
   chats: {},
   activeChat: null,
   activeProject: null,
+  recentProjects: [], // New state property to keep track of recent projects
   logs: null,
   formatedLogs: [],
   selectedLog: null,
@@ -42,13 +42,20 @@ export const state = () => ({
       ]
     },
   ],
-  activeWizards: []
+  activeWizards: [],
+  ai: {
+    models: []
+  },
+  openedWorkspaces: []
 })
 
 export const mutations = mutationTree(state, {
   setAllProjects(state, allProjects) {
-    state.allProjects = allProjects.sort((a, b) =>
-        a.project_name.toLowerCase() > b.project_name.toLowerCase() ? 1 : -1)
+    state.allProjects = allProjects?.sort((a, b) => {
+        const aUpdated = a._metrics?.last_update || ""
+        const bUpdated = b._metrics?.last_update || ""
+        return aUpdated > bUpdated ? -1 : 1
+      })
     state.activeChat = null
   },
   setLogs(state, logs) {
@@ -72,14 +79,33 @@ export const mutations = mutationTree(state, {
   },
   removeWizard(state, wizard) {
     state.activeWizards = state.activeWizards.filter(w => w !== wizard)
+  },
+  addRecentProject(state, project) { // New mutation to update recent projects
+    state.recentProjects = [project, ...state.recentProjects.filter(p => p.codx_path !== project.codx_path)].slice(0, 5)
   }
 })
 
+
+function createProjectChat(project, chat) {
+  return {
+    ...chat,
+    get chatLink() {
+      return `/project/${project.project_id}/chat/${chat.id}`
+    }
+  }
+}
+
 export const getters = getterTree(state, {
-  profiles: state => $storex.profiles.profiles[state.activeProject.project_id],
-  allChats: state => Object.values(state.chats || {}),
+  allParentProjects: () => $storex.api.allProjects.filter(p => !p.parentProject),
+  profiles: state => $storex.profiles.profiles[state.activeProject.project_id]
+                      .map(p => ({
+                        ...p,
+                        project: state.allProjects.find(({ project_id }) => project_id === p.project_id)
+                      })),
+  allChats: state => Object.values(state.chats || {}).map(chat =>createProjectChat(state.activeProject, chat)),
   allBoards: state => Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] })),
   allTags: state => new Set(Object.values(state.chats||{})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
+  allPRs: () => $storex.projects.allChats().filter(c => c.pr_view?.from_branch),
   projectDependencies: state => {
     const { project_dependencies } = state.activeProject
     return project_dependencies?.split(",")
@@ -141,30 +167,46 @@ export const getters = getterTree(state, {
         ...$storex.projects.knowledge?.pending_files || []
       ]
         .map(file => ({ file,
-                        name: `file://${file.split('/').reverse()[0]}`,
+                        name: file.split('/').reverse()[0],
                         filePath: file.split('/').reverse().slice(0, 3).reverse().join('/')
                       }))
-        .map(({ file, name, filePath }) => ({ name, 
+        .map(({ file, name, filePath }) => ({ 
+                        name, 
                         file, 
-                        tooltip: `Use file ${filePath}` })),
-    ].map(m => ({ ...m, searchIndex: m.name.toLowerCase() }))
+                        searchIndex: filePath,
+                        tooltip: `Use file ${filePath}`
+                      })),
+    ].map(m => ({ 
+      ...m,
+      avatar: m.user?.avatar || m.profile?.avatar || m.project?.project_icon,
+      searchIndex: m.searchIndex || m.name.toLowerCase(),
+      mention: encodeURIComponent(m.name)
+    }))
   },
+  lastAssistantChats: () =>
+        $storex.projects.allChats
+          .filter(c => c.board === 'codx-junior')
+          .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),
+  userList: () => [$storex.users.user, ...$storex.projects.profiles.map(p => ({ ...p, isProfile: true }))],
+  workspaces: state => Object.values(state.allProjects.map(p => p.workspaces)
+                          .reduce((a, b) => a.concat(b), [])
+                          .reduce((acc, ws) => ({ ...acc, [ws.id]: ws }) , {}))
 })
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
     async init ({ state }) {
-      state.allProjects = []
+      $storex.projects.setAllProjects([])
       state.activeProject = null
       state.activeChat = null
 
       $storex.projects.loadAllProjects()
     },
-    async loadAllProjects() {
+    async loadAllProjects(_, withMetrics) {
       if ($storex.api.user) {
         try {
-          await API.projects.list()
+          await API.projects.list(withMetrics)
           $storex.projects.setAllProjects(API.allProjects)
           if (API.activeProject) {
             try {
@@ -179,11 +221,11 @@ export const actions = actionTree(
           $storex.session.onError("Error loading projects")
         }
       } 
-      state.allProjects = []
+      $storex.projects.setAllProjects([])
       state.activeProject = null
       state.activeChat = null
     },
-    async setActiveProject ({ state }, project) {
+    async setActiveProject ({ state, commit }, project) {
       const { project_name, codx_path } = project
       if ( project_name && !codx_path ) {
         project = $storex.projects.allProjects.find(p => p.project_name === project_name)
@@ -192,21 +234,28 @@ export const actions = actionTree(
         return
       }
 
-      state.activeProject = null 
-      state.chats = {}
-      state.kanban = null
-      state.activeChat = null
-
       if (project?.codx_path) {
         state.projectLoading = true
         try {
-          await API.setActiveProject(project)
+          const [_, models ] = await Promise.all([
+            API.setActiveProject(project),
+            API.projects.ai.models.list()
+          ])
+          state.ai.models = models
+
+          state.activeProject = API.activeProject
+          state.activeChat = null
+
+          commit('addRecentProject', state.activeProject) // Update recent projects
+
+          $storex.projects.loadProjectKnowledge()            
+          await Promise.all([
+            $storex.projects.loadProfiles(),
+            $storex.projects.loadChats()
+          ])
         } finally {
           state.projectLoading = false
         }
-        $storex.projects.loadProjectKnowledge()
-        state.activeProject = API.activeProject
-        await $storex.projects.loadProfiles()
       }
     },
     async loadProjectKnowledge({ state }) {
@@ -217,7 +266,13 @@ export const actions = actionTree(
       await $storex.profiles.loadProjectProfiles(state.activeProject)
     },
     async loadBranches({ state }) {
-      state.project_branches = await $storex.api.projects.branches()
+      state.project_branches = await $storex.api.repo.branches()
+    },
+    async loadPR({ state }, { fromBranch, toBranch }) {
+      state.activePR = await $storex.api.repo.changes({ fromBranch, toBranch })
+    },
+    async createPR({ state }, { fromBranch, toBranch }) {
+      state.activePR = await $storex.api.repo.changes({ fromBranch, toBranch })
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()
@@ -281,13 +336,17 @@ export const actions = actionTree(
     async realoadProject({ state }) {
       state.projectLoading = true
       try {
-        await API.settings.read()
+        const [_, models] = await Promise.all([
+          API.settings.read(),
+          API.projects.ai.models.list()
+        ])
+        state.ai.models = models
       } finally {
         state.projectLoading = false
       }
       state.activeProject = API.activeProject
-      state.allProjects = (state.allProjects||[])
-        .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p)
+      $storex.projects.setAllProjects((state.allProjects||[])
+        .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p))
       return state.activeProject
     },
     async createNewProject(_, projectPath) {
@@ -296,9 +355,7 @@ export const actions = actionTree(
         return null
       }
       await $storex.projects.loadAllProjects()
-      const project = $storex.projects.allProjects.find(p => p.project_path === newProject.project_path)
-      $storex.projects.setActiveProject(project)
-      $storex.ui.coderOpenPath(project)
+      $storex.projects.setActiveProject(newProject)
     },
     getProjectDependencies({ state }, project) {
       const { project_dependencies } = project
@@ -323,6 +380,9 @@ export const actions = actionTree(
         chat
       }
       $storex.session.emit({ event: 'codx-junior-chat', data })
+    },
+    async codxWiki(_, data) {
+      $storex.session.emit({ event: 'codx-junior-wiki', data })
     },
     async createSubTasks({ state }, { chat, instructions }) {
       const data = {
@@ -414,7 +474,6 @@ export const actions = actionTree(
       }
       state.chats[chat.id] = chat
       if (!chat.temp) {
-        state.activeChat = chat
         await $storex.projects.saveChat(chat)
       }
       return chat
@@ -425,6 +484,7 @@ export const actions = actionTree(
         column: columnTitle,
         ...chat
       })
+      this.$projects.setActiveChat(chat)
       const column = $storex.projects.allBoards.find(({ title }) => title === boardTitle)
                         .columns.find(({ title }) => title === columnTitle)
       column.chats = [...column.chats||[], chat.id]
@@ -453,9 +513,10 @@ export const actions = actionTree(
     },
     async saveProfile({ state }, profile) {
       const data = await $storex.profiles.saveProfile({ profile, project: state.activeProject })
+      await $storex.projects.loadProfiles()
       if (state.selectedProfile.name === data.name) {
-        state.selectedProfile = data
-      }
+        state.selectedProfile = $storex.projects.profiles.find(p => p.name === data.name)
+      }      
     },
     deleteProfile({ state }, profile) {
       if (profile.name === state.selectedProfile?.name) {
@@ -503,6 +564,17 @@ export const actions = actionTree(
       // Delete board chats
       await $storex.api.chats.kanban.delete(title)
       $storex.projects.saveKanban()
+    },
+    async applyPatch(_,patch) {
+      return API.run.patch(patch)
+    },
+    openWorkspaceApp({ state }, { workspace, app }) {
+      const ix = state.openedWorkspaces.findIndex(ows => ows.workspace.id === workspace.id && app.port === ows.app.port)
+      if (ix !== -1) {
+        state.openedWorkspaces = state.openedWorkspaces.filter((_, iix) => iix != ix)
+      } else {
+        state.openedWorkspaces = [...state.openedWorkspaces, { workspace, app }]
+      }
     }
   }
 )

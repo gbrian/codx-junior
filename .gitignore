@@ -21,3 +21,5 @@ client/public/wiki
 *.db
 *.wal
 *.lock
+llm-factory/litegpt/checkpoints
+llm-factory/litegpt/out

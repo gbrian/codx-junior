@@ -3,7 +3,7 @@
   "project_name": "codx-api",
   "project_path": null,
   "project_branches": [],
-  "project_wiki": "wiki",
+  "project_wiki": false, "project_wiki_path": "wiki",
   "project_dependencies": null,
   "project_preview_url": null,
   "knowledge_extract_document_tags": false,
@@ -15,11 +15,12 @@
   "knowledge_external_folders": "",
   "knowledge_query_subprojects": true,
   "knowledge_file_ignore": ".codx,assets,public",
+  "knowledge_generate_training_dataset": false,
   "save_mentions": false,
-  "watching": true,
+  "watching": false,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
-  "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s",
+  "project_icon": "https://codx-dev.meetnav.com/only_icon.png",
   "log_ignore": "",
   "project_scripts": [],
   "embeddings_model": "",
@@ -27,5 +28,7 @@
   "rag_model": "",
   "wiki_model": "",
   "last_error": "",
-  "urls": []
+  "urls": [],
+  "repo_url": null,
+  "metrics": {}
 }

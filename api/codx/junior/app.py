@@ -1,34 +1,33 @@
+import asyncio
+import faulthandler
+import logging
 import os
-import uuid
 import shutil
 import time
-import logging
-import asyncio
-import socketio
 import traceback
+import uuid
 
-import faulthandler
+import socketio
+from flask import jsonify
+
+from concurrent.futures import ThreadPoolExecutor
+
 faulthandler.enable()
-
-from multiprocessing.pool import ThreadPool
-from threading import Thread
-
-from pathlib import Path
 
 from codx.junior.ai import AIManager
 
 from codx.junior.sio.sio import sio
-from codx.junior.sio.session_channel import SessionChannel
 
 from codx.junior.profiling.profiler import profile_function
 
-from codx.junior.log_parser import parse_logs
 from codx.junior.browser import run_browser_manager
 
 from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
 from codx.junior.api.users import router as users_router
 from codx.junior.api.wiki import router as wiki_router
 from codx.junior.api.github import router as github_router
+from codx.junior.api.file_finder import router as file_finder_router
+from codx.junior.api.db_router import router as db_router
 
 from codx.junior.security.user_management import get_authenticated_user
 
@@ -58,20 +57,14 @@ disable_logs([
     'selenium.webdriver.common.selenium_manager'
 ])
 
-
-from flask import send_file
-
 from fastapi import FastAPI, Request, status, Response, UploadFile, Depends
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
-from starlette.responses import RedirectResponse
 from fastapi.responses import JSONResponse
-from fastapi.responses import StreamingResponse
 from starlette.status import HTTP_504_GATEWAY_TIMEOUT
 
 from codx.junior.db import (
-    Chat,
-    Message
+    Chat
 )
 from codx.junior.model.model import (
     KnowledgeReloadPath,
@@ -79,7 +72,6 @@ from codx.junior.model.model import (
     KnowledgeDeleteSources,
     Profile,
     Document,
-    LiveEdit,
     GlobalSettings,
     Screen,
     CodxUser
@@ -91,22 +83,23 @@ from codx.junior.settings import (
   write_global_settings
 )
 
-from codx.junior.profiles.profile_manager import ProfileManager
-from codx.junior.chat_manager import ChatManager
-
 from codx.junior.engine import (
-    create_project,
-    find_all_projects,
-    find_all_user_projects,
     CODXJuniorSession,
     SessionChannel
 )
 
-from codx.junior.utils import (
-    exec_command,
+from codx.junior.project.project_discover import (
+    find_all_projects,
+    find_all_user_projects,  
 )
 
-from codx.junior.context import AICodeGerator
+from codx.junior.project.project_manager import (
+    create_project,
+)
+
+from codx.junior.utils.utils import (
+    exec_command,
+)
 
 from codx.junior.background import start_background_services
 
@@ -116,6 +109,7 @@ IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
 GLOBAL_REQUEST_TIMEOUT=280
+
 
 app = FastAPI(
     title="CODXJuniorAPI",
@@ -127,8 +121,6 @@ app = FastAPI(
     ssl_context='adhoc'
 )
 
-app = FastAPI()
-
 sio_asgi_app = socketio.ASGIApp(sio, app, socketio_path="/api/socket.io")
 app.mount("/api/socket.io", sio_asgi_app)
 
@@ -136,6 +128,8 @@ app.include_router(chatgpt_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(wiki_router, prefix="/api")
 app.include_router(github_router, prefix="/api")
+app.include_router(file_finder_router, prefix="/api")
+app.include_router(db_router, prefix="/api")
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -165,15 +159,22 @@ async def add_process_time_header(request: Request, call_next):
     finally:
         logger.info(f"Request {request.url} - {time.time() - start_time} ms")
 
+
+def get_codx_junior_session(request, codx_path):
+    user = get_authenticated_user(request=request)
+    sid = request.headers.get("x-sid")
+    channel = SessionChannel(sid=sid, sio=sio)
+    return CODXJuniorSession(codx_path=codx_path, 
+                              channel=channel,
+                              user=user)
+
 @app.middleware("http")
-async def add_gpt_engineer_settings(request: Request, call_next):
+async def add_codx_junior_settings(request: Request, call_next):
     codx_path = request.query_params.get("codx_path")
-    if codx_path:
+    if codx_path and codx_path not in ["undefined", "null"]:
         try:
-            sid = request.headers.get("x-sid")
-            channel = SessionChannel(sid=sid, sio=sio)
-            request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, channel=channel)
-            settings = request.state.codx_junior_session.settings
+            codx_path = request.query_params.get("codx_path")
+            request.state.codx_junior_session = get_codx_junior_session(request, codx_path)
             # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:
             logger.error(f"Error loading settings {codx_path}: {ex}\n{request.url}")
@@ -208,10 +209,10 @@ async def api_knowledge_reload(request: Request):
 def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
     codx_junior_session = request.state.codx_junior_session
     logger.info(f"**** API:knowledge_reload_path {knowledge_reload_path}")
-    exec_command(f"touch {knowledge_reload_path.path}")
+    codx_junior_session.index_knowledge_source(sources=[knowledge_reload_path.path])
 
 @app.post("/api/knowledge/delete")
-def api_knowledge_reload_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):
+def api_knowledge_delete_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.delete_knowledge_source(sources=knowledge_delete_sources.sources)
 
@@ -322,13 +323,9 @@ async def api_run_improve(chat: Chat, request: Request):
     return chat
 
 @app.post("/api/run/improve/patch")
-async def api_run_improve_patch(code_generator: AICodeGerator, request: Request):
+async def api_run_improve_patch(data: dict, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    info, error = await codx_junior_session.improve_existing_code_patch(code_generator=code_generator)
-    return {
-        "info": info, 
-        "error": error
-    }
+    return codx_junior_session.apply_patch(patch=data["patch"])
 
 @app.get("/api/run/changes/summary")
 def api_changes_summary(request: Request):
@@ -380,32 +377,55 @@ def api_delete_profile(profile_name, request: Request):
 @app.get("/api/project/watch")
 def api_project_watch(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    settings.watching = True
-    settings.save_project()
+    codx_junior_session.watch_project(True)
     find_all_projects()
     return { "OK": 1 }
 
 @app.get("/api/projects")
-def api_find_all_projects(user: CodxUser = Depends(get_authenticated_user)):
-    all_projects = find_all_user_projects(user)
-    return list(all_projects)
+def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
+    with_metrics = request.query_params.get("with_metrics")
+    return [{
+      **project.__dict__,
+      "workspaces": project.get_project_workspaces(),
+      "metrics": get_codx_junior_session(request, project.codx_path).project_metrics() \
+                      if with_metrics else {}
+    } for project in find_all_user_projects(user)]
+
+    
+
+@app.get("/api/projects/metrics")
+async def api_chat_metrics(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.project_metrics()
 
 @app.get("/api/projects/repo/branches")
 def api_find_all_repo_branches(request: Request):
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.get_project_branches()
 
+@app.get("/api/projects/repo/branch/commits")
+def api_find_all_repo_branch_commits(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    branch = request.query_params.get("branch")
+    return codx_junior_session.get_project_branch_commits(branch=branch)
+
 @app.get("/api/projects/repo/changes")
 def api_find_all_repo_changes(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    main_branch = request.query_params.get("main_branch")
-    return codx_junior_session.get_project_changes(main_branch=main_branch)
+    from_branch = request.query_params.get("from_branch")
+    to_branch = request.query_params.get("to_branch")
+    return codx_junior_session.get_repo_changes(from_branch=from_branch, to_branch=to_branch)
 
 @app.get("/api/projects/readme")
 def api_project_readme(request: Request):
     codx_junior_session = request.state.codx_junior_session
     document = codx_junior_session.get_readme()
     return Response(content=document or "> Not found", media_type="text/html")
+
+@app.get("/api/projects/ai/models")
+def api_project_ai_models(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.settings.get_project_ai_models()
 
 @app.post("/api/projects")
 def api_project_create(request: Request, user: CodxUser = Depends(get_authenticated_user)):
@@ -424,8 +444,7 @@ def api_project_delete(request: Request):
 @app.get("/api/project/unwatch")
 def api_project_unwatch(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    settings.watching = False
-    settings.save_project()
+    codx_junior_session.watch_project(False)
     find_all_projects()
     return { "OK": 1 }
 
@@ -443,7 +462,7 @@ def api_extract_tags(doc: Document, request: Request):
     return doc.__dict__
 
 @app.get("/api/code-server/file/open")
-def api_list_chats(request: Request):
+def api_file_open(request: Request):
     file_name = request.query_params.get("file_name")
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.coder_open_file(file_name=file_name)
@@ -460,11 +479,23 @@ def api_get_file(request: Request):
     path = request.query_params.get("path")
     return codx_junior_session.read_file(path=path)
 
-@app.post("/api/files/write")
-def api_post_file(doc: Document, request: Request):
+@app.post("/api/files/diff")
+async def api_get_file_diff(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    path = request.query_params.get("path")
-    return codx_junior_session.write_file(path=path, content=doc.page_content)
+    data = await request.json()
+    return codx_junior_session.diff_file(path=data["path"], content=data["content"])
+
+@app.post("/api/files/diff/comments")
+async def api_get_file_diff(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    data = await request.json()
+    return codx_junior_session.diff_file_comments(path=data["path"], content=data["content"], comments=data["comments"])
+
+@app.post("/api/files/write")
+async def api_post_file(doc: Document, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("path")
+    return await codx_junior_session.write_project_file(file_path=file_path, content=doc.page_content, process=False)
 
 @app.get("/api/files/find")
 def api_get_file(request: Request):
@@ -497,6 +528,11 @@ def api_write_global_settings(global_settings: GlobalSettings):
     AIManager().reload_models(global_settings)
     write_global_settings(global_settings=global_settings)
     
+@app.post("/api/run/script")
+def run_script(data: dict, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    std, _ = exec_command(data["script"], cwd=codx_junior_session.settings.project_path)
+    return std
 
 @app.get("/api/logs")
 def api_logs_list():
@@ -507,21 +543,23 @@ def api_logs_list():
     containers = [f"🐋:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
    
     
-    return codx_logs + containers
-
-
+    return sorted(codx_logs) + containers
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
     log_size = request.query_params.get("log_size") or "100"
     if "🐋" in log_name:
-        stdout, _ = exec_command(f"docker logs -n {log_size} {log_name.split(':')[1]}")
+        stdout, err_logs = exec_command(f"docker logs -n {log_size} {log_name.split(':')[1]}")
+        if err_logs:
+            logger.error(f"Error reading logs {log_name}: {err_logs}")
         return stdout.split("\n")
     else:   
         log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
         cmd = f"tail -n {log_size} {log_file}"
         try:
-            logs, _ = exec_command(cmd)
+            logs, err_logs = exec_command(cmd)
+            if err_logs:
+                logger.error(f"Error reading logs {log_name}: {err_logs}")
             # return parse_logs(logs)
             def is_valid_log(l):
                 if "/api/logs" in l:
@@ -551,9 +589,10 @@ def api_screen_get():
     return screen
 
 @app.post("/api/image-to-text")
-async def api_image_to_text_endpoint(file: UploadFile):
+async def api_image_to_text_endpoint(file: UploadFile, request):
+    codx_junior_session = request.state.codx_junior_session
     file_bytes = await file.read()            
-    return api_image_to_text(file_bytes)
+    return codx_junior_session.api_image_to_text(file_bytes)
 
 @app.post("/api/restart")
 def api_restart():

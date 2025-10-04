@@ -48,7 +48,6 @@ class SessionChannel:
 
     def send_event(self, event, data):
         data["ts"] = int(time.time())
-        logger.info(f"SessionChannel send_event {event}")
         EVENT_QUEUE.append(IOEvent(sid=self.sid, event=event, data=data))
 
         

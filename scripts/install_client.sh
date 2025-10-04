@@ -12,20 +12,9 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
-# Copy settings.json
-echo "Copying VS Code settings..."
-mkdir -p ${HOME}/.local/share/code-server/Machine
-cp ${CODX_JUNIOR_PATH}/code-server/User/settings.json ${HOME}/.local/share/code-server/Machine/settings.json
-
 echo "Compiling client"
 cd $CODX_JUNIOR_PATH/client
 rm -rf node_modules
 rm -rf dist
 npm i
 npm run build-only
-
-cd $CODX_JUNIOR_PATH/docs
-rm -rf node_modules
-rm -rf dist
-npm i
-npm run docs:build

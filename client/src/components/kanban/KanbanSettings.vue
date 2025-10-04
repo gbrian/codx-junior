@@ -2,45 +2,55 @@
 </script>
 
 <template>
-  <div class="w-full h-full flex flex-col gap-2">
-    <h2 class="font-bold text-lg">Edit Kanban Board Settings</h2>
-    <input type="text" v-model="boardData.name" placeholder="Enter board name" class="input input-bordered w-full mt-2" />
-    <input type="text" v-model="boardData.description" placeholder="Enter board description" class="input input-bordered w-full mt-2" />
-    <input type="text" v-model="boardData.branch" placeholder="Enter branch name" class="input input-bordered w-full mt-2" />
-    <select v-model="boardData.template" class="select select-bordered w-full mt-2">
-      <option disabled value="">Select a Template</option>
-      <option v-for="template in templates" :key="template.name" :value="template">{{ template.name }}</option>
-    </select>
-    <div class="modal-action">
-      <button class="btn" @click="updateBoardSettings">Save</button>
-      <button class="btn" @click="cancelEdit">Cancel</button>
+<div>
+  <div>
+    <label class="block mb-2">Name</label>
+    <input v-model="board.title" type="text" class="input input-bordered w-full mb-4" />
+    <label class="block mb-2">Description</label>
+    <textarea v-model="board.description" class="textarea textarea-bordered w-full mb-4"></textarea>
+    <label class="block mb-2">Remote board <i class="fa-solid fa-link"></i> </label>
+    <input v-model="board.remote_url" type="text" class="input input-bordered w-full mb-4" />
+    <div class="flex justify-between">
+      <button @click="saveBoard" class="btn">Save</button>
+      <button @click="deleteBoard" class="btn btn-error">
+        <span v-if="confirmDelete">Confirm delete</span>
+        <span v-else>Delete</span>
+      </button>
     </div>
   </div>
+  <div class="mt-2 flex justify-end font-bold text-warning gap-2" v-if="confirmDelete">
+    <i class="fa-solid fa-triangle-exclamation"></i>
+    All tasks will be deleted
+    <span @click="confirmDelete = false" class="text-error click underline">cancel</span>
+  </div>
+</div>
 </template>
 
 <script>
 export default {
-  props: {
-    board: {
-      type: Object,
-      required: true
-    },
-    templates: {
-      type: Array,
-      required: true
-    }
-  },
+  props: ['board'],
   data() {
     return {
-      boardData: { ...this.board }
+      confirmDelete: false
     }
   },
   methods: {
     updateBoardSettings() {
-      this.$emit('update-board', this.boardData)
+      this.$emit('change', this.board)
     },
     cancelEdit() {
       this.$emit('cancel-edit')
+    },
+    deleteBoard() {
+      if (this.confirmDelete) {
+        this.$emit('delete', this.board)
+        this.board = null
+      } else {
+        this.confirmDelete = true
+      }
+    },
+    saveBoard() {
+      this.$emit('change', this.board)
     }
   }
 }

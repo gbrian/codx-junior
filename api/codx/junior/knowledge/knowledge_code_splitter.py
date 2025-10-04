@@ -1,4 +1,5 @@
 import logging
+import os
 
 from langchain.schema.document import Document
 from langchain.text_splitter import Language
@@ -12,13 +13,16 @@ from codx.junior.settings import CODXJuniorSettings
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 
+
 from llama_index.core.node_parser import CodeSplitter
 from codx.junior.knowledge.settings import (
     LANGUAGE_FROM_EXTENSION,
     CODE_PARSER_FROM_EXTENSION
 )
 
-from codx.junior.utils import exec_command
+from docling.document_converter import DocumentConverter
+
+from codx.junior.utils.utils import exec_command
 
 CURRENT_SPLITTER_LANGUAGES = [lang.lower() for lang in dir(Language)]
 LANGUAGE_PARSER_MAPPING = {
@@ -31,7 +35,7 @@ class KnowledgeCodeSplitter:
     def __init__(self, settings: CODXJuniorSettings):
         self.settings = settings
         self.embeddings_ai_settings = self.settings.get_embeddings_settings()
-        chunk_size = self.embeddings_ai_settings.chunk_size or 1000
+        chunk_size = self.embeddings_ai_settings.chunk_size or 65535
         self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=10)
 
     def load(self, file_path):
@@ -60,6 +64,13 @@ class KnowledgeCodeSplitter:
             #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
             pass
           
+        if not file_path.endswith(".md"):
+            try:
+                return self.load_with_docling(file_path=file_path, code_parser_language=code_parser_language)
+            except Exception as ex:
+                logger.exception(f"[KnowledgeCodeSplitter] load_with_docling load error: {ex} - {file_path}")
+                pass
+              
         try:
             return self.load_as_text(file_path=file_path)
         except Exception as ex:
@@ -115,6 +126,24 @@ class KnowledgeCodeSplitter:
                 doc.metadata["splitter"] = "LanguageParser"
             return docs
 
+    def load_with_docling(self, file_path, code_parser_language):
+        extension = file_path.split(".")[-1]
+        if extension in ["pdf", "docx", "xls", "jpg"]:
+            markdown_path = file_path + ".md"
+            if os.path.isfile(markdown_path) and \
+                os.path.getmtime(markdown_path) > os.path.getmtime(file_path):
+                
+                logger.info("load_with_docling SKIP '%s' is newer than '%s'", markdown_path, file_path)
+            else:
+                converter = DocumentConverter()
+                result = converter.convert(file_path)
+                markdown = result.document.export_to_markdown()
+                with open(markdown_path, 'w') as file:
+                    file.write(markdown)
+                logger.info("[load_with_docling] done, markdown length: %d", len(markdown))
+        
+        raise Exception("Let markdown take it!")
+        
     def load_as_text(self, file_path):
       docs = TextLoader(file_path).load_and_split(
                     text_splitter=self.text_splitter)

@@ -4,7 +4,7 @@ import json
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from langchain.schema.document import Document
 
-from codx.junior.utils import extract_json_blocks 
+from codx.junior.utils.utils import extract_json_blocks 
 
 from codx.junior.ai import AI
 from codx.junior.settings import CODXJuniorSettings

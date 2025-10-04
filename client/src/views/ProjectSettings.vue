@@ -130,6 +130,13 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
           </div>
         </div>
         <div class="flex justify-between mb-2">
+          <div class="label-text">Training datasets</div>
+          <div class="w-2/3">
+            <input v-model="settings.knowledge_generate_training_dataset" type="checkbox" class="toggle" />
+            <div class="text-xs">Enable/Disable generating trainig datasets for this project.</div>
+          </div>
+        </div>
+        <div class="flex justify-between mb-2">
           <div class="label-text">Watching</div>
           <div class="w-2/3">
             <input v-model="settings.watching" type="checkbox" class="toggle" />
@@ -234,6 +241,9 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
       </button>
     </div>
   </div>
+  <div v-else>
+  No settings found for {{ $project }}
+  </div>
 </template>
 
 <script>
@@ -261,8 +271,8 @@ export default {
     }
   },
   methods: {
-    async reloadSettings() {
-      this.settings = { ...this.$projects.activeProject }
+    reloadSettings() {
+      this.settings = { ...this.$project }
     },
     async saveSettings() {
       await this.$projects.saveSettings(this.settings)

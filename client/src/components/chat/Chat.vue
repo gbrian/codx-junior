@@ -1,48 +1,60 @@
 <script setup>
+import moment from 'moment'
 import { API } from '../../api/api'
 import ChatEntry from '@/components/ChatEntry.vue'
 import Browser from '@/components/browser/Browser.vue'
 import Markdown from '@/components/Markdown.vue'
 import TaskCard from '../kanban/TaskCard.vue'
 import UserSelector from './UserSelector.vue'
-import moment from 'moment'
+import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
+import CheckLists from './CheckLists.vue'
+import MentionSelector from '../mentions/MentionSelector.vue'
 </script>
 
 <template>
   <div class="flex flex-col gap-1 grow">
     <div class="grow relative">
-      <div class="overflow-y-auto overflow-x-hidden"
-        :class="isBrowser && 'flex gap-1'">
+      <CheckLists class="mb-2" :chat="theChat" @change="saveChat" />
+      <div class="overflow-y-auto overflow-x-hidden" :class="isBrowser && 'flex gap-1'">
         <div class="w-3/4" v-if="isBrowser">
           <Browser :token="$ui.monitors['shared']" />
         </div>
         <div class="overflow-auto h-full">
-          <div class="flex flex-col" v-for="message in messages" :key="message.id">
-            <div class="flex w-full flex-col gap-4 bg-base-100 p-2 mb-2 rounded-md" v-if="!message.content && !message.think">
-              <div class="flex items-center gap-4">
-                <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
-                <div class="flex flex-col gap-4">
-                  <div class="skeleton h-4 w-20"></div>
-                </div>
-              </div>
-              <div class="skeleton h-32 w-full"></div>
-            </div>
-            <ChatEntry :class="['mb-4 rounded-md py-2 bg-base-100',
+          <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
+            <ChatEntry v-for="knowledgeMessage in knowledgeMessages"
+              :key="knowledgeMessages.id" 
+              :chat="theChat"
+              :message="knowledgeMessage"
+              :isTopic="isTopic && !ix"
+              :mentionList="mentionList"
+            />
+            
+            <ChatEntry :class="['mb-4 rounded-md',
+              isChannel ? '': 'bg-base-100 py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
-              message.hide ? 'opacity-60' : '']"
+              message.hide ? 'opacity-80 border border-dashed p-2 border-warning' : '']"
               :chat="theChat"
               :message="message"
-              @edit="onEditMessage(message)"
+              :isTopic="isTopic && !ix"
+              :mentionList="mentionList"
+              @edited="onMessageEdited"
               @enhance="onEditMessage(message, true)"
               @remove="removeMessage(message)"
               @remove-file="removeFileFromMessage(message, $event)"
               @hide="toggleHide(message)"
+              @answer="toggleAnswer(message)"
               @run-edit="runEdit"
               @copy="onCopy(message)"
               @add-file-to-chat="$emit('add-file', $event)"
               @image="imagePreview = { ...$event, readonly: true }"
               @generate-code="onGenerateCode"
-              v-else />
+              @reload-file="onReloadMessageFile"
+              @open-file="onOpenFile"
+              @save-file="onSaveFile"
+              @edit-message="onEditMessage($event, message)"
+              @code-file-shown.stop="console.log"
+              @subtask="$emit('subtask', { chat: theChat, message })"
+            />
           </div>
           <div class="anchor" ref="anchor"></div>
           <div class="grid grid-cols-3 gap-2 mb-2" v-if="childrenChats?.length">
@@ -68,37 +80,9 @@ import moment from 'moment'
         </div>
       </div>
     </div>
-    <div class="sticky -bottom-2 bg-base-300">
+    <div class="sticky bottom-0 z-50 bg-base-300">
       <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
         {{  lastChatEvent }}
-      </div>
-      <div class="dropdown dropdown-top dropdown-open mb-1" v-if="showTermSearch">
-        <div tabindex="0" role="button" class="rounded-md bg-base-300 w-fit p-2 hidden">
-          <div class="flex p-1 items-center text-sky-600">
-            <i class="fa-solid fa-at"></i>
-            <input type="text" v-model="termSearchQuery"
-              ref="termSearcher"
-              class="-ml-1 input input-xs text-lg bg-transparent" placeholder="search term..."
-              @keydown.down.stop="onSelNext"
-              @keydown.up.stop="onSelPrev"
-              @keydown.enter.stop="addSerchTerm(searchTerms[searchTermSelIx])"
-              @keydown.esc="closeTermSearch" />
-            <button class="btn btn-xs btn-circle btn-outline btn-error"
-              @click="closeTermSearch"
-              v-if="termSearchQuery">
-              <i class="fa-solid fa-circle-xmark"></i>
-            </button>
-          </div>
-        </div>
-        <ul tabindex="0" class="dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit">
-          <li class="tooltip" :data-tip="term.tooltip" v-for="term, ix in searchTerms" :key="term.name">
-            <a @click="addSerchTerm(term)">
-              <div :class="[searchTermSelIx === ix ? 'underline':'']">
-                <span class="text-sky-600 font-bold">@{{ term.name }}</span>
-              </div>
-            </a>
-          </li>
-        </ul>
       </div>
       <div class="flex gap-2">
         <span class="badge tooltip flex gap-2 items-center"
@@ -113,6 +97,8 @@ import moment from 'moment'
           </div>
         </span>
       </div>
+
+      <MentionSelector :content="editorText" :mentionList="mentionList" @select="onMentionReplace" />
       <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
             'flex-col',
             editMessage && 'border-warning',
@@ -120,7 +106,11 @@ import moment from 'moment'
         @dragover.prevent="onDraggingOverInput = true"
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop">
-        <div :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
+        <KnowledgeSearch class="p-2 h-60"
+          @select="onAddDocument"
+          v-if="showDocumentSearchModal"
+        />
+        <div v-else class="editor" :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
           :contenteditable="!waiting"
           ref="editor"
           @paste="onContentPaste"
@@ -147,10 +137,10 @@ import moment from 'moment'
               :selectedUser="selectedUser"
               @user-changed="selectedUser = $event"
             />
-            <div class="flex gap-2 items-center justify-end py-2">
+            <div class="flex gap-2 items-center justify-end py-2" v-if="!searchingInKnowledge">
               <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
                 <i class="fa-solid fa-save"></i>
-                <div class="text-xs" v-if="editMessage">Edit</div>
+                <div class="text-xs" v-if="editMessage && !showDocumentSearchModal">Edit</div>
               </button>
               <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
                 v-if="editMessage">
@@ -161,7 +151,7 @@ import moment from 'moment'
                 :class="isVoiceSession && 'btn-success animate-pulse'"
                 @click="sendMessage"
                 ref="sendButton"
-                v-if="!editMessage">
+                v-if="!editMessage && !showDocumentSearchModal">
                 <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
                 <i class="fa-solid fa-paper-plane" v-else></i>
               </button>
@@ -215,6 +205,9 @@ import moment from 'moment'
                 </ul>
               </div>
             </div>
+            <div class="flex gap-2 items-center justify-end py-2 animate-pulse" v-else>
+              Searching...
+            </div>
           </div>
         </div>
       </div>
@@ -249,15 +242,28 @@ import moment from 'moment'
       </div>
     </modal>
     <modal v-if="selectFile">
-      <label class="file-select">
-        <div class="select-button">
-          <span>Select File(s)</span>
-        </div>
-        <input type="file" accept="image/*" multiple @change="handleFileChange" />
-        <button class="btn btn-sm btn-error" @click="selectFile = false">
-          Cancel
+      <div class="flex flex-col">
+        <div class="text-xl">Project file</div>
+        
+        <input type="text" class="input input-bordered"
+          placeholder="File path" 
+          v-model="uploadProjectFile" 
+          />
+        <button class="btn btn-sm" @click="addChatFile">
+          Add file
         </button>
-      </label>
+        
+        
+        <label class="file-select">
+          <div class="select-button">
+            <span>Select File(s)</span>
+          </div>
+          <input type="file" accept="image/*" multiple @change="handleFileChange" />
+          <button class="btn btn-sm btn-error" @click="selectFile = false">
+            Cancel
+          </button>
+        </label>
+      </div>
     </modal>
 
     <modal v-if="showModal">
@@ -284,9 +290,6 @@ export default {
       waiting: false,
       editMessage: null,
       editMessageId: null,
-      termSearchQuery: null,
-      searchTerms: null,
-      searchTermSelIx: -1,
       files: [],
       images: [],
       previewImage: null,
@@ -305,14 +308,21 @@ export default {
       showModal: false,
       taskToDelete: null,
       selectedUser: null,
-      refreshngMentions: null
+      refreshngMentions: null,
+      selectedDocuments: null,
+      showDocumentSearchModal: false,
+      searchingInKnowledge: false,
+      projectContext: null,
+      uploadProjectFile: null
     }
   },
   created() {
     this.selectedUser = this.$user
+    this.setProjectContext()
   },
   mounted() {
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
+    this.initSelectedUserFromChat()
   },
   unmounted() {
     clearInterval(this.syncEditableTextInterval)
@@ -325,13 +335,23 @@ export default {
       return this.theChat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
     lastAIMessage() {
-      const { messages } = this.theChat
-      const aiMsgs = messages.filter(m => !m.hide && m.role === 'assistant')
-      if (aiMsgs.length) {
-        const { diffMessage } = this
-        return { ...aiMsgs[aiMsgs.length - 1], diffMessage }
+      const { activeMessages } = this
+      const lastAiMessages = activeMessages.filter(m => m.role === 'assistant').reverse()
+      if (lastAiMessages.length < 2) {
+        return lastAiMessages[0]
       }
-      return null
+      const [ last, ...previous ] = lastAiMessages  
+      
+      return { ...last, diffMessage: previous[0] }
+    },
+    lastUserMessage() {
+      const { messages } = this.theChat
+      const msgs = messages?.filter(m => !m.hide && m.role !== 'assistant')
+      return msgs ? msgs[msgs.length - 1] : null
+    },
+    lastMessage() {
+      const { messages } = this.theChat
+      return messages ? messages[messages.length - 1] : null
     },
     diffMessage() {
       if (this.isTask) {
@@ -343,14 +363,22 @@ export default {
       }
       return null
     },
+    activeMessages() {
+      const { messages } = this.theChat
+      return messages.filter(m => !m.hide)
+    },
+    knowledgeMessages() {
+      return this.activeMessages.filter(m => m.is_answer)
+                .map(m => ({ ...m, collapse: true }))
+    },
     messages() {
-      if (!this.theChat?.messages?.length) {
+      const messages = this.theChat?.messages
+      if (!messages?.length) {
         return []
       }
-      const { messages } = this.theChat
-      if (this.isTask) {
+      if (this.isTask && !this.showHidden) {
         const aiMsg = this.lastAIMessage
-        const lastMsg = messages[messages.length - 1]
+        const lastMsg = this.activeMessages[this.activeMessages.length - 1]
         const res = []
         if (aiMsg) {
           res.push(aiMsg)
@@ -358,9 +386,7 @@ export default {
         if (lastMsg && lastMsg?.role !== 'assistant') {
           res.push(lastMsg)
         }
-        if (res.length) {
-          return res
-        }
+        return res
       }
       return messages.filter(message => !message.hide || this.showHidden)
     },
@@ -379,13 +405,22 @@ export default {
     isTask() {
       return this.theChat?.mode === 'task'
     },
+    isTopic() {
+      return this.theChat?.mode === 'topic'
+    },
+    topicMessage() {
+      return this.messages[0]
+    },
+    chatProject() {
+      return this.$projectContext || this.$project
+    },
+    mentionList() {
+      return (this.projectContext || this.$projects).mentionList
+    },
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
         .map(w => w[1])
-      return this.$projects.mentionList.filter(m => mentions.includes(m.name))
-    },
-    showTermSearch() {
-      return this.searchTerms?.length
+      return this.mentionList.filter(m => mentions.includes(m.mention))
     },
     lastChatEvent() {
       const { events } = this.$storex.session
@@ -396,19 +431,45 @@ export default {
       } 
     },
     usersList() {
-      return [this.$store.state.user, ...this.$store.state.projects.profiles]
+      return [this.$store.state.user, ...this.projectContext.profiles]
+    },
+    isChannel() {
+      return this.theChat.mode === 'topic'
+    },
+    chatProject() {
+      return this.$projects.allProjects.find(p => p.project_id === this.theChat.project_id) ||
+                this.$project
+    },
+    editor() {
+      return this.$el.querySelector('.editor')
     }
   },
   watch: {
-    termSearchQuery(newVal) {
-      if (newVal?.length > 2) {
-        this.searchKeywords()
-      } else {
-        this.searchTerms = null
-      }
+    theChat() {
+      this.initSelectedUserFromChat()
+      this.setProjectContext()
     },
+    uploadProjectFile(newVal, oldVal) {
+      if (newVal?.length >= 3 && newVal?.length > oldVal?.length) {
+        this.detectSearchTerm()
+      }
+    }
   },
   methods: {
+    async setProjectContext() {
+      this.projectContext = await this.$service.project.loadProjectContext(this.chatProject)
+    },
+    initSelectedUserFromChat() {
+      const messages = this.theChat.messages.filter(m => !m.hide && m.profiles?.length)
+      const lastProfileMessage = messages[messages.length - 1]
+      if (lastProfileMessage) {
+        const userName = lastProfileMessage.profiles[0]
+        const user = this.$projects.userList.find(u => u.name === userName) 
+        this.selectedUser = user
+      } else if (!this.selectedUser) {
+        this.selectedUser = this.$user
+      }
+    },
     zoomIn() {
       this.previewStyle.zoom += 0.1
     },
@@ -416,15 +477,18 @@ export default {
       this.previewStyle.zoom -= 0.1
     },
     setEditorText(text) {
-      this.$refs.editor.innerText = text
+      this.editor.innerText = text
     },
     onEditMessage(message, enhance) {
       if (this.editMessage === message) {
         return this.onResetEdit()
       }
-      console.log("onEditMessage", message)
       this.editMessageId = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)
       this.editMessage = this.theChat.messages[this.editMessageId]
+      const profile = this.editMessage.profiles[0]?.name
+      if (profile) {
+        this.selectedUser = profile
+      } 
       try {
         this.images = message.images.map(JSON.parse)
       } catch { }
@@ -432,6 +496,10 @@ export default {
     },
     toggleHide(message) {
       message.hide = !message.hide
+      this.saveChat()
+    },
+    toggleAnswer(message) {
+      message.is_answer = !message.is_answer
       this.saveChat()
     },
     onCopy(message) {
@@ -443,7 +511,7 @@ export default {
       .catch(console.error)
     },
     async improveCode() {
-      this.postMyMessage()
+      this.postMyMessage(this.editorText)
       await this.$projects.codeImprove(this.theChat)
       this.testProject()
     },
@@ -463,30 +531,32 @@ export default {
         msg
       ]
     },
-    getUserMessage() {
-      const message = this.$refs.editor.innerText
-      const files = this.messageMentions.filter(m => m.file).map(m => m.file)
+    getMessageProfiles() {
       const profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
-      if (this.selectedUser?.username !== this.$user.username) {
-        profiles.push(this.selectedUser.name)
+      if (this.selectedUser?.isProfile) {
+         profiles.push(this.selectedUser.name)
       }
+      return profiles
+    },
+    getUserMessage(message) {
+      const files = this.messageMentions.filter(m => m.file).map(m => m.file)
+      const profiles = this.getMessageProfiles()
       return {
         role: 'user',
         content: message,
         images: this.images.map(JSON.stringify),
         files,
         profiles,
-        user: this.$user.username
+        user: this.$user.username,
+        disable_knowledge: true,
       }
     },
-    postMyMessage() {
-      if (this.canPost) {
-        const userMessage = this.getUserMessage()
-        userMessage.files.forEach(file => this.$emit('add-file', file))
-        this.addMessage(userMessage)
-        this.cleanUserInputAndWaitAnswer()
-        return true
-      }
+    postMyMessage(message) {
+      const userMessage = this.getUserMessage(message)
+      userMessage.files.forEach(file => this.$emit('add-file', file))
+      this.addMessage(userMessage)
+      this.cleanUserInputAndWaitAnswer()
+      return userMessage
     },
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
@@ -502,39 +572,25 @@ export default {
         this.updateMessage()
         this.saveChat()
       } else {
-        if (this.postMyMessage()) {
+        const message = this.editor.innerText        
+        if (message?.length &&
+          this.canPost && this.postMyMessage(message)) {
           await this.saveChat()
         }
-        await this.sendChatMessage(this.theChat)
-      }      
-    },
-    async navigate() {
-      if (!this.editorText) {
-        if (this.isBrowser = !this.isBrowser) {
-          if (this.lastAIMessage) {
-            this.lastAIMessage.hide
-          }
+        if (!this.isChannel || this.lastMessage?.profiles.length) {
+          await this.sendChatMessage(this.theChat)
         }
-        return
       }
-      const message = this.getUserMessage()
-      const data = await this.sendChatMessage({
-        mode: 'browser',
-        messages: [
-          ...this.theChat.messages,
-          message
-        ]
-      })
-      this.theChat.messages = data.messages
-      this.saveChat()
-      this.cleanUserInputAndWaitAnswer()
     },
     getSendMessage() {
       return this.editMessage ||
         this.theChat.messages[this.theChat.messages.length - 1].content
     },
     async askKnowledge() {
-      const searchTerm = this.$refs.editor.innerText
+      const searchTerm = this.editor.innerText
+      if (!searchTerm || searchTerm.length <= 10) {
+        return
+      }
       const knowledgeSearch = {
         searchTerm,
         searchType: 'embeddings',
@@ -542,9 +598,35 @@ export default {
         cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,
         documentCount: API.activeProject.knowledge_search_document_count
       }
-      const { documents } = await API.knowledge.search(knowledgeSearch)
-      const docs = documents.map(doc => `#### File: ${doc.metadata.source.split("/").reverse()[0]}\n>${doc.metadata.source}\n\`\`\`${doc.metadata.language}\n${doc.page_content}\`\`\``)
-      this.$refs.editor.innerText = docs.join("\n")
+      this.searchingInKnowledge = true
+      try {
+        const { response, documents } = await this.projectContext.api.knowledge.search(knowledgeSearch)
+        const docs = documents.map(({ page_content, metadata: { language, score_analysis, source}}) => {
+            const file = source
+            const fileName = file.split("/").reverse()[0] 
+            return [
+                    "```" + language + " " + fileName,
+                    page_content,
+                    "```",
+                  ].join("\n")
+          }).join("\n")
+        const message = [
+          response,
+          "",
+          docs
+        ].join("\n")
+        const searchMessage = {
+          role: 'assistant',
+          content: message,
+          files: documents.map(doc => doc.metadata.source),
+          disable_knowledge: true,
+        }
+        this.addMessage(searchMessage)
+        this.saveChat()
+        this.cleanUserInputAndWaitAnswer()
+      } finally {
+        this.searchingInKnowledge = false
+      }
     },
     async sendApiRequest(apiCall, formater = defFormater) {
       try {
@@ -569,12 +651,11 @@ export default {
       }
     },
     async updateMessage() {
-      const { innerText } = this.$refs.editor
+      const { innerText } = this.editor
       const images = this.images.map(JSON.stringify)
       
       this.editMessage.files = this.messageMentions.filter(m => m.file).map(m => m.file)
-      this.editMessage.profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
-
+      this.editMessage.profiles = this.getMessageProfiles()
       this.editMessage.content = innerText
       this.editMessage.images = images
       this.editMessage.updated_at = new Date().toISOString()
@@ -589,81 +670,55 @@ export default {
     removeMessage(message) {
       this.$emit("delete-message", message)
     },
-    async searchKeywords() {
-      const searchQuery = this.termSearchQuery?.toLowerCase()
-      this.searchTerms = this.$projects.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))
-      this.searchTermSelIx = 0
-            if (!this.refreshngMentions) {
-        // Prevent reloading multiple times
-        this.refreshngMentions = this.$projects.loadProjectKnowledge()
-        this.refreshngMentions.then(() => this.refreshngMentions = null)
+    async fileToMessage(file) {
+      const content = await this.$storex.api.files.read(file)
+      const ext = file.split(".").reverse()[0]
+      return [
+        "```" + `${ext} ${file}`,
+        content,
+        "```"
+      ].join("\n")
+      
+    },
+    async addSerchTerm(term, addToMessage) {
+      if (term.file) {
+        this.$emit('add-file', term.file)
+        if (addToMessage) {
+          const message = await this.fileToMessage(term.file)
+          const editorText = this.editorText += "\n" + message
+          this.setEditorText(editorText)
+        }
       }
     },
-    addSerchTerm(term) {
-      let text = this.$refs.editor.innerText
-      const replaceWord = this.getCursorWord()
-      const caretIndex = this.getEditorCaretCharOffset()
-      const startIndex = caretIndex - replaceWord.length
-      const newText = [text.slice(0, startIndex), '@' + term.name, text.slice(caretIndex)].join('')
-      this.$refs.editor.innerText = newText
-      this.closeTermSearch()
+    onMentionReplace({ mention, orgText }) {
+      this.addSerchTerm(mention)
     },
     getEditorCaretCharOffset() {
       let caretOffset = 0
-      const element = this.$refs.editor
+      const element = this.editor
       if (window.getSelection) {
         var range = window.getSelection().getRangeAt(0)
         var preCaretRange = range.cloneRange()
         preCaretRange.selectNodeContents(element)
         preCaretRange.setEnd(range.endContainer, range.endOffset)
         caretOffset = preCaretRange.toString().length
-      }
-
-      else if (document.selection && document.selection.type != "Control") {
+      } else if (document.selection && document.selection.type != "Control") {
         var textRange = document.selection.createRange()
         var preCaretTextRange = document.body.createTextRange()
         preCaretTextRange.moveToElementText(element)
         preCaretTextRange.setEndPoint("EndToEnd", textRange)
         caretOffset = preCaretTextRange.text.length
       }
-
       return caretOffset
     },
     getCursorWord() {
-      const text = this.$refs.editor?.innerText
+      const text = this.editor?.innerText
       if (!text.length) {
         return ""
       }
       const caretIndex = this.getEditorCaretCharOffset()
       const lastWorkIndex = text.slice(0, caretIndex).split(/\s/g).length - 1
       return text.split(/\s/g)[lastWorkIndex]
-    },
-    detectSearchTerm() {
-      const lastWord = this.getCursorWord()
-      const mention = lastWord[0] === '@' ? lastWord?.slice(1) : null
-      if (mention?.length >= 3 &&
-        !this.$projects.mentionList.find(m => m.name === mention)) {
-        this.termSearchQuery = mention
-      }
-      if (this.showTermSearch && !mention) {
-        this.closeTermSearch()
-      }
-    },
-    closeTermSearch() {
-      this.searchTerms = null
-      this.termSearchQuery = null
-    },
-    onSelNext() {
-      this.searchTermSelIx++
-      if (this.searchTermSelIx === this.searchTerms?.length) {
-        this.searchTermSelIx = 0
-      }
-    },
-    onSelPrev() {
-      this.searchTermSelIx--
-      if (this.searchTermSelIx === -1) {
-        this.searchTermSelIx = this.searchTerms?.length - 1
-      }
     },
     saveChat() {
       if (!this.theChat.temp) { 
@@ -688,6 +743,15 @@ export default {
       if (file) {
         this.onInputImage(file)
         e.preventDefault()
+        return false
+      }
+      const text = [...e.clipboardData?.items].filter(f => f.type.indexOf("text") !== -1)[0]
+      if (text) {
+        const textContent = await new Promise(ok => text.getAsString(ok))
+        const fileMention = this.mentionList.find(m => m.file === textContent)
+        if (fileMention) {
+          this.addFileToChat(fileMention.file)
+        }
         return false
       }
     },
@@ -747,10 +811,9 @@ export default {
       this.images = this.images.filter((i, imx) => imx !== ix)
     },
     onMessageChange() {
-      if (this.$refs.editor &&
-        this.$refs.editor.innerText != this.editorText) {
-        this.editorText = this.$refs.editor.innerText
-        this.detectSearchTerm()
+      if (this.editor &&
+        this.editor.innerText != this.editorText) {
+        this.editorText = this.editor.innerText
       }
     },
     async testProject() {
@@ -779,7 +842,7 @@ export default {
 
       recognition.onresult = (event) => {
         const transcript = event.results[0][0].transcript
-        this.$refs.editor.innerText += transcript
+        this.editor.innerText += transcript
       }
 
       recognition.onend = () => {
@@ -801,17 +864,54 @@ export default {
       setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)
     },
     onEditMessageKeyDown(event) {
-      if (event.key === 'Escape') {
-        this.onResetEdit()
-        event.stopPropagation()
-        event.preventDefault()
-        return false
-      } else if (event.key === 'Tab' && this.showTermSearch) {
-        this.addSerchTerm(this.searchTerms[this.searchTermSelIx])
+      const stop = () => {
         event.stopPropagation()
         event.preventDefault()
         return false
       }
+      if (event.key === 'Escape') {
+        this.onResetEdit()
+      } else if(event.key === 'Enter' && event.ctrlKey) {
+        this.sendMessage()
+      } else {
+        return true
+      }
+      return stop()
+    },
+    openDocumentSearch() {
+      this.showDocumentSearchModal = !this.showDocumentSearchModal
+    },
+    onAddDocument(doc) {
+      const source = doc.metadata.source
+      this.addFileToChat(source)
+      this.saveChat()
+    },
+    addFileToChat(filePath) {
+      this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], filePath])]
+    },
+    async onReloadMessageFile({ file, message }) {
+      message.content = await this.fileToMessage(file)
+      this.saveChat()
+    },
+    onSaveFile({ file, content }) {
+      this.projectContext.api.files.write(file, content)
+    },
+    onOpenFile(file) {
+      this.projectContext.api.coder.openFile(file)
+    },
+    addChatFile() {
+      this.$emit('add-file', this.uploadProjectFile)
+      this.uploadProjectFile = null
+      this.selectFile = false
+    },
+    onEditMessage({ orgContent, newContent }, message) {
+      message.content = message.content.replace(orgContent, newContent)
+      this.saveChat()
+    },
+    onMessageEdited(message) {
+      const existng = this.theChat.messages.find(m => m.doc_id === message.doc_id)
+      existng.content = message.content
+      this.saveChat()
     }
   }
 }

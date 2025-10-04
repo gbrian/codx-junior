@@ -17,7 +17,6 @@
             <option value="admin">admin</option>
             <option value="user">user</option>
           </select>
-
         </div>
       </div>
       <div>Email</div>
@@ -28,6 +27,12 @@
 
       <div>Avatar URL</div>
       <input type="text" placeholder="Avatar URL" class="input input-bordered input-sm" v-model="user.avatar" />
+
+      <div>Github name</div>
+      <input type="text" placeholder="Name like 'gbrian'" class="input input-bordered input-sm" v-model="user.github" />
+
+      <div>API Key</div>
+      <input type="text" placeholder="API Key" class="input input-bordered input-sm" v-model="user.api_key" />
 
       <div class="flex flex-col gap-2">
         <div>
@@ -46,11 +51,37 @@
             <option value="admin">admin</option>
             <option value="user">user</option>
           </select>
+
+          <input type="checkbox" checked="checked" class="checkbox tooltip"
+            data-tip="Same for children"
+            v-model="project.children" />
+
           <button type="button" class="btn btn-error btn-sm" @click="removeProject(index)">
             <i class="fa-solid fa-minus"></i>
           </button>
         </div>
       </div>
+
+      <div>
+        Apps
+        <select class="select select-bordered select-sm" v-model="newApp">
+          <option value="autogenstudio">autogenstudio</option>
+          <option value="coder">coder</option>
+          <option value="viewer">viewer</option>
+          <option value="tasks">tasks</option>
+          <option value="files">files</option>
+        </select>
+        <button type="button" class="btn btn-sm btn-secondary" @click="addApp">Add App</button>
+        <div class="flex gap-2 mt-2">
+          <span v-for="(app, index) in user.apps" :key="index" class="badge">
+            {{ app }}
+            <button type="button" class="btn btn-xs btn-error ml-2" @click="removeApp(index)">
+              <i class="fa-solid fa-times"></i>
+            </button>
+          </span>
+        </div>
+      </div>
+
       <div class="form-control w-52">
         <label class="label cursor-pointer">
           <span class="label-text">Disabled</span>
@@ -68,7 +99,9 @@
 export default {
   props: ['user'],
   data() {
-    return {}
+    return {
+      newApp: ''
+    }
   },
   computed: {
     allProjects () {
@@ -84,6 +117,18 @@ export default {
     },
     removeProject(index) {
       this.user.projects.splice(index, 1)
+    },
+    addApp() {
+      if (!this.user.apps) {
+        this.user.apps = []
+      }
+      if (this.newApp && !this.user.apps.includes(this.newApp)) {
+        this.user.apps.push(this.newApp)
+        this.newApp = ''
+      }
+    },
+    removeApp(index) {
+      this.user.apps.splice(index, 1)
     }
   }
 }

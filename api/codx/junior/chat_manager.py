@@ -1,9 +1,14 @@
+"""
+Chat + AI
+This module is responsible for the AI chat interaction
+"""
 import logging
 import pathlib
 import os
 import json
 import uuid
 import shutil
+import yaml
 
 from slugify import slugify
 from collections import deque
@@ -12,7 +17,7 @@ from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
 from codx.junior.db import Chat, Message
-from codx.junior.utils import write_file
+from codx.junior.utils.utils import write_file
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -30,11 +35,24 @@ class ChatManager:
         os.makedirs(f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}", exist_ok=True)
 
     def get_chat_file(self, chat: Chat):
-        chat_file = f"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.md"
+        chat_file = f"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.yaml"
         return chat_file
 
-    def chat_paths(self):
-        return [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.md")]
+    def chat_paths(self, last_update: datetime = None):
+        """
+        Return chat file paths, optionally filtering by last update time.
+        
+        :param last_update: Only return paths for chats updated since this date.
+        :return: List of file paths.
+        """
+        all_paths = [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.md")] + \
+                    [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.yaml")]
+        
+        if last_update:
+            # Filter paths by file modified time
+            return [path for path in all_paths if datetime.fromtimestamp(os.path.getmtime(path)) > last_update]
+        
+        return all_paths
 
     def chat_board_column_name_from_path(self, file_path):
         chat_parts = file_path.replace(self.chat_path, "").split("/")[1:]
@@ -64,7 +82,7 @@ class ChatManager:
             key=lambda x: str(x.chat_index or x.updated_at),
             reverse=True)
 
-    def save_chat(self, chat: Chat, chat_only = False):
+    def save_chat(self, chat: Chat, chat_only=False):
         if not chat.board:
             chat.board = "kanban"
         if not chat.column:
@@ -73,30 +91,36 @@ class ChatManager:
             chat.id = str(uuid.uuid4())
         if not chat.created_at:
             chat.created_at = chat.updated_at
-        
+
         chat.updated_at = datetime.now().isoformat()
-        
+
         current_chat = self.find_by_id(chat_id=chat.id)
         if chat_only and current_chat:
             chat.messages = current_chat.messages
         users = []
         profiles = []
         for msg in chat.messages:
-            if not msg.doc_id: 
-              msg.doc_id=str(uuid.uuid4())
+            if not msg.doc_id:
+                msg.doc_id = str(uuid.uuid4())
             if msg.user:
                 users.append(msg.user)
             profiles = profiles + msg.profiles
         chat.users = list(set(users))
         chat.profiles = list(set(profiles))
 
-        chat_file = self.get_chat_file(chat)
-        logger.info(f"Save chat {chat.id} at {chat_file}")
-        write_file(chat_file, self.serialize_chat(chat))
+        yaml_chat_file = self.get_chat_file(chat)
+        logger.info(f"Save chat {chat.id} at {yaml_chat_file}")
+
+        # Update file_path to point to YAML version
+        chat.file_path = yaml_chat_file
+
+        # Serialize and save as YAML
+        write_file(yaml_chat_file, yaml.dump(chat.dict()))
+
         # remove old chat
         if current_chat:
-            logger.info(f"Save chat, curren_chat {current_chat.id} at {current_chat.file_path}")
-            if chat_file != current_chat.file_path:
+            logger.info(f"Save chat, current_chat {current_chat.id} at {current_chat.file_path}")
+            if yaml_chat_file != current_chat.file_path:
                 self.delete_chat(current_chat.file_path)
 
         return chat
@@ -115,7 +139,7 @@ class ChatManager:
         else:
             logger.error(f"Removing chat error {file_path}")
 
-    def load_chat(self, board, column, chat_name):
+    def load_chat(self, board, column = None, chat_name = None):
         chat = Chat(board=board, column=column, name=chat_name)
         chat_file = self.get_chat_file(chat)
         if not os.path.isfile(chat_file):
@@ -125,20 +149,25 @@ class ChatManager:
 
     @profile_function
     def load_chat_from_path(self, chat_file: str, chat_only: bool = False):
+        yaml_chat_file = chat_file.replace('.md', '.yaml')
+
+        if os.path.isfile(yaml_chat_file):
+            # Load from YAML if exists
+            with open(yaml_chat_file, 'r') as f:
+                chat_data = yaml.safe_load(f)
+                return Chat(**chat_data)
+
+        # Fallback to existing method if YAML file doesn't exist
         board, column, name = self.chat_board_column_name_from_path(chat_file)
-        # wrong setup?
         if not board or not column:
             new_chat_file = f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}/{name}.md"
             if chat_file:
-              logger.info(f"load_chat_from_path rename chat file {chat_file} -> {new_chat_file}")
-              os.rename(chat_file, new_chat_file)
+                os.rename(chat_file, new_chat_file)
             chat_file = new_chat_file
             board = DEFAULT_BOARD
             column = DEFAULT_COLUMN
 
-        chat = None
         with open(chat_file, 'r') as f:
-            logger.info(f"load_chat_from_path chat_only open file {chat_file}") 
             content = f.read()
             chat = self.deserialize_chat(content=content, chat_only=chat_only)
 
@@ -171,7 +200,6 @@ class ChatManager:
 
     def delete_kanban(self, kanban_title: str):
         shutil.rmtree(f"{self.chat_path}/{kanban_title}")
-
 
     @profile_function
     def deserialize_chat(self, content, chat_only: bool = False) -> Chat:
@@ -238,7 +266,6 @@ class ChatManager:
                 }
         return kanban
 
-
     @profile_function
     def load_kanban(self):
         kanban_file = f"{self.chat_path}/kanban.json"
@@ -281,3 +308,20 @@ class ChatManager:
         kanban_file = f"{self.chat_path}/kanban.json"
         with open(kanban_file, 'w') as f:
             f.write(json.dumps(kanban))
+
+    def find_chats(self, last_update: datetime = None):
+        """
+        Return chats based on filters.
+        
+        :param last_update: Return chats updated since this date.
+        :return: List of Chat objects.
+        """
+        filtered_chats = []
+        
+        # Iterate through all chat file paths with optional last_update filter
+        for file_path in self.chat_paths(last_update=last_update):
+            chat = self.load_chat_from_path(chat_file=file_path)
+            if chat:
+                filtered_chats.append(chat)
+        
+        return filtered_chats

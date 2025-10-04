@@ -7,10 +7,8 @@ from datetime import datetime
 
 from typing import List, Dict, Union, Optional
 
-
 KNOWLEDGE_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL')
 EMBEDDINGS_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL')
-
 
 class ImageUrl(BaseModel):
     url: str = Field(default="")
@@ -31,6 +29,7 @@ class Column(BaseModel):
 class Board(BaseModel):
     name: str = Field(default='')
     description: str = Field(default='')
+    remote_url: str = Field(default='')
     columns: List[Column] = Field(default=[])
 
 class Logprobs(BaseModel):
@@ -60,10 +59,15 @@ class Tool(BaseModel):
 class CodxJuniorBaseTools(BaseModel):
     knowledge: Tool = Tool(name="knowledge", description="Project's knowledge search")
     
-
 class ProjectPermission(BaseModel):
     project_id: str
-    permissions: str = Field(description="User permissions fof the project", default=[])
+    permissions: str = Field(description="User permissions for the project", default=[])
+    children: Optional[bool] = Field(description="Same access to children projects", default=True)
+    apps: Optional[List[str]] = Field(default=[])
+
+class PRView(BaseModel):
+    from_branch: Optional[str] = Field(default="")
+    to_branch: Optional[str] = Field(default="")
 
 class CodxUserLogin(BaseModel):
     username: Optional[str] = Field(default="")
@@ -85,7 +89,9 @@ class CodxUser(BaseModel):
     role: Optional[str] = Field(description="User role", default="user")
     token: Optional[str] = Field(default="")
     disabled: Optional[bool] = Field(default=False)
-
+    github: Optional[str] = Field(default="")
+    apps: Optional[List[str]] = Field(default=[])
+    api_key: Optional[str] = Field(default="")
     
 class ProfileApiSettings(BaseModel):
     active: bool = Field(description="Model is visible through API", default=False)
@@ -111,6 +117,7 @@ class Profile(BaseModel):
     tags: Optional[List[str]] = Field(default=[])
     api_settings: Optional[ProfileApiSettings] = Field(description="Indicates if the profile is accessible through the LLM API", default=ProfileApiSettings())
     chat_mode: Optional[str] = Field(description="Affects on how conversation works. Like writing a document or chat messages", default=None)
+    project_id: Optional[str] = Field(description="Profile's project", default=None)
 
 class Document(BaseModel):
     id: int = Field(default=None)
@@ -128,7 +135,6 @@ class OpenAISettings(BaseModel):
     openai_api_key: Optional[str] = Field(default="")
     openai_model: Optional[str] = Field(default="gpt-4o")
     
-
 class AnthropicAISettings(BaseModel):
     anthropic_api_url: Optional[str] = Field(default="")
     anthropic_api_key: Optional[str] = Field(default="")
@@ -151,6 +157,7 @@ class ProjectScript(BaseModel):
     background: bool = Field(description="Script runs in background", default=False)
     restart: bool = Field(description="Script must be restarted if stopped", default=False)
     pid_file_path: str = Field(default="")
+    engine: str = Field(default="bash")
 
 class Bookmark(BaseModel):
     name: str
@@ -220,18 +227,29 @@ OLLAMA_KNOWLEDGE_MODEL = AIModel(name="knowledge",
                             settings=AILLMModelSettings(),
                             url=f"https://llmfactory.com/library/{KNOWLEDGE_MODEL}")
 
+class WorkspaceApp(BaseModel):
+    name: str = Field(default="")
+    description: str = Field(default="")
+    icon: str = Field(default="")
+    port: Optional[int] = Field(default=3000)
+    is_vnc: Optional[bool] = Field(default=False)
+
 class Workspace(BaseModel):
     id: str = Field(default="")
     name: str = Field(default="")
     description: str = Field(default="")
     project_ids: List[str] = Field(default=[])
-    workspace_port: Optional[int] = Field(default=0)
-    workspace_start_port: Optional[int] = Field(default=0)
-    workspace_end_port: Optional[int] = Field(default=0)
+    apps: Optional[List[WorkspaceApp]] = Field(default=[])
     updated_at: Optional[str] = Field(default=None)    
 
 class AgentSettings(BaseModel):
     max_agent_iteractions: int = 4
+
+class OAuthProvider(BaseModel):
+    name: str = Field(default="")
+    client_id: str = Field(default="")
+    secret: str = Field(default="")
+    token_url: str = Field(default="")
 
 class GlobalSettings(BaseModel):
     log_ai: bool = Field(default=True)
@@ -278,6 +296,8 @@ class GlobalSettings(BaseModel):
     workspace_end_port: Optional[int] = Field(default=17000)
     workspace_docker_settings: Optional[dict] = Field(default={})
 
+    oauth_providers: Optional[List[OAuthProvider]] = Field(default=[])
+    
 class Screen(BaseModel):
     resolution: str = Field(default='')
     resolutions: List[str] = Field(default=[

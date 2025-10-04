@@ -2,6 +2,7 @@
 <script setup>
 import ExportImportButton from './ExportImportButton.vue';
 import Markdown from './Markdown.vue';
+import ProjectIcon from './ProjectIcon.vue';
 </script>
 
 <template>
@@ -17,23 +18,22 @@ import Markdown from './Markdown.vue';
       <ExportImportButton :data="editProfile" @change="editProfile = $event" />
     </div>
     <div class="flex justify-center">
-      <div class="flex flex-col gpa-2 items-center">
+      <div class="flex flex-col gpa-2 items-center w-full">
         <div class="avatar">
           <div class="w-24 rounded">
             <img :src="userAvatar" />
           </div>
         </div>
-        <input placeholder="Avatar" v-model="editProfile.avatar" type="text" class="bg-base-300 input input-sm input-bordered w-full" />
       </div>
     </div>
-    <div class="flex justify-between items-center gap-4">
-      <input id="name" v-model="editProfile.name" type="text" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" />
-      <select class="select select-bordered select-sm" v-model="editProfile.llm_model">
-        <option value="">-- default --</option>
-        <option v-for="model in aiModels" :key="model.name" :value="model.name">
-          {{ model.ai_provider }} - {{ model.name }}
-        </option>
-      </select>
+    <div class="flex justify-between items-end gap-4">
+      <div class="border rounded-md">
+        <ProjectIcon :project="profile.project" @click="switchProject" />
+      </div>
+      <div class="flex flex-col grow gap-1">
+        <div class="flex gap-2 items-center">Name: <input v-model="editProfile.name" type="text" placeholder="Name" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" /></div>
+        <div class="flex gap-2 items-center">Avatar: <input placeholder="Avatar" v-model="editProfile.avatar" type="text" class="bg-base-300 input input-sm input-bordered w-full" /></div>
+      </div>
     </div>
     <div class="form-group flex space-x-4 text-xs">
       <div class="w-1/2 flex flex-col gap-2">
@@ -90,6 +90,12 @@ import Markdown from './Markdown.vue';
         <label for="modelDescription">API Model Description</label>
         <textarea v-model="editProfile.api_settings.modelDescription" class="textarea textarea-bordered bg-base-300"></textarea>
       </div>
+      <select class="select select-bordered select-sm" v-model="editProfile.llm_model">
+        <option value="">-- default model --</option>
+        <option v-for="model in aiModels" :key="model.name" :value="model.name">
+          {{ model.ai_provider }} - {{ model.name }}
+        </option>
+      </select>
       <div class="flex gap-2 items-center">
         Use knowledge
         <input type="checkbox" v-model="editProfile.use_knowledge" class="toggle checked:border-info checked:bg-info" />
@@ -147,7 +153,7 @@ export default {
                 ?.sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
     },
     isOverriden() {
-      return this.profile.path?.startsWith(this.$project.project_path)
+      return !this.profile.path || this.profile.path?.startsWith(this.$project.project_path)
     },
     nameTaken() {
       const { name } = this.editProfile
@@ -156,7 +162,7 @@ export default {
     },
     canSave() {
       const { name, category } = this.editProfile
-      return name && category && !this.nameTaken && this.isValidFileMatch
+      return this.isOverriden && name && category && !this.nameTaken && this.isValidFileMatch
     },
     isValidFileMatch() {
       if (this.editProfile.category !== "file") {
@@ -198,6 +204,12 @@ export default {
     },
     removeProfile(profile) {
       this.editProfile.profiles = this.editProfile.profiles.filter(p => p !== profile)
+    },
+    switchProject() {
+      if (this.$project.project_id !== this.profile.project.project_id) {
+        const project = this.$projects.allProjects.find(p => p.project_id === this.profile.project.project_id)
+        project && this.$projects.setActiveProject(project)
+      }
     }
   }
 }

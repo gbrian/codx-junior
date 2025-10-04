@@ -1,0 +1,135 @@
+# Session Management in codx-junior Project
+
+This document provides detailed information on the session management functionalities within the `codx-junior` project, focusing on the `AgentBase` class. The class is designed to serve as a base for all agents in the project, offering common functionalities such as initialization with a session and logging.
+
+## Table of Contents
+1. [Initialization](#initialization)
+2. [Getting AI Instance](#getting-ai-instance)
+3. [Retrieving Git Repository URL](#retrieving-git-repository-url)
+4. [Extracting DevOps Information](#extracting-devops-information)
+5. [Examples](#examples)
+6. [Tips](#tips)
+
+## Initialization
+The `AgentBase` class is initialized with two parameters:
+- `agent_name`: A string representing the name of the agent, used for logging or identification.
+- `session`: An instance of `CODXJuniorSession`, which handles the context for the agent's operations.
+
+```python
+class AgentBase:
+    def __init__(self, agent_name: str, session: CODXJuniorSession):
+        self.agent_name = agent_name
+        self.session = session
+        logger.info(f"Agent {self.agent_name} initialized with session: {self.session.settings.project_name}")
+```
+
+### Example
+```python
+from codx.junior.engine import CODXJuniorSession
+from codx.junior.agents.base_agent import AgentBase
+
+# Create a session object
+session = CODXJuniorSession(project_name="MyProject")
+
+# Initialize an agent
+agent = AgentBase(agent_name="MyAgent", session=session)
+```
+
+## Getting AI Instance
+The `get_ai` method returns the AI instance associated with the session.
+
+```python
+def get_ai(self):
+    return self.session.get_ai()
+```
+
+### Example
+```python
+ai_instance = agent.get_ai()
+print(ai_instance)  # Output will depend on the implementation of CODXJuniorSession
+```
+
+## Retrieving Git Repository URL
+The `get_git_repo_url` method executes a Git command to retrieve the repository URL from the provided project path.
+
+```python
+def get_git_repo_url(self, project_path: str) -> str:
+    try:
+        command = "git config --get remote.origin.url"
+        stdout, stderr = exec_command(command, cwd=project_path)
+        if stderr:
+            logger.error(f"Error executing command: {stderr}")
+            return None
+        return stdout.strip()
+    except Exception as e:
+        logger.error(f"Failed to retrieve Git repo URL: {str(e)}")
+        return None
+```
+
+### Example
+```python
+repo_url = agent.get_git_repo_url("/path/to/my/project")
+print(repo_url)  # Output: https://username:token@github.com/organization/repository.git
+```
+
+## Extracting DevOps Information
+The `extract_devops_info` method extracts user, token, host, organization, and repository information from the given Git repository URL using a regular expression.
+
+```python
+def extract_devops_info(self, repo_url: str):
+    try:
+        regex = r"(https?://)?(\w+):(\w+)@([\w\.]+)/([\w-]+)/([\w-]+)"
+        match = re.match(regex, repo_url)
+        if not match:
+            return {"error": "Invalid repo URL format"}
+        
+        protocol, user, token, host, org, repo = match.groups()
+        return {
+            "user": user,
+            "token": token,
+            "host": host,
+            "organization": org,
+            "repository": repo
+        }
+    except Exception as e:
+        logger.error(f"Failed to extract info: {str(e)}")
+        return {"error": f"Failed to extract info: {str(e)}"}
+```
+
+### Example
+```python
+info = agent.extract_devops_info("https://username:token@github.com/organization/repository.git")
+print(info)  # Output: {'user': 'username', 'token': 'token', 'host': 'github.com', 'organization': 'organization', 'repository': 'repository'}
+```
+
+## Examples
+### Example 1: Initializing an Agent
+```python
+from codx.junior.engine import CODXJuniorSession
+from codx.junior.agents.base_agent import AgentBase
+
+# Create a session object
+session = CODXJuniorSession(project_name="MyProject")
+
+# Initialize an agent
+agent = AgentBase(agent_name="MyAgent", session=session)
+```
+
+### Example 2: Retrieving Git Repository URL
+```python
+repo_url = agent.get_git_repo_url("/path/to/my/project")
+print(repo_url)  # Output: https://username:token@github.com/organization/repository.git
+```
+
+### Example 3: Extracting DevOps Information
+```python
+info = agent.extract_devops_info("https://username:token@github.com/organization/repository.git")
+print(info)  # Output: {'user': 'username', 'token': 'token', 'host': 'github.com', 'organization': 'organization', 'repository': 'repository'}
+```
+
+## Tips
+- Ensure that the `project_path` parameter in `get_git_repo_url` points to a valid Git repository directory.
+- The `extract_devops_info` method assumes the URL is in the format `https://<user>:<token>@<host>/<organization>/<repository>.git`. If your URL format differs, you may need to adjust the regular expression accordingly.
+- Always handle exceptions and log errors appropriately to maintain robustness and traceability in your application.
+
+For more details, refer to the `AgentBase` class definition in the `base_agent.py` file.

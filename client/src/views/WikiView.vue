@@ -1,30 +1,28 @@
 <script setup>
-import Iframe from '../components/Iframe.vue'
+import AssistantChat from '@/components/codx-junior/AssistantChat.vue';
+import WikiSections from '../components/wiki/WikiSections.vue';
 </script>
 <template>
-  <div class="w-full h-full" v-if="$project.project_wiki">
-    <div class="animate-pulse bg-primary h-1 w-full rounded-full" v-if="!loaded"></div>
-    <Iframe class="w-full h-full" :url="url" 
-      @loaded="onLoaded"      
-    />
-  </div>
-  <div class="hero bg-base-200 w-full h-full" v-else>
-    <div class="hero-content text-center">
-      <div class="max-w-md">
-        <h1 class="text-5xl font-bold">Wiki</h1>
-        <p class="py-6">
-          Wiki is not ready. Go to project settings and define a wiki folder to start generating your wiki!
-        </p>
-        <button class="btn btn-primary" @click="$ui.setActiveTab('settings')" >Settings</button>
+  <div class="w-full flex flex-col gap-2">
+    <div class="w-full flex justify-between items-center">
+      <div class="w-1/12"></div>
+      <div class="grow text-4xl text-center">
+        TheMoreYouKnow
+      </div>
+      <div class="w-1/12">
       </div>
     </div>
+    <AssistantChat profile-name="wiki" />
+    <wiki-sections />
   </div>
 </template>
 <script>
 export default {
+  components: { WikiSections },
   data() {
     return {
-      loaded: false
+      loaded: false,
+      wikiError: false
     }
   },
   computed: {

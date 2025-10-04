@@ -1,5 +1,6 @@
 import daisyui from 'daisyui'
 import typography from '@tailwindcss/typography'
+import queries from '@tailwindcss/container-queries'
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -10,7 +11,11 @@ export default {
   theme: {
     extend: {},
   },
-  plugins: [daisyui, typography,],
+  plugins: [
+    daisyui, 
+    typography,
+    queries,
+  ],
   daisyui: {
     themes: true,
   },

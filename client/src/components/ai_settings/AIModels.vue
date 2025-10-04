@@ -35,7 +35,7 @@ Chat
             </tr>
             <tr v-if="model.model_type === 'llm'">
               <td>Temperature:</td>
-              <td>{{ model.settings.temperature || '-' }}</td>
+              <td>{{ model.settings.temperature }}</td>
             </tr>
             <tr v-if="model.model_type === 'llm'">
               <td>Context:</td>

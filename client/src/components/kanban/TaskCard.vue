@@ -3,6 +3,7 @@ import moment from 'moment'
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
 import UserAvatar from '../user/UserAvatar.vue'
 import TaskSettings from './TaskSettings.vue';
+import CheckLists from '../chat/CheckLists.vue'
 </script>
 
 <template>
@@ -25,6 +26,13 @@ import TaskSettings from './TaskSettings.vue';
             </UserAvatar>  
                     
             <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
+            <span class="click tooltip" @click.stop="toggleChatPinned"
+              data-tip="Bookmark"
+            >
+              <i class="text-warning fa-solid fa-bookmark" v-if="task.pinned" ></i>
+              <i class="fa-regular fa-bookmark" v-else></i>
+            </span>
+                      
             <div class="overflow-hidden h-10 overflow-auto" :title="task.name">{{ task.name }}</div>
           </div>
           <div class="flex gap-2 items-center">
@@ -33,7 +41,7 @@ import TaskSettings from './TaskSettings.vue';
         </div>
       </div>
       <div class="text-xs overflow-auto"
-        :class="expandDescription ? '' : 'max-h-10'"
+        :class="'max-h-72'"
       >
         {{ task.description }}
       </div>
@@ -74,6 +82,8 @@ import TaskSettings from './TaskSettings.vue';
         </div>
       </div>
     </div>
+    <CheckLists class="mb-2" :chat="task" @change="saveTask" />
+      
     <modal v-if="isSettingsModalOpen" @click.stop>
       <TaskSettings :taskData="taskData" @close="discardChanges" />
     </modal>
@@ -93,7 +103,7 @@ export default {
         chat: "accent"
       },
       taskData: {},
-      expandDescription: false
+      expandDescription: true
     }
   },
   computed: {
@@ -144,6 +154,13 @@ export default {
     },
     discardChanges() {
       this.closeSettingsModal()
+    },
+    saveTask() {
+      this.$projects.saveChatInfo(this.task)
+    },
+    toggleChatPinned() {
+      this.task.pinned = !this.task.pinned
+      this.saveTask()  
     }
   }
 }

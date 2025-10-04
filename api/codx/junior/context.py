@@ -1,15 +1,23 @@
 import logging
 import re
 import os
+
 from pathlib import Path
 from typing import Union, List, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
-from codx.junior.utils import document_to_context
+
+from codx.junior.utils.utils import (
+  document_to_context,
+  extract_json_blocks
+)
+
+from codx.junior.model.model import CodxUser
+
 from codx.junior.ai.ai import AI
 from codx.junior.settings import CODXJuniorSettings
-from codx.junior.knowledge.knowledge_milvus import Knowledge
-from codx.junior.utils import extract_json_blocks 
+from codx.junior.knowledge.knowledge_milvus import Knowledge 
 from codx.junior.profiling.profiler import profile_function
 from langchain.output_parsers import PydanticOutputParser
 from pydantic import BaseModel, Field, field_validator
@@ -32,7 +40,7 @@ class AICodePatch(BaseModel):
     patch: str = Field(description="A file patch with the changes to be applied to the file")
     description: str = Field(description="Brief human friendly description about the change highlighting the most important changes", default="")
 
-class AICodeGerator(BaseModel):
+class AICodeGenerator(BaseModel):
     code_changes: List[AICodeChange] = Field(description="Code changes")
     code_patches: List[AICodePatch] = Field(description="A list of file patches for each modified file")
 
@@ -47,7 +55,7 @@ class AIRAGValidate(BaseModel):
     documents: List[AIRAGDocument] = Field(description="List of documents found from user's request")
 
 AI_CODE_VALIDATE_RESPONSE_PARSER = PydanticOutputParser(pydantic_object=AICodeValidateResponse)
-AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGerator)
+AI_CODE_GENERATOR_PARSER = PydanticOutputParser(pydantic_object=AICodeGenerator)
 AI_RAG_VALIDATE_PARSER = PydanticOutputParser(pydantic_object=AIRAGValidate)
 
 analysis_example = \
@@ -78,7 +86,7 @@ class AIDocValidateResponse(BaseModel):
 
 @profile_function
 def parallel_validate_contexts(prompt, documents, settings: CODXJuniorSettings):
-    ai = AI(settings=settings)
+    ai = AI(settings=settings, user=CodxUser(username=__name__))
     score = float(settings.knowledge_context_cutoff_relevance_score or 0)
     if score == -1:
       logger.info(f"Validating RAG documents disabled!!")
@@ -132,7 +140,8 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
     try:
         messages = ai.chat(messages=messages)
         response = next(extract_json_blocks(messages[-1].content))
-        doc.metadata["relevance_score"] = float(response["score"])
+        score = float(response["score"])
+        doc.metadata["relevance_score"] = score
         doc.metadata["score_analysis"] = response["analysis"]
     except Exception as ex:
         doc.metadata["score_error"] = str(ex)
@@ -144,9 +153,7 @@ def ai_validate_context(ai, prompt, doc, retry_count=0):
     return doc
 
 @profile_function
-def find_relevant_documents(query: str, settings, ignore_documents=[], ai_validate=True):
-    knowledge_documents = Knowledge(settings=settings).search(query)
-
+def find_relevant_documents(query: str, settings, knowledge_documents, ignore_documents=[], ai_validate=True):
     def is_valid_document(doc):
         source = doc.metadata["source"]
         checks = [check for check in ignore_documents if check in source]
@@ -166,14 +173,18 @@ def find_relevant_documents(query: str, settings, ignore_documents=[], ai_valida
         # Filter out irrelevant documents based on a relevance score
         relevant_documents = documents
         if ai_validate:
-            relevant_documents = [doc for doc in \
-                                parallel_validate_contexts(query, 
-                                                    documents, 
-                                                    settings) if doc]
+            relevant_documents = validate_search_documents(query, documents, settings)
         file_list = [os.path.join(settings.project_path, str(Path(doc.metadata["source"]).absolute())) for doc in relevant_documents]
         file_list = list(dict.fromkeys(file_list))  # Remove duplicates
         return relevant_documents, file_list
     return [], []
+
+@profile_function
+def validate_search_documents(query, documents, settings):
+    return [doc for doc in \
+        parallel_validate_contexts(query, 
+                            documents, 
+                            settings) if doc]
 
 class DisplayablePath:
     display_filename_prefix_middle = "├── "

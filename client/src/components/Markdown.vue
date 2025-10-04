@@ -4,7 +4,6 @@ import YoutubeViewer from './YoutubeViewer.vue'
 import { full as emoji } from 'markdown-it-emoji'
 import MarkdownIt from 'markdown-it'
 import highlight from 'markdown-it-highlightjs'
-import hljs from'highlight.js/lib/core'
 </script>
 
 <template>
@@ -23,21 +22,36 @@ import hljs from'highlight.js/lib/core'
       :key="new Date()"
       :code="code"
       @generate-code="$emit('generate-code', $event)"
+      @reload-file="$emit('reload-file', $event)"
+      @open-file="$emit('open-file', $event)"
+      @save-file="$emit('save-file', $event)"
+      @edit-message="$emit('edit-message', $event)"
     />
   </div>
 </template>
 
 <script>
+import hljs from 'highlight.js'
 const md = new MarkdownIt({
   html: true,
   linkify: true,
-  typographer: true
+  typographer: true,
+  highlight: function (str, lang, file) {
+    lang = lang || "txt"
+    const render = body =>`<pre><code class="hljs language-${lang}" data-file="${file}">${body}</code></pre>`
+    try {
+      return render(hljs.highlight(str, { language: lang, ignoreIllegals: true }).value)
+    } catch (ex) {
+      console.error("Error rendering markdown", { ex, str, lang, file })
+    }
+    return render(md.utils.escapeHtml(str))
+  }
 })
+
 md.use(emoji)
-md.use(highlight, { hljs })
 
 export default {
-  props: ['text'],
+  props: ['text', 'mentionList'],
   data() {
     return {
       codeBlocks: [],
@@ -52,16 +66,26 @@ export default {
     html() {
       if (!this.showDoc) {
         try {
-          const textWithLinks = this.sanitizedText.replace(
-            /`((?:\/[^\s:]+)+)(?::(\d+))?`/g,
-            (match, filePath, lineNumber) => {
-              const slashCount = (filePath.match(/\//g) || []).length
-              if (slashCount < 2) return match
-              const lineInfo = lineNumber ? `:${lineNumber}` : ''
-              return `<a class="file-link btn btn-link" href="${filePath}${lineInfo}">${filePath}${lineInfo}</a>`
-            }
-          )
-          return md.render(textWithLinks)
+          let { sanitizedText } = this 
+          const avatarHtml = (mention) => {
+            const { user, profile } = mention  
+            const name = mention.name
+            const avatar = mention.avatar
+            return `
+              <div class="avatar flex gap-2">
+                <img src="${user.avatar}" class="w-10" />
+                ${user.username}
+              </div>
+            `
+          }
+          /*
+          this.mentionList?.filter(m => m.avatar)
+              .forEach(mention => {
+                const mentionPattern = new RegExp(`@${mention.name}`, 'g')
+                sanitizedText = sanitizedText.replace(mentionPattern, avatarHtml(mention))
+              })
+          */
+          return md.render(sanitizedText)
         } catch (ex) {
           console.error("Message can't be rendered", this.text)
         }
@@ -82,7 +106,6 @@ export default {
         ].find(pattern => firstLine.trim() === pattern)
 
       if (isMdFence) {
-        // Unnecessary
         lines.splice(0, 1)
         const ix = lines.findLastIndex(l => l === '```')
         if (ix !== -1) {
@@ -106,7 +129,6 @@ export default {
   },
   methods: {
     initializeComponent() {
-      // Initialize component by capturing links and extracting necessary data
       this.updateCodeBlocks()
       this.captureLinks()
       this.extractYoutubeLinks()

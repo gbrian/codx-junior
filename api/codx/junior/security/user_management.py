@@ -4,6 +4,8 @@ import bcrypt
 
 from fastapi import Request
 
+from typing import Optional
+
 from codx.junior.settings import read_global_settings, write_global_settings
 from codx.junior.model.model import (
   CodxUser,
@@ -18,11 +20,15 @@ class UserSecurityManager():
     def __init__(self):
         self.global_settings = read_global_settings()
 
-    def find_user(self, username: str = None) -> CodxUser:
+    def find_user(self, username: str = None) -> Optional[CodxUser]:
         return next((user for user in self.global_settings.users
                      if user.username == username), None)
+
+    def find_github_user(self, account) -> Optional[CodxUser]:
+        return next((user for user in self.global_settings.users
+                     if user.github == account), None)
     
-    def find_user_login(self, username: str = None) -> CodxUserLogin:
+    def find_user_login(self, username: str = None) -> Optional[CodxUserLogin]:
         return next((login for login in self.global_settings.user_logins
                      if login.username == username), None)
 
@@ -35,7 +41,7 @@ class UserSecurityManager():
     def get_user_token(self, user: CodxUser):
         return jwt.encode({ "username": user.username }, self.global_settings.secret, algorithm="HS256")
     
-    def login_user(self, user: CodxUserLogin = None, token: str = None) -> CodxUser:
+    def login_user(self, user: CodxUserLogin = None, token: str = None, oauth_password: str = None) -> CodxUser:
         def do_login(user: CodxUserLogin, token: str):
             if token:
                 try:
@@ -57,14 +63,17 @@ class UserSecurityManager():
                     if stored_login:
                         if token == stored_login.token:
                             return stored_user
+                        if not user.password and oauth_password:
+                            return stored_user
                         # Verify existing password
                         if bcrypt.checkpw(user.password.encode('utf-8'), stored_login.password.encode('utf-8')):
                             return stored_user
                         else:
                             logger.error("Invalid password")
-                    elif user.username and user.password:
+                    elif user.username and (user.password or oauth_password):
+                        password = user.password or oauth_password
                         # Create a new user login with the hashed password
-                        hashed_password = bcrypt.hashpw(user.password.encode('utf-8'), bcrypt.gensalt())
+                        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                         new_login = CodxUserLogin(username=user.username, email=user.email, password=hashed_password.decode('utf-8'))
                         self.global_settings.user_logins.append(new_login)
                         self.save_settings()
@@ -79,10 +88,10 @@ class UserSecurityManager():
             
         try:
             logged_user = do_login(user=user, token=token)
-            logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
+            # logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
             if logged_user:
                 user_login = self.find_user_login(username=logged_user.username)
-                logger.info(f"User logged {logged_user} and user login {user_login}")
+                # logger.info(f"User logged {logged_user}")
                 user_login.token = self.get_user_token(user=logged_user)
                 self.save_settings()
                 logged_user.token = user_login.token
@@ -111,11 +120,11 @@ class UserSecurityManager():
     def get_user_project_access(self, user: CodxUser, settings: CODXJuniorSettings):
         if user:
             if user.role == 'admin':
-                return ['admin']
+                return 'admin'
             for p in user.projects:
                 if p.project_id == settings.project_id:
                     return p.permissions
-        return []
+        return ''
 
     def add_user_to_project(self, user: CodxUser, project_id: str, permissions: str):
         global_user = next((u for u in self.global_settings.users if u.username == user.username))
@@ -134,14 +143,41 @@ class UserSecurityManager():
         if save_settings:
             self.save_settings()
 
+    def get_users_with_project_access(self, project_id: str):
+        users_with_access = []
+        for user in self.global_settings.users:
+            add = user.role == 'admin'
+            if not add:
+                for project in user.projects:
+                    if project.project_id == project_id:
+                        add = True
+                        break
+            if add:
+                users_with_access.append({
+                    "username": user.username,
+                    "avatar": user.avatar
+                })
+                        
+        return users_with_access
     def save_settings(self):
         write_global_settings(self.global_settings)
 
-async def get_authenticated_user(request: Request) -> CodxUser:
+def get_authenticated_user(request: Request) -> CodxUser:
     user_security_manager = UserSecurityManager()
     token = request.headers.get("authentication", " ").split(" ")[-1]
     user = None
     if token:
         user = user_security_manager.login_user(token=token)
-    logger.info(f"Authenticating request: {request.url} token {token}: {user} - headers: {request.headers}")
+    user_name = user.username if user else ""
+    logger.info(f"Authenticating request: {request.url} token {token}: {user_name} - headers: {request.headers}")
+    return user
+
+
+def get_authenticated_user_from_token(token: str) -> CodxUser:
+    user_security_manager = UserSecurityManager()
+    user = None
+    if token:
+        user = user_security_manager.login_user(token=token)
+    user_name = user.username if user else ""
+    logger.info(f"Authenticating request: WS token {token}: {user_name}")
     return user
