@@ -97,7 +97,11 @@ function createProjectChat(project, chat) {
 
 export const getters = getterTree(state, {
   allParentProjects: () => $storex.api.allProjects.filter(p => !p.parentProject),
-  profiles: state => $storex.profiles.profiles[state.activeProject.project_id],
+  profiles: state => $storex.profiles.profiles[state.activeProject.project_id]
+                      .map(p => ({
+                        ...p,
+                        project: state.allProjects.find(({ project_id }) => project_id === p.project_id)
+                      })),
   allChats: state => Object.values(state.chats || {}).map(chat =>createProjectChat(state.activeProject, chat)),
   allBoards: state => Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] })),
   allTags: state => new Set(Object.values(state.chats||{})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),

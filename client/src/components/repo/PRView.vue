@@ -160,7 +160,10 @@ export default {
       return this.files?.filter(f => f.selected) || []
     },
     visibleFiles() {
-      return this.filter ? this.files?.filter(f => f.fileFullName.includes(this.filter.toLowerCase())) || [] :
+      return this.filter ? this.files?.filter(f =>
+        f.fileFullName.includes(this.filter.toLowerCase()) ||
+        f.diff.toLowerCase().includes(this.filter.toLowerCase())
+      ) || [] :
         this.files
     },
     defaultExpanded() {

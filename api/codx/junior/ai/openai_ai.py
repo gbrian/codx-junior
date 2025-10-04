@@ -277,17 +277,22 @@ class OpenAI_AI:
         params = json.loads(tool_call_data["arguments"])
         
         # Find the tool and execute the tool_call
-        for tool in self.tools:
-            if tool["tool_json"]["function"]["name"] == func_name:
-                project_settings = tool["tool_json"].get("settings", {}).get("project_settings")
-                is_async = tool["tool_json"].get("settings", {}).get("async")
-                if tool["tool_json"].get("settings", {}).get("project_settings"):
-                    params["settings"] = self.settings
-                
-                content = tool["tool_call"](**params)
-                if is_async:
-                    content = await content
-                tool_responses.append(content)
+        tool = next((t for t in self.tools if t["tool_json"]["function"]["name"] == func_name), None)
+        if tool:
+            tool_json = tool["tool_json"]
+            settings = tool.get("settings", {
+              "project_settings": False,
+              "async": False
+            })
+
+            if settings["project_settings"]:
+                params["settings"] = self.settings
+            
+            content = tool["tool_call"](**params)
+            if settings["async"]:
+                content = await content
+            
+            tool_responses.append(content)
 
         # Format the tool response as specified
         tool_output = {

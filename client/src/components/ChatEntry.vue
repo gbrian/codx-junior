@@ -370,7 +370,7 @@ export default {
     }
   },
   mounted() {
-    this.message.collapse = this.message.hide
+    this.message.collapse = this.message.collapse || this.message.hide
     this.extractImprovementData()
   }
 }

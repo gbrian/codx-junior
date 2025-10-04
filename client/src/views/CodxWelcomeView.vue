@@ -3,6 +3,7 @@ import IssuePreview from '../components/IssuePreview.vue'
 import ProjectCard from '../components/project/ProjectCard.vue'
 
 import { GitIssueWizard } from '../wizards/gitIssue.js'
+import Wall from '../components/wall/Wall.vue'
 </script>
 
 <template>
@@ -22,7 +23,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
             <i class="fa-solid fa-cubes"></i>
           </span>
           Projects
-          <span class="badge badge-sm">{{ $projects.allParentProjects.length }}</span>
+          <span class="badge badge-sm">{{ $projects.allProjects.length }}</span>
         </a>
       </li>
       <li @click="$ui.setActiveTab('docs')">
@@ -42,7 +43,8 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
       </li>
     </ul>
 
-    <div class="md:py-10 flex flex-col" v-if="selection === 'home'">
+    <Wall class="p-4" v-if="selection === 'home'"></Wall>
+    <div class="md:py-10 flex flex-col" v-if="selection === 'old-welcome'">
       <div class="flex flex-col">
         <div class="py-4">
           <h1 class="text-center text-xl md:text-3xl font-bold flex gap-2 justify-center items-center">
@@ -172,7 +174,10 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
 
     <div class="flex flex-col gap-4 mt-4 px-2" v-if="selection === 'projects'">
       <div class="flex justify-between">
-        <div class="text-xl font-bold">Projects</div>
+        <div class="text-xl font-bold">
+          <span v-if="filterQuery">Find projects: '{{ filterQuery }}'</span>
+          <span v-else>Top projects</span>
+        </div>
         <div class="flex items-center gap-2 mb-2">
           <input type="text" class="input input-sm input-bordered" placeholder="Filter projects..." v-model="filterQuery" />
           <button class="btn btn-sm" @click="filterQuery = null">
@@ -184,7 +189,7 @@ import { GitIssueWizard } from '../wizards/gitIssue.js'
 
         </div>
       </div>
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-2">
+      <div class="grid grid-cols-2 md:grid-cols-2 gap-2">
         <ProjectCard
           v-for="project in filteredProjects"
           :key="project.project_id"
@@ -279,12 +284,14 @@ export default {
   },
   computed: {
     filteredProjects() {
-      return this.$projects.allParentProjects.filter(project => {
-        return !this.filterQuery || (
-          project.project_name.toLowerCase().includes(this.filterQuery.toLowerCase()) ||
-          project.project_path.toLowerCase().includes(this.filterQuery.toLowerCase())
+      const projects = this.$projects.allProjects
+        .sort((a, b) => Object.keys(a.metrics?.heatmap || {}).length >
+                        Object.keys(b.metrics?.heatmap || {}).length ? -1 : 1 
         )
-      })
+      return this.filterQuery ? projects.filter(project =>
+          project.project_name.toLowerCase().includes(this.filterQuery.toLowerCase()) ||
+          project.project_path.toLowerCase().includes(this.filterQuery.toLowerCase())) :
+          projects.slice(0, 6)
     }
   },
   methods: {

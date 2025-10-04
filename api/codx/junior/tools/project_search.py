@@ -29,6 +29,11 @@ def project_search(search: str, **kwargs) -> str:
 
     settings: CODXJuniorSettings = kwargs.get("settings", None)
     if settings:
-        documents = Knowledge(settings=settings).query(search)
-        return "\n".join([document_to_context(doc) for doc in documents])
-    return ""
+        documents = Knowledge(settings=settings).get_db().search(query=search)
+        doc_content = "\n".join([document_to_context(doc) for doc in documents])
+        return f"""
+        QUERY: {search}
+        RETURNED:
+        {doc_content}
+        """
+    return "No results. Missing settings"

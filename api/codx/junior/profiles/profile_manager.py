@@ -8,6 +8,10 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.model.model import Profile
 from codx.junior.utils.utils import write_file
 
+from codx.junior.project.project_discover import (
+    find_project_parents
+)
+
 logger = logging.getLogger(__name__)
 
 class ProfileManager:
@@ -27,6 +31,15 @@ class ProfileManager:
         base_profiles = _files(pathlib.Path(self.base_profiles_path).rglob("**/*.profile"))
         project_profiles = _files(pathlib.Path(self.profiles_path).rglob("**/*.profile"))
         return _files(base_profiles), _files(project_profiles)
+
+    def list_all_profiles(self):
+        all_parents = find_project_parents(project=self.settings)
+        profiles = {}
+        for project in all_parents + [self.settings]:
+            for profile in ProfileManager(settings=project).list_profiles():
+                profiles[profile.name] = profile  
+        return list(profiles.values())
+
 
     def list_profiles(self):
         base_profiles , project_profiles = self.get_profiles()
@@ -57,6 +70,7 @@ class ProfileManager:
                   profile.content = f.read()
             if not profile.avatar:
                 profile.avatar = f"https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r={profile.name}"
+            profile.project_id = self.settings.project_id
             return profile
         except Exception as ex:
             logger.exception(f"Error loading profile: {profile_path} {ex}")

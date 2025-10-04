@@ -48,7 +48,7 @@ import WorkspacesViewer from './workspaces/WorkspacesViewer.vue'
         ]"
         @resize="size => $ui.setCodxJuniorWidth(size)"
         v-if="showCodxJunior">
-        <CodxJuniorVue ref="codxJunior" class="w-full h-full" :class="`zoom:${zoom}`"
+        <CodxJuniorVue ref="codxJunior" class="h-full" :class="[ showApp ? 'w-full' : 'w-8/12' ]"
           :style="`zoom:${ zoom }`" 
         />
       </SplitterPanel>

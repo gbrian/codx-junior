@@ -144,24 +144,12 @@ class ChatEngine:
             user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
             query = user_message.content
 
-            query_mentions: QueryMentions = self.get_query_mentions(query=query)
+            query_mentions: QueryMentions = self.get_query_mentions(chat=chat, user_message=user_message)
 
-            def load_profiles():
-                profile_manager = self.get_profile_manager()
-                query_profiles = query_mentions.profiles
-                chat_and_message_profiles = [profile_manager.read_profile(profile_name) \
-                                             for profile_name \
-                                             in chat.profiles + (user_message.profiles or [])]
-                all_profiles = [p for p in chat_and_message_profiles + query_profiles if p]
-                all_profiles = profile_manager.get_profiles_and_parents(all_profiles)
-                profile_names = [p.name for p in all_profiles]
-                logger.info(f"Loading profiles: {profile_names}")
-                return all_profiles
+            all_profiles = query_mentions.profiles
 
             is_refine = chat_mode == "task"
             is_agent = chat_mode  == "agent"
-            
-            chat_profiles = load_profiles()
             
             chat_profiles_content = ""
             chat_profile_names = []
@@ -178,18 +166,16 @@ class ChatEngine:
                     settings.codx_path: settings for settings in query_mention_projects
                 }).values())
 
-            valid_profiles = []
-            if chat_profiles:
-                valid_profiles = [profile for profile in chat_profiles if profile]
-                chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in valid_profiles])
-                chat_profile_names = [profile.name for profile in valid_profiles]
+            if all_profiles:
+                chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in all_profiles])
+                chat_profile_names = [profile.name for profile in all_profiles]
                 if not chat_model:
-                    chat_models = list(set([profile.llm_model for profile in valid_profiles if profile.llm_model]))
+                    chat_models = list(set([profile.llm_model for profile in all_profiles if profile.llm_model]))
                     chat_model = chat_models[0] if chat_models else None
-                if valid_profiles[0].chat_mode:
-                    chat_mode = valid_profiles[0].chat_mode
+                if all_profiles[0].chat_mode:
+                    chat_mode = all_profiles[0].chat_mode
                 # None profile uses knowledge, disable knowledge
-                if next((p for p in valid_profiles if p.chat_mode == 'task'), None):
+                if next((p for p in all_profiles if p.chat_mode == 'task'), None):
                     is_refine = True
 
             if not search_projects:
@@ -255,7 +241,7 @@ class ChatEngine:
             ai = self.get_ai(llm_model=ai_settings.model)
             tags  = [
                       f"{chat.mode}"
-                    ] + [p.name for p in valid_profiles]
+                    ] + [p.name for p in all_profiles]
             if is_agent:
                 tags.append("agent")
             ai_headers = {
@@ -543,14 +529,19 @@ class ChatEngine:
         return enhanced_query
 
 
-    def get_query_mentions(self, query: str) -> QueryMentions:
+    def get_query_mentions(self, chat, user_message) -> QueryMentions:
         """
         Extract mentions of profiles and projects from the given query.
 
         :param query: The user's query string.
         :return: A dictionary containing lists of mentioned profiles and projects.
         """
+        content = user_message.content
+        profiles = chat.profiles + user_message.profiles
+        chat_profiles = [f"@{name}" for name in  profiles]
         chat_utils = ChatUtils(profile_manager=self.get_profile_manager())
+
+        query = f"{content} {chat_profiles}"
         query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
         logger.debug(f"Query mentions extracted: {query_mentions}")
         return query_mentions

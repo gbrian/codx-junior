@@ -1,0 +1,363 @@
+board: Chat Manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: To Do
+column_id: ''
+created_at: '2025-10-02 18:19:07.856846'
+description: 'The document presents Python code for managing chat files, specifically
+  within the `chat_manager.py` file. It includes two methods: `find_chats`, which
+  retrieves chat objects based on a given date filter, and `chat_paths`, which returns
+  file paths of chat files optionally filtered by modification time. The explanation
+  highlights the update to the method signature, filtering logic, and the return process.
+  Additionally, a comment requests the creation of a full version of the file incorporating
+  recent changes.'
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/chat_manager.py
+file_path: /shared/codx-junior/api/.codx/tasks/Chat Manager/To Do/last-chats.795e813b-2866-4428-901b-395f7e163b29.yaml
+id: 795e813b-2866-4428-901b-395f7e163b29
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Add a find_chats method to return chats based on filters.\nFilters:\n\_\
+    * last update:\_ return chats updated since last_update date\n\n"
+  created_at: '2025-10-02 18:19:07.854332'
+  disable_knowledge: true
+  doc_id: 5dc90652-9ccd-4ee4-ab94-267574fba8dd
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-02 18:19:07.854358'
+  user: admin
+- content: "To add a `find_chats` method to the `ChatManager` class that returns chats\
+    \ based on a `last_update` filter, we'll need to implement a method that iterates\
+    \ through the available chats and filters them based on the `updated_at` timestamp.\
+    \ Here's how you can do it:\n\n```python /shared/codx-junior/api/codx/junior/chat_manager.py\n\
+    def find_chats(self, last_update: datetime = None):\n    \"\"\"\n    Return chats\
+    \ based on filters.\n    \n    :param last_update: Return chats updated since\
+    \ this date.\n    :return: List of Chat objects.\n    \"\"\"\n    filtered_chats\
+    \ = []\n    \n    # Iterate through all chats\n    for chat in self.list_chats():\n\
+    \        # Check if chat was updated after the last_update date\n        if last_update\
+    \ and datetime.fromisoformat(chat.updated_at) > last_update:\n            filtered_chats.append(chat)\n\
+    \    \n    return filtered_chats\n```\n\n### Explanation:\n- **Method Signature**:\
+    \ The `find_chats` method accepts an optional `last_update` parameter of type\
+    \ `datetime`.\n- **Filtering Logic**: The method iterates over all available chats\
+    \ using the `list_chats` method. For each chat, it checks if the `updated_at`\
+    \ timestamp is greater than the provided `last_update` timestamp.\n- **Return**:\
+    \ It returns a list of `Chat` objects that match the filter criteria.\n\nThis\
+    \ method will allow you to find all chats that have been updated since a given\
+    \ date, enhancing the functionality of the `ChatManager` class."
+  created_at: '2025-10-02 18:19:07.854332'
+  disable_knowledge: false
+  doc_id: 2f24c102-701f-4acf-a7c9-d5a5449799e5
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 9.489059448242188e-05
+    model: openai/gpt-4o
+    time_taken: 7.0162975788116455
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-02 18:19:07.854358'
+  user: null
+- content: 'It''s better to pass the date to the methods finding the chat files and
+    use the modified time of the file for filtering.
+
+    Add an optional parameters to the method finding the chat files'
+  created_at: '2025-10-02 18:19:07.854332'
+  disable_knowledge: true
+  doc_id: d5d932ac-fc1d-4dcb-848b-8c9601d90d05
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-02 18:19:07.854358'
+  user: admin
+- content: "```python /shared/codx-junior/api/codx/junior/chat_manager.py\ndef find_chats(self,\
+    \ last_update: datetime = None):\n    \"\"\"\n    Return chats based on filters.\n\
+    \    \n    :param last_update: Return chats updated since this date.\n    :return:\
+    \ List of Chat objects.\n    \"\"\"\n    filtered_chats = []\n    \n    # Iterate\
+    \ through all chat file paths with optional last_update filter\n    for file_path\
+    \ in self.chat_paths(last_update=last_update):\n        chat = self.load_chat_from_path(chat_file=file_path)\n\
+    \        if chat:\n            filtered_chats.append(chat)\n    \n    return filtered_chats\n\
+    \ndef chat_paths(self, last_update: datetime = None):\n    \"\"\"\n    Return\
+    \ chat file paths, optionally filtering by last update time.\n    \n    :param\
+    \ last_update: Only return paths for chats updated since this date.\n    :return:\
+    \ List of file paths.\n    \"\"\"\n    all_paths = [str(file_path) for file_path\
+    \ in pathlib.Path(self.chat_path).rglob(\"*.md\")] + \\\n                [str(file_path)\
+    \ for file_path in pathlib.Path(self.chat_path).rglob(\"*.yaml\")]\n    \n   \
+    \ if last_update:\n        # Filter paths by file modified time\n        return\
+    \ [path for path in all_paths if datetime.fromtimestamp(os.path.getmtime(path))\
+    \ > last_update]\n    \n    return all_paths\n```\n\n### Explanation:\n- **Method\
+    \ Signature Update**: The `chat_paths` method now accepts an optional `last_update`\
+    \ parameter to filter file paths based on their last modification time.\n- **Filtering\
+    \ Logic**: The `find_chats` method uses the `chat_paths` method with the `last_update`\
+    \ filter to get only the paths of chats that have been updated since the specified\
+    \ date. It then loads these chats from their file paths.\n- **Return**: This setup\
+    \ returns a list of `Chat` objects updated since the given `last_update` date,\
+    \ utilizing the file modification time for filtering."
+  created_at: '2025-10-02 18:19:07.854332'
+  disable_knowledge: false
+  doc_id: 4a1137b2-427e-45cc-a793-f0a86a4673d9
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 9.751319885253906e-05
+    model: openai/gpt-4o
+    time_taken: 14.595815181732178
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-02 18:19:07.854358'
+  user: null
+- content: Create full version of the file with the new changes
+  created_at: '2025-10-02 18:19:07.854332'
+  disable_knowledge: true
+  doc_id: 5c73043f-494b-4da7-b0a1-2fa0a4546190
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-02 18:19:07.854358'
+  user: admin
+- content: "```python /shared/codx-junior/api/codx/junior/chat_manager.py\n\"\"\"\n\
+    Chat + AI\nThis module is responsible for the AI chat interaction\n\"\"\"\nimport\
+    \ logging\nimport pathlib\nimport os\nimport json\nimport uuid\nimport shutil\n\
+    import yaml\n\nfrom slugify import slugify\nfrom collections import deque\n\n\
+    from datetime import datetime, timezone, timedelta\nfrom codx.junior.settings\
+    \ import CODXJuniorSettings\n\nfrom codx.junior.db import Chat, Message\nfrom\
+    \ codx.junior.utils.utils import write_file\n\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\n\n\nlogger = logging.getLogger(__name__)\n\nDEFAULT_BOARD\
+    \ = \"kanban\"\nDEFAULT_COLUMN = \"tasks\"\n\nclass ChatManager:\n    def __init__(self,\
+    \ settings: CODXJuniorSettings):\n        self.settings = settings\n        self.chat_path\
+    \ = f\"{settings.codx_path}/tasks\"\n        os.makedirs(self.chat_path, exist_ok=True)\n\
+    \        os.makedirs(f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}\", exist_ok=True)\n\
+    \n    def get_chat_file(self, chat: Chat):\n        chat_file = f\"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.yaml\"\
+    \n        return chat_file\n\n    def chat_paths(self, last_update: datetime =\
+    \ None):\n        \"\"\"\n        Return chat file paths, optionally filtering\
+    \ by last update time.\n        \n        :param last_update: Only return paths\
+    \ for chats updated since this date.\n        :return: List of file paths.\n \
+    \       \"\"\"\n        all_paths = [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob(\"\
+    *.md\")] + \\\n                    [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob(\"\
+    *.yaml\")]\n        \n        if last_update:\n            # Filter paths by file\
+    \ modified time\n            return [path for path in all_paths if datetime.fromtimestamp(os.path.getmtime(path))\
+    \ > last_update]\n        \n        return all_paths\n\n    def chat_board_column_name_from_path(self,\
+    \ file_path):\n        chat_parts = file_path.replace(self.chat_path, \"\").split(\"\
+    /\")[1:]\n        if len(chat_parts) != 3:\n            return None, None, None\n\
+    \   \n        name = chat_parts[-1].replace(\".md\", \"\")\n        column = chat_parts[-2]\n\
+    \        board = chat_parts[-3]\n        return board, column, name\n\n    @profile_function\n\
+    \    def list_chats(self):\n        file_paths = self.chat_paths()\n        @profile_function\n\
+    \        def list_chat_chat_info(file_path):\n            try:\n             \
+    \   chat = self.load_chat_from_path(chat_file=file_path, chat_only=True)\n   \
+    \             return chat\n            except Exception as ex:\n             \
+    \   logger.exception(f\"Error loading chat {ex}\")\n            return None\n\
+    \            \n        return sorted([chat \\\n            for chat in [list_chat_chat_info(file_path)\
+    \ for file_path in file_paths] \\\n            if chat],\n            key=lambda\
+    \ x: str(x.chat_index or x.updated_at),\n            reverse=True)\n\n    def\
+    \ save_chat(self, chat: Chat, chat_only=False):\n        if not chat.board:\n\
+    \            chat.board = \"kanban\"\n        if not chat.column:\n          \
+    \  chat.column = \"tasks\"\n        if not chat.id:\n            chat.id = str(uuid.uuid4())\n\
+    \        if not chat.created_at:\n            chat.created_at = chat.updated_at\n\
+    \n        chat.updated_at = datetime.now().isoformat()\n\n        current_chat\
+    \ = self.find_by_id(chat_id=chat.id)\n        if chat_only and current_chat:\n\
+    \            chat.messages = current_chat.messages\n        users = []\n     \
+    \   profiles = []\n        for msg in chat.messages:\n            if not msg.doc_id:\n\
+    \                msg.doc_id = str(uuid.uuid4())\n            if msg.user:\n  \
+    \              users.append(msg.user)\n            profiles = profiles + msg.profiles\n\
+    \        chat.users = list(set(users))\n        chat.profiles = list(set(profiles))\n\
+    \n        yaml_chat_file = self.get_chat_file(chat)\n        logger.info(f\"Save\
+    \ chat {chat.id} at {yaml_chat_file}\")\n\n        # Update file_path to point\
+    \ to YAML version\n        chat.file_path = yaml_chat_file\n\n        # Serialize\
+    \ and save as YAML\n        with open(yaml_chat_file, 'w') as f:\n           \
+    \ yaml.dump(chat.dict(), f)\n\n        # remove old chat\n        if current_chat:\n\
+    \            logger.info(f\"Save chat, current_chat {current_chat.id} at {current_chat.file_path}\"\
+    )\n            if yaml_chat_file != current_chat.file_path:\n                self.delete_chat(current_chat.file_path)\n\
+    \n        return chat\n\n    def delete_chat(self, file_path: str = None, chat_id:\
+    \ str = None):\n        logger.info(f\"Removing chat by file_path: {file_path}\
+    \  - chat_id: {chat_id}\")\n        \n        if chat_id:\n            chat =\
+    \ self.find_by_id(chat_id)\n            file_path = chat.file_path\n\n       \
+    \ if os.path.isfile(file_path) \\\n            and file_path.startswith(self.chat_path):\n\
+    \            logger.info(f\"Removing chat at {file_path}\")\n            os.remove(file_path)\n\
+    \        else:\n            logger.error(f\"Removing chat error {file_path}\"\
+    )\n\n    def load_chat(self, board, column = None, chat_name = None):\n      \
+    \  chat = Chat(board=board, column=column, name=chat_name)\n        chat_file\
+    \ = self.get_chat_file(chat)\n        if not os.path.isfile(chat_file):\n    \
+    \        chat.file_path = chat_file\n            return chat\n        return self.load_chat_from_path(chat_file=chat_file)\n\
+    \n    @profile_function\n    def load_chat_from_path(self, chat_file: str, chat_only:\
+    \ bool = False):\n        yaml_chat_file = chat_file.replace('.md', '.yaml')\n\
+    \n        if os.path.isfile(yaml_chat_file):\n            # Load from YAML if\
+    \ exists\n            with open(yaml_chat_file, 'r') as f:\n                chat_data\
+    \ = yaml.safe_load(f)\n                return Chat(**chat_data)\n\n        # Fallback\
+    \ to existing method if YAML file doesn't exist\n        board, column, name =\
+    \ self.chat_board_column_name_from_path(chat_file)\n        if not board or not\
+    \ column:\n            new_chat_file = f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}/{name}.md\"\
+    \n            if chat_file:\n                os.rename(chat_file, new_chat_file)\n\
+    \            chat_file = new_chat_file\n            board = DEFAULT_BOARD\n  \
+    \          column = DEFAULT_COLUMN\n\n        with open(chat_file, 'r') as f:\n\
+    \            content = f.read()\n            chat = self.deserialize_chat(content=content,\
+    \ chat_only=chat_only)\n\n        if not chat.created_at:\n            stats =\
+    \ os.stat(chat_file)\n            chat.created_at = str(datetime.fromtimestamp(stats.st_ctime,\
+    \ tz=timezone.utc))\n            chat.updated_at = str(datetime.fromtimestamp(stats.st_mtime,\
+    \ tz=timezone.utc))\n        chat.board = board\n        chat.column = column\n\
+    \        chat.file_path = chat_file\n        return chat\n\n    def serialize_chat(self,\
+    \ chat: Chat):\n        chat_json = { **chat.__dict__ }\n        del chat_json[\"\
+    messages\"]  \n        header = f\"# [[{json.dumps(chat_json)}]]\"\n        def\
+    \ serialize_message(message):\n            if not message.created_at:\n      \
+    \          message.created_at = datetime.now().isoformat()\n            message_json\
+    \ = { **message.__dict__ }\n            del message_json[\"content\"]\n      \
+    \      return \"\\n\".join([\n                    f\"## [[{json.dumps(message_json)}]]\"\
+    ,\n                    message.content\n                ]\n            )\n   \
+    \     messages = [serialize_message(message) for message in chat.messages]\n \
+    \       chat_content = \"\\n\".join([header] + messages)\n        return chat_content\n\
+    \n    def delete_kanban(self, kanban_title: str):\n        shutil.rmtree(f\"{self.chat_path}/{kanban_title}\"\
+    )\n\n    @profile_function\n    def deserialize_chat(self, content, chat_only:\
+    \ bool = False) -> Chat:\n        logger.info(f\"deserialize_chat content length:\
+    \ {len(content)}\")\n        lines = content.split(\"\\n\")\n        chat_json\
+    \ = json.loads(lines[0][4:-2])\n        chat = Chat(**chat_json)\n        chat.messages\
+    \ = []\n        if not chat_only:\n            chat_message = None\n         \
+    \   for line in lines[1:]:\n                if line.startswith(\"## [[{\") and\
+    \ line.endswith(\"}]]\"):\n                    chat_message = Message(**json.loads(line[5:-2]))\n\
+    \                    chat_message.content = \"\"\n                    chat.messages.append(chat_message)\n\
+    \                    continue\n                if chat_message:\n            \
+    \            chat_message.content = line \\\n                            if not\
+    \ chat_message.content \\\n                            else f\"{chat_message.content}\\\
+    n{line}\"\n        return chat\n\n    def chat_count(self):\n        return len(self.chat_paths())\n\
+    \n    def last_chats(self):\n        last_days = (datetime.now() - timedelta(days=2)).timestamp()\n\
+    \        chat_paths = [{\n            \"chat_path\": chat_path,\n            \"\
+    updated_at\": os.stat(chat_path).st_ctime\n        } for chat_path in self.chat_paths()]\n\
+    \        chat_paths = [c for c in chat_paths if c[\"updated_at\"] > last_days]\
+    \ \n        last_updated_chats = sorted(\n                                chat_paths,\n\
+    \                                key=lambda x: x[\"updated_at\"])\n        last_updated_chats.reverse()\n\
+    \        last_updated_chats = last_updated_chats[0:3]\n        def load_chat(file_path):\n\
+    \            return self.load_chat_from_path(chat_file=file_path)\n        return\
+    \ [load_chat(c[\"chat_path\"]) for c in last_updated_chats]\n\n    def find_by_id(self,\
+    \ chat_id):\n        if chat_id:\n            file_path = next((path for path\
+    \ in self.chat_paths() if chat_id in path), None)\n            if file_path:\n\
+    \                return self.load_chat_from_path(chat_file=file_path)\n      \
+    \  return None\n\n    def load_kanban_from_file(self, kanban_file: str):\n   \
+    \     kanban = {\n          \"version\": 0.1,\n          \"boards\": {},\n   \
+    \       \"tags\": {}\n        }\n        if os.path.isfile(kanban_file):\n   \
+    \         with open(kanban_file, 'r') as f:\n                kanban = json.loads(f.read())\n\
+    \            version = kanban.get(\"version\", None)\n            if not version:\n\
+    \                kanban = {\n                    \"version\": 0.1,\n         \
+    \           \"boards\": kanban,\n                    \"tags\": {}\n          \
+    \      }\n        return kanban\n\n    @profile_function\n    def load_kanban(self):\n\
+    \        kanban_file = f\"{self.chat_path}/kanban.json\"\n        logger.info(f\"\
+    load_kanban {kanban_file}\")\n        all_chats = self.list_chats()\n        kanban\
+    \ = self.load_kanban_from_file(kanban_file=kanban_file)\n        \n        all_board_dirs\
+    \ = [board for board in os.listdir(f\"{self.chat_path}\") \\\n               \
+    \             if os.path.isdir(f\"{self.chat_path}/{board}\")]\n        save_kanban\
+    \ = False\n        boards = kanban[\"boards\"]\n        logger.info(f\"Process\
+    \ boards {kanban_file}\")\n        \n        for board in set([chat.board for\
+    \ chat in all_chats] + all_board_dirs):\n            if not boards.get(board):\n\
+    \                boards[board] = {}\n            if not boards[board].get(\"columns\"\
+    ):\n                boards[board][\"columns\"] = []\n\n            all_board_columns\
+    \ = [col for col in os.listdir(f\"{self.chat_path}/{board}\") \\\n           \
+    \             if os.path.isdir(f\"{self.chat_path}/{board}/{col}\") ]\n      \
+    \      board_columns = boards[board][\"columns\"]\n            for col in set([chat.column\
+    \ for chat in all_chats if chat.board == board]\n                            +\n\
+    \                            all_board_columns):\n                if not [c for\
+    \ c in board_columns if c[\"title\"] == col]:\n                    board_columns.append({\
+    \ \"title\" : col })\n                    save_kanban = True\n\n            for\
+    \ col in board_columns:\n                if not col.get(\"id\"):\n           \
+    \         col[\"id\"] = str(uuid.uuid4())\n                    save_kanban = True\n\
+    \n        if save_kanban:\n            self.save_kanban(kanban)\n        return\
+    \ kanban\n\n    def save_kanban(self, kanban):\n        kanban_file = f\"{self.chat_path}/kanban.json\"\
+    \n        with open(kanban_file, 'w') as f:\n            f.write(json.dumps(kanban))\n\
+    \n    def find_chats(self, last_update: datetime = None):\n        \"\"\"\n  \
+    \      Return chats based on filters.\n        \n        :param last_update: Return\
+    \ chats updated since this date.\n        :return: List of Chat objects.\n   \
+    \     \"\"\"\n        filtered_chats = []\n        \n        # Iterate through\
+    \ all chat file paths with optional last_update filter\n        for file_path\
+    \ in self.chat_paths(last_update=last_update):\n            chat = self.load_chat_from_path(chat_file=file_path)\n\
+    \            if chat:\n                filtered_chats.append(chat)\n        \n\
+    \        return filtered_chats\n```\n"
+  created_at: '2025-10-02 18:19:07.854332'
+  disable_knowledge: false
+  doc_id: 83105b29-0c44-4bf2-bf05-2170f8fa6c27
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00018978118896484375
+    model: openai/gpt-4o
+    time_taken: 109.11581611633301
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-02 18:19:07.854358'
+  user: null
+mode: task
+name: Last chats
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-03T06:35:18.049297'
+url: ''
+users:
+- admin
+visibility: ''

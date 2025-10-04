@@ -1,5 +1,6 @@
 <script setup>
 import moment from 'moment';
+import HeatMap from '../metrics/HeatMap.vue';
 </script>
 <template>
   <div class="p-4 rounded-md flex flex-col gap-2 bg-base-200 click">
@@ -32,15 +33,24 @@ import moment from 'moment';
     <div class="text-xs text-error" v-if="project._error">
       <i class="fa-solid fa-exclamation"></i> {{ project._error }}
     </div>
+    <HeatMap :data="heatmap" />
   </div>
 </template>
 <script>
 export default {
   props: ['project'],
+  created() {
+  },
   computed: {
     metrics () {
       return this.project.metrics || {}
-    }
+    },
+    heatmap() {
+      const heatmap = this.project.metrics?.heatmap
+      return heatmap ? Object.keys(heatmap).map(dt => ({ date: dt, count: heatmap[dt] })) : []
+    },
+  },
+  methods: {
   }
 }
 </script>

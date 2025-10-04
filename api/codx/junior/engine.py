@@ -7,7 +7,7 @@ import subprocess
 import time
 import uuid
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
@@ -75,6 +75,8 @@ from codx.junior.utils.utils import (
 from codx.junior.whisper.audio_manager import AudioManager
 
 from codx.junior.model.model import CodxUser
+from codx.junior.chat_heatmap import ChatHeatmapReport
+from codx.junior.chat_wall import ChatWallReport
 
 logger = logging.getLogger(__name__)
 
@@ -181,18 +183,7 @@ class CODXJuniorSession:
 
     @profile_function
     def list_profiles(self):
-        all_parents = find_project_parents(project=self.settings, user=self.user)
-        profiles = {}
-        for project in all_parents + [self.settings]:
-            for profile in self.get_profile_manager(settings=project).list_profiles():
-                profiles[profile.name] = {
-                  **profile.__dict__,
-                  "project": {
-                    "project_id": project.project_id,
-                    "project_name": project.project_name
-                  }
-                }
-        return list(profiles.values())
+        return self.get_profile_manager().list_all_profiles()
 
     async def save_profile(self, profile):
         profile = self.get_profile_manager().save_profile(profile=profile)
@@ -1225,11 +1216,21 @@ class CODXJuniorSession:
         return APPS
 
     def get_project_branches(self):
-        stdout, _ = exec_command("git branch",
-            cwd=self.settings.project_path)
-        branches = [s.strip() for s in stdout.split("\n") if s.strip()]
+        def get_barnches(cmd):
+            stdout, _ = exec_command(cmd,
+                cwd=self.settings.project_path)
+            return [s.strip() for s in stdout.split("\n") if s.strip()]
+        branches = list(set(get_barnches("git branch") + get_barnches("git branch -r")))
+        branches.sort()
         return {
           "branches": branches,
+        }
+
+    def get_project_branch_commits(self, branch):
+        commits, _ = exec_command(f"git log {branch}",
+            cwd=self.settings.project_path)
+        return {
+          "commits": commits,
         }
 
     def find_git_root_path(self):
@@ -1268,13 +1269,42 @@ class CODXJuniorSession:
                     local_changes[file] = git_diff_local_out if git_diff_local_out else \
                                             f"diff --git a/ b/{file}\nnew file mode" 
 
+        pr_details = self.get_pr_review_details(from_branch, to_branch)
+
+        commits = self.get_branch_commits(from_branch=from_branch,
+                                        repo_path=self.settings.project_path)
+
         return {
           "diff": git_diff_cmd_out,
           "stat": git_diff_cmd_stat_out,
           "git_diff_cmd": git_diff_cmd,
           "local_changes": local_changes,
-          "repo_path": self.find_git_root_path()
+          "repo_path": self.find_git_root_path(),
+          "pr_details": pr_details,
+          "commits": commits
         }
+
+    def get_branch_commits(self, from_branch, repo_path):
+        # Run the git log command
+        git_log_command = f"git log --pretty=format:%H|%an|%ae|%ad|%s {from_branch}"
+        stdout, _ = exec_command(git_log_command, cwd=repo_path)
+        
+        # Process each entry
+        log_entries = stdout.strip().split('\n')
+        log_list = []
+        for entry in log_entries:
+            commit_hash, author_name, author_email, date, message = entry.split('|', 4)
+            log_list.append({
+                "commit": commit_hash,
+                "author": {
+                    "name": author_name,
+                    "email": author_email
+                },
+                "date": date,
+                "message": message.strip()
+            })
+
+        return log_list
 
     def get_project_pr(self, from_branch: str, to_branch: str):
         
@@ -1360,3 +1390,60 @@ class CODXJuniorSession:
         project_branches = self.get_project_branches()
         diff = project_branches["git_diff"]
         return self.get_knowledge().build_code_changes_summary(diff=diff, force=force)
+
+    def project_metrics(self):
+        try:
+            chats = self.get_chat_manager().list_chats()
+            last_update = datetime.today() - timedelta(days=5)
+            last_chats = self.get_chat_manager().find_chats(last_update)
+            chat_heatmap = ChatHeatmapReport()
+            chat_wall = ChatWallReport()
+            return {
+              "heatmap": chat_heatmap.generate_report(chats=chats),
+              "wall": chat_wall.generate_report(chats=last_chats),
+            }
+        except Exception as ex:
+            logger.error("Error getting heatmapo metrics")
+            return {
+              "error": str(ex)
+            }
+
+    def get_pr_review_details(self, from_branch: str, to_branch: str):
+        # Pull the latest changes from both branches to ensure we are comparing correctly
+        exec_command(f"git fetch origin {to_branch}:{to_branch}", cwd=self.settings.project_path)
+        exec_command(f"git fetch origin {from_branch}:{from_branch}", cwd=self.settings.project_path)
+
+        # Get the list of files changed between the two branches
+        diff_command = f"git diff --name-status {to_branch}..{from_branch}"
+        stdout, _ = exec_command(diff_command, cwd=self.settings.project_path)
+        file_changes = stdout.strip().split('\n')
+
+        # Prepare the list to hold the changes
+        changes = []
+
+        for line in file_changes:
+            if line:
+                status, file_path = line.split('\t', 1)
+                file_status = 'modified'
+                if status == 'A':
+                    file_status = 'new'
+                elif status == 'D':
+                    file_status = 'deleted'
+
+                # Get the diff for the file
+                file_diff_command = f"git diff {to_branch}..{from_branch} -- {file_path}"
+                file_diff, _ = exec_command(file_diff_command, cwd=self.settings.project_path)
+
+                # Get the commits for the file
+                file_commits_command = f"git log --oneline {to_branch}..{from_branch} -- {file_path}"
+                file_commits_stdout, _ = exec_command(file_commits_command, cwd=self.settings.project_path)
+                file_commits = file_commits_stdout.strip().split('\n')
+
+                changes.append({
+                    'file_name': file_path,
+                    'status': file_status,
+                    'diff': file_diff,
+                    'commits': file_commits
+                })
+
+        return changes

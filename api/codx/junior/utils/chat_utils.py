@@ -38,7 +38,7 @@ class ChatUtils:
         return [project for project in [find_project_by_name(mention[1:]) for mention in mentions] if project]
 
     def find_profiles_by_mentions(self, mentions: [str]):
-        profiles = self.profile_manager.list_profiles()
+        profiles = self.profile_manager.list_all_profiles()
         mention_profiles = [p for p in profiles if p.name in mentions]
         return self.profile_manager.get_profiles_and_parents(mention_profiles)
 

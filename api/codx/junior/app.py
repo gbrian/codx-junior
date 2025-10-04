@@ -159,18 +159,22 @@ async def add_process_time_header(request: Request, call_next):
     finally:
         logger.info(f"Request {request.url} - {time.time() - start_time} ms")
 
+
+def get_codx_junior_session(request, codx_path):
+    user = get_authenticated_user(request=request)
+    sid = request.headers.get("x-sid")
+    channel = SessionChannel(sid=sid, sio=sio)
+    return CODXJuniorSession(codx_path=codx_path, 
+                              channel=channel,
+                              user=user)
+
 @app.middleware("http")
 async def add_codx_junior_settings(request: Request, call_next):
     codx_path = request.query_params.get("codx_path")
     if codx_path and codx_path not in ["undefined", "null"]:
         try:
-            user = get_authenticated_user(request=request)
-            sid = request.headers.get("x-sid")
-            channel = SessionChannel(sid=sid, sio=sio)
-            request.state.codx_junior_session = CODXJuniorSession(codx_path=codx_path, 
-                                                                  channel=channel,
-                                                                  user=user)
-            settings = request.state.codx_junior_session.settings
+            codx_path = request.query_params.get("codx_path")
+            request.state.codx_junior_session = get_codx_junior_session(request, codx_path)
             # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:
             logger.error(f"Error loading settings {codx_path}: {ex}\n{request.url}")
@@ -379,15 +383,31 @@ def api_project_watch(request: Request):
 
 @app.get("/api/projects")
 def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
+    with_metrics = request.query_params.get("with_metrics")
     return [{
       **project.__dict__,
-      "workspaces": project.get_project_workspaces()
+      "workspaces": project.get_project_workspaces(),
+      "metrics": get_codx_junior_session(request, project.codx_path).project_metrics() \
+                      if with_metrics else {}
     } for project in find_all_user_projects(user)]
+
+    
+
+@app.get("/api/projects/metrics")
+async def api_chat_metrics(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.project_metrics()
 
 @app.get("/api/projects/repo/branches")
 def api_find_all_repo_branches(request: Request):
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.get_project_branches()
+
+@app.get("/api/projects/repo/branch/commits")
+def api_find_all_repo_branch_commits(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    branch = request.query_params.get("branch")
+    return codx_junior_session.get_project_branch_commits(branch=branch)
 
 @app.get("/api/projects/repo/changes")
 def api_find_all_repo_changes(request: Request):
@@ -442,7 +462,7 @@ def api_extract_tags(doc: Document, request: Request):
     return doc.__dict__
 
 @app.get("/api/code-server/file/open")
-def api_list_chats(request: Request):
+def api_file_open(request: Request):
     file_name = request.query_params.get("file_name")
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.coder_open_file(file_name=file_name)

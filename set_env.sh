@@ -27,6 +27,10 @@ export CODX_JUNIOR_AUTOGEN_PREFIX_PATH_VALUE=autogenstudio
 export CODX_JUNIOR_MILVUS_UI_URL=${CODX_JUNIOR_MILVUS_UI_URL:-"http://milvus:9091"}
 export CODX_JUNIOR_MILVUS_URL=${CODX_JUNIOR_MILVUS_URL:-"http://milvus:19530"}
 
+# User codxspaces and apps base port
+export USER_PORT_RANGE_START=${USER_PORT_RANGE_START:-99000}
+export USER_PORT_RANGE_END=${USER_PORT_RANGE_END:-99050}
+
 # codx-junior preview display
 export CODX_JUNIOR_DISPLAY=:55
 # Serving client from API

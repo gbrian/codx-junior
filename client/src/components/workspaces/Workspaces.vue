@@ -79,7 +79,10 @@ import { v4 as uuidv4 } from 'uuid'
                 <span class="label-text">Apps</span>
               </label>
               <div v-for="(app, index) in selectedWorkspace.apps" :key="index" class="flex gap-2 items-center mt-2">
-                <input v-model="app.name" placeholder="App Name" class="input input-bordered w-24" />
+                <select v-model="app.name" class="select select-bordered">
+                  <option value="coder">Code Server</option>
+                  <option value="desktop">Virtual Desktop</option>
+                </select>
                 <input v-model="app.description" placeholder="App Description" class="input input-bordered w-36" />
                 <input v-model="app.port" type="number" placeholder="Port" class="input input-bordered w-20" />
                 <label class="flex items-center">
@@ -91,7 +94,10 @@ import { v4 as uuidv4 } from 'uuid'
                 </button>
               </div>
               <div class="flex gap-2 items-center mt-2">
-                <input v-model="newApp.name" placeholder="App Name" class="input input-bordered w-24" />
+                <select v-model="newApp.name" class="select select-bordered">
+                  <option value="coder">Code Server</option>
+                  <option value="desktop">Virtual Desktop</option>
+                </select>
                 <input v-model="newApp.description" placeholder="App Description" class="input input-bordered w-36" />
                 <input v-model="newApp.port" type="number" placeholder="Port" class="input input-bordered w-20" />
                 <label class="flex items-center">

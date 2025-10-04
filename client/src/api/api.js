@@ -250,8 +250,9 @@ const initializeAPI = ({ project, user } = {}) => {
           }
         }
       },
-      metrics() {
-        return API.get('/api/projects/metrics')
+      async metrics() {
+        const data = await API.get('/api/projects/metrics')
+        return data
       }
     },
     repo: {

@@ -108,9 +108,7 @@ import WorkspacesSelector from './workspaces/WorkspacesSelector.vue';
 				</a>
 			</div>
       
-      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('coder') ? 'text-primary': '',]"
-        v-if="canShowCoder"
-      >
+      <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('coder') ? 'text-primary': '',]">
 				<a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip" :class="right ? 'tooltip-left' : 'tooltip-right'" data-tip="Show coder"
         @click.stop="$ui.setShowCoder(!$ui.appActives.includes('coder'))">
           <div class="flex flex-col gap-4">
@@ -250,13 +248,7 @@ export default {
   },
   computed: {
     canShowBrowser() {
-      return this.$users.isAdmin || this.$user?.apps.includes("viewer")
-    },
-    canShowCoder() {
-      return this.$users.isAdmin ||this.$user?.apps.includes("coder")
-    },
-    canShowAutogenStudio() {
-      return this.$users.isAdmin ||this.$user?.apps.includes("autogenstudio")
+      return this.$users.canShowBrowser
     },
     isSettings () {
       return ['settings', 'profiles', 'global-settings'].includes(this.$ui.activeTab)

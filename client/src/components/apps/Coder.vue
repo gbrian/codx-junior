@@ -1,13 +1,17 @@
 <script setup>
 import Iframe from '../Iframe.vue';
+import CodeEditor from '../CodeEditor.vue';
 </script>
 <template>
   <div class="relative">
     <Iframe ref="iframe" :url="coderUrl" @loaded="onCoderLoaded"
       title="coder"
       :key="iframeKey"
+      v-if="$users.canShowCoder"
     />
-    <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300 flex flex-col items-center justify-center z-50" v-if="!iframeLoaded">
+    <CodeEditor v-else />
+    <div class="absolute top-0 left-0 right-0 bottom-0 bg-base-300 flex flex-col items-center justify-center z-50"
+      v-if="$users.canShowCoder && !iframeLoaded">
       <div class="flex items-end gap-2">
           LOADING CODER <span class="loading loading-dots loading-sm"></span>
       </div>
