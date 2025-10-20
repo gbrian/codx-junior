@@ -1,0 +1,139 @@
+board: Engine
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Progress
+column_id: ''
+created_at: '2025-07-13 11:36:58.962565'
+description: In the conversation, a reorganization of the `CODXJuniorSession` class
+  methods is proposed to create specialized classes, promoting single responsibility.
+  New classes such as `ProjectManager`, `KnowledgeManager`, and `ChatService` are
+  suggested, each containing methods relevant to their specific domain. The reorganization
+  aims to clarify responsibilities and improve code maintainability. Basic instructions
+  for writing file changes emphasize including the full file name in the block's starting
+  line. The detailed breakdown also supports modularization by suggesting classes
+  like `FileManager`, `ProfileManager`, and `TaskManager` to house related functionalities.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/engine.py
+file_path: /shared/codx-junior/api/.codx/tasks/Engine/In Progress/split-engine-file-in-specialized-classes.a81af9b7-1a0a-4c4f-9fb0-9c6992c1d3af.yaml
+id: a81af9b7-1a0a-4c4f-9fb0-9c6992c1d3af
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'We must extract methods from @file://engine.py to especialized classes.
+
+    Create a list of new classes with a list of methods to move there'
+  created_at: '2025-07-13 11:36:58.960651'
+  disable_knowledge: true
+  doc_id: 5fcbaa4d-cdb8-4669-87a6-24f2fa8b0580
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/engine.py
+  - /shared/codx-junior/api/codx/junior/engine.py
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-13 11:36:58.960680'
+  user: admin
+- content: "To extract methods from the `CODXJuniorSession` class to specialized classes,\
+    \ we must first identify logical groupings within the class. Below is a list of\
+    \ proposed new classes and the methods that should be moved to each:\n\n### Proposed\
+    \ New Classes and Methods\n\n1. **ProjectManager**\n   - `switch_project(self,\
+    \ project_id: str)`\n   - `delete_project(self)`\n   - `get_project_dependencies(self)`\n\
+    \   - `get_all_search_projects(self)`\n   - `project_script_test(self)`\n   -\
+    \ `check_project_changes(self)`\n   - `get_project_branches(self)`\n   - `get_branch_details(self,\
+    \ branch_name: str)`\n   - `get_project_current_branch(self)`\n   - `get_project_parent_branch(self)`\n\
+    \   - `get_project_changes(self, parent_branch: str = None)`\n\n2. **KnowledgeManager**\n\
+    \   - `get_knowledge(self)`\n   - `reload_knowledge(self, path: str = None)`\n\
+    \   - `knowledge_search(self, knowledge_search: KnowledgeSearch)`\n   - `delete_knowledge_source(self,\
+    \ sources: [str])`\n   - `delete_knowledge(self, index: str)`\n   - `select_afefcted_documents_from_knowledge(self,\
+    \ chat: Chat, ai: AI, query: str, ignore_documents=[], search_projects = [])`\n\
+    \   - `check_knowledge_status(self)`\n   - `extract_query_mentions(self, query:\
+    \ str)`\n   - `find_projects_by_mentions(self, mentions: [str])`\n   - `extract_tags(self,\
+    \ doc)`\n   - `get_keywords(self, query)`\n\n3. **ChatService**\n   - `chat_action(self,\
+    \ chat: Chat, event: str)`\n   - `load_chat(self, board, chat_name)`\n   - `list_chats(self)`\n\
+    \   - `save_chat(self, chat: Chat, chat_only=False)`\n   - `delete_chat(self,\
+    \ chat_id)`\n   - `chat_with_project(self, chat: Chat, disable_knowledge: bool\
+    \ = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration:\
+    \ int = 0)`\n   - `api_chat_with_project(self, profile_name: str, messages: [])`\n\
+    \   - `send_message_event`\n   - `init_chat_from_url(self, chat: Chat)`\n   -\
+    \ `get_chat_analysis_parents(self, chat: Chat)`\n\n4. **FileManager**\n   - `coder_open_file(self,\
+    \ file_name: str)`\n   - `apply_patch(self, patch: str)`\n   - `change_file_with_instructions(self,\
+    \ instruction_list: [str], file_path: str, content: str)`\n   - `process_project_file_before_saving(self,\
+    \ file_path: str, content: str)`\n   - `apply_file_profile(self, file_path: str,\
+    \ content: str, profile: Profile)`\n   - `write_project_file(self, file_path:\
+    \ str, content: str)`\n   - `read_directory(self, path: str)`\n   - `read_file(self,\
+    \ path: str)`\n   - `search_files(self, search: str)`\n   - `process_project_changes(self)`\n\
+    \n5. **ProfileManager**\n   - `list_profiles(self)`\n   - `save_profile(self,\
+    \ profile)`\n   - `read_profile(self, profile_name)`\n   - `delete_profile(self,\
+    \ profile_name)`\n   - `find_profiles_by_mentions(self, mentions: [str])`\n  \
+    \ - `get_project_profile(self)`\n\n6. **KnowledgeUpdater**\n   - `update_wiki(self,\
+    \ file_path: str)`\n   - `process_wiki_changes(self)`\n   - `check_file(self,\
+    \ file_path: str, force: bool = False)`\n   - `check_file_for_mentions(self, file_path:\
+    \ str)`\n   - `extract_changes(self, content)`\n\n7. **WikiManager**\n   - `get_wiki(self)`\n\
+    \   - `get_wiki_file(self, file_path: str)`\n   - `get_readme(self)`\n   - `update_project_profile(self,\
+    \ file_path: str)`\n\n8. **TaskManager**\n   - `generate_tasks(self, chat: Chat,\
+    \ instructions: str = \"\")`\n   - `get_query_mentions(self, query: str)`\n  \
+    \ - `extract_query_mentions(self, query: str)`\n   - `generate_code(self, chat:\
+    \ Chat, code_block_info: dict)`\n   - `improve_existing_code(self, chat: Chat,\
+    \ apply_changes: bool=None)`\n   - `apply_improve_code_changes(self, code_generator:\
+    \ AICodeGerator, chat: Chat = None)`\n   - `improve_existing_code_patch(self,\
+    \ chat:Chat, code_generator: AICodeGerator)`\n\n9. **EventManagerWrapper**\n \
+    \  - `get_mention_manager(self)`\n   - `get_chat_manager(self)`\n   - `get_profile_manager(self)`\n\
+    \   - `get_event_manager(self, codx_path:str)`\n\n10. **UtilityServices**\n  \
+    \  - `log_info(self, msg)`\n    - `log_error(self, msg)`\n    - `log_exception(self,\
+    \ msg)`\n    - `get_ai(self, llm_model: str = None)`\n    - `api_image_to_text(self,\
+    \ image_bytes)`\n    - `convert_message(self, m)`\n\nThis reflective reorganization\
+    \ aims to promote single responsibility by consolidating related methods under\
+    \ their respective new classes. Each of these classes can be placed in its respective\
+    \ module and imported where necessary within the project."
+  created_at: '2025-07-13 11:36:58.960651'
+  disable_knowledge: false
+  doc_id: 43b4d6b7-7e32-4d73-bded-56954c1a55a3
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00037026405334472656
+    model: gpt-4o
+    time_taken: 25.463338136672974
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-07-13 11:36:58.960680'
+  user: null
+mode: chat
+name: Split engine file in specialized classes
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-07-13T11:40:08.202082'
+url: ''
+users:
+- admin
+visibility: ''

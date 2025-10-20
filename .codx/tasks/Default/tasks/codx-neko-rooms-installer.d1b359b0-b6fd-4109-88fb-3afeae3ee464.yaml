@@ -1,0 +1,101 @@
+board: Default
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: tasks
+column_id: ''
+created_at: '2025-02-10 09:18:00.738701'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Default/tasks/codx-neko-rooms-installer.d1b359b0-b6fd-4109-88fb-3afeae3ee464.yaml
+id: d1b359b0-b6fd-4109-88fb-3afeae3ee464
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Create cloud init script to install codx-neko-rooms:
+
+    curl -sL https://raw.githubusercontent.com/gbrian/codx-neko-rooms/main/installer.sh
+    | IP= USER= PASSWORD= bash -s'
+  created_at: '2025-02-10 09:18:00.736957'
+  disable_knowledge: false
+  doc_id: 602295e8-69f1-49dc-82d6-a5ba10690848
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-02-10 09:18:00.736987'
+  user: null
+- content: "To create a cloud-init script for installing `codx-neko-rooms`, you'll\
+    \ want to automate the installation process by filling in the required variables\
+    \ (`IP`, `USER`, and `PASSWORD`) within the script. Here is a sample cloud-init\
+    \ script that you can use. This script assumes you have the necessary permissions\
+    \ and network access to execute the installer:\n\n```yaml\n#cloud-config\npackage_update:\
+    \ true\npackage_upgrade: true\n\nruncmd:\n  - curl -sL https://raw.githubusercontent.com/gbrian/codx-neko-rooms/main/installer.sh\
+    \ | IP=<your_ip> USER=<your_username> PASSWORD=<your_password> bash -s\n\n# Replace\
+    \ <your_ip>, <your_username>, and <your_password> with your actual values.\n```\n\
+    \n### Steps to Use the Script\n\n1. **Edit the Script**: Replace `<your_ip>`,\
+    \ `<your_username>`, and `<your_password>` with the actual values you wish to\
+    \ use for your `codx-neko-rooms` installation.\n\n2. **Save the Script**: Save\
+    \ this script as a `.yaml` file, for example, `codx-neko-rooms-cloud-init.yaml`.\n\
+    \n3. **Deploy**: Use this cloud-init script when launching your cloud instance.\
+    \ This can usually be done through your cloud provider's dashboard or CLI by specifying\
+    \ the file as user data.\n\n### Additional Best Practices\n\n- **Security**: Ensure\
+    \ that sensitive information such as passwords is securely handled. Consider using\
+    \ environment variables or secure storage solutions provided by your cloud provider.\n\
+    \  \n- **Version Control**: Store your cloud-init scripts in a version-controlled\
+    \ repository, such as Git, to track changes and collaborate effectively.\n\n-\
+    \ **Testing**: Test the script in a non-production environment to ensure it runs\
+    \ as expected.\n\n- **Documentation**: Document the purpose and usage of the script\
+    \ in your project's documentation to help other team members understand its function.\n\
+    \nBy following these steps and best practices, you can ensure a smooth and secure\
+    \ installation of `codx-neko-rooms` using cloud-init."
+  created_at: '2025-02-11 08:07:38.510246'
+  disable_knowledge: false
+  doc_id: 6531d4ec-a3e0-4a30-8f3e-3646f48e68f0
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    model: gpt-4o
+    time_taken: 18.857674837112427
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-02-11 08:07:38.510277'
+  user: null
+mode: chat
+name: codx-neko-rooms installer
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-02-11T08:08:05.313170'
+url: ''
+users: []
+visibility: ''

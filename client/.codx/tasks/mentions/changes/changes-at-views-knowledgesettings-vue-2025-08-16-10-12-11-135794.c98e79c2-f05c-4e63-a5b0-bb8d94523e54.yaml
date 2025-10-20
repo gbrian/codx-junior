@@ -1,0 +1,735 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-08-16 09:22:53.752771'
+description: The user requested modifications to a Vue component file, adding a new
+  tab "Data" and integrating the `DataExplorerVue` component. The conversation outlined
+  best practices for writing Vue files, emphasizing the use of DaisyUI components
+  and TailwindCSS classes for styling. The final version was provided without any
+  additional decorations or comments, adhering to the specified structure and guidelines.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-views-knowledgesettings-vue-2025-08-16-10-12-11-135794.c98e79c2-f05c-4e63-a5b0-bb8d94523e54.yaml
+id: c98e79c2-f05c-4e63-a5b0-bb8d94523e54
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "        Apply codx comments and rewrite full content.\n        Return\
+    \ only the content without any further decoration or comments.\n        Do not\
+    \ surround response with '```' marks, just content.\n        Remove codx comments\
+    \ from the final version.\n        Do not return the <document> tags but respect\
+    \ tags present of the original content.\n        "
+  created_at: '2025-08-16 09:22:53.750690'
+  disable_knowledge: false
+  doc_id: 804b4d02-ef72-443b-a642-be84d5330eca
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-16 09:22:53.750718'
+  user: null
+- content: "                    Given this document:\n                    <document>\n\
+    \n                    <script setup>\nimport moment from 'moment'\nimport { API\
+    \ } from '../api/api'\nimport MarkdownVue from '@/components/Markdown.vue'\nimport\
+    \ WikiSettingsVue from '@/components/wiki/WikiSettings.vue'\nimport DataExplorerVue\
+    \ from '../components/data/DataExplorer.vue'\n</script>\n\n<template>\n  <div\
+    \ class=\"flex flex-col gap-2 h-full px-4\n  \">\n    <div class=\"font-medium\
+    \ flex flex-col gap-2\">\n      <div class=\"text-3xl flex justify-between items-center\"\
+    >\n        Knowledge\n        @codx-ok, please-wait...: Add new tab \"Data\" and\
+    \ show the DataExplorerVue component\n        <div class=\"\">\n          <div\
+    \ role=\"tablist\" class=\"tabs tabs-box flex gap-2\">\n            <a role=\"\
+    tab\" class=\"tab flex gap-2 text-xl\" :class=\"{ 'tab-active text-warning': selectedTab\
+    \ === 'Search' }\"\n              @click=\"selectedTab = 'Search'\">\n       \
+    \       <i class=\"fa-solid fa-magnifying-glass\"></i> Search\n            </a>\n\
+    \            <a role=\"tab\" class=\"tab flex gap-2 text-xl\" :class=\"{ 'tab-active\
+    \ text-warning': selectedTab === 'Index' }\"\n              @click=\"selectedTab\
+    \ = 'Index'\">\n              <i class=\"fa-solid fa-file-import\"></i> Index\n\
+    \            </a>\n            <a role=\"tab\" class=\"tab flex gap-2 text-xl\"\
+    \ :class=\"{ 'tab-active text-warning': selectedTab === 'Wiki' }\"\n         \
+    \     @click=\"selectedTab = 'Wiki'\">\n              <i class=\"fa-solid fa-file\"\
+    ></i> Wiki\n            </a>\n          </div>\n        </div>\n\n      </div>\n\
+    \      <div class=\"card\">\n        <div class=\"flex flex-col gap-2\">\n   \
+    \       <div class=\"text-xl\">Settings</div>\n          <div class=\"flex-grow\"\
+    >\n            <div class=\"text-error text-xs\" v-if=\"!settings?.use_knowledge\"\
+    >Knowledge search is disabled!</div>\n          </div>\n          <div class=\"\
+    flex gap-2 items-center\">\n            <div class=\"badge flex gap-2\">\n   \
+    \           <span class=\"text-info\"><i class=\"fa-solid fa-file\"></i></span>\n\
+    \              {{ $projects.embeddingsModel }}\n            </div>\n         \
+    \   <button class=\"btn btn-sm\" @click=\"toggleWatch()\">\n              <span\
+    \ class=\"label-text mr-2\">Watch changes</span>\n              <input type=\"\
+    checkbox\" class=\"toggle toggle-sm toggle-primary\" :checked=\"$project.watching\"\
+    \ />\n            </button>\n            <button class=\"btn btn-sm\"\n      \
+    \        @click=\"setSettings({ knowledge_enrich_documents: !$project.knowledge_enrich_documents\
+    \ })\">\n              <span class=\"label-text mr-2\">Enrich documents</span>\n\
+    \              <input type=\"checkbox\" class=\"toggle toggle-sm toggle-primary\"\
+    \n                :checked=\"$project.knowledge_enrich_documents\" />\n      \
+    \      </button>\n          </div>\n          <div class=\"stats stats-sm\">\n\
+    \            <div :class=\"['stat click', showIndexFiles === 0 && 'bg-primary/20']\"\
+    \ @click=\"setTab(0)\">\n              <div class=\"stat-figure mt-6\">\n    \
+    \            <i class=\"fa-2xl fa-solid fa-file\"></i>\n              </div>\n\
+    \              <div class=\"stat-title\">Pending</div>\n              <div class=\"\
+    stat-value\">{{ status?.pending_files?.length }}</div>\n              <div class=\"\
+    stat-desc\"></div>\n            </div>\n\n            <div :class=\"['stat click',\
+    \ showIndexFiles === 1 && 'bg-primary/20']\" @click=\"setTab(1)\">\n         \
+    \     <div class=\"stat-figure mt-6 text-success\">\n                <i class=\"\
+    fa-2xl fa-solid fa-puzzle-piece\"></i>\n              </div>\n              <div\
+    \ class=\"stat-title\">Indexed</div>\n              <div class=\"stat-value\"\
+    >{{ status?.file_count }}</div>\n              <div class=\"stat-desc\"></div>\n\
+    \            </div>\n\n            <div :class=\"['stat click', showIndexFiles\
+    \ === 2 && 'bg-primary/20']\" @click=\"setTab(2)\">\n              <div class=\"\
+    stat-figure mt-6 text-warning\">\n                <i class=\"fa-2xl fa-solid fa-file\"\
+    ></i>\n              </div>\n              <div class=\"stat-title\">Ignored</div>\n\
+    \              <div class=\"stat-value\">{{ ignoredFolders?.length }}</div>\n\
+    \              <div class=\"stat-desc\"></div>\n            </div>\n\n       \
+    \     <div class=\"stat\">\n              <div class=\"stat-figure mt-6 text-info\"\
+    >\n                <i class=\"fa-2xl fa-solid fa-book\"></i>\n              </div>\n\
+    \              <div class=\"stat-title\">Keywords</div>\n              <div class=\"\
+    stat-value\">{{ status?.keyword_count }}</div>\n              <div class=\"stat-desc\"\
+    ></div>\n            </div>\n          </div>\n\n        </div>\n      </div>\n\
+    \n    </div>\n    <div class=\"text-xs flex gap-2\" v-if=\"subProjects?.length\"\
+    >\n      Linked projects:\n      <span class=\"badge badge-xs badge-warning\"\
+    \ v-for=\"sp in subProjects\" :key=\"sp\">\n        {{ sp }}\n      </span>\n\
+    \    </div>\n\n    <WikiSettingsVue v-if=\"selectedTab === 'Wiki'\" />\n\n   \
+    \ <div v-if=\"selectedTab === 'Search'\">\n      <div class=\"search flex flex-col\
+    \ gap-2\" v-if=\"settings?.use_knowledge\">\n        <div class=\"text-xl font-bold\"\
+    >Fine tune codx-junior knowledge search</div>\n        <div class=\"text-xs flex\
+    \ gap-2 items-center\">\n          <i class=\"fa-solid fa-sliders\"></i>\n   \
+    \       <div class=\"flex gap-2 items-center tooltip\" data-tip=\"Search type\"\
+    >Search:\n            <select v-model=\"documentSearchType\" class=\"w-20 select\
+    \ select-bordered select-xs\">\n              <option value=\"similarity\">similarity</option>\n\
+    \            </select>\n          </div>\n          <div class=\"flex gap-2 items-center\
+    \ tooltip\" data-tip=\"Limit results\">Limit:\n            <input type=\"text\"\
+    \ v-model=\"documentCount\" class=\"w-20 input input-bordered input-xs max-w-xs\"\
+    \ />\n          </div>\n          <div class=\"flex gap-2 items-center tooltip\"\
+    \ data-tip=\"Rag distance (0-1)\">Rag (0-1):\n            <input type=\"text\"\
+    \ v-model=\"cutoffRag\" class=\"w-20 input input-bordered input-xs max-w-xs\"\
+    \ />\n          </div>\n          <div class=\"flex gap-2 items-center tooltip\"\
+    \ data-tip=\"Content score (0-1)\">Score:\n            <input type=\"text\" v-model=\"\
+    cutoffScore\" class=\"w-20 input input-bordered input-xs max-w-xs\" />\n     \
+    \     </div>\n          <div class=\"flex gap-2 items-center tooltip\" data-tip=\"\
+    Use keywords in search\">Keywords:\n            <input type=\"checkbox\" v-model=\"\
+    enableKeywords\" class=\"w-20 checkbox checkbox-xs\" />\n          </div>\n\n\
+    \          <div class=\"grow\"></div>\n          <button class=\"btn btn-sm tooltip\
+    \ hover:text-info\" data-tip=\"Save these settings\"\n            @click=\"saveKnowledgeSettings\"\
+    >\n            <i class=\"fa-solid fa-floppy-disk\"></i>\n          </button>\n\
+    \        </div>\n        <label class=\"input input-bordered flex items-center\
+    \ gap-2\">\n          <select class=\"select select-xs\" v-model=\"searchType\"\
+    >\n            <option value=\"fulltext\">Full text</option>\n            <option\
+    \ value=\"raw\">Query</option>\n          </select>\n          <input type=\"\
+    text\" class=\"flex-grow\" placeholder=\"Search in knowledge\" @keypress.enter=\"\
+    onKnowledgeSearch\"\n            v-model=\"searchTerm\" />\n          <i class=\"\
+    fa-solid fa-magnifying-glass\" @click=\"onKnowledgeSearch\"></i>\n        </label>\n\
+    \        <div class=\"flex flex-col gap-2\" v-if=\"searchResults\">\n        \
+    \  <div class=\"text-xs\">{{ { ...searchResults.settings } }}</div>\n        \
+    \  <div class=\"chat chat-start\" v-if=\"searchResults.response\">\n         \
+    \   <div class=\"chat-bubble chat-bubble-accent\">\n              {{ searchResults.response\
+    \ }}\n            </div>\n          </div>\n          <span class=\"alert alert-error\
+    \ alert-sm\" v-if=\"noResults\">\n            No documents associated...\n   \
+    \       </span>\n          <div class=\"grid grid-cols-2 gap-2\">\n          \
+    \  <div\n              class=\"border p-2 border-info cursor-pointer rounded-md\
+    \ bg-base-300 flex flex-col justify-between gap-2 text-xs\"\n              v-for=\"\
+    doc, ix in searchResultsDocuments\" :key=\"ix\" @click=\"showDoc = { ...doc, docSelected:\
+    \ 0 }\">\n              <div class=\"p-1 rounded font-bold flex flex-col gap-2\"\
+    \ :title=\"doc.metadata.source\"\n                :class=\"doc.metadata.relevance_score\
+    \ >= cutoffScore ? 'text-primary' : 'text-error'\">\n                <div>{{ doc.metadata.source.split('/').reverse()[0]\
+    \ }}</div>\n              </div>\n              <markdown :text=\"doc.metadata.score_analysis\
+    \ || doc.page_content\" class=\"grow\"></markdown>\n              <div class=\"\
+    alert alert-sm alert-error\" v-if=\"doc.metadata.score_error\">\n            \
+    \    {{ doc.metadata.score_error }}\n              </div>\n              <div\
+    \ class=\"flex gap-2 items-center\">\n                <i class=\"fa-solid fa-scale-unbalanced\"\
+    ></i>\n                {{ `${doc.distance || doc.metadata.db_distance || ''}`.slice(0,\
+    \ 4) }}\n                <i class=\"fa-solid fa-brain\"></i>\n               \
+    \ {{ doc.metadata.relevance_score }} - {{ doc.metadata.language }}\n         \
+    \       <i class=\"fa-solid fa-file-lines\"></i>\n                x {{ doc.docs.length\
+    \ }}\n              </div>\n            </div>\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n\n    <div class=\"grow\" v-if=\"selectedTab === 'Index'\"\
+    >\n\n      <div class=\"index flex flex-col gap-2 justify-between\">\n       \
+    \ <div class=\"flex justify-between\">\n          <div class=\"text-xl font-bold\"\
+    >\n            Knowledge index settings\n          </div>\n          <div class=\"\
+    stat-desc flex gap-2 items-center btn btn-sm\" @click=\"reloadStatus\">\n    \
+    \        <i class=\"fa-solid fa-rotate-right\"></i> Update\n          </div>\n\
+    \        </div>\n\n        <div class=\"flex gap-2 items-center\">\n         \
+    \ <div class=\"text-secondary\">\n            <i class=\"fa-solid fa-clock\"></i>\n\
+    \          </div>\n          <div class=\"stat-title\">Last refresh</div>\n  \
+    \        <div class=\"stat-value text-wrap text-sm\">{{ lastRefresh }}</div>\n\
+    \        </div>\n\n        <div class=\"p-4 flex flex-col gap-2 grow\">\n    \
+    \      <div>\n            <div class=\"flex gap-2 my-2\">\n              <button\
+    \ class=\"btn btn-sm\" @click=\"toggleAllNoneSelection\">\n                Select\
+    \ all/none\n              </button>\n              <label class=\"input input-sm\
+    \ input-bordered flex items-center gap-2\">\n                <input type=\"text\"\
+    \ class=\"grow\" placeholder=\"Search\" v-model=\"fileFilter\" />\n          \
+    \      <i class=\"fa-solid fa-magnifying-glass\"></i>\n                <span class=\"\
+    -mt-1\" v-if=\"fileFilter\">({{ showFiles.length }})</span>\n              </label>\n\
+    \            </div>\n            <div class=\"flex my-2\">\n              <div\
+    \ class=\"badge badge-xs click\" v-for=\"count, extension in extensions\" :key=\"\
+    extension\"\n                @click=\"fileFilter = '.' + extension\">\n      \
+    \          {{ extension }} ({{ count }})\n              </div>\n            </div>\n\
+    \            <div class=\"max-h-60 overflow-auto\" v-if=\"showFiles?.length\"\
+    >\n              <div class=\"text-xs\" v-for=\"file in showFiles\" :key=\"file\"\
+    >\n                <div class=\"flex gap-2\">\n                  <input type=\"\
+    checkbox\" v-model=\"selectedFiles[file]\" class=\"checkbox\" />\n           \
+    \       <a class=\"underline click\" @click=\"$ui.openFile(file)\">{{ file.replace(projectPath,\
+    \ \"\") }}</a>\n                </div>\n              </div>\n            </div>\n\
+    \            <div class=\"flex gap-2\">\n              <button class=\"btn btn-primary\
+    \ btn-sm\" @click=\"reloadKnowledge\" v-if=\"selectedFileCount\">\n          \
+    \      <i class=\"fa-solid fa-circle-info\"></i> Index ({{ selectedFileCount }})\
+    \ files now\n              </button>\n              <button class=\"btn btn-primary\
+    \ btn-sm btn-error text-white\" @click=\"ignoreSelectedFiles(true)\"\n       \
+    \         v-if=\"selectedFileCount && showIndexFiles !== 2\">\n              \
+    \  <i class=\"fa-solid fa-folder\"></i> Ignore ({{ selectedFileCount }}) folder\n\
+    \              </button>\n              <button class=\"btn btn-primary btn-sm\
+    \ btn-error text-white\" @click=\"ignoreSelectedFiles(false)\"\n             \
+    \   v-if=\"selectedFileCount && showIndexFiles !== 2\">\n                <i class=\"\
+    fa-solid fa-file\"></i> Ignore ({{ selectedFileCount }}) files\n             \
+    \ </button>\n              <button class=\"btn btn-primary btn-sm btn-success\
+    \ text-white\" @click=\"ignoreSelectedFiles(false)\"\n                v-if=\"\
+    selectedFileCount && showIndexFiles === 2\">\n                <i class=\"fa-solid\
+    \ fa-plus\"></i> Add ({{ selectedFileCount }}) files\n              </button>\n\
+    \              <button class=\"btn btn-primary btn-sm btn-warning text-white\"\
+    \ @click=\"dropSelectedFiles\"\n                v-if=\"selectedFileCount\">\n\
+    \                <i class=\"fa-solid fa-trash-can\"></i> Drop ({{ selectedFileCount\
+    \ }}) files\n              </button>\n            </div>\n          </div>\n \
+    \         <div class=\"text-xl flex gap-2 items-center mt-2\">\n            <i\
+    \ class=\"fa-solid fa-hand\"></i> Manual folder indexing\n          </div>\n \
+    \         <div class=\"text-xs\">Allows to index new floders or re-index existing\
+    \ ones</div>\n          <label class=\"input input-bordered flex items-center\
+    \ gap-2\">\n            <input type=\"text\" class=\"grow\" :placeholder=\"projectPath\"\
+    \ v-model=\"folderFilter\" />\n            <span v-if=\"folderFilter\" @click=\"\
+    reloadFolder(folderFilter)\">\n              <i class=\"fa-solid fa-rotate-right\"\
+    ></i>\n            </span>\n            <span v-else>\n              <i class=\"\
+    fa-solid fa-magnifying-glass\"></i>\n            </span>\n          </label>\n\
+    \          <div class=\"dropdown dropdown-open\" v-if=\"folderResulst\">\n   \
+    \         <div class=\"dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box\
+    \ w-fit\">\n              <ul>\n                <li class=\"\" v-for=\"folder\
+    \ in folderResulst\" :key=\"folder\" @click=\"folderFilter = folder\">\n     \
+    \             <a>{{ folder }}</a>\n                </li>\n              </ul>\n\
+    \            </div>\n          </div>\n        </div>\n        <div class=\"text-xs\
+    \ font-bold py-2 flex flex-col gap-2\">\n          <div class=\"text-xl\">Ignored\
+    \ patterns:</div>\n          <div class=\"flex input input-sm input-bordered gap-2\
+    \ max-w-xs items-center\">\n            <input type=\"text\" class=\"grow\" v-model=\"\
+    addToIgnore\" @keydown.enter=\"addEntriesToIgnore([addToIgnore])\">\n        \
+    \    <div class=\"btn btn-xs btn-circle btn-warning\" @click=\"addEntriesToIgnore([addToIgnore])\"\
+    >\n              <i class=\"fa-solid fa-plus\"></i>\n            </div>\n    \
+    \      </div>\n          <div class=\"grid grid-cols-4 gap-2\">\n            <span\
+    \ class=\"badge badge-xs flex gap-2 items-center w-fit rounded-full text-warning-content\
+    \ bg-warning\"\n              v-for=\"folder, ix in ignoredFolders\" :key=\"ix\"\
+    >\n              {{ folder }}\n              <div class=\"btn btn-xs btn-circle\"\
+    \ @click=\"removeEntriesFromIgnore([folder])\">\n                <i class=\"fa-solid\
+    \ fa-minus\"></i>\n              </div>\n            </span>\n          </div>\n\
+    \        </div>\n        <div class=\"pb-2 flex gap-2 mt-4\">\n          <button\
+    \ class=\"btn btn-sm btn-error flex gap-2\" @click=\"deleteKnowledge('')\">\n\
+    \            Delete Index ({{ status?.db_info?.embeddings?.row_count }})\n   \
+    \         <div v-if=\"resetKnowledge\">\n              (Really?\n            \
+    \  <span class=\"hover:underline\">YES</span> /\n              <span class=\"\
+    hover:underline\" @click.stop=\"resetKnowledge = false\">NO</span>)\n        \
+    \    </div>\n          </button>\n        </div>\n      </div>\n    </div>\n \
+    \ </div>\n</template>\n\n<script>\nexport default {\n  data() {\n    return {\n\
+    \      selectedTab: 'Wiki',\n      documents: 0,\n      embeddings: 0,\n     \
+    \ status: null,\n      loading: false,\n      folderFilter: null,\n      searchTerm:\
+    \ null,\n      searchResults: null,\n      showDoc: null,\n      searchType: \"\
+    fulltext\",\n      documentSearchType: API.activeProject.knowledge_search_type,\n\
+    \      cutoffRag: API.activeProject.knowledge_context_rag_distance,\n      cutoffScore:\
+    \ API.activeProject.knowledge_context_cutoff_relevance_score,\n      documentCount:\
+    \ API.activeProject.knowledge_search_document_count,\n      enableKeywords: API.activeProject.knowledge_extract_document_tags,\n\
+    \      selectedFiles: {},\n      showIndexFiles: 0,\n      fileFilter: null,\n\
+    \      addToIgnore: null,\n      settings: API.activeProject,\n      resetKnowledge:\
+    \ false,\n      refreshIx: null\n    }\n  },\n  async created() {\n    this.reloadStatus()\n\
+    \    this.refreshIx = setInterval(() => this.reloadStatus(), 20000)\n    if (this.$ui.activeTab\
+    \ === 'wiki_settings') {\n      this.selectedTab = 'Wiki'\n    }\n  },\n  unmounted()\
+    \ {\n    clearInterval(this.refreshIx)\n  },\n  computed: {\n    projectPath()\
+    \ {\n      return this.settings.project_path\n    },\n    lastRefresh() {\n  \
+    \    if (this.status?.last_update) {\n        const ts = parseInt(this.status.last_update,\
+    \ 10) * 1000\n        return moment(new Date(ts)).fromNow()\n      }\n      return\
+    \ null\n    },\n    folderResulst() {\n      if ((this.folderFilter?.length ||\
+    \ 0) < 3) {\n        return []\n      }\n      const query = this.folderFilter.toLowerCase()\n\
+    \n      const allFolders = [...this.status?.pending_files || [], ...this.status?.folders\
+    \ || []]\n      return allFolders.filter((f, ix, arr) => arr.findIndex(e => e\
+    \ === f) === ix && f.toLowerCase().indexOf(query) !== -1)\n        .slice(0, 20)\n\
+    \    },\n    showDocPreview() {\n      const codePreview = this.showDoc.docs.sort((a,\
+    \ b) => a.metadata.index < b.metadata.index ? -1 : 1)\n        .map(doc => `####\
+    \ ${doc.metadata.index}: ${doc.metadata.keywords}\\n${doc.page_content}\\n`)\n\
+    \        .join(\"\\n\")\n      return codePreview\n    },\n    selectedFileCount()\
+    \ {\n      return this.selectedFilePaths.filter(k => !!this.selectedFiles[k]).length\n\
+    \    },\n    selectedFilePaths() {\n      return Object.keys(this.selectedFiles)\n\
+    \    },\n    ignoredFolders() {\n      const files = this.settings?.knowledge_file_ignore?.trim()\n\
+    \      return files?.split(',').filter(e => e.trim().length)\n    },\n    showFilesSelected()\
+    \ {\n      switch (this.showIndexFiles) {\n        case 0:\n          return this.status?.pending_files\n\
+    \        case 1:\n          return this.status?.files\n        default:\n    \
+    \      return this.ignoredFolders\n      }\n    },\n    showFiles() {\n      const\
+    \ { fileFilter } = this\n      return this.showFilesSelected?.filter(f => !fileFilter\
+    \ || f.indexOf(fileFilter) !== -1)\n    },\n    extensions() {\n      return this.showFiles?.filter(f\
+    \ => f.indexOf(\".\") !== -1).reduce((acc, v) => {\n        const extension =\
+    \ v.split(\".\").reverse()[0]\n        acc[extension] = (acc[extension] || 0)\
+    \ + 1\n        return acc\n      }, {})\n    },\n    subProjects() {\n      const\
+    \ { sub_projects } = this.settings\n      if (Array.isArray(sub_projects)) {\n\
+    \        return sub_projects\n      }\n      return sub_projects?.split(\",\"\
+    )\n    },\n    noResults() {\n      return this.searchResults &&\n        !Object.keys(this.searchResults.documents).length\
+    \ &&\n        this.searchResults.response\n    },\n    searchResultsDocuments()\
+    \ {\n      return Object.values(this.searchResults?.documents || {})\n       \
+    \ .sort((a, b) => a.metadata.relevance_score > b.metadata.relevance_score ? -1\
+    \ : 1)\n    }\n  },\n  methods: {\n    async reloadStatus() {\n      const data\
+    \ = await API.knowledge.status()\n      this.settings = { ...API.activeProject\
+    \ }\n      this.status = data\n    },\n    async reloadFolder(folderToReload)\
+    \ {\n      this.reloadPath(folderToReload)\n    },\n    async reloadPath(path,\
+    \ skipReloadStatus) {\n      this.loading = true\n      try {\n        await API.knowledge.reloadFolder(path)\n\
+    \        if (!skipReloadStatus) {\n          await this.reloadStatus()\n     \
+    \   }\n        this.folderFilter = null\n      } catch { }\n      this.loading\
+    \ = false\n    },\n    async reloadKnowledge() {\n      this.loading = true\n\
+    \      while (this.selectedFilePaths.length) {\n        const filePath = this.selectedFilePaths[0]\n\
+    \        try {\n          await this.reloadPath(filePath, true)\n          const\
+    \ ix = this.status?.pending_files.indexOf(filePath)\n          if (ix !== -1)\
+    \ {\n            this.status?.pending_files.splice(ix, 1)\n          }\n     \
+    \   } catch { }\n        delete this.selectedFiles[filePath]\n      }\n      this.reloadStatus()\n\
+    \      this.loading = false\n    },\n    async ignoreSelectedFiles(ignoreFolder)\
+    \ {\n      const ignoreFiles = this.selectedFilePaths.map(file => file.replace(this.projectPath,\
+    \ \"\"))\n      const ignoreFolders = ignoreFiles.map(file => file.split(\"/\"\
+    ).reverse()[1])\n      const newIgnore = ignoreFolder ? ignoreFolders : ignoreFiles\n\
+    \      this.addEntriesToIgnore(newIgnore)\n    },\n    async addEntriesToIgnore(entries)\
+    \ {\n      const currIgnore = this.settings?.knowledge_file_ignore?.split(',')\
+    \ || []\n      const newIgnore = new Set([...currIgnore, ...entries])\n      API.activeProject.knowledge_file_ignore\
+    \ = [...newIgnore].join(\",\")\n      await API.settings.save(API.activeProject)\n\
+    \      await this.reloadStatus()\n      this.selectedFiles = {}\n      this.addToIgnore\
+    \ = null\n    },\n    async removeEntriesFromIgnore(entries) {\n      const currIgnore\
+    \ = API.activeProject?.knowledge_file_ignore?.split(',') || []\n      const newIgnore\
+    \ = currIgnore.filter(e => !entries.includes(e))\n      API.activeProject.knowledge_file_ignore\
+    \ = newIgnore.join(\",\")\n      await API.settings.save(API.activeProject)\n\
+    \      await this.reloadStatus()\n      this.selectedFiles = {}\n      this.addToIgnore\
+    \ = null\n    },\n    async dropSelectedFiles() {\n      await API.knowledge.delete(this.selectedFilePaths)\n\
+    \      this.selectedFiles = {}\n      await this.reloadStatus()\n    },\n    async\
+    \ onKnowledgeSearch() {\n      this.searchResults = null\n      const { searchTerm,\n\
+    \        searchType,\n        documentSearchType,\n        documentCount,\n  \
+    \    } = this\n      if (!searchTerm) {\n        return\n      }\n      const\
+    \ data = await API.knowledge.search({\n        searchTerm,\n        searchType,\n\
+    \        documentSearchType,\n        cutoffScore: 0,\n        cutoffRag: 0,\n\
+    \        documentCount\n      })\n      data.documents = data.documents.reduce((acc,\
+    \ doc) => {\n        if (!acc[doc.metadata.source]) {\n          acc[doc.metadata.source]\
+    \ = {\n            distance: doc.distance ? (1 / parseInt(doc.distance)) : null,\n\
+    \            page_content: doc.page_content.slice(0, 250),\n            metadata:\
+    \ doc.metadata,\n            docs: []\n          }\n        }\n        acc[doc.metadata.source].docs.push(doc)\n\
+    \        return acc\n      }, {})\n      this.searchResults = data\n    },\n \
+    \   async unIndexFile(doc) {\n      await API.knowledge.delete([doc.metadata.source])\n\
+    \      this.showDoc = null\n      this.onKnowledgeSearch()\n    },\n    async\
+    \ reIndexFile(doc) {\n      await API.knowledge.reloadFolder(doc.metadata.source)\n\
+    \      this.onKnowledgeSearch()\n    },\n    async extractKeywords(doc) {\n  \
+    \    const data = await API.knowledge.keywords(doc)\n      this.showDoc = data\n\
+    \    },\n    async saveKnowledgeSettings() {\n      await API.settings.read()\n\
+    \      API.settings.save({\n        ...API.activeProject,\n        knowledge_search_type:\
+    \ this.documentSearchType,\n        knowledge_context_cutoff_relevance_score:\
+    \ this.cutoffScore,\n        knowledge_search_document_count: this.documentCount,\n\
+    \        knowledge_extract_document_tags: this.enableKeywords\n      })\n    \
+    \  this.reloadStatus()\n    },\n    async toggleWatch() {\n      await this.$service.project.watch(!this.settings.watching)\n\
+    \      this.reloadStatus()\n    },\n    async setSettings(settings) {\n      await\
+    \ API.settings.read()\n      this.$projects.saveSettings({\n        ...API.activeProject,\n\
+    \        ...settings\n      })\n    },\n    setTab(ix) {\n      this.showIndexFiles\
+    \ = ix\n      this.selectedFiles = {}\n    },\n    toggleAllNoneSelection() {\n\
+    \      if (this.selectedFileCount) {\n        this.selectedFiles = {}\n      }\
+    \ else {\n        this.selectedFiles = this.showFiles.reduce((acc, f) => ({\n\
+    \          ...acc,\n          [f]: true\n        }), {})\n      }\n    },\n  \
+    \  async deleteKnowledge(index) {\n      if (this.resetKnowledge) {\n        await\
+    \ API.knowledge.deleteIndex(index)\n        this.reloadStatus()\n        this.resetKnowledge\
+    \ = false\n      } else {\n        this.resetKnowledge = true\n      }\n    }\n\
+    \  }\n}\n</script>\n\n                    </document>\n\n                    User\
+    \ has added these comments:\n                    <comments>\n                \
+    \    @codx-junior-ui User commented in line 14: Add new tab \"Data\" and show\
+    \ the DataExplorerVue component\n                    </comments>\n\n         \
+    \           Best practices for this file:\n            Project uses DaisyUI for\
+    \ components, use them instead basic HTML elements\nWhen writing vue files always\
+    \ follow this best parctices:\nVue files must always follow this structure in\
+    \ this order.\nNo other elements are valid:\n```example vue file\n<script setup>\n\
+    import Component from './component.vue'\nimport markdown from 'mardown'\n</script>\n\
+    <template>\n<div class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\n\
+    export default {\nprops: [].\ndata (){\n// Reactive data, don't use \"ref\"\n\
+    \ return { myVariable: null }\n},\ncomputed: {},\nwatch: {},\nmethods: {}\n}\n\
+    </sctipt>\n```\n* No need to import ref, computed or mapState \n* export default\
+    \ component object\n* Use component \"data\" method to return an object variables\n\
+    * Use component \"computed\" to define computed properties\n\" Use component \"\
+    methods\" to define component methods \n* Use \"this.$storex\" or \"$storex\"\
+    \ to access store data.\n* To access vue store data use \"$storex\"\n* \"script\
+    \ setup\" section contains ONLY imports, no variables, properties bnor methods\n\
+    * Use TailwindCSS classes for styling, always consider mobile styles\n* Vue component\
+    \ definition will be exporting a default object like, without ref, nor computed\
+    \ imports\n* Don't use \";\" in the javascript or typescript code\n* Avoid long\
+    \ functions\n* Add short and concise comments for complex functions\n* Don't use\
+    \ <style> elements, use TailWindCSS classes\n            \n                  \
+    \  "
+  created_at: '2025-08-16 09:22:53.750690'
+  disable_knowledge: false
+  doc_id: 30795e02-047f-42cd-9082-b895de1ae147
+  done: true
+  files:
+  - /home/codx-junior/codx-junior/client/src/views/KnowledgeSettings.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-16 09:22:53.750718'
+  user: null
+- content: "<script setup>\nimport moment from 'moment'\nimport { API } from '../api/api'\n\
+    import MarkdownVue from '@/components/Markdown.vue'\nimport WikiSettingsVue from\
+    \ '@/components/wiki/WikiSettings.vue'\nimport DataExplorerVue from '../components/data/DataExplorer.vue'\n\
+    </script>\n\n<template>\n  <div class=\"flex flex-col gap-2 h-full px-4\">\n \
+    \   <div class=\"font-medium flex flex-col gap-2\">\n      <div class=\"text-3xl\
+    \ flex justify-between items-center\">\n        Knowledge\n        <div class=\"\
+    \">\n          <div role=\"tablist\" class=\"tabs tabs-box flex gap-2\">\n   \
+    \         <a role=\"tab\" class=\"tab flex gap-2 text-xl\" :class=\"{ 'tab-active\
+    \ text-warning': selectedTab === 'Search' }\"\n              @click=\"selectedTab\
+    \ = 'Search'\">\n              <i class=\"fa-solid fa-magnifying-glass\"></i>\
+    \ Search\n            </a>\n            <a role=\"tab\" class=\"tab flex gap-2\
+    \ text-xl\" :class=\"{ 'tab-active text-warning': selectedTab === 'Index' }\"\n\
+    \              @click=\"selectedTab = 'Index'\">\n              <i class=\"fa-solid\
+    \ fa-file-import\"></i> Index\n            </a>\n            <a role=\"tab\" class=\"\
+    tab flex gap-2 text-xl\" :class=\"{ 'tab-active text-warning': selectedTab ===\
+    \ 'Wiki' }\"\n              @click=\"selectedTab = 'Wiki'\">\n              <i\
+    \ class=\"fa-solid fa-file\"></i> Wiki\n            </a>\n            <a role=\"\
+    tab\" class=\"tab flex gap-2 text-xl\" :class=\"{ 'tab-active text-warning': selectedTab\
+    \ === 'Data' }\"\n              @click=\"selectedTab = 'Data'\">\n           \
+    \   <i class=\"fa-solid fa-database\"></i> Data\n            </a>\n          </div>\n\
+    \        </div>\n      </div>\n      <div class=\"card\">\n        <div class=\"\
+    flex flex-col gap-2\">\n          <div class=\"text-xl\">Settings</div>\n    \
+    \      <div class=\"flex-grow\">\n            <div class=\"text-error text-xs\"\
+    \ v-if=\"!settings?.use_knowledge\">Knowledge search is disabled!</div>\n    \
+    \      </div>\n          <div class=\"flex gap-2 items-center\">\n           \
+    \ <div class=\"badge flex gap-2\">\n              <span class=\"text-info\"><i\
+    \ class=\"fa-solid fa-file\"></i></span>\n              {{ $projects.embeddingsModel\
+    \ }}\n            </div>\n            <button class=\"btn btn-sm\" @click=\"toggleWatch()\"\
+    >\n              <span class=\"label-text mr-2\">Watch changes</span>\n      \
+    \        <input type=\"checkbox\" class=\"toggle toggle-sm toggle-primary\" :checked=\"\
+    $project.watching\" />\n            </button>\n            <button class=\"btn\
+    \ btn-sm\"\n              @click=\"setSettings({ knowledge_enrich_documents: !$project.knowledge_enrich_documents\
+    \ })\">\n              <span class=\"label-text mr-2\">Enrich documents</span>\n\
+    \              <input type=\"checkbox\" class=\"toggle toggle-sm toggle-primary\"\
+    \n                :checked=\"$project.knowledge_enrich_documents\" />\n      \
+    \      </button>\n          </div>\n          <div class=\"stats stats-sm\">\n\
+    \            <div :class=\"['stat click', showIndexFiles === 0 && 'bg-primary/20']\"\
+    \ @click=\"setTab(0)\">\n              <div class=\"stat-figure mt-6\">\n    \
+    \            <i class=\"fa-2xl fa-solid fa-file\"></i>\n              </div>\n\
+    \              <div class=\"stat-title\">Pending</div>\n              <div class=\"\
+    stat-value\">{{ status?.pending_files?.length }}</div>\n              <div class=\"\
+    stat-desc\"></div>\n            </div>\n\n            <div :class=\"['stat click',\
+    \ showIndexFiles === 1 && 'bg-primary/20']\" @click=\"setTab(1)\">\n         \
+    \     <div class=\"stat-figure mt-6 text-success\">\n                <i class=\"\
+    fa-2xl fa-solid fa-puzzle-piece\"></i>\n              </div>\n              <div\
+    \ class=\"stat-title\">Indexed</div>\n              <div class=\"stat-value\"\
+    >{{ status?.file_count }}</div>\n              <div class=\"stat-desc\"></div>\n\
+    \            </div>\n\n            <div :class=\"['stat click', showIndexFiles\
+    \ === 2 && 'bg-primary/20']\" @click=\"setTab(2)\">\n              <div class=\"\
+    stat-figure mt-6 text-warning\">\n                <i class=\"fa-2xl fa-solid fa-file\"\
+    ></i>\n              </div>\n              <div class=\"stat-title\">Ignored</div>\n\
+    \              <div class=\"stat-value\">{{ ignoredFolders?.length }}</div>\n\
+    \              <div class=\"stat-desc\"></div>\n            </div>\n\n       \
+    \     <div class=\"stat\">\n              <div class=\"stat-figure mt-6 text-info\"\
+    >\n                <i class=\"fa-2xl fa-solid fa-book\"></i>\n              </div>\n\
+    \              <div class=\"stat-title\">Keywords</div>\n              <div class=\"\
+    stat-value\">{{ status?.keyword_count }}</div>\n              <div class=\"stat-desc\"\
+    ></div>\n            </div>\n          </div>\n\n        </div>\n      </div>\n\
+    \n    </div>\n    <div class=\"text-xs flex gap-2\" v-if=\"subProjects?.length\"\
+    >\n      Linked projects:\n      <span class=\"badge badge-xs badge-warning\"\
+    \ v-for=\"sp in subProjects\" :key=\"sp\">\n        {{ sp }}\n      </span>\n\
+    \    </div>\n\n    <WikiSettingsVue v-if=\"selectedTab === 'Wiki'\" />\n\n   \
+    \ <div v-if=\"selectedTab === 'Search'\">\n      <div class=\"search flex flex-col\
+    \ gap-2\" v-if=\"settings?.use_knowledge\">\n        <div class=\"text-xl font-bold\"\
+    >Fine tune codx-junior knowledge search</div>\n        <div class=\"text-xs flex\
+    \ gap-2 items-center\">\n          <i class=\"fa-solid fa-sliders\"></i>\n   \
+    \       <div class=\"flex gap-2 items-center tooltip\" data-tip=\"Search type\"\
+    >Search:\n            <select v-model=\"documentSearchType\" class=\"w-20 select\
+    \ select-bordered select-xs\">\n              <option value=\"similarity\">similarity</option>\n\
+    \            </select>\n          </div>\n          <div class=\"flex gap-2 items-center\
+    \ tooltip\" data-tip=\"Limit results\">Limit:\n            <input type=\"text\"\
+    \ v-model=\"documentCount\" class=\"w-20 input input-bordered input-xs max-w-xs\"\
+    \ />\n          </div>\n          <div class=\"flex gap-2 items-center tooltip\"\
+    \ data-tip=\"Rag distance (0-1)\">Rag (0-1):\n            <input type=\"text\"\
+    \ v-model=\"cutoffRag\" class=\"w-20 input input-bordered input-xs max-w-xs\"\
+    \ />\n          </div>\n          <div class=\"flex gap-2 items-center tooltip\"\
+    \ data-tip=\"Content score (0-1)\">Score:\n            <input type=\"text\" v-model=\"\
+    cutoffScore\" class=\"w-20 input input-bordered input-xs max-w-xs\" />\n     \
+    \     </div>\n          <div class=\"flex gap-2 items-center tooltip\" data-tip=\"\
+    Use keywords in search\">Keywords:\n            <input type=\"checkbox\" v-model=\"\
+    enableKeywords\" class=\"w-20 checkbox checkbox-xs\" />\n          </div>\n\n\
+    \          <div class=\"grow\"></div>\n          <button class=\"btn btn-sm tooltip\
+    \ hover:text-info\" data-tip=\"Save these settings\"\n            @click=\"saveKnowledgeSettings\"\
+    >\n            <i class=\"fa-solid fa-floppy-disk\"></i>\n          </button>\n\
+    \        </div>\n        <label class=\"input input-bordered flex items-center\
+    \ gap-2\">\n          <select class=\"select select-xs\" v-model=\"searchType\"\
+    >\n            <option value=\"fulltext\">Full text</option>\n            <option\
+    \ value=\"raw\">Query</option>\n          </select>\n          <input type=\"\
+    text\" class=\"flex-grow\" placeholder=\"Search in knowledge\" @keypress.enter=\"\
+    onKnowledgeSearch\"\n            v-model=\"searchTerm\" />\n          <i class=\"\
+    fa-solid fa-magnifying-glass\" @click=\"onKnowledgeSearch\"></i>\n        </label>\n\
+    \        <div class=\"flex flex-col gap-2\" v-if=\"searchResults\">\n        \
+    \  <div class=\"text-xs\">{{ { ...searchResults.settings } }}</div>\n        \
+    \  <div class=\"chat chat-start\" v-if=\"searchResults.response\">\n         \
+    \   <div class=\"chat-bubble chat-bubble-accent\">\n              {{ searchResults.response\
+    \ }}\n            </div>\n          </div>\n          <span class=\"alert alert-error\
+    \ alert-sm\" v-if=\"noResults\">\n            No documents associated...\n   \
+    \       </span>\n          <div class=\"grid grid-cols-2 gap-2\">\n          \
+    \  <div\n              class=\"border p-2 border-info cursor-pointer rounded-md\
+    \ bg-base-300 flex flex-col justify-between gap-2 text-xs\"\n              v-for=\"\
+    (doc, ix) in searchResultsDocuments\" :key=\"ix\" @click=\"showDoc = { ...doc,\
+    \ docSelected: 0 }\">\n              <div class=\"p-1 rounded font-bold flex flex-col\
+    \ gap-2\" :title=\"doc.metadata.source\"\n                :class=\"doc.metadata.relevance_score\
+    \ >= cutoffScore ? 'text-primary' : 'text-error'\">\n                <div>{{ doc.metadata.source.split('/').reverse()[0]\
+    \ }}</div>\n              </div>\n              <markdown :text=\"doc.metadata.score_analysis\
+    \ || doc.page_content\" class=\"grow\"></markdown>\n              <div class=\"\
+    alert alert-sm alert-error\" v-if=\"doc.metadata.score_error\">\n            \
+    \    {{ doc.metadata.score_error }}\n              </div>\n              <div\
+    \ class=\"flex gap-2 items-center\">\n                <i class=\"fa-solid fa-scale-unbalanced\"\
+    ></i>\n                {{ `${doc.distance || doc.metadata.db_distance || ''}`.slice(0,\
+    \ 4) }}\n                <i class=\"fa-solid fa-brain\"></i>\n               \
+    \ {{ doc.metadata.relevance_score }} - {{ doc.metadata.language }}\n         \
+    \       <i class=\"fa-solid fa-file-lines\"></i>\n                x {{ doc.docs.length\
+    \ }}\n              </div>\n            </div>\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n\n    <div class=\"grow\" v-if=\"selectedTab === 'Index'\"\
+    >\n\n      <div class=\"index flex flex-col gap-2 justify-between\">\n       \
+    \ <div class=\"flex justify-between\">\n          <div class=\"text-xl font-bold\"\
+    >\n            Knowledge index settings\n          </div>\n          <div class=\"\
+    stat-desc flex gap-2 items-center btn btn-sm\" @click=\"reloadStatus\">\n    \
+    \        <i class=\"fa-solid fa-rotate-right\"></i> Update\n          </div>\n\
+    \        </div>\n\n        <div class=\"flex gap-2 items-center\">\n         \
+    \ <div class=\"text-secondary\">\n            <i class=\"fa-solid fa-clock\"></i>\n\
+    \          </div>\n          <div class=\"stat-title\">Last refresh</div>\n  \
+    \        <div class=\"stat-value text-wrap text-sm\">{{ lastRefresh }}</div>\n\
+    \        </div>\n\n        <div class=\"p-4 flex flex-col gap-2 grow\">\n    \
+    \      <div>\n            <div class=\"flex gap-2 my-2\">\n              <button\
+    \ class=\"btn btn-sm\" @click=\"toggleAllNoneSelection\">\n                Select\
+    \ all/none\n              </button>\n              <label class=\"input input-sm\
+    \ input-bordered flex items-center gap-2\">\n                <input type=\"text\"\
+    \ class=\"grow\" placeholder=\"Search\" v-model=\"fileFilter\" />\n          \
+    \      <i class=\"fa-solid fa-magnifying-glass\"></i>\n                <span class=\"\
+    -mt-1\" v-if=\"fileFilter\">({{ showFiles.length }})</span>\n              </label>\n\
+    \            </div>\n            <div class=\"flex my-2\">\n              <div\
+    \ class=\"badge badge-xs click\" v-for=\"(count, extension) in extensions\" :key=\"\
+    extension\"\n                @click=\"fileFilter = '.' + extension\">\n      \
+    \          {{ extension }} ({{ count }})\n              </div>\n            </div>\n\
+    \            <div class=\"max-h-60 overflow-auto\" v-if=\"showFiles?.length\"\
+    >\n              <div class=\"text-xs\" v-for=\"file in showFiles\" :key=\"file\"\
+    >\n                <div class=\"flex gap-2\">\n                  <input type=\"\
+    checkbox\" v-model=\"selectedFiles[file]\" class=\"checkbox\" />\n           \
+    \       <a class=\"underline click\" @click=\"$ui.openFile(file)\">{{ file.replace(projectPath,\
+    \ \"\") }}</a>\n                </div>\n              </div>\n            </div>\n\
+    \            <div class=\"flex gap-2\">\n              <button class=\"btn btn-primary\
+    \ btn-sm\" @click=\"reloadKnowledge\" v-if=\"selectedFileCount\">\n          \
+    \      <i class=\"fa-solid fa-circle-info\"></i> Index ({{ selectedFileCount }})\
+    \ files now\n              </button>\n              <button class=\"btn btn-primary\
+    \ btn-sm btn-error text-white\" @click=\"ignoreSelectedFiles(true)\"\n       \
+    \         v-if=\"selectedFileCount && showIndexFiles !== 2\">\n              \
+    \  <i class=\"fa-solid fa-folder\"></i> Ignore ({{ selectedFileCount }}) folder\n\
+    \              </button>\n              <button class=\"btn btn-primary btn-sm\
+    \ btn-error text-white\" @click=\"ignoreSelectedFiles(false)\"\n             \
+    \   v-if=\"selectedFileCount && showIndexFiles !== 2\">\n                <i class=\"\
+    fa-solid fa-file\"></i> Ignore ({{ selectedFileCount }}) files\n             \
+    \ </button>\n              <button class=\"btn btn-primary btn-sm btn-success\
+    \ text-white\" @click=\"ignoreSelectedFiles(false)\"\n                v-if=\"\
+    selectedFileCount && showIndexFiles === 2\">\n                <i class=\"fa-solid\
+    \ fa-plus\"></i> Add ({{ selectedFileCount }}) files\n              </button>\n\
+    \              <button class=\"btn btn-primary btn-sm btn-warning text-white\"\
+    \ @click=\"dropSelectedFiles\"\n                v-if=\"selectedFileCount\">\n\
+    \                <i class=\"fa-solid fa-trash-can\"></i> Drop ({{ selectedFileCount\
+    \ }}) files\n              </button>\n            </div>\n          </div>\n \
+    \         <div class=\"text-xl flex gap-2 items-center mt-2\">\n            <i\
+    \ class=\"fa-solid fa-hand\"></i> Manual folder indexing\n          </div>\n \
+    \         <div class=\"text-xs\">Allows to index new folders or re-index existing\
+    \ ones</div>\n          <label class=\"input input-bordered flex items-center\
+    \ gap-2\">\n            <input type=\"text\" class=\"grow\" :placeholder=\"projectPath\"\
+    \ v-model=\"folderFilter\" />\n            <span v-if=\"folderFilter\" @click=\"\
+    reloadFolder(folderFilter)\">\n              <i class=\"fa-solid fa-rotate-right\"\
+    ></i>\n            </span>\n            <span v-else>\n              <i class=\"\
+    fa-solid fa-magnifying-glass\"></i>\n            </span>\n          </label>\n\
+    \          <div class=\"dropdown dropdown-open\" v-if=\"folderResulst\">\n   \
+    \         <div class=\"dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box\
+    \ w-fit\">\n              <ul>\n                <li class=\"\" v-for=\"folder\
+    \ in folderResulst\" :key=\"folder\" @click=\"folderFilter = folder\">\n     \
+    \             <a>{{ folder }}</a>\n                </li>\n              </ul>\n\
+    \            </div>\n          </div>\n        </div>\n        <div class=\"text-xs\
+    \ font-bold py-2 flex flex-col gap-2\">\n          <div class=\"text-xl\">Ignored\
+    \ patterns:</div>\n          <div class=\"flex input input-sm input-bordered gap-2\
+    \ max-w-xs items-center\">\n            <input type=\"text\" class=\"grow\" v-model=\"\
+    addToIgnore\" @keydown.enter=\"addEntriesToIgnore([addToIgnore])\">\n        \
+    \    <div class=\"btn btn-xs btn-circle btn-warning\" @click=\"addEntriesToIgnore([addToIgnore])\"\
+    >\n              <i class=\"fa-solid fa-plus\"></i>\n            </div>\n    \
+    \      </div>\n          <div class=\"grid grid-cols-4 gap-2\">\n            <span\
+    \ class=\"badge badge-xs flex gap-2 items-center w-fit rounded-full text-warning-content\
+    \ bg-warning\"\n              v-for=\"(folder, ix) in ignoredFolders\" :key=\"\
+    ix\">\n              {{ folder }}\n              <div class=\"btn btn-xs btn-circle\"\
+    \ @click=\"removeEntriesFromIgnore([folder])\">\n                <i class=\"fa-solid\
+    \ fa-minus\"></i>\n              </div>\n            </span>\n          </div>\n\
+    \        </div>\n        <div class=\"pb-2 flex gap-2 mt-4\">\n          <button\
+    \ class=\"btn btn-sm btn-error flex gap-2\" @click=\"deleteKnowledge('')\">\n\
+    \            Delete Index ({{ status?.db_info?.embeddings?.row_count }})\n   \
+    \         <div v-if=\"resetKnowledge\">\n              (Really?\n            \
+    \  <span class=\"hover:underline\">YES</span> /\n              <span class=\"\
+    hover:underline\" @click.stop=\"resetKnowledge = false\">NO</span>)\n        \
+    \    </div>\n          </button>\n        </div>\n      </div>\n    </div>\n\n\
+    \    <div v-if=\"selectedTab === 'Data'\">\n      <DataExplorerVue />\n    </div>\n\
+    \  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n    return {\n\
+    \      selectedTab: 'Wiki',\n      documents: 0,\n      embeddings: 0,\n     \
+    \ status: null,\n      loading: false,\n      folderFilter: null,\n      searchTerm:\
+    \ null,\n      searchResults: null,\n      showDoc: null,\n      searchType: \"\
+    fulltext\",\n      documentSearchType: API.activeProject.knowledge_search_type,\n\
+    \      cutoffRag: API.activeProject.knowledge_context_rag_distance,\n      cutoffScore:\
+    \ API.activeProject.knowledge_context_cutoff_relevance_score,\n      documentCount:\
+    \ API.activeProject.knowledge_search_document_count,\n      enableKeywords: API.activeProject.knowledge_extract_document_tags,\n\
+    \      selectedFiles: {},\n      showIndexFiles: 0,\n      fileFilter: null,\n\
+    \      addToIgnore: null,\n      settings: API.activeProject,\n      resetKnowledge:\
+    \ false,\n      refreshIx: null\n    }\n  },\n  async created() {\n    this.reloadStatus()\n\
+    \    this.refreshIx = setInterval(() => this.reloadStatus(), 20000)\n    if (this.$ui.activeTab\
+    \ === 'wiki_settings') {\n      this.selectedTab = 'Wiki'\n    }\n  },\n  unmounted()\
+    \ {\n    clearInterval(this.refreshIx)\n  },\n  computed: {\n    projectPath()\
+    \ {\n      return this.settings.project_path\n    },\n    lastRefresh() {\n  \
+    \    if (this.status?.last_update) {\n        const ts = parseInt(this.status.last_update,\
+    \ 10) * 1000\n        return moment(new Date(ts)).fromNow()\n      }\n      return\
+    \ null\n    },\n    folderResulst() {\n      if ((this.folderFilter?.length ||\
+    \ 0) < 3) {\n        return []\n      }\n      const query = this.folderFilter.toLowerCase()\n\
+    \n      const allFolders = [...this.status?.pending_files || [], ...this.status?.folders\
+    \ || []]\n      return allFolders.filter((f, ix, arr) => arr.findIndex(e => e\
+    \ === f) === ix && f.toLowerCase().indexOf(query) !== -1)\n        .slice(0, 20)\n\
+    \    },\n    showDocPreview() {\n      const codePreview = this.showDoc.docs.sort((a,\
+    \ b) => a.metadata.index < b.metadata.index ? -1 : 1)\n        .map(doc => `####\
+    \ ${doc.metadata.index}: ${doc.metadata.keywords}\\n${doc.page_content}\\n`)\n\
+    \        .join(\"\\n\")\n      return codePreview\n    },\n    selectedFileCount()\
+    \ {\n      return this.selectedFilePaths.filter(k => !!this.selectedFiles[k]).length\n\
+    \    },\n    selectedFilePaths() {\n      return Object.keys(this.selectedFiles)\n\
+    \    },\n    ignoredFolders() {\n      const files = this.settings?.knowledge_file_ignore?.trim()\n\
+    \      return files?.split(',').filter(e => e.trim().length)\n    },\n    showFilesSelected()\
+    \ {\n      switch (this.showIndexFiles) {\n        case 0:\n          return this.status?.pending_files\n\
+    \        case 1:\n          return this.status?.files\n        default:\n    \
+    \      return this.ignoredFolders\n      }\n    },\n    showFiles() {\n      const\
+    \ { fileFilter } = this\n      return this.showFilesSelected?.filter(f => !fileFilter\
+    \ || f.indexOf(fileFilter) !== -1)\n    },\n    extensions() {\n      return this.showFiles?.filter(f\
+    \ => f.indexOf(\".\") !== -1).reduce((acc, v) => {\n        const extension =\
+    \ v.split(\".\").reverse()[0]\n        acc[extension] = (acc[extension] || 0)\
+    \ + 1\n        return acc\n      }, {})\n    },\n    subProjects() {\n      const\
+    \ { sub_projects } = this.settings\n      if (Array.isArray(sub_projects)) {\n\
+    \        return sub_projects\n      }\n      return sub_projects?.split(\",\"\
+    )\n    },\n    noResults() {\n      return this.searchResults &&\n        !Object.keys(this.searchResults.documents).length\
+    \ &&\n        this.searchResults.response\n    },\n    searchResultsDocuments()\
+    \ {\n      return Object.values(this.searchResults?.documents || {})\n       \
+    \ .sort((a, b) => a.metadata.relevance_score > b.metadata.relevance_score ? -1\
+    \ : 1)\n    }\n  },\n  methods: {\n    async reloadStatus() {\n      const data\
+    \ = await API.knowledge.status()\n      this.settings = { ...API.activeProject\
+    \ }\n      this.status = data\n    },\n    async reloadFolder(folderToReload)\
+    \ {\n      this.reloadPath(folderToReload)\n    },\n    async reloadPath(path,\
+    \ skipReloadStatus) {\n      this.loading = true\n      try {\n        await API.knowledge.reloadFolder(path)\n\
+    \        if (!skipReloadStatus) {\n          await this.reloadStatus()\n     \
+    \   }\n        this.folderFilter = null\n      } catch { }\n      this.loading\
+    \ = false\n    },\n    async reloadKnowledge() {\n      this.loading = true\n\
+    \      while (this.selectedFilePaths.length) {\n        const filePath = this.selectedFilePaths[0]\n\
+    \        try {\n          await this.reloadPath(filePath, true)\n          const\
+    \ ix = this.status?.pending_files.indexOf(filePath)\n          if (ix !== -1)\
+    \ {\n            this.status?.pending_files.splice(ix, 1)\n          }\n     \
+    \   } catch { }\n        delete this.selectedFiles[filePath]\n      }\n      this.reloadStatus()\n\
+    \      this.loading = false\n    },\n    async ignoreSelectedFiles(ignoreFolder)\
+    \ {\n      const ignoreFiles = this.selectedFilePaths.map(file => file.replace(this.projectPath,\
+    \ \"\"))\n      const ignoreFolders = ignoreFiles.map(file => file.split(\"/\"\
+    ).reverse()[1])\n      const newIgnore = ignoreFolder ? ignoreFolders : ignoreFiles\n\
+    \      this.addEntriesToIgnore(newIgnore)\n    },\n    async addEntriesToIgnore(entries)\
+    \ {\n      const currIgnore = this.settings?.knowledge_file_ignore?.split(',')\
+    \ || []\n      const newIgnore = new Set([...currIgnore, ...entries])\n      API.activeProject.knowledge_file_ignore\
+    \ = [...newIgnore].join(\",\")\n      await API.settings.save(API.activeProject)\n\
+    \      await this.reloadStatus()\n      this.selectedFiles = {}\n      this.addToIgnore\
+    \ = null\n    },\n    async removeEntriesFromIgnore(entries) {\n      const currIgnore\
+    \ = API.activeProject?.knowledge_file_ignore?.split(',') || []\n      const newIgnore\
+    \ = currIgnore.filter(e => !entries.includes(e))\n      API.activeProject.knowledge_file_ignore\
+    \ = newIgnore.join(\",\")\n      await API.settings.save(API.activeProject)\n\
+    \      await this.reloadStatus()\n      this.selectedFiles = {}\n      this.addToIgnore\
+    \ = null\n    },\n    async dropSelectedFiles() {\n      await API.knowledge.delete(this.selectedFilePaths)\n\
+    \      this.selectedFiles = {}\n      await this.reloadStatus()\n    },\n    async\
+    \ onKnowledgeSearch() {\n      this.searchResults = null\n      const { searchTerm,\n\
+    \        searchType,\n        documentSearchType,\n        documentCount,\n  \
+    \    } = this\n      if (!searchTerm) {\n        return\n      }\n      const\
+    \ data = await API.knowledge.search({\n        searchTerm,\n        searchType,\n\
+    \        documentSearchType,\n        cutoffScore: 0,\n        cutoffRag: 0,\n\
+    \        documentCount\n      })\n      data.documents = data.documents.reduce((acc,\
+    \ doc) => {\n        if (!acc[doc.metadata.source]) {\n          acc[doc.metadata.source]\
+    \ = {\n            distance: doc.distance ? (1 / parseInt(doc.distance)) : null,\n\
+    \            page_content: doc.page_content.slice(0, 250),\n            metadata:\
+    \ doc.metadata,\n            docs: []\n          }\n        }\n        acc[doc.metadata.source].docs.push(doc)\n\
+    \        return acc\n      }, {})\n      this.searchResults = data\n    },\n \
+    \   async unIndexFile(doc) {\n      await API.knowledge.delete([doc.metadata.source])\n\
+    \      this.showDoc = null\n      this.onKnowledgeSearch()\n    },\n    async\
+    \ reIndexFile(doc) {\n      await API.knowledge.reloadFolder(doc.metadata.source)\n\
+    \      this.onKnowledgeSearch()\n    },\n    async extractKeywords(doc) {\n  \
+    \    const data = await API.knowledge.keywords(doc)\n      this.showDoc = data\n\
+    \    },\n    async saveKnowledgeSettings() {\n      await API.settings.read()\n\
+    \      API.settings.save({\n        ...API.activeProject,\n        knowledge_search_type:\
+    \ this.documentSearchType,\n        knowledge_context_cutoff_relevance_score:\
+    \ this.cutoffScore,\n        knowledge_search_document_count: this.documentCount,\n\
+    \        knowledge_extract_document_tags: this.enableKeywords\n      })\n    \
+    \  this.reloadStatus()\n    },\n    async toggleWatch() {\n      await this.$service.project.watch(!this.settings.watching)\n\
+    \      this.reloadStatus()\n    },\n    async setSettings(settings) {\n      await\
+    \ API.settings.read()\n      this.$projects.saveSettings({\n        ...API.activeProject,\n\
+    \        ...settings\n      })\n    },\n    setTab(ix) {\n      this.showIndexFiles\
+    \ = ix\n      this.selectedFiles = {}\n    },\n    toggleAllNoneSelection() {\n\
+    \      if (this.selectedFileCount) {\n        this.selectedFiles = {}\n      }\
+    \ else {\n        this.selectedFiles = this.showFiles.reduce((acc, f) => ({\n\
+    \          ...acc,\n          [f]: true\n        }), {})\n      }\n    },\n  \
+    \  async deleteKnowledge(index) {\n      if (this.resetKnowledge) {\n        await\
+    \ API.knowledge.deleteIndex(index)\n        this.reloadStatus()\n        this.resetKnowledge\
+    \ = false\n      } else {\n        this.resetKnowledge = true\n      }\n    }\n\
+    \  }\n}\n</script>"
+  created_at: '2025-08-16 09:22:53.750690'
+  disable_knowledge: false
+  doc_id: 8e916c11-efaf-4446-8080-8987c2caef8b
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 9.322166442871094e-05
+    model: openai/mercury-coder
+    time_taken: 103.2347629070282
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-08-16 09:22:53.750718'
+  user: null
+mode: chat
+name: changes-at-views-knowledgesettings-vue-2025-08-16-10-12-11-135794
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- Vue files
+- daisyui_components
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-08-16T10:13:55.419548'
+url: ''
+users: []
+visibility: ''

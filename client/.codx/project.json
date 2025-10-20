@@ -3,7 +3,8 @@
   "project_name": "codx-junior-ui",
   "project_path": null,
   "project_branches": [],
-  "project_wiki": false, "project_wiki_path": null,
+  "project_wiki": false,
+  "project_wiki_path": null,
   "project_dependencies": null,
   "project_preview_url": "https://codx-dev.meetnav.com/chat/1786/W2F---New",
   "knowledge_extract_document_tags": false,
@@ -17,7 +18,7 @@
   "knowledge_file_ignore": ".codx,assets,public",
   "knowledge_generate_training_dataset": false,
   "save_mentions": true,
-  "watching": false,
+  "watching": true,
   "use_knowledge": true,
   "knowledge_hnsw_M": 1024,
   "project_icon": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSvsXyz8eDobC4MvaRkM3zmOZ9ETdrS0ozGCQ&s",
@@ -29,6 +30,5 @@
   "wiki_model": "",
   "last_error": "",
   "urls": [],
-  "repo_url": null,
-  "metrics": {}
+  "repo_url": null
 }

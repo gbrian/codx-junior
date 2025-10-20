@@ -14,7 +14,8 @@ import MetricsViewer from "./metrics/MetricsViewer.vue"
 import PreviewVue from "./apps/Preview.vue"
 import AccountSettings from './security/AccountSettings.vue'
 import FileFinderVue from './filebrowser/FileFinder.vue'
-import AgentStudio from "./apps/AgentStudio.vue"
+import ProjectOverview from "./project/ProjectOverview.vue"
+import Wall from "./wall/Wall.vue"
 </script>
 <template>
   <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder" :class="$ui.activeTab" />
@@ -30,11 +31,13 @@ import AgentStudio from "./apps/AgentStudio.vue"
   <Files class="w-full h-full" v-if="$ui.activeTab == 'files'" :class="$ui.activeTab" />
   <MetricsViewer class="w-full h-full" v-if="$ui.activeTab == 'metrics'" :class="$ui.activeTab" />
   <PreviewVue class="h-full w-full" :app="'preview'" v-if="$ui.showBrowser && $ui.isMobile" />
-  <AgentStudio class="h-full w-full" v-if="$ui.activeTab == 'autogenstudio'" />
   
 
   <FileFinderVue v-if="$ui.activeTab === 'file-finder'" />
   <AccountSettings v-if="$ui.activeTab == 'account'" :class="$ui.activeTab" />
+  <ProjectOverview v-if="$ui.activeTab == 'projects'" :class="$ui.activeTab" />
+  <Wall :project="$project" v-if="$ui.activeTab == 'activity'" :class="$ui.activeTab" />
+  <WikiViewVue v-if="$ui.activeTab == 'assistant'" :class="$ui.activeTab" />
 
 </template>
 <script>

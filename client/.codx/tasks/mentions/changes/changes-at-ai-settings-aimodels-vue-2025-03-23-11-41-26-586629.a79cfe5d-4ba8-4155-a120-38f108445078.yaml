@@ -1,0 +1,430 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-03-23 11:38:20.709355'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-ai-settings-aimodels-vue-2025-03-23-11-41-26-586629.a79cfe5d-4ba8-4155-a120-38f108445078.yaml
+id: a79cfe5d-4ba8-4155-a120-38f108445078
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      You are a software developer maintaining the codebase.\n\
+    * Keep your changes short and simple\n* Make minimum changes as possiblle.\n*\
+    \ Respect code structure.\n* Make your changes compatible with the current code\
+    \ structure and format\n* Don't add references or imports unless they are really\
+    \ necessary\n                      Find all information needed to apply all changes\
+    \ to file: /shared/codx-junior/client/src/components/ai_settings/AIModels.vue\n\
+    \                      User comments:\n                      User commented in\
+    \ line 75: add a select using the aiProviders name for currentModel.ai_provider\n\
+    \n                      File content:\n                      <script setup>\n\
+    </script>\n\n<template>\n  <div class=\"w-full h-full flex flex-col gap-2 p-4\"\
+    >\n    <h1 class=\"text-2xl font-bold mb-4\">AI Models</h1>\n    <div class=\"\
+    grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4\">\n      <div\n        v-for=\"\
+    model in aiModels\"\n        :key=\"model.name\"\n        class=\"click card border\
+    \ border-slate-300 bg-slate-800 text-white/80 p-4 shadow-sm flex flex-col justify-between\"\
+    \n        @click=\"editModel(model)\"\n      >\n        <div class=\"overflow-hidden\"\
+    >\n          <h2 class=\"font-bold text-lg text-primary\">{{ model.name }}</h2>\n\
+    \          <span class=\"badge badge-xs badge-warning\" v-if=\"model.model_type\
+    \ === 'llm'\">\n            <i class=\"fa-solid fa-brain\"></i> LLM\n        \
+    \  </span>\n          <span class=\"badge badge-xs badge-info\" v-else>\n    \
+    \        <i class=\"fa-solid fa-file\"></i> Embeddings\n          </span>\n  \
+    \        <table class=\"w-full\">\n            <tr>\n              <td>Provider:</td>\n\
+    \              <td>{{ model.ai_provider }}</td>\n            </tr>\n         \
+    \   <tr v-if=\"model.model_type === 'llm'\">\n              <td>Temperature:</td>\n\
+    \              <td>{{ model.settings.temperature || '-' }}</td>\n            </tr>\n\
+    \            <tr v-if=\"model.model_type === 'embeddings'\">\n              <td>Vector\
+    \ Size:</td>\n              <td>{{ model.settings.vector_size || '-' }}</td>\n\
+    \            </tr>\n            <tr v-if=\"model.model_type === 'embeddings'\"\
+    >\n              <td>Chunk Size:</td>\n              <td>{{ model.settings.chunk_size\
+    \ || '-' }}</td>\n            </tr>\n          </table>\n        </div>\n    \
+    \    <div class=\"flex gap-2 mt-4\">\n          <button class=\"btn btn-xs btn-circle\
+    \ btn-outline text-info\" @click.stop=\"\">\n            <a :href=\"model.url\"\
+    \ target=\"_blank\" v-if=\"model.url\"><i class=\"fa-solid fa-circle-info\"></i></a>\n\
+    \          </button>\n          <button class=\"btn btn-xs btn-circle btn-outline\"\
+    \ @click.stop=\"editModel(model)\">\n            <i class=\"fa-solid fa-pen-to-square\"\
+    ></i>\n          </button>\n          <button class=\"btn btn-xs btn-circle btn-outline\
+    \ text-error\" @click.stop=\"confirmDelete(model)\">\n            <i class=\"\
+    fa-solid fa-trash-can\"></i>\n          </button>\n        </div>\n      </div>\n\
+    \      <div class=\"card border-2 border-dashed border-base-300 p-4 flex justify-center\
+    \ items-center cursor-pointer\" @click=\"editModel(null)\">\n        <span class=\"\
+    text-gray-500\">Add New Model</span>\n      </div>\n    </div>\n    <modal v-if=\"\
+    showDialog\">\n      <form class=\"flex flex-col gap-2\" @submit.prevent=\"saveModel\"\
+    >\n        <div class=\"form-control\">\n          <span class=\"label\">Model\
+    \ Type</span>\n          <select class=\"select select-bordered\" v-model=\"currentModel.model_type\"\
+    >\n            <option value=\"llm\">LLM</option>\n            <option value=\"\
+    embeddings\">Embeddings</option>\n          </select>\n        </div>\n      \
+    \  <div class=\"form-control\">\n          <span class=\"label\">Model Name</span>\n\
+    \          <input\n            class=\"input input-bordered\"\n            v-model=\"\
+    currentModel.name\"\n            placeholder=\"Model Name\"\n          />\n  \
+    \      </div>\n        <div class=\"form-control\">\n          <span class=\"\
+    label\">AI Provider</span>\n          @codx-ok, please-wait...: add a select using\
+    \ the aiProviders name for currentModel.ai_provider\n          <input\n      \
+    \      class=\"input input-bordered\"\n            v-model=\"currentModel.ai_provider\"\
+    \n            placeholder=\"AI Provider\"\n          />\n        </div>\n    \
+    \    <div class=\"form-control\">\n          <span class=\"label\">Model url</span>\n\
+    \          <input\n            class=\"input input-bordered\"\n            v-model=\"\
+    currentModel.url\"\n            placeholder=\"Url\"\n          />\n        </div>\n\
+    \        <div class=\"form-control\" v-if=\"currentModelIsLLM\">\n          <span\
+    \ class=\"label\">Temperature</span>\n          <input\n            type=\"number\"\
+    \n            class=\"input input-bordered\"\n            v-model.number=\"currentModel.settings.temperature\"\
+    \n            placeholder=\"Temperature\"\n            step=\"0.1\"\n        \
+    \  />\n        </div>\n        <div class=\"form-control\" v-if=\"!currentModelIsLLM\"\
+    >\n          <span class=\"label\">Vector Size</span>\n          <input\n    \
+    \        type=\"number\"\n            class=\"input input-bordered\"\n       \
+    \     v-model.number=\"currentModel.settings.vector_size\"\n            placeholder=\"\
+    Vector Size\"\n          />\n        </div>\n        <div class=\"form-control\"\
+    \ v-if=\"!currentModelIsLLM\">\n          <span class=\"label\">Chunk Size</span>\n\
+    \          <input\n            type=\"number\"\n            class=\"input input-bordered\"\
+    \n            v-model.number=\"currentModel.settings.chunk_size\"\n          \
+    \  placeholder=\"Chunk Size\"\n          />\n        </div>\n        <div class=\"\
+    flex gap-2 justify-end\">\n          <button class=\"btn btn-primary\" type=\"\
+    submit\">Save</button>\n          <button class=\"btn\" @click=\"showDialog =\
+    \ false\">Cancel</button>\n        </div>\n      </form>\n    </modal>\n\n   \
+    \ <modal v-if=\"showDeleteDialog\">\n      <div>\n        <p>Are you sure you\
+    \ want to delete {{ modelToDelete.name }}?</p>\n        <div class=\"modal-action\"\
+    >\n          <button class=\"btn btn-error\" @click=\"deleteModel\">\n       \
+    \     Confirm\n          </button>\n          <button class=\"btn\" @click=\"\
+    showDeleteDialog = false\">Cancel</button>\n        </div>\n      </div>\n   \
+    \ </modal>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n\
+    \    return {\n      showDialog: false,\n      showDeleteDialog: false,\n    \
+    \  currentModel: {\n      name: '',\n      ai_provider: '',\n      model_type:\
+    \ 'llm',\n      settings: {\n        temperature: 1,\n        vector_size: 1536,\n\
+    \          chunk_size: 8190\n        }\n      },\n      modelToDelete: null\n\
+    \      }\n  },\n  computed: {\n    aiModels() {\n      return this.$storex.api.globalSettings?.ai_models\n\
+    \    },\n    aiProviders() {\n      return this.$storex.api.globalSettings?.ai_providers\n\
+    \    },\n    currentModelIsLLM() {\n      return this.currentModel?.model_type\
+    \ === 'llm'\n    }\n  },\n  methods: {\n    editModel(model) {\n      if (!model)\
+    \ {\n        model = { settings: {} }\n        this.aiModels.push(model)\n   \
+    \   }\n      this.currentModel = model\n      this.showDialog = true\n    },\n\
+    \    saveModel() {\n      this.showDialog = false\n      // Add logic to save\
+    \ model\n    },\n    confirmDelete(model) {\n      this.modelToDelete = model\n\
+    \      this.showDeleteDialog = true\n    },\n    deleteModel() {\n      const\
+    \ index = this.aiModels.findIndex(m => m.name === this.modelToDelete.name)\n \
+    \     if (index !== -1) {\n        this.aiModels.splice(index, 1)\n      }\n \
+    \     this.showDeleteDialog = false\n    }\n  }\n}\n</script>\n              \
+    \        "
+  created_at: '2025-03-23 11:38:20.706463'
+  disable_knowledge: false
+  doc_id: 1c315625-6e0c-424b-9e1b-d15df5db3807
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-23 11:38:20.706508'
+  user: null
+- content: "To address the user's comment, we need to replace the input field for\
+    \ `currentModel.ai_provider` with a `select` element that uses the names of the\
+    \ `aiProviders`. Here's the minimal change to make this happen:\n\n```vue\n<div\
+    \ class=\"form-control\">\n  <span class=\"label\">AI Provider</span>\n  <select\
+    \ class=\"select select-bordered\" v-model=\"currentModel.ai_provider\">\n   \
+    \ <option v-for=\"provider in aiProviders\" :key=\"provider.name\" :value=\"provider.name\"\
+    >\n      {{ provider.name }}\n    </option>\n  </select>\n</div>\n```\n\nThis\
+    \ ensures the selection for the AI provider is populated with the names available\
+    \ in `aiProviders` and updates `currentModel.ai_provider` accordingly. This change\
+    \ matches the existing component structure and logic."
+  created_at: '2025-03-23 11:38:20.706463'
+  disable_knowledge: false
+  doc_id: 3ff74f65-2cc8-4255-8330-981b4972970a
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 26.181048154830933
+    model: gpt-4o
+    time_taken: 26.851176023483276
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-23 11:38:20.706508'
+  user: null
+- content: "Best practices for this file:\n                  Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\n# Vue vuejs coding best\
+    \ pratices\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Use TailwindCSS classes for styling, always consider\
+    \ mobile styles\n* Vue component definition will be exporting a default object\
+    \ like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\n* Don't use <style> elements, use TailWindCSS classes\n\
+    \                  "
+  created_at: '2025-03-23 11:38:20.706463'
+  disable_knowledge: false
+  doc_id: 94542ee1-7d81-4841-9215-c262d7a01dc6
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-23 11:38:20.706508'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content:\n              <script setup>\n</script>\n\n\
+    <template>\n  <div class=\"w-full h-full flex flex-col gap-2 p-4\">\n    <h1 class=\"\
+    text-2xl font-bold mb-4\">AI Models</h1>\n    <div class=\"grid grid-cols-1 md:grid-cols-2\
+    \ lg:grid-cols-3 gap-4\">\n      <div\n        v-for=\"model in aiModels\"\n \
+    \       :key=\"model.name\"\n        class=\"click card border border-slate-300\
+    \ bg-slate-800 text-white/80 p-4 shadow-sm flex flex-col justify-between\"\n \
+    \       @click=\"editModel(model)\"\n      >\n        <div class=\"overflow-hidden\"\
+    >\n          <h2 class=\"font-bold text-lg text-primary\">{{ model.name }}</h2>\n\
+    \          <span class=\"badge badge-xs badge-warning\" v-if=\"model.model_type\
+    \ === 'llm'\">\n            <i class=\"fa-solid fa-brain\"></i> LLM\n        \
+    \  </span>\n          <span class=\"badge badge-xs badge-info\" v-else>\n    \
+    \        <i class=\"fa-solid fa-file\"></i> Embeddings\n          </span>\n  \
+    \        <table class=\"w-full\">\n            <tr>\n              <td>Provider:</td>\n\
+    \              <td>{{ model.ai_provider }}</td>\n            </tr>\n         \
+    \   <tr v-if=\"model.model_type === 'llm'\">\n              <td>Temperature:</td>\n\
+    \              <td>{{ model.settings.temperature || '-' }}</td>\n            </tr>\n\
+    \            <tr v-if=\"model.model_type === 'embeddings'\">\n              <td>Vector\
+    \ Size:</td>\n              <td>{{ model.settings.vector_size || '-' }}</td>\n\
+    \            </tr>\n            <tr v-if=\"model.model_type === 'embeddings'\"\
+    >\n              <td>Chunk Size:</td>\n              <td>{{ model.settings.chunk_size\
+    \ || '-' }}</td>\n            </tr>\n          </table>\n        </div>\n    \
+    \    <div class=\"flex gap-2 mt-4\">\n          <button class=\"btn btn-xs btn-circle\
+    \ btn-outline text-info\" @click.stop=\"\">\n            <a :href=\"model.url\"\
+    \ target=\"_blank\" v-if=\"model.url\"><i class=\"fa-solid fa-circle-info\"></i></a>\n\
+    \          </button>\n          <button class=\"btn btn-xs btn-circle btn-outline\"\
+    \ @click.stop=\"editModel(model)\">\n            <i class=\"fa-solid fa-pen-to-square\"\
+    ></i>\n          </button>\n          <button class=\"btn btn-xs btn-circle btn-outline\
+    \ text-error\" @click.stop=\"confirmDelete(model)\">\n            <i class=\"\
+    fa-solid fa-trash-can\"></i>\n          </button>\n        </div>\n      </div>\n\
+    \      <div class=\"card border-2 border-dashed border-base-300 p-4 flex justify-center\
+    \ items-center cursor-pointer\" @click=\"editModel(null)\">\n        <span class=\"\
+    text-gray-500\">Add New Model</span>\n      </div>\n    </div>\n    <modal v-if=\"\
+    showDialog\">\n      <form class=\"flex flex-col gap-2\" @submit.prevent=\"saveModel\"\
+    >\n        <div class=\"form-control\">\n          <span class=\"label\">Model\
+    \ Type</span>\n          <select class=\"select select-bordered\" v-model=\"currentModel.model_type\"\
+    >\n            <option value=\"llm\">LLM</option>\n            <option value=\"\
+    embeddings\">Embeddings</option>\n          </select>\n        </div>\n      \
+    \  <div class=\"form-control\">\n          <span class=\"label\">Model Name</span>\n\
+    \          <input\n            class=\"input input-bordered\"\n            v-model=\"\
+    currentModel.name\"\n            placeholder=\"Model Name\"\n          />\n  \
+    \      </div>\n        <div class=\"form-control\">\n          <span class=\"\
+    label\">AI Provider</span>\n          @codx-ok, please-wait...: add a select using\
+    \ the aiProviders name for currentModel.ai_provider\n          <input\n      \
+    \      class=\"input input-bordered\"\n            v-model=\"currentModel.ai_provider\"\
+    \n            placeholder=\"AI Provider\"\n          />\n        </div>\n    \
+    \    <div class=\"form-control\">\n          <span class=\"label\">Model url</span>\n\
+    \          <input\n            class=\"input input-bordered\"\n            v-model=\"\
+    currentModel.url\"\n            placeholder=\"Url\"\n          />\n        </div>\n\
+    \        <div class=\"form-control\" v-if=\"currentModelIsLLM\">\n          <span\
+    \ class=\"label\">Temperature</span>\n          <input\n            type=\"number\"\
+    \n            class=\"input input-bordered\"\n            v-model.number=\"currentModel.settings.temperature\"\
+    \n            placeholder=\"Temperature\"\n            step=\"0.1\"\n        \
+    \  />\n        </div>\n        <div class=\"form-control\" v-if=\"!currentModelIsLLM\"\
+    >\n          <span class=\"label\">Vector Size</span>\n          <input\n    \
+    \        type=\"number\"\n            class=\"input input-bordered\"\n       \
+    \     v-model.number=\"currentModel.settings.vector_size\"\n            placeholder=\"\
+    Vector Size\"\n          />\n        </div>\n        <div class=\"form-control\"\
+    \ v-if=\"!currentModelIsLLM\">\n          <span class=\"label\">Chunk Size</span>\n\
+    \          <input\n            type=\"number\"\n            class=\"input input-bordered\"\
+    \n            v-model.number=\"currentModel.settings.chunk_size\"\n          \
+    \  placeholder=\"Chunk Size\"\n          />\n        </div>\n        <div class=\"\
+    flex gap-2 justify-end\">\n          <button class=\"btn btn-primary\" type=\"\
+    submit\">Save</button>\n          <button class=\"btn\" @click=\"showDialog =\
+    \ false\">Cancel</button>\n        </div>\n      </form>\n    </modal>\n\n   \
+    \ <modal v-if=\"showDeleteDialog\">\n      <div>\n        <p>Are you sure you\
+    \ want to delete {{ modelToDelete.name }}?</p>\n        <div class=\"modal-action\"\
+    >\n          <button class=\"btn btn-error\" @click=\"deleteModel\">\n       \
+    \     Confirm\n          </button>\n          <button class=\"btn\" @click=\"\
+    showDeleteDialog = false\">Cancel</button>\n        </div>\n      </div>\n   \
+    \ </modal>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n\
+    \    return {\n      showDialog: false,\n      showDeleteDialog: false,\n    \
+    \  currentModel: {\n      name: '',\n      ai_provider: '',\n      model_type:\
+    \ 'llm',\n      settings: {\n        temperature: 1,\n        vector_size: 1536,\n\
+    \          chunk_size: 8190\n        }\n      },\n      modelToDelete: null\n\
+    \      }\n  },\n  computed: {\n    aiModels() {\n      return this.$storex.api.globalSettings?.ai_models\n\
+    \    },\n    aiProviders() {\n      return this.$storex.api.globalSettings?.ai_providers\n\
+    \    },\n    currentModelIsLLM() {\n      return this.currentModel?.model_type\
+    \ === 'llm'\n    }\n  },\n  methods: {\n    editModel(model) {\n      if (!model)\
+    \ {\n        model = { settings: {} }\n        this.aiModels.push(model)\n   \
+    \   }\n      this.currentModel = model\n      this.showDialog = true\n    },\n\
+    \    saveModel() {\n      this.showDialog = false\n      // Add logic to save\
+    \ model\n    },\n    confirmDelete(model) {\n      this.modelToDelete = model\n\
+    \      this.showDeleteDialog = true\n    },\n    deleteModel() {\n      const\
+    \ index = this.aiModels.findIndex(m => m.name === this.modelToDelete.name)\n \
+    \     if (index !== -1) {\n        this.aiModels.splice(index, 1)\n      }\n \
+    \     this.showDeleteDialog = false\n    }\n  }\n}\n</script>\n              "
+  created_at: '2025-03-23 11:38:20.706463'
+  disable_knowledge: false
+  doc_id: df0d75ac-d90f-450b-b56d-fe4b0a4d5060
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-23 11:38:20.706508'
+  user: null
+- content: "<script setup>\n</script>\n\n<template>\n  <div class=\"w-full h-full\
+    \ flex flex-col gap-2 p-4\">\n    <h1 class=\"text-2xl font-bold mb-4\">AI Models</h1>\n\
+    \    <div class=\"grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4\">\n  \
+    \    <div\n        v-for=\"model in aiModels\"\n        :key=\"model.name\"\n\
+    \        class=\"click card border border-slate-300 bg-slate-800 text-white/80\
+    \ p-4 shadow-sm flex flex-col justify-between\"\n        @click=\"editModel(model)\"\
+    \n      >\n        <div class=\"overflow-hidden\">\n          <h2 class=\"font-bold\
+    \ text-lg text-primary\">{{ model.name }}</h2>\n          <span class=\"badge\
+    \ badge-xs badge-warning\" v-if=\"model.model_type === 'llm'\">\n            <i\
+    \ class=\"fa-solid fa-brain\"></i> LLM\n          </span>\n          <span class=\"\
+    badge badge-xs badge-info\" v-else>\n            <i class=\"fa-solid fa-file\"\
+    ></i> Embeddings\n          </span>\n          <table class=\"w-full\">\n    \
+    \        <tr>\n              <td>Provider:</td>\n              <td>{{ model.ai_provider\
+    \ }}</td>\n            </tr>\n            <tr v-if=\"model.model_type === 'llm'\"\
+    >\n              <td>Temperature:</td>\n              <td>{{ model.settings.temperature\
+    \ || '-' }}</td>\n            </tr>\n            <tr v-if=\"model.model_type ===\
+    \ 'embeddings'\">\n              <td>Vector Size:</td>\n              <td>{{ model.settings.vector_size\
+    \ || '-' }}</td>\n            </tr>\n            <tr v-if=\"model.model_type ===\
+    \ 'embeddings'\">\n              <td>Chunk Size:</td>\n              <td>{{ model.settings.chunk_size\
+    \ || '-' }}</td>\n            </tr>\n          </table>\n        </div>\n    \
+    \    <div class=\"flex gap-2 mt-4\">\n          <button class=\"btn btn-xs btn-circle\
+    \ btn-outline text-info\" @click.stop=\"\">\n            <a :href=\"model.url\"\
+    \ target=\"_blank\" v-if=\"model.url\"><i class=\"fa-solid fa-circle-info\"></i></a>\n\
+    \          </button>\n          <button class=\"btn btn-xs btn-circle btn-outline\"\
+    \ @click.stop=\"editModel(model)\">\n            <i class=\"fa-solid fa-pen-to-square\"\
+    ></i>\n          </button>\n          <button class=\"btn btn-xs btn-circle btn-outline\
+    \ text-error\" @click.stop=\"confirmDelete(model)\">\n            <i class=\"\
+    fa-solid fa-trash-can\"></i>\n          </button>\n        </div>\n      </div>\n\
+    \      <div class=\"card border-2 border-dashed border-base-300 p-4 flex justify-center\
+    \ items-center cursor-pointer\" @click=\"editModel(null)\">\n        <span class=\"\
+    text-gray-500\">Add New Model</span>\n      </div>\n    </div>\n    <modal v-if=\"\
+    showDialog\">\n      <form class=\"flex flex-col gap-2\" @submit.prevent=\"saveModel\"\
+    >\n        <div class=\"form-control\">\n          <span class=\"label\">Model\
+    \ Type</span>\n          <select class=\"select select-bordered\" v-model=\"currentModel.model_type\"\
+    >\n            <option value=\"llm\">LLM</option>\n            <option value=\"\
+    embeddings\">Embeddings</option>\n          </select>\n        </div>\n      \
+    \  <div class=\"form-control\">\n          <span class=\"label\">Model Name</span>\n\
+    \          <input\n            class=\"input input-bordered\"\n            v-model=\"\
+    currentModel.name\"\n            placeholder=\"Model Name\"\n          />\n  \
+    \      </div>\n        <div class=\"form-control\">\n          <span class=\"\
+    label\">AI Provider</span>\n          <select class=\"select select-bordered\"\
+    \ v-model=\"currentModel.ai_provider\">\n            <option v-for=\"provider\
+    \ in aiProviders\" :key=\"provider.name\" :value=\"provider.name\">\n        \
+    \      {{ provider.name }}\n            </option>\n          </select>\n     \
+    \   </div>\n        <div class=\"form-control\">\n          <span class=\"label\"\
+    >Model url</span>\n          <input\n            class=\"input input-bordered\"\
+    \n            v-model=\"currentModel.url\"\n            placeholder=\"Url\"\n\
+    \          />\n        </div>\n        <div class=\"form-control\" v-if=\"currentModelIsLLM\"\
+    >\n          <span class=\"label\">Temperature</span>\n          <input\n    \
+    \        type=\"number\"\n            class=\"input input-bordered\"\n       \
+    \     v-model.number=\"currentModel.settings.temperature\"\n            placeholder=\"\
+    Temperature\"\n            step=\"0.1\"\n          />\n        </div>\n      \
+    \  <div class=\"form-control\" v-if=\"!currentModelIsLLM\">\n          <span class=\"\
+    label\">Vector Size</span>\n          <input\n            type=\"number\"\n  \
+    \          class=\"input input-bordered\"\n            v-model.number=\"currentModel.settings.vector_size\"\
+    \n            placeholder=\"Vector Size\"\n          />\n        </div>\n    \
+    \    <div class=\"form-control\" v-if=\"!currentModelIsLLM\">\n          <span\
+    \ class=\"label\">Chunk Size</span>\n          <input\n            type=\"number\"\
+    \n            class=\"input input-bordered\"\n            v-model.number=\"currentModel.settings.chunk_size\"\
+    \n            placeholder=\"Chunk Size\"\n          />\n        </div>\n     \
+    \   <div class=\"flex gap-2 justify-end\">\n          <button class=\"btn btn-primary\"\
+    \ type=\"submit\">Save</button>\n          <button class=\"btn\" @click=\"showDialog\
+    \ = false\">Cancel</button>\n        </div>\n      </form>\n    </modal>\n\n \
+    \   <modal v-if=\"showDeleteDialog\">\n      <div>\n        <p>Are you sure you\
+    \ want to delete {{ modelToDelete.name }}?</p>\n        <div class=\"modal-action\"\
+    >\n          <button class=\"btn btn-error\" @click=\"deleteModel\">\n       \
+    \     Confirm\n          </button>\n          <button class=\"btn\" @click=\"\
+    showDeleteDialog = false\">Cancel</button>\n        </div>\n      </div>\n   \
+    \ </modal>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n\
+    \    return {\n      showDialog: false,\n      showDeleteDialog: false,\n    \
+    \  currentModel: {\n        name: '',\n        ai_provider: '',\n        model_type:\
+    \ 'llm',\n        settings: {\n          temperature: 1,\n          vector_size:\
+    \ 1536,\n          chunk_size: 8190\n        }\n      },\n      modelToDelete:\
+    \ null\n    }\n  },\n  computed: {\n    aiModels() {\n      return this.$storex.api.globalSettings?.ai_models\n\
+    \    },\n    aiProviders() {\n      return this.$storex.api.globalSettings?.ai_providers\n\
+    \    },\n    currentModelIsLLM() {\n      return this.currentModel?.model_type\
+    \ === 'llm'\n    }\n  },\n  methods: {\n    editModel(model) {\n      if (!model)\
+    \ {\n        model = { settings: {} }\n        this.aiModels.push(model)\n   \
+    \   }\n      this.currentModel = model\n      this.showDialog = true\n    },\n\
+    \    saveModel() {\n      this.showDialog = false\n      // Add logic to save\
+    \ model\n    },\n    confirmDelete(model) {\n      this.modelToDelete = model\n\
+    \      this.showDeleteDialog = true\n    },\n    deleteModel() {\n      const\
+    \ index = this.aiModels.findIndex(m => m.name === this.modelToDelete.name)\n \
+    \     if (index !== -1) {\n        this.aiModels.splice(index, 1)\n      }\n \
+    \     this.showDeleteDialog = false\n    }\n  }\n}\n</script>"
+  created_at: '2025-03-23 11:38:20.706463'
+  disable_knowledge: false
+  doc_id: a2c4782c-3d6f-4b3f-b876-2975deddbc41
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 23.91807532310486
+    model: gpt-4o
+    time_taken: 30.854543685913086
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-23 11:38:20.706508'
+  user: null
+mode: chat
+name: changes-at-ai-settings-aimodels-vue-2025-03-23-11-41-26-586629
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-03-23T11:41:57.444064'
+url: ''
+users: []
+visibility: ''

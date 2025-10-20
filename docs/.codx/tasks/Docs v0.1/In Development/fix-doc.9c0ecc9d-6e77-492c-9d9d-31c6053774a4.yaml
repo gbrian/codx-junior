@@ -1,0 +1,126 @@
+board: Docs v0.1
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Development
+column_id: ''
+created_at: '2025-05-15 15:53:25.664341'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/docs/.codx/tasks/Docs v0.1/In Development/fix-doc.9c0ecc9d-6e77-492c-9d9d-31c6053774a4.yaml
+id: 9c0ecc9d-6e77-492c-9d9d-31c6053774a4
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "After installing and running\_codx-junior, navigate to\_http://localhost:19981\_\
+    or any other port defined in your environment settings.\n\n\nPlease remove the\
+    \ above text and make it without installing instructions."
+  created_at: '2025-05-15 15:53:25.662557'
+  disable_knowledge: false
+  doc_id: ca432bde-485c-4708-aad3-433169d48b11
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-15 15:53:25.662615'
+  user: heena
+- content: "Certainly! Here\u2019s a revised version of the initial setup instructions\
+    \ without the installation instructions, focusing on maintaining the project effectively:\n\
+    \n---\n\n# Initial Setup for codx-junior\n\nAfter installing and running **codx-junior**,\
+    \ navigate to `http://localhost:19981` or any other port defined in your environment\
+    \ settings.\n\n## First Login\n\nLog in using the `admin` user and your chosen\
+    \ password. This password will be set as the admin password and can later be changed\
+    \ in **Account Settings**.\n\n## Projects\n\nOnce logged in, the dashboard will\
+    \ display all projects managed by codx-junior. You can select an existing project\
+    \ or add a new one.\n\n### Adding a New Project\n\nNew projects can be added in\
+    \ one of two ways:\n\n- Clone a project from a Git repository\n- Provide a full\
+    \ path to an existing folder\n\nPaste the URL or local path into the input field\
+    \ and click the `+` button. The added project becomes the active project.\n\n\
+    ### Project Settings\n\nReview the **Project Settings** to configure options specific\
+    \ to the project.  \nBy default, all new projects inherit the settings from the\
+    \ **Global Settings**.\n\n## Global Settings\n\nGlobal settings define the behavior\
+    \ of codx-junior across all projects. These include model configurations, access\
+    \ rules, and environment preferences.\n\n## Knowledge Setup\n\nTo improve codx-junior\u2019\
+    s understanding of your codebase, configure the **Knowledge Settings**.\n\n###\
+    \ Profiles\n\nProfiles define how codx-junior should interact with your project.\
+    \ You can create multiple profiles to:\n\n- Enforce coding standards\n- Control\
+    \ code generation\n- Guide change suggestions\n\nProfiles are used across tasks,\
+    \ file updates, content generation, and code review.\n\n## Quick Tour\n\n### Tasks\n\
+    \nThe **Kanban board** organizes project tasks. Use it to:\n\n- Manage backlog\
+    \ and priorities\n- Create and track new features\n- Collaborate with the team\n\
+    \nTasks can drive code generation and content creation without writing manual\
+    \ code.\n\n### Changes Review\n\nThe **Changes** view displays all tracked file\
+    \ modifications.\n\n- View diffs for committed and uncommitted changes\n- Ask\
+    \ codx-junior for explanations or improvement suggestions\n\n### Coder\n\n---\n\
+    \n# Best Practices for Maintaining Your Project\n\n1. **Clean, Readable, and Maintainable\
+    \ Code**\n   - Follow consistent naming conventions.\n   - Write clear and concise\
+    \ comments.\n   - Refactor code to improve readability and maintainability.\n\n\
+    2. **Version Control with Git**\n   - Use Git for version control.\n   - Regularly\
+    \ commit changes with descriptive commit messages.\n   - Push changes to a remote\
+    \ repository (e.g., GitHub, GitLab).\n\n3. **Unit Tests**\n   - Write unit tests\
+    \ to verify code functionality.\n   - Use testing frameworks like Jest, PyTest,\
+    \ or Mocha.\n   - Integrate tests into your CI/CD pipeline.\n\n4. **Documentation**\n\
+    \   - Document code changes and update documentation regularly.\n   - Use tools\
+    \ like Javadoc, Doxygen, or Sphinx for code documentation.\n   - Maintain a README\
+    \ file with project setup instructions and usage guidelines.\n\n5. **Agile Methodologies**\n\
+    \   - Use agile methodologies for task management.\n   - Utilize tools like Jira,\
+    \ Trello, or GitHub Issues.\n   - Conduct regular stand-up meetings and sprint\
+    \ reviews.\n\n6. **Automatic Documentation Updates**\n   - Set up automatic documentation\
+    \ updates using tools like MkDocs or Sphinx.\n   - Ensure that documentation is\
+    \ kept up-to-date with code changes.\n\nBy following these best practices, you\
+    \ can ensure that your project remains well-maintained, scalable, and easy to\
+    \ understand."
+  created_at: '2025-05-15 15:53:25.662557'
+  disable_knowledge: false
+  doc_id: f70e8a64-ad19-4ca7-84d1-b1c9582c2ea0
+  done: true
+  files:
+  - /initial-setup.md
+  - /features/settings.md
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 9.63964033126831
+    model: openai/mercury-coder-small
+    time_taken: 9.946045160293579
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-15 15:53:25.662615'
+  user: null
+mode: chat
+name: 'Fix Doc '
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-16T06:53:23.727995'
+url: ''
+users: []
+visibility: ''

@@ -3,7 +3,7 @@ from typing import Optional, Dict
 
 # Import tools
 from .fetch_webpage import fetch_webpage
-from .project_search import project_search
+from .project_tools import project_search, project_read_file
 from .code_writer import code_writer
 
 # Configure logging
@@ -45,7 +45,7 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": True},
+        "settings": { "async": False },
         "tool_call": fetch_webpage
     },
     {
@@ -84,6 +84,27 @@ TOOLS = [
         },
         "settings": {"async": False, "project_settings": True},
         "tool_call": project_search
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "project_read_file",
+                "description": "Read the content of a file.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "The path to the file to read."
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            }
+        },
+        "settings": { "async": False, "project_settings": False },
+        "tool_call": project_read_file
     }
 ]
 

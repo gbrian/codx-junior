@@ -1,0 +1,54 @@
+board: Default
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: done
+column_id: ''
+created_at: '2025-01-17 09:06:44.395663+00:00'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Default/done/project-watcher-thread-pool.e6a1ac9c-bb03-4618-bcbe-617276ff45f5.yaml
+id: e6a1ac9c-bb03-4618-bcbe-617276ff45f5
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: We need the project_watcher notifications to be handled in a new thread,
+    and havoing a thread pool of 6 concurrent executions, others will wait
+  created_at: '2025-01-14 13:19:09.772870'
+  disable_knowledge: false
+  doc_id: null
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-01-14 13:19:09.772895'
+  user: null
+mode: chat
+name: Project watcher thread pool
+parent_id: ''
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-01-17T19:26:42.781737'
+url: ''
+users: []
+visibility: ''

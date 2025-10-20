@@ -1,0 +1,1082 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-03-13 09:14:03.159892'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-chat-chat-vue-2025-03-14-07-03-58-407251.e786d483-1391-4c04-a9e2-3dab9af2625e.yaml
+id: e786d483-1391-4c04-a9e2-3dab9af2625e
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                    You are a software developer maintaining the codebase.\n\
+    * Keep your changes short and simple\n* Make minimum changes as possiblle.\n*\
+    \ Respect code structure.\n* Make your changes compatible with the current code\
+    \ structure and format\n* Don't add references or imports unless they are really\
+    \ necessary\n                    Find all information needed to apply all changes\
+    \ to file: /shared/codx-junior/client/src/components/chat/Chat.vue\n         \
+    \           User comments:\n                    User commented in line 529: Review\
+    \ the search term detection. When user press @ + three letters we must show the\
+    \ searchTerm dropdown and allow to select from the search term results\n\n   \
+    \                 File content:\n                    <script setup>\nimport {\
+    \ API } from '../../api/api'\nimport ChatEntry from '@/components/ChatEntry.vue'\n\
+    import Browser from '@/components/browser/Browser.vue'\nimport Markdown from '@/components/Markdown.vue'\n\
+    import moment from 'moment'\nimport TaskCard from '../kanban/TaskCard.vue'\n</script>\n\
+    <template>\n  <div class=\"flex flex-col gap-1 grow\">\n    <div class=\"grow\
+    \ relative\">\n      <div class=\"absolute top-0 left-0 right-0 bottom-0 scroller\
+    \ overflow-y-auto overflow-x-hidden\"\n        :class=\"isBrowser && 'flex gap-1'\"\
+    \n      >\n        <div class=\"w-3/4\" v-if=\"isBrowser\">\n          <Browser\
+    \ :token=\"$ui.monitors['shared']\" />\n        </div>\n        <div class=\"\
+    overflow-auto h-full\">\n          <div class=\"flex flex-col\" \n           \
+    \ v-for=\"message in messages\" :key=\"message.id\">\n            <ChatEntry :class=\"\
+    ['mb-4 rounded-md bg-base-300 py-2',\n              editMessage ? editMessage\
+    \ === message ? 'border border-warning' : 'opacity-40' : '',\n              message.hide\
+    \ ? 'opacity-60' : '']\"\n              :chat=\"chat\"\n              :message=\"\
+    message\"\n              @edit=\"onEditMessage(message)\"\n              @enhance=\"\
+    onEditMessage(message, true)\"\n              @remove=\"removeMessage(message)\"\
+    \n              @remove-file=\"removeFileFromMessage(message, $event)\"\n    \
+    \          @hide=\"toggleHide(message)\"\n              @run-edit=\"runEdit\"\n\
+    \              @copy=\"onCopy(message)\"\n              @add-file-to-chat=\"$emit('add-file',\
+    \ $event)\"\n              @image=\"imagePreview = { ...$event, readonly: true\
+    \ }\"\n              @generate-code=\"onGenerateCode\"\n              v-if=\"\
+    !message.hide || showHidden\"\n            />\n          </div>\n          <div\
+    \ class=\"anchor\" ref=\"anchor\"></div>\n          <div class=\"grid grid-cols-3\
+    \ gap-2 mb-2 bg-base-100\" v-if=\"childrenChats?.length\">\n            <TaskCard\
+    \ class=\"p-2 bg-base-300\" :task=\"child\" @click=\"$projects.setActiveChat(child)\"\
+    \n                              v-for=\"child in childrenChats\" :key=\"childrenChats.id\"\
+    \ />\n          </div>\n        </div>\n      </div>\n    </div>\n    <div class=\"\
+    chat chat-end\" v-if=\"false && isBrowser\">\n      <div class=\"chat-image avatar\"\
+    >\n        <div class=\"w-10 rounded-full\">\n          <img src=\"/only_icon.png\"\
+    \ alt=\"logo\" />\n        </div>\n      </div>\n      <div class=\"chat-bubble\"\
+    >\n        <Markdown class=\"max-h-40 overflow-auto\" :text=\"lastAIMessage.content\"\
+    \ v-if=\"lastAIMessage\" />\n        <div v-else>\n          <span class=\"font-bold\"\
+    >Let's navigate together:</span>\n          Use browser to navigate any web or\
+    \ try:\n          <span class=\"italic text-info\">Find top 5 results for ....</span>\n\
+    \        </div>\n      </div>\n    </div>\n    \n    <div class=\"dropdown dropdown-top\
+    \ dropdown-open mb-1\" v-if=\"showTermSearch\">\n      <div tabindex=\"0\" role=\"\
+    button\" class=\"rounded-md bg-base-300 w-fit p-2\">\n        <div class=\"flex\
+    \ p-1 items-center text-sky-600\">\n          <i class=\"fa-solid fa-at\"></i>\n\
+    \          <input type=\"text\" v-model=\"termSearchQuery\"\n            ref=\"\
+    termSearcher\"\n            class=\"-ml-1 input input-xs text-lg bg-transparent\"\
+    \ placeholder=\"search term...\"\n            @keydown.down.stop=\"onSelNext\"\
+    \n            @keydown.up.stop=\"onSelPrev\"\n            @keydown.enter.stop=\"\
+    addSerchTerm(searchTerms[searchTermSelIx])\"\n            @keydown.esc=\"closeTermSearch\"\
+    \n          />\n          <button class=\"btn btn-xs btn-circle btn-outline btn-error\"\
+    \n            @click=\"termSearchQuery = null\"            \n            v-if=\"\
+    termSearchQuery\">\n            <i class=\"fa-solid fa-circle-xmark\"></i>\n \
+    \         </button>\n        </div>\n      </div>\n      <ul tabindex=\"0\" class=\"\
+    dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit\" v-if=\"\
+    searchTerms\">\n        <li v-for=\"term, ix in searchTerms\" :key=\"term.key\"\
+    >\n          <a @click=\"addSerchTerm(term)\">\n            <div :class=\"[searchTermSelIx\
+    \ === ix ? 'underline':'']\">\n              <span class=\"text-sky-600 font-bold\"\
+    >@{{ term.key }}</span> <span class=\"text-xs\">({{ term.file.split('/').reverse()[0]\
+    \ }})</span>\n            </div>\n          </a>\n        </li>\n      </ul>\n\
+    \    </div>\n    <div :class=\"['flex bg-base-300 border rounded-md shadow indicator\
+    \ w-full', \n          multiline ? 'flex-col' : '',\n          editMessage &&\
+    \ 'border-warning',\n          onDraggingOverInput ? 'bg-warning/10': '']\"\n\
+    \        @dragover.prevent=\"onDraggingOverInput = true\"\n        @dragleave.prevent=\"\
+    onDraggingOverInput = false\"\n        @drop.prevent=\"onDrop\"\n    >\n     \
+    \ <div :class=\"['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']\"\
+    \n        :contenteditable=\"!waiting\"\n        ref=\"editor\" @input=\"onMessageChange\"\
+    \n        @paste=\"onContentPaste\"\n        @keydown.esc.stop=\"onResetEdit\"\
+    \n      >\n      </div>\n      <div class=\"flex justify-between items-end px-2\"\
+    >\n        <div class=\"carousel rounded-box\">\n          <div class=\"carousel-item\
+    \ relative click flex flex-col\" v-for=\"image, ix in allImages\" :key=\"image.src\"\
+    >\n            <div class=\"bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20\
+    \ lg:w-20 bg-base-300 mr-4\"\n              :style=\"`background-image: url(${image.src})`\"\
+    \ @click=\"imagePreview = image\">\n            </div>\n            <p class=\"\
+    text-xs\">{{ image.alt.slice(0, 10) }}</p>\n            <button class=\"btn btn-xs\
+    \ btn-circle btn-error absolute right-0 top-0\"\n              @click=\"removeImage(ix)\"\
+    \n            >\n              X\n            </button>\n          </div>\n  \
+    \      </div>\n        <span class=\"loading loading-dots loading-md btn btn-sm\"\
+    \ v-if=\"waiting\"></span>\n        <div class=\"flex gap-1 items-center justify-end\
+    \ py-2\" v-else>\n          <button class=\"btn btn btn-sm btn-info btn-outline\"\
+    \ @click=\"sendMessage\" v-if=\"editMessage\">\n            <i class=\"fa-solid\
+    \ fa-save\"></i>\n            <div class=\"text-xs\" v-if=\"editMessage\">Edit</div>\n\
+    \          </button>\n          <button class=\"btn btn btn-sm btn-outline tooltip\"\
+    \ data-tip=\"Save changes\" @click=\"onResetEdit\" \n            v-if=\"editMessage\"\
+    >\n            <i class=\"fa-regular fa-circle-xmark\"></i>\n          </button>\n\
+    \          <button class=\"btn btn btn-sm btn-circle btn-outline tooltip\"\n \
+    \           data-tip=\"Ask codx-junior\"\n            :class=\"isVoiceSession\
+    \ && 'btn-success animate-pulse'\"\n            @click=\"sendMessage\" \n    \
+    \        v-if=\"!editMessage\">\n            <i class=\"fa-solid fa-microphone-lines\"\
+    \ v-if=\"isVoiceSession\"></i>\n            <i :class=\"$projects.chatModes[chat.mode].icon\"\
+    \ v-else></i>\n          </button>\n          <button class=\"hidden btn btn btn-sm\
+    \ btn-circle btn-outline tooltip\"\n            :class=\"isBrowser && 'btn-warning'\"\
+    \n            data-tip=\"Ask codx-browser\" @click=\"isBrowser = !isBrowser\"\n\
+    \            v-if=\"!editMessage\">\n            <i class=\"fa-brands fa-chrome\"\
+    ></i>\n          </button>\n          <button class=\"btn btn btn-sm btn-outline\
+    \ tooltip btn-warning\" \n            data-tip=\"Make code changes\" @click=\"\
+    improveCode()\" v-if=\"!editMessage && chat.mode === 'chat'\">\n            <i\
+    \ class=\"fa-solid fa-code\"></i>\n          </button>\n\n          <div class=\"\
+    dropdown dropdown-top dropdown-end\">\n            <div tabindex=\"0\" role=\"\
+    button\" class=\"btn btn-sm m-1\">\n              <i class=\"fa-solid fa-ellipsis-vertical\"\
+    ></i>\n            </div>\n            <ul tabindex=\"0\" class=\"dropdown-content\
+    \ menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow gap-2\">\n              <li\
+    \ class=\"btn btn-sm tooltip\"\n                data-tip=\"Attach files\" \n \
+    \               @click=\"selectFile = true\">\n                <a>\n         \
+    \         <i class=\"fa-solid fa-paperclip\"></i> Attach files\n             \
+    \   </a>\n              </li>\n              <li class=\"btn btn-sm\" @click=\"\
+    testProject\" v-if=\"API.lastSettings.script_test\">\n                <a>\n  \
+    \                <i class=\"fa-solid fa-flask\"></i>\n                  Test\n\
+    \                </a>\n              </li>\n              <li class=\"btn btn-sm\
+    \ tooltip\"\n                :class=\"isBrowser && 'btn-success'\" \n        \
+    \        :data-tip=\"isBrowser ? 'Close browser' : 'Open browser'\" \n       \
+    \         @click=\"isBrowser = !isBrowser\" v-if=\"!editMessage\">\n         \
+    \       <a>\n                  <i class=\"fa-brands fa-chrome\"></i>\n       \
+    \           {{ isBrowser ? 'Close' : 'Open' }} Browser\n                </a>\n\
+    \              </li>\n              <li class=\"btn btn-sm tooltip\" \n      \
+    \          :class=\"isVoiceSession && 'btn-success'\" \n                :data-tip=\"\
+    $ui.voiceLanguages[$ui.voiceLanguage]\" \n                @click=\"toggleVoiceSession\"\
+    \ v-if=\"!editMessage\">\n                <a>\n                  <i class=\"fa-solid\
+    \ fa-microphone-lines\"></i>\n                  Voice mode\n                </a>\n\
+    \              </li>\n              <li class=\"btn btn-sm text-white btn-error\
+    \ tooltip\"\n                data-tip=\"Delete?\" \n                @click=\"\
+    $emit('delete')\">\n                <a>\n                  <i class=\"fa-solid\
+    \ fa-trash-can\"></i>\n                  Delete\n                </a>\n      \
+    \        </li>\n              \n            </ul>\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n    <modal v-if=\"imagePreview\">\n      <div class=\"\
+    flex flex-col gap-2\">\n        <div class=\"text-2xl\">Upload image</div>\n \
+    \       <div class=\"bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full\"\
+    \ :style=\"`background-image: url(${imagePreview.src})`\"></div>\n        <div>\n\
+    \            Image alt: <span class=\"text-xs\" v-if=\"imagePreview.alt?.length\"\
+    >{{ imagePreview.alt?.length }} chars.</span>\n        </div>\n        <pre class=\"\
+    alert alert-xs h-20 overflow-auto\" v-if=\"imagePreview.readonly\">{{ imagePreview.alt\
+    \ }}</pre>\n        <div class=\"textarea input-bordered\" v-else>\n         \
+    \ <textarea class=\"w-full bg-transparent\" v-model=\"imagePreview.alt\" placeholder=\"\
+    Image content\">\n          </textarea>\n          <div class=\"flex justify-end\"\
+    >\n            <button class=\"btn btn-sm bg-purple-600 text-white tooltip\"\n\
+    \              data-tip=\"Extract text\"\n              @click=\"onExtractTextImage(imagePreview)\"\
+    >\n              <i class=\"fa-regular fa-closed-captioning\"></i>\n         \
+    \   </button>\n          </div>\n        </div>\n        <div class=\"flex justify-end\
+    \ gap-2\">\n          <button class=\"btn\" @click=\"imagePreview = null\">\n\
+    \            Cancel\n          </button>\n          <button class=\"btn btn-primary\"\
+    \ @click=\"onAddImage\">\n            Ok\n          </button>\n        </div>\n\
+    \      </div>\n    </modal>\n    <modal v-if=\"selectFile\">\n      <label class=\"\
+    file-select\">\n      <div class=\"select-button\">\n        <span>Select File(s)</span>\n\
+    \      </div>\n      <input type=\"file\" accept=\"image/*\" multiple @change=\"\
+    handleFileChange\"/>\n      <button class=\"btn btn-sm btn-error\" @click=\"selectFile\
+    \ = false\">\n        Cancel\n      </button>\n    </label>\n    </modal>\n  </div>\n\
+    </template>\n<script>\nconst defFormater = d => JSON.stringify(d, null, 2)\n\n\
+    export default {\n  props: ['chatId', 'showHidden', 'childrenChats'],\n  data\
+    \ () {\n    return {\n      waiting: false,\n      editMessage: null,\n      editMessageId:\
+    \ null,\n      termSearchQuery: null,\n      searchTerms: null,\n      searchTermSelIx:\
+    \ -1,\n      showTermSearch: false,\n      files: [],\n      images: [],\n   \
+    \   previewImage: null,\n      editorText: \"\",\n      imagePreview: null,\n\
+    \      onDraggingOverInput: false,\n      testError: null,\n      previewStyle:\
+    \ {\n        zoom: 0.6\n      },\n      selectFile: false,\n      isVoiceSession:\
+    \ false,\n      recognition: null,\n      isBrowser: false\n    }\n  },\n  created\
+    \ () {\n  },\n  computed: {\n    chat () {\n      return this.$projects.chats[this.chatId]\n\
+    \    },\n    visibleMessages() {\n      return this.chat?.messages?.filter(m =>\
+    \ !m.hide || this.showHidden) || []\n    },\n    lastAIMessage() {\n      const\
+    \ { messages } = this.chat\n      const aiMsgs = messages.filter(m => !m.hide\
+    \ && m.role === 'assistant')\n      if (aiMsgs.length) {\n        const { diffMessage\
+    \ } = this\n        return { ...aiMsgs[aiMsgs.length - 1], diffMessage }\n   \
+    \   }\n      return null\n    },\n    diffMessage () {\n      if (this.isTask)\
+    \ {\n        const { messages } = this.chat\n        const aiMsgs = messages.filter(m\
+    \ => m.role === 'assistant')\n        if (aiMsgs.length > 1) {\n          return\
+    \ aiMsgs[aiMsgs.length - 2]\n        }\n      }\n      return null\n    },\n \
+    \   messages () {\n      if (!this.chat?.messages?.length) {\n        return []\n\
+    \      }\n      const { messages } = this.chat\n      if (this.isTask) {\n   \
+    \     const aiMsg = this.lastAIMessage\n        const lastMsg = messages[messages.length\
+    \ - 1]\n        const res = [] \n        if (aiMsg) {\n          res.push(aiMsg)\n\
+    \        }\n        if (lastMsg && lastMsg?.role !== 'assistant') {\n        \
+    \  res.push(lastMsg)\n        }\n        if (res.length) {\n          return res\n\
+    \        }\n      }\n      return messages\n    },\n    multiline () {\n     \
+    \ return this.editorText?.split(\"\\n\").length > 1 || this.images?.length\n \
+    \   },\n    allImages () {\n      return this.images\n    },\n    messageText\
+    \ () {\n      return this.editorText\n    },\n    canPost () {\n      return this.messageText\
+    \ || this.images?.length\n    },\n    isTask () {\n      return this.chat?.mode\
+    \ === 'task'\n    },\n    mentionList() {\n      return [\n        {\n       \
+    \   name: \"user1\"\n        },\n        {\n          name: \"project\"\n    \
+    \    }\n      ]\n    }\n  },\n  watch: {\n    termSearchQuery (newVal) {\n   \
+    \   if (newVal?.length > 2) {\n        this.searchKeywords()\n      } else {\n\
+    \        this.searchTerms = null\n      }\n    },\n  },\n  methods: {\n    zoomIn()\
+    \ {\n      this.previewStyle.zoom += 0.1;\n    },\n    zoomOut() {\n      this.previewStyle.zoom\
+    \ -= 0.1;\n    },\n    setEditorText (text) {\n      this.$refs.editor.innerText\
+    \ = text\n      this.onMessageChange()\n    },\n    onEditMessage (message, enhance)\
+    \ {\n      if (this.editMessage === message) {\n        return this.onResetEdit()\n\
+    \      }\n      console.log(\"onEditMessage\", message)\n      this.editMessageId\
+    \ = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)\n      this.editMessage\
+    \ = this.chat.messages[this.editMessageId]\n      try {\n        this.images =\
+    \ message.images.map(JSON.parse)\n      } catch {}\n      this.setEditorText(this.editMessage.content)\n\
+    \    },\n    toggleHide(message) {\n      message.hide = !message.hide \n    \
+    \  this.saveChat()\n    },\n    onCopy (message) {\n      navigator.permissions.query({name:\
+    \ \"clipboard-read\"}).then(result => {\n          if (result.state == \"granted\"\
+    \ || result.state == \"prompt\") {\n            navigator.clipboard.writeText(message.content)\n\
+    \          }\n      })\n      .catch(console.error);\n    },\n    async improveCode\
+    \ () {\n      this.postMyMessage()\n      await this.$projects.codeImprove(this.chat)\n\
+    \      this.testProject()\n    },\n    runEdit (codeSnipped) {\n      this.sendApiRequest(\n\
+    \        () => API.run.edit({ id: \"\", messages: [{ role: 'user', content: codeSnipped\
+    \ }] }),\n        data => [\n                  data.messages.reverse()[0].content,\n\
+    \                  \"\\n\\n\",\n                  ...data.errors.map(e => ` *\
+    \ ${e}\\n`)\n                ].join(\"\\n\")\n      )\n    },\n    addMessage\
+    \ (msg) {\n      this.chat.messages = [\n        ...this.chat.messages||[],\n\
+    \        msg\n      ]\n    },\n    getUserMessage() {\n      const message = this.$refs.editor.innerText\n\
+    \      return {\n        role: 'user',\n        content: message,\n        images:\
+    \ this.images.map(JSON.stringify)\n      }\n    },\n    postMyMessage () {\n \
+    \     if (this.canPost) {      \n        this.addMessage(this.getUserMessage())\n\
+    \        this.cleanUserInputAndWaitAnswer()\n      }\n    },\n    cleanUserInputAndWaitAnswer()\
+    \ {\n      this.setEditorText(\"\")\n      this.images = []\n      this.scrollToBottom()\n\
+    \    },\n    async sendMessage () {\n      if (this.isVoiceSession && !this.canPost)\
+    \ {\n        return\n      }\n\n      if (this.editMessage !== null) {\n     \
+    \   this.updateMessage()\n      } else {\n        this.postMyMessage()\n     \
+    \   await this.sendChatMessage(this.chat)\n      }\n      this.saveChat()\n  \
+    \  },\n    async navigate () {\n      if (!this.editorText) {\n        if (this.isBrowser\
+    \ = !this.isBrowser) {\n          if (this.lastAIMessage) {\n            this.lastAIMessage.hide\n\
+    \          }\n        }\n        return\n      }\n      const message = this.getUserMessage()\n\
+    \      const { data } = await this.sendChatMessage({ mode: 'browser', messages:\
+    \ [\n        ...this.chat.messages,\n        message\n      ] })\n      this.chat.messages\
+    \ = data.messages\n      this.saveChat()\n      this.cleanUserInputAndWaitAnswer()\n\
+    \    },\n    getSendMessage() {\n      return this.editMessage ||\n          \
+    \      this.chat.messages[this.chat.messages.length - 1].content\n    },\n   \
+    \ async askKnowledge () {\n      const searchTerm = this.$refs.editor.innerText\
+    \ \n      const knowledgeSearch = {\n          searchTerm,\n          searchType:\
+    \ 'embeddings',\n          documentSearchType: API.lastSettings.knowledge_search_type,\n\
+    \          cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,\n\
+    \          documentCount: API.lastSettings.knowledge_search_document_count\n \
+    \     }\n      const { data: { documents } } = await API.knowledge.search(knowledgeSearch)\n\
+    \      const docs = documents.map(doc => `#### File: ${doc.metadata.source.split(\"\
+    /\").reverse()[0]}\\n>${doc.metadata.source}\\n\\`\\`\\`${doc.metadata.language}\\\
+    n${doc.page_content}\\`\\`\\``) \n      this.$refs.editor.innerText = docs.join(\"\
+    \\n\")\n    },\n    async sendApiRequest (apiCall, formater = defFormater) {\n\
+    \      try {\n        this.waiting = true\n        await apiCall()\n        this.$emit('refresh-chat')\n\
+    \        this.scrollToBottom()\n      } catch (ex) {\n        this.addMessage({\n\
+    \          role: 'assistant',\n          content: ex.message\n        }) \n  \
+    \    }\n      this.waiting = false\n    },\n    async sendChatMessage(chat) {\n\
+    \      this.waiting = true\n      try {\n        return await this.$storex.projects.chatWihProject(chat)\n\
+    \      } finally {\n        this.waiting = false\n      }\n    },\n    async updateMessage\
+    \ () {\n      const { innerText } = this.$refs.editor\n      const images = this.images.map(JSON.stringify)\n\
+    \      this.editMessage.content = innerText\n      this.editMessage.images = images\n\
+    \      this.editMessage.updated_at = new Date().toISOString()\n      this.onResetEdit()\n\
+    \    },\n    onResetEdit() {\n      this.editMessage = null\n      this.setEditorText(\"\
+    \")\n      this.editMessageId = null\n      this.images = []\n    },\n    removeMessage(message)\
+    \ {\n      this.$emit(\"delete-message\", message)\n    },\n    async searchKeywords\
+    \ () {\n      const { data } = await API.knowledge.searchKeywords(this.termSearchQuery)\n\
+    \      this.searchTerms = Object.keys(data).map(k => data[k].reduce((acc, term)\
+    \ => {\n        acc.push({\n          key: term,\n          file: k\n        })\n\
+    \        return acc\n      }, []))\n      .reduce((a, b) => a.concat(b), [])\n\
+    \      this.searchTermSelIx = 0\n    },\n    // @codx-ok, please-wait...: Review\
+    \ the search term detection. When user press @ + three letters we must show the\
+    \ searchTerm dropdown and allow to select from the search term results\n    addSerchTerm(term)\
+    \ {\n      let text = this.$refs.editor.innerText\n      if (text[text.length-1]\
+    \ === '@') {\n        text = text.slice(0, text.length-1)\n      }\n      text\
+    \ += `@${term.key} `\n      this.editMessage = text.trim()\n      this.setEditorText(this.editMessage)\n\
+    \      \n      this.$emit('add-file', term.file)\n      this.closeTermSearch ();\n\
+    \    },\n    closeTermSearch () {\n      this.searchTerms = null\n      this.termSearchQuery\
+    \ = null\n      this.showTermSearch = false\n      const target = this.$refs.editor\n\
+    \n      const range = document.createRange();\n      const sel = window.getSelection();\n\
+    \      range.selectNodeContents(target);\n      range.collapse(false);\n     \
+    \ sel.removeAllRanges();\n      sel.addRange(range);\n      target.focus();\n\
+    \      range.detach();\n    },\n    onSelNext () {\n      this.searchTermSelIx++\n\
+    \      if (this.searchTermSelIx === this.searchTerms?.length) {\n        this.searchTermSelIx\
+    \ = 0\n      }\n    },\n    onSelPrev () {\n      this.searchTermSelIx--\n   \
+    \   if (this.searchTermSelIx === -1) {\n        this.searchTermSelIx = this.searchTerms?.length\
+    \ - 1\n      }\n    },\n    saveChat () {\n      return API.chats.save(this.chat)\n\
+    \    },\n    onDrop(e) {\n      this.onDraggingOverInput = false\n      if (!e.dataTransfer.files)\
+    \ {\n        return\n      }\n      var file = [...e.dataTransfer.files].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]\n      if (file) {\n        this.onInputImage(file)\n\
+    \      }\n    },\n    async onContentPaste(e) {\n      if (!e.clipboardData?.items)\
+    \ {\n        return\n      }\n      var file = [...e.clipboardData?.items].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]?.getAsFile()\n      if (file) {\n  \
+    \      this.onInputImage(file)\n        e.preventDefault()\n        return false\n\
+    \      }\n    },\n    getFileImageUrl(file) {\n      return new Promise(ok =>\
+    \ {\n        const reader = new FileReader();\n        reader.onload = (event)\
+    \ => {\n          const base64URL = event.target.result;\n          ok(base64URL)\n\
+    \        };\n        reader.readAsDataURL(file);\n      })\n    },\n    async\
+    \ onInputImage(file) {\n      const base64URL = await this.getFileImageUrl(file)\n\
+    \      this.imagePreview = {\n            src: base64URL,\n            alt: \"\
+    \"\n          }\n    },\n    onAddImage () {\n      if (this.imagePreview.ix ===\
+    \ undefined) {\n        this.images.push(this.imagePreview)\n        this.imagePreview.ix\
+    \ = this.images.length -1\n      }\n      this.imagePreview = null\n    },\n \
+    \   async onExtractTextImage(image) {\n      function base64ToFile(base64Data,\
+    \ filename) {\n        const byteString = atob(base64Data.split(',')[1]);\n  \
+    \      const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];\n\
+    \        const byteArray = new Uint8Array(byteString.length);\n        for (let\
+    \ i = 0; i < byteString.length; i++) {\n          byteArray[i] = byteString.charCodeAt(i);\n\
+    \        }\n        const blob = new Blob([byteArray], { type: mimeString });\n\
+    \        return new File([blob], filename, { type: mimeString });\n      }\n\n\
+    \      const file = base64ToFile(image.src, \"image\")\n      const text = await\
+    \ API.tools.imageToText(file)\n      image.alt = text\n    },\n    async handleFileChange\
+    \ ({ target: { files }}) {\n      const allUrls = await Promise.all([...files].map(file\
+    \ => this.getFileImageUrl(file)))\n      console.log(\"handleFileChange\", allUrls)\n\
+    \      this.images = [\n        ...this.images, \n        ...allUrls.map((src,\
+    \ ix) => ({ src, alt: \"\", ix: this.images.length + 1 + ix }))]\n      this.selectFile\
+    \ = false\n    },\n    onGenerateCode(codeBlockInfo) {\n      this.$projects.generateCode({\
+    \ chat: this.chat, codeBlockInfo })\n    },\n    removeImage(ix) {\n      this.images\
+    \ = this.images.filter((i, imx) => imx !== ix)\n    },\n    onMessageChange ()\
+    \ {\n      this.editorText = this.$refs.editor.innerText.trim() || \"\"\n    },\n\
+    \    async testProject () {\n      throw new Error('Obsolte')\n      const { data\
+    \ } = await API.project.test()\n      this.testError = data\n      if (this.testError)\
+    \ {\n        this.editMessage = this.testError\n        this.setEditorText(this.editMessage)\n\
+    \      }\n    },\n    removeFileFromMessage(message, file) {\n      message.files\
+    \ = message.files.filter(f => f !== file)\n      this.saveChat()\n    },\n   \
+    \ toggleVoiceSession () {\n      if (this.isVoiceSession) {\n        return this.stopVoiceSession()\n\
+    \      }\n      let silents = 5\n      this.isVoiceSession = true;\n\n      const\
+    \ recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();\n\
+    \      recognition.lang = this.$ui.voiceLanguage;\n      recognition.interimResults\
+    \ = false;\n\n      recognition.onresult = (event) => {\n        const transcript\
+    \ = event.results[0][0].transcript;\n        this.$refs.editor.innerText += transcript\n\
+    \        this.onMessageChange()\n      };\n\n      recognition.onend = () => {\n\
+    \        if (this.isVoiceSession && silents--) {\n          recognition.start();\n\
+    \        } else {\n          this.stopVoiceSession()\n        }\n      };\n\n\
+    \      recognition.start();\n      this.recognition = recognition\n    },\n  \
+    \  stopVoiceSession() {\n      this.recognition?.stop()\n      this.recognition\
+    \ = null\n    },\n    scrollToBottom() {\n      setTimeout(() => this.$refs.anchor?.scrollIntoView(),\
+    \ 200)\n    }\n  }\n}\n</script>\n                    "
+  created_at: '2025-03-13 09:14:03.157146'
+  disable_knowledge: false
+  doc_id: 709af1d9-7bc1-4113-a2b6-99919bee4525
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-13 09:14:03.157186'
+  user: null
+- content: "To implement the requested functionality to show the searchTerm dropdown\
+    \ when a user presses \"@\" followed by three letters, we need to modify the logic\
+    \ that detects the activation of the search dropdown. Here is the minimal change\
+    \ required to achieve this:\n\n```javascript\nwatch: {\n  termSearchQuery(newVal)\
+    \ {\n    if (newVal?.startsWith('@') && newVal.length > 3) {\n      this.searchKeywords();\n\
+    \      this.showTermSearch = true;  // Ensure the dropdown is shown\n    } else\
+    \ {\n      this.searchTerms = null;\n      this.showTermSearch = false; // Ensure\
+    \ the dropdown is hidden\n    }\n  },\n},\n```\n\nThis change will ensure the\
+    \ dropdown is displayed only when the search term starts with \"@\" and is followed\
+    \ by at least three additional characters."
+  created_at: '2025-03-13 09:14:03.157146'
+  disable_knowledge: false
+  doc_id: a39a0983-c66a-4d87-a3d9-34ad6e01d61c
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 1.446427583694458
+    model: gpt-4o
+    time_taken: 4.433563947677612
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-13 09:14:03.157186'
+  user: null
+- content: "Best practices for this file:\n                Project uses DaisyUI for\
+    \ components, use them instead basic HTML elements\n# Vue vuejs coding best pratices\n\
+    Vue files must always follow this structure in this order.\nNo other elements\
+    \ are valid:\n```example vue file\n<script setup>\nimport Component from './component.vue'\n\
+    import markdown from 'mardown'\n</script>\n<template>\n<div class=\"w.full h-full\
+    \ flex gap-2\">\n</div>\n</template>\n<script>\nexport default {\nprops: [].\n\
+    data (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch: {},\nmethods:\
+    \ {}\n}\n</sctipt>\n```\n* export default component object\n* Use component \"\
+    data\" method to return an object variables\n* Use component \"computed\" to define\
+    \ computed properties\n\" Use component \"methods\" to define component methods\
+    \ \n* \"script setup\" section contains ONLY imports, no variables, properties\
+    \ bnor methods\n* Use TailwindCSS classes for styling, always consider mobile\
+    \ styles\n* Vue component definition will be exporting a default object like,\
+    \ without ref, nor computed imports\n* Don't use \";\" in the javascript or typescript\
+    \ code\n* Avoid long functions\n* Add short and concise comments for complex functions\n\
+    * Don't use <style> elements, use TailWindCSS classes\n                "
+  created_at: '2025-03-13 09:14:03.157146'
+  disable_knowledge: false
+  doc_id: 33239f42-0b1c-4be5-9108-7955e269a633
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-13 09:14:03.157186'
+  user: null
+- content: "            Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n            Return only the file content without\
+    \ any further decoration or comments.\n            Do not surround response with\
+    \ '```' marks, just content:\n            <script setup>\nimport { API } from\
+    \ '../../api/api'\nimport ChatEntry from '@/components/ChatEntry.vue'\nimport\
+    \ Browser from '@/components/browser/Browser.vue'\nimport Markdown from '@/components/Markdown.vue'\n\
+    import moment from 'moment'\nimport TaskCard from '../kanban/TaskCard.vue'\n</script>\n\
+    <template>\n  <div class=\"flex flex-col gap-1 grow\">\n    <div class=\"grow\
+    \ relative\">\n      <div class=\"absolute top-0 left-0 right-0 bottom-0 scroller\
+    \ overflow-y-auto overflow-x-hidden\"\n        :class=\"isBrowser && 'flex gap-1'\"\
+    \n      >\n        <div class=\"w-3/4\" v-if=\"isBrowser\">\n          <Browser\
+    \ :token=\"$ui.monitors['shared']\" />\n        </div>\n        <div class=\"\
+    overflow-auto h-full\">\n          <div class=\"flex flex-col\" \n           \
+    \ v-for=\"message in messages\" :key=\"message.id\">\n            <ChatEntry :class=\"\
+    ['mb-4 rounded-md bg-base-300 py-2',\n              editMessage ? editMessage\
+    \ === message ? 'border border-warning' : 'opacity-40' : '',\n              message.hide\
+    \ ? 'opacity-60' : '']\"\n              :chat=\"chat\"\n              :message=\"\
+    message\"\n              @edit=\"onEditMessage(message)\"\n              @enhance=\"\
+    onEditMessage(message, true)\"\n              @remove=\"removeMessage(message)\"\
+    \n              @remove-file=\"removeFileFromMessage(message, $event)\"\n    \
+    \          @hide=\"toggleHide(message)\"\n              @run-edit=\"runEdit\"\n\
+    \              @copy=\"onCopy(message)\"\n              @add-file-to-chat=\"$emit('add-file',\
+    \ $event)\"\n              @image=\"imagePreview = { ...$event, readonly: true\
+    \ }\"\n              @generate-code=\"onGenerateCode\"\n              v-if=\"\
+    !message.hide || showHidden\"\n            />\n          </div>\n          <div\
+    \ class=\"anchor\" ref=\"anchor\"></div>\n          <div class=\"grid grid-cols-3\
+    \ gap-2 mb-2 bg-base-100\" v-if=\"childrenChats?.length\">\n            <TaskCard\
+    \ class=\"p-2 bg-base-300\" :task=\"child\" @click=\"$projects.setActiveChat(child)\"\
+    \n                              v-for=\"child in childrenChats\" :key=\"childrenChats.id\"\
+    \ />\n          </div>\n        </div>\n      </div>\n    </div>\n    <div class=\"\
+    chat chat-end\" v-if=\"false && isBrowser\">\n      <div class=\"chat-image avatar\"\
+    >\n        <div class=\"w-10 rounded-full\">\n          <img src=\"/only_icon.png\"\
+    \ alt=\"logo\" />\n        </div>\n      </div>\n      <div class=\"chat-bubble\"\
+    >\n        <Markdown class=\"max-h-40 overflow-auto\" :text=\"lastAIMessage.content\"\
+    \ v-if=\"lastAIMessage\" />\n        <div v-else>\n          <span class=\"font-bold\"\
+    >Let's navigate together:</span>\n          Use browser to navigate any web or\
+    \ try:\n          <span class=\"italic text-info\">Find top 5 results for ....</span>\n\
+    \        </div>\n      </div>\n    </div>\n    \n    <div class=\"dropdown dropdown-top\
+    \ dropdown-open mb-1\" v-if=\"showTermSearch\">\n      <div tabindex=\"0\" role=\"\
+    button\" class=\"rounded-md bg-base-300 w-fit p-2\">\n        <div class=\"flex\
+    \ p-1 items-center text-sky-600\">\n          <i class=\"fa-solid fa-at\"></i>\n\
+    \          <input type=\"text\" v-model=\"termSearchQuery\"\n            ref=\"\
+    termSearcher\"\n            class=\"-ml-1 input input-xs text-lg bg-transparent\"\
+    \ placeholder=\"search term...\"\n            @keydown.down.stop=\"onSelNext\"\
+    \n            @keydown.up.stop=\"onSelPrev\"\n            @keydown.enter.stop=\"\
+    addSerchTerm(searchTerms[searchTermSelIx])\"\n            @keydown.esc=\"closeTermSearch\"\
+    \n          />\n          <button class=\"btn btn-xs btn-circle btn-outline btn-error\"\
+    \n            @click=\"termSearchQuery = null\"            \n            v-if=\"\
+    termSearchQuery\">\n            <i class=\"fa-solid fa-circle-xmark\"></i>\n \
+    \         </button>\n        </div>\n      </div>\n      <ul tabindex=\"0\" class=\"\
+    dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit\" v-if=\"\
+    searchTerms\">\n        <li v-for=\"term, ix in searchTerms\" :key=\"term.key\"\
+    >\n          <a @click=\"addSerchTerm(term)\">\n            <div :class=\"[searchTermSelIx\
+    \ === ix ? 'underline':'']\">\n              <span class=\"text-sky-600 font-bold\"\
+    >@{{ term.key }}</span> <span class=\"text-xs\">({{ term.file.split('/').reverse()[0]\
+    \ }})</span>\n            </div>\n          </a>\n        </li>\n      </ul>\n\
+    \    </div>\n    <div :class=\"['flex bg-base-300 border rounded-md shadow indicator\
+    \ w-full', \n          multiline ? 'flex-col' : '',\n          editMessage &&\
+    \ 'border-warning',\n          onDraggingOverInput ? 'bg-warning/10': '']\"\n\
+    \        @dragover.prevent=\"onDraggingOverInput = true\"\n        @dragleave.prevent=\"\
+    onDraggingOverInput = false\"\n        @drop.prevent=\"onDrop\"\n    >\n     \
+    \ <div :class=\"['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']\"\
+    \n        :contenteditable=\"!waiting\"\n        ref=\"editor\" @input=\"onMessageChange\"\
+    \n        @paste=\"onContentPaste\"\n        @keydown.esc.stop=\"onResetEdit\"\
+    \n      >\n      </div>\n      <div class=\"flex justify-between items-end px-2\"\
+    >\n        <div class=\"carousel rounded-box\">\n          <div class=\"carousel-item\
+    \ relative click flex flex-col\" v-for=\"image, ix in allImages\" :key=\"image.src\"\
+    >\n            <div class=\"bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20\
+    \ lg:w-20 bg-base-300 mr-4\"\n              :style=\"`background-image: url(${image.src})`\"\
+    \ @click=\"imagePreview = image\">\n            </div>\n            <p class=\"\
+    text-xs\">{{ image.alt.slice(0, 10) }}</p>\n            <button class=\"btn btn-xs\
+    \ btn-circle btn-error absolute right-0 top-0\"\n              @click=\"removeImage(ix)\"\
+    \n            >\n              X\n            </button>\n          </div>\n  \
+    \      </div>\n        <span class=\"loading loading-dots loading-md btn btn-sm\"\
+    \ v-if=\"waiting\"></span>\n        <div class=\"flex gap-1 items-center justify-end\
+    \ py-2\" v-else>\n          <button class=\"btn btn btn-sm btn-info btn-outline\"\
+    \ @click=\"sendMessage\" v-if=\"editMessage\">\n            <i class=\"fa-solid\
+    \ fa-save\"></i>\n            <div class=\"text-xs\" v-if=\"editMessage\">Edit</div>\n\
+    \          </button>\n          <button class=\"btn btn btn-sm btn-outline tooltip\"\
+    \ data-tip=\"Save changes\" @click=\"onResetEdit\" \n            v-if=\"editMessage\"\
+    >\n            <i class=\"fa-regular fa-circle-xmark\"></i>\n          </button>\n\
+    \          <button class=\"btn btn btn-sm btn-circle btn-outline tooltip\"\n \
+    \           data-tip=\"Ask codx-junior\"\n            :class=\"isVoiceSession\
+    \ && 'btn-success animate-pulse'\"\n            @click=\"sendMessage\" \n    \
+    \        v-if=\"!editMessage\">\n            <i class=\"fa-solid fa-microphone-lines\"\
+    \ v-if=\"isVoiceSession\"></i>\n            <i :class=\"$projects.chatModes[chat.mode].icon\"\
+    \ v-else></i>\n          </button>\n          <button class=\"hidden btn btn btn-sm\
+    \ btn-circle btn-outline tooltip\"\n            :class=\"isBrowser && 'btn-warning'\"\
+    \n            data-tip=\"Ask codx-browser\" @click=\"isBrowser = !isBrowser\"\n\
+    \            v-if=\"!editMessage\">\n            <i class=\"fa-brands fa-chrome\"\
+    ></i>\n          </button>\n          <button class=\"btn btn btn-sm btn-outline\
+    \ tooltip btn-warning\" \n            data-tip=\"Make code changes\" @click=\"\
+    improveCode()\" v-if=\"!editMessage && chat.mode === 'chat'\">\n            <i\
+    \ class=\"fa-solid fa-code\"></i>\n          </button>\n\n          <div class=\"\
+    dropdown dropdown-top dropdown-end\">\n            <div tabindex=\"0\" role=\"\
+    button\" class=\"btn btn-sm m-1\">\n              <i class=\"fa-solid fa-ellipsis-vertical\"\
+    ></i>\n            </div>\n            <ul tabindex=\"0\" class=\"dropdown-content\
+    \ menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow gap-2\">\n              <li\
+    \ class=\"btn btn-sm tooltip\"\n                data-tip=\"Attach files\" \n \
+    \               @click=\"selectFile = true\">\n                <a>\n         \
+    \         <i class=\"fa-solid fa-paperclip\"></i> Attach files\n             \
+    \   </a>\n              </li>\n              <li class=\"btn btn-sm\" @click=\"\
+    testProject\" v-if=\"API.lastSettings.script_test\">\n                <a>\n  \
+    \                <i class=\"fa-solid fa-flask\"></i>\n                  Test\n\
+    \                </a>\n              </li>\n              <li class=\"btn btn-sm\
+    \ tooltip\"\n                :class=\"isBrowser && 'btn-success'\" \n        \
+    \        :data-tip=\"isBrowser ? 'Close browser' : 'Open browser'\" \n       \
+    \         @click=\"isBrowser = !isBrowser\" v-if=\"!editMessage\">\n         \
+    \       <a>\n                  <i class=\"fa-brands fa-chrome\"></i>\n       \
+    \           {{ isBrowser ? 'Close' : 'Open' }} Browser\n                </a>\n\
+    \              </li>\n              <li class=\"btn btn-sm tooltip\" \n      \
+    \          :class=\"isVoiceSession && 'btn-success'\" \n                :data-tip=\"\
+    $ui.voiceLanguages[$ui.voiceLanguage]\" \n                @click=\"toggleVoiceSession\"\
+    \ v-if=\"!editMessage\">\n                <a>\n                  <i class=\"fa-solid\
+    \ fa-microphone-lines\"></i>\n                  Voice mode\n                </a>\n\
+    \              </li>\n              <li class=\"btn btn-sm text-white btn-error\
+    \ tooltip\"\n                data-tip=\"Delete?\" \n                @click=\"\
+    $emit('delete')\">\n                <a>\n                  <i class=\"fa-solid\
+    \ fa-trash-can\"></i>\n                  Delete\n                </a>\n      \
+    \        </li>\n              \n            </ul>\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n    <modal v-if=\"imagePreview\">\n      <div class=\"\
+    flex flex-col gap-2\">\n        <div class=\"text-2xl\">Upload image</div>\n \
+    \       <div class=\"bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full\"\
+    \ :style=\"`background-image: url(${imagePreview.src})`\"></div>\n        <div>\n\
+    \            Image alt: <span class=\"text-xs\" v-if=\"imagePreview.alt?.length\"\
+    >{{ imagePreview.alt?.length }} chars.</span>\n        </div>\n        <pre class=\"\
+    alert alert-xs h-20 overflow-auto\" v-if=\"imagePreview.readonly\">{{ imagePreview.alt\
+    \ }}</pre>\n        <div class=\"textarea input-bordered\" v-else>\n         \
+    \ <textarea class=\"w-full bg-transparent\" v-model=\"imagePreview.alt\" placeholder=\"\
+    Image content\">\n          </textarea>\n          <div class=\"flex justify-end\"\
+    >\n            <button class=\"btn btn-sm bg-purple-600 text-white tooltip\"\n\
+    \              data-tip=\"Extract text\"\n              @click=\"onExtractTextImage(imagePreview)\"\
+    >\n              <i class=\"fa-regular fa-closed-captioning\"></i>\n         \
+    \   </button>\n          </div>\n        </div>\n        <div class=\"flex justify-end\
+    \ gap-2\">\n          <button class=\"btn\" @click=\"imagePreview = null\">\n\
+    \            Cancel\n          </button>\n          <button class=\"btn btn-primary\"\
+    \ @click=\"onAddImage\">\n            Ok\n          </button>\n        </div>\n\
+    \      </div>\n    </modal>\n    <modal v-if=\"selectFile\">\n      <label class=\"\
+    file-select\">\n      <div class=\"select-button\">\n        <span>Select File(s)</span>\n\
+    \      </div>\n      <input type=\"file\" accept=\"image/*\" multiple @change=\"\
+    handleFileChange\"/>\n      <button class=\"btn btn-sm btn-error\" @click=\"selectFile\
+    \ = false\">\n        Cancel\n      </button>\n    </label>\n    </modal>\n  </div>\n\
+    </template>\n<script>\nconst defFormater = d => JSON.stringify(d, null, 2)\n\n\
+    export default {\n  props: ['chatId', 'showHidden', 'childrenChats'],\n  data\
+    \ () {\n    return {\n      waiting: false,\n      editMessage: null,\n      editMessageId:\
+    \ null,\n      termSearchQuery: null,\n      searchTerms: null,\n      searchTermSelIx:\
+    \ -1,\n      showTermSearch: false,\n      files: [],\n      images: [],\n   \
+    \   previewImage: null,\n      editorText: \"\",\n      imagePreview: null,\n\
+    \      onDraggingOverInput: false,\n      testError: null,\n      previewStyle:\
+    \ {\n        zoom: 0.6\n      },\n      selectFile: false,\n      isVoiceSession:\
+    \ false,\n      recognition: null,\n      isBrowser: false\n    }\n  },\n  created\
+    \ () {\n  },\n  computed: {\n    chat () {\n      return this.$projects.chats[this.chatId]\n\
+    \    },\n    visibleMessages() {\n      return this.chat?.messages?.filter(m =>\
+    \ !m.hide || this.showHidden) || []\n    },\n    lastAIMessage() {\n      const\
+    \ { messages } = this.chat\n      const aiMsgs = messages.filter(m => !m.hide\
+    \ && m.role === 'assistant')\n      if (aiMsgs.length) {\n        const { diffMessage\
+    \ } = this\n        return { ...aiMsgs[aiMsgs.length - 1], diffMessage }\n   \
+    \   }\n      return null\n    },\n    diffMessage () {\n      if (this.isTask)\
+    \ {\n        const { messages } = this.chat\n        const aiMsgs = messages.filter(m\
+    \ => m.role === 'assistant')\n        if (aiMsgs.length > 1) {\n          return\
+    \ aiMsgs[aiMsgs.length - 2]\n        }\n      }\n      return null\n    },\n \
+    \   messages () {\n      if (!this.chat?.messages?.length) {\n        return []\n\
+    \      }\n      const { messages } = this.chat\n      if (this.isTask) {\n   \
+    \     const aiMsg = this.lastAIMessage\n        const lastMsg = messages[messages.length\
+    \ - 1]\n        const res = [] \n        if (aiMsg) {\n          res.push(aiMsg)\n\
+    \        }\n        if (lastMsg && lastMsg?.role !== 'assistant') {\n        \
+    \  res.push(lastMsg)\n        }\n        if (res.length) {\n          return res\n\
+    \        }\n      }\n      return messages\n    },\n    multiline () {\n     \
+    \ return this.editorText?.split(\"\\n\").length > 1 || this.images?.length\n \
+    \   },\n    allImages () {\n      return this.images\n    },\n    messageText\
+    \ () {\n      return this.editorText\n    },\n    canPost () {\n      return this.messageText\
+    \ || this.images?.length\n    },\n    isTask () {\n      return this.chat?.mode\
+    \ === 'task'\n    },\n    mentionList() {\n      return [\n        {\n       \
+    \   name: \"user1\"\n        },\n        {\n          name: \"project\"\n    \
+    \    }\n      ]\n    }\n  },\n  watch: {\n    termSearchQuery (newVal) {\n   \
+    \   if (newVal?.length > 2) {\n        this.searchKeywords()\n      } else {\n\
+    \        this.searchTerms = null\n      }\n    },\n  },\n  methods: {\n    zoomIn()\
+    \ {\n      this.previewStyle.zoom += 0.1;\n    },\n    zoomOut() {\n      this.previewStyle.zoom\
+    \ -= 0.1;\n    },\n    setEditorText (text) {\n      this.$refs.editor.innerText\
+    \ = text\n      this.onMessageChange()\n    },\n    onEditMessage (message, enhance)\
+    \ {\n      if (this.editMessage === message) {\n        return this.onResetEdit()\n\
+    \      }\n      console.log(\"onEditMessage\", message)\n      this.editMessageId\
+    \ = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)\n      this.editMessage\
+    \ = this.chat.messages[this.editMessageId]\n      try {\n        this.images =\
+    \ message.images.map(JSON.parse)\n      } catch {}\n      this.setEditorText(this.editMessage.content)\n\
+    \    },\n    toggleHide(message) {\n      message.hide = !message.hide \n    \
+    \  this.saveChat()\n    },\n    onCopy (message) {\n      navigator.permissions.query({name:\
+    \ \"clipboard-read\"}).then(result => {\n          if (result.state == \"granted\"\
+    \ || result.state == \"prompt\") {\n            navigator.clipboard.writeText(message.content)\n\
+    \          }\n      })\n      .catch(console.error);\n    },\n    async improveCode\
+    \ () {\n      this.postMyMessage()\n      await this.$projects.codeImprove(this.chat)\n\
+    \      this.testProject()\n    },\n    runEdit (codeSnipped) {\n      this.sendApiRequest(\n\
+    \        () => API.run.edit({ id: \"\", messages: [{ role: 'user', content: codeSnipped\
+    \ }] }),\n        data => [\n                  data.messages.reverse()[0].content,\n\
+    \                  \"\\n\\n\",\n                  ...data.errors.map(e => ` *\
+    \ ${e}\\n`)\n                ].join(\"\\n\")\n      )\n    },\n    addMessage\
+    \ (msg) {\n      this.chat.messages = [\n        ...this.chat.messages||[],\n\
+    \        msg\n      ]\n    },\n    getUserMessage() {\n      const message = this.$refs.editor.innerText\n\
+    \      return {\n        role: 'user',\n        content: message,\n        images:\
+    \ this.images.map(JSON.stringify)\n      }\n    },\n    postMyMessage () {\n \
+    \     if (this.canPost) {      \n        this.addMessage(this.getUserMessage())\n\
+    \        this.cleanUserInputAndWaitAnswer()\n      }\n    },\n    cleanUserInputAndWaitAnswer()\
+    \ {\n      this.setEditorText(\"\")\n      this.images = []\n      this.scrollToBottom()\n\
+    \    },\n    async sendMessage () {\n      if (this.isVoiceSession && !this.canPost)\
+    \ {\n        return\n      }\n\n      if (this.editMessage !== null) {\n     \
+    \   this.updateMessage()\n      } else {\n        this.postMyMessage()\n     \
+    \   await this.sendChatMessage(this.chat)\n      }\n      this.saveChat()\n  \
+    \  },\n    async navigate () {\n      if (!this.editorText) {\n        if (this.isBrowser\
+    \ = !this.isBrowser) {\n          if (this.lastAIMessage) {\n            this.lastAIMessage.hide\n\
+    \          }\n        }\n        return\n      }\n      const message = this.getUserMessage()\n\
+    \      const { data } = await this.sendChatMessage({ mode: 'browser', messages:\
+    \ [\n        ...this.chat.messages,\n        message\n      ] })\n      this.chat.messages\
+    \ = data.messages\n      this.saveChat()\n      this.cleanUserInputAndWaitAnswer()\n\
+    \    },\n    getSendMessage() {\n      return this.editMessage ||\n          \
+    \      this.chat.messages[this.chat.messages.length - 1].content\n    },\n   \
+    \ async askKnowledge () {\n      const searchTerm = this.$refs.editor.innerText\
+    \ \n      const knowledgeSearch = {\n          searchTerm,\n          searchType:\
+    \ 'embeddings',\n          documentSearchType: API.lastSettings.knowledge_search_type,\n\
+    \          cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,\n\
+    \          documentCount: API.lastSettings.knowledge_search_document_count\n \
+    \     }\n      const { data: { documents } } = await API.knowledge.search(knowledgeSearch)\n\
+    \      const docs = documents.map(doc => `#### File: ${doc.metadata.source.split(\"\
+    /\").reverse()[0]}\\n>${doc.metadata.source}\\n\\`\\`\\`${doc.metadata.language}\\\
+    n${doc.page_content}\\`\\`\\``) \n      this.$refs.editor.innerText = docs.join(\"\
+    \\n\")\n    },\n    async sendApiRequest (apiCall, formater = defFormater) {\n\
+    \      try {\n        this.waiting = true\n        await apiCall()\n        this.$emit('refresh-chat')\n\
+    \        this.scrollToBottom()\n      } catch (ex) {\n        this.addMessage({\n\
+    \          role: 'assistant',\n          content: ex.message\n        }) \n  \
+    \    }\n      this.waiting = false\n    },\n    async sendChatMessage(chat) {\n\
+    \      this.waiting = true\n      try {\n        return await this.$storex.projects.chatWihProject(chat)\n\
+    \      } finally {\n        this.waiting = false\n      }\n    },\n    async updateMessage\
+    \ () {\n      const { innerText } = this.$refs.editor\n      const images = this.images.map(JSON.stringify)\n\
+    \      this.editMessage.content = innerText\n      this.editMessage.images = images\n\
+    \      this.editMessage.updated_at = new Date().toISOString()\n      this.onResetEdit()\n\
+    \    },\n    onResetEdit() {\n      this.editMessage = null\n      this.setEditorText(\"\
+    \")\n      this.editMessageId = null\n      this.images = []\n    },\n    removeMessage(message)\
+    \ {\n      this.$emit(\"delete-message\", message)\n    },\n    async searchKeywords\
+    \ () {\n      const { data } = await API.knowledge.searchKeywords(this.termSearchQuery)\n\
+    \      this.searchTerms = Object.keys(data).map(k => data[k].reduce((acc, term)\
+    \ => {\n        acc.push({\n          key: term,\n          file: k\n        })\n\
+    \        return acc\n      }, []))\n      .reduce((a, b) => a.concat(b), [])\n\
+    \      this.searchTermSelIx = 0\n    },\n    // @codx-ok, please-wait...: Review\
+    \ the search term detection. When user press @ + three letters we must show the\
+    \ searchTerm dropdown and allow to select from the search term results\n    addSerchTerm(term)\
+    \ {\n      let text = this.$refs.editor.innerText\n      if (text[text.length-1]\
+    \ === '@') {\n        text = text.slice(0, text.length-1)\n      }\n      text\
+    \ += `@${term.key} `\n      this.editMessage = text.trim()\n      this.setEditorText(this.editMessage)\n\
+    \      \n      this.$emit('add-file', term.file)\n      this.closeTermSearch ();\n\
+    \    },\n    closeTermSearch () {\n      this.searchTerms = null\n      this.termSearchQuery\
+    \ = null\n      this.showTermSearch = false\n      const target = this.$refs.editor\n\
+    \n      const range = document.createRange();\n      const sel = window.getSelection();\n\
+    \      range.selectNodeContents(target);\n      range.collapse(false);\n     \
+    \ sel.removeAllRanges();\n      sel.addRange(range);\n      target.focus();\n\
+    \      range.detach();\n    },\n    onSelNext () {\n      this.searchTermSelIx++\n\
+    \      if (this.searchTermSelIx === this.searchTerms?.length) {\n        this.searchTermSelIx\
+    \ = 0\n      }\n    },\n    onSelPrev () {\n      this.searchTermSelIx--\n   \
+    \   if (this.searchTermSelIx === -1) {\n        this.searchTermSelIx = this.searchTerms?.length\
+    \ - 1\n      }\n    },\n    saveChat () {\n      return API.chats.save(this.chat)\n\
+    \    },\n    onDrop(e) {\n      this.onDraggingOverInput = false\n      if (!e.dataTransfer.files)\
+    \ {\n        return\n      }\n      var file = [...e.dataTransfer.files].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]\n      if (file) {\n        this.onInputImage(file)\n\
+    \      }\n    },\n    async onContentPaste(e) {\n      if (!e.clipboardData?.items)\
+    \ {\n        return\n      }\n      var file = [...e.clipboardData?.items].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]?.getAsFile()\n      if (file) {\n  \
+    \      this.onInputImage(file)\n        e.preventDefault()\n        return false\n\
+    \      }\n    },\n    getFileImageUrl(file) {\n      return new Promise(ok =>\
+    \ {\n        const reader = new FileReader();\n        reader.onload = (event)\
+    \ => {\n          const base64URL = event.target.result;\n          ok(base64URL)\n\
+    \        };\n        reader.readAsDataURL(file);\n      })\n    },\n    async\
+    \ onInputImage(file) {\n      const base64URL = await this.getFileImageUrl(file)\n\
+    \      this.imagePreview = {\n            src: base64URL,\n            alt: \"\
+    \"\n          }\n    },\n    onAddImage () {\n      if (this.imagePreview.ix ===\
+    \ undefined) {\n        this.images.push(this.imagePreview)\n        this.imagePreview.ix\
+    \ = this.images.length -1\n      }\n      this.imagePreview = null\n    },\n \
+    \   async onExtractTextImage(image) {\n      function base64ToFile(base64Data,\
+    \ filename) {\n        const byteString = atob(base64Data.split(',')[1]);\n  \
+    \      const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];\n\
+    \        const byteArray = new Uint8Array(byteString.length);\n        for (let\
+    \ i = 0; i < byteString.length; i++) {\n          byteArray[i] = byteString.charCodeAt(i);\n\
+    \        }\n        const blob = new Blob([byteArray], { type: mimeString });\n\
+    \        return new File([blob], filename, { type: mimeString });\n      }\n\n\
+    \      const file = base64ToFile(image.src, \"image\")\n      const text = await\
+    \ API.tools.imageToText(file)\n      image.alt = text\n    },\n    async handleFileChange\
+    \ ({ target: { files }}) {\n      const allUrls = await Promise.all([...files].map(file\
+    \ => this.getFileImageUrl(file)))\n      console.log(\"handleFileChange\", allUrls)\n\
+    \      this.images = [\n        ...this.images, \n        ...allUrls.map((src,\
+    \ ix) => ({ src, alt: \"\", ix: this.images.length + 1 + ix }))]\n      this.selectFile\
+    \ = false\n    },\n    onGenerateCode(codeBlockInfo) {\n      this.$projects.generateCode({\
+    \ chat: this.chat, codeBlockInfo })\n    },\n    removeImage(ix) {\n      this.images\
+    \ = this.images.filter((i, imx) => imx !== ix)\n    },\n    onMessageChange ()\
+    \ {\n      this.editorText = this.$refs.editor.innerText.trim() || \"\"\n    },\n\
+    \    async testProject () {\n      throw new Error('Obsolte')\n      const { data\
+    \ } = await API.project.test()\n      this.testError = data\n      if (this.testError)\
+    \ {\n        this.editMessage = this.testError\n        this.setEditorText(this.editMessage)\n\
+    \      }\n    },\n    removeFileFromMessage(message, file) {\n      message.files\
+    \ = message.files.filter(f => f !== file)\n      this.saveChat()\n    },\n   \
+    \ toggleVoiceSession () {\n      if (this.isVoiceSession) {\n        return this.stopVoiceSession()\n\
+    \      }\n      let silents = 5\n      this.isVoiceSession = true;\n\n      const\
+    \ recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();\n\
+    \      recognition.lang = this.$ui.voiceLanguage;\n      recognition.interimResults\
+    \ = false;\n\n      recognition.onresult = (event) => {\n        const transcript\
+    \ = event.results[0][0].transcript;\n        this.$refs.editor.innerText += transcript\n\
+    \        this.onMessageChange()\n      };\n\n      recognition.onend = () => {\n\
+    \        if (this.isVoiceSession && silents--) {\n          recognition.start();\n\
+    \        } else {\n          this.stopVoiceSession()\n        }\n      };\n\n\
+    \      recognition.start();\n      this.recognition = recognition\n    },\n  \
+    \  stopVoiceSession() {\n      this.recognition?.stop()\n      this.recognition\
+    \ = null\n    },\n    scrollToBottom() {\n      setTimeout(() => this.$refs.anchor?.scrollIntoView(),\
+    \ 200)\n    }\n  }\n}\n</script>\n            "
+  created_at: '2025-03-13 09:14:03.157146'
+  disable_knowledge: false
+  doc_id: b91a4d2f-85f2-4d64-b1bf-e47b6a010940
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-13 09:14:03.157186'
+  user: null
+- content: "<script setup>\nimport { API } from '../../api/api'\nimport ChatEntry\
+    \ from '@/components/ChatEntry.vue'\nimport Browser from '@/components/browser/Browser.vue'\n\
+    import Markdown from '@/components/Markdown.vue'\nimport moment from 'moment'\n\
+    import TaskCard from '../kanban/TaskCard.vue'\n</script>\n<template>\n  <div class=\"\
+    flex flex-col gap-1 grow\">\n    <div class=\"grow relative\">\n      <div class=\"\
+    absolute top-0 left-0 right-0 bottom-0 scroller overflow-y-auto overflow-x-hidden\"\
+    \n        :class=\"isBrowser && 'flex gap-1'\"\n      >\n        <div class=\"\
+    w-3/4\" v-if=\"isBrowser\">\n          <Browser :token=\"$ui.monitors['shared']\"\
+    \ />\n        </div>\n        <div class=\"overflow-auto h-full\">\n         \
+    \ <div class=\"flex flex-col\" \n            v-for=\"message in messages\" :key=\"\
+    message.id\">\n            <ChatEntry :class=\"['mb-4 rounded-md bg-base-300 py-2',\n\
+    \              editMessage ? editMessage === message ? 'border border-warning'\
+    \ : 'opacity-40' : '',\n              message.hide ? 'opacity-60' : '']\"\n  \
+    \            :chat=\"chat\"\n              :message=\"message\"\n            \
+    \  @edit=\"onEditMessage(message)\"\n              @enhance=\"onEditMessage(message,\
+    \ true)\"\n              @remove=\"removeMessage(message)\"\n              @remove-file=\"\
+    removeFileFromMessage(message, $event)\"\n              @hide=\"toggleHide(message)\"\
+    \n              @run-edit=\"runEdit\"\n              @copy=\"onCopy(message)\"\
+    \n              @add-file-to-chat=\"$emit('add-file', $event)\"\n            \
+    \  @image=\"imagePreview = { ...$event, readonly: true }\"\n              @generate-code=\"\
+    onGenerateCode\"\n              v-if=\"!message.hide || showHidden\"\n       \
+    \     />\n          </div>\n          <div class=\"anchor\" ref=\"anchor\"></div>\n\
+    \          <div class=\"grid grid-cols-3 gap-2 mb-2 bg-base-100\" v-if=\"childrenChats?.length\"\
+    >\n            <TaskCard class=\"p-2 bg-base-300\" :task=\"child\" @click=\"$projects.setActiveChat(child)\"\
+    \n                      v-for=\"child in childrenChats\" :key=\"childrenChats.id\"\
+    \ />\n          </div>\n        </div>\n      </div>\n    </div>\n    <div class=\"\
+    chat chat-end\" v-if=\"false && isBrowser\">\n      <div class=\"chat-image avatar\"\
+    >\n        <div class=\"w-10 rounded-full\">\n          <img src=\"/only_icon.png\"\
+    \ alt=\"logo\" />\n        </div>\n      </div>\n      <div class=\"chat-bubble\"\
+    >\n        <Markdown class=\"max-h-40 overflow-auto\" :text=\"lastAIMessage.content\"\
+    \ v-if=\"lastAIMessage\" />\n        <div v-else>\n          <span class=\"font-bold\"\
+    >Let's navigate together:</span>\n          Use browser to navigate any web or\
+    \ try:\n          <span class=\"italic text-info\">Find top 5 results for ....</span>\n\
+    \        </div>\n      </div>\n    </div>\n    \n    <div class=\"dropdown dropdown-top\
+    \ dropdown-open mb-1\" v-if=\"showTermSearch\">\n      <div tabindex=\"0\" role=\"\
+    button\" class=\"rounded-md bg-base-300 w-fit p-2\">\n        <div class=\"flex\
+    \ p-1 items-center text-sky-600\">\n          <i class=\"fa-solid fa-at\"></i>\n\
+    \          <input type=\"text\" v-model=\"termSearchQuery\"\n            ref=\"\
+    termSearcher\"\n            class=\"-ml-1 input input-xs text-lg bg-transparent\"\
+    \ placeholder=\"search term...\"\n            @keydown.down.stop=\"onSelNext\"\
+    \n            @keydown.up.stop=\"onSelPrev\"\n            @keydown.enter.stop=\"\
+    addSerchTerm(searchTerms[searchTermSelIx])\"\n            @keydown.esc=\"closeTermSearch\"\
+    \n          />\n          <button class=\"btn btn-xs btn-circle btn-outline btn-error\"\
+    \n            @click=\"termSearchQuery = null\"            \n            v-if=\"\
+    termSearchQuery\">\n            <i class=\"fa-solid fa-circle-xmark\"></i>\n \
+    \         </button>\n        </div>\n      </div>\n      <ul tabindex=\"0\" class=\"\
+    dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit\" v-if=\"\
+    searchTerms\">\n        <li v-for=\"term, ix in searchTerms\" :key=\"term.key\"\
+    >\n          <a @click=\"addSerchTerm(term)\">\n            <div :class=\"[searchTermSelIx\
+    \ === ix ? 'underline':'']\">\n              <span class=\"text-sky-600 font-bold\"\
+    >@{{ term.key }}</span> <span class=\"text-xs\">({{ term.file.split('/').reverse()[0]\
+    \ }})</span>\n            </div>\n          </a>\n        </li>\n      </ul>\n\
+    \    </div>\n    <div :class=\"['flex bg-base-300 border rounded-md shadow indicator\
+    \ w-full', \n          multiline ? 'flex-col' : '',\n          editMessage &&\
+    \ 'border-warning',\n          onDraggingOverInput ? 'bg-warning/10': '']\"\n\
+    \        @dragover.prevent=\"onDraggingOverInput = true\"\n        @dragleave.prevent=\"\
+    onDraggingOverInput = false\"\n        @drop.prevent=\"onDrop\"\n    >\n     \
+    \ <div :class=\"['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']\"\
+    \n        :contenteditable=\"!waiting\"\n        ref=\"editor\" @input=\"onMessageChange\"\
+    \n        @paste=\"onContentPaste\"\n        @keydown.esc.stop=\"onResetEdit\"\
+    \n      >\n      </div>\n      <div class=\"flex justify-between items-end px-2\"\
+    >\n        <div class=\"carousel rounded-box\">\n          <div class=\"carousel-item\
+    \ relative click flex flex-col\" v-for=\"image, ix in allImages\" :key=\"image.src\"\
+    >\n            <div class=\"bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20\
+    \ lg:w-20 bg-base-300 mr-4\"\n              :style=\"`background-image: url(${image.src})`\"\
+    \ @click=\"imagePreview = image\">\n            </div>\n            <p class=\"\
+    text-xs\">{{ image.alt.slice(0, 10) }}</p>\n            <button class=\"btn btn-xs\
+    \ btn-circle btn-error absolute right-0 top-0\"\n              @click=\"removeImage(ix)\"\
+    \n            >\n              X\n            </button>\n          </div>\n  \
+    \      </div>\n        <span class=\"loading loading-dots loading-md btn btn-sm\"\
+    \ v-if=\"waiting\"></span>\n        <div class=\"flex gap-1 items-center justify-end\
+    \ py-2\" v-else>\n          <button class=\"btn btn btn-sm btn-info btn-outline\"\
+    \ @click=\"sendMessage\" v-if=\"editMessage\">\n            <i class=\"fa-solid\
+    \ fa-save\"></i>\n            <div class=\"text-xs\" v-if=\"editMessage\">Edit</div>\n\
+    \          </button>\n          <button class=\"btn btn btn-sm btn-outline tooltip\"\
+    \ data-tip=\"Save changes\" @click=\"onResetEdit\" \n            v-if=\"editMessage\"\
+    >\n            <i class=\"fa-regular fa-circle-xmark\"></i>\n          </button>\n\
+    \          <button class=\"btn btn btn-sm btn-circle btn-outline tooltip\"\n \
+    \           data-tip=\"Ask codx-junior\"\n            :class=\"isVoiceSession\
+    \ && 'btn-success animate-pulse'\"\n            @click=\"sendMessage\" \n    \
+    \        v-if=\"!editMessage\">\n            <i class=\"fa-solid fa-microphone-lines\"\
+    \ v-if=\"isVoiceSession\"></i>\n            <i :class=\"$projects.chatModes[chat.mode].icon\"\
+    \ v-else></i>\n          </button>\n          <button class=\"hidden btn btn btn-sm\
+    \ btn-circle btn-outline tooltip\"\n            :class=\"isBrowser && 'btn-warning'\"\
+    \n            data-tip=\"Ask codx-browser\" @click=\"isBrowser = !isBrowser\"\n\
+    \            v-if=\"!editMessage\">\n            <i class=\"fa-brands fa-chrome\"\
+    ></i>\n          </button>\n          <button class=\"btn btn btn-sm btn-outline\
+    \ tooltip btn-warning\" \n            data-tip=\"Make code changes\" @click=\"\
+    improveCode()\" v-if=\"!editMessage && chat.mode === 'chat'\">\n            <i\
+    \ class=\"fa-solid fa-code\"></i>\n          </button>\n          <div class=\"\
+    dropdown dropdown-top dropdown-end\">\n            <div tabindex=\"0\" role=\"\
+    button\" class=\"btn btn-sm m-1\">\n              <i class=\"fa-solid fa-ellipsis-vertical\"\
+    ></i>\n            </div>\n            <ul tabindex=\"0\" class=\"dropdown-content\
+    \ menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow gap-2\">\n              <li\
+    \ class=\"btn btn-sm tooltip\"\n                data-tip=\"Attach files\" \n \
+    \               @click=\"selectFile = true\">\n                <a>\n         \
+    \         <i class=\"fa-solid fa-paperclip\"></i> Attach files\n             \
+    \   </a>\n              </li>\n              <li class=\"btn btn-sm\" @click=\"\
+    testProject\" v-if=\"API.lastSettings.script_test\">\n                <a>\n  \
+    \                <i class=\"fa-solid fa-flask\"></i>\n                  Test\n\
+    \                </a>\n              </li>\n              <li class=\"btn btn-sm\
+    \ tooltip\"\n                :class=\"isBrowser && 'btn-success'\" \n        \
+    \        :data-tip=\"isBrowser ? 'Close browser' : 'Open browser'\" \n       \
+    \         @click=\"isBrowser = !isBrowser\" v-if=\"!editMessage\">\n         \
+    \       <a>\n                  <i class=\"fa-brands fa-chrome\"></i>\n       \
+    \           {{ isBrowser ? 'Close' : 'Open' }} Browser\n                </a>\n\
+    \              </li>\n              <li class=\"btn btn-sm tooltip\" \n      \
+    \          :class=\"isVoiceSession && 'btn-success'\" \n                :data-tip=\"\
+    $ui.voiceLanguages[$ui.voiceLanguage]\" \n                @click=\"toggleVoiceSession\"\
+    \ v-if=\"!editMessage\">\n                <a>\n                  <i class=\"fa-solid\
+    \ fa-microphone-lines\"></i>\n                  Voice mode\n                </a>\n\
+    \              </li>\n              <li class=\"btn btn-sm text-white btn-error\
+    \ tooltip\"\n                data-tip=\"Delete?\" \n                @click=\"\
+    $emit('delete')\">\n                <a>\n                  <i class=\"fa-solid\
+    \ fa-trash-can\"></i>\n                  Delete\n                </a>\n      \
+    \        </li>\n            </ul>\n          </div>\n        </div>\n      </div>\n\
+    \    </div>\n    <modal v-if=\"imagePreview\">\n      <div class=\"flex flex-col\
+    \ gap-2\">\n        <div class=\"text-2xl\">Upload image</div>\n        <div class=\"\
+    bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full\" :style=\"`background-image:\
+    \ url(${imagePreview.src})`\"></div>\n        <div>\n            Image alt: <span\
+    \ class=\"text-xs\" v-if=\"imagePreview.alt?.length\">{{ imagePreview.alt?.length\
+    \ }} chars.</span>\n        </div>\n        <pre class=\"alert alert-xs h-20 overflow-auto\"\
+    \ v-if=\"imagePreview.readonly\">{{ imagePreview.alt }}</pre>\n        <div class=\"\
+    textarea input-bordered\" v-else>\n          <textarea class=\"w-full bg-transparent\"\
+    \ v-model=\"imagePreview.alt\" placeholder=\"Image content\">\n          </textarea>\n\
+    \          <div class=\"flex justify-end\">\n            <button class=\"btn btn-sm\
+    \ bg-purple-600 text-white tooltip\"\n              data-tip=\"Extract text\"\n\
+    \              @click=\"onExtractTextImage(imagePreview)\">\n              <i\
+    \ class=\"fa-regular fa-closed-captioning\"></i>\n            </button>\n    \
+    \      </div>\n        </div>\n        <div class=\"flex justify-end gap-2\">\n\
+    \          <button class=\"btn\" @click=\"imagePreview = null\">\n           \
+    \ Cancel\n          </button>\n          <button class=\"btn btn-primary\" @click=\"\
+    onAddImage\">\n            Ok\n          </button>\n        </div>\n      </div>\n\
+    \    </modal>\n    <modal v-if=\"selectFile\">\n      <label class=\"file-select\"\
+    >\n      <div class=\"select-button\">\n        <span>Select File(s)</span>\n\
+    \      </div>\n      <input type=\"file\" accept=\"image/*\" multiple @change=\"\
+    handleFileChange\"/>\n      <button class=\"btn btn-sm btn-error\" @click=\"selectFile\
+    \ = false\">\n        Cancel\n      </button>\n    </label>\n    </modal>\n  </div>\n\
+    </template>\n<script>\nexport default {\n  props: ['chatId', 'showHidden', 'childrenChats'],\n\
+    \  data () {\n    return {\n      waiting: false,\n      editMessage: null,\n\
+    \      editMessageId: null,\n      termSearchQuery: null,\n      searchTerms:\
+    \ null,\n      searchTermSelIx: -1,\n      showTermSearch: false,\n      files:\
+    \ [],\n      images: [],\n      previewImage: null,\n      editorText: \"\",\n\
+    \      imagePreview: null,\n      onDraggingOverInput: false,\n      testError:\
+    \ null,\n      previewStyle: {\n        zoom: 0.6\n      },\n      selectFile:\
+    \ false,\n      isVoiceSession: false,\n      recognition: null,\n      isBrowser:\
+    \ false\n    }\n  },\n  computed: {\n    chat () {\n      return this.$projects.chats[this.chatId]\n\
+    \    },\n    visibleMessages() {\n      return this.chat?.messages?.filter(m =>\
+    \ !m.hide || this.showHidden) || []\n    },\n    lastAIMessage() {\n      const\
+    \ { messages } = this.chat\n      const aiMsgs = messages.filter(m => !m.hide\
+    \ && m.role === 'assistant')\n      if (aiMsgs.length) {\n        return { ...aiMsgs[aiMsgs.length\
+    \ - 1], diffMessage: this.diffMessage }\n      }\n      return null\n    },\n\
+    \    diffMessage () {\n      if (this.isTask) {\n        const { messages } =\
+    \ this.chat\n        const aiMsgs = messages.filter(m => m.role === 'assistant')\n\
+    \        if (aiMsgs.length > 1) {\n          return aiMsgs[aiMsgs.length - 2]\n\
+    \        }\n      }\n      return null\n    },\n    messages () {\n      if (!this.chat?.messages?.length)\
+    \ {\n        return []\n      }\n      const aiMsg = this.lastAIMessage\n    \
+    \  const lastMsg = this.chat.messages[this.chat.messages.length - 1]\n      const\
+    \ res = [] \n      if (aiMsg) {\n        res.push(aiMsg)\n      }\n      if (lastMsg\
+    \ && lastMsg?.role !== 'assistant') {\n        res.push(lastMsg)\n      }\n  \
+    \    return res.length ? res : this.chat.messages\n    },\n    multiline () {\n\
+    \      return this.editorText?.split(\"\\n\").length > 1 || this.images?.length\n\
+    \    },\n    allImages () {\n      return this.images\n    },\n    messageText\
+    \ () {\n      return this.editorText\n    },\n    canPost () {\n      return this.messageText\
+    \ || this.images?.length\n    },\n    isTask () {\n      return this.chat?.mode\
+    \ === 'task'\n    },\n    mentionList() {\n      return [\n        { name: \"\
+    user1\" },\n        { name: \"project\" }\n      ]\n    }\n  },\n  watch: {\n\
+    \    termSearchQuery (newVal) {\n      if (newVal?.length > 2) {\n        this.searchKeywords()\n\
+    \      } else {\n        this.searchTerms = null\n      }\n    }\n  },\n  methods:\
+    \ {\n    zoomIn() {\n      this.previewStyle.zoom += 0.1\n    },\n    zoomOut()\
+    \ {\n      this.previewStyle.zoom -= 0.1\n    },\n    setEditorText (text) {\n\
+    \      this.$refs.editor.innerText = text\n      this.onMessageChange()\n    },\n\
+    \    onEditMessage (message, enhance) {\n      if (this.editMessage === message)\
+    \ {\n        return this.onResetEdit()\n      }\n      console.log(\"onEditMessage\"\
+    , message)\n      this.editMessageId = this.chat.messages.findIndex(m => m.doc_id\
+    \ === message.doc_id)\n      this.editMessage = this.chat.messages[this.editMessageId]\n\
+    \      try {\n        this.images = message.images.map(JSON.parse)\n      } catch\
+    \ {}\n      this.setEditorText(this.editMessage.content)\n    },\n    toggleHide(message)\
+    \ {\n      message.hide = !message.hide \n      this.saveChat()\n    },\n    onCopy\
+    \ (message) {\n      navigator.permissions.query({name: \"clipboard-read\"}).then(result\
+    \ => {\n        if (result.state == \"granted\" || result.state == \"prompt\"\
+    ) {\n          navigator.clipboard.writeText(message.content)\n        }\n   \
+    \   })\n      .catch(console.error)\n    },\n    async improveCode () {\n    \
+    \  this.postMyMessage()\n      await this.$projects.codeImprove(this.chat)\n \
+    \     this.testProject()\n    },\n    runEdit (codeSnipped) {\n      this.sendApiRequest(\n\
+    \        () => API.run.edit({ id: \"\", messages: [{ role: 'user', content: codeSnipped\
+    \ }] }),\n        data => [\n          data.messages.reverse()[0].content,\n \
+    \         \"\\n\\n\",\n          ...data.errors.map(e => ` * ${e}\\n`)\n     \
+    \   ].join(\"\\n\")\n      )\n    },\n    addMessage (msg) {\n      this.chat.messages\
+    \ = [\n        ...this.chat.messages||[],\n        msg\n      ]\n    },\n    getUserMessage()\
+    \ {\n      const message = this.$refs.editor.innerText\n      return {\n     \
+    \   role: 'user',\n        content: message,\n        images: this.images.map(JSON.stringify)\n\
+    \      }\n    },\n    postMyMessage () {\n      if (this.canPost) {      \n  \
+    \      this.addMessage(this.getUserMessage())\n        this.cleanUserInputAndWaitAnswer()\n\
+    \      }\n    },\n    cleanUserInputAndWaitAnswer() {\n      this.setEditorText(\"\
+    \")\n      this.images = []\n      this.scrollToBottom()\n    },\n    async sendMessage\
+    \ () {\n      if (this.isVoiceSession && !this.canPost) {\n        return\n  \
+    \    }\n      if (this.editMessage !== null) {\n        this.updateMessage()\n\
+    \      } else {\n        this.postMyMessage()\n        await this.sendChatMessage(this.chat)\n\
+    \      }\n      this.saveChat()\n    },\n    async navigate () {\n      if (!this.editorText)\
+    \ {\n        if (this.isBrowser = !this.isBrowser) {\n          if (this.lastAIMessage)\
+    \ {\n            this.lastAIMessage.hide\n          }\n        }\n        return\n\
+    \      }\n      const message = this.getUserMessage()\n      const { data } =\
+    \ await this.sendChatMessage({ mode: 'browser', messages: [\n        ...this.chat.messages,\n\
+    \        message\n      ] })\n      this.chat.messages = data.messages\n     \
+    \ this.saveChat()\n      this.cleanUserInputAndWaitAnswer()\n    },\n    getSendMessage()\
+    \ {\n      return this.editMessage ||\n                this.chat.messages[this.chat.messages.length\
+    \ - 1].content\n    },\n    async askKnowledge () {\n      const searchTerm =\
+    \ this.$refs.editor.innerText \n      const knowledgeSearch = {\n        searchTerm,\n\
+    \        searchType: 'embeddings',\n        documentSearchType: API.lastSettings.knowledge_search_type,\n\
+    \        cutoffScore: API.lastSettings.knowledge_context_cutoff_relevance_score,\n\
+    \        documentCount: API.lastSettings.knowledge_search_document_count\n   \
+    \   }\n      const { data: { documents } } = await API.knowledge.search(knowledgeSearch)\n\
+    \      const docs = documents.map(doc => `#### File: ${doc.metadata.source.split(\"\
+    /\").reverse()[0]}\\n>${doc.metadata.source}\\n\\`\\`\\`${doc.metadata.language}\\\
+    n${doc.page_content}\\`\\`\\``) \n      this.$refs.editor.innerText = docs.join(\"\
+    \\n\")\n    },\n    async sendApiRequest (apiCall, formater = defFormater) {\n\
+    \      try {\n        this.waiting = true\n        await apiCall()\n        this.$emit('refresh-chat')\n\
+    \        this.scrollToBottom()\n      } catch (ex) {\n        this.addMessage({\n\
+    \          role: 'assistant',\n          content: ex.message\n        }) \n  \
+    \    }\n      this.waiting = false\n    },\n    async sendChatMessage(chat) {\n\
+    \      this.waiting = true\n      try {\n        return await this.$storex.projects.chatWihProject(chat)\n\
+    \      } finally {\n        this.waiting = false\n      }\n    },\n    async updateMessage\
+    \ () {\n      const { innerText } = this.$refs.editor\n      const images = this.images.map(JSON.stringify)\n\
+    \      this.editMessage.content = innerText\n      this.editMessage.images = images\n\
+    \      this.editMessage.updated_at = new Date().toISOString()\n      this.onResetEdit()\n\
+    \    },\n    onResetEdit() {\n      this.editMessage = null\n      this.setEditorText(\"\
+    \")\n      this.editMessageId = null\n      this.images = []\n    },\n    removeMessage(message)\
+    \ {\n      this.$emit(\"delete-message\", message)\n    },\n    async searchKeywords\
+    \ () {\n      const { data } = await API.knowledge.searchKeywords(this.termSearchQuery)\n\
+    \      this.searchTerms = Object.keys(data).map(k => data[k].reduce((acc, term)\
+    \ => {\n        acc.push({\n          key: term,\n          file: k\n        })\n\
+    \        return acc\n      }, []))\n      .reduce((a, b) => a.concat(b), [])\n\
+    \      this.searchTermSelIx = 0\n    },\n    addSerchTerm(term) {\n      let text\
+    \ = this.$refs.editor.innerText\n      if (text[text.length-1] === '@') {\n  \
+    \      text = text.slice(0, text.length-1)\n      }\n      text += `@${term.key}\
+    \ `\n      this.editMessage = text.trim()\n      this.setEditorText(this.editMessage)\n\
+    \      this.$emit('add-file', term.file)\n      this.closeTermSearch();\n    },\n\
+    \    closeTermSearch () {\n      this.searchTerms = null\n      this.termSearchQuery\
+    \ = null\n      this.showTermSearch = false\n      const target = this.$refs.editor\n\
+    \n      const range = document.createRange()\n      const sel = window.getSelection()\n\
+    \      range.selectNodeContents(target)\n      range.collapse(false)\n      sel.removeAllRanges()\n\
+    \      sel.addRange(range)\n      target.focus()\n      range.detach()\n    },\n\
+    \    onSelNext () {\n      this.searchTermSelIx++\n      if (this.searchTermSelIx\
+    \ === this.searchTerms?.length) {\n        this.searchTermSelIx = 0\n      }\n\
+    \    },\n    onSelPrev () {\n      this.searchTermSelIx--\n      if (this.searchTermSelIx\
+    \ === -1) {\n        this.searchTermSelIx = this.searchTerms?.length - 1\n   \
+    \   }\n    },\n    saveChat () {\n      return API.chats.save(this.chat)\n   \
+    \ },\n    onDrop(e) {\n      this.onDraggingOverInput = false\n      if (!e.dataTransfer.files)\
+    \ {\n        return\n      }\n      var file = [...e.dataTransfer.files].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]\n      if (file) {\n        this.onInputImage(file)\n\
+    \      }\n    },\n    async onContentPaste(e) {\n      if (!e.clipboardData?.items)\
+    \ {\n        return\n      }\n      var file = [...e.clipboardData?.items].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]?.getAsFile()\n      if (file) {\n  \
+    \      this.onInputImage(file)\n        e.preventDefault()\n        return false\n\
+    \      }\n    },\n    getFileImageUrl(file) {\n      return new Promise(ok =>\
+    \ {\n        const reader = new FileReader()\n        reader.onload = (event)\
+    \ => {\n          const base64URL = event.target.result\n          ok(base64URL)\n\
+    \        }\n        reader.readAsDataURL(file)\n      })\n    },\n    async onInputImage(file)\
+    \ {\n      const base64URL = await this.getFileImageUrl(file)\n      this.imagePreview\
+    \ = {\n        src: base64URL,\n        alt: \"\"\n      }\n    },\n    onAddImage\
+    \ () {\n      if (this.imagePreview.ix === undefined) {\n        this.images.push(this.imagePreview)\n\
+    \        this.imagePreview.ix = this.images.length -1\n      }\n      this.imagePreview\
+    \ = null\n    },\n    async onExtractTextImage(image) {\n      function base64ToFile(base64Data,\
+    \ filename) {\n        const byteString = atob(base64Data.split(',')[1])\n   \
+    \     const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0]\n\
+    \        const byteArray = new Uint8Array(byteString.length)\n        for (let\
+    \ i = 0; i < byteString.length; i++) {\n          byteArray[i] = byteString.charCodeAt(i)\n\
+    \        }\n        const blob = new Blob([byteArray], { type: mimeString })\n\
+    \        return new File([blob], filename, { type: mimeString })\n      }\n  \
+    \    const file = base64ToFile(image.src, \"image\")\n      const text = await\
+    \ API.tools.imageToText(file)\n      image.alt = text\n    },\n    async handleFileChange\
+    \ ({ target: { files }}) {\n      const allUrls = await Promise.all([...files].map(file\
+    \ => this.getFileImageUrl(file)))\n      console.log(\"handleFileChange\", allUrls)\n\
+    \      this.images = [\n        ...this.images, \n        ...allUrls.map((src,\
+    \ ix) => ({ src, alt: \"\", ix: this.images.length + 1 + ix }))]\n      this.selectFile\
+    \ = false\n    },\n    onGenerateCode(codeBlockInfo) {\n      this.$projects.generateCode({\
+    \ chat: this.chat, codeBlockInfo })\n    },\n    removeImage(ix) {\n      this.images\
+    \ = this.images.filter((i, imx) => imx !== ix)\n    },\n    onMessageChange ()\
+    \ {\n      this.editorText = this.$refs.editor.innerText.trim() || \"\"\n    },\n\
+    \    async testProject () {\n      throw new Error('Obsolte')\n      const { data\
+    \ } = await API.project.test()\n      this.testError = data\n      if (this.testError)\
+    \ {\n        this.editMessage = this.testError\n        this.setEditorText(this.editMessage)\n\
+    \      }\n    },\n    removeFileFromMessage(message, file) {\n      message.files\
+    \ = message.files.filter(f => f !== file)\n      this.saveChat()\n    },\n   \
+    \ toggleVoiceSession () {\n      if (this.isVoiceSession) {\n        return this.stopVoiceSession()\n\
+    \      }\n      let silents = 5\n      this.isVoiceSession = true\n      const\
+    \ recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)()\n\
+    \      recognition.lang = this.$ui.voiceLanguage\n      recognition.interimResults\
+    \ = false\n      recognition.onresult = (event) => {\n        const transcript\
+    \ = event.results[0][0].transcript\n        this.$refs.editor.innerText += transcript\n\
+    \        this.onMessageChange()\n      }\n      recognition.onend = () => {\n\
+    \        if (this.isVoiceSession && silents--) {\n          recognition.start()\n\
+    \        } else {\n          this.stopVoiceSession()\n        }\n      }\n   \
+    \   recognition.start()\n      this.recognition = recognition\n    },\n    stopVoiceSession()\
+    \ {\n      this.recognition?.stop()\n      this.recognition = null\n    },\n \
+    \   scrollToBottom() {\n      setTimeout(() => this.$refs.anchor?.scrollIntoView(),\
+    \ 200)\n    }\n  }\n}\n</script>\n"
+  created_at: '2025-03-13 09:14:03.157146'
+  disable_knowledge: false
+  doc_id: 2df35621-f2eb-4a59-9592-5a8e51eb1780
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.181652784347534
+    model: gpt-4o
+    time_taken: 114.93649053573608
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-13 09:14:03.157186'
+  user: null
+mode: chat
+name: changes-at-chat-chat-vue-2025-03-14-07-03-58-407251
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-03-14T07:05:53.352317'
+url: ''
+users: []
+visibility: ''

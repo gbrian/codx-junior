@@ -1,0 +1,137 @@
+board: Wiki manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Requirements
+column_id: ''
+created_at: '2025-09-06 13:28:58.498720'
+description: The conversation involves a Python script designed to update the home
+  page of a wiki based on modified markdown content. The script first loads the current
+  wiki settings, including language and user instructions. It then prepares a prompt
+  for AI to evaluate the relevance of the new content for the wiki's front page. If
+  deemed relevant, the AI updates the home page content to ensure it is coherent and
+  well-structured. The updated content is then saved, and the process is logged for
+  successful completion or errors.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py
+file_path: /shared/codx-junior/api/.codx/tasks/Wiki manager/Requirements/build-wiki-home.12bde209-5f75-4096-a454-868da745640f.yaml
+id: 12bde209-5f75-4096-a454-868da745640f
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Create method build_wiki_home.
+
+    Method will create/update the content of the "home" file.
+
+    Use user instructions and language.
+
+    Method will receive markdown content from a modified project file.
+
+    AI must decide if the content is relevant for the front page of the wiki and update
+    home page with the important information coming from the content.
+
+
+    Generate only the method'
+  created_at: '2025-09-06 13:28:58.495529'
+  disable_knowledge: true
+  doc_id: 020979c2-6d72-456f-b875-d1830daae4a3
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-06 13:28:58.495558'
+  user: admin
+- content: ''
+  created_at: '2025-09-06 13:28:58.495529'
+  disable_knowledge: true
+  doc_id: ab927146-189b-42e5-bfff-c73acd3f7729
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-06 13:28:58.495558'
+  user: admin
+- content: "```python /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py\ndef\
+    \ build_wiki_home(self, markdown_content: str) -> None:\n    \"\"\"\n    Build\
+    \ or update the content of the home page of the wiki based on provided markdown\
+    \ content.\n    The method will decide if the content is relevant for the front\
+    \ page and update accordingly.\n\n    Args:\n        markdown_content: The markdown\
+    \ content from a modified project file.\n    \"\"\"\n    # Load current wiki settings\n\
+    \    wiki_settings = self.load_wiki_settings()\n    user_language = wiki_settings.get(\"\
+    language\", \"English\")\n    user_instructions = wiki_settings.get(\"prompt\"\
+    , \"\")\n\n    # Prepare the prompt for AI to decide on the relevance of the content\n\
+    \    relevance_prompt = f\"\"\"\n    <markdown_content>\n    {markdown_content}\n\
+    \    </markdown_content>\n    <home_page_content>\n    {self._read_file(self.wiki_home_path)}\n\
+    \    </home_page_content>\n    <user_instructions>\n    {user_instructions}\n\
+    \    </user_instructions>\n    <user_language>\n    {user_language}\n    </user_language>\n\
+    \n    Analyze the provided markdown content and decide if it contains important\
+    \ information \n    that should be included in the front page of the wiki. If\
+    \ relevant, update the home page content \n    with this information. Ensure that\
+    \ content is coherent and well-structured.\n    Generated content must be in user_language:\
+    \ {user_language}\n    \"\"\"\n    \n    try:\n        messages = self._ai_chat(prompt=relevance_prompt)\n\
+    \        updated_home_content = messages[-1].content\n        \n        # Write\
+    \ the updated content to the home page file\n        write_file(self.wiki_home_path,\
+    \ updated_home_content)\n        logger.info(f\"Wiki home page successfully updated\
+    \ at {self.wiki_home_path}\")\n        \n    except Exception as e:\n        logger.exception(f\"\
+    Error updating wiki home page: {e}\")\n```\n"
+  created_at: '2025-09-06 13:28:58.495529'
+  disable_knowledge: false
+  doc_id: 2a33078d-4565-4a3b-8cb4-f241cb902ce6
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0001513957977294922
+    model: openai/gpt-4o
+    time_taken: 12.90778112411499
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-09-06 13:28:58.495558'
+  user: null
+mode: task
+name: build_wiki_home
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-06T13:37:08.298943'
+url: ''
+users:
+- admin
+visibility: ''

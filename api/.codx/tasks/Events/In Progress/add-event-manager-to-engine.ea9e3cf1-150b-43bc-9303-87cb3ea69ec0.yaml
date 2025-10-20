@@ -1,0 +1,563 @@
+board: Events
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Progress
+column_id: ''
+created_at: '2025-07-13 11:08:48.364361'
+description: The conversation involved the task of reorganizing Python code from a
+  given script into a `globals.py` file, ensuring only necessary imports and variables
+  remained. It covered steps for creating projects, managing project settings, and
+  handling project-related tasks using functions like `create_project`, `find_project_*`,
+  and `update_engine`. The discussion emphasized best practices in coding, such as
+  providing clear file paths in code blocks and maintaining the integrity of file
+  names without trimming.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/engine.py
+- /shared/codx-junior/api/codx/junior/events/event_manager.py
+file_path: /shared/codx-junior/api/.codx/tasks/Events/In Progress/add-event-manager-to-engine.ea9e3cf1-150b-43bc-9303-87cb3ea69ec0.yaml
+id: ea9e3cf1-150b-43bc-9303-87cb3ea69ec0
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: '@file://event_manager.py Add missing imports in EventManager. Extract
+    missing imports from egine file @file://engine.py'
+  created_at: '2025-07-13 11:10:57.832185'
+  disable_knowledge: true
+  doc_id: e94da6fe-dba6-4427-9e97-f024ed5ff380
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/engine.py
+  - /shared/codx-junior/api/codx/junior/engine.py
+  - /shared/codx-junior/api/codx/junior/events/event_manager.py
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-13 11:10:57.832215'
+  user: admin
+- content: 'Certainly! Based on the provided context from the `engine.py` file, here
+    are the missing imports for `event_manager.py`. I''ll include the necessary imports
+    and update the file accordingly.
+
+
+    ```python /shared/codx-junior/api/codx/junior/events/event_manager.py
+
+    from codx.junior.sio.session_channel import SessionChannel
+
+    from codx.junior.db import Chat, Message
+
+    ```
+
+
+    These imports are based on the usage of `SessionChannel`, `Chat`, and `Message`
+    classes in the EventManager.'
+  created_at: '2025-07-13 11:10:57.832185'
+  disable_knowledge: false
+  doc_id: 56f0a0fb-6f6b-4bd9-a73f-f822a97c0b68
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00028204917907714844
+    model: gpt-4o
+    time_taken: 12.457412004470825
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-07-13 11:10:57.832215'
+  user: null
+- content: "Change\_CODXJuniorSession\_channel by a event_manger instance.\n\n\nRemove\
+    \ these methods from CODXJuniorSession and replace all calls to these methods\
+    \ using self.event_manger like:\n`self.chat_event(...` will be `self.event_manager.chat_event(...`\n\
+    \n\nList of methods to replace:\n```python\n\_ \_ def event_data(self, data: dict):\n\
+    \_ \_ \_ \_ data['codx_path'] = self.settings.codx_path\n\_ \_ \_ \_ return data\n\
+    \n\n\_ \_ def send_notification(self, **kwargs):\n\_ \_ \_ \_ if not kwargs.get(\"\
+    type\"):\n\_ \_ \_ \_ \_ \_ kwargs[\"type\"] = \"notification\"\n\_ \_ \_ \_ self.get_channel().send_event('codx-junior',\
+    \ self.event_data(kwargs))\n\n\n\_ \_ def send_event(self, message: str):\n\_\
+    \ \_ \_ \_ self.get_channel().send_event('codx-junior', self.event_data({ 'text':\
+    \ message, \"type\": \"event\" }))\n\_ \_ \_ \_ # self.log_info(f\"Sending event\
+    \ {message}- SENT!\")\n\_ \_ def send_knowled_event(self, **kwargs):\n\_ \_ \_\
+    \ \_ self.get_channel().send_event('knowledge-event', self.event_data(kwargs))\n\
+    \n\n\_ \_ def chat_event(self, chat: Chat, message: str = None, event_type: str\
+    \ = None):\n\_ \_ \_ \_ self.get_channel().send_event('chat-event', self.event_data({\
+    \ 'chat': { 'id': chat.id }, 'text': message, 'type': event_type }))\n\_ \_ \_\
+    \ \_ # self.log_info(f\"SEND MESSAGE {message}- SENT!\")\n\n\n\_ \_ def message_event(self,\
+    \ chat: Chat, message: Message):\n\_ \_ \_ \_ self.get_channel().send_event('message-event',\
+    \ self.event_data({ 'chat': { 'id': chat.id }, 'message': message.model_dump()\
+    \ }))\n\_ \_ \_ \_ # self.log_info(f\"SEND MESSAGE {message.role} {message.doc_id}-\
+    \ SENT!\")\n```"
+  created_at: '2025-07-13 11:17:43.667291'
+  disable_knowledge: true
+  doc_id: b7ef9738-9cba-414e-b22f-b54864eb0bfe
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-13T11:18:14.051Z'
+  user: admin
+- content: "\")\n                is_thinking = len(message_parts) == 2\n         \
+    \       response_message.think = message_parts[0] if is_thinking else None\n \
+    \               response_message.content = message_parts[-1]\n               \
+    \ response_message.is_thinking = False\n                send_message_event(content=response_message.content,\
+    \ done=True)\n            except Exception as ex:\n                logger.exception(f\"\
+    Error chating with project: {ex} {chat.id}\")\n                response_message.content\
+    \ = f\"Ops, sorry! There was an error with latest request: {ex}\"\n\n        \
+    \    response_message.meta_data[\"time_taken\"] = time.time() - timing_info[\"\
+    start_time\"]\n            response_message.meta_data[\"first_chunk_time_taken\"\
+    ] = timing_info[\"first_response\"]\n            response_message.meta_data[\"\
+    model\"] = ai_settings.model\n            response_message.profiles = chat_profile_names\n\
+    \            \n            chat.messages.append(response_message)\n\n        \
+    \    # Chat description\n            try:\n                description_message\
+    \ = ai.chat(messages=messages.copy(),\n                                      \
+    \        prompt=\"Create a 5 lines summary of the conversation\")[-1]\n      \
+    \          chat.description = description_message.content\n            except\
+    \ Exception as ex:\n                logger.exception(f\"Error chating with project:\
+    \ {ex} {chat.id}\")\n                response_message.content = f\"Ops, sorry!\
+    \ There was an error with latest request: {ex}\"\n\n            if chat_mode ==\
+    \ 'task':\n                for message in chat.messages[:-1]:\n              \
+    \      message.hide = True\n\n            is_agent_done = AGENT_DONE_WORD in response_message.content\n\
+    \            if is_agent and not is_agent_done and iterations_left:\n        \
+    \      self.event_manager.chat_event(chat=chat, message=f\"Agent iteration {iteration\
+    \ + 1}\")\n              return self.chat_with_project(chat=chat,\n          \
+    \          disable_knowledge=disable_knowledge,\n                    callback=callback,\n\
+    \                    append_references=append_references,\n                  \
+    \  chat_mode=chat_mode,\n                    iteration=iteration + 1)\n      \
+    \      else:    \n              self.event_manager.chat_event(chat=chat, message=\"\
+    done\")\n            return chat, documents\n            \n    def check_project(self):\n\
+    \        try:\n            self.log_info(f\"check_project\")\n            loader\
+    \ = KnowledgeLoader(settings=self.settings)\n            loader.fix_repo()\n \
+    \       except Exception as ex:\n            logger.exception(str(ex))\n\n   \
+    \ def extract_tags(self, doc):\n        knowledge = Knowledge(settings=self.settings)\n\
+    \        knowledge.extract_doc_keywords(doc)\n        return doc\n\n    def get_keywords(self,\
+    \ query):\n        return KnowledgeKeywords(settings=self.settings).get_keywords(query)\n\
+    \n    def get_wiki_file(self, file_path:str):\n        project_wiki_path = self.settings.get_project_wiki_path()\n\
+    \        if project_wiki_path:\n            if project_wiki_path[-1] != '/' and\
+    \ file_path[0] != '/':\n                file_path = f\"/{file_path}\"\n      \
+    \      wiki_file = f\"{project_wiki_path}{file_path}\"\n            try:\n   \
+    \           logger.info(f\"Reading wiki file: {wiki_file}\")\n              with\
+    \ open(wiki_file, 'r', encoding='utf-8', errors='ignore') as f:\n            \
+    \      return f.read()\n            except:\n                pass\n        return\
+    \ f\"> {wiki_file} not found\"\n\n    def get_readme(self):\n        project_path\
+    \ = self.settings.project_path\n        readme_file = f\"{project_path}/README.md\"\
+    \n        if os.path.isfile(readme_file):\n          with open(readme_file, 'r',\
+    \ encoding='utf-8', errors='ignore') as f:\n              return f.read()\n  \
+    \      return \"\"\n\n\n    async def process_wiki_changes(self):\n        knowledge\
+    \ = Knowledge(settings=self.settings)\n        # pending_files, last_update =\
+    \ knowledge.detect_changes(last_update=)\n        \n      \n    async def update_wiki(self,\
+    \ file_path: str):\n        project_wiki_path = self.settings.get_project_wiki_path()\n\
+    \        if not self.settings.project_wiki or file_path.startswith(project_wiki_path):\n\
+    \            return\n\n        project_wiki_home = f\"{project_wiki_path}/home.md\"\
+    \n\n        home_content = f\"# {self.settings.project_name}\"\n        if os.path.isfile(project_wiki_home):\n\
+    \            with open(project_wiki_home, 'r', encoding='utf-8', errors='ignore')\
+    \ as f:\n                home_content = f.read()\n        else:\n            with\
+    \ open(project_wiki_home, 'w', encoding='utf-8', errors='ignore') as f:\n    \
+    \            f.write(home_content)\n\n        with open(file_path, 'r', encoding='utf-8',\
+    \ errors='ignore') as f:\n            file_content = f.read()\n            self.log_info(f\"\
+    update_wiki file_path: {file_path}, project_wiki: {project_wiki_path}\")\n   \
+    \         chat = Chat(profiles=[\"wiki\"], \n                        messages=[\n\
+    \                            Message(role=\"user\", content=f\"\"\"Extract important\
+    \ parts from the content of {file_path} to be added to the wiki.\n           \
+    \                 {file_content}\n                            \"\"\")\n      \
+    \      ])\n            await self.chat_with_project(chat=chat)\n            chat.messages.append(Message(role=\"\
+    user\", content=f\"\"\"\n            Improve our current wiki with the new knowledge\
+    \ extracted from {file_path},\n            Highlight important parts and create\
+    \ mermaid diagrams to help user's understanding of the project.\n            If\
+    \ information is not relevant for the whole project but for the file itself remove\
+    \ from home and create a new linked wiki page instead.\n            \n       \
+    \     Wiki directory structure:\n            ```md\n            {generate_markdown_tree(Path(project_wiki_path).glob(\"\
+    **\"))}\n            ```\n\n            Wiki home content:\n            ```{project_wiki_home}\n\
+    \            {home_content}\n            ```\n            \"\"\"))\n         \
+    \   code_generator = await self.improve_existing_code(chat=chat, apply_changes=False)\n\
+    \            self.log_info(f\"update_wiki file_path: {file_path}, changes: {code_generator}\"\
+    )\n            if code_generator:\n                wiki_changes = [change for\
+    \ change in code_generator.code_changes if project_wiki_path in change.file_path]\n\
+    \                self.log_info(f\"update_wiki file_path: {file_path}, wiki changes:\
+    \ {wiki_changes}\")\n                if wiki_changes:\n                    await\
+    \ self.apply_improve_code_changes(code_generator=AICodeGerator(code_changes=wiki_changes))\n\
+    \n    def update_project_profile(self, file_path: str):\n        return  # deprecated\n\
+    \n    def get_project_metrics(self):\n        chat_manager = ChatManager(settings=self.settings)\n\
+    \n        number_of_chats = chat_manager.chat_count()\n        chat_changed_last\
+    \ = chat_manager.last_chats()\n        \n        status = self.check_knowledge_status()\n\
+    \        \n        return {\n            \"number_of_chats\": number_of_chats,\n\
+    \            \"chats_changed_last\": chat_changed_last,\n            **status\n\
+    \        }\n\n    def api_image_to_text(self, image_bytes):\n        from PIL\
+    \ import Image\n        import pytesseract\n        import io\n\n        image\
+    \ = Image.open(io.BytesIO(image_bytes))\n        text = pytesseract.image_to_string(image)\n\
+    \        \n        return text\n    \n    def parse_file_line(self, file, base_path):\n\
+    \        file_path = os.path.join(base_path, file)\n        if not file_path.startswith(self.settings.project_path):\n\
+    \            file_path = f\"{self.settings.project_path}/{file_path}\"\n     \
+    \   is_dir = os.path.isdir(file_path)\n        return {\n          \"name\": file.split(\"\
+    /\")[-1],\n          \"file_path\": file_path,\n          \"is_dir\": is_dir,\n\
+    \          \"children\": [] if is_dir else None\n        }\n    \n    def read_directory(self,\
+    \ path: str):\n        base_path = path\n        files = os.listdir(base_path)\n\
+    \        return {\n          \"path\": path,\n          \"full_path\": base_path,\n\
+    \          \"files\": [self.parse_file_line(file, base_path) for file in sorted(files)]\n\
+    \        }\n\n    def read_file(self, path: str):\n        with open(path, 'r',\
+    \ encoding='utf-8', errors='ignore') as f:\n            return f.read()\n    \
+    \  \n    @profile_function\n    async def process_project_file_before_saving(self,\
+    \ file_path: str, content: str):\n        file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)\n\
+    \        self.log_info(f\"Applying file profiles {[p.name for p in file_profiles]}\
+    \ to {file_path}\")\n        if file_profiles:\n            for profile in file_profiles:\n\
+    \                content = await self.apply_file_profile(file_path=file_path,\
+    \ content=content, profile=profile)\n        return content\n    \n    async def\
+    \ apply_file_profile(self, file_path: str, content: str, profile: Profile):\n\
+    \        file_profile_prompt = f\"\"\"\n        You are given a section of code\
+    \ that requires improvement by applying best practices. Your task is to refactor\
+    \ the code while ensuring that it adheres to the specified best practices. Please\
+    \ follow the instructions below:\n\n        ### File Content:\n        ```\n \
+    \       {content}\n        ```\n\n        ### Instructions:\n        ```\n   \
+    \     {profile.content}\n        ```\n        Return the final content without\
+    \ any kind of decoration or extra comments. \n        Avoid surronding your response\
+    \ with fences (```), just return the final content.\n        \"\"\"\n\n      \
+    \  content_message = Message(role=\"user\", content=file_profile_prompt)\n\n \
+    \       chat = Chat(name=f\"Improve file with profile {profile.name}\", messages=[content_message])\n\
+    \        await self.chat_with_project(chat=chat, disable_knowledge=True)\n   \
+    \     return chat.messages[-1].content\n\n    async def write_project_file(self,\
+    \ file_path: str, content: str):\n        os.makedirs(os.path.dirname(file_path),\
+    \ exist_ok=True)\n        content = await self.process_project_file_before_saving(file_path=file_path,\
+    \ content=content)\n        write_file(file_path=file_path, content=content)\n\
+    \n    def search_files(self, search: str):\n        all_sources = [s for s in\
+    \ self.get_knowledge().get_all_sources().keys() if search in s]\n        base_path\
+    \ = self.settings.project_path\n        return [self.parse_file_line(file, base_path)\
+    \ for file in sorted(all_sources)]\n\n    def run_app(self, app_name: str):\n\
+    \        command = APPS_COMMANDS[app_name]\n        exec_command(command)\n\n\
+    \    def get_project_apps(self):\n        return APPS\n\n    def get_project_branches(self):\n\
+    \        stdout, _ = exec_command(\"git branch\",\n            cwd=self.settings.project_path)\n\
+    \        branches = [s.strip() for s in stdout.split(\"\\n\") if s.strip()]\n\
+    \        current_branch = [b for b in branches if b.startswith('* ')]\n      \
+    \  if current_branch:\n            current_branch = current_branch[0].replace('*\
+    \ ', '')\n        else:\n            current_branch = \"\"\n\n        branches\
+    \ = [b.replace('* ', '') for b in branches]\n\n        branch_details = self.get_branch_details(current_branch)\n\
+    \        parent_branch = branch_details[\"parent_branch\"]\n\n        git_diff\
+    \ = \"\"\n        if current_branch and parent_branch:\n            head_ix =\
+    \ len(branch_details[\"commits\"]) - 1\n            stdout, _ = exec_command(f\"\
+    git diff HEAD~{head_ix}\",\n              cwd=self.settings.project_path)\n  \
+    \          git_diff = stdout\n\n\n        return {\n          \"branches\": branches,\n\
+    \          \"current_branch\": current_branch.strip(),\n          \"parent_branch\"\
+    : parent_branch,\n          \"git_diff\": git_diff,\n          \"branch_details\"\
+    : branch_details\n        }\n\n    def get_branch_details(self, branch_name: str):\n\
+    \        \"\"\"\n        Extracts commit details from a specified branch without\
+    \ checking it out.\n\n        Args:\n            branch_name (str): The name of\
+    \ the branch to extract commits from.\n\n        Returns:\n            list: A\
+    \ list of dictionaries containing commit information.\n        \"\"\"\n      \
+    \  # Command to get commit details from the specified branch\n        log_command\
+    \ = f\"git log -g --format=%H|%an|%cI|%s {branch_name}\"\n        stdout, _ =\
+    \ exec_command(log_command, cwd=self.settings.project_path)\n\n        log_lines\
+    \ = stdout.split('\\n')\n\n        commits = []\n        for entry in log_lines:\n\
+    \            if entry.strip():\n                commit_hash, author, date, message\
+    \ = entry.split('|', 3)\n\n                # Command to get files changed in each\
+    \ commit\n                file_changes_command = \\\n                    f'git\
+    \ show --name-only --pretty=format:{commit_hash}'\n                stdout, _ =\
+    \ exec_command(file_changes_command, cwd=self.settings.project_path)\n       \
+    \         file_changes = stdout.strip().split('\\n')\n                commits.append({\n\
+    \                    'entry_line': entry,\n                    'commit_hash':\
+    \ commit_hash,\n                    'author': author,\n                    'date':\
+    \ date,\n                    'message': message,\n                    'files':\
+    \ [file for file in file_changes if file][1:]\n                })\n\n        return\
+    \ {\n          \"commits\": commits,\n          \"parent_branch\": commits[-1][\"\
+    commit_hash\"]\n        }\n\n    def get_project_current_branch(self):\n     \
+    \   stdout, _ = exec_command(\"git branch --show-current\")\n        return stdout\n\
+    \n    def get_project_parent_branch(self):\n        current_branch = self.get_project_current_branch()\n\
+    \        stdout, _ = exec_command(f\"git reflog {current_branch}\",\n        \
+    \                      cwd=self.settings.project_path)\n        self.log_info(f\"\
+    get_project_parent_branch reflog: {stdout} cwd: {self.settings.project_path}\"\
+    )\n        creation_line = [l for l in stdout.split(\"\\n\") if \"Created from\"\
+    \ in l][0]\n        # 808a14a v1.0-hello-codx-junior@{53}: branch: Created from\
+    \ refs/remotes/origin/v1.0-hello-codx-junior\n        if \"refs/remotes/\" in\
+    \ creation_line:\n            ref_branch = creation_line.split(\" \")[-1].remove(\"\
+    refs/remotes/\", \"\")\n            # origin/v1.0-hello-codx-junior\n        \
+    \    return ref_branch\n\n        # 5f3e0bdd (origin/main, origin/task-two) tsk-task-1@{4}:\
+    \ branch: Created from 5f3e0bddbc466967f1a2eedc731eec980978b184\n        ref_branch\
+    \  = creation_line.split(\" (\")[1].split(\",\")[0]\n        return ref_branch\n\
+    \n    def get_project_changes(self, parent_branch: str = None):\n        if not\
+    \ parent_branch:\n            #parent_branch = self.get_project_parent_branch()\n\
+    \            parent_branch = parent_branch or \"HEAD@{1}\"\n            self.log_info(f\"\
+    get_project_changes parent_branch {parent_branch}\")\n        stdout, _ = exec_command(f\"\
+    git diff {parent_branch}\",\n                      cwd=self.settings.project_path)\n\
+    \        return stdout\n\n    def build_code_changes_summary(self, force = False):\n\
+    \        project_branches = self.get_project_branches()\n        diff = project_branches[\"\
+    git_diff\"]\n        return self.get_knowledge().build_code_changes_summary(diff=diff,\
+    \ force=force)\n\n```\n"
+  created_at: '2025-07-13 11:17:43.667291'
+  disable_knowledge: false
+  doc_id: 164764b5-205c-4f52-aa25-0eaf5a33a924
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002655982971191406
+    model: gpt-4o
+    time_taken: 159.80600953102112
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-07-13 11:17:43.667395'
+  user: null
+- content: "Create a globals.py file from this piece of code remove all unedded imports\
+    \ and variables:\n\n\n```python\n\nimport os\nimport logging\nimport re\nimport\
+    \ json\nimport time\nimport subprocess\nimport shutil\nimport asyncio\nimport\
+    \ uuid\nimport requests\n\n\nimport anyio\n\n\nfrom datetime import datetime\n\
+    from pathlib import Path\nfrom threading import Thread\n\n\nfrom slugify import\
+    \ slugify\n\n\nfrom contextlib import contextmanager\n\n\nfrom langchain.schema.document\
+    \ import Document\nfrom langchain.schema import (\n\_ \_ AIMessage,\n\_ \_ HumanMessage,\n\
+    \_ \_ BaseMessage,\n\_ \_ SystemMessage\n)\n\n\nfrom codx.junior.utils import\
+    \ (\n\_ \_ document_to_context,\n\_ \_ extract_code_blocks,\n\_ \_ extract_json_blocks,\n\
+    \_ \_ exec_command,\n\_ \_ write_file\n)\n\n\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\n\n\nfrom codx.junior.ai import AI\nfrom codx.junior.settings\
+    \ import (\n\_ \_ CODXJuniorSettings,\n\_ \_ read_global_settings\n)\n\n\nfrom\
+    \ codx.junior.chat_manager import ChatManager\nfrom codx.junior.profiles.profile_manager\
+    \ import ProfileManager\n\n\nfrom codx.junior.model.model import (\n\_ \_ KnowledgeSearch,\n\
+    \_ \_ Document,\n\_ \_ Content,\n\_ \_ ImageUrl,\n\_ \_ LiveEdit,\n\_ \_ GlobalSettings,\n\
+    \_ \_ Profile,\n\_ \_ CodxUser\n)\nfrom codx.junior.context import (\n\_ \_ find_relevant_documents,\n\
+    \_ \_ AI_CODE_VALIDATE_RESPONSE_PARSER,\n\_ \_ generate_markdown_tree,\n\_ \_\
+    \ AI_CODE_GENERATOR_PARSER,\n\_ \_ AICodeGerator,\n\_ \_ AICodePatch\n)\n\n\n\
+    from codx.junior.knowledge.knowledge_milvus import Knowledge\nfrom codx.junior.knowledge.knowledge_loader\
+    \ import KnowledgeLoader\nfrom codx.junior.knowledge.knowledge_keywords import\
+    \ KnowledgeKeywords\n\n\nfrom codx.junior.mentions.mention_manager import MentionManager\n\
+    from codx.junior.events.event_manager import EventManager\n\n\nfrom codx.junior.db\
+    \ import (\n\_ \_ Kanban,\n\_ \_ Chat,\n\_ \_ Message,\n\_ \_ MessageTaskItem\n\
+    )\n\n\nfrom codx.junior.sio.session_channel import SessionChannel\nfrom codx.junior.security.user_management\
+    \ import UserSecurityManager\n\n\n\n\n\"\"\"Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS\
+    \ won't be processed\"\"\"\nMAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS =\
+    \ 60 * 60\n\n\nCODX_JUNIOR_API_BACKGROUND = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\"\
+    )\n\n\nlogger = logging.getLogger(__name__)\n\n\nAPPS = [\n\_ \_ {\n\_ \_ \_ \_\
+    \ \"name\": \"chrome\",\n\_ \_ \_ \_ \"icon\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Google_Chrome_icon_%28February_2022%29.svg/768px-Google_Chrome_icon_%28February_2022%29.svg.png\"\
+    ,\n\_ \_ \_ \_ \"description\": \"Google chrome engine\",\n\_ \_ }\n]\n\n\nAPPS_COMMANDS\
+    \ = {\n\_ \_ \"chrome\": \"google-chrome --no-sandbox --no-default-browser-check\"\
+    \n}\n\n\nAGENT_DONE_WORD = \"$$@@AGENT_DONE@@$$$\"\n\n\ndef create_project(project_path:\
+    \ str, user: CodxUser):\n\_ \_ logger.info(f\"Create new project {project_path}\"\
+    )\n\_ \_ global_settings = read_global_settings()\n\_ \_ projects_root_path =\
+    \ global_settings.projects_root_path or f\"{os.environ['HOME']}/projects\"\n\_\
+    \ \_ os.makedirs(projects_root_path, exist_ok=True)\n\n\n\_ \_ repo_url = None\_\
+    \n\_ \_ if project_path.startswith(\"http\"):\n\_ \_ \_ \_ repo_url = project_path\n\
+    \_ \_ \_ \_ repo_name = repo_url.split(\"/\")[-1].split(\".\")[0]\n\_ \_ \_ \_\
+    \ project_path = f\"{projects_root_path}/{repo_name}\"\n\_ \_ \_ \_ command =\
+    \ f\"git clone --depth=1 {repo_url} {project_path}\"\n\_ \_ \_ \_ logger.info(f\"\
+    Cloning repo {repo_url} {repo_name} {project_path}\")\n\_ \_ \_ \_ exec_command(command=command)\n\
+    \_ \_\_\n\_ \_ existing_project = find_project_by_project_path(project_path=project_path)\n\
+    \_ \_ if existing_project:\n\_ \_ \_ \_ logger.info(f\"Project already esists\
+    \ {repo_url} {repo_name} {project_path}\")\n\_ \_ \_ \_ return existing_project\n\
+    \n\n\_ \_ settings = CODXJuniorSettings()\n\_ \_ settings.project_name = project_path.split(\"\
+    /\")[-1]\n\_ \_ settings.codx_path = f\"{project_path}/.codx\"\n\_ \_ settings.watching\
+    \ = True\n\_ \_ settings.repo_url = repo_url\n\_ \_ settings.save_project()\n\_\
+    \ \_ _, stderr = exec_command(\"git branch\")\n\_ \_ if stderr:\n\_ \_ \_ \_ exec_command(\"\
+    git init\", cwd=project_path)\n\_ \_ new_project = CODXJuniorSettings.from_project_file(f\"\
+    {project_path}/.codx/project.json\")\n\_ \_ if user:\n\_ \_ \_ UserSecurityManager().add_user_to_project(project_id=new_project.project_id,\
+    \ user=user, permissions='admin')\n\_ \_ return new_project\n\n\ndef coder_open_file(settings:\
+    \ CODXJuniorSettings,\_ file_name: str):\n\_ \_ logger.info(f\"coder_open_file\
+    \ {file_name}\")\n\_ \_ os.system(f\"code-server -r {file_name}\")\n\n\n\n\ndef\
+    \ find_project_from_file_path(file_path: str):\n\_ \_ \"\"\"Given a file path,\
+    \ find the project parent\"\"\"\n\_ \_ all_projects = find_all_projects().values()\n\
+    \_ \_ matches = [p for p in all_projects if file_path.startswith(p.project_path)]\n\
+    \_ \_ if matches:\n\_ \_ \_ \_ logger.info(f\"Find projects for file {file_path}:\
+    \ {[m.project_name for m in matches]}\")\n\_ \_ \_ \_ return sorted(matches, key=lambda\
+    \ p: len(p.project_path))[-1]\n\_ \_ return None\n\_\_\ndef find_project_by_id(project_id:\
+    \ str):\n\_ \_ \"\"\"Given a project id, find the project\"\"\"\n\_ \_ all_projects\
+    \ = find_all_projects().values()\n\_ \_ matches = [p for p in all_projects if\
+    \ p.project_id == project_id]\n\_ \_ return matches[0] if matches else None\n\n\
+    \ndef find_project_by_project_path(project_path: str):\n\_ \_ \"\"\"Given a project\
+    \ id, find the project\"\"\"\n\_ \_ all_projects = find_all_projects().values()\n\
+    \_ \_ matches = [p for p in all_projects if p.project_path == project_path]\n\_\
+    \ \_ return matches[0] if matches else None\n\n\ndef find_project_by_name(project_name:\
+    \ str):\n\_ \_ \"\"\"Given a project project_name, find the project\"\"\"\n\_\
+    \ \_ all_projects = find_all_projects().values()\n\_ \_ matches = [p for p in\
+    \ all_projects if p.project_name == project_name]\n\_ \_ return matches[0] if\
+    \ matches else None\n\n\ndef find_all_user_projects(user: CodxUser, with_metrics:bool\
+    \ = False):\n\_ \_ user_security_manager = UserSecurityManager()\n\_ \_ for settings\
+    \ in find_all_projects(with_metrics=with_metrics).values():\n\_ \_ \_ \_ permissions\
+    \ = user_security_manager.get_user_project_access(user=user, settings=settings)\n\
+    \_ \_ \_ \_ if permissions:\n\_ \_ \_ \_ \_ \_ yield {\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ **settings.__dict__,\n\_ \_ \_ \_ \_ \_ \_ \_ \"permissions\": permissions\n\
+    \_ \_ \_ \_ \_ \_ }\n\n\ndef find_all_projects(with_metrics: bool = False):\n\_\
+    \ \_ all_projects = {}\n\_ \_ project_path = \"/\"\n\_ \_ result = subprocess.run(\"\
+    find / -name .codx\".split(\" \"), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)\n\
+    \_ \_ all_codx_path = result.stdout.decode('utf-8').split(\"\\n\")\n\_ \_ paths\
+    \ = [p for p in all_codx_path if os.path.isfile(f\"{p}/project.json\")]\n\_ \_\
+    \ #logger.info(f\"[find_all_projects] paths: {paths}\")\n\_ \_ def is_valid_project(settings):\n\
+    \_ \_ \_ \_ if not settings or not settings.project_name:\n\_ \_ \_ \_ \_ \_ return\
+    \ False\n\_ \_ \_ \_ if [p for p in all_projects.values() if p.project_name ==\
+    \ settings.project_name]:\n\_ \_ \_ \_ \_ \_ return False\n\_ \_ \_ \_ return\
+    \ True\n\n\n\_ \_ for codx_path in paths:\n\_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_\
+    \ project_file_path = f\"{codx_path}/project.json\"\n\_ \_ \_ \_ \_ \_ settings\
+    \ = CODXJuniorSettings.from_project_file(project_file_path)\n\_ \_ \_ \_ \_ \_\
+    \ if is_valid_project(settings):\_\n\_ \_ \_ \_ \_ \_ \_ \_ all_projects[settings.project_id]\
+    \ = settings\n\_ \_ \_ \_ \_ \_ else:\n\_ \_ \_ \_ \_ \_ \_ \_ # logger.error(f\"\
+    Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}\"\
+    )\n\_ \_ \_ \_ \_ \_ \_ \_ pass\_\n\_ \_ \_ \_ except Exception as ex:\n\_ \_\
+    \ \_ \_ \_ \_ logger.exception(f\"Error loading project {str(codx_path)} : {ex}\"\
+    )\n\_ \_\_\n\_ \_ def update_projects_with_details():\n\_ \_ \_ \_ for project\
+    \ in all_projects.values():\n\_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ project.__dict__[\"\
+    _metrics\"] = CODXJuniorSession(settings=project).get_project_metrics()\n\_ \_\
+    \ \_ \_ \_ \_ except Exception as ex:\n\_ \_ \_ \_ \_ \_ \_ \_ project.__dict__[\"\
+    _error\"] = str(ex)\n\_ \_ \_ \_ return all_projects\n\_ \_ return update_projects_with_details()\
+    \ if with_metrics else all_projects\n\n\ndef update_engine():\n\_ \_ try:\n\_\
+    \ \_ \_ \_ command = [\"git\", \"pull\"]\n\_ \_ \_ \_ subprocess.run(command)\n\
+    \_ \_ except Exception as ex:\n\_ \_ \_ \_ logger.exception(ex)\n\_ \_ \_ \_ return\
+    \ ex\n\n\n```"
+  created_at: '2025-07-13 11:29:00.338906'
+  disable_knowledge: true
+  doc_id: 744e3518-219d-454a-b639-e0eecf396e4c
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-13 11:29:00.338938'
+  user: admin
+- content: "```python /shared/codx-junior/api/codx/junior/globals.py\nimport os\n\
+    import subprocess\nimport logging\n\nfrom codx.junior.settings import read_global_settings\n\
+    from codx.junior.utils import exec_command\nfrom codx.junior.security.user_management\
+    \ import UserSecurityManager\nfrom codx.junior.model.model import CodxUser\nfrom\
+    \ codx.junior.db import Chat\n\n\"\"\"Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS\
+    \ won't be processed\"\"\"\nMAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS =\
+    \ 60 * 60\n\nCODX_JUNIOR_API_BACKGROUND = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\"\
+    )\n\nlogger = logging.getLogger(__name__)\n\nAPPS = [\n    {\n        \"name\"\
+    : \"chrome\",\n        \"icon\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Google_Chrome_icon_%28February_2022%29.svg/768px-Google_Chrome_icon_%28February_2022%29.svg.png\"\
+    ,\n        \"description\": \"Google chrome engine\",\n    }\n]\n\nAPPS_COMMANDS\
+    \ = {\n    \"chrome\": \"google-chrome --no-sandbox --no-default-browser-check\"\
+    \n}\n\nAGENT_DONE_WORD = \"$$@@AGENT_DONE@@$$$\"\n\ndef create_project(project_path:\
+    \ str, user: CodxUser):\n    logger.info(f\"Create new project {project_path}\"\
+    )\n    global_settings = read_global_settings()\n    projects_root_path = global_settings.projects_root_path\
+    \ or f\"{os.environ['HOME']}/projects\"\n    os.makedirs(projects_root_path, exist_ok=True)\n\
+    \n    repo_url = None \n    if project_path.startswith(\"http\"):\n        repo_url\
+    \ = project_path\n        repo_name = repo_url.split(\"/\")[-1].split(\".\")[0]\n\
+    \        project_path = f\"{projects_root_path}/{repo_name}\"\n        command\
+    \ = f\"git clone --depth=1 {repo_url} {project_path}\"\n        logger.info(f\"\
+    Cloning repo {repo_url} {repo_name} {project_path}\")\n        exec_command(command=command)\n\
+    \    \n    existing_project = find_project_by_project_path(project_path=project_path)\n\
+    \    if existing_project:\n        logger.info(f\"Project already exists {repo_url}\
+    \ {repo_name} {project_path}\")\n        return existing_project\n\n    settings\
+    \ = CODXJuniorSettings()\n    settings.project_name = project_path.split(\"/\"\
+    )[-1]\n    settings.codx_path = f\"{project_path}/.codx\"\n    settings.watching\
+    \ = True\n    settings.repo_url = repo_url\n    settings.save_project()\n    _,\
+    \ stderr = exec_command(\"git branch\")\n    if stderr:\n        exec_command(\"\
+    git init\", cwd=project_path)\n    new_project = CODXJuniorSettings.from_project_file(f\"\
+    {project_path}/.codx/project.json\")\n    if user:\n        UserSecurityManager().add_user_to_project(project_id=new_project.project_id,\
+    \ user=user, permissions='admin')\n    return new_project\n\n\ndef coder_open_file(settings:\
+    \ CODXJuniorSettings, file_name: str):\n    logger.info(f\"coder_open_file {file_name}\"\
+    )\n    os.system(f\"code-server -r {file_name}\")\n\n\ndef find_project_from_file_path(file_path:\
+    \ str):\n    \"\"\"Given a file path, find the project parent\"\"\"\n    all_projects\
+    \ = find_all_projects().values()\n    matches = [p for p in all_projects if file_path.startswith(p.project_path)]\n\
+    \    if matches:\n        logger.info(f\"Find projects for file {file_path}: {[m.project_name\
+    \ for m in matches]}\")\n        return sorted(matches, key=lambda p: len(p.project_path))[-1]\n\
+    \    return None\n  \ndef find_project_by_id(project_id: str):\n    \"\"\"Given\
+    \ a project id, find the project\"\"\"\n    all_projects = find_all_projects().values()\n\
+    \    matches = [p for p in all_projects if p.project_id == project_id]\n    return\
+    \ matches[0] if matches else None\n\ndef find_project_by_project_path(project_path:\
+    \ str):\n    \"\"\"Given a project id, find the project\"\"\"\n    all_projects\
+    \ = find_all_projects().values()\n    matches = [p for p in all_projects if p.project_path\
+    \ == project_path]\n    return matches[0] if matches else None\n\ndef find_project_by_name(project_name:\
+    \ str):\n    \"\"\"Given a project project_name, find the project\"\"\"\n    all_projects\
+    \ = find_all_projects().values()\n    matches = [p for p in all_projects if p.project_name\
+    \ == project_name]\n    return matches[0] if matches else None\n\ndef find_all_user_projects(user:\
+    \ CodxUser, with_metrics: bool = False):\n    user_security_manager = UserSecurityManager()\n\
+    \    for settings in find_all_projects(with_metrics=with_metrics).values():\n\
+    \        permissions = user_security_manager.get_user_project_access(user=user,\
+    \ settings=settings)\n        if permissions:\n            yield {\n         \
+    \       **settings.__dict__,\n                \"permissions\": permissions\n \
+    \           }\n\ndef find_all_projects(with_metrics: bool = False):\n    all_projects\
+    \ = {}\n    project_path = \"/\"\n    result = subprocess.run(\"find / -name .codx\"\
+    .split(\" \"), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)\n\
+    \    all_codx_path = result.stdout.decode('utf-8').split(\"\\n\")\n    paths =\
+    \ [p for p in all_codx_path if os.path.isfile(f\"{p}/project.json\")]\n    #logger.info(f\"\
+    [find_all_projects] paths: {paths}\")\n    def is_valid_project(settings):\n \
+    \       if not settings or not settings.project_name:\n            return False\n\
+    \        if [p for p in all_projects.values() if p.project_name == settings.project_name]:\n\
+    \            return False\n        return True\n\n    for codx_path in paths:\n\
+    \        try:\n            project_file_path = f\"{codx_path}/project.json\"\n\
+    \            settings = CODXJuniorSettings.from_project_file(project_file_path)\n\
+    \            if is_valid_project(settings): \n                all_projects[settings.project_id]\
+    \ = settings\n            else:\n                # logger.error(f\"Error duplicate\
+    \ project at: {settings.project_path} at {project_exists[0].project_path}\")\n\
+    \                pass \n        except Exception as ex:\n            logger.exception(f\"\
+    Error loading project {str(codx_path)} : {ex}\")\n    \n    def update_projects_with_details():\n\
+    \        for project in all_projects.values():\n            try:\n           \
+    \     project.__dict__[\"_metrics\"] = CODXJuniorSession(settings=project).get_project_metrics()\n\
+    \            except Exception as ex:\n                project.__dict__[\"_error\"\
+    ] = str(ex)\n        return all_projects\n    return update_projects_with_details()\
+    \ if with_metrics else all_projects\n\ndef update_engine():\n    try:\n      \
+    \  command = [\"git\", \"pull\"]\n        subprocess.run(command)\n    except\
+    \ Exception as ex:\n        logger.exception(ex)\n        return ex\n```\n"
+  created_at: '2025-07-13 11:29:43.241473'
+  disable_knowledge: false
+  doc_id: e8bafa7a-7691-44d1-aa52-c891f9431838
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00014591217041015625
+    model: gpt-4o
+    time_taken: 21.154210567474365
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-07-13 11:29:43.241500'
+  user: null
+mode: chat
+name: Add event manager to engine
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-07-13T11:30:15.278437'
+url: ''
+users:
+- admin
+visibility: ''

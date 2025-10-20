@@ -1,0 +1,192 @@
+board: codx-agents
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-03-27 06:40:17.379081'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/codx-agents/Backlog/agno-agi-agents.bc9052f8-28ba-4daa-a8b6-331191f1d9ec.yaml
+id: bc9052f8-28ba-4daa-a8b6-331191f1d9ec
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'https://github.com/agno-agi/agno
+
+
+
+
+    '
+  created_at: '2025-03-27 06:40:17.376358'
+  disable_knowledge: false
+  doc_id: b9046e35-9477-4c85-989f-0bf070991e8b
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-27 06:40:17.376397'
+  user: null
+- content: "To refine the document according to the request and comments, we'll follow\
+    \ the provided structure. Here's a refined version of the task document:\n\n```md\n\
+    **Objective:**\n- The main goal is to create and refine the document for agno-agi\
+    \ agents, ensuring that all tasks are clearly defined and meet the requirements\
+    \ of the users' inputs.\n\n**Requirements:**\n- Incorporate feedback and comments\
+    \ from the provided GitHub link: https://github.com/agno-agi/agno.\n- Follow the\
+    \ specified template structure.\n- Ensure tasks guide development with clarity\
+    \ in terms of requirements, examples, and objectives.\n\n**Examples:**\n- Example\
+    \ tasks that have utilized this format successfully in previous projects.\n- Dummy\
+    \ tasks structured using the following template for illustration purposes:\n \
+    \ - **Objective:** Implement a new feature in agno-agi.\n  - **Requirements:**\
+    \ The feature must integrate with existing APIs and pass security checks.\n  -\
+    \ **Acceptance Criteria:** Tests show no less than 95% effectiveness.\n\n**Acceptance\
+    \ Criteria:**\n- [ ] Each task must clearly state its objective.\n- [ ] All necessary\
+    \ requirements or conditions should be listed.\n- [ ] Provide examples where applicable\
+    \ to clarify the task.\n- [ ] Define successful completion criteria.\n  \n**Additional\
+    \ Notes:**\n- The analyst is responsible for ensuring that the task definitions\
+    \ guide development effectively.\n- Regular updates based on user feedback are\
+    \ necessary for improvement.\n- Utilize feedback from the GitHub repository to\
+    \ continuously enhance the document's accuracy and relevance.\n```\n\nIn this\
+    \ refined document, tasks are structured to be actionable, measurable, and aligned\
+    \ with user feedback. The checklist in the Acceptance Criteria section allows\
+    \ users to validate each point for transparency and accountability."
+  created_at: '2025-03-27 06:40:17.376358'
+  disable_knowledge: false
+  doc_id: 5d970ca6-1fe8-4859-9cf1-f0a4e729e97e
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.8231050968170166
+    model: gpt-4o
+    time_taken: 5.822692632675171
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: ''
+  updated_at: '2025-03-27 06:40:17.376397'
+  user: null
+- content: "This is an example\n\n\nfrom agno.agent import Agent\nfrom agno.models.openai\
+    \ import OpenAIChat\nfrom agno.tools.duckduckgo import DuckDuckGoTools\nfrom agno.tools.yfinance\
+    \ import YFinanceTools\nfrom agno.team import Team\n\n\nweb_agent = Agent(\n\_\
+    \ \_ name=\"Web Agent\",\n\_ \_ role=\"Search the web for information\",\n\_ \_\
+    \ model=OpenAIChat(id=\"gpt-4o\"),\n\_ \_ tools=[DuckDuckGoTools()],\n\_ \_ instructions=\"\
+    Always include sources\",\n\_ \_ show_tool_calls=True,\n\_ \_ markdown=True,\n\
+    )\n\n\nfinance_agent = Agent(\n\_ \_ name=\"Finance Agent\",\n\_ \_ role=\"Get\
+    \ financial data\",\n\_ \_ model=OpenAIChat(id=\"gpt-4o\"),\n\_ \_ tools=[YFinanceTools(stock_price=True,\
+    \ analyst_recommendations=True, company_info=True)],\n\_ \_ instructions=\"Use\
+    \ tables to display data\",\n\_ \_ show_tool_calls=True,\n\_ \_ markdown=True,\n\
+    )\n\n\nagent_team = Agent(\n\_ \_ mode=\"coordinate\",\n\_ \_ members=[web_agent,\
+    \ finance_agent],\n\_ \_ model=OpenAIChat(id=\"gpt-4o\"),\n\_ \_ success_criteria=\"\
+    A comprehensive financial news report with clear sections and data-driven insights.\"\
+    ,\n\_ \_ instructions=[\"Always include sources\", \"Use tables to display data\"\
+    ],\n\_ \_ show_tool_calls=True,\n\_ \_ markdown=True,\n)\n\n\nagent_team.print_response(\"\
+    What's the market outlook and financial performance of AI semiconductor companies?\"\
+    , stream=True)"
+  created_at: '2025-03-27 06:40:17.376358'
+  disable_knowledge: false
+  doc_id: 670e400d-ae44-4748-bf33-4564a2c77268
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-27 06:40:17.376397'
+  user: null
+- content: "To refine the document according to the user comments, we will incorporate\
+    \ the example provided and ensure all tasks align with the structured template,\
+    \ focusing on clarity, example inclusion, and precise objective setting. Below\
+    \ is the refined version based on your input:\n\n```md\n**Objective:**\n- Develop\
+    \ and enhance agents within the agno-agi framework to effectively meet user-defined\
+    \ goals.\n\n**Requirements:**\n- Integrate specific agent functionalities, such\
+    \ as web information retrieval and financial data analysis, using components like\
+    \ DuckDuckGoTools and YFinanceTools.\n- Ensure each agent is created with clear\
+    \ roles and integrated using the OpenAIChat model (gpt-4o).\n\n**Examples:**\n\
+    - Example of setting up agents:\n  ```python\n  from agno.agent import Agent\n\
+    \  from agno.models.openai import OpenAIChat\n  from agno.tools.duckduckgo import\
+    \ DuckDuckGoTools\n  from agno.tools.yfinance import YFinanceTools\n\n  web_agent\
+    \ = Agent(\n      name=\"Web Agent\",\n      role=\"Search the web for information\"\
+    ,\n      model=OpenAIChat(id=\"gpt-4o\"),\n      tools=[DuckDuckGoTools()],\n\
+    \      instructions=\"Always include sources\",\n      show_tool_calls=True,\n\
+    \      markdown=True,\n  )\n\n  finance_agent = Agent(\n      name=\"Finance Agent\"\
+    ,\n      role=\"Get financial data\",\n      model=OpenAIChat(id=\"gpt-4o\"),\n\
+    \      tools=[YFinanceTools(stock_price=True, analyst_recommendations=True, company_info=True)],\n\
+    \      instructions=\"Use tables to display data\",\n      show_tool_calls=True,\n\
+    \      markdown=True,\n  )\n  ```\n\n**Acceptance Criteria:**\n- [ ] Successfully\
+    \ implement agents according to the examples provided.\n- [ ] Validate that agents\
+    \ are capable of fulfilling their roles with clear outputs.\n- [ ] Agents must\
+    \ incorporate source citations and use tables where applicable.\n\n**Additional\
+    \ Notes:**\n- Coordinate the agents using the `AgentTeam` structure for tasks\
+    \ requiring combined functionalities.\n- Regular updates should reflect user feedback\
+    \ for continuous improvement of agent functionalities.\n- Success criteria involve\
+    \ producing comprehensive and data-driven reports based on agent outputs.\n```\n\
+    \nThis document now aligns with establishing well-defined agent roles, using the\
+    \ OpenAIChat model, and providing templates and examples to facilitate understanding.\
+    \ The structure ensures tasks are actionable and measureable, incorporating user\
+    \ feedback effectively."
+  created_at: '2025-03-27 06:40:17.376358'
+  disable_knowledge: false
+  doc_id: a3d111ce-fae3-4310-992a-087d3d07611c
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.195192575454712
+    model: gpt-4o
+    time_taken: 6.711660385131836
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: ''
+  updated_at: '2025-03-27 06:40:17.376397'
+  user: null
+mode: task
+name: Agno-agi agents
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- analyst
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-03-27T08:23:48.341694'
+url: ''
+users: []
+visibility: ''

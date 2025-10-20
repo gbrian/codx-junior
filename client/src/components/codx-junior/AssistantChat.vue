@@ -2,6 +2,7 @@
 import moment from 'moment'
 import ChatEntry from '../ChatEntry.vue';
 import UserSelector from '../chat/UserSelector.vue'
+import ProjectDetailt from '../ProjectDetailt.vue';
 </script>
 <template>
   <div class="p-4 flex gap-2 justify-center w-full bg-base-300 flex flex-col">
@@ -10,7 +11,9 @@ import UserSelector from '../chat/UserSelector.vue'
         :mini="true"
         :selectedUser="selectedUser"
         @user-changed="selectedUser = $event"
+        v-if="selectedUser"
       />
+      <ProjectDetailt :iconify="true" :project="project" @select="project = $event" v-if="false" />
       <input type="text" class="grow" v-model="query" placeholder="How can I help you?"
         @keydown.enter="sendMessage" />
       <div class="dropdown dropdown-end">
@@ -65,12 +68,14 @@ export default {
       query: '',
       chatId: null,
       tout: null,
-      selectedUser: null
+      selectedUser: null,
+      project: this.$project,
+      projectContext: null
     }
   },
   created() {
     this.selectedUser = this.$projects
-    .profiles?.find(p => p.name === this.profileName) || this.$user
+    .profiles?.find(p => p.name === this.profileName)
   },
   computed: {
     chat() {
@@ -90,8 +95,15 @@ export default {
         [this.chat.messages[this.chat.messages.length-1]] : []
     },
   },
-  watch: {},
+  watch: {
+    project() {
+      this.loadProjectContext()
+    }
+  },
   methods: {
+    loadProjectContext() {
+      this.projectContext = this.$service.project.loadProjectContext(this.project)
+    },
     async newChat(query) {
       const column = moment().format("YYYY-MM-DD")
       const name = `${query.replace(/[^a-zA-Z0-9 ]/g, '-').slice(0, 20)} - ${moment().format("hhmmss")}` 
@@ -119,12 +131,8 @@ export default {
         }
         this.chat.messages.push(msg)  
       }
-      const profiles = this.selectedUser.name ? [this.selectedUser.name] : []
       let content = this.query
       this.query = ""
-      if (!profiles.length) {
-        content += ` @${this.$project.project_name}`
-      }
       const msg = {
         role: 'user',
         content,

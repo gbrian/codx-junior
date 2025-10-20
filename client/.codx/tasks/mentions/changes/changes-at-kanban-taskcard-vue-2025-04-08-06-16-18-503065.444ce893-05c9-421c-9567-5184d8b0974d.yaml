@@ -1,0 +1,435 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-04-07 11:39:13.891614'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-kanban-taskcard-vue-2025-04-08-06-16-18-503065.444ce893-05c9-421c-9567-5184d8b0974d.yaml
+id: 444ce893-05c9-421c-9567-5184d8b0974d
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      ```\n                      <script setup>\nimport\
+    \ moment from 'moment'\nimport ChatIcon from '../chat/ChatIcon.vue'\nimport ProfileSelector\
+    \ from '@/components/profile/ProfileSelector.vue'\n</script>\n<template>\n  <div\
+    \ :class=\"['p-2 shadow-lg rounded-lg flex flex-col gap-2', parentChat ? 'bg-base-100'\
+    \ : 'bg-base-300']\">\n    <div v-if=\"image\" :style=\"`background-image: url(${image.src})`\"\
+    \ class=\"bg-contain bg-no-repeat bg-center h-28 bg-base-300\"></div>\n    <div\
+    \ class=\"flex flex-col gap-2\">\n      <div>\n        <div v-if=\"parentChat\"\
+    \ class=\"text-xs text-primary/40 hover:text-primary text-nowrap overflow-hidden\"\
+    \ @click.stop=\"$projects.setActiveChat(parentChat)\">\n          {{ parentChat.name\
+    \ }}\n        </div>\n        <div class=\"flex justify-between\">\n         \
+    \ <div class=\"font-semibold tracking-wide text-sm flex gap-2\">\n           \
+    \ <div class=\"rounded-full\">\n              <ChatIcon :mode=\"task.mode\" />\n\
+    \            </div>\n            <div class=\"overflow-hidden\">{{ task.name }}</div>\n\
+    \          </div>\n          <div class=\"flex gap-2 items-center\">\n       \
+    \     <div :class=\"`badge badge-outline badge-${badgeColor[task.mode]}`\">{{\
+    \ task.mode }}</div>\n          </div>\n        </div>\n      </div>\n      <div\
+    \ class=\"flex justify-between items-center\">\n        <span :class=\"['text-xs',\
+    \ isToday ? 'font-bold' : 'text-gray-600']\">{{ formattedDate }}</span>\n    \
+    \    <div class=\"flex gap-1 justify-end\">\n          <div v-for=\"tag in task.tags\"\
+    \ :key=\"tag\" class=\"font-bold text-xs text-info flex gap-2\">\n           \
+    \ #{{ tag }}\n          </div>\n          <span class=\"text-xs tooltip\"\n  \
+    \          :data-tip=\"`${task.file_list?.length} files`\"\n            v-if=\"\
+    task.file_list?.length\">\n            <i class=\"fa-solid fa-paperclip\"></i>\n\
+    \          </span>\n        </div>\n      </div>\n      <div class=\"flex justify-between\
+    \ items-center\">\n        <div class=\"flex justify-end\">\n          <button\
+    \ class=\"btn btn-circle btn-sm\" @click.stop=\"openSettingsModal\">\n       \
+    \     <i class=\"fas fa-cog\"></i>\n          </button>\n        </div>\n    \
+    \    <div class=\"flex justify-between items-center badge badge-warning\" v-if=\"\
+    subTasks.length\">\n          <div class=\"text-xs font-bold tooltip tooltip-left\"\
+    \ :data-tip=\"`${subTasks.length} sub tasks`\">\n            {{ subTasks.length\
+    \ }}\n            <i class=\"fa-regular fa-file-lines\"></i>\n          </div>\n\
+    \          <div v-if=\"chatProject\" class=\"badge badge-sm badge-warning\">\n\
+    \            {{ chatProject.project_name }}\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n    <modal v-if=\"isSettingsModalOpen\" @click.stop>\n\
+    \      <h3 class=\"font-bold text-lg\">Task Settings</h3>\n      <div class=\"\
+    py-4\">\n        <label class=\"block\">\n          <span>Task Name</span>\n \
+    \         <input type=\"text\" class=\"input input-bordered w-full\" v-model=\"\
+    taskData.name\">\n        </label>\n        <label class=\"block mt-4\">\n   \
+    \       <span>Board</span>\n          <input type=\"text\" class=\"input input-bordered\
+    \ w-full\" v-model=\"taskData.board\">\n        </label>\n        <label class=\"\
+    block mt-4\">\n          <span>Column</span>\n          <input type=\"text\" class=\"\
+    input input-bordered w-full\" v-model=\"taskData.column\">\n        </label>\n\
+    \        <label class=\"block mt-4\">\n          <span>Profiles</span>\n     \
+    \     <div class=\"flex gap-2\">\n            @codx-ok, please-wait...: --knowledge\
+    \ use ProfileSelector to add profiles\n            <button class=\"btn btn-success\
+    \ btn-sm\" @click=\"addProfile\">Add Profile</button>\n          </div>\n    \
+    \    </label>\n      </div>\n      <div class=\"modal-action\">\n        <button\
+    \ class=\"btn btn-ghost\" @click=\"discardChanges\">Discard</button>\n       \
+    \ <button class=\"btn btn-primary\" @click=\"saveChanges\">Save</button>\n   \
+    \   </div>\n      <div tabindex=\"0\" class=\"collapse\">\n        <input type=\"\
+    checkbox\" />\n        <div class=\"collapse-title font-semibold text-error\"\
+    >Delete</div>\n        <div class=\"collapse-content text-sm\">\n          <button\
+    \ class=\"mt-2 btn btn-error btn-wide\" @click.stop=\"deleteTask\">Confirm delete</button>\n\
+    \        </div>\n      </div>\n    </modal>\n    <progress class=\"progress w-full\"\
+    \ v-if=\"updating\"></progress>\n  </div>\n</template>\n<script>\nexport default\
+    \ {\n  props: ['task'],\n  data() {\n    return {\n      isSettingsModalOpen:\
+    \ false,\n      taskData: {\n        name: this.task.name,\n        board: '',\n\
+    \        column: '',\n        profiles: []\n      },\n      badgeColor: {\n  \
+    \      task: \"primary\",\n        chat: \"accent\"\n      }\n    }\n  },\n  computed:\
+    \ {\n    image() {\n      let image = this.task.messages?.find(m => m.images.length)?.images[0]\n\
+    \      return image ? JSON.parse(image) : null\n    },\n    isToday() {\n    \
+    \  const updatedAt = this.task.updated_at\n      return moment(0, \"HH\").diff(updatedAt,\
+    \ \"days\") === 0\n    },\n    formattedDate() {\n      const updatedAt = this.task.updated_at\n\
+    \      return this.isToday ? moment(updatedAt).format('HH:mm:ss') : moment(updatedAt).format('YYYY-MM-DD\
+    \ hh:mm:ss')\n    },\n    subTasks() {\n      return this.$storex.projects.allChats.filter(c\
+    \ => c.parent_id === this.task.id)\n        .sort((a, b) => (a.updated_at || a.created_at)\
+    \ > (b.updated_at || b.created_at) ? -1 : 1)\n    },\n    chatProject() {\n  \
+    \    return this.$projects.allProjects.find(p => p.project_id === this.task.project_id\
+    \ && p.project_id !== this.$project.project_id)\n    },\n    parentChat() {\n\
+    \      return this.$projects.chats[this.task.parent_id]\n    },\n    updating()\
+    \ {\n      const { messages } = this.task\n      if (!messages?.length) {\n  \
+    \      return false\n      }\n      return moment().diff(\n          moment(messages[messages.length\
+    \ - 1].updated_at)\n        , 'seconds') < 10\n    }\n  },\n  methods: {\n   \
+    \ openSettingsModal() {\n      this.isSettingsModalOpen = true\n    },\n    closeSettingsModal()\
+    \ {\n      this.isSettingsModalOpen = false\n    },\n    discardChanges() {\n\
+    \      this.closeSettingsModal()\n    },\n    saveChanges() {\n      console.log('Task\
+    \ Saved:', this.taskData)\n      this.closeSettingsModal()\n    },\n    deleteTask()\
+    \ {\n      this.closeSettingsModal()\n      this.$projects.deleteChat(this.task)\n\
+    \    },\n    addProfile() {\n      const profile = { id: Date.now(), name: 'New\
+    \ Profile' }\n      this.taskData.profiles.push(profile)\n      console.log('Added\
+    \ profile:', profile)\n    }\n  }\n}\n</script>\n                      ```\n \
+    \                     \n                      User commented in line 73: use ProfileSelector\
+    \ to add profiles\n                      "
+  created_at: '2025-04-07 11:39:13.890199'
+  disable_knowledge: false
+  doc_id: d8091bff-9d38-4158-bed3-55671a458302
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-07 11:39:13.890229'
+  user: null
+- content: "To apply the requested change and use the `ProfileSelector` component\
+    \ to add profiles, here's how you can modify the file:\n\n1. Make sure the `ProfileSelector`\
+    \ component is imported at the top. This is already done in your file:\n   ```javascript\n\
+    \   import ProfileSelector from '@/components/profile/ProfileSelector.vue'\n \
+    \  ```\n\n2. Implement the `ProfileSelector` component in the template to allow\
+    \ users to select profiles for the task.\n\nHere's how you can modify the relevant\
+    \ part of the template to include the `ProfileSelector` component in the modal\
+    \ for task settings:\n\n```html\n<template>\n  <!-- Existing content -->\n  \n\
+    \  <modal v-if=\"isSettingsModalOpen\" @click.stop>\n    <h3 class=\"font-bold\
+    \ text-lg\">Task Settings</h3>\n    <div class=\"py-4\">\n      <label class=\"\
+    block\">\n        <span>Task Name</span>\n        <input type=\"text\" class=\"\
+    input input-bordered w-full\" v-model=\"taskData.name\">\n      </label>\n   \
+    \   <label class=\"block mt-4\">\n        <span>Board</span>\n        <input type=\"\
+    text\" class=\"input input-bordered w-full\" v-model=\"taskData.board\">\n   \
+    \   </label>\n      <label class=\"block mt-4\">\n        <span>Column</span>\n\
+    \        <input type=\"text\" class=\"input input-bordered w-full\" v-model=\"\
+    taskData.column\">\n      </label>\n      <label class=\"block mt-4\">\n     \
+    \   <span>Profiles</span>\n        <ProfileSelector v-model=\"taskData.profiles\"\
+    \ />\n      </label>\n    </div>\n    <div class=\"modal-action\">\n      <button\
+    \ class=\"btn btn-ghost\" @click=\"discardChanges\">Discard</button>\n      <button\
+    \ class=\"btn btn-primary\" @click=\"saveChanges\">Save</button>\n    </div>\n\
+    \    <div tabindex=\"0\" class=\"collapse\">\n      <input type=\"checkbox\" />\n\
+    \      <div class=\"collapse-title font-semibold text-error\">Delete</div>\n \
+    \     <div class=\"collapse-content text-sm\">\n        <button class=\"mt-2 btn\
+    \ btn-error btn-wide\" @click.stop=\"deleteTask\">Confirm delete</button>\n  \
+    \    </div>\n    </div>\n  </modal>\n\n  <!-- Existing content -->\n</template>\n\
+    ```\n\n### What Changed?\n- Removed the `Add Profile` button, and appended the\
+    \ `ProfileSelector` with two-way data binding to `taskData.profiles`.\n\nEnsure\
+    \ that your `ProfileSelector` component is properly set up to work with `v-model`\
+    \ to update the `taskData.profiles`. Since the directive `v-model` works with\
+    \ the `modelValue` prop and emits an `update:modelValue` event by convention,\
+    \ ensure your `ProfileSelector` implements these features.\n\n### Anything Else\
+    \ to Consider?\n- Based on your `ProfileSelector` implementation, you might need\
+    \ to update or listen to specific events it emits.\n- Ensure that `taskData.profiles`\
+    \ is an array, as it will store selected profiles.\n\nThis setup will allow selecting\
+    \ profiles directly using the `ProfileSelector`, which should be reflected in\
+    \ the task's settings modal."
+  created_at: '2025-04-07 11:39:13.890199'
+  disable_knowledge: false
+  doc_id: a56c8d0a-6e17-45ed-81b6-a9d990b30d50
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 18.716914415359497
+    model: gpt-4o
+    time_taken: 24.678071975708008
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-07 11:39:13.890229'
+  user: null
+- content: "Best practices for this file:\n                  Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\n# Vue vuejs coding best\
+    \ pratices\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Use TailwindCSS classes for styling, always consider\
+    \ mobile styles\n* Vue component definition will be exporting a default object\
+    \ like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\n* Don't use <style> elements, use TailWindCSS classes\n\
+    \                  "
+  created_at: '2025-04-07 11:39:13.890199'
+  disable_knowledge: false
+  doc_id: 384b5efa-be81-4138-92ba-d0d6e86470e6
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-07 11:39:13.890229'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content:\n              <script setup>\nimport moment\
+    \ from 'moment'\nimport ChatIcon from '../chat/ChatIcon.vue'\nimport ProfileSelector\
+    \ from '@/components/profile/ProfileSelector.vue'\n</script>\n<template>\n  <div\
+    \ :class=\"['p-2 shadow-lg rounded-lg flex flex-col gap-2', parentChat ? 'bg-base-100'\
+    \ : 'bg-base-300']\">\n    <div v-if=\"image\" :style=\"`background-image: url(${image.src})`\"\
+    \ class=\"bg-contain bg-no-repeat bg-center h-28 bg-base-300\"></div>\n    <div\
+    \ class=\"flex flex-col gap-2\">\n      <div>\n        <div v-if=\"parentChat\"\
+    \ class=\"text-xs text-primary/40 hover:text-primary text-nowrap overflow-hidden\"\
+    \ @click.stop=\"$projects.setActiveChat(parentChat)\">\n          {{ parentChat.name\
+    \ }}\n        </div>\n        <div class=\"flex justify-between\">\n         \
+    \ <div class=\"font-semibold tracking-wide text-sm flex gap-2\">\n           \
+    \ <div class=\"rounded-full\">\n              <ChatIcon :mode=\"task.mode\" />\n\
+    \            </div>\n            <div class=\"overflow-hidden\">{{ task.name }}</div>\n\
+    \          </div>\n          <div class=\"flex gap-2 items-center\">\n       \
+    \     <div :class=\"`badge badge-outline badge-${badgeColor[task.mode]}`\">{{\
+    \ task.mode }}</div>\n          </div>\n        </div>\n      </div>\n      <div\
+    \ class=\"flex justify-between items-center\">\n        <span :class=\"['text-xs',\
+    \ isToday ? 'font-bold' : 'text-gray-600']\">{{ formattedDate }}</span>\n    \
+    \    <div class=\"flex gap-1 justify-end\">\n          <div v-for=\"tag in task.tags\"\
+    \ :key=\"tag\" class=\"font-bold text-xs text-info flex gap-2\">\n           \
+    \ #{{ tag }}\n          </div>\n          <span class=\"text-xs tooltip\"\n  \
+    \          :data-tip=\"`${task.file_list?.length} files`\"\n            v-if=\"\
+    task.file_list?.length\">\n            <i class=\"fa-solid fa-paperclip\"></i>\n\
+    \          </span>\n        </div>\n      </div>\n      <div class=\"flex justify-between\
+    \ items-center\">\n        <div class=\"flex justify-end\">\n          <button\
+    \ class=\"btn btn-circle btn-sm\" @click.stop=\"openSettingsModal\">\n       \
+    \     <i class=\"fas fa-cog\"></i>\n          </button>\n        </div>\n    \
+    \    <div class=\"flex justify-between items-center badge badge-warning\" v-if=\"\
+    subTasks.length\">\n          <div class=\"text-xs font-bold tooltip tooltip-left\"\
+    \ :data-tip=\"`${subTasks.length} sub tasks`\">\n            {{ subTasks.length\
+    \ }}\n            <i class=\"fa-regular fa-file-lines\"></i>\n          </div>\n\
+    \          <div v-if=\"chatProject\" class=\"badge badge-sm badge-warning\">\n\
+    \            {{ chatProject.project_name }}\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n    <modal v-if=\"isSettingsModalOpen\" @click.stop>\n\
+    \      <h3 class=\"font-bold text-lg\">Task Settings</h3>\n      <div class=\"\
+    py-4\">\n        <label class=\"block\">\n          <span>Task Name</span>\n \
+    \         <input type=\"text\" class=\"input input-bordered w-full\" v-model=\"\
+    taskData.name\">\n        </label>\n        <label class=\"block mt-4\">\n   \
+    \       <span>Board</span>\n          <input type=\"text\" class=\"input input-bordered\
+    \ w-full\" v-model=\"taskData.board\">\n        </label>\n        <label class=\"\
+    block mt-4\">\n          <span>Column</span>\n          <input type=\"text\" class=\"\
+    input input-bordered w-full\" v-model=\"taskData.column\">\n        </label>\n\
+    \        <label class=\"block mt-4\">\n          <span>Profiles</span>\n     \
+    \     <div class=\"flex gap-2\">\n            @codx-ok, please-wait...: --knowledge\
+    \ use ProfileSelector to add profiles\n            <button class=\"btn btn-success\
+    \ btn-sm\" @click=\"addProfile\">Add Profile</button>\n          </div>\n    \
+    \    </label>\n      </div>\n      <div class=\"modal-action\">\n        <button\
+    \ class=\"btn btn-ghost\" @click=\"discardChanges\">Discard</button>\n       \
+    \ <button class=\"btn btn-primary\" @click=\"saveChanges\">Save</button>\n   \
+    \   </div>\n      <div tabindex=\"0\" class=\"collapse\">\n        <input type=\"\
+    checkbox\" />\n        <div class=\"collapse-title font-semibold text-error\"\
+    >Delete</div>\n        <div class=\"collapse-content text-sm\">\n          <button\
+    \ class=\"mt-2 btn btn-error btn-wide\" @click.stop=\"deleteTask\">Confirm delete</button>\n\
+    \        </div>\n      </div>\n    </modal>\n    <progress class=\"progress w-full\"\
+    \ v-if=\"updating\"></progress>\n  </div>\n</template>\n<script>\nexport default\
+    \ {\n  props: ['task'],\n  data() {\n    return {\n      isSettingsModalOpen:\
+    \ false,\n      taskData: {\n        name: this.task.name,\n        board: '',\n\
+    \        column: '',\n        profiles: []\n      },\n      badgeColor: {\n  \
+    \      task: \"primary\",\n        chat: \"accent\"\n      }\n    }\n  },\n  computed:\
+    \ {\n    image() {\n      let image = this.task.messages?.find(m => m.images.length)?.images[0]\n\
+    \      return image ? JSON.parse(image) : null\n    },\n    isToday() {\n    \
+    \  const updatedAt = this.task.updated_at\n      return moment(0, \"HH\").diff(updatedAt,\
+    \ \"days\") === 0\n    },\n    formattedDate() {\n      const updatedAt = this.task.updated_at\n\
+    \      return this.isToday ? moment(updatedAt).format('HH:mm:ss') : moment(updatedAt).format('YYYY-MM-DD\
+    \ hh:mm:ss')\n    },\n    subTasks() {\n      return this.$storex.projects.allChats.filter(c\
+    \ => c.parent_id === this.task.id)\n        .sort((a, b) => (a.updated_at || a.created_at)\
+    \ > (b.updated_at || b.created_at) ? -1 : 1)\n    },\n    chatProject() {\n  \
+    \    return this.$projects.allProjects.find(p => p.project_id === this.task.project_id\
+    \ && p.project_id !== this.$project.project_id)\n    },\n    parentChat() {\n\
+    \      return this.$projects.chats[this.task.parent_id]\n    },\n    updating()\
+    \ {\n      const { messages } = this.task\n      if (!messages?.length) {\n  \
+    \      return false\n      }\n      return moment().diff(\n          moment(messages[messages.length\
+    \ - 1].updated_at)\n        , 'seconds') < 10\n    }\n  },\n  methods: {\n   \
+    \ openSettingsModal() {\n      this.isSettingsModalOpen = true\n    },\n    closeSettingsModal()\
+    \ {\n      this.isSettingsModalOpen = false\n    },\n    discardChanges() {\n\
+    \      this.closeSettingsModal()\n    },\n    saveChanges() {\n      console.log('Task\
+    \ Saved:', this.taskData)\n      this.closeSettingsModal()\n    },\n    deleteTask()\
+    \ {\n      this.closeSettingsModal()\n      this.$projects.deleteChat(this.task)\n\
+    \    },\n    addProfile() {\n      const profile = { id: Date.now(), name: 'New\
+    \ Profile' }\n      this.taskData.profiles.push(profile)\n      console.log('Added\
+    \ profile:', profile)\n    }\n  }\n}\n</script>\n              "
+  created_at: '2025-04-07 11:39:13.890199'
+  disable_knowledge: false
+  doc_id: 2d1eca2e-5d07-4984-9b6f-89d782fe2419
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-07 11:39:13.890229'
+  user: null
+- content: "<script setup>\nimport moment from 'moment'\nimport ChatIcon from '../chat/ChatIcon.vue'\n\
+    import ProfileSelector from '@/components/profile/ProfileSelector.vue'\n</script>\n\
+    <template>\n  <div :class=\"['p-2 shadow-lg rounded-lg flex flex-col gap-2', parentChat\
+    \ ? 'bg-base-100' : 'bg-base-300']\">\n    <div v-if=\"image\" :style=\"`background-image:\
+    \ url(${image.src})`\" class=\"bg-contain bg-no-repeat bg-center h-28 bg-base-300\"\
+    ></div>\n    <div class=\"flex flex-col gap-2\">\n      <div>\n        <div v-if=\"\
+    parentChat\" class=\"text-xs text-primary/40 hover:text-primary text-nowrap overflow-hidden\"\
+    \ @click.stop=\"$projects.setActiveChat(parentChat)\">\n          {{ parentChat.name\
+    \ }}\n        </div>\n        <div class=\"flex justify-between\">\n         \
+    \ <div class=\"font-semibold tracking-wide text-sm flex gap-2\">\n           \
+    \ <div class=\"rounded-full\">\n              <ChatIcon :mode=\"task.mode\" />\n\
+    \            </div>\n            <div class=\"overflow-hidden\">{{ task.name }}</div>\n\
+    \          </div>\n          <div class=\"flex gap-2 items-center\">\n       \
+    \     <div :class=\"`badge badge-outline badge-${badgeColor[task.mode]}`\">{{\
+    \ task.mode }}</div>\n          </div>\n        </div>\n      </div>\n      <div\
+    \ class=\"flex justify-between items-center\">\n        <span :class=\"['text-xs',\
+    \ isToday ? 'font-bold' : 'text-gray-600']\">{{ formattedDate }}</span>\n    \
+    \    <div class=\"flex gap-1 justify-end\">\n          <div v-for=\"tag in task.tags\"\
+    \ :key=\"tag\" class=\"font-bold text-xs text-info flex gap-2\">\n           \
+    \ #{{ tag }}\n          </div>\n          <span class=\"text-xs tooltip\"\n  \
+    \          :data-tip=\"`${task.file_list?.length} files`\"\n            v-if=\"\
+    task.file_list?.length\">\n            <i class=\"fa-solid fa-paperclip\"></i>\n\
+    \          </span>\n        </div>\n      </div>\n      <div class=\"flex justify-between\
+    \ items-center\">\n        <div class=\"flex justify-end\">\n          <button\
+    \ class=\"btn btn-circle btn-sm\" @click.stop=\"openSettingsModal\">\n       \
+    \     <i class=\"fas fa-cog\"></i>\n          </button>\n        </div>\n    \
+    \    <div class=\"flex justify-between items-center badge badge-warning\" v-if=\"\
+    subTasks.length\">\n          <div class=\"text-xs font-bold tooltip tooltip-left\"\
+    \ :data-tip=\"`${subTasks.length} sub tasks`\">\n            {{ subTasks.length\
+    \ }}\n            <i class=\"fa-regular fa-file-lines\"></i>\n          </div>\n\
+    \          <div v-if=\"chatProject\" class=\"badge badge-sm badge-warning\">\n\
+    \            {{ chatProject.project_name }}\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n    <modal v-if=\"isSettingsModalOpen\" @click.stop>\n\
+    \      <h3 class=\"font-bold text-lg\">Task Settings</h3>\n      <div class=\"\
+    py-4\">\n        <label class=\"block\">\n          <span>Task Name</span>\n \
+    \         <input type=\"text\" class=\"input input-bordered w-full\" v-model=\"\
+    taskData.name\">\n        </label>\n        <label class=\"block mt-4\">\n   \
+    \       <span>Board</span>\n          <input type=\"text\" class=\"input input-bordered\
+    \ w-full\" v-model=\"taskData.board\">\n        </label>\n        <label class=\"\
+    block mt-4\">\n          <span>Column</span>\n          <input type=\"text\" class=\"\
+    input input-bordered w-full\" v-model=\"taskData.column\">\n        </label>\n\
+    \        <label class=\"block mt-4\">\n          <span>Profiles</span>\n     \
+    \     <ProfileSelector v-model=\"taskData.profiles\" />\n        </label>\n  \
+    \    </div>\n      <div class=\"modal-action\">\n        <button class=\"btn btn-ghost\"\
+    \ @click=\"discardChanges\">Discard</button>\n        <button class=\"btn btn-primary\"\
+    \ @click=\"saveChanges\">Save</button>\n      </div>\n      <div tabindex=\"0\"\
+    \ class=\"collapse\">\n        <input type=\"checkbox\" />\n        <div class=\"\
+    collapse-title font-semibold text-error\">Delete</div>\n        <div class=\"\
+    collapse-content text-sm\">\n          <button class=\"mt-2 btn btn-error btn-wide\"\
+    \ @click.stop=\"deleteTask\">Confirm delete</button>\n        </div>\n      </div>\n\
+    \    </modal>\n    <progress class=\"progress w-full\" v-if=\"updating\"></progress>\n\
+    \  </div>\n</template>\n<script>\nexport default {\n  props: ['task'],\n  data()\
+    \ {\n    return {\n      isSettingsModalOpen: false,\n      taskData: {\n    \
+    \    name: this.task.name,\n        board: '',\n        column: '',\n        profiles:\
+    \ []\n      },\n      badgeColor: {\n        task: \"primary\",\n        chat:\
+    \ \"accent\"\n      }\n    }\n  },\n  computed: {\n    image() {\n      let image\
+    \ = this.task.messages?.find(m => m.images.length)?.images[0]\n      return image\
+    \ ? JSON.parse(image) : null\n    },\n    isToday() {\n      const updatedAt =\
+    \ this.task.updated_at\n      return moment(0, \"HH\").diff(updatedAt, \"days\"\
+    ) === 0\n    },\n    formattedDate() {\n      const updatedAt = this.task.updated_at\n\
+    \      return this.isToday ? moment(updatedAt).format('HH:mm:ss') : moment(updatedAt).format('YYYY-MM-DD\
+    \ hh:mm:ss')\n    },\n    subTasks() {\n      return this.$storex.projects.allChats.filter(c\
+    \ => c.parent_id === this.task.id)\n        .sort((a, b) => (a.updated_at || a.created_at)\
+    \ > (b.updated_at || b.created_at) ? -1 : 1)\n    },\n    chatProject() {\n  \
+    \    return this.$projects.allProjects.find(p => p.project_id === this.task.project_id\
+    \ && p.project_id !== this.$project.project_id)\n    },\n    parentChat() {\n\
+    \      return this.$projects.chats[this.task.parent_id]\n    },\n    updating()\
+    \ {\n      const { messages } = this.task\n      if (!messages?.length) {\n  \
+    \      return false\n      }\n      return moment().diff(\n        moment(messages[messages.length\
+    \ - 1].updated_at)\n      , 'seconds') < 10\n    }\n  },\n  methods: {\n    openSettingsModal()\
+    \ {\n      this.isSettingsModalOpen = true\n    },\n    closeSettingsModal() {\n\
+    \      this.isSettingsModalOpen = false\n    },\n    discardChanges() {\n    \
+    \  this.closeSettingsModal()\n    },\n    saveChanges() {\n      console.log('Task\
+    \ Saved:', this.taskData)\n      this.closeSettingsModal()\n    },\n    deleteTask()\
+    \ {\n      this.closeSettingsModal()\n      this.$projects.deleteChat(this.task)\n\
+    \    },\n    addProfile() {\n      const profile = { id: Date.now(), name: 'New\
+    \ Profile' }\n      this.taskData.profiles.push(profile)\n      console.log('Added\
+    \ profile:', profile)\n    }\n  }\n}\n</script>"
+  created_at: '2025-04-07 11:39:13.890199'
+  disable_knowledge: false
+  doc_id: 579b2252-c5b8-4301-b892-3022255842fe
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 8.686463832855225
+    model: gpt-4o
+    time_taken: 17.23452067375183
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-07 11:39:13.890229'
+  user: null
+mode: chat
+name: changes-at-kanban-taskcard-vue-2025-04-08-06-16-18-503065
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- use_knowledge
+updated_at: '2025-04-08T06:16:35.738138'
+url: ''
+users: []
+visibility: ''

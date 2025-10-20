@@ -1,0 +1,177 @@
+board: codx-junior-1.0
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Proposals
+column_id: ''
+created_at: '2025-05-24 05:45:59.831980'
+description: Codx-Junior is an AI platform that transforms projects into AI entities,
+  facilitating seamless collaboration among Business Users, Project Managers, and
+  Full Stack Developers. Users can link projects via Git repositories, fine-tune AI
+  using a "Wiki" and "Knowledge" base, and manage tasks through a Kanban board. The
+  platform enhances efficiency by automating tasks and supporting real-time collaboration,
+  while users can interact with the project AI via a Wiki chat feature. This innovative
+  approach to project management aims to improve teamwork and project outcomes.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/codx-junior-1.0/Proposals/codx-junior-1-0-roadmap.a6b888e4-2f67-44f7-bbea-322fd65203a7.yaml
+id: a6b888e4-2f67-44f7-bbea-322fd65203a7
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Help me write this codx-junior roadmap document.\n\n\ncodx-junior 1.0\
+    \ roadmap document\ncodx-junior is a modern AI platform created to fill the gap\
+    \ between Project Management and Development.\nAt codx-junior each project becomes\
+    \ its own AI that can assist members.\nAt codx-junior, BU (Business Users), PM\
+    \ (Project Managers) and FSD (Full Stack Developers) team up with the AI projects\
+    \ to work together seamlessly over the same tasks.\n\_\_\nHow it works:\nConnect\
+    \ your projects using git repositories to codx-junior in the Projects section.\n\
+    This project will become your first AI that you can finetune using the Profiles\
+    \ and Knowledge Section.\ncodx-junior will start building the realtime \"Wiki\"\
+    \ and \"Knowledge\" to assist during your work.\nGo to Kanban and start creating\
+    \ tasks with the project, and other team members.\nYou decide how deep or detailed\
+    \ you want the task before jumping into the \"coder\" to implement it\nWhen you\
+    \ are done, review your changes and push them to the main repository!\n\n\nFunctionalities:\n\
+    \_* Project Manager\n\_* Kanban\n\n"
+  created_at: '2025-05-24 05:45:59.830504'
+  disable_knowledge: false
+  doc_id: 6744f9d0-e212-4768-a03b-85b294fea993
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - brainstormer
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-24 05:45:59.830536'
+  user: admin
+- content: "Help me write this codx-junior roadmap document.\n\n\n\n\ncodx-junior\
+    \ 1.0 roadmap document\ncodx-junior is a modern AI platform created to fill the\
+    \ gap between Project Management and Development.\nAt codx-junior each project\
+    \ becomes its own AI that can assist members.\nAt codx-junior, BU (Business Users),\
+    \ PM (Project Managers) and FSD (Full Stack Developers) team up with the AI projects\
+    \ to work together seamlessly over the same tasks.\n\_\_\nHow it works:\nConnect\
+    \ your projects using git repositories to codx-junior in the Projects section.\n\
+    This project will become your first AI that you can finetune using the Profiles\
+    \ and Knowledge Section.\ncodx-junior will start building the realtime \"Wiki\"\
+    \ and \"Knowledge\" to assist during your work.\nGo to Kanban and start creating\
+    \ tasks with the project, and other team members.\nYou decide how deep or detailed\
+    \ you want the task before jumping into the \"coder\" to implement it\nWhen you\
+    \ are done, review your changes and push them to the main repository!\n\n\n\n\n\
+    Functionalities:\n\_* Project Manager\n\_* Kanban\n\n"
+  created_at: '2025-05-24 06:15:32.093562'
+  disable_knowledge: false
+  doc_id: ca00d0fe-9cdd-4958-b115-dca2162a33dc
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - biblio
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-24 06:15:32.093609'
+  user: admin
+- content: "# Codx-Junior 1.0 Roadmap Document\n\n## Introduction\n\n**Codx-Junior**\
+    \ is a cutting-edge AI platform designed to bridge the gap between Project Management\
+    \ and Development. It allows each project to transform into its own AI entity,\
+    \ assisting team members throughout the project's lifecycle. By integrating Business\
+    \ Users (BU), Project Managers (PM), and Full Stack Developers (FSD) with project-specific\
+    \ AIs, teams can achieve seamless collaboration on shared tasks.\n\n## How Codx-Junior\
+    \ Works\n\n1. **Connecting Projects:**\n   - Link your projects using Git repositories\
+    \ in the Projects section of Codx-Junior.\n   - This connection transforms your\
+    \ project into an AI that can be further customized.\n\n   **Example:**\n\n  \
+    \ ```plaintext\n   1. Navigate to the Projects section on Codx-Junior.\n   2.\
+    \ Click on \"Connect Project.\"\n   3. Enter the URL of your Git repository.\n\
+    \   4. Confirm to establish the link.\n   ```\n\n2. **Fine-Tuning Your AI:**\n\
+    \   - Utilize the Profiles and Knowledge Section to fine-tune your project AI.\n\
+    \   - Develop a \"Wiki\" and \"Knowledge\" base in real-time to assist your work\
+    \ processes.\n\n3. **Creating and Managing Tasks:**\n   - Access the Kanban board\
+    \ to create and manage tasks alongside your AI and team members.\n   - Determine\
+    \ the level of detail for tasks before using the \"Coder\" feature to implement\
+    \ solutions.\n\n   **Example:**\n\n   ```plaintext\n   1. Go to the Kanban board.\n\
+    \   2. Click on \"Create New Task.\"\n   3. Assign a title and description.\n\
+    \   4. Set priority and assignee from your team.\n   5. Save to add the task to\
+    \ your board.\n   ```\n\n4. **Reviewing and Pushing Changes:**\n   - After implementation,\
+    \ review your AI-assisted changes and commit them to the main repository.\n\n\
+    \   **Example:**\n\n   ```plaintext\n   1. Complete the implementation in the\
+    \ \"Coder\" section.\n   2. Select \"Review Changes.\"\n   3. Check for errors\
+    \ and make necessary adjustments.\n   4. Click \"Push to Repository\" to update\
+    \ the main branch.\n   ```\n\n## Core Functionalities\n\n- **Project Manager:**\n\
+    \  - A centralized hub for teams to oversee project progress and manage resources\
+    \ efficiently. It offers real-time insights into project development and AI integration,\
+    \ facilitating strategic decision-making.\n\n- **Kanban:**\n  - Acts as a visual\
+    \ representation of workflow management.\n  - Helps team members track progress,\
+    \ prioritize tasks, and collaborate effectively.\n  \n  **Example of Task Transition:**\n\
+    \n  ```plaintext\n  1. Task \"Design UI\" is in the \"To Do\" column.\n  2. Drag\
+    \ \"Design UI\" to \"In Progress\" as work begins.\n  3. Once complete, move \"\
+    Design UI\" to \"Done\" to mark its completion.\n  ```\n\n## Benefits of Using\
+    \ Codx-Junior\n\n- **Enhanced Collaboration:**\n  Codx-Junior smoothens interactions\
+    \ among BU, PM, and FSD by providing a shared platform powered by an AI designed\
+    \ specifically for the project.\n\n- **Efficiency and Scalability:**\n  The AI-driven\
+    \ approach enables faster iteration and scaling of projects by automating routine\
+    \ tasks and offering real-time support.\n\n- **Centralized Knowledge Base:**\n\
+    \  The automatic generation of a \"Wiki\" and \"Knowledge\" base ensures that\
+    \ all team members have access to updated information and best practices.\n\n\
+    ## Conclusion\n\nBy transforming projects into AI-driven entities, Codx-Junior\
+    \ offers an innovative approach to project management and development. This roadmap\
+    \ document illustrates how to harness the capabilities of Codx-Junior to enhance\
+    \ teamwork, streamline processes, and achieve project success."
+  created_at: '2025-05-24 06:15:32.093562'
+  disable_knowledge: false
+  doc_id: 6fa0c656-1f57-4878-b09e-9f8cf8d00200
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 1.8110463619232178
+    model: gpt-4o
+    time_taken: 11.60685133934021
+  profiles:
+  - biblio
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-24 06:15:32.093609'
+  user: null
+mode: chat
+name: codx-junior 1.0 roadmap
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- biblio
+- brainstormer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-24T06:36:58.724865'
+url: ''
+users:
+- admin
+visibility: ''

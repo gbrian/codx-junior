@@ -1,0 +1,159 @@
+board: Issue manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-05-28 13:24:47.065517'
+description: In this conversation, the user requested a new method in the `github.py`
+  file to download GitHub issue information using a given URL and return JSON data
+  embedded in the HTML. The task involved updating the API to parse the HTML for the
+  JSON script identified as `react-app.embeddedData`. I provided detailed instructions
+  and code on how to implement this method, ensuring it includes proper headers for
+  web requests, JSON parsing, error handling, and explanatory comments for complex
+  logic. Finally, the enhancements offered a straightforward way to extract detailed
+  JSON data from individual GitHub issue pages.
+doc_id: null
+file_list:
+- /home/codx-junior/codx-junior/api/codx/junior/misc/github.py
+- /home/codx-junior/codx-junior/api/codx/junior/api/github.py
+file_path: /shared/codx-junior/api/.codx/tasks/Issue manager/Backlog/new-task.9c45e34d-7383-4688-abdf-f92075cb03df.yaml
+id: 9c45e34d-7383-4688-abdf-f92075cb03df
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: '@file://github.py add new method to download github issue information,
+    will receive the url of the issue and return json extracted from the line having
+    "react-app.embeddedData"
+
+
+    '
+  created_at: '2025-05-28 13:24:47.063693'
+  disable_knowledge: false
+  doc_id: 8102fcd2-decf-4f94-bec1-e02ea17ef84e
+  done: true
+  files:
+  - /home/codx-junior/codx-junior/api/codx/junior/misc/github.py
+  - /home/codx-junior/codx-junior/api/codx/junior/api/github.py
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - software_developer
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-28 13:24:47.063777'
+  user: admin
+- content: "To enhance the module with a new method to download GitHub issue information,\
+    \ you will need to create a function similar to `search_github_issues` that fetches\
+    \ data from a single issue URL. This new function will extract JSON data embedded\
+    \ within the HTML content of the issue page, specifically from a script tag that\
+    \ contains the identifier `react-app.embeddedData`. Here is how you can implement\
+    \ it:\n\n```python\n# File: /home/codx-junior/codx-junior/api/codx/junior/misc/github.py\n\
+    \nimport requests\nimport json\nimport os\nimport time\n\nCACHE_FILE = 'cache.json'\n\
+    CACHE_EXPIRATION = 3 * 86400  # 3 days in seconds\n\ndef load_cache():\n    if\
+    \ os.path.exists(CACHE_FILE):\n        with open(CACHE_FILE, 'r') as f:\n    \
+    \        cache_data = json.load(f)\n            if time.time() - cache_data.get('timestamp',\
+    \ 0) < CACHE_EXPIRATION:\n                return cache_data.get('results', [])\n\
+    \    return None\n\ndef save_cache(results):\n    with open(CACHE_FILE, 'w') as\
+    \ f:\n        json.dump({'timestamp': time.time(), 'results': results}, f)\n\n\
+    def search_github_issues():\n    \"\"\"\n    Searches GitHub for issues labeled\
+    \ as \"help wanted\", with a cached\n    response for 3 days to enhance performance.\n\
+    \n    :return: Data contained in the 'results' key of the JSON if available, otherwise\
+    \ the full response text.\n    :raises: ValueError if the JSON cannot be decoded.\n\
+    \    \"\"\"\n    cached_results = load_cache()\n    if cached_results is not None:\n\
+    \        return cached_results\n\n    url = \"https://github.com/search?q=help+wanted&type=issues&s=updated&o=desc\"\
+    \n    headers = {\n        \"Accept\": \"*/*\",\n        \"User-Agent\": \"Mozilla/5.0\
+    \ (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0\
+    \ Safari/537.36\",\n    }\n\n    response = requests.get(url, headers=headers)\n\
+    \    response.raise_for_status()  # Raise an error on a failed request\n\n   \
+    \ for line in response.iter_lines(decode_unicode=True):\n        if '<script type=\"\
+    application/json\" data-target=\"react-app.embeddedData\">' in line:\n       \
+    \     json_text = line.split('>', 1)[1].rsplit('<', 1)[0].strip()\n          \
+    \  \n            try:\n                json_data = json.loads(json_text)\n   \
+    \             results = json_data[\"payload\"][\"results\"]\n                save_cache(results)\n\
+    \                return results\n            except json.JSONDecodeError as e:\n\
+    \                raise ValueError(\"Error decoding JSON content.\") from e\n\n\
+    \    # If the JSON data is not found, return the full response content\n    return\
+    \ response.text\n\ndef download_issue_info(issue_url):\n    \"\"\"\n    Downloads\
+    \ issue information from a given GitHub issue URL, extracting\n    JSON data from\
+    \ the specified line containing 'react-app.embeddedData'.\n\n    :param issue_url:\
+    \ URL of the GitHub issue.\n    :return: JSON data extracted from the specified\
+    \ line.\n    :raises: ValueError if the JSON cannot be decoded.\n    \"\"\"\n\
+    \    headers = {\n        \"Accept\": \"*/*\",\n        \"User-Agent\": \"Mozilla/5.0\
+    \ (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0\
+    \ Safari/537.36\",\n    }\n\n    # Make a request to the provided GitHub issue\
+    \ URL with appropriate headers.\n    response = requests.get(issue_url, headers=headers)\n\
+    \    response.raise_for_status()  # Raise an error for failed requests like 404,\
+    \ 500, etc.\n\n    # Iterate through each line in the response to find the required\
+    \ script tag.\n    for line in response.iter_lines(decode_unicode=True):\n   \
+    \     if '<script type=\"application/json\" data-target=\"react-app.embeddedData\"\
+    >' in line:\n            # Extract JSON block between the tag and convert it as\
+    \ JSON\n            json_text = line.split('>', 1)[1].rsplit('<', 1)[0].strip()\n\
+    \            \n            try:\n                issue_json_data = json.loads(json_text)\n\
+    \                return issue_json_data\n            except json.JSONDecodeError\
+    \ as e:\n                # Raise a ValueError if JSON decoding fails.\n      \
+    \          raise ValueError(\"Error decoding JSON content from issue page.\")\
+    \ from e\n\n    # If the specific JSON data is not found, return an indicative\
+    \ message.\n    return \"React app data not found in the issue page.\"\n\n```\n\
+    \n### Explanation:\n\n1. **Function Definition**: The new method, `download_issue_info`,\
+    \ is defined to accept an `issue_url` parameter. It uses this URL to fetch the\
+    \ issue page.\n\n2. **Headers for Request**: The function makes a GET request\
+    \ using headers to mimic a web browser, helping to avoid potential content restrictions\
+    \ on API requests.\n\n3. **Parsing HTML**: It parses the HTML line-by-line to\
+    \ find the `<script>` tag containing `react-app.embeddedData`. This helps locate\
+    \ the JSON we want to extract.\n\n4. **JSON Parsing**: It extracts the JSON data\
+    \ from the `<script>` tag content and loads it with `json.loads()`.\n\n5. **Error\
+    \ Handling**: If JSON parsing fails (e.g., due to malformed data), it raises a\
+    \ `ValueError`.\n\n6. **Return Value**: Returns the extracted JSON data as a dictionary\
+    \ for easy access to individual elements.\n\nThis complete function can now be\
+    \ used as part of the module to pull specific data from any GitHub issue when\
+    \ given a valid URL."
+  created_at: '2025-05-28 13:24:47.063693'
+  disable_knowledge: false
+  doc_id: 85465b60-66ba-466e-9094-155013e746a3
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 3.494361400604248
+    model: gpt-4o
+    time_taken: 9.04860234260559
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-28 13:24:47.063777'
+  user: null
+mode: chat
+name: New Task
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-28T14:19:43.654055'
+url: ''
+users:
+- admin
+visibility: ''

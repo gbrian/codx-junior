@@ -2,6 +2,8 @@ import os
 import logging
 import subprocess
 import string
+import inspect
+
 from pathlib import Path
 import json
 import hashlib
@@ -117,3 +119,20 @@ def clean_string(string_to_clean: str) -> str:
     # NOT WORKING WITH SPANISH LANGUAGE, IT REMOVES VALID CHARS
     return string_to_clean
     # return ''.join(c if c in string.printable else ' ' for c in string_to_clean)
+
+
+async def asyncify(res):
+    """
+        mix sync and async code.
+        f can be sync or async:
+        res = await asyncify(f())
+    """
+    if inspect.iscoroutinefunction(res):
+        try:
+            res = await res
+        except Exception as ex:
+            # inspect.iscoroutinefunction... rare.. :(
+            cant_await = "can't be used in 'await'" in str(ex)
+            if not cant_await:
+                raise ex
+    return res

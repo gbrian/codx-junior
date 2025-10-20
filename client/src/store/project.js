@@ -97,8 +97,7 @@ function createProjectChat(project, chat) {
 
 export const getters = getterTree(state, {
   allParentProjects: () => $storex.api.allProjects.filter(p => !p.parentProject),
-  profiles: state => $storex.profiles.profiles[state.activeProject.project_id]
-                      .map(p => ({
+  profiles: state => $storex.profiles.profiles[state.activeProject.project_id]?.map(p => ({
                         ...p,
                         project: state.allProjects.find(({ project_id }) => project_id === p.project_id)
                       })),
@@ -248,7 +247,6 @@ export const actions = actionTree(
 
           commit('addRecentProject', state.activeProject) // Update recent projects
 
-          $storex.projects.loadProjectKnowledge()            
           await Promise.all([
             $storex.projects.loadProfiles(),
             $storex.projects.loadChats()
@@ -508,8 +506,8 @@ export const actions = actionTree(
     async loadKanban({ state }) {
       state.kanban = await $storex.api.chats.kanban.load()
     },
-    async saveKanban({ state }) {
-      await $storex.api.chats.kanban.save(state.kanban)
+    async saveKanban({ state }, kanban) {
+      await $storex.api.chats.kanban.save(kanban || state.kanban)
     },
     async saveProfile({ state }, profile) {
       const data = await $storex.profiles.saveProfile({ profile, project: state.activeProject })

@@ -27,7 +27,7 @@ import ProjectIcon from './ProjectIcon.vue';
       </div>
     </div>
     <div class="flex justify-between items-end gap-4">
-      <div class="border rounded-md">
+      <div class="">
         <ProjectIcon :project="profile.project" @click="switchProject" />
       </div>
       <div class="flex flex-col grow gap-1">

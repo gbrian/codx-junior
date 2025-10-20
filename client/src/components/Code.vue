@@ -30,6 +30,7 @@ import CodeViewer from './CodeViewer.vue'
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"
       @save-file="$emit('save-file', $event)" 
+      @add-file="$emit('add-file', $event)" 
       :language="language" 
       :file="file" 
       v-if="showCode" /> 

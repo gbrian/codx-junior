@@ -30,6 +30,7 @@ class Board(BaseModel):
     name: str = Field(default='')
     description: str = Field(default='')
     remote_url: str = Field(default='')
+    bookmark: Optional[bool] = Field(default=False)
     columns: List[Column] = Field(default=[])
 
 class Logprobs(BaseModel):

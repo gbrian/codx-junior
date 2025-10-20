@@ -1,0 +1,620 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-04-17 17:59:57.589611'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-kanban-kanban-vue-2025-04-20-10-35-37-428583.526933d4-8e31-4347-8119-14506b19b29b.yaml
+id: 526933d4-8e31-4347-8119-14506b19b29b
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      ```\n                      <script setup>\nimport\
+    \ draggable from \"vuedraggable\"\nimport TaskCard from \"./TaskCard.vue\"\nimport\
+    \ ChatViewVue from \"../../views/ChatView.vue\"\nimport { v4 as uuidv4 } from\
+    \ \"uuid\"\nimport VSwatches from \"../VSwatches.vue\"\nimport KanbanList from\
+    \ \"./KanbanList.vue\"\n</script>\n\n<template>\n  <div class=\"h-full\" v-if=\"\
+    kanban?.boards\">\n    <KanbanList\n      :boards=\"boards\"\n      @select=\"\
+    selectBoard\"\n      @edit=\"onEditBoard\"\n      @new=\"showNewBoardModal\"\n\
+    \      v-if=\"!$projects.activeChat && !board\"\n    />\n    <ChatViewVue\n  \
+    \    class=\"h-full\"\n      @chats=\"onChatEditDone\"\n      @sub-task=\"createSubTask\"\
+    \n      @sub-tasks=\"createSubTasks\"\n      @chat=\"$projects.setActiveChat($event)\"\
+    \n      :kanban=\"activeBoard\"\n      v-if=\"$projects.activeChat\"\n    />\n\
+    \    <div v-if=\"!$projects.activeChat && showKanban\">\n      <div class=\"flex\
+    \ gap-4 items-center\">\n        <div class=\"flex gap-2 items-center\">\n   \
+    \       <div tabindex=\"0\" class=\"text-xl py-1 px-2 click flex items-center\
+    \ gap-2\" @click=\"toggleDropdown\">\n            <button class=\"btn btn-sm\"\
+    \ @click=\"selectBoard()\">\n              <i class=\"fa-solid fa-caret-left\"\
+    ></i>\n            </button>\n            {{ activeBoard?.title }}\n         \
+    \ </div>\n        </div>\n        <div class=\"grow\"></div>\n        <div class=\"\
+    flex gap-2\">\n          <div class=\"grow input input-sm input-bordered flex\
+    \ items-center gap-2\">\n            <input type=\"text\" v-model=\"filter\" class=\"\
+    grow\" placeholder=\"Search tasks\" />\n            <span class=\"click\" v-if=\"\
+    filter\" @click.stop=\"filter = ''\">\n              <i class=\"fa-regular fa-circle-xmark\"\
+    ></i>\n            </span>\n            <span v-else><i class=\"fa-solid fa-filter\"\
+    ></i></span>\n          </div>\n          <button class=\"btn btn-sm btn-outline\"\
+    \ @click=\"showColumnModal = true\" v-if=\"columnList?.length\">\n           \
+    \ <i class=\"fa-solid fa-plus\"></i>\n            <span class=\"text-xs md:text-md\"\
+    >Column</span>\n          </button>\n        </div>\n      </div>\n      <div\
+    \ class=\"mt-3 grow\">\n        <button class=\"btn btn-sm btn-wide btn-primary\"\
+    \ @click=\"showColumnModal = true\" v-if=\"!columnList?.length\">\n          <i\
+    \ class=\"fa-solid fa-plus\"></i>\n          <span class=\"text-xs md:text-md\"\
+    >Column</span>\n        </button>\n        <draggable\n          v-model=\"filteredColumns\"\
+    \n          group=\"columns\"\n          itemKey=\"id\"\n          :disabled=\"\
+    $ui.isMobile\"\n          @end=\"onColumnTaskListChanged\"\n          class=\"\
+    min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start\"\n\
+    \        >\n          <template #item=\"{ element: column }\">\n            <div\
+    \ class=\"bg-info/20 rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col\"\
+    \n              :class=\"column.color && 'border-t-4'\"\n              :style=\"\
+    { borderColor: column.color }\"\n            >\n              <div class=\"group\
+    \ font-semibold font-sans tracking-wide text-sm flex gap-2 items-center\">\n \
+    \               <div class=\"click w-6 h-6 flex items-center justify-center rounded-md\
+    \ group shadow-lg bg-base-100\" \n                  :style=\"{ backgroundColor:\
+    \ column.color }\" @click=\"openColumnPropertiesModal(column)\">\n           \
+    \       <span class=\"hidden group-hover:block\">\n                    <i class=\"\
+    fa-solid fa-pen-to-square\"></i>\n                  </span>\n                </div>\n\
+    \                <div class=\"flex gap-2 items-center grow\">\n              \
+    \    <div>{{column.title}}</div>\n                </div>\n                <div\
+    \ class=\"btn btn-sm\" @click=\"column.showSubTasks = !column.showSubTasks\"\n\
+    \                  :class=\"(column.showSubTasks !== false) && 'btn-info'\"\n\
+    \                >\n                  <i class=\"fa-regular fa-file-lines\"></i>\n\
+    \                </div>\n                <div class=\"flex gap-2 items-center\"\
+    >\n                  <div class=\"dropdown dropdown-end\">\n                 \
+    \   <div tabindex=\"0\" role=\"button\" class=\"btn btn-sm m-1 flex items-center\"\
+    >\n                      <span v-if=\"column.tasks?.length\">({{ column.tasks.length\
+    \ }})</span>\n                      <i class=\"mt-1 fa-solid fa-plus\"></i>\n\
+    \                    </div>\n                    <ul tabindex=\"0\" class=\"dropdown-content\
+    \ menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow\">\n                    \
+    \  <li class=\"flex gap-2\" @click=\"newAnalysisTask(column.title)\">\n      \
+    \                  <a>Analysis task</a>\n                      </li>\n       \
+    \               <li class=\"flex gap-2\" @click=\"newCodingTask(column.title)\"\
+    >\n                        <a>Coding task</a>\n                      </li>\n \
+    \                     <li class=\"flex gap-2\" @click=\"importTask(column.title)\"\
+    >\n                        <a>Import task</a>\n                      </li>\n \
+    \                   </ul>\n                  </div>\n                </div>\n\
+    \              </div>\n              <div class=\"grow overflow-y-auto\">\n  \
+    \              <draggable\n                  v-model=\"column.tasks\"\n      \
+    \            group=\"tasks\"\n                  itemKey=\"id\"\n             \
+    \     :disabled=\"$ui.isMobile\"\n                  @end=\"onColumnTaskListChanged(column)\"\
+    \n                  class=\"mt-3\"\n                >\n                  <template\
+    \ #item=\"{ element: task }\">\n                    <task-card\n             \
+    \         v-if=\"taskMatchesFilter(task)\"\n                      :task=\"task\"\
+    \n                      :itemKey=\"'id'\"\n                      class=\"click\
+    \ bg-base-100 overflow-hidden mt-2\"\n                      :class=\"[lastUpdatedTask.id\
+    \ == task.id ? 'border boder-primary border-dashed':'',\n                    \
+    \    (column.showSubTasks !== false) || !task.parent_id ? '' : 'hidden'\n    \
+    \                  ]\"\n                      @click=\"openChat(task)\"\n    \
+    \                />\n                  </template>\n                </draggable>\n\
+    \              </div>\n            </div>\n          </template>\n        </draggable>\n\
+    \      </div>\n    </div>\n    <modal v-if=\"showBoardModal\">\n      <h2 class=\"\
+    font-bold text-lg\">Add New Board</h2>\n      <input type=\"text\" v-model=\"\
+    newBoardName\" placeholder=\"Enter board name\" class=\"input input-bordered w-full\
+    \ mt-2\"/>\n      <input type=\"text\" v-model=\"newBoardDescription\" placeholder=\"\
+    Enter board description\" class=\"input input-bordered w-full mt-2\"/>\n     \
+    \ <input type=\"text\" v-model=\"newBoardBranch\" placeholder=\"Enter branch name\"\
+    \ class=\"input input-bordered w-full mt-2\"/>\n      <select v-model=\"selectedTemplate\"\
+    \ class=\"select select-bordered w-full mt-2\">\n        <option disabled value=\"\
+    \">Select a Template</option>\n        <option v-for=\"template in templates\"\
+    \ :key=\"template.name\" :value=\"template\">{{ template.name }}</option>\n  \
+    \    </select>\n      <div class=\"modal-action\">\n        <button class=\"btn\"\
+    \ @click=\"addBoard\">OK</button>\n        <button class=\"btn\" @click=\"showBoardModal\
+    \ = false\">Cancel</button>\n      </div>\n    </modal>\n\n    <modal v-if=\"\
+    showColumnModal\">\n      <h2 class=\"font-bold text-lg\">Add/Edit Column</h2>\n\
+    \      <div class=\"flex gap-1 items-center\">\n        <input type=\"text\" v-model=\"\
+    columnTitle\" placeholder=\"Enter column name\"\n          class=\"grow input\
+    \ input-bordered w-full\"/>\n        <VSwatches v-model=\"columnColor\" class=\"\
+    h-full mt-1\" />\n      </div>\n      <span v-if=\"editColumnError\" class=\"\
+    text-error\">{{ editColumnError }}</span>\n      <div class=\"modal-action\">\n\
+    \        <button class=\"btn\" @click=\"addOrUpdateColumn\">OK</button>\n    \
+    \    <button class=\"btn\" @click=\"showColumnModal = false\">Cancel</button>\n\
+    \        <button class=\"btn btn-error\" @click=\"deleteColumn\">Delete</button>\n\
+    \        <div class=\"text-error text-xs\" v-if=\"confirmDeleteColumn\">\n   \
+    \       Are you sure you want to delete this column? \n          All tasks will\
+    \ be removed.\n        </div>\n      </div>\n      <div class=\"badge badge-error\"\
+    \ v-if=\"editColumnError\">{{ editColumnError }}</div>\n    </modal>\n  </div>\n\
+    </template>\n\n<script>\nconst ALL_BOARD_TITLE_ID = \"$ALL\"\n\nexport default\
+    \ {\n  data() {\n    return {\n      board: null,\n      filter: null,\n     \
+    \ showBoardModal: false,\n      showColumnModal: false,\n      showEditKanbanModal:\
+    \ false,\n      newBoardName: '',\n      newBoardDescription: '',\n      newBoardBranch:\
+    \ '',\n      columnTitle: '',\n      columnColor: '#000000',\n      isDropdownOpen:\
+    \ false,\n      selectedColumn: null,\n      editColumnError: null,\n      columns:\
+    \ [],\n      selectedTemplate: null,\n      templates: [\n        {\n        \
+    \  name: \"Scrum\",\n          description: \"Scrum board\",\n          columns:\
+    \ [\n            { title: \"To Do\", color: \"#FF5733\" },\n            { title:\
+    \ \"In Progress\", color: \"#33FF57\" },\n            { title: \"Done\", color:\
+    \ \"#3357FF\" }\n          ]\n        },\n        {\n          name: \"Backlog\"\
+    ,\n          description: \"Backlog board\",\n          columns: [\n         \
+    \   { title: \"Backlog\", color: \"#FFC300\" },\n            { title: \"In Development\"\
+    , color: \"#DAF7A6\" },\n            { title: \"Completed\", color: \"#C70039\"\
+    \ }\n          ]\n        }\n      ],\n      editBoardName: '',\n      editBoardDescription:\
+    \ '',\n      filteredColumns: [],\n      confirmDeleteColumn: false\n    }\n \
+    \ },\n  created() {\n    this.projectChanged()\n  },\n  computed: {\n    lastUpdatedTask()\
+    \ {\n      return this.visibleTasks.sort((a, b) => \n        (a.updated_at ||\
+    \ new Date(1900, 1, 1, 0, 0, 0, 0)) > \n        (b.updated_at || new Date(1900,\
+    \ 1, 1, 0, 0, 0, 0)) ? -1 : 1)\n        .slice(0, 1)[0] || {}\n    },\n    showKanban()\
+    \ {\n      return this.kanban && this.activeKanbanBoard\n    },\n    kanban()\
+    \ {\n      return this.$projects.kanban\n    },\n    activeKanbanBoard() {\n \
+    \     return this.kanban.boards[this.board]\n    },\n    chats() {\n      const\
+    \ allChats = this.$projects.allChats\n      return Object.values(allChats || {}).map(c\
+    \ => ({\n        ...c,\n        column: c.column || \"--none--\"\n      }))\n\
+    \    },\n    chat() {\n      return this.$projects.activeChat\n    },\n    project()\
+    \ {\n      return this.$projects.activeProject\n    },\n    activeBoard() {\n\
+    \      return this.boards[this.board]\n    },\n    boardColumns() {\n      return\
+    \ this.boards[this.board]?.columns\n    },\n    columnList() {\n      return this.boards[this.board]?.columns?.map(c\
+    \ => c.title) || []\n    },\n    boards() {\n      const { kanban: { boards },\
+    \ chats } = this\n      return [\n        ...Object.keys(boards).map(board =>\
+    \ ({\n          ...boards[board],\n          id: board,\n          title: board\n\
+    \        }))\n      ].reduce((acc, b) => ({ ...acc, [b.id]: {\n        ...b,\n\
+    \        tasks: chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.id)\n\
+    \      }}), {})\n    },\n    visibleTasks() {\n      return this.filteredColumns.reduce((a,\
+    \ b) => a.concat(b.tasks || []), [])\n    }\n  },\n  watch: {\n    filter(newValue,\
+    \ oldValue) {\n      if ((!newValue && oldValue) || newValue?.length > 3) {\n\
+    \        this.buildKanban()\n      }\n    },\n    project() {\n      this.projectChanged()\n\
+    \    }\n  },\n  methods: {\n    buildFilteredColumns() {\n      if (!this.filter)\
+    \ {\n        this.filteredColumns = this.columns\n      } else {\n        const\
+    \ filterText = this.filter.toLowerCase()\n        this.filteredColumns = this.columns.map(column\
+    \ => {\n          const filteredTasks = column.tasks.filter(task => {\n      \
+    \      const taskNameMatches = task.name.toLowerCase().includes(filterText)\n\
+    \            const messageContentMatches = task.messages?.some(message =>\n  \
+    \            message.content.toLowerCase().includes(filterText)\n            )\n\
+    \            return taskNameMatches || messageContentMatches\n          })\n \
+    \         return { ...column, tasks: filteredTasks }\n        })\n      }\n  \
+    \  },\n    async projectChanged() {\n      await this.$projects.loadKanban()\n\
+    \      this.selectBoard()\n      this.buildKanban()\n    },\n    toggleDropdown()\
+    \ {\n      this.isDropdownOpen = !this.isDropdownOpen\n    },\n    async selectBoard(board)\
+    \ {\n      this.board = board\n      this.$ui.setKanban(board)\n      this.isDropdownOpen\
+    \ = false\n      await this.$projects.loadChats()\n      if (board && this.kanban.boards[board]\
+    \ && !this.kanban.boards[board].active) {\n        Object.keys(this.kanban.boards)\n\
+    \          .forEach(b => this.kanban.boards[b].active = (b === board))\n     \
+    \   this.saveKanban()\n      }\n      this.buildKanban()\n    },\n    async editKanban()\
+    \ {\n      if (!this.editBoardName.trim()) {\n        return\n      }\n      const\
+    \ board = this.activeBoard\n      if (board) {\n        board.title = this.editBoardName\n\
+    \        board.description = this.editBoardDescription\n        await this.saveKanban(true)\n\
+    \        this.showEditKanbanModal = false\n      }\n    },\n    async createNewChat(base)\
+    \ {\n      return this.$projects.createNewChat({\n        ...base,\n        id:\
+    \ uuidv4(),\n        board: this.board || \"Default\",\n      })\n    },\n   \
+    \ newAnalysisTask(column) {\n      this.createNewChat({\n        column,\n   \
+    \     name: \"New Analysis Task\",\n        mode: 'task',\n        profiles: [\"\
+    analyst\"]\n      })\n    },\n    newCodingTask(column) {\n      this.createNewChat({\n\
+    \        column,\n        name: \"New Coding Task\",\n        mode: 'chat',\n\
+    \        profiles: [\"software_developer\"]\n      })\n    },\n    async importTask(column)\
+    \ {\n      // @codx-ok, please-wait...: import task will show a <modal> with multiple\
+    \ options: button import from clipboard, input and import from task url.\n\n \
+    \     const clipboardContent = await navigator.clipboard.readText()\n      const\
+    \ existingChat = JSON.parse(clipboardContent)\n      const newChat = await this.createNewChat({\n\
+    \        ...existingChat,\n        id: null,\n        column,\n      })\n    \
+    \  this.$projects.saveChat(newChat)\n    },\n    async buildKanban() {\n     \
+    \ if (this.kanban) {\n        this.buildColumns()\n      }\n    },\n    buildColumns()\
+    \ {\n      const columnTitles = this.columnList\n      const cloumnChats = this.kanban.boards[this.board]?.columns?.chats\
+    \ || []\n      this.columns = columnTitles\n        .map((col, ix) => {\n    \
+    \      const boardColumn = this.boards[this.board]?.columns?.find(bc => bc.title\
+    \ === col)||{}\n          const getChatIndex = c => {\n            return cloumnChats.findIndex(kc\
+    \ => kc.id === c.id)\n          }\n          return {\n            title: col,\n\
+    \            ...boardColumn,\n            tasks: this.activeBoard.tasks\n    \
+    \          .filter(t => (t.column || \"--none--\") === col)\n              .sort((a,\
+    \ b) => getChatIndex(a) < getChatIndex(b) ? -1 : 1),\n            position: ix\n\
+    \          }\n        }).sort((a, b) => a.position < b.position ? -1: 1)\n   \
+    \     || []\n        this.buildFilteredColumns()\n    },\n    async onColumnTaskListChanged()\
+    \ {\n      if (this.$ui.isMobile) {\n        return\n      }\n      const kboard\
+    \ = this.kanban.boards[this.board]\n      kboard.columns = await Promise.all(this.filteredColumns.map(async\
+    \ (column, ix) => {\n        const kcolumn = kboard.columns.find(kc => kc.id ===\
+    \ column.id)\n        kcolumn.chats = column.tasks.map(t => t.id)\n        await\
+    \ Promise.all(column.tasks.filter(t => t.column !== column.title)\n          .map(task\
+    \ => this.$storex.projects.saveChatInfo({ ...task, column: column.title })))\n\
+    \        return kcolumn\n      }))\n      this.saveKanban(true)\n    },\n    async\
+    \ openChat(element) {\n      if (element.id === -1) {\n        this.newChat()\n\
+    \      } else {\n        await this.$projects.setActiveChat(element)\n      }\n\
+    \    },\n    async onChatEditDone() {\n      await this.$projects.setActiveChat()\n\
+    \      this.buildKanban()\n    },\n    async createSubTask({ parent, name, description\
+    \ }) {\n      const chat = this.createNewChat({\n        board: parent.board,\n\
+    \        name,\n        column: parent.column,\n        parent_id: parent.id,\n\
+    \        project_id: parent.project_id,\n        messages: [{ role: \"user\",\
+    \ content: description }]\n      })\n      this.$projects.newChat(chat)\n    },\n\
+    \    async createSubTasks(event) {\n      this.$projects.createSubtasks(event)\n\
+    \    },\n    async addOrUpdateColumn() {\n      this.columnTitle = this.columnTitle.trim()\n\
+    \      if (!this.columnTitle) {\n        return this.resetColumnModal()\n    \
+    \  }\n      const existingColumnTitle = this.activeKanbanBoard.columns.find(c\
+    \ => c.title === this.columnTitle)\n      if (existingColumnTitle && existingColumnTitle.id\
+    \ !== this.selectedColumn?.id) {\n        this.editColumnError = \"Name already\
+    \ used\"\n        return\n      }\n      if (this.selectedColumn) {\n        this.selectedColumn.title\
+    \ = this.columnTitle\n        this.selectedColumn.color = this.columnColor\n \
+    \     } else {\n        const newColumn = {\n          id: uuidv4(),\n       \
+    \   title: this.columnTitle,\n          color: this.columnColor\n        }\n \
+    \       this.activeBoard.columns.push(newColumn)\n      }\n      await this.saveKanban(true)\n\
+    \      this.resetColumnModal()\n      this.buildKanban()\n    },\n    async deleteColumn()\
+    \ {\n      if (this.confirmDeleteColumn) {\n        this.activeKanbanBoard.columns\
+    \ = this.activeKanbanBoard.columns.filter(\n          column => column.id !==\
+    \ this.selectedColumn.id\n        )\n        await this.saveKanban(true)\n   \
+    \     this.resetColumnModal()\n      }\n      this.confirmDeleteColumn = !this.confirmDeleteColumn\n\
+    \    },\n    resetColumnModal() {\n      this.showColumnModal = false\n      this.columnTitle\
+    \ = ''\n      this.columnColor = '#000000'\n      this.selectedColumn = null\n\
+    \      this.editColumnError = null\n    },\n    async addBoard() {\n      const\
+    \ boardName = this.newBoardName.trim()\n      if (boardName && !this.boards[boardName])\
+    \ {\n        const selectedTemplate = this.selectedTemplate\n        this.kanban.boards[boardName]\
+    \ = {\n          id: uuidv4(),\n          description: this.newBoardDescription.trim()\
+    \ || selectedTemplate.description,\n          branch: this.newBoardBranch.trim(),\n\
+    \          columns: selectedTemplate?.columns || [],\n          last_update: new\
+    \ Date().toISOString()\n        }\n        await this.saveKanban()\n      }\n\
+    \      this.newBoardName = ''\n      this.newBoardDescription = ''\n      this.newBoardBranch\
+    \ = ''\n      this.selectedTemplate = null\n      this.showBoardModal = false\n\
+    \      this.board = boardName\n      this.buildKanban()\n    },\n    openColumnPropertiesModal(column)\
+    \ {\n      this.selectedColumn = this.activeKanbanBoard.columns.find(c => c.id\
+    \ === column.id)\n      this.columnTitle = column?.title\n      this.columnColor\
+    \ = column?.color || '#000000'\n      this.showColumnModal = true\n    },\n  \
+    \  async saveKanban(setUpdate) {\n      if (setUpdate) {\n        this.activeKanbanBoard.last_update\
+    \ = new Date().toISOString()\n      }\n      await this.$projects.saveKanban()\n\
+    \    },\n    showNewBoardModal() {\n      this.showBoardModal = true\n    },\n\
+    \    taskMatchesFilter(task) {\n      const filterText = this.filter?.toLowerCase()\
+    \ || ''\n      const taskNameMatches = task.name.toLowerCase().includes(filterText)\n\
+    \      const messageContentMatches = task.messages?.some(message =>\n        message.content.toLowerCase().includes(filterText)\n\
+    \      )\n      return taskNameMatches || messageContentMatches\n    },\n    onEditBoard\
+    \ (board) {\n      this.selectBoard(board)\n\n      this.showEditKanbanModal =\
+    \ true\n    }\n  }\n}\n</script>\n                      ```\n                \
+    \      \n                      User commented in line 359: import task will show\
+    \ a <modal> with multiple options: button import from clipboard, input and import\
+    \ from task url.\n                      "
+  created_at: '2025-04-17 17:59:57.588113'
+  disable_knowledge: false
+  doc_id: 82771736-78c3-4491-a740-44ea6a577096
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-17 17:59:57.588139'
+  user: null
+- content: "Best practices for this file:\n                  Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\n# Vue vuejs coding best\
+    \ pratices\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Use TailwindCSS classes for styling, always consider\
+    \ mobile styles\n* Vue component definition will be exporting a default object\
+    \ like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\n* Don't use <style> elements, use TailWindCSS classes\n\
+    \                  "
+  created_at: '2025-04-17 17:59:57.588113'
+  disable_knowledge: false
+  doc_id: 78109f20-d92f-47b7-8633-41d4261bbaef
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-17 17:59:57.588139'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content.\n              "
+  created_at: '2025-04-17 17:59:57.588113'
+  disable_knowledge: false
+  doc_id: e4d3010d-2952-403e-b9d3-39b0ad580f5b
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-17 17:59:57.588139'
+  user: null
+- content: "<script setup>\nimport draggable from \"vuedraggable\"\nimport TaskCard\
+    \ from \"./TaskCard.vue\"\nimport ChatViewVue from \"../../views/ChatView.vue\"\
+    \nimport { v4 as uuidv4 } from \"uuid\"\nimport VSwatches from \"../VSwatches.vue\"\
+    \nimport KanbanList from \"./KanbanList.vue\"\n</script>\n\n<template>\n  <div\
+    \ class=\"h-full\" v-if=\"kanban?.boards\">\n    <KanbanList\n      :boards=\"\
+    boards\"\n      @select=\"selectBoard\"\n      @edit=\"onEditBoard\"\n      @new=\"\
+    showNewBoardModal\"\n      v-if=\"!$projects.activeChat && !board\"\n    />\n\
+    \    <ChatViewVue\n      class=\"h-full\"\n      @chats=\"onChatEditDone\"\n \
+    \     @sub-task=\"createSubTask\"\n      @sub-tasks=\"createSubTasks\"\n     \
+    \ @chat=\"$projects.setActiveChat($event)\"\n      :kanban=\"activeBoard\"\n \
+    \     v-if=\"$projects.activeChat\"\n    />\n    <div v-if=\"!$projects.activeChat\
+    \ && showKanban\">\n      <div class=\"flex gap-4 items-center\">\n        <div\
+    \ class=\"flex gap-2 items-center\">\n          <div tabindex=\"0\" class=\"text-xl\
+    \ py-1 px-2 cursor-pointer flex items-center gap-2\" @click=\"toggleDropdown\"\
+    >\n            <button class=\"btn btn-sm\" @click=\"selectBoard()\">\n      \
+    \        <i class=\"fa-solid fa-caret-left\"></i>\n            </button>\n   \
+    \         {{ activeBoard?.title }}\n          </div>\n        </div>\n       \
+    \ <div class=\"grow\"></div>\n        <div class=\"flex gap-2\">\n          <div\
+    \ class=\"grow input input-sm input-bordered flex items-center gap-2\">\n    \
+    \        <input type=\"text\" v-model=\"filter\" class=\"grow\" placeholder=\"\
+    Search tasks\" />\n            <span class=\"cursor-pointer\" v-if=\"filter\"\
+    \ @click.stop=\"filter = ''\">\n              <i class=\"fa-regular fa-circle-xmark\"\
+    ></i>\n            </span>\n            <span v-else><i class=\"fa-solid fa-filter\"\
+    ></i></span>\n          </div>\n          <button class=\"btn btn-sm btn-outline\"\
+    \ @click=\"showColumnModal = true\" v-if=\"columnList?.length\">\n           \
+    \ <i class=\"fa-solid fa-plus\"></i>\n            <span class=\"text-xs md:text-md\"\
+    >Column</span>\n          </button>\n        </div>\n      </div>\n      <div\
+    \ class=\"mt-3 grow\">\n        <button class=\"btn btn-sm btn-wide btn-primary\"\
+    \ @click=\"showColumnModal = true\" v-if=\"!columnList?.length\">\n          <i\
+    \ class=\"fa-solid fa-plus\"></i>\n          <span class=\"text-xs md:text-md\"\
+    >Column</span>\n        </button>\n        <draggable\n          v-model=\"filteredColumns\"\
+    \n          group=\"columns\"\n          itemKey=\"id\"\n          :disabled=\"\
+    $ui.isMobile\"\n          @end=\"onColumnTaskListChanged\"\n          class=\"\
+    min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start\"\n\
+    \        >\n          <template #item=\"{ element: column }\">\n            <div\
+    \ class=\"bg-info/20 rounded-lg px-3 py-3 w-80 rounded overflow-auto flex flex-col\"\
+    \n              :class=\"column.color && 'border-t-4'\"\n              :style=\"\
+    { borderColor: column.color }\"\n            >\n              <div class=\"group\
+    \ font-semibold font-sans tracking-wide text-sm flex gap-2 items-center\">\n \
+    \               <div class=\"cursor-pointer w-6 h-6 flex items-center justify-center\
+    \ rounded-md group shadow-lg bg-base-100\" \n                  :style=\"{ backgroundColor:\
+    \ column.color }\" @click=\"openColumnPropertiesModal(column)\">\n           \
+    \       <span class=\"hidden group-hover:block\">\n                    <i class=\"\
+    fa-solid fa-pen-to-square\"></i>\n                  </span>\n                </div>\n\
+    \                <div class=\"flex gap-2 items-center grow\">\n              \
+    \    <div>{{column.title}}</div>\n                </div>\n                <div\
+    \ class=\"btn btn-sm\" @click=\"column.showSubTasks = !column.showSubTasks\"\n\
+    \                  :class=\"(column.showSubTasks !== false) && 'btn-info'\"\n\
+    \                >\n                  <i class=\"fa-regular fa-file-lines\"></i>\n\
+    \                </div>\n                <div class=\"flex gap-2 items-center\"\
+    >\n                  <div class=\"dropdown dropdown-end\">\n                 \
+    \   <div tabindex=\"0\" role=\"button\" class=\"btn btn-sm m-1 flex items-center\"\
+    >\n                      <span v-if=\"column.tasks?.length\">({{ column.tasks.length\
+    \ }})</span>\n                      <i class=\"mt-1 fa-solid fa-plus\"></i>\n\
+    \                    </div>\n                    <ul tabindex=\"0\" class=\"dropdown-content\
+    \ menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow\">\n                    \
+    \  <li class=\"flex gap-2\" @click=\"newAnalysisTask(column.title)\">\n      \
+    \                  <a>Analysis task</a>\n                      </li>\n       \
+    \               <li class=\"flex gap-2\" @click=\"newCodingTask(column.title)\"\
+    >\n                        <a>Coding task</a>\n                      </li>\n \
+    \                     <li class=\"flex gap-2\" @click=\"importTask(column.title)\"\
+    >\n                        <a>Import task</a>\n                      </li>\n \
+    \                   </ul>\n                  </div>\n                </div>\n\
+    \              </div>\n              <div class=\"grow overflow-y-auto\">\n  \
+    \              <draggable\n                  v-model=\"column.tasks\"\n      \
+    \            group=\"tasks\"\n                  itemKey=\"id\"\n             \
+    \     :disabled=\"$ui.isMobile\"\n                  @end=\"onColumnTaskListChanged(column)\"\
+    \n                  class=\"mt-3\"\n                >\n                  <template\
+    \ #item=\"{ element: task }\">\n                    <task-card\n             \
+    \         v-if=\"taskMatchesFilter(task)\"\n                      :task=\"task\"\
+    \n                      :itemKey=\"'id'\"\n                      class=\"cursor-pointer\
+    \ bg-base-100 overflow-hidden mt-2\"\n                      :class=\"[lastUpdatedTask.id\
+    \ == task.id ? 'border boder-primary border-dashed':'',\n                    \
+    \    (column.showSubTasks !== false) || !task.parent_id ? '' : 'hidden'\n    \
+    \                  ]\"\n                      @click=\"openChat(task)\"\n    \
+    \                />\n                  </template>\n                </draggable>\n\
+    \              </div>\n            </div>\n          </template>\n        </draggable>\n\
+    \      </div>\n    </div>\n    <modal v-if=\"showBoardModal\">\n      <h2 class=\"\
+    font-bold text-lg\">Add New Board</h2>\n      <input type=\"text\" v-model=\"\
+    newBoardName\" placeholder=\"Enter board name\" class=\"input input-bordered w-full\
+    \ mt-2\"/>\n      <input type=\"text\" v-model=\"newBoardDescription\" placeholder=\"\
+    Enter board description\" class=\"input input-bordered w-full mt-2\"/>\n     \
+    \ <input type=\"text\" v-model=\"newBoardBranch\" placeholder=\"Enter branch name\"\
+    \ class=\"input input-bordered w-full mt-2\"/>\n      <select v-model=\"selectedTemplate\"\
+    \ class=\"select select-bordered w-full mt-2\">\n        <option disabled value=\"\
+    \">Select a Template</option>\n        <option v-for=\"template in templates\"\
+    \ :key=\"template.name\" :value=\"template\">{{ template.name }}</option>\n  \
+    \    </select>\n      <div class=\"modal-action\">\n        <button class=\"btn\"\
+    \ @click=\"addBoard\">OK</button>\n        <button class=\"btn\" @click=\"showBoardModal\
+    \ = false\">Cancel</button>\n      </div>\n    </modal>\n    <modal v-if=\"showColumnModal\"\
+    >\n      <h2 class=\"font-bold text-lg\">Add/Edit Column</h2>\n      <div class=\"\
+    flex gap-1 items-center\">\n        <input type=\"text\" v-model=\"columnTitle\"\
+    \ placeholder=\"Enter column name\"\n          class=\"grow input input-bordered\
+    \ w-full\"/>\n        <VSwatches v-model=\"columnColor\" class=\"h-full mt-1\"\
+    \ />\n      </div>\n      <span v-if=\"editColumnError\" class=\"text-error\"\
+    >{{ editColumnError }}</span>\n      <div class=\"modal-action\">\n        <button\
+    \ class=\"btn\" @click=\"addOrUpdateColumn\">OK</button>\n        <button class=\"\
+    btn\" @click=\"showColumnModal = false\">Cancel</button>\n        <button class=\"\
+    btn btn-error\" @click=\"deleteColumn\">Delete</button>\n        <div class=\"\
+    text-error text-xs\" v-if=\"confirmDeleteColumn\">\n          Are you sure you\
+    \ want to delete this column? \n          All tasks will be removed.\n       \
+    \ </div>\n      </div>\n      <div class=\"badge badge-error\" v-if=\"editColumnError\"\
+    >{{ editColumnError }}</div>\n    </modal>\n  </div>\n</template>\n\n<script>\n\
+    const ALL_BOARD_TITLE_ID = \"$ALL\"\n\nexport default {\n  data() {\n    return\
+    \ {\n      board: null,\n      filter: null,\n      showBoardModal: false,\n \
+    \     showColumnModal: false,\n      showEditKanbanModal: false,\n      newBoardName:\
+    \ '',\n      newBoardDescription: '',\n      newBoardBranch: '',\n      columnTitle:\
+    \ '',\n      columnColor: '#000000',\n      isDropdownOpen: false,\n      selectedColumn:\
+    \ null,\n      editColumnError: null,\n      columns: [],\n      selectedTemplate:\
+    \ null,\n      templates: [\n        {\n          name: \"Scrum\",\n         \
+    \ description: \"Scrum board\",\n          columns: [\n            { title: \"\
+    To Do\", color: \"#FF5733\" },\n            { title: \"In Progress\", color: \"\
+    #33FF57\" },\n            { title: \"Done\", color: \"#3357FF\" }\n          ]\n\
+    \        },\n        {\n          name: \"Backlog\",\n          description: \"\
+    Backlog board\",\n          columns: [\n            { title: \"Backlog\", color:\
+    \ \"#FFC300\" },\n            { title: \"In Development\", color: \"#DAF7A6\"\
+    \ },\n            { title: \"Completed\", color: \"#C70039\" }\n          ]\n\
+    \        }\n      ],\n      editBoardName: '',\n      editBoardDescription: '',\n\
+    \      filteredColumns: [],\n      confirmDeleteColumn: false\n    }\n  },\n \
+    \ created() {\n    this.projectChanged()\n  },\n  computed: {\n    lastUpdatedTask()\
+    \ {\n      return this.visibleTasks.sort((a, b) => \n        (a.updated_at ||\
+    \ new Date(1900, 1, 1, 0, 0, 0, 0)) > \n        (b.updated_at || new Date(1900,\
+    \ 1, 1, 0, 0, 0, 0)) ? -1 : 1)\n        .slice(0, 1)[0] || {}\n    },\n    showKanban()\
+    \ {\n      return this.kanban && this.activeKanbanBoard\n    },\n    kanban()\
+    \ {\n      return this.$projects.kanban\n    },\n    activeKanbanBoard() {\n \
+    \     return this.kanban.boards[this.board]\n    },\n    chats() {\n      const\
+    \ allChats = this.$projects.allChats\n      return Object.values(allChats || {}).map(c\
+    \ => ({\n        ...c,\n        column: c.column || \"--none--\"\n      }))\n\
+    \    },\n    chat() {\n      return this.$projects.activeChat\n    },\n    project()\
+    \ {\n      return this.$projects.activeProject\n    },\n    activeBoard() {\n\
+    \      return this.boards[this.board]\n    },\n    boardColumns() {\n      return\
+    \ this.boards[this.board]?.columns\n    },\n    columnList() {\n      return this.boards[this.board]?.columns?.map(c\
+    \ => c.title) || []\n    },\n    boards() {\n      const { kanban: { boards },\
+    \ chats } = this\n      return [\n        ...Object.keys(boards).map(board =>\
+    \ ({\n          ...boards[board],\n          id: board,\n          title: board\n\
+    \        }))\n      ].reduce((acc, b) => ({ ...acc, [b.id]: {\n        ...b,\n\
+    \        tasks: chats.filter(c => b.id === ALL_BOARD_TITLE_ID || c.board === b.id)\n\
+    \      }}), {})\n    },\n    visibleTasks() {\n      return this.filteredColumns.reduce((a,\
+    \ b) => a.concat(b.tasks || []), [])\n    }\n  },\n  watch: {\n    filter(newValue,\
+    \ oldValue) {\n      if ((!newValue && oldValue) || newValue?.length > 3) {\n\
+    \        this.buildKanban()\n      }\n    },\n    project() {\n      this.projectChanged()\n\
+    \    }\n  },\n  methods: {\n    buildFilteredColumns() {\n      if (!this.filter)\
+    \ {\n        this.filteredColumns = this.columns\n      } else {\n        const\
+    \ filterText = this.filter.toLowerCase()\n        this.filteredColumns = this.columns.map(column\
+    \ => {\n          const filteredTasks = column.tasks.filter(task => {\n      \
+    \      const taskNameMatches = task.name.toLowerCase().includes(filterText)\n\
+    \            const messageContentMatches = task.messages?.some(message =>\n  \
+    \            message.content.toLowerCase().includes(filterText)\n            )\n\
+    \            return taskNameMatches || messageContentMatches\n          })\n \
+    \         return { ...column, tasks: filteredTasks }\n        })\n      }\n  \
+    \  },\n    async projectChanged() {\n      await this.$projects.loadKanban()\n\
+    \      this.selectBoard()\n      this.buildKanban()\n    },\n    toggleDropdown()\
+    \ {\n      this.isDropdownOpen = !this.isDropdownOpen\n    },\n    async selectBoard(board)\
+    \ {\n      this.board = board\n      this.$ui.setKanban(board)\n      this.isDropdownOpen\
+    \ = false\n      await this.$projects.loadChats()\n      if (board && this.kanban.boards[board]\
+    \ && !this.kanban.boards[board].active) {\n        Object.keys(this.kanban.boards)\n\
+    \          .forEach(b => this.kanban.boards[b].active = (b === board))\n     \
+    \   this.saveKanban()\n      }\n      this.buildKanban()\n    },\n    async editKanban()\
+    \ {\n      if (!this.editBoardName.trim()) {\n        return\n      }\n      const\
+    \ board = this.activeBoard\n      if (board) {\n        board.title = this.editBoardName\n\
+    \        board.description = this.editBoardDescription\n        await this.saveKanban(true)\n\
+    \        this.showEditKanbanModal = false\n      }\n    },\n    async createNewChat(base)\
+    \ {\n      return this.$projects.createNewChat({\n        ...base,\n        id:\
+    \ uuidv4(),\n        board: this.board || \"Default\",\n      })\n    },\n   \
+    \ newAnalysisTask(column) {\n      this.createNewChat({\n        column,\n   \
+    \     name: \"New Analysis Task\",\n        mode: 'task',\n        profiles: [\"\
+    analyst\"]\n      })\n    },\n    newCodingTask(column) {\n      this.createNewChat({\n\
+    \        column,\n        name: \"New Coding Task\",\n        mode: 'chat',\n\
+    \        profiles: [\"software_developer\"]\n      })\n    },\n    async importTask(column)\
+    \ {\n      // Import task will show a modal with multiple options to import from\
+    \ clipboard, input, and task URL\n      const clipboardContent = await navigator.clipboard.readText()\n\
+    \      const existingChat = JSON.parse(clipboardContent)\n      const newChat\
+    \ = await this.createNewChat({\n        ...existingChat,\n        id: null,\n\
+    \        column,\n      })\n      this.$projects.saveChat(newChat)\n    },\n \
+    \   async buildKanban() {\n      if (this.kanban) {\n        this.buildColumns()\n\
+    \      }\n    },\n    buildColumns() {\n      const columnTitles = this.columnList\n\
+    \      const cloumnChats = this.kanban.boards[this.board]?.columns?.chats || []\n\
+    \      this.columns = columnTitles\n        .map((col, ix) => {\n          const\
+    \ boardColumn = this.boards[this.board]?.columns?.find(bc => bc.title === col)||{}\n\
+    \          const getChatIndex = c => {\n            return cloumnChats.findIndex(kc\
+    \ => kc.id === c.id)\n          }\n          return {\n            title: col,\n\
+    \            ...boardColumn,\n            tasks: this.activeBoard.tasks\n    \
+    \          .filter(t => (t.column || \"--none--\") === col)\n              .sort((a,\
+    \ b) => getChatIndex(a) < getChatIndex(b) ? -1 : 1),\n            position: ix\n\
+    \          }\n        }).sort((a, b) => a.position < b.position ? -1: 1)\n   \
+    \     || []\n        this.buildFilteredColumns()\n    },\n    async onColumnTaskListChanged()\
+    \ {\n      if (this.$ui.isMobile) {\n        return\n      }\n      const kboard\
+    \ = this.kanban.boards[this.board]\n      kboard.columns = await Promise.all(this.filteredColumns.map(async\
+    \ (column, ix) => {\n        const kcolumn = kboard.columns.find(kc => kc.id ===\
+    \ column.id)\n        kcolumn.chats = column.tasks.map(t => t.id)\n        await\
+    \ Promise.all(column.tasks.filter(t => t.column !== column.title)\n          .map(task\
+    \ => this.$storex.projects.saveChatInfo({ ...task, column: column.title })))\n\
+    \        return kcolumn\n      }))\n      this.saveKanban(true)\n    },\n    async\
+    \ openChat(element) {\n      if (element.id === -1) {\n        this.newChat()\n\
+    \      } else {\n        await this.$projects.setActiveChat(element)\n      }\n\
+    \    },\n    async onChatEditDone() {\n      await this.$projects.setActiveChat()\n\
+    \      this.buildKanban()\n    },\n    async createSubTask({ parent, name, description\
+    \ }) {\n      const chat = this.createNewChat({\n        board: parent.board,\n\
+    \        name,\n        column: parent.column,\n        parent_id: parent.id,\n\
+    \        project_id: parent.project_id,\n        messages: [{ role: \"user\",\
+    \ content: description }]\n      })\n      this.$projects.newChat(chat)\n    },\n\
+    \    async createSubTasks(event) {\n      this.$projects.createSubtasks(event)\n\
+    \    },\n    async addOrUpdateColumn() {\n      this.columnTitle = this.columnTitle.trim()\n\
+    \      if (!this.columnTitle) {\n        return this.resetColumnModal()\n    \
+    \  }\n      const existingColumnTitle = this.activeKanbanBoard.columns.find(c\
+    \ => c.title === this.columnTitle)\n      if (existingColumnTitle && existingColumnTitle.id\
+    \ !== this.selectedColumn?.id) {\n        this.editColumnError = \"Name already\
+    \ used\"\n        return\n      }\n      if (this.selectedColumn) {\n        this.selectedColumn.title\
+    \ = this.columnTitle\n        this.selectedColumn.color = this.columnColor\n \
+    \     } else {\n        const newColumn = {\n          id: uuidv4(),\n       \
+    \   title: this.columnTitle,\n          color: this.columnColor\n        }\n \
+    \       this.activeBoard.columns.push(newColumn)\n      }\n      await this.saveKanban(true)\n\
+    \      this.resetColumnModal()\n      this.buildKanban()\n    },\n    async deleteColumn()\
+    \ {\n      if (this.confirmDeleteColumn) {\n        this.activeKanbanBoard.columns\
+    \ = this.activeKanbanBoard.columns.filter(\n          column => column.id !==\
+    \ this.selectedColumn.id\n        )\n        await this.saveKanban(true)\n   \
+    \     this.resetColumnModal()\n      }\n      this.confirmDeleteColumn = !this.confirmDeleteColumn\n\
+    \    },\n    resetColumnModal() {\n      this.showColumnModal = false\n      this.columnTitle\
+    \ = ''\n      this.columnColor = '#000000'\n      this.selectedColumn = null\n\
+    \      this.editColumnError = null\n    },\n    async addBoard() {\n      const\
+    \ boardName = this.newBoardName.trim()\n      if (boardName && !this.boards[boardName])\
+    \ {\n        const selectedTemplate = this.selectedTemplate\n        this.kanban.boards[boardName]\
+    \ = {\n          id: uuidv4(),\n          description: this.newBoardDescription.trim()\
+    \ || selectedTemplate.description,\n          branch: this.newBoardBranch.trim(),\n\
+    \          columns: selectedTemplate?.columns || [],\n          last_update: new\
+    \ Date().toISOString()\n        }\n        await this.saveKanban()\n      }\n\
+    \      this.newBoardName = ''\n      this.newBoardDescription = ''\n      this.newBoardBranch\
+    \ = ''\n      this.selectedTemplate = null\n      this.showBoardModal = false\n\
+    \      this.board = boardName\n      this.buildKanban()\n    },\n    openColumnPropertiesModal(column)\
+    \ {\n      this.selectedColumn = this.activeKanbanBoard.columns.find(c => c.id\
+    \ === column.id)\n      this.columnTitle = column?.title\n      this.columnColor\
+    \ = column?.color || '#000000'\n      this.showColumnModal = true\n    },\n  \
+    \  async saveKanban(setUpdate) {\n      if (setUpdate) {\n        this.activeKanbanBoard.last_update\
+    \ = new Date().toISOString()\n      }\n      await this.$projects.saveKanban()\n\
+    \    },\n    showNewBoardModal() {\n      this.showBoardModal = true\n    },\n\
+    \    taskMatchesFilter(task) {\n      const filterText = this.filter?.toLowerCase()\
+    \ || ''\n      const taskNameMatches = task.name.toLowerCase().includes(filterText)\n\
+    \      const messageContentMatches = task.messages?.some(message =>\n        message.content.toLowerCase().includes(filterText)\n\
+    \      )\n      return taskNameMatches || messageContentMatches\n    },\n    onEditBoard\
+    \ (board) {\n      this.selectBoard(board)\n\n      this.showEditKanbanModal =\
+    \ true\n    }\n  }\n}\n</script>"
+  created_at: '2025-04-17 17:59:57.588113'
+  disable_knowledge: false
+  doc_id: a0f49241-8291-45ce-a7b0-136a795ff249
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.5422677993774414
+    model: gpt-4o
+    time_taken: 28.826388597488403
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-17 17:59:57.588139'
+  user: null
+mode: chat
+name: changes-at-kanban-kanban-vue-2025-04-20-10-35-37-428583
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-04-20T10:36:06.255485'
+url: ''
+users: []
+visibility: ''

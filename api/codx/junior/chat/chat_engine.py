@@ -166,6 +166,7 @@ class ChatEngine:
                     settings.codx_path: settings for settings in query_mention_projects
                 }).values())
 
+            logger.info("Chat profiles: %s", [p.name for p in all_profiles])
             if all_profiles:
                 chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in all_profiles])
                 chat_profile_names = [profile.name for profile in all_profiles]
@@ -543,7 +544,7 @@ class ChatEngine:
 
         query = f"{content} {chat_profiles}"
         query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
-        logger.debug(f"Query mentions extracted: {query_mentions}")
+        logger.debug("Query mentions extracted fo '%s': %s", query, query_mentions)
         return query_mentions
 
 

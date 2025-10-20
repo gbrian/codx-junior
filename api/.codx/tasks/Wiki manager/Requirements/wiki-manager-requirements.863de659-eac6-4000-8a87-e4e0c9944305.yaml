@@ -1,0 +1,33 @@
+board: Wiki manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Requirements
+column_id: ''
+created_at: '2025-08-04 20:45:37.830515'
+description: ''
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/wiki/README.md
+file_path: /shared/codx-junior/api/.codx/tasks/Wiki manager/Requirements/wiki-manager-requirements.863de659-eac6-4000-8a87-e4e0c9944305.yaml
+id: 863de659-eac6-4000-8a87-e4e0c9944305
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: chat
+name: Wiki Manager Requirements
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-08-04T20:50:08.543263'
+url: ''
+users: []
+visibility: ''

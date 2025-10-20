@@ -4,15 +4,7 @@ import WikiSections from '../components/wiki/WikiSections.vue';
 </script>
 <template>
   <div class="w-full flex flex-col gap-2">
-    <div class="w-full flex justify-between items-center">
-      <div class="w-1/12"></div>
-      <div class="grow text-4xl text-center">
-        TheMoreYouKnow
-      </div>
-      <div class="w-1/12">
-      </div>
-    </div>
-    <AssistantChat profile-name="wiki" />
+    <AssistantChat :profile-name="$project.project_name" />
     <wiki-sections />
   </div>
 </template>

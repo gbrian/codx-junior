@@ -11,21 +11,31 @@ import FileFinder from '../filebrowser/FileFinder.vue'
 </script>
 
 <template>
-  <div class="h-full px-2" v-if="kanban?.boards">
+  <div class="h-full" v-if="kanban?.boards">
     <div class="flex flex-col gap-2" v-if="!$projects.activeChat && !board">  
-      <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between gap-2 border-b  border-slate-700 pb-2">
-        <div>Boards</div>
+      <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between gap-2 border-b border-slate-700 pb-2">
+        <div class="flex gap-2">
+          <div class="avatar">
+            <div class="w-8 rounded-full">
+              <img :src="$project.project_icon" />
+            </div>
+          </div>
+          Boards
+        </div>
         <div class="grow"></div>
         <input type="text" v-model="boardFilter" class="input input-sm input-bordered" placeholder="Search boards" />
         <button class="btn btn-sm btn-warning btn-outline" @click="showNewBoardModal">
           New kanban
         </button>
+        <button class="btn btn-sm btn-outline" @click="reloadKanban">
+          <i class="fa-solid fa-rotate"></i> Reload
+        </button>
       </h1>
       <KanbanList
         :boards="filteredParentBoards"
         @select="selectBoard"
-        @edit="onEditBoard"
         @new="showNewBoardModal"
+        @bookmark="toggleBookmark"
         @delete="onDeleteBoard"
       />
     </div>
@@ -43,11 +53,30 @@ import FileFinder from '../filebrowser/FileFinder.vue'
     <div class="flex flex-col h-full" v-if="!$projects.activeChat && showKanban">
       <div class="flex gap-4 items-center">
         <div class="flex gap-2 items-center">
-          <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2" @click="toggleDropdown">
-            <button class="btn btn-sm" @click="selectBoard(parentBoard?.title)">
+          <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2">
+            <button class="btn btn-sm flex items-center" >
               <i class="fa-solid fa-caret-left"></i>
             </button>
-            {{ activeBoard?.title }}
+            <div class="flex gap-2" @click="selectBoard()">
+              <div class="avatar">
+                <div class="w-8 rounded-full">
+                  <img :src="$project.project_icon" />
+                </div>
+              </div>
+              <span class="text-xl">
+                {{ $project.project_name }}
+              </span>
+            </div>
+            /
+            <div @click="selectBoard(parentBoard?.title)" v-if="parentBoard?.title">
+              {{ parentBoard?.title }} /
+            </div>
+            <span class="font-bold">{{ activeBoard?.title }}</span>
+            <i
+              class="fa-solid fa-bookmark"
+              :class="{ 'text-warning': activeBoard?.bookmark }"
+              @click="toggleBookmark"
+            ></i>
           </div>
         </div>
         <div class="grow"></div>
@@ -71,6 +100,12 @@ import FileFinder from '../filebrowser/FileFinder.vue'
               <li @click="showColumnModal = true"><a><i class="fa-solid fa-plus"></i> Column</a></li>
               <li @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> Board</a></li>
               <li @click="showChildrenBoards = !showChildrenBoards"><a><i class="fa-solid fa-eye"></i> Show Boards</a></li>
+              <li @click="onEditBoard">
+                  <a>
+                    <i class="fas fa-cogs text-warning hidden group-hover:block cursor-pointer"></i>
+                    Settings
+                  </a>
+              </li>
             </ul>
           </div>
         </div>
@@ -98,7 +133,6 @@ import FileFinder from '../filebrowser/FileFinder.vue'
             :boards="childBoards"
             :options="{ addNew: false }"
             @select="selectBoard"
-            @edit="onEditBoard"
             @new="showNewBoardModal"
           />
         </div>
@@ -454,13 +488,15 @@ export default {
       board.parent_id = this.newBoardParent
       await this.saveKanban()
     },
-    async createNewChat(base) {
+    async createNewChat(base, activateChat) {
       const chat = await this.$projects.createNewChat({
         ...base,
         id: uuidv4(),
         board: this.board || 'Default',
       })
-      this.$projects.setActiveChat(chat)
+      if (activateChat !== false) {
+        this.$projects.setActiveChat(chat)
+      }
       return chat
     },
     addNewFile() {
@@ -569,7 +605,7 @@ export default {
         project_id: project_id || parent.project_id,
         messages: description ? [{ role: 'user', content: description }] : [],
         file_list
-      })
+      }, activateChat)
       
       this.$projects.saveChat(chat)
       if (description) {
@@ -683,8 +719,14 @@ export default {
       )
       return taskNameMatches || messageContentMatches
     },
+    toggleBookmark({ title } = {}) {
+      const boardTitle = (title || this.activeBoard?.title)
+      const board = this.kanban.boards[boardTitle] 
+      board.bookmark = !board.bookmark;
+      this.saveKanban();
+    },
     onEditBoard(board) {
-      this.editBoard = board
+      this.editBoard = board || this.activeBoard
       this.originalBoardName = board.title
       this.newBoardBackground = board.background
       this.newBoardDescription = board.description
@@ -699,6 +741,9 @@ export default {
       if (this.activeBoard) {
         this.activeBoard.file_list = [...(this.activeBoard.file_list || []), ...filePaths]
       }
+    },
+    reloadKanban() {
+      this.$projects.loadKanban()
     }
   }
 }

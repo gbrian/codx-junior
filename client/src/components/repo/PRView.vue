@@ -3,13 +3,15 @@ import "@git-diff-view/vue/styles/diff-view.css";
 import { DiffParser } from "@git-diff-view/vue";
 import PRBranchSelectoor from './PRBranchSelectoor.vue';
 import CodxMenu from "../CodxMenu.vue";
-import PRFile from "./PRFile.vue";
+import PRReport from "./PRReport.vue";
+import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
+import PRFileViewModeSelector from "./PRFileViewModeSelector.vue";
 </script>
 
 <template>
   <div class="pr-view flex flex-col gap-1 h-full overflow-hidden">
     <header class="flex justify-between items-start">
-      <div class="flex flex-col gap-2">
+      <div class="flex flex-col gap-2 w-full">
         <div class="flex gap-2 items-center" v-if="loading">
           <span class="text-xs">Loading</span>
           <progress class="progress grow"></progress>
@@ -19,20 +21,28 @@ import PRFile from "./PRFile.vue";
           <button class="btn btn-xs" @click="refreshSummary">
             <i class="fa-solid fa-arrows-rotate"></i>
           </button>
+          <div class="grow"></div>
+          <PRFileViewModeSelector @select="onSelectFileOption" />
         </div>
       </div>
     </header>
     <div class="flex gap-2 py-2 items-center" v-if="files?.length">
-      <div class="flex gap-2 items-center border rounded-md px-1" 
-        v-if="selectedFiles.length">
-        <span>{{ selectedFiles.length }} files</span>
+      <div class="flex gap-2 items-center" 
+        v-if="reportFiles.length">
         <div class="dropdown">
-          <div tabindex="0" role="button" class="btn btn-xs m-1">
+          <div tabindex="0" role="button" class="btn btn-sm m-1 indicator"
+            :disabled="selectedFiles.length === 0"
+          >
+              <span class="indicator-item badge badge-xs badge-warning" v-if="selectedFiles.length">
+                {{ selectedFiles.length }}
+              </span>
             <i class="fa-solid fa-bars"></i>
           </div>
           <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
-            <li @click="onReviewSelected"><a>Review files</a></li>
-            <li @click="onBulkAction"><a>Custom action...</a></li>
+            <li @click="onReviewSelected"
+              v-if="selectedFiles.length"><a>Review files</a></li>
+            <li @click="onBulkAction"
+              v-if="selectedFiles.length"><a>Custom action...</a></li>
           </ul>
         </div>
       </div>
@@ -45,33 +55,57 @@ import PRFile from "./PRFile.vue";
           <i class="fa-solid fa-magnifying-glass"></i>
         </div>
       </div>
-      <div class="badge badge-outline gap-2 badge-error tooltip" data-tip="Deleted">{{ deleteCount }} <i class="fa-regular fa-file-lines"></i></div>
-      <div class="badge badge-outline gap-2 badge-success tooltip" data-tip="New">{{ newCount }} <i class="fa-regular fa-file-lines"></i></div>
-      <div class="badge badge-outline gap-2 tooltip" data-tip="Changed">{{ changeCount }} <i class="fa-regular fa-file-lines"></i></div>
+      <div class="avatar click" :title="profile.name" 
+        @click="filter = (filter||'') + ' ' + profile.name"
+        v-for="profile in profiles" :key="profile.name">
+        <div class="w-4 h-4 ring ring-offset-1 rounded-full">
+          <img :src="profile.avatar" />
+        </div>
+      </div>
+      <div class="click px-2 py-1 border rounded-full flex gap-2 tooltip text-xs" 
+        v-for="column in columns" :key="column.title"
+        :class="`text-[${column.color}] border-[${column.color}]`"
+        @click="filter = (filter||'') + ' ' + column.title"
+        >
+        {{  column.title }}
+        {{ column.chats?.length }}
+      </div>
     </div>
 
-
-    <div class="flex gap-2 h-full" v-if="files">
-      <div class="w-3/12 shrink-0 h-full overflow-auto">
-        <CodxMenu class="w-full overflow-auto"
+    <SplitterGroup class="h-full"
+      id="splitter-group-1"
+      direction="horizontal"
+      v-if="files"
+    >
+      <SplitterPanel
+        id="splitter-group-1-panel-1"
+        :min-size="10"
+        :collapsible="true"
+        class=""
+        :order="0"
+      >
+        <CodxMenu class="h-full overflow-auto"
           :items="visibleFiles"
           :item-key="'folder'"
           :defaultExpanded="defaultExpanded"
-          @select="showFileDetails = $event"  
+          @select="showFileDetails = $event"
         >
           <template v-slot:header>
-            <h2 class="font-semibold !text-base text-blackA11 flex items-center gap-2 px-2 pt-1">
+            <h2 class="font-semibold !text-base text-blackA11 flex items-end gap-2 px-2 pt-1">
               <input type="checkbox" @change="toggleAllNoneSelected" class="checkbox checkbox-sm"
               />
               Files
+              <span class="click ml-2 text-xs flex gap-1"><a @click="selectAll">all</a>/<a @click="selectNone">none</a></span>
             </h2>
           </template>
           <template v-slot:item="data">
             <div class="flex gap-1 items-center click px-2 text-nowrap"
               :class="data.item.value === showFileDetails ? 'text-warning font-bold' : 'opacity-90'"
             >
-              <input type="checkbox" v-model="data.item.value.selected" class="checkbox checkbox-sm"
-                v-if="!data.item.hasChildren"
+              <input type="checkbox" v-model="data.item.value.selected"
+                class="checkbox checkbox-sm"
+                @click.stop=""
+                @change="onDataItemSelected(data.item)"  
               />
               <div class="avatar-group -space-x-2" v-if="data.item.value.profiles?.length">
                 <div class="avatar" :title="profile.name" v-for="profile in data.item.value.profiles" :key="profile.name">
@@ -81,10 +115,12 @@ import PRFile from "./PRFile.vue";
                 </div>
               </div>
               <i class="fa-regular fa-comment-dots" 
-                :class="`text-[${data.item.value.column.color}]`"
+                :class="`text-[${data.item.value.column?.color}]`"
                 v-if="data.item.value.chat"></i>
             
-              {{ data.item.value.title }}
+              <span :title="data.item.value.fileName">
+                {{ data.item.value.title }}
+              </span>
 
               <div class=""
               :class="`text-[${data.item.value.column.color}]`"
@@ -94,13 +130,26 @@ import PRFile from "./PRFile.vue";
             </div>
           </template>
         </CodxMenu>
-      </div>
-      <PRFile :file="showFileDetails" 
-        class="grow bg-base-200 p-2 border-l border-slate-500 h-full"
-        @comment="onFileComment" 
-        v-if="showFileDetails">
-      </PRFile>
-    </div>
+      </SplitterPanel>
+      <SplitterResizeHandle
+        id="splitter-group-1-resize-handle-1"
+        class="w-1 hover:bg-slate-600"
+      />
+      <SplitterPanel
+        id="splitter-group-1-panel-2"
+        :min-size="20"
+        :defaultSize="80"
+        :order="1"
+        class=""
+      >
+        <PRReport class="w-full h-full overflow-auto" 
+          :files="reportFiles" 
+          :showOption="showOption"
+          @new-chat="onFileChat"
+        />  
+      </SplitterPanel>
+    </SplitterGroup>
+
     <modal close="true" @close="showBulkAction = false" v-if="showBulkAction">
       <div class="flex flex-col gap-2">
         <div class="text-xl">Bulk action</div>
@@ -135,7 +184,8 @@ export default {
       filter: null,
       bulkAction: null,
       showBulkAction: false,
-      showFileDetails: null
+      showFileDetails: null,
+      showOption: null
     }
   },
   created() {
@@ -144,6 +194,10 @@ export default {
     }
   },
   computed: {
+    reportFiles() {
+      return [this.showFileDetails, ...this.selectedFiles]
+        .filter((v, ix, arr) => v && arr.indexOf(v) === ix)
+    },
     branches() {
       return this.$projects.project_branches.branches
     },
@@ -160,14 +214,32 @@ export default {
       return this.files?.filter(f => f.selected) || []
     },
     visibleFiles() {
+      const fileIndex = ({ fileFullName, diff, chat }) => {
+        const fileds = [
+          fileFullName.toLowerCase(),
+          diff?.toLowerCase(),
+          chat?.profiles.map(p => p.name).join(),
+          chat?.column
+        ]
+        return fileds.join("").toLowerCase()
+      }
       return this.filter ? this.files?.filter(f =>
-        f.fileFullName.includes(this.filter.toLowerCase()) ||
-        f.diff.toLowerCase().includes(this.filter.toLowerCase())
-      ) || [] :
+      fileIndex(f).includes(this.filter.trim().toLowerCase())) || [] :
         this.files
     },
     defaultExpanded() {
       return [...new Set(this.visibleFiles.filter(i => i.chat).map(i => i.folder))]
+    },
+    fileMap() {
+      return this.files.reduce((acc, file) => ({ ...acc, [file.fileName]: file }), {})
+    },
+    columns() {
+      return this.$projects.kanban.boards[this.chat.board].columns
+    },
+    profiles() {
+      return this.files?.map(f => f.profiles)
+              .reduce((a, b) => [...a, ...b])
+              .reduce((acc, profile) => ({ ...acc, [profile.name]: profile }), {})
     }
   },
   watch: {
@@ -259,10 +331,16 @@ export default {
           const chat = this.prChats[fileFullName]
           const lastMessage = chat?.messages.filter(m => m.role === "assistant" && !m.hide)
                                   .reverse()[0]
-          const board = this.$storex.projects.kanban.boards[chat?.board]          
+          const board = this.$storex.projects.kanban.boards[chat?.board]       
           const column = board?.columns.find(c => c.title === chat?.column)
           const messageCount = chat?.messages.length
-          const folder = "/" + fileName.split("/").reverse().slice(1).reverse().join("/")
+          
+          let folderParts = fileName.split("/").reverse().slice(1).reverse()
+          if (folderParts.length > 6) {
+            folderParts = folderParts.map((v, ix) => ix <= 4 ? v[0] : v)
+          }
+          const folder = "/" + folderParts.join("/")
+
           const title = fileName.split("/").reverse()[0]
           const extension = fileFullName.split(".").reverse()[0]
         
@@ -336,6 +414,26 @@ export default {
       files.map(file => 
         this.onFileComment({ file, message: "Review files and return a list of erros that need to be changed. Add examples for complex changes." })
       )
+    },
+    onFileChat({ file }) {
+      const { fileFullName, fileShortName, profiles } = file
+      this.$emit('new-chat', { title: fileShortName, files: [fileFullName], profiles, mode: 'task' })
+    },
+    onDataItemSelected(item) {
+      if (item.hasChildren) {
+        item.value.children.forEach(child => {
+          child.selected = item.value.selected
+        })
+      }
+    },
+    selectAll() {
+      this.files = this.files.map(f => ({...f, selected: true }))
+    },
+    selectNone() {
+      this.files = this.files.map(f => ({...f, selected: false }))
+    },
+    onSelectFileOption(showOption) {
+      this.showOption = showOption
     }
   },
   mounted() {

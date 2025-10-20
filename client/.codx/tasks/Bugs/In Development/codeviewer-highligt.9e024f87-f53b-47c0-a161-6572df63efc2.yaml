@@ -1,0 +1,156 @@
+board: Bugs
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Development
+column_id: ''
+created_at: '2025-08-30 12:19:18.184223'
+description: The user provided a code snippet for a Vue component and asked for modification
+  to handle unrecognized code languages by using a default "markdown" language. The
+  request was to catch errors from the highlighter and switch the language. An updated
+  version of the component with these changes was created. The new code includes a
+  computed property to determine if the language is recognized and provides a fallback
+  to "markdown" if not. Finally, the Vue component was presented with these updates.
+doc_id: null
+file_list:
+- /home/codx-junior/codx-junior/client/src/components/CodeViewer.vue
+file_path: /shared/codx-junior/client/.codx/tasks/Bugs/In Development/codeviewer-highligt.9e024f87-f53b-47c0-a161-6572df63efc2.yaml
+id: 9e024f87-f53b-47c0-a161-6572df63efc2
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: when highlighjs doesn'trecognise the code language throws an error, caught
+    and use a default "markdown" value as code language
+  created_at: '2025-08-30 12:19:18.182148'
+  disable_knowledge: true
+  doc_id: 74383a49-ae7e-4f77-8038-c842b73cb6e0
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 12:19:18.182176'
+  user: admin
+- content: "when highlighjs doesn'trecognise the code language throws an error, caught\
+    \ and use a default \"markdown\" value as code language\n                    Create\
+    \ new document based on user comments.\n                    User comments:\n \
+    \                   when highlighjs doesn'trecognise the code language throws\
+    \ an error, caught and use a default \"markdown\" value as code language\n   \
+    \                 Important: Always return the markdown document without any comments\
+    \ before or after, to keep it clean."
+  created_at: '2025-08-30 12:19:18.182148'
+  disable_knowledge: false
+  doc_id: 681d65cd-885d-499f-ae32-1ddef822e564
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 12:19:18.182176'
+  user: null
+- content: "```vue /home/codx-junior/codx-junior/client/src/components/CodeViewer.vue\n\
+    <script setup>\nimport { VueCodeHighlighter } from 'vue-code-highlighter'\nimport\
+    \ 'vue-code-highlighter/dist/style.css'\nimport DiffViewer from './DiffViewer.vue'\n\
+    </script>\n\n<template>\n  <div class=\"flex flex-col gap-2\">\n    <div class=\"\
+    flex gap-1 click\">\n      <div class=\"underline click text-link flex gap-2\"\
+    \ v-if=\"fileName\">\n        <div class=\"hover:text-info\" @click=\"$emit('open-file',\
+    \ file)\" :title=\"file\">{{ fileName }}</div>\n        <div class=\"hover:text-info\"\
+    \ @click=\"$emit('reload-file', file)\">\n          <i class=\"fa-solid fa-file-arrow-up\"\
+    ></i>\n        </div>\n        <div class=\"hover:text-info\" @click=\"onShowDiff\"\
+    >\n          <i class=\"fa-solid fa-code-compare\"></i>\n        </div>\n    \
+    \    <div class=\"hover:text-info\" @click=\"saveFile\" v-if=\"$user.role ===\
+    \ 'admin'\">\n          <i class=\"fa-solid fa-floppy-disk\"></i>\n        </div>\n\
+    \      </div>\n      <div class=\"hover:text-info\" @click=\"zoomOut\">\n    \
+    \    <i class=\"fa-solid fa-magnifying-glass-minus\"></i>\n      </div>\n    \
+    \  <div class=\"hover:text-info\" @click=\"zoomIn\">\n        <i class=\"fa-solid\
+    \ fa-magnifying-glass-plus\"></i>\n      </div>\n      <div class=\"hover:text-info\"\
+    \ @click=\"onCopy\">\n        <i class=\"fa-solid fa-copy\"></i>\n      </div>\
+    \      \n    </div>\n    <div @click=\"runCommand\" v-if=\"isCommand\">\n    \
+    \  <i class=\"fa-solid fa-terminal\"></i>\n    </div>\n    <div class=\"view-code\"\
+    \ :style=\"{ zoom }\">\n      <VueCodeHighlighter :code=\"diff\" :lang=\"'diff'\"\
+    \ :header=\"false\" :title=\"fileName\" v-if=\"showDiff\" />\n      <VueCodeHighlighter\
+    \ :code=\"codeWithFallback\" :lang=\"languageWithFallback\" :title=\"fileName\"\
+    \ v-else />\n    </div>\n    <div class=\"flex justify-end gap-2\">\n      <button\
+    \ class=\"btn btn-sm btn-warning\" @click=\"applyPatch\" v-if=\"isPatch\">\n \
+    \       Apply\n      </button>\n    </div>\n  </div>\n</template>\n<script>\n\
+    export default {\n  props: ['code', 'language', 'file'],\n  data() {\n    return\
+    \ {\n      showDiff: false,\n      diff: null,\n      zoom: 0.6\n    }\n  },\n\
+    \  computed: {\n    isPatch() {\n      return this.language === 'diff'\n    },\n\
+    \    fileName() {\n      return this.file?.split(\"/\").reverse()[0]\n    },\n\
+    \    isCommand() {\n      return this.language === \"bash\"\n    },\n    languageWithFallback()\
+    \ {\n      try {\n        if (!this.language || !this.isLanguageRecognized(this.language))\
+    \ {\n          throw new Error(\"Unrecognized language\");\n        }\n      \
+    \  return this.language;\n      } catch (error) {\n        return 'markdown';\n\
+    \      }\n    },\n    codeWithFallback() {\n      return this.code || '';\n  \
+    \  }\n  },\n  methods: {\n    applyPatch() {\n      this.$projects.applyPatch({\
+    \ patch: this.code })\n    },\n    async onShowDiff() {\n      if (!this.diff)\
+    \ {\n        this.diff = await this.$storex.api.files.diff({ path: this.file,\
+    \ content: this.code })\n      }\n      this.showDiff = !this.showDiff\n    },\n\
+    \    saveFile() {\n      this.$emit('save-file', { file: this.file, content: this.code\
+    \ })\n    },\n    runCommand() {\n      this.$storex.api.apps.runScript(this.code)\n\
+    \    },\n    zoomOut() {\n      this.zoom -= .1\n    },\n    zoomIn() {\n    \
+    \  this.zoom += .1\n    },\n    onCopy() {\n      this.$ui.copyTextToClipboard(this.code)\n\
+    \    },\n    isLanguageRecognized(language) {\n      // Add logic to check the\
+    \ recognition of the language.\n      // The check might be a list of supported\
+    \ languages or an API call.\n      const recognizedLanguages = ['javascript',\
+    \ 'html', 'css', 'bash', 'json', 'diff'];\n      return recognizedLanguages.includes(language);\n\
+    \    }\n  }\n}\n</script>\n<style>\n.header-code-highlight {\n  display: none\
+    \ !important;\n}\n</style>\n```"
+  created_at: '2025-08-30 12:19:18.182148'
+  disable_knowledge: false
+  doc_id: 5bc8fe2b-236c-4e56-9092-34aca32badeb
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00012111663818359375
+    model: openai/gpt-4o
+    time_taken: 7.226698398590088
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-08-30 12:19:18.182176'
+  user: null
+mode: task
+name: CodeViewer highligt
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-08-30T13:57:53.495900'
+url: ''
+users:
+- admin
+visibility: ''

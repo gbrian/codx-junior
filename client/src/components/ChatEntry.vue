@@ -9,6 +9,8 @@ import Document from './document/Document.vue'
 <template>
   <div class="chat-entry flex gap-1 items-start relative p-2"
     :class="[
+      message.hide ? 'hover:bg-base-100 opacity-50 hover:opacity-100': 'bg-base-100',
+      message.hide ? 'border-l-2 border-warning' : '',
       !message.done && 'border border-dashed border-sky-800 p-1',
       message.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
       isTopic && 'border border-dashed p-2 bg-info/20 border-info',
@@ -26,10 +28,13 @@ import Document from './document/Document.vue'
           <div class="badge badge-sm badge-success flex gap-1" v-if="isTopic">
             <ChatIcon mode="topic" /> Topic 
           </div>              
-          <div class="flex justify-start gap-4 items-center p-2" @dblclick.stop="toggleCollapse">
+          <div class="flex gap-1 items-center" 
+            :class="message.hide && 'text-slate-500'"
+            @dblclick.stop="toggleCollapse">
+            <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             <div v-for="profile in messageProfiles" :key="profile.name">
               <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
-                <div class="ring-primary ring-offset-base-100 w-6 h-6 rounded-full ring ring-offset-2">
+                <div class="w-4 h-4 mt-1 rounded-full">
                   <img :src="profile.avatar" :alt="profile.name" />
                 </div>
               </div>
@@ -37,7 +42,6 @@ import Document from './document/Document.vue'
             <div class="flex gap-2 grow">
               [{{ formatDate(message.updated_at) }}] 
               <span v-if="timeTaken">({{ timeTaken }} s.)</span>
-              <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             </div>
             <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end"
               v-if="menuLess !== true"
@@ -118,8 +122,9 @@ import Document from './document/Document.vue'
             </div>
           </div>                
         </div>
-        <div @copy.stop="onMessageCopy" :class="['max-w-full group border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', 
-            message.hide ? 'text-slate-200': '']">
+        <div @copy.stop="onMessageCopy" 
+            :class="['max-w-full border-slate-300/20', 
+            (message.collapse === undefined ? message.hide : message.collapse) ? 'h-6 overflow-hidden': 'h-fit']">
           
           <textarea v-if="editting" v-model="editting" class="h-96 input input-bordered w-full p-2"/>                
           <pre v-if="srcView">{{ message.content }}</pre>
@@ -129,6 +134,7 @@ import Document from './document/Document.vue'
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
             @save-file="$emit('save-file', $event)"
+            @add-file="$emit('add-file', $event)"
             @edit-message="$emit('edit-message', $event)"
             :mentionList="mentionList"
             v-if="!showDiff && !editting && !srcView && !code_patches" />
@@ -222,7 +228,7 @@ export default {
         ? think : `${think.slice(0, 50)}...`
     },
     messageProfiles() {
-      let profiles = this.$projects.profiles.filter(p => this.message.profiles?.includes(p.name))
+      let profiles = this.$projects.profiles?.filter(p => this.message.profiles?.includes(p.name)) || []
       const user = this.$project.users.find(({ username }) => username === this.message.user)
       return [user, ...profiles].filter(u => !!u)
     },
@@ -310,7 +316,11 @@ export default {
       }
     },
     toggleCollapse() {
-      this.message.collapse = !this.message.collapse
+      if (this.message.collapse !== undefined) {
+        this.message.collapse = !this.message.collapse 
+      } else {
+        this.message.collapse = !this.message.hide
+      }
     },
     toggleSrcView() {
       if (this.srcView = !this.srcView) {

@@ -1,0 +1,94 @@
+board: codx-agents
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: tasks
+column_id: ''
+created_at: '2025-02-13 18:52:55.193941'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/codx-agents/tasks/coding-flow.35673ca7-438e-4da6-9b09-877a0c67d3b1.yaml
+id: 35673ca7-438e-4da6-9b09-877a0c67d3b1
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Creeate a coding agent flow steps. Use mermaid diagrams
+  created_at: '2025-02-13 18:52:55.192194'
+  disable_knowledge: false
+  doc_id: c059e66e-e7c1-4e58-b7e2-f96b523c0d9f
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-02-13 18:52:55.192225'
+  user: null
+- content: "Certainly! Below are the steps to create a coding agent flow using Mermaid\
+    \ diagrams, following the template provided:\n\n```md\n**Objective:**\n- To design\
+    \ a flowchart for a coding agent using Mermaid diagrams, which visually represents\
+    \ the steps involved in the coding process.\n\n**Requirements:**\n- Knowledge\
+    \ of Mermaid syntax for creating diagrams.\n- Understanding of the coding agent's\
+    \ workflow and processes.\n\n**Examples:**\n- Example of Mermaid syntax for a\
+    \ simple flowchart:\n  ```mermaid\n  graph TD;\n      A[Start] --> B[Task Definition];\n\
+    \      B --> C[Development];\n      C --> D[Testing];\n      D --> E[Deployment];\n\
+    \      E --> F[End];\n  ```\n\n**Acceptance Criteria:**\n- [ ] The flowchart must\
+    \ include at least five steps: Start, Task Definition, Development, Testing, Deployment,\
+    \ and End.\n- [ ] The diagram should be clear and easy to understand.\n- [ ] The\
+    \ flowchart must be created using correct Mermaid syntax.\n- [ ] The process flow\
+    \ should logically represent a typical coding workflow.\n\n**Additional Notes:**\n\
+    - Mermaid is a powerful tool for creating diagrams and flowcharts directly in\
+    \ markdown.\n- Ensure that the flowchart is comprehensive and covers all necessary\
+    \ aspects of the coding agent's workflow.\n```\n\nHere's how you can visually\
+    \ represent the coding agent flow with a Mermaid diagram:\n\n```mermaid\ngraph\
+    \ TD;\n    A[Start] --> B[Task Definition];\n    B --> C[Development];\n    C\
+    \ --> D[Testing];\n    D --> E[Deployment];\n    E --> F[End];\n```\n\nThis flowchart\
+    \ illustrates a basic coding agent workflow from start to end, covering essential\
+    \ phases such as task definition, development, testing, and deployment. Adjust\
+    \ the diagram as needed to fit your specific coding agent processes.null"
+  created_at: '2025-02-13 18:52:55.192194'
+  disable_knowledge: false
+  doc_id: 3cc32cb0-732d-4d45-951e-5c8471a2880f
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: ''
+  updated_at: '2025-02-13 18:52:55.192225'
+  user: null
+mode: task
+name: Coding flow
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- analyst
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-02-15T09:16:22.134168'
+url: ''
+users: []
+visibility: ''

@@ -383,12 +383,9 @@ def api_project_watch(request: Request):
 
 @app.get("/api/projects")
 def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    with_metrics = request.query_params.get("with_metrics")
     return [{
       **project.__dict__,
-      "workspaces": project.get_project_workspaces(),
-      "metrics": get_codx_junior_session(request, project.codx_path).project_metrics() \
-                      if with_metrics else {}
+      "workspaces": project.get_project_workspaces()
     } for project in find_all_user_projects(user)]
 
 @app.get("/api/projects/metrics")

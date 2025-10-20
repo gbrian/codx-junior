@@ -1,0 +1,388 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-03-26 11:48:53.266577'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-components-editprofile-vue-2025-03-26-11-52-46-807995.a1f92fbd-418b-4e23-bb4e-457ac3fc66c5.yaml
+id: a1f92fbd-418b-4e23-bb4e-457ac3fc66c5
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      ```\n                      <script setup>\nimport\
+    \ Markdown from './Markdown.vue'\n</script>\n\n<template>\n  <div class=\"edit-profile\
+    \ px-4 max-w-2xl mx-auto flex flex-col gap-2\">\n    <label class=\"text-xl flex\
+    \ items-center gap-2 font-bold\">\n      <button type=\"button\" @click=\"cancelEdit\"\
+    \ class=\"btn btn-sm\">\n        <i class=\"fa-solid fa-arrow-left\"></i>\n  \
+    \    </button>\n      Profile\n      <div class=\"grow\"></div>\n      <button\
+    \ type=\"button\" class=\"btn btn-sm btn-primary\" :class=\"loading && 'loading\
+    \ loading-spinner'\" @click=\"onSubmit\" :disabled=\"!canSave\">Update</button>\n\
+    \      <button type=\"button\" @click=\"onDeleteProfile\" class=\"btn btn-sm btn-error\"\
+    \ :disabled=\"!isOverriden || loading\">Delete</button>\n    </label>\n    @codx-ok,\
+    \ please-wait...: add tabs for Overview, Content, Settings. In the settings section\
+    \ create a settings table to edit \"Exposed in API\", and under: modelName and\
+    \ modelDescription that maps with editProfile.api_settings\n    <div class=\"\
+    flex justify-center\">\n      <div class=\"flex flex-col gpa-2 items-center\"\
+    >\n        <div class=\"avatar\">\n          <div class=\"w-24 rounded\">\n  \
+    \          <img :src=\"userAvatar\" />\n          </div>\n        </div>\n   \
+    \     <input placeholder=\"Avatar\" v-model=\"editProfile.avatar\" type=\"text\"\
+    \n          class=\"bg-base-300 input input-sm input-bordered w-full\" />  \n\
+    \      </div>\n    </div>\n    <div class=\"flex justify-between items-center\
+    \ gap-4\">\n      <input id=\"name\" v-model=\"editProfile.name\" type=\"text\"\
+    \ :class=\"nameTaken && 'text-error'\" class=\"bg-base-300 input input-sm input-bordered\
+    \ w-full\" />\n      <select class=\"select select-bordered select-sm\" v-model=\"\
+    editProfile.llm_model\">\n        <option value=\"\">-- default --</option>\n\
+    \        <option v-for=\"model in aiModels\" :key=\"model.name\" :value=\"model.name\"\
+    >\n          {{ model.ai_provider }} - {{ model.name }}\n        </option>\n \
+    \     </select>\n    </div>\n    <div class=\"form-group flex space-x-4 text-xs\"\
+    >\n      <div class=\"w-1/2 flex flex-col gap-2\">\n        <label for=\"category\"\
+    >Category</label>\n        <select v-model=\"editProfile.category\" :disabled=\"\
+    profile.category\" \n            class=\"select select-xs select-bordered\">\n\
+    \          <option value=\"project\">Project</option>\n          <option value=\"\
+    assistant\">Assistant</option>\n          <option value=\"chat\">Chat</option>\n\
+    \          <option value=\"file\">File</option>\n          <option value=\"agent\"\
+    >Agent</option>\n        </select>\n      </div>\n      <div class=\"w-1/2 flex\
+    \ flex-col gap-2\">\n        <label for=\"fileMatch\">File Match</label>\n   \
+    \     <input id=\"fileMatch\" v-model=\"editProfile.file_match\" type=\"text\"\
+    \ :class=\"!isValidFileMatch && 'text-error'\" class=\"bg-base-300 input input-xs\
+    \ input-bordered w-full\" />\n      </div>\n    </div>\n    <div class=\"form-group\"\
+    >\n      <label for=\"description\">Description</label>\n      <textarea id=\"\
+    description\" v-model=\"editProfile.description\"\n        class=\"bg-base-300\
+    \ textarea textarea-bordered w-full\"></textarea>\n    </div>\n    <div class=\"\
+    flex flex-col gap-2\">\n      <div class=\"flex justify-between\">\n        <label\
+    \ for=\"content flex gap-2\">Content\n          <button class=\"btn btn-xs\" @click=\"\
+    toggleContentPreview\">\n            <i :class=\"contentPreview ? 'fa-solid fa-pencil-alt'\
+    \ : 'fa-solid fa-eye'\"></i>\n          </button>\n        </label>\n        <div\
+    \ class=\"flex gap-2 items-center\">\n          Use knowledge\n          <input\
+    \ type=\"checkbox\" v-model=\"profile.use_knowledge\"\n            class=\"toggle\
+    \ checked:border-info checked:bg-info\" />\n        </div>\n      </div>\n   \
+    \   <Markdown class=\"p-2 rounded-md\" :class=\"contentPreview ? 'bg-base-100\
+    \ border border-slate-700' : 'bg-base-300'\" :text=\"editProfile.content\" v-if=\"\
+    contentPreview\" />\n      <textarea id=\"content\" v-model=\"editProfile.content\"\
+    \ class=\"textarea textarea-bordered w-full h-96 bg-base-300 overflow-auto\" v-else></textarea>\n\
+    \    </div>\n    <modal v-if=\"confirmDelete\">\n      <div class=\"text-2xl\"\
+    >Confirm delete?</div>\n      <div class=\"flex gap-2\">\n        <button type=\"\
+    button\" @click=\"confirmDelete = false\" class=\"btn btn-sm\">Cancel</button>\n\
+    \      </div>\n    </modal>\n  </div>\n</template>\n\n<script>\nexport default\
+    \ {\n  props: ['profile', 'allProfiles', 'loading'],\n  data() {\n    return {\n\
+    \      editProfile: { ...this.profile },\n      confirmDelete: false,\n      contentPreview:\
+    \ true,\n    }\n  },\n  computed: {\n    userAvatar() {\n      return this.editProfile.avatar\
+    \ ||\n        'https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp'\n\
+    \    },\n    aiModels() {\n      return this.$storex.api.globalSettings?.ai_models\n\
+    \                .filter(m => m.model_type === 'llm')\n                .sort((a,\
+    \ b) => a.ai_provider > b.ai_provider ? 1 : -1)\n\n    },\n    isOverriden() {\n\
+    \      return this.profile.path?.startsWith(this.$project.project_path)\n    },\n\
+    \    nameTaken() {\n      const { name } = this.editProfile\n      const { name:\
+    \ orgName } = this.profile\n      return name !== orgName && this.allProfiles.find(p\
+    \ => p.name.toLowerCase() === name?.toLowerCase())\n    },\n    canSave() {\n\
+    \      const { name, category } = this.editProfile\n      return name && category\
+    \ && !this.nameTaken && this.isValidFileMatch\n    },\n    isValidFileMatch()\
+    \ {\n      if (this.editProfile.category !== \"file\") {\n        return true\n\
+    \      }\n      try {\n        new RegExp(this.editProfile.file_match)\n     \
+    \   return true\n      } catch (e) {\n        return false\n      }\n    }\n \
+    \ },\n  watch: {\n    profile: {\n      handler() {\n        this.editProfile\
+    \ = { ...this.profile }\n      },\n      deep: true,\n    }\n  },\n  methods:\
+    \ {\n    onSubmit() {\n      this.$emit('save', this.editProfile)\n    },\n  \
+    \  cancelEdit() {\n      this.$emit('cancel')\n    },\n    deleteProfile() {\n\
+    \      this.confirmDelete = true\n    },\n    onDeleteProfile() {\n      this.confirmDelete\
+    \ = false\n      this.$emit('delete')\n    },\n    toggleContentPreview() {\n\
+    \      this.contentPreview = !this.contentPreview\n    },\n    downloadProfileContent()\
+    \ {\n      console.log('Download initiated for:', this.editProfile.url)\n    }\n\
+    \  }\n}\n</script>\n                      ```\n                      \n      \
+    \                User commented in line 15: add tabs for Overview, Content, Settings.\
+    \ In the settings section create a settings table to edit \"Exposed in API\",\
+    \ and under: modelName and modelDescription that maps with editProfile.api_settings\n\
+    \                      "
+  created_at: '2025-03-26 11:48:53.263509'
+  disable_knowledge: false
+  doc_id: 12cc2026-65df-4184-9c29-359d53c23662
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-26 11:48:53.263548'
+  user: null
+- content: "Best practices for this file:\n                  Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\n# Vue vuejs coding best\
+    \ pratices\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Use TailwindCSS classes for styling, always consider\
+    \ mobile styles\n* Vue component definition will be exporting a default object\
+    \ like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\n* Don't use <style> elements, use TailWindCSS classes\n\
+    \                  "
+  created_at: '2025-03-26 11:48:53.263509'
+  disable_knowledge: false
+  doc_id: 54a4cee9-3c5c-4584-a85f-a2722a3a8e04
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-26 11:48:53.263548'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content:\n              <script setup>\nimport Markdown\
+    \ from './Markdown.vue'\n</script>\n\n<template>\n  <div class=\"edit-profile\
+    \ px-4 max-w-2xl mx-auto flex flex-col gap-2\">\n    <label class=\"text-xl flex\
+    \ items-center gap-2 font-bold\">\n      <button type=\"button\" @click=\"cancelEdit\"\
+    \ class=\"btn btn-sm\">\n        <i class=\"fa-solid fa-arrow-left\"></i>\n  \
+    \    </button>\n      Profile\n      <div class=\"grow\"></div>\n      <button\
+    \ type=\"button\" class=\"btn btn-sm btn-primary\" :class=\"loading && 'loading\
+    \ loading-spinner'\" @click=\"onSubmit\" :disabled=\"!canSave\">Update</button>\n\
+    \      <button type=\"button\" @click=\"onDeleteProfile\" class=\"btn btn-sm btn-error\"\
+    \ :disabled=\"!isOverriden || loading\">Delete</button>\n    </label>\n    @codx-ok,\
+    \ please-wait...: add tabs for Overview, Content, Settings. In the settings section\
+    \ create a settings table to edit \"Exposed in API\", and under: modelName and\
+    \ modelDescription that maps with editProfile.api_settings\n    <div class=\"\
+    flex justify-center\">\n      <div class=\"flex flex-col gpa-2 items-center\"\
+    >\n        <div class=\"avatar\">\n          <div class=\"w-24 rounded\">\n  \
+    \          <img :src=\"userAvatar\" />\n          </div>\n        </div>\n   \
+    \     <input placeholder=\"Avatar\" v-model=\"editProfile.avatar\" type=\"text\"\
+    \n          class=\"bg-base-300 input input-sm input-bordered w-full\" />  \n\
+    \      </div>\n    </div>\n    <div class=\"flex justify-between items-center\
+    \ gap-4\">\n      <input id=\"name\" v-model=\"editProfile.name\" type=\"text\"\
+    \ :class=\"nameTaken && 'text-error'\" class=\"bg-base-300 input input-sm input-bordered\
+    \ w-full\" />\n      <select class=\"select select-bordered select-sm\" v-model=\"\
+    editProfile.llm_model\">\n        <option value=\"\">-- default --</option>\n\
+    \        <option v-for=\"model in aiModels\" :key=\"model.name\" :value=\"model.name\"\
+    >\n          {{ model.ai_provider }} - {{ model.name }}\n        </option>\n \
+    \     </select>\n    </div>\n    <div class=\"form-group flex space-x-4 text-xs\"\
+    >\n      <div class=\"w-1/2 flex flex-col gap-2\">\n        <label for=\"category\"\
+    >Category</label>\n        <select v-model=\"editProfile.category\" :disabled=\"\
+    profile.category\" \n            class=\"select select-xs select-bordered\">\n\
+    \          <option value=\"project\">Project</option>\n          <option value=\"\
+    assistant\">Assistant</option>\n          <option value=\"chat\">Chat</option>\n\
+    \          <option value=\"file\">File</option>\n          <option value=\"agent\"\
+    >Agent</option>\n        </select>\n      </div>\n      <div class=\"w-1/2 flex\
+    \ flex-col gap-2\">\n        <label for=\"fileMatch\">File Match</label>\n   \
+    \     <input id=\"fileMatch\" v-model=\"editProfile.file_match\" type=\"text\"\
+    \ :class=\"!isValidFileMatch && 'text-error'\" class=\"bg-base-300 input input-xs\
+    \ input-bordered w-full\" />\n      </div>\n    </div>\n    <div class=\"form-group\"\
+    >\n      <label for=\"description\">Description</label>\n      <textarea id=\"\
+    description\" v-model=\"editProfile.description\"\n        class=\"bg-base-300\
+    \ textarea textarea-bordered w-full\"></textarea>\n    </div>\n    <div class=\"\
+    flex flex-col gap-2\">\n      <div class=\"flex justify-between\">\n        <label\
+    \ for=\"content flex gap-2\">Content\n          <button class=\"btn btn-xs\" @click=\"\
+    toggleContentPreview\">\n            <i :class=\"contentPreview ? 'fa-solid fa-pencil-alt'\
+    \ : 'fa-solid fa-eye'\"></i>\n          </button>\n        </label>\n        <div\
+    \ class=\"flex gap-2 items-center\">\n          Use knowledge\n          <input\
+    \ type=\"checkbox\" v-model=\"profile.use_knowledge\"\n            class=\"toggle\
+    \ checked:border-info checked:bg-info\" />\n        </div>\n      </div>\n   \
+    \   <Markdown class=\"p-2 rounded-md\" :class=\"contentPreview ? 'bg-base-100\
+    \ border border-slate-700' : 'bg-base-300'\" :text=\"editProfile.content\" v-if=\"\
+    contentPreview\" />\n      <textarea id=\"content\" v-model=\"editProfile.content\"\
+    \ class=\"textarea textarea-bordered w-full h-96 bg-base-300 overflow-auto\" v-else></textarea>\n\
+    \    </div>\n    <modal v-if=\"confirmDelete\">\n      <div class=\"text-2xl\"\
+    >Confirm delete?</div>\n      <div class=\"flex gap-2\">\n        <button type=\"\
+    button\" @click=\"confirmDelete = false\" class=\"btn btn-sm\">Cancel</button>\n\
+    \      </div>\n    </modal>\n  </div>\n</template>\n\n<script>\nexport default\
+    \ {\n  props: ['profile', 'allProfiles', 'loading'],\n  data() {\n    return {\n\
+    \      editProfile: { ...this.profile },\n      confirmDelete: false,\n      contentPreview:\
+    \ true,\n    }\n  },\n  computed: {\n    userAvatar() {\n      return this.editProfile.avatar\
+    \ ||\n        'https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp'\n\
+    \    },\n    aiModels() {\n      return this.$storex.api.globalSettings?.ai_models\n\
+    \                .filter(m => m.model_type === 'llm')\n                .sort((a,\
+    \ b) => a.ai_provider > b.ai_provider ? 1 : -1)\n\n    },\n    isOverriden() {\n\
+    \      return this.profile.path?.startsWith(this.$project.project_path)\n    },\n\
+    \    nameTaken() {\n      const { name } = this.editProfile\n      const { name:\
+    \ orgName } = this.profile\n      return name !== orgName && this.allProfiles.find(p\
+    \ => p.name.toLowerCase() === name?.toLowerCase())\n    },\n    canSave() {\n\
+    \      const { name, category } = this.editProfile\n      return name && category\
+    \ && !this.nameTaken && this.isValidFileMatch\n    },\n    isValidFileMatch()\
+    \ {\n      if (this.editProfile.category !== \"file\") {\n        return true\n\
+    \      }\n      try {\n        new RegExp(this.editProfile.file_match)\n     \
+    \   return true\n      } catch (e) {\n        return false\n      }\n    }\n \
+    \ },\n  watch: {\n    profile: {\n      handler() {\n        this.editProfile\
+    \ = { ...this.profile }\n      },\n      deep: true,\n    }\n  },\n  methods:\
+    \ {\n    onSubmit() {\n      this.$emit('save', this.editProfile)\n    },\n  \
+    \  cancelEdit() {\n      this.$emit('cancel')\n    },\n    deleteProfile() {\n\
+    \      this.confirmDelete = true\n    },\n    onDeleteProfile() {\n      this.confirmDelete\
+    \ = false\n      this.$emit('delete')\n    },\n    toggleContentPreview() {\n\
+    \      this.contentPreview = !this.contentPreview\n    },\n    downloadProfileContent()\
+    \ {\n      console.log('Download initiated for:', this.editProfile.url)\n    }\n\
+    \  }\n}\n</script>\n              "
+  created_at: '2025-03-26 11:48:53.263509'
+  disable_knowledge: false
+  doc_id: 16d57f1d-5fb6-41de-b36d-694ab1a78753
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-26 11:48:53.263548'
+  user: null
+- content: "<script setup>\nimport Markdown from './Markdown.vue'\n</script>\n\n<template>\n\
+    \  <div class=\"edit-profile px-4 max-w-2xl mx-auto flex flex-col gap-2\">\n \
+    \   <label class=\"text-xl flex items-center gap-2 font-bold\">\n      <button\
+    \ type=\"button\" @click=\"cancelEdit\" class=\"btn btn-sm\">\n        <i class=\"\
+    fa-solid fa-arrow-left\"></i>\n      </button>\n      Profile\n      <div class=\"\
+    grow\"></div>\n      <button type=\"button\" class=\"btn btn-sm btn-primary\"\
+    \ :class=\"loading && 'loading loading-spinner'\" @click=\"onSubmit\" :disabled=\"\
+    !canSave\">Update</button>\n      <button type=\"button\" @click=\"onDeleteProfile\"\
+    \ class=\"btn btn-sm btn-error\" :disabled=\"!isOverriden || loading\">Delete</button>\n\
+    \    </label>\n    <div class=\"tabs\">\n      <button class=\"tab tab-lifted\
+    \ tab-active\">Overview</button>\n      <button class=\"tab tab-lifted\">Content</button>\n\
+    \      <button class=\"tab tab-lifted\">Settings</button>\n    </div>\n    <div\
+    \ class=\"flex justify-center\">\n      <div class=\"flex flex-col gpa-2 items-center\"\
+    >\n        <div class=\"avatar\">\n          <div class=\"w-24 rounded\">\n  \
+    \          <img :src=\"userAvatar\" />\n          </div>\n        </div>\n   \
+    \     <input placeholder=\"Avatar\" v-model=\"editProfile.avatar\" type=\"text\"\
+    \n          class=\"bg-base-300 input input-sm input-bordered w-full\" />  \n\
+    \      </div>\n    </div>\n    <div class=\"flex justify-between items-center\
+    \ gap-4\">\n      <input id=\"name\" v-model=\"editProfile.name\" type=\"text\"\
+    \ :class=\"nameTaken && 'text-error'\" class=\"bg-base-300 input input-sm input-bordered\
+    \ w-full\" />\n      <select class=\"select select-bordered select-sm\" v-model=\"\
+    editProfile.llm_model\">\n        <option value=\"\">-- default --</option>\n\
+    \        <option v-for=\"model in aiModels\" :key=\"model.name\" :value=\"model.name\"\
+    >\n          {{ model.ai_provider }} - {{ model.name }}\n        </option>\n \
+    \     </select>\n    </div>\n    <div class=\"form-group flex space-x-4 text-xs\"\
+    >\n      <div class=\"w-1/2 flex flex-col gap-2\">\n        <label for=\"category\"\
+    >Category</label>\n        <select v-model=\"editProfile.category\" :disabled=\"\
+    profile.category\" \n            class=\"select select-xs select-bordered\">\n\
+    \          <option value=\"project\">Project</option>\n          <option value=\"\
+    assistant\">Assistant</option>\n          <option value=\"chat\">Chat</option>\n\
+    \          <option value=\"file\">File</option>\n          <option value=\"agent\"\
+    >Agent</option>\n        </select>\n      </div>\n      <div class=\"w-1/2 flex\
+    \ flex-col gap-2\">\n        <label for=\"fileMatch\">File Match</label>\n   \
+    \     <input id=\"fileMatch\" v-model=\"editProfile.file_match\" type=\"text\"\
+    \ :class=\"!isValidFileMatch && 'text-error'\" class=\"bg-base-300 input input-xs\
+    \ input-bordered w-full\" />\n      </div>\n    </div>\n    <div class=\"form-group\"\
+    >\n      <label for=\"description\">Description</label>\n      <textarea id=\"\
+    description\" v-model=\"editProfile.description\"\n        class=\"bg-base-300\
+    \ textarea textarea-bordered w-full\"></textarea>\n    </div>\n    <div class=\"\
+    form-group flex flex-col gap-2\">\n      <label for=\"exposeApi\">Exposed in API</label>\n\
+    \      <select v-model=\"editProfile.api_settings.expose_in_api\" class=\"select\
+    \ select-bordered select-sm\">\n        <option value=\"true\">True</option>\n\
+    \        <option value=\"false\">False</option>\n      </select>\n      <label\
+    \ for=\"modelName\">Model Name</label>\n      <input v-model=\"editProfile.api_settings.modelName\"\
+    \ type=\"text\" class=\"input input-sm input-bordered bg-base-300\" />\n     \
+    \ <label for=\"modelDescription\">Model Description</label>\n      <textarea v-model=\"\
+    editProfile.api_settings.modelDescription\" class=\"textarea textarea-bordered\
+    \ bg-base-300\"></textarea>\n    </div>\n    <div class=\"flex flex-col gap-2\"\
+    >\n      <div class=\"flex justify-between\">\n        <label for=\"content flex\
+    \ gap-2\">Content\n          <button class=\"btn btn-xs\" @click=\"toggleContentPreview\"\
+    >\n            <i :class=\"contentPreview ? 'fa-solid fa-pencil-alt' : 'fa-solid\
+    \ fa-eye'\"></i>\n          </button>\n        </label>\n        <div class=\"\
+    flex gap-2 items-center\">\n          Use knowledge\n          <input type=\"\
+    checkbox\" v-model=\"profile.use_knowledge\"\n            class=\"toggle checked:border-info\
+    \ checked:bg-info\" />\n        </div>\n      </div>\n      <Markdown class=\"\
+    p-2 rounded-md\" :class=\"contentPreview ? 'bg-base-100 border border-slate-700'\
+    \ : 'bg-base-300'\" :text=\"editProfile.content\" v-if=\"contentPreview\" />\n\
+    \      <textarea id=\"content\" v-model=\"editProfile.content\" class=\"textarea\
+    \ textarea-bordered w-full h-96 bg-base-300 overflow-auto\" v-else></textarea>\n\
+    \    </div>\n    <modal v-if=\"confirmDelete\">\n      <div class=\"text-2xl\"\
+    >Confirm delete?</div>\n      <div class=\"flex gap-2\">\n        <button type=\"\
+    button\" @click=\"confirmDelete = false\" class=\"btn btn-sm\">Cancel</button>\n\
+    \      </div>\n    </modal>\n  </div>\n</template>\n\n<script>\nexport default\
+    \ {\n  props: ['profile', 'allProfiles', 'loading'],\n  data() {\n    return {\n\
+    \      editProfile: { ...this.profile, api_settings: { expose_in_api: false, modelName:\
+    \ '', modelDescription: '' } },\n      confirmDelete: false,\n      contentPreview:\
+    \ true,\n    }\n  },\n  computed: {\n    userAvatar() {\n      return this.editProfile.avatar\
+    \ ||\n        'https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp'\n\
+    \    },\n    aiModels() {\n      return this.$storex.api.globalSettings?.ai_models\n\
+    \                .filter(m => m.model_type === 'llm')\n                .sort((a,\
+    \ b) => a.ai_provider > b.ai_provider ? 1 : -1)\n    },\n    isOverriden() {\n\
+    \      return this.profile.path?.startsWith(this.$project.project_path)\n    },\n\
+    \    nameTaken() {\n      const { name } = this.editProfile\n      const { name:\
+    \ orgName } = this.profile\n      return name !== orgName && this.allProfiles.find(p\
+    \ => p.name.toLowerCase() === name?.toLowerCase())\n    },\n    canSave() {\n\
+    \      const { name, category } = this.editProfile\n      return name && category\
+    \ && !this.nameTaken && this.isValidFileMatch\n    },\n    isValidFileMatch()\
+    \ {\n      if (this.editProfile.category !== \"file\") {\n        return true\n\
+    \      }\n      try {\n        new RegExp(this.editProfile.file_match)\n     \
+    \   return true\n      } catch (e) {\n        return false\n      }\n    }\n \
+    \ },\n  watch: {\n    profile: {\n      handler() {\n        this.editProfile\
+    \ = { ...this.profile, api_settings: this.profile.api_settings || { expose_in_api:\
+    \ false, modelName: '', modelDescription: '' } }\n      },\n      deep: true,\n\
+    \    }\n  },\n  methods: {\n    onSubmit() {\n      this.$emit('save', this.editProfile)\n\
+    \    },\n    cancelEdit() {\n      this.$emit('cancel')\n    },\n    deleteProfile()\
+    \ {\n      this.confirmDelete = true\n    },\n    onDeleteProfile() {\n      this.confirmDelete\
+    \ = false\n      this.$emit('delete')\n    },\n    toggleContentPreview() {\n\
+    \      this.contentPreview = !this.contentPreview\n    },\n    downloadProfileContent()\
+    \ {\n      console.log('Download initiated for:', this.editProfile.url)\n    }\n\
+    \  }\n}\n</script>"
+  created_at: '2025-03-26 11:48:53.263509'
+  disable_knowledge: false
+  doc_id: 5389a6dc-9eda-44e8-8255-e9ad49257e11
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 25.15140151977539
+    model: gpt-4o
+    time_taken: 39.391650915145874
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-26 11:48:53.263548'
+  user: null
+mode: chat
+name: changes-at-components-editprofile-vue-2025-03-26-11-52-46-807995
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-03-26T11:53:26.200662'
+url: ''
+users: []
+visibility: ''

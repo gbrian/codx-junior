@@ -1,0 +1,154 @@
+board: Issue manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Development
+column_id: ''
+created_at: '2025-05-28 15:21:34.696219'
+description: In a GitHub issue discussion, user "lcarrettin" highlights a bug involving
+  a null `eventEmitterCallback` in `BaseJavaModule.java` on arm32 architecture, causing
+  app crashes. The conversation focuses on identifying the source of the issue, where
+  the callback is assigned and later utilized without checks, leading to application
+  instability. The user's detailed observation pinpoints a specific line in the codebase
+  as the potential culprit, suggesting areas for potential fixes. The absence of comments
+  from project maintainers indicates the issue may require additional verification
+  and proposed solutions for resolution.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Issue manager/In Development/git-issues-agent.e5541562-488a-4a42-ac05-a71adda0bd06.yaml
+id: e5541562-488a-4a42-ac05-a71adda0bd06
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Git issues agent will:\n* Download a git issue comments\n* Summarize conversarion\n\
+    * Find related content in the project that can help with the reasoning\n* Reasoning\
+    \ about the issue\n* Create subtasks to fix the issue\n* For each subtask generate\
+    \ a change proposal\n\n\nAgent will inherit from AgentBase and will receive a\
+    \ session (CODXJuniorSession)\nWe'll need \"from codx.junior.misc.github import\_\
+    \ download_issue_info\" to get info from the issue.\nIssue info has thi structure:\n\
+    ```json\n{\n\_ \_ \"issue\": \"https://github.com/facebook/react-native/issues/51628\"\
+    ,\n\_ \_ \"comments\": [\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ \_ \"author\": {\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ \"__typename\": \"User\",\n\_ \_ \_ \_ \_ \_ \_ \_ \"login\"\
+    : \"lcarrettin\",\n\_ \_ \_ \_ \_ \_ \_ \_ \"avatarUrl\": \"https://avatars.githubusercontent.com/u/52881070?v=4\"\
+    ,\n\_ \_ \_ \_ \_ \_ \_ \_ \"profileUrl\": \"https://github.com/lcarrettin\",\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \"id\": \"MDQ6VXNlcjUyODgxMDcw\"\n\_ \_ \_ \_ \_ \_ },\n\
+    \_ \_ \_ \_ \_ \_ \"body\": \"It seems that on arm32 in packages/react-native/ReactAndroid/src/main/java/com/facebook/react/bridge/BaseJavaModule.java\\\
+    n\\nthis method\\n\\nhttps://github.com/facebook/react-native/blob/e7901a720bcf3877e8a011f7b211c7d59c694853/packages/react-native/ReactAndroid/src/main/java/com/facebook/react/bridge/BaseJavaModule.java#L139\\\
+    n\\nis called with a null eventEmitterCallback which is assigned to mEventEmitterCallback\
+    \ in the following line.\\nmEventEmitterCallback is then used to emit an event,\
+    \ but being null the app crashes.\\n\\n\",\n\_ \_ \_ \_ \_ \_ \"createdAt\": \"\
+    2025-05-27T14:53:53Z\",\n\_ \_ \_ \_ \_ \_ \"url\": \"https://github.com/facebook/react-native/issues/51628#issuecomment-2912830732\"\
+    ,\n\_ \_ \_ \_ \_ \_ \"authorAssociation\": \"NONE\"\n\_ \_ \_ \_ },\n]\n}\n```\n\
+    \nWhen authorAssociation is MEMBER then the message is coming from a repo maintainer,\
+    \ give it more credit.\nThe first comment details the issue.\_\n\n\n\n"
+  created_at: '2025-05-28 15:21:34.694442'
+  disable_knowledge: false
+  doc_id: 8d83595e-9036-46ab-b9fd-3bc7bbcf4679
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - analyst
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-28 15:21:34.694477'
+  user: admin
+- content: "To transform the user requirements into tasks for the developers, let's\
+    \ evaluate the provided information and determine how to organize it into epics\
+    \ and subtasks.\n\n### User Requirement Evaluation\n\nThe requirement is to develop\
+    \ a Git issues agent that can:\n1. **Download Git issue comments**\n2. **Summarize\
+    \ the conversation**\n3. **Find related content/material in the project**\n4.\
+    \ **Reason about the issue based on the provided and related information**\n5.\
+    \ **Create subtasks to fix the issue**\n6. **Generate change proposals for each\
+    \ subtask**\n\nGiven these functions, this requirement seems broad and involves\
+    \ several distinct functionalities. Therefore, it is suitable to be structured\
+    \ as an epic with subtasks.\n\n---\n\n## Epic: Development of a Git Issues Agent\n\
+    \n**Description:**\nDevelop a Git Issues Agent that inherits from `AgentBase`\
+    \ and utilizes a `CODXJuniorSession` to process issues from GitHub. The agent\
+    \ will perform a series of functions, including downloading issue comments, summarizing\
+    \ conversations, finding related project content, reasoning about the issue, creating\
+    \ subtasks, and generating change proposals.\n\n### Business Requirements\n- The\
+    \ agent must be able to download and process comments from a given GitHub issue.\n\
+    - The agent should accurately summarize conversations from the comments.\n- The\
+    \ agent should inspect the project's codebase to find related content that might\
+    \ help in understanding and reasoning about the issue.\n- The agent has to reason\
+    \ about the issues to propose potential solutions or fixes.\n- The agent must\
+    \ break down issues into implementable subtasks.\n- Each subtask should have a\
+    \ proposed code change or solution.\n\n### Acceptance Criteria\n- Successful download\
+    \ and parsing of GitHub issue comments using the `download_issue_info` function.\n\
+    - Accurately generated summaries of the comment threads from the issues.\n- Correct\
+    \ identification of relevant content and materials from the related project files.\n\
+    - Logical and insightful reasoning with potentially helpful solutions or improvements\
+    \ based on the issue.\n- Clear, precise subtask creation that aligns with solving\
+    \ the identified issue.\n- Each subtask includes a viable change proposal, facilitating\
+    \ easy implementation by developers.\n\n### Subtasks\n- **Task 1: Set up AgentBase\
+    \ Inheritance and Session Handling**\n  - Implement agent class inheriting from\
+    \ `AgentBase`\n  - Configure session handling using `CODXJuniorSession`\n  \n\
+    - **Task 2: Develop Functionality to Download and Parse Issue Comments**\n  -\
+    \ Integrate `download_issue_info` to fetch issue data\n  - Parse and store comment\
+    \ sections\n\n- **Task 3: Implement Conversation Summarization Logic**\n  - Develop\
+    \ a method to summarize the comment conversation\n  - Ensure accurate representation\
+    \ of the main points and issue details\n\n- **Task 4: Create Related Content Finder**\n\
+    \  - Scan the project directory to identify related files or code blocks\n  -\
+    \ Link related content to the current issue context for better understanding\n\
+    \n- **Task 5: Develop Reasoning Engine for Issue Analysis**\n  - Implement logic\
+    \ to analyze and reason about issues using comment and project data\n\n- **Task\
+    \ 6: Design Method for Subtask Creation**\n  - Breakdown issues into discrete,\
+    \ actionable subtasks\n\n- **Task 7: Generate Change Proposals for Subtasks**\n\
+    \  - Develop proposals including code changes or suggested solutions for each\
+    \ subtask\n\nThese subtasks represent the key functionalities required to achieve\
+    \ the outlined business requirements and meet the acceptance criteria for the\
+    \ Git issues agent. Each task involves implementing specific features of the agent,\
+    \ contributing to its overall purpose of efficiently managing and processing GitHub\
+    \ issues."
+  created_at: '2025-05-28 15:39:30.073342'
+  disable_knowledge: false
+  doc_id: 13021c2a-2c11-4974-850f-aa7c63160f49
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.149578094482422
+    model: gpt-4o
+    time_taken: 17.183793544769287
+  profiles:
+  - analyst
+  - analyst
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-28 15:39:30.073382'
+  user: null
+mode: chat
+name: git_issues agent
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- analyst
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-28T15:45:52.915960'
+url: ''
+users:
+- admin
+visibility: ''

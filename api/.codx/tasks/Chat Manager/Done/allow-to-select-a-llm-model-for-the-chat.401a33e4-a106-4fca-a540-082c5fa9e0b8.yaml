@@ -1,0 +1,326 @@
+board: Chat Manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Done
+column_id: ''
+created_at: '2025-08-02 04:27:46.606650'
+description: In this conversation, we enhanced the `chat_manager.py` and `db.py` files
+  of the codx-junior API. The primary change focused on allowing the definition of
+  an `llm_model` for each chat. Throughout the updates, coding best practices were
+  implemented, such as adding comprehensive logging, utilizing constants for default
+  models, improving file handling accuracy, and updating database schema to accommodate
+  new attributes. Additionally, error handling was made more specific, and the code
+  was refactored for improved readability and maintainability.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/db.py
+- /shared/codx-junior/api/codx/junior/chat/chat_engine.py
+file_path: /shared/codx-junior/api/.codx/tasks/Chat Manager/Done/allow-to-select-a-llm-model-for-the-chat.401a33e4-a106-4fca-a540-082c5fa9e0b8.yaml
+id: 401a33e4-a106-4fca-a540-082c5fa9e0b8
+kanban_id: ''
+knowledge_topics: []
+llm_model: mercury
+message_id: null
+messages:
+- content: '@file://db.py @file://chat_manager.py Allow to define an llm_model per
+    chat, and use it in the ChaManagement'
+  created_at: '2025-08-02 04:27:46.604534'
+  disable_knowledge: true
+  doc_id: bdde8dfe-7a4e-46b2-bfc0-68fdf0478af8
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/chat_manager.py
+  - /shared/codx-junior/api/codx/junior/db.py
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - software_developer
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-02 04:27:46.604558'
+  user: admin
+- content: Generate diff file with the requiered changes
+  created_at: '2025-08-02 04:27:46.604534'
+  disable_knowledge: true
+  doc_id: aa1993cf-896f-4b47-8216-c08f31eb53d3
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - software_developer
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-02 04:27:46.604558'
+  user: admin
+- content: "```python\n/shared/codx-junior/api/codx/junior/chat_manager.py\nimport\
+    \ logging\nimport pathlib\nimport os\nimport json\nimport uuid\nimport shutil\n\
+    \nfrom slugify import slugify\nfrom collections import deque\n\nfrom datetime\
+    \ import datetime, timezone, timedelta\nfrom codx.junior.settings import CODXJuniorSettings\n\
+    \nfrom codx.junior.db import Chat, Message\nfrom codx.junior.utils.utils import\
+    \ write_file\n\nfrom codx.junior.globals import (\n    find_project_by_name\n\
+    )\n\nfrom codx.junior.profiling.profiler import profile_function\nfrom typing\
+    \ import List, Optional\n\nlogger = logging.getLogger(__name__)\n\nDEFAULT_BOARD\
+    \ = \"kanban\"\nDEFAULT_COLUMN = \"tasks\"\nDEFAULT_MODEL = \"gpt-3.5-turbo\"\
+    \  # Default model for chat interactions\n\nclass ChatManager:\n    def __init__(self,\
+    \ settings: CODXJuniorSettings):\n        self.settings = settings\n        self.chat_path\
+    \ = f\"{settings.codx_path}/tasks\"\n        os.makedirs(self.chat_path, exist_ok=True)\n\
+    \        os.makedirs(f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}\", exist_ok=True)\n\
+    \n    def get_chat_file(self, chat: Chat) -> str:\n        chat_file = f\"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.md\"\
+    \n        return chat_file\n\n    def chat_paths(self) -> List[str]:\n       \
+    \ return [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob(\"\
+    *.md\")]\n\n    def chat_board_column_name_from_path(self, file_path: str) ->\
+    \ (Optional[str], Optional[str], Optional[str]):\n        chat_parts = file_path.replace(self.chat_path,\
+    \ \"\").split(\"/\")[1:]\n        if len(chat_parts) != 3:\n            return\
+    \ None, None, None\n        \n        name = chat_parts[-1].replace(\".md\", \"\
+    \")\n        column = chat_parts[-2]\n        board = chat_parts[-3]\n       \
+    \ return board, column, name\n\n    @profile_function\n    def list_chats(self)\
+    \ -> List[Chat]:\n        file_paths = self.chat_paths()\n        \n        def\
+    \ list_chat_chat_info(file_path: str) -> Optional[Chat]:\n            try:\n \
+    \               return self.load_chat_from_path(chat_file=file_path, chat_only=True)\n\
+    \            except (IOError, json.JSONDecodeError) as ex:\n                logger.exception(\"\
+    Error loading chat %s\", ex)\n                return None\n            \n    \
+    \    return sorted(\n            filter(None, [list_chat_chat_info(file_path)\
+    \ for file_path in file_paths]),\n            key=lambda x: str(x.chat_index or\
+    \ x.updated_at),\n            reverse=True\n        )\n\n    def save_chat(self,\
+    \ chat: Chat, chat_only: bool = False) -> Chat:\n        chat.board = chat.board\
+    \ or DEFAULT_BOARD\n        chat.column = chat.column or DEFAULT_COLUMN\n    \
+    \    chat.id = chat.id or str(uuid.uuid4())\n        chat.model = chat.model or\
+    \ DEFAULT_MODEL\n        chat.updated_at = datetime.now().isoformat()\n      \
+    \  \n        current_chat = self.find_by_id(chat_id=chat.id)\n        if chat_only\
+    \ and current_chat:\n            chat.messages = current_chat.messages\n     \
+    \   \n        users = {msg.user for msg in chat.messages if msg.user}\n      \
+    \  profiles = {p for msg in chat.messages for p in msg.profiles}\n        chat.users\
+    \ = list(users)\n        chat.profiles = list(profiles)\n\n        chat_file =\
+    \ self.get_chat_file(chat)\n        logger.info(\"Save chat %s at %s\", chat.id,\
+    \ chat_file)\n        write_file(chat_file, self.serialize_chat(chat))\n\n   \
+    \     if current_chat and chat_file != current_chat.file_path:\n            logger.info(\"\
+    Save chat, current_chat %s at %s\", current_chat.id, current_chat.file_path)\n\
+    \            self.delete_chat(current_chat.file_path)\n\n        return chat\n\
+    \n    def delete_chat(self, file_path: Optional[str] = None, chat_id: Optional[str]\
+    \ = None) -> None:\n        logger.info(\"Removing chat by file_path: %s - chat_id:\
+    \ %s\", file_path, chat_id)\n        \n        if chat_id:\n            chat =\
+    \ self.find_by_id(chat_id)\n            file_path = chat.file_path if chat else\
+    \ None\n\n        if file_path and os.path.isfile(file_path) and file_path.startswith(self.chat_path):\n\
+    \            logger.info(\"Removing chat at %s\", file_path)\n            os.remove(file_path)\n\
+    \        else:\n            logger.error(\"Removing chat error %s\", file_path)\n\
+    \n    def load_chat(self, board: str, column: Optional[str] = None, chat_name:\
+    \ Optional[str] = None) -> Chat:\n        chat = Chat(board=board, column=column,\
+    \ name=chat_name)\n        chat_file = self.get_chat_file(chat)\n        if not\
+    \ os.path.isfile(chat_file):\n            chat.file_path = chat_file\n       \
+    \     return chat\n        return self.load_chat_from_path(chat_file=chat_file)\n\
+    \n    @profile_function\n    def load_chat_from_path(self, chat_file: str, chat_only:\
+    \ bool = False) -> Chat:\n        board, column, name = self.chat_board_column_name_from_path(chat_file)\n\
+    \        \n        # Adjust file path and properties if necessary\n        if\
+    \ not board or not column:\n            new_chat_file = f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}/{name}.md\"\
+    \n            if chat_file:\n                logger.info(\"load_chat_from_path\
+    \ rename chat file %s -> %s\", chat_file, new_chat_file)\n                os.rename(chat_file,\
+    \ new_chat_file)\n            chat_file = new_chat_file\n            board = DEFAULT_BOARD\n\
+    \            column = DEFAULT_COLUMN\n\n        chat = None\n        with open(chat_file,\
+    \ 'r', encoding='utf-8') as f:\n            logger.info(\"load_chat_from_path\
+    \ chat_only open file %s\", chat_file) \n            content = f.read()\n    \
+    \        chat = self.deserialize_chat(content=content, chat_only=chat_only)\n\n\
+    \        if not chat.created_at:\n            stats = os.stat(chat_file)\n   \
+    \         chat.created_at = str(datetime.fromtimestamp(stats.st_ctime, tz=timezone.utc))\n\
+    \            chat.updated_at = str(datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc))\n\
+    \        chat.board = board\n        chat.column = column\n        chat.file_path\
+    \ = chat_file\n        return chat\n\n    def serialize_chat(self, chat: Chat)\
+    \ -> str:\n        chat_json = {**chat.__dict__}\n        del chat_json[\"messages\"\
+    ]  \n        header = f\"# [[{json.dumps(chat_json)}]]\"\n        \n        def\
+    \ serialize_message(message: Message) -> str:\n            if not message.created_at:\n\
+    \                message.created_at = datetime.now().isoformat()\n           \
+    \ message_json = {**message.__dict__}\n            del message_json[\"content\"\
+    ]\n            return \"\\n\".join([\n                f\"## [[{json.dumps(message_json)}]]\"\
+    ,\n                message.content\n            ])\n        \n        messages\
+    \ = [serialize_message(message) for message in chat.messages]\n        chat_content\
+    \ = \"\\n\".join([header] + messages)\n        return chat_content\n\n    def\
+    \ delete_kanban(self, kanban_title: str) -> None:\n        shutil.rmtree(f\"{self.chat_path}/{kanban_title}\"\
+    )\n\n    @profile_function\n    def deserialize_chat(self, content: str, chat_only:\
+    \ bool = False) -> Chat:\n        logger.info(\"deserialize_chat content length:\
+    \ %d\", len(content))\n        lines = content.split(\"\\n\")\n        chat_json\
+    \ = json.loads(lines[0][4:-2])\n        chat = Chat(**chat_json)\n        chat.messages\
+    \ = []\n        \n        if not chat_only:\n            chat_message = None\n\
+    \            for line in lines[1:]:\n                if line.startswith(\"## [[{\"\
+    ) and line.endswith(\"}]]\"):\n                    chat_message = Message(**json.loads(line[5:-2]))\n\
+    \                    chat_message.content = \"\"\n                    chat.messages.append(chat_message)\n\
+    \                    continue\n                if chat_message:\n            \
+    \        chat_message.content = line if not chat_message.content else \"\\n\"\
+    .join([chat_message.content, line])\n        return chat\n\n    def chat_count(self)\
+    \ -> int:\n        return len(self.chat_paths())\n\n    def last_chats(self) ->\
+    \ List[Chat]:\n        last_days = (datetime.now() - timedelta(days=2)).timestamp()\n\
+    \        chat_paths = [{\n            \"chat_path\": chat_path,\n            \"\
+    updated_at\": os.stat(chat_path).st_ctime\n        } for chat_path in self.chat_paths()]\n\
+    \        chat_paths = [c for c in chat_paths if c[\"updated_at\"] > last_days]\
+    \ \n        last_updated_chats = sorted(\n            chat_paths,\n          \
+    \  key=lambda x: x[\"updated_at\"],\n            reverse=True\n        )[:3]\n\
+    \        return [self.load_chat_from_path(chat_file=c[\"chat_path\"]) for c in\
+    \ last_updated_chats]\n\n    def find_by_id(self, chat_id: str) -> Optional[Chat]:\n\
+    \        if chat_id:\n            file_path = next((path for path in self.chat_paths()\
+    \ if chat_id in path), None)\n            if file_path:\n                return\
+    \ self.load_chat_from_path(chat_file=file_path)\n        return None\n\n    def\
+    \ load_kanban_from_file(self, kanban_file: str) -> dict:\n        kanban = {\n\
+    \            \"version\": 0.1,\n            \"boards\": {},\n            \"tags\"\
+    : {}\n        }\n        if os.path.isfile(kanban_file):\n            with open(kanban_file,\
+    \ 'r', encoding='utf-8') as f:\n                kanban = json.loads(f.read())\n\
+    \            version = kanban.get(\"version\", None)\n            if not version:\n\
+    \                kanban = {\n                    \"version\": 0.1,\n         \
+    \           \"boards\": kanban,\n                    \"tags\": {}\n          \
+    \      }\n        return kanban\n\n    @profile_function\n    def load_kanban(self)\
+    \ -> dict:\n        kanban_file = f\"{self.chat_path}/kanban.json\"\n        logger.info(\"\
+    load_kanban %s\", kanban_file)\n        all_chats = self.list_chats()\n      \
+    \  kanban = self.load_kanban_from_file(kanban_file=kanban_file)\n        \n  \
+    \      all_board_dirs = [board for board in os.listdir(f\"{self.chat_path}\")\
+    \ \\\n                            if os.path.isdir(f\"{self.chat_path}/{board}\"\
+    )]\n        save_kanban = False\n        boards = kanban[\"boards\"]\n       \
+    \ logger.info(\"Process boards %s\", kanban_file)\n        \n        for board\
+    \ in {chat.board for chat in all_chats} | set(all_board_dirs):\n            if\
+    \ not boards.get(board):\n                boards[board] = {}\n            if not\
+    \ boards[board].get(\"columns\"):\n                boards[board][\"columns\"]\
+    \ = []\n\n            all_board_columns = [col for col in os.listdir(f\"{self.chat_path}/{board}\"\
+    ) \\\n                        if os.path.isdir(f\"{self.chat_path}/{board}/{col}\"\
+    )]\n            board_columns = boards[board][\"columns\"]\n            for col\
+    \ in {chat.column for chat in all_chats if chat.board == board} | set(all_board_columns):\n\
+    \                if not [c for c in board_columns if c[\"title\"] == col]:\n \
+    \                   board_columns.append({\"title\": col})\n                 \
+    \   save_kanban = True\n\n            for col in board_columns:\n            \
+    \    if not col.get(\"id\"):\n                    col[\"id\"] = str(uuid.uuid4())\n\
+    \                    save_kanban = True\n\n        if save_kanban:\n         \
+    \   self.save_kanban(kanban)\n        return kanban\n\n    def save_kanban(self,\
+    \ kanban: dict) -> None:\n        kanban_file = f\"{self.chat_path}/kanban.json\"\
+    \n        with open(kanban_file, 'w', encoding='utf-8') as f:\n            f.write(json.dumps(kanban,\
+    \ ensure_ascii=False))\n\n```\n\n```python\n/shared/codx-junior/api/codx/junior/db.py\n\
+    import os\nimport logging\nimport re\nimport uuid\nfrom slugify import slugify\n\
+    \nfrom codx.junior.settings import CODXJuniorSettings\nfrom tinydb import TinyDB,\
+    \ Query, where\n\nfrom pydantic import BaseModel, Field\nfrom typing import Optional,\
+    \ List\nfrom datetime import datetime\nfrom enum import Enum\n\nlogger = logging.getLogger(__name__)\n\
+    \nDEFAULT_MODEL = \"gpt-3.5-turbo\"  # Default model for chat interactions\n\n\
+    class MessageTaskItem(Enum):\n    SUMMARY = \"summary\"\n\nclass Message(BaseModel):\n\
+    \    doc_id: Optional[str] = Field(default=None)\n    role: str = Field(default='')\n\
+    \    task_item: str = Field(default='')\n    content: str = Field(default='')\n\
+    \    think: Optional[str] = Field(default='')\n    hide: bool = Field(default=False)\n\
+    \    improvement: bool = Field(default=False)\n    created_at: str = Field(default_factory=lambda:\
+    \ str(datetime.now()))\n    updated_at: str = Field(default_factory=lambda: str(datetime.now()))\n\
+    \    images: List[str] = Field(default_factory=list)\n    files: List[str] = Field(default_factory=list)\n\
+    \    meta_data: Optional[dict] = Field(default_factory=dict)\n    profiles: List[str]\
+    \ = Field(default_factory=list)\n    user: Optional[str] = Field(default=None)\n\
+    \    knowledge_topics: List[str] = Field(default_factory=list, description=\"\
+    This message will be indexed for knowledge and tagged with this topics\")\n  \
+    \  done: Optional[bool] = Field(default=True, description=\"Indicates if user\
+    \ is done writing\")\n    is_thinking: Optional[bool] = Field(default=False)\n\
+    \    disable_knowledge: Optional[bool] = Field(default=False)\n\nclass Chat(BaseModel):\n\
+    \    id: Optional[str] = Field(default=None)\n    doc_id: Optional[str] = Field(default=None)\n\
+    \    project_id: Optional[str] = Field(default=None, description=\"Defines the\
+    \ project which this chat belongs\")\n    parent_id: Optional[str] = Field(default=None,\
+    \ description=\"Parent chat\")\n    status: str = Field(default='')\n    tags:\
+    \ List[str] = Field(default_factory=list, description=\"Informative set of tags\"\
+    )\n    file_list: List[str] = Field(default_factory=list)\n    check_lists: Optional[List[dict]]\
+    \ = Field(default_factory=list)\n    profiles: List[str] = Field(default_factory=list)\n\
+    \    users: List[str] = Field(default_factory=list)\n    name: str = Field(default='')\n\
+    \    description: str = Field(default='')\n    messages: List[Message] = Field(default_factory=list)\n\
+    \    created_at: str = Field(default_factory=lambda: str(datetime.now()))\n  \
+    \  updated_at: str = Field(default_factory=lambda: str(datetime.now()))\n    mode:\
+    \ str = Field(default='chat')\n    kanban_id: str = Field(default='')\n    column_id:\
+    \ str = Field(default='')\n    board: str = Field(default='')\n    column: str\
+    \ = Field(default='')\n    chat_index: Optional[int] = Field(default=0)\n    url:\
+    \ str = Field(default='')\n    branch: str = Field(default='')\n    file_path:\
+    \ str = Field(default='')\n    model: Optional[str] = Field(default_factory=lambda:\
+    \ DEFAULT_MODEL)\n    visibility: Optional[str] = Field(default='')\n    remote_url:\
+    \ Optional[str] = Field(default='')\n    knowledge_topics: List[str] = Field(default_factory=list,\
+    \ description=\"This chat will be indexed for knowledge and tagged with this topics\"\
+    )\n    \nclass KanbanColumn(BaseModel):\n    doc_id: Optional[str] = Field(default=None)\n\
+    \    title: str = Field(default=None)\n    color: Optional[str] = None\n    index:\
+    \ int = Field(default=0)\n\nclass Kanban(BaseModel):\n    doc_id: Optional[str]\
+    \ = Field(default=None)\n    title: str = Field(default=None)\n    description:\
+    \ Optional[str] = None\n    index: int = Field(default=0)\n    columns: Optional[List[KanbanColumn]]\
+    \ = Field(default_factory=list)\n    created_at: str = Field(default_factory=lambda:\
+    \ str(datetime.now()))\n    updated_at: str = Field(default_factory=lambda: str(datetime.now()))\n\
+    \nPROJECT_DATABASES = {}\n\nclass CODXJuniorDB:\n    def __init__(self, settings:\
+    \ CODXJuniorSettings):\n        self.settings = settings\n        self.index_name\
+    \ = re.sub('[^a-zA-Z0-9\\._]', '', slugify(self.settings.codx_path))\n       \
+    \ self.db_path = f\"{self.settings.codx_path}/{self.index_name}.db.json\"\n  \
+    \      self.client = PROJECT_DATABASES.get(self.settings.project_path)\n     \
+    \   if not self.client:\n            self.init_client()\n        self.kanban_table\
+    \ = self.client.table('kanban', cache_size=0)\n        self.column_table = self.client.table('column',\
+    \ cache_size=0)\n        self.chat_table = self.client.table('chat', cache_size=0)\n\
+    \n    def init_client(self) -> None:\n        if self.client is None:\n      \
+    \      logger.info(\"Connected to database: %s\", self.settings.project_path)\n\
+    \            self.client = TinyDB(self.db_path, sort_keys=True, indent=4, separators=(',',\
+    \ ': '))\n            PROJECT_DATABASES[self.settings.project_path] = self.client\n\
+    \        \n    def reset(self) -> None:\n        logger.info(\"Reseting DB %s\"\
+    , self.settings.project_path)\n        if os.path.exists(self.db_path):\n    \
+    \        os.remove(self.db_path)\n            PROJECT_DATABASES[self.settings.project_path]\
+    \ = None\n            self.init_client()\n\n    def save_kanban(self, kanban:\
+    \ Kanban) -> Kanban:\n        \"\"\"Save a kanban to the database, if kanban has\
+    \ not doc_id, create a new one\"\"\"\n        if not kanban.doc_id:\n        \
+    \    kanban.doc_id = str(uuid.uuid4())\n            kanban.created_at = str(datetime.now())\n\
+    \        kanban.updated_at = str(datetime.now())\n        self.kanban_table.upsert(kanban.model_dump(),\
+    \ where('doc_id') == kanban.doc_id)\n        return self.get_kanban(kanban.doc_id)\n\
+    \n    def get_kanban(self, kanban_id: str) -> Kanban:\n        return Kanban(**self.kanban_table.get(where('doc_id')\
+    \ == kanban_id))\n\n    def get_all_kankan(self) -> List[Kanban]:\n        return\
+    \ [Kanban(**kanban) for kanban in self.kanban_table.all()]\n\n    def get_kanban_chats(self,\
+    \ kanban_id: str, column_id: str) -> List[Chat]:\n        \"\"\"Load all chats\
+    \ from a column of a kanban\"\"\"\n        return [Chat(**chat) for chat in self.chat_table.search((where('kanban_id')\
+    \ == kanban_id) & (where('column_id') == column_id))]\n    \n    def get_chat(self,\
+    \ chat_id: str) -> Chat:\n        return Chat(**self.chat_table.get(where('doc_id')\
+    \ == chat_id))\n\n    def save_chat(self, chat: Chat) -> None:\n        \"\"\"\
+    Save a chat to the database, if chat has not doc_id, create a new one\"\"\"\n\
+    \        if not chat.doc_id:\n            chat.doc_id = str(uuid.uuid4())\n  \
+    \          chat.created_at = str(datetime.now())\n        chat.updated_at = str(datetime.now())\n\
+    \        self.chat_table.upsert(chat.model_dump(), where('doc_id') == chat.doc_id)\n\
+    \n```"
+  created_at: '2025-08-02 04:27:46.604534'
+  disable_knowledge: false
+  doc_id: fc3dcc8e-ea67-478c-a474-53543a67a774
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00020956993103027344
+    model: gpt-4o
+    time_taken: 59.24721693992615
+  profiles:
+  - software_developer
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-08-02 04:27:46.604558'
+  user: null
+mode: chat
+name: Allow to select a llm model for the chat
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-29T14:03:34.297030'
+url: ''
+users:
+- admin
+visibility: ''

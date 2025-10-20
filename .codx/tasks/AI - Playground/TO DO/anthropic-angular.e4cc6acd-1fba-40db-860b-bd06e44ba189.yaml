@@ -1,0 +1,116 @@
+board: AI - Playground
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: TO DO
+column_id: ''
+created_at: '2025-03-09 15:55:16.513968'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/AI - Playground/TO DO/anthropic-angular.e4cc6acd-1fba-40db-860b-bd06e44ba189.yaml
+id: e4cc6acd-1fba-40db-860b-bd06e44ba189
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Create an angular material form with reactive forms to edit this entity:\n\
+    ```ts\nimport { WorkItemRevision } from './work-item-revision'\nimport { Location\
+    \ } from './location'\nimport { Mro } from './mro'\nimport { Department } from\
+    \ './department'\nimport { User } from './user'\n\n\nexport interface Project\
+    \ {\n  id: number;\n  name: string;\n  description: string;\n  msn: string;\n\
+    \  requestedBy: Department;\n  createdBy: User;\n  initDate: Date;\n  finishDate:\
+    \ Date;\n  isClosed: boolean;\n  archived: boolean;\n  assignedTo: Department;\n\
+    \  mro: Mro;\n  location: Location;\n  createdDate: Date;\n  updatedDate: Date;\n\
+    \  workItemRevisions: WorkItemRevision[];\n}\n```\n\n\n\n"
+  created_at: '2025-03-09 15:55:16.509524'
+  disable_knowledge: false
+  doc_id: 7260b3d7-6be1-4295-88ed-95ba5bcb2a87
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-09 15:55:16.509560'
+  user: null
+- content: "Knowledge search query: \nCreate an angular material form with reactive\
+    \ forms to edit this entity:\n```ts\nimport { WorkItemRevision } from './work-item-revision'\n\
+    import { Location } from './location'\nimport { Mro } from './mro'\nimport { Department\
+    \ } from './department'\nimport { User } from './user'\n\n\nexport interface Project\
+    \ {\n  id: number;\n  name: string;\n  description: string;\n  msn: string;\n\
+    \  requestedBy: Department;\n  createdBy: User;\n  initDate: Date;\n  finishDate:\
+    \ Date;\n  isClosed: boolean;\n  archived: boolean;\n  assignedTo: Department;\n\
+    \  mro: Mro;\n  location: Location;\n  createdDate: Date;\n  updatedDate: Date;\n\
+    \  workItemRevisions: WorkItemRevision[];\n}\n```\n\n\n\n -> angular material\
+    \ form, reactive forms, edit entity, Project interface, WorkItemRevision, Location,\
+    \ Mro, Department, User, id, name, description, msn, requestedBy, createdBy, initDate,\
+    \ finishDate, isClosed, archived, assignedTo, createdDate, updatedDate, workItemRevisions"
+  created_at: '2025-03-10 06:55:00.983024'
+  disable_knowledge: false
+  doc_id: b2a390d9-0472-4e28-a711-afe5c74a593f
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: system
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-10 06:55:00.983062'
+  user: null
+- content: ''
+  created_at: '2025-03-10 06:55:00.983024'
+  disable_knowledge: false
+  doc_id: 70f2f8bf-d57a-4a41-8d68-c995c2f8f733
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: null
+    model: codellama
+    time_taken: 101.39768123626709
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-10 06:55:00.983062'
+  user: null
+mode: chat
+name: Anthropic - Angular
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: 67fe8e3d-329e-4a4f-aa55-dd19815a62b4
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-03-10T07:01:01.520262'
+url: ''
+users: []
+visibility: ''

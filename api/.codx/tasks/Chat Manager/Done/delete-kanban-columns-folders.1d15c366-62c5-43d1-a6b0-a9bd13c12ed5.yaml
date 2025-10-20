@@ -1,0 +1,268 @@
+board: Chat Manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Done
+column_id: ''
+created_at: '2025-08-02 10:23:15.304454'
+description: This conversation involved the refactoring of a Python script used for
+  managing chat interactions and kanban operations within a project structure. The
+  script was revised to enhance readability, maintainability, and performance by following
+  best practices. Improvements included the use of constants, better logging practices,
+  refined error handling with specific exceptions, and breaking down complex functions
+  into more manageable parts. Additionally, comprehensive comments and docstrings
+  were added to clarify the logic and purpose of each function.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/chat_manager.py
+file_path: /shared/codx-junior/api/.codx/tasks/Chat Manager/Done/delete-kanban-columns-folders.1d15c366-62c5-43d1-a6b0-a9bd13c12ed5.yaml
+id: 1d15c366-62c5-43d1-a6b0-a9bd13c12ed5
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Kanban and chats are stored in files structured into boards and columns.\n\
+    A board is a folder, and columns are subfolders under board. chats are files under\
+    \ a column folder.\n\n\nWhen saving a\_ kanban delete all board and column folders\
+    \ not present in the kanban object"
+  created_at: '2025-08-02 11:18:54.517299'
+  disable_knowledge: true
+  doc_id: 62bb939f-6af4-4221-8af1-1bde2ec55339
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - software_developer
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-02 11:18:54.517326'
+  user: admin
+- content: "Certainly! Here's the refactored version of your Python code, along with\
+    \ inline comments to clarify complex logic. I've also added the necessary imports\
+    \ and adjusted the code according to the specified guidelines:\n\n```python /shared/codx-junior/api/codx/junior/chat_manager.py\n\
+    \"\"\"\nChat + AI\nThis module is responsible for the AI chat interaction\n\"\"\
+    \"\n\nimport logging\nimport pathlib\nimport os\nimport json\nimport uuid\nimport\
+    \ shutil\nfrom datetime import datetime, timezone, timedelta\nfrom typing import\
+    \ Optional, List, Dict, Tuple\n\nfrom slugify import slugify\n\nfrom codx.junior.settings\
+    \ import CODXJuniorSettings\nfrom codx.junior.db import Chat, Message\nfrom codx.junior.utils.utils\
+    \ import write_file\nfrom codx.junior.profiling.profiler import profile_function\n\
+    \n# Global Constants\nDEFAULT_BOARD = \"kanban\"\nDEFAULT_COLUMN = \"tasks\"\n\
+    CHAT_FILE_EXTENSION = '.md'\nKANBAN_FILE_NAME = 'kanban.json'\nLOGGING_FORMAT\
+    \ = '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'\n\n# Configure logger\
+    \ for the module\nlogging.basicConfig(level=logging.INFO, format=LOGGING_FORMAT)\n\
+    logger = logging.getLogger(__name__)\n\nclass ChatManager:\n    \"\"\"Manage chat\
+    \ interactions, file storage, and kanban operations.\"\"\"\n\n    def __init__(self,\
+    \ settings: CODXJuniorSettings):\n        self.settings = settings\n        self.chat_path\
+    \ = f\"{settings.codx_path}/tasks\"\n        os.makedirs(self.chat_path, exist_ok=True)\n\
+    \        os.makedirs(f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}\", exist_ok=True)\n\
+    \n    def get_chat_file(self, chat: Chat) -> str:\n        \"\"\"Return chat file\
+    \ path based on chat details.\"\"\"\n        return f\"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}{CHAT_FILE_EXTENSION}\"\
+    \n\n    def chat_paths(self) -> List[str]:\n        \"\"\"Retrieve all chat file\
+    \ paths.\"\"\"\n        return [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob(f\"\
+    *{CHAT_FILE_EXTENSION}\")]\n    \n    def chat_board_column_name_from_path(self,\
+    \ file_path: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:\n   \
+    \     \"\"\"Extract board, column, and name from file path.\"\"\"\n        chat_parts\
+    \ = file_path.replace(self.chat_path, \"\").strip(\"/\").split(\"/\")\n      \
+    \  if len(chat_parts) != 3:\n            return None, None, None\n        name\
+    \ = chat_parts[-1].replace(CHAT_FILE_EXTENSION, \"\")\n        column = chat_parts[-2]\n\
+    \        board = chat_parts[-3]\n        return board, column, name\n\n    @profile_function\n\
+    \    def list_chats(self) -> List[Chat]:\n        \"\"\"List all available chats.\"\
+    \"\"\n        file_paths = self.chat_paths()\n        return sorted(\n       \
+    \     filter(None, [self._list_chat_info(file_path) for file_path in file_paths]),\n\
+    \            key=lambda x: str(x.chat_index or x.updated_at),\n            reverse=True\n\
+    \        )\n\n    def _list_chat_info(self, file_path: str) -> Optional[Chat]:\n\
+    \        \"\"\"Retrieve chat information from file path.\"\"\"\n        try:\n\
+    \            return self.load_chat_from_path(chat_file=file_path, chat_only=True)\n\
+    \        except (json.JSONDecodeError, OSError) as ex:\n            logger.exception(\"\
+    Error loading chat %s: %s\", file_path, ex)\n            return None\n\n    def\
+    \ save_chat(self, chat: Chat, chat_only: bool = False) -> Chat:\n        \"\"\"\
+    Save chat data to a file.\"\"\"\n        chat.board = chat.board or DEFAULT_BOARD\n\
+    \        chat.column = chat.column or DEFAULT_COLUMN\n        chat.id = chat.id\
+    \ or str(uuid.uuid4())\n        chat.created_at = chat.created_at or chat.updated_at\n\
+    \        chat.updated_at = datetime.now().isoformat()\n\n        current_chat\
+    \ = self.find_by_id(chat_id=chat.id)\n        if chat_only and current_chat:\n\
+    \            chat.messages = current_chat.messages\n\n        chat.users = list({msg.user\
+    \ for msg in chat.messages if msg.user})\n        chat.profiles = list({profile\
+    \ for msg in chat.messages for profile in msg.profiles})\n\n        for msg in\
+    \ chat.messages:\n            if not msg.doc_id:\n                msg.doc_id =\
+    \ str(uuid.uuid4())\n\n        chat_file = self.get_chat_file(chat)\n        logger.info(\"\
+    Saving chat %s at %s\", chat.id, chat_file)\n        write_file(chat_file, self.serialize_chat(chat))\n\
+    \n        # Remove old chat if path has changed\n        if current_chat and chat_file\
+    \ != current_chat.file_path:\n            logger.info(\"Deleting old chat at %s\"\
+    , current_chat.file_path)\n            self.delete_chat(current_chat.file_path)\n\
+    \n        return chat\n\n    def delete_chat(self, file_path: Optional[str] =\
+    \ None, chat_id: Optional[str] = None) -> None:\n        \"\"\"Delete a chat by\
+    \ file path or chat ID.\"\"\"\n        logger.info(\"Removing chat by file_path:\
+    \ %s - chat_id: %s\", file_path, chat_id)\n        \n        if chat_id:\n   \
+    \         chat = self.find_by_id(chat_id)\n            file_path = chat.file_path\n\
+    \n        if file_path and os.path.isfile(file_path) and file_path.startswith(self.chat_path):\n\
+    \            logger.info(\"Removing chat at %s\", file_path)\n            os.remove(file_path)\n\
+    \        else:\n            logger.error(\"Error removing chat at %s\", file_path)\n\
+    \n    def load_chat(self, board: str, column: Optional[str] = None, chat_name:\
+    \ Optional[str] = None) -> Chat:\n        \"\"\"Load a chat based on board, column,\
+    \ and name.\"\"\"\n        chat = Chat(board=board, column=column, name=chat_name)\n\
+    \        chat_file = self.get_chat_file(chat)\n        if not os.path.isfile(chat_file):\n\
+    \            chat.file_path = chat_file\n            return chat\n        return\
+    \ self.load_chat_from_path(chat_file=chat_file)\n\n    @profile_function\n   \
+    \ def load_chat_from_path(self, chat_file: str, chat_only: bool = False) -> Chat:\n\
+    \        \"\"\"Load chat from file path.\"\"\"\n        board, column, name =\
+    \ self.chat_board_column_name_from_path(chat_file)\n        \n        if not (board\
+    \ and column):\n            new_chat_file = f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}/{name}{CHAT_FILE_EXTENSION}\"\
+    \n            if chat_file:\n                logger.info(\"Renaming chat file\
+    \ from %s to %s\", chat_file, new_chat_file)\n                os.rename(chat_file,\
+    \ new_chat_file)\n            chat_file = new_chat_file\n            board, column\
+    \ = DEFAULT_BOARD, DEFAULT_COLUMN\n\n        with open(chat_file, 'r', encoding='utf-8')\
+    \ as f:\n            logger.info(\"Loading chat from %s\", chat_file)\n      \
+    \      content = f.read()\n            chat = self.deserialize_chat(content=content,\
+    \ chat_only=chat_only)\n\n        if not chat.created_at:\n            stats =\
+    \ os.stat(chat_file)\n            chat.created_at = str(datetime.fromtimestamp(stats.st_ctime,\
+    \ tz=timezone.utc))\n            chat.updated_at = str(datetime.fromtimestamp(stats.st_mtime,\
+    \ tz=timezone.utc))\n        \n        chat.board = board\n        chat.column\
+    \ = column\n        chat.file_path = chat_file\n        return chat\n\n    def\
+    \ serialize_chat(self, chat: Chat) -> str:\n        \"\"\"Serialize chat into\
+    \ a string format.\"\"\"\n        chat_dict = {**chat.__dict__}\n        del chat_dict[\"\
+    messages\"]\n        header = f\"# [[{json.dumps(chat_dict)}]]\"\n\n        serialized_messages\
+    \ = []\n        for message in chat.messages:\n            if not message.created_at:\n\
+    \                message.created_at = datetime.now().isoformat()\n\n         \
+    \   message_dict = {**message.__dict__}\n            del message_dict[\"content\"\
+    ]\n\n            # Serialize each message\n            serialized_message = \"\
+    \\n\".join([\n                f\"## [[{json.dumps(message_dict)}]]\",\n      \
+    \          message.content\n            ])\n            serialized_messages.append(serialized_message)\n\
+    \        \n        # Combine header and serialized messages\n        return \"\
+    \\n\".join([header] + serialized_messages)\n\n    def delete_kanban(self, kanban_title:\
+    \ str) -> None:\n        \"\"\"Delete kanban files by title.\"\"\"\n        kanban_path\
+    \ = f\"{self.chat_path}/{kanban_title}\"\n        if os.path.isdir(kanban_path):\n\
+    \            shutil.rmtree(kanban_path)\n\n    @profile_function\n    def deserialize_chat(self,\
+    \ content: str, chat_only: bool = False) -> Chat:\n        \"\"\"Deserialize raw\
+    \ content into a Chat object.\"\"\"\n        logger.info(\"Deserializing chat,\
+    \ content length: %d\", len(content))\n        lines = content.split(\"\\n\")\n\
+    \        chat_dict = json.loads(lines[0][4:-2])\n        chat = Chat(**chat_dict)\n\
+    \        chat.messages = []\n\n        # Deserialize messages if not chat only\n\
+    \        if not chat_only:\n            self._deserialize_messages(lines[1:],\
+    \ chat)\n\n        return chat\n\n    def _deserialize_messages(self, lines: List[str],\
+    \ chat: Chat) -> None:\n        \"\"\"Deserialize chat messages from lines.\"\"\
+    \"\n        chat_message = None\n        for line in lines:\n            if line.startswith(\"\
+    ## [[{\") and line.endswith(\"}]]\"):\n                chat_message = Message(**json.loads(line[5:-2]))\n\
+    \                chat_message.content = \"\"\n                chat.messages.append(chat_message)\n\
+    \            elif chat_message:\n                if not chat_message.content:\n\
+    \                    chat_message.content = line\n                else:\n    \
+    \                chat_message.content = f\"{chat_message.content}\\n{line}\"\n\
+    \n    def chat_count(self) -> int:\n        \"\"\"Return the count of all chat\
+    \ files.\"\"\"\n        return len(self.chat_paths())\n\n    def last_chats(self)\
+    \ -> List[Chat]:\n        \"\"\"Retrieve chats from the last 2 days.\"\"\"\n \
+    \       last_days_timestamp = (datetime.now() - timedelta(days=2)).timestamp()\n\
+    \        chat_paths = [\n            {\n                \"chat_path\": path,\n\
+    \                \"updated_at\": os.stat(path).st_mtime\n            } for path\
+    \ in self.chat_paths()\n        ]\n\n        recent_chats = [c for c in chat_paths\
+    \ if c[\"updated_at\"] > last_days_timestamp]\n        recent_chats_sorted = sorted(recent_chats,\
+    \ key=lambda x: x[\"updated_at\"], reverse=True)[:3]\n\n        return [self.load_chat_from_path(chat_file=c[\"\
+    chat_path\"]) for c in recent_chats_sorted]\n\n    def find_by_id(self, chat_id:\
+    \ str) -> Optional[Chat]:\n        \"\"\"Find a chat by its ID.\"\"\"\n      \
+    \  if chat_id:\n            file_path = next((path for path in self.chat_paths()\
+    \ if chat_id in path), None)\n            if file_path:\n                return\
+    \ self.load_chat_from_path(chat_file=file_path)\n        return None\n\n    def\
+    \ load_kanban_from_file(self, kanban_file: str) -> Dict:\n        \"\"\"Load kanban\
+    \ data from specified file.\"\"\"\n        kanban_data = {\n            \"version\"\
+    : 0.1,\n            \"boards\": {},\n            \"tags\": {}\n        }\n\n \
+    \       if os.path.isfile(kanban_file):\n            with open(kanban_file, 'r',\
+    \ encoding='utf-8') as f:\n                kanban_data = json.loads(f.read())\n\
+    \n            if not kanban_data.get(\"version\"):\n                # Upgrade\
+    \ the kanban format\n                kanban_data = {\n                    \"version\"\
+    : 0.1,\n                    \"boards\": kanban_data,\n                    \"tags\"\
+    : {}\n                }\n        \n        return kanban_data\n\n    @profile_function\n\
+    \    def load_kanban(self) -> Dict:\n        \"\"\"Load and validate kanban configuration.\"\
+    \"\"\n        kanban_file = f\"{self.chat_path}/{KANBAN_FILE_NAME}\"\n       \
+    \ logger.info(\"Loading kanban from %s\", kanban_file)\n        \n        all_chats\
+    \ = self.list_chats()\n        kanban_data = self.load_kanban_from_file(kanban_file=kanban_file)\n\
+    \        saved_board_directories = {board for board in os.listdir(self.chat_path)\
+    \ if os.path.isdir(f\"{self.chat_path}/{board}\")}\n\n        save_kanban_needed\
+    \ = False\n        existing_boards = kanban_data[\"boards\"]\n        logger.info(\"\
+    Processing boards in %s\", kanban_file)\n\n        for board in {chat.board for\
+    \ chat in all_chats}.union(saved_board_directories):\n            if not existing_boards.get(board):\n\
+    \                existing_boards[board] = {}\n\n            # Ensure columns exist\
+    \ for each board\n            if not existing_boards[board].get(\"columns\"):\n\
+    \                existing_boards[board][\"columns\"] = []\n\n            saved_columns\
+    \ = {col for col in os.listdir(f\"{self.chat_path}/{board}\") if os.path.isdir(f\"\
+    {self.chat_path}/{board}/{col}\")}\n            current_columns = existing_boards[board][\"\
+    columns\"]\n\n            for column in {chat.column for chat in all_chats if\
+    \ chat.board == board}.union(saved_columns):\n                if not any(c[\"\
+    title\"] == column for c in current_columns):\n                    current_columns.append({\"\
+    title\": column})\n                    save_kanban_needed = True\n\n         \
+    \   for column in current_columns:\n                if not column.get(\"id\"):\n\
+    \                    column[\"id\"] = str(uuid.uuid4())\n                    save_kanban_needed\
+    \ = True\n\n        if save_kanban_needed:\n            self.save_kanban(kanban_data)\n\
+    \n        # Clean up: Remove folder structure not present in kanban data\n   \
+    \     self.remove_unused_folders(kanban_data[\"boards\"], saved_board_directories)\n\
+    \n        return kanban_data\n\n    def save_kanban(self, kanban_data: Dict) ->\
+    \ None:\n        \"\"\"Save kanban state to a file.\"\"\"\n        kanban_file\
+    \ = f\"{self.chat_path}/{KANBAN_FILE_NAME}\"\n        with open(kanban_file, 'w',\
+    \ encoding='utf-8') as f:\n            f.write(json.dumps(kanban_data))\n\n  \
+    \  def remove_unused_folders(self, boards_in_kanban: Dict, saved_board_directories:\
+    \ set) -> None:\n        \"\"\"Remove all board and column folders not present\
+    \ in the kanban object.\"\"\"\n        for board in saved_board_directories:\n\
+    \            if board not in boards_in_kanban:\n                logger.info(\"\
+    Removing board folder not in kanban: %s\", board)\n                shutil.rmtree(f\"\
+    {self.chat_path}/{board}\")\n            else:\n                # Get saved columns\n\
+    \                saved_columns = {col for col in os.listdir(f\"{self.chat_path}/{board}\"\
+    ) if os.path.isdir(f\"{self.chat_path}/{board}/{col}\")}\n                kanban_columns\
+    \ = {col[\"title\"] for col in boards_in_kanban[board][\"columns\"]}\n\n     \
+    \           # Remove columns not in the kanban\n                for column in\
+    \ saved_columns - kanban_columns:\n                    logger.info(\"Removing\
+    \ column folder not in kanban: %s/%s\", board, column)\n                    shutil.rmtree(f\"\
+    {self.chat_path}/{board}/{column}\")\n```\n\nIn this refactoring, I've ensured:\n\
+    - Use of constants to avoid magic strings and improve maintainability.\n- Improved\
+    \ logging practices with lazy `%` formatting.\n- Comprehensive docstrings and\
+    \ inline comments were added for clarity.\n- Removed unused imports and variables.\n\
+    - Ensured clean and consistent code with proper indentation and line length adherence.\n\
+    - Updated some parts of the code to catch specific exceptions instead of generic\
+    \ ones.\n- Refactored methods by breaking down complex logic into smaller helper\
+    \ functions for better readability.\n"
+  created_at: '2025-08-02 11:18:54.517299'
+  disable_knowledge: false
+  doc_id: 874c5c1d-5d9e-42fa-8427-1c7013852cac
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002655982971191406
+    model: gpt-4o
+    time_taken: 43.65121078491211
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-08-02 11:18:54.517326'
+  user: null
+mode: chat
+name: Delete kanban columns folders
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-29T14:03:34.301416'
+url: ''
+users:
+- admin
+visibility: ''

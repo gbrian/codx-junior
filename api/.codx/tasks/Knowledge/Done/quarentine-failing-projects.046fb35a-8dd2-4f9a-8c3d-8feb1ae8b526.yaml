@@ -1,0 +1,145 @@
+board: Knowledge
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Done
+column_id: ''
+created_at: '2025-07-15 09:30:58.675902'
+description: In this conversation, a Python script was provided to manage background
+  services for project updates, featuring a logging setup. A request was made to implement
+  a quarantine system for projects that cause errors, introducing increasing delays
+  before rechecking these projects based on consecutive failures. A potential solution
+  was provided, introducing a quarantine tracking dictionary to manage fail counts
+  and last checked times. The quarantine delays increase from 1 minute to 120 minutes,
+  depending on the number of failures. The updated code includes functions to check
+  and update quarantine statuses, and integrates these into the project checking routine.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/background.py
+file_path: /shared/codx-junior/api/.codx/tasks/Knowledge/Done/quarentine-failing-projects.046fb35a-8dd2-4f9a-8c3d-8feb1ae8b526.yaml
+id: 046fb35a-8dd2-4f9a-8c3d-8feb1ae8b526
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "@file://background.py\nWe must put project that are causing errors when\
+    \ checking changes into quarentine to avoid overload logs with error messages.\
+    \ I recommend a increasing delay in re-check them, so if they fail we put them\
+    \ in quarentine for 1min, 10min if fial count is 2, 30min if fail count is 3 and\
+    \ 120min if 4 or more, reseting count once it works fine\_\_"
+  created_at: '2025-07-15 09:30:58.674082'
+  disable_knowledge: true
+  doc_id: b9cd482a-50c3-4ac3-a3a5-4e94b7492efd
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/background.py
+  - /shared/codx-junior/api/codx/junior/background.py
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-15 09:30:58.674109'
+  user: admin
+- content: "Sure, here's how you can modify your code to implement a quarantine system\
+    \ for projects that have errors during checking:\n\n```python /shared/codx-junior/api/codx/junior/background.py\n\
+    /shared/codx-junior/api/codx/junior/background.py\nimport logging\nimport time\n\
+    import asyncio\nfrom datetime import datetime, timedelta\nfrom threading import\
+    \ Thread, Lock\nfrom typing import List, Dict\n\nfrom codx.junior.engine import\
+    \ CODXJuniorSession\nfrom codx.junior.globals import (\n  CODX_JUNIOR_API_BACKGROUND,\n\
+    \  find_all_projects\n)\nfrom codx.junior.settings import read_global_settings\n\
+    \nfrom codx.junior.ai import AIManager\n\n# Setup logging\nlogger = logging.getLogger(__name__)\n\
+    \n# A global tracking dictionary to manage files currently being processed\nFILES_CHECKING\
+    \ = {}\nFILES_CHECKING_LOCK = Lock()\nCHECK_TIMEOUT = timedelta(minutes=1)\n\n\
+    # Quarantine settings\nQUARANTINE_TRACKER: Dict[str, Dict] = {}\nQUARANTINE_LOCK\
+    \ = Lock()\nQUARANTINE_DELAYS = [0, 1, 10, 30, 120]  # Minutes\n\ndef start_background_services(app)\
+    \ -> None:\n    \"\"\"\n    Function to start background services for project\
+    \ watching and processing.\n    \"\"\"\n    if not CODX_JUNIOR_API_BACKGROUND:\n\
+    \        return\n    logger.info(\"*** Starting background processes ***\")\n\
+    \    reload_models()\n\n    # Start the project checking in a separate thread\n\
+    \    Thread(target=check_projects).start()\n\ndef reload_models() -> None:\n \
+    \   \"\"\"\n    Reload AI models based on the current global settings.\n    \"\
+    \"\"\n    try:\n        AIManager().reload_models(read_global_settings())\n  \
+    \      logger.info(\"AI models reloaded successfully.\")\n    except Exception\
+    \ as ex:\n        logger.exception(f\"Failed to reload AI models: {ex}\")\n\n\
+    def is_project_in_quarantine(project_name: str) -> bool:\n    \"\"\"\n    Determine\
+    \ if a project is in quarantine based on its last check time and the delay.\n\
+    \    \"\"\"\n    quarantine_info = QUARANTINE_TRACKER.get(project_name)\n    if\
+    \ not quarantine_info:\n        return False\n    \n    delay_minutes = QUARANTINE_DELAYS[min(quarantine_info[\"\
+    fail_count\"], len(QUARANTINE_DELAYS) - 1)]\n    next_allowed_check = quarantine_info[\"\
+    last_checked\"] + timedelta(minutes=delay_minutes)\n    return datetime.now()\
+    \ < next_allowed_check\n\ndef update_quarantine_status(project_name: str, success:\
+    \ bool) -> None:\n    \"\"\"\n    Update the quarantine status of a project depending\
+    \ on whether the check was successful.\n    \"\"\"\n    with QUARANTINE_LOCK:\n\
+    \        quarantine_info = QUARANTINE_TRACKER.setdefault(project_name, {\"fail_count\"\
+    : 0, \"last_checked\": datetime.min})\n\n        if success:\n            quarantine_info[\"\
+    fail_count\"] = 0  # Reset on success\n        else:\n            quarantine_info[\"\
+    fail_count\"] += 1\n\n        quarantine_info[\"last_checked\"] = datetime.now()\n\
+    \ndef check_projects() -> None:\n    \"\"\"\n    Continuously checks for updates\
+    \ in all projects.\n    \"\"\"\n    async def check_project(project) -> None:\n\
+    \        \"\"\"\n        Process and handle the changes in a project asynchronously.\n\
+    \        \"\"\"\n        session = CODXJuniorSession(settings=project)\n     \
+    \   try:\n            await session.process_project_changes()\n            await\
+    \ session.process_wiki_changes()\n            update_quarantine_status(project.project_name,\
+    \ success=True)\n        except Exception as ex:\n            update_quarantine_status(project.project_name,\
+    \ success=False)\n            project.last_error = str(ex)\n            logger.error(f\"\
+    Error processing project changes: {project.project_name}\\n{ex}\")\n\n    while\
+    \ True:\n        try:\n            projects = find_all_projects()\n          \
+    \  for project in projects.values():\n                if is_project_in_quarantine(project.project_name):\n\
+    \                    logger.info(f\"Skipping project (in quarantine): {project.project_name}\"\
+    )\n                    continue\n\n                try:\n                    asyncio.run(check_project(project=project))\n\
+    \                except Exception as ex:\n                    logger.error(f\"\
+    Unhandled exception during project checking: {ex}\")\n        except Exception\
+    \ as ex:\n            logger.exception(f\"Error checking projects: {ex}\")\n \
+    \       time.sleep(0.1)\n\n```\n\nThis modified code introduces a quarantine system\
+    \ where projects that cause errors are temporarily put on hold from being checked\
+    \ based on the number of consecutive failures. The `QUARANTINE_TRACKER` dictionary\
+    \ keeps track of the fail count and the last checked time for each project, and\
+    \ this information is used to determine if a project should be checked or skipped\
+    \ in the next cycle. The fail count is reset upon a successful check."
+  created_at: '2025-07-15 09:30:58.674082'
+  disable_knowledge: false
+  doc_id: b08ca5a7-3be8-4a8f-90f3-a43acefb52d1
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00026869773864746094
+    model: gpt-4o
+    time_taken: 14.174602031707764
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-07-15 09:30:58.674109'
+  user: null
+mode: chat
+name: Quarentine failing projects
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-07-21T19:36:14.339326'
+url: ''
+users:
+- admin
+visibility: ''

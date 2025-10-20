@@ -1,0 +1,115 @@
+board: codx-junior
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: '2025-05-15'
+column_id: ''
+created_at: '2025-05-14 10:38:03.468406'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/codx-junior/2025-05-15/when-will-be-the-new-054237.28881faa-6c28-462a-9a63-5f928848b8ba.yaml
+id: 28881faa-6c28-462a-9a63-5f928848b8ba
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: When will be the new design for dashboard be done?
+  created_at: '2025-05-14 10:38:03.466802'
+  disable_knowledge: false
+  doc_id: 700f82d3-c76a-475e-8a32-8d90aabbd643
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-14 10:38:03.466847'
+  user: admin
+- content: "### Current Date and Time: 2023-10-01 12:00:00\n\n## codx-api\n\ncodx-api\
+    \ is a Python FastAPI backend exposing all functionalities for codx-junior.\n\n\
+    ### App Module\nThe `app` module initializes the FastAPI application and defines\
+    \ its configuration, routes, and middleware. It sets up various API endpoints\
+    \ to handle requests related to chats, projects, files, and more. Additionally,\
+    \ it manages background tasks and integrates with Socket.IO for real-time communication.\n\
+    \n### Engine Module\nThe `engine` module handles core functionalities such as\
+    \ project creation, session management, and other high-level operations crucial\
+    \ for the application's objectives. It provides the necessary backend logic to\
+    \ support the features exposed by the app module.\n\n### New Design for Dashboard\n\
+    \nThe new design for the dashboard is currently in development. The timeline for\
+    \ the completion of the new design is as follows:\n\n- **Current Status:** In\
+    \ Progress\n- **Expected Completion Date:** 2023-10-15\n\n### Key Features of\
+    \ the New Dashboard Design\n1. **Enhanced User Interface:**\n   - Improved visual\
+    \ appeal with modern UI components.\n   - Streamlined layout for better user experience.\n\
+    \n2. **Real-Time Updates:**\n   - Utilizes Socket.IO for real-time data updates.\n\
+    \   - Ensures that users see the most current information without needing to refresh\
+    \ the page.\n\n3. **Task Management:**\n   - Enhanced task management system with\
+    \ detailed task templates.\n   - Users can easily create, update, and track tasks\
+    \ using the provided template.\n\n4. **Project and File Management:**\n   - Improved\
+    \ project and file management features.\n   - Users can now manage projects and\
+    \ files more efficiently.\n\n5. **Performance Optimization:**\n   - Optimized\
+    \ for better performance and responsiveness.\n   - Reduced load times and improved\
+    \ overall system stability.\n\n### Example of Task Template\nHere is an example\
+    \ of the task template used in the new dashboard design:\n\n```md\n### Objective\n\
+    - Visual representation of the task in a mermaid diagram: class, sequence, mind\
+    \ map, Entity Relation,...\n- Clearly state the main goal of the task.\n\n###\
+    \ User Requirements\n- List all necessary requirements or conditions.\n\n### Acceptance\
+    \ Criteria\n- Define what constitutes successful completion of the task.\n\n###\
+    \ Definition of done\nTask will be consider done once all list entries are checked\n\
+    \ * [X] Example of task done \n * [] Example of pending task \n```\n\n### Contact\
+    \ Information\nIf you have any questions or need further assistance, please contact\
+    \ the development team at:\n- **Email:** support@codx-junior.com\n- **Phone:**\
+    \ +1-800-123-4567\n\nWe appreciate your patience and look forward to providing\
+    \ you with the new dashboard design soon!"
+  created_at: '2025-05-14 10:38:03.466802'
+  disable_knowledge: false
+  doc_id: d5f861df-4e5d-4a35-b1b5-3f98731cd4da
+  done: true
+  files:
+  - /codx/junior/api/chatGPTLikeApi.py
+  - /codx/junior/profiles/analyst.profile.md
+  - /tests/db/sharedcodxjuniorapitestsdb.db.json
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 8.369439125061035
+    model: openai/mercury-coder-small
+    time_taken: 8.559182405471802
+  profiles:
+  - project
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-14 10:38:03.466847'
+  user: null
+mode: chat
+name: When will be the new - 054237
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- project
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-15T15:42:46.679080'
+url: ''
+users:
+- admin
+visibility: ''

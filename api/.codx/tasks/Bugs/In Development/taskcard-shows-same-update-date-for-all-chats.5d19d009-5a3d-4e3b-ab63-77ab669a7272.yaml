@@ -1,0 +1,32 @@
+board: Bugs
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Development
+column_id: ''
+created_at: '2025-09-18 11:14:03.195293'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Bugs/In Development/taskcard-shows-same-update-date-for-all-chats.5d19d009-5a3d-4e3b-ab63-77ab669a7272.yaml
+id: 5d19d009-5a3d-4e3b-ab63-77ab669a7272
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: task
+name: TaskCard shows same update date for all chats
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-18T12:35:52.284718'
+url: ''
+users: []
+visibility: ''

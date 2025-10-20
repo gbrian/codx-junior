@@ -1,0 +1,32 @@
+board: codx-junior
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: '2025-10-11'
+column_id: ''
+created_at: '2025-10-11 07:41:21.315452'
+description: find_project
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/codx-junior/2025-10-11/find-project-124012.1eac4051-c4a7-4c93-9cbf-705504a86d26.yaml
+id: 1eac4051-c4a7-4c93-9cbf-705504a86d26
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: task
+name: find-project - 124012
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-11T10:40:12.483658'
+url: ''
+users: []
+visibility: ''

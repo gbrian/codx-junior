@@ -1,0 +1,374 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-03-17 16:21:59.034533'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-views-prview-vue-2025-03-19-08-43-35-734093.43798361-1527-4a8b-91bd-1262ac84cdf8.yaml
+id: 43798361-1527-4a8b-91bd-1262ac84cdf8
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      You are a software developer maintaining the codebase.\n\
+    * Keep your changes short and simple\n* Make minimum changes as possiblle.\n*\
+    \ Respect code structure.\n* Make your changes compatible with the current code\
+    \ structure and format\n* Don't add references or imports unless they are really\
+    \ necessary\n                      Find all information needed to apply all changes\
+    \ to file: /shared/codx-junior/client/src/views/PRView.vue\n                 \
+    \     User comments:\n                      User commented in line 22: the parent\
+    \ branch can be from the list or from user input, add and icon to toggle betweem\
+    \ selector and an input. both will use same model\n\n                      File\
+    \ content:\n                      <script setup>\nimport GitDiffViewer from '@/components/code/GitDiffViewer.vue'\n\
+    import Collapsible from '@/components/Collapsible.vue';\n</script>\n\n<template\
+    \ lang=\"pug\">\n  <div class=\"pr-view p-4 flex flex-col gap-4\">\n    <header\
+    \ class=\"flex justify-between items-start\">\n      <div class=\"flex flex-col\
+    \ gap-2\">\n        <h1 class=\"text-3xl font-bold\">Changes review</h1>\n   \
+    \     <div class=\"flex gap-2 items-center\">\n          <div class=\"flex items-center\
+    \ gap-2\">\n            <label class=\"block text-xs font-bold\" for=\"branchSource\"\
+    >Source</label>\n            <select id=\"branchSource\" class=\"select select-bordered\
+    \ select-sm w-full max-w-xs\" v-model=\"selectedBranchSource\">\n            \
+    \  <option v-for=\"branch in branches\" :key=\"branch\" :value=\"branch\">{{ branch\
+    \ }}</option>\n            </select>\n          </div>\n          <div class=\"\
+    flex items-center gap-2\">\n            <label class=\"block text-xs font-bold\"\
+    \ for=\"branchTarget\">Target</label>\n            <select id=\"branchTarget\"\
+    \ class=\"select select-bordered select-sm w-full max-w-xs\" v-model=\"selectedBranchTarget\"\
+    >\n              <option v-for=\"branch in branches\" :key=\"branch\" :value=\"\
+    branch\">{{ branch }}</option>\n            </select>\n            @codx-ok, please-wait...:\
+    \ the parent branch can be from the list or from user input, add and icon to toggle\
+    \ betweem selector and an input. both will use same model\n          </div>\n\
+    \        </div>\n      </div>\n    </header>\n    .flex.flex-col.gap-4.grow\n\n\
+    \      Collapsible.hidden(v-model=\"overviewChecked\" :start-expanded=\"true\"\
+    )\n        template(v-slot:title)\n          .flex.flex-col.grow\n           \
+    \ .flex.justify-between.items-center\n              | Overview\n             \
+    \ button.btn.btn-sm.tooltip(data-tip=\"Rebuild summary\" \n                  \
+    \                      @click=\"refreshSummary(true)\")\n                <i class=\"\
+    fa-solid fa-arrows-rotate\"></i> Rebuild\n            .text-sm Changes overview\n\
+    \        template(v-slot:content)\n          Markdown(:text=\"$projects.changesSummary\"\
+    )\n\n      Collapsible.hidden\n        template(v-slot:title)\n          .flex.flex-col.grow\n\
+    \            | Tasks\n            .text-sm Tasks associated with {{ selectedBranchSource\
+    \ }}\n        template(v-slot:content)\n          \n\n      Collapsible\n    \
+    \    template(v-slot:title)\n          .flex.flex-col.grow\n            | Files\n\
+    \            .text-sm Files changed\n        template(v-slot:content)\n      \
+    \    div\n            GitDiffViewer(:diff=\"$projects.project_branches.git_diff\"\
+    \ v-if=\"$projects.project_branches.git_diff\")\n  </div>\n</template>\n\n<script>\n\
+    export default {\n  data() {\n    return {\n      selectedBranchSource: null,\n\
+    \      selectedBranchTarget: null,\n      activeTab: 'Overview',\n      overviewChecked:\
+    \ true \n    }\n  },\n  computed: {\n    branches() {\n      return this.$projects.project_branches.branches\n\
+    \    },\n  },\n  watch: {\n    $project() {\n      this.refreshSummary()\n   \
+    \ },\n    selectedBranchSource() {\n      this.refreshSummary()\n    },\n    selectedBranchTarget()\
+    \ {\n      this.refreshSummary()\n    }\n  },\n  methods: {\n    switchTab(tab)\
+    \ {\n      this.activeTab = tab\n    },\n    copyText() {\n      copyTextToClipboard(this.changesSummary)\n\
+    \    },\n    async refreshSummary(rebuild = false) {\n      // Refresh summary\
+    \ and reload branches\n      this.$projects.refreshChangesSummary({\n        source:\
+    \ this.selectedBranchSource,\n        target: this.selectedBranchTarget,\n   \
+    \     rebuild\n      })\n      await this.$projects.loadBranches()\n      this.selectedBranchSource\
+    \ = this.$projects.currentBranch\n      this.selectedBranchTarget = this.$projects.project_branches.parent_branch\n\
+    \    }\n  },\n  mounted() {\n    this.refreshSummary(false)\n  }\n}\n</script>\n\
+    \                      "
+  created_at: '2025-03-17 16:21:59.031224'
+  disable_knowledge: false
+  doc_id: 59e60caa-cf28-45e0-bcbc-a46595b8a6a8
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-17 16:21:59.031271'
+  user: null
+- content: "To implement the feature of toggling between a select element and an input\
+    \ for the branch target, we can add a button to switch between these two components\
+    \ and bind them to the same Vue model. Here's how you could do it with minimal\
+    \ changes:\n\n```vue\n<template lang=\"pug\">\n  <div class=\"pr-view p-4 flex\
+    \ flex-col gap-4\">\n    <header class=\"flex justify-between items-start\">\n\
+    \      <div class=\"flex flex-col gap-2\">\n        <h1 class=\"text-3xl font-bold\"\
+    >Changes review</h1>\n        <div class=\"flex gap-2 items-center\">\n      \
+    \    <div class=\"flex items-center gap-2\">\n            <label class=\"block\
+    \ text-xs font-bold\" for=\"branchSource\">Source</label>\n            <select\
+    \ id=\"branchSource\" class=\"select select-bordered select-sm w-full max-w-xs\"\
+    \ v-model=\"selectedBranchSource\">\n              <option v-for=\"branch in branches\"\
+    \ :key=\"branch\" :value=\"branch\">{{ branch }}</option>\n            </select>\n\
+    \          </div>\n          <div class=\"flex items-center gap-2\">\n       \
+    \     <label class=\"block text-xs font-bold\" for=\"branchTarget\">Target</label>\n\
+    \            <div class=\"relative\">\n              <button @click=\"toggleBranchInput\"\
+    \ class=\"btn btn-xs absolute right-0 top-0\">\n                <i class=\"fa-solid\"\
+    \ :class=\"isInputVisible ? 'fa-list' : 'fa-pen'\"></i>\n              </button>\n\
+    \              <select\n                v-if=\"!isInputVisible\"\n           \
+    \     id=\"branchTarget\"\n                class=\"select select-bordered select-sm\
+    \ w-full max-w-xs\"\n                v-model=\"selectedBranchTarget\"\n      \
+    \        >\n                <option v-for=\"branch in branches\" :key=\"branch\"\
+    \ :value=\"branch\">{{ branch }}</option>\n              </select>\n         \
+    \     <input\n                v-else\n                id=\"branchTargetInput\"\
+    \n                type=\"text\"\n                class=\"input input-bordered\
+    \ input-sm w-full max-w-xs\"\n                v-model=\"selectedBranchTarget\"\
+    \n              />\n            </div>\n          </div>\n          <!-- User's\
+    \ original comment -->\n          @codx-ok, please-wait...: the parent branch\
+    \ can be from the list or from user input, add and icon to toggle between selector\
+    \ and an input. both will use same model\n        </div>\n      </div>\n    </header>\n\
+    \    .flex.flex-col.gap-4.grow\n\n      Collapsible.hidden(v-model=\"overviewChecked\"\
+    \ :start-expanded=\"true\")\n        template(v-slot:title)\n          .flex.flex-col.grow\n\
+    \            .flex.justify-between.items-center\n              | Overview\n  \
+    \            button.btn.btn-sm.tooltip(data-tip=\"Rebuild summary\" \n       \
+    \                                 @click=\"refreshSummary(true)\")\n         \
+    \       <i class=\"fa-solid fa-arrows-rotate\"></i> Rebuild\n            .text-sm\
+    \ Changes overview\n        template(v-slot:content)\n          Markdown(:text=\"\
+    $projects.changesSummary\")\n\n      Collapsible.hidden\n        template(v-slot:title)\n\
+    \          .flex.flex-col.grow\n            | Tasks\n            .text-sm Tasks\
+    \ associated with {{ selectedBranchSource }}\n        template(v-slot:content)\n\
+    \          \n\n      Collapsible\n        template(v-slot:title)\n          .flex.flex-col.grow\n\
+    \            | Files\n            .text-sm Files changed\n        template(v-slot:content)\n\
+    \          div\n            GitDiffViewer(:diff=\"$projects.project_branches.git_diff\"\
+    \ v-if=\"$projects.project_branches.git_diff\")\n  </div>\n</template>\n\n<script>\n\
+    export default {\n  data() {\n    return {\n      selectedBranchSource: null,\n\
+    \      selectedBranchTarget: null,\n      activeTab: 'Overview',\n      overviewChecked:\
+    \ true,\n      isInputVisible: false \n    }\n  },\n  computed: {\n    branches()\
+    \ {\n      return this.$projects.project_branches.branches\n    },\n  },\n  watch:\
+    \ {\n    $project() {\n      this.refreshSummary()\n    },\n    selectedBranchSource()\
+    \ {\n      this.refreshSummary()\n    },\n    selectedBranchTarget() {\n     \
+    \ this.refreshSummary()\n    }\n  },\n  methods: {\n    switchTab(tab) {\n   \
+    \   this.activeTab = tab\n    },\n    copyText() {\n      copyTextToClipboard(this.changesSummary)\n\
+    \    },\n    async refreshSummary(rebuild = false) {\n      // Refresh summary\
+    \ and reload branches\n      this.$projects.refreshChangesSummary({\n        source:\
+    \ this.selectedBranchSource,\n        target: this.selectedBranchTarget,\n   \
+    \     rebuild\n      })\n      await this.$projects.loadBranches()\n      this.selectedBranchSource\
+    \ = this.$projects.currentBranch\n      this.selectedBranchTarget = this.$projects.project_branches.parent_branch\n\
+    \    },\n    toggleBranchInput() {\n      this.isInputVisible = !this.isInputVisible\n\
+    \    }\n  },\n  mounted() {\n    this.refreshSummary(false)\n  }\n}\n</script>\n\
+    ```\n\n### Explanation:\n1. **Button for toggling**: A button with a font-awesome\
+    \ icon is added next to the branch target selection. It toggles between a dropdown\
+    \ selector and a text input.\n2. **Computed icon class**: The icon changes between\
+    \ a list icon (`fa-list`) and a pen icon (`fa-pen`) based on the current input\
+    \ state.\n3. **Toggled input element**: The branch target can be selected from\
+    \ a dropdown or entered manually in a text input, both are bound to `selectedBranchTarget`."
+  created_at: '2025-03-17 16:21:59.031224'
+  disable_knowledge: false
+  doc_id: 68c3d8f6-c47d-4c67-8ca1-1561c8d1cfbc
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 7.005337476730347
+    model: gpt-4o
+    time_taken: 15.574287176132202
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-17 16:21:59.031271'
+  user: null
+- content: "Best practices for this file:\n                  Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\n# Vue vuejs coding best\
+    \ pratices\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Use TailwindCSS classes for styling, always consider\
+    \ mobile styles\n* Vue component definition will be exporting a default object\
+    \ like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\n* Don't use <style> elements, use TailWindCSS classes\n\
+    \                  "
+  created_at: '2025-03-17 16:21:59.031224'
+  disable_knowledge: false
+  doc_id: e6105e8d-6d85-4d51-a127-32fff2e894e0
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-17 16:21:59.031271'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content:\n              <script setup>\nimport GitDiffViewer\
+    \ from '@/components/code/GitDiffViewer.vue'\nimport Collapsible from '@/components/Collapsible.vue';\n\
+    </script>\n\n<template lang=\"pug\">\n  <div class=\"pr-view p-4 flex flex-col\
+    \ gap-4\">\n    <header class=\"flex justify-between items-start\">\n      <div\
+    \ class=\"flex flex-col gap-2\">\n        <h1 class=\"text-3xl font-bold\">Changes\
+    \ review</h1>\n        <div class=\"flex gap-2 items-center\">\n          <div\
+    \ class=\"flex items-center gap-2\">\n            <label class=\"block text-xs\
+    \ font-bold\" for=\"branchSource\">Source</label>\n            <select id=\"branchSource\"\
+    \ class=\"select select-bordered select-sm w-full max-w-xs\" v-model=\"selectedBranchSource\"\
+    >\n              <option v-for=\"branch in branches\" :key=\"branch\" :value=\"\
+    branch\">{{ branch }}</option>\n            </select>\n          </div>\n    \
+    \      <div class=\"flex items-center gap-2\">\n            <label class=\"block\
+    \ text-xs font-bold\" for=\"branchTarget\">Target</label>\n            <select\
+    \ id=\"branchTarget\" class=\"select select-bordered select-sm w-full max-w-xs\"\
+    \ v-model=\"selectedBranchTarget\">\n              <option v-for=\"branch in branches\"\
+    \ :key=\"branch\" :value=\"branch\">{{ branch }}</option>\n            </select>\n\
+    \            @codx-ok, please-wait...: the parent branch can be from the list\
+    \ or from user input, add and icon to toggle betweem selector and an input. both\
+    \ will use same model\n          </div>\n        </div>\n      </div>\n    </header>\n\
+    \    .flex.flex-col.gap-4.grow\n\n      Collapsible.hidden(v-model=\"overviewChecked\"\
+    \ :start-expanded=\"true\")\n        template(v-slot:title)\n          .flex.flex-col.grow\n\
+    \            .flex.justify-between.items-center\n              | Overview\n  \
+    \            button.btn.btn-sm.tooltip(data-tip=\"Rebuild summary\" \n       \
+    \                                 @click=\"refreshSummary(true)\")\n         \
+    \       <i class=\"fa-solid fa-arrows-rotate\"></i> Rebuild\n            .text-sm\
+    \ Changes overview\n        template(v-slot:content)\n          Markdown(:text=\"\
+    $projects.changesSummary\")\n\n      Collapsible.hidden\n        template(v-slot:title)\n\
+    \          .flex.flex-col.grow\n            | Tasks\n            .text-sm Tasks\
+    \ associated with {{ selectedBranchSource }}\n        template(v-slot:content)\n\
+    \          \n\n      Collapsible\n        template(v-slot:title)\n          .flex.flex-col.grow\n\
+    \            | Files\n            .text-sm Files changed\n        template(v-slot:content)\n\
+    \          div\n            GitDiffViewer(:diff=\"$projects.project_branches.git_diff\"\
+    \ v-if=\"$projects.project_branches.git_diff\")\n  </div>\n</template>\n\n<script>\n\
+    export default {\n  data() {\n    return {\n      selectedBranchSource: null,\n\
+    \      selectedBranchTarget: null,\n      activeTab: 'Overview',\n      overviewChecked:\
+    \ true \n    }\n  },\n  computed: {\n    branches() {\n      return this.$projects.project_branches.branches\n\
+    \    },\n  },\n  watch: {\n    $project() {\n      this.refreshSummary()\n   \
+    \ },\n    selectedBranchSource() {\n      this.refreshSummary()\n    },\n    selectedBranchTarget()\
+    \ {\n      this.refreshSummary()\n    }\n  },\n  methods: {\n    switchTab(tab)\
+    \ {\n      this.activeTab = tab\n    },\n    copyText() {\n      copyTextToClipboard(this.changesSummary)\n\
+    \    },\n    async refreshSummary(rebuild = false) {\n      // Refresh summary\
+    \ and reload branches\n      this.$projects.refreshChangesSummary({\n        source:\
+    \ this.selectedBranchSource,\n        target: this.selectedBranchTarget,\n   \
+    \     rebuild\n      })\n      await this.$projects.loadBranches()\n      this.selectedBranchSource\
+    \ = this.$projects.currentBranch\n      this.selectedBranchTarget = this.$projects.project_branches.parent_branch\n\
+    \    }\n  },\n  mounted() {\n    this.refreshSummary(false)\n  }\n}\n</script>\n\
+    \              "
+  created_at: '2025-03-17 16:21:59.031224'
+  disable_knowledge: false
+  doc_id: 329f5b25-6794-4713-a36c-03be82cbdc30
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-17 16:21:59.031271'
+  user: null
+- content: "<script setup>\nimport GitDiffViewer from '@/components/code/GitDiffViewer.vue'\n\
+    import Collapsible from '@/components/Collapsible.vue'\n</script>\n\n<template\
+    \ lang=\"pug\">\n  <div class=\"pr-view p-4 flex flex-col gap-4\">\n    <header\
+    \ class=\"flex justify-between items-start\">\n      <div class=\"flex flex-col\
+    \ gap-2\">\n        <h1 class=\"text-3xl font-bold\">Changes review</h1>\n   \
+    \     <div class=\"flex gap-2 items-center\">\n          <div class=\"flex items-center\
+    \ gap-2\">\n            <label class=\"block text-xs font-bold\" for=\"branchSource\"\
+    >Source</label>\n            <select id=\"branchSource\" class=\"select select-bordered\
+    \ select-sm w-full max-w-xs\" v-model=\"selectedBranchSource\">\n            \
+    \  <option v-for=\"branch in branches\" :key=\"branch\" :value=\"branch\">{{ branch\
+    \ }}</option>\n            </select>\n          </div>\n          <div class=\"\
+    flex items-center gap-2\">\n            <label class=\"block text-xs font-bold\"\
+    \ for=\"branchTarget\">Target</label>\n            <div class=\"relative\">\n\
+    \              <button @click=\"toggleBranchInput\" class=\"btn btn-xs absolute\
+    \ right-0 top-0\">\n                <i class=\"fa-solid\" :class=\"isInputVisible\
+    \ ? 'fa-list' : 'fa-pen'\"></i>\n              </button>\n              <select\n\
+    \                v-if=\"!isInputVisible\"\n                id=\"branchTarget\"\
+    \n                class=\"select select-bordered select-sm w-full max-w-xs\"\n\
+    \                v-model=\"selectedBranchTarget\"\n              >\n         \
+    \       <option v-for=\"branch in branches\" :key=\"branch\" :value=\"branch\"\
+    >{{ branch }}</option>\n              </select>\n              <input\n      \
+    \          v-else\n                id=\"branchTargetInput\"\n                type=\"\
+    text\"\n                class=\"input input-bordered input-sm w-full max-w-xs\"\
+    \n                v-model=\"selectedBranchTarget\"\n              />\n       \
+    \     </div>\n          </div>\n        </div>\n      </div>\n    </header>\n\
+    \    .flex.flex-col.gap-4.grow\n\n      Collapsible.hidden(v-model=\"overviewChecked\"\
+    \ :start-expanded=\"true\")\n        template(v-slot:title)\n          .flex.flex-col.grow\n\
+    \            .flex.justify-between.items-center\n              | Overview\n  \
+    \            button.btn.btn-sm.tooltip(data-tip=\"Rebuild summary\" \n       \
+    \                                 @click=\"refreshSummary(true)\")\n         \
+    \       <i class=\"fa-solid fa-arrows-rotate\"></i> Rebuild\n            .text-sm\
+    \ Changes overview\n        template(v-slot:content)\n          Markdown(:text=\"\
+    $projects.changesSummary\")\n\n      Collapsible.hidden\n        template(v-slot:title)\n\
+    \          .flex.flex-col.grow\n            | Tasks\n            .text-sm Tasks\
+    \ associated with {{ selectedBranchSource }}\n        template(v-slot:content)\n\
+    \          \n\n      Collapsible\n        template(v-slot:title)\n          .flex.flex-col.grow\n\
+    \            | Files\n            .text-sm Files changed\n        template(v-slot:content)\n\
+    \          div\n            GitDiffViewer(:diff=\"$projects.project_branches.git_diff\"\
+    \ v-if=\"$projects.project_branches.git_diff\")\n  </div>\n</template>\n\n<script>\n\
+    export default {\n  data() {\n    return {\n      selectedBranchSource: null,\n\
+    \      selectedBranchTarget: null,\n      activeTab: 'Overview',\n      overviewChecked:\
+    \ true,\n      isInputVisible: false \n    }\n  },\n  computed: {\n    branches()\
+    \ {\n      return this.$projects.project_branches.branches\n    }\n  },\n  watch:\
+    \ {\n    $project() {\n      this.refreshSummary()\n    },\n    selectedBranchSource()\
+    \ {\n      this.refreshSummary()\n    },\n    selectedBranchTarget() {\n     \
+    \ this.refreshSummary()\n    }\n  },\n  methods: {\n    switchTab(tab) {\n   \
+    \   this.activeTab = tab\n    },\n    copyText() {\n      copyTextToClipboard(this.changesSummary)\n\
+    \    },\n    async refreshSummary(rebuild = false) {\n      this.$projects.refreshChangesSummary({\n\
+    \        source: this.selectedBranchSource,\n        target: this.selectedBranchTarget,\n\
+    \        rebuild\n      })\n      await this.$projects.loadBranches()\n      this.selectedBranchSource\
+    \ = this.$projects.currentBranch\n      this.selectedBranchTarget = this.$projects.project_branches.parent_branch\n\
+    \    },\n    toggleBranchInput() {\n      this.isInputVisible = !this.isInputVisible\n\
+    \    }\n  },\n  mounted() {\n    this.refreshSummary(false)\n  }\n}\n</script>"
+  created_at: '2025-03-17 16:21:59.031224'
+  disable_knowledge: false
+  doc_id: fbb08e22-326f-43eb-8695-42c5e83595d2
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 6.938430309295654
+    model: gpt-4o
+    time_taken: 12.359579801559448
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-17 16:21:59.031271'
+  user: null
+mode: chat
+name: changes-at-views-prview-vue-2025-03-19-08-43-35-734093
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-03-19T08:43:48.097082'
+url: ''
+users: []
+visibility: ''

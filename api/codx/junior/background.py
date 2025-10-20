@@ -38,10 +38,10 @@ def start_background_services(app) -> None:
     reload_models()
 
     # Start the project checking in a separate thread
-    Thread(target=check_projects, args=(True,)).start()
-
-    # Start the project checking in a separate thread
     Thread(target=check_projects).start()
+
+    # Start the mention checking in a separate thread
+    start_mention_checking()
 
 def reload_models() -> None:
     """
@@ -83,7 +83,7 @@ def update_quarantine_status(project_name: str, success: bool) -> None:
         quarantine_info["last_checked"] = datetime.now()
 
 
-def check_projects(mention_only = False) -> None:
+def check_projects() -> None:
     """
     Continuously checks for updates in all projects.
     """
@@ -95,8 +95,7 @@ def check_projects(mention_only = False) -> None:
         try:
             session = ChangeManager(settings=project)
             #if not session.settings.metrics:
-            project.metrics = session.update_project_metrics()
-            await session.process_project_changes(mention_only)
+            await session.process_project_changes()
             update_quarantine_status(project.project_name, success=True)
         except Exception as ex:
             update_quarantine_status(project.project_name, success=False)
@@ -116,5 +115,23 @@ def check_projects(mention_only = False) -> None:
                     logger.error(f"Unhandled exception during project checking: {ex}")
         except Exception as ex:
             logger.exception(f"Error checking projects: {ex}")
-        time.sleep(0.1)
+        time.sleep(10)
 
+
+def start_mention_checking() -> None:
+    """
+    Start a separate thread to continuously check mentions on all projects.
+    """
+    def check_mentions():
+        while True:
+            try:
+                asyncio.run(
+                  ChangeManager.check_mentions_on_all_projects(all_projects=find_all_projects().values()
+                  )
+                )
+            except Exception as ex:
+                logger.exception(f"Error checking mentions on all projects: {ex}")
+            time.sleep(0.5)
+
+    # Start the mention checking in a separate thread
+    Thread(target=check_mentions, daemon=True).start()

@@ -2,6 +2,7 @@
 import { computed, defineComponent } from 'vue';
 import MarkdownViewer from '../MarkdownViewer.vue';
 import Code from '../Code.vue';
+import TipTapDocument from './TipTapDocument.vue';
 </script>
 <template>
   <div class="flex flex-col">
@@ -15,6 +16,7 @@ import Code from '../Code.vue';
         @reload-file="$emit('reload-file', { file: $event, message })"
         @open-file="$emit('open-file', $event)"
         @save-file="$emit('save-file', $event)"
+        @add-file="$emit('add-file', $event)"
         @edit-message="$emit('edit-message', $event)"
         v-if="block.renderer === 'code'" />
     </div>

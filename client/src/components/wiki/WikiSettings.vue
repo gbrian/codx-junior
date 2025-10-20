@@ -135,7 +135,7 @@ import { TreeItem, TreeRoot } from 'radix-vue'
             <label class="label">
               <span class="label-text">Project's wiki path</span>
             </label>
-            <input type="text" v-model="$project.project_wiki" placeholder="Path" class="input input-bordered">
+            <input type="text" v-model="$project.project_wiki_path" placeholder="Path" class="input input-bordered">
           </div>  
           <div class="flex justify-between gap-2">
             <div class="form-control">

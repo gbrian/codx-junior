@@ -1,0 +1,62 @@
+board: codx-junior AI
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Completed
+column_id: ''
+created_at: '2025-02-20 08:14:11.946755'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/llm-factory/.codx/tasks/codx-junior AI/Completed/test-endpoints-with-custom-consumer-models.9309b0c4-2117-4b4b-88c2-58cd9d1f89c7.yaml
+id: 9309b0c4-2117-4b4b-88c2-58cd9d1f89c7
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "### Objective\n- Visual representation of testing processes using a sequence\
+    \ diagram.\n- Clearly state the main goal: Test endpoints with consumer custom\
+    \ models for compatibility and functionality.\n\n### Requirements\n- Ensure endpoints\
+    \ can interact with custom consumer models.\n- Validate compatibility and functionality\
+    \ of endpoints with different models.\n\n### Acceptance Criteria\n- Endpoints\
+    \ are tested with various consumer models.\n- Compatibility and functionality\
+    \ are confirmed.\n\n### Definition of done\nTask will be considered done once\
+    \ all list entries are checked\n * [] Endpoints are tested with consumer models\n\
+    \ * [] Compatibility and functionality are verified\n\n**Suggestion**: Develop\
+    \ automated tests using a framework like Postman or Pytest to ensure the endpoints\
+    \ work seamlessly with custom models."
+  created_at: '2025-02-20 08:14:11.943908'
+  disable_knowledge: false
+  doc_id: 3fc941c7-4517-46f1-94a5-a2a262c59c1b
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-02-20 08:14:11.943956'
+  user: null
+mode: chat
+name: Test Endpoints with Custom Consumer Models
+parent_id: 9759d912-07b5-4cca-aa1a-bc67a83f79a9
+pinned: false
+pr_view: {}
+profiles: []
+project_id: 67fe8e3d-329e-4a4f-aa55-dd19815a62b4
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-02-20T10:25:34.844172'
+url: ''
+users: []
+visibility: ''

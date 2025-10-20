@@ -1,0 +1,1562 @@
+board: codx-junior
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: '2025-10-11'
+column_id: ''
+created_at: '2025-10-11 07:41:21.315452'
+description: The document describes the `@codx-api` project, a FastAPI application
+  named `CODXJuniorAPI`. It highlights its key functionalities, including project
+  management, knowledge management, chat and communication, user management, file
+  operations, background services, integration with external services like GitHub,
+  and logging. The project is structured to handle various aspects of project and
+  user management, file operations, and integrates AI models for enhanced communication.
+  It also supports real-time communication through Socket.IO and includes comprehensive
+  error handling and logging. The main application file is located at `/shared/codx-junior/api/codx/junior/app.py`.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/codx-junior/2025-10-11/find-project-124438.61616a83-0bc7-4272-b1bd-4136bfbcfdbc.yaml
+id: 61616a83-0bc7-4272-b1bd-4136bfbcfdbc
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: find_project @codx-api
+  created_at: '2025-10-11 07:41:21.313144'
+  disable_knowledge: false
+  doc_id: f9b0ee7e-cf6c-43e9-bdf7-b3e627ee90bf
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-11 07:41:21.313167'
+  user: admin
+- content: 'project_search returned:
+
+
+    ```
+
+    ["\n        QUERY: @codx-api\n        RETURNED:\n        \n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/run/changes/summary\")\ndef
+    api_changes_summary(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    refresh
+    = request.query_params.get(\"refresh\")\n    return codx_junior_session.build_code_changes_summary(force=refresh
+    == \"true\")\n\n@app.get(\"/api/test/sio\")\ndef test_sio(request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    message = request.query_params.get(\"message\")
+    or \"sio_test\"\n    return codx_junior_session.send_event(message=message)\n\n@app.get(\"/api/settings\")\ndef
+    api_settings_check(request: Request):\n    logger.info(\"/api/settings\")\n    codx_junior_session
+    = request.state.codx_junior_session\n    codx_junior_session.check_project()\n    return
+    codx_junior_session.settings\n\n@app.put(\"/api/settings\")\nasync def api_save_settings(request:
+    Request):\n    settings = await request.json()\n    settings = CODXJuniorSettings.from_json(settings).save_project()\n    find_all_projects()\n    return
+    api_settings_check(request)\n\n@app.get(\"/api/profiles\")\ndef api_list_profile(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.list_profiles()\n\n@app.post(\"/api/profiles\")\nasync def
+    api_create_profile(profile: Profile, request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    return await codx_junior_session.save_profile(profile=profile)\n    \n@app.get(\"/api/profiles/{profile_name}\")\ndef
+    api_read_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.read_profile(profile_name)\n\n@app.delete(\"/api/profiles/{profile_name}\")\ndef
+    api_delete_profile(profile_name, request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    codx_junior_session.delete_profile(profile_name)\n    return\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/health\")\ndef
+    api_health_check():\n    return \"ok\"\n\n@app.get(\"/api/knowledge/reload\")\nasync
+    def api_knowledge_reload(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    await
+    codx_junior_session.check_project_changes()\n    await codx_junior_session.reload_knowledge()\n    return
+    codx_junior_session.check_knowledge_status()\n\n@app.post(\"/api/knowledge/reload-path\")\ndef
+    api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    logger.info(f\"****
+    API:knowledge_reload_path {knowledge_reload_path}\")\n    codx_junior_session.index_knowledge_source(sources=[knowledge_reload_path.path])\n\n@app.post(\"/api/knowledge/delete\")\ndef
+    api_knowledge_delete_path(knowledge_delete_sources: KnowledgeDeleteSources, request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.delete_knowledge_source(sources=knowledge_delete_sources.sources)\n\n@app.delete(\"/api/knowledge/delete\")\ndef
+    api_knowledge_reload_all(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.delete_knowledge()\n\n\n@app.post(\"/api/knowledge/reload-search\")\nasync
+    def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request:
+    Request):\n    logger.info(\"API:knowledge_search_endpoint\")\n    codx_junior_session
+    = request.state.codx_junior_session\n    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))\n\n@app.get(\"/api/knowledge/status\")\ndef
+    api_knowledge_status(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.check_knowledge_status()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.post(\"/api/projects\")\ndef
+    api_project_create(request: Request, user: CodxUser = Depends(get_authenticated_user)):\n    project_path
+    = request.query_params.get(\"project_path\")\n    try:\n        return CODXJuniorSettings.from_project_file(f\"${project_path}/.codx/project.json\")\n    except:\n        return
+    create_project(project_path=project_path, user=user)\n\n@app.delete(\"/api/projects\")\ndef
+    api_project_delete(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.delete_project()\n    return
+    { \"ok\": 1 }\n\n@app.get(\"/api/project/unwatch\")\ndef api_project_unwatch(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.watch_project(False)\n    find_all_projects()\n    return
+    { \"OK\": 1 }\n\n@app.get(\"/api/knowledge/keywords\")\ndef api_get_keywords(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    query
+    = request.query_params.get(\"query\")\n    return codx_junior_session.get_keywords(query=query)\n\n@app.post(\"/api/knowledge/keywords\")\ndef
+    api_extract_tags(doc: Document, request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    logging.info(f\"Extract keywords from {doc}\")\n    doc
+    = codx_junior_session.extract_tags(doc=doc)\n    return doc.__dict__\n\n@app.get(\"/api/code-server/file/open\")\ndef
+    api_file_open(request: Request):\n    file_name = request.query_params.get(\"file_name\")\n    codx_junior_session
+    = request.state.codx_junior_session\n    return codx_junior_session.coder_open_file(file_name=file_name)\n\n@app.get(\"/api/files\")\ndef
+    api_get_files(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path
+    = request.query_params.get(\"path\")\n    return codx_junior_session.read_directory(path=path)\n\n@app.get(\"/api/files/read\")\ndef
+    api_get_file(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path
+    = request.query_params.get(\"path\")\n    return codx_junior_session.read_file(path=path)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/project/watch\")\ndef
+    api_project_watch(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.watch_project(True)\n    find_all_projects()\n    return
+    { \"OK\": 1 }\n\n@app.get(\"/api/projects\")\ndef api_find_all_projects(request:
+    Request, user: CodxUser = Depends(get_authenticated_user)):\n    return [{\n      **project.__dict__,\n      \"workspaces\":
+    project.get_project_workspaces()\n    } for project in find_all_user_projects(user)]\n\n@app.get(\"/api/projects/metrics\")\nasync
+    def api_chat_metrics(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.project_metrics()\n\n@app.get(\"/api/projects/repo/branches\")\ndef
+    api_find_all_repo_branches(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.get_project_branches()\n\n@app.get(\"/api/projects/repo/branch/commits\")\ndef
+    api_find_all_repo_branch_commits(request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    branch = request.query_params.get(\"branch\")\n    return
+    codx_junior_session.get_project_branch_commits(branch=branch)\n\n@app.get(\"/api/projects/repo/changes\")\ndef
+    api_find_all_repo_changes(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    from_branch
+    = request.query_params.get(\"from_branch\")\n    to_branch = request.query_params.get(\"to_branch\")\n    return
+    codx_junior_session.get_repo_changes(from_branch=from_branch, to_branch=to_branch)\n\n@app.get(\"/api/projects/readme\")\ndef
+    api_project_readme(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    document
+    = codx_junior_session.get_readme()\n    return Response(content=document or \">
+    Not found\", media_type=\"text/html\")\n\n@app.get(\"/api/projects/ai/models\")\ndef
+    api_project_ai_models(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.settings.get_project_ai_models()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.post(\"/api/files/diff\")\nasync
+    def api_get_file_diff(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    data
+    = await request.json()\n    return codx_junior_session.diff_file(path=data[\"path\"],
+    content=data[\"content\"])\n\n@app.post(\"/api/files/diff/comments\")\nasync def
+    api_get_file_diff(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    data
+    = await request.json()\n    return codx_junior_session.diff_file_comments(path=data[\"path\"],
+    content=data[\"content\"], comments=data[\"comments\"])\n\n@app.post(\"/api/files/write\")\nasync
+    def api_post_file(doc: Document, request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    file_path = request.query_params.get(\"path\")\n    return
+    await codx_junior_session.write_project_file(file_path=file_path, content=doc.page_content,
+    process=False)\n\n@app.get(\"/api/files/find\")\ndef api_get_file(request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    search = request.query_params.get(\"search\")\n    return
+    codx_junior_session.search_files(search=search)\n\n@app.get(\"/api/apps\")\ndef
+    api_apps_list(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.get_project_apps()\n\n@app.get(\"/api/apps/run\")\ndef api_apps_run(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    app_name
+    = request.query_params.get(\"app\")\n    return codx_junior_session.run_app(app_name=app_name)\n\n\n@app.get(\"/api/global/settings\")\ndef
+    api_read_global_settings(user: CodxUser = Depends(get_authenticated_user)):\n    if
+    not user or user.role != ''admin'':\n        return {\n          \"error\": \"User
+    is not admin\"\n        }\n    return read_global_settings()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/chats\")\ndef
+    api_list_chats(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path
+    = request.query_params.get(\"file_path\")\n    chat_id = request.query_params.get(\"id\")\n    if
+    chat_id:\n        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)\n    if
+    file_path:\n        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)\n    return
+    codx_junior_session.list_chats()\n\n@profile_function\n@app.post(\"/api/chats\")\nasync
+    def api_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.chat_event(chat=chat,
+    message=\"Chatting with project...\")\n    await codx_junior_session.chat_with_project(chat=chat)\n    await
+    codx_junior_session.save_chat(chat)\n    return chat\n\n@profile_function\n@app.post(\"/api/chats/from-url\")\nasync
+    def api_chat_form_url(chat: Chat, request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    codx_junior_session.chat_event(chat=chat,
+    message=\"Loading chat...\")\n    codx_junior_session.init_chat_from_url(chat=chat)\n    await
+    codx_junior_session.save_chat(chat)\n    return chat\n\n@profile_function\n@app.post(\"/api/chats/sub-tasks\")\nasync
+    def api_chat_subtasks(chat: Chat, request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    return await codx_junior_session.generate_tasks(chat=chat)\n\n@app.put(\"/api/chats\")\nasync
+    def api_save_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    chat_only
+    = request.query_params.get(\"chatonly\") == \"1\"\n    await codx_junior_session.save_chat(chat,
+    chat_only=chat_only)\n\n@app.delete(\"/api/chats\")\ndef api_delete_chat(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    chat_id
+    = request.query_params.get(\"chat_id\")\n    codx_junior_session.delete_chat(chat_id)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/kanban\")\ndef
+    api_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.get_chat_manager().load_kanban()\n\n@app.post(\"/api/kanban\")\nasync
+    def api_set_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    kanban
+    = await request.json()\n    codx_junior_session.get_chat_manager().save_kanban(kanban)\n\n@app.delete(\"/api/kanban\")\ndef
+    api_delete_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    kanban_title
+    = request.query_params.get(\"kanban_title\")\n    return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)\n\n@app.post(\"/api/images\")\ndef
+    api_image_upload(file: UploadFile):\n    if file.filename == '''':\n        return
+    jsonify({''error'': ''No selected file''}), 400\n\n    # Generate a unique filename
+    using UUID\n    unique_filename = f\"{str(uuid.uuid4())}-{file.filename}\"\n    file_path
+    = os.path.join(IMAGE_UPLOAD_FOLDER, unique_filename)\n    \n    # Save the file\n    os.makedirs(os.path.dirname(file_path),
+    exist_ok=True)\n    with open(file_path, \"wb+\") as file_object:\n        shutil.copyfileobj(file.file,
+    file_object)   \n\n    # Return the full URL to access the image\n    image_url
+    = ''/api/images/'' + unique_filename\n    return image_url\n\n@app.post(\"/api/run/improve\")\nasync
+    def api_run_improve(chat: Chat, request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    await codx_junior_session.improve_existing_code(chat=chat)\n    await
+    codx_junior_session.save_chat(chat)\n    return chat\n\n@app.post(\"/api/run/improve/patch\")\nasync
+    def api_run_improve_patch(data: dict, request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    return codx_junior_session.apply_patch(patch=data[\"patch\"])\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.post(\"/api/screen\")\ndef
+    api_screen_set(screen: Screen):\n    CODX_JUNIOR_DISPLAY = os.environ[\"CODX_JUNIOR_DISPLAY\"]\n    return
+    exec_command(f\"xrandr -s {screen.resolution}\", env={\"DISPLAY\": CODX_JUNIOR_DISPLAY})\n\n@app.get(\"/api/screen\")\ndef
+    api_screen_get():\n    screen = Screen()\n    try:\n        CODX_JUNIOR_DISPLAY
+    = os.environ[\"CODX_JUNIOR_DISPLAY\"]\n        res, _ = exec_command(f\"xrandr
+    --current\", env={\"DISPLAY\": CODX_JUNIOR_DISPLAY})\n        # Screen 0: minimum
+    32 x 32, current 1920 x 1080, maximum 32768 x 32768\n        lines = res.split(\"\\n\")\n        screen_line
+    = [l for l in lines if l.startswith(\"Screen \")][0]\n        screen.resolution
+    = screen_line.split(\"current \")[1].split(\",\")[0].replace(\" \", \"\")\n    except
+    Exception as ex:\n        logger.error(f\"Error extracting screen resolutions
+    {ex}\")\n    return screen\n\n@app.post(\"/api/image-to-text\")\nasync def api_image_to_text_endpoint(file:
+    UploadFile, request):\n    codx_junior_session = request.state.codx_junior_session\n    file_bytes
+    = await file.read()            \n    return codx_junior_session.api_image_to_text(file_bytes)\n\n@app.post(\"/api/restart\")\ndef
+    api_restart():\n    logger.info(f\"****************** API RESTARTING... bye *******************\")\n    exec_command(\"sudo
+    kill 7\")\n\nif CODX_JUNIOR_STATIC_FOLDER:\n    os.makedirs(CODX_JUNIOR_STATIC_FOLDER,
+    exist_ok=True)\n    logger.info(f\"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}\")\n    app.mount(\"/\",
+    StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name=\"client_chat\")\n\napp.mount(\"/api/images\",
+    StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name=\"images\")\n\nstart_background_services(app)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\nimport asyncio\nimport
+    faulthandler\nimport logging\nimport os\nimport shutil\nimport time\nimport traceback\nimport
+    uuid\n\nimport socketio\nfrom flask import jsonify\n\nfrom concurrent.futures
+    import ThreadPoolExecutor\n\nfaulthandler.enable()\n\nfrom codx.junior.ai import
+    AIManager\n\nfrom codx.junior.sio.sio import sio\n\nfrom codx.junior.profiling.profiler
+    import profile_function\n\nfrom codx.junior.browser import run_browser_manager\n\nfrom
+    codx.junior.api.chatGPTLikeApi import router as chatgpt_router\nfrom codx.junior.api.users
+    import router as users_router\nfrom codx.junior.api.wiki import router as wiki_router\nfrom
+    codx.junior.api.github import router as github_router\nfrom codx.junior.api.file_finder
+    import router as file_finder_router\nfrom codx.junior.api.db_router import router
+    as db_router\n\nfrom codx.junior.security.user_management import get_authenticated_user\n\n\nCODX_JUNIOR_API_BACKGROUND
+    = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nlogger = logging.getLogger(__name__)\n\nrun_browser_manager()\n\ndef
+    disable_logs(logs):\n  for logger_id in logs:\n      logging.getLogger(logger_id).setLevel(logging.WARNING)\n\ndef
+    enable_logs(logs):\n  for logger_id in logs:\n      logging.getLogger(logger_id).setLevel(logging.DEBUG)\n\ndisable_logs([\n    ''httpx'',\n    ''httpcore.http11'',\n    ''httpcore.connection'',\n    ''openai._base_client'',\n    ''watchfiles.main'',\n    ''asyncio'',\n    ''codx.junior.project_watcher'',\n    ''selenium.webdriver.common.selenium_manager''\n])\n\nfrom
+    fastapi import FastAPI, Request, status, Response, UploadFile, Depends\nfrom fastapi.exceptions
+    import RequestValidationError\nfrom fastapi.staticfiles import StaticFiles\nfrom
+    fastapi.responses import JSONResponse\nfrom starlette.status import HTTP_504_GATEWAY_TIMEOUT\n\nfrom
+    codx.junior.db import (\n    Chat\n)\nfrom codx.junior.model.model import (\n    KnowledgeReloadPath,\n    KnowledgeSearch,\n    KnowledgeDeleteSources,\n    Profile,\n    Document,\n    GlobalSettings,\n    Screen,\n    CodxUser\n)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\nfrom codx.junior.settings
+    import (\n  CODXJuniorSettings,\n  read_global_settings,\n  write_global_settings\n)\n\nfrom
+    codx.junior.engine import (\n    CODXJuniorSession,\n    SessionChannel\n)\n\nfrom
+    codx.junior.project.project_discover import (\n    find_all_projects,\n    find_all_user_projects,  \n)\n\nfrom
+    codx.junior.project.project_manager import (\n    create_project,\n)\n\nfrom codx.junior.utils.utils
+    import (\n    exec_command,\n)\n\nfrom codx.junior.background import start_background_services\n\n\nCODX_JUNIOR_STATIC_FOLDER=os.environ.get(\"CODX_JUNIOR_STATIC_FOLDER\")\nIMAGE_UPLOAD_FOLDER
+    = f\"{os.path.dirname(__file__)}/images\"\nos.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)\n\nGLOBAL_REQUEST_TIMEOUT=280\n\n\napp
+    = FastAPI(\n    title=\"CODXJuniorAPI\",\n    description=\"API for CODXJunior\",\n    version=\"1.0\",\n    openapi_url=\"/api/openapi.json\",\n    docs_url=\"/api/docs\",\n    redoc_url=\"/api/redoc\",\n    ssl_context=''adhoc''\n)\n\nsio_asgi_app
+    = socketio.ASGIApp(sio, app, socketio_path=\"/api/socket.io\")\napp.mount(\"/api/socket.io\",
+    sio_asgi_app)\n\napp.include_router(chatgpt_router, prefix=\"/api\")\napp.include_router(users_router,
+    prefix=\"/api\")\napp.include_router(wiki_router, prefix=\"/api\")\napp.include_router(github_router,
+    prefix=\"/api\")\napp.include_router(file_finder_router, prefix=\"/api\")\napp.include_router(db_router,
+    prefix=\"/api\")\n\n@app.exception_handler(RequestValidationError)\nasync def
+    validation_exception_handler(request: Request, exc: RequestValidationError):\n\texc_str
+    = f''{exc}''.replace(''\\n'', '' '').replace(''   '', '' '')\n\tlogger.error(f\"{request}:
+    {exc_str}\")\n\tcontent = {''status_code'': 10422, ''message'': exc_str, ''data'':
+    None}\n\treturn JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)\n\n@app.on_event(\"startup\")\ndef
+    startup_event():\n    logger.info(f\"Creating FASTAPI (BACKGROUND: {CODX_JUNIOR_API_BACKGROUND}):
+    {app.__dict__}\")\n\n@app.exception_handler(Exception)\nasync def my_exception_handler(request:
+    Request, ex: Exception):\n    return JSONResponse(status_code=500, \n        content=traceback.format_exception(ex))\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio_background.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio_background.py\nimport
+    os\nimport time\nimport logging\nimport socketio\n\nlogger = logging.getLogger(__name__)\n\nCODX_JUNIOR_API_BACKGROUND
+    = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nsio_client = None\nif CODX_JUNIOR_API_BACKGROUND:\n    sio_client
+    = socketio.SimpleClient()\n    url = f''http://0.0.0.0:{os.environ[\"CODX_JUNIOR_API_PORT\"]}''\n    while
+    True:\n        try:\n            logger.info(f\"***************** Background client
+    SIOconnecting to {url}\")\n            sio_client.connect(url, socketio_path=\"/api/socket.io\")\n            server_response
+    = sio_client.call(\"background-event\", { \"event\": \"hello\", \"data\": {}})\n            logger.info(f\"*****************
+    Background client SIO connected: {server_response}\")\n            break\n        except
+    Exception as ex:\n            logger.error(f\"***************** Background client
+    SIO error: {ex}\")\n            time.sleep(5)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio.py\nimport
+    os\nimport logging\nimport socketio\nimport functools\nimport asyncio\n\nfrom
+    concurrent.futures import ThreadPoolExecutor\n\nfrom codx.junior.sio.session_channel
+    import SessionChannel\nfrom codx.junior.engine import CODXJuniorSession\n\nfrom
+    codx.junior.context import (\n    AICodeGenerator\n)\n\nfrom codx.junior.sio.model
+    import (\n    SioMessage,\n    SioChatMessage\n)\n\nfrom codx.junior.ai import
+    AIManager\nfrom codx.junior.security.user_management import get_authenticated_user_from_token\n\nCODX_JUNIOR_API_BACKGROUND
+    = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nUSERS = {}\n\nlogger = logging.getLogger(__name__)\n\n#Socket
+    io (sio) create a Socket.IO server\nsio = socketio.AsyncServer(cors_allowed_origins=''*'',async_mode=''asgi'')\n\nSIO_POOL
+    = ThreadPoolExecutor(max_workers=10)\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.post(\"/api/global/settings\")\ndef
+    api_write_global_settings(global_settings: GlobalSettings):\n    AIManager().reload_models(global_settings)\n    write_global_settings(global_settings=global_settings)\n    \n@app.post(\"/api/run/script\")\ndef
+    run_script(data: dict, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    std,
+    _ = exec_command(data[\"script\"], cwd=codx_junior_session.settings.project_path)\n    return
+    std\n\n@app.get(\"/api/logs\")\ndef api_logs_list():\n    stdout, _ = exec_command(f\"ls
+    {os.environ[''CODX_SUPERVISOR_LOG_FOLDER'']}\")\n    codx_logs = [log for log
+    in [log.strip().replace(\".log\", \"\") for log in stdout.split(\"\\n\")] if log]\n\n    stdout,
+    _ = exec_command(\"docker ps --format {{.Names}}\")\n    containers = [f\"\ud83d\udc0b:{log}\"
+    for log in [log.strip().replace(\".log\", \"\") for log in stdout.split(\"\\n\")]
+    if log]\n   \n    \n    return sorted(codx_logs) + containers\n\n@app.get(\"/api/logs/{log_name}\")\ndef
+    api_logs_tail(log_name: str, request: Request):\n    log_size = request.query_params.get(\"log_size\")
+    or \"100\"\n    if \"\ud83d\udc0b\" in log_name:\n        stdout, err_logs = exec_command(f\"docker
+    logs -n {log_size} {log_name.split('':'')[1]}\")\n        if err_logs:\n            logger.error(f\"Error
+    reading logs {log_name}: {err_logs}\")\n        return stdout.split(\"\\n\")\n    else:   \n        log_file
+    = f\"{os.environ[''CODX_SUPERVISOR_LOG_FOLDER'']}/{log_name}.log\"\n        cmd
+    = f\"tail -n {log_size} {log_file}\"\n        try:\n            logs, err_logs
+    = exec_command(cmd)\n            if err_logs:\n                logger.error(f\"Error
+    reading logs {log_name}: {err_logs}\")\n            # return parse_logs(logs)\n            def
+    is_valid_log(l):\n                if \"/api/logs\" in l:\n                    return
+    False\n                return True\n            return [l for l in logs.split(\"\\n\")
+    if is_valid_log(l)]\n        except Exception as ex:\n            logger.exception(f\"Error
+    reading logs: {ex}\")\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/wiki.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/wiki.py\n@router.get(\"/wiki-engine/rebuild\")\nasync
+    def wiki_engine_rebuild(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.get_wiki().rebuild_wiki()\n\n@router.get(\"/wiki-engine/config\")\nasync
+    def wiki_engine_config(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    wiki_manager
+    = codx_junior_session.get_wiki()\n    return wiki_manager.load_wiki_settings(with_files=True)\n\n\n@router.put(''/wiki-engine'')\nasync
+    def save_wiki_settings(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    wiki_manager
+    = codx_junior_session.get_wiki()\n    wiki_settings = await request.json()\n    return
+    wiki_manager.save_wiki_settings(wiki_settings)\n  \n\n@sio.on(\"codx-junior-wiki-rebuild\")\n@sio_api_endpoint\nasync
+    def io_wiki_rebuild(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    return
+    codxjunior_session.get_wiki().rebuild_wiki()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio.py\n@sio.on(\"codx-junior-improve-patch\")\n@sio_api_endpoint\nasync
+    def sio_run_improve_patch(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    code_generator
+    = AICodeGenerator(**data[\"code_generator\"])\n    data = SioChatMessage(**data)\n    info,
+    error = await codxjunior_session.improve_existing_code_patch(\n                            chat=data.chat,\n                            code_generator=code_generator)\n    return
+    {\n        \"info\": info, \n        \"error\": error\n    }\n\n@sio.on(\"codx-junior-generate-code\")\n@sio_api_endpoint\nasync
+    def sio_run_generate_code(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    code_block_info
+    = data[\"code_block_info\"]\n    data = SioChatMessage(**data)\n    await codxjunior_session.generate_code(\n                            chat=data.chat,\n                            code_block_info=code_block_info)\n\n@sio.on(\"codx-junior-ai-load-model\")\n@sio_api_endpoint\nasync
+    def sio_ai_load_model(sid, data: dict):\n    AIManager().load_model(model=data[\"model\"])\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/settings.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/settings.py\nimport
+    os\nimport json\nimport logging\nimport pathlib\nimport uuid\nfrom pydantic import
+    BaseModel, Field\nfrom typing import Optional, List, Dict, Any\n\nfrom codx.junior.utils.utils
+    import (\n  write_file,\n  exec_command\n)\nfrom codx.junior.model.model import
+    (\n    GlobalSettings,\n    ProjectScript,\n    AISettings,\n    AIModel,\n    AIProvider,\n    AILLMModelSettings,\n    AIModelType\n)\n\nlogger
+    = logging.getLogger(__name__)\n\nROOT_PATH = os.path.dirname(__file__)\nGLOBAL_SETTINGS
+    = None\nHOME=os.environ.get(\"HOME\")\nGLOBAL_SETTINGS_PATH=os.environ.get(\"CODX_JUNIOR_GLOBAL_SETTINGS_PATH\",
+    None) or f\"{HOME}/global_settings.json\"\n\n# logger.info(f\"GLOBAL_SETTINGS_PATH
+    is: {GLOBAL_SETTINGS_PATH}\")\n\nCODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = [\"codx_path\",
+    \"metrics\", \"users\", \"is_git_root\"]\n\ndef get_provider_settings(ai_provider:
+    str, global_settings = None) -> AIProvider:\n    global_settings = global_settings
+    or GLOBAL_SETTINGS\n    ai_provider_settings = [p for p in global_settings.ai_providers
+    if p.name == ai_provider]\n    if not ai_provider_settings:\n        raise Exception(f\"LLM
+    AI provider not found: {ai_provider}\")\n    \n    ai_provider = ai_provider_settings[0]\n    ai_provider.api_url
+    = os.path.expandvars(ai_provider.api_url or \"\")\n    ai_provider.api_key = os.path.expandvars(ai_provider.api_key
+    or \"\")\n\n    return ai_provider\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio.py\n@sio.on(\"disconnect\")\nasync
+    def disconnect(sid):\n    logger.info(\"Client Disconnected: \"+\" \"+str(sid))\n    if
+    USERS.get(sid):\n        del USERS[sid]\n    send_online_users(sid)  \n\n@sio.on(\"codx-junior-ping\")\nasync
+    def io_ping(sid, data: dict = None):\n    return True\n\n\n@sio.on(\"background-event\")\nasync
+    def on_background_event(sid, data: dict):\n    logger.info(f\"*****************
+    On event bacground: {data}\")\n    event = data[\"event\"]\n    if event == \"hello\":\n        return
+    f\"Hi! Is back: {CODX_JUNIOR_API_BACKGROUND}\"\n    await sio_send_event(data[\"event\"],
+    data[\"data\"])\n\n@sio.on(\"codx-junior-login\")\ndef io_login(sid, data: dict):\n    USERS[sid]
+    = data\n    send_online_users(sid)\n\n@sio.on(\"codx-junior-chat\")\n@sio_api_endpoint\nasync
+    def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    data
+    = SioChatMessage(**data)\n    logger.info(f\"codx-junior-chat {data.chat.name}
+    {codxjunior_session.settings.project_name}\")\n    codxjunior_session.event_manager.chat_event(chat=data.chat,
+    message=\"Chatting with project...\")\n    await codxjunior_session.chat_with_project(chat=data.chat)\n    await
+    codxjunior_session.save_chat(data.chat)\n\n@sio.on(\"codx-junior-subtasks\")\n@sio_api_endpoint\nasync
+    def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    sio_chat
+    = SioChatMessage(**data)\n    instructions = data.get(\"instructions\")\n    return
+    await codxjunior_session.generate_tasks(chat=sio_chat.chat, \n                                                    instructions=instructions)\n\n@sio.on(\"codx-junior-improve\")\n@sio_api_endpoint\nasync
+    def io_run_improve(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    data
+    = SioChatMessage(**data)\n    await codxjunior_session.improve_existing_code(chat=data.chat)\n    await
+    codxjunior_session.save_chat(data.chat)\n\n@sio.on(\"codx-junior-generate-tasks\")\n@sio_api_endpoint\nasync
+    def io_create_chat_tasks(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    data
+    = SioChatMessage(**data)\n    await codxjunior_session.generate_tasks(chat=data.chat)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/shared/codx-junior/scripts/traefik/traefik.yaml\"
+    language=\"txt\">\n    /shared/codx-junior/api/shared/codx-junior/scripts/traefik/traefik.yaml\nentryPoints:\n  web:\n    address:
+    \":80\"\n\nproviders:\n  docker:\n    endpoint: \"unix:///var/run/docker.sock\"\n    exposedByDefault:
+    false\n\napi:\n  dashboard: true\n  insecure: true # Enable the API and dashboard
+    (for development only)\n\nlog:\n  level: DEBUG\n\naccessLog: {}\n\n# Optional:
+    Define specific routers, services, or middleware here if needed\nhttp:\n  routers:\n    dashboard:\n      rule:
+    \"Host(`traefik.localhost`)\"\n      service: api@internal\n      entryPoints:\n        -
+    web\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/api/wiki.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/wiki.py\nimport
+    os\nimport logging\nimport datetime\nfrom fastapi import APIRouter, Request, Response,
+    status\nfrom fastapi.responses import FileResponse\n\nfrom typing import Any,
+    Dict\n\nfrom codx.junior.engine import (\n  CODXJuniorSession\n)\n\nfrom codx.junior.project.project_discover
+    import find_project_by_name\n\nfrom codx.junior.security.user_management import
+    UserSecurityManager, get_authenticated_user\nfrom codx.junior.model.model import
+    CodxUser, CodxUserLogin\n\nfrom codx.junior.wiki.wiki_manager import WikiManager\n\nfrom
+    codx.junior.sio.sio import (\n  sio,\n  sio_api_endpoint,\n  sio_send_event\n)\n\nlogger
+    = logging.getLogger(__name__)\n\nrouter = APIRouter()\n\n@router.get(\"/wiki/{project_name}/{wiki_path:path}\")\nasync
+    def wiki_page(request: Request, project_name: str, wiki_path: str, response: Response):\n    project
+    = find_project_by_name(project_name)\n    if not project or not project.project_wiki:\n        raise
+    Exception(\"Project has no wiki\")\n\n    if not wiki_path:\n        wiki_path
+    = \"index.html\"\n    dist_path = CODXJuniorSession(settings=project).get_wiki().dist_dir    \n    file_path
+    = f\"{dist_path}/{wiki_path}\"\n    if os.path.isfile(file_path):\n        return
+    FileResponse(file_path)\n    response.status_code = status.HTTP_404_NOT_FOUND\n\n@sio.on(\"codx-junior-wiki\")\n@sio_api_endpoint\nasync
+    def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    wiki_manager
+    = codxjunior_session.get_wiki()\n    step = data.get(\"step\")\n    file_path
+    = data.get(\"file_path\")\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/session_channel.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/session_channel.py\nimport
+    os\nimport time\nimport asyncio\nimport logging\n\nfrom threading import Thread\nfrom
+    typing import List, Optional\nfrom pydantic import BaseModel, Field\n\nfrom concurrent.futures
+    import ThreadPoolExecutor\n\nCODX_JUNIOR_API_BACKGROUND = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nlogger
+    = logging.getLogger(__name__)\n\nclass IOEvent(BaseModel):\n    sid: Optional[str]
+    = Field(default=None) \n    event: str\n    data: dict\n\nEVENT_QUEUE: List[IOEvent]
+    = []\n\ndef process_event_queue():\n    from codx.junior.sio.sio import sio\n    from
+    codx.junior.sio.sio_background import sio_client\n                    \n    while
+    True:\n        if EVENT_QUEUE:\n            try:\n                event: IOEvent
+    = EVENT_QUEUE.pop(0)\n                    \n                if CODX_JUNIOR_API_BACKGROUND:\n                    resend_event
+    = { \"event\": event.event, \"data\": event.data }\n                    logger.info(f\"Sending
+    event bacground: {resend_event}\")\n                    sio_client.emit(\"background-event\",
+    resend_event)\n                else:\n                    asyncio.run(sio.emit(event.event,
+    event.data))\n            except Exception as e:\n                logger.error(f\"Error
+    processing event: {e}\")\n        else:\n            time.sleep(0.2)\nThread(target=process_event_queue).start()\n\nclass
+    SessionChannel:\n    def __init__(self, sio, sid=None):\n        self.sid = sid\n        self.sio
+    = sio\n\n    def send_event(self, event, data):\n        data[\"ts\"] = int(time.time())\n        EVENT_QUEUE.append(IOEvent(sid=self.sid,
+    event=event, data=data))\n    </document>\n    \n\n    <document keywords=\"[''OpenAI-integration'',
+    ''AI-logging'', ''Python-module'', ''CODXJuniorSettings'', ''API-communication'',
+    ''AILogger'', ''file-content'', ''AI-interactions'', ''logger-configuration'',
+    ''chat-completion'']\" category=\"Software-Development-Agents\" source=\"/shared/codx-junior/api/codx/junior/ai/openai_ai.py\"
+    language=\"txt\">\n    This document outlines a Python module for integrating
+    with OpenAI''s API. It defines the `OpenAI_AI` class, which is initialized with
+    configuration settings through `CODXJuniorSettings` and uses them to establish
+    communication with OpenAI via its API key, model, and URL. The class includes
+    a logger (`AILogger`) for recording events and messages if logging is enabled.
+    A list of tools is defined, including a function tool for reading file content.
+    Additional imports cover logging, JSON handling, date-time management, and message
+    handling across different AI chat types. The document represents a structured
+    approach to managing AI interactions, emphasizing settings and logging configurations.\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/engine.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/engine.py\nreturn changes\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/model/model.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/model/model.py\nclass
+    AISettings(BaseModel):\n    provider: Optional[str] = Field(default=\"\") \n    api_url:
+    Optional[str] = Field(default=\"\")\n    api_key: Optional[str] = Field(default=\"\")\n    model:
+    Optional[str] = Field(default=\"\")\n    context_length: Optional[int] = Field(default=0)\n    temperature:
+    Optional[float] = Field(default=0.8)\n    vector_size: Optional[int] = Field(default=1536)\n    chunk_size:
+    Optional[int] = Field(default=8190)\n    merge_messages: Optional[bool] = Field(default=False)\n    model_type:
+    AIModelType = Field(description=\"Model type\", default=AIModelType.llm)\n    url:
+    Optional[str] = Field(description=\"Model info\", default=\"\")\n    \nOLLAMA_PROVIDER
+    = AIProvider(name=\"llmfactory\",\n                            provider=\"llmfactory\",\n                            api_url=os.environ.get(''CODX_JUNIOR_LLMFACTORY_API''),\n                            api_key=os.environ.get(''CODX_JUNIOR_LLMFACTORY_KEY''))\n\nOLLAMA_EMBEDDINGS_MODEL
+    = AIModel(name=\"embeddings\",\n                                ai_model=EMBEDDINGS_MODEL,
+    \n                                model_type=AIModelType.embeddings,\n                                ai_provider=\"llmfactory\",\n                                settings=AIEmbeddingModelSettings(chunk_size=2048,
+    vector_size=768),\n                                url=f\"https://llmfactory.com/library/{EMBEDDINGS_MODEL}\")\n\nOLLAMA_KNOWLEDGE_MODEL
+    = AIModel(name=\"knowledge\",\n                            ai_model=KNOWLEDGE_MODEL,\n                            model_type=AIModelType.llm,\n                            ai_provider=\"llmfactory\",\n                            settings=AILLMModelSettings(),\n                            url=f\"https://llmfactory.com/library/{KNOWLEDGE_MODEL}\")\n\nclass
+    WorkspaceApp(BaseModel):\n    name: str = Field(default=\"\")\n    description:
+    str = Field(default=\"\")\n    icon: str = Field(default=\"\")\n    port: Optional[int]
+    = Field(default=3000)\n    is_vnc: Optional[bool] = Field(default=False)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/globals.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/globals.py\nimport
+    os\nimport subprocess\nimport logging\n\nfrom codx.junior.settings import CODXJuniorSettings,
+    read_global_settings\nfrom codx.junior.utils.utils import exec_command\nfrom codx.junior.security.user_management
+    import UserSecurityManager\nfrom codx.junior.model.model import CodxUser\nfrom
+    codx.junior.db import Chat\n\n\n\"\"\"Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS
+    won''t be processed\"\"\"\nMAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS =
+    60 * 60\n\nMAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS = 3 * 60\n\nCODX_JUNIOR_API_BACKGROUND
+    = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nlogger = logging.getLogger(__name__)\n\nAPPS
+    = [\n    {\n        \"name\": \"chrome\",\n        \"icon\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Google_Chrome_icon_%28February_2022%29.svg/768px-Google_Chrome_icon_%28February_2022%29.svg.png\",\n        \"description\":
+    \"Google chrome engine\",\n    }\n]\n\nAPPS_COMMANDS = {\n    \"chrome\": \"google-chrome
+    --no-sandbox --no-default-browser-check\"\n}\n\nAGENT_DONE_WORD = \"$$@@AGENT_DONE@@$$$\"\n\ndef
+    coder_open_file(settings: CODXJuniorSettings, file_name: str):\n    logger.info(f\"coder_open_file
+    {file_name}\")\n    os.system(f\"code-server -r {file_name}\")\n\n\ndef update_engine():\n    try:\n        command
+    = [\"git\", \"pull\"]\n        subprocess.run(command)\n    except Exception as
+    ex:\n        logger.exception(ex)\n        return ex\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/profiles/coding_profiles.json\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/profiles/coding_profiles.json\n{\n    \"vue\":
+    {\n        \"expression\": \"\\\\.vue$\",\n        \"profile\": \"\"\n    }\n}\n    </document>\n    \n\n    <document
+    keywords=\"[''Python-module'', ''Mistral-AI'', ''CODXJuniorSettings'', ''AI-interactions'',
+    ''API-key'', ''message-conversion'', ''logging'', ''GPT-based-messages'', ''client-integration'',
+    ''profiling'']\" category=\"Software-Development-Agents\" source=\"/shared/codx-junior/api/codx/junior/ai/mistral_ai.py\"
+    language=\"txt\">\n    The document describes a Python module that integrates
+    with the Mistral AI system for processing messages. The module includes a class,
+    Mistral_AI, which is initialized with settings from CODXJuniorSettings. This class
+    is responsible for managing AI interactions through the Mistral client, which
+    requires an API key. It includes functionality to log interactions if enabled
+    in the settings. The class also provides a method to convert messages between
+    different formats, specifically from GPT-based messages to a structure understood
+    by the Mistral system, distinguishing between AI and human messages. Logging is
+    handled through Python''s logging library to keep track of AI interactions.\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/wiki/wiki_template/package-lock.json\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/wiki/wiki_template/package-lock.json\n\"url\":
+    \"https://github.com/sponsors/wooorm\"\n      }\n    }\n  }\n}\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/tools/__init__.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/tools/__init__.py\n#
+    Documentation advice\n# Don''t document **kwargs parameters. They are internal.\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/knowledge_training.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/knowledge_training.py\nclass
+    KnowledgeTrainning:\n    def __init__(self, settings):\n        self.settings
+    = settings\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/wiki/wiki_template/.vitepress/config.json\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/wiki/wiki_template/.vitepress/config.json\n{\n  \"project\":
+    {\n    \"name\": null,\n    \"description\": null,\n    \"icon\": null\n  },\n  \"sidebar\":
+    []\n}\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/misc/github.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/misc/github.py\nraise
+    ValueError(\"Error decoding JSON content from issue page.\") from e\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/prepromts/extract_query_tags.md\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/prepromts/extract_query_tags.md\nExtract
+    search keywords from this user query:\n{{ query }}\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/github.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/github.py\nimport
+    logging\nfrom fastapi import APIRouter, Request, Depends\n\nfrom codx.junior.engine
+    import (\n  CODXJuniorSession,\n)\n\nfrom codx.junior.security.user_management
+    import get_authenticated_user\n\nfrom codx.junior.misc.github import (\n  search_github_issues,\n  download_issue_info,\n  search_codx_junior_dependencies_project_isssues\n)\n\nfrom
+    codx.junior.model.model import CodxUser, CodxUserLogin\n\nfrom codx.junior.agents.git_issues_agent
+    import GitIssuesAgent\n\nlogger = logging.getLogger(__name__)\n\nrouter = APIRouter()\n\n@router.get(''/github/issues/help-wanted'')\ndef
+    get_github_issues_help_wanted(request: Request):\n    query = request.query_params.get(\"query\")\n    if
+    query:\n      return search_github_issues(query=query)\n    return search_codx_junior_dependencies_project_isssues()
+    \n\n@router.get(\"/github/issues/read\")\ndef read_github_issue(request: Request,
+    user: CodxUser = Depends(get_authenticated_user)):  \n    issue_url = request.query_params.get(\"issue_url\")\n    return
+    download_issue_info(issue_url)\n\n@router.get(\"/github/issues/ai/process\")\nasync
+    def process_github_issue(request: Request, user: CodxUser = Depends(get_authenticated_user)):  \n    codx_junior_session
+    = request.state.codx_junior_session\n    return await GitIssuesAgent(session=codx_junior_session).run(issue_url=issue_url)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/model.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/model.py\nfrom
+    pydantic import BaseModel, Field\n\nfrom codx.junior.db import Chat\n\nclass SioMessage(BaseModel):\n    codx_path:
+    str = Field(default=None)\n    sid: str = Field(default=None)\n    request_id:
+    str = Field(default=None)\n    \nclass SioChatMessage(SioMessage):\n    chat:
+    Chat\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/engine.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/engine.py\nlogger.error(f\"Error
+    applying changes to {file_path}. New content: {new_content}\")\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/__init__.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/__init__.py\n#
+    This file is used to mark the ''knowledge'' directory as a Python package\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/background.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/background.py\nimport
+    asyncio\nimport logging\nimport time\nfrom datetime import datetime, timedelta\nfrom
+    threading import Thread, Lock\nfrom typing import Dict\n\nfrom codx.junior.ai
+    import AIManager\nfrom codx.junior.changes.change_manager import ChangeManager\nfrom
+    codx.junior.globals import (\n    CODX_JUNIOR_API_BACKGROUND,\n)\nfrom codx.junior.project.project_discover
+    import (\n    find_all_projects\n)\nfrom codx.junior.settings import read_global_settings\n\n#
+    Setup logging\nlogger = logging.getLogger(__name__)\n\n# A global tracking dictionary
+    to manage files currently being processed\nFILES_CHECKING = {}\nFILES_CHECKING_LOCK
+    = Lock()\nCHECK_TIMEOUT = timedelta(minutes=1)\n\n# Quarantine settings\nQUARANTINE_TRACKER:
+    Dict[str, Dict] = {}\nQUARANTINE_LOCK = Lock()\nQUARANTINE_DELAYS = [0, 1, 10,
+    30, 120]  # Minutes\n\ndef start_background_services(app) -> None:\n    \"\"\"\n    Function
+    to start background services for project watching and processing.\n    \"\"\"\n    if
+    not CODX_JUNIOR_API_BACKGROUND:\n        return\n    logger.info(\"*** Starting
+    background processes ***\")\n    reload_models()\n\n    # Start the project checking
+    in a separate thread\n    Thread(target=check_projects).start()\n\n    # Start
+    the mention checking in a separate thread\n    start_mention_checking()\n\ndef
+    reload_models() -> None:\n    \"\"\"\n    Reload AI models based on the current
+    global settings.\n    \"\"\"\n    try:\n        AIManager().reload_models(read_global_settings())\n        logger.info(\"AI
+    models reloaded successfully.\")\n    except Exception as ex:\n        logger.exception(f\"Failed
+    to reload AI models: {ex}\")\n\n\ndef is_project_in_quarantine(project_name: str)
+    -> bool:\n    \"\"\"\n    Determine if a project is in quarantine based on its
+    last check time and the delay.\n    \"\"\"\n    quarantine_info = QUARANTINE_TRACKER.get(project_name)\n    if
+    not quarantine_info:\n        return False\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/changes/change_manager.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/changes/change_manager.py\nimport
+    os\nimport time\nimport logging\nimport asyncio\n\nfrom datetime import datetime,
+    timedelta\n\nfrom codx.junior.events.event_manager import EventManager\nfrom codx.junior.knowledge.knowledge_milvus
+    import Knowledge\nfrom codx.junior.globals import (\n  MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,\n  MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS,\n  CODX_JUNIOR_API_BACKGROUND\n)\nfrom
+    codx.junior.mentions.mention_manager import MentionManager\nfrom codx.junior.profiling.profiler
+    import profile_function\nfrom codx.junior.wiki.wiki_manager import WikiManager\nfrom
+    codx.junior.chat_manager import ChatManager\n\nfrom codx.junior.whisper.audio_manager
+    import AudioManager\n\nfrom langchain.schema.document import Document\n\nfrom
+    codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics\n\nlogger = logging.getLogger(__name__)\n\nclass
+    ChangeManager:\n    def __init__(self, settings, event_manager=None):\n        self.settings
+    = settings\n        if not event_manager:\n            event_manager = EventManager(codx_path=settings.codx_path)\n        self.event_manager
+    = event_manager\n        self.mention_manager = MentionManager(settings=settings,
+    event_manager=event_manager)\n        self.knowledge = Knowledge(settings=self.settings)\n        self.wiki_manager
+    = WikiManager(settings=settings)\n        self.audio_manager = AudioManager()\n        self.chat_manager
+    = ChatManager(settings=self.settings)\n\n    @classmethod\n    async def check_mentions_on_all_projects(cls,
+    all_projects):\n        tasks = []\n        for project in all_projects:\n            try:\n                change_manager
+    = ChangeManager(settings=project)\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/file_finder.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/file_finder.py\n@router.post(\"/file-finder\")\nasync
+    def upload_files(request: Request, file: UploadFile = None) -> Dict:\n    \"\"\"\n    Process
+    file finder requests and return file information based on the request query parameters.\n\n    Args:\n        request
+    (Request): The incoming request object with query parameters.\n\n    Returns:\n        Dict[str,
+    Union[str, List[Dict[str, Any]]]]: A dictionary containing file information.\n    \"\"\"\n    #
+    Retrieve the session from the request state\n    codx_junior_session = request.state.codx_junior_session\n    settings
+    = codx_junior_session.settings\n    file_manager = FileManager(settings=settings)\n    \n    #
+    Extracting query parameters for adapter and path\n    adapter = request.query_params.get(\"adapter\",
+    \"local\")\n    path = request.query_params.get(\"path\") or \"local:///\"\n    q
+    = request.query_params.get(\"q\")\n\n    if q == ''delere'':\n        # {items:
+    [{path: \"/java\", type: \"dir\"}]}\n        payload = await request.json()\n        raise
+    Exception(f''not implemented: {q}'')\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/wiki/wiki_template/wiki-manager.sh\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/wiki/wiki_template/wiki-manager.sh\n.
+    $HOME/.nvm/nvm.sh\nrm -rf mode_modules\nnpm i\nnpm run docs:build\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/changes/change_manager.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/changes/change_manager.py\ndef
+    update_project_metrics(self):\n        metrics_manager = CODXJuniorMetrics(settings=self.settings)\n        self.metrics
+    = metrics_manager.project_metrics()\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/security/user_management.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/security/user_management.py\ntry:\n                stored_user
+    = self.find_user(username=user.username)\n                stored_login = self.find_user_login(username=user.username)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/users.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/users.py\n@router.put(\"/users\")\nasync
+    def user_update(request: Request, user: CodxUser = Depends(get_authenticated_user)):\n    body
+    = await request.json()\n    user_security_manager = UserSecurityManager()\n    user_changes
+    = CodxUser(**body)\n    if user.username != user_changes.username:\n      logger.error(f\"User
+    {user} not match {user_changes}\")\n      raise Exception(\"Invalid data\")\n    return
+    user_security_manager.update_user(user_changes)\n\n@router.get(\"/users\")\ndef
+    list_update():\n    return UserSecurityManager().list_user()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/prepromts/enrich_document.md\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/prepromts/enrich_document.md\nExtract
+    all keywords and names like classes, methods or global variables, in a CSV list
+    from this code:\n```{{ language }}\n{{ page_content }}\n```\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/users.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/users.py\nimport
+    logging\nimport datetime\nfrom fastapi import APIRouter, Request, Depends\nimport
+    httpx\n\nfrom codx.junior.engine import (\n  CODXJuniorSession,\n)\n\nfrom codx.junior.security.user_management
+    import UserSecurityManager, get_authenticated_user\nfrom codx.junior.model.model
+    import CodxUser, CodxUserLogin, GlobalSettings\nfrom codx.junior.security.github_oauth
+    import GitHubOAuth, GITHUB_CLIENTS\n\nfrom codx.junior.settings import get_oauth_provider\n\nlogger
+    = logging.getLogger(__name__)\n\nrouter = APIRouter()\n\n@router.get(\"/users/oauth-login-url/{oauth_provider}\")\nasync
+    def get_oauth_login_url(oauth_provider: str, request: Request):\n    \"\"\"Generate
+    and return the OAuth login URL.\"\"\"\n    redirect_uri = request.query_params.get(\"redirect_uri\")\n    provider_info
+    = get_oauth_provider(oauth_provider)\n    if not provider_info:\n        logger.error(f\"OAuth
+    provider not found: {oauth_provider} - {global_settings.oauth_providers}\")\n        return
+    {\"error\": f\"Provider {oauth_provider} not supported\"}\n\n    if oauth_provider
+    == \"github\":\n        github_oauth = GitHubOAuth(client_id=provider_info.client_id,
+    client_secret=provider_info.secret, redirect_uri=redirect_uri)\n        auth_url
+    = github_oauth.get_authorization_url()\n        return { \"auth_url\": auth_url
+    }\n\n    return {\"error\": \"Provider not supported\"}\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/misc/github.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/misc/github.py\nlogger.warning(\"React
+    app embedded data not found in issue page: %s\", issue_url)\n    return \"React
+    app data not found in the issue page.\"\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/engine.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/engine.py\nimport json\nimport
+    logging\nimport os\nimport re\nimport shutil\nimport subprocess\nimport time\nimport
+    uuid\nfrom contextlib import contextmanager\nfrom datetime import datetime, timedelta\nfrom
+    pathlib import Path\nfrom typing import Optional\n\nimport requests\nfrom langchain.schema
+    import (\n    AIMessage,\n    HumanMessage,\n    BaseMessage\n)\n\nfrom langchain.schema.document
+    import Document\n\nfrom codx.junior.ai import AI\nfrom codx.junior.chat.chat_engine
+    import ChatEngine\nfrom codx.junior.chat_manager import ChatManager\nfrom codx.junior.context
+    import (\n    find_relevant_documents,\n    validate_search_documents,\n    AI_CODE_VALIDATE_RESPONSE_PARSER,\n    generate_markdown_tree,\n    AI_CODE_GENERATOR_PARSER,\n    AICodeGenerator\n)\nfrom
+    codx.junior.db import (\n    Chat,\n    Message,\n    MessageTaskItem\n)\nfrom
+    codx.junior.events.event_manager import EventManager\nfrom codx.junior.globals
+    import (\n    MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,\n    MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS,\n    CODX_JUNIOR_API_BACKGROUND,\n    APPS,\n    APPS_COMMANDS,\n    coder_open_file,\n)\nfrom
+    codx.junior.project.project_discover import (\n    find_project_by_id,\n    find_project_by_name,\n    find_project_parents\n)\nfrom
+    codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords\nfrom codx.junior.knowledge.knowledge_loader
+    import KnowledgeLoader\nfrom codx.junior.knowledge.knowledge_milvus import Knowledge\nfrom
+    codx.junior.mentions.mention_manager import MentionManager\nfrom codx.junior.model.model
+    import (\n    KnowledgeSearch,\n    Profile\n)\nfrom codx.junior.profiles.profile_manager
+    import ProfileManager\nfrom codx.junior.profiling.profiler import profile_function\nfrom
+    codx.junior.settings import (\n    CODXJuniorSettings\n)\nfrom codx.junior.sio.session_channel
+    import SessionChannel\nfrom codx.junior.utils.chat_utils import ChatUtils\nfrom
+    codx.junior.utils.utils import (\n    extract_json_blocks,\n    exec_command,\n    write_file,\n    clean_string\n)\n\nfrom
+    codx.junior.whisper.audio_manager import AudioManager\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio.py\ndef sio_api_endpoint(func):\n    \"\"\"Decorator
+    to process sio API requests.\"\"\"\n    @functools.wraps(func)\n    async def
+    wrapper(sid: str, data: dict):\n        logger.info(f\"SIO REquest {sid} {data}\")\n        base_data
+    = SioMessage(**data)\n        channel = SessionChannel(sio=sio, sid=sid)\n        user
+    = get_authenticated_user_from_token(USERS[sid][\"user\"][\"token\"])\n        codxjunior_session
+    = CODXJuniorSession(\n                                channel=channel,\n                                user=user,\n                                codx_path=base_data.codx_path)
+    if base_data.codx_path \\\n                                  else None # Global
+    requests\n        try:\n            if not asyncio.iscoroutinefunction(func):\n                return
+    SIO_POOL.submit(func, sid, data, codxjunior_session).result\n            else:\n                def
+    worker():\n                    try:\n                        return asyncio.run(func(sid,
+    data, codxjunior_session))\n                    except Exception as ex:\n                        logger.exception(f\"Error
+    processing async sio message\")\n                    return None\n                return
+    SIO_POOL.submit(worker)\n        except Exception as ex:\n            logger.exception(f\"Error
+    processing sio message\")\n        return None\n    return wrapper\n\nasync def
+    sio_send_event(event, data):\n    return await sio.emit(event, data)\n\n@sio.on(\"error\")\nasync
+    def error():\n    logger.error(f\"Socket error\")\n\n@sio.on(\"connect\")\nasync
+    def connect(sid, env):\n    logger.info(\"New Client Connected to This id :\"+\"
+    \"+str(sid))\n\ndef send_online_users(sid):\n    channel = SessionChannel(sio=sio,
+    sid=sid)\n    online_users = [{\n      \"username\": USERS[sid][\"user\"].get(\"username\"),\n      \"avatar\":
+    USERS[sid][\"user\"].get(\"avatar\"),\n      \"sid\": sid\n    } for sid in USERS.keys()
+    if USERS.get(\"sid\",{}).get(\"user\")]\n    channel.send_event(''codx-junior-online-users'',
+    { \"users\": online_users })\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/prepromts/extract_document_tags.md\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/prepromts/extract_document_tags.md\nEXTRACT
+    A CSV LIST LIKE THIS:\n```csv\nkey1,key2,key_three\n```\nFROM THIS CONTENT:\n\n  *
+    FILE NAME: {{ source }}\n  * LANGUAGE: {{ language }}\n  * CONTENT: {{ page_content
+    }}\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/wiki/wiki_template/.vitepress/config.mts\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/wiki/wiki_template/.vitepress/config.mts\nimport
+    config from ''./config.json'' with {type: ''json''};\nimport { defineConfig }
+    from ''vitepress''\n\nconst {\n  project: {\n    name: title,\n    description,\n    icon,\n    repository\n  },\n  sidebar\n}
+    = config as any\nconst socialLinks = []\nif (repository) {\n  socialLinks.push({
+    icon: ''github'', link: repository })\n}\n// https://vitepress.dev/reference/site-config\nexport
+    default defineConfig({\n  title,\n  description,\n  base:''/api/wiki/'' + title,\n  ignoreDeadLinks:
+    true,\n  themeConfig: {\n    search: {\n      provider: ''local''\n    },\n    logo:
+    icon,\n    // https://vitepress.dev/reference/default-theme-config\n    nav: [\n      {
+    text: ''Home'', link: ''/'' },\n    ],\n    sidebar,\n    socialLinks\n  },\n})\n    </document>\n    \n        "]
+
+    ```'
+  created_at: '2025-10-11 07:41:21.313144'
+  disable_knowledge: false
+  doc_id: 253814dc-4f4e-4ac4-84f9-a55add06b2fc
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-11 07:41:21.313167'
+  user: null
+- content: "The project `@codx-api` appears to be a comprehensive FastAPI application\
+    \ named `CODXJuniorAPI`, which is structured to provide a variety of API endpoints\
+    \ related to project management, knowledge management, chat functionalities, and\
+    \ integration with external services like GitHub. Below is a summary of the key\
+    \ components and functionalities found in the project's main application file,\
+    \ located at `/shared/codx-junior/api/codx/junior/app.py`:\n\n### Overview\nThe\
+    \ application is a FastAPI-based web service with several endpoints that handle\
+    \ different aspects of project and user management, file operations, chat interactions,\
+    \ and more. It uses several Python modules and imports for handling requests,\
+    \ logging, and background services.\n\n### Key Functionalities\n1. **Project Management**:\n\
+    \   - Create, delete, and manage projects.\n   - Watch and unwatch project changes.\n\
+    \   - Retrieve project metrics and repository information.\n\n2. **Knowledge Management**:\n\
+    \   - Reload and delete knowledge sources.\n   - Search and manage knowledge-related\
+    \ data.\n   - Extract and manage keywords from documents.\n\n3. **Chat and Communication**:\n\
+    \   - Manage chat sessions and messages.\n   - Generate tasks and subtasks from\
+    \ chat interactions.\n   - Integrate with AI models for improved communication.\n\
+    \n4. **User Management**:\n   - Handle user authentication and profile management.\n\
+    \   - Provide OAuth login URLs for external providers like GitHub.\n\n5. **File\
+    \ Operations**:\n   - Read, write, and manage files within the project.\n   -\
+    \ Perform file diffs and handle file uploads.\n\n6. **Background Services**:\n\
+    \   - Start and manage background tasks for project monitoring.\n   - Reload AI\
+    \ models and handle event processing asynchronously.\n\n7. **Integration with\
+    \ External Services**:\n   - GitHub API integration for issue management.\n  \
+    \ - Use of socket.io for real-time communication.\n\n8. **Logging and Error Handling**:\n\
+    \   - Comprehensive logging setup for debugging and monitoring.\n   - Custom exception\
+    \ handlers for API validation and general errors.\n\n### Additional Components\n\
+    - **Socket.IO Integration**: The project uses Socket.IO for real-time communication\
+    \ and manages events through a custom session channel.\n- **AI and Knowledge Management**:\
+    \ The application integrates with AI models for generating code, improving existing\
+    \ code, and managing knowledge bases.\n- **Static and Media File Management**:\
+    \ The project serves static files and uploaded images through mounted directories.\n\
+    \n### Configuration and Setup\nThe application reads configuration from environment\
+    \ variables and includes settings for API endpoints, logging levels, and integration\
+    \ with Docker and Traefik for service management.\n\n### Source Files\nThe main\
+    \ source file is `/shared/codx-junior/api/codx/junior/app.py`, and it includes\
+    \ additional modules for handling specific functionalities like user management,\
+    \ GitHub integration, and file operations.\n\nThis project represents a robust\
+    \ platform for managing software development projects with capabilities for AI\
+    \ integration, real-time communication, and extensive API support."
+  created_at: '2025-10-11 07:41:21.313144'
+  disable_knowledge: false
+  doc_id: 1f975b9f-b910-440b-bd47-215a36ac812c
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00019788742065429688
+    model: openai/gpt-4o
+    time_taken: 25.151235818862915
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-11 07:41:21.313167'
+  user: null
+- content: find all projects @codx-api
+  created_at: '2025-10-11 07:41:21.313144'
+  disable_knowledge: false
+  doc_id: 120fc2e5-095f-4fea-9147-e63916d09132
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-11 07:41:21.313167'
+  user: admin
+- content: 'project_search returned:
+
+
+    ```
+
+    ["\n        QUERY: @codx-api\n        RETURNED:\n        \n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/run/changes/summary\")\ndef
+    api_changes_summary(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    refresh
+    = request.query_params.get(\"refresh\")\n    return codx_junior_session.build_code_changes_summary(force=refresh
+    == \"true\")\n\n@app.get(\"/api/test/sio\")\ndef test_sio(request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    message = request.query_params.get(\"message\")
+    or \"sio_test\"\n    return codx_junior_session.send_event(message=message)\n\n@app.get(\"/api/settings\")\ndef
+    api_settings_check(request: Request):\n    logger.info(\"/api/settings\")\n    codx_junior_session
+    = request.state.codx_junior_session\n    codx_junior_session.check_project()\n    return
+    codx_junior_session.settings\n\n@app.put(\"/api/settings\")\nasync def api_save_settings(request:
+    Request):\n    settings = await request.json()\n    settings = CODXJuniorSettings.from_json(settings).save_project()\n    find_all_projects()\n    return
+    api_settings_check(request)\n\n@app.get(\"/api/profiles\")\ndef api_list_profile(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.list_profiles()\n\n@app.post(\"/api/profiles\")\nasync def
+    api_create_profile(profile: Profile, request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    return await codx_junior_session.save_profile(profile=profile)\n    \n@app.get(\"/api/profiles/{profile_name}\")\ndef
+    api_read_profile(profile_name, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.read_profile(profile_name)\n\n@app.delete(\"/api/profiles/{profile_name}\")\ndef
+    api_delete_profile(profile_name, request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    codx_junior_session.delete_profile(profile_name)\n    return\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/health\")\ndef
+    api_health_check():\n    return \"ok\"\n\n@app.get(\"/api/knowledge/reload\")\nasync
+    def api_knowledge_reload(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    await
+    codx_junior_session.check_project_changes()\n    await codx_junior_session.reload_knowledge()\n    return
+    codx_junior_session.check_knowledge_status()\n\n@app.post(\"/api/knowledge/reload-path\")\ndef
+    api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    logger.info(f\"****
+    API:knowledge_reload_path {knowledge_reload_path}\")\n    codx_junior_session.index_knowledge_source(sources=[knowledge_reload_path.path])\n\n@app.post(\"/api/knowledge/delete\")\ndef
+    api_knowledge_delete_path(knowledge_delete_sources: KnowledgeDeleteSources, request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.delete_knowledge_source(sources=knowledge_delete_sources.sources)\n\n@app.delete(\"/api/knowledge/delete\")\ndef
+    api_knowledge_reload_all(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.delete_knowledge()\n\n\n@app.post(\"/api/knowledge/reload-search\")\nasync
+    def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request:
+    Request):\n    logger.info(\"API:knowledge_search_endpoint\")\n    codx_junior_session
+    = request.state.codx_junior_session\n    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))\n\n@app.get(\"/api/knowledge/status\")\ndef
+    api_knowledge_status(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.check_knowledge_status()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.post(\"/api/projects\")\ndef
+    api_project_create(request: Request, user: CodxUser = Depends(get_authenticated_user)):\n    project_path
+    = request.query_params.get(\"project_path\")\n    try:\n        return CODXJuniorSettings.from_project_file(f\"${project_path}/.codx/project.json\")\n    except:\n        return
+    create_project(project_path=project_path, user=user)\n\n@app.delete(\"/api/projects\")\ndef
+    api_project_delete(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.delete_project()\n    return
+    { \"ok\": 1 }\n\n@app.get(\"/api/project/unwatch\")\ndef api_project_unwatch(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.watch_project(False)\n    find_all_projects()\n    return
+    { \"OK\": 1 }\n\n@app.get(\"/api/knowledge/keywords\")\ndef api_get_keywords(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    query
+    = request.query_params.get(\"query\")\n    return codx_junior_session.get_keywords(query=query)\n\n@app.post(\"/api/knowledge/keywords\")\ndef
+    api_extract_tags(doc: Document, request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    logging.info(f\"Extract keywords from {doc}\")\n    doc
+    = codx_junior_session.extract_tags(doc=doc)\n    return doc.__dict__\n\n@app.get(\"/api/code-server/file/open\")\ndef
+    api_file_open(request: Request):\n    file_name = request.query_params.get(\"file_name\")\n    codx_junior_session
+    = request.state.codx_junior_session\n    return codx_junior_session.coder_open_file(file_name=file_name)\n\n@app.get(\"/api/files\")\ndef
+    api_get_files(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path
+    = request.query_params.get(\"path\")\n    return codx_junior_session.read_directory(path=path)\n\n@app.get(\"/api/files/read\")\ndef
+    api_get_file(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    path
+    = request.query_params.get(\"path\")\n    return codx_junior_session.read_file(path=path)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/project/watch\")\ndef
+    api_project_watch(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.watch_project(True)\n    find_all_projects()\n    return
+    { \"OK\": 1 }\n\n@app.get(\"/api/projects\")\ndef api_find_all_projects(request:
+    Request, user: CodxUser = Depends(get_authenticated_user)):\n    return [{\n      **project.__dict__,\n      \"workspaces\":
+    project.get_project_workspaces()\n    } for project in find_all_user_projects(user)]\n\n@app.get(\"/api/projects/metrics\")\nasync
+    def api_chat_metrics(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.project_metrics()\n\n@app.get(\"/api/projects/repo/branches\")\ndef
+    api_find_all_repo_branches(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.get_project_branches()\n\n@app.get(\"/api/projects/repo/branch/commits\")\ndef
+    api_find_all_repo_branch_commits(request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    branch = request.query_params.get(\"branch\")\n    return
+    codx_junior_session.get_project_branch_commits(branch=branch)\n\n@app.get(\"/api/projects/repo/changes\")\ndef
+    api_find_all_repo_changes(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    from_branch
+    = request.query_params.get(\"from_branch\")\n    to_branch = request.query_params.get(\"to_branch\")\n    return
+    codx_junior_session.get_repo_changes(from_branch=from_branch, to_branch=to_branch)\n\n@app.get(\"/api/projects/readme\")\ndef
+    api_project_readme(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    document
+    = codx_junior_session.get_readme()\n    return Response(content=document or \">
+    Not found\", media_type=\"text/html\")\n\n@app.get(\"/api/projects/ai/models\")\ndef
+    api_project_ai_models(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.settings.get_project_ai_models()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.post(\"/api/files/diff\")\nasync
+    def api_get_file_diff(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    data
+    = await request.json()\n    return codx_junior_session.diff_file(path=data[\"path\"],
+    content=data[\"content\"])\n\n@app.post(\"/api/files/diff/comments\")\nasync def
+    api_get_file_diff(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    data
+    = await request.json()\n    return codx_junior_session.diff_file_comments(path=data[\"path\"],
+    content=data[\"content\"], comments=data[\"comments\"])\n\n@app.post(\"/api/files/write\")\nasync
+    def api_post_file(doc: Document, request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    file_path = request.query_params.get(\"path\")\n    return
+    await codx_junior_session.write_project_file(file_path=file_path, content=doc.page_content,
+    process=False)\n\n@app.get(\"/api/files/find\")\ndef api_get_file(request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    search = request.query_params.get(\"search\")\n    return
+    codx_junior_session.search_files(search=search)\n\n@app.get(\"/api/apps\")\ndef
+    api_apps_list(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.get_project_apps()\n\n@app.get(\"/api/apps/run\")\ndef api_apps_run(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    app_name
+    = request.query_params.get(\"app\")\n    return codx_junior_session.run_app(app_name=app_name)\n\n\n@app.get(\"/api/global/settings\")\ndef
+    api_read_global_settings(user: CodxUser = Depends(get_authenticated_user)):\n    if
+    not user or user.role != ''admin'':\n        return {\n          \"error\": \"User
+    is not admin\"\n        }\n    return read_global_settings()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/chats\")\ndef
+    api_list_chats(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    file_path
+    = request.query_params.get(\"file_path\")\n    chat_id = request.query_params.get(\"id\")\n    if
+    chat_id:\n        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)\n    if
+    file_path:\n        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)\n    return
+    codx_junior_session.list_chats()\n\n@profile_function\n@app.post(\"/api/chats\")\nasync
+    def api_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    codx_junior_session.chat_event(chat=chat,
+    message=\"Chatting with project...\")\n    await codx_junior_session.chat_with_project(chat=chat)\n    await
+    codx_junior_session.save_chat(chat)\n    return chat\n\n@profile_function\n@app.post(\"/api/chats/from-url\")\nasync
+    def api_chat_form_url(chat: Chat, request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    codx_junior_session.chat_event(chat=chat,
+    message=\"Loading chat...\")\n    codx_junior_session.init_chat_from_url(chat=chat)\n    await
+    codx_junior_session.save_chat(chat)\n    return chat\n\n@profile_function\n@app.post(\"/api/chats/sub-tasks\")\nasync
+    def api_chat_subtasks(chat: Chat, request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    return await codx_junior_session.generate_tasks(chat=chat)\n\n@app.put(\"/api/chats\")\nasync
+    def api_save_chat(chat: Chat, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    chat_only
+    = request.query_params.get(\"chatonly\") == \"1\"\n    await codx_junior_session.save_chat(chat,
+    chat_only=chat_only)\n\n@app.delete(\"/api/chats\")\ndef api_delete_chat(request:
+    Request):\n    codx_junior_session = request.state.codx_junior_session\n    chat_id
+    = request.query_params.get(\"chat_id\")\n    codx_junior_session.delete_chat(chat_id)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.get(\"/api/kanban\")\ndef
+    api_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.get_chat_manager().load_kanban()\n\n@app.post(\"/api/kanban\")\nasync
+    def api_set_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    kanban
+    = await request.json()\n    codx_junior_session.get_chat_manager().save_kanban(kanban)\n\n@app.delete(\"/api/kanban\")\ndef
+    api_delete_kanban(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    kanban_title
+    = request.query_params.get(\"kanban_title\")\n    return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)\n\n@app.post(\"/api/images\")\ndef
+    api_image_upload(file: UploadFile):\n    if file.filename == '''':\n        return
+    jsonify({''error'': ''No selected file''}), 400\n\n    # Generate a unique filename
+    using UUID\n    unique_filename = f\"{str(uuid.uuid4())}-{file.filename}\"\n    file_path
+    = os.path.join(IMAGE_UPLOAD_FOLDER, unique_filename)\n    \n    # Save the file\n    os.makedirs(os.path.dirname(file_path),
+    exist_ok=True)\n    with open(file_path, \"wb+\") as file_object:\n        shutil.copyfileobj(file.file,
+    file_object)   \n\n    # Return the full URL to access the image\n    image_url
+    = ''/api/images/'' + unique_filename\n    return image_url\n\n@app.post(\"/api/run/improve\")\nasync
+    def api_run_improve(chat: Chat, request: Request):\n    codx_junior_session =
+    request.state.codx_junior_session\n    await codx_junior_session.improve_existing_code(chat=chat)\n    await
+    codx_junior_session.save_chat(chat)\n    return chat\n\n@app.post(\"/api/run/improve/patch\")\nasync
+    def api_run_improve_patch(data: dict, request: Request):\n    codx_junior_session
+    = request.state.codx_junior_session\n    return codx_junior_session.apply_patch(patch=data[\"patch\"])\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.post(\"/api/screen\")\ndef
+    api_screen_set(screen: Screen):\n    CODX_JUNIOR_DISPLAY = os.environ[\"CODX_JUNIOR_DISPLAY\"]\n    return
+    exec_command(f\"xrandr -s {screen.resolution}\", env={\"DISPLAY\": CODX_JUNIOR_DISPLAY})\n\n@app.get(\"/api/screen\")\ndef
+    api_screen_get():\n    screen = Screen()\n    try:\n        CODX_JUNIOR_DISPLAY
+    = os.environ[\"CODX_JUNIOR_DISPLAY\"]\n        res, _ = exec_command(f\"xrandr
+    --current\", env={\"DISPLAY\": CODX_JUNIOR_DISPLAY})\n        # Screen 0: minimum
+    32 x 32, current 1920 x 1080, maximum 32768 x 32768\n        lines = res.split(\"\\n\")\n        screen_line
+    = [l for l in lines if l.startswith(\"Screen \")][0]\n        screen.resolution
+    = screen_line.split(\"current \")[1].split(\",\")[0].replace(\" \", \"\")\n    except
+    Exception as ex:\n        logger.error(f\"Error extracting screen resolutions
+    {ex}\")\n    return screen\n\n@app.post(\"/api/image-to-text\")\nasync def api_image_to_text_endpoint(file:
+    UploadFile, request):\n    codx_junior_session = request.state.codx_junior_session\n    file_bytes
+    = await file.read()            \n    return codx_junior_session.api_image_to_text(file_bytes)\n\n@app.post(\"/api/restart\")\ndef
+    api_restart():\n    logger.info(f\"****************** API RESTARTING... bye *******************\")\n    exec_command(\"sudo
+    kill 7\")\n\nif CODX_JUNIOR_STATIC_FOLDER:\n    os.makedirs(CODX_JUNIOR_STATIC_FOLDER,
+    exist_ok=True)\n    logger.info(f\"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}\")\n    app.mount(\"/\",
+    StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name=\"client_chat\")\n\napp.mount(\"/api/images\",
+    StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name=\"images\")\n\nstart_background_services(app)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\nimport asyncio\nimport
+    faulthandler\nimport logging\nimport os\nimport shutil\nimport time\nimport traceback\nimport
+    uuid\n\nimport socketio\nfrom flask import jsonify\n\nfrom concurrent.futures
+    import ThreadPoolExecutor\n\nfaulthandler.enable()\n\nfrom codx.junior.ai import
+    AIManager\n\nfrom codx.junior.sio.sio import sio\n\nfrom codx.junior.profiling.profiler
+    import profile_function\n\nfrom codx.junior.browser import run_browser_manager\n\nfrom
+    codx.junior.api.chatGPTLikeApi import router as chatgpt_router\nfrom codx.junior.api.users
+    import router as users_router\nfrom codx.junior.api.wiki import router as wiki_router\nfrom
+    codx.junior.api.github import router as github_router\nfrom codx.junior.api.file_finder
+    import router as file_finder_router\nfrom codx.junior.api.db_router import router
+    as db_router\n\nfrom codx.junior.security.user_management import get_authenticated_user\n\n\nCODX_JUNIOR_API_BACKGROUND
+    = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nlogger = logging.getLogger(__name__)\n\nrun_browser_manager()\n\ndef
+    disable_logs(logs):\n  for logger_id in logs:\n      logging.getLogger(logger_id).setLevel(logging.WARNING)\n\ndef
+    enable_logs(logs):\n  for logger_id in logs:\n      logging.getLogger(logger_id).setLevel(logging.DEBUG)\n\ndisable_logs([\n    ''httpx'',\n    ''httpcore.http11'',\n    ''httpcore.connection'',\n    ''openai._base_client'',\n    ''watchfiles.main'',\n    ''asyncio'',\n    ''codx.junior.project_watcher'',\n    ''selenium.webdriver.common.selenium_manager''\n])\n\nfrom
+    fastapi import FastAPI, Request, status, Response, UploadFile, Depends\nfrom fastapi.exceptions
+    import RequestValidationError\nfrom fastapi.staticfiles import StaticFiles\nfrom
+    fastapi.responses import JSONResponse\nfrom starlette.status import HTTP_504_GATEWAY_TIMEOUT\n\nfrom
+    codx.junior.db import (\n    Chat\n)\nfrom codx.junior.model.model import (\n    KnowledgeReloadPath,\n    KnowledgeSearch,\n    KnowledgeDeleteSources,\n    Profile,\n    Document,\n    GlobalSettings,\n    Screen,\n    CodxUser\n)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\nfrom codx.junior.settings
+    import (\n  CODXJuniorSettings,\n  read_global_settings,\n  write_global_settings\n)\n\nfrom
+    codx.junior.engine import (\n    CODXJuniorSession,\n    SessionChannel\n)\n\nfrom
+    codx.junior.project.project_discover import (\n    find_all_projects,\n    find_all_user_projects,  \n)\n\nfrom
+    codx.junior.project.project_manager import (\n    create_project,\n)\n\nfrom codx.junior.utils.utils
+    import (\n    exec_command,\n)\n\nfrom codx.junior.background import start_background_services\n\n\nCODX_JUNIOR_STATIC_FOLDER=os.environ.get(\"CODX_JUNIOR_STATIC_FOLDER\")\nIMAGE_UPLOAD_FOLDER
+    = f\"{os.path.dirname(__file__)}/images\"\nos.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)\n\nGLOBAL_REQUEST_TIMEOUT=280\n\n\napp
+    = FastAPI(\n    title=\"CODXJuniorAPI\",\n    description=\"API for CODXJunior\",\n    version=\"1.0\",\n    openapi_url=\"/api/openapi.json\",\n    docs_url=\"/api/docs\",\n    redoc_url=\"/api/redoc\",\n    ssl_context=''adhoc''\n)\n\nsio_asgi_app
+    = socketio.ASGIApp(sio, app, socketio_path=\"/api/socket.io\")\napp.mount(\"/api/socket.io\",
+    sio_asgi_app)\n\napp.include_router(chatgpt_router, prefix=\"/api\")\napp.include_router(users_router,
+    prefix=\"/api\")\napp.include_router(wiki_router, prefix=\"/api\")\napp.include_router(github_router,
+    prefix=\"/api\")\napp.include_router(file_finder_router, prefix=\"/api\")\napp.include_router(db_router,
+    prefix=\"/api\")\n\n@app.exception_handler(RequestValidationError)\nasync def
+    validation_exception_handler(request: Request, exc: RequestValidationError):\n\texc_str
+    = f''{exc}''.replace(''\\n'', '' '').replace(''   '', '' '')\n\tlogger.error(f\"{request}:
+    {exc_str}\")\n\tcontent = {''status_code'': 10422, ''message'': exc_str, ''data'':
+    None}\n\treturn JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)\n\n@app.on_event(\"startup\")\ndef
+    startup_event():\n    logger.info(f\"Creating FASTAPI (BACKGROUND: {CODX_JUNIOR_API_BACKGROUND}):
+    {app.__dict__}\")\n\n@app.exception_handler(Exception)\nasync def my_exception_handler(request:
+    Request, ex: Exception):\n    return JSONResponse(status_code=500, \n        content=traceback.format_exception(ex))\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio_background.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio_background.py\nimport
+    os\nimport time\nimport logging\nimport socketio\n\nlogger = logging.getLogger(__name__)\n\nCODX_JUNIOR_API_BACKGROUND
+    = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nsio_client = None\nif CODX_JUNIOR_API_BACKGROUND:\n    sio_client
+    = socketio.SimpleClient()\n    url = f''http://0.0.0.0:{os.environ[\"CODX_JUNIOR_API_PORT\"]}''\n    while
+    True:\n        try:\n            logger.info(f\"***************** Background client
+    SIOconnecting to {url}\")\n            sio_client.connect(url, socketio_path=\"/api/socket.io\")\n            server_response
+    = sio_client.call(\"background-event\", { \"event\": \"hello\", \"data\": {}})\n            logger.info(f\"*****************
+    Background client SIO connected: {server_response}\")\n            break\n        except
+    Exception as ex:\n            logger.error(f\"***************** Background client
+    SIO error: {ex}\")\n            time.sleep(5)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio.py\nimport
+    os\nimport logging\nimport socketio\nimport functools\nimport asyncio\n\nfrom
+    concurrent.futures import ThreadPoolExecutor\n\nfrom codx.junior.sio.session_channel
+    import SessionChannel\nfrom codx.junior.engine import CODXJuniorSession\n\nfrom
+    codx.junior.context import (\n    AICodeGenerator\n)\n\nfrom codx.junior.sio.model
+    import (\n    SioMessage,\n    SioChatMessage\n)\n\nfrom codx.junior.ai import
+    AIManager\nfrom codx.junior.security.user_management import get_authenticated_user_from_token\n\nCODX_JUNIOR_API_BACKGROUND
+    = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nUSERS = {}\n\nlogger = logging.getLogger(__name__)\n\n#Socket
+    io (sio) create a Socket.IO server\nsio = socketio.AsyncServer(cors_allowed_origins=''*'',async_mode=''asgi'')\n\nSIO_POOL
+    = ThreadPoolExecutor(max_workers=10)\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/app.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/app.py\n@app.post(\"/api/global/settings\")\ndef
+    api_write_global_settings(global_settings: GlobalSettings):\n    AIManager().reload_models(global_settings)\n    write_global_settings(global_settings=global_settings)\n    \n@app.post(\"/api/run/script\")\ndef
+    run_script(data: dict, request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    std,
+    _ = exec_command(data[\"script\"], cwd=codx_junior_session.settings.project_path)\n    return
+    std\n\n@app.get(\"/api/logs\")\ndef api_logs_list():\n    stdout, _ = exec_command(f\"ls
+    {os.environ[''CODX_SUPERVISOR_LOG_FOLDER'']}\")\n    codx_logs = [log for log
+    in [log.strip().replace(\".log\", \"\") for log in stdout.split(\"\\n\")] if log]\n\n    stdout,
+    _ = exec_command(\"docker ps --format {{.Names}}\")\n    containers = [f\"\ud83d\udc0b:{log}\"
+    for log in [log.strip().replace(\".log\", \"\") for log in stdout.split(\"\\n\")]
+    if log]\n   \n    \n    return sorted(codx_logs) + containers\n\n@app.get(\"/api/logs/{log_name}\")\ndef
+    api_logs_tail(log_name: str, request: Request):\n    log_size = request.query_params.get(\"log_size\")
+    or \"100\"\n    if \"\ud83d\udc0b\" in log_name:\n        stdout, err_logs = exec_command(f\"docker
+    logs -n {log_size} {log_name.split('':'')[1]}\")\n        if err_logs:\n            logger.error(f\"Error
+    reading logs {log_name}: {err_logs}\")\n        return stdout.split(\"\\n\")\n    else:   \n        log_file
+    = f\"{os.environ[''CODX_SUPERVISOR_LOG_FOLDER'']}/{log_name}.log\"\n        cmd
+    = f\"tail -n {log_size} {log_file}\"\n        try:\n            logs, err_logs
+    = exec_command(cmd)\n            if err_logs:\n                logger.error(f\"Error
+    reading logs {log_name}: {err_logs}\")\n            # return parse_logs(logs)\n            def
+    is_valid_log(l):\n                if \"/api/logs\" in l:\n                    return
+    False\n                return True\n            return [l for l in logs.split(\"\\n\")
+    if is_valid_log(l)]\n        except Exception as ex:\n            logger.exception(f\"Error
+    reading logs: {ex}\")\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/wiki.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/wiki.py\n@router.get(\"/wiki-engine/rebuild\")\nasync
+    def wiki_engine_rebuild(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    return
+    codx_junior_session.get_wiki().rebuild_wiki()\n\n@router.get(\"/wiki-engine/config\")\nasync
+    def wiki_engine_config(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    wiki_manager
+    = codx_junior_session.get_wiki()\n    return wiki_manager.load_wiki_settings(with_files=True)\n\n\n@router.put(''/wiki-engine'')\nasync
+    def save_wiki_settings(request: Request):\n    codx_junior_session = request.state.codx_junior_session\n    wiki_manager
+    = codx_junior_session.get_wiki()\n    wiki_settings = await request.json()\n    return
+    wiki_manager.save_wiki_settings(wiki_settings)\n  \n\n@sio.on(\"codx-junior-wiki-rebuild\")\n@sio_api_endpoint\nasync
+    def io_wiki_rebuild(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    return
+    codxjunior_session.get_wiki().rebuild_wiki()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio.py\n@sio.on(\"codx-junior-improve-patch\")\n@sio_api_endpoint\nasync
+    def sio_run_improve_patch(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    code_generator
+    = AICodeGenerator(**data[\"code_generator\"])\n    data = SioChatMessage(**data)\n    info,
+    error = await codxjunior_session.improve_existing_code_patch(\n                            chat=data.chat,\n                            code_generator=code_generator)\n    return
+    {\n        \"info\": info, \n        \"error\": error\n    }\n\n@sio.on(\"codx-junior-generate-code\")\n@sio_api_endpoint\nasync
+    def sio_run_generate_code(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    code_block_info
+    = data[\"code_block_info\"]\n    data = SioChatMessage(**data)\n    await codxjunior_session.generate_code(\n                            chat=data.chat,\n                            code_block_info=code_block_info)\n\n@sio.on(\"codx-junior-ai-load-model\")\n@sio_api_endpoint\nasync
+    def sio_ai_load_model(sid, data: dict):\n    AIManager().load_model(model=data[\"model\"])\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/settings.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/settings.py\nimport
+    os\nimport json\nimport logging\nimport pathlib\nimport uuid\nfrom pydantic import
+    BaseModel, Field\nfrom typing import Optional, List, Dict, Any\n\nfrom codx.junior.utils.utils
+    import (\n  write_file,\n  exec_command\n)\nfrom codx.junior.model.model import
+    (\n    GlobalSettings,\n    ProjectScript,\n    AISettings,\n    AIModel,\n    AIProvider,\n    AILLMModelSettings,\n    AIModelType\n)\n\nlogger
+    = logging.getLogger(__name__)\n\nROOT_PATH = os.path.dirname(__file__)\nGLOBAL_SETTINGS
+    = None\nHOME=os.environ.get(\"HOME\")\nGLOBAL_SETTINGS_PATH=os.environ.get(\"CODX_JUNIOR_GLOBAL_SETTINGS_PATH\",
+    None) or f\"{HOME}/global_settings.json\"\n\n# logger.info(f\"GLOBAL_SETTINGS_PATH
+    is: {GLOBAL_SETTINGS_PATH}\")\n\nCODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = [\"codx_path\",
+    \"metrics\", \"users\", \"is_git_root\"]\n\ndef get_provider_settings(ai_provider:
+    str, global_settings = None) -> AIProvider:\n    global_settings = global_settings
+    or GLOBAL_SETTINGS\n    ai_provider_settings = [p for p in global_settings.ai_providers
+    if p.name == ai_provider]\n    if not ai_provider_settings:\n        raise Exception(f\"LLM
+    AI provider not found: {ai_provider}\")\n    \n    ai_provider = ai_provider_settings[0]\n    ai_provider.api_url
+    = os.path.expandvars(ai_provider.api_url or \"\")\n    ai_provider.api_key = os.path.expandvars(ai_provider.api_key
+    or \"\")\n\n    return ai_provider\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio.py\n@sio.on(\"disconnect\")\nasync
+    def disconnect(sid):\n    logger.info(\"Client Disconnected: \"+\" \"+str(sid))\n    if
+    USERS.get(sid):\n        del USERS[sid]\n    send_online_users(sid)  \n\n@sio.on(\"codx-junior-ping\")\nasync
+    def io_ping(sid, data: dict = None):\n    return True\n\n\n@sio.on(\"background-event\")\nasync
+    def on_background_event(sid, data: dict):\n    logger.info(f\"*****************
+    On event bacground: {data}\")\n    event = data[\"event\"]\n    if event == \"hello\":\n        return
+    f\"Hi! Is back: {CODX_JUNIOR_API_BACKGROUND}\"\n    await sio_send_event(data[\"event\"],
+    data[\"data\"])\n\n@sio.on(\"codx-junior-login\")\ndef io_login(sid, data: dict):\n    USERS[sid]
+    = data\n    send_online_users(sid)\n\n@sio.on(\"codx-junior-chat\")\n@sio_api_endpoint\nasync
+    def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    data
+    = SioChatMessage(**data)\n    logger.info(f\"codx-junior-chat {data.chat.name}
+    {codxjunior_session.settings.project_name}\")\n    codxjunior_session.event_manager.chat_event(chat=data.chat,
+    message=\"Chatting with project...\")\n    await codxjunior_session.chat_with_project(chat=data.chat)\n    await
+    codxjunior_session.save_chat(data.chat)\n\n@sio.on(\"codx-junior-subtasks\")\n@sio_api_endpoint\nasync
+    def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    sio_chat
+    = SioChatMessage(**data)\n    instructions = data.get(\"instructions\")\n    return
+    await codxjunior_session.generate_tasks(chat=sio_chat.chat, \n                                                    instructions=instructions)\n\n@sio.on(\"codx-junior-improve\")\n@sio_api_endpoint\nasync
+    def io_run_improve(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    data
+    = SioChatMessage(**data)\n    await codxjunior_session.improve_existing_code(chat=data.chat)\n    await
+    codxjunior_session.save_chat(data.chat)\n\n@sio.on(\"codx-junior-generate-tasks\")\n@sio_api_endpoint\nasync
+    def io_create_chat_tasks(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    data
+    = SioChatMessage(**data)\n    await codxjunior_session.generate_tasks(chat=data.chat)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/shared/codx-junior/scripts/traefik/traefik.yaml\"
+    language=\"txt\">\n    /shared/codx-junior/api/shared/codx-junior/scripts/traefik/traefik.yaml\nentryPoints:\n  web:\n    address:
+    \":80\"\n\nproviders:\n  docker:\n    endpoint: \"unix:///var/run/docker.sock\"\n    exposedByDefault:
+    false\n\napi:\n  dashboard: true\n  insecure: true # Enable the API and dashboard
+    (for development only)\n\nlog:\n  level: DEBUG\n\naccessLog: {}\n\n# Optional:
+    Define specific routers, services, or middleware here if needed\nhttp:\n  routers:\n    dashboard:\n      rule:
+    \"Host(`traefik.localhost`)\"\n      service: api@internal\n      entryPoints:\n        -
+    web\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/api/wiki.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/wiki.py\nimport
+    os\nimport logging\nimport datetime\nfrom fastapi import APIRouter, Request, Response,
+    status\nfrom fastapi.responses import FileResponse\n\nfrom typing import Any,
+    Dict\n\nfrom codx.junior.engine import (\n  CODXJuniorSession\n)\n\nfrom codx.junior.project.project_discover
+    import find_project_by_name\n\nfrom codx.junior.security.user_management import
+    UserSecurityManager, get_authenticated_user\nfrom codx.junior.model.model import
+    CodxUser, CodxUserLogin\n\nfrom codx.junior.wiki.wiki_manager import WikiManager\n\nfrom
+    codx.junior.sio.sio import (\n  sio,\n  sio_api_endpoint,\n  sio_send_event\n)\n\nlogger
+    = logging.getLogger(__name__)\n\nrouter = APIRouter()\n\n@router.get(\"/wiki/{project_name}/{wiki_path:path}\")\nasync
+    def wiki_page(request: Request, project_name: str, wiki_path: str, response: Response):\n    project
+    = find_project_by_name(project_name)\n    if not project or not project.project_wiki:\n        raise
+    Exception(\"Project has no wiki\")\n\n    if not wiki_path:\n        wiki_path
+    = \"index.html\"\n    dist_path = CODXJuniorSession(settings=project).get_wiki().dist_dir    \n    file_path
+    = f\"{dist_path}/{wiki_path}\"\n    if os.path.isfile(file_path):\n        return
+    FileResponse(file_path)\n    response.status_code = status.HTTP_404_NOT_FOUND\n\n@sio.on(\"codx-junior-wiki\")\n@sio_api_endpoint\nasync
+    def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    wiki_manager
+    = codxjunior_session.get_wiki()\n    step = data.get(\"step\")\n    file_path
+    = data.get(\"file_path\")\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/session_channel.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/session_channel.py\nimport
+    os\nimport time\nimport asyncio\nimport logging\n\nfrom threading import Thread\nfrom
+    typing import List, Optional\nfrom pydantic import BaseModel, Field\n\nfrom concurrent.futures
+    import ThreadPoolExecutor\n\nCODX_JUNIOR_API_BACKGROUND = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nlogger
+    = logging.getLogger(__name__)\n\nclass IOEvent(BaseModel):\n    sid: Optional[str]
+    = Field(default=None) \n    event: str\n    data: dict\n\nEVENT_QUEUE: List[IOEvent]
+    = []\n\ndef process_event_queue():\n    from codx.junior.sio.sio import sio\n    from
+    codx.junior.sio.sio_background import sio_client\n                    \n    while
+    True:\n        if EVENT_QUEUE:\n            try:\n                event: IOEvent
+    = EVENT_QUEUE.pop(0)\n                    \n                if CODX_JUNIOR_API_BACKGROUND:\n                    resend_event
+    = { \"event\": event.event, \"data\": event.data }\n                    logger.info(f\"Sending
+    event bacground: {resend_event}\")\n                    sio_client.emit(\"background-event\",
+    resend_event)\n                else:\n                    asyncio.run(sio.emit(event.event,
+    event.data))\n            except Exception as e:\n                logger.error(f\"Error
+    processing event: {e}\")\n        else:\n            time.sleep(0.2)\nThread(target=process_event_queue).start()\n\nclass
+    SessionChannel:\n    def __init__(self, sio, sid=None):\n        self.sid = sid\n        self.sio
+    = sio\n\n    def send_event(self, event, data):\n        data[\"ts\"] = int(time.time())\n        EVENT_QUEUE.append(IOEvent(sid=self.sid,
+    event=event, data=data))\n    </document>\n    \n\n    <document keywords=\"[''OpenAI-integration'',
+    ''AI-logging'', ''Python-module'', ''CODXJuniorSettings'', ''API-communication'',
+    ''AILogger'', ''file-content'', ''AI-interactions'', ''logger-configuration'',
+    ''chat-completion'']\" category=\"Software-Development-Agents\" source=\"/shared/codx-junior/api/codx/junior/ai/openai_ai.py\"
+    language=\"txt\">\n    This document outlines a Python module for integrating
+    with OpenAI''s API. It defines the `OpenAI_AI` class, which is initialized with
+    configuration settings through `CODXJuniorSettings` and uses them to establish
+    communication with OpenAI via its API key, model, and URL. The class includes
+    a logger (`AILogger`) for recording events and messages if logging is enabled.
+    A list of tools is defined, including a function tool for reading file content.
+    Additional imports cover logging, JSON handling, date-time management, and message
+    handling across different AI chat types. The document represents a structured
+    approach to managing AI interactions, emphasizing settings and logging configurations.\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/engine.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/engine.py\nreturn changes\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/model/model.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/model/model.py\nclass
+    AISettings(BaseModel):\n    provider: Optional[str] = Field(default=\"\") \n    api_url:
+    Optional[str] = Field(default=\"\")\n    api_key: Optional[str] = Field(default=\"\")\n    model:
+    Optional[str] = Field(default=\"\")\n    context_length: Optional[int] = Field(default=0)\n    temperature:
+    Optional[float] = Field(default=0.8)\n    vector_size: Optional[int] = Field(default=1536)\n    chunk_size:
+    Optional[int] = Field(default=8190)\n    merge_messages: Optional[bool] = Field(default=False)\n    model_type:
+    AIModelType = Field(description=\"Model type\", default=AIModelType.llm)\n    url:
+    Optional[str] = Field(description=\"Model info\", default=\"\")\n    \nOLLAMA_PROVIDER
+    = AIProvider(name=\"llmfactory\",\n                            provider=\"llmfactory\",\n                            api_url=os.environ.get(''CODX_JUNIOR_LLMFACTORY_API''),\n                            api_key=os.environ.get(''CODX_JUNIOR_LLMFACTORY_KEY''))\n\nOLLAMA_EMBEDDINGS_MODEL
+    = AIModel(name=\"embeddings\",\n                                ai_model=EMBEDDINGS_MODEL,
+    \n                                model_type=AIModelType.embeddings,\n                                ai_provider=\"llmfactory\",\n                                settings=AIEmbeddingModelSettings(chunk_size=2048,
+    vector_size=768),\n                                url=f\"https://llmfactory.com/library/{EMBEDDINGS_MODEL}\")\n\nOLLAMA_KNOWLEDGE_MODEL
+    = AIModel(name=\"knowledge\",\n                            ai_model=KNOWLEDGE_MODEL,\n                            model_type=AIModelType.llm,\n                            ai_provider=\"llmfactory\",\n                            settings=AILLMModelSettings(),\n                            url=f\"https://llmfactory.com/library/{KNOWLEDGE_MODEL}\")\n\nclass
+    WorkspaceApp(BaseModel):\n    name: str = Field(default=\"\")\n    description:
+    str = Field(default=\"\")\n    icon: str = Field(default=\"\")\n    port: Optional[int]
+    = Field(default=3000)\n    is_vnc: Optional[bool] = Field(default=False)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/globals.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/globals.py\nimport
+    os\nimport subprocess\nimport logging\n\nfrom codx.junior.settings import CODXJuniorSettings,
+    read_global_settings\nfrom codx.junior.utils.utils import exec_command\nfrom codx.junior.security.user_management
+    import UserSecurityManager\nfrom codx.junior.model.model import CodxUser\nfrom
+    codx.junior.db import Chat\n\n\n\"\"\"Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS
+    won''t be processed\"\"\"\nMAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS =
+    60 * 60\n\nMAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS = 3 * 60\n\nCODX_JUNIOR_API_BACKGROUND
+    = os.environ.get(\"CODX_JUNIOR_API_BACKGROUND\")\n\nlogger = logging.getLogger(__name__)\n\nAPPS
+    = [\n    {\n        \"name\": \"chrome\",\n        \"icon\": \"https://upload.wikimedia.org/wikipedia/commons/thumb/e/e1/Google_Chrome_icon_%28February_2022%29.svg/768px-Google_Chrome_icon_%28February_2022%29.svg.png\",\n        \"description\":
+    \"Google chrome engine\",\n    }\n]\n\nAPPS_COMMANDS = {\n    \"chrome\": \"google-chrome
+    --no-sandbox --no-default-browser-check\"\n}\n\nAGENT_DONE_WORD = \"$$@@AGENT_DONE@@$$$\"\n\ndef
+    coder_open_file(settings: CODXJuniorSettings, file_name: str):\n    logger.info(f\"coder_open_file
+    {file_name}\")\n    os.system(f\"code-server -r {file_name}\")\n\n\ndef update_engine():\n    try:\n        command
+    = [\"git\", \"pull\"]\n        subprocess.run(command)\n    except Exception as
+    ex:\n        logger.exception(ex)\n        return ex\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/profiles/coding_profiles.json\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/profiles/coding_profiles.json\n{\n    \"vue\":
+    {\n        \"expression\": \"\\\\.vue$\",\n        \"profile\": \"\"\n    }\n}\n    </document>\n    \n\n    <document
+    keywords=\"[''Python-module'', ''Mistral-AI'', ''CODXJuniorSettings'', ''AI-interactions'',
+    ''API-key'', ''message-conversion'', ''logging'', ''GPT-based-messages'', ''client-integration'',
+    ''profiling'']\" category=\"Software-Development-Agents\" source=\"/shared/codx-junior/api/codx/junior/ai/mistral_ai.py\"
+    language=\"txt\">\n    The document describes a Python module that integrates
+    with the Mistral AI system for processing messages. The module includes a class,
+    Mistral_AI, which is initialized with settings from CODXJuniorSettings. This class
+    is responsible for managing AI interactions through the Mistral client, which
+    requires an API key. It includes functionality to log interactions if enabled
+    in the settings. The class also provides a method to convert messages between
+    different formats, specifically from GPT-based messages to a structure understood
+    by the Mistral system, distinguishing between AI and human messages. Logging is
+    handled through Python''s logging library to keep track of AI interactions.\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/wiki/wiki_template/package-lock.json\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/wiki/wiki_template/package-lock.json\n\"url\":
+    \"https://github.com/sponsors/wooorm\"\n      }\n    }\n  }\n}\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/tools/__init__.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/tools/__init__.py\n#
+    Documentation advice\n# Don''t document **kwargs parameters. They are internal.\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/knowledge_training.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/knowledge_training.py\nclass
+    KnowledgeTrainning:\n    def __init__(self, settings):\n        self.settings
+    = settings\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/wiki/wiki_template/.vitepress/config.json\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/wiki/wiki_template/.vitepress/config.json\n{\n  \"project\":
+    {\n    \"name\": null,\n    \"description\": null,\n    \"icon\": null\n  },\n  \"sidebar\":
+    []\n}\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/misc/github.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/misc/github.py\nraise
+    ValueError(\"Error decoding JSON content from issue page.\") from e\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/prepromts/extract_query_tags.md\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/prepromts/extract_query_tags.md\nExtract
+    search keywords from this user query:\n{{ query }}\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/github.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/github.py\nimport
+    logging\nfrom fastapi import APIRouter, Request, Depends\n\nfrom codx.junior.engine
+    import (\n  CODXJuniorSession,\n)\n\nfrom codx.junior.security.user_management
+    import get_authenticated_user\n\nfrom codx.junior.misc.github import (\n  search_github_issues,\n  download_issue_info,\n  search_codx_junior_dependencies_project_isssues\n)\n\nfrom
+    codx.junior.model.model import CodxUser, CodxUserLogin\n\nfrom codx.junior.agents.git_issues_agent
+    import GitIssuesAgent\n\nlogger = logging.getLogger(__name__)\n\nrouter = APIRouter()\n\n@router.get(''/github/issues/help-wanted'')\ndef
+    get_github_issues_help_wanted(request: Request):\n    query = request.query_params.get(\"query\")\n    if
+    query:\n      return search_github_issues(query=query)\n    return search_codx_junior_dependencies_project_isssues()
+    \n\n@router.get(\"/github/issues/read\")\ndef read_github_issue(request: Request,
+    user: CodxUser = Depends(get_authenticated_user)):  \n    issue_url = request.query_params.get(\"issue_url\")\n    return
+    download_issue_info(issue_url)\n\n@router.get(\"/github/issues/ai/process\")\nasync
+    def process_github_issue(request: Request, user: CodxUser = Depends(get_authenticated_user)):  \n    codx_junior_session
+    = request.state.codx_junior_session\n    return await GitIssuesAgent(session=codx_junior_session).run(issue_url=issue_url)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/model.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/model.py\nfrom
+    pydantic import BaseModel, Field\n\nfrom codx.junior.db import Chat\n\nclass SioMessage(BaseModel):\n    codx_path:
+    str = Field(default=None)\n    sid: str = Field(default=None)\n    request_id:
+    str = Field(default=None)\n    \nclass SioChatMessage(SioMessage):\n    chat:
+    Chat\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/engine.py\" language=\"txt\">\n    /shared/codx-junior/api/codx/junior/engine.py\nlogger.error(f\"Error
+    applying changes to {file_path}. New content: {new_content}\")\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/__init__.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/__init__.py\n#
+    This file is used to mark the ''knowledge'' directory as a Python package\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/background.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/background.py\nimport
+    asyncio\nimport logging\nimport time\nfrom datetime import datetime, timedelta\nfrom
+    threading import Thread, Lock\nfrom typing import Dict\n\nfrom codx.junior.ai
+    import AIManager\nfrom codx.junior.changes.change_manager import ChangeManager\nfrom
+    codx.junior.globals import (\n    CODX_JUNIOR_API_BACKGROUND,\n)\nfrom codx.junior.project.project_discover
+    import (\n    find_all_projects\n)\nfrom codx.junior.settings import read_global_settings\n\n#
+    Setup logging\nlogger = logging.getLogger(__name__)\n\n# A global tracking dictionary
+    to manage files currently being processed\nFILES_CHECKING = {}\nFILES_CHECKING_LOCK
+    = Lock()\nCHECK_TIMEOUT = timedelta(minutes=1)\n\n# Quarantine settings\nQUARANTINE_TRACKER:
+    Dict[str, Dict] = {}\nQUARANTINE_LOCK = Lock()\nQUARANTINE_DELAYS = [0, 1, 10,
+    30, 120]  # Minutes\n\ndef start_background_services(app) -> None:\n    \"\"\"\n    Function
+    to start background services for project watching and processing.\n    \"\"\"\n    if
+    not CODX_JUNIOR_API_BACKGROUND:\n        return\n    logger.info(\"*** Starting
+    background processes ***\")\n    reload_models()\n\n    # Start the project checking
+    in a separate thread\n    Thread(target=check_projects).start()\n\n    # Start
+    the mention checking in a separate thread\n    start_mention_checking()\n\ndef
+    reload_models() -> None:\n    \"\"\"\n    Reload AI models based on the current
+    global settings.\n    \"\"\"\n    try:\n        AIManager().reload_models(read_global_settings())\n        logger.info(\"AI
+    models reloaded successfully.\")\n    except Exception as ex:\n        logger.exception(f\"Failed
+    to reload AI models: {ex}\")\n\n\ndef is_project_in_quarantine(project_name: str)
+    -> bool:\n    \"\"\"\n    Determine if a project is in quarantine based on its
+    last check time and the delay.\n    \"\"\"\n    quarantine_info = QUARANTINE_TRACKER.get(project_name)\n    if
+    not quarantine_info:\n        return False\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/changes/change_manager.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/changes/change_manager.py\nimport
+    os\nimport time\nimport logging\nimport asyncio\n\nfrom datetime import datetime,
+    timedelta\n\nfrom codx.junior.events.event_manager import EventManager\nfrom codx.junior.knowledge.knowledge_milvus
+    import Knowledge\nfrom codx.junior.globals import (\n  MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,\n  MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS,\n  CODX_JUNIOR_API_BACKGROUND\n)\nfrom
+    codx.junior.mentions.mention_manager import MentionManager\nfrom codx.junior.profiling.profiler
+    import profile_function\nfrom codx.junior.wiki.wiki_manager import WikiManager\nfrom
+    codx.junior.chat_manager import ChatManager\n\nfrom codx.junior.whisper.audio_manager
+    import AudioManager\n\nfrom langchain.schema.document import Document\n\nfrom
+    codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics\n\nlogger = logging.getLogger(__name__)\n\nclass
+    ChangeManager:\n    def __init__(self, settings, event_manager=None):\n        self.settings
+    = settings\n        if not event_manager:\n            event_manager = EventManager(codx_path=settings.codx_path)\n        self.event_manager
+    = event_manager\n        self.mention_manager = MentionManager(settings=settings,
+    event_manager=event_manager)\n        self.knowledge = Knowledge(settings=self.settings)\n        self.wiki_manager
+    = WikiManager(settings=settings)\n        self.audio_manager = AudioManager()\n        self.chat_manager
+    = ChatManager(settings=self.settings)\n\n    @classmethod\n    async def check_mentions_on_all_projects(cls,
+    all_projects):\n        tasks = []\n        for project in all_projects:\n            try:\n                change_manager
+    = ChangeManager(settings=project)\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/file_finder.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/file_finder.py\n@router.post(\"/file-finder\")\nasync
+    def upload_files(request: Request, file: UploadFile = None) -> Dict:\n    \"\"\"\n    Process
+    file finder requests and return file information based on the request query parameters.\n\n    Args:\n        request
+    (Request): The incoming request object with query parameters.\n\n    Returns:\n        Dict[str,
+    Union[str, List[Dict[str, Any]]]]: A dictionary containing file information.\n    \"\"\"\n    #
+    Retrieve the session from the request state\n    codx_junior_session = request.state.codx_junior_session\n    settings
+    = codx_junior_session.settings\n    file_manager = FileManager(settings=settings)\n    \n    #
+    Extracting query parameters for adapter and path\n    adapter = request.query_params.get(\"adapter\",
+    \"local\")\n    path = request.query_params.get(\"path\") or \"local:///\"\n    q
+    = request.query_params.get(\"q\")\n\n    if q == ''delere'':\n        # {items:
+    [{path: \"/java\", type: \"dir\"}]}\n        payload = await request.json()\n        raise
+    Exception(f''not implemented: {q}'')\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/wiki/wiki_template/wiki-manager.sh\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/wiki/wiki_template/wiki-manager.sh\n.
+    $HOME/.nvm/nvm.sh\nrm -rf mode_modules\nnpm i\nnpm run docs:build\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/changes/change_manager.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/changes/change_manager.py\ndef
+    update_project_metrics(self):\n        metrics_manager = CODXJuniorMetrics(settings=self.settings)\n        self.metrics
+    = metrics_manager.project_metrics()\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/security/user_management.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/security/user_management.py\ntry:\n                stored_user
+    = self.find_user(username=user.username)\n                stored_login = self.find_user_login(username=user.username)\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/users.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/users.py\n@router.put(\"/users\")\nasync
+    def user_update(request: Request, user: CodxUser = Depends(get_authenticated_user)):\n    body
+    = await request.json()\n    user_security_manager = UserSecurityManager()\n    user_changes
+    = CodxUser(**body)\n    if user.username != user_changes.username:\n      logger.error(f\"User
+    {user} not match {user_changes}\")\n      raise Exception(\"Invalid data\")\n    return
+    user_security_manager.update_user(user_changes)\n\n@router.get(\"/users\")\ndef
+    list_update():\n    return UserSecurityManager().list_user()\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/prepromts/enrich_document.md\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/prepromts/enrich_document.md\nExtract
+    all keywords and names like classes, methods or global variables, in a CSV list
+    from this code:\n```{{ language }}\n{{ page_content }}\n```\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/api/users.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/api/users.py\nimport
+    logging\nimport datetime\nfrom fastapi import APIRouter, Request, Depends\nimport
+    httpx\n\nfrom codx.junior.engine import (\n  CODXJuniorSession,\n)\n\nfrom codx.junior.security.user_management
+    import UserSecurityManager, get_authenticated_user\nfrom codx.junior.model.model
+    import CodxUser, CodxUserLogin, GlobalSettings\nfrom codx.junior.security.github_oauth
+    import GitHubOAuth, GITHUB_CLIENTS\n\nfrom codx.junior.settings import get_oauth_provider\n\nlogger
+    = logging.getLogger(__name__)\n\nrouter = APIRouter()\n\n@router.get(\"/users/oauth-login-url/{oauth_provider}\")\nasync
+    def get_oauth_login_url(oauth_provider: str, request: Request):\n    \"\"\"Generate
+    and return the OAuth login URL.\"\"\"\n    redirect_uri = request.query_params.get(\"redirect_uri\")\n    provider_info
+    = get_oauth_provider(oauth_provider)\n    if not provider_info:\n        logger.error(f\"OAuth
+    provider not found: {oauth_provider} - {global_settings.oauth_providers}\")\n        return
+    {\"error\": f\"Provider {oauth_provider} not supported\"}\n\n    if oauth_provider
+    == \"github\":\n        github_oauth = GitHubOAuth(client_id=provider_info.client_id,
+    client_secret=provider_info.secret, redirect_uri=redirect_uri)\n        auth_url
+    = github_oauth.get_authorization_url()\n        return { \"auth_url\": auth_url
+    }\n\n    return {\"error\": \"Provider not supported\"}\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/misc/github.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/misc/github.py\nlogger.warning(\"React
+    app embedded data not found in issue page: %s\", issue_url)\n    return \"React
+    app data not found in the issue page.\"\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/engine.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/engine.py\nimport json\nimport
+    logging\nimport os\nimport re\nimport shutil\nimport subprocess\nimport time\nimport
+    uuid\nfrom contextlib import contextmanager\nfrom datetime import datetime, timedelta\nfrom
+    pathlib import Path\nfrom typing import Optional\n\nimport requests\nfrom langchain.schema
+    import (\n    AIMessage,\n    HumanMessage,\n    BaseMessage\n)\n\nfrom langchain.schema.document
+    import Document\n\nfrom codx.junior.ai import AI\nfrom codx.junior.chat.chat_engine
+    import ChatEngine\nfrom codx.junior.chat_manager import ChatManager\nfrom codx.junior.context
+    import (\n    find_relevant_documents,\n    validate_search_documents,\n    AI_CODE_VALIDATE_RESPONSE_PARSER,\n    generate_markdown_tree,\n    AI_CODE_GENERATOR_PARSER,\n    AICodeGenerator\n)\nfrom
+    codx.junior.db import (\n    Chat,\n    Message,\n    MessageTaskItem\n)\nfrom
+    codx.junior.events.event_manager import EventManager\nfrom codx.junior.globals
+    import (\n    MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,\n    MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS,\n    CODX_JUNIOR_API_BACKGROUND,\n    APPS,\n    APPS_COMMANDS,\n    coder_open_file,\n)\nfrom
+    codx.junior.project.project_discover import (\n    find_project_by_id,\n    find_project_by_name,\n    find_project_parents\n)\nfrom
+    codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords\nfrom codx.junior.knowledge.knowledge_loader
+    import KnowledgeLoader\nfrom codx.junior.knowledge.knowledge_milvus import Knowledge\nfrom
+    codx.junior.mentions.mention_manager import MentionManager\nfrom codx.junior.model.model
+    import (\n    KnowledgeSearch,\n    Profile\n)\nfrom codx.junior.profiles.profile_manager
+    import ProfileManager\nfrom codx.junior.profiling.profiler import profile_function\nfrom
+    codx.junior.settings import (\n    CODXJuniorSettings\n)\nfrom codx.junior.sio.session_channel
+    import SessionChannel\nfrom codx.junior.utils.chat_utils import ChatUtils\nfrom
+    codx.junior.utils.utils import (\n    extract_json_blocks,\n    exec_command,\n    write_file,\n    clean_string\n)\n\nfrom
+    codx.junior.whisper.audio_manager import AudioManager\n    </document>\n    \n\n    <document
+    keywords=\"None\" category=\"None\" source=\"/shared/codx-junior/api/codx/junior/sio/sio.py\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/sio/sio.py\ndef sio_api_endpoint(func):\n    \"\"\"Decorator
+    to process sio API requests.\"\"\"\n    @functools.wraps(func)\n    async def
+    wrapper(sid: str, data: dict):\n        logger.info(f\"SIO REquest {sid} {data}\")\n        base_data
+    = SioMessage(**data)\n        channel = SessionChannel(sio=sio, sid=sid)\n        user
+    = get_authenticated_user_from_token(USERS[sid][\"user\"][\"token\"])\n        codxjunior_session
+    = CODXJuniorSession(\n                                channel=channel,\n                                user=user,\n                                codx_path=base_data.codx_path)
+    if base_data.codx_path \\\n                                  else None # Global
+    requests\n        try:\n            if not asyncio.iscoroutinefunction(func):\n                return
+    SIO_POOL.submit(func, sid, data, codxjunior_session).result\n            else:\n                def
+    worker():\n                    try:\n                        return asyncio.run(func(sid,
+    data, codxjunior_session))\n                    except Exception as ex:\n                        logger.exception(f\"Error
+    processing async sio message\")\n                    return None\n                return
+    SIO_POOL.submit(worker)\n        except Exception as ex:\n            logger.exception(f\"Error
+    processing sio message\")\n        return None\n    return wrapper\n\nasync def
+    sio_send_event(event, data):\n    return await sio.emit(event, data)\n\n@sio.on(\"error\")\nasync
+    def error():\n    logger.error(f\"Socket error\")\n\n@sio.on(\"connect\")\nasync
+    def connect(sid, env):\n    logger.info(\"New Client Connected to This id :\"+\"
+    \"+str(sid))\n\ndef send_online_users(sid):\n    channel = SessionChannel(sio=sio,
+    sid=sid)\n    online_users = [{\n      \"username\": USERS[sid][\"user\"].get(\"username\"),\n      \"avatar\":
+    USERS[sid][\"user\"].get(\"avatar\"),\n      \"sid\": sid\n    } for sid in USERS.keys()
+    if USERS.get(\"sid\",{}).get(\"user\")]\n    channel.send_event(''codx-junior-online-users'',
+    { \"users\": online_users })\n    </document>\n    \n\n    <document keywords=\"None\"
+    category=\"None\" source=\"/shared/codx-junior/api/codx/junior/knowledge/prepromts/extract_document_tags.md\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/knowledge/prepromts/extract_document_tags.md\nEXTRACT
+    A CSV LIST LIKE THIS:\n```csv\nkey1,key2,key_three\n```\nFROM THIS CONTENT:\n\n  *
+    FILE NAME: {{ source }}\n  * LANGUAGE: {{ language }}\n  * CONTENT: {{ page_content
+    }}\n    </document>\n    \n\n    <document keywords=\"None\" category=\"None\"
+    source=\"/shared/codx-junior/api/codx/junior/wiki/wiki_template/.vitepress/config.mts\"
+    language=\"txt\">\n    /shared/codx-junior/api/codx/junior/wiki/wiki_template/.vitepress/config.mts\nimport
+    config from ''./config.json'' with {type: ''json''};\nimport { defineConfig }
+    from ''vitepress''\n\nconst {\n  project: {\n    name: title,\n    description,\n    icon,\n    repository\n  },\n  sidebar\n}
+    = config as any\nconst socialLinks = []\nif (repository) {\n  socialLinks.push({
+    icon: ''github'', link: repository })\n}\n// https://vitepress.dev/reference/site-config\nexport
+    default defineConfig({\n  title,\n  description,\n  base:''/api/wiki/'' + title,\n  ignoreDeadLinks:
+    true,\n  themeConfig: {\n    search: {\n      provider: ''local''\n    },\n    logo:
+    icon,\n    // https://vitepress.dev/reference/default-theme-config\n    nav: [\n      {
+    text: ''Home'', link: ''/'' },\n    ],\n    sidebar,\n    socialLinks\n  },\n})\n    </document>\n    \n        "]
+
+    ```'
+  created_at: '2025-10-11 07:41:21.313144'
+  disable_knowledge: false
+  doc_id: 1631639e-52f8-4f2b-8f3c-08d42916dcbe
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-11 07:41:21.313167'
+  user: null
+- content: "```plaintext\n<document>\nThe project `@codx-api` appears to be a comprehensive\
+    \ FastAPI application named `CODXJuniorAPI`, which is structured to provide a\
+    \ variety of API endpoints related to project management, knowledge management,\
+    \ chat functionalities, and integration with external services like GitHub. Below\
+    \ is a summary of the key components and functionalities found in the project's\
+    \ main application file, located at `/shared/codx-junior/api/codx/junior/app.py`:\n\
+    \n### Overview\nThe application is a FastAPI-based web service with several endpoints\
+    \ that handle different aspects of project and user management, file operations,\
+    \ chat interactions, and more. It uses several Python modules and imports for\
+    \ handling requests, logging, and background services.\n\n### Key Functionalities\n\
+    1. **Project Management**:\n   - Create, delete, and manage projects.\n   - Watch\
+    \ and unwatch project changes.\n   - Retrieve project metrics and repository information.\n\
+    \n2. **Knowledge Management**:\n   - Reload and delete knowledge sources.\n  \
+    \ - Search and manage knowledge-related data.\n   - Extract and manage keywords\
+    \ from documents.\n\n3. **Chat and Communication**:\n   - Manage chat sessions\
+    \ and messages.\n   - Generate tasks and subtasks from chat interactions.\n  \
+    \ - Integrate with AI models for improved communication.\n\n4. **User Management**:\n\
+    \   - Handle user authentication and profile management.\n   - Provide OAuth login\
+    \ URLs for external providers like GitHub.\n\n5. **File Operations**:\n   - Read,\
+    \ write, and manage files within the project.\n   - Perform file diffs and handle\
+    \ file uploads.\n\n6. **Background Services**:\n   - Start and manage background\
+    \ tasks for project monitoring.\n   - Reload AI models and handle event processing\
+    \ asynchronously.\n\n7. **Integration with External Services**:\n   - GitHub API\
+    \ integration for issue management.\n   - Use of socket.io for real-time communication.\n\
+    \n8. **Logging and Error Handling**:\n   - Comprehensive logging setup for debugging\
+    \ and monitoring.\n   - Custom exception handlers for API validation and general\
+    \ errors.\n\n### Additional Components\n- **Socket.IO Integration**: The project\
+    \ uses Socket.IO for real-time communication and manages events through a custom\
+    \ session channel.\n- **AI and Knowledge Management**: The application integrates\
+    \ with AI models for generating code, improving existing code, and managing knowledge\
+    \ bases.\n- **Static and Media File Management**: The project serves static files\
+    \ and uploaded images through mounted directories.\n\n### Configuration and Setup\n\
+    The application reads configuration from environment variables and includes settings\
+    \ for API endpoints, logging levels, and integration with Docker and Traefik for\
+    \ service management.\n\n### Source Files\nThe main source file is `/shared/codx-junior/api/codx/junior/app.py`,\
+    \ and it includes additional modules for handling specific functionalities like\
+    \ user management, GitHub integration, and file operations.\n\nThis project represents\
+    \ a robust platform for managing software development projects with capabilities\
+    \ for AI integration, real-time communication, and extensive API support.\n</document>\n\
+    ```"
+  created_at: '2025-10-11 07:41:21.313144'
+  disable_knowledge: false
+  doc_id: 42dc54a8-fbdc-458c-bafc-d32ff31312c6
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00018072128295898438
+    model: openai/gpt-4o
+    time_taken: 6.346928358078003
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-11 07:41:21.313167'
+  user: null
+- content: find_projects @codx-api
+  created_at: '2025-10-11 07:41:21.313144'
+  disable_knowledge: false
+  doc_id: 7c180fc7-10fb-4fe9-99d0-c0f1a553396d
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-11 07:41:21.313167'
+  user: admin
+- content: "```plaintext\n<document>\nThe project `@codx-api` appears to be a comprehensive\
+    \ FastAPI application named `CODXJuniorAPI`, which is structured to provide a\
+    \ variety of API endpoints related to project management, knowledge management,\
+    \ chat functionalities, and integration with external services like GitHub. Below\
+    \ is a summary of the key components and functionalities found in the project's\
+    \ main application file, located at `/shared/codx-junior/api/codx/junior/app.py`:\n\
+    \n### Overview\nThe application is a FastAPI-based web service with several endpoints\
+    \ that handle different aspects of project and user management, file operations,\
+    \ chat interactions, and more. It uses several Python modules and imports for\
+    \ handling requests, logging, and background services.\n\n### Key Functionalities\n\
+    1. **Project Management** (`find_projects`):\n   - Create, delete, and manage\
+    \ projects.\n   - Watch and unwatch project changes.\n   - Retrieve project metrics\
+    \ and repository information.\n\n2. **Knowledge Management**:\n   - Reload and\
+    \ delete knowledge sources.\n   - Search and manage knowledge-related data.\n\
+    \   - Extract and manage keywords from documents.\n\n3. **Chat and Communication**:\n\
+    \   - Manage chat sessions and messages.\n   - Generate tasks and subtasks from\
+    \ chat interactions.\n   - Integrate with AI models for improved communication.\n\
+    \n4. **User Management**:\n   - Handle user authentication and profile management.\n\
+    \   - Provide OAuth login URLs for external providers like GitHub.\n\n5. **File\
+    \ Operations**:\n   - Read, write, and manage files within the project.\n   -\
+    \ Perform file diffs and handle file uploads.\n\n6. **Background Services**:\n\
+    \   - Start and manage background tasks for project monitoring.\n   - Reload AI\
+    \ models and handle event processing asynchronously.\n\n7. **Integration with\
+    \ External Services**:\n   - GitHub API integration for issue management.\n  \
+    \ - Use of socket.io for real-time communication.\n\n8. **Logging and Error Handling**:\n\
+    \   - Comprehensive logging setup for debugging and monitoring.\n   - Custom exception\
+    \ handlers for API validation and general errors.\n\n### Additional Components\n\
+    - **Socket.IO Integration**: The project uses Socket.IO for real-time communication\
+    \ and manages events through a custom session channel.\n- **AI and Knowledge Management**:\
+    \ The application integrates with AI models for generating code, improving existing\
+    \ code, and managing knowledge bases.\n- **Static and Media File Management**:\
+    \ The project serves static files and uploaded images through mounted directories.\n\
+    \n### Configuration and Setup\nThe application reads configuration from environment\
+    \ variables and includes settings for API endpoints, logging levels, and integration\
+    \ with Docker and Traefik for service management.\n\n### Source Files\nThe main\
+    \ source file is `/shared/codx-junior/api/codx/junior/app.py`, and it includes\
+    \ additional modules for handling specific functionalities like user management,\
+    \ GitHub integration, and file operations.\n\nThis project represents a robust\
+    \ platform for managing software development projects with capabilities for AI\
+    \ integration, real-time communication, and extensive API support.\n</document>\n\
+    ```"
+  created_at: '2025-10-11 07:41:21.313144'
+  disable_knowledge: false
+  doc_id: e71d9f45-bdab-4788-9e0c-9b24a421f59d
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0001862049102783203
+    model: openai/gpt-4o
+    time_taken: 4.155385494232178
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-11 07:41:21.313167'
+  user: null
+mode: task
+name: find-project - 124438
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-11T10:46:29.825383'
+url: ''
+users:
+- admin
+visibility: ''

@@ -1,0 +1,33 @@
+board: Profiles
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-03-14 11:51:19.786256'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Profiles/Backlog/new-analysis-task.7e7a03d0-987d-4054-b968-57d078edf5e6.yaml
+id: 7e7a03d0-987d-4054-b968-57d078edf5e6
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: task
+name: New Analysis Task
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- analyst
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-03-14T15:48:59.452199'
+url: ''
+users: []
+visibility: ''

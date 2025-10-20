@@ -1,0 +1,335 @@
+board: Whisper
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: To Do
+column_id: ''
+created_at: '2025-08-12 16:31:23.940972'
+description: '1. The user provided an example script for voice separation, transcription,
+  and diarization using various audio processing libraries.
+
+  2. The request was to integrate this functionality into an `AudioManager` class
+  to manage audio tasks.
+
+  3. Instructions included isolating vocals using Demucs and performing transcription
+  with WhisperModel.
+
+  4. A NeMo model was suggested for diarization, with additional steps for handling
+  audio and timestamps.
+
+  5. A list of new libraries required for these functionalities was provided, including
+  Demucs, PyTorch, Torchaudio, NeMo, and others.'
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/whisper/audio_manager.py
+file_path: /shared/codx-junior/api/.codx/tasks/Whisper/To Do/extract-voices.5402e4fc-8572-4c5b-91a3-a0fbd00fdf88.yaml
+id: 5402e4fc-8572-4c5b-91a3-a0fbd00fdf88
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "@file://audio_manager.py\nWe must try to separate voices in the audio.\n\
+    Below there's an example, intregate it with AudioManager.\_\n````\nimport argparse\n\
+    import logging\nimport os\nimport re\n\n\nimport faster_whisper\nimport torch\n\
+    import torchaudio\n\n\nfrom ctc_forced_aligner import (\n\_ \_ generate_emissions,\n\
+    \_ \_ get_alignments,\n\_ \_ get_spans,\n\_ \_ load_alignment_model,\n\_ \_ postprocess_results,\n\
+    \_ \_ preprocess_text,\n)\nfrom deepmultilingualpunctuation import PunctuationModel\n\
+    from nemo.collections.asr.models.msdd_models import NeuralDiarizer\n\n\nfrom helpers\
+    \ import (\n\_ \_ cleanup,\n\_ \_ create_config,\n\_ \_ find_numeral_symbol_tokens,\n\
+    \_ \_ get_realigned_ws_mapping_with_punctuation,\n\_ \_ get_sentences_speaker_mapping,\n\
+    \_ \_ get_speaker_aware_transcript,\n\_ \_ get_words_speaker_mapping,\n\_ \_ langs_to_iso,\n\
+    \_ \_ process_language_arg,\n\_ \_ punct_model_langs,\n\_ \_ whisper_langs,\n\_\
+    \ \_ write_srt,\n)\n\n\nmtypes = {\"cpu\": \"int8\", \"cuda\": \"float16\"}\n\n\
+    \npid = os.getpid()\ntemp_outputs_dir = f\"temp_outputs_{pid}\"\n\n\n# Initialize\
+    \ parser\nparser = argparse.ArgumentParser()\nparser.add_argument(\n\_ \_ \"-a\"\
+    , \"--audio\", help=\"name of the target audio file\", required=True\n)\nparser.add_argument(\n\
+    \_ \_ \"--no-stem\",\n\_ \_ action=\"store_false\",\n\_ \_ dest=\"stemming\",\n\
+    \_ \_ default=True,\n\_ \_ help=\"Disables source separation.\"\n\_ \_ \"This\
+    \ helps with long files that don't contain a lot of music.\",\n)\n\n\nparser.add_argument(\n\
+    \_ \_ \"--suppress_numerals\",\n\_ \_ action=\"store_true\",\n\_ \_ dest=\"suppress_numerals\"\
+    ,\n\_ \_ default=False,\n\_ \_ help=\"Suppresses Numerical Digits.\"\n\_ \_ \"\
+    This helps the diarization accuracy but converts all digits into written text.\"\
+    ,\n)\n\n\nparser.add_argument(\n\_ \_ \"--whisper-model\",\n\_ \_ dest=\"model_name\"\
+    ,\n\_ \_ default=\"medium.en\",\n\_ \_ help=\"name of the Whisper model to use\"\
+    ,\n)\n\n\nparser.add_argument(\n\_ \_ \"--batch-size\",\n\_ \_ type=int,\n\_ \_\
+    \ dest=\"batch_size\",\n\_ \_ default=8,\n\_ \_ help=\"Batch size for batched\
+    \ inference, reduce if you run out of memory, \"\n\_ \_ \"set to 0 for original\
+    \ whisper longform inference\",\n)\n\n\nparser.add_argument(\n\_ \_ \"--language\"\
+    ,\n\_ \_ type=str,\n\_ \_ default=None,\n\_ \_ choices=whisper_langs,\n\_ \_ help=\"\
+    Language spoken in the audio, specify None to perform language detection\",\n\
+    )\n\n\nparser.add_argument(\n\_ \_ \"--device\",\n\_ \_ dest=\"device\",\n\_ \_\
+    \ default=\"cuda\" if torch.cuda.is_available() else \"cpu\",\n\_ \_ help=\"if\
+    \ you have a GPU use 'cuda', otherwise 'cpu'\",\n)\n\n\nargs = parser.parse_args()\n\
+    language = process_language_arg(args.language, args.model_name)\n\n\nif args.stemming:\n\
+    \_ \_ # Isolate vocals from the rest of the audio\n\n\n\_ \_ return_code = os.system(\n\
+    \_ \_ \_ \_ f'python -m demucs.separate -n htdemucs --two-stems=vocals \"{args.audio}\"\
+    \ -o \"{temp_outputs_dir}\" --device \"{args.device}\"'\n\_ \_ )\n\n\n\_ \_ if\
+    \ return_code != 0:\n\_ \_ \_ \_ logging.warning(\n\_ \_ \_ \_ \_ \_ \"Source\
+    \ splitting failed, using original audio file. \"\n\_ \_ \_ \_ \_ \_ \"Use --no-stem\
+    \ argument to disable it.\"\n\_ \_ \_ \_ )\n\_ \_ \_ \_ vocal_target = args.audio\n\
+    \_ \_ else:\n\_ \_ \_ \_ vocal_target = os.path.join(\n\_ \_ \_ \_ \_ \_ temp_outputs_dir,\n\
+    \_ \_ \_ \_ \_ \_ \"htdemucs\",\n\_ \_ \_ \_ \_ \_ os.path.splitext(os.path.basename(args.audio))[0],\n\
+    \_ \_ \_ \_ \_ \_ \"vocals.wav\",\n\_ \_ \_ \_ )\nelse:\n\_ \_ vocal_target =\
+    \ args.audio\n\n\n\n\n# Transcribe the audio file\n\n\nwhisper_model = faster_whisper.WhisperModel(\n\
+    \_ \_ args.model_name, device=args.device, compute_type=mtypes[args.device]\n\
+    )\nwhisper_pipeline = faster_whisper.BatchedInferencePipeline(whisper_model)\n\
+    audio_waveform = faster_whisper.decode_audio(vocal_target)\nsuppress_tokens =\
+    \ (\n\_ \_ find_numeral_symbol_tokens(whisper_model.hf_tokenizer)\n\_ \_ if args.suppress_numerals\n\
+    \_ \_ else [-1]\n)\n\n\nif args.batch_size > 0:\n\_ \_ transcript_segments, info\
+    \ = whisper_pipeline.transcribe(\n\_ \_ \_ \_ audio_waveform,\n\_ \_ \_ \_ language,\n\
+    \_ \_ \_ \_ suppress_tokens=suppress_tokens,\n\_ \_ \_ \_ batch_size=args.batch_size,\n\
+    \_ \_ )\nelse:\n\_ \_ transcript_segments, info = whisper_model.transcribe(\n\_\
+    \ \_ \_ \_ audio_waveform,\n\_ \_ \_ \_ language,\n\_ \_ \_ \_ suppress_tokens=suppress_tokens,\n\
+    \_ \_ \_ \_ vad_filter=True,\n\_ \_ )\n\n\nfull_transcript = \"\".join(segment.text\
+    \ for segment in transcript_segments)\n\n\n# clear gpu vram\ndel whisper_model,\
+    \ whisper_pipeline\ntorch.cuda.empty_cache()\n\n\n# Forced Alignment\nalignment_model,\
+    \ alignment_tokenizer = load_alignment_model(\n\_ \_ args.device,\n\_ \_ dtype=torch.float16\
+    \ if args.device == \"cuda\" else torch.float32,\n)\n\n\nemissions, stride = generate_emissions(\n\
+    \_ \_ alignment_model,\n\_ \_ torch.from_numpy(audio_waveform)\n\_ \_ .to(alignment_model.dtype)\n\
+    \_ \_ .to(alignment_model.device),\n\_ \_ batch_size=args.batch_size,\n)\n\n\n\
+    del alignment_model\ntorch.cuda.empty_cache()\n\n\ntokens_starred, text_starred\
+    \ = preprocess_text(\n\_ \_ full_transcript,\n\_ \_ romanize=True,\n\_ \_ language=langs_to_iso[info.language],\n\
+    )\n\n\nsegments, scores, blank_token = get_alignments(\n\_ \_ emissions,\n\_ \_\
+    \ tokens_starred,\n\_ \_ alignment_tokenizer,\n)\n\n\nspans = get_spans(tokens_starred,\
+    \ segments, blank_token)\n\n\nword_timestamps = postprocess_results(text_starred,\
+    \ spans, stride, scores)\n\n\n\n\n# convert audio to mono for NeMo combatibility\n\
+    ROOT = os.getcwd()\ntemp_path = os.path.join(ROOT, temp_outputs_dir)\nos.makedirs(temp_path,\
+    \ exist_ok=True)\ntorchaudio.save(\n\_ \_ os.path.join(temp_path, \"mono_file.wav\"\
+    ),\n\_ \_ torch.from_numpy(audio_waveform).unsqueeze(0).float(),\n\_ \_ 16000,\n\
+    \_ \_ channels_first=True,\n)\n\n\n\n\n# Initialize NeMo MSDD diarization model\n\
+    msdd_model = NeuralDiarizer(cfg=create_config(temp_path)).to(args.device)\nmsdd_model.diarize()\n\
+    \n\ndel msdd_model\ntorch.cuda.empty_cache()\n\n\n# Reading timestamps <> Speaker\
+    \ Labels mapping\n\n\n\n\nspeaker_ts = []\nwith open(os.path.join(temp_path, \"\
+    pred_rttms\", \"mono_file.rttm\"), \"r\") as f:\n\_ \_ lines = f.readlines()\n\
+    \_ \_ for line in lines:\n\_ \_ \_ \_ line_list = line.split(\" \")\n\_ \_ \_\
+    \ \_ s = int(float(line_list[5]) * 1000)\n\_ \_ \_ \_ e = s + int(float(line_list[8])\
+    \ * 1000)\n\_ \_ \_ \_ speaker_ts.append([s, e, int(line_list[11].split(\"_\"\
+    )[-1])])\n\n\nwsm = get_words_speaker_mapping(word_timestamps, speaker_ts, \"\
+    start\")\n\n\nif info.language in punct_model_langs:\n\_ \_ # restoring punctuation\
+    \ in the transcript to help realign the sentences\n\_ \_ punct_model = PunctuationModel(model=\"\
+    kredor/punctuate-all\")\n\n\n\_ \_ words_list = list(map(lambda x: x[\"word\"\
+    ], wsm))\n\n\n\_ \_ labled_words = punct_model.predict(words_list, chunk_size=230)\n\
+    \n\n\_ \_ ending_puncts = \".?!\"\n\_ \_ model_puncts = \".,;:!?\"\n\n\n\_ \_\
+    \ # We don't want to punctuate U.S.A. with a period. Right?\n\_ \_ is_acronym\
+    \ = lambda x: re.fullmatch(r\"\\b(?:[a-zA-Z]\\.){2,}\", x)\n\n\n\_ \_ for word_dict,\
+    \ labeled_tuple in zip(wsm, labled_words):\n\_ \_ \_ \_ word = word_dict[\"word\"\
+    ]\n\_ \_ \_ \_ if (\n\_ \_ \_ \_ \_ \_ word\n\_ \_ \_ \_ \_ \_ and labeled_tuple[1]\
+    \ in ending_puncts\n\_ \_ \_ \_ \_ \_ and (word[-1] not in model_puncts or is_acronym(word))\n\
+    \_ \_ \_ \_ ):\n\_ \_ \_ \_ \_ \_ word += labeled_tuple[1]\n\_ \_ \_ \_ \_ \_\
+    \ if word.endswith(\"..\"):\n\_ \_ \_ \_ \_ \_ \_ \_ word = word.rstrip(\".\"\
+    )\n\_ \_ \_ \_ \_ \_ word_dict[\"word\"] = word\n\n\nelse:\n\_ \_ logging.warning(\n\
+    \_ \_ \_ \_ f\"Punctuation restoration is not available for {info.language} language.\"\
+    \n\_ \_ \_ \_ \" Using the original punctuation.\"\n\_ \_ )\n\n\nwsm = get_realigned_ws_mapping_with_punctuation(wsm)\n\
+    ssm = get_sentences_speaker_mapping(wsm, speaker_ts)\n\n\nwith open(f\"{os.path.splitext(args.audio)[0]}.txt\"\
+    , \"w\", encoding=\"utf-8-sig\") as f:\n\_ \_ get_speaker_aware_transcript(ssm,\
+    \ f)\n\n\nwith open(f\"{os.path.splitext(args.audio)[0]}.srt\", \"w\", encoding=\"\
+    utf-8-sig\") as srt:\n\_ \_ write_srt(ssm, srt)\n\n\ncleanup(temp_path)\n```"
+  created_at: '2025-08-12 16:31:23.939005'
+  disable_knowledge: true
+  doc_id: 1722f79d-e00e-422a-8b79-ec4947d8137a
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/whisper/audio_manager.py
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-12 16:31:23.939032'
+  user: admin
+- content: "To integrate the voice separation example with the `AudioManager` class,\
+    \ we will need to include some of the essential methods and configurations present\
+    \ in the example script into the `AudioManager`. Here's how the integration can\
+    \ be done:\n\n1. Add necessary configurations and initializations.\n2. Add the\
+    \ functionality to separate voices using Demucs.\n3. Integrate the transcription\
+    \ and diarization functionality.\n\nHere's how you can integrate these features\
+    \ into the `AudioManager`:\n\n```python\nimport logging\nimport time\nfrom typing\
+    \ import List, Dict\nfrom faster_whisper import WhisperModel\nfrom tempfile import\
+    \ NamedTemporaryFile\nimport ffmpeg\nimport os\nimport json\nimport torchaudio\n\
+    import torch\nfrom nemo.collections.asr.models.msdd_models import NeuralDiarizer\n\
+    \n# Add necessary imports\nfrom deepmultilingualpunctuation import PunctuationModel\n\
+    from ctc_forced_aligner import (\n    generate_emissions,\n    get_alignments,\n\
+    \    get_spans,\n    load_alignment_model,\n    postprocess_results,\n    preprocess_text,\n\
+    )\nfrom helpers import (\n    cleanup,\n    create_config,\n    find_numeral_symbol_tokens,\n\
+    \    get_realigned_ws_mapping_with_punctuation,\n    get_sentences_speaker_mapping,\n\
+    \    get_speaker_aware_transcript,\n    get_words_speaker_mapping,\n    langs_to_iso,\n\
+    \    process_language_arg,\n    punct_model_langs,\n    whisper_langs,\n    write_srt,\n\
+    )\n\n# Configure logging\nlogging.basicConfig(level=logging.INFO)\nlogger = logging.getLogger(__name__)\n\
+    \n# Constants for conversion formats\nSUPPORTED_CONVERSIONS: Dict[str, List[str]]\
+    \ = {'webm': ['wav', 'mp4']}\nSUPPORTED_EXTRACTIONS: set = {'webm', 'wav', 'mp4',\
+    \ 'mp3'}\n\nWHISPER_MODEL = WhisperModel(\n    \"small\", device=\"cpu\", compute_type=\"\
+    float32\"\n)\n\nclass AudioManager:\n    \"\"\"Class to manage conversion and\
+    \ transcription of audio/video files.\"\"\"\n\n    def __init__(self) -> None:\n\
+    \        \"\"\"Initialize the audio manager with model configurations.\"\"\"\n\
+    \        self.model: WhisperModel = WHISPER_MODEL\n\n    def transcribe_and_diarize(self,\
+    \ file_path: str) -> Dict[str, str or List[Dict[str, str]]]:\n        \"\"\"\n\
+    \        Separate voices, transcribe and perform diarization on the given file.\n\
+    \        \n        Parameters:\n            file_path (str): Path to the local\
+    \ file.\n\n        Returns:\n            Dict[str, str or List[Dict[str, str]]]:\
+    \ Transcription results including elapsed time, transcript, and diarization information.\n\
+    \        \"\"\"\n        # Isolate vocals from the rest of the audio\n       \
+    \ temp_outputs_dir = f\"temp_outputs\"\n        return_code = os.system(\n   \
+    \         f'python -m demucs.separate -n htdemucs --two-stems=vocals \"{file_path}\"\
+    \ -o \"{temp_outputs_dir}\"'\n        )\n\n        if return_code != 0:\n    \
+    \        logger.warning(\n                \"Source splitting failed, using original\
+    \ audio file.\"\n            )\n            vocal_target = file_path\n       \
+    \ else:\n            vocal_target = os.path.join(\n                temp_outputs_dir,\n\
+    \                \"htdemucs\",\n                os.path.splitext(os.path.basename(file_path))[0],\n\
+    \                \"vocals.wav\",\n            )\n        \n        # Now perform\
+    \ transcription using the audio with separated vocals\n        logger.info(\"\
+    Starting transcription for file (with separated vocals): %s\", vocal_target)\n\
+    \        start_time = time.perf_counter()\n        transcript = self._perform_transcription(vocal_target)\n\
+    \        elapsed_time: float = time.perf_counter() - start_time\n\n        logger.info(\n\
+    \            \"Transcription completed in %.2f seconds for file: %s\", elapsed_time,\
+    \ vocal_target\n        )\n\n        # Diarization: convert audio to mono for\
+    \ NeMo compatibility\n        torchaudio.save(\n            os.path.join(temp_outputs_dir,\
+    \ \"mono_file.wav\"),\n            torchaudio.load(vocal_target)[0].unsqueeze(0).float(),\n\
+    \            16000,\n            channels_first=True,\n        )\n\n        #\
+    \ Initialize NeMo MSDD diarization model\n        msdd_model = NeuralDiarizer(cfg=create_config(temp_outputs_dir)).to(\"\
+    cuda\" if torch.cuda.is_available() else \"cpu\")\n        msdd_model.diarize()\n\
+    \        \n        # Read timestamps <> Speaker Labels mapping\n        speaker_ts\
+    \ = []\n        with open(os.path.join(temp_outputs_dir, \"pred_rttms\", \"mono_file.rttm\"\
+    ), \"r\") as f:\n            lines = f.readlines()\n            for line in lines:\n\
+    \                line_list = line.split(\" \")\n                s = int(float(line_list[5])\
+    \ * 1000)\n                e = s + int(float(line_list[8]) * 1000)\n         \
+    \       speaker_ts.append([s, e, int(line_list[11].split(\"_\")[-1])])\n     \
+    \   \n        # Cleanup\n        cleanup(temp_outputs_dir)\n\n        return {\n\
+    \            \"elapsed_time\": \"%.2f\" % elapsed_time,\n            \"transcript\"\
+    : transcript,\n            \"file_path\": file_path,\n            \"speaker_timestamps\"\
+    : speaker_ts\n        }\n\n    # Existing methods...\n\n    def _perform_transcription(self,\
+    \ file_path: str) -> List[Dict[str, str]]:\n        \"\"\"\n        Perform transcription\
+    \ on the given file.\n\n        Parameters:\n            file_path (str): Path\
+    \ to the media file.\n\n        Returns:\n            List[Dict[str, str]]: List\
+    \ of transcription segments.\n        \"\"\"\n        # Performing the transcription\
+    \ using WhisperModel.\n        segments, _ = self.model.transcribe(\n        \
+    \    file_path,\n            vad_filter=True,\n            no_repeat_ngram_size=2,\n\
+    \        )\n\n        transcript = [\n            {\"start\": s.start, \"end\"\
+    : s.end, \"text\": s.text}\n            for s in segments\n        ]\n\n     \
+    \   return transcript\n\n    def is_valid_media_file(self, file_path: str) ->\
+    \ bool:\n        \"\"\"Checks if the file has a valid media extension\"\"\"\n\
+    \        return True if file_path.split(\".\")[-1] in SUPPORTED_CONVERSIONS else\
+    \ False\n\n    def convert_format(self, file_path: str, output_format: str) ->\
+    \ str:\n        \"\"\"\n        Convert a given media file to the specified output\
+    \ format.\n\n        Parameters:\n            file_path (str): Path to the input\
+    \ media file.\n            output_format (str): Desired output format (e.g., 'wav',\
+    \ 'mp4').\n\n        Returns:\n            str: Path to the converted file.\n\
+    \        \"\"\"\n        logger.info(\"Converting file: %s to format: %s\", file_path,\
+    \ output_format)\n        input_format = file_path.split('.')[-1]\n\n        if\
+    \ output_format not in SUPPORTED_CONVERSIONS.get(input_format, []):\n        \
+    \    error_message = (\n                \"Conversion from %s to %s not supported.\"\
+    \ % (input_format, output_format)\n            )\n            logger.error(error_message)\n\
+    \            raise ValueError(error_message)\n\n        output_file: str = file_path.replace(input_format,\
+    \ output_format)\n\n        try:\n            ffmpeg.input(file_path).output(output_file).run(capture_stdout=True,\
+    \ capture_stderr=True)\n            logger.info(\"File converted successfully:\
+    \ %s\", output_file)\n        except ffmpeg.Error as e:\n            logger.error(\"\
+    Failed to convert file due to ffmpeg error: %s\", e)\n            raise\n\n  \
+    \      return output_file\n```\n\nThis integrated approach utilizes both Demucs\
+    \ for voice separation and NeMo for speaker diarization. This code abstracts the\
+    \ source separation, transcription, and diarization steps into a single method\
+    \ `transcribe_and_diarize`, which can be used to process audio files accordingly."
+  created_at: '2025-08-12 16:31:23.939005'
+  disable_knowledge: false
+  doc_id: edadfe9b-a666-4411-ade6-9ee9703bed33
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: true
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002944469451904297
+    model: gpt-4o
+    time_taken: 13.554882526397705
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-08-12 16:31:23.939032'
+  user: null
+- content: Give me a list of new libs we need to install
+  created_at: '2025-08-12 16:31:23.939005'
+  disable_knowledge: true
+  doc_id: 7cae09ee-3328-49b3-a495-1ef05605dec3
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-12 16:31:23.939032'
+  user: admin
+- content: "To integrate the provided functionality for voice separation, transcription,\
+    \ and diarization into the `AudioManager` class as described, you will need the\
+    \ following new Python libraries:\n\n1. **Demucs**: For source separation (voice\
+    \ isolation).\n   - Install via: `pip install demucs`\n\n2. **Faster Whisper**:\
+    \ For transcription, which you already have, but let's confirm it:\n   - Install\
+    \ via: `pip install faster-whisper`\n\n3. **Pytorch**: As a dependency for models\
+    \ like Whisper and NeMo.\n   - It's typically installed with GPU support if needed,\
+    \ e.g.,\n   - Install via: `pip install torch` (or follow specific installation\
+    \ instructions for GPUs).\n\n4. **TorchAudio**: For handling audio data with Pytorch.\n\
+    \   - Install via: `pip install torchaudio`\n\n5. **NeMo**: For neural diarization.\n\
+    \   - Install using: `pip install nemo_toolkit[all]`\n\n6. **CTC-Forced-Aligner**:\
+    \ For forced alignment.\n   - No direct pip installation command specified. Ensure\
+    \ to follow specific installation or setup instructions if needed.\n\n7. **DeepMultilingualPunctuation**:\
+    \ For punctuation restoration.\n   - Install via: `pip install deepmultilingualpunctuation`\n\
+    \nIf you do not already have these installed, these would be the additional dependencies\
+    \ needed to perform the tasks described in the updated code. Make sure to check\
+    \ the specific installation requirements for each library, especially for Pytorch,\
+    \ to ensure compatibility with your hardware (e.g., CPU vs. GPU support)."
+  created_at: '2025-08-12 16:31:23.939005'
+  disable_knowledge: false
+  doc_id: 207c077a-9820-4333-9a2b-4296c9f5b753
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00022745132446289062
+    model: gpt-4o
+    time_taken: 10.217733383178711
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-08-12 16:31:23.939032'
+  user: null
+mode: chat
+name: Extract voices
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-08-20T11:57:43.867148'
+url: ''
+users:
+- admin
+visibility: ''

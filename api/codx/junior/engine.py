@@ -75,8 +75,6 @@ from codx.junior.utils.utils import (
 from codx.junior.whisper.audio_manager import AudioManager
 
 from codx.junior.model.model import CodxUser
-from codx.junior.chat_heatmap import ChatHeatmapReport
-from codx.junior.chat_wall import ChatWallReport
 
 logger = logging.getLogger(__name__)
 
@@ -1215,15 +1213,20 @@ class CODXJuniorSession:
     def get_project_apps(self):
         return APPS
 
-    def get_project_branches(self):
+    
+    def get_repo_branches(self):
         def get_barnches(cmd):
             stdout, _ = exec_command(cmd,
                 cwd=self.settings.project_path)
             return [s.strip() for s in stdout.split("\n") if s.strip()]
         branches = list(set(get_barnches("git branch") + get_barnches("git branch -r")))
         branches.sort()
+        return branches
+    
+    def get_project_branches(self):
         return {
-          "branches": branches,
+          "branches": self.get_repo_branches(),
+          "repo_tree": self.get_repo_tree()
         }
 
     def get_project_branch_commits(self, branch):
@@ -1306,10 +1309,34 @@ class CODXJuniorSession:
 
         return log_list
 
-    def get_project_pr(self, from_branch: str, to_branch: str):
-        
-        pass
+    def get_repo_tree(self):
+        # Get all branches
+        branches = self.get_repo_branches()
+        repo_tree = []
 
+        for branch in branches:
+            branch_details = self.get_branch_details(branch_name=branch)
+
+            branch_info = {
+                "branch_name": branch,
+                "author": "",  # Author information can be extracted from the first commit if needed
+                "date": "",    # Date can be extracted from the first commit if needed
+                "commits": []
+            }
+
+            for commit in branch_details["commits"]:
+                commit_info = {
+                    "commit_id": commit['commit_hash'],
+                    "author": commit['author'],
+                    "date": commit['date'],
+                    "comment": commit['message'],
+                    "files": commit['files']
+                }
+                branch_info["commits"].append(commit_info)
+
+            repo_tree.append(branch_info)
+
+        return repo_tree
     def get_branch_details(self, branch_name: str):
         """
         Extracts commit details from a specified branch without checking it out.
@@ -1329,7 +1356,11 @@ class CODXJuniorSession:
         commits = []
         for entry in log_lines:
             if entry.strip():
-                commit_hash, author, date, message = entry.split('|', 3)
+                try:
+                    commit_hash, author, date, message = entry.split('|', 3)
+                except ValueError:
+                    self.log_error(f"Error parsing log entry: {entry}")
+                    continue
 
                 # Command to get files changed in each commit
                 file_changes_command = \
@@ -1347,7 +1378,7 @@ class CODXJuniorSession:
 
         return {
           "commits": commits,
-          "parent_branch": commits[-1]["commit_hash"]
+          "parent_branch": commits[-1]["commit_hash"] if commits else None
         }
 
     def get_project_current_branch(self):
@@ -1390,23 +1421,6 @@ class CODXJuniorSession:
         project_branches = self.get_project_branches()
         diff = project_branches["git_diff"]
         return self.get_knowledge().build_code_changes_summary(diff=diff, force=force)
-
-    def project_metrics(self):
-        try:
-            chats = self.get_chat_manager().list_chats()
-            last_update = datetime.today() - timedelta(days=5)
-            last_chats = self.get_chat_manager().find_chats(last_update)
-            chat_heatmap = ChatHeatmapReport()
-            chat_wall = ChatWallReport()
-            return {
-              "heatmap": chat_heatmap.generate_report(chats=chats),
-              "wall": chat_wall.generate_report(chats=last_chats),
-            }
-        except Exception as ex:
-            logger.error("Error getting heatmapo metrics")
-            return {
-              "error": str(ex)
-            }
 
     def get_pr_review_details(self, from_branch: str, to_branch: str):
         # Pull the latest changes from both branches to ensure we are comparing correctly

@@ -1,0 +1,58 @@
+board: Issue manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Development
+column_id: ''
+created_at: '2025-05-28 15:39:30.075106'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Issue manager/In Development/task-5-develop-reasoning-engine-for-issue-analysis.bc4698e7-71c0-4c46-94eb-a580394c37b0.yaml
+id: bc4698e7-71c0-4c46-94eb-a580394c37b0
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Implement the reasoning logic that analyzes issues using the extracted
+    comments and related project data. This component should be capable of proposing
+    potential solutions or alternatives for resolving the issue based on the gathered
+    information.
+  created_at: '2025-05-28 15:39:30.073342'
+  disable_knowledge: false
+  doc_id: 26f82d2c-a0e9-4020-a024-23111f05e97a
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-28 15:39:30.073382'
+  user: null
+mode: chat
+name: 'Task 5: Develop Reasoning Engine for Issue Analysis'
+parent_id: e5541562-488a-4a42-ac05-a71adda0bd06
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- logic
+- problem-solving
+- high-priority
+updated_at: '2025-05-28T15:48:08.537368'
+url: ''
+users: []
+visibility: ''

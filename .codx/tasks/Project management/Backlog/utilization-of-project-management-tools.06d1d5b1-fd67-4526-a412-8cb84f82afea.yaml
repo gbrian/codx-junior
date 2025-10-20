@@ -1,0 +1,55 @@
+board: Project management
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-04-16 14:16:29.541508'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Project management/Backlog/utilization-of-project-management-tools.06d1d5b1-fd67-4526-a412-8cb84f82afea.yaml
+id: 06d1d5b1-fd67-4526-a412-8cb84f82afea
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Employ task management tools for tracking tasks, timelines, and deliverables.
+    Ensure seamless interaction among team members and stakeholders using communication
+    tools. Facilitate the creation and management of project documents with appropriate
+    documentation tools.
+  created_at: '2025-04-16 14:16:29.539982'
+  disable_knowledge: false
+  doc_id: f34a9615-680b-4f4e-b4fd-68aaa1f8fb6c
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-16 14:16:29.540012'
+  user: null
+mode: chat
+name: Utilization of Project Management Tools
+parent_id: 9f78b0e2-8094-42fc-8676-233d425b7e50
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-04-17T14:57:54.984072'
+url: ''
+users: []
+visibility: ''

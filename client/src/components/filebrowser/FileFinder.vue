@@ -1,7 +1,7 @@
 <script setup>
 </script>
 <template>
-  <div class="p-2 w-full h-full flex flex-col gap-2">
+  <div class="w-full h-full flex flex-col gap-2">
     <div class="text-2xl">File finder</div>
     <vue-finder class="grow" :request="request" max-file-size="100MB" path="/"></vue-finder>
   </div>

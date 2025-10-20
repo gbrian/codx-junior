@@ -1,0 +1,142 @@
+board: Default
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: on going
+column_id: ''
+created_at: '2025-10-06 03:11:44.530383+00:00'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Default/on going/genefrate-diff-file-prompt.920d4d87-be61-48dd-af45-223041d138d5.yaml
+id: 920d4d87-be61-48dd-af45-223041d138d5
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Create a set of instructions on how to create a patch file.\_\nInstructions\
+    \ will cover new files, delete files and update files parts.\nExample:\n```patch\n\
+    diff --git a/api/codx/junior/engine.py b/api/codx/junior/engine.py\nindex 795b909..8937242\
+    \ 100644\n--- a/api/codx/junior/engine.py\n+++ b/api/codx/junior/engine.py\n@@\
+    \ -62,6 +62,8 @@ from codx.junior.mention_manager import (\n     is_processing_mentions\n\
+    \ )\n \n+from codx.junior.context import AICodePatch\n+\n from codx.junior.project_watcher\
+    \ import PROJECT_WATCHER\n \n logger = logging.getLogger(__name__)\n@@ -380,6\
+    \ +382,16 @@ class CODXJuniorSession:\n \n         return file_list\n \n+    def\
+    \ improve_existing_code_patch(self, patch: AICodePatch):\n+        ts = datetime.now().strftime('%H%M%S')\n\
+    +        patch_file = f\"/tmp/{ts}.patch\"\n+        with open(patch_file, 'w')\
+    \ as f:\n+            f.write(patch.patch)\n+        git_patch = f\"git apply\
+    \ {patch_file}\"\n+        stdin, stderr = exec_command(git_patch, cwd=self.settings.project_path)\n\
+    +        os.remove(patch_file)\n+        return stdin, stderr\n+\n     def improve_existing_code(self,\
+    \ chat: Chat, apply_changes: bool=None):\n         knowledge = Knowledge(settings=self.settings)\n\
+    \         profile_manager = ProfileManager(settings=self.settings)\n@@ -422,7\
+    \ +434,7 @@ class CODXJuniorSession:\n             def try_chat_code_changes(attempt:\
+    \ int, error: str=None) -> AICodeGerator:\n                 if error:\n      \
+    \               chat.messages.append(Message(role=\"user\", content=f\"There was\
+    \ an error last time:\\n {error}\"))\n-                self.chat_with_project(chat=chat,\
+    \ use_knowledge=False, chat_mode='chat')\n+                self.chat_with_project(chat=chat,\
+    \ use_knowledge=True, chat_mode='chat')\n                 chat.messages[-1].improvement\
+    \ = True\n                 \n                 request_msg.improvement = True\n\
+    ```"
+  created_at: '2025-01-16 09:33:52.408490'
+  disable_knowledge: false
+  doc_id: null
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-01-16 09:33:52.408512'
+  user: null
+- content: "Creating a patch file is a useful way to share code changes between developers\
+    \ or apply changes to different branches within a project. Here's a step-by-step\
+    \ guide on how to create a patch file that includes new files, deleted files,\
+    \ and updated files:\n\n### Prerequisites\n- Ensure you have Git installed on\
+    \ your system.\n- Make sure you have a working directory with your project initialized\
+    \ as a Git repository.\n\n### Steps to Create a Patch File\n\n1. **Stage Your\
+    \ Changes**: First, you need to stage the changes you want to include in the patch.\
+    \ This includes any new, modified, or deleted files.\n\n   ```bash\n   git add\
+    \ <file_or_directory>\n   ```\n\n   If you want to include all changes, you can\
+    \ stage everything using:\n\n   ```bash\n   git add .\n   ```\n\n2. **Generate\
+    \ the Patch File**: Once you have staged the changes, use the `git diff` command\
+    \ to create the patch file. The `--cached` option tells Git to use the staged\
+    \ changes.\n\n   ```bash\n   git diff --cached > your_patch_name.patch\n   ```\n\
+    \n   This command will create a file named `your_patch_name.patch` containing\
+    \ all the staged changes.\n\n3. **Include New Files**: If you have new files,\
+    \ make sure they are added to the staging area before generating the patch file.\
+    \ Git will automatically handle these in the patch creation process.\n\n4. **Handle\
+    \ Deleted Files**: Similarly, if you have deleted files, they should be staged\
+    \ using `git rm` before generating the patch.\n\n   ```bash\n   git rm <file_to_delete>\n\
+    \   ```\n\n5. **Review the Patch**: It's always a good idea to review the patch\
+    \ file before sharing or applying it.\n\n   ```bash\n   less your_patch_name.patch\n\
+    \   ```\n\n   Look for any unexpected changes or omissions.\n\n6. **Share or Apply\
+    \ the Patch**: You can now share the patch file with other developers or apply\
+    \ it to another branch or repository.\n\n   To apply a patch, use:\n\n   ```bash\n\
+    \   git apply your_patch_name.patch\n   ```\n\n### Example\nHere's an example\
+    \ of a simple patch file:\n\n```patch\ndiff --git a/api/codx/junior/engine.py\
+    \ b/api/codx/junior/engine.py\nindex 795b909..8937242 100644\n--- a/api/codx/junior/engine.py\n\
+    +++ b/api/codx/junior/engine.py\n@@ -62,6 +62,8 @@ from codx.junior.mention_manager\
+    \ import (\n     is_processing_mentions\n )\n \n+from codx.junior.context import\
+    \ AICodePatch\n+\n from codx.junior.project_watcher import PROJECT_WATCHER\n \n\
+    \ logger = logging.getLogger(__name__)\n@@ -380,6 +382,16 @@ class CODXJuniorSession:\n\
+    \ \n         return file_list\n \n+    def improve_existing_code_patch(self, patch:\
+    \ AICodePatch):\n+        ts = datetime.now().strftime('%H%M%S')\n+        patch_file\
+    \ = f\"/tmp/{ts}.patch\"\n+        with open(patch_file, 'w') as f:\n+       \
+    \     f.write(patch.patch)\n+        git_patch = f\"git apply {patch_file}\"\n\
+    +        stdin, stderr = exec_command(git_patch, cwd=self.settings.project_path)\n\
+    +        os.remove(patch_file)\n+        return stdin, stderr\n+\n     def improve_existing_code(self,\
+    \ chat: Chat, apply_changes: bool=None):\n         knowledge = Knowledge(settings=self.settings)\n\
+    \         profile_manager = ProfileManager(settings=self.settings)\n@@ -422,7\
+    \ +434,7 @@ class CODXJuniorSession:\n             def try_chat_code_changes(attempt:\
+    \ int, error: str=None) -> AICodeGerator:\n                 if error:\n      \
+    \               chat.messages.append(Message(role=\"user\", content=f\"There was\
+    \ an error last time:\\n {error}\"))\n-                self.chat_with_project(chat=chat,\
+    \ use_knowledge=False, chat_mode='chat')\n+                self.chat_with_project(chat=chat,\
+    \ use_knowledge=True, chat_mode='chat')\n                 chat.messages[-1].improvement\
+    \ = True\n                 \n                 request_msg.improvement = True\n\
+    ```\n\nBy following these steps, you can effectively create and manage patch files\
+    \ for your project, ensuring clean and organized code updates."
+  created_at: '2025-01-16 09:33:52.408490'
+  disable_knowledge: false
+  doc_id: null
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-01-16 09:33:52.408512'
+  user: null
+mode: chat
+name: Genefrate diff file prompt
+parent_id: ''
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-04 08:02:58.977261+00:00'
+url: ''
+users: []
+visibility: ''

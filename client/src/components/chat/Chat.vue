@@ -27,16 +27,17 @@ import MentionSelector from '../mentions/MentionSelector.vue'
               :message="knowledgeMessage"
               :isTopic="isTopic && !ix"
               :mentionList="mentionList"
+              :menu-less="readOnly"
             />
             
             <ChatEntry :class="['mb-4 rounded-md',
-              isChannel ? '': 'bg-base-100 py-2',
-              editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
-              message.hide ? 'opacity-80 border border-dashed p-2 border-warning' : '']"
+              isChannel ? '': 'py-2',
+              editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '']"
               :chat="theChat"
               :message="message"
               :isTopic="isTopic && !ix"
               :mentionList="mentionList"
+              :menu-less="readOnly"
               @edited="onMessageEdited"
               @enhance="onEditMessage(message, true)"
               @remove="removeMessage(message)"
@@ -51,6 +52,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
               @reload-file="onReloadMessageFile"
               @open-file="onOpenFile"
               @save-file="onSaveFile"
+              @add-file="onAddFile"
               @edit-message="onEditMessage($event, message)"
               @code-file-shown.stop="console.log"
               @subtask="$emit('subtask', { chat: theChat, message })"
@@ -88,24 +90,32 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         <span class="badge tooltip flex gap-2 items-center"
           :data-tip="mention.tooltip"
           :class="{ 'badge-primary': mention.project, 'badge-success badge-outline': mention.profile }"
-          v-for="mention in messageMentions" :key="mention.name">
+          v-for="mention in messageMentions" :key="mention.name"
+          :title="mention.file || mention.name"
+          >
           <i class="fa-solid fa-magnifying-glass" v-if="mention.project"></i>
           <img class="w-4 rounded-full" :src="mention.profile.avatar" v-if="mention.profile?.avatar" />
           <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.avatar"></i>
           <div class="-mt-1">
             {{ mention.name }}
           </div>
+          <span class="click" @click="removeMessageMention(mention)">X</span>
         </span>
       </div>
 
-      <MentionSelector :content="editorText" :mentionList="mentionList" @select="onMentionReplace" />
+      <MentionSelector
+        :content="editorText" 
+        :project="projectContext || $projects" 
+        @select="onMentionReplace" />
       <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
             'flex-col',
             editMessage && 'border-warning',
             onDraggingOverInput ? 'bg-warning/10': '']"
         @dragover.prevent="onDraggingOverInput = true"
         @dragleave.prevent="onDraggingOverInput = false"
-        @drop.prevent="onDrop">
+        @drop.prevent="onDrop"
+        v-if="readOnly !== true"
+        >
         <KnowledgeSearch class="p-2 h-60"
           @select="onAddDocument"
           v-if="showDocumentSearchModal"
@@ -284,7 +294,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'chatId', 'showHidden', 'childrenChats'],
+  props: ['chat', 'chatId', 'showHidden', 'childrenChats', 'readOnly'],
   data() {
     return {
       waiting: false,
@@ -412,7 +422,7 @@ export default {
       return this.messages[0]
     },
     chatProject() {
-      return this.$projectContext || this.$project
+      return this.projectContext || this.$project
     },
     mentionList() {
       return (this.projectContext || this.$projects).mentionList
@@ -420,7 +430,11 @@ export default {
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
         .map(w => w[1])
-      return this.mentionList.filter(m => mentions.includes(m.mention))
+      return [...this.mentionList.filter(m => mentions.includes(m.mention)), 
+              ...this.files.map(file => ({
+                name: file.split("/").reverse()[0],
+                file
+              }))]
     },
     lastChatEvent() {
       const { events } = this.$storex.session
@@ -457,7 +471,9 @@ export default {
   },
   methods: {
     async setProjectContext() {
-      this.projectContext = await this.$service.project.loadProjectContext(this.chatProject)
+      if (this.projectContext?.project_id !== this.chatProject.project_id) {
+        this.projectContext = await this.$service.project.loadProjectContext(this.chatProject)
+      }
     },
     initSelectedUserFromChat() {
       const messages = this.theChat.messages.filter(m => !m.hide && m.profiles?.length)
@@ -539,7 +555,8 @@ export default {
       return profiles
     },
     getUserMessage(message) {
-      const files = this.messageMentions.filter(m => m.file).map(m => m.file)
+      const files = [...this.messageMentions.filter(m => m.file).map(m => m.file),
+                      ...(this.files ||[])]
       const profiles = this.getMessageProfiles()
       return {
         role: 'user',
@@ -561,6 +578,7 @@ export default {
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
       this.images = []
+      this.files = []
       this.scrollToBottom()
     },
     async sendMessage() {
@@ -680,18 +698,19 @@ export default {
       ].join("\n")
       
     },
-    async addSerchTerm(term, addToMessage) {
-      if (term.file) {
-        this.$emit('add-file', term.file)
-        if (addToMessage) {
-          const message = await this.fileToMessage(term.file)
-          const editorText = this.editorText += "\n" + message
-          this.setEditorText(editorText)
-        }
+    async addSerchTerm({ mention, orgText }) {
+      if (mention.file) {
+        this.$emit('add-file', mention.file)
+      } else {
+        this.setEditorText(
+          this.editorText.split(" ")
+              .map(w => w === orgText ? "@" + mention.name : w)
+              .join(" ")
+        )
       }
     },
     onMentionReplace({ mention, orgText }) {
-      this.addSerchTerm(mention)
+      this.addSerchTerm({ mention, orgText })
     },
     getEditorCaretCharOffset() {
       let caretOffset = 0
@@ -739,20 +758,35 @@ export default {
       if (!e.clipboardData?.items) {
         return
       }
+      const stop = () => {
+        e.preventDefault()
+        return false
+      }
       var file = [...e.clipboardData?.items].filter(f => f.type.indexOf("image") !== -1)[0]?.getAsFile()
       if (file) {
         this.onInputImage(file)
-        e.preventDefault()
-        return false
+        return stop()
       }
       const text = [...e.clipboardData?.items].filter(f => f.type.indexOf("text") !== -1)[0]
       if (text) {
         const textContent = await new Promise(ok => text.getAsString(ok))
         const fileMention = this.mentionList.find(m => m.file === textContent)
         if (fileMention) {
-          this.addFileToChat(fileMention.file)
+          this.addFileToMessage(fileMention.file)
+          e.preventDefault()
+          return stop()
         }
-        return false
+        const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.project_path))
+        if (isProjectFile) {
+          this.addFileToMessage(textContent)
+          this.setEditorText(this.editorText.replace(textContent, ""))
+          return stop()
+        }
+      }
+    },
+    addFileToMessage(file) {
+      if (!this.files.includes(file)) {
+        this.files.push(file)
       }
     },
     getFileImageUrl(file) {
@@ -899,6 +933,9 @@ export default {
     onOpenFile(file) {
       this.projectContext.api.coder.openFile(file)
     },
+    onAddFile(file) {
+      this.$emit('add-file', file)
+    },
     addChatFile() {
       this.$emit('add-file', this.uploadProjectFile)
       this.uploadProjectFile = null
@@ -912,6 +949,14 @@ export default {
       const existng = this.theChat.messages.find(m => m.doc_id === message.doc_id)
       existng.content = message.content
       this.saveChat()
+    },
+    removeMessageMention(mention) {
+      const orgMention = this.mentionList.find(m => m === mention)
+      if (orgMention) {
+        this.setEditorText(this.editorText.replace("@"+mention.name, ""))
+      } else {
+        this.files = this.files.filter(f => f !== mention.file)
+      }
     }
   }
 }

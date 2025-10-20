@@ -64,7 +64,7 @@ class KnowledgeCodeSplitter:
             #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
             pass
           
-        if not file_path.endswith(".md"):
+        if not file_path.endswith(".md") and False:
             try:
                 return self.load_with_docling(file_path=file_path, code_parser_language=code_parser_language)
             except Exception as ex:

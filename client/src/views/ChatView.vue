@@ -203,6 +203,7 @@ import PRView from '@/components/repo/PRView.vue'
           :chat="chat"
           @select="onPRViewBranchChanged"
           @comment="onPRFileComment"
+          @new-chat="onPRFileCreateChat"
           v-if="isPRView" />
         <Chat class="h-full overflow-auto" 
           :chatId="chat.id"
@@ -649,6 +650,14 @@ export default {
         this.subtaskMode = mode
         this.createSubtask(false)
       }
+    },
+    async onPRFileCreateChat({ title, files, profiles, mode }) {
+      this.subtaskName = title
+      this.subtaskDescription = null
+      this.subtaskFiles = files
+      this.subtaskProfiles = profiles
+      this.subtaskMode = mode
+      this.createSubtask(false)
     },
     toggleChatPinned() {
       this.chat.pinned = !this.chat.pinned

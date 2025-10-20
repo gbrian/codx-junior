@@ -1,0 +1,33 @@
+board: scripts
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Development
+column_id: ''
+created_at: '2025-03-16 11:27:31.381814'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/scripts/In Development/preview-process.010866c9-cd81-4e99-b922-57f6e643bed7.yaml
+id: 010866c9-cd81-4e99-b922-57f6e643bed7
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: task
+name: preview process
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- analyst
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-03-16T14:41:11.202016'
+url: ''
+users: []
+visibility: ''

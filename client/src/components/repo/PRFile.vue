@@ -1,18 +1,25 @@
 <script setup>
-import "@git-diff-view/vue/styles/diff-view.css";
-import { DiffView } from "@git-diff-view/vue";
-import CodeComment from "./CodeComment.vue";
-import Chat from "../chat/Chat.vue";
-import CodeViewer from "../CodeViewer.vue";
+import "@git-diff-view/vue/styles/diff-view.css"
+import { DiffView, DiffModeEnum } from "@git-diff-view/vue"
+import CodeComment from "./CodeComment.vue"
+import Chat from "../chat/Chat.vue"
+import CodeViewer from "../CodeViewer.vue"
+import ChatEntry from "../ChatEntry.vue"
 </script>
 <template>
-  <div class="grow flex flex-col gap-2 h-full" :key="file.fileFullName">
-    <div class="flex gap-2 text-xl py-2 items-center">
+  <div class="grow flex flex-col gap-2 border-2 border-slate-600 rounded-md py-1" :key="file.fileFullName">
+    <div class="p-2 flex gap-2 text-xl py-2 items-center border-slate-600 w-full"
+    :class="!file.collapse && 'border-b-2'"
+    >
       <div class="flex flex-col gap-1 grow"
         :class="file.selected && 'text-warning'"
       >
         <div class="click flex gap-2 items-center truncate" :title="file.fileFullName" 
           @click="$ui.openFile(file.fileFullName)">
+          <button @click.stop="file.collapse = !file.collapse">
+            <i class="fa-solid fa-chevron-up" v-if="file.collapse"></i>
+            <i class="fa-solid fa-chevron-down" v-else></i>
+          </button>
           <span 
             @click.stop="file.selected = !file.selected"
             v-if="!file.profiles.length"  
@@ -41,22 +48,29 @@ import CodeViewer from "../CodeViewer.vue";
       </div>
 
       <button class="btn btn-sm btn-sm btn-outline" 
-        :class="showFile && 'btn-warning'"
-        @click="showOption = 'file'">
-        <i class="fa-solid fa-file-lines"></i>
+        :class="showMessage && 'btn-warning'"
+        @click="showOption = 'message'" 
+      >
+        <i class="fa-solid fa-message"></i>
       </button>
 
       <div class="indicator" v-if="file.chat"
         @click="showOption = 'chat'"
       >
-      <span class="indicator-item indicator-end badge badge-secondary">
-          {{ file.messageCount }}
+        <span class="indicator-item indicator-end badge badge-secondary"
+          v-if="showChat"
+        >
+          <span class="click" @click.stop="$projects.setActiveChat(file.chat)"
+            v-if="file.chat && showChat">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i>
+          </span>
+         <span v-if="file.messageCount">{{ file.messageCount }}</span> 
         </span>
         <button class="btn btn-sm btn-outline" :class="showChat && 'btn-warning'"><i class="fa-regular fa-comment-dots"></i></button>
       </div>
       <button class="btn btn-sm btn-outline tooltip" data-tip="Review changes" 
         :class="file.chat && 'border bg-sky-600'"
-        @click="showOption = 'chat'" v-else>
+        @click="onShowChat(file)" v-else>
         <i class="fa-solid fa-comments"></i>
       </button>
       
@@ -67,55 +81,84 @@ import CodeViewer from "../CodeViewer.vue";
         <i class="fa-solid fa-code-merge"></i>
       </button>
 
+      <button class="btn btn-sm btn-sm btn-outline" 
+        :class="showFile && 'btn-warning'"
+        @click="showOption = 'file'">
+        <i class="fa-solid fa-file-lines"></i>
+      </button>
+
     </div>
-    <div class="grow overflow-auto">
-      <DiffView
-        :data="file"
-        :diff-view-theme="'dark'" 
-        :diff-view-add-widget="false"
-        :diff-view-wrap="true"
-        v-if="file.parsed && showDiff"
-      >
-        <template #widget="{ onClose, lineNumber, side }">
-          <div class="absolute z-[100] top-0 left-0 right-0 bottom-0 bg-base-300">
-            <div class="flex flex-col items-center justify-center w-full h-full">
-              <CodeComment 
-                @close="onClose"
-                @save="onAddComment($event, file, lineNumber, side, onClose)"
-              />
+    <div class="grow flex flex-col" v-if="!file.collapse">
+      <ChatEntry :message="lastMessage" :menu-less="true" v-if="showMessage" />
+      <div class="grow overflow-auto" v-if="file.parsed && showDiff">
+        <div class="flex items-center gap-2 px-2 py-1 text-xs">
+          <div class="flex gap-2 items-center">
+            Split / Unified
+            <input type="checkbox" v-model="diffSplit" class="toggle toggle-sm" />
+          </div>
+          <div class="flex gap-2 items-center">
+            Text wrap
+            <input type="checkbox" v-model="diffWrap" class="toggle toggle-sm" />
+          </div>
+        </div>
+        <DiffView
+          :data="file"
+          :diff-view-theme="'dark'" 
+          :diff-view-add-widget="false"
+          :diff-view-wrap="diffWrap"
+          :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"          
+        >
+          <template #widget="{ onClose, lineNumber, side }">
+            <div class="absolute z-[100] top-0 left-0 right-0 bottom-0 bg-base-300">
+              <div class="flex flex-col items-center justify-center w-full">
+                <CodeComment 
+                  @close="onClose"
+                  @save="onAddComment($event, file, lineNumber, side, onClose)"
+                />
+              </div>
             </div>
-          </div>
-        </template>
-        <template #extend="{ data }">
-          <div class="flex border bg-slate-400 px-[10px] py-[8px]">
-            <h2 class="text-[20px]">>> {{ data }}</h2>
-          </div>
-        </template>
-      </DiffView>
+          </template>
+          <template #extend="{ data }">
+            <div class="flex border bg-slate-400 px-[10px] py-[8px]">
+              <h2 class="text-[20px]">>> {{ data }}</h2>
+            </div>
+          </template>
+        </DiffView>
+      </div>
+      <div class="p-2" v-if="file.chat && showChat">
+        <Chat class="overflow-auto min-h-96" 
+          :chat="{ ...file.chat, mode: 'task' }" 
+          :readOnly="false"
+        />
+      </div>
+      <CodeViewer class="overflow-auto mb-20 p-2" 
+        :code="fileContent"
+        :language="file.extension"
+        :file="file.fileFullName" 
+        :diffOption="false"
+        v-if="showFile && fileContent" />
     </div>
-    <Chat class="h-full overflow-auto mb-20" 
-      :chat="file.chat" 
-      v-if="file.chat && showChat" />
-    <CodeViewer class="h-full overflow-auto mb-20" 
-      :code="fileContent"
-      :language="file.extension"
-      :file="file.fileFullName" 
-      :diffOption="false"
-      v-if="showFile && fileContent" />
   </div>
 </template>
 <script>
 export default {
-  props: ['file'],
+  props: ['file', 'option'],
   data() {
     return {
-      showOption: 'diff',
-      fileContent: null
+      showOption: this.option || 'diff',
+      fileContent: null,
+      diffSplit: true,
+      diffWrap: true
     }
   },
   mounted() {
   },
   computed: {
+    showMessage() {
+      return this.showOption === 'message' && 
+        this.file.chat &&
+        this.lastMessage
+    },
     showChat() {
       return this.showOption === 'chat'
     },
@@ -125,8 +168,14 @@ export default {
     showDiff() {
       return this.showOption === 'diff'
     },
+    lastMessage() {
+      return this.file.chat.messages.reverse().find(m => !m.hide)
+    }
   },
   watch: {
+    option(newVal) {
+      this.showOption = newVal
+    },
     file() {
       this.showFile && this.loadFileContent()
     },
@@ -136,13 +185,11 @@ export default {
     }
   },
   methods: {
-    onFileComment(file, message) {
-      this.$emit('comment', { file, message })
-    },
-    onShowChat() {
+    onShowChat(file) {
       if (!this.file.chat) {
-        this.onFileComment(this.file, "Review file changes, fix errors and suggest improvements. Return just a list of changes. Add examples for complex changes.")
+        this.$emit('new-chat', { file })
       }
+      this.showOption = 'chat'
     },
     async loadFileContent() {
       this.fileContent = await this.$storex.api.files.read(this.file.fileFullName)

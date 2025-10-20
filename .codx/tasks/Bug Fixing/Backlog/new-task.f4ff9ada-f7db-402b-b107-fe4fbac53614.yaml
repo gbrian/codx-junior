@@ -1,0 +1,73 @@
+board: Bug Fixing
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-05-21 04:36:12.434788'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Bug Fixing/Backlog/new-task.f4ff9ada-f7db-402b-b107-fe4fbac53614.yaml
+id: f4ff9ada-f7db-402b-b107-fe4fbac53614
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Test
+  created_at: '2025-05-21 04:36:12.433217'
+  disable_knowledge: false
+  doc_id: 924267b6-64e0-4c1e-b6c3-4c07464a4670
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-21 04:36:12.433267'
+  user: admin
+- content: Hi there
+  created_at: '2025-05-21 04:36:12.433217'
+  disable_knowledge: false
+  doc_id: 6c2bd971-53f4-4132-89d6-d1125fc766f9
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - brainer
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-21 04:36:12.433267'
+  user: admin
+mode: chat
+name: New Task
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-21T06:13:07.974383'
+url: ''
+users: []
+visibility: ''

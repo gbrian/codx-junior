@@ -1,7 +1,7 @@
 import os
 import time
 import logging
-import asyncio 
+import asyncio
 
 from datetime import datetime, timedelta
 
@@ -21,6 +21,8 @@ from codx.junior.whisper.audio_manager import AudioManager
 
 from langchain.schema.document import Document
 
+from codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics
+
 logger = logging.getLogger(__name__)
 
 class ChangeManager:
@@ -35,21 +37,41 @@ class ChangeManager:
         self.audio_manager = AudioManager()
         self.chat_manager = ChatManager(settings=self.settings)
 
-    async def process_project_changes(self, mention_only: bool):
+    @classmethod
+    async def check_mentions_on_all_projects(cls, all_projects):
+        tasks = []
+        for project in all_projects:
+            try:
+                change_manager = ChangeManager(settings=project)
+
+                current_sources_and_updates = change_manager.knowledge.get_db().get_all_sources()        
+                project_changes, _ = change_manager.knowledge.detect_changes(current_sources_and_updates)
+        
+                recent_files = [
+                    file_path for file_path in project_changes
+                    if int(time.time()) - os.stat(file_path).st_mtime < MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS
+                ]
+                logger.info("MENTION CHECKS: %s: %s", project.project_name, recent_files)
+                for file_path in recent_files:
+                    tasks.append(change_manager.process_project_mentions(file_path=file_path))
+            except Exception as ex:
+                logger.error("Error checking mentions for %s: %s", project.project_name, ex)
+        await asyncio.gather(*tasks)
+
+    async def process_project_changes(self):
         if not self.settings.is_valid_project():
             logger.error(f"Checking project error, not valid: {self.settings.project_name}") 
-            
+            return
+        if not self.settings.watching:
             return
 
-        if not mention_only:
-            self.knowledge.clean_deleted_documents()
+        self.knowledge.clean_deleted_documents()
         current_sources_and_updates = self.knowledge.get_db().get_all_sources()
         new_files, _ = self.knowledge.detect_changes(current_sources_and_updates)
             
         tasks = []  # List to hold tasks
 
-        TOUT = MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS if mention_only else \
-                MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS
+        TOUT = MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS
         def is_valid_file(file_path):
             if (int(time.time()) - int(
                     os.stat(file_path).st_mtime) < TOUT):
@@ -64,14 +86,12 @@ class ChangeManager:
         logger.info(f"Checking project {self.settings.project_name} - files: {new_files}") 
         
         for file_path in new_files:  # Process files concurrently
-            if mention_only:
-                tasks.append(self.process_project_mentions(file_path=file_path))  # Append coroutine to tasks
-            elif self.settings.watching:
-                tasks.append(self.process_project_change(file_path=file_path))  # Append coroutine to tasks
+            tasks.append(self.process_project_change(file_path=file_path))  # Append coroutine to tasks
 
         await asyncio.gather(*tasks)  # Run tasks concurrently
 
     async def process_project_mentions(self, file_path: str):
+        logger.info("Processing mention check: %s", file_path)
         await self.mention_manager.check_file_for_mentions(file_path=file_path)
 
     async def process_project_change(self, file_path: str):
@@ -100,3 +120,6 @@ class ChangeManager:
             except Exception as ex:
                 logger.exception(f"Error processing wiki changes for file {file_path}", ex)
 
+    def update_project_metrics(self):
+        metrics_manager = CODXJuniorMetrics(settings=self.settings)
+        self.metrics = metrics_manager.project_metrics()

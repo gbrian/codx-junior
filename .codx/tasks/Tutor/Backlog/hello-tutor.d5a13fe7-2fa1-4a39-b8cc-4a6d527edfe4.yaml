@@ -1,0 +1,57 @@
+board: Tutor
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-04-24 13:34:48.907237'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Tutor/Backlog/hello-tutor.d5a13fe7-2fa1-4a39-b8cc-4a6d527edfe4.yaml
+id: d5a13fe7-2fa1-4a39-b8cc-4a6d527edfe4
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Tutor will teach new members about the project
+
+    For this we''ll convert all documents in the project into a wiki and index.
+
+    Tutor will use that index to answer users questions.'
+  created_at: '2025-04-24 13:34:48.905629'
+  disable_knowledge: false
+  doc_id: 09bd1c8e-6c9a-4e9f-969f-b7c2bc077a43
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-24 13:34:48.905670'
+  user: admin
+mode: task
+name: Hello Tutor
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- analyst
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-04-25T06:15:48.415080'
+url: ''
+users: []
+visibility: ''

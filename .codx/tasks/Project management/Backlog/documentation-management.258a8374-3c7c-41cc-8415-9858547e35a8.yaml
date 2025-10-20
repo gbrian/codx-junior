@@ -1,0 +1,54 @@
+board: Project management
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-04-16 14:16:29.541508'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Project management/Backlog/documentation-management.258a8374-3c7c-41cc-8415-9858547e35a8.yaml
+id: 258a8374-3c7c-41cc-8415-9858547e35a8
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Keep all project documentation updated and organized for easy access and
+    retrieval. Ensure that both current and future team members can easily find and
+    understand the documentation.
+  created_at: '2025-04-16 14:16:29.539982'
+  disable_knowledge: false
+  doc_id: 4e6e9de7-e0bc-459d-b9e5-50deddcbd452
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-16 14:16:29.540012'
+  user: null
+mode: chat
+name: Documentation Management
+parent_id: 9f78b0e2-8094-42fc-8676-233d425b7e50
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-04-17T14:57:54.955186'
+url: ''
+users: []
+visibility: ''

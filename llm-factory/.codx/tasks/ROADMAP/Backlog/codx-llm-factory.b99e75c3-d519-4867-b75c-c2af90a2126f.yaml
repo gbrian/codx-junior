@@ -1,0 +1,133 @@
+board: ROADMAP
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-07-11 07:03:25.899691'
+description: codx-llm-factory is a service for fine-tuning Language Learning Models
+  (LLMs) and providing search capabilities specifically for codx projects. It updates
+  models based on changes in a project's base branch and uses RAG and indexed search
+  for active branch changes. The service offers a REST API for triggering fine-tuning
+  and interacting with fine-tuned models via an OpenAI-compatible chat endpoint. It
+  employs Python CPU-based techniques for fine-tuning, ensuring accessibility in various
+  environments. The project welcomes contributions and is available under the MIT
+  License.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/llm-factory/.codx/tasks/ROADMAP/Backlog/codx-llm-factory.b99e75c3-d519-4867-b75c-c2af90a2126f.yaml
+id: b99e75c3-d519-4867-b75c-c2af90a2126f
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "codx-llm-factory project:\n\n\ncodx-llm-factory is an llm fine tuning\
+    \ and search engine service for codx projects.\nThe service will maintain an updated\
+    \ fine tuned llm model based on the codx projects. For each project it will use\
+    \ a base branch for create a fine tuned version of a selected model.\_\ncodx-llm-factory\
+    \ will keep a RAG and indexed search for active branch changes. It will index\
+    \ only files changed on these active branches.\n\n\ncodx-llm-factory will use\
+    \ python CPU based fine tuning techniques and will expose a REST API.\n\nAPI Will\
+    \ expose:\n\_* Fine tuning:\n\_ * Trigger fine tuning on a specific project\n\_\
+    * Chat\n\_ \_* An OpenAI compatible endpoint to chat with fine tuned models\n\_\
+    \n\nBased on the project goals create a README.md content"
+  created_at: '2025-07-11 07:03:25.894749'
+  disable_knowledge: true
+  doc_id: b871beca-e582-4591-812d-991b53b702b9
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-11 07:03:25.894831'
+  user: admin
+- content: "# codx-llm-factory\n\ncodx-llm-factory is a specialized service designed\
+    \ for fine-tuning Language Learning Models (LLMs) and providing search capabilities\
+    \ for codx projects. This service ensures that codx projects are enhanced with\
+    \ a continuously updated fine-tuned LLM model. It focuses on efficiency by only\
+    \ updating models based on active changes in the project's base branch and performs\
+    \ indexed searches to reflect current project activities.\n\n## Features\n\n-\
+    \ **Fine-Tuning Service**: \n  - The service fine-tunes LLM models on a per-project\
+    \ basis using the base branch of your codx projects. This ensures that the model\
+    \ is continually updated to reflect recent changes and project requirements.\n\
+    \n- **RAG and Indexed Search**:\n  - Implements a Retrieval-Augmented Generation\
+    \ (RAG) and indexed search for active branch changes. Only files that are changed\
+    \ in these active branches are indexed, providing a focused and relevant search\
+    \ experience.\n\n- **REST API Interface**:\n  - A RESTful API is provided to interact\
+    \ with the service, featuring endpoints for both model fine-tuning and chat capabilities\
+    \ with the fine-tuned models.\n\n## API Endpoints\n\n### Fine Tuning\n- **Trigger\
+    \ Fine-Tuning**:\n  - Endpoint: `/fine-tune`\n  - Method: `POST`\n  - Description:\
+    \ Initiates the fine-tuning process for a specific project. This endpoint takes\
+    \ the project ID or name as a parameter and triggers the creation of a fine-tuned\
+    \ model based on the project's base branch.\n\n### Chat\n- **OpenAI-Compatible\
+    \ Model Interaction**:\n  - Endpoint: `/chat`\n  - Method: `POST`\n  - Description:\
+    \ Provides an OpenAI-compatible interface to chat with the fine-tuned models.\
+    \ This endpoint facilitates conversations with the models, enabling query and\
+    \ response interactions.\n\n## Technical Overview\n\n- **Performance**: The fine-tuning\
+    \ process utilizes Python CPU-based techniques, optimizing for environments where\
+    \ GPUs are unavailable or limited.\n  \n- **Dynamic Updates**: By focusing on\
+    \ active branch changes, codx-llm-factory ensures the models remain relevant and\
+    \ aligned with the latest codebase updates.\n\n- **Scalability**: The modular\
+    \ design of the service allows for easy integration with other systems, while\
+    \ the REST API provides a straightforward interaction method.\n\n## Getting Started\n\
+    \n1. **Installation**: Clone the repository and set up the environment according\
+    \ to the provided installation script.\n  \n2. **Configuration**: Adjust configuration\
+    \ files to align with your specific project needs and API key requirements.\n\n\
+    3. **Running the Service**: Start the service using the command-line interface.\
+    \ The API should be accessible at the defined host and port.\n\n## Contributing\n\
+    \nWe welcome contributions to enhance the functionality and reach of codx-llm-factory.\
+    \ Please review our contribution guidelines in the `CONTRIBUTING.md` file.\n\n\
+    ## License\n\ncodx-llm-factory is licensed under the MIT License. See `LICENSE.md`\
+    \ for more details.\n\n## Contact\n\nFor any questions or support, please contact\
+    \ the development team at [support@codx-llm-factory.com](mailto:support@codx-llm-factory.com).\n\
+    \nBy using codx-llm-factory, codx projects can leverage advanced LLM capabilities\
+    \ tailored to their specific needs, ensuring that their developments are supported\
+    \ by cutting-edge AI enhancements."
+  created_at: '2025-07-11 07:03:25.894749'
+  disable_knowledge: false
+  doc_id: f4a74401-0c11-4dba-a38c-4d0a9c14a3df
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00028514862060546875
+    model: gpt-4o
+    time_taken: 12.913128137588501
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-07-11 07:03:25.894831'
+  user: null
+mode: chat
+name: codx-llm-factory
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-07-11T07:41:46.761308'
+url: ''
+users:
+- admin
+visibility: ''

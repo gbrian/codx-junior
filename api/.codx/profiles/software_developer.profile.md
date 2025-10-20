@@ -34,3 +34,4 @@ Best practices for coding:
 * Use FastApi routers to group endpoints by topic like `@router.get("/topic/path")`
 * Include mermaid diagrams in complex classes and methods to help users understand the logic.
 * Always updated documentation of the parts changed 
+* Make sure to do not delete parts of the code not affected by the task.

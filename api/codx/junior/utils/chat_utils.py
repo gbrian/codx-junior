@@ -31,7 +31,8 @@ class ChatUtils:
 
     def extract_query_mentions(self, query: str):
         mentions = re.findall(r'@[a-zA-Z0-9\-\_\.]+', query)
-        logger.info(f"Extracted mentions: {mentions}")
+        mentions = list(set([m[1:] for m in mentions])) if mentions else []
+        # logger.info("Extracted mentions: %s", mentions)
         return mentions
 
     def find_projects_by_mentions(self, mentions: [str]):
@@ -39,6 +40,8 @@ class ChatUtils:
 
     def find_profiles_by_mentions(self, mentions: [str]):
         profiles = self.profile_manager.list_all_profiles()
+        # logger.info("Project profiles: %s", [p.name for p in profiles])
         mention_profiles = [p for p in profiles if p.name in mentions]
+        # logger.info("Extracted profiles for '%s': %s", mentions, mention_profiles)
         return self.profile_manager.get_profiles_and_parents(mention_profiles)
 

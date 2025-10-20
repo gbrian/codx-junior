@@ -10,6 +10,9 @@ import CodeEditor from 'simple-code-editor'
   <div class="flex flex-col gap-2">
     <div class="flex gap-1 click">
       <div class="underline click text-link flex gap-2" v-if="fileName">
+        <div class="hover:text-info" @click="$emit('add-file', file)">
+          <i class="fa-solid fa-file-arrow-up"></i>  
+        </div>
         <div class="hover:text-info" @click="$emit('open-file', file)" :title="file">
           {{ fileName }}
         </div>
@@ -42,7 +45,10 @@ import CodeEditor from 'simple-code-editor'
       <i class="fa-solid fa-terminal"></i>
     </div>
     <div class="view-code" :style="{ zoom }">
-      <DiffViewer :file="file" :orgContent="orgContent" :newContent="code" :diff="diff" v-if="showDiff"></DiffViewer>
+      <DiffViewer :file="file" :orgContent="orgContent" 
+        :newContent="code" 
+        :diff="diff" 
+        v-if="showDiff"></DiffViewer>
       <CodeEditor v-model="edit"
             width="100%"
             :header="false"
@@ -68,7 +74,7 @@ export default {
       orgContent: null,
       diff: this.fileDiff,
       zoom: 1,
-      edit: false
+      edit: false,
     }
   },
   computed: {

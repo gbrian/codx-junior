@@ -1,0 +1,256 @@
+board: Wiki manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Requirements
+column_id: ''
+created_at: '2025-09-07 10:30:21.143424'
+description: The conversation involves integrating new functionalities into a project
+  management system. A method `get_last_update` is added to the `WikiManager` class
+  to fetch the last update date of wiki files. The `Background` and `ChangeManager`
+  classes are updated to call a new method in `WikiManager` that refreshes wiki documents
+  based on file changes since the last update. This ensures that the wiki is kept
+  up-to-date with project changes. The changes also involve concurrent processing
+  using asyncio for efficient handling of project changes. The overall goal is to
+  enhance the system's ability to maintain accurate and current documentation.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py
+- /shared/codx-junior/api/codx/junior/background.py
+- /shared/codx-junior/api/codx/junior/changes/change_manager.py
+file_path: /shared/codx-junior/api/.codx/tasks/Wiki manager/Requirements/wiki-background.63c52867-ef6c-4793-8047-c71485f37026.yaml
+id: 63c52867-ef6c-4793-8047-c71485f37026
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Background process to update wiki docs.
+
+    WikiManager will have "get_last_update" that will return the last creation date
+    of a wiki file.
+
+    Background and change management must call periodically WikiManager refresh with
+    files changes since last wiki update and create the wiki documents
+
+    '
+  created_at: '2025-09-07 10:30:21.140960'
+  disable_knowledge: true
+  doc_id: a5fef8d0-4aeb-40e7-8ed0-17a0046bbed2
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-07 10:30:21.140988'
+  user: admin
+- content: "To incorporate the user comments into the existing code, we need to make\
+    \ several changes. We'll add a new method `get_last_update` to the `WikiManager`\
+    \ class to fetch the last update date of a wiki file. Also, we'll update the `Background`\
+    \ and `ChangeManager` classes to periodically call a new method in `WikiManager`\
+    \ that refreshes wiki documents based on file changes since the last update.\n\
+    \nHere's how the updated files would look:\n\n```python /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py\n\
+    import os\nimport shutil\nimport json\nimport logging\nimport datetime\nimport\
+    \ yaml\n\nfrom pathlib import Path\n\nfrom slugify import slugify\nfrom enum import\
+    \ Enum\nfrom typing import List, Dict, Tuple, Any, Optional, Any\n\nfrom pydantic\
+    \ import BaseModel, Field\n\nfrom concurrent.futures import ThreadPoolExecutor\n\
+    \nfrom slugify import slugify\nfrom pydantic import BaseModel\nfrom aiofiles import\
+    \ open as aio_open\n\nfrom codx.junior.settings import CODXJuniorSettings\nfrom\
+    \ codx.junior.utils.utils import (\n    exec_command,\n    remove_starting_block,\n\
+    \    read_file,\n    path_join\n)\n\nfrom codx.junior.utils.utils import (\n \
+    \   extract_json_blocks\n)\n\nfrom .model import *\nfrom ..ai import AI\nfrom\
+    \ ..events.event_manager import EventManager\nfrom codx.junior.profiles.profile_manager\
+    \ import ProfileManager\nfrom codx.junior.knowledge.knowledge_db import KnowledgeDB\n\
+    from codx.junior.knowledge.knowledge_loader import KnowledgeLoader\n\nfrom codx.junior.utils.utils\
+    \ import write_file\n\nfrom langchain.schema.document import Document\n\nlogger\
+    \ = logging.getLogger(__name__)\n\nCATEGORY_NOT_FOUND_MESSAGE = \"No matching\
+    \ category found for file: %s\"\nWIKI_FILE_PATH_TEMPLATE = \"/{slug}.md\"\nHOME_PAGE_UPDATE_EVENT\
+    \ = \"Build home page\"\nWIKI_TREE_FILE_NAME = 'wiki_tree.json'\nMKDOCS_YAML_FILE_NAME\
+    \ = 'mkdocs.yml'\n\nclass WikiCategory(BaseModel):\n    \"\"\"Defines a wiki category\"\
+    \"\"\n    id: str = Field(default=None)\n    title: str = Field(default=None)\n\
+    \    path: str = Field(default=None)\n    description: str = Field(default=None)\n\
+    \    keywords: List[str] = Field(default=[])\n    children: List[Any] = Field(default=[])\n\
+    \    files: List[str] = Field(default=[])\n\nclass WikiSettings(BaseModel):\n\
+    \    categories: List[WikiCategory] = Field(default=[])\n\n\nclass WikiManager:\n\
+    \    \"\"\"\n    Manager class responsible for the creation and maintenance of\
+    \ a project wiki\n    using VitePress or MkDocs. It initializes, builds, and updates\
+    \ a wiki based on the project's\n    structure and changes in files.\n    \"\"\
+    \"\n    \n    def __init__(self, settings: CODXJuniorSettings) -> None:\n    \
+    \    self.settings: CODXJuniorSettings = settings\n        self.event_manager\
+    \ = EventManager(codx_path=settings.codx_path)\n        self.profile_manager =\
+    \ ProfileManager(settings=settings)\n        self.wiki_path: str = settings.get_project_wiki_path()\n\
+    \        self.db = KnowledgeDB(settings=settings)\n        self.loader = KnowledgeLoader(settings=settings)\n\
+    \        self.is_wiki_active = True if self.wiki_path else False\n        self.wiki_home_path\
+    \ = os.path.join(self.wiki_path, \"index.md\")\n        self.wiki_settings_path\
+    \ = os.path.join(self.settings.codx_path, \"wiki_settings.json\")\n\n    def get_last_update(self)\
+    \ -> datetime.datetime:\n        \"\"\"\n        Get the last update date of the\
+    \ wiki files.\n\n        Returns:\n            A datetime object representing\
+    \ the last update date.\n        \"\"\"\n        try:\n            latest_update\
+    \ = max(\n                datetime.datetime.fromtimestamp(os.path.getmtime(os.path.join(root,\
+    \ file)))\n                for root, _, files in os.walk(self.wiki_path) for file\
+    \ in files\n            )\n            return latest_update\n        except ValueError:\n\
+    \            return datetime.datetime.min\n\n    def refresh_wiki(self, changed_files:\
+    \ List[str]) -> None:\n        \"\"\"\n        Refresh the wiki documents for\
+    \ files that have changed since the last update.\n\n        Args:\n          \
+    \  changed_files: A list of file paths that have changed since the last update.\n\
+    \        \"\"\"\n        for file_path in changed_files:\n            try:\n \
+    \               self.create_wiki_document(file_path)\n            except Exception\
+    \ as ex:\n                logger.exception(f\"Error refreshing wiki document for\
+    \ file {file_path}: {ex}\")\n\n    # Other methods remain unchanged...\n```\n\n\
+    ```python /shared/codx-junior/api/codx/junior/background.py\nimport asyncio\n\
+    import logging\nimport time\nfrom datetime import datetime, timedelta\nfrom threading\
+    \ import Thread, Lock\nfrom typing import Dict\n\nfrom codx.junior.ai import AIManager\n\
+    from codx.junior.changes.change_manager import ChangeManager\nfrom codx.junior.globals\
+    \ import (\n    CODX_JUNIOR_API_BACKGROUND,\n)\nfrom codx.junior.project.project_discover\
+    \ import (\n    find_all_projects\n)\nfrom codx.junior.settings import read_global_settings\n\
+    \n# Setup logging\nlogger = logging.getLogger(__name__)\n\n# A global tracking\
+    \ dictionary to manage files currently being processed\nFILES_CHECKING = {}\n\
+    FILES_CHECKING_LOCK = Lock()\nCHECK_TIMEOUT = timedelta(minutes=1)\n\n# Quarantine\
+    \ settings\nQUARANTINE_TRACKER: Dict[str, Dict] = {}\nQUARANTINE_LOCK = Lock()\n\
+    QUARANTINE_DELAYS = [0, 1, 10, 30, 120]  # Minutes\n\ndef start_background_services(app)\
+    \ -> None:\n    \"\"\"\n    Function to start background services for project\
+    \ watching and processing.\n    \"\"\"\n    if not CODX_JUNIOR_API_BACKGROUND:\n\
+    \        return\n    logger.info(\"*** Starting background processes ***\")\n\
+    \    reload_models()\n\n    # Start the project checking in a separate thread\n\
+    \    Thread(target=check_projects, args=(True,)).start()\n\n    # Start the project\
+    \ checking in a separate thread\n    Thread(target=check_projects).start()\n\n\
+    def reload_models() -> None:\n    \"\"\"\n    Reload AI models based on the current\
+    \ global settings.\n    \"\"\"\n    try:\n        AIManager().reload_models(read_global_settings())\n\
+    \        logger.info(\"AI models reloaded successfully.\")\n    except Exception\
+    \ as ex:\n        logger.exception(f\"Failed to reload AI models: {ex}\")\n\n\n\
+    def is_project_in_quarantine(project_name: str) -> bool:\n    \"\"\"\n    Determine\
+    \ if a project is in quarantine based on its last check time and the delay.\n\
+    \    \"\"\"\n    quarantine_info = QUARANTINE_TRACKER.get(project_name)\n    if\
+    \ not quarantine_info:\n        return False\n\n    delay_minutes = QUARANTINE_DELAYS[min(quarantine_info[\"\
+    fail_count\"], len(QUARANTINE_DELAYS) - 1)]\n    next_allowed_check = quarantine_info[\"\
+    last_checked\"] + timedelta(minutes=delay_minutes)\n    return datetime.now()\
+    \ < next_allowed_check\n\n\ndef update_quarantine_status(project_name: str, success:\
+    \ bool) -> None:\n    \"\"\"\n    Update the quarantine status of a project depending\
+    \ on whether the check was successful.\n    \"\"\"\n    with QUARANTINE_LOCK:\n\
+    \        quarantine_info = QUARANTINE_TRACKER.setdefault(project_name, {\"fail_count\"\
+    : 0, \"last_checked\": datetime.min})\n\n        if success:\n            quarantine_info[\"\
+    fail_count\"] = 0  # Reset on success\n        else:\n            quarantine_info[\"\
+    fail_count\"] += 1\n            logger.info(f'Adding project to quarantine: {project_name}\
+    \ - error count: {quarantine_info[\"fail_count\"]}')\n\n        quarantine_info[\"\
+    last_checked\"] = datetime.now()\n\n\ndef check_projects(mention_only = False)\
+    \ -> None:\n    \"\"\"\n    Continuously checks for updates in all projects.\n\
+    \    \"\"\"\n\n    async def check_project(project) -> None:\n        \"\"\"\n\
+    \        Process and handle the changes in a project asynchronously.\n       \
+    \ \"\"\"\n        try:\n            session = ChangeManager(settings=project)\n\
+    \            #if not session.settings.metrics:\n            #    session.update_project_metrics()\n\
+    \            await session.process_project_changes(mention_only)\n           \
+    \ update_quarantine_status(project.project_name, success=True)\n        except\
+    \ Exception as ex:\n            update_quarantine_status(project.project_name,\
+    \ success=False)\n            project.last_error = str(ex)\n            logger.exception(f\"\
+    Error processing project changes: {project.project_name}\\n{ex}\")\n\n    while\
+    \ True:\n        try:\n            projects = find_all_projects()\n          \
+    \  for project in projects.values():\n                if is_project_in_quarantine(project.project_name):\n\
+    \                    continue\n\n                try:\n                    asyncio.run(check_project(project=project))\n\
+    \                except Exception as ex:\n                    logger.error(f\"\
+    Unhandled exception during project checking: {ex}\")\n        except Exception\
+    \ as ex:\n            logger.exception(f\"Error checking projects: {ex}\")\n \
+    \       time.sleep(0.1)\n\n        # Trigger wiki refresh\n        try:\n    \
+    \        latest_update = WikiManager(settings=project).get_last_update()\n   \
+    \         changed_files = [file for file in projects if os.path.getmtime(file)\
+    \ > latest_update.timestamp()]\n            WikiManager(settings=project).refresh_wiki(changed_files)\n\
+    \        except Exception as ex:\n            logger.exception(f\"Error refreshing\
+    \ wiki documents: {ex}\")\n\n```\n\n```python /shared/codx-junior/api/codx/junior/changes/change_manager.py\n\
+    import os\nimport time\nimport logging\nimport asyncio  # Import asyncio for concurrency\n\
+    \nfrom codx.junior.events.event_manager import EventManager\nfrom codx.junior.knowledge.knowledge_milvus\
+    \ import Knowledge\nfrom codx.junior.globals import (\n  MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,\n\
+    \  MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS,\n  CODX_JUNIOR_API_BACKGROUND\n\
+    )\nfrom codx.junior.mentions.mention_manager import MentionManager\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\nfrom codx.junior.wiki.wiki_manager import WikiManager\n\
+    \nfrom codx.junior.whisper.audio_manager import AudioManager\n\nfrom langchain.schema.document\
+    \ import Document\n\nlogger = logging.getLogger(__name__)\n\nclass ChangeManager:\n\
+    \    def __init__(self, settings, event_manager=None):\n        self.settings\
+    \ = settings\n        if not event_manager:\n            event_manager = EventManager(codx_path=settings.codx_path)\n\
+    \        self.event_manager = event_manager\n        self.mention_manager = MentionManager(settings=settings,\
+    \ event_manager=event_manager)\n        self.knowledge = Knowledge(settings=self.settings)\n\
+    \        self.wiki_manager = WikiManager(settings=settings)\n        self.audio_manager\
+    \ = AudioManager()\n\n    async def process_project_changes(self, mention_only:\
+    \ bool):\n        if not self.settings.is_valid_project():\n            logger.error(f\"\
+    Checking project error, not valid: {self.settings.project_name}\") \n        \
+    \    \n            return\n\n        if not mention_only:\n            self.knowledge.clean_deleted_documents()\n\
+    \        current_sources_and_updates = self.knowledge.get_db().get_all_sources()\n\
+    \        new_files, _ = self.knowledge.detect_changes(current_sources_and_updates)\n\
+    \            \n        tasks = []  # List to hold tasks\n\n        TOUT = MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS\
+    \ if mention_only else \\\n                MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS\n\
+    \        def is_valid_file(file_path):\n            if (int(time.time()) - int(\n\
+    \                    os.stat(file_path).st_mtime) < TOUT):\n                return\
+    \ True\n            return False\n\n        new_files = [file_path for file_path\
+    \ in new_files if is_valid_file(file_path)]\n        \n        if not new_files:\n\
+    \            return\n        \n        logger.info(f\"Checking project {self.settings.project_name}\
+    \ - files: {new_files}\") \n        \n        for file_path in new_files:  # Process\
+    \ files concurrently\n            if mention_only:\n                tasks.append(self.process_project_mentions(file_path=file_path))\
+    \  # Append coroutine to tasks\n            elif self.settings.watching:\n   \
+    \             tasks.append(self.process_project_change(file_path=file_path)) \
+    \ # Append coroutine to tasks\n\n        await asyncio.gather(*tasks)  # Run tasks\
+    \ concurrently\n\n        # Refresh the wiki with the new files\n        self.wiki_manager.refresh_wiki(new_files)\n\
+    \n    async def process_project_mentions(self, file_path: str):\n        await\
+    \ self.mention_manager.check_file_for_mentions(file_path=file_path)\n\n    async\
+    \ def process_project_change(self, file_path: str):\n        logger.info(f\"[process_project_changes]\
+    \ Processing file changes {file_path}\")\n        is_media_file = self.audio_manager.is_valid_media_file(file_path=file_path)\n\
+    \        logger.info(f\"Reload knowledge file {file_path} - is media: {is_media_file}\"\
+    )    \n        if is_media_file:\n            logger.info(f\"Converting media\
+    \ file {file_path}\")\n            transcript_info = self.audio_manager.transcribe_from_file(file_path=file_path)\n\
+    \            self.knowledge.get_db().index_documents(documents=[Document(page_content=\"\
+    \", metadata={\n              \"source\": file_path,\n              \"language\"\
+    : file_path.split(\".\")[-1],\n              \"type\": \"audio\"\n           \
+    \ })])\n            if transcript_info[\"is_new\"]:\n                file_path\
+    \ = transcript_info[\"transcript_file_path\"]\n            else:\n           \
+    \     return\n        \n        self.knowledge.reload_path(path=file_path)\n \
+    \       self.event_manager.send_knowled_event(type=\"loaded\", file_path=file_path)\n\
+    \        \n        if self.settings.project_wiki:\n            try:\n        \
+    \        await self.wiki_manager.build_file(file_path=file_path)\n           \
+    \ except Exception as ex:\n                logger.exception(f\"Error processing\
+    \ wiki changes for file {file_path}\", ex)\n```\n\nThese changes ensure that the\
+    \ wiki documents are updated based on the latest changes in the project files,\
+    \ leveraging the background processing capabilities."
+  created_at: '2025-09-07 10:30:21.140960'
+  disable_knowledge: false
+  doc_id: b8b9eb1d-cb52-4f93-9811-350fbcaf49f9
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00012803077697753906
+    model: openai/gpt-4o
+    time_taken: 79.43925762176514
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-09-07 10:30:21.140988'
+  user: null
+mode: task
+name: Wiki background
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-08T06:49:13.214283'
+url: ''
+users:
+- admin
+visibility: ''
