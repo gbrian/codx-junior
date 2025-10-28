@@ -41,7 +41,8 @@ dependencies = [
   'ffmpeg>=1.4',
   'aiofiles>=24.1.0',
   'docling>=2.45.0',
-  'html2text'
+  'html2text',
+  'watchdog'
 ]
 
 classifiers = [

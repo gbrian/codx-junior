@@ -223,7 +223,7 @@ class OpenAI_AI:
                 if choice.finish_reason == 'tool_calls':
                     ai_tool_response = None
                     for tool_call_data in all_tool_calls.values():
-                        func_name = tool_call_data["function"]                      
+                        func_name = tool_call_data["function"]
                         try:
                             tools_response = await self.process_tool_calls(tool_call_data)
                             tool_output = tools_response["output"] if "output" in tools_response else tools_response 

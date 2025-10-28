@@ -7,6 +7,7 @@ from typing import Dict
 
 from codx.junior.ai import AIManager
 from codx.junior.changes.change_manager import ChangeManager
+from codx.junior.changes.watch_project_file_changes import WatchProjectFileChanges
 from codx.junior.globals import (
     CODX_JUNIOR_API_BACKGROUND,
 )

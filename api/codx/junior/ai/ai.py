@@ -37,7 +37,10 @@ logger = logging.getLogger(__name__)
 GLOBAL_CHAT_INSTRUCTIONS = """
 <instructions info="General to follow when generating your response">
   <instruction>
-    When creating file content add the file name after the code block extension like in "```js /file/path/file.js"
+    When creating file content add the file name after the code block extension like in "```js /absolute/file/path/file.js"
+    Use tools to convert relative project's file path to absolute.
+    Read file's content if not present in the comversation.
+    Use project search to find context if not clear on the conversation.
   </instruction>
 </instructions>
 """
@@ -110,7 +113,7 @@ class AI:
                                                + messages, 
                                                config={"callbacks": callbacks, "headers": headers})
             except Exception as ex:
-                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model} {self.settings}")
+                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model}")
                 raise RuntimeError("Failed to process AI request after retries.")
 
             if self.cache:
@@ -163,7 +166,7 @@ class AI:
                                                + messages, 
                                                config={"callbacks": callbacks, "headers": headers})
             except Exception as ex:
-                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model} {self.settings}")
+                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model}")
                 raise RuntimeError("Failed to process AI request after retries.")
 
             if self.cache:
