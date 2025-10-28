@@ -2,19 +2,31 @@
 import moment from 'moment'
 import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
 import WorkspacesSelector from './workspaces/WorkspacesSelector.vue'
-import ProjectDropdown from './ProjectDropdown.vue'
 import SearchBar from './bar/SearchBar.vue'
+import MobileMenuVue from './MobileMenu.vue'
+import ProjectDetailt from './ProjectDetailt.vue'
 </script>
 
 <template>
-  <div class="flex items-center shadow justify-between" :class="$ui.showApp && 'click'">
-    
+  <div class="flex items-center shadow justify-between"
+    :class="[
+      $storex.session.connected ? '' : 'grayscale text-error',
+      $ui.showApp && 'click'
+    ]">
     <div class="flex gap-2 items-center w-1/3">
-      <CodxJuniorLogo @click="setProjectTab('wiki')" />
-      <ProjectDropdown />
+      <div class="flex flex-col">
+        <ProjectDetailt 
+          :project="$project" 
+          :options="{ showFolders: !$ui.isMobile, showSelector: !$ui.isMobile }"
+          @select="$projects.setActiveProject($event)"        
+          @click="showMobileMenu = true"
+        /> 
+        <MobileMenuVue class="md:hidden" v-if="showMobileMenu" @close="showMobileMenu = false" />
+      <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
+      </div>
     </div>
     
-    <div class="flex gap-2 items-center">
+    <div class="tools hidden md:flex gap-2 items-center">
       <SearchBar />
 
       <div :class="['hover:bg-base-100 click relative', $ui.activeTab === 'projects' ? 'text-primary': '']">
@@ -106,6 +118,7 @@ import SearchBar from './bar/SearchBar.vue'
         </div>
       </div>
     </div>
+
     <div class="flex gap-2 justify-end w-1/3">
       <div :class="['hover:bg-base-100 click relative', $ui.activeTab === 'activity' ? 'text-primary': '']">
         <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
@@ -124,7 +137,7 @@ import SearchBar from './bar/SearchBar.vue'
               :data-tip="$users.user.username"
             @click="$ui.readScreenResolutions()">
             <div class="avatar">
-              <div class="w-8 ring rounded-full">
+              <div class="w-6 md:w-8 ring rounded-full">
                 <img :src="$storex.api.user.avatar" />
               </div>
             </div>
@@ -218,6 +231,7 @@ import SearchBar from './bar/SearchBar.vue'
         </div>
       </div>
     </div>
+
     <modal v-if="restartModal">
       <div class="flex flex-col gap-2 font-mono">
         <div class="font-bold text-xl">Restart... really!!??</div>
@@ -247,7 +261,8 @@ export default {
       tabActive: 'text-info bg-base-100',
       tabInactive: 'text-warning bg-base-300 opacity-50 hover:opacity-100',
       restartModal: false,
-      chat: null
+      chat: null,
+      showMobileMenu: false
     }
   },
   created () {

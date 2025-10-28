@@ -65,6 +65,9 @@ export default {
       if (chat.project.project_id !== this.$project.project_id) {
         await this.$projects.setActiveProject(chat.project)
       }
+      if (this.$project.project_id !== chat.project_id) {
+        this.$projects.setActiveProject({ project_id: chat.project_id })
+      }
       this.$projects.setActiveChat(chat)
       this.$ui.setActiveTab('tasks')
     }

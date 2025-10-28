@@ -3,7 +3,7 @@ from typing import Optional, Dict
 
 # Import tools
 from .fetch_webpage import fetch_webpage
-from .project_tools import project_search, project_read_file
+from .project_tools import project_search, project_read_file, project_write_file
 from .code_writer import code_writer
 
 # Configure logging
@@ -90,21 +90,46 @@ TOOLS = [
             "type": "function",
             "function": {
                 "name": "project_read_file",
-                "description": "Read the content of a file.",
+                "description": "Allows to read project's file content from a relative or absolute file path",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "file_path": {
                             "type": "string",
-                            "description": "The path to the file to read."
+                            "description": "Relative or absolute path to the file to read."
                         }
                     },
                     "required": ["file_path"]
                 }
             }
         },
-        "settings": { "async": False, "project_settings": False },
+        "settings": { "async": False, "project_settings": True },
         "tool_call": project_read_file
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "project_save_file",
+                "description": "Allows to write project's files from a relative or absolute path.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Relative or absolute path to the file to read."
+                        },
+                        "content": {
+                            "type": "string",
+                            "description": "The file's content."
+                        }
+                    },
+                    "required": ["file_path", "content"]
+                }
+            }
+        },
+        "settings": { "async": False, "project_settings": True },
+        "tool_call": project_write_file
     }
 ]
 

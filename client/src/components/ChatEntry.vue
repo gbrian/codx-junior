@@ -74,7 +74,7 @@ import Document from './document/Document.vue'
                     <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
                       <i class="fa-solid fa-bars"></i>
                     </button>
-                    <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300">
+                    <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300 z-50">
                       <li @click="$emit('subtask')"  v-if="message.done">
                         <a><i class="fa-solid fa-comment-dots"></i> Thread</a>
                       </li>

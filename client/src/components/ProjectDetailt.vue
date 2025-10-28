@@ -6,18 +6,22 @@
     <div tabindex="0" role="button" class="flex flex-col gap-2 text-xl md:text-2xl"
       :title="project.project_name"
     >
-      <div class="flex gap-2 items-center py-1 px-2">
-        <div class="avatar" v-if="iconify">
-          <div class="w-6 h-6 rounded-full bg-white">
-            <img :src="project.project_icon" />
-          </div>
-        </div>
-        <span class="mr-2" v-if="iconify !== true">{{ project.project_name }}</span>
-        
+      <div class="flex gap-2 items-center py-1 px-2  text-nowrap">
         <!-- Dropdown Component -->
-        <div class="dropdown dropdown-start" @click.stop="">
-          <div tabindex="0" role="button" class="btn m-1"><i class="fa-solid fa-caret-right"></i></div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 p-2 shadow-sm">
+        <div class="dropdown dropdown-start">
+          <div tabindex="0" role="button" class="flex gap-2 click items-center">
+            <div class="avatar">
+              <div class="w-6 h-6 rounded-full">
+                <img :src="options?.showIcon ? project.project_icon : '/only_icon.png'" />
+              </div>
+            </div>
+            <span class="mr-2" v-if="iconify !== true">{{ project.project_name }}</span>
+            
+            <i class="fa-solid fa-caret-right"></i>
+          </div>
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 p-2 shadow-sm"
+            v-if="options?.showSelector !== false"
+          >
             <li>
               <!-- Search Input for Projects -->
               <div class="flex items-center mb-2 input input-bordered">
@@ -134,7 +138,7 @@ export default {
   },
   computed: {
     showFolders() {
-      return this.options?.folders
+      return this.options?.showFolders
     }
   },
   methods: {

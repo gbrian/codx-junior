@@ -25,6 +25,7 @@ class ChatMessage(BaseModel):
 class Column(BaseModel):
     name: str = Field(default='')
     chat_ids: List[str] = Field(default=[])
+    project_id: str = Field(default='')
 
 class Board(BaseModel):
     name: str = Field(default='')
@@ -32,6 +33,7 @@ class Board(BaseModel):
     remote_url: str = Field(default='')
     bookmark: Optional[bool] = Field(default=False)
     columns: List[Column] = Field(default=[])
+    project_id: str = Field(default='')
 
 class Logprobs(BaseModel):
     tokens: List[str]

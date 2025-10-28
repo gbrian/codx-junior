@@ -37,9 +37,7 @@ import ChatEntry from "../ChatEntry.vue"
           <span :class="[file.isDeleted && 'text-error', file.isNewFile && 'text-success']">
             {{ file.title }}
           </span>
-          <div class="text-xs w-fit" :class="`text-[${file.column.color}]`"  v-if="file.column">
-            ( {{  file.column.title  }} )
-          </div> 
+          {{ changes?.length }}
         </div>
       </div>
       <div class="grow"></div>
@@ -47,13 +45,32 @@ import ChatEntry from "../ChatEntry.vue"
         --no diff available--
       </div>
 
-      <button class="btn btn-sm btn-sm btn-outline" 
+      <div class="dropdown dropdown-left" @click.stop="">
+        <div tabindex="0" class="click border rounded-lg text-sm px-2 py-1"
+          :class="`border-[${file.column?.color || 'gainsboro'}] text-[${file.column?.color || 'gainsboro'}]`">
+          {{  file.column?.title || '...'  }}
+        </div>
+        <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-20 p-2 shadow-sm">
+          <li v-for="column in columns" 
+            :key="column.title"
+            class="mb-2 text-sm border rounded-lg"
+            :class="`border-[${column?.color || 'gainsboro'}] text-[${column?.color || 'gainsboro'}]`"
+            @click="$emit('chat-column', { file, column: column.title})"
+            >
+            <a>{{ column.title }}</a>
+          </li>
+        </ul>
+      </div>
+
+
+      <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="Last comment" 
         :class="showMessage && 'btn-warning'"
         @click="showOption = 'message'" 
+        v-if="file.chat"
       >
         <i class="fa-solid fa-message"></i>
       </button>
-
+      
       <div class="indicator" v-if="file.chat"
         @click="showOption = 'chat'"
       >
@@ -68,20 +85,19 @@ import ChatEntry from "../ChatEntry.vue"
         </span>
         <button class="btn btn-sm btn-outline" :class="showChat && 'btn-warning'"><i class="fa-regular fa-comment-dots"></i></button>
       </div>
-      <button class="btn btn-sm btn-outline tooltip" data-tip="Review changes" 
-        :class="file.chat && 'border bg-sky-600'"
+      <button class="btn btn-sm btn-outline tooltip border-dashed text-slate-500" data-tip="Start revision" 
         @click="onShowChat(file)" v-else>
         <i class="fa-solid fa-comments"></i>
       </button>
       
-      <button class="btn btn-sm btn-sm btn-outline" 
+      <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="File changes"
         :class="showDiff && 'btn-warning'"
         @click="showOption = 'diff'" 
         v-if="file.parsed">
         <i class="fa-solid fa-code-merge"></i>
       </button>
 
-      <button class="btn btn-sm btn-sm btn-outline" 
+      <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="File content"
         :class="showFile && 'btn-warning'"
         @click="showOption = 'file'">
         <i class="fa-solid fa-file-lines"></i>
@@ -125,9 +141,10 @@ import ChatEntry from "../ChatEntry.vue"
           </template>
         </DiffView>
       </div>
-      <div class="p-2" v-if="file.chat && showChat">
+      <div class="p-2" v-if="theChat && showChat">
         <Chat class="overflow-auto min-h-96" 
-          :chat="{ ...file.chat, mode: 'task' }" 
+          :chat="theChat" 
+          :enableDelete="true"
           :readOnly="false"
         />
       </div>
@@ -142,7 +159,7 @@ import ChatEntry from "../ChatEntry.vue"
 </template>
 <script>
 export default {
-  props: ['file', 'option'],
+  props: ['file', 'option', 'columns'],
   data() {
     return {
       showOption: this.option || 'diff',
@@ -169,7 +186,14 @@ export default {
       return this.showOption === 'diff'
     },
     lastMessage() {
-      return this.file.chat.messages.reverse().find(m => !m.hide)
+      return this.theChat?.messages.reverse().find(m => !m.hide)
+    },
+    changes() {
+      return this.file.diff?.split("\n")
+              .filter(l => ["+", "-"].includes(l[0]) )
+    },
+    theChat() {
+      return this.$projects.allChats.find(c => c.id === this.file.chat?.id)
     }
   },
   watch: {
@@ -185,9 +209,9 @@ export default {
     }
   },
   methods: {
-    onShowChat(file) {
+    onShowChat() {
       if (!this.file.chat) {
-        this.$emit('new-chat', { file })
+        this.$emit('new-chat', this.file)
       }
       this.showOption = 'chat'
     },

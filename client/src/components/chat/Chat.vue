@@ -22,7 +22,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         <div class="overflow-auto h-full">
           <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
             <ChatEntry v-for="knowledgeMessage in knowledgeMessages"
-              :key="knowledgeMessages.id" 
+              :key="knowledgeMessage.id"
               :chat="theChat"
               :message="knowledgeMessage"
               :isTopic="isTopic && !ix"
@@ -212,6 +212,15 @@ import MentionSelector from '../mentions/MentionSelector.vue'
                       Voice mode
                     </a>
                   </li>
+                  <li class="btn btn-sm btn-error tooltip"
+                    :class="isVoiceSession && 'btn-success'"
+                    :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
+                    @click="showDeleteModal = true" v-if="enableDelete">
+                    <a>
+                      <i class="fa-solid fa-trash-can"></i>
+                      Delete
+                    </a>
+                  </li>
                 </ul>
               </div>
             </div>
@@ -276,13 +285,13 @@ import MentionSelector from '../mentions/MentionSelector.vue'
       </div>
     </modal>
 
-    <modal v-if="showModal">
+    <modal v-if="showDeleteModal">
       <div class="flex flex-col gap-2">
         <div class="text-xl">Confirm Deletion</div>
         <p>Are you sure you want to delete this task?</p>
         <div class="font-bold text-primary text-xl">{{ taskToDelete.name }}</div>
         <div class="flex justify-end gap-2">
-          <button class="btn" @click="showModal = false">Cancel</button>
+          <button class="btn" @click="showDeleteModal = false">Cancel</button>
           <button class="btn btn-error" @click="deleteTask">Delete</button>
         </div>
       </div>
@@ -294,7 +303,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'chatId', 'showHidden', 'childrenChats', 'readOnly'],
+  props: ['chat', 'chatId', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete'],
   data() {
     return {
       waiting: false,
@@ -315,7 +324,7 @@ export default {
       recognition: null,
       isBrowser: false,
       syncEditableTextInterval: null,
-      showModal: false,
+      showDeleteModal: false,
       taskToDelete: null,
       selectedUser: null,
       refreshngMentions: null,

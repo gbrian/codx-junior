@@ -8,19 +8,20 @@ import VSwatches from '../VSwatches.vue'
 import KanbanList from './KanbanList.vue'
 import ChatIcon from '../chat/ChatIcon.vue'
 import FileFinder from '../filebrowser/FileFinder.vue'
+import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
   <div class="h-full" v-if="kanban?.boards">
     <div class="flex flex-col gap-2" v-if="!$projects.activeChat && !board">  
-      <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between gap-2 border-b border-slate-700 pb-2">
+      <h1 class="px-2 text-2xl font-bold flex justify-between gap-2 border-b border-slate-700 pb-2">
         <div class="flex gap-2">
           <div class="avatar">
-            <div class="w-8 rounded-full">
+            <div class="w-8 h-8 rounded-full">
               <img :src="$project.project_icon" />
             </div>
           </div>
-          Boards
+          {{ $project.project_name }}
         </div>
         <div class="grow"></div>
         <input type="text" v-model="boardFilter" class="input input-sm input-bordered" placeholder="Search boards" />
@@ -31,6 +32,21 @@ import FileFinder from '../filebrowser/FileFinder.vue'
           <i class="fa-solid fa-rotate"></i> Reload
         </button>
       </h1>
+
+      <div class="flex gap-2 overflow-auto max-w-full pb-3">
+        <div class="badge badge-primary bagde-sm badge-outline click"
+          @click="$projects.setActiveProject($projects.parentProject)"
+          v-if="$projects.parentProject"
+        >
+        {{  $projects.parentProject.project_name }}
+        </div>      
+        <div class="badge bagde-sm badge-outline hover:text-info click text-nowrap shrink-0 w-fit"
+          v-for="project in $projects.childProjects" :key="project.project_id"
+          @click="$projects.setActiveProject(project)"
+        >
+          {{  project.project_name }}
+        </div>
+      </div>
       <KanbanList
         :boards="filteredParentBoards"
         @select="selectBoard"
@@ -46,6 +62,7 @@ import FileFinder from '../filebrowser/FileFinder.vue'
       @sub-task="createSubTask"
       @sub-tasks="createSubTasks"
       @chat="$projects.setActiveChat($event)"
+      @change-column="moveChatsToColumn"
       :kanban="activeBoard"
       :chat="$projects.activeChat"
       v-if="$projects.activeChat"
@@ -54,12 +71,9 @@ import FileFinder from '../filebrowser/FileFinder.vue'
       <div class="flex gap-4 items-center">
         <div class="flex gap-2 items-center">
           <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2">
-            <button class="btn btn-sm flex items-center" >
-              <i class="fa-solid fa-caret-left"></i>
-            </button>
             <div class="flex gap-2" @click="selectBoard()">
               <div class="avatar">
-                <div class="w-8 rounded-full">
+                <div class="w-8 h-8 rounded-full">
                   <img :src="$project.project_icon" />
                 </div>
               </div>
@@ -159,7 +173,9 @@ import FileFinder from '../filebrowser/FileFinder.vue'
                     <i class="fa-solid fa-pen-to-square"></i>
                   </span>
                 </div>
-                <div class="flex gap-2 items-center grow">
+                <div class="flex gap-2 items-center grow"
+                  :class="!column.valid && 'border border-dashed'"
+                >
                   <div>{{column.title}}</div>
                 </div>
                 <div class="flex gap-2 items-center">
@@ -236,14 +252,7 @@ import FileFinder from '../filebrowser/FileFinder.vue'
           </select>
         </div>
       </div>
-      <div class="collapse hidden">
-        <input type="radio" name="newboard" v-model="newBoardType" value="issue" />
-        <div class="collapse-title text-xl font-medium"><i class="fa-solid fa-link"></i> From issue</div>
-        <div class="collapse-content">
-          <input type="text" v-model="newBoardIssueLink" placeholder="Enter isue url" class="input input-bordered w-full mt-2"/>
-        </div>
-      </div>
-
+      
       <div class="modal-action">
         <button class="btn" @click="addOrUpdateBoard" :disabled="isBoardNameTaken || !newBoardName">Save</button>
         <button class="btn" @click="showBoardModal = false">Cancel</button>
@@ -370,6 +379,9 @@ export default {
         column: c.column || '--none--'
       }))
     },
+    boardChats() {
+      return this.chats.filter(c => c.board === this.board)
+    },
     chat() {
       return this.$projects.activeChat
     },
@@ -383,7 +395,9 @@ export default {
       return this.boards[this.board]?.columns
     },
     columnList() {
-      return (this.boards[this.board]?.columns?.map(c => c.title) || [])
+      const kanbanColumns = this.boards[this.board]?.columns?.map(c => c.title) || []
+      const chatColumns = this.boardChats.map(c => c.column)
+      return [...new Set([...kanbanColumns, ...chatColumns])]
     },
     parentBoard() {
       return this.boards[this.activeBoard?.parent_id]
@@ -554,7 +568,8 @@ export default {
           return {
             title: col,
             ...boardColumn,
-            tasks: this.activeBoard.tasks
+            valid: !!boardColumn,
+            tasks: this.boardChats
               .filter(t => (t.column || '--none--') === col && !t.pinned)
               .sort((a, b) => a.pinned || (getChatIndex(a) < getChatIndex(b)) ? -1 : 1),
             position: ix
@@ -572,7 +587,7 @@ export default {
       }
       const kboard = this.kanban.boards[this.board]
       kboard.columns = await Promise.all(this.filteredColumns.map(async (column, ix) => {
-        const kcolumn = kboard.columns.find(kc => kc.id === column.id)
+        const kcolumn = this.columns.find(kc => kc.id === column.id)
         kcolumn.chats = column.tasks.map(t => t.id)
         await Promise.all(column.tasks.filter(t => t.column !== column.title)
           .map(task => this.$storex.projects.saveChatInfo({ ...task, column: column.title })))
@@ -595,11 +610,13 @@ export default {
       await this.$projects.setActiveChat()
       this.buildKanban()
     },
-    async createSubTask({ parent, name, description, project_id, parent_id, message_id, file_list, activateChat }) {
+    async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, column, profiles }) {
       const chat = await this.createNewChat({
         board: parent.board,
         name,
-        column: parent.column,
+        mode,
+        profiles,
+        column: column || parent.column,
         parent_id: parent_id || parent.id,
         message_id,
         project_id: project_id || parent.project_id,
@@ -744,6 +761,13 @@ export default {
     },
     reloadKanban() {
       this.$projects.loadKanban()
+    },
+    async moveChatsToColumn({ chats, column }) {
+      await Promise.all(chats.map(async chat => { 
+        chat.column = column
+        await this.$projects.saveChatInfo(chat) 
+      }))
+      this.buildColumns()
     }
   }
 }

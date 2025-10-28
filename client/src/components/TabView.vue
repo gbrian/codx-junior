@@ -18,7 +18,7 @@ import ProjectOverview from "./project/ProjectOverview.vue"
 import Wall from "./wall/Wall.vue"
 </script>
 <template>
-  <CodeEditorVue v-bind="$attrs" v-if="$ui.isMobile && $ui.showCoder" :class="$ui.activeTab" />
+  <CodeEditorVue v-bind="$attrs" v-if="false && $ui.isMobile && $ui.showCoder" :class="$ui.activeTab" />
   <KanbanVue v-if="$ui.activeTab === 'tasks'" />
   <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.activeTab === 'knowledge'" :class="$ui.activeTab" />
   <KnowledgeSettingsVue class="px-2" v-bind="$attrs" v-if="['knowledge_settings', 'wiki_settings'].includes($ui.activeTab)" :class="$ui.activeTab" />

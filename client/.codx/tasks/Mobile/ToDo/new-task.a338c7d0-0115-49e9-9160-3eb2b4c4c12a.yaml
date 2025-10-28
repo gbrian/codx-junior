@@ -1,0 +1,32 @@
+board: Mobile
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: ToDo
+column_id: ''
+created_at: '2025-10-24 15:51:26.518594'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/Mobile/ToDo/new-task.a338c7d0-0115-49e9-9160-3eb2b4c4c12a.yaml
+id: a338c7d0-0115-49e9-9160-3eb2b4c4c12a
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: task
+name: New Task
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-25T13:22:05.498818'
+url: ''
+users: []
+visibility: ''

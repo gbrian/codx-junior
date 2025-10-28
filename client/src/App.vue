@@ -9,10 +9,9 @@ import Login from './components/user/Login.vue';
   <div class="w-full h-full flex relative bg-base-300 relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <div class="absolute top-0 h-1" 
       :class="$session.apiCalls && 'w-full bg-secondary/70 animate-pulse z-50'"></div>
-    <SharedView v-if="isSharedScreen" />
-    <HomeViewVue v-if="isMobileScreen" />
-    <SplitViewVue v-if="isSplitterScreen" />
     <Login v-if="isLogin" />
+    <SplitViewVue v-else/>
+    
     <div class="absolute top-0 right-0 p-2">
       <div class="p-2 text-xs bg-error/30 hover:bg-error text-white rounded-md" v-if="errorNotifications.length">
         <div class="click" v-for="notification in errorNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">

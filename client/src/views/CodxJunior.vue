@@ -11,7 +11,7 @@ import moment from 'moment'
   </div>
   <div class="codx-junior flex min-h-full relative group-codxjunior" v-else>
     <div class="grow flex flex-col relative overflow-auto bg-base-300">
-      <div class="grow overflow-auto p-2">
+      <div class="grow overflow-auto p-1 md:p-2">
         <TabViewVue  :key="projectKey" />
       </div>
     </div>

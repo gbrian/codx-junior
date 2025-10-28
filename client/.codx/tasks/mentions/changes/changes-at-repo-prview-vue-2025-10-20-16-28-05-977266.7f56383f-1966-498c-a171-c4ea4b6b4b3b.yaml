@@ -1,0 +1,544 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-10-18 09:21:26.065001'
+description: The user provided a Vue component file and requested changes based on
+  specific best practices and guidelines. They highlighted a user comment to add a
+  new entry with a column selector that emits 'change-column' with file chats and
+  column title. The instructions emphasized using DaisyUI for components, structuring
+  Vue files in a specific order, and adhering to styling and component logic best
+  practices. The user also specified using FontAwesome for icons and avoiding certain
+  coding practices like using semicolons or <style> elements.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-repo-prview-vue-2025-10-20-16-28-05-977266.7f56383f-1966-498c-a171-c4ea4b6b4b3b.yaml
+id: 7f56383f-1966-498c-a171-c4ea4b6b4b3b
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "\n                    ```document /shared/codx-junior/client/src/components/repo/PRView.vue\n\
+    \                    <script setup>\nimport \"@git-diff-view/vue/styles/diff-view.css\"\
+    \nimport { DiffParser } from \"@git-diff-view/vue\"\nimport PRBranchSelectoor\
+    \ from './PRBranchSelectoor.vue'\nimport CodxMenu from \"../CodxMenu.vue\"\nimport\
+    \ PRReport from \"./PRReport.vue\"\nimport { SplitterGroup, SplitterPanel, SplitterResizeHandle\
+    \ } from 'radix-vue'\nimport PRFileViewModeSelector from \"./PRFileViewModeSelector.vue\"\
+    \n</script>\n\n<template>\n  <div class=\"pr-view flex flex-col gap-1 h-full overflow-hidden\"\
+    >\n    <header class=\"flex justify-between items-start\">\n      <div class=\"\
+    flex flex-col gap-2 w-full\">\n        <div class=\"flex gap-2 items-center\"\
+    \ v-if=\"loading\">\n          <span class=\"text-xs\">Loading</span>\n      \
+    \    <progress class=\"progress grow\"></progress>\n        </div>\n        <div\
+    \ class=\"flex gap-2\">\n          <PRBranchSelectoor :fromBranch=\"fromBranchSelected\"\
+    \ :toBranch=\"toBranchSelected\" @select=\"onBranchChanged\" />\n          <button\
+    \ class=\"btn btn-xs\" @click=\"refreshSummary\">\n            <i class=\"fa-solid\
+    \ fa-arrows-rotate\"></i>\n          </button>\n          <div class=\"grow\"\
+    ></div>\n          <PRFileViewModeSelector @select=\"onSelectFileOption\" />\n\
+    \        </div>\n      </div>\n    </header>\n    <div class=\"flex gap-2 py-2\
+    \ items-center\" v-if=\"files?.length\">\n      <div class=\"flex gap-2 items-center\"\
+    \ \n        v-if=\"reportFiles.length\">\n        <div class=\"dropdown\">\n \
+    \         <div tabindex=\"0\" role=\"button\" class=\"btn btn-sm m-1 indicator\"\
+    \n            :disabled=\"selectedFiles.length === 0\"\n          >\n        \
+    \      <span class=\"indicator-item badge badge-xs badge-warning\" v-if=\"selectedFiles.length\"\
+    >\n                {{ selectedFiles.length }}\n              </span>\n       \
+    \     <i class=\"fa-solid fa-bars\"></i>\n          </div>\n          <ul tabindex=\"\
+    0\" class=\"dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm\"\
+    >\n            <li @click=\"onReviewSelected\"\n              v-if=\"selectedFiles.length\"\
+    ><a>Review files</a></li>\n            <li @click=\"onBulkAction\"\n         \
+    \     v-if=\"selectedFiles.length\"><a>Custom action...</a></li>\n          <codx-ok,\
+    \ please-wait...>\n            Add new entry with a column selector when user\
+    \ selects a column call \"setFilesColumn\".\n            setFilesColumn will emit\
+    \ 'change-column' passing file chats collection from selectedFiles and column\
+    \ title\n\n          </codx-ok, please-wait...>\n            </ul>\n        </div>\n\
+    \      </div>\n      <div class=\"click btn btn-sm\" @click.stop=\"toggleSelectAll\"\
+    \ v-else>\n        <i class=\"fa-regular fa-file-lines\"></i>\n      </div>\n\
+    \      <div class=\"grow\">\n        <div class=\"flex gap-2 items-center border\
+    \ rounded-md px-1\">\n          <input type=\"text\" v-model=\"filter\" class=\"\
+    grow input input-sm\" />\n          <i class=\"fa-solid fa-magnifying-glass\"\
+    ></i>\n        </div>\n      </div>\n      <div class=\"avatar click\" :title=\"\
+    profile.name\" \n        @click=\"filter = (filter||'') + ' profile:' + profile.name\"\
+    \n        v-for=\"profile in profiles\" :key=\"profile.name\">\n        <div class=\"\
+    w-4 h-4 ring ring-offset-1 rounded-full\">\n          <img :src=\"profile.avatar\"\
+    \ />\n        </div>\n      </div>\n      <div class=\"click px-2 py-1 border\
+    \ rounded-full flex gap-2 tooltip text-xs\" \n        v-for=\"column in columns\"\
+    \ :key=\"column.title\"\n        :class=\"`text-[${column.color}] border-[${column.color}]`\"\
+    \n        @click=\"filter = (filter||'') + ' column:' + column.title\"\n     \
+    \   >\n        {{  column.title }}\n        {{ column.chats?.length }}\n     \
+    \ </div>\n      <div class=\"px-2 py-1 border border-error text-error items-center\
+    \ rounded-full flex gap-2 tooltip text-xs\">\n        <i class=\"fa-solid fa-circle-exclamation\"\
+    ></i>\n        {{ files?.filter(f => !f.column).length }}\n      </div>\n    </div>\n\
+    \n    <SplitterGroup class=\"h-full\"\n      id=\"splitter-group-1\"\n      direction=\"\
+    horizontal\"\n      v-if=\"files\"\n    >\n      <SplitterPanel\n        id=\"\
+    splitter-group-1-panel-1\"\n        :min-size=\"10\"\n        :collapsible=\"\
+    true\"\n        class=\"\"\n        :order=\"0\"\n      >\n        <CodxMenu class=\"\
+    h-full overflow-auto\"\n          :items=\"visibleFiles\"\n          :item-key=\"\
+    'folder'\"\n          :defaultExpanded=\"defaultExpanded\"\n          @select=\"\
+    showFileDetails = $event\"\n        >\n          <template v-slot:header>\n  \
+    \          <h2 class=\"font-semibold !text-base text-blackA11 flex items-end gap-2\
+    \ px-2 pt-1\">\n              <input type=\"checkbox\" @change=\"toggleAllNoneSelected\"\
+    \ class=\"checkbox checkbox-sm\"\n              />\n              Files\n    \
+    \          <span class=\"click ml-2 text-xs flex gap-1\"><a @click=\"selectAll\"\
+    >all</a>/<a @click=\"selectNone\">none</a></span>\n            </h2>\n       \
+    \   </template>\n          <template v-slot:item=\"data\">\n            <div class=\"\
+    flex gap-1 items-center click px-2 text-nowrap\"\n              :class=\"data.item.value\
+    \ === showFileDetails ? 'text-warning font-bold' : 'opacity-90'\"\n          \
+    \  >\n              <input type=\"checkbox\" v-model=\"data.item.value.selected\"\
+    \n                class=\"checkbox checkbox-sm\"\n                @click.stop=\"\
+    \"\n                @change=\"onDataItemSelected(data.item)\"  \n            \
+    \  />\n              <div class=\"avatar-group -space-x-2\" v-if=\"data.item.value.profiles?.length\"\
+    >\n                <div class=\"avatar\" :title=\"profile.name\" v-for=\"profile\
+    \ in data.item.value.profiles\" :key=\"profile.name\">\n                  <div\
+    \ class=\"w-4 h-4\">\n                    <img :src=\"profile.avatar\" />\n  \
+    \                </div>\n                </div>\n              </div>\n      \
+    \        <i class=\"fa-regular fa-comment-dots\" \n                :class=\"`text-[${data.item.value.column?.color}]`\"\
+    \n                v-if=\"data.item.value.chat\"></i>\n            \n         \
+    \     <span :title=\"data.item.value.fileName\">\n                {{ data.item.value.title\
+    \ }}\n              </span>\n\n              <div class=\"\"\n              :class=\"\
+    `text-[${data.item.value.column.color}]`\"\n              v-if=\"data.item.value.column\"\
+    >\n               ( {{ data.item.value.column.title }} )\n              </div>\n\
+    \            </div>\n          </template>\n        </CodxMenu>\n      </SplitterPanel>\n\
+    \      <SplitterResizeHandle\n        id=\"splitter-group-1-resize-handle-1\"\n\
+    \        class=\"w-1 hover:bg-slate-600\"\n      />\n      <SplitterPanel\n  \
+    \      id=\"splitter-group-1-panel-2\"\n        :min-size=\"20\"\n        :defaultSize=\"\
+    80\"\n        :order=\"1\"\n        class=\"\"\n      >\n        <PRReport class=\"\
+    w-full h-full overflow-auto\" \n          :files=\"reportFiles\" \n          :showOption=\"\
+    showOption\"\n          @new-chat=\"onFileChat\"\n        />  \n      </SplitterPanel>\n\
+    \    </SplitterGroup>\n\n    <modal close=\"true\" @close=\"showBulkAction = false\"\
+    \ v-if=\"showBulkAction\">\n      <div class=\"flex flex-col gap-2\">\n      \
+    \  <div class=\"text-xl\">Bulk action</div>\n        <div>Send message to {{ selectedFiles.length\
+    \ }} files:</div>\n        <textarea v-model=\"bulkAction\" class=\"textarea textarea-bordered\
+    \ max-h-60 h-40\" />\n        <div class=\"flex justify-end\">\n          <button\
+    \ class=\"btn\" @click=\"sendBulkAction\">\n            Send\n          </button>\n\
+    \        </div>\n      </div>\n    </modal>\n  </div>\n</template>\n\n<script>\n\
+    const parser = new DiffParser()\nexport default {\n  props: ['fromBranch', 'toBranch',\
+    \ 'extendedData', 'chat', 'prChats'],\n  data() {\n    return {\n      overviewChecked:\
+    \ true,\n      isInputVisible: false,\n      loading: false,\n      changesSummary:\
+    \ null,\n      files: null,\n      fromBranchSelected: this.fromBranch,\n    \
+    \  toBranchSelected: this.toBranch,\n      extendData: { oldFile: {}, newFile:\
+    \ {} },\n      codeComment: null,\n      filter: null,\n      bulkAction: null,\n\
+    \      showBulkAction: false,\n      showFileDetails: null,\n      showOption:\
+    \ 'message'\n    }\n  },\n  created() {\n    if (this.fromBranch && this.toBranch)\
+    \ {\n      this.refreshSummary()\n    }\n  },\n  computed: {\n    reportFiles()\
+    \ {\n      return this.selectedFiles?.length ? \n        this.selectedFiles: this.visibleFiles\n\
+    \      /* \n        [this.showFileDetails, ...this.selectedFiles]\n          .filter((v,\
+    \ ix, arr) => v && arr.indexOf(v) === ix)\n      */\n    },\n    branches() {\n\
+    \      return this.$projects.project_branches.branches\n    },\n    newCount()\
+    \ {\n      return this.files.filter(f => f.isNewFile).length\n    },\n    deleteCount()\
+    \ {\n      return this.files.filter(f => f.isDeleted).length\n    },\n    changeCount()\
+    \ {\n      return this.files.filter(f => f.isChanged).length\n    },\n    selectedFiles()\
+    \ {\n      return this.files?.filter(f => f.selected) || []\n    },\n    visibleFiles()\
+    \ {\n      const fileIndex = ({ fileFullName, diff, chat }) => {\n        const\
+    \ fields = [\n          fileFullName.toLowerCase(),\n          diff?.toLowerCase(),\n\
+    \          chat?.profiles.map(p => p.name).join(),\n          chat?.column\n \
+    \       ]\n        return fields.join(\"\").toLowerCase()\n      }\n\n      const\
+    \ filterKeys = this.filter?.match(/(\\w+):[\\w-]+/g) || []\n      const textFilter\
+    \ = this.filter?.replace(/(\\w+):[\\w-]+/g, '').trim().toLowerCase() || ''\n\n\
+    \      const matchByKey = f => !filterKeys.length || filterKeys.find(key => {\n\
+    \                                const [k, v] = key.split(':')\n             \
+    \                   if (k === 'column') return f.column?.title.toLowerCase() ===\
+    \ v.toLowerCase()\n                                if (k === 'profile') return\
+    \ f.profiles.some(p => p.name.toLowerCase() === v.toLowerCase())\n           \
+    \                     return false\n                              })\n\n     \
+    \ return this.files?.filter(f => {\n        const index = fileIndex(f)\n     \
+    \   return matchByKey(f) && index.includes(textFilter)\n      }) || []\n    },\n\
+    \    defaultExpanded() {\n      return [...new Set(this.visibleFiles.filter(i\
+    \ => i.chat).map(i => i.folder))]\n    },\n    fileMap() {\n      return this.files.reduce((acc,\
+    \ file) => ({ ...acc, [file.fileName]: file }), {})\n    },\n    columns() {\n\
+    \      return this.$projects.kanban.boards[this.chat.board].columns\n        \
+    \      .reduce((acc, col) => ({\n                ...acc,\n                [col.title]:\
+    \ {\n                  ...col, \n                  chats: this.files.filter(f\
+    \ => f.column?.title === col.title) }\n              }), {})\n    },\n    profiles()\
+    \ {\n      return this.files?.map(f => f.profiles)\n              .reduce((a,\
+    \ b) => [...a, ...b])\n              .reduce((acc, profile) => ({ ...acc, [profile.name]:\
+    \ profile }), {})\n    }\n  },\n  watch: {\n    filter() {\n      this.resetSelect()\n\
+    \    }\n  },\n  methods: {\n    copyText() {\n      copyTextToClipboard(this.changesSummary)\n\
+    \    },\n    async refreshSummary() {\n      this.loading = true\n      try {\n\
+    \        const { fromBranch, toBranch } = this\n        const changes = await\
+    \ this.$storex.api.repo.changes({ from_branch: fromBranch, to_branch: toBranch\
+    \ })\n        let diff = changes.diff\n        const repoPath = changes.repo_path\n\
+    \        if (changes.local_changes) {\n          Object.values(changes.local_changes)\n\
+    \            .filter(localDiff => !!localDiff)\n            .forEach(localDiff\
+    \ => diff += `\\n${localDiff}`)\n        }\n        this.files = diff.split(\"\
+    diff --git \")\n          .filter(d => d)\n          .map(diff => this.buildDiffFile(diff,\
+    \ repoPath))   \n          .filter(diff => !!diff)   \n          .sort((a, b)\
+    \ => a.title < b.title ? 1: -1)\n\n        this.showFileDetails = this.files.filter(f\
+    \ => f.chat)\n                                        .sort((a, b) => a.chat.updated_at\
+    \ > b.chat.updated_at ? -1 : 1)[0]\n      } finally {\n        this.loading =\
+    \ false\n      }\n    },\n    toggleBranchInput() {\n      this.isInputVisible\
+    \ = !this.isInputVisible\n    },\n    onBranchChanged({ fromBranch, toBranch })\
+    \ {\n      this.$emit('select', { fromBranch, toBranch })\n    },\n    onAddComment(comment,\
+    \ file, lineNumber, side, onClose) {\n      const metadata = {\n        file:\
+    \ file.fileName,\n        lineNumber,\n        side\n      }\n      const message\
+    \ = {\n        metadata,\n        content: comment\n      }\n      \n      const\
+    \ _side = side === 1 ? 'oldFile' : 'newFile'\n      this.extendData[_side][lineNumber]\
+    \ = { data: \"comment\" }\n      onClose()\n    },\n    copyDiff(file) {\n   \
+    \   const diffBlock = [\"```diff\", file.hunks[0], \"```\"].join(\"\\n\") \n \
+    \     this.$ui.copyTextToClipboard(diffBlock)\n    },\n    openFile(fileName)\
+    \ {\n      this.$ui.openProjectFile(fileName)\n    },\n    getFileProfiles(fileName)\
+    \ {\n      return this.$projects.profiles.filter(p => p.file_match && fileName.match(p.file_match))\n\
+    \    },\n    buildDiffFile(diff, repoPath) {\n      try {\n          const lines\
+    \ = diff.split(\"\\n\")\n          const [oldFile, newFile] = lines[0].trim().split(\"\
+    \ \")\n          const oldName = oldFile.replace(\"a/\", \"\")\n          const\
+    \ newName = newFile.replace(\"b/\", \"\")\n          \n          let parsed =\
+    \ null\n          try {\n            parsed = parser.parse(diff)\n          }\
+    \ catch (parseEx) {\n            console.error(`Error parsing diff\\n*** ${parseEx}\\\
+    n${diff}`) \n          }\n          \n          const isDeleted = parsed?.header.includes(\"\
+    deleted\") || false\n          const isNewFile =  !isDeleted && newName && !oldName\n\
+    \          const isChanged =  !isDeleted && newName && oldName\n          const\
+    \ fileName = oldName || newName\n          const profiles = this.getFileProfiles(fileName)\n\
+    \          const fileShortName = fileName.split('/').reverse().slice(0, 3).reverse().join('/')\
+    \ \n          const fileFullName = fileName.startsWith(repoPath) ? fileName :\n\
+    \                                  repoPath + (fileName[0] === \"/\" ? \"\": \"\
+    /\") + fileName\n          const chat = this.prChats[fileFullName]\n         \
+    \ const lastMessage = chat?.messages.filter(m => m.role === \"assistant\" && !m.hide)\n\
+    \                                  .reverse()[0]\n          const board = this.$storex.projects.kanban.boards[chat?.board]\
+    \       \n          const column = board?.columns.find(c => c.title === chat?.column)\n\
+    \          const messageCount = chat?.messages.length\n          \n          let\
+    \ folderParts = fileName.split(\"/\").reverse().slice(1).reverse()\n         \
+    \ if (folderParts.length > 6) {\n            folderParts = folderParts.map((v,\
+    \ ix) => ix <= 4 ? v[0] : v)\n          }\n          const folder = \"/\" + folderParts.join(\"\
+    /\")\n\n          const title = fileName.split(\"/\").reverse()[0]\n         \
+    \ const extension = fileFullName.split(\".\").reverse()[0]\n        \n       \
+    \   return {\n            title,\n            folder,\n            extension,\n\
+    \            diff,\n            fileName,\n            fileShortName,\n      \
+    \      fileFullName,\n            chat,\n            lastMessage,\n          \
+    \  oldFile: {\n              fileName: oldName\n            },\n            newFile:\
+    \ {\n              fileName: newName\n            },\n            hunks: [diff],\n\
+    \            isDeleted,\n            isNewFile,\n            isChanged,\n    \
+    \        parsed,\n            profiles,\n            column,\n            messageCount,\n\
+    \            showDiff: true,\n            showChat: false\n          }\n     \
+    \ } catch (ex) {\n        console.error(`Error parsing diff\\n*** ${ex}\\n${diff}`)\n\
+    \      }\n      return null\n    },\n    toggleFileDiff(file) {      \n      file.showDiff\
+    \ = !file.showDiff\n    },\n    toggleSelectAll() {\n      const setSelected =\
+    \ !this.selectedFiles.length\n      this.visibleFiles.map(f => { f.selected =\
+    \ setSelected })\n    },\n    resetSelect() {\n      this.files.map(f => { f.selected\
+    \ = false })\n    },\n    onBulkAction() {\n      this.bulkAction = null\n   \
+    \   this.showBulkAction = true\n    },\n    sendBulkAction() {\n      this.showBulkAction\
+    \ = false\n      const files = [...this.selectedFiles]\n      requestAnimationFrame(()\
+    \ => \n        files.map(file => \n          this.onFileComment({ file, message:\
+    \ this.bulkAction })\n        )\n      )\n    },\n    toggleAllNoneSelected()\
+    \ {\n      const setVal = this.selectedFiles.length === 0\n      this.visibleFiles.map(file\
+    \ => { file.selected = setVal })\n    },\n    onFileComment({ file, message })\
+    \ {\n      const { chat, fileFullName, fileShortName } = file\n      const profiles\
+    \ = file.profiles\n      const description = message || [\"```diff\", file.hunks[0],\
+    \ \"```\"].join(\"\\n\")\n      this.$emit('comment', { chat, title: fileShortName,\
+    \ files: [fileFullName], description, profiles, mode: 'task' })\n    },\n    onReviewSelected()\
+    \ {\n      const files = [...this.selectedFiles]\n      files.map(file => \n \
+    \       this.onFileComment({ file, message: \"Review files and return a list of\
+    \ errors that need to be changed. Add examples for complex changes.\" })\n   \
+    \   )\n    },\n    onFileChat(file) {\n      const { fileFullName, fileShortName,\
+    \ profiles } = file\n      this.$emit('new-chat', { title: fileShortName, files:\
+    \ [fileFullName], profiles, mode: 'task' })\n    },\n    onDataItemSelected(item)\
+    \ {\n      if (item.hasChildren) {\n        item.value.children.forEach(child\
+    \ => {\n          child.selected = item.value.selected\n        })\n      }\n\
+    \    },\n    selectAll() {\n      this.visibleFiles.map(f => { f.selected = true\
+    \ })\n    },\n    selectNone() {\n      this.files.map(f => { f.selected = false\
+    \ })\n    },\n    onSelectFileOption(showOption) {\n      this.showOption = showOption\n\
+    \    }\n  },\n  mounted() {\n    this.$projects.loadBranches()\n  }\n}\n</script>\n\
+    \                    ```\n\n                    Apply these changes to /shared/codx-junior/client/src/components/repo/PRView.vue:\n\
+    \                    User commented in line 45: >\nAdd new entry with a column\
+    \ selector when user selects a column call \"setFilesColumn\".\nsetFilesColumn\
+    \ will emit 'change-column' passing file chats collection from selectedFiles and\
+    \ column title\n\n                    \n                    Instructions:\n  \
+    \                    Best practices for this file:\n            Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\nWhen writing vue files\
+    \ always follow this best parctices:\nVue files must always follow this structure\
+    \ in this order.\nNo other elements are valid:\n```example vue file\n<script setup>\n\
+    import Component from './component.vue'\nimport markdown from 'mardown'\n</script>\n\
+    <template>\n<div class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\n\
+    export default {\nprops: [].\ndata (){\n// Reactive data, don't use \"ref\"\n\
+    \ return { myVariable: null }\n},\ncomputed: {},\nwatch: {},\nmethods: {}\n}\n\
+    </sctipt>\n```\n* No need to import ref, computed or mapState \n* export default\
+    \ component object\n* Use component \"data\" method to return an object variables\n\
+    * Use component \"computed\" to define computed properties\n\" Use component \"\
+    methods\" to define component methods \n* Use \"this.$storex\" or \"$storex\"\
+    \ to access store data.\n* To access vue store data use \"$storex\"\n* \"script\
+    \ setup\" section contains ONLY imports, no variables, properties bnor methods\n\
+    * Use TailwindCSS classes for styling, always consider mobile styles\n* Vue component\
+    \ definition will be exporting a default object like, without ref, nor computed\
+    \ imports\n* Don't use \";\" in the javascript or typescript code\n* Avoid long\
+    \ functions\n* Add short and concise comments for complex functions\n* Don't use\
+    \ <style> elements, use TailWindCSS classes\nMake sure all vue components follow\
+    \ this structure:\n```vue\n<script setup><!-- Import all components and libraries\
+    \ on the top -->\n</script>\n<template><!-- Component markup -->\n<div></div>\n\
+    </template>\n<script><!-- Component logic -->\nexport default {\n}\n</script>\n\
+    ```\n\nUse fontawesome for icons like: <i class=\"fa-solid fa-right-from-bracket\"\
+    ></i>\n            \n                      Apply all comments to the document\
+    \ and return a final version.\n                      Pay attention to do not loose\
+    \ any detail or part of the document.\n                      Return only the file\
+    \ content \n                    "
+  created_at: '2025-10-18 09:21:26.062704'
+  disable_knowledge: false
+  doc_id: 04884125-2d1a-4c97-b139-bcdfd6eee38b
+  done: true
+  files:
+  - /shared/codx-junior/client/src/components/repo/PRView.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  - VueDeveloper
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-18 09:21:26.062729'
+  user: null
+- content: "```vue /shared/codx-junior/client/src/components/repo/PRView.vue\n<script\
+    \ setup>\nimport \"@git-diff-view/vue/styles/diff-view.css\"\nimport { DiffParser\
+    \ } from \"@git-diff-view/vue\"\nimport PRBranchSelectoor from './PRBranchSelectoor.vue'\n\
+    import CodxMenu from \"../CodxMenu.vue\"\nimport PRReport from \"./PRReport.vue\"\
+    \nimport { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'\n\
+    import PRFileViewModeSelector from \"./PRFileViewModeSelector.vue\"\n</script>\n\
+    \n<template>\n  <div class=\"pr-view flex flex-col gap-1 h-full overflow-hidden\"\
+    >\n    <header class=\"flex justify-between items-start\">\n      <div class=\"\
+    flex flex-col gap-2 w-full\">\n        <div class=\"flex gap-2 items-center\"\
+    \ v-if=\"loading\">\n          <span class=\"text-xs\">Loading</span>\n      \
+    \    <progress class=\"progress grow\"></progress>\n        </div>\n        <div\
+    \ class=\"flex gap-2\">\n          <PRBranchSelectoor :fromBranch=\"fromBranchSelected\"\
+    \ :toBranch=\"toBranchSelected\" @select=\"onBranchChanged\" />\n          <button\
+    \ class=\"btn btn-xs\" @click=\"refreshSummary\">\n            <i class=\"fa-solid\
+    \ fa-arrows-rotate\"></i>\n          </button>\n          <div class=\"grow\"\
+    ></div>\n          <PRFileViewModeSelector @select=\"onSelectFileOption\" />\n\
+    \        </div>\n      </div>\n    </header>\n    <div class=\"flex gap-2 py-2\
+    \ items-center\" v-if=\"files?.length\">\n      <div class=\"flex gap-2 items-center\"\
+    \ v-if=\"reportFiles.length\">\n        <div class=\"dropdown\">\n          <div\
+    \ tabindex=\"0\" role=\"button\" class=\"btn btn-sm m-1 indicator\" :disabled=\"\
+    selectedFiles.length === 0\">\n            <span class=\"indicator-item badge\
+    \ badge-xs badge-warning\" v-if=\"selectedFiles.length\">\n              {{ selectedFiles.length\
+    \ }}\n            </span>\n            <i class=\"fa-solid fa-bars\"></i>\n  \
+    \        </div>\n          <ul tabindex=\"0\" class=\"dropdown-content menu bg-base-100\
+    \ rounded-box z-50 w-52 p-2 shadow-sm\">\n            <li @click=\"onReviewSelected\"\
+    \ v-if=\"selectedFiles.length\"><a>Review files</a></li>\n            <li @click=\"\
+    onBulkAction\" v-if=\"selectedFiles.length\"><a>Custom action...</a></li>\n  \
+    \          <li @click=\"setFilesColumn\" v-if=\"selectedFiles.length\"><a>Set\
+    \ Files Column</a></li>\n          </ul>\n        </div>\n      </div>\n     \
+    \ <div class=\"click btn btn-sm\" @click.stop=\"toggleSelectAll\" v-else>\n  \
+    \      <i class=\"fa-regular fa-file-lines\"></i>\n      </div>\n      <div class=\"\
+    grow\">\n        <div class=\"flex gap-2 items-center border rounded-md px-1\"\
+    >\n          <input type=\"text\" v-model=\"filter\" class=\"grow input input-sm\"\
+    \ />\n          <i class=\"fa-solid fa-magnifying-glass\"></i>\n        </div>\n\
+    \      </div>\n      <div class=\"avatar click\" :title=\"profile.name\" @click=\"\
+    filter = (filter||'') + ' profile:' + profile.name\"\n        v-for=\"profile\
+    \ in profiles\" :key=\"profile.name\">\n        <div class=\"w-4 h-4 ring ring-offset-1\
+    \ rounded-full\">\n          <img :src=\"profile.avatar\" />\n        </div>\n\
+    \      </div>\n      <div class=\"click px-2 py-1 border rounded-full flex gap-2\
+    \ tooltip text-xs\" v-for=\"column in columns\"\n        :key=\"column.title\"\
+    \ :class=\"`text-[${column.color}] border-[${column.color}]`\"\n        @click=\"\
+    filter = (filter||'') + ' column:' + column.title\">\n        {{ column.title\
+    \ }}\n        {{ column.chats?.length }}\n      </div>\n      <div class=\"px-2\
+    \ py-1 border border-error text-error items-center rounded-full flex gap-2 tooltip\
+    \ text-xs\">\n        <i class=\"fa-solid fa-circle-exclamation\"></i>\n     \
+    \   {{ files?.filter(f => !f.column).length }}\n      </div>\n    </div>\n\n \
+    \   <SplitterGroup class=\"h-full\" id=\"splitter-group-1\" direction=\"horizontal\"\
+    \ v-if=\"files\">\n      <SplitterPanel id=\"splitter-group-1-panel-1\" :min-size=\"\
+    10\" :collapsible=\"true\" class=\"\" :order=\"0\">\n        <CodxMenu class=\"\
+    h-full overflow-auto\" :items=\"visibleFiles\" :item-key=\"'folder'\" :defaultExpanded=\"\
+    defaultExpanded\"\n          @select=\"showFileDetails = $event\">\n         \
+    \ <template v-slot:header>\n            <h2 class=\"font-semibold !text-base text-blackA11\
+    \ flex items-end gap-2 px-2 pt-1\">\n              <input type=\"checkbox\" @change=\"\
+    toggleAllNoneSelected\" class=\"checkbox checkbox-sm\" />\n              Files\n\
+    \              <span class=\"click ml-2 text-xs flex gap-1\"><a @click=\"selectAll\"\
+    >all</a>/<a @click=\"selectNone\">none</a></span>\n            </h2>\n       \
+    \   </template>\n          <template v-slot:item=\"data\">\n            <div class=\"\
+    flex gap-1 items-center click px-2 text-nowrap\"\n              :class=\"data.item.value\
+    \ === showFileDetails ? 'text-warning font-bold' : 'opacity-90'\">\n         \
+    \     <input type=\"checkbox\" v-model=\"data.item.value.selected\" class=\"checkbox\
+    \ checkbox-sm\" @click.stop=\"\"\n                @change=\"onDataItemSelected(data.item)\"\
+    \ />\n              <div class=\"avatar-group -space-x-2\" v-if=\"data.item.value.profiles?.length\"\
+    >\n                <div class=\"avatar\" :title=\"profile.name\" v-for=\"profile\
+    \ in data.item.value.profiles\" :key=\"profile.name\">\n                  <div\
+    \ class=\"w-4 h-4\">\n                    <img :src=\"profile.avatar\" />\n  \
+    \                </div>\n                </div>\n              </div>\n      \
+    \        <i class=\"fa-regular fa-comment-dots\" :class=\"`text-[${data.item.value.column?.color}]`\"\
+    \n                v-if=\"data.item.value.chat\"></i>\n\n              <span :title=\"\
+    data.item.value.fileName\">\n                {{ data.item.value.title }}\n   \
+    \           </span>\n\n              <div class=\"\" :class=\"`text-[${data.item.value.column.color}]`\"\
+    \ v-if=\"data.item.value.column\">\n                ( {{ data.item.value.column.title\
+    \ }} )\n              </div>\n            </div>\n          </template>\n    \
+    \    </CodxMenu>\n      </SplitterPanel>\n      <SplitterResizeHandle id=\"splitter-group-1-resize-handle-1\"\
+    \ class=\"w-1 hover:bg-slate-600\" />\n      <SplitterPanel id=\"splitter-group-1-panel-2\"\
+    \ :min-size=\"20\" :defaultSize=\"80\" :order=\"1\" class=\"\">\n        <PRReport\
+    \ class=\"w-full h-full overflow-auto\" :files=\"reportFiles\" :showOption=\"\
+    showOption\"\n          @new-chat=\"onFileChat\" />\n      </SplitterPanel>\n\
+    \    </SplitterGroup>\n\n    <modal close=\"true\" @close=\"showBulkAction = false\"\
+    \ v-if=\"showBulkAction\">\n      <div class=\"flex flex-col gap-2\">\n      \
+    \  <div class=\"text-xl\">Bulk action</div>\n        <div>Send message to {{ selectedFiles.length\
+    \ }} files:</div>\n        <textarea v-model=\"bulkAction\" class=\"textarea textarea-bordered\
+    \ max-h-60 h-40\" />\n        <div class=\"flex justify-end\">\n          <button\
+    \ class=\"btn\" @click=\"sendBulkAction\">\n            Send\n          </button>\n\
+    \        </div>\n      </div>\n    </modal>\n  </div>\n</template>\n\n<script>\n\
+    const parser = new DiffParser()\nexport default {\n  props: ['fromBranch', 'toBranch',\
+    \ 'extendedData', 'chat', 'prChats'],\n  data() {\n    return {\n      overviewChecked:\
+    \ true,\n      isInputVisible: false,\n      loading: false,\n      changesSummary:\
+    \ null,\n      files: null,\n      fromBranchSelected: this.fromBranch,\n    \
+    \  toBranchSelected: this.toBranch,\n      extendData: { oldFile: {}, newFile:\
+    \ {} },\n      codeComment: null,\n      filter: null,\n      bulkAction: null,\n\
+    \      showBulkAction: false,\n      showFileDetails: null,\n      showOption:\
+    \ 'message'\n    }\n  },\n  created() {\n    if (this.fromBranch && this.toBranch)\
+    \ {\n      this.refreshSummary()\n    }\n  },\n  computed: {\n    reportFiles()\
+    \ {\n      return this.selectedFiles?.length ?\n        this.selectedFiles : this.visibleFiles\n\
+    \    },\n    branches() {\n      return this.$projects.project_branches.branches\n\
+    \    },\n    newCount() {\n      return this.files.filter(f => f.isNewFile).length\n\
+    \    },\n    deleteCount() {\n      return this.files.filter(f => f.isDeleted).length\n\
+    \    },\n    changeCount() {\n      return this.files.filter(f => f.isChanged).length\n\
+    \    },\n    selectedFiles() {\n      return this.files?.filter(f => f.selected)\
+    \ || []\n    },\n    visibleFiles() {\n      const fileIndex = ({ fileFullName,\
+    \ diff, chat }) => {\n        const fields = [\n          fileFullName.toLowerCase(),\n\
+    \          diff?.toLowerCase(),\n          chat?.profiles.map(p => p.name).join(),\n\
+    \          chat?.column\n        ]\n        return fields.join(\"\").toLowerCase()\n\
+    \      }\n\n      const filterKeys = this.filter?.match(/(\\w+):[\\w-]+/g) ||\
+    \ []\n      const textFilter = this.filter?.replace(/(\\w+):[\\w-]+/g, '').trim().toLowerCase()\
+    \ || ''\n\n      const matchByKey = f => !filterKeys.length || filterKeys.find(key\
+    \ => {\n        const [k, v] = key.split(':')\n        if (k === 'column') return\
+    \ f.column?.title.toLowerCase() === v.toLowerCase()\n        if (k === 'profile')\
+    \ return f.profiles.some(p => p.name.toLowerCase() === v.toLowerCase())\n    \
+    \    return false\n      })\n\n      return this.files?.filter(f => {\n      \
+    \  const index = fileIndex(f)\n        return matchByKey(f) && index.includes(textFilter)\n\
+    \      }) || []\n    },\n    defaultExpanded() {\n      return [...new Set(this.visibleFiles.filter(i\
+    \ => i.chat).map(i => i.folder))]\n    },\n    fileMap() {\n      return this.files.reduce((acc,\
+    \ file) => ({ ...acc, [file.fileName]: file }), {})\n    },\n    columns() {\n\
+    \      return this.$projects.kanban.boards[this.chat.board].columns\n        .reduce((acc,\
+    \ col) => ({\n          ...acc,\n          [col.title]: {\n            ...col,\n\
+    \            chats: this.files.filter(f => f.column?.title === col.title)\n  \
+    \        }\n        }), {})\n    },\n    profiles() {\n      return this.files?.map(f\
+    \ => f.profiles)\n        .reduce((a, b) => [...a, ...b])\n        .reduce((acc,\
+    \ profile) => ({ ...acc, [profile.name]: profile }), {})\n    }\n  },\n  watch:\
+    \ {\n    filter() {\n      this.resetSelect()\n    }\n  },\n  methods: {\n   \
+    \ copyText() {\n      copyTextToClipboard(this.changesSummary)\n    },\n    async\
+    \ refreshSummary() {\n      this.loading = true\n      try {\n        const {\
+    \ fromBranch, toBranch } = this\n        const changes = await this.$storex.api.repo.changes({\
+    \ from_branch: fromBranch, to_branch: toBranch })\n        let diff = changes.diff\n\
+    \        const repoPath = changes.repo_path\n        if (changes.local_changes)\
+    \ {\n          Object.values(changes.local_changes)\n            .filter(localDiff\
+    \ => !!localDiff)\n            .forEach(localDiff => diff += `\\n${localDiff}`)\n\
+    \        }\n        this.files = diff.split(\"diff --git \")\n          .filter(d\
+    \ => d)\n          .map(diff => this.buildDiffFile(diff, repoPath))\n        \
+    \  .filter(diff => !!diff)\n          .sort((a, b) => a.title < b.title ? 1 :\
+    \ -1)\n\n        this.showFileDetails = this.files.filter(f => f.chat)\n     \
+    \     .sort((a, b) => a.chat.updated_at > b.chat.updated_at ? -1 : 1)[0]\n   \
+    \   } finally {\n        this.loading = false\n      }\n    },\n    toggleBranchInput()\
+    \ {\n      this.isInputVisible = !this.isInputVisible\n    },\n    onBranchChanged({\
+    \ fromBranch, toBranch }) {\n      this.$emit('select', { fromBranch, toBranch\
+    \ })\n    },\n    onAddComment(comment, file, lineNumber, side, onClose) {\n \
+    \     const metadata = {\n        file: file.fileName,\n        lineNumber,\n\
+    \        side\n      }\n      const message = {\n        metadata,\n        content:\
+    \ comment\n      }\n\n      const _side = side === 1 ? 'oldFile' : 'newFile'\n\
+    \      this.extendData[_side][lineNumber] = { data: \"comment\" }\n      onClose()\n\
+    \    },\n    copyDiff(file) {\n      const diffBlock = [\"```diff\", file.hunks[0],\
+    \ \"```\"].join(\"\\n\")\n      this.$ui.copyTextToClipboard(diffBlock)\n    },\n\
+    \    openFile(fileName) {\n      this.$ui.openProjectFile(fileName)\n    },\n\
+    \    getFileProfiles(fileName) {\n      return this.$projects.profiles.filter(p\
+    \ => p.file_match && fileName.match(p.file_match))\n    },\n    buildDiffFile(diff,\
+    \ repoPath) {\n      try {\n        const lines = diff.split(\"\\n\")\n      \
+    \  const [oldFile, newFile] = lines[0].trim().split(\" \")\n        const oldName\
+    \ = oldFile.replace(\"a/\", \"\")\n        const newName = newFile.replace(\"\
+    b/\", \"\")\n\n        let parsed = null\n        try {\n          parsed = parser.parse(diff)\n\
+    \        } catch (parseEx) {\n          console.error(`Error parsing diff\\n***\
+    \ ${parseEx}\\n${diff}`)\n        }\n\n        const isDeleted = parsed?.header.includes(\"\
+    deleted\") || false\n        const isNewFile = !isDeleted && newName && !oldName\n\
+    \        const isChanged = !isDeleted && newName && oldName\n        const fileName\
+    \ = oldName || newName\n        const profiles = this.getFileProfiles(fileName)\n\
+    \        const fileShortName = fileName.split('/').reverse().slice(0, 3).reverse().join('/')\n\
+    \        const fileFullName = fileName.startsWith(repoPath) ? fileName :\n   \
+    \       repoPath + (fileName[0] === \"/\" ? \"\" : \"/\") + fileName\n       \
+    \ const chat = this.prChats[fileFullName]\n        const lastMessage = chat?.messages.filter(m\
+    \ => m.role === \"assistant\" && !m.hide)\n          .reverse()[0]\n        const\
+    \ board = this.$storex.projects.kanban.boards[chat?.board]\n        const column\
+    \ = board?.columns.find(c => c.title === chat?.column)\n        const messageCount\
+    \ = chat?.messages.length\n\n        let folderParts = fileName.split(\"/\").reverse().slice(1).reverse()\n\
+    \        if (folderParts.length > 6) {\n          folderParts = folderParts.map((v,\
+    \ ix) => ix <= 4 ? v[0] : v)\n        }\n        const folder = \"/\" + folderParts.join(\"\
+    /\")\n\n        const title = fileName.split(\"/\").reverse()[0]\n        const\
+    \ extension = fileFullName.split(\".\").reverse()[0]\n\n        return {\n   \
+    \       title,\n          folder,\n          extension,\n          diff,\n   \
+    \       fileName,\n          fileShortName,\n          fileFullName,\n       \
+    \   chat,\n          lastMessage,\n          oldFile: {\n            fileName:\
+    \ oldName\n          },\n          newFile: {\n            fileName: newName\n\
+    \          },\n          hunks: [diff],\n          isDeleted,\n          isNewFile,\n\
+    \          isChanged,\n          parsed,\n          profiles,\n          column,\n\
+    \          messageCount,\n          showDiff: true,\n          showChat: false\n\
+    \        }\n      } catch (ex) {\n        console.error(`Error parsing diff\\\
+    n*** ${ex}\\n${diff}`)\n      }\n      return null\n    },\n    toggleFileDiff(file)\
+    \ {\n      file.showDiff = !file.showDiff\n    },\n    toggleSelectAll() {\n \
+    \     const setSelected = !this.selectedFiles.length\n      this.visibleFiles.map(f\
+    \ => { f.selected = setSelected })\n    },\n    resetSelect() {\n      this.files.map(f\
+    \ => { f.selected = false })\n    },\n    onBulkAction() {\n      this.bulkAction\
+    \ = null\n      this.showBulkAction = true\n    },\n    sendBulkAction() {\n \
+    \     this.showBulkAction = false\n      const files = [...this.selectedFiles]\n\
+    \      requestAnimationFrame(() =>\n        files.map(file =>\n          this.onFileComment({\
+    \ file, message: this.bulkAction })\n        )\n      )\n    },\n    toggleAllNoneSelected()\
+    \ {\n      const setVal = this.selectedFiles.length === 0\n      this.visibleFiles.map(file\
+    \ => { file.selected = setVal })\n    },\n    onFileComment({ file, message })\
+    \ {\n      const { chat, fileFullName, fileShortName } = file\n      const profiles\
+    \ = file.profiles\n      const description = message || [\"```diff\", file.hunks[0],\
+    \ \"```\"].join(\"\\n\")\n      this.$emit('comment', { chat, title: fileShortName,\
+    \ files: [fileFullName], description, profiles, mode: 'task' })\n    },\n    onReviewSelected()\
+    \ {\n      const files = [...this.selectedFiles]\n      files.map(file =>\n  \
+    \      this.onFileComment({\n          file,\n          message: \"Review files\
+    \ and return a list of errors that need to be changed. Add examples for complex\
+    \ changes.\"\n        })\n      )\n    },\n    onFileChat(file) {\n      const\
+    \ { fileFullName, fileShortName, profiles } = file\n      this.$emit('new-chat',\
+    \ { title: fileShortName, files: [fileFullName], profiles, mode: 'task' })\n \
+    \   },\n    onDataItemSelected(item) {\n      if (item.hasChildren) {\n      \
+    \  item.value.children.forEach(child => {\n          child.selected = item.value.selected\n\
+    \        })\n      }\n    },\n    selectAll() {\n      this.visibleFiles.map(f\
+    \ => { f.selected = true })\n    },\n    selectNone() {\n      this.files.map(f\
+    \ => { f.selected = false })\n    },\n    onSelectFileOption(showOption) {\n \
+    \     this.showOption = showOption\n    },\n    setFilesColumn() {\n      const\
+    \ columnTitle = prompt(\"Enter column title:\")\n      if (columnTitle) {\n  \
+    \      this.$emit('change-column', { files: this.selectedFiles, columnTitle })\n\
+    \      }\n    }\n  },\n  mounted() {\n    this.$projects.loadBranches()\n  }\n\
+    }\n</script>\n```"
+  created_at: '2025-10-18 09:21:26.062704'
+  disable_knowledge: false
+  doc_id: 0c6cc7ca-f598-403a-b540-9167f281a464
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00011587142944335938
+    model: openai/gpt-4o
+    time_taken: 73.83392190933228
+  profiles:
+  - daisyui_components
+  - VueDeveloper
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-10-18 09:21:26.062729'
+  user: null
+mode: chat
+name: changes-at-repo-prview-vue-2025-10-20-16-28-05-977266
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- VueDeveloper
+- Vue files
+- daisyui_components
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-10-20T16:29:23.064474'
+url: ''
+users: []
+visibility: ''

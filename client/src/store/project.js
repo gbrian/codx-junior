@@ -46,7 +46,8 @@ export const state = () => ({
   ai: {
     models: []
   },
-  openedWorkspaces: []
+  openedWorkspaces: [],
+  projectBarnches: {}
 })
 
 export const mutations = mutationTree(state, {
@@ -224,10 +225,12 @@ export const actions = actionTree(
       state.activeProject = null
       state.activeChat = null
     },
-    async setActiveProject ({ state, commit }, project) {
-      const { project_name, codx_path } = project
-      if ( project_name && !codx_path ) {
-        project = $storex.projects.allProjects.find(p => p.project_name === project_name)
+    async setActiveProject ({ state }, project) {
+      const { project_id, project_name, codx_path } = project
+      if ( !codx_path ) {
+        project = $storex.projects.allProjects
+          .find(p => p.project_name === project_name || 
+                      p.project_id === project_id)
       }
       if (project?.codx_path === state.activeProject?.codx_path ) {
         return
@@ -243,10 +246,10 @@ export const actions = actionTree(
           state.ai.models = models
 
           state.activeProject = API.activeProject
-          state.activeChat = null
-
-          commit('addRecentProject', state.activeProject) // Update recent projects
-
+          if (state.activeChat?.project_id !== API.activeProject.project_id) {
+            state.activeChat = null
+          }
+          $storex.projects.addRecentProject(state.activeProject) 
           await Promise.all([
             $storex.projects.loadProfiles(),
             $storex.projects.loadChats()
@@ -300,7 +303,7 @@ export const actions = actionTree(
         delete state.chats[chat.id]
       }
     },
-    async setActiveChat({ state }, { id } = {}) {
+    async setActiveChat({ state }, { id, project_id } = {}) {
       if (id) {
         await $storex.projects.loadChat({ id })
       }

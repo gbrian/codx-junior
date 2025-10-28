@@ -32,7 +32,7 @@ class KnowledgeLoader:
         if not last_update:
             return True
         file_stats = os.stat(file_path)
-        if file_stats.st_size == 0:
+        if file_stats.st_size == 0 or file_stats.st_size > (50 * 1024):
             return False
 
         if current_sources: 

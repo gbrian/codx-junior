@@ -1,7 +1,6 @@
-When writing vue files always follow this best parctices:
-Vue files must always follow this structure in this order.
-No other elements are valid:
-```example vue file
+All components must have same structure: "setup", "template", "script".
+Vue Component Example:
+```vue file/path/to/Component.vue
 <script setup>
 import Component from './component.vue'
 import markdown from 'mardown'
@@ -23,6 +22,8 @@ methods: {}
 }
 </sctipt>
 ```
+Important:
+* No css, use TailwindCSS clases
 * No need to import ref, computed or mapState 
 * export default component object
 * Use component "data" method to return an object variables
@@ -31,9 +32,7 @@ methods: {}
 * Use "this.$storex" or "$storex" to access store data.
 * To access vue store data use "$storex"
 * "script setup" section contains ONLY imports, no variables, properties bnor methods
-* Use TailwindCSS classes for styling, always consider mobile styles
 * Vue component definition will be exporting a default object like, without ref, nor computed imports
 * Don't use ";" in the javascript or typescript code
 * Avoid long functions
 * Add short and concise comments for complex functions
-* Don't use <style> elements, use TailWindCSS classes

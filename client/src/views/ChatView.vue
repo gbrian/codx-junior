@@ -12,7 +12,7 @@ import PRView from '@/components/repo/PRView.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full pb-2 px-2" v-if="chat">
+  <div class="flex flex-col h-full pb-1" v-if="chat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">
@@ -39,12 +39,12 @@ import PRView from '@/components/repo/PRView.vue'
                     <UserAvatar :width="7" :user="user" v-for="user in chatUsers" :key="user.username">
                       <li @click="removeUser(user)"><a>Remove</a></li>
                     </UserAvatar>  
-                    <ProfileAvatar :profile="chatProfiles[0]"
+                    <ProfileAvatar :profile="profile"
                       :project="taskProject"
                       width="7"
-                      v-if="chatProfiles.length">
+                      v-for="profile in chatProfiles" :key="profile.name">
                         <div class="flex justify-end gap-2">
-                          <div class="badge badge-xs badge-warning cursor-pointer" @click="removeProfile(chatProfiles[0])">
+                          <div class="badge badge-xs badge-warning cursor-pointer" @click="removeProfile(profile)">
                             change
                           </div>
                         </div>
@@ -203,6 +203,7 @@ import PRView from '@/components/repo/PRView.vue'
           :chat="chat"
           @select="onPRViewBranchChanged"
           @comment="onPRFileComment"
+          @change-column="$emit('change-column', $event)"
           @new-chat="onPRFileCreateChat"
           v-if="isPRView" />
         <Chat class="h-full overflow-auto" 
@@ -409,6 +410,7 @@ export default {
     },
     prChats() {
       return this.childrenChats.filter(c => c.file_list?.length === 1)
+            .sort((a, b) => a.updated_at > b.updated_at ? 1 : -1)
             .reduce((acc, c) => ({ ...acc, [c.file_list[0]]: c }), {})
     },
     childrenChats() {
@@ -441,8 +443,12 @@ export default {
     }
   },
   watch: {
-    chat() {
-      this.init()
+    chat(newVal, oldVal) {
+      if (oldVal && 
+          newVal && 
+          oldVal.project_id !== newVal.project_id) {
+        this.init()
+      }
     }
   },
   methods: {
@@ -543,7 +549,7 @@ export default {
       this.$emit('chats', this.kanban?.title || this.chat.board)
     },
     newSubChat() {
-      this.subtaskProject = this.$project.project_id
+      this.subtaskProject = this.chat.project_id
       this.subtaskParentId = null
       this.subtaskMessageId = null
       this.showSubtaskModal = true
@@ -567,6 +573,7 @@ export default {
           file_list: this.subtaskFiles,
           profiles: this.subtaskProfiles,
           mode: this.subtaskMode,
+          column: this.subtaskColumn,
           activateChat
         })
         this.resetSubtaskModal()
@@ -582,6 +589,7 @@ export default {
       this.subtaskMode = 'chat'
       this.subtaskFiles = []
       this.subtaskProfiles = []
+      this.subtaskColumn = ''
     },
     addNewTag() {
       this.chat.tags = [...new Set([...this.chat.tags || [], this.newTag])]
@@ -631,7 +639,7 @@ export default {
       await this.saveChat()
       await this.$storex.api.repo.changes(this.chat) 
     },
-    async onPRFileComment({ chat, title, files, description, profiles, mode }) {
+    async onPRFileComment({ chat, title, files, description, profiles, mode, column }) {
       if (chat) {
         chat.messages.push({
           user: this.$user.username,
@@ -648,16 +656,23 @@ export default {
         this.subtaskFiles = files
         this.subtaskProfiles = profiles
         this.subtaskMode = mode
+        this.subtaskColumn = column
         this.createSubtask(false)
       }
     },
-    async onPRFileCreateChat({ title, files, profiles, mode }) {
-      this.subtaskName = title
-      this.subtaskDescription = null
-      this.subtaskFiles = files
-      this.subtaskProfiles = profiles
-      this.subtaskMode = mode
-      this.createSubtask(false)
+    async onPRFileCreateChat({ title, files, description, profiles, mode, column }) {
+      this.$emit('sub-task', {
+          parent: this.chat,
+          name: title,
+          description,
+          project_id: this.chatProject.id,
+          parent_id: this.chat.id,
+          file_list: files,
+          profiles,
+          mode,
+          column,
+          activateChat: false
+        })
     },
     toggleChatPinned() {
       this.chat.pinned = !this.chat.pinned

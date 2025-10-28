@@ -1,23 +1,37 @@
 <script setup>
+import ProjectDetailt from '../ProjectDetailt.vue';
 </script>
 
 <template>
 <div>
-  <div>
-    <label class="block mb-2">Name</label>
-    <input v-model="board.title" type="text" class="input input-bordered w-full mb-4" />
-    <label class="block mb-2">Description</label>
-    <textarea v-model="board.description" class="textarea textarea-bordered w-full mb-4"></textarea>
-    <label class="block mb-2">Remote board <i class="fa-solid fa-link"></i> </label>
-    <input v-model="board.remote_url" type="text" class="input input-bordered w-full mb-4" />
-    <div class="flex justify-between">
-      <button @click="saveBoard" class="btn">Save</button>
-      <button @click="deleteBoard" class="btn btn-error">
-        <span v-if="confirmDelete">Confirm delete</span>
-        <span v-else>Delete</span>
-      </button>
+  <h2 class="font-bold text-3xl">{{ editBoard ? 'Edit Board' : 'Add New Board' }}</h2>
+  
+  <ProjectDetailt 
+      :project="boardProject" 
+      :options="{ folders: false }"
+      @select="board.project_id = $event.project_id" />
+
+    <div class="collapse bg-contain"
+      :style="`background-image:url('${ newBoardBackground }')`"
+    >
+      <input type="radio" name="newboard"  v-model="newBoardType" value="manual" />
+      <div class="hidden collapse-title text-xl font-medium"><i class="fa-solid fa-gear"></i> Manual settings</div>
+      <div class="collapse-content">
+        <div class="text-xl text-info font-bold" v-if="activeBoard">Parent {{ activeBoard.title }}</div>
+        <input type="text" v-model="board.title" placeholder="Enter board name" class="input input-bordered w-full mt-2"/>
+        <input type="text" v-model="newBoardDescription" placeholder="Enter board description" class="input input-bordered w-full mt-2"/>
+        <input type="text" v-model="newBoardBackground" placeholder="Enter board backgorund image" class="input input-bordered w-full mt-2"/>
+        <select v-model="newBoardParent" class="select select-bordered w-full mt-2">
+          <option value="">-- none --</option>
+          <option v-for="board in boards" :key="board.id" :value="board.id">{{ board.title }}</option>
+        </select>
+      </div>
     </div>
-  </div>
+    <div class="modal-action">
+      <button class="btn" @click="addOrUpdateBoard" :disabled="isBoardNameTaken || !board.title">Save</button>
+      <button class="btn" @click="showBoardModal = false">Cancel</button>
+    </div>
+
   <div class="mt-2 flex justify-end font-bold text-warning gap-2" v-if="confirmDelete">
     <i class="fa-solid fa-triangle-exclamation"></i>
     All tasks will be deleted
@@ -32,6 +46,11 @@ export default {
   data() {
     return {
       confirmDelete: false
+    }
+  },
+  computed: {
+    boardProject() {
+      return this.$projects.allProjects.find(p => p.project_id === this.board.project_id)
     }
   },
   methods: {

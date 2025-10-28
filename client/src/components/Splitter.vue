@@ -14,7 +14,9 @@ import WorkspacesViewer from './workspaces/WorkspacesViewer.vue'
       @mouseenter="mouseOnNavigation = true" 
       @mouseover="mouseOnNavigation = true"
       @mouseleave="mouseOnNavigation = false"
-      @blur="mouseOnNavigation = false" />
+      @blur="mouseOnNavigation = false" 
+      v-if="showNavigationBar"  
+    />
     <SplitterGroup id="splitter-group-1" class="relative grow @container" 
       direction="horizontal" auto-save-id="splitter-group-1">
 
@@ -56,6 +58,7 @@ import WorkspacesViewer from './workspaces/WorkspacesViewer.vue'
           class="h-full" 
           :class="[ showApp ? 'w-full' : 'w-full mx-10 2xl:mx-20' ]"
           :style="`zoom:${ zoom }`" 
+          v-if="!$ui.isMobile || !$ui.showApp"
         />
       </SplitterPanel>
 
@@ -99,10 +102,17 @@ export default {
       return this.$ui.showApp
     },
     showCodxJuniorFloating() {
-      return this.$ui.floatingCodxJunior || (this.$ui.showBrowser && this.$ui.showCoder)
+      return this.$ui.floatingCodxJunior || 
+        (this.$ui.showBrowser && this.$ui.showCoder) ||
+        (this.$ui.isMobile && (this.showApp || this.$ui.showLogs))
     },
     showWorkspaces() {
       return this.$storex.projects.openedWorkspaces.length
+    },
+    showNavigationBar() {
+      return !this.$ui.isMobile || !this.$projects.activeChat 
+            || this.$ui.activeTab !== 'tasks'
+            || this.showApp
     }
   },
   mounted() {

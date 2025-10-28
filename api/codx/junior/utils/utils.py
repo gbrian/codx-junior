@@ -58,6 +58,17 @@ def document_to_context(doc):
     </document>
     """
 
+def document_to_code_block(doc):
+
+    content = doc.metadata.get('summary', doc.page_content)
+    source = str(Path(doc.metadata['source']).absolute())
+    language = doc.metadata.get('language')
+    extension = source.split(".")[-1] if "." in source else ""
+
+    return f"""```{ language or extension } {source}
+    {content}
+    ```"""
+
 def remove_starting_block(content):
     if content.startswith("```"):
         return "\n".join(content.split("\n")[1:-1])

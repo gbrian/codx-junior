@@ -11,7 +11,10 @@ import ProjectIcon from '../ProjectIcon.vue';
         v-for="board in bookmarks"
         :key="board.title"
         @click="selectBoard(board)"
-        class="p-2 card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative border-warning">
+        class="p-2 card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative border-warning h-32">
+            <div class="absolute top-0 left-0 bottom-0 right-0 opacity-30 rounded-md bg-cover"
+              :style="`background-image: url(${board.background})`" v-if="board.background">
+            </div>
           <h2 class="card-title flex tooltip group" :data-tip="board.title">
             <span class="flex items-center">
               <i
@@ -19,7 +22,7 @@ import ProjectIcon from '../ProjectIcon.vue';
                 @click.stop="toggleBookmark(board)"
                 class="cursor-pointer mr-2"
               ></i>
-              <div class="text-nowrap overflow-hidden">{{ board.title }}</div>
+              <div class="overflow-hidden">{{ board.title }}</div>
             </span>
           </h2>
       </div>
@@ -29,7 +32,7 @@ import ProjectIcon from '../ProjectIcon.vue';
         v-for="board in sortedBoards"
         :key="board.title"
         @click="selectBoard(board)"
-        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative">
+        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative h-60">
         <div class="absolute top-0 left-0 bottom-0 right-0 opacity-30 rounded-md bg-cover"
            :style="`background-image: url(${board.background})`" v-if="board.background">
         </div>
@@ -42,7 +45,7 @@ import ProjectIcon from '../ProjectIcon.vue';
                 @click.stop="toggleBookmark(board)"
                 class="cursor-pointer mr-2"
               ></i>
-              <div class="text-nowrap overflow-hidden">{{ board.title }}</div>
+              <div class="overflow-hidden">{{ board.title }}</div>
             </span>
           </h2>
           <p class="text-sm">{{ board.description }}</p>
