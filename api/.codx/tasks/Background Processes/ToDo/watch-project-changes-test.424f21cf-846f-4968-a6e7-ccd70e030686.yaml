@@ -416,7 +416,7 @@ messages:
   think: null
   updated_at: '2025-10-27 07:47:38.132898'
   user: null
-mode: ''
+mode: task
 name: Watch project changes test
 parent_id: 6da4d447-96f2-4a78-b0b4-39ed892c5f4f
 pinned: false
@@ -426,7 +426,7 @@ project_id: ac9804d5-fcb2-4026-81c0-61f2308f6380
 remote_url: ''
 status: ''
 tags: []
-updated_at: '2025-10-27T08:16:32.209000'
+updated_at: '2025-10-30T18:50:28.531791'
 url: ''
 users:
 - admin

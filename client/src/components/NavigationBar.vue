@@ -1,254 +1,248 @@
 <script setup>
 import moment from 'moment'
-import CodxJuniorLogo from '@/components/CodxJuniorLogo.vue'
 import WorkspacesSelector from './workspaces/WorkspacesSelector.vue'
 import SearchBar from './bar/SearchBar.vue'
 import MobileMenuVue from './MobileMenu.vue'
 import ProjectDetailt from './ProjectDetailt.vue'
+import ProjectIcon from './ProjectIcon.vue'
 </script>
 
 <template>
-  <div class="flex items-center shadow justify-between"
-    :class="[
-      $storex.session.connected ? '' : 'grayscale text-error',
-      $ui.showApp && 'click'
-    ]">
-    <div class="flex gap-2 items-center w-1/3">
-      <div class="flex flex-col">
+  <div class="flex flex-col gap-4 my-2">
+    <div class="flex items-center shadow justify-between"
+      :class="[
+        $storex.session.connected ? '' : 'grayscale text-error',
+        $ui.showApp && 'click'
+      ]">
+      <div class="flex gap-2 items-center w-1/3">
+        <div class="flex flex-col" v-if="$ui.isMobile">
+          <ProjectIcon class="cursor-pointer md:cursor-auto" :project="{ avatar: '/only_icon.png'}"
+            @click="showMobileMenu = true" />
+          <MobileMenuVue class="md:hidden" v-if="showMobileMenu" @close="showMobileMenu = false" />
+          <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
+        </div>
         <ProjectDetailt 
           :project="$project" 
-          :options="{ showFolders: !$ui.isMobile, showSelector: !$ui.isMobile }"
-          @select="$projects.setActiveProject($event)"        
-          @click="showMobileMenu = true"
+          :options="{ showFolders: !$ui.isMobile, showIcon: !$ui.isMobile, showSelector: !$ui.isMobile }"
+          @select="$projects.setActiveProject($event)"  
         /> 
-        <MobileMenuVue class="md:hidden" v-if="showMobileMenu" @close="showMobileMenu = false" />
-      <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
-      </div>
-    </div>
-    
-    <div class="tools hidden md:flex gap-2 items-center">
-      <SearchBar />
 
-      <div :class="['hover:bg-base-100 click relative', $ui.activeTab === 'projects' ? 'text-primary': '']">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-          data-tip="Projects"
-          @click="setActiveTab('projects')">
-          <div class="flex flex-col">
-            <i class="fa-solid fa-cubes"></i>
-          </div>
-        </a>
       </div>
+      
 
-      <div :class="['hover:bg-base-100 click relative', $ui.activeTab === 'home' ? 'text-primary': '']">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"
-          data-tip="Add project"
-          @click="setActiveTab('home')">
-          <div class="flex flex-col gap-4">
+      <div class="flex gap-2 justify-end w-1/3 items-center">
+
+        <div class="w-40">
+          <SearchBar />
+        </div>
+
+        <a class="btn btn-sm btn-outline text-codx-primary">
+          <span class="hidden md:block">
             <i class="fa-solid fa-plus"></i>
+          </span>
+        </a>
+
+        <div class="flex gap-1 items-center justify-end">
+          <div :class="['dropdown dropdown-bottom dropdown-start click dropdown-left']">
+            <a tabindex="0" class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"
+                :data-tip="$users.user.username"
+              @click="$ui.readScreenResolutions()">
+              <div class="avatar">
+                <div class="w-6 md:w-8 ring rounded-full">
+                  <img :src="$storex.api.user.avatar" />
+                </div>
+              </div>
+            </a>
+            <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[150] w-72 p-2 shadow-xl">
+              <li>
+                <a class="flex gap-1" @click.stop="setActiveTab('account')">
+                  <i class="fa-regular fa-circle-user"></i>
+                  Account settings
+                </a>
+              </li>
+              <li v-if="$project && $storex.api.permissions.isProjectAdmin">
+                <a class="flex gap-1"  @click.stop="setProjectTab('settings')">
+                  <i class="fa-solid fa-sliders"></i>
+                  Project settings
+                </a>
+              </li>
+              <li v-if="$project">
+                <a @click.stop="setProjectTab('knowledge_settings')">
+                  <i class="fa-solid fa-book"></i>
+                  Knowledge settings
+                </a>
+              </li>
+              <li v-if="$storex.api.permissions.isAdmin">
+                <a class="flex gap-1"  @click.stop="setActiveTab('global-settings')">
+                  <i class="fa-solid fa-gear"></i>
+                  Global settings
+                </a>
+              </li>
+              <li v-if="$storex.api.permissions.isAdmin">
+                <a class="flex gap-1"  @click="$ui.toggleLogs()">
+                  <i class="fa-solid fa-chart-line"></i> Logs
+                </a>
+              </li>
+              <li class="border"></li>
+              <li>
+                <a class="flex gap-1"> 
+                  <i class="fa-solid fa-microphone-lines"></i>
+                  <select class="select select-sm" @change="$ui.setVoiceLanguage($event.target.value)">
+                    <option v-for="key, lang in $ui.voiceLanguages"
+                      :key="lang"
+                      :selected="$ui.voiceLanguage === lang" :value="lang">{{ key }}</option>
+                  </select>
+                </a>
+              </li>
+              <li class="hidden">
+                <a>
+                  <i class="fa-solid fa-table-columns"></i>
+                  <select class="select select-sm overflow-auto" @change="$ui.setAppDivided($event.target.value)">
+                    <option v-for="divider in ['none', 'horizontal', 'vertical']" :key="divider" :value="divider">
+                      {{ divider }}
+                    </option>
+                  </select>
+                </a>
+              </li>
+              <li class="hidden">
+                <a>
+                  <span class="click" @click="$storex.api.screen.getScreenResolution()"><i class="fa-solid fa-display"></i></span>
+                  <select class="select select-sm overflow-auto"
+                    @change="$ui.setScreenResolution($event.target.value)">
+                    <option disabled selected>Select Resolution</option>
+                    <option v-for="resolution in $ui.resolutions" :key="resolution" :value="resolution"
+                      :selected="$ui.resolution === resolution">
+                      {{ resolution }}
+                    </option>
+                  </select>
+                  <div class="dropdown dropdown-end group">
+                    <div tabindex="2" role="button" class="btn btn-xs m-1">
+                      <i class="fa-solid fa-up-right-and-down-left-from-center" v-if="$ui.noVNCSettings.resize === 'scale'"></i>
+                      <i class="fa-solid fa-down-left-and-up-right-to-center" v-else></i>
+                    </div>
+                    <ul tabindex="2" class="hidden group-hover:flex dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+                      <li @click="$ui.setNoVNCSettings({ resize: 'scale' })">
+                        <a><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Local</a>
+                      </li>
+                      <li @click="$ui.setNoVNCSettings({ resize: 'remote' })">
+                        <a><i class="fa-solid fa-down-left-and-up-right-to-center"></i> Remote</a>
+                      </li>
+                    </ul>
+                  </div>
+                </a>
+              </li>
+              <li class="border"></li>
+              <li>
+                <a class="flex gap-1" @click.stop="$users.logout()">
+                  <i class="fa-solid fa-right-from-bracket"></i>
+                  Log out
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <modal v-if="restartModal">
+        <div class="flex flex-col gap-2 font-mono">
+          <div class="font-bold text-xl">Restart... really!!??</div>
+          <div class="">
+            <i class="fa-solid fa-heart-crack text-red-600"></i> Ouch, sorry to hear that... codx-junior will lose one live!  (don't worry, have many). 
+            After restarting give some time to codx-junior and reload, good luck!
+          </div>
+          <div class="flex justify-between">
+            <button class="btn btn-error" @click="$storex.api.restart">
+              <i class="fa-solid fa-skull"></i> Kill codx-junior
+            </button>
+            <button class="btn" @click="restartModal = false">
+              Ops, no, no...
+            </button>
+          </div>
+        </div>
+      </modal>
+    </div>
+
+    <div class="tools hidden md:flex gap-2 items-center w-full">
+      
+      <div :class="['hover:bg-base-100 click relative', 
+        $ui.activeTab === 'home' ? 'border-b-4 border-codx-secondary': '']">
+        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+          data-tip="Home"
+          @click="setActiveTab('home')">
+          <div class="flex gap-2 items-center">
+            <i class="fa-solid fa-home"></i> Home
           </div>
         </a>
       </div>
 
-
-      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'tasks' ? 'text-primary': '')]">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'tasks' ? 'border-b-4 border-codx-secondary': '')]">
+        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
           data-tip="Kanban"
           @click="setProjectTab('tasks')">
-          <div class="flex flex-col gap-4">
-            <i class="fa-brands fa-trello"></i>
+          <div class="flex gap-2 items-center">
+            <i class="fa-brands fa-trello"></i> Tasks
           </div>
         </a>
       </div>
 
-      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'profiles' ? 'text-primary': '')]"
+      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'profiles' ? 'border-b-4 border-codx-secondary': '')]"
           v-if="$users.isProjectAdmin">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
           data-tip="Profiles"
           @click="setProjectTab('profiles')">
-          <div class="flex flex-col gap-4">
-            <i class="fa-solid fa-user-group"></i>
+          <div class="flex gap-2 items-center">
+            <i class="fa-solid fa-user-group"></i> Profiles
           </div>
         </a>
       </div>
 
-      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'file-finder' ? 'text-primary': '')]">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'file-finder' ? 'border-b-4 border-codx-secondary': '')]">
+        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
           data-tip="File finder"
           @click="setProjectTab('file-finder')">
-          <div class="flex flex-col gap-4">
-            <i class="fa-solid fa-folder"></i>
+          <div class="flex gap-2 items-center">
+            <i class="fa-solid fa-folder"></i> Files
           </div>
         </a>
       </div>
 
-      <div class="dropdown dropdown-bottom" v-if="$projects.workspaces.length">
-        <div tabindex="0" role="button" class="btn m-1">
-          <i class="fa-solid fa-grip"></i>
+      <div class="grow"></div>
+      <div class="flex gap-2 items-center pb-2">
+      
+        <div class="dropdown dropdown-bottom" v-if="$projects.workspaces.length">
+          <div tabindex="0" class="flex gap-2 items-center text-center pb-2 click hover:bg-base-100 px-2 py-1 rounded-md">
+            <i class="fa-solid fa-grip"></i> Workspaces
+          </div>
+          <WorkspacesSelector tabindex="0"
+            class="dropdown-content bg-base-100 rounded-box z-1 w-52 p-2 z-50 shadow-sm font-bold"
+            :workspaces="$projects.workspaces"
+            @select="onOpenWorkspace"
+            v-if="$projects.workspaces">
+          </WorkspacesSelector>
         </div>
-        <WorkspacesSelector tabindex="0"
-          class="dropdown-content bg-base-100 rounded-box z-1 w-52 p-2 z-50 shadow-sm font-bold"
-          :workspaces="$projects.workspaces"
-          @select="onOpenWorkspace"
-          v-if="$projects.workspaces">
-        </WorkspacesSelector>
-      </div>
-        
-      <button class="hidden" v-if="$ui.showApp" @click="$ui.setFloatinCodxJunior(!$ui.floatingCodxJunior)">
-        <i class="fa-solid fa-right-from-bracket" :class="$ui.floatingCodxJunior && 'rotate-180'"></i>
-      </button>
-
-      <div class="flex w-full items-center">
-        <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('browser') ? 'text-primary': '']"
+      
+        <div :class="['hover:bg-base-100 click relative pb-2 ', 
+          $ui.appActives.includes('browser') ? 'border-b-4 border-codx-secondary': '']"
           v-if="canShowBrowser">
-          <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show display"
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show display"
             @click.stop="$ui.setShowBrowser(!$ui.appActives.includes('browser'))">
-            <div class="flex flex-col gap-4">
-              <i class="fa-brands fa-firefox"></i>
+            <div class="flex gap-2 items-center">
+              <i class="fa-brands fa-firefox"></i> 
             </div>
           </a>
         </div>
         
-        <div :class="['hover:bg-base-100 click relative', $ui.appActives.includes('coder') ? 'text-primary': '']">
-          <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show coder"
+        <div :class="['hover:bg-base-100 click relative pb-2', 
+          $ui.appActives.includes('coder') ? 'border-b-4 border-codx-secondary': '']">
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show coder"
           @click.stop="$ui.setShowCoder(!$ui.appActives.includes('coder'))">
-            <div class="flex flex-col gap-4">
+            <div class="flex gap-2 items-center">
               <i class="fa-solid fa-code"></i>
             </div>
           </a>
         </div>
       </div>
     </div>
-
-    <div class="flex gap-2 justify-end w-1/3">
-      <div :class="['hover:bg-base-100 click relative', $ui.activeTab === 'activity' ? 'text-primary': '']">
-        <a class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-          data-tip="Activity"
-          @click="setActiveTab('activity')">
-          <div class="flex flex-col">
-            <i class="fa-solid fa-bell"></i>
-          </div>
-        </a>
-      </div>
-
-
-      <div class="flex gap-1 items-center justify-end">
-        <div :class="['dropdown dropdown-bottom dropdown-start click dropdown-left']">
-          <a tabindex="0" class="h-16 px-6 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"
-              :data-tip="$users.user.username"
-            @click="$ui.readScreenResolutions()">
-            <div class="avatar">
-              <div class="w-6 md:w-8 ring rounded-full">
-                <img :src="$storex.api.user.avatar" />
-              </div>
-            </div>
-          </a>
-          <ul tabindex="0" class="dropdown-content menu bg-base-200 rounded-box z-[50] w-72 p-2 shadow-xl">
-            <li>
-              <a class="flex gap-1" @click.stop="setActiveTab('account')">
-                <i class="fa-regular fa-circle-user"></i>
-                Account settings
-              </a>
-            </li>
-            <li v-if="$project && $storex.api.permissions.isProjectAdmin">
-              <a class="flex gap-1"  @click.stop="setProjectTab('settings')">
-                <i class="fa-solid fa-sliders"></i>
-                Project settings
-              </a>
-            </li>
-            <li v-if="$project">
-              <a @click.stop="setProjectTab('knowledge_settings')">
-                <i class="fa-solid fa-book"></i>
-                Knowledge settings
-              </a>
-            </li>
-            <li v-if="$storex.api.permissions.isAdmin">
-              <a class="flex gap-1"  @click.stop="setActiveTab('global-settings')">
-                <i class="fa-solid fa-gear"></i>
-                Global settings
-              </a>
-            </li>
-            <li v-if="$storex.api.permissions.isAdmin">
-              <a class="flex gap-1"  @click="$ui.toggleLogs()">
-                <i class="fa-solid fa-chart-line"></i> Logs
-              </a>
-            </li>
-            <li class="border"></li>
-            <li>
-              <a class="flex gap-1"> 
-                <i class="fa-solid fa-microphone-lines"></i>
-                <select class="select select-sm" @change="$ui.setVoiceLanguage($event.target.value)">
-                  <option v-for="key, lang in $ui.voiceLanguages"
-                    :key="lang"
-                    :selected="$ui.voiceLanguage === lang" :value="lang">{{ key }}</option>
-                </select>
-              </a>
-            </li>
-            <li class="hidden">
-              <a>
-                <i class="fa-solid fa-table-columns"></i>
-                <select class="select select-sm overflow-auto" @change="$ui.setAppDivided($event.target.value)">
-                  <option v-for="divider in ['none', 'horizontal', 'vertical']" :key="divider" :value="divider">
-                    {{ divider }}
-                  </option>
-                </select>
-              </a>
-            </li>
-            <li class="hidden">
-              <a>
-                <span class="click" @click="$storex.api.screen.getScreenResolution()"><i class="fa-solid fa-display"></i></span>
-                <select class="select select-sm overflow-auto"
-                  @change="$ui.setScreenResolution($event.target.value)">
-                  <option disabled selected>Select Resolution</option>
-                  <option v-for="resolution in $ui.resolutions" :key="resolution" :value="resolution"
-                    :selected="$ui.resolution === resolution">
-                    {{ resolution }}
-                  </option>
-                </select>
-                <div class="dropdown dropdown-end group">
-                  <div tabindex="2" role="button" class="btn btn-xs m-1">
-                    <i class="fa-solid fa-up-right-and-down-left-from-center" v-if="$ui.noVNCSettings.resize === 'scale'"></i>
-                    <i class="fa-solid fa-down-left-and-up-right-to-center" v-else></i>
-                  </div>
-                  <ul tabindex="2" class="hidden group-hover:flex dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                    <li @click="$ui.setNoVNCSettings({ resize: 'scale' })">
-                      <a><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Local</a>
-                    </li>
-                    <li @click="$ui.setNoVNCSettings({ resize: 'remote' })">
-                      <a><i class="fa-solid fa-down-left-and-up-right-to-center"></i> Remote</a>
-                    </li>
-                  </ul>
-                </div>
-              </a>
-            </li>
-            <li class="border"></li>
-            <li>
-              <a class="flex gap-1" @click.stop="$users.logout()">
-                <i class="fa-solid fa-right-from-bracket"></i>
-                Log out
-              </a>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
-    <modal v-if="restartModal">
-      <div class="flex flex-col gap-2 font-mono">
-        <div class="font-bold text-xl">Restart... really!!??</div>
-        <div class="">
-          <i class="fa-solid fa-heart-crack text-red-600"></i> Ouch, sorry to hear that... codx-junior will lose one live!  (don't worry, have many). 
-          After restarting give some time to codx-junior and reload, good luck!
-        </div>
-        <div class="flex justify-between">
-          <button class="btn btn-error" @click="$storex.api.restart">
-            <i class="fa-solid fa-skull"></i> Kill codx-junior
-          </button>
-          <button class="btn" @click="restartModal = false">
-            Ops, no, no...
-          </button>
-        </div>
-      </div>
-    </modal>
   </div>
 </template>
 

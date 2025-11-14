@@ -42,7 +42,8 @@ dependencies = [
   'aiofiles>=24.1.0',
   'docling>=2.45.0',
   'html2text',
-  'watchdog'
+  'watchdog',
+  'pypandoc>=1.16'
 ]
 
 classifiers = [

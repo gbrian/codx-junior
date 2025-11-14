@@ -5,7 +5,7 @@ import UserAvatar from '../user/UserAvatar.vue'
 <template>
     <div class="dropdown click" @click.stop="">
         <div tabindex="0" class="flex items-end gap-1 text-xs font-bold" @click="toggleDropdown">
-          <UserAvatar class="ring rounded-full h-6" :user="selectedUser" width="6" v-if="selectedUser" />
+          <UserAvatar class="ring rounded-full h-6" :title="selectedUser.avatar" :user="selectedUser" width="6" v-if="selectedUser" />
           <div v-else>
             <i class="fa-solid fa-plus"></i>
           </div>

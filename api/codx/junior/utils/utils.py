@@ -65,9 +65,11 @@ def document_to_code_block(doc):
     language = doc.metadata.get('language')
     extension = source.split(".")[-1] if "." in source else ""
 
-    return f"""```{ language or extension } {source}
-    {content}
-    ```"""
+    return "\n".join([
+      f"```{ language or extension } {source}", 
+      content,
+      "```"
+    ])
 
 def remove_starting_block(content):
     if content.startswith("```"):
@@ -97,12 +99,14 @@ def extract_blocks(content):
           continue
 
 def exec_command(command: str, cwd: str=None, env: dict=None):
-    result = subprocess.run(command.split(" "),
-                                    cwd=cwd,
-                                    env=os.environ | (env or {}),
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT,
-                                    text=True)
+    result = subprocess.run(f"""
+    {command}
+    """, shell=True,
+        cwd=cwd,
+        env=os.environ | (env or {}),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True)
     return result.stdout, result.stderr
 
 def set_file_permissions(file_path: str):

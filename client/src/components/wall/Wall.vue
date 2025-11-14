@@ -11,22 +11,24 @@ import ProjectIcon from '../ProjectIcon.vue';
     <div class="alert" v-if="lastMessages.length === 0">
       No recent activity
     </div>
-    <div class="border border-slate-800 hover:border-slate-600 rounded-lg my-2 click"
-      v-for="chat in lastMessages" :key="chat.doc_id"
-      @click="setActiveChat(chat)">
-      <div class="flex gap-2 items-center bg-base-100 px-2 rounded-t-lg border-b border-slate-600">
-        <ProjectIcon inline="true" :project="chat.project" />
-        <div class="divider"></div>
-        {{ chat.name }}
-      </div>      
-      <div class="relative">
-        <ChatEntry
-          class="rounded-b-lg" 
-          :menu-less="true" 
-          :message="chat.messages[0]" :chat="chat"
-          />
+    <div class="grid grid-cols-3 grid-flow-rows gap-2">
+      <div class="border border-slate-800 hover:border-slate-600 rounded-lg my-2 click group"
+        v-for="chat in lastMessages" :key="chat.doc_id"
+        @click="setActiveChat(chat)">
+        <div class="flex gap-2 items-center bg-slate-800 px-2 rounded-t-lg border-b border-slate-600">
+          <ProjectIcon inline="true" :project="chat.project" />
+          <div class="divider"></div>
+          {{ chat.name }}
+        </div>      
+        <div class="relative">
+          <ChatEntry
+            class="rounded-b-lg overflow-auto opacity-60 h-60 group-hover:opacity-100" 
+            :menu-less="true" 
+            :message="chat.messages[0]" :chat="chat"
+            />
           <div class="absolute top-0 left-0 right-0 bottom-0 z-20"></div>
         </div>
+      </div>
     </div>
   </div>
 </template>
@@ -55,7 +57,7 @@ export default {
                 .reduce((a, b) => a.concat(b), [])
                 .sort((a, b) => a.messages[0].updated_at > b.messages[0].updated_at ? -1:1)
                 .map(chat => {
-                  chat.messages[0].collapse = true
+                  chat.messages[0].collapsed = false
                   return chat
                 })
     }

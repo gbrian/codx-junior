@@ -3,7 +3,7 @@
 <template>
   <select id="branchSource" class="select select-bordered select-xs w-full max-w-xs" 
     v-model="selectedBranch">
-    <option v-for="projectBranch in branches" :key="projectBranch"
+    <option v-for="projectBranch in allBranches" :key="projectBranch"
       :value="projectBranch">
       {{ projectBranch }}
     </option>
@@ -11,7 +11,7 @@
 </template>
 <script>
 export default {
-  props: ['modelValue', 'localChanges'],
+  props: ['modelValue', 'localChanges', 'branches'],
   emits: ['update:modelValue'],
   data() {
     return {
@@ -25,10 +25,8 @@ export default {
     }
   },
   computed: {
-    // Get the list of branches from the store
-    branches() {
-      return this.localChanges ?  ['local', ...this.$storex.projects.project_branches.branches || []] :
-                 this.$storex.projects.project_branches.branches
+    allBranches() {
+      return this.localChanges ?  ['local', ...this.branches || []] : this.branches
     }
   }
 }

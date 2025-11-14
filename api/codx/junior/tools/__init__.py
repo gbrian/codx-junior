@@ -76,6 +76,10 @@ TOOLS = [
                         "search": {
                             "type": "string",
                             "description": "The search query string used to find relevant documents."
+                        },
+                        "validation": {
+                            "type": "string",
+                            "description": "An optional brief text used to validate the content found by the search. This text will help reducing large documents and extracting only important content. "
                         }
                     },
                     "required": ["search"]
@@ -105,31 +109,6 @@ TOOLS = [
         },
         "settings": { "async": False, "project_settings": True },
         "tool_call": project_read_file
-    },
-    {
-        "tool_json": {
-            "type": "function",
-            "function": {
-                "name": "project_save_file",
-                "description": "Allows to write project's files from a relative or absolute path.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "file_path": {
-                            "type": "string",
-                            "description": "Relative or absolute path to the file to read."
-                        },
-                        "content": {
-                            "type": "string",
-                            "description": "The file's content."
-                        }
-                    },
-                    "required": ["file_path", "content"]
-                }
-            }
-        },
-        "settings": { "async": False, "project_settings": True },
-        "tool_call": project_write_file
     }
 ]
 

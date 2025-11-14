@@ -1,0 +1,357 @@
+board: Chat Manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: To Do
+column_id: ''
+created_at: '2025-11-12 05:05:18.688134'
+description: To implement chat export functionality, changes are needed in the `chat_manager`
+  and a new `chat_export.py` file. The `chat_manager` will include an `export_chat`
+  method to export chat data by building a chat tree of chats and descendants. The
+  `ChatExport` class in `chat_export.py` will handle exporting this data into various
+  formats like markdown, docx, pdf, or excel using `pypandoc`. Additionally, performance
+  improvements involve calling `self.list_chats()` only once to optimize the chat
+  tree building process.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/chat_manager.py
+- /shared/codx-junior/api/codx/junior/chat/chat_export.py
+file_path: /shared/codx-junior/api/.codx/tasks/Chat Manager/To Do/chat-manager.4ed50818-5e62-498a-aa54-b3cad148c7bf.yaml
+id: 4ed50818-5e62-498a-aa54-b3cad148c7bf
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Create all changes needed in chat_manager
+  created_at: '2025-11-12 05:05:18.685736'
+  disable_knowledge: false
+  doc_id: 972fad79-a94e-4d77-9803-7e1d65d3d790
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-12 05:05:18.685762'
+  user: null
+- content: "Generate chat manger full file version\n- create all changes for the export\
+    \ and import the exporter\n- check if\_find_by_id already exists\n- there's a\
+    \ method to \"list\" all chats so probably will be better to work with the all\
+    \ chats list\n- chats are stored in yaml format maybe we can have a list version\
+    \ without messages to avoid wasting memory and go read messages when we need them\n\
+    \n"
+  created_at: '2025-11-12 05:29:58.901983'
+  disable_knowledge: true
+  doc_id: dcd8c906-05fd-4da3-ba2d-8ed062daf571
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-12 05:29:58.902007'
+  user: admin
+- content: "```py /shared/codx-junior/api/codx/junior/chat_manager.py\n        \"\"\
+    \"\nChat + AI\nThis module is responsible for the AI chat interaction\n\"\"\"\n\
+    import logging\nimport pathlib\nimport os\nimport json\nimport uuid\nimport shutil\n\
+    import yaml\n\nfrom slugify import slugify\nfrom collections import deque\n\n\
+    from datetime import datetime, timezone, timedelta\nfrom codx.junior.settings\
+    \ import CODXJuniorSettings\n\nfrom codx.junior.db import Chat, Message\nfrom\
+    \ codx.junior.utils.utils import write_file\n\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\n\n\nlogger = logging.getLogger(__name__)\n\nDEFAULT_BOARD\
+    \ = \"kanban\"\nDEFAULT_COLUMN = \"tasks\"\n\nclass ChatManager:\n    def __init__(self,\
+    \ settings: CODXJuniorSettings):\n        self.settings = settings\n        self.chat_path\
+    \ = f\"{settings.codx_path}/tasks\"\n        os.makedirs(self.chat_path, exist_ok=True)\n\
+    \        os.makedirs(f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}\", exist_ok=True)\n\
+    \n    def get_chat_file(self, chat: Chat):\n        chat_file = f\"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.yaml\"\
+    \n        return chat_file\n\n    def chat_paths(self, last_update: datetime =\
+    \ None):\n        \"\"\"\n        Return chat file paths, optionally filtering\
+    \ by last update time.\n        \n        :param last_update: Only return paths\
+    \ for chats updated since this date.\n        :return: List of file paths.\n \
+    \       \"\"\"\n        all_paths = [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob(\"\
+    *.md\")] + \\\n                    [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob(\"\
+    *.yaml\")]\n        \n        if last_update:\n            # Filter paths by file\
+    \ modified time\n            return [path for path in all_paths if datetime.fromtimestamp(os.path.getmtime(path))\
+    \ > last_update]\n        \n        return all_paths\n\n    def chat_board_column_name_from_path(self,\
+    \ file_path):\n        chat_parts = file_path.replace(self.chat_path, \"\").split(\"\
+    /\")[1:]\n        if len(chat_parts) != 3:\n            return None, None, None\n\
+    \   \n        name = chat_parts[-1].replace(\".md\", \"\")\n        column = chat_parts[-2]\n\
+    \        board = chat_parts[-3]\n        return board, column, name\n\n    def\
+    \ list_chats(self):\n        file_paths = self.chat_paths()\n        def list_chat_chat_info(file_path):\n\
+    \            try:\n                chat = self.load_chat_from_path(chat_file=file_path,\
+    \ chat_only=True)\n                return chat\n            except Exception as\
+    \ ex:\n                logger.exception(f\"Error loading chat {ex}\")\n      \
+    \      return None\n            \n        return sorted([chat \\\n           \
+    \ for chat in [list_chat_chat_info(file_path) for file_path in file_paths] \\\n\
+    \            if chat],\n            key=lambda x: str(x.chat_index or x.updated_at),\n\
+    \            reverse=True)\n\n    def save_chat(self, chat: Chat, chat_only=False):\n\
+    \        if not chat.board:\n            chat.board = \"kanban\"\n        if not\
+    \ chat.column:\n            chat.column = \"tasks\"\n        if not chat.id:\n\
+    \            chat.id = str(uuid.uuid4())\n        if not chat.created_at:\n  \
+    \          chat.created_at = chat.updated_at\n\n        chat.updated_at = datetime.now().isoformat()\n\
+    \n        current_chat = self.find_by_id(chat_id=chat.id)\n        if chat_only\
+    \ and current_chat:\n            chat.messages = current_chat.messages\n     \
+    \   users = []\n        profiles = []\n        for msg in chat.messages:\n   \
+    \         if not msg.doc_id:\n                msg.doc_id = str(uuid.uuid4())\n\
+    \            if msg.user:\n                users.append(msg.user)\n          \
+    \  profiles = profiles + msg.profiles\n        chat.users = list(set(users))\n\
+    \        chat.profiles = list(set(profiles))\n\n        self.store_chat(chat)\n\
+    \n        # remove old chat\n        if current_chat:\n            logger.info(f\"\
+    Save chat, current_chat {current_chat.id} at {current_chat.file_path}\")\n   \
+    \         if chat.file_path != current_chat.file_path:\n                self.delete_chat(current_chat.file_path)\n\
+    \n        return chat\n\n    def store_chat(self, chat):\n        yaml_chat_file\
+    \ = self.get_chat_file(chat)\n        logger.info(f\"Save chat {chat.id} at {yaml_chat_file}\"\
+    )\n\n        # Update file_path to point to YAML version\n        chat.file_path\
+    \ = yaml_chat_file\n\n        # Serialize and save as YAML\n        write_file(yaml_chat_file,\
+    \ yaml.dump(chat.dict()))\n\n    def delete_chat(self, file_path: str = None,\
+    \ chat_id: str = None):\n        logger.info(f\"Removing chat by file_path: {file_path}\
+    \  - chat_id: {chat_id}\")\n        \n        if chat_id:\n            chat =\
+    \ self.find_by_id(chat_id)\n            file_path = chat.file_path\n\n       \
+    \ if os.path.isfile(file_path) \\\n            and file_path.startswith(self.chat_path):\n\
+    \            logger.info(f\"Removing chat at {file_path}\")\n            os.remove(file_path)\n\
+    \        else:\n            logger.error(f\"Removing chat error {file_path}\"\
+    )\n\n    def load_chat(self, board, column = None, chat_name = None):\n      \
+    \  chat = Chat(board=board, column=column, name=chat_name)\n        chat_file\
+    \ = self.get_chat_file(chat)\n        if not os.path.isfile(chat_file):\n    \
+    \        chat.file_path = chat_file\n            return chat\n        return self.load_chat_from_path(chat_file=chat_file)\n\
+    \n    def load_chat_from_path(self, chat_file: str, chat_only: bool = False):\n\
+    \        yaml_chat_file = chat_file.replace('.md', '.yaml')\n\n        if os.path.isfile(yaml_chat_file):\n\
+    \            # Load from YAML if exists\n            with open(yaml_chat_file,\
+    \ 'r') as f:\n                chat_data = yaml.safe_load(f)\n                chat\
+    \ = Chat(**chat_data)\n                if chat_only:\n                    chat.messages\
+    \ = []\n                return chat\n\n        # Fallback to existing method if\
+    \ YAML file doesn't exist\n        board, column, name = self.chat_board_column_name_from_path(chat_file)\n\
+    \        if not board or not column:\n            new_chat_file = f\"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}/{name}.md\"\
+    \n            if chat_file:\n                os.rename(chat_file, new_chat_file)\n\
+    \            chat_file = new_chat_file\n            board = DEFAULT_BOARD\n  \
+    \          column = DEFAULT_COLUMN\n\n        with open(chat_file, 'r') as f:\n\
+    \            content = f.read()\n            chat = self.deserialize_chat(content=content,\
+    \ chat_only=chat_only)\n\n        if not chat.created_at:\n            stats =\
+    \ os.stat(chat_file)\n            chat.created_at = str(datetime.fromtimestamp(stats.st_ctime,\
+    \ tz=timezone.utc))\n            chat.updated_at = str(datetime.fromtimestamp(stats.st_mtime,\
+    \ tz=timezone.utc))\n        chat.board = board\n        chat.column = column\n\
+    \        chat.file_path = chat_file\n        return chat\n\n    def serialize_chat(self,\
+    \ chat: Chat):\n        chat_json = { **chat.__dict__ }\n        del chat_json[\"\
+    messages\"]  \n        header = f\"# [[{json.dumps(chat_json)}]]\"\n        def\
+    \ serialize_message(message):\n            if not message.created_at:\n      \
+    \          message.created_at = datetime.now().isoformat()\n            message_json\
+    \ = { **message.__dict__ }\n            del message_json[\"content\"]\n      \
+    \      return \"\\n\".join([\n                    f\"## [[{json.dumps(message_json)}]]\"\
+    ,\n                    message.content\n                ]\n            )\n   \
+    \     messages = [serialize_message(message) for message in chat.messages]\n \
+    \       chat_content = \"\\n\".join([header] + messages)\n        return chat_content\n\
+    \n    def delete_kanban(self, kanban_title: str):\n        shutil.rmtree(f\"{self.chat_path}/{kanban_title}\"\
+    )\n\n    def deserialize_chat(self, content, chat_only: bool = False) -> Chat:\n\
+    \        # logger.info(f\"deserialize_chat content length: {len(content)}\")\n\
+    \        lines = content.split(\"\\n\")\n        chat_json = json.loads(lines[0][4:-2])\n\
+    \        chat = Chat(**chat_json)\n        chat.messages = []\n        if not\
+    \ chat_only:\n            chat_message = None\n            for line in lines[1:]:\n\
+    \                if line.startswith(\"## [[{\") and line.endswith(\"}]]\"):\n\
+    \                    chat_message = Message(**json.loads(line[5:-2]))\n      \
+    \              chat_message.content = \"\"\n                    chat.messages.append(chat_message)\n\
+    \                    continue\n                if chat_message:\n            \
+    \            chat_message.content = line \\\n                            if not\
+    \ chat_message.content \\\n                            else f\"{chat_message.content}\\\
+    n{line}\"\n        return chat\n\n    def chat_count(self):\n        return len(self.chat_paths())\n\
+    \n    def last_chats(self):\n        last_days = (datetime.now() - timedelta(days=2)).timestamp()\n\
+    \        chat_paths = [{\n            \"chat_path\": chat_path,\n            \"\
+    updated_at\": os.stat(chat_path).st_ctime\n        } for chat_path in self.chat_paths()]\n\
+    \        chat_paths = [c for c in chat_paths if c[\"updated_at\"] > last_days]\
+    \ \n        last_updated_chats = sorted(\n                                chat_paths,\n\
+    \                                key=lambda x: x[\"updated_at\"])\n        last_updated_chats.reverse()\n\
+    \        last_updated_chats = last_updated_chats[0:3]\n        def load_chat(file_path):\n\
+    \            return self.load_chat_from_path(chat_file=file_path)\n        return\
+    \ [load_chat(c[\"chat_path\"]) for c in last_updated_chats]\n\n    def find_by_id(self,\
+    \ chat_id):\n        if chat_id:\n            file_path = next((path for path\
+    \ in self.chat_paths() if chat_id in path), None)\n            if file_path:\n\
+    \                return self.load_chat_from_path(chat_file=file_path)\n      \
+    \  return None\n\n    def load_kanban_from_file(self, kanban_file: str):\n   \
+    \     kanban = {\n          \"version\": 0.1,\n          \"boards\": {},\n   \
+    \       \"tags\": {}\n        }\n        if os.path.isfile(kanban_file):\n   \
+    \         with open(kanban_file, 'r') as f:\n                kanban = json.loads(f.read())\n\
+    \            version = kanban.get(\"version\", None)\n            if not version:\n\
+    \                kanban = {\n                    \"version\": 0.1,\n         \
+    \           \"boards\": kanban,\n                    \"tags\": {}\n          \
+    \      }\n        return kanban\n\n    @profile_function\n    def load_kanban(self):\n\
+    \        kanban_file = f\"{self.chat_path}/kanban.json\"\n        logger.info(f\"\
+    load_kanban {kanban_file}\")\n        # all_chats = self.list_chats()\n      \
+    \  return self.load_kanban_from_file(kanban_file=kanban_file)\n\n    def save_kanban(self,\
+    \ kanban):\n        kanban_file = f\"{self.chat_path}/kanban.json\"\n        with\
+    \ open(kanban_file, 'w') as f:\n            f.write(json.dumps(kanban))\n\n  \
+    \  def find_chats(self, last_update: datetime = None):\n        \"\"\"\n     \
+    \   Return chats based on filters.\n        \n        :param last_update: Return\
+    \ chats updated since this date.\n        :return: List of Chat objects.\n   \
+    \     \"\"\"\n        filtered_chats = []\n        \n        # Iterate through\
+    \ all chat file paths with optional last_update filter\n        for file_path\
+    \ in self.chat_paths(last_update=last_update):\n            chat = self.load_chat_from_path(chat_file=file_path)\n\
+    \            if chat:\n                filtered_chats.append(chat)\n        \n\
+    \        return filtered_chats\n        ```\n        "
+  created_at: '2025-11-12 05:29:58.901983'
+  disable_knowledge: false
+  doc_id: 902bdf6b-1ac8-4031-b75c-dfa36d20d1c2
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-12 05:29:58.902007'
+  user: null
+- content: "```python /shared/codx-junior/api/codx/junior/chat_manager.py\n    def\
+    \ export_chat(self, chat_id: str, export_format: str) -> ExportedDocument:\n \
+    \       \"\"\"\n        Export a chat and its descendants to the specified format.\n\
+    \n        :param chat_id: The ID of the chat to export.\n        :param export_format:\
+    \ The format to export to (e.g., markdown, docx, pdf, excel).\n        :return:\
+    \ An ExportedDocument containing the exported chat.\n        \"\"\"\n        chat\
+    \ = self.find_by_id(chat_id)\n        if not chat:\n            raise ValueError(f\"\
+    Chat with id {chat_id} not found\")\n\n        # Build the chat tree\n       \
+    \ chat_tree = self.build_chat_tree(chat)\n\n        # Use ChatExport to export\
+    \ the chat\n        chat_exporter = ChatExport(chat_tree=chat_tree, export_format=export_format)\n\
+    \        return chat_exporter.export_chat()\n\n    def build_chat_tree(self, chat:\
+    \ Chat) -> Dict[str, Any]:\n        \"\"\"\n        Build a tree structure from\
+    \ a chat and its descendants.\n\n        :param chat: The root chat object.\n\
+    \        :return: A dictionary representing the chat tree.\n        \"\"\"\n \
+    \       def get_chat_descendants(chat):\n            descendants = []\n      \
+    \      for child_chat in [c for c in self.list_chats() if c.parent_id == chat.id]:\n\
+    \                descendants.append({\n                    \"chat\": child_chat,\n\
+    \                    \"children\": get_chat_descendants(child_chat)\n        \
+    \        })\n            return descendants\n\n        return {\n            \"\
+    chat\": chat,\n            \"children\": get_chat_descendants(chat)\n        }\n\
+    ```\n\nThis updated version of the `ChatManager` class includes the `export_chat`\
+    \ and `build_chat_tree` methods, which are responsible for exporting a chat and\
+    \ constructing the chat tree, respectively. The `export_chat` method utilizes\
+    \ the `ChatExport` class to perform the export. By using the `list_chats` method,\
+    \ we avoid loading messages unnecessarily and only retrieve them when needed for\
+    \ the export process."
+  created_at: '2025-11-12 05:29:58.901983'
+  disable_knowledge: false
+  doc_id: bb408481-e7eb-4b5a-995f-17f838622889
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.03999686241149902
+    model: openai/gpt-4o
+    time_taken: 15.506818771362305
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-11-12 05:29:58.902007'
+  user: null
+- content: Call self.list_chats() only once while building the tree, it's an expensive
+    operation
+  created_at: '2025-11-12 05:29:58.901983'
+  disable_knowledge: true
+  doc_id: cf30b4f5-8188-4e19-96fb-1a10bc6f75b6
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-12 05:29:58.902007'
+  user: admin
+- content: "To optimize the `build_chat_tree` function by calling `self.list_chats()`\
+    \ only once, we can pass the list of all chats to the function and use it to find\
+    \ descendants. Here's how you can modify the `build_chat_tree` method:\n\n```python\n\
+    def export_chat(self, chat_id: str, export_format: str) -> ExportedDocument:\n\
+    \    \"\"\"\n    Export a chat and its descendants to the specified format.\n\n\
+    \    :param chat_id: The ID of the chat to export.\n    :param export_format:\
+    \ The format to export to (e.g., markdown, docx, pdf, excel).\n    :return: An\
+    \ ExportedDocument containing the exported chat.\n    \"\"\"\n    chat = self.find_by_id(chat_id)\n\
+    \    if not chat:\n        raise ValueError(f\"Chat with id {chat_id} not found\"\
+    )\n\n    # Get all chats once\n    all_chats = self.list_chats()\n\n    # Build\
+    \ the chat tree\n    chat_tree = self.build_chat_tree(chat, all_chats)\n\n   \
+    \ # Use ChatExport to export the chat\n    chat_exporter = ChatExport(chat_tree=chat_tree,\
+    \ export_format=export_format)\n    return chat_exporter.export_chat()\n\ndef\
+    \ build_chat_tree(self, chat: Chat, all_chats: list) -> Dict[str, Any]:\n    \"\
+    \"\"\n    Build a tree structure from a chat and its descendants.\n\n    :param\
+    \ chat: The root chat object.\n    :param all_chats: List of all chat objects.\n\
+    \    :return: A dictionary representing the chat tree.\n    \"\"\"\n    def get_chat_descendants(chat):\n\
+    \        descendants = []\n        for child_chat in [c for c in all_chats if\
+    \ c.parent_id == chat.id]:\n            descendants.append({\n               \
+    \ \"chat\": child_chat,\n                \"children\": get_chat_descendants(child_chat)\n\
+    \            })\n        return descendants\n\n    return {\n        \"chat\"\
+    : chat,\n        \"children\": get_chat_descendants(chat)\n    }\n```\n\nIn this\
+    \ version, `self.list_chats()` is called once in the `export_chat` method, and\
+    \ its result is passed to the `build_chat_tree` method. This avoids repeated calls\
+    \ to `list_chats`, thus improving performance."
+  created_at: '2025-11-12 05:29:58.901983'
+  disable_knowledge: false
+  doc_id: 3fc1800d-822b-4785-9cd0-f4a5545e32a3
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.033944129943847656
+    model: openai/gpt-4o
+    time_taken: 7.402452230453491
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-11-12 05:29:58.902007'
+  user: null
+mode: chat
+name: chat_manager
+parent_id: 79bd3ea1-e3c2-45ca-af15-d091257f4ed4
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-11-12T05:48:07.002180'
+url: ''
+users:
+- admin
+visibility: ''

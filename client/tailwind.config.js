@@ -9,7 +9,12 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx,vue}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        'codx-primary': '#cc0099',
+        'codx-secondary': '#8f008f',
+      }
+    },
   },
   plugins: [
     daisyui, 

@@ -1,6 +1,17 @@
+<script setup>
+</script>
+
 <template>
-  <div class="grow flex flex-col md:gap-2 justify-center align-center">
-          <div class="md:py-10 flex flex-col">
+  <div class="w-full h-full flex flex-col gap-2 justify-center items-center">
+    <div>
+      <!-- Hero section description -->
+      This component is the "hero" section of the app. Where new users will land for the first time. We must tell the user that codx-junior is their junior mate helping to maintain their projects. codx-junior is an AI that will help you fix issues, develop new features, find bugs, create a wiki, give support... all that a good colleague does for you when working together.
+
+      codx-junior learns from the project's files and from the tasks you do together and will always be there ready to give you a hand!
+    </div>
+    
+    <div class="grow flex flex-col md:gap-2 justify-center items-center">
+      <div class="md:py-10 flex flex-col">
         <div class="flex flex-col">
           <div class="py-4">
             <h1 class="text-center text-xl md:text-3xl font-bold flex gap-2 justify-center items-center">
@@ -12,6 +23,7 @@
           </div>
 
           <div class="mx-4 rounded-xl bg-base-100 grow flex flex-col gap-2 px-4 py-2 lg:py-6">
+            <!-- Chat bubbles for team introduction -->
             <div class="chat chat-start">
               <div class="chat-image avatar">
                 <div class="w-10 rounded-full">
@@ -32,9 +44,10 @@
               </div>
               <div class="chat-bubble">
                 Hello, this is <span class="font-bold">@analyst</span>.<br/>
-                I'll keep your Kanban tasks tiddy, create subtasks, and assign users to them.
+                I'll keep your Kanban tasks tidy, create subtasks, and assign users to them.
               </div>
             </div>
+
             <div class="chat chat-start">
               <div class="chat-image avatar">
                 <div class="w-10 rounded-full">
@@ -63,7 +76,7 @@
               <span>🍉</span>
             </div>
             <div class="grid grid-cols-4 gap-2 py-2">
-
+              <!-- List of open source projects -->
               <div class="badge badge-info badge-outline badge-sm click" @click="openLink('https://github.com/vuejs/vue')">vue:3.2.47</div>
 
               <div class="badge badge-info badge-outline badge-sm click" @click="openLink('https://github.com/tailwindlabs/tailwindcss')">tailwindcss:3.2.0</div>
@@ -88,6 +101,7 @@
               <div class="text-xl">
                 Latest issues:
               </div>
+              <!-- Issue preview component -->
               <IssuePreview 
                 class="click"
                 :class="issue.selected && 'border'" 
@@ -121,69 +135,71 @@
         </div>
       </div>  
       <div class="chat-footer opacity-50">
-        Paste projet's path, repo or issue link to start!
+        Paste project's path, repo, or issue link to start!
       </div>
       <div class="">
-      <div class="text-xl font-semibold mb-4">Get Started with codx-junior</div>
-      <ul class="text-xs flex flex-col gap-2 ml-4">
-        <li>
-          <i class="fa-brands fa-square-git"></i><span class="font-bold"> Clone your repo</span>
-          <div class="ml-6 text-xs">Copy paste the repo url and press "Clone"</div>
-        </li>
-        <li>
-          <i class="fa-solid fa-gear"></i><span class="font-bold"> Set your settings</span>
-          <div class="ml-6 text-xs">
-            Review important settings like
-            <span class="text-warning underline click" @click="$ui.setActiveTab('global-settings')">AI provider settings</span>
-            and
-            <span class="underline click" @click="$ui.setActiveTab('settings')">Project settings</span>
-          </div>
-        </li>
-        <li>
-          <i class="fa-solid fa-book"></i> <span class="font-bold"> Review knowledge settings and profiles (optional)</span>
-          <div class="ml-6 text-xs">
-            Knowledge allows codx-junior to learn from the code base
-            <span class="text-secondary underline click" @click="$ui.setActiveTab('knowledge')"> check it here</span>
-            and profiles improve codx-junior performance...
-            <span class="text-info underline click" @click="$ui.setActiveTab('profiles')"> check it at profiles</span>
-          </div>
-        </li>
-      </ul>
-      <div class="text-xl font-semibold my-2">What's next?</div>
-      <div class="flex gap-2">
-        <button
-          class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
-          data-tip="Solve issues chatting with codx!"
-          @click="$ui.setActiveTab('tasks')"
-        >
-          <i class="fa-solid fa-list-check"></i>
-          Tasks
-        </button>
-        <button
-          class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
-          :data-tip="'Assisted coding with @codx' + ': ...'"
-          @click="$ui.setShowCoder(true)"
-        >
-          <i class="fa-solid fa-code"></i>
-          AI Coding
-        </button>
-        <button
-          class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
-          data-tip="Preview your changes"
-          @click="$ui.setActiveTab('profiles')"
-        >
-          <i class="fa-solid fa-circle-user"></i>
-          Profiles
-        </button>
+        <div class="text-xl font-semibold mb-4">Get Started with codx-junior</div>
+        <ul class="text-xs flex flex-col gap-2 ml-4">
+          <li>
+            <i class="fa-brands fa-square-git"></i><span class="font-bold"> Clone your repo</span>
+            <div class="ml-6 text-xs">Copy paste the repo url and press "Clone"</div>
+          </li>
+          <li>
+            <i class="fa-solid fa-gear"></i><span class="font-bold"> Set your settings</span>
+            <div class="ml-6 text-xs">
+              Review important settings like
+              <span class="text-warning underline click" @click="$ui.setActiveTab('global-settings')">AI provider settings</span>
+              and
+              <span class="underline click" @click="$ui.setActiveTab('settings')">Project settings</span>
+            </div>
+          </li>
+          <li>
+            <i class="fa-solid fa-book"></i> <span class="font-bold"> Review knowledge settings and profiles (optional)</span>
+            <div class="ml-6 text-xs">
+              Knowledge allows codx-junior to learn from the code base
+              <span class="text-secondary underline click" @click="$ui.setActiveTab('knowledge')"> check it here</span>
+              and profiles improve codx-junior performance...
+              <span class="text-info underline click" @click="$ui.setActiveTab('profiles')"> check it at profiles</span>
+            </div>
+          </li>
+        </ul>
+        <div class="text-xl font-semibold my-2">What's next?</div>
+        <div class="flex gap-2">
+          <button
+            class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
+            data-tip="Solve issues chatting with codx!"
+            @click="$ui.setActiveTab('tasks')"
+          >
+            <i class="fa-solid fa-list-check"></i>
+            Tasks
+          </button>
+          <button
+            class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
+            :data-tip="'Assisted coding with @codx' + ': ...'"
+            @click="$ui.setShowCoder(true)"
+          >
+            <i class="fa-solid fa-code"></i>
+            AI Coding
+          </button>
+          <button
+            class="btn btn-outline flex gap-2 tooltip tooltip-bottom"
+            data-tip="Preview your changes"
+            @click="$ui.setActiveTab('profiles')"
+          >
+            <i class="fa-solid fa-circle-user"></i>
+            Profiles
+          </button>
+        </div>
+      </div>
+      <div class="text-xs">
+        <div class="mt-2">Happy coding 🤩</div>
+        And don't forget to <span class="text-yellow-600"><i class="fa-solid fa-star"></i></span> us
+        <a href="https://github.com/gbrian/codx-junior" target="_blank" class="text-blue-500 underline">github.com/gbrian/codx-junior</a>
       </div>
     </div>
-    <div class="text-xs">
-      <div class="mt-2">Happy coding 🤩</div>
-      And don't forget to <span class="text-yellow-600"><i class="fa-solid fa-star"></i></span> us
-      <a href="https://github.com/gbrian/codx-junior" target="_blank" class="text-blue-500 underline">github.com/gbrian/codx-junior</a>
-    </div>
-    </div>
+  </div>
 </template>
+
 <script>
 export default {
   data() {
@@ -191,7 +207,7 @@ export default {
       newProjectPath: "",
     }
   },
-    methods: {
+  methods: {
     async createNewProject(newProjectPath) {
       if (!newProjectPath) {
         return

@@ -13,7 +13,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 
 <template>
   <div class="h-full" v-if="kanban?.boards">
-    <div class="flex flex-col gap-2" v-if="!$projects.activeChat && !board">  
+    <div class="flex flex-col gap-2" v-if="!$projects.activeChat && !board">
       <h1 class="px-2 text-2xl font-bold flex justify-between gap-2 border-b border-slate-700 pb-2">
         <div class="flex gap-2">
           <div class="avatar">
@@ -39,7 +39,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           v-if="$projects.parentProject"
         >
         {{  $projects.parentProject.project_name }}
-        </div>      
+        </div>
         <div class="badge bagde-sm badge-outline hover:text-info click text-nowrap shrink-0 w-fit"
           v-for="project in $projects.childProjects" :key="project.project_id"
           @click="$projects.setActiveProject(project)"
@@ -114,7 +114,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
               <li @click="showColumnModal = true"><a><i class="fa-solid fa-plus"></i> Column</a></li>
               <li @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> Board</a></li>
               <li @click="showChildrenBoards = !showChildrenBoards"><a><i class="fa-solid fa-eye"></i> Show Boards</a></li>
-              <li @click="onEditBoard">
+              <li @click="onEditBoard()">
                   <a>
                     <i class="fas fa-cogs text-warning hidden group-hover:block cursor-pointer"></i>
                     Settings
@@ -176,7 +176,12 @@ import ProjectDetailt from '../ProjectDetailt.vue'
                 <div class="flex gap-2 items-center grow"
                   :class="!column.valid && 'border border-dashed'"
                 >
-                  <div>{{column.title}}</div>
+                  <div class="flex flex-col">
+                    {{column.title}}
+                    <div class="text-xs -mt-1" v-if="column.project">
+                      {{ column.project.project_name }}
+                    </div>
+                  </div>
                 </div>
                 <div class="flex gap-2 items-center">
                   <div class="dropdown dropdown-end">
@@ -185,19 +190,19 @@ import ProjectDetailt from '../ProjectDetailt.vue'
                       <i class="mt-1 fa-solid fa-plus"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                      <li class="flex gap-2" @click="newTask(column.title, 'chat')">
+                      <li class="flex gap-2" @click="newTask(column, 'chat')">
                         <a><ChatIcon mode="chat" /> Chat</a>
                       </li>
-                      <li class="flex gap-2" @click="newTask(column.title, 'task')">
+                      <li class="flex gap-2" @click="newTask(column, 'task')">
                         <a><ChatIcon mode="task" /> Document</a>
                       </li>
-                      <li class="flex gap-2" @click="newTask(column.title, 'topic')">
+                      <li class="flex gap-2" @click="newTask(column, 'topic')">
                         <a><ChatIcon mode="topic" /> Discussion</a>
                       </li>
-                      <li class="flex gap-2" @click="newTask(column.title, 'prview')">
+                      <li class="flex gap-2" @click="newTask(column, 'prview')">
                         <a><ChatIcon mode="prview" /> Changes review</a>
                       </li>
-                      <li class="flex gap-2" @click="importTask(column.title)">
+                      <li class="flex gap-2" @click="importTask(column)">
                         <a>Import task</a>
                       </li>
                     </ul>
@@ -266,6 +271,12 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           class="grow input input-bordered w-full"/>
         
       </div>
+
+      <ProjectDetailt 
+        :project="columnProject || $project" 
+        :options="{ showFolders: false, showIcon: true, showSelector: true }"
+        @select="columnProject = $event"    
+      />
       <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
       <div class="modal-action">
         <button class="btn" @click="addOrUpdateColumn">OK</button>
@@ -293,7 +304,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </div>
       <div class="modal-action">
         <button class="btn" @click="confirmImportTask">Import</button>
-        <button class="btn" @click="showImportModalForColumn = false">Cancel</button>
+        <button class="btn" @click="showImportModalForColumn = null">Cancel</button>
       </div>
     </modal>
     <modal close="true" @close="showFileFinder = false" v-if="showFileFinder">
@@ -337,7 +348,8 @@ export default {
       searchVisible: false,
       showFileFinder: false,
       pinnedChats: [],
-      topChats: []
+      topChats: [],
+      columnProject: null // Initialize columnProject
     }
   },
   created() {
@@ -518,10 +530,11 @@ export default {
     },
     newTask(column, mode) {
       this.createNewChat({
-        column,
+        column: column.title,
         name: 'New Task',
         mode: mode || 'chat',
-        profiles: []
+        profiles: [],
+        project_id: column.project?.project_id
       })
     },
     async importTask(column) {
@@ -541,7 +554,7 @@ export default {
       } else if (this.importOption === 'url') {
         const chat = {
           board: this.board || 'Default',
-          column: this.showImportModalForColumn,
+          column: this.showImportModalForColumn.title,
           name: 'Import from url',
           mode: 'chat',
           url: this.importUrl
@@ -572,7 +585,8 @@ export default {
             tasks: this.boardChats
               .filter(t => (t.column || '--none--') === col && !t.pinned)
               .sort((a, b) => a.pinned || (getChatIndex(a) < getChatIndex(b)) ? -1 : 1),
-            position: ix
+            position: ix,
+            project: this.$projects.allProjectsById[boardColumn.project_id]
           }
         }).sort((a, b) => a.position < b.position ? -1: 1)
         || []
@@ -610,7 +624,7 @@ export default {
       await this.$projects.setActiveChat()
       this.buildKanban()
     },
-    async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, column, profiles }) {
+    async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
       const chat = await this.createNewChat({
         board: parent.board,
         name,
@@ -621,7 +635,8 @@ export default {
         message_id,
         project_id: project_id || parent.project_id,
         messages: description ? [{ role: 'user', content: description }] : [],
-        file_list
+        file_list,
+        child_index
       }, activateChat)
       
       this.$projects.saveChat(chat)
@@ -645,11 +660,13 @@ export default {
       if (this.selectedColumn) {
         this.selectedColumn.title = this.columnTitle
         this.selectedColumn.color = this.columnColor
+        this.selectedColumn.project_id = this.columnProject?.project_id || null // Save project_id
       } else {
         const newColumn = {
           id: uuidv4(),
           title: this.columnTitle,
-          color: this.columnColor
+          color: this.columnColor,
+          project_id: this.columnProject?.project_id || null // Save project_id
         }
         this.activeBoard.columns.push(newColumn)
       }
@@ -717,6 +734,7 @@ export default {
       this.selectedColumn = this.activeKanbanBoard.columns.find(c => c.id === column.id)
       this.columnTitle = column?.title
       this.columnColor = column?.color || '#000000'
+      this.columnProject = this.$projects.allProjectsById[column?.project_id] || this.$project
       this.showColumnModal = true
     },
     async saveKanban() {
@@ -743,7 +761,8 @@ export default {
       this.saveKanban();
     },
     onEditBoard(board) {
-      this.editBoard = board || this.activeBoard
+      board = board || this.activeBoard
+      this.editBoard = board
       this.originalBoardName = board.title
       this.newBoardBackground = board.background
       this.newBoardDescription = board.description
@@ -770,5 +789,6 @@ export default {
       this.buildColumns()
     }
   }
+  // @codx: add a dot line here..... .
 }
 </script>

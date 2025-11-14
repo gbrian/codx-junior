@@ -269,9 +269,11 @@ class CODXJuniorSession:
             limit=knowledge_search.document_count
         )
         
+        """
         documents = validate_search_documents(query=knowledge_search.search_term,
                                               documents=documents,
                                               settings=self.settings)
+        
         chat = Chat(messages=
             [
                 Message(
@@ -285,9 +287,9 @@ class CODXJuniorSession:
             ])
         chat, _ = await self.chat_with_project(chat=chat, disable_knowledge=True)
         response = chat.messages[-1].content
-
+        """
         return {
-            "response": response,
+            "response": "",
             "documents": documents,
             "settings": {
                 "knowledge_search_type": self.settings.knowledge_search_type,
@@ -895,6 +897,7 @@ class CODXJuniorSession:
                 sub_task.board = chat.board
                 sub_task.column = chat.column
                 sub_task.project_id = chat.project_id
+                sub_task.mode = "task"
                 sub_task.messages = [
                     Message(role="user",
                     content=f""" 
@@ -1250,6 +1253,31 @@ class CODXJuniorSession:
             from_branch = from_branch[2:]
         if to_branch.startswith("* "):
             to_branch = to_branch[2:]
+
+
+
+        git_branch_file_changed = f"git diff --name-only {to_branch}...{from_branch}"
+        branch_files, _ = exec_command(git_branch_file_changed,
+                            cwd=self.settings.project_path)
+        branch_files = branch_files.strip().split("\n")
+        
+        def get_git_file_diff(file_path):
+            cmd = f"git diff {to_branch}...{from_branch} -- {file_path}"
+            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.project_path)
+            logger.info("get_git_file_diff: %s: %s\n%s\n%s", file_path, git_cmd_out, self.settings.project_path, cmd)
+            return git_cmd_out.strip()
+
+
+        def get_git_file_commits(file_path):
+            pretty = '{ "commit": "%H", "author": "%an", "date": "%as", "message": "%f" }'
+            cmd = f"git log --pretty=format:'{pretty}' {from_branch} -- {file_path}"
+            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.project_path)
+            return [json.loads(line) for line in git_cmd_out.strip().split("\n")]
+
+        branch_file_and_commits = { file_path: {
+                                        "commits": get_git_file_commits(file_path),
+                                        "diff": get_git_file_diff(file_path)
+                                    } for file_path in branch_files }
         
         git_diff_cmd = f"git diff {to_branch} {from_branch}" if from_branch != 'local' \
                         else f"git diff {to_branch}"
@@ -1271,11 +1299,16 @@ class CODXJuniorSession:
                         cwd=self.settings.project_path)
                     local_changes[file] = git_diff_local_out if git_diff_local_out else \
                                             f"diff --git a/ b/{file}\nnew file mode" 
-
+        for local_file, local_diff in local_changes.items():
+            if local_file in branch_file_and_commits:
+                branch_file_and_commits[local_file]["diff"] = local_diff
+            else:
+                branch_file_and_commits[local_file]  = { "diff": local_diff }
+                
         pr_details = self.get_pr_review_details(from_branch, to_branch)
 
-        commits = self.get_branch_commits(from_branch=from_branch,
-                                        repo_path=self.settings.project_path)
+        commits = []
+        # self.get_branch_commits(from_branch=from_branch, repo_path=self.settings.project_path)
 
         return {
           "diff": git_diff_cmd_out,
@@ -1284,7 +1317,8 @@ class CODXJuniorSession:
           "local_changes": local_changes,
           "repo_path": self.find_git_root_path(),
           "pr_details": pr_details,
-          "commits": commits
+          "commits": commits,
+          "branch_file_and_commits": branch_file_and_commits
         }
 
     def get_branch_commits(self, from_branch, repo_path):

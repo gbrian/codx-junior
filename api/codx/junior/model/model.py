@@ -121,6 +121,7 @@ class Profile(BaseModel):
     api_settings: Optional[ProfileApiSettings] = Field(description="Indicates if the profile is accessible through the LLM API", default=ProfileApiSettings())
     chat_mode: Optional[str] = Field(description="Affects on how conversation works. Like writing a document or chat messages", default=None)
     project_id: Optional[str] = Field(description="Profile's project", default=None)
+    chat_id: Optional[str] = Field(default="", description="Unique identifier for chat")
 
 class Document(BaseModel):
     id: int = Field(default=None)

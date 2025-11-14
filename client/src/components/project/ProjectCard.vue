@@ -3,7 +3,7 @@ import moment from 'moment';
 import HeatMap from '../metrics/HeatMap.vue';
 </script>
 <template>
-  <div class="p-4 rounded-md flex flex-col gap-2 bg-base-200 click">
+  <div class="p-4 border rounded-md p-2 flex flex-col gap-2 bg-base-300 click">
     <div class="font-bold flex gap-2 items-start">
       <img class="w-6 h-6 rounded-full bg-white" :src="project.project_icon" />
       {{ project.project_name }}

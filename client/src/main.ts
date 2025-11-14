@@ -16,6 +16,11 @@ import VueFinder from 'vuefinder/dist/vuefinder'
 // BUG: error loading module. Keep it here
 import highlightjs from 'highlight.js'
 
+function generateUID(length)
+{
+    return window.btoa(String.fromCharCode(...window.crypto.getRandomValues(new Uint8Array(length * 2)))).replace(/[+/=]/g, "").substring(0, length);
+}
+
 const globalMixin = {
   onBeforeMount() {
     console.log("Before mount. Events: ", this.events, this.$root)
@@ -54,7 +59,8 @@ const globalMixin = {
   },
   methods: {
     $bubble(event: string, data: EventInit) {
-    }
+    },
+    generateUID
   }
 }
 

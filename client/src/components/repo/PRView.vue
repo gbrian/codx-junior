@@ -17,7 +17,7 @@ import PRFileViewModeSelector from "./PRFileViewModeSelector.vue"
           <progress class="progress grow"></progress>
         </div>
         <div class="flex gap-2">
-          <PRBranchSelectoor :fromBranch="fromBranchSelected" :toBranch="toBranchSelected" @select="onBranchChanged" />
+          <PRBranchSelectoor :fromBranch="fromBranchSelected" :toBranch="toBranchSelected" @select="onBranchChanged" :branches="repoBranches?.branches" />
           <button class="btn btn-xs" @click="refreshSummary">
             <i class="fa-solid fa-arrows-rotate"></i>
           </button>
@@ -95,7 +95,10 @@ import PRFileViewModeSelector from "./PRFileViewModeSelector.vue"
             </h2>
           </template>
           <template v-slot:item="data">
-            <div class="flex gap-1 items-center click px-2 text-nowrap">
+            <div class="flex gap-1 items-center click px-2 text-nowrap"
+              :class="!data.item.hasChildren && 'ml-6'"
+              @click="onDataItemClick(data.item)"
+            >
               <input type="checkbox" v-model="data.item.value.selected" class="checkbox checkbox-sm" 
                 @click.stop=""
                 @change="onDataItemSelected(data.item)" />
@@ -123,8 +126,8 @@ import PRFileViewModeSelector from "./PRFileViewModeSelector.vue"
       <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="w-1 hover:bg-slate-600" />
       <SplitterPanel id="splitter-group-1-panel-2" :min-size="20" :defaultSize="80" :order="1" class="">
         <PRReport class="w-full h-full overflow-auto" 
+          ref="prReport"
           :files="visibleFiles"
-          :showOption="showOption"
           :columns="columns"
           @new-chat="onFileChat"
           @chat-column="onSetChatColumn"  
@@ -166,22 +169,22 @@ export default {
       filter: null,
       bulkAction: null,
       showBulkAction: false,
-      showOption: 'message',
-      chatColumn: null
+      showOption: 'diff',
+      chatColumn: null,
+      projectContext: null,
+      repoBranches: {}     
     }
   },
   created() {
     if (this.fromBranch && this.toBranch) {
       this.refreshSummary()
     }
+    this.setProjectContext()
   },
   computed: {
     reportFiles() {
       return this.selectedFiles?.length ?
         this.selectedFiles : this.visibleFiles
-    },
-    branches() {
-      return this.$projects.project_branches.branches
     },
     newCount() {
       return this.files.filter(f => f.isNewFile).length
@@ -268,12 +271,15 @@ export default {
         .reduce((a, b) => [...a, ...b])
         .reduce((acc, profile) => ({ ...acc, [profile.name]: profile }), {})
     },
-    chatProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) || 
-        this.$project
+    $api() {
+      const { $api } = this.chat.project_id ? this.$projects.allProjectsById[this.chat.project_id] : this.$project
+      return $api
     }
   },
   watch: {
+    chat() {
+      this.setProjectContext()
+    },
     filter() {
       this.resetSelect()
     },
@@ -282,6 +288,9 @@ export default {
     }
   },
   methods: {
+    async setProjectContext() {
+      this.repoBranches = await this.$api.repo.branches() 
+    },
     copyText() {
       copyTextToClipboard(this.changesSummary)
     },
@@ -289,7 +298,7 @@ export default {
       this.loading = true
       try {
         const { fromBranch, toBranch } = this
-        this.repoChanges = await this.$storex.api.repo.changes({ from_branch: fromBranch, to_branch: toBranch })        
+        this.repoChanges = await this.$api.repo.changes({ from_branch: fromBranch, to_branch: toBranch })        
         this.buildFiles()  
       } finally {
         this.loading = false
@@ -300,16 +309,14 @@ export default {
         this.files = null
         return
       }
-      let diff = this.repoChanges.diff
+      const { branch_file_and_commits } = this.repoChanges 
       const repoPath = this.repoChanges.repo_path
-      if (this.repoChanges.local_changes) {
-        Object.values(this.repoChanges.local_changes)
-          .filter(localDiff => !!localDiff)
-          .forEach(localDiff => diff += `\n${localDiff}`)
-      }
-      const files = diff.split("diff --git ")
-                      .filter(d => d)
-                      .map(diff => this.buildDiffFile(diff, repoPath))
+      
+      const files = Object.keys(branch_file_and_commits)
+                      .map(file_path => {
+                        const diff = branch_file_and_commits[file_path].diff
+                        return this.buildDiffFile(diff, repoPath)
+                      })
                       .filter(diff => !!diff)
                       .sort((a, b) => a.title < b.title ? 1 : -1)
                       .reduce((acc, f) => ({ ...acc, [f.fileFullName]: f }), {}) 
@@ -349,7 +356,7 @@ export default {
     },
     buildDiffFile(diff, repoPath) {
       try {
-        const lines = diff.split("\n")
+        const lines = diff.replace("diff --git ", "").split("\n")
         const [oldFile, newFile] = lines[0].trim().split(" ")
         const oldName = oldFile.replace("a/", "")
         const newName = newFile.replace("b/", "")
@@ -485,6 +492,11 @@ export default {
         })
       }
     },
+    onDataItemClick(item) {
+      if (!item.hasChildren) {
+        this.$refs.prReport.scrollToFile(item.value.fileFullName)
+      }
+    },
     selectAll() {
       this.visibleFiles.map(f => { f.selected = true })
     },
@@ -517,9 +529,6 @@ export default {
       const chats = [this.files.find(f => f.file === f.file).chat]
       this.$emit('change-column', { chats, column })
     }
-  },
-  async mounted() {
-    this.$projects.loadBranches(this.chatProject)
   }
 }
 </script>

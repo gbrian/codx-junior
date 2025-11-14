@@ -8,8 +8,21 @@ import CodeEditor from 'simple-code-editor'
 
 <template>
   <div class="flex flex-col gap-2">
-    <div class="flex gap-1 click">
-      <div class="underline click text-link flex gap-2" v-if="fileName">
+    <div class="flex gap-1 click items-center">
+      <select class="hidden select select-sm select-bordered" 
+        @change="$emit('link-file', $event.target.value)"
+        v-if="files">
+        <option>
+          --
+        </option>
+        <option :value="file_path" v-for="file_path in files" :key="file_path"
+          :selected="file_path === file"
+        >
+          {{ file_path.split("/").reverse()[0] }}
+        </option>
+      </select>
+
+      <div class="underline click text-link flex gap-2 items-center" v-if="fileName">
         <div class="hover:text-info" @click="$emit('add-file', file)">
           <i class="fa-solid fa-file-arrow-up"></i>  
         </div>
@@ -67,7 +80,7 @@ import CodeEditor from 'simple-code-editor'
 </template>
 <script>
 export default {
-  props: ['code', 'language', 'file', 'diff-option', 'file-diff'],
+  props: ['code', 'language', 'file', 'diff-option', 'file-diff', 'files'],
   data() {
     return {
       showDiff: false,

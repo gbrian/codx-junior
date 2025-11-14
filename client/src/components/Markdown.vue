@@ -21,6 +21,7 @@ import highlight from 'markdown-it-highlightjs'
       class="code-block"
       :key="new Date()"
       :code="code"
+      :files="files"
       @generate-code="$emit('generate-code', $event)"
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"
@@ -52,7 +53,7 @@ const md = new MarkdownIt({
 md.use(emoji)
 
 export default {
-  props: ['text', 'mentionList'],
+  props: ['text', 'mentionList', 'files'],
   data() {
     return {
       codeBlocks: [],

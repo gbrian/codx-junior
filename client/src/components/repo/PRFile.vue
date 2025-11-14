@@ -8,9 +8,7 @@ import ChatEntry from "../ChatEntry.vue"
 </script>
 <template>
   <div class="grow flex flex-col gap-2 border-2 border-slate-600 rounded-md py-1" :key="file.fileFullName">
-    <div class="p-2 flex gap-2 text-xl py-2 items-center border-slate-600 w-full"
-    :class="!file.collapse && 'border-b-2'"
-    >
+    <div class="px-1 flex gap-2 items-center border-slate-600 w-full">
       <div class="flex flex-col gap-1 grow"
         :class="file.selected && 'text-warning'"
       >
@@ -93,7 +91,7 @@ import ChatEntry from "../ChatEntry.vue"
       <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="File changes"
         :class="showDiff && 'btn-warning'"
         @click="showOption = 'diff'" 
-        v-if="file.parsed">
+        disabled="!file.parsed || file.isNewFile">
         <i class="fa-solid fa-code-merge"></i>
       </button>
 
@@ -122,6 +120,8 @@ import ChatEntry from "../ChatEntry.vue"
           :diff-view-theme="'dark'" 
           :diff-view-add-widget="false"
           :diff-view-wrap="diffWrap"
+          :diff-view-highlight="true"
+          :diffViewFontSize="10"
           :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"          
         >
           <template #widget="{ onClose, lineNumber, side }">
@@ -164,11 +164,14 @@ export default {
     return {
       showOption: this.option || 'diff',
       fileContent: null,
-      diffSplit: true,
+      diffSplit: false,
       diffWrap: true
     }
   },
-  mounted() {
+  created() {
+    if (this.showOption === 'diff' && this.file.isNewFile) {
+      this.loadFileContent()
+    }
   },
   computed: {
     showMessage() {
@@ -217,7 +220,9 @@ export default {
     },
     async loadFileContent() {
       this.fileContent = await this.$storex.api.files.read(this.file.fileFullName)
+      this.showOption = 'file'
     }
-  }
+  },
+  expose: ['file']
 }
 </script>

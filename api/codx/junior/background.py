@@ -29,10 +29,18 @@ QUARANTINE_TRACKER: Dict[str, Dict] = {}
 QUARANTINE_LOCK = Lock()
 QUARANTINE_DELAYS = [0, 1, 10, 30, 120]  # Minutes
 
-def start_background_services(app) -> None:
+RUN_BACKGROUND_PROCSSES=True
+WATCHER = None
+
+def start_background_services() -> None:
     """
     Function to start background services for project watching and processing.
     """
+
+    global WATCHER
+    global RUN_BACKGROUND_PROCSSES
+
+    RUN_BACKGROUND_PROCSSES = True
     if not CODX_JUNIOR_API_BACKGROUND:
         return
     logger.info("*** Starting background processes ***")
@@ -42,7 +50,13 @@ def start_background_services(app) -> None:
     Thread(target=check_projects).start()
 
     # Start the mention checking in a separate thread
-    start_mention_checking()
+    # WATCHER = start_mention_checking()
+    
+def stop_background_services():
+    logger.info("Stopping background processes")
+    RUN_BACKGROUND_PROCSSES = False
+    # WATCHER.stop()
+    WATCHER = None
 
 def reload_models() -> None:
     """
@@ -103,7 +117,7 @@ def check_projects() -> None:
             project.last_error = str(ex)
             logger.exception(f"Error processing project changes: {project.project_name}\n{ex}")
 
-    while True:
+    while RUN_BACKGROUND_PROCSSES:
         try:
             projects = find_all_projects()
             for project in projects.values():
@@ -120,19 +134,13 @@ def check_projects() -> None:
 
 
 def start_mention_checking() -> None:
-    """
-    Start a separate thread to continuously check mentions on all projects.
-    """
-    def check_mentions():
-        while True:
-            try:
-                asyncio.run(
-                  ChangeManager.check_mentions_on_all_projects(all_projects=find_all_projects().values()
-                  )
-                )
-            except Exception as ex:
-                logger.exception(f"Error checking mentions on all projects: {ex}")
-            time.sleep(0.5)
+    change_managers = {}
+    async def check_file_mentions(project, file_path):
+        if not project.project_id in change_managers:
+            change_managers[project.project_id] = ChangeManager(settings=project)
+        await change_managers[project.project_id].process_project_mentions(file_path=file_path)
+    logger.info("WatchProjectFileChanges start mention check")        
+    watcher = WatchProjectFileChanges(callback=check_file_mentions)
+    watcher.start()
+    return watcher
 
-    # Start the mention checking in a separate thread
-    Thread(target=check_mentions, daemon=True).start()

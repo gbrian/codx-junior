@@ -14,26 +14,45 @@ import MentionSelector from '../mentions/MentionSelector.vue'
 <template>
   <div class="flex flex-col gap-1 grow">
     <div class="grow relative">
-      <CheckLists class="mb-2" :chat="theChat" @change="saveChat" />
+      <div class="flex gap-2 items-center justify-bnetween">
+        <div class="w-full" v-if="chatFiles.length">
+          <div class="my-2 text-xs">
+            <span>
+              <i class="fa-solid fa-paperclip"></i>
+            </span>
+            <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 cursor-pointer text-accent" @click="$ui.openFile(file)">
+              <span :title="file" >{{ file.split('/').reverse()[0] }}</span>
+              <span class="ml-2 cursor-pointer" @click.stop="removeFileFromChat(file)">
+                <i class="fa-regular fa-circle-xmark"></i>
+              </span>
+            </a>
+          </div>
+        </div>
+        <CheckLists class="" :chat="chat" @change="saveChat" />
+        
+      </div>
       <div class="overflow-y-auto overflow-x-hidden" :class="isBrowser && 'flex gap-1'">
         <div class="w-3/4" v-if="isBrowser">
           <Browser :token="$ui.monitors['shared']" />
         </div>
         <div class="overflow-auto h-full">
-          <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
+          <div class="flex flex-col gap-1 mb-2">
             <ChatEntry v-for="knowledgeMessage in knowledgeMessages"
-              :key="knowledgeMessage.id"
-              :chat="theChat"
-              :message="knowledgeMessage"
-              :isTopic="isTopic && !ix"
-              :mentionList="mentionList"
-              :menu-less="readOnly"
-            />
+                class="rounded-lg overflow-hidden"
+                :key="knowledgeMessage.id"
+                :chat="chat"
+                :message="knowledgeMessage"
+                :isTopic="isTopic && !ix"
+                :mentionList="mentionList"
+                :menu-less="readOnly"
+              />
+          </div>
             
+          <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
             <ChatEntry :class="['mb-4 rounded-md',
               isChannel ? '': 'py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '']"
-              :chat="theChat"
+              :chat="chat"
               :message="message"
               :isTopic="isTopic && !ix"
               :mentionList="mentionList"
@@ -46,7 +65,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
               @answer="toggleAnswer(message)"
               @run-edit="runEdit"
               @copy="onCopy(message)"
-              @add-file-to-chat="$emit('add-file', $event)"
+              @add-file-to-chat="onAddFile($event)"
               @image="imagePreview = { ...$event, readonly: true }"
               @generate-code="onGenerateCode"
               @reload-file="onReloadMessageFile"
@@ -55,7 +74,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
               @add-file="onAddFile"
               @edit-message="onEditMessage($event, message)"
               @code-file-shown.stop="console.log"
-              @subtask="$emit('subtask', { chat: theChat, message })"
+              @subtask="$emit('subtask', { chat: chat, message })"
             />
           </div>
           <div class="anchor" ref="anchor"></div>
@@ -96,6 +115,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
           <i class="fa-solid fa-magnifying-glass" v-if="mention.project"></i>
           <img class="w-4 rounded-full" :src="mention.profile.avatar" v-if="mention.profile?.avatar" />
           <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.avatar"></i>
+          <i class="fa-solid fa-file-lines" v-if="mention.file"></i>
           <div class="-mt-1">
             {{ mention.name }}
           </div>
@@ -107,7 +127,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         :content="editorText" 
         :project="projectContext || $projects" 
         @select="onMentionReplace" />
-      <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
+      <div class="border border-primary rounded-md bg-base-100 mt-2 pb-2" :class="['flex shadow indicator w-full', 
             'flex-col',
             editMessage && 'border-warning',
             onDraggingOverInput ? 'bg-warning/10': '']"
@@ -116,18 +136,22 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         @drop.prevent="onDrop"
         v-if="readOnly !== true"
         >
-        <KnowledgeSearch class="p-2 h-60"
-          @select="onAddDocument"
-          v-if="showDocumentSearchModal"
-        />
-        <div v-else class="editor" :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
+        <div class="flex flex-col gap-1 bg-base-300 rounded-md" v-if="showDocumentSearchModal">
+          <KnowledgeSearch class="p-2 h-60"
+            :project="chatProject"
+            :close="true"
+            @close="closeDocumentSearch"
+            @select="onAddDocument"          
+          />
+        </div>
+        <div class="editor" :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
           :contenteditable="!waiting"
           ref="editor"
           @paste="onContentPaste"
           @keydown="onEditMessageKeyDown"
         >
         </div>
-        <div class="flex justify-between items-end px-2">
+        <div class="flex justify-between items-end px-2 bg-base-300 rounded-b-md">
           <div class="carousel rounded-box">
             <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
               <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
@@ -141,13 +165,15 @@ import MentionSelector from '../mentions/MentionSelector.vue'
             </div>
           </div>
           <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
-          <div class="grow flex justify-between items-center" v-else>
+          <div class="grow flex gap-2 items-end" v-else>
             <UserSelector 
               class="dropdown-top"
               :selectedUser="selectedUser"
               @user-changed="selectedUser = $event"
             />
-            <div class="flex gap-2 items-center justify-end py-2" v-if="!searchingInKnowledge">
+            <div class="text-xs">Find: ctrl+f</div>
+            <div class="grow"></div>
+            <div class="flex gap-2 items-center justify-end" v-if="!searchingInKnowledge">
               <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
                 <i class="fa-solid fa-save"></i>
                 <div class="text-xs" v-if="editMessage && !showDocumentSearchModal">Edit</div>
@@ -172,7 +198,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
                 <i class="fa-brands fa-chrome"></i>
               </button>
               <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
-                data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
+                data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && chat.mode === 'chat'">
                 <i class="fa-solid fa-code"></i>
               </button>
 
@@ -303,7 +329,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'chatId', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete'],
+  props: ['chat', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete'],
   data() {
     return {
       waiting: false,
@@ -347,15 +373,18 @@ export default {
     clearInterval(this.syncEditableTextInterval)
   },
   computed: {
-    theChat() {
-      return this.chat || this.$projects.chats[this.chatId]
+    chatFiles() {
+      return this.chat.file_list || []
     },
     visibleMessages() {
-      return this.theChat?.messages?.filter(m => !m.hide || this.showHidden) || []
+      return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
     lastAIMessage() {
       const { activeMessages } = this
-      const lastAiMessages = activeMessages.filter(m => m.role === 'assistant').reverse()
+      const lastAiMessages = activeMessages?.filter(m => m.role === 'assistant').reverse()
+      if (!lastAiMessages?.length) {
+        return null
+      }
       if (lastAiMessages.length < 2) {
         return lastAiMessages[0]
       }
@@ -364,17 +393,17 @@ export default {
       return { ...last, diffMessage: previous[0] }
     },
     lastUserMessage() {
-      const { messages } = this.theChat
-      const msgs = messages?.filter(m => !m.hide && m.role !== 'assistant')
+      const { messages } = this
+      const msgs = messages?.filter(m => m.role !== 'assistant')
       return msgs ? msgs[msgs.length - 1] : null
     },
     lastMessage() {
-      const { messages } = this.theChat
-      return messages ? messages[messages.length - 1] : null
+      const { messages } = this
+      return messages?.length ? messages[messages.length - 1] : null
     },
     diffMessage() {
       if (this.isTask) {
-        const { messages } = this.theChat
+        const { messages } = this.chat
         const aiMsgs = messages.filter(m => m.role === 'assistant')
         if (aiMsgs.length > 1) {
           return aiMsgs[aiMsgs.length - 2]
@@ -383,21 +412,20 @@ export default {
       return null
     },
     activeMessages() {
-      const { messages } = this.theChat
-      return messages.filter(m => !m.hide)
+      const messages = this.chat?.messages
+      return messages?.filter(m => !m.hide || this.showHidden) || []
     },
     knowledgeMessages() {
-      return this.activeMessages.filter(m => m.is_answer)
-                .map(m => ({ ...m, collapse: true }))
+      return this.chat?.messages?.filter(m => !m.hide && m.is_answer)
     },
     messages() {
-      const messages = this.theChat?.messages
-      if (!messages?.length) {
+      const { activeMessages } = this
+      if (!activeMessages.length) {
         return []
       }
-      if (this.isTask && !this.showHidden) {
+      if (this.isTask && !this.showHidden && activeMessages?.length) {
         const aiMsg = this.lastAIMessage
-        const lastMsg = this.activeMessages[this.activeMessages.length - 1]
+        const lastMsg = activeMessages[activeMessages.length - 1]
         const res = []
         if (aiMsg) {
           res.push(aiMsg)
@@ -407,7 +435,7 @@ export default {
         }
         return res
       }
-      return messages.filter(message => !message.hide || this.showHidden)
+      return activeMessages.filter(message => (!message.hide || this.showHidden) && !message.is_answer)
     },
     multiline() {
       return this.editorText?.split("\n").length > 1 || this.images?.length
@@ -422,10 +450,10 @@ export default {
       return this.messageText || this.images?.length
     },
     isTask() {
-      return this.theChat?.mode === 'task'
+      return this.chat?.mode === 'task'
     },
     isTopic() {
-      return this.theChat?.mode === 'topic'
+      return this.chat?.mode === 'topic'
     },
     topicMessage() {
       return this.messages[0]
@@ -448,7 +476,7 @@ export default {
     lastChatEvent() {
       const { events } = this.$storex.session
       const event = events[events.length - 1]
-      if (event?.data.chat?.id === this.theChat.id) {
+      if (event?.data.chat?.id === this.chat.id) {
         const message = event.data.message?.content || ""
         return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type || event.data.type || ''} ${event.data.text || ''}\n${message}`
       } 
@@ -457,10 +485,10 @@ export default {
       return [this.$store.state.user, ...this.projectContext.profiles]
     },
     isChannel() {
-      return this.theChat.mode === 'topic'
+      return this.chat.mode === 'topic'
     },
     chatProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.theChat.project_id) ||
+      return this.$projects.allProjectsById[this.chat.project_id] ||
                 this.$project
     },
     editor() {
@@ -468,7 +496,7 @@ export default {
     }
   },
   watch: {
-    theChat() {
+    chat() {
       this.initSelectedUserFromChat()
       this.setProjectContext()
     },
@@ -485,7 +513,7 @@ export default {
       }
     },
     initSelectedUserFromChat() {
-      const messages = this.theChat.messages.filter(m => !m.hide && m.profiles?.length)
+      const messages = this.chat.messages.filter(m => !m.hide && m.profiles?.length)
       const lastProfileMessage = messages[messages.length - 1]
       if (lastProfileMessage) {
         const userName = lastProfileMessage.profiles[0]
@@ -508,8 +536,8 @@ export default {
       if (this.editMessage === message) {
         return this.onResetEdit()
       }
-      this.editMessageId = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)
-      this.editMessage = this.theChat.messages[this.editMessageId]
+      this.editMessageId = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
+      this.editMessage = this.chat.messages[this.editMessageId]
       const profile = this.editMessage.profiles[0]?.name
       if (profile) {
         this.selectedUser = profile
@@ -519,13 +547,11 @@ export default {
       } catch { }
       this.setEditorText(this.editMessage.content)
     },
-    toggleHide(message) {
-      message.hide = !message.hide
-      this.saveChat()
+    toggleHide({ doc_id, hide }) {
+      this.updateExistingMessage({ doc_id }, { hide: !hide })
     },
-    toggleAnswer(message) {
-      message.is_answer = !message.is_answer
-      this.saveChat()
+    toggleAnswer({ doc_id, is_answer }) {
+      this.updateExistingMessage({ doc_id }, { is_answer: !is_answer })
     },
     onCopy(message) {
       navigator.permissions.query({ name: "clipboard-read" }).then(result => {
@@ -537,7 +563,7 @@ export default {
     },
     async improveCode() {
       this.postMyMessage(this.editorText)
-      await this.$projects.codeImprove(this.theChat)
+      await this.$projects.codeImprove(this.chat)
       this.testProject()
     },
     runEdit(codeSnipped) {
@@ -551,8 +577,8 @@ export default {
       )
     },
     addMessage(msg) {
-      this.theChat.messages = [
-        ...this.theChat.messages || [],
+      this.chat.messages = [
+        ...this.chat.messages || [],
         msg
       ]
     },
@@ -579,7 +605,6 @@ export default {
     },
     postMyMessage(message) {
       const userMessage = this.getUserMessage(message)
-      userMessage.files.forEach(file => this.$emit('add-file', file))
       this.addMessage(userMessage)
       this.cleanUserInputAndWaitAnswer()
       return userMessage
@@ -605,13 +630,13 @@ export default {
           await this.saveChat()
         }
         if (!this.isChannel || this.lastMessage?.profiles.length) {
-          await this.sendChatMessage(this.theChat)
+          await this.sendChatMessage(this.chat)
         }
       }
     },
     getSendMessage() {
       return this.editMessage ||
-        this.theChat.messages[this.theChat.messages.length - 1].content
+        this.chat.messages[this.chat.messages.length - 1].content
     },
     async askKnowledge() {
       const searchTerm = this.editor.innerText
@@ -695,7 +720,12 @@ export default {
       this.images = []
     },
     removeMessage(message) {
-      this.$emit("delete-message", message)
+      const ix = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
+      if (this.chat.mode == 'task' && message.role === "assistant" && ix > 1) {
+        this.chat.messages[ix - 1].hide = false
+      }
+      this.chat.messages = this.chat.messages.filter((_, i) => i !== ix)
+      this.saveChat()
     },
     async fileToMessage(file) {
       const content = await this.$storex.api.files.read(file)
@@ -709,7 +739,7 @@ export default {
     },
     async addSerchTerm({ mention, orgText }) {
       if (mention.file) {
-        this.$emit('add-file', mention.file)
+        this.onAddFile(mention.file)
       } else {
         this.setEditorText(
           this.editorText.split(" ")
@@ -748,9 +778,9 @@ export default {
       const lastWorkIndex = text.slice(0, caretIndex).split(/\s/g).length - 1
       return text.split(/\s/g)[lastWorkIndex]
     },
-    saveChat() {
-      if (!this.theChat.temp) { 
-        return API.chats.save(this.theChat)
+    async saveChat() {
+      if (!this.chat.temp) { 
+        return await this.$projects.saveChat(this.chat)
       }
     },
     onDrop(e) {
@@ -848,7 +878,7 @@ export default {
       this.selectFile = false
     },
     onGenerateCode(codeBlockInfo) {
-      this.$projects.generateCode({ chat: this.theChat, codeBlockInfo })
+      this.$projects.generateCode({ chat: this.chat, codeBlockInfo })
     },
     removeImage(ix) {
       this.images = this.images.filter((i, imx) => imx !== ix)
@@ -870,6 +900,10 @@ export default {
     },
     removeFileFromMessage(message, file) {
       message.files = message.files.filter(f => f !== file)
+      this.saveChat()
+    },
+    removeFileFromChat(file) {
+      this.chat.file_list = this.chat.file_list?.filter(f => f !== file)
       this.saveChat()
     },
     toggleVoiceSession() {
@@ -916,21 +950,26 @@ export default {
         this.onResetEdit()
       } else if(event.key === 'Enter' && event.ctrlKey) {
         this.sendMessage()
-      } else {
+      } else if(event.key === 'f' && event.ctrlKey) {
+        this.openDocumentSearch()
+      }  else {
         return true
       }
       return stop()
     },
     openDocumentSearch() {
-      this.showDocumentSearchModal = !this.showDocumentSearchModal
+      this.showDocumentSearchModal = true
+    },
+    closeDocumentSearch() {
+      this.showDocumentSearchModal = false
     },
     onAddDocument(doc) {
       const source = doc.metadata.source
-      this.addFileToChat(source)
+      this.addFileToMessage(source)
       this.saveChat()
     },
     addFileToChat(filePath) {
-      this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], filePath])]
+      this.chat.file_list = [...new Set([...this.chat.file_list ||[], filePath])]
     },
     async onReloadMessageFile({ file, message }) {
       message.content = await this.fileToMessage(file)
@@ -942,21 +981,30 @@ export default {
     onOpenFile(file) {
       this.projectContext.api.coder.openFile(file)
     },
-    onAddFile(file) {
-      this.$emit('add-file', file)
-    },
     addChatFile() {
-      this.$emit('add-file', this.uploadProjectFile)
+      this.onAddFile(this.uploadProjectFile)
       this.uploadProjectFile = null
       this.selectFile = false
+    },
+    async onAddFile(file) {
+      if (this.chat.file_list?.includes(file)) {
+        return
+      }
+      this.chat.file_list = [...(this.chat.file_list || []), file]
+      this.addNewFile = null
+      await this.saveChat()
     },
     onEditMessage({ orgContent, newContent }, message) {
       message.content = message.content.replace(orgContent, newContent)
       this.saveChat()
     },
-    onMessageEdited(message) {
-      const existng = this.theChat.messages.find(m => m.doc_id === message.doc_id)
-      existng.content = message.content
+    onMessageEdited({ doc_id, content }) {
+      this.updateExistingMessage({ doc_id }, { content })
+      this.saveChat()
+    },
+    updateExistingMessage(message, update) {
+      const existng = this.chat.messages.find(m => m.doc_id === message.doc_id)
+      Object.assign(existng, update)
       this.saveChat()
     },
     removeMessageMention(mention) {

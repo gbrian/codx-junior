@@ -1,12 +1,12 @@
 <script setup>
+import ProjectIcon from '../ProjectIcon.vue';
 </script>
 
 <template>
-  <!-- Search bar with FontAwesome icon and modal for additional search options -->
-  <div class="w-full h-full flex gap-2 input input-bordered w-full py-2 px-4" @click="executeSearch">
-    Search... 
+  <div class="group w-full flex gap-2 input input-sm items-center input-bordered w-full px-4" @click="executeSearch">
+    <div class="text-nowrap text-xs">Ask codx-junior...</div> 
     <div class="click">
-      <i class="fa-solid fa-search"></i>
+      <ProjectIcon class="group-hover:animate-pulse" width="w-6" />      
     </div>
   </div>
 </template>

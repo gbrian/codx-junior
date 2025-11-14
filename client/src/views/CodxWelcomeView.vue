@@ -10,7 +10,7 @@ import NewProject from '@/components/project/NewProject.vue'
 
 <template>
   <div class="flex flex-col h-full">
-    <ul class="menu menu-horizontal flex items-center m-0 p-0 mb-2">
+    <ul class="hidden menu menu-horizontal flex items-center m-0 p-0 mb-2">
       <li @click="selection = 'home'" v-if="$users.isProjectAdmin">
         <a>
           <span class="hidden md:block">
@@ -44,12 +44,12 @@ import NewProject from '@/components/project/NewProject.vue'
         </a>
       </li>
     </ul>
-    <div class="grow overflow-auto">
-      <Wall class="" v-if="selection === 'home'"></Wall>
+    <div class="grow overflow-auto flex flex-col gap-2 md:p-4">
+      <ProjectOverview />
+      <Wall class="" ></Wall>
       
       <NewProject class="md:p-6" v-if="selection === 'new_project'"/>
-      <ProjectOverview v-if="selection === 'projects'" />
-
+      
     </div>  
   </div>
 </template>

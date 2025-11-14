@@ -227,8 +227,7 @@ class OpenAI_AI:
                         try:
                             tools_response = await self.process_tool_calls(tool_call_data)
                             tool_output = tools_response["output"] if "output" in tools_response else tools_response 
-                            content = f"{func_name} returned:\n\n```\n{tool_output}\n```"
-                            ai_tool_response = AIMessage(content=content)
+                            ai_tool_response = AIMessage(content=tool_output)
                         except Exception as ex:
                             logger.exception("Error processing '%s': %s", func_name, tool_call_data)
                             error = f"Error processing {func_name}:\n{ex}"
@@ -259,7 +258,7 @@ class OpenAI_AI:
 
     @profile_function
     async def process_tool_calls(self, tool_call_data):
-        tool_responses = []
+        tool_response = None
         self.log(f"process_tool_calls: {tool_call_data}")
         func_name = tool_call_data["function"]
         params = json.loads(tool_call_data["arguments"])
@@ -279,13 +278,13 @@ class OpenAI_AI:
             if settings["async"]:
                 content = await content
             
-            tool_responses.append(content)
+            tool_response = content
 
         # Format the tool response as specified
         tool_output = {
             "type": "function_call_output",
             "call_id": tool_call_data["id"],
-            "output": json.dumps(tool_responses)
+            "output": tool_response
         }
 
         return tool_output

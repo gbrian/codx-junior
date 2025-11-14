@@ -68,9 +68,17 @@ class ChangeManager:
         self.knowledge.clean_deleted_documents()
         current_sources_and_updates = self.knowledge.get_db().get_all_sources()
         new_files, _ = self.knowledge.detect_changes(current_sources_and_updates)
-            
-        tasks = []  # List to hold tasks
 
+        # Check mentions inmediately
+        tasks = []
+        for file_path in new_files:  # Process files concurrently
+            tasks.append(self.process_project_mentions(file_path=file_path)) 
+
+        await asyncio.gather(*tasks)
+
+
+        # Check indexing
+        
         TOUT = MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS
         def is_valid_file(file_path):
             if (int(time.time()) - int(
@@ -85,6 +93,7 @@ class ChangeManager:
         
         logger.info(f"Checking project {self.settings.project_name} - files: {new_files}") 
         
+        tasks = []
         for file_path in new_files:  # Process files concurrently
             tasks.append(self.process_project_change(file_path=file_path))  # Append coroutine to tasks
 

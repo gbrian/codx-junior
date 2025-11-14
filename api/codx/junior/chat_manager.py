@@ -13,6 +13,8 @@ import yaml
 from slugify import slugify
 from collections import deque
 
+from typing import Dict, Any
+
 from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
@@ -20,6 +22,8 @@ from codx.junior.db import Chat, Message
 from codx.junior.utils.utils import write_file
 
 from codx.junior.profiling.profiler import profile_function
+
+from codx.junior.chat.chat_export import ChatExport, ExportedDocument
 
 
 logger = logging.getLogger(__name__)
@@ -274,38 +278,6 @@ class ChatManager:
         logger.info(f"load_kanban {kanban_file}")
         # all_chats = self.list_chats()
         return self.load_kanban_from_file(kanban_file=kanban_file)
-        """
-        all_board_dirs = [board for board in os.listdir(f"{self.chat_path}") \
-                            if os.path.isdir(f"{self.chat_path}/{board}")]
-        save_kanban = False
-        boards = kanban["boards"]
-        logger.info(f"Process boards {kanban_file}")
-        
-        for board in set([chat.board for chat in all_chats] + all_board_dirs):
-            if not boards.get(board):
-                boards[board] = {}
-            if not boards[board].get("columns"):
-                boards[board]["columns"] = []
-
-            all_board_columns = [col for col in os.listdir(f"{self.chat_path}/{board}") \
-                        if os.path.isdir(f"{self.chat_path}/{board}/{col}") ]
-            board_columns = boards[board]["columns"]
-            for col in set([chat.column for chat in all_chats if chat.board == board]
-                            +
-                            all_board_columns):
-                if not [c for c in board_columns if c["title"] == col]:
-                    board_columns.append({ "title" : col })
-                    save_kanban = True
-
-            for col in board_columns:
-                if not col.get("id"):
-                    col["id"] = str(uuid.uuid4())
-                    save_kanban = True
-
-        if save_kanban:
-            self.save_kanban(kanban)
-        return kanban
-        """
 
     def save_kanban(self, kanban):
         kanban_file = f"{self.chat_path}/kanban.json"
@@ -328,3 +300,47 @@ class ChatManager:
                 filtered_chats.append(chat)
         
         return filtered_chats
+
+    def export_chat(self, chat_id: str, export_format: str) -> ExportedDocument:
+        """
+        Export a chat and its descendants to the specified format.
+
+        :param chat_id: The ID of the chat to export.
+        :param export_format: The format to export to (e.g., markdown, docx, pdf, excel).
+        :return: An ExportedDocument containing the exported chat.
+        """
+        chat = self.find_by_id(chat_id)
+        if not chat:
+            raise ValueError(f"Chat with id {chat_id} not found")
+
+        # Get all chats once
+        all_chats = self.list_chats()
+
+        # Build the chat tree
+        chat_tree = self.build_chat_tree(chat, all_chats)
+
+        # Use ChatExport to export the chat
+        chat_exporter = ChatExport(chat_tree=chat_tree, export_format=export_format)
+        return chat_exporter.export_chat()
+
+    def build_chat_tree(self, chat: Chat, all_chats: list) -> Dict[str, Any]:
+        """
+        Build a tree structure from a chat and its descendants.
+
+        :param chat: The root chat object.
+        :param all_chats: List of all chat objects.
+        :return: A dictionary representing the chat tree.
+        """
+        def get_chat_descendants(chat):
+            descendants = []
+            for child_chat in [c for c in all_chats if c.parent_id == chat.id]:
+                descendants.append({
+                    "chat": child_chat,
+                    "children": get_chat_descendants(child_chat)
+                })
+            return descendants
+
+        return {
+            "chat": chat,
+            "children": get_chat_descendants(chat)
+        }

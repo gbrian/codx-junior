@@ -1,15 +1,17 @@
 <script setup>
 import { API } from '../api/api'
 import TabViewVue from '@/components/TabView.vue'
-import ProjectDropdown from '@/components/ProjectDropdown.vue'
 import moment from 'moment'
+import { useId } from 'vue';
 </script>
 
 <template>
   <div class="@container absolute top-0 left-0 right-0 bottom-0 z-[100] m-2 rounded-lg bg-base-300/70 flex flex-col justify-center items-center" v-if="$projects.projectLoading">
     <div class="text-2xl">Loading...</div>
   </div>
-  <div class="codx-junior flex min-h-full relative group-codxjunior" v-else>
+  <div class="codx-junior flex min-h-full relative group-codxjunior" 
+    :class="(!$ui.isMobile && !$ui.showApp) && 'max-w-[1600px]'"
+  v-else>
     <div class="grow flex flex-col relative overflow-auto bg-base-300">
       <div class="grow overflow-auto p-1 md:p-2">
         <TabViewVue  :key="projectKey" />

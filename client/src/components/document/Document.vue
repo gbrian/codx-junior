@@ -7,11 +7,12 @@ import TipTapDocument from './TipTapDocument.vue';
 <template>
   <div class="flex flex-col">
     <div v-for="block in blocks" :key="block.hash">
-      <MarkdownViewer v-if="block.renderer === 'md'" :text="block.content" />
+      <MarkdownViewer :files="files" v-if="block.renderer === 'md'" :text="block.content" />
       <Code 
         :text="block.content"
         :text-language="block.type"
         :fileName="block.fileName"
+        :files="files"
         @generate-code="$emit('generate-code', $event)" 
         @reload-file="$emit('reload-file', { file: $event, message })"
         @open-file="$emit('open-file', $event)"
@@ -82,7 +83,7 @@ function parseContent(content) {
 }
 
 export default {
-  props: ['content'],
+  props: ['content', 'files'],
   computed: {
     blocks() {
       return parseContent(this.content)

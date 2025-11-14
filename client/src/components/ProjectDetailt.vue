@@ -10,9 +10,9 @@
         <!-- Dropdown Component -->
         <div class="dropdown dropdown-start">
           <div tabindex="0" role="button" class="flex gap-2 click items-center">
-            <div class="avatar">
-              <div class="w-6 h-6 rounded-full">
-                <img :src="options?.showIcon ? project.project_icon : '/only_icon.png'" />
+            <div class="avatar" v-if="options?.showIcon">
+              <div class="w-10 rounded-md">
+                <img :src="project.project_icon" />
               </div>
             </div>
             <span class="mr-2" v-if="iconify !== true">{{ project.project_name }}</span>
@@ -36,9 +36,9 @@
                 <i class="fa-solid fa-xmark ml-2 cursor-pointer" @click="clearSearch"></i>
               </div>
               <ul>
-                <li v-for="matchedProject in matchedProjects" :key="matchedProject.project_name">
+                <li clss="group" v-for="matchedProject in matchedProjects" :key="matchedProject.project_name">
                   <a @click.prevent.stop="onProjectSelected(matchedProject)">
-                    <img class="w-4 h-4 rounded-full bg-base-300" :src="matchedProject.project_icon"/>
+                    <img class="w-6 h-6 rounded bg-base-300" :src="matchedProject.project_icon"/>
                     {{ matchedProject.project_name }}
                     <span class="click tooltip" data-tip="Open folder"
                       v-if="showFolders" @click.stop="$ui.coderOpenPath(matchedProject)"
@@ -51,7 +51,7 @@
             </li>
             <li>
               <a @click.prevent.stop="onProjectSelected(project)">
-                <img class="w-4 h-4 rounded-full bg-base-300" :src="project.project_icon"/>
+                <img class="w-6 h-6 rounded bg-base-300" :src="project.project_icon"/>
                 {{ project.project_name }}
                 <span class="click tooltip" data-tip="Open folder"
                   v-if="showFolders" @click.stop="$ui.coderOpenPath(project)">
@@ -63,7 +63,7 @@
             <!-- Parent Project Section -->
             <li v-if="project.parentProject">
               <a @click.prevent.stop="onProjectSelected(project.parentProject)">
-                <img class="w-4 h-4 rounded-full bg-base-300" :src="project.parentProject.project_icon"/>
+                <img class="w-6 h-6 rounded bg-base-300" :src="project.parentProject.project_icon"/>
                 {{ project.parentProject.project_name }}
                 <span class="click tooltip" data-tip="Open folder"
                   v-if="showFolders" @click.stop="$ui.coderOpenPath(project.parentProject)">
@@ -79,7 +79,7 @@
                 <ul>
                   <li v-for="child in $projects.allParentProjects" :key="child.project_name">
                     <a @click.prevent.stop="onProjectSelected(child)">
-                      <img class="w-4 h-4 rounded-full bg-base-300" :src="child.project_icon"/>
+                      <img class="w-6 h-6 rounded bg-base-300" :src="child.project_icon"/>
                       {{ child.project_name }}
                       <span class="click tooltip" data-tip="Open folder"
                         v-if="showFolders" @click.stop="$ui.coderOpenPath(child)">
@@ -98,7 +98,7 @@
                 <ul>
                   <li v-for="child in $projects.childProjects" :key="child.project_name">
                     <a @click.prevent.stop="onProjectSelected(child)">
-                      <img class="w-4 h-4 rounded-full bg-base-300" :src="child.project_icon"/>
+                      <img class="w-6 h-6 rounded bg-base-300" :src="child.project_icon"/>
                       {{ child.project_name }}
                       <span class="click tooltip" data-tip="Open folder"
                         v-if="showFolders" @click.stop="$ui.coderOpenPath(child)">
@@ -108,7 +108,7 @@
                   </li>
                   <li v-for="child in $projects.projectDependencies" :key="child.project_name">
                     <a @click.prevent.stop="onProjectSelected(child)">
-                      <img class="w-4 h-4 rounded-full bg-base-300" :src="child.project_icon"/>
+                      <img class="w-6 h-6 rounded bg-base-300" :src="child.project_icon"/>
                       {{ child.project_name }}
                       <span class="click tooltip" data-tip="Open folder"
                         v-if="showFolders" @click.stop="$ui.coderOpenPath(child)">

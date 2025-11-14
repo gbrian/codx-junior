@@ -1,0 +1,454 @@
+board: "Agents \U0001F973"
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: To Do
+column_id: ''
+created_at: '2025-10-30 19:51:09.278814'
+description: "To add a `chat_id` to the `Profile` model, follow these steps: First,\
+  \ locate the `Profile` class in the file `/shared/codx-junior/api/codx/junior/model/model.py`.\
+  \ Once found, introduce a new field `chat_id` with the data type `str`. The updated\
+  \ `Profile` class should look like this:\n\n```python /shared/codx-junior/api/codx/junior/model/model.py\n\
+  from pydantic import BaseModel, Field\n\nclass Profile(BaseModel):\n    name: str\
+  \ = Field(default=\"\")\n    url: str = Field(default=\"\")\n    avatar: str = Field(default=\"\
+  \")\n    description: str = Field(default=\"\")\n    category: str = Field(default=\"\
+  \", description=\"Profile category: global, file, coding, ...\")\n    file_match:\
+  \ str = Field(default=\"\", description=\"Optional regex to apply profiles based\
+  \ on file absolute path.\")\n    content: Optional[str] = Field(default=None)\n\
+  \    path: str = Field(default=\"\")\n    content_path: str = Field(default=\"\"\
+  )\n    profiles: Optional[List[str]] = Field(default=[])\n    llm_model: Optional[str]\
+  \ = Field(default='')\n    use_knowledge: Optional[bool] = Field(default=True)\n\
+  \    user: Optional[CodxUser] = Field(default=CodxUser())\n    tools: Optional[List[Tool]]\
+  \ = Field(default=[])\n    tags: Optional[List[str]] = Field(default=[])\n    api_settings:\
+  \ Optional[ProfileApiSettings] = Field(description=\"Indicates if the profile is\
+  \ accessible through the LLM API\", default=ProfileApiSettings())\n    chat_mode:\
+  \ Optional[str] = Field(description=\"Affects on how conversation works. Like writing\
+  \ a document or chat messages\", default=None)\n    project_id: Optional[str] =\
+  \ Field(description=\"Profile's project\", default=None)\n\n    # Add the chat_id\
+  \ field\n    chat_id: str = Field(default=\"\")\n```\n\nThis modification assumes\
+  \ the `Profile` class is correctly located and defined in the specified file."
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/model/model.py
+file_path: "/shared/codx-junior/api/.codx/tasks/Agents \U0001F973/To Do/associate-chat-with-agent-content.020bae83-f9ce-418d-b964-967d9bf02de7.yaml"
+id: 020bae83-f9ce-418d-b964-967d9bf02de7
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Add chat_id to Agent model.\_\n\n"
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: true
+  doc_id: 452ab3e0-ff47-4d05-8da6-2fa6b0b6a58e
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: admin
+- content: 'project_search returned:
+
+
+    ```
+
+    ["\n        QUERY: Agent model\n        RETURNED:\n        ```txt /shared/codx-junior/api/codx/junior/chat/chat_engine.py\n    /shared/codx-junior/api/codx/junior/chat/chat_engine.py\n#
+    Prepare AI\n            ai_settings = self.settings.get_llm_settings()\n            if
+    chat_model:\n                ai_settings.model = chat_model\n            ai =
+    self.get_ai(llm_model=ai_settings.model)\n            tags  = [\n                      f\"{chat.mode}\"\n                    ]
+    + [p.name for p in all_profiles]\n            if is_agent:\n                tags.append(\"agent\")\n            ai_headers
+    = {\n              \"tags\": \",\".join(tags)\n            }\n            async
+    def ai_chat(messages=[], prompt=\"\", tags=\"\", callback=None):\n                headers
+    = ai_headers\n                if tags:\n                    headers = { \n                      **ai_headers,
+    \n                      \"tags\": ai_headers[\"tags\"] + \",\" + tags \n                    }\n                return
+    await ai.a_chat(messages=messages, prompt=prompt, callback=callback, headers=headers)\n    ```\n```txt
+    /shared/codx-junior/api/codx/junior/settings.py\n    /shared/codx-junior/api/codx/junior/settings.py\nwatching:
+    Optional[bool] = Field(default=False)\n    use_knowledge: Optional[bool] = Field(default=True)\n    knowledge_hnsw_M:
+    Optional[int] = Field(default=1024)\n    project_icon: Optional[str] = Field(default=\"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s\")\n\n    log_ignore:
+    Optional[str] = Field(default=\"\")\n\n    project_scripts: Optional[List[ProjectScript]]
+    = Field(default=[])\n\n    embeddings_model:  str = Field(default=\"\")\n    llm_model:
+    str = Field(default=\"\")\n    rag_model: str = Field(default=\"\")\n    wiki_model:
+    str = Field(default=\"\")\n\n    last_error: str = Field(default=\"\")\n\n    urls:
+    Optional[List[str]] = Field(default=[])\n\n    repo_url: Optional[str] = Field(default=None)\n\n    is_git_root:
+    Optional[bool] = Field(default=False)\n\n    def __str__(self):\n        return
+    str(self.model_dump())\n\n    def get_agent_max_iterations(self):\n        return
+    GLOBAL_SETTINGS.agent_settings.max_agent_iteractions\n\n    def get_llm_settings(self,
+    llm_model: str = None) -> AISettings:\n        if not llm_model:\n            llm_model
+    = self.llm_model \n        if not llm_model:\n            llm_model = GLOBAL_SETTINGS.llm_model\n\n        return
+    get_model_settings(llm_model)   \n\n    def get_embeddings_settings(self) -> AISettings:\n        embeddings_model
+    = self.embeddings_model \n        if not embeddings_model:\n            embeddings_model
+    = GLOBAL_SETTINGS.embeddings_model\n\n        return get_model_settings(embeddings_model)\n\n    def
+    get_project_settings_file(self):\n        return f\"{self.codx_path}/project.json\"\n\n    def
+    get_project_workspaces(self):\n        global_settings = read_global_settings()\n        return
+    [w for w in global_settings.workspaces if self.project_id in w.project_ids]\n    ```\n```txt
+    /shared/codx-junior/api/codx/junior/model/model.py\n    /shared/codx-junior/api/codx/junior/model/model.py\nclass
+    Workspace(BaseModel):\n    id: str = Field(default=\"\")\n    name: str = Field(default=\"\")\n    description:
+    str = Field(default=\"\")\n    project_ids: List[str] = Field(default=[])\n    apps:
+    Optional[List[WorkspaceApp]] = Field(default=[])\n    updated_at: Optional[str]
+    = Field(default=None)    \n\nclass AgentSettings(BaseModel):\n    max_agent_iteractions:
+    int = 4\n\nclass OAuthProvider(BaseModel):\n    name: str = Field(default=\"\")\n    client_id:
+    str = Field(default=\"\")\n    secret: str = Field(default=\"\")\n    token_url:
+    str = Field(default=\"\")\n\nclass GlobalSettings(BaseModel):\n    log_ai: bool
+    = Field(default=True)\n    \n    embeddings_model: str = Field(default=OLLAMA_EMBEDDINGS_MODEL.name)\n    llm_model:
+    str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n    rag_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n    wiki_model:
+    str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n\n    git: GitSettings = Field(default=GitSettings())\n\n    agent_settings:
+    AgentSettings = Field(description=\"Agent settings\", default=AgentSettings())\n\n    projects_root_path:
+    Optional[str] = Field(default=None)\n    \n    log_ignore: List[str] = Field(default=[])\n\n    codx_junior_avatar:
+    Optional[str] = Field(default=\"https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp\")\n\n    enable_file_manager:
+    Optional[bool] = Field(default=False)\n\n    project_scripts: Optional[List[ProjectScript]]
+    = Field(default=[])\n\n    bookmarks: List[Bookmark] = Field(default=[\n        Bookmark(name=\"Coder\",
+    title=\"code-server\", port=os.environ[\"CODX_JUNIOR_CODER_PORT\"]),\n        Bookmark(name=\"Desktop\",
+    title=\"Desktop\", port=os.environ[\"CODX_JUNIOR_NOVNC_PORT\"])\n    ])\n\n    ai_providers:
+    List[AIProvider] = [\n        OLLAMA_PROVIDER\n    ]\n\n    ai_models: List[AIModel]
+    = [\n      OLLAMA_KNOWLEDGE_MODEL,\n      OLLAMA_EMBEDDINGS_MODEL\n    ]\n    ```\n        "]
+
+    ```'
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: false
+  doc_id: 6b6bd83a-6efd-4b70-ad86-f165d23de20d
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: null
+- content: "To add a `chat_id` to the `Agent` model, we first need to locate the `Agent`\
+    \ model in the codebase. From the project search results, it appears that the\
+    \ `Agent` model might be defined in the file `/shared/codx-junior/api/codx/junior/model/model.py`.\
+    \ However, there is no explicit mention of an `Agent` class in the search results.\
+    \ Let's assume the `Agent` class is defined in that file, and proceed to add the\
+    \ `chat_id` field to it.\n\nHere are the steps to add `chat_id` to the `Agent`\
+    \ model:\n\n1. Open the file `/shared/codx-junior/api/codx/junior/model/model.py`.\n\
+    2. Locate the `Agent` class definition.\n3. Add a new field `chat_id` with an\
+    \ appropriate data type, such as `str`.\n\nHere's how you might modify the `Agent`\
+    \ class:\n\n```python /shared/codx-junior/api/codx/junior/model/model.py\nfrom\
+    \ pydantic import BaseModel, Field\n\n# Assuming this is the Agent class\nclass\
+    \ Agent(BaseModel):\n    # Existing fields...\n    name: str\n    # Add the chat_id\
+    \ field\n    chat_id: str = Field(default=\"\")\n```\n\nIf the `Agent` class is\
+    \ not in `/shared/codx-junior/api/codx/junior/model/model.py`, you might need\
+    \ to perform a more thorough search to locate it. If you have additional context\
+    \ or details, feel free to provide them, and I can further assist you."
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: false
+  doc_id: f5864174-5abb-4aa1-b799-f0001a2045b2
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00017952919006347656
+    model: openai/gpt-4o
+    time_taken: 8.470051527023315
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: null
+- content: Oh my bad, it's Profile. Add chat_id to Profile model
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: true
+  doc_id: b9f56c5e-2ffc-4975-ae6b-9eca90aa3a35
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: admin
+- content: "To add a `chat_id` to the `Profile` model, we first need to locate the\
+    \ `Profile` model in the codebase. From the project search results, it appears\
+    \ that the `Profile` model might be defined in the file `/shared/codx-junior/api/codx/junior/model/model.py`.\
+    \ However, there is no explicit mention of a `Profile` class in the search results.\
+    \ Let's assume the `Profile` class is defined in that file, and proceed to add\
+    \ the `chat_id` field to it.\n\nHere are the steps to add `chat_id` to the `Profile`\
+    \ model:\n\n1. Open the file `/shared/codx-junior/api/codx/junior/model/model.py`.\n\
+    2. Locate the `Profile` class definition.\n3. Add a new field `chat_id` with an\
+    \ appropriate data type, such as `str`.\n\nHere's how you might modify the `Profile`\
+    \ class:\n\n```python /shared/codx-junior/api/codx/junior/model/model.py\nfrom\
+    \ pydantic import BaseModel, Field\n\n# Assuming this is the Profile class\nclass\
+    \ Profile(BaseModel):\n    # Existing fields...\n    name: str\n    # Add the\
+    \ chat_id field\n    chat_id: str = Field(default=\"\")\n```\n\nIf the `Profile`\
+    \ class is not in `/shared/codx-junior/api/codx/junior/model/model.py`, you might\
+    \ need to perform a more thorough search to locate it. If you have additional\
+    \ context or details, feel free to provide them, and I can further assist you."
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: false
+  doc_id: 062330ac-3523-44f0-9c66-9bac3f3e110d
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0001800060272216797
+    model: openai/gpt-4o
+    time_taken: 4.9405906200408936
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: null
+- content: "Generate full file content\_"
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: true
+  doc_id: e1fabccc-ec63-4c72-b521-7e37c5aa6025
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: admin
+- content: "```python /shared/codx-junior/api/codx/junior/model/model.py\nimport os\n\
+    import regex\n\nfrom pydantic import BaseModel, Field, constr, validator\nfrom\
+    \ enum import Enum\nfrom datetime import datetime\n\nfrom typing import List,\
+    \ Dict, Union, Optional\n\nKNOWLEDGE_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL')\n\
+    EMBEDDINGS_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL')\n\
+    \nclass ImageUrl(BaseModel):\n    url: str = Field(default=\"\")\n\nclass Content(BaseModel):\n\
+    \    type: str = Field(default='text')\n    text: str = Field(default=None)\n\
+    \    image_url: ImageUrl = Field(default=None)\n\nclass ChatMessage(BaseModel):\n\
+    \    role: str = Field(default='')\n    content: List[Content] = Field(default=[])\n\
+    \nclass Column(BaseModel):\n    name: str = Field(default='')\n    chat_ids: List[str]\
+    \ = Field(default=[])\n    project_id: str = Field(default='')\n\nclass Board(BaseModel):\n\
+    \    name: str = Field(default='')\n    description: str = Field(default='')\n\
+    \    remote_url: str = Field(default='')\n    bookmark: Optional[bool] = Field(default=False)\n\
+    \    columns: List[Column] = Field(default=[])\n    project_id: str = Field(default='')\n\
+    \nclass Logprobs(BaseModel):\n    tokens: List[str]\n    token_logprobs: List[float]\n\
+    \    top_logprobs: List[Dict[str, float]]\n    text_offset: List[int]\n\nclass\
+    \ KnowledgeReloadPath(BaseModel):\n    path: str\n\nclass KnowledgeDeleteSources(BaseModel):\n\
+    \    sources: List[str]\n\nclass KnowledgeSearch(BaseModel):\n    search_term:\
+    \ str\n    search_type: str = Field(default=None)\n    document_search_type: str\
+    \ = Field(default=None)\n    document_count: int = Field(default=None)\n    document_cutoff_score:\
+    \ float = Field(default=None)\n    document_cutoff_rag: float = Field(default=None)\n\
+    \nclass Tool(BaseModel):\n    name: str = Field(default=\"\")\n    description:\
+    \ str = Field(default=\"\")\n\nclass CodxJuniorBaseTools(BaseModel):\n    knowledge:\
+    \ Tool = Tool(name=\"knowledge\", description=\"Project's knowledge search\")\n\
+    \    \nclass ProjectPermission(BaseModel):\n    project_id: str\n    permissions:\
+    \ str = Field(description=\"User permissions for the project\", default=[])\n\
+    \    children: Optional[bool] = Field(description=\"Same access to children projects\"\
+    , default=True)\n    apps: Optional[List[str]] = Field(default=[])\n\nclass PRView(BaseModel):\n\
+    \    from_branch: Optional[str] = Field(default=\"\")\n    to_branch: Optional[str]\
+    \ = Field(default=\"\")\n\nclass CodxUserLogin(BaseModel):\n    username: Optional[str]\
+    \ = Field(default=\"\")\n    password: Optional[str] = Field(default=\"\")\n \
+    \   email: Optional[str] = Field(default=\"\")\n    token: Optional[str] = Field(default=\"\
+    \")\n\nclass CodxUserProjectProfile(BaseModel):\n    name: Optional[str] = Field(default=\"\
+    \")\n    coder: Optional[bool] = Field(description=\"Can access to coder and change\
+    \ project files\", default=False)\n    admin: Optional[bool] = Field(description=\"\
+    Can access to project's admin\", default=False)\n\nclass CodxUser(BaseModel):\n\
+    \    username: Optional[str] = Field(default=\"\")\n    email: Optional[str] =\
+    \ Field(default=\"\")\n    avatar: Optional[str] = Field(default=\"\")\n    theme:\
+    \ Optional[str] = Field(default=\"dim\")\n    projects: Optional[List[ProjectPermission]]\
+    \ = Field(default=[])\n    role: Optional[str] = Field(description=\"User role\"\
+    , default=\"user\")\n    token: Optional[str] = Field(default=\"\")\n    disabled:\
+    \ Optional[bool] = Field(default=False)\n    github: Optional[str] = Field(default=\"\
+    \")\n    apps: Optional[List[str]] = Field(default=[])\n    api_key: Optional[str]\
+    \ = Field(default=\"\")\n    \nclass ProfileApiSettings(BaseModel):\n    active:\
+    \ bool = Field(description=\"Model is visible through API\", default=False)\n\
+    \    model_name: Optional[str] = Field(description=\"Model's name\", default=None)\n\
+    \    description: Optional[str] = Field(description=\"Model's description\", default=None)\n\
+    \nclass Profile(BaseModel):\n    name: str = Field(default=\"\")\n    url: str\
+    \ = Field(default=\"\")\n    avatar: str = Field(default=\"\")\n    description:\
+    \ str = Field(default=\"\")\n    category: str = Field(default=\"\", description=\"\
+    Profile category: global, file, coding, ...\")\n    file_match: str = Field(default=\"\
+    \",\n        description=\"Optional regex to apply profiles based on file absolute\
+    \ path.\")\n    content: Optional[str] = Field(default=None)\n    path: str =\
+    \ Field(default=\"\")\n    content_path: str = Field(default=\"\")\n    profiles:\
+    \ Optional[List[str]] = Field(default=[])\n    llm_model: Optional[str] = Field(default='')\n\
+    \    use_knowledge: Optional[bool] = Field(default=True)\n    user: Optional[CodxUser]\
+    \ = Field(default=CodxUser())\n    tools: Optional[List[Tool]] = Field(default=[])\n\
+    \    tags: Optional[List[str]] = Field(default=[])\n    api_settings: Optional[ProfileApiSettings]\
+    \ = Field(description=\"Indicates if the profile is accessible through the LLM\
+    \ API\", default=ProfileApiSettings())\n    chat_mode: Optional[str] = Field(description=\"\
+    Affects on how conversation works. Like writing a document or chat messages\"\
+    , default=None)\n    project_id: Optional[str] = Field(description=\"Profile's\
+    \ project\", default=None)\n    chat_id: Optional[str] = Field(default=\"\", description=\"\
+    Unique identifier for chat\")\n\nclass Document(BaseModel):\n    id: int = Field(default=None)\n\
+    \    page_content: str\n    metadata: dict\n\nclass LiveEdit(BaseModel):\n   \
+    \ chat_name: str\n    html: str\n    url: str\n    message: str\n\nclass OpenAISettings(BaseModel):\n\
+    \    openai_api_url: Optional[str] = Field(default=\"\")\n    openai_api_key:\
+    \ Optional[str] = Field(default=\"\")\n    openai_model: Optional[str] = Field(default=\"\
+    gpt-4o\")\n    \nclass AnthropicAISettings(BaseModel):\n    anthropic_api_url:\
+    \ Optional[str] = Field(default=\"\")\n    anthropic_api_key: Optional[str] =\
+    \ Field(default=\"\")\n    anthropic_model: Optional[str] = Field(default=\"claude-3-5-sonnet-20240620\"\
+    )\n\nclass MistralAISettings(BaseModel):\n    mistral_api_url: Optional[str] =\
+    \ Field(default=\"\")\n    mistral_api_key: Optional[str] = Field(default=\"\"\
+    )\n    mistral_model: Optional[str] = Field(default=\"codestral-latest\")\n\n\
+    class GitSettings(BaseModel):\n    username: Optional[str] = Field(default=\"\"\
+    )\n    email: Optional[str] = Field(default=\"\")\n\nclass ProjectScript(BaseModel):\n\
+    \    name: str = Field(description=\"Script name\")\n    description: str = Field(description=\"\
+    Script name\", default=\"\")\n    script: str = Field(description=\"Bash script\"\
+    , default=\"\")\n    status: str = Field(description=\"Script status: running,\
+    \ stopped, error\", default=\"stopped\")\n    background: bool = Field(description=\"\
+    Script runs in background\", default=False)\n    restart: bool = Field(description=\"\
+    Script must be restarted if stopped\", default=False)\n    pid_file_path: str\
+    \ = Field(default=\"\")\n    engine: str = Field(default=\"bash\")\n\nclass Bookmark(BaseModel):\n\
+    \    name: str\n    icon: Optional[str] = Field(default=\"\")\n    title: Optional[str]\
+    \ = Field(default=\"\")\n    url: Optional[str] = Field(default=\"\")\n    port:\
+    \ Optional[int] = Field(default=None)\n\nclass AIProvider(BaseModel):\n    name:\
+    \ Optional[str] = Field(default=\"\", description=\"Provider name\") \n    provider:\
+    \ Optional[str] = Field(default=\"llmfactory\", description=\"OpenAI compatible\
+    \ LLM protocols like: OpenAI, Ollama\") \n    api_url: Optional[str] = Field(description=\"\
+    Optional url if provider is remote\", default=\"http://0.0.0.0:11434/v1\")\n \
+    \   api_key: Optional[str] = Field(description=\"Optional api key\", default=\"\
+    sk-llmfactory\")\n    admin_url: Optional[str] = Field(description=\"Optional\
+    \ url if provider has an admin url\", default=\"\")\n\nclass AILLMModelSettings(BaseModel):\n\
+    \    temperature: Optional[float] = Field(default=1, description=\"Model temperature\"\
+    )\n    context_length: Optional[int] = Field(default=0)\n    merge_messages: Optional[bool]\
+    \ = Field(description=\"Flat conversation into a single message before sending\
+    \ to model\", default=False)\n    \nclass AIEmbeddingModelSettings(BaseModel):\n\
+    \    vector_size: Optional[int] = Field(default=1536, description=\"Model vector\
+    \ size\")\n    chunk_size: Optional[int] = Field(default=8190, description=\"\
+    Model chunk_size\")\n\nclass AIModelType(str, Enum):\n    llm = 'llm'\n    embeddings\
+    \ = 'embeddings'\n\nclass AIModel(BaseModel):\n    name: str = Field(description=\"\
+    Model name\")    \n    model_type: AIModelType = Field(description=\"Model type\"\
+    , default=AIModelType.llm)\n    ai_provider: str = Field(description=\"AI Provider\
+    \ name\")\n    ai_model: Optional[str] = Field(description=\"AI Provider's model\
+    \ name\", default=None)\n    settings: Union[AILLMModelSettings, AIEmbeddingModelSettings]\
+    \ = Field(description=\"Model settings\")\n    metadata: Optional[dict] = Field(description=\"\
+    Model's last update date\", default={})\n    url: Optional[str] = Field(description=\"\
+    Model info\", default=\"\")\n\nclass AISettings(BaseModel):\n    provider: Optional[str]\
+    \ = Field(default=\"\") \n    api_url: Optional[str] = Field(default=\"\")\n \
+    \   api_key: Optional[str] = Field(default=\"\")\n    model: Optional[str] = Field(default=\"\
+    \")\n    context_length: Optional[int] = Field(default=0)\n    temperature: Optional[float]\
+    \ = Field(default=0.8)\n    vector_size: Optional[int] = Field(default=1536)\n\
+    \    chunk_size: Optional[int] = Field(default=8190)\n    merge_messages: Optional[bool]\
+    \ = Field(default=False)\n    model_type: AIModelType = Field(description=\"Model\
+    \ type\", default=AIModelType.llm)\n    url: Optional[str] = Field(description=\"\
+    Model info\", default=\"\")\n    \nOLLAMA_PROVIDER = AIProvider(name=\"llmfactory\"\
+    ,\n                            provider=\"llmfactory\",\n                    \
+    \        api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_API'),\n             \
+    \               api_key=os.environ.get('CODX_JUNIOR_LLMFACTORY_KEY'))\n\nOLLAMA_EMBEDDINGS_MODEL\
+    \ = AIModel(name=\"embeddings\",\n                                ai_model=EMBEDDINGS_MODEL,\
+    \ \n                                model_type=AIModelType.embeddings,\n     \
+    \                           ai_provider=\"llmfactory\",\n                    \
+    \            settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),\n\
+    \                                url=f\"https://llmfactory.com/library/{EMBEDDINGS_MODEL}\"\
+    )\n\nOLLAMA_KNOWLEDGE_MODEL = AIModel(name=\"knowledge\",\n                  \
+    \          ai_model=KNOWLEDGE_MODEL,\n                            model_type=AIModelType.llm,\n\
+    \                            ai_provider=\"llmfactory\",\n                   \
+    \         settings=AILLMModelSettings(),\n                            url=f\"\
+    https://llmfactory.com/library/{KNOWLEDGE_MODEL}\")\n\nclass WorkspaceApp(BaseModel):\n\
+    \    name: str = Field(default=\"\")\n    description: str = Field(default=\"\"\
+    )\n    icon: str = Field(default=\"\")\n    port: Optional[int] = Field(default=3000)\n\
+    \    is_vnc: Optional[bool] = Field(default=False)\n\nclass Workspace(BaseModel):\n\
+    \    id: str = Field(default=\"\")\n    name: str = Field(default=\"\")\n    description:\
+    \ str = Field(default=\"\")\n    project_ids: List[str] = Field(default=[])\n\
+    \    apps: Optional[List[WorkspaceApp]] = Field(default=[])\n    updated_at: Optional[str]\
+    \ = Field(default=None)    \n\nclass AgentSettings(BaseModel):\n    max_agent_iteractions:\
+    \ int = 4\n\nclass OAuthProvider(BaseModel):\n    name: str = Field(default=\"\
+    \")\n    client_id: str = Field(default=\"\")\n    secret: str = Field(default=\"\
+    \")\n    token_url: str = Field(default=\"\")\n\nclass GlobalSettings(BaseModel):\n\
+    \    log_ai: bool = Field(default=True)\n    \n    embeddings_model: str = Field(default=OLLAMA_EMBEDDINGS_MODEL.name)\n\
+    \    llm_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n    rag_model:\
+    \ str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n    wiki_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n\
+    \n    git: GitSettings = Field(default=GitSettings())\n\n    agent_settings: AgentSettings\
+    \ = Field(description=\"Agent settings\", default=AgentSettings())\n\n    projects_root_path:\
+    \ Optional[str] = Field(default=None)\n    \n    log_ignore: List[str] = Field(default=[])\n\
+    \n    codx_junior_avatar: Optional[str] = Field(default=\"https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp\"\
+    )\n\n    enable_file_manager: Optional[bool] = Field(default=False)\n\n    project_scripts:\
+    \ Optional[List[ProjectScript]] = Field(default=[])\n\n    bookmarks: List[Bookmark]\
+    \ = Field(default=[\n        Bookmark(name=\"Coder\", title=\"code-server\", port=os.environ[\"\
+    CODX_JUNIOR_CODER_PORT\"]),\n        Bookmark(name=\"Desktop\", title=\"Desktop\"\
+    , port=os.environ[\"CODX_JUNIOR_NOVNC_PORT\"])\n    ])\n\n    ai_providers: List[AIProvider]\
+    \ = [\n        OLLAMA_PROVIDER\n    ]\n\n    ai_models: List[AIModel] = [\n  \
+    \    OLLAMA_KNOWLEDGE_MODEL,\n      OLLAMA_EMBEDDINGS_MODEL\n    ]\n\n    users:\
+    \ Optional[List[CodxUser]] = Field(default=[CodxUser(username=\"admin\", role=\"\
+    admin\", avatar=\"/only_icon.png\")])\n    user_logins: Optional[List[CodxUserLogin]]\
+    \ = Field(default=[])\n    secret: Optional[str] = Field(description=\"Encription\
+    \ secret\", default=\"codx-junior-rules\")\n\n    workspaces: Optional[List[Workspace]]\
+    \ = Field(default=[])\n    workspace_start_port: Optional[int] = Field(default=16000)\n\
+    \    workspace_end_port: Optional[int] = Field(default=17000)\n    workspace_docker_settings:\
+    \ Optional[dict] = Field(default={})\n\n    oauth_providers: Optional[List[OAuthProvider]]\
+    \ = Field(default=[])\n    \nclass Screen(BaseModel):\n    resolution: str = Field(default='')\n\
+    \    resolutions: List[str] = Field(default=[\n      \"1920x1080\",\n      \"\
+    1920x1200\",\n      \"1600x1200\",\n      \"1680x1050\",\n      \"1400x1050\"\
+    ,\n      \"1360x768\",\n      \"1280x1024\",\n      \"1280x960\",\n      \"1280x800\"\
+    ,\n      \"1280x720\",\n      \"1024x768\",\n      \"800x600\",\n      \"640x480\"\
+    \n    ])\n```"
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: false
+  doc_id: c8335019-a44f-4850-9539-fffc8539272a
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00017571449279785156
+    model: openai/gpt-4o
+    time_taken: 80.2322359085083
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: null
+mode: task
+name: 'Associate chat with agent content '
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-11-01T09:40:46.411975'
+url: ''
+users:
+- admin
+visibility: ''

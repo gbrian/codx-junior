@@ -20,6 +20,7 @@ const storePattern = {
   modules,
 }
 
+
 let store = null
 let storex = null
 store = createStore(storePattern)
@@ -35,7 +36,8 @@ storex.init = async () => {
 storex.store = store
 storex.api = API
 
-window.$storex = storex
-
-export default store
+export default storex.store
 export const $storex = storex
+
+window.$storex = $storex
+

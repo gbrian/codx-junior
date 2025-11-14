@@ -39,12 +39,7 @@ import ProjectIcon from '../ProjectIcon.vue';
         <div class="card-body flex flex-col">
           <span class="text-xs" v-if="board.last_update">[{{ moment(board.last_update).fromNow() }}]</span>
           <h2 class="card-title flex tooltip group" :data-tip="board.title">
-            <span class="flex items-center">
-              <i
-                :class="['fa-solid', 'fa-bookmark', board.bookmark ? 'text-warning' : 'text-gray-400']"
-                @click.stop="toggleBookmark(board)"
-                class="cursor-pointer mr-2"
-              ></i>
+            <span class="flex items-center bg-base-100/80 pl-1 w-full rounded-md text-nowrap">
               <div class="overflow-hidden">{{ board.title }}</div>
             </span>
           </h2>

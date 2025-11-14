@@ -11,6 +11,17 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.knowledge.knowledge_milvus import Knowledge
 from codx.junior.utils.utils import document_to_code_block
 
+from codx.junior.ai import AI
+from codx.junior.model.model import CodxUser
+
+
+def get_ai(settings, tool_name):
+  # Prepare AI
+  ai_settings = settings.get_llm_settings()
+  user = CodxUser(username=tool_name)
+  return AI(settings=settings, user=user)
+
+
 
 def path_to_absolute_project_path(settings: CODXJuniorSettings, file_path: str):
     if not file_path.startswith(settings.project_path):
@@ -23,7 +34,7 @@ def path_to_absolute_project_path(settings: CODXJuniorSettings, file_path: str):
         return str(res[0]) if res else None
     return file_path
 
-def project_search(search: str, **kwargs) -> str:
+def project_search(search: str, validation: str = None, **kwargs) -> str:
     """
     Search for documents within a project using the provided search string.
 
@@ -44,14 +55,35 @@ def project_search(search: str, **kwargs) -> str:
 
     settings: CODXJuniorSettings = kwargs.get("settings", None)
     if settings:
-        documents = Knowledge(settings=settings).get_db().search(query=search, _limit=3)
-        doc_content = "\n".join([document_to_code_block(doc) for doc in documents]) if documents \
-                        else "No results found in %s" % settings.project_name
-        return f"""
-        QUERY: {search}
-        RETURNED:
-        {doc_content}
-        """
+        documents = Knowledge(settings=settings).get_db().search(query=search, _limit=10)
+        if not documents:
+            return f"> No resulsts found for: '{search}' in project: '{settings.project_name}'"
+
+        doc_sources = {}
+        ai = get_ai(settings=settings, tool_name=__name__)
+        if not validation:
+            validation = search
+        def read_doc(path):
+            with open(path, 'r') as f:
+                content = f.read()
+                if ai:
+                    return ai.chat(prompt=f"Content:\n```\n{content}\n```\nExtract from the content all lines related with this request:\n{validation}")[-1].content
+                return content
+
+        documents.sort(key=lambda doc: doc.metadata.get('index', 0))
+        for doc in documents:
+            source = doc.metadata['source']
+            if not source in doc_sources:
+                doc_sources[source] = doc
+            else:
+                doc_sources[source].page_content += doc.page_content
+
+
+        doc_content = "\n".join([document_to_code_block(doc) for doc in doc_sources.values()])
+        return "\n".join([
+            f"> {settings.project_name} results for: '{search}'",
+            doc_content
+          ])
     return "No results. Missing settings"
 
 def project_read_file(file_path: str, **kwargs) -> str:

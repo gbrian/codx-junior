@@ -5,8 +5,9 @@ import { v4 as uuidv4 } from 'uuid'
 
 export const namespaced = true
 
-export const state = () => ({
+const createState = () => ({
   allProjects: null,
+  allProjectsById: {},
   chats: {},
   activeChat: null,
   activeProject: null,
@@ -50,6 +51,8 @@ export const state = () => ({
   projectBarnches: {}
 })
 
+export const state = createState
+
 export const mutations = mutationTree(state, {
   setAllProjects(state, allProjects) {
     state.allProjects = allProjects?.sort((a, b) => {
@@ -57,6 +60,7 @@ export const mutations = mutationTree(state, {
         const bUpdated = b._metrics?.last_update || ""
         return aUpdated > bUpdated ? -1 : 1
       })
+    state.allProjectsById = state.allProjects?.reduce((acc, p) => ({ ...acc, [p.project_id]: p }), {}) || {}
     state.activeChat = null
   },
   setLogs(state, logs) {
@@ -203,11 +207,22 @@ export const actions = actionTree(
 
       $storex.projects.loadAllProjects()
     },
-    async loadAllProjects(_, withMetrics) {
+    async loadAllProjects({ state }, withMetrics) {
       if ($storex.api.user) {
         try {
           await API.projects.list(withMetrics)
-          $storex.projects.setAllProjects(API.allProjects)
+          const allProjectsWithExtras = await Promise.all(
+            API.allProjects.map(async project => {
+                  let { $api, $state } = state.allProjectsById[project.project_id] || {}
+                  $api = $api || await API.project(project)
+                  $state = $state || createState()
+                  return { 
+                    ...project, 
+                    $state,
+                    $api 
+                  }
+              }))
+          $storex.projects.setAllProjects(allProjectsWithExtras)
           if (API.activeProject) {
             try {
               await $storex.projects.setActiveProject(API.activeProject)
@@ -217,8 +232,8 @@ export const actions = actionTree(
             $storex.projects.setActiveProject($storex.projects.allProjects[0])
           }
           return $storex.projects.allProjects
-        } catch {
-          $storex.session.onError("Error loading projects")
+        } catch (ex) {
+          $storex.session.onError("Error loading projects", ex)
         }
       } 
       $storex.projects.setAllProjects([])
@@ -245,7 +260,11 @@ export const actions = actionTree(
           ])
           state.ai.models = models
 
-          state.activeProject = API.activeProject
+          const existsProject = state.allProjects.find(p => p.project_id === API.activeProject.project_id)
+          if (!existsProject) {
+            $storex.projects.setAllProjects([ ...state.allProjects, API.activeProject ])
+          }
+          state.activeProject =  state.allProjectsById[API.activeProject.project_id]
           if (state.activeChat?.project_id !== API.activeProject.project_id) {
             state.activeChat = null
           }
@@ -266,8 +285,11 @@ export const actions = actionTree(
     async loadProfiles({ state }) {
       await $storex.profiles.loadProjectProfiles(state.activeProject)
     },
-    async loadBranches({ state }) {
-      state.project_branches = await $storex.api.repo.branches()
+    async loadBranches({ state }, project) {
+      const projectState = project?.$state || state
+      const api = project?.$api || $storex.api
+      
+      projectState.project_branches = await api.repo.branches()
     },
     async loadPR({ state }, { fromBranch, toBranch }) {
       state.activePR = await $storex.api.repo.changes({ fromBranch, toBranch })
@@ -305,7 +327,7 @@ export const actions = actionTree(
     },
     async setActiveChat({ state }, { id, project_id } = {}) {
       if (id) {
-        await $storex.projects.loadChat({ id })
+        await $storex.projects.loadChat({ id, project_id })
       }
       state.activeChat = state.chats[id]
     },
@@ -575,6 +597,16 @@ export const actions = actionTree(
         state.openedWorkspaces = state.openedWorkspaces.filter((_, iix) => iix != ix)
       } else {
         state.openedWorkspaces = [...state.openedWorkspaces, { workspace, app }]
+      }
+    },
+    async exportChat({ state }, { chat, exportFormat }) {
+      const project = state.activeProject;
+      const api = project.$api || await API.project(project);
+
+      try {
+        return await api.chats.exportChat({ id: chat.id, exportFormat });
+      } catch (error) {
+        console.error("Error exporting chat:", error);
       }
     }
   }

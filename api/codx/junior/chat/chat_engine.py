@@ -156,9 +156,10 @@ class ChatEngine:
             chat_model = chat.llm_model
             messages = []
 
-            parent_content = self.get_chat_analysis_parents(chat=chat)
-            if parent_content:
-                messages.append(HumanMessage(content=parent_content))
+            # Disable parent content as it mess after some interacions
+            #parent_content = self.get_chat_analysis_parents(chat=chat)
+            #if parent_content:
+            #    messages.append(HumanMessage(content=parent_content))
 
             # Find projects for this
             query_mention_projects: List[CODXJuniorSettings] = [p for p in query_mentions.projects if p and hasattr(p, "codx_path")]
@@ -203,7 +204,7 @@ class ChatEngine:
 
             context = ""
             documents = []
-            chat_files = chat.file_list or []
+            chat_files = set((chat.file_list or []) + (user_message.files or []))
             if parent_chat and parent_chat.file_list:
                 chat_files = chat_files + parent_chat.file_list
 
@@ -288,9 +289,18 @@ class ChatEngine:
                     new_chat_message(role="user", content=f"""<project_files>{context}</project_files>""")))
 
             if is_refine:
+                
                 existing_document = last_ai_message.content if last_ai_message else "" 
                 parent_task = self.get_chat_analysis_parents(chat=chat)
                 task_content = ""
+                
+                
+                # Include "is_answer" messages in the task document header
+                answer_messages = [message.content for message in chat.messages if message.is_answer]
+                if answer_messages:
+                    task_content += "Task Document Header:\n"
+                    task_content += "\n".join(answer_messages)
+                    task_content += "\n\n"
 
                 if parent_task:
                     task_content = f"""
