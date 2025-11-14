@@ -204,7 +204,7 @@ class ChatEngine:
 
             context = ""
             documents = []
-            chat_files = set((chat.file_list or []) + (user_message.files or []))
+            chat_files = list(set((chat.file_list or []) + (user_message.files or [])))
             if parent_chat and parent_chat.file_list:
                 chat_files = chat_files + parent_chat.file_list
 
