@@ -21,7 +21,8 @@ import MentionSelector from '../mentions/MentionSelector.vue'
               <i class="fa-solid fa-paperclip"></i>
             </span>
             <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 cursor-pointer text-accent" @click="$ui.openFile(file)">
-              <span :title="file" >{{ file.split('/').reverse()[0] }}</span>
+              <span class="click mr-1" @click.stop="$ui.copyTextToClipboard(file)"><i class="fa-solid fa-copy"></i></span>
+              <span :title="file" >{{ file?.split('/').reverse()[0] || '---error---' }}</span>
               <span class="ml-2 cursor-pointer" @click.stop="removeFileFromChat(file)">
                 <i class="fa-regular fa-circle-xmark"></i>
               </span>
@@ -116,6 +117,8 @@ import MentionSelector from '../mentions/MentionSelector.vue'
           <img class="w-4 rounded-full" :src="mention.profile.avatar" v-if="mention.profile?.avatar" />
           <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.avatar"></i>
           <i class="fa-solid fa-file-lines" v-if="mention.file"></i>
+          <i class="fa-solid fa-file-arrow-up" @click="onAddFile(mention.file)" v-if="mention.file"></i>
+          
           <div class="-mt-1">
             {{ mention.name }}
           </div>

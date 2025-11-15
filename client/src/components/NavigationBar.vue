@@ -8,7 +8,7 @@ import ProjectIcon from './ProjectIcon.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 my-2">
+  <div class="flex flex-col gap-4">
     <div class="flex items-center shadow justify-between"
       :class="[
         $storex.session.connected ? '' : 'grayscale text-error',

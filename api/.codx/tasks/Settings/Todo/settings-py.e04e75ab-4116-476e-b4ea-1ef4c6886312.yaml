@@ -1,0 +1,258 @@
+board: Settings
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: Todo
+column_id: ''
+created_at: '2025-11-14 06:48:20.333810'
+description: The user is asking to enhance the function `backup_up_global_settings`
+  to copy the current global settings into a backup folder with the date and time.
+  Additionally, they want to ensure that `backup_up_global_settings` is called before
+  saving any global settings. Lastly, the user wants to keep only the last 20 changes
+  by removing older backup files.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/settings.py
+file_path: /shared/codx-junior/api/.codx/tasks/Settings/Todo/settings-py.e04e75ab-4116-476e-b4ea-1ef4c6886312.yaml
+id: e04e75ab-4116-476e-b4ea-1ef4c6886312
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Finish\_backup_up_global_settings by copying current global settings in\
+    \ the backup forder fwith the date and time\ncall backup_up_global_settings before\
+    \ saving the global settings.\n\n\nkeep only last 20 changes removing older backup\
+    \ files "
+  created_at: '2025-11-14 06:48:20.331546'
+  disable_knowledge: true
+  doc_id: 42719d17-7bba-4338-b01b-b864c5043dbf
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/settings.py
+  - /shared/codx-junior/api/codx/junior/settings.py
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-14 06:48:20.331568'
+  user: admin
+- content: "To complete the `backup_up_global_settings` function by copying the current\
+    \ global settings to a backup folder with the date and time, and to ensure that\
+    \ only the last 20 changes are kept, we can implement the following steps:\n\n\
+    1. Create a backup directory if it doesn't exist.\n2. Copy the current global\
+    \ settings to this directory, appending the current date and time to the filename.\n\
+    3. Maintain only the last 20 backup files by removing the oldest ones if necessary.\n\
+    4. Call this backup function before saving the global settings.\n\nHere's the\
+    \ updated code with these changes: \n\n```python /shared/codx-junior/api/codx/junior/settings.py\n\
+    import os\nimport json\nimport logging\nimport pathlib\nimport uuid\nfrom pydantic\
+    \ import BaseModel, Field\nfrom typing import Optional, List, Dict, Any\nfrom\
+    \ datetime import datetime\n\nfrom codx.junior.utils.utils import (\n  write_file,\n\
+    \  exec_command\n)\nfrom codx.junior.model.model import (\n    GlobalSettings,\n\
+    \    ProjectScript,\n    AISettings,\n    AIModel,\n    AIProvider,\n    AILLMModelSettings,\n\
+    \    AIModelType\n)\n\nlogger = logging.getLogger(__name__)\n\nROOT_PATH = os.path.dirname(__file__)\n\
+    GLOBAL_SETTINGS = None\nHOME=os.environ.get(\"HOME\")\nGLOBAL_SETTINGS_PATH=os.environ.get(\"\
+    CODX_JUNIOR_GLOBAL_SETTINGS_PATH\", None) or f\"{HOME}/global_settings.json\"\n\
+    \ndef backup_up_global_settings():\n    backup_dir = os.path.join(os.path.dirname(GLOBAL_SETTINGS_PATH),\
+    \ \"codx-junior-backup\")\n    os.makedirs(backup_dir, exist_ok=True)\n    \n\
+    \    # Create a backup file name with the current date and time\n    timestamp\
+    \ = datetime.now().strftime(\"%Y%m%d_%H%M%S\")\n    backup_file = os.path.join(backup_dir,\
+    \ f\"global_settings_backup_{timestamp}.json\")\n    \n    try:\n        with\
+    \ open(GLOBAL_SETTINGS_PATH, \"r\") as f:\n            settings_data = f.read()\n\
+    \        \n        with open(backup_file, \"w\") as f:\n            f.write(settings_data)\n\
+    \        \n        # Maintain only the last 20 backups\n        backups = sorted(pathlib.Path(backup_dir).glob(\"\
+    global_settings_backup_*.json\"), key=os.path.getmtime)\n        if len(backups)\
+    \ > 20:\n            for old_backup in backups[:-20]:\n                old_backup.unlink()\n\
+    \    \n    except Exception as ex:\n        logger.error(f\"Error backing up global\
+    \ settings: {ex}\")\n\n# logger.info(f\"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}\"\
+    )\n\nCODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = [\"codx_path\", \"metrics\", \"\
+    users\", \"is_git_root\"]\n\ndef get_provider_settings(ai_provider: str, global_settings\
+    \ = None) -> AIProvider:\n    global_settings = global_settings or GLOBAL_SETTINGS\n\
+    \    ai_provider_settings = [p for p in global_settings.ai_providers if p.name\
+    \ == ai_provider]\n    if not ai_provider_settings:\n        raise Exception(f\"\
+    LLM AI provider not found: {ai_provider}\")\n    \n    ai_provider = ai_provider_settings[0]\n\
+    \    ai_provider.api_url = os.path.expandvars(ai_provider.api_url or \"\")\n \
+    \   ai_provider.api_key = os.path.expandvars(ai_provider.api_key or \"\")\n\n\
+    \    return ai_provider\n\ndef get_model_settings(llm_model: str, global_settings\
+    \ = None) -> AISettings:\n    global_settings = global_settings or GLOBAL_SETTINGS\n\
+    \    model_settings = [m for m in global_settings.ai_models if m.name == llm_model\
+    \ or m.ai_model == llm_model]\n    if not model_settings:\n        raise Exception(f\"\
+    LLM model not found: {llm_model}\")\n    model: AIModel = model_settings[0]\n\
+    \    provider = get_provider_settings(model.ai_provider, global_settings=global_settings)\n\
+    \    ai_settings = AISettings(\n        **model.settings.__dict__,\n        provider=provider.provider,\n\
+    \        api_url=provider.api_url,\n        api_key=provider.api_key,\n      \
+    \  model=model.ai_model or model.name,\n        model_type=model.model_type,\n\
+    \        url=model.url\n    )\n    return ai_settings\n\ndef read_global_settings():\n\
+    \    global GLOBAL_SETTINGS\n    try:\n        with open(GLOBAL_SETTINGS_PATH)\
+    \ as f:\n            GLOBAL_SETTINGS = GlobalSettings(**json.loads(f.read()))\n\
+    \    except Exception as ex:\n        logger.error(f\"Error {ex} loading global\
+    \ settings from {GLOBAL_SETTINGS_PATH}\")\n        GLOBAL_SETTINGS = GlobalSettings()\n\
+    \    return GLOBAL_SETTINGS\n\n\ndef write_global_settings(global_settings: GlobalSettings):\n\
+    \    global GLOBAL_SETTINGS\n    # logger.info(f\"GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}):\
+    \ {global_settings}\")\n    try:\n        backup_up_global_settings()\n      \
+    \  \n        old_settings = read_global_settings()\n        with open(GLOBAL_SETTINGS_PATH,\
+    \ \"w\") as f:\n            f.write(json.dumps(global_settings.dict()))\n\n  \
+    \      if global_settings.git.username:\n            exec_command(\n         \
+    \       f'git config --global user.name \"{global_settings.git.username}\"'\n\
+    \            )\n        if global_settings.git.email:\n            exec_command(f'git\
+    \ config --global user.email \"{global_settings.git.email}\"')\n\n        GLOBAL_SETTINGS\
+    \ = global_settings\n    except Exception as ex:\n        logger.exception(f\"\
+    Error saving global settings: {ex}\")\n\ndef get_oauth_provider(oauth_provider:\
+    \ str):\n    global_settings = read_global_settings()\n    return next((provider\
+    \ for provider in global_settings.oauth_providers \\\n                if provider.name\
+    \ == oauth_provider), None)\n\nread_global_settings()\n# logger.info(f\"GLOBAL_SETTINGS:\
+    \ {GLOBAL_SETTINGS}\")\n\n\nclass DevOpsRepository(BaseModel):\n    def __init__(self,\
+    \ repo_url: str):\n        self.repo_url = repo_url\n        \n\nclass CODXJuniorSettings(BaseModel):\n\
+    \    project_id: Optional[str] = Field(default=None)\n\n    project_name: Optional[str]\
+    \ = Field(default=None)\n    project_path: Optional[str] = Field(default=\"\"\
+    )\n    project_branches: Optional[List[str]] = Field(default=[])\n    \n    codx_path:\
+    \ Optional[str] = Field(default=None)\n    project_wiki: Optional[bool] = Field(default=False)\n\
+    \    project_wiki_path: Optional[str] = Field(default=None)\n    project_dependencies:\
+    \ Optional[str] = Field(default=None)\n\n    project_preview_url: Optional[str]\
+    \ = Field(default=None)\n\n    knowledge_extract_document_tags: Optional[bool]\
+    \ = Field(default=False)\n    knowledge_search_type: Optional[str] = Field(default=\"\
+    similarity\")\n    knowledge_search_document_count: Optional[int] = Field(default=10)\n\
+    \    knowledge_enrich_documents: Optional[bool] = Field(default=False)\n    knowledge_context_cutoff_relevance_score:\
+    \ Optional[float] = Field(default=0.9)\n    knowledge_context_rag_distance: Optional[float]\
+    \ = Field(default=0.4)\n    knowledge_external_folders: Optional[str] = Field(default=\"\
+    \")\n    knowledge_query_subprojects: Optional[bool] = Field(default=True)\n \
+    \   knowledge_file_ignore: Optional[str] = Field(default=\".codx\")\n\n    knowledge_generate_training_dataset:\
+    \ Optional[bool] = Field(default=False)\n\n    save_mentions: Optional[bool] =\
+    \ Field(default=False)\n\n    watching: Optional[bool] = Field(default=False)\n\
+    \    use_knowledge: Optional[bool] = Field(default=True)\n    knowledge_hnsw_M:\
+    \ Optional[int] = Field(default=1024)\n    project_icon: Optional[str] = Field(default=\"\
+    https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s\"\
+    )\n\n    log_ignore: Optional[str] = Field(default=\"\")\n\n    project_scripts:\
+    \ Optional[List[ProjectScript]] = Field(default=[])\n\n    embeddings_model: \
+    \ str = Field(default=\"\")\n    llm_model: str = Field(default=\"\")\n    rag_model:\
+    \ str = Field(default=\"\")\n    wiki_model: str = Field(default=\"\")\n\n   \
+    \ last_error: str = Field(default=\"\")\n\n    urls: Optional[List[str]] = Field(default=[])\n\
+    \n    repo_url: Optional[str] = Field(default=None)\n\n    is_git_root: Optional[bool]\
+    \ = Field(default=False)\n\n    def __str__(self):\n        return str(self.model_dump())\n\
+    \n    def get_agent_max_iterations(self):\n        return GLOBAL_SETTINGS.agent_settings.max_agent_iteractions\n\
+    \n    def get_llm_settings(self, llm_model: str = None) -> AISettings:\n     \
+    \   if not llm_model:\n            llm_model = self.llm_model \n        if not\
+    \ llm_model:\n            llm_model = GLOBAL_SETTINGS.llm_model\n\n        return\
+    \ get_model_settings(llm_model)   \n\n    def get_embeddings_settings(self) ->\
+    \ AISettings:\n        embeddings_model = self.embeddings_model \n        if not\
+    \ embeddings_model:\n            embeddings_model = GLOBAL_SETTINGS.embeddings_model\n\
+    \n        return get_model_settings(embeddings_model)\n\n    def get_project_settings_file(self):\n\
+    \        return f\"{self.codx_path}/project.json\"\n\n    def get_project_workspaces(self):\n\
+    \        global_settings = read_global_settings()\n        return [w for w in\
+    \ global_settings.workspaces if self.project_id in w.project_ids]\n\n    @classmethod\n\
+    \    def from_codx_path(cls, codx_path: str):\n        return CODXJuniorSettings.from_project_file(f\"\
+    {codx_path}/project.json\")\n        \n    @classmethod\n    def from_project_file(cls,\
+    \ project_file_path: str):\n        base = CODXJuniorSettings()\n        base.codx_path\
+    \ = project_file_path.replace(\"/project.json\", \"\")\n        base.project_path\
+    \ = base.codx_path.replace(\"/.codx\", \"\")\n        with open(project_file_path,\
+    \ \"r\") as f:\n            settings = json.loads(f.read())\n            settings\
+    \ = CODXJuniorSettings(**{**base.model_dump(), **settings})\n            # Avoid\
+    \ override\n            settings.codx_path = base.codx_path\n            if not\
+    \ settings.project_path or settings.project_path[0] != \"/\":\n              \
+    \  settings.project_path = base.project_path\n            if not settings.project_id:\n\
+    \                return settings.save_project()\n            settings.is_git_root\
+    \ = os.path.isdir(f\"{settings.project_path}/.git\")\n            return settings\n\
+    \n    @classmethod\n    def from_json(cls, settings: dict):\n        base = CODXJuniorSettings()\n\
+    \        new_settings = CODXJuniorSettings(**{ **base.__dict__, **settings })\n\
+    \        logging.info(f\"Project from json {settings}\")\n        logging.info(f\"\
+    Project from json - settings: {new_settings}\")\n        return new_settings\n\
+    \n    @classmethod\n    def get_valid_keys(cls):\n        keys = CODXJuniorSettings().__dict__.keys()\n\
+    \        return [k for k in keys if k not in CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES]\n\
+    \n    def save_project(self):\n        valid_keys = CODXJuniorSettings.get_valid_keys()\n\
+    \        path = f\"{self.codx_path}/project.json\"\n        os.makedirs(self.codx_path,\
+    \ exist_ok=True)\n        project_path_folders = self.project_path.split(\"/\"\
+    )\n        codx_path_folders = self.codx_path.split(\"/\")[:-1]\n        logging.info(f\"\
+    Saving settings without project_path {project_path_folders} {codx_path_folders}\"\
+    )\n            \n        if project_path_folders == codx_path_folders: # Check\
+    \ for custom project_path\n            self.project_path = None\n        # project_id\n\
+    \        if not self.project_id:\n            self.project_id = str(uuid.uuid4())\n\
+    \n        settings = self.model_dump()\n        logging.info(f\"Saving project\
+    \ {path}: {settings}\")\n        data = {}\n        for key in valid_keys:\n \
+    \           data[key] = settings[key]\n        logger.info(f\"Saving project {valid_keys}:\
+    \ {data}\")\n        write_file(path, json.dumps(data, indent=2))\n\n        return\
+    \ CODXJuniorSettings.from_project_file(path)\n\n    def get_sub_projects(self):\n\
+    \        try:\n            all_project_files = pathlib.Path(self.project_path).rglob(\n\
+    \                \"**/.codx/project.json\"\n            )\n            sub_projects\
+    \ = [\n                CODXJuniorSettings.from_project_file(str(project_file_path))\n\
+    \                for project_file_path in all_project_files\n            ]\n \
+    \           return [sb for sb in sub_projects if sb.codx_path != self.codx_path]\n\
+    \        except Exception as ex:\n            logger.debug(f\"Error get_sub_projects\
+    \ {ex}\")\n\n        return []\n\n    def is_valid_project(self):\n        ai_settings\
+    \ = self.get_llm_settings()\n        return True if ai_settings.api_url or ai_settings.provider\
+    \ == 'llmfactory' else False\n\n    def get_dbs(self):\n        from codx.junior\
+    \ import build_dbs\n\n        return build_dbs(settings=self)\n\n    def get_ai(self):\n\
+    \        from codx.junior import build_ai\n\n        return build_ai(settings=self)\n\
+    \n    def get_project_wiki_path(self):\n        if not self.project_wiki_path:\n\
+    \            return os.path.join(self.codx_path, \"wiki\")\n\n        if self.project_wiki_path[0]\
+    \ == \"/\":\n            return self.project_wiki_path\n        return os.path.join(self.project_path,\
+    \ self.project_wiki_path)\n\n    def get_project_dependencies(self):\n       \
+    \ if self.project_dependencies:\n            return [d for d in self.project_dependencies.split(\"\
+    ,\") if d]\n        return []\n\n    def get_log_ai(self):\n        return GLOBAL_SETTINGS.log_ai\n\
+    \n    def get_sub_projects_paths(self):\n        sub_projects = self.get_sub_projects()\n\
+    \        return [project.project_path for project in sub_projects]\n\n\n    def\
+    \ get_ignore_patterns(self):\n        ignore_patterns = [\".git\", \"node_modules\"\
+    ]\n        if self.project_wiki_path:\n            wiki_path = os.path.join(self.project_path,\
+    \ self.project_wiki_path)\n            ignore_patterns.append(wiki_path)\n   \
+    \     if self.knowledge_file_ignore:\n            ignore_patterns = ignore_patterns\
+    \ + \\\n                            [i.strip() for i  in self.knowledge_file_ignore.split(\"\
+    ,\")] + \\\n                            self.get_sub_projects_paths()\n      \
+    \  return ignore_patterns\n\n    def is_valid_project_file(self, file_path: str):\n\
+    \        return not [p for p in self.get_ignore_patterns() if p in file_path]\n\
+    \n    def get_wiki_model(self):\n        return self.wiki_model or GLOBAL_SETTINGS.wiki_model\n\
+    \n    def get_project_ai_models(self):\n        return GLOBAL_SETTINGS.ai_models\n\
+    \n\n\nclass CODXJuniorProject(CODXJuniorSettings):\n    metrics: Optional[Dict]\
+    \ = Field(default={})\n    workspaces: Optional[List[Dict]] = Field(default=[])\n\
+    \    users: Optional[List[dict]] = Field(default=[])\n    permissions: Optional[str]\
+    \ = Field(default=\"\")\n```\n\n### Key Changes:\n- **Backup Directory:** Checks\
+    \ if the backup directory exists, and creates it if not.\n- **Backup File Naming:**\
+    \ Uses a timestamp format (`%Y%m%d_%H%M%S`) to create unique backup filenames.\n\
+    - **Maintaining Backups:** Ensures only the last 20 backups are kept by deleting\
+    \ older files.\n- **Backup Invocation:** Calls the backup function before saving\
+    \ new global settings to ensure that changes are backed up."
+  created_at: '2025-11-14 06:58:40.412253'
+  disable_knowledge: false
+  doc_id: 5b79f49d-1f44-451e-814b-a2a7e31b49a7
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002117156982421875
+    model: openai/gpt-4o
+    time_taken: 60.555846214294434
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-14 06:58:40.412278'
+  user: null
+mode: task
+name: settings.py
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-11-14T07:00:32.785606'
+url: ''
+users:
+- admin
+visibility: ''

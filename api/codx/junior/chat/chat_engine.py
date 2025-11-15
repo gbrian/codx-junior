@@ -141,7 +141,7 @@ class ChatEngine:
             last_ai_messages = [m for m in valid_messages if m.role == "assistant"]
             last_ai_message = last_ai_messages[-1] if last_ai_messages else None
                 
-            user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
+            user_message = valid_messages[-1] if valid_messages else Message(content="")
             query = user_message.content
 
             query_mentions: QueryMentions = self.get_query_mentions(chat=chat, user_message=user_message)

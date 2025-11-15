@@ -5,8 +5,8 @@ import MarkdownViewer from './MarkdownViewer.vue';
 import CodeViewer from './CodeViewer.vue'
 </script>
 <template>
-  <div class="rounded-md">
-    <div class="flex gap-2 w-full justify-end bg-base-100 p-2 rounded-t" 
+  <div class="rounded-md p-2">
+    <div class="flex gap-2 w-full justify-end rounded-t" 
       ref="toolbar" v-if="showMermaid">
       <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource">
         <span v-if="showMermaidSource">View diagram</span>

@@ -51,6 +51,7 @@ class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
     project_id: Optional[str] = Field(default=None, description="Defines the project which this chat belongs")
+    target_project_id: Optional[str] = Field(default=None, description="None if it's the same as project_id or points for a specific project. Helps to keep chats on different projects to manage child projects.")
     parent_id: Optional[str] = Field(default=None, description="Parent chat")
     child_index: Optional[int] = Field(default=0, description="Child index. Used to sort chat content among other siblings")
     message_id: Optional[str] = Field(default=None, description="Parent message for threads")

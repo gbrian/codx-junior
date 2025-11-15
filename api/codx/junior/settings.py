@@ -5,6 +5,7 @@ import pathlib
 import uuid
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
+from datetime import datetime
 
 from codx.junior.utils.utils import (
   write_file,
@@ -26,6 +27,33 @@ ROOT_PATH = os.path.dirname(__file__)
 GLOBAL_SETTINGS = None
 HOME=os.environ.get("HOME")
 GLOBAL_SETTINGS_PATH=os.environ.get("CODX_JUNIOR_GLOBAL_SETTINGS_PATH", None) or f"{HOME}/global_settings.json"
+
+def backup_up_global_settings():
+    backup_dir = os.path.join(os.path.dirname(GLOBAL_SETTINGS_PATH), "codx-junior-backup")
+    os.makedirs(backup_dir, exist_ok=True)
+    
+    # Create a backup file name with the current date and time
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_file = os.path.join(backup_dir, f"global_settings_backup_{timestamp}.json")
+    logger.info("Saving global_settings backup: %s", backup_file)
+    try:
+        with open(GLOBAL_SETTINGS_PATH, "r") as f:
+            settings_data = f.read()
+        
+        with open(backup_file, "w") as f:
+            f.write(settings_data)
+    except Exception as ex:
+        logger.error(f"Error backing up global settings: {ex}")
+
+    try:        
+        # Maintain only the last 20 backups
+        backups = sorted(pathlib.Path(backup_dir).glob("global_settings_backup_*.json"), key=os.path.getmtime)
+        if len(backups) > 20:
+            for old_backup in backups[:-20]:
+                old_backup.unlink()
+    except Exception as ex:
+        logger.error(f"Error cleaning up global backup settings: {ex}")
+
 
 # logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
 
@@ -76,6 +104,8 @@ def write_global_settings(global_settings: GlobalSettings):
     global GLOBAL_SETTINGS
     # logger.info(f"GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}")
     try:
+        backup_up_global_settings()
+        
         old_settings = read_global_settings()
         with open(GLOBAL_SETTINGS_PATH, "w") as f:
             f.write(json.dumps(global_settings.dict()))
