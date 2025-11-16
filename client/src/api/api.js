@@ -21,7 +21,7 @@ const initializeAPI = ({ project, user } = {}) => {
       API.initConnection()
     },
     set interceptors(value) {
-      this.connection.interceptors = value
+      Object.assign(this.connection.interceptors, value)
     },
     initConnection() {
       API.connection = new CodxJuniorConnection({

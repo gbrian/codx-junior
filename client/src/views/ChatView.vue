@@ -210,18 +210,30 @@ import ExportChat from '@/components/chat/ExportChat.vue'
                   <i class="fa-solid fa-caret-left"></i>
                 </button>
               </div>
-              <ul class="menu">
-                <li @click="showChildChat = null"
+              <ul class="flex flex-col gap-2 overflow-auto h-full">
+                <li class="p-2 hover:bg-base-100 rounded-lg"
+                  @click="showChildChat = null"
                   :class="!showChildChat && 'text-warning'"
                 >
-                  <a><ChatIcon :mode="chat.mode" />{{ chat.name }}</a>
+                  <a class="flex gap-2 items-start">
+                    <ChatIcon :mode="chat.mode" />{{ chat.name }}</a>
                 </li>
-                <li v-for="childChat in childrenChats" :key="childChat.id"
-                  :class="(showChildChat?.name === childChat?.name) && 'text-warning'"
+                <li class="p-2 hover:bg-base-100 rounded-lg"
+                  v-for="childChat in childrenChats" :key="childChat.id"
+                  :class="[
+                    (showChildChat?.name === childChat?.name) && 'text-warning',
+                    (childChat === dropOver) && 'bg-white border border-red-300'
+                  ]"
                   @click="selectChildChat(childChat)"
+                  @dragstart="onChildMenuDragStart($event, childChat)"
+                  @dragenter.prevent=""
+                  @dragover.prevent="onTaskDragover($event, childChat)"
+                  @dragleave="dropOver = false"
+                  @drop.prevent="onTaskDropped($event, childChat)"
+                  :draggable="true"
                 >
-                  <a class="flex justify-between items-center group">
-                    <div><ChatIcon :mode="childChat.mode" /> {{ childChat.name }}</div>
+                  <a class="flex gap-2 justify-between items-start group">
+                    <ChatIcon :mode="childChat.mode" /> {{ childChat.name }}
                     <span class="hidden group-hover:flex text-xs" 
                       @click.stop="$projects.setActiveChat(childChat)">
                       <i class="fa-solid fa-up-right-from-square"></i>
@@ -297,7 +309,20 @@ import ExportChat from '@/components/chat/ExportChat.vue'
           <div class="flex flex-col gap-4 p-4">
             <h3 class="font-bold text-lg">Create New Subtask</h3>
             <input v-model="subtaskName" type="text" class="input input-bordered" placeholder="Subtask Name" />
-            @codx: add a dropdown to select the subTaskMode using a ChatIcon selector. Deifne subTaskMode (default "task") and use it when saving the subtask. 
+            
+            <!-- Dropdown for selecting subTaskMode -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Select Subtask Mode</span>
+              </label>
+              <select class="select select-bordered" v-model="subtaskMode">
+                <option value="task" selected>Task</option>
+                <option value="chat">Chat</option>
+                <option value="topic">Topic</option>
+                <option value="prview">PR View</option>
+              </select>
+            </div>
+
             <textarea v-model="subtaskDescription" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
             
             <ProjectDetailt 
@@ -359,7 +384,7 @@ export default {
       subtaskProfiles: [],
       subtaskName: '',
       subtaskDescription: '',
-      subtaskMode: '',
+      subtaskMode: 'task', // Default mode
       subtaskFiles: [],
       subtaskProject: null,
       subtaskParentId: null,
@@ -373,7 +398,8 @@ export default {
       extendedData: {},
       showChatMenu: false,
       showChildChat: null,
-      showExportChat: false
+      showExportChat: false,
+      dropOver: null
     }
   },
   created() {
@@ -495,9 +521,9 @@ export default {
     async setProjectContext() {
       this.projectContext = await this.$service.project.loadProjectContext(this.$project)
     },
-    async saveChat() {
+    async saveChat(chat) {
       this.editName = false
-      await this.$projects.saveChat(this.workingChat)
+      await this.$projects.saveChat(chat || this.workingChat)
     },
     async confirmDeleteChat() {
       this.confirmDelete = false
@@ -751,6 +777,32 @@ export default {
       } else {
         this.editName = true
       }
+    },
+    onChildMenuDragStart($event, childChat) {
+      console.log("Menu drag start", $event)
+      $event.dataTransfer.setData("chatId", childChat.id)
+    },
+    onTaskDragover($event, childChat) {
+      const id = $event.dataTransfer.getData("chatId")
+      if (id === childChat.id) {
+        this.dropOver = null
+        return
+      }
+      this.dropOver = childChat
+      console.log("Menu drag over", this.dropOver.name)
+      $event.preventDefault();
+      $event.target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    },
+    onTaskDropped($event, childChat) {
+      const id = $event.dataTransfer.getData("chatId")
+      if (id === childChat.id) {
+        return
+      }
+      return
+      const dropChat = this.childrenChats.find(c => c.id === id)
+      dropChat.parent_id = childChat.id
+      this.dropOver = null
+      this.saveChat(dropChat)
     }
   }
 }

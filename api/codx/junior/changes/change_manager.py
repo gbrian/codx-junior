@@ -60,12 +60,9 @@ class ChangeManager:
 
     async def process_project_changes(self):
         if not self.settings.is_valid_project():
-            logger.error(f"Checking project error, not valid: {self.settings.project_name}") 
+            # logger.error(f"Checking project error, not valid: {self.settings.project_name}") 
             return
-        if not self.settings.watching:
-            return
-
-        self.knowledge.clean_deleted_documents()
+        
         current_sources_and_updates = self.knowledge.get_db().get_all_sources()
         new_files, _ = self.knowledge.detect_changes(current_sources_and_updates)
 
@@ -76,8 +73,11 @@ class ChangeManager:
 
         await asyncio.gather(*tasks)
 
+        if not self.settings.watching:
+            return
 
         # Check indexing
+        self.knowledge.clean_deleted_documents()
         
         TOUT = MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS
         def is_valid_file(file_path):
@@ -100,7 +100,7 @@ class ChangeManager:
         await asyncio.gather(*tasks)  # Run tasks concurrently
 
     async def process_project_mentions(self, file_path: str):
-        logger.info("Processing mention check: %s", file_path)
+        # logger.info("Processing mention check: %s", file_path)
         await self.mention_manager.check_file_for_mentions(file_path=file_path)
 
     async def process_project_change(self, file_path: str):

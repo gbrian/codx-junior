@@ -789,6 +789,5 @@ export default {
       this.buildColumns()
     }
   }
-  // @codx: add a dot line here..... .
 }
 </script>

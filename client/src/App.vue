@@ -7,8 +7,6 @@ import Login from './components/user/Login.vue';
 
 <template>
   <div class="w-full h-full flex relative bg-base-300 relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
-    <div class="absolute top-0 h-1" 
-      :class="$session.apiCalls && 'w-full bg-secondary/70 animate-pulse z-50'"></div>
     <Login v-if="isLogin" />
     <SplitViewVue v-else/>
     

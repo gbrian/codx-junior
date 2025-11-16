@@ -20,7 +20,6 @@ export default {
     daisyui, 
     typography,
     queries,
-    require('@tailwindcss/container-queries'),
   ],
   daisyui: {
     themes: true,

@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 
-let interceptors = {
+const interceptors = {
   request: [],
   response: []
 }

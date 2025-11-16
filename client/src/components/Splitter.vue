@@ -6,6 +6,7 @@ import CodxJuniorVue from '../views/CodxJunior.vue'
 import NavigationBar from '../components/NavigationBar.vue'
 import LogViewerVue from './LogViewer.vue'
 import WorkspacesViewer from './workspaces/WorkspacesViewer.vue'
+import StatuBar from './StatuBar.vue'
 </script>
 
 <template>
@@ -77,8 +78,7 @@ import WorkspacesViewer from './workspaces/WorkspacesViewer.vue'
         <WorkspacesViewer class="w-full h-full" />
       </SplitterPanel>
     </SplitterGroup>
-    <div class="h-6 bg-white/10">
-    </div>
+    <StatuBar />
   </div>
 </template>
 <script>
