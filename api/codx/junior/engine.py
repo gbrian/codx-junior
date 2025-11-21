@@ -1274,8 +1274,14 @@ class CODXJuniorSession:
             git_cmd_out, _ = exec_command(cmd, cwd=self.settings.project_path)
             return [json.loads(line) for line in git_cmd_out.strip().split("\n")]
 
+        git_commits = []
+        try:
+            git_commits = get_git_file_commits(file_path)
+        except Exception as ex:
+            logger.error("Error reading branch commits: %s", ex)
+
         branch_file_and_commits = { file_path: {
-                                        "commits": get_git_file_commits(file_path),
+                                        "commits": git_commits,
                                         "diff": get_git_file_diff(file_path)
                                     } for file_path in branch_files }
         

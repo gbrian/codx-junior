@@ -9,12 +9,25 @@ import UserSelector from './UserSelector.vue'
 import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
 import CheckLists from './CheckLists.vue'
 import MentionSelector from '../mentions/MentionSelector.vue'
+import PRView from '@/components/repo/PRView.vue'
+import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAutoComplete.vue'
+import EditableVue from '../autocomplete/Editable.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-1 grow">
-    <div class="grow relative">
+  <div class="h-full flex flex-col gap-1">
+    <div class="grow relative flex flex-col">
       <div class="flex gap-2 items-center justify-bnetween">
+        <ProjectResourcesAutoCompleteVue 
+          class=""
+          :project="projectContext"
+          @select="onAddDocument"
+          @close="closeDocumentSearch"
+          v-if="showDocumentSearchModal"
+        />
+        <button class="btn btn-sm btn-outline" @click="closeDocumentSearch" v-else>
+          <i class="fa-solid fa-magnifying-glass"></i>
+        </button>
         <div class="w-full" v-if="chatFiles.length">
           <div class="my-2 text-xs">
             <span>
@@ -32,11 +45,20 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         <CheckLists class="" :chat="chat" @change="saveChat" />
         
       </div>
-      <div class="overflow-y-auto overflow-x-hidden" :class="isBrowser && 'flex gap-1'">
-        <div class="w-3/4" v-if="isBrowser">
-          <Browser :token="$ui.monitors['shared']" />
-        </div>
-        <div class="overflow-auto h-full">
+      <div class="grow overflow-y-auto overflow-x-hidden">
+        <Browser class="" :token="$ui.monitors['shared']" v-if="isBrowser"/>
+        <PRView class="h-full overflow-auto" 
+          :fromBranch="chat.pr_view?.from_branch"
+          :toBranch="chat.pr_view?.to_branch"
+          :chat="chat"
+          @select="onPRViewBranchChanged"
+          @comment="onPRFileComment"
+          @change-column="$emit('change-column', $event)"
+          @new-chat="onPRFileCreateChat"
+          @chat-message="onPRChatMessage"
+          v-if="isPRView" />
+        
+        <div class="overflow-auto h-full" v-if="!isBrowser && !isPRView">
           <div class="flex flex-col gap-1 mb-2">
             <ChatEntry v-for="knowledgeMessage in knowledgeMessages"
                 class="rounded-lg overflow-hidden"
@@ -48,7 +70,6 @@ import MentionSelector from '../mentions/MentionSelector.vue'
                 :menu-less="readOnly"
               />
           </div>
-            
           <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
             <ChatEntry :class="['mb-4 rounded-md',
               isChannel ? '': 'py-2',
@@ -87,25 +108,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         </div>
       </div>
     </div>
-    <div class="chat chat-end" v-if="false && isBrowser">
-      <div class="chat-image avatar">
-        <div class="w-10 rounded-full">
-          <img src="/only_icon.png" alt="logo" />
-        </div>
-      </div>
-      <div class="chat-bubble">
-        <Markdown class="max-h-40 overflow-auto" :text="lastAIMessage.content" v-if="lastAIMessage" />
-        <div v-else>
-          <span class="font-bold">Let's navigate together:</span>
-          Use browser to navigate any web or try:
-          <span class="italic text-info">Find top 5 results for ....</span>
-        </div>
-      </div>
-    </div>
     <div class="sticky bottom-0 z-50 bg-base-300">
-      <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
-        {{  lastChatEvent }}
-      </div>
       <div class="flex gap-2">
         <span class="badge tooltip flex gap-2 items-center"
           :data-tip="mention.tooltip"
@@ -130,6 +133,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         :content="editorText" 
         :project="projectContext || $projects" 
         @select="onMentionReplace" />
+
       <div class="border border-primary rounded-md bg-base-100 mt-2 pb-2" :class="['flex shadow indicator w-full', 
             'flex-col',
             editMessage && 'border-warning',
@@ -137,23 +141,17 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         @dragover.prevent="onDraggingOverInput = true"
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop"
-        v-if="readOnly !== true"
+        v-if="!isBrowser && !isPRView && readOnly !== true"
         >
-        <div class="flex flex-col gap-1 bg-base-300 rounded-md" v-if="showDocumentSearchModal">
-          <KnowledgeSearch class="p-2 h-60"
-            :project="chatProject"
-            :close="true"
-            @close="closeDocumentSearch"
-            @select="onAddDocument"          
-          />
-        </div>
         <div class="editor" :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
           :contenteditable="!waiting"
           ref="editor"
           @paste="onContentPaste"
           @keydown="onEditMessageKeyDown"
+          
         >
         </div>
+        <EditableVue class="w-full h-96 border border-warning" :suggestCallback="() => 'AAAAAAAAAAAAAAAAA'"></EditableVue>
         <div class="flex justify-between items-end px-2 bg-base-300 rounded-b-md">
           <div class="carousel rounded-box">
             <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
@@ -172,6 +170,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
             <UserSelector 
               class="dropdown-top"
               :selectedUser="selectedUser"
+              :profiles="profiles"
               @user-changed="selectedUser = $event"
             />
             <div class="text-xs">Find: ctrl+f</div>
@@ -194,12 +193,6 @@ import MentionSelector from '../mentions/MentionSelector.vue'
                 <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
                 <i class="fa-solid fa-paper-plane" v-else></i>
               </button>
-              <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
-                :class="isBrowser && 'btn-warning'"
-                data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
-                v-if="!editMessage">
-                <i class="fa-brands fa-chrome"></i>
-              </button>
               <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
                 data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && chat.mode === 'chat'">
                 <i class="fa-solid fa-code"></i>
@@ -221,15 +214,6 @@ import MentionSelector from '../mentions/MentionSelector.vue'
                     <a>
                       <i class="fa-solid fa-flask"></i>
                       Test
-                    </a>
-                  </li>
-                  <li class="hidden btn btn-sm tooltip"
-                    :class="isBrowser && 'btn-success'"
-                    :data-tip="isBrowser ? 'Close browser' : 'Open browser'"
-                    @click="isBrowser = !isBrowser" v-if="!editMessage">
-                    <a>
-                      <i class="fa-brands fa-chrome"></i>
-                      {{ isBrowser ? 'Close' : 'Open' }} Browser
                     </a>
                   </li>
                   <li class="btn btn-sm tooltip"
@@ -260,10 +244,12 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         </div>
       </div>
     </div>
-    <modal v-if="imagePreview">
-      <div class="flex flex-col gap-2">
+    <modal class="w-10/12 lg:w-3/4 h-10/12 lg:h-3/4" v-if="imagePreview">
+      <div class="h-full flex flex-col gap-2 justify-between">
         <div class="text-2xl">Upload image</div>
-        <div class="bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full" :style="`background-image: url(${imagePreview.src})`"></div>
+        <div class="grow">
+          <div class="bg-contain bg-no-repeat bg-base-300/20 bg-center h-full w-full" :style="`background-image: url(${imagePreview.src})`"></div>
+        </div>
         <div>
           Image alt: <span class="text-xs" v-if="imagePreview.alt?.length">{{ imagePreview.alt?.length }} chars.</span>
         </div>
@@ -313,7 +299,6 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         </label>
       </div>
     </modal>
-
     <modal v-if="showDeleteModal">
       <div class="flex flex-col gap-2">
         <div class="text-xl">Confirm Deletion</div>
@@ -351,7 +336,6 @@ export default {
       selectFile: false,
       isVoiceSession: false,
       recognition: null,
-      isBrowser: false,
       syncEditableTextInterval: null,
       showDeleteModal: false,
       taskToDelete: null,
@@ -360,8 +344,8 @@ export default {
       selectedDocuments: null,
       showDocumentSearchModal: false,
       searchingInKnowledge: false,
-      projectContext: null,
-      uploadProjectFile: null
+      projectContext: this.$project,
+      uploadProjectFile: null,
     }
   },
   created() {
@@ -378,6 +362,12 @@ export default {
   computed: {
     chatFiles() {
       return this.chat.file_list || []
+    },
+    isPRView() {
+      return this.chat.mode === 'prview'
+    },
+    isBrowser() {
+      return this.chat.mode === 'browser'
     },
     visibleMessages() {
       return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
@@ -465,7 +455,7 @@ export default {
       return this.projectContext || this.$project
     },
     mentionList() {
-      return (this.projectContext || this.$projects).mentionList
+      return (this.projectContext?.$state || this.$projects).mentionList
     },
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
@@ -484,8 +474,11 @@ export default {
         return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type || event.data.type || ''} ${event.data.text || ''}\n${message}`
       } 
     },
+    profiles() {
+      return this.projectContext?.profiles || []
+    },
     usersList() {
-      return [this.$store.state.user, ...this.projectContext.profiles]
+      return [this.$store.state.user, ...this.profiles]
     },
     isChannel() {
       return this.chat.mode === 'topic'
@@ -512,7 +505,7 @@ export default {
   methods: {
     async setProjectContext() {
       if (this.projectContext?.project_id !== this.chatProject.project_id) {
-        this.projectContext = await this.$service.project.loadProjectContext(this.chatProject)
+        this.projectContext = await this.$projects.loadProject(this.chatProject)
       }
     },
     initSelectedUserFromChat() {
@@ -627,7 +620,7 @@ export default {
         this.updateMessage()
         this.saveChat()
       } else {
-        const message = this.editor.innerText        
+        const message = this.editorText        
         if (message?.length &&
           this.canPost && this.postMyMessage(message)) {
           await this.saveChat()
@@ -954,11 +947,14 @@ export default {
       } else if(event.key === 'Enter' && event.ctrlKey) {
         this.sendMessage()
       } else if(event.key === 'f' && event.ctrlKey) {
-        this.openDocumentSearch()
+        this.toggleDocumentSearch()
       }  else {
         return true
       }
       return stop()
+    },
+    toggleDocumentSearch() {
+      this.showDocumentSearchModal = !this.showDocumentSearchModal
     },
     openDocumentSearch() {
       this.showDocumentSearchModal = true
@@ -967,9 +963,11 @@ export default {
       this.showDocumentSearchModal = false
     },
     onAddDocument(doc) {
-      const source = doc.metadata.source
-      this.addFileToMessage(source)
-      this.saveChat()
+      const source = doc.file || doc.metadata?.source
+      if (source) {
+        this.addFileToMessage(source)
+        this.saveChat()
+      }
     },
     addFileToChat(filePath) {
       this.chat.file_list = [...new Set([...this.chat.file_list ||[], filePath])]
@@ -1017,6 +1015,54 @@ export default {
       } else {
         this.files = this.files.filter(f => f !== mention.file)
       }
+    },
+    onPRViewBranchChanged({ fromBranch: from_branch, toBranch: to_branch }) {
+      this.chat.pr_view = {
+        from_branch, to_branch
+      }
+      this.saveChat()
+    },
+    async refreshPRView() {
+      await this.saveChat()
+      await this.$storex.api.repo.changes(this.chat) 
+    },
+    async onPRFileComment({ chat, title, files, description, profiles, mode, column }) {
+      if (chat) {
+        chat.messages.push({
+          user: this.$user.username,
+          role: "user",
+          content: description
+        })
+        chat.profiles = profiles.map(p => p.name)
+        await this.$projects.saveChatInfo(chat)
+        await this.$storex.projects.chatWihProject(chat)
+        
+      } else {
+        this.subtaskName = title
+        this.subtaskDescription = description
+        this.subtaskFiles = files
+        this.subtaskProfiles = profiles
+        this.subtaskMode = mode
+        this.subtaskColumn = column
+        this.createSubtask(false)
+      }
+    },
+    async onPRFileCreateChat({ title, files, description, profiles, mode, column }) {
+      this.$emit('sub-task', {
+          parent: this.chat,
+          name: title,
+          description,
+          project_id: this.chatProject.id,
+          parent_id: this.chat.id,
+          file_list: files,
+          profiles,
+          mode,
+          column,
+          activateChat: false
+        })
+    },
+    onPRChatMessage({ file, message, metadata }) {
+      file.chat.messages.push({})
     }
   }
 }

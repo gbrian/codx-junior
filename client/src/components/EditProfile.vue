@@ -17,7 +17,7 @@ import Markdown from './Markdown.vue';
       </div>
        Profile
       <div class="grow"></div>
-      <button type="button" class="btn btn-sm btn-primary" :class="loading && 'loading loading-spinner'" @click="onSubmit" :disabled="!canSave">Update</button>
+      <button type="button" class="btn btn-sm btn-primary" :class="loading && 'loading loading-spinner'" @click="onSubmit">Update</button>
       <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isOverriden || loading">Delete</button>
       <ExportImportButton :data="editProfile" @change="editProfile = $event" />
     </div>
@@ -167,10 +167,6 @@ export default {
       const { name } = this.editProfile
       const { name: orgName } = this.profile
       return name !== orgName && this.allProfiles.find(p => p.name.toLowerCase() === name?.toLowerCase())
-    },
-    canSave() {
-      const { name } = this.editProfile
-      return this.isOverriden
     },
     isValidFileMatch() {
       if (this.editProfile.category !== "file") {

@@ -214,8 +214,6 @@ def api_health_check():
 @app.get("/api/knowledge/reload")
 async def api_knowledge_reload(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    await codx_junior_session.check_project_changes()
-    await codx_junior_session.reload_knowledge()
     return codx_junior_session.check_knowledge_status()
 
 @app.post("/api/knowledge/reload-path")

@@ -6,7 +6,7 @@
           <i class="fa-solid fa-circle-xmark"></i>
         </div>
       </div>
-      <div class="flex flex-col gap-2">
+      <div class="h-full flex flex-col gap-2">
         <slot></slot>
       </div>
     </div>
@@ -15,7 +15,7 @@
 <script>
 export default {
   inheritAttrs: false,
-  props: ['close', 'width'],
+  props: ['close'],
   mounted () {
     this.$root.$el.appendChild(this.$el)
   }

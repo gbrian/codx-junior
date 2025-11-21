@@ -52,7 +52,7 @@ function parseContent(content) {
     });
   }
   lines.forEach(line => {
-    const match = line.match(/^```(\w+)\s*(.*)$/);
+    const match = line.trim().match(/^```(\w+)\s*(.*)$/);
     if (match) {
       // If there is a match, it means a new block is starting
       if (currentContent.length > 0) {
@@ -61,7 +61,7 @@ function parseContent(content) {
       currentType = match[1];
       currentFileName = match[2];
       currentContent = [];
-    } else if (line === '```') {
+    } else if (line.trim() === '```') {
       // End of a block
       if (currentContent.length > 0) {
         addBlock()

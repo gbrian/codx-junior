@@ -1,0 +1,259 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: changes
+column_id: ''
+created_at: '2025-11-17 05:51:47.515498'
+description: The task involves modifying the `ProfileViewer.vue` component to make
+  it read-only, displaying only the profile's name, description, and content. All
+  other elements and functionalities should be removed, and the profile property should
+  be passed using the name "profile." The project uses DaisyUI for components, and
+  best practices for Vue components have been outlined, including using TailwindCSS
+  classes and structuring components with a setup, template, and script section. Additionally,
+  the use of FontAwesome icons and specific coding conventions are emphasized. The
+  final modified component should adhere to these guidelines.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-profiles-profileviewer-vue-2025-11-17-08-21-39-985521.f67081a5-b684-491e-9b66-ea291aa349d8.yaml
+id: f67081a5-b684-491e-9b66-ea291aa349d8
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "\n                    ```document /shared/codx-junior/client/src/components/profiles/ProfileViewer.vue\n\
+    \                    \n<script setup>\nimport ExportImportButton from './ExportImportButton.vue';\n\
+    import Markdown from './Markdown.vue';\n</script>\n\n<template>\n  <codx-ok, please-wait...>\n\
+    \  Change this component to be \"readOnly\" showing the Profile name, description\
+    \ and content.\n  Remove all other stuff. The profile property passed will be\
+    \ \"profile\" use that name\n  </codx-ok, please-wait...>\n  <div class=\"edit-profile\
+    \ px-4 mx-auto flex flex-col gap-2\">\n    <div class=\"text-xl flex items-center\
+    \ gap-2 font-bold\">\n      <button class=\"btn btn-sm\" @click=\"cancelEdit\"\
+    >\n        <i class=\"fa-solid fa-arrow-left\"></i>\n      </button>\n      <div\
+    \ class=\"avatar tooltip tooltip-bottom\" :data-tip=\"profile.project?.project_name\"\
+    >\n        <div class=\"w-6 rounded-full click\" @click=\"switchProject\">\n \
+    \           <img :src=\"profile.project?.project_icon || '/only_icon.png'\" />\n\
+    \        </div>  \n      </div>\n       Profile\n      <div class=\"grow\"></div>\n\
+    \      <button type=\"button\" class=\"btn btn-sm btn-primary\" :class=\"loading\
+    \ && 'loading loading-spinner'\" @click=\"onSubmit\" :disabled=\"!canSave\">Update</button>\n\
+    \      <button type=\"button\" @click=\"onDeleteProfile\" class=\"btn btn-sm btn-error\"\
+    \ :disabled=\"!isOverriden || loading\">Delete</button>\n      <ExportImportButton\
+    \ :data=\"editProfile\" @change=\"editProfile = $event\" />\n    </div>\n    <div\
+    \ class=\"flex justify-center\">\n      <div class=\"flex flex-col gpa-2 items-center\
+    \ w-full\">\n        <div class=\"avatar\">\n          <div class=\"w-24 rounded\"\
+    >\n            <img :src=\"userAvatar\" />\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n    <div class=\"flex justify-between items-end gap-4\"\
+    >\n      <div class=\"flex flex-col grow gap-1\">\n        <div class=\"flex gap-2\
+    \ items-center\">\n          Name* \n          <input v-model=\"editProfile.name\"\
+    \ type=\"text\" placeholder=\"Name\" :class=\"nameTaken && 'text-error'\" class=\"\
+    bg-base-300 input input-sm input-bordered w-full\" />\n        <div class=\"flex\
+    \ gap-2 items-center\">\n          <label for=\"category\">Category*</label>\n\
+    \            <select v-model=\"editProfile.category\" :disabled=\"profile.category\
+    \ === 'project'\" class=\"select select-sm select-bordered\">\n              <option\
+    \ value=\"project\" v-if=\"profile.category === 'project'\">Project</option>\n\
+    \              <option value=\"assistant\">Assistant</option>\n              <option\
+    \ value=\"chat\">Chat</option>\n              <option value=\"file\">File</option>\n\
+    \              <option value=\"agent\">Agent</option>\n            </select>\n\
+    \          </div>        \n        </div>\n        <div class=\"flex gap-2 items-center\"\
+    >Avatar <input placeholder=\"Avatar\" v-model=\"editProfile.avatar\" type=\"text\"\
+    \ class=\"bg-base-300 input input-sm input-bordered w-full\" /></div>\n      </div>\n\
+    \    </div>\n    <div class=\"form-group\">\n      <label for=\"description\"\
+    >Description</label>\n      <textarea id=\"description\" v-model=\"editProfile.description\"\
+    \ class=\"bg-base-300 textarea textarea-bordered w-full\"></textarea>\n    </div>\n\
+    \    <div class=\"form-group flex space-x-4 text-xs\">\n      <div class=\"w-1/2\
+    \ flex flex-col gap-2\">\n        <label for=\"fileMatch\">File Match</label>\n\
+    \        <input id=\"fileMatch\" v-model=\"editProfile.file_match\" type=\"text\"\
+    \ \n          :class=\"!isValidFileMatch && 'text-error'\"\n          class=\"\
+    bg-base-300 input input-xs input-bordered w-full\" />\n      </div>\n    </div>\n\
+    \    <div class=\"form-group\">\n      <label for=\"description\">Parent profiles</label>\n\
+    \      <div class=\"flex flex-wrap gap-2\">\n        <select v-model=\"newProfile\"\
+    \ @change=\"addProfile\" class=\"select select-xs select-bordered\">\n       \
+    \   <option value=\"\">Add a profile</option>\n          <option v-for=\"profile\
+    \ in $projects.profiles\" :key=\"profile.id\" :value=\"profile.name\">{{ profile.name\
+    \ }}</option>\n        </select>\n        <div v-for=\"profile in editProfile.profiles\"\
+    \ :key=\"profile.id\" class=\"badge badge-secondary\">\n          {{ profile }}\
+    \ <button @click=\"removeProfile(profile)\" class=\"fa fa-times\"></button>\n\
+    \        </div>\n      </div>\n    </div>\n    <div class=\"form-group\">\n  \
+    \    <label for=\"description\">Description</label>\n      <textarea id=\"description\"\
+    \ v-model=\"editProfile.description\" class=\"bg-base-300 textarea textarea-bordered\
+    \ w-full\"></textarea>\n    </div>\n\n    <div role=\"tablist\" class=\"tabs tabs-boxed\"\
+    >\n      <div role=\"tab\" class=\"tab\" :class=\"{ 'tab-active': tab === 'content'\
+    \ }\" @click=\"tab = 'content'\">\n        Content\n      </div>\n      <div role=\"\
+    tab\" class=\"tab\" :class=\"{ 'tab-active': tab === 'settings' }\" @click=\"\
+    tab = 'settings'\">\n        Settings\n      </div>\n    </div>\n\n    <div class=\"\
+    form-group flex flex-col gap-4\" v-if=\"tab === 'settings'\">\n      <div class=\"\
+    flex gap-2 items-center\">\n        Expose in API\n        <input type=\"checkbox\"\
+    \ v-model=\"editProfile.api_settings.active\" class=\"toggle checked:border-info\
+    \ checked:bg-info\" />\n      </div>\n      <div class=\"pl-4 flex flex-col gap-2\"\
+    \ v-if=\"editProfile.api_settings.active\">\n        <label for=\"modelName\"\
+    >API Model Name</label>\n        <input :placeholder=\"`default: ${$project.project_name}/${editProfile.name}`\"\
+    \ v-model=\"editProfile.api_settings.modelName\" type=\"text\" class=\"input input-sm\
+    \ input-bordered bg-base-300\" />\n        <label for=\"modelDescription\">API\
+    \ Model Description</label>\n        <textarea v-model=\"editProfile.api_settings.modelDescription\"\
+    \ class=\"textarea textarea-bordered bg-base-300\"></textarea>\n      </div>\n\
+    \      <select class=\"select select-bordered select-sm\" v-model=\"editProfile.llm_model\"\
+    >\n        <option value=\"\">-- default model --</option>\n        <option v-for=\"\
+    model in aiModels\" :key=\"model.name\" :value=\"model.name\">\n          {{ model.ai_provider\
+    \ }} - {{ model.name }}\n        </option>\n      </select>\n      <div class=\"\
+    flex gap-2 items-center\">\n        Use knowledge\n        <input type=\"checkbox\"\
+    \ v-model=\"editProfile.use_knowledge\" class=\"toggle checked:border-info checked:bg-info\"\
+    \ />\n      </div>\n      <div class=\"flex gap-2 items-center\">\n        Chat\
+    \ mode\n        <select v-model=\"editProfile.chat_mode\" class=\"select select-sm\
+    \ select-bordered\">\n          <option value=\"task\">Task</option>\n       \
+    \   <option value=\"chat\">Chat</option>\n          <option value=\"code\">Coding</option>\n\
+    \          <option value=\"browser\">Browser</option>\n        </select>\n   \
+    \   </div>\n    </div>\n    <div class=\"flex flex-col gap-2\" v-if=\"tab ===\
+    \ 'content'\">\n      <div class=\"flex justify-between\">\n        <label for=\"\
+    content\" class=\"flex gap-2\">Content\n          <button class=\"btn btn-xs\"\
+    \ @click=\"toggleContentPreview\">\n            <i :class=\"contentPreview ? 'fa-solid\
+    \ fa-pencil-alt' : 'fa-solid fa-eye'\"></i>\n          </button>\n        </label>\n\
+    \      </div>\n      <Markdown class=\"p-2 rounded-md\" :class=\"contentPreview\
+    \ ? 'bg-base-100 border border-slate-700' : 'bg-base-300'\" :text=\"editProfile.content\"\
+    \ v-if=\"contentPreview\" />\n      <textarea id=\"content\" v-model=\"editProfile.content\"\
+    \ class=\"textarea textarea-bordered w-full h-96 bg-base-300 overflow-auto\" v-else></textarea>\n\
+    \    </div>\n    <modal v-if=\"confirmDelete\">\n      <div class=\"text-2xl\"\
+    >Confirm delete?</div>\n      <div class=\"flex gap-2\">\n        <button type=\"\
+    button\" @click=\"confirmDelete = false\" class=\"btn btn-sm\">Cancel</button>\n\
+    \      </div>\n    </modal>\n  </div>\n</template>\n\n<script>\nexport default\
+    \ {\n  props: ['profile', 'allProfiles', 'loading'],\n  data() {\n    return {\n\
+    \      editProfile: { ...this.profile },\n      confirmDelete: false,\n      contentPreview:\
+    \ true,\n      tab: 'content',\n      newProfile: ''\n    }\n  },\n  computed:\
+    \ {\n    userAvatar() {\n      return this.editProfile.avatar ||\n        'https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp'\n\
+    \    },\n    aiModels() {\n      return this.$storex.api.globalSettings?.ai_models\n\
+    \                ?.filter(m => m.model_type === 'llm')\n                ?.sort((a,\
+    \ b) => a.ai_provider > b.ai_provider ? 1 : -1)\n    },\n    isOverriden() {\n\
+    \      return !this.profile.path || this.profile.path?.startsWith(this.$project.project_path)\n\
+    \    },\n    nameTaken() {\n      const { name } = this.editProfile\n      const\
+    \ { name: orgName } = this.profile\n      return name !== orgName && this.allProfiles.find(p\
+    \ => p.name.toLowerCase() === name?.toLowerCase())\n    },\n    canSave() {\n\
+    \      const { name } = this.editProfile\n      return this.isOverriden\n    },\n\
+    \    isValidFileMatch() {\n      if (this.editProfile.category !== \"file\") {\n\
+    \        return true\n      }\n      try {\n        new RegExp(this.editProfile.file_match)\n\
+    \        return true\n      } catch (e) {\n        return false\n      }\n   \
+    \ }\n  },\n  methods: {\n    onSubmit() {\n      this.$emit('save', this.editProfile)\n\
+    \    },\n    cancelEdit() {\n      this.$emit('cancel')\n    },\n    deleteProfile()\
+    \ {\n      this.confirmDelete = true\n    },\n    onDeleteProfile() {\n      this.confirmDelete\
+    \ = false\n      this.$emit('delete')\n    },\n    async toggleContentPreview()\
+    \ {\n      /*\n      if (!this.editProfile.chat_id) {\n        const chat = await\
+    \ this.$projects.createNewChat({\n          name: `Profile ${this.editProfile.name}`,\n\
+    \          mode: 'task',\n          board: \"Profiles\",\n          column: \"\
+    Profile\"\n        })\n        this.editProfile.chat_id = chat.id\n        this.onSubmit()\n\
+    \      }\n      */\n      this.contentPreview = !this.contentPreview\n    },\n\
+    \    downloadProfileContent() {\n      console.log('Download initiated for:',\
+    \ this.editProfile.url)\n    },\n    addProfile() {\n      if (this.newProfile\
+    \ && !this.editProfile.profiles.includes(this.newProfile)) {\n        this.editProfile.profiles.push(this.newProfile)\n\
+    \        this.newProfile = ''\n      }\n    },\n    removeProfile(profile) {\n\
+    \      this.editProfile.profiles = this.editProfile.profiles.filter(p => p !==\
+    \ profile)\n    },\n    switchProject() {\n      if (this.$project.project_id\
+    \ !== this.profile.project.project_id) {\n        const project = this.$projects.allProjects.find(p\
+    \ => p.project_id === this.profile.project.project_id)\n        project && this.$projects.setActiveProject(project)\n\
+    \      }\n    }\n  }\n}\n</script>\n                    ```\n\n              \
+    \      Apply these changes to /shared/codx-junior/client/src/components/profiles/ProfileViewer.vue:\n\
+    \                    User commented in line 7: >\nChange this component to be\
+    \ \"readOnly\" showing the Profile name, description and content.\nRemove all\
+    \ other stuff. The profile property passed will be \"profile\" use that name\n\
+    \                    \n                    Instructions:\n                   \
+    \   Best practices for this file:\n            Project uses DaisyUI for components,\
+    \ use them instead basic HTML elements\nAll components must have same structure:\
+    \ \"setup\", \"template\", \"script\".\nVue Component Example:\n```vue file/path/to/Component.vue\n\
+    <script setup>\nimport Component from './component.vue'\nimport markdown from\
+    \ 'mardown'\n</script>\n<template>\n<div class=\"w.full h-full flex gap-2\">\n\
+    </div>\n</template>\n<script>\nexport default {\nprops: [].\ndata (){\n// Reactive\
+    \ data, don't use \"ref\"\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\nImportant:\n* No css, use TailwindCSS clases\n\
+    * No need to import ref, computed or mapState \n* export default component object\n\
+    * Use component \"data\" method to return an object variables\n* Use component\
+    \ \"computed\" to define computed properties\n\" Use component \"methods\" to\
+    \ define component methods \n* Use \"this.$storex\" or \"$storex\" to access store\
+    \ data.\n* To access vue store data use \"$storex\"\n* \"script setup\" section\
+    \ contains ONLY imports, no variables, properties bnor methods\n* Vue component\
+    \ definition will be exporting a default object like, without ref, nor computed\
+    \ imports\n* Don't use \";\" in the javascript or typescript code\n* Avoid long\
+    \ functions\n* Add short and concise comments for complex functions\nMake sure\
+    \ all vue components follow this structure:\n```vue\n<script setup><!-- Import\
+    \ all components and libraries on the top -->\n</script>\n<template><!-- Component\
+    \ markup -->\n<div></div>\n</template>\n<script><!-- Component logic -->\nexport\
+    \ default {\n}\n</script>\n```\n\nUse fontawesome for icons like: <i class=\"\
+    fa-solid fa-right-from-bracket\"></i>\n            \n                      Apply\
+    \ all comments to the document and return a final version.\n                 \
+    \     Pay attention to do not loose any detail or part of the document.\n    \
+    \                  Return only the file content \n                    "
+  created_at: '2025-11-17 05:51:47.512969'
+  disable_knowledge: false
+  doc_id: cb87d2c2-c694-493b-a24c-af457a2d8063
+  done: true
+  files:
+  - /shared/codx-junior/client/src/components/profiles/ProfileViewer.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  - VueDeveloper
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-17 05:51:47.512995'
+  user: null
+- content: "```vue /shared/codx-junior/client/src/components/profiles/ProfileViewer.vue\n\
+    <script setup>\nimport Markdown from './Markdown.vue'\n</script>\n\n<template>\n\
+    \  <div class=\"profile-viewer px-4 mx-auto flex flex-col gap-4\">\n    <div class=\"\
+    text-xl font-bold\">{{ profile.name }}</div>\n    <div class=\"bg-base-300 p-4\
+    \ rounded-md\">\n      <div class=\"font-semibold\">Description</div>\n      <div\
+    \ class=\"mt-2\">{{ profile.description }}</div>\n    </div>\n    <div class=\"\
+    bg-base-300 p-4 rounded-md\">\n      <div class=\"font-semibold\">Content</div>\n\
+    \      <Markdown class=\"mt-2 p-2 rounded-md bg-base-100 border border-slate-700\"\
+    \ :text=\"profile.content\" />\n    </div>\n  </div>\n</template>\n\n<script>\n\
+    export default {\n  props: ['profile']\n}\n</script>\n```"
+  created_at: '2025-11-17 05:51:47.512969'
+  disable_knowledge: false
+  doc_id: ef5072d2-7cf4-40dd-b9a0-59f6d969e07e
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 8.749961853027344e-05
+    model: openai/gpt-4o
+    time_taken: 9.324622392654419
+  profiles:
+  - daisyui_components
+  - VueDeveloper
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-11-17 05:51:47.512995'
+  user: null
+mode: chat
+name: changes-at-profiles-profileviewer-vue-2025-11-17-08-21-39-985521
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- daisyui_components
+- Vue files
+- VueDeveloper
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+target_project_id: null
+updated_at: '2025-11-17T08:21:59.652479'
+url: ''
+users: []
+visibility: ''

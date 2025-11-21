@@ -81,8 +81,8 @@ import PRFileViewModeSelector from "./PRFileViewModeSelector.vue"
       </div>
     </div>
 
-    <SplitterGroup class="h-full" id="splitter-group-1" direction="horizontal" v-if="files">
-      <SplitterPanel id="splitter-group-1-panel-1" :min-size="10" :collapsible="true" class="" :order="0">
+    <SplitterGroup class="grow overflow-auto" id="splitter-group-1" direction="horizontal" v-if="files">
+      <SplitterPanel id="splitter-group-1-panel-1" :min-size="10" :defaultSize="30" :collapsible="true" class="" :order="0">
         <CodxMenu class="h-full overflow-auto"
           :items="visibleFiles" :item-key="'folder'" 
           :defaultExpanded="defaultExpanded"
@@ -124,8 +124,8 @@ import PRFileViewModeSelector from "./PRFileViewModeSelector.vue"
         </CodxMenu>
       </SplitterPanel>
       <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="w-1 hover:bg-slate-600" />
-      <SplitterPanel id="splitter-group-1-panel-2" :min-size="20" :defaultSize="80" :order="1" class="">
-        <PRReport class="w-full h-full overflow-auto" 
+      <SplitterPanel class="w-full h-full overflow-auto" id="splitter-group-1-panel-2" :min-size="20" :defaultSize="70" :order="1">
+        <PRReport  
           ref="prReport"
           :files="visibleFiles"
           :columns="columns"
@@ -153,7 +153,7 @@ import PRFileViewModeSelector from "./PRFileViewModeSelector.vue"
 <script>
 const parser = new DiffParser()
 export default {
-  props: ['fromBranch', 'toBranch', 'extendedData', 'chat', 'prChats'],
+  props: ['fromBranch', 'toBranch', 'chat'],
   data() {
     return {
       repoChanges: null,
@@ -182,6 +182,15 @@ export default {
     this.setProjectContext()
   },
   computed: {
+    childrenChats() {
+      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
+        .sort((a, b) => a.child_index > b.child_index ? 1 : -1)
+    },
+    prChats() {
+      return this.childrenChats.filter(c => c.file_list?.length === 1)
+            .sort((a, b) => a.updated_at > b.updated_at ? 1 : -1)
+            .reduce((acc, c) => ({ ...acc, [c.file_list[0]]: c }), {})
+    },
     reportFiles() {
       return this.selectedFiles?.length ?
         this.selectedFiles : this.visibleFiles
@@ -480,10 +489,11 @@ export default {
         })
       )
     },
-    onFileChat(file, column) {
+    onFileChat({ file, column, message, metadata }) {
+      column = column || this.chat.column
       const { fileFullName, fileShortName, profiles } = file
-      const description = 'Validate file changes. Return "All fine!" if no changes are needed'
-      this.$emit('new-chat', { title: fileShortName, description, files: [fileFullName], profiles, mode: 'task', column })
+      const description = message || 'Validate file changes. Return "All fine!" if no changes are needed'
+      this.$emit('new-chat', { title: fileShortName, description, files: [fileFullName], profiles, mode: 'task', column, metadata })
     },
     onDataItemSelected(item) {
       if (item.hasChildren) {
@@ -507,7 +517,7 @@ export default {
       this.showOption = showOption
     },
     async createFilesChat(files, column) {
-      files.forEach(file => this.onFileChat(file, column))
+      files.forEach(file => this.onFileChat({ file, column }))
       return new Promise(ok => setTimeout(ok, 2000))
     },
     async setFilesColumn() {

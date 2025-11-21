@@ -8,7 +8,6 @@ import UserAvatar from '@/components/user/UserAvatar.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
 import ChatSelector from '@/components/chat/ChatSelector.vue'
-import PRView from '@/components/repo/PRView.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import ProjectDetailt from '@/components/ProjectDetailt.vue'
 import ExportChat from '@/components/chat/ExportChat.vue'
@@ -21,7 +20,7 @@ import ExportChat from '@/components/chat/ExportChat.vue'
         <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <input v-if="editName" type="text" class="input input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
+              <input type="text" class="input input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" v-if="editName" />
               <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2 mb-2">
                   <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
@@ -127,6 +126,9 @@ import ExportChat from '@/components/chat/ExportChat.vue'
                       <li class="flex gap-2" @click="setChatMode('prview')">
                         <a><ChatIcon mode="prview" /> Changes review</a>
                       </li>
+                      <li @click="setChatMode('browser')">
+                        <a><ChatIcon mode="browser" /> Browser</a>
+                      </li>
                       <li @click="openChatSearchModal">
                         <a><i class="fa-solid fa-link"></i> Link</a>
                       </li>
@@ -192,68 +194,62 @@ import ExportChat from '@/components/chat/ExportChat.vue'
             </div>
           </div>
         </div>
-        <PRView class="h-full overflow-auto" 
-          :fromBranch="chat.pr_view?.from_branch"
-          :toBranch="chat.pr_view?.to_branch"
-          :extendedData="extendedData"
-          :prChats="prChats"
-          :chat="workingChat"
-          @select="onPRViewBranchChanged"
-          @comment="onPRFileComment"
-          @change-column="$emit('change-column', $event)"
-          @new-chat="onPRFileCreateChat"
-          v-if="isPRView" />
-          <VerticalSplitter v-else>
-            <template v-slot:left v-if="childrenChats?.length && showChatMenu">
-              <div class="flex justify-start">
-                <button class="btn btn-xs btn-ghost" @click="showChatMenu = false">
-                  <i class="fa-solid fa-caret-left"></i>
-                </button>
-              </div>
-              <ul class="flex flex-col gap-2 overflow-auto h-full">
-                <li class="p-2 hover:bg-base-100 rounded-lg"
-                  @click="showChildChat = null"
-                  :class="!showChildChat && 'text-warning'"
-                >
-                  <a class="flex gap-2 items-start">
-                    <ChatIcon :mode="chat.mode" />{{ chat.name }}</a>
-                </li>
-                <li class="p-2 hover:bg-base-100 rounded-lg"
-                  v-for="childChat in childrenChats" :key="childChat.id"
-                  :class="[
-                    (showChildChat?.name === childChat?.name) && 'text-warning',
-                    (childChat === dropOver) && 'bg-white border border-red-300'
-                  ]"
-                  @click="selectChildChat(childChat)"
-                  @dragstart="onChildMenuDragStart($event, childChat)"
-                  @dragenter.prevent=""
-                  @dragover.prevent="onTaskDragover($event, childChat)"
-                  @dragleave="dropOver = false"
-                  @drop.prevent="onTaskDropped($event, childChat)"
-                  :draggable="true"
-                >
-                  <a class="flex gap-2 justify-between items-start group">
-                    <ChatIcon :mode="childChat.mode" /> {{ childChat.name }}
-                    <span class="hidden group-hover:flex text-xs" 
+        <VerticalSplitter 
+          :panels="{
+            left: { defaultSize: 20 },
+            right: { defaultSize: 80 }
+          }">
+          <template v-slot:left v-if="childrenChats?.length && showChatMenu">
+            <div class="flex justify-start">
+              <button class="btn btn-xs btn-ghost" @click="showChatMenu = false">
+                <i class="fa-solid fa-caret-left"></i>
+              </button>
+            </div>
+            <ul class="flex flex-col overflow-auto h-full">
+              <li class="p-2 hover:bg-base-100 rounded-lg click"
+                v-for="childChat in childrenChats" :key="childChat.id"
+                :class="[
+                  (showChildChat?.name === childChat?.name) && 'text-warning',
+                  (childChat === dropOver) && 'bg-white border border-red-300'
+                ]"
+                @click="selectChildChat(childChat)"
+                @dragstart="onChildMenuDragStart($event, childChat)"
+                @dragenter.prevent=""
+                @dragover.prevent="onTaskDragover($event, childChat)"
+                @dragleave="dropOver = false"
+                @drop.prevent="onTaskDropped($event, childChat)"
+                :draggable="true"
+              >
+                <a class="group">
+                  <div class="flex gap-2 items-start">
+                    <ChatIcon :mode="childChat.mode" />
+                    <div class="flex flex-col gap-1"> 
+                      {{ childChat.name }}
+                      <div class="badge badge-outline badge-xs" v-if="childChat.column !== workingChat.column">
+                        {{ childChat.column }}
+                      </div>
+                    </div>
+                    <div class="grow hidden group-hover:flex text-xs justify-end" 
                       @click.stop="$projects.setActiveChat(childChat)">
                       <i class="fa-solid fa-up-right-from-square"></i>
-                    </span>
-                  </a>
-                </li>
-              </ul>
-            </template>
-            <template v-slot:right>
-              <Chat class="h-full overflow-auto" 
-              :chat="workingChat"
-              :showHidden="showHidden"
-              :childrenChats="showChatMenu ? null : childrenChats"
-              @refresh-chat="loadChat(workingChat)"
-              @remove-file="onRemoveFile" 
-              @delete="confirmDelete = true"
-              @subtask="onNewMessageSubtask"
-            />
-            </template>
-          </VerticalSplitter>
+                    </div>
+                  </div>
+                </a>
+              </li>
+            </ul>
+          </template>
+          <template v-slot:right>
+            <Chat class="h-full overflow-auto" 
+            :chat="workingChat"
+            :showHidden="showHidden"
+            :childrenChats="showChatMenu ? null : childrenChats"
+            @refresh-chat="loadChat(workingChat)"
+            @remove-file="onRemoveFile" 
+            @delete="confirmDelete = true"
+            @subtask="onNewMessageSubtask"
+          />
+          </template>
+        </VerticalSplitter>
         <modal v-if="confirmDelete">
           <div class="">
             <h3 class="font-bold text-lg">Confirm Delete</h3>
@@ -320,6 +316,7 @@ import ExportChat from '@/components/chat/ExportChat.vue'
                 <option value="chat">Chat</option>
                 <option value="topic">Topic</option>
                 <option value="prview">PR View</option>
+                <option value="browser">Browser</option>
               </select>
             </div>
 
@@ -395,7 +392,6 @@ export default {
       showDescription: false,
       projectContext: null,
       showChatSelector: false,
-      extendedData: {},
       showChatMenu: false,
       showChildChat: null,
       showExportChat: false,
@@ -465,14 +461,9 @@ export default {
     chats() {
       return this.$projects.allChats
     },
-    prChats() {
-      return this.childrenChats.filter(c => c.file_list?.length === 1)
-            .sort((a, b) => a.updated_at > b.updated_at ? 1 : -1)
-            .reduce((acc, c) => ({ ...acc, [c.file_list[0]]: c }), {})
-    },
     childrenChats() {
       return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
-        .sort((a, b) => a.child_index > b.child_index ? 1 : -1)
+        .sort((a, b) => a.name > b.name ? 1 : -1)
     },
     chatProject() {
       return this.$projects.allProjectsById[this.chat.project_id] ||
@@ -715,51 +706,6 @@ export default {
     },
     async onAddProfile() {
       this.showAddProfile = true
-    },
-    onPRViewBranchChanged({ fromBranch: from_branch, toBranch: to_branch }) {
-      this.chat.pr_view = {
-        from_branch, to_branch
-      }
-      this.saveChat()
-    },
-    async refreshPRView() {
-      await this.saveChat()
-      await this.$storex.api.repo.changes(this.chat) 
-    },
-    async onPRFileComment({ chat, title, files, description, profiles, mode, column }) {
-      if (chat) {
-        chat.messages.push({
-          user: this.$user.username,
-          role: "user",
-          content: description
-        })
-        chat.profiles = profiles.map(p => p.name)
-        await this.$projects.saveChatInfo(chat)
-        await this.$storex.projects.chatWihProject(chat)
-        
-      } else {
-        this.subtaskName = title
-        this.subtaskDescription = description
-        this.subtaskFiles = files
-        this.subtaskProfiles = profiles
-        this.subtaskMode = mode
-        this.subtaskColumn = column
-        this.createSubtask(false)
-      }
-    },
-    async onPRFileCreateChat({ title, files, description, profiles, mode, column }) {
-      this.$emit('sub-task', {
-          parent: this.chat,
-          name: title,
-          description,
-          project_id: this.chatProject.id,
-          parent_id: this.chat.id,
-          file_list: files,
-          profiles,
-          mode,
-          column,
-          activateChat: false
-        })
     },
     toggleChatPinned() {
       this.chat.pinned = !this.chat.pinned

@@ -1,5 +1,6 @@
 <template>
   <div class="flex w-full flex-col border rounded-md p-2">
+    Add comment:
     <textarea class="textarea"  v-model="editComment" />
     <div class="m-[5px] mt-[0.8em] text-right">
       <div class="inline-flex justify-end gap-x-[12px]">

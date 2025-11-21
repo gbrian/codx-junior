@@ -55,9 +55,10 @@ class ChatEngine:
         return ProfileManager(settings=self.settings)
 
 
-    def get_chat_manager(self):
-        return ChatManager(settings=self.settings)
-
+    def get_chat_manager(self, project_id: str = None):
+        if not project_id:
+            return ChatManager(settings=self.settings)
+        return ChatManager(settings=find_project_by_id(project_id=project_id))
 
     @contextmanager
     def chat_action(self, chat: Chat, event: str):
@@ -95,7 +96,7 @@ class ChatEngine:
 
             parent_chat = None
             if chat.parent_id:
-                chat_manager = self.get_chat_manager()
+                chat_manager = self.get_chat_manager(project_id=chat.parent_project_id)
                 parent_chat = chat_manager.find_by_id(chat.parent_id)
 
             max_iterations = self.settings.get_agent_max_iterations()
@@ -156,11 +157,16 @@ class ChatEngine:
             chat_model = chat.llm_model
             messages = []
 
-            # Disable parent content as it mess after some interacions
-            #parent_content = self.get_chat_analysis_parents(chat=chat)
-            #if parent_content:
-            #    messages.append(HumanMessage(content=parent_content))
-
+            if chat.parent_id:
+                parent_content = self.get_chat_analysis_parents(chat=chat)
+                if parent_content:
+                    if not valid_messages:
+                        logger.info("[parent_content] Adding parent content to messages as no valid messages found")
+                        messages.append(HumanMessage(content=parent_content))
+                    else:
+                        logger.info("[parent_content] Skip parent content as valid messages found")
+                else:
+                    logger.info("[parent_content] No parent content found for: %s", chat.parent_id)
             # Find projects for this
             query_mention_projects: List[CODXJuniorSettings] = [p for p in query_mentions.projects if p and hasattr(p, "codx_path")]
             search_projects: List[CODXJuniorSettings] = list(({
@@ -561,7 +567,7 @@ class ChatEngine:
     def get_chat_analysis_parents(self, chat: Chat):
         """Given a chat, traverse all parents and return all analysis"""
         parent_content = []
-        chat_manager = self.get_chat_manager()
+        chat_manager = self.get_chat_manager(project_id=chat.parent_project_id)
         parent_chat = chat_manager.find_by_id(chat.parent_id)
         while parent_chat:
             messages = [message.content for message in parent_chat.messages if not message.hide]

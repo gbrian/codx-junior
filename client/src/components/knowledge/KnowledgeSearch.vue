@@ -39,7 +39,7 @@ import MarkdownVue from '@/components/Markdown.vue'
         <div
           class="border p-2 border cursor-pointer rounded-md bg-base-300 flex flex-col justify-between gap-2 text-xs"
             :class="doc.selected && 'border-info border-2'"
-          v-for="doc, key in searchResults.documents" :key="key" 
+          v-for="doc, key in sortedDocuments" :key="key" 
             @click="$emit('select', doc)">
           <div class="p-1 rounded font-bold flex flex-col gap-2" :title="doc.metadata.source"
             :class="doc.metadata.relevance_score >= cutoffScore ? 'text-primary' : 'text-error'">
@@ -95,6 +95,11 @@ export default {
     },
     searchTypeSelected() {
       return this.searchTypes.filter(st => st.selected)
+    },
+    sortedDocuments() {
+      return Object.values(this.searchResults.documents)
+        .sort((a, b) => a.metadata.source > b.metadata.source ? 1: -1)
+        
     }
   },
   methods: {
@@ -116,7 +121,7 @@ export default {
                 documentCount: this.documentCount
               }).then(this.mergeResults.bind(this)))
             )
-        const documents  = results.reduce((a, b) => ({ ...a, ...b }), {})
+        let documents  = results.reduce((a, b) => ({ ...a, ...b }), {})
         this.searchResults = { documents }
       } finally {
         this.searching = false

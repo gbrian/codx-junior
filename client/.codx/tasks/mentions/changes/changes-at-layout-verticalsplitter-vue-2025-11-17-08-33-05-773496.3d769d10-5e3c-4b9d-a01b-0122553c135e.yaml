@@ -1,0 +1,154 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: changes
+column_id: ''
+created_at: '2025-11-17 05:51:47.515498'
+description: The conversation involves updating a Vue component file, `VerticalSplitter.vue`,
+  with best practices and project-specific guidelines. The file uses `SplitterGroup`,
+  `SplitterPanel`, and `SplitterResizeHandle` from the `radix-vue` library and includes
+  a `panels` property. Instructions emphasize using DaisyUI components, TailwindCSS
+  classes, and maintaining a consistent structure across all Vue components. Additional
+  guidelines include using FontAwesome for icons and avoiding unnecessary imports
+  or lengthy functions. The final goal is to ensure the component adheres to these
+  standards without losing any original details.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-layout-verticalsplitter-vue-2025-11-17-08-33-05-773496.3d769d10-5e3c-4b9d-a01b-0122553c135e.yaml
+id: 3d769d10-5e3c-4b9d-a01b-0122553c135e
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "\n                    ```document /shared/codx-junior/client/src/components/layout/VerticalSplitter.vue\n\
+    \                    <script setup>\nimport { SplitterGroup, SplitterPanel, SplitterResizeHandle\
+    \ } from 'radix-vue'\n</script>\n<template>\n  <SplitterGroup class=\"h-full\"\
+    \ :id=\"groupId\" direction=\"horizontal\">\n      <SplitterPanel\n        :id=\"\
+    `${groupId}-panel-splitter-1`\" \n        :min-size=\"10\" :collapsible=\"true\"\
+    \ class=\"\" :order=\"0\"\n          v-if=\"$slots.left\"\n        >\n       \
+    \ <slot name=\"left\">\n        </slot>\n      </SplitterPanel>\n      <SplitterResizeHandle\
+    \ :id=\"`${groupId}-panel-divider`\" class=\"w-1 hover:bg-slate-600\"\n      \
+    \  v-if=\"$slots.right\"\n      />\n      <SplitterPanel \n        :id=\"`${groupId}-panel-splitter-2`\"\
+    \ \n        :min-size=\"20\" :defaultSize=\"80\" :order=\"1\" class=\"\"\n   \
+    \     v-if=\"$slots.right\"\n      >\n        <slot name=\"right\">\n        </slot>\n\
+    \      </SplitterPanel>\n      <codx-ok, please-wait...>\n      panels property\
+    \ is an optional panel list with the optional values for each panel like: min-size,\
+    \ default-size.\n      panels will look like:\n      ```json \n      {\n     \
+    \   left: { minSize: 10 },\n        right: {}\n      }\n      ```\n      </codx-ok,\
+    \ please-wait...>\n  </SplitterGroup>\n</template>\n<script>\nexport default {\n\
+    \  props: ['panels'],\n  computed: {\n    groupId() {\n      const t = this.generateUID()\n\
+    \      return `splitter-group-${t}`\n    }\n  }\n}\n</script>\n              \
+    \      ```\n\n                    Apply these changes to /shared/codx-junior/client/src/components/layout/VerticalSplitter.vue:\n\
+    \                    User commented in line 24: >\npanels property is an optional\
+    \ panel list with the optional values for each panel like: min-size, default-size.\n\
+    panels will look like:\n```json\n{\nleft: { minSize: 10 },\nright: {}\n}\n```\n\
+    \                    \n                    Instructions:\n                   \
+    \   Best practices for this file:\n            Project uses DaisyUI for components,\
+    \ use them instead basic HTML elements\nAll components must have same structure:\
+    \ \"setup\", \"template\", \"script\".\nVue Component Example:\n```vue file/path/to/Component.vue\n\
+    <script setup>\nimport Component from './component.vue'\nimport markdown from\
+    \ 'mardown'\n</script>\n<template>\n<div class=\"w.full h-full flex gap-2\">\n\
+    </div>\n</template>\n<script>\nexport default {\nprops: [].\ndata (){\n// Reactive\
+    \ data, don't use \"ref\"\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\nImportant:\n* No css, use TailwindCSS clases\n\
+    * No need to import ref, computed or mapState \n* export default component object\n\
+    * Use component \"data\" method to return an object variables\n* Use component\
+    \ \"computed\" to define computed properties\n\" Use component \"methods\" to\
+    \ define component methods \n* Use \"this.$storex\" or \"$storex\" to access store\
+    \ data.\n* To access vue store data use \"$storex\"\n* \"script setup\" section\
+    \ contains ONLY imports, no variables, properties bnor methods\n* Vue component\
+    \ definition will be exporting a default object like, without ref, nor computed\
+    \ imports\n* Don't use \";\" in the javascript or typescript code\n* Avoid long\
+    \ functions\n* Add short and concise comments for complex functions\nMake sure\
+    \ all vue components follow this structure:\n```vue\n<script setup><!-- Import\
+    \ all components and libraries on the top -->\n</script>\n<template><!-- Component\
+    \ markup -->\n<div></div>\n</template>\n<script><!-- Component logic -->\nexport\
+    \ default {\n}\n</script>\n```\n\nUse fontawesome for icons like: <i class=\"\
+    fa-solid fa-right-from-bracket\"></i>\n            \n                      Apply\
+    \ all comments to the document and return a final version.\n                 \
+    \     Pay attention to do not loose any detail or part of the document.\n    \
+    \                  Return only the file content \n                    "
+  created_at: '2025-11-17 05:51:47.512969'
+  disable_knowledge: false
+  doc_id: 9af380e3-07cb-499a-b6af-7230ae0ff33f
+  done: true
+  files:
+  - /shared/codx-junior/client/src/components/layout/VerticalSplitter.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  - VueDeveloper
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-17 05:51:47.512995'
+  user: null
+- content: "```vue /shared/codx-junior/client/src/components/layout/VerticalSplitter.vue\n\
+    <script setup>\nimport { SplitterGroup, SplitterPanel, SplitterResizeHandle }\
+    \ from 'radix-vue'\n</script>\n\n<template>\n  <SplitterGroup class=\"h-full\"\
+    \ :id=\"groupId\" direction=\"horizontal\">\n    <SplitterPanel\n      :id=\"\
+    `${groupId}-panel-splitter-1`\"\n      :min-size=\"10\"\n      :collapsible=\"\
+    true\"\n      v-if=\"$slots.left\"\n    >\n      <slot name=\"left\"></slot>\n\
+    \    </SplitterPanel>\n    <SplitterResizeHandle\n      :id=\"`${groupId}-panel-divider`\"\
+    \n      class=\"w-1 hover:bg-slate-600\"\n      v-if=\"$slots.right\"\n    />\n\
+    \    <SplitterPanel\n      :id=\"`${groupId}-panel-splitter-2`\"\n      :min-size=\"\
+    20\"\n      :defaultSize=\"80\"\n      v-if=\"$slots.right\"\n    >\n      <slot\
+    \ name=\"right\"></slot>\n    </SplitterPanel>\n  </SplitterGroup>\n</template>\n\
+    \n<script>\nexport default {\n  props: ['panels'],\n  computed: {\n    groupId()\
+    \ {\n      // Generates a unique ID for the splitter group\n      const t = this.generateUID()\n\
+    \      return `splitter-group-${t}`\n    }\n  }\n}\n</script>\n```"
+  created_at: '2025-11-17 05:51:47.512969'
+  disable_knowledge: false
+  doc_id: c6c28242-f470-4089-86c6-5e16148b77b8
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 8.463859558105469e-05
+    model: openai/gpt-4o
+    time_taken: 3.4815664291381836
+  profiles:
+  - daisyui_components
+  - VueDeveloper
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-11-17 05:51:47.512995'
+  user: null
+mode: chat
+name: changes-at-layout-verticalsplitter-vue-2025-11-17-08-33-05-773496
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- daisyui_components
+- Vue files
+- VueDeveloper
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+target_project_id: null
+updated_at: '2025-11-17T08:33:12.782910'
+url: ''
+users: []
+visibility: ''

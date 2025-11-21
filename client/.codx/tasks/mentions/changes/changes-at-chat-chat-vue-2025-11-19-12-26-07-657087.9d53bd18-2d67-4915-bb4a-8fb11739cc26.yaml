@@ -1,0 +1,1070 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: changes
+column_id: ''
+created_at: '2025-11-19 09:22:16.278033'
+description: The conversation involves a Vue.js component file, `Chat.vue`, from a
+  project using DaisyUI and TailwindCSS. The file includes a script setup with imports,
+  a template for UI layout, and a script section for component logic. Instructions
+  are provided to synchronize `editor.innerText` with `editorText` and to refactor
+  the component following best practices, such as using DaisyUI components, TailwindCSS
+  for styling, and FontAwesome for icons. The final task is to apply these changes
+  and ensure the component adheres to a consistent structure.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-chat-chat-vue-2025-11-19-12-26-07-657087.9d53bd18-2d67-4915-bb4a-8fb11739cc26.yaml
+id: 9d53bd18-2d67-4915-bb4a-8fb11739cc26
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "\n                    ```document /shared/codx-junior/client/src/components/chat/Chat.vue\n\
+    \                    <script setup>\nimport moment from 'moment'\nimport { API\
+    \ } from '../../api/api'\nimport ChatEntry from '@/components/ChatEntry.vue'\n\
+    import Browser from '@/components/browser/Browser.vue'\nimport Markdown from '@/components/Markdown.vue'\n\
+    import TaskCard from '../kanban/TaskCard.vue'\nimport UserSelector from './UserSelector.vue'\n\
+    import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'\nimport CheckLists\
+    \ from './CheckLists.vue'\nimport MentionSelector from '../mentions/MentionSelector.vue'\n\
+    import PRView from '@/components/repo/PRView.vue'\n</script>\n\n<template>\n \
+    \ <div class=\"h-full flex flex-col gap-1\">\n    <div class=\"grow relative flex\
+    \ flex-col\">\n      <div class=\"flex gap-2 items-center justify-bnetween\">\n\
+    \        <div class=\"w-full\" v-if=\"chatFiles.length\">\n          <div class=\"\
+    my-2 text-xs\">\n            <span>\n              <i class=\"fa-solid fa-paperclip\"\
+    ></i>\n            </span>\n            <a v-for=\"file in chatFiles\" :key=\"\
+    file\" :data-tip=\"file\" class=\"group text-nowrap ml-2 hover:underline hover:bg-base-300\
+    \ cursor-pointer text-accent\" @click=\"$ui.openFile(file)\">\n              <span\
+    \ class=\"click mr-1\" @click.stop=\"$ui.copyTextToClipboard(file)\"><i class=\"\
+    fa-solid fa-copy\"></i></span>\n              <span :title=\"file\" >{{ file?.split('/').reverse()[0]\
+    \ || '---error---' }}</span>\n              <span class=\"ml-2 cursor-pointer\"\
+    \ @click.stop=\"removeFileFromChat(file)\">\n                <i class=\"fa-regular\
+    \ fa-circle-xmark\"></i>\n              </span>\n            </a>\n          </div>\n\
+    \        </div>\n        <CheckLists class=\"\" :chat=\"chat\" @change=\"saveChat\"\
+    \ />\n        \n      </div>\n      <div class=\"grow overflow-y-auto overflow-x-hidden\"\
+    >\n        <Browser class=\"\" :token=\"$ui.monitors['shared']\" v-if=\"isBrowser\"\
+    />\n        <PRView class=\"h-full overflow-auto\" \n          :fromBranch=\"\
+    chat.pr_view?.from_branch\"\n          :toBranch=\"chat.pr_view?.to_branch\"\n\
+    \          :chat=\"chat\"\n          @select=\"onPRViewBranchChanged\"\n     \
+    \     @comment=\"onPRFileComment\"\n          @change-column=\"$emit('change-column',\
+    \ $event)\"\n          @new-chat=\"onPRFileCreateChat\"\n          @chat-message=\"\
+    onPRChatMessage\"\n          v-if=\"isPRView\" />\n        \n        <div class=\"\
+    overflow-auto h-full\" v-if=\"!isBrowser && !isPRView\">\n          <div class=\"\
+    flex flex-col gap-1 mb-2\">\n            <ChatEntry v-for=\"knowledgeMessage in\
+    \ knowledgeMessages\"\n                class=\"rounded-lg overflow-hidden\"\n\
+    \                :key=\"knowledgeMessage.id\"\n                :chat=\"chat\"\n\
+    \                :message=\"knowledgeMessage\"\n                :isTopic=\"isTopic\
+    \ && !ix\"\n                :mentionList=\"mentionList\"\n                :menu-less=\"\
+    readOnly\"\n              />\n          </div>\n          <div class=\"flex flex-col\"\
+    \ v-for=\"message, ix in messages\" :key=\"message.id\">\n            <ChatEntry\
+    \ :class=\"['mb-4 rounded-md',\n              isChannel ? '': 'py-2',\n      \
+    \        editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40'\
+    \ : '']\"\n              :chat=\"chat\"\n              :message=\"message\"\n\
+    \              :isTopic=\"isTopic && !ix\"\n              :mentionList=\"mentionList\"\
+    \n              :menu-less=\"readOnly\"\n              @edited=\"onMessageEdited\"\
+    \n              @enhance=\"onEditMessage(message, true)\"\n              @remove=\"\
+    removeMessage(message)\"\n              @remove-file=\"removeFileFromMessage(message,\
+    \ $event)\"\n              @hide=\"toggleHide(message)\"\n              @answer=\"\
+    toggleAnswer(message)\"\n              @run-edit=\"runEdit\"\n              @copy=\"\
+    onCopy(message)\"\n              @add-file-to-chat=\"onAddFile($event)\"\n   \
+    \           @image=\"imagePreview = { ...$event, readonly: true }\"\n        \
+    \      @generate-code=\"onGenerateCode\"\n              @reload-file=\"onReloadMessageFile\"\
+    \n              @open-file=\"onOpenFile\"\n              @save-file=\"onSaveFile\"\
+    \n              @add-file=\"onAddFile\"\n              @edit-message=\"onEditMessage($event,\
+    \ message)\"\n              @code-file-shown.stop=\"console.log\"\n          \
+    \    @subtask=\"$emit('subtask', { chat: chat, message })\"\n            />\n\
+    \          </div>\n          <div class=\"anchor\" ref=\"anchor\"></div>\n   \
+    \       <div class=\"grid grid-cols-3 gap-2 mb-2\" v-if=\"childrenChats?.length\"\
+    >\n            <div v-for=\"child in childrenChats\" :key=\"child.id\" class=\"\
+    relative\">\n              <TaskCard class=\"click p-2 bg-base-100 h-40\" :task=\"\
+    child\" @click=\"$projects.setActiveChat(child)\" />\n            </div>\n   \
+    \       </div>\n        </div>\n      </div>\n    </div>\n    <div class=\"sticky\
+    \ bottom-0 z-50 bg-base-300\">\n      <div class=\"flex gap-2\">\n        <span\
+    \ class=\"badge tooltip flex gap-2 items-center\"\n          :data-tip=\"mention.tooltip\"\
+    \n          :class=\"{ 'badge-primary': mention.project, 'badge-success badge-outline':\
+    \ mention.profile }\"\n          v-for=\"mention in messageMentions\" :key=\"\
+    mention.name\"\n          :title=\"mention.file || mention.name\"\n          >\n\
+    \          <i class=\"fa-solid fa-magnifying-glass\" v-if=\"mention.project\"\
+    ></i>\n          <img class=\"w-4 rounded-full\" :src=\"mention.profile.avatar\"\
+    \ v-if=\"mention.profile?.avatar\" />\n          <i class=\"fa-solid fa-user\"\
+    \ v-if=\"mention.profile && !mention.profile.avatar\"></i>\n          <i class=\"\
+    fa-solid fa-file-lines\" v-if=\"mention.file\"></i>\n          <i class=\"fa-solid\
+    \ fa-file-arrow-up\" @click=\"onAddFile(mention.file)\" v-if=\"mention.file\"\
+    ></i>\n          \n          <div class=\"-mt-1\">\n            {{ mention.name\
+    \ }}\n          </div>\n          <span class=\"click\" @click=\"removeMessageMention(mention)\"\
+    >X</span>\n        </span>\n      </div>\n\n      <MentionSelector\n        :content=\"\
+    editorText\" \n        :project=\"projectContext || $projects\" \n        @select=\"\
+    onMentionReplace\" />\n\n      <div class=\"border border-primary rounded-md bg-base-100\
+    \ mt-2 pb-2\" :class=\"['flex shadow indicator w-full', \n            'flex-col',\n\
+    \            editMessage && 'border-warning',\n            onDraggingOverInput\
+    \ ? 'bg-warning/10': '']\"\n        @dragover.prevent=\"onDraggingOverInput =\
+    \ true\"\n        @dragleave.prevent=\"onDraggingOverInput = false\"\n       \
+    \ @drop.prevent=\"onDrop\"\n        v-if=\"!isBrowser && !isPRView && readOnly\
+    \ !== true\"\n        >\n        <div class=\"flex flex-col gap-1 bg-base-300\
+    \ rounded-md\" v-if=\"showDocumentSearchModal\">\n          <KnowledgeSearch class=\"\
+    p-2 h-60\"\n            :project=\"chatProject\"\n            :close=\"true\"\n\
+    \            @close=\"closeDocumentSearch\"\n            @select=\"onAddDocument\"\
+    \          \n          />\n        </div>\n        <div class=\"editor\" :class=\"\
+    ['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']\"\
+    \n          :contenteditable=\"!waiting\"\n          ref=\"editor\"\n        \
+    \  @paste=\"onContentPaste\"\n          @keydown=\"onEditMessageKeyDown\"\n  \
+    \        \n        >\n        @codx-ok, please-wait...: we must syncronize editor.innerText\
+    \ with textEditor variable so when editor.innerText changes we set editorText\
+    \ and if textEditor changes we update editor.innerText \n        </div>\n    \
+    \    <div class=\"flex justify-between items-end px-2 bg-base-300 rounded-b-md\"\
+    >\n          <div class=\"carousel rounded-box\">\n            <div class=\"carousel-item\
+    \ relative click flex flex-col\" v-for=\"image, ix in allImages\" :key=\"image.src\"\
+    >\n              <div class=\"bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20\
+    \ lg:w-20 bg-base-300 mr-4\"\n                :style=\"`background-image: url(${image.src})`\"\
+    \ @click=\"imagePreview = image\">\n              </div>\n              <p class=\"\
+    text-xs\">{{ image.alt.slice(0, 10) }}</p>\n              <button class=\"btn\
+    \ btn-xs btn-circle btn-error absolute right-0 top-0\"\n                @click=\"\
+    removeImage(ix)\">\n                X\n              </button>\n            </div>\n\
+    \          </div>\n          <span class=\"loading loading-dots loading-md btn\
+    \ btn-sm\" v-if=\"waiting\"></span>\n          <div class=\"grow flex gap-2 items-end\"\
+    \ v-else>\n            <UserSelector \n              class=\"dropdown-top\"\n\
+    \              :selectedUser=\"selectedUser\"\n              :profiles=\"profiles\"\
+    \n              @user-changed=\"selectedUser = $event\"\n            />\n    \
+    \        <div class=\"text-xs\">Find: ctrl+f</div>\n            <div class=\"\
+    grow\"></div>\n            <div class=\"flex gap-2 items-center justify-end\"\
+    \ v-if=\"!searchingInKnowledge\">\n              <button class=\"btn btn btn-sm\
+    \ btn-info btn-outline\" @click=\"sendMessage\" v-if=\"editMessage\">\n      \
+    \          <i class=\"fa-solid fa-save\"></i>\n                <div class=\"text-xs\"\
+    \ v-if=\"editMessage && !showDocumentSearchModal\">Edit</div>\n              </button>\n\
+    \              <button class=\"btn btn btn-sm btn-outline tooltip\" data-tip=\"\
+    Save changes\" @click=\"onResetEdit\"\n                v-if=\"editMessage\">\n\
+    \                <i class=\"fa-regular fa-circle-xmark\"></i>\n              </button>\n\
+    \              <button class=\"btn btn btn-sm btn-circle tooltip\"\n         \
+    \       data-tip=\"Ask codx-junior\"\n                :class=\"isVoiceSession\
+    \ && 'btn-success animate-pulse'\"\n                @click=\"sendMessage\"\n \
+    \               ref=\"sendButton\"\n                v-if=\"!editMessage && !showDocumentSearchModal\"\
+    >\n                <i class=\"fa-solid fa-microphone-lines\" v-if=\"isVoiceSession\"\
+    ></i>\n                <i class=\"fa-solid fa-paper-plane\" v-else></i>\n    \
+    \          </button>\n              <button class=\"hidden btn btn btn-sm btn-outline\
+    \ tooltip btn-warning\"\n                data-tip=\"Make code changes\" @click=\"\
+    improveCode()\" v-if=\"!editMessage && chat.mode === 'chat'\">\n             \
+    \   <i class=\"fa-solid fa-code\"></i>\n              </button>\n\n          \
+    \    <div class=\"dropdown dropdown-top dropdown-end\">\n                <div\
+    \ tabindex=\"1\" role=\"button\" class=\"btn btn-sm m-1\">\n                 \
+    \ <i class=\"fa-solid fa-ellipsis-vertical\"></i>\n                </div>\n  \
+    \              <ul tabindex=\"1\" class=\"dropdown-content menu bg-base-200 rounded-box\
+    \ z-[1] w-52 p-2 shadow gap-2\">\n                  <li class=\"btn btn-sm tooltip\"\
+    \n                    data-tip=\"Attach files\"\n                    @click=\"\
+    selectFile = true\">\n                    <a>\n                      <i class=\"\
+    fa-solid fa-paperclip\"></i> Attach files\n                    </a>\n        \
+    \          </li>\n                  <li class=\"btn btn-sm\" @click=\"testProject\"\
+    \ v-if=\"API.activeProject.script_test\">\n                    <a>\n         \
+    \             <i class=\"fa-solid fa-flask\"></i>\n                      Test\n\
+    \                    </a>\n                  </li>\n                  <li class=\"\
+    btn btn-sm tooltip\"\n                    :class=\"isVoiceSession && 'btn-success'\"\
+    \n                    :data-tip=\"$ui.voiceLanguages[$ui.voiceLanguage]\"\n  \
+    \                  @click=\"toggleVoiceSession\" v-if=\"!editMessage\">\n    \
+    \                <a>\n                      <i class=\"fa-solid fa-microphone-lines\"\
+    ></i>\n                      Voice mode\n                    </a>\n          \
+    \        </li>\n                  <li class=\"btn btn-sm btn-error tooltip\"\n\
+    \                    :class=\"isVoiceSession && 'btn-success'\"\n            \
+    \        :data-tip=\"$ui.voiceLanguages[$ui.voiceLanguage]\"\n               \
+    \     @click=\"showDeleteModal = true\" v-if=\"enableDelete\">\n             \
+    \       <a>\n                      <i class=\"fa-solid fa-trash-can\"></i>\n \
+    \                     Delete\n                    </a>\n                  </li>\n\
+    \                </ul>\n              </div>\n            </div>\n           \
+    \ <div class=\"flex gap-2 items-center justify-end py-2 animate-pulse\" v-else>\n\
+    \              Searching...\n            </div>\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n    <modal class=\"w-10/12 lg:w-3/4 h-10/12 lg:h-3/4\"\
+    \ v-if=\"imagePreview\">\n      <div class=\"h-full flex flex-col gap-2 justify-between\"\
+    >\n        <div class=\"text-2xl\">Upload image</div>\n        <div class=\"grow\"\
+    >\n          <div class=\"bg-contain bg-no-repeat bg-base-300/20 bg-center h-full\
+    \ w-full\" :style=\"`background-image: url(${imagePreview.src})`\"></div>\n  \
+    \      </div>\n        <div>\n          Image alt: <span class=\"text-xs\" v-if=\"\
+    imagePreview.alt?.length\">{{ imagePreview.alt?.length }} chars.</span>\n    \
+    \    </div>\n        <pre class=\"alert alert-xs h-20 overflow-auto\" v-if=\"\
+    imagePreview.readonly\">{{ imagePreview.alt }}</pre>\n        <div class=\"textarea\
+    \ input-bordered\" v-else>\n          <textarea class=\"w-full bg-transparent\"\
+    \ v-model=\"imagePreview.alt\" placeholder=\"Image content\">\n          </textarea>\n\
+    \          <div class=\"flex justify-end\">\n            <button class=\"btn btn-sm\
+    \ bg-purple-600 text-white tooltip\"\n              data-tip=\"Extract text\"\n\
+    \              @click=\"onExtractTextImage(imagePreview)\">\n              <i\
+    \ class=\"fa-regular fa-closed-captioning\"></i>\n            </button>\n    \
+    \      </div>\n        </div>\n        <div class=\"flex justify-end gap-2\">\n\
+    \          <button class=\"btn\" @click=\"imagePreview = null\">\n           \
+    \ Cancel\n          </button>\n          <button class=\"btn btn-primary\" @click=\"\
+    onAddImage\">\n            Ok\n          </button>\n        </div>\n      </div>\n\
+    \    </modal>\n    <modal v-if=\"selectFile\">\n      <div class=\"flex flex-col\"\
+    >\n        <div class=\"text-xl\">Project file</div>\n        \n        <input\
+    \ type=\"text\" class=\"input input-bordered\"\n          placeholder=\"File path\"\
+    \ \n          v-model=\"uploadProjectFile\" \n          />\n        <button class=\"\
+    btn btn-sm\" @click=\"addChatFile\">\n          Add file\n        </button>\n\
+    \        \n        \n        <label class=\"file-select\">\n          <div class=\"\
+    select-button\">\n            <span>Select File(s)</span>\n          </div>\n\
+    \          <input type=\"file\" accept=\"image/*\" multiple @change=\"handleFileChange\"\
+    \ />\n          <button class=\"btn btn-sm btn-error\" @click=\"selectFile = false\"\
+    >\n            Cancel\n          </button>\n        </label>\n      </div>\n \
+    \   </modal>\n    <modal v-if=\"showDeleteModal\">\n      <div class=\"flex flex-col\
+    \ gap-2\">\n        <div class=\"text-xl\">Confirm Deletion</div>\n        <p>Are\
+    \ you sure you want to delete this task?</p>\n        <div class=\"font-bold text-primary\
+    \ text-xl\">{{ taskToDelete.name }}</div>\n        <div class=\"flex justify-end\
+    \ gap-2\">\n          <button class=\"btn\" @click=\"showDeleteModal = false\"\
+    >Cancel</button>\n          <button class=\"btn btn-error\" @click=\"deleteTask\"\
+    >Delete</button>\n        </div>\n      </div>\n    </modal>\n  </div>\n</template>\n\
+    \n<script>\nconst defFormater = d => JSON.stringify(d, null, 2)\n\nexport default\
+    \ {\n  props: ['chat', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete'],\n\
+    \  data() {\n    return {\n      waiting: false,\n      editMessage: null,\n \
+    \     editMessageId: null,\n      files: [],\n      images: [],\n      previewImage:\
+    \ null,\n      editorText: \"\",\n      imagePreview: null,\n      onDraggingOverInput:\
+    \ false,\n      testError: null,\n      previewStyle: {\n        zoom: 0.6\n \
+    \     },\n      selectFile: false,\n      isVoiceSession: false,\n      recognition:\
+    \ null,\n      syncEditableTextInterval: null,\n      showDeleteModal: false,\n\
+    \      taskToDelete: null,\n      selectedUser: null,\n      refreshngMentions:\
+    \ null,\n      selectedDocuments: null,\n      showDocumentSearchModal: false,\n\
+    \      searchingInKnowledge: false,\n      projectContext: this.$project,\n  \
+    \    uploadProjectFile: null,\n    }\n  },\n  created() {\n    this.selectedUser\
+    \ = this.$user\n    this.setProjectContext()\n  },\n  mounted() {\n    // this.syncEditableTextInterval\
+    \ = setInterval(() => this.onMessageChange(), 100)\n    this.initSelectedUserFromChat()\n\
+    \  },\n  unmounted() {\n    clearInterval(this.syncEditableTextInterval)\n  },\n\
+    \  computed: {\n    chatFiles() {\n      return this.chat.file_list || []\n  \
+    \  },\n    isPRView() {\n      return this.chat.mode === 'prview'\n    },\n  \
+    \  isBrowser() {\n      return this.chat.mode === 'browser'\n    },\n    visibleMessages()\
+    \ {\n      return this.chat?.messages?.filter(m => !m.hide || this.showHidden)\
+    \ || []\n    },\n    lastAIMessage() {\n      const { activeMessages } = this\n\
+    \      const lastAiMessages = activeMessages?.filter(m => m.role === 'assistant').reverse()\n\
+    \      if (!lastAiMessages?.length) {\n        return null\n      }\n      if\
+    \ (lastAiMessages.length < 2) {\n        return lastAiMessages[0]\n      }\n \
+    \     const [ last, ...previous ] = lastAiMessages  \n      \n      return { ...last,\
+    \ diffMessage: previous[0] }\n    },\n    lastUserMessage() {\n      const { messages\
+    \ } = this\n      const msgs = messages?.filter(m => m.role !== 'assistant')\n\
+    \      return msgs ? msgs[msgs.length - 1] : null\n    },\n    lastMessage() {\n\
+    \      const { messages } = this\n      return messages?.length ? messages[messages.length\
+    \ - 1] : null\n    },\n    diffMessage() {\n      if (this.isTask) {\n       \
+    \ const { messages } = this.chat\n        const aiMsgs = messages.filter(m =>\
+    \ m.role === 'assistant')\n        if (aiMsgs.length > 1) {\n          return\
+    \ aiMsgs[aiMsgs.length - 2]\n        }\n      }\n      return null\n    },\n \
+    \   activeMessages() {\n      const messages = this.chat?.messages\n      return\
+    \ messages?.filter(m => !m.hide || this.showHidden) || []\n    },\n    knowledgeMessages()\
+    \ {\n      return this.chat?.messages?.filter(m => !m.hide && m.is_answer)\n \
+    \   },\n    messages() {\n      const { activeMessages } = this\n      if (!activeMessages.length)\
+    \ {\n        return []\n      }\n      if (this.isTask && !this.showHidden &&\
+    \ activeMessages?.length) {\n        const aiMsg = this.lastAIMessage\n      \
+    \  const lastMsg = activeMessages[activeMessages.length - 1]\n        const res\
+    \ = []\n        if (aiMsg) {\n          res.push(aiMsg)\n        }\n        if\
+    \ (lastMsg && lastMsg?.role !== 'assistant') {\n          res.push(lastMsg)\n\
+    \        }\n        return res\n      }\n      return activeMessages.filter(message\
+    \ => (!message.hide || this.showHidden) && !message.is_answer)\n    },\n    multiline()\
+    \ {\n      return this.editorText?.split(\"\\n\").length > 1 || this.images?.length\n\
+    \    },\n    allImages() {\n      return this.images\n    },\n    messageText()\
+    \ {\n      return this.editorText\n    },\n    canPost() {\n      return this.messageText\
+    \ || this.images?.length\n    },\n    isTask() {\n      return this.chat?.mode\
+    \ === 'task'\n    },\n    isTopic() {\n      return this.chat?.mode === 'topic'\n\
+    \    },\n    topicMessage() {\n      return this.messages[0]\n    },\n    chatProject()\
+    \ {\n      return this.projectContext || this.$project\n    },\n    mentionList()\
+    \ {\n      return (this.projectContext || this.$projects).mentionList\n    },\n\
+    \    messageMentions() {\n      const mentions = [...this.messageText.matchAll(/@([^\\\
+    s]+)/mg)]\n        .map(w => w[1])\n      return [...this.mentionList.filter(m\
+    \ => mentions.includes(m.mention)), \n              ...this.files.map(file =>\
+    \ ({\n                name: file.split(\"/\").reverse()[0],\n                file\n\
+    \              }))]\n    },\n    lastChatEvent() {\n      const { events } = this.$storex.session\n\
+    \      const event = events[events.length - 1]\n      if (event?.data.chat?.id\
+    \ === this.chat.id) {\n        const message = event.data.message?.content ||\
+    \ \"\"\n        return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type\
+    \ || event.data.type || ''} ${event.data.text || ''}\\n${message}`\n      } \n\
+    \    },\n    profiles() {\n      return this.projectContext?.profiles || []\n\
+    \    },\n    usersList() {\n      return [this.$store.state.user, ...this.profiles]\n\
+    \    },\n    isChannel() {\n      return this.chat.mode === 'topic'\n    },\n\
+    \    chatProject() {\n      return this.$projects.allProjectsById[this.chat.project_id]\
+    \ ||\n                this.$project\n    },\n    editor() {\n      return this.$el.querySelector('.editor')\n\
+    \    }\n  },\n  watch: {\n    chat() {\n      this.initSelectedUserFromChat()\n\
+    \      this.setProjectContext()\n    },\n    uploadProjectFile(newVal, oldVal)\
+    \ {\n      if (newVal?.length >= 3 && newVal?.length > oldVal?.length) {\n   \
+    \     this.detectSearchTerm()\n      }\n    }\n  },\n  methods: {\n    async setProjectContext()\
+    \ {\n      if (this.projectContext?.project_id !== this.chatProject.project_id)\
+    \ {\n        this.projectContext = await this.$service.project.loadProjectContext(this.chatProject)\n\
+    \      }\n    },\n    initSelectedUserFromChat() {\n      const messages = this.chat.messages.filter(m\
+    \ => !m.hide && m.profiles?.length)\n      const lastProfileMessage = messages[messages.length\
+    \ - 1]\n      if (lastProfileMessage) {\n        const userName = lastProfileMessage.profiles[0]\n\
+    \        const user = this.$projects.userList.find(u => u.name === userName) \n\
+    \        this.selectedUser = user\n      } else if (!this.selectedUser) {\n  \
+    \      this.selectedUser = this.$user\n      }\n    },\n    zoomIn() {\n     \
+    \ this.previewStyle.zoom += 0.1\n    },\n    zoomOut() {\n      this.previewStyle.zoom\
+    \ -= 0.1\n    },\n    setEditorText(text) {\n      this.editor.innerText = text\n\
+    \    },\n    onEditMessage(message, enhance) {\n      if (this.editMessage ===\
+    \ message) {\n        return this.onResetEdit()\n      }\n      this.editMessageId\
+    \ = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)\n      this.editMessage\
+    \ = this.chat.messages[this.editMessageId]\n      const profile = this.editMessage.profiles[0]?.name\n\
+    \      if (profile) {\n        this.selectedUser = profile\n      } \n      try\
+    \ {\n        this.images = message.images.map(JSON.parse)\n      } catch { }\n\
+    \      this.setEditorText(this.editMessage.content)\n    },\n    toggleHide({\
+    \ doc_id, hide }) {\n      this.updateExistingMessage({ doc_id }, { hide: !hide\
+    \ })\n    },\n    toggleAnswer({ doc_id, is_answer }) {\n      this.updateExistingMessage({\
+    \ doc_id }, { is_answer: !is_answer })\n    },\n    onCopy(message) {\n      navigator.permissions.query({\
+    \ name: \"clipboard-read\" }).then(result => {\n        if (result.state == \"\
+    granted\" || result.state == \"prompt\") {\n          navigator.clipboard.writeText(message.content)\n\
+    \        }\n      })\n      .catch(console.error)\n    },\n    async improveCode()\
+    \ {\n      this.postMyMessage(this.editorText)\n      await this.$projects.codeImprove(this.chat)\n\
+    \      this.testProject()\n    },\n    runEdit(codeSnipped) {\n      this.sendApiRequest(\n\
+    \        () => API.run.edit({ id: \"\", messages: [{ role: 'user', content: codeSnipped\
+    \ }] }),\n        data => [\n          data.messages.reverse()[0].content,\n \
+    \         \"\\n\\n\",\n          ...data.errors.map(e => ` * ${e}\\n`)\n     \
+    \   ].join(\"\\n\")\n      )\n    },\n    addMessage(msg) {\n      this.chat.messages\
+    \ = [\n        ...this.chat.messages || [],\n        msg\n      ]\n    },\n  \
+    \  getMessageProfiles() {\n      const profiles = this.messageMentions.filter(m\
+    \ => m.profile).map(m => m.profile.name)\n      if (this.selectedUser?.isProfile)\
+    \ {\n         profiles.push(this.selectedUser.name)\n      }\n      return profiles\n\
+    \    },\n    getUserMessage(message) {\n      const files = [...this.messageMentions.filter(m\
+    \ => m.file).map(m => m.file),\n                      ...(this.files ||[])]\n\
+    \      const profiles = this.getMessageProfiles()\n      return {\n        role:\
+    \ 'user',\n        content: message,\n        images: this.images.map(JSON.stringify),\n\
+    \        files,\n        profiles,\n        user: this.$user.username,\n     \
+    \   disable_knowledge: true,\n      }\n    },\n    postMyMessage(message) {\n\
+    \      const userMessage = this.getUserMessage(message)\n      this.addMessage(userMessage)\n\
+    \      this.cleanUserInputAndWaitAnswer()\n      return userMessage\n    },\n\
+    \    cleanUserInputAndWaitAnswer() {\n      this.setEditorText(\"\")\n      this.images\
+    \ = []\n      this.files = []\n      this.scrollToBottom()\n    },\n    async\
+    \ sendMessage() {\n      if (this.isVoiceSession && !this.canPost) {\n       \
+    \ return\n      }\n\n      if (this.editMessage !== null) {\n        this.updateMessage()\n\
+    \        this.saveChat()\n      } else {\n        const message = this.editorText\
+    \        \n        if (message?.length &&\n          this.canPost && this.postMyMessage(message))\
+    \ {\n          await this.saveChat()\n        }\n        if (!this.isChannel ||\
+    \ this.lastMessage?.profiles.length) {\n          await this.sendChatMessage(this.chat)\n\
+    \        }\n      }\n    },\n    getSendMessage() {\n      return this.editMessage\
+    \ ||\n        this.chat.messages[this.chat.messages.length - 1].content\n    },\n\
+    \    async askKnowledge() {\n      const searchTerm = this.editor.innerText\n\
+    \      if (!searchTerm || searchTerm.length <= 10) {\n        return\n      }\n\
+    \      const knowledgeSearch = {\n        searchTerm,\n        searchType: 'embeddings',\n\
+    \        documentSearchType: API.activeProject.knowledge_search_type,\n      \
+    \  cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,\n\
+    \        documentCount: API.activeProject.knowledge_search_document_count\n  \
+    \    }\n      this.searchingInKnowledge = true\n      try {\n        const { response,\
+    \ documents } = await this.projectContext.api.knowledge.search(knowledgeSearch)\n\
+    \        const docs = documents.map(({ page_content, metadata: { language, score_analysis,\
+    \ source}}) => {\n            const file = source\n            const fileName\
+    \ = file.split(\"/\").reverse()[0] \n            return [\n                  \
+    \  \"```\" + language + \" \" + fileName,\n                    page_content,\n\
+    \                    \"```\",\n                  ].join(\"\\n\")\n          }).join(\"\
+    \\n\")\n        const message = [\n          response,\n          \"\",\n    \
+    \      docs\n        ].join(\"\\n\")\n        const searchMessage = {\n      \
+    \    role: 'assistant',\n          content: message,\n          files: documents.map(doc\
+    \ => doc.metadata.source),\n          disable_knowledge: true,\n        }\n  \
+    \      this.addMessage(searchMessage)\n        this.saveChat()\n        this.cleanUserInputAndWaitAnswer()\n\
+    \      } finally {\n        this.searchingInKnowledge = false\n      }\n    },\n\
+    \    async sendApiRequest(apiCall, formater = defFormater) {\n      try {\n  \
+    \      this.waiting = true\n        await apiCall()\n        this.$emit('refresh-chat')\n\
+    \        this.scrollToBottom()\n      } catch (ex) {\n        this.addMessage({\n\
+    \          role: 'assistant',\n          content: ex.message\n        })\n   \
+    \   }\n      this.waiting = false\n    },\n    async sendChatMessage(chat) {\n\
+    \      this.waiting = true\n      try {\n        return await this.$storex.projects.chatWihProject(chat)\n\
+    \      } finally {\n        this.waiting = false\n      }\n    },\n    async updateMessage()\
+    \ {\n      const { innerText } = this.editor\n      const images = this.images.map(JSON.stringify)\n\
+    \      \n      this.editMessage.files = this.messageMentions.filter(m => m.file).map(m\
+    \ => m.file)\n      this.editMessage.profiles = this.getMessageProfiles()\n  \
+    \    this.editMessage.content = innerText\n      this.editMessage.images = images\n\
+    \      this.editMessage.updated_at = new Date().toISOString()\n      this.onResetEdit()\n\
+    \    },\n    onResetEdit() {\n      this.editMessage = null\n      this.setEditorText(\"\
+    \")\n      this.editMessageId = null\n      this.images = []\n    },\n    removeMessage(message)\
+    \ {\n      const ix = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)\n\
+    \      if (this.chat.mode == 'task' && message.role === \"assistant\" && ix >\
+    \ 1) {\n        this.chat.messages[ix - 1].hide = false\n      }\n      this.chat.messages\
+    \ = this.chat.messages.filter((_, i) => i !== ix)\n      this.saveChat()\n   \
+    \ },\n    async fileToMessage(file) {\n      const content = await this.$storex.api.files.read(file)\n\
+    \      const ext = file.split(\".\").reverse()[0]\n      return [\n        \"\
+    ```\" + `${ext} ${file}`,\n        content,\n        \"```\"\n      ].join(\"\\\
+    n\")\n      \n    },\n    async addSerchTerm({ mention, orgText }) {\n      if\
+    \ (mention.file) {\n        this.onAddFile(mention.file)\n      } else {\n   \
+    \     this.setEditorText(\n          this.editorText.split(\" \")\n          \
+    \    .map(w => w === orgText ? \"@\" + mention.name : w)\n              .join(\"\
+    \ \")\n        )\n      }\n    },\n    onMentionReplace({ mention, orgText })\
+    \ {\n      this.addSerchTerm({ mention, orgText })\n    },\n    getEditorCaretCharOffset()\
+    \ {\n      let caretOffset = 0\n      const element = this.editor\n      if (window.getSelection)\
+    \ {\n        var range = window.getSelection().getRangeAt(0)\n        var preCaretRange\
+    \ = range.cloneRange()\n        preCaretRange.selectNodeContents(element)\n  \
+    \      preCaretRange.setEnd(range.endContainer, range.endOffset)\n        caretOffset\
+    \ = preCaretRange.toString().length\n      } else if (document.selection && document.selection.type\
+    \ != \"Control\") {\n        var textRange = document.selection.createRange()\n\
+    \        var preCaretTextRange = document.body.createTextRange()\n        preCaretTextRange.moveToElementText(element)\n\
+    \        preCaretTextRange.setEndPoint(\"EndToEnd\", textRange)\n        caretOffset\
+    \ = preCaretTextRange.text.length\n      }\n      return caretOffset\n    },\n\
+    \    getCursorWord() {\n      const text = this.editor?.innerText\n      if (!text.length)\
+    \ {\n        return \"\"\n      }\n      const caretIndex = this.getEditorCaretCharOffset()\n\
+    \      const lastWorkIndex = text.slice(0, caretIndex).split(/\\s/g).length -\
+    \ 1\n      return text.split(/\\s/g)[lastWorkIndex]\n    },\n    async saveChat()\
+    \ {\n      if (!this.chat.temp) { \n        return await this.$projects.saveChat(this.chat)\n\
+    \      }\n    },\n    onDrop(e) {\n      this.onDraggingOverInput = false\n  \
+    \    if (!e.dataTransfer.files) {\n        return\n      }\n      var file = [...e.dataTransfer.files].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]\n      if (file) {\n        this.onInputImage(file)\n\
+    \      }\n    },\n    async onContentPaste(e) {\n      if (!e.clipboardData?.items)\
+    \ {\n        return\n      }\n      const stop = () => {\n        e.preventDefault()\n\
+    \        return false\n      }\n      var file = [...e.clipboardData?.items].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]?.getAsFile()\n      if (file) {\n  \
+    \      this.onInputImage(file)\n        return stop()\n      }\n      const text\
+    \ = [...e.clipboardData?.items].filter(f => f.type.indexOf(\"text\") !== -1)[0]\n\
+    \      if (text) {\n        const textContent = await new Promise(ok => text.getAsString(ok))\n\
+    \        const fileMention = this.mentionList.find(m => m.file === textContent)\n\
+    \        if (fileMention) {\n          this.addFileToMessage(fileMention.file)\n\
+    \          e.preventDefault()\n          return stop()\n        }\n        const\
+    \ isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.project_path))\n\
+    \        if (isProjectFile) {\n          this.addFileToMessage(textContent)\n\
+    \          this.setEditorText(this.editorText.replace(textContent, \"\"))\n  \
+    \        return stop()\n        }\n      }\n    },\n    addFileToMessage(file)\
+    \ {\n      if (!this.files.includes(file)) {\n        this.files.push(file)\n\
+    \      }\n    },\n    getFileImageUrl(file) {\n      return new Promise(ok =>\
+    \ {\n        const reader = new FileReader()\n        reader.onload = (event)\
+    \ => {\n          const base64URL = event.target.result\n          ok(base64URL)\n\
+    \        }\n        reader.readAsDataURL(file)\n      })\n    },\n    async onInputImage(file)\
+    \ {\n      const base64URL = await this.getFileImageUrl(file)\n      this.imagePreview\
+    \ = {\n        src: base64URL,\n        alt: \"\"\n      }\n    },\n    onAddImage()\
+    \ {\n      if (this.imagePreview.ix === undefined) {\n        this.images.push(this.imagePreview)\n\
+    \        this.imagePreview.ix = this.images.length - 1\n      }\n      this.imagePreview\
+    \ = null\n    },\n    async onExtractTextImage(image) {\n      function base64ToFile(base64Data,\
+    \ filename) {\n        const byteString = atob(base64Data.split(',')[1])\n   \
+    \     const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0]\n\
+    \        const byteArray = new Uint8Array(byteString.length)\n        for (let\
+    \ i = 0; i < byteString.length; i++) {\n          byteArray[i] = byteString.charCodeAt(i)\n\
+    \        }\n        const blob = new Blob([byteArray], { type: mimeString })\n\
+    \        return new File([blob], filename, { type: mimeString })\n      }\n\n\
+    \      const file = base64ToFile(image.src, \"image\")\n      const text = await\
+    \ API.tools.imageToText(file)\n      image.alt = text\n    },\n    async handleFileChange({\
+    \ target: { files } }) {\n      const allUrls = await Promise.all([...files].map(file\
+    \ => this.getFileImageUrl(file)))\n      console.log(\"handleFileChange\", allUrls)\n\
+    \      this.images = [\n        ...this.images,\n        ...allUrls.map((src,\
+    \ ix) => ({ src, alt: \"\", ix: this.images.length + 1 + ix }))\n      ]\n   \
+    \   this.selectFile = false\n    },\n    onGenerateCode(codeBlockInfo) {\n   \
+    \   this.$projects.generateCode({ chat: this.chat, codeBlockInfo })\n    },\n\
+    \    removeImage(ix) {\n      this.images = this.images.filter((i, imx) => imx\
+    \ !== ix)\n    },\n    onMessageChange() {\n      if (this.editor &&\n       \
+    \ this.editor.innerText != this.editorText) {\n        this.editorText = this.editor.innerText\n\
+    \      }\n    },\n    async testProject() {\n      throw new Error('Obsolte')\n\
+    \      const data = await API.projects.test()\n      this.testError = data\n \
+    \     if (this.testError) {\n        this.editMessage = this.testError\n     \
+    \   this.setEditorText(this.editMessage)\n      }\n    },\n    removeFileFromMessage(message,\
+    \ file) {\n      message.files = message.files.filter(f => f !== file)\n     \
+    \ this.saveChat()\n    },\n    removeFileFromChat(file) {\n      this.chat.file_list\
+    \ = this.chat.file_list?.filter(f => f !== file)\n      this.saveChat()\n    },\n\
+    \    toggleVoiceSession() {\n      if (this.isVoiceSession) {\n        return\
+    \ this.stopVoiceSession()\n      }\n      let silents = 5\n      this.isVoiceSession\
+    \ = true\n\n      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)()\n\
+    \      recognition.lang = this.$ui.voiceLanguage\n      recognition.interimResults\
+    \ = false\n\n      recognition.onresult = (event) => {\n        const transcript\
+    \ = event.results[0][0].transcript\n        this.editor.innerText += transcript\n\
+    \      }\n\n      recognition.onend = () => {\n        if (this.isVoiceSession\
+    \ && silents--) {\n          recognition.start()\n        } else {\n         \
+    \ this.stopVoiceSession()\n        }\n      }\n\n      recognition.start()\n \
+    \     this.recognition = recognition\n    },\n    stopVoiceSession() {\n     \
+    \ this.recognition?.stop()\n      this.recognition = null\n    },\n    scrollToBottom()\
+    \ {\n      setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)\n    },\n\
+    \    onEditMessageKeyDown(event) {\n      const stop = () => {\n        event.stopPropagation()\n\
+    \        event.preventDefault()\n        return false\n      }\n      if (event.key\
+    \ === 'Escape') {\n        this.onResetEdit()\n      } else if(event.key === 'Enter'\
+    \ && event.ctrlKey) {\n        this.sendMessage()\n      } else if(event.key ===\
+    \ 'f' && event.ctrlKey) {\n        this.openDocumentSearch()\n      }  else {\n\
+    \        return true\n      }\n      return stop()\n    },\n    openDocumentSearch()\
+    \ {\n      this.showDocumentSearchModal = true\n    },\n    closeDocumentSearch()\
+    \ {\n      this.showDocumentSearchModal = false\n    },\n    onAddDocument(doc)\
+    \ {\n      const source = doc.metadata.source\n      this.addFileToMessage(source)\n\
+    \      this.saveChat()\n    },\n    addFileToChat(filePath) {\n      this.chat.file_list\
+    \ = [...new Set([...this.chat.file_list ||[], filePath])]\n    },\n    async onReloadMessageFile({\
+    \ file, message }) {\n      message.content = await this.fileToMessage(file)\n\
+    \      this.saveChat()\n    },\n    onSaveFile({ file, content }) {\n      this.projectContext.api.files.write(file,\
+    \ content)\n    },\n    onOpenFile(file) {\n      this.projectContext.api.coder.openFile(file)\n\
+    \    },\n    addChatFile() {\n      this.onAddFile(this.uploadProjectFile)\n \
+    \     this.uploadProjectFile = null\n      this.selectFile = false\n    },\n \
+    \   async onAddFile(file) {\n      if (this.chat.file_list?.includes(file)) {\n\
+    \        return\n      }\n      this.chat.file_list = [...(this.chat.file_list\
+    \ || []), file]\n      this.addNewFile = null\n      await this.saveChat()\n \
+    \   },\n    onEditMessage({ orgContent, newContent }, message) {\n      message.content\
+    \ = message.content.replace(orgContent, newContent)\n      this.saveChat()\n \
+    \   },\n    onMessageEdited({ doc_id, content }) {\n      this.updateExistingMessage({\
+    \ doc_id }, { content })\n      this.saveChat()\n    },\n    updateExistingMessage(message,\
+    \ update) {\n      const existng = this.chat.messages.find(m => m.doc_id === message.doc_id)\n\
+    \      Object.assign(existng, update)\n      this.saveChat()\n    },\n    removeMessageMention(mention)\
+    \ {\n      const orgMention = this.mentionList.find(m => m === mention)\n    \
+    \  if (orgMention) {\n        this.setEditorText(this.editorText.replace(\"@\"\
+    +mention.name, \"\"))\n      } else {\n        this.files = this.files.filter(f\
+    \ => f !== mention.file)\n      }\n    },\n    onPRViewBranchChanged({ fromBranch:\
+    \ from_branch, toBranch: to_branch }) {\n      this.chat.pr_view = {\n       \
+    \ from_branch, to_branch\n      }\n      this.saveChat()\n    },\n    async refreshPRView()\
+    \ {\n      await this.saveChat()\n      await this.$storex.api.repo.changes(this.chat)\
+    \ \n    },\n    async onPRFileComment({ chat, title, files, description, profiles,\
+    \ mode, column }) {\n      if (chat) {\n        chat.messages.push({\n       \
+    \   user: this.$user.username,\n          role: \"user\",\n          content:\
+    \ description\n        })\n        chat.profiles = profiles.map(p => p.name)\n\
+    \        await this.$projects.saveChatInfo(chat)\n        await this.$storex.projects.chatWihProject(chat)\n\
+    \        \n      } else {\n        this.subtaskName = title\n        this.subtaskDescription\
+    \ = description\n        this.subtaskFiles = files\n        this.subtaskProfiles\
+    \ = profiles\n        this.subtaskMode = mode\n        this.subtaskColumn = column\n\
+    \        this.createSubtask(false)\n      }\n    },\n    async onPRFileCreateChat({\
+    \ title, files, description, profiles, mode, column }) {\n      this.$emit('sub-task',\
+    \ {\n          parent: this.chat,\n          name: title,\n          description,\n\
+    \          project_id: this.chatProject.id,\n          parent_id: this.chat.id,\n\
+    \          file_list: files,\n          profiles,\n          mode,\n         \
+    \ column,\n          activateChat: false\n        })\n    },\n    onPRChatMessage({\
+    \ file, message, metadata }) {\n      file.chat.messages.push({})\n    }\n  }\n\
+    }\n</script>\n                    ```\n\n                    Apply these changes\
+    \ to /shared/codx-junior/client/src/components/chat/Chat.vue:\n              \
+    \      User commented in line 148: we must syncronize editor.innerText with textEditor\
+    \ variable so when editor.innerText changes we set editorText and if textEditor\
+    \ changes we update editor.innerText\n                    \n                 \
+    \   Instructions:\n                      Best practices for this file:\n     \
+    \       Project uses DaisyUI for components, use them instead basic HTML elements\n\
+    All components must have same structure: \"setup\", \"template\", \"script\".\n\
+    Vue Component Example:\n```vue file/path/to/Component.vue\n<script setup>\nimport\
+    \ Component from './component.vue'\nimport markdown from 'mardown'\n</script>\n\
+    <template>\n<div class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\n\
+    export default {\nprops: [].\ndata (){\n// Reactive data, don't use \"ref\"\n\
+    \ return { myVariable: null }\n},\ncomputed: {},\nwatch: {},\nmethods: {}\n}\n\
+    </sctipt>\n```\nImportant:\n* No css, use TailwindCSS clases\n* No need to import\
+    \ ref, computed or mapState \n* export default component object\n* Use component\
+    \ \"data\" method to return an object variables\n* Use component \"computed\"\
+    \ to define computed properties\n\" Use component \"methods\" to define component\
+    \ methods \n* Use \"this.$storex\" or \"$storex\" to access store data.\n* To\
+    \ access vue store data use \"$storex\"\n* \"script setup\" section contains ONLY\
+    \ imports, no variables, properties bnor methods\n* Vue component definition will\
+    \ be exporting a default object like, without ref, nor computed imports\n* Don't\
+    \ use \";\" in the javascript or typescript code\n* Avoid long functions\n* Add\
+    \ short and concise comments for complex functions\nMake sure all vue components\
+    \ follow this structure:\n```vue\n<script setup><!-- Import all components and\
+    \ libraries on the top -->\n</script>\n<template><!-- Component markup -->\n<div></div>\n\
+    </template>\n<script><!-- Component logic -->\nexport default {\n}\n</script>\n\
+    ```\n\nUse fontawesome for icons like: <i class=\"fa-solid fa-right-from-bracket\"\
+    ></i>\n            \n                      Apply all comments to the document\
+    \ and return a final version.\n                      Pay attention to do not loose\
+    \ any detail or part of the document.\n                      Return only the file\
+    \ content \n                    "
+  created_at: '2025-11-19 09:22:16.275732'
+  disable_knowledge: false
+  doc_id: e2e4fd62-915e-4ce5-9d15-4ab43da8ccfc
+  done: true
+  files:
+  - /shared/codx-junior/client/src/components/chat/Chat.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  - VueDeveloper
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-19 09:22:16.275755'
+  user: null
+- content: "```vue /shared/codx-junior/client/src/components/chat/Chat.vue\n<script\
+    \ setup>\nimport moment from 'moment'\nimport { API } from '../../api/api'\nimport\
+    \ ChatEntry from '@/components/ChatEntry.vue'\nimport Browser from '@/components/browser/Browser.vue'\n\
+    import Markdown from '@/components/Markdown.vue'\nimport TaskCard from '../kanban/TaskCard.vue'\n\
+    import UserSelector from './UserSelector.vue'\nimport KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'\n\
+    import CheckLists from './CheckLists.vue'\nimport MentionSelector from '../mentions/MentionSelector.vue'\n\
+    import PRView from '@/components/repo/PRView.vue'\n</script>\n\n<template>\n \
+    \ <div class=\"h-full flex flex-col gap-1\">\n    <div class=\"grow relative flex\
+    \ flex-col\">\n      <div class=\"flex gap-2 items-center justify-between\">\n\
+    \        <div class=\"w-full\" v-if=\"chatFiles.length\">\n          <div class=\"\
+    my-2 text-xs\">\n            <span>\n              <i class=\"fa-solid fa-paperclip\"\
+    ></i>\n            </span>\n            <a v-for=\"file in chatFiles\" :key=\"\
+    file\" :data-tip=\"file\" class=\"group text-nowrap ml-2 hover:underline hover:bg-base-300\
+    \ cursor-pointer text-accent\" @click=\"$ui.openFile(file)\">\n              <span\
+    \ class=\"click mr-1\" @click.stop=\"$ui.copyTextToClipboard(file)\"><i class=\"\
+    fa-solid fa-copy\"></i></span>\n              <span :title=\"file\">{{ file?.split('/').reverse()[0]\
+    \ || '---error---' }}</span>\n              <span class=\"ml-2 cursor-pointer\"\
+    \ @click.stop=\"removeFileFromChat(file)\">\n                <i class=\"fa-regular\
+    \ fa-circle-xmark\"></i>\n              </span>\n            </a>\n          </div>\n\
+    \        </div>\n        <CheckLists class=\"\" :chat=\"chat\" @change=\"saveChat\"\
+    \ />\n      </div>\n      <div class=\"grow overflow-y-auto overflow-x-hidden\"\
+    >\n        <Browser class=\"\" :token=\"$ui.monitors['shared']\" v-if=\"isBrowser\"\
+    \ />\n        <PRView class=\"h-full overflow-auto\" \n          :fromBranch=\"\
+    chat.pr_view?.from_branch\"\n          :toBranch=\"chat.pr_view?.to_branch\"\n\
+    \          :chat=\"chat\"\n          @select=\"onPRViewBranchChanged\"\n     \
+    \     @comment=\"onPRFileComment\"\n          @change-column=\"$emit('change-column',\
+    \ $event)\"\n          @new-chat=\"onPRFileCreateChat\"\n          @chat-message=\"\
+    onPRChatMessage\"\n          v-if=\"isPRView\" />\n        \n        <div class=\"\
+    overflow-auto h-full\" v-if=\"!isBrowser && !isPRView\">\n          <div class=\"\
+    flex flex-col gap-1 mb-2\">\n            <ChatEntry v-for=\"knowledgeMessage in\
+    \ knowledgeMessages\"\n                class=\"rounded-lg overflow-hidden\"\n\
+    \                :key=\"knowledgeMessage.id\"\n                :chat=\"chat\"\n\
+    \                :message=\"knowledgeMessage\"\n                :isTopic=\"isTopic\
+    \ && !ix\"\n                :mentionList=\"mentionList\"\n                :menu-less=\"\
+    readOnly\"\n              />\n          </div>\n          <div class=\"flex flex-col\"\
+    \ v-for=\"message, ix in messages\" :key=\"message.id\">\n            <ChatEntry\
+    \ :class=\"['mb-4 rounded-md',\n              isChannel ? '' : 'py-2',\n     \
+    \         editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40'\
+    \ : '']\"\n              :chat=\"chat\"\n              :message=\"message\"\n\
+    \              :isTopic=\"isTopic && !ix\"\n              :mentionList=\"mentionList\"\
+    \n              :menu-less=\"readOnly\"\n              @edited=\"onMessageEdited\"\
+    \n              @enhance=\"onEditMessage(message, true)\"\n              @remove=\"\
+    removeMessage(message)\"\n              @remove-file=\"removeFileFromMessage(message,\
+    \ $event)\"\n              @hide=\"toggleHide(message)\"\n              @answer=\"\
+    toggleAnswer(message)\"\n              @run-edit=\"runEdit\"\n              @copy=\"\
+    onCopy(message)\"\n              @add-file-to-chat=\"onAddFile($event)\"\n   \
+    \           @image=\"imagePreview = { ...$event, readonly: true }\"\n        \
+    \      @generate-code=\"onGenerateCode\"\n              @reload-file=\"onReloadMessageFile\"\
+    \n              @open-file=\"onOpenFile\"\n              @save-file=\"onSaveFile\"\
+    \n              @add-file=\"onAddFile\"\n              @edit-message=\"onEditMessage($event,\
+    \ message)\"\n              @code-file-shown.stop=\"console.log\"\n          \
+    \    @subtask=\"$emit('subtask', { chat: chat, message })\"\n            />\n\
+    \          </div>\n          <div class=\"anchor\" ref=\"anchor\"></div>\n   \
+    \       <div class=\"grid grid-cols-3 gap-2 mb-2\" v-if=\"childrenChats?.length\"\
+    >\n            <div v-for=\"child in childrenChats\" :key=\"child.id\" class=\"\
+    relative\">\n              <TaskCard class=\"click p-2 bg-base-100 h-40\" :task=\"\
+    child\" @click=\"$projects.setActiveChat(child)\" />\n            </div>\n   \
+    \       </div>\n        </div>\n      </div>\n    </div>\n    <div class=\"sticky\
+    \ bottom-0 z-50 bg-base-300\">\n      <div class=\"flex gap-2\">\n        <span\
+    \ class=\"badge tooltip flex gap-2 items-center\"\n          :data-tip=\"mention.tooltip\"\
+    \n          :class=\"{ 'badge-primary': mention.project, 'badge-success badge-outline':\
+    \ mention.profile }\"\n          v-for=\"mention in messageMentions\" :key=\"\
+    mention.name\"\n          :title=\"mention.file || mention.name\">\n         \
+    \ <i class=\"fa-solid fa-magnifying-glass\" v-if=\"mention.project\"></i>\n  \
+    \        <img class=\"w-4 rounded-full\" :src=\"mention.profile.avatar\" v-if=\"\
+    mention.profile?.avatar\" />\n          <i class=\"fa-solid fa-user\" v-if=\"\
+    mention.profile && !mention.profile.avatar\"></i>\n          <i class=\"fa-solid\
+    \ fa-file-lines\" v-if=\"mention.file\"></i>\n          <i class=\"fa-solid fa-file-arrow-up\"\
+    \ @click=\"onAddFile(mention.file)\" v-if=\"mention.file\"></i>\n          \n\
+    \          <div class=\"-mt-1\">\n            {{ mention.name }}\n          </div>\n\
+    \          <span class=\"click\" @click=\"removeMessageMention(mention)\">X</span>\n\
+    \        </span>\n      </div>\n\n      <MentionSelector\n        :content=\"\
+    editorText\" \n        :project=\"projectContext || $projects\" \n        @select=\"\
+    onMentionReplace\" />\n\n      <div class=\"border border-primary rounded-md bg-base-100\
+    \ mt-2 pb-2\" :class=\"['flex shadow indicator w-full', \n            'flex-col',\n\
+    \            editMessage && 'border-warning',\n            onDraggingOverInput\
+    \ ? 'bg-warning/10': '']\"\n        @dragover.prevent=\"onDraggingOverInput =\
+    \ true\"\n        @dragleave.prevent=\"onDraggingOverInput = false\"\n       \
+    \ @drop.prevent=\"onDrop\"\n        v-if=\"!isBrowser && !isPRView && readOnly\
+    \ !== true\">\n        <div class=\"flex flex-col gap-1 bg-base-300 rounded-md\"\
+    \ v-if=\"showDocumentSearchModal\">\n          <KnowledgeSearch class=\"p-2 h-60\"\
+    \n            :project=\"chatProject\"\n            :close=\"true\"\n        \
+    \    @close=\"closeDocumentSearch\"\n            @select=\"onAddDocument\" />\n\
+    \        </div>\n        <div class=\"editor\" :class=\"['max-h-40 w-full px-2\
+    \ py-1 overflow-auto text-wrap focus-visible:outline-none']\"\n          :contenteditable=\"\
+    !waiting\"\n          ref=\"editor\"\n          @paste=\"onContentPaste\"\n  \
+    \        @keydown=\"onEditMessageKeyDown\"\n        >\n        <!-- Synchronize\
+    \ editor.innerText with editorText variable -->\n        </div>\n        <div\
+    \ class=\"flex justify-between items-end px-2 bg-base-300 rounded-b-md\">\n  \
+    \        <div class=\"carousel rounded-box\">\n            <div class=\"carousel-item\
+    \ relative click flex flex-col\" v-for=\"image, ix in allImages\" :key=\"image.src\"\
+    >\n              <div class=\"bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20\
+    \ lg:w-20 bg-base-300 mr-4\"\n                :style=\"`background-image: url(${image.src})`\"\
+    \ @click=\"imagePreview = image\">\n              </div>\n              <p class=\"\
+    text-xs\">{{ image.alt.slice(0, 10) }}</p>\n              <button class=\"btn\
+    \ btn-xs btn-circle btn-error absolute right-0 top-0\"\n                @click=\"\
+    removeImage(ix)\">\n                X\n              </button>\n            </div>\n\
+    \          </div>\n          <span class=\"loading loading-dots loading-md btn\
+    \ btn-sm\" v-if=\"waiting\"></span>\n          <div class=\"grow flex gap-2 items-end\"\
+    \ v-else>\n            <UserSelector \n              class=\"dropdown-top\"\n\
+    \              :selectedUser=\"selectedUser\"\n              :profiles=\"profiles\"\
+    \n              @user-changed=\"selectedUser = $event\"\n            />\n    \
+    \        <div class=\"text-xs\">Find: ctrl+f</div>\n            <div class=\"\
+    grow\"></div>\n            <div class=\"flex gap-2 items-center justify-end\"\
+    \ v-if=\"!searchingInKnowledge\">\n              <button class=\"btn btn btn-sm\
+    \ btn-info btn-outline\" @click=\"sendMessage\" v-if=\"editMessage\">\n      \
+    \          <i class=\"fa-solid fa-save\"></i>\n                <div class=\"text-xs\"\
+    \ v-if=\"editMessage && !showDocumentSearchModal\">Edit</div>\n              </button>\n\
+    \              <button class=\"btn btn btn-sm btn-outline tooltip\" data-tip=\"\
+    Save changes\" @click=\"onResetEdit\"\n                v-if=\"editMessage\">\n\
+    \                <i class=\"fa-regular fa-circle-xmark\"></i>\n              </button>\n\
+    \              <button class=\"btn btn btn-sm btn-circle tooltip\"\n         \
+    \       data-tip=\"Ask codx-junior\"\n                :class=\"isVoiceSession\
+    \ && 'btn-success animate-pulse'\"\n                @click=\"sendMessage\"\n \
+    \               ref=\"sendButton\"\n                v-if=\"!editMessage && !showDocumentSearchModal\"\
+    >\n                <i class=\"fa-solid fa-microphone-lines\" v-if=\"isVoiceSession\"\
+    ></i>\n                <i class=\"fa-solid fa-paper-plane\" v-else></i>\n    \
+    \          </button>\n              <button class=\"hidden btn btn btn-sm btn-outline\
+    \ tooltip btn-warning\"\n                data-tip=\"Make code changes\" @click=\"\
+    improveCode()\" v-if=\"!editMessage && chat.mode === 'chat'\">\n             \
+    \   <i class=\"fa-solid fa-code\"></i>\n              </button>\n\n          \
+    \    <div class=\"dropdown dropdown-top dropdown-end\">\n                <div\
+    \ tabindex=\"1\" role=\"button\" class=\"btn btn-sm m-1\">\n                 \
+    \ <i class=\"fa-solid fa-ellipsis-vertical\"></i>\n                </div>\n  \
+    \              <ul tabindex=\"1\" class=\"dropdown-content menu bg-base-200 rounded-box\
+    \ z-[1] w-52 p-2 shadow gap-2\">\n                  <li class=\"btn btn-sm tooltip\"\
+    \n                    data-tip=\"Attach files\"\n                    @click=\"\
+    selectFile = true\">\n                    <a>\n                      <i class=\"\
+    fa-solid fa-paperclip\"></i> Attach files\n                    </a>\n        \
+    \          </li>\n                  <li class=\"btn btn-sm\" @click=\"testProject\"\
+    \ v-if=\"API.activeProject.script_test\">\n                    <a>\n         \
+    \             <i class=\"fa-solid fa-flask\"></i>\n                      Test\n\
+    \                    </a>\n                  </li>\n                  <li class=\"\
+    btn btn-sm tooltip\"\n                    :class=\"isVoiceSession && 'btn-success'\"\
+    \n                    :data-tip=\"$ui.voiceLanguages[$ui.voiceLanguage]\"\n  \
+    \                  @click=\"toggleVoiceSession\" v-if=\"!editMessage\">\n    \
+    \                <a>\n                      <i class=\"fa-solid fa-microphone-lines\"\
+    ></i>\n                      Voice mode\n                    </a>\n          \
+    \        </li>\n                  <li class=\"btn btn-sm btn-error tooltip\"\n\
+    \                    :class=\"isVoiceSession && 'btn-success'\"\n            \
+    \        :data-tip=\"$ui.voiceLanguages[$ui.voiceLanguage]\"\n               \
+    \     @click=\"showDeleteModal = true\" v-if=\"enableDelete\">\n             \
+    \       <a>\n                      <i class=\"fa-solid fa-trash-can\"></i>\n \
+    \                     Delete\n                    </a>\n                  </li>\n\
+    \                </ul>\n              </div>\n            </div>\n           \
+    \ <div class=\"flex gap-2 items-center justify-end py-2 animate-pulse\" v-else>\n\
+    \              Searching...\n            </div>\n          </div>\n        </div>\n\
+    \      </div>\n    </div>\n    <modal class=\"w-10/12 lg:w-3/4 h-10/12 lg:h-3/4\"\
+    \ v-if=\"imagePreview\">\n      <div class=\"h-full flex flex-col gap-2 justify-between\"\
+    >\n        <div class=\"text-2xl\">Upload image</div>\n        <div class=\"grow\"\
+    >\n          <div class=\"bg-contain bg-no-repeat bg-base-300/20 bg-center h-full\
+    \ w-full\" :style=\"`background-image: url(${imagePreview.src})`\"></div>\n  \
+    \      </div>\n        <div>\n          Image alt: <span class=\"text-xs\" v-if=\"\
+    imagePreview.alt?.length\">{{ imagePreview.alt?.length }} chars.</span>\n    \
+    \    </div>\n        <pre class=\"alert alert-xs h-20 overflow-auto\" v-if=\"\
+    imagePreview.readonly\">{{ imagePreview.alt }}</pre>\n        <div class=\"textarea\
+    \ input-bordered\" v-else>\n          <textarea class=\"w-full bg-transparent\"\
+    \ v-model=\"imagePreview.alt\" placeholder=\"Image content\">\n          </textarea>\n\
+    \          <div class=\"flex justify-end\">\n            <button class=\"btn btn-sm\
+    \ bg-purple-600 text-white tooltip\"\n              data-tip=\"Extract text\"\n\
+    \              @click=\"onExtractTextImage(imagePreview)\">\n              <i\
+    \ class=\"fa-regular fa-closed-captioning\"></i>\n            </button>\n    \
+    \      </div>\n        </div>\n        <div class=\"flex justify-end gap-2\">\n\
+    \          <button class=\"btn\" @click=\"imagePreview = null\">\n           \
+    \ Cancel\n          </button>\n          <button class=\"btn btn-primary\" @click=\"\
+    onAddImage\">\n            Ok\n          </button>\n        </div>\n      </div>\n\
+    \    </modal>\n    <modal v-if=\"selectFile\">\n      <div class=\"flex flex-col\"\
+    >\n        <div class=\"text-xl\">Project file</div>\n        \n        <input\
+    \ type=\"text\" class=\"input input-bordered\"\n          placeholder=\"File path\"\
+    \ \n          v-model=\"uploadProjectFile\" \n          />\n        <button class=\"\
+    btn btn-sm\" @click=\"addChatFile\">\n          Add file\n        </button>\n\
+    \        \n        \n        <label class=\"file-select\">\n          <div class=\"\
+    select-button\">\n            <span>Select File(s)</span>\n          </div>\n\
+    \          <input type=\"file\" accept=\"image/*\" multiple @change=\"handleFileChange\"\
+    \ />\n          <button class=\"btn btn-sm btn-error\" @click=\"selectFile = false\"\
+    >\n            Cancel\n          </button>\n        </label>\n      </div>\n \
+    \   </modal>\n    <modal v-if=\"showDeleteModal\">\n      <div class=\"flex flex-col\
+    \ gap-2\">\n        <div class=\"text-xl\">Confirm Deletion</div>\n        <p>Are\
+    \ you sure you want to delete this task?</p>\n        <div class=\"font-bold text-primary\
+    \ text-xl\">{{ taskToDelete.name }}</div>\n        <div class=\"flex justify-end\
+    \ gap-2\">\n          <button class=\"btn\" @click=\"showDeleteModal = false\"\
+    >Cancel</button>\n          <button class=\"btn btn-error\" @click=\"deleteTask\"\
+    >Delete</button>\n        </div>\n      </div>\n    </modal>\n  </div>\n</template>\n\
+    \n<script>\nexport default {\n  props: ['chat', 'showHidden', 'childrenChats',\
+    \ 'readOnly', 'enableDelete'],\n  data() {\n    return {\n      waiting: false,\n\
+    \      editMessage: null,\n      editMessageId: null,\n      files: [],\n    \
+    \  images: [],\n      previewImage: null,\n      editorText: \"\",\n      imagePreview:\
+    \ null,\n      onDraggingOverInput: false,\n      testError: null,\n      previewStyle:\
+    \ {\n        zoom: 0.6\n      },\n      selectFile: false,\n      isVoiceSession:\
+    \ false,\n      recognition: null,\n      syncEditableTextInterval: null,\n  \
+    \    showDeleteModal: false,\n      taskToDelete: null,\n      selectedUser: null,\n\
+    \      refreshngMentions: null,\n      selectedDocuments: null,\n      showDocumentSearchModal:\
+    \ false,\n      searchingInKnowledge: false,\n      projectContext: this.$project,\n\
+    \      uploadProjectFile: null,\n    }\n  },\n  created() {\n    this.selectedUser\
+    \ = this.$user\n    this.setProjectContext()\n  },\n  mounted() {\n    this.initSelectedUserFromChat()\n\
+    \  },\n  unmounted() {\n    clearInterval(this.syncEditableTextInterval)\n  },\n\
+    \  computed: {\n    chatFiles() {\n      return this.chat.file_list || []\n  \
+    \  },\n    isPRView() {\n      return this.chat.mode === 'prview'\n    },\n  \
+    \  isBrowser() {\n      return this.chat.mode === 'browser'\n    },\n    visibleMessages()\
+    \ {\n      return this.chat?.messages?.filter(m => !m.hide || this.showHidden)\
+    \ || []\n    },\n    lastAIMessage() {\n      const { activeMessages } = this\n\
+    \      const lastAiMessages = activeMessages?.filter(m => m.role === 'assistant').reverse()\n\
+    \      if (!lastAiMessages?.length) {\n        return null\n      }\n      if\
+    \ (lastAiMessages.length < 2) {\n        return lastAiMessages[0]\n      }\n \
+    \     const [ last, ...previous ] = lastAiMessages  \n      \n      return { ...last,\
+    \ diffMessage: previous[0] }\n    },\n    lastUserMessage() {\n      const { messages\
+    \ } = this\n      const msgs = messages?.filter(m => m.role !== 'assistant')\n\
+    \      return msgs ? msgs[msgs.length - 1] : null\n    },\n    lastMessage() {\n\
+    \      const { messages } = this\n      return messages?.length ? messages[messages.length\
+    \ - 1] : null\n    },\n    diffMessage() {\n      if (this.isTask) {\n       \
+    \ const { messages } = this.chat\n        const aiMsgs = messages.filter(m =>\
+    \ m.role === 'assistant')\n        if (aiMsgs.length > 1) {\n          return\
+    \ aiMsgs[aiMsgs.length - 2]\n        }\n      }\n      return null\n    },\n \
+    \   activeMessages() {\n      const messages = this.chat?.messages\n      return\
+    \ messages?.filter(m => !m.hide || this.showHidden) || []\n    },\n    knowledgeMessages()\
+    \ {\n      return this.chat?.messages?.filter(m => !m.hide && m.is_answer)\n \
+    \   },\n    messages() {\n      const { activeMessages } = this\n      if (!activeMessages.length)\
+    \ {\n        return []\n      }\n      if (this.isTask && !this.showHidden &&\
+    \ activeMessages?.length) {\n        const aiMsg = this.lastAIMessage\n      \
+    \  const lastMsg = activeMessages[activeMessages.length - 1]\n        const res\
+    \ = []\n        if (aiMsg) {\n          res.push(aiMsg)\n        }\n        if\
+    \ (lastMsg && lastMsg?.role !== 'assistant') {\n          res.push(lastMsg)\n\
+    \        }\n        return res\n      }\n      return activeMessages.filter(message\
+    \ => (!message.hide || this.showHidden) && !message.is_answer)\n    },\n    multiline()\
+    \ {\n      return this.editorText?.split(\"\\n\").length > 1 || this.images?.length\n\
+    \    },\n    allImages() {\n      return this.images\n    },\n    messageText()\
+    \ {\n      return this.editorText\n    },\n    canPost() {\n      return this.messageText\
+    \ || this.images?.length\n    },\n    isTask() {\n      return this.chat?.mode\
+    \ === 'task'\n    },\n    isTopic() {\n      return this.chat?.mode === 'topic'\n\
+    \    },\n    topicMessage() {\n      return this.messages[0]\n    },\n    chatProject()\
+    \ {\n      return this.projectContext || this.$project\n    },\n    mentionList()\
+    \ {\n      return (this.projectContext || this.$projects).mentionList\n    },\n\
+    \    messageMentions() {\n      const mentions = [...this.messageText.matchAll(/@([^\\\
+    s]+)/mg)]\n        .map(w => w[1])\n      return [...this.mentionList.filter(m\
+    \ => mentions.includes(m.mention)), \n              ...this.files.map(file =>\
+    \ ({\n                name: file.split(\"/\").reverse()[0],\n                file\n\
+    \              }))]\n    },\n    lastChatEvent() {\n      const { events } = this.$storex.session\n\
+    \      const event = events[events.length - 1]\n      if (event?.data.chat?.id\
+    \ === this.chat.id) {\n        const message = event.data.message?.content ||\
+    \ \"\"\n        return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type\
+    \ || event.data.type || ''} ${event.data.text || ''}\\n${message}`\n      } \n\
+    \    },\n    profiles() {\n      return this.projectContext?.profiles || []\n\
+    \    },\n    usersList() {\n      return [this.$store.state.user, ...this.profiles]\n\
+    \    },\n    isChannel() {\n      return this.chat.mode === 'topic'\n    },\n\
+    \    chatProject() {\n      return this.$projects.allProjectsById[this.chat.project_id]\
+    \ ||\n                this.$project\n    },\n    editor() {\n      return this.$el.querySelector('.editor')\n\
+    \    }\n  },\n  watch: {\n    chat() {\n      this.initSelectedUserFromChat()\n\
+    \      this.setProjectContext()\n    },\n    uploadProjectFile(newVal, oldVal)\
+    \ {\n      if (newVal?.length >= 3 && newVal?.length > oldVal?.length) {\n   \
+    \     this.detectSearchTerm()\n      }\n    }\n  },\n  methods: {\n    async setProjectContext()\
+    \ {\n      if (this.projectContext?.project_id !== this.chatProject.project_id)\
+    \ {\n        this.projectContext = await this.$service.project.loadProjectContext(this.chatProject)\n\
+    \      }\n    },\n    initSelectedUserFromChat() {\n      const messages = this.chat.messages.filter(m\
+    \ => !m.hide && m.profiles?.length)\n      const lastProfileMessage = messages[messages.length\
+    \ - 1]\n      if (lastProfileMessage) {\n        const userName = lastProfileMessage.profiles[0]\n\
+    \        const user = this.$projects.userList.find(u => u.name === userName) \n\
+    \        this.selectedUser = user\n      } else if (!this.selectedUser) {\n  \
+    \      this.selectedUser = this.$user\n      }\n    },\n    zoomIn() {\n     \
+    \ this.previewStyle.zoom += 0.1\n    },\n    zoomOut() {\n      this.previewStyle.zoom\
+    \ -= 0.1\n    },\n    setEditorText(text) {\n      this.editor.innerText = text\n\
+    \    },\n    onEditMessage(message, enhance) {\n      if (this.editMessage ===\
+    \ message) {\n        return this.onResetEdit()\n      }\n      this.editMessageId\
+    \ = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)\n      this.editMessage\
+    \ = this.chat.messages[this.editMessageId]\n      const profile = this.editMessage.profiles[0]?.name\n\
+    \      if (profile) {\n        this.selectedUser = profile\n      } \n      try\
+    \ {\n        this.images = message.images.map(JSON.parse)\n      } catch { }\n\
+    \      this.setEditorText(this.editMessage.content)\n    },\n    toggleHide({\
+    \ doc_id, hide }) {\n      this.updateExistingMessage({ doc_id }, { hide: !hide\
+    \ })\n    },\n    toggleAnswer({ doc_id, is_answer }) {\n      this.updateExistingMessage({\
+    \ doc_id }, { is_answer: !is_answer })\n    },\n    onCopy(message) {\n      navigator.permissions.query({\
+    \ name: \"clipboard-read\" }).then(result => {\n        if (result.state == \"\
+    granted\" || result.state == \"prompt\") {\n          navigator.clipboard.writeText(message.content)\n\
+    \        }\n      })\n      .catch(console.error)\n    },\n    async improveCode()\
+    \ {\n      this.postMyMessage(this.editorText)\n      await this.$projects.codeImprove(this.chat)\n\
+    \      this.testProject()\n    },\n    runEdit(codeSnipped) {\n      this.sendApiRequest(\n\
+    \        () => API.run.edit({ id: \"\", messages: [{ role: 'user', content: codeSnipped\
+    \ }] }),\n        data => [\n          data.messages.reverse()[0].content,\n \
+    \         \"\\n\\n\",\n          ...data.errors.map(e => ` * ${e}\\n`)\n     \
+    \   ].join(\"\\n\")\n      )\n    },\n    addMessage(msg) {\n      this.chat.messages\
+    \ = [\n        ...this.chat.messages || [],\n        msg\n      ]\n    },\n  \
+    \  getMessageProfiles() {\n      const profiles = this.messageMentions.filter(m\
+    \ => m.profile).map(m => m.profile.name)\n      if (this.selectedUser?.isProfile)\
+    \ {\n         profiles.push(this.selectedUser.name)\n      }\n      return profiles\n\
+    \    },\n    getUserMessage(message) {\n      const files = [...this.messageMentions.filter(m\
+    \ => m.file).map(m => m.file),\n                      ...(this.files ||[])]\n\
+    \      const profiles = this.getMessageProfiles()\n      return {\n        role:\
+    \ 'user',\n        content: message,\n        images: this.images.map(JSON.stringify),\n\
+    \        files,\n        profiles,\n        user: this.$user.username,\n     \
+    \   disable_knowledge: true,\n      }\n    },\n    postMyMessage(message) {\n\
+    \      const userMessage = this.getUserMessage(message)\n      this.addMessage(userMessage)\n\
+    \      this.cleanUserInputAndWaitAnswer()\n      return userMessage\n    },\n\
+    \    cleanUserInputAndWaitAnswer() {\n      this.setEditorText(\"\")\n      this.images\
+    \ = []\n      this.files = []\n      this.scrollToBottom()\n    },\n    async\
+    \ sendMessage() {\n      if (this.isVoiceSession && !this.canPost) {\n       \
+    \ return\n      }\n\n      if (this.editMessage !== null) {\n        this.updateMessage()\n\
+    \        this.saveChat()\n      } else {\n        const message = this.editorText\
+    \        \n        if (message?.length &&\n          this.canPost && this.postMyMessage(message))\
+    \ {\n          await this.saveChat()\n        }\n        if (!this.isChannel ||\
+    \ this.lastMessage?.profiles.length) {\n          await this.sendChatMessage(this.chat)\n\
+    \        }\n      }\n    },\n    getSendMessage() {\n      return this.editMessage\
+    \ ||\n        this.chat.messages[this.chat.messages.length - 1].content\n    },\n\
+    \    async askKnowledge() {\n      const searchTerm = this.editor.innerText\n\
+    \      if (!searchTerm || searchTerm.length <= 10) {\n        return\n      }\n\
+    \      const knowledgeSearch = {\n        searchTerm,\n        searchType: 'embeddings',\n\
+    \        documentSearchType: API.activeProject.knowledge_search_type,\n      \
+    \  cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,\n\
+    \        documentCount: API.activeProject.knowledge_search_document_count\n  \
+    \    }\n      this.searchingInKnowledge = true\n      try {\n        const { response,\
+    \ documents } = await this.projectContext.api.knowledge.search(knowledgeSearch)\n\
+    \        const docs = documents.map(({ page_content, metadata: { language, score_analysis,\
+    \ source}}) => {\n            const file = source\n            const fileName\
+    \ = file.split(\"/\").reverse()[0] \n            return [\n                  \
+    \  \"```\" + language + \" \" + fileName,\n                    page_content,\n\
+    \                    \"```\",\n                  ].join(\"\\n\")\n          }).join(\"\
+    \\n\")\n        const message = [\n          response,\n          \"\",\n    \
+    \      docs\n        ].join(\"\\n\")\n        const searchMessage = {\n      \
+    \    role: 'assistant',\n          content: message,\n          files: documents.map(doc\
+    \ => doc.metadata.source),\n          disable_knowledge: true,\n        }\n  \
+    \      this.addMessage(searchMessage)\n        this.saveChat()\n        this.cleanUserInputAndWaitAnswer()\n\
+    \      } finally {\n        this.searchingInKnowledge = false\n      }\n    },\n\
+    \    async sendApiRequest(apiCall, formater = defFormater) {\n      try {\n  \
+    \      this.waiting = true\n        await apiCall()\n        this.$emit('refresh-chat')\n\
+    \        this.scrollToBottom()\n      } catch (ex) {\n        this.addMessage({\n\
+    \          role: 'assistant',\n          content: ex.message\n        })\n   \
+    \   }\n      this.waiting = false\n    },\n    async sendChatMessage(chat) {\n\
+    \      this.waiting = true\n      try {\n        return await this.$storex.projects.chatWihProject(chat)\n\
+    \      } finally {\n        this.waiting = false\n      }\n    },\n    async updateMessage()\
+    \ {\n      const { innerText } = this.editor\n      const images = this.images.map(JSON.stringify)\n\
+    \      \n      this.editMessage.files = this.messageMentions.filter(m => m.file).map(m\
+    \ => m.file)\n      this.editMessage.profiles = this.getMessageProfiles()\n  \
+    \    this.editMessage.content = innerText\n      this.editMessage.images = images\n\
+    \      this.editMessage.updated_at = new Date().toISOString()\n      this.onResetEdit()\n\
+    \    },\n    onResetEdit() {\n      this.editMessage = null\n      this.setEditorText(\"\
+    \")\n      this.editMessageId = null\n      this.images = []\n    },\n    removeMessage(message)\
+    \ {\n      const ix = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)\n\
+    \      if (this.chat.mode == 'task' && message.role === \"assistant\" && ix >\
+    \ 1) {\n        this.chat.messages[ix - 1].hide = false\n      }\n      this.chat.messages\
+    \ = this.chat.messages.filter((_, i) => i !== ix)\n      this.saveChat()\n   \
+    \ },\n    async fileToMessage(file) {\n      const content = await this.$storex.api.files.read(file)\n\
+    \      const ext = file.split(\".\").reverse()[0]\n      return [\n        \"\
+    ```\" + `${ext} ${file}`,\n        content,\n        \"```\"\n      ].join(\"\\\
+    n\")\n      \n    },\n    async addSerchTerm({ mention, orgText }) {\n      if\
+    \ (mention.file) {\n        this.onAddFile(mention.file)\n      } else {\n   \
+    \     this.setEditorText(\n          this.editorText.split(\" \")\n          \
+    \    .map(w => w === orgText ? \"@\" + mention.name : w)\n              .join(\"\
+    \ \")\n        )\n      }\n    },\n    onMentionReplace({ mention, orgText })\
+    \ {\n      this.addSerchTerm({ mention, orgText })\n    },\n    getEditorCaretCharOffset()\
+    \ {\n      let caretOffset = 0\n      const element = this.editor\n      if (window.getSelection)\
+    \ {\n        var range = window.getSelection().getRangeAt(0)\n        var preCaretRange\
+    \ = range.cloneRange()\n        preCaretRange.selectNodeContents(element)\n  \
+    \      preCaretRange.setEnd(range.endContainer, range.endOffset)\n        caretOffset\
+    \ = preCaretRange.toString().length\n      } else if (document.selection && document.selection.type\
+    \ != \"Control\") {\n        var textRange = document.selection.createRange()\n\
+    \        var preCaretTextRange = document.body.createTextRange()\n        preCaretTextRange.moveToElementText(element)\n\
+    \        preCaretTextRange.setEndPoint(\"EndToEnd\", textRange)\n        caretOffset\
+    \ = preCaretTextRange.text.length\n      }\n      return caretOffset\n    },\n\
+    \    getCursorWord() {\n      const text = this.editor?.innerText\n      if (!text.length)\
+    \ {\n        return \"\"\n      }\n      const caretIndex = this.getEditorCaretCharOffset()\n\
+    \      const lastWorkIndex = text.slice(0, caretIndex).split(/\\s/g).length -\
+    \ 1\n      return text.split(/\\s/g)[lastWorkIndex]\n    },\n    async saveChat()\
+    \ {\n      if (!this.chat.temp) { \n        return await this.$projects.saveChat(this.chat)\n\
+    \      }\n    },\n    onDrop(e) {\n      this.onDraggingOverInput = false\n  \
+    \    if (!e.dataTransfer.files) {\n        return\n      }\n      var file = [...e.dataTransfer.files].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]\n      if (file) {\n        this.onInputImage(file)\n\
+    \      }\n    },\n    async onContentPaste(e) {\n      if (!e.clipboardData?.items)\
+    \ {\n        return\n      }\n      const stop = () => {\n        e.preventDefault()\n\
+    \        return false\n      }\n      var file = [...e.clipboardData?.items].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]?.getAsFile()\n      if (file) {\n  \
+    \      this.onInputImage(file)\n        return stop()\n      }\n      const text\
+    \ = [...e.clipboardData?.items].filter(f => f.type.indexOf(\"text\") !== -1)[0]\n\
+    \      if (text) {\n        const textContent = await new Promise(ok => text.getAsString(ok))\n\
+    \        const fileMention = this.mentionList.find(m => m.file === textContent)\n\
+    \        if (fileMention) {\n          this.addFileToMessage(fileMention.file)\n\
+    \          e.preventDefault()\n          return stop()\n        }\n        const\
+    \ isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.project_path))\n\
+    \        if (isProjectFile) {\n          this.addFileToMessage(textContent)\n\
+    \          this.setEditorText(this.editorText.replace(textContent, \"\"))\n  \
+    \        return stop()\n        }\n      }\n    },\n    addFileToMessage(file)\
+    \ {\n      if (!this.files.includes(file)) {\n        this.files.push(file)\n\
+    \      }\n    },\n    getFileImageUrl(file) {\n      return new Promise(ok =>\
+    \ {\n        const reader = new FileReader()\n        reader.onload = (event)\
+    \ => {\n          const base64URL = event.target.result\n          ok(base64URL)\n\
+    \        }\n        reader.readAsDataURL(file)\n      })\n    },\n    async onInputImage(file)\
+    \ {\n      const base64URL = await this.getFileImageUrl(file)\n      this.imagePreview\
+    \ = {\n        src: base64URL,\n        alt: \"\"\n      }\n    },\n    onAddImage()\
+    \ {\n      if (this.imagePreview.ix === undefined) {\n        this.images.push(this.imagePreview)\n\
+    \        this.imagePreview.ix = this.images.length - 1\n      }\n      this.imagePreview\
+    \ = null\n    },\n    async onExtractTextImage(image) {\n      function base64ToFile(base64Data,\
+    \ filename) {\n        const byteString = atob(base64Data.split(',')[1])\n   \
+    \     const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0]\n\
+    \        const byteArray = new Uint8Array(byteString.length)\n        for (let\
+    \ i = 0; i < byteString.length; i++) {\n          byteArray[i] = byteString.charCodeAt(i)\n\
+    \        }\n        const blob = new Blob([byteArray], { type: mimeString })\n\
+    \        return new File([blob], filename, { type: mimeString })\n      }\n\n\
+    \      const file = base64ToFile(image.src, \"image\")\n      const text = await\
+    \ API.tools.imageToText(file)\n      image.alt = text\n    },\n    async handleFileChange({\
+    \ target: { files } }) {\n      const allUrls = await Promise.all([...files].map(file\
+    \ => this.getFileImageUrl(file)))\n      console.log(\"handleFileChange\", allUrls)\n\
+    \      this.images = [\n        ...this.images,\n        ...allUrls.map((src,\
+    \ ix) => ({ src, alt: \"\", ix: this.images.length + 1 + ix }))\n      ]\n   \
+    \   this.selectFile = false\n    },\n    onGenerateCode(codeBlockInfo) {\n   \
+    \   this.$projects.generateCode({ chat: this.chat, codeBlockInfo })\n    },\n\
+    \    removeImage(ix) {\n      this.images = this.images.filter((i, imx) => imx\
+    \ !== ix)\n    },\n    onMessageChange() {\n      if (this.editor &&\n       \
+    \ this.editor.innerText != this.editorText) {\n        this.editorText = this.editor.innerText\n\
+    \      }\n    },\n    async testProject() {\n      throw new Error('Obsolte')\n\
+    \      const data = await API.projects.test()\n      this.testError = data\n \
+    \     if (this.testError) {\n        this.editMessage = this.testError\n     \
+    \   this.setEditorText(this.editMessage)\n      }\n    },\n    removeFileFromMessage(message,\
+    \ file) {\n      message.files = message.files.filter(f => f !== file)\n     \
+    \ this.saveChat()\n    },\n    removeFileFromChat(file) {\n      this.chat.file_list\
+    \ = this.chat.file_list?.filter(f => f !== file)\n      this.saveChat()\n    },\n\
+    \    toggleVoiceSession() {\n      if (this.isVoiceSession) {\n        return\
+    \ this.stopVoiceSession()\n      }\n      let silents = 5\n      this.isVoiceSession\
+    \ = true\n\n      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)()\n\
+    \      recognition.lang = this.$ui.voiceLanguage\n      recognition.interimResults\
+    \ = false\n\n      recognition.onresult = (event) => {\n        const transcript\
+    \ = event.results[0][0].transcript\n        this.editor.innerText += transcript\n\
+    \      }\n\n      recognition.onend = () => {\n        if (this.isVoiceSession\
+    \ && silents--) {\n          recognition.start()\n        } else {\n         \
+    \ this.stopVoiceSession()\n        }\n      }\n\n      recognition.start()\n \
+    \     this.recognition = recognition\n    },\n    stopVoiceSession() {\n     \
+    \ this.recognition?.stop()\n      this.recognition = null\n    },\n    scrollToBottom()\
+    \ {\n      setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)\n    },\n\
+    \    onEditMessageKeyDown(event) {\n      const stop = () => {\n        event.stopPropagation()\n\
+    \        event.preventDefault()\n        return false\n      }\n      if (event.key\
+    \ === 'Escape') {\n        this.onResetEdit()\n      } else if(event.key === 'Enter'\
+    \ && event.ctrlKey) {\n        this.sendMessage()\n      } else if(event.key ===\
+    \ 'f' && event.ctrlKey) {\n        this.openDocumentSearch()\n      }  else {\n\
+    \        return true\n      }\n      return stop()\n    },\n    openDocumentSearch()\
+    \ {\n      this.showDocumentSearchModal = true\n    },\n    closeDocumentSearch()\
+    \ {\n      this.showDocumentSearchModal = false\n    },\n    onAddDocument(doc)\
+    \ {\n      const source = doc.metadata.source\n      this.addFileToMessage(source)\n\
+    \      this.saveChat()\n    },\n    addFileToChat(filePath) {\n      this.chat.file_list\
+    \ = [...new Set([...this.chat.file_list ||[], filePath])]\n    },\n    async onReloadMessageFile({\
+    \ file, message }) {\n      message.content = await this.fileToMessage(file)\n\
+    \      this.saveChat()\n    },\n    onSaveFile({ file, content }) {\n      this.projectContext.api.files.write(file,\
+    \ content)\n    },\n    onOpenFile(file) {\n      this.projectContext.api.coder.openFile(file)\n\
+    \    },\n    addChatFile() {\n      this.onAddFile(this.uploadProjectFile)\n \
+    \     this.uploadProjectFile = null\n      this.selectFile = false\n    },\n \
+    \   async onAddFile(file) {\n      if (this.chat.file_list?.includes(file)) {\n\
+    \        return\n      }\n      this.chat.file_list = [...(this.chat.file_list\
+    \ || []), file]\n      this.addNewFile = null\n      await this.saveChat()\n \
+    \   },\n    onEditMessage({ orgContent, newContent }, message) {\n      message.content\
+    \ = message.content.replace(orgContent, newContent)\n      this.saveChat()\n \
+    \   },\n    onMessageEdited({ doc_id, content }) {\n      this.updateExistingMessage({\
+    \ doc_id }, { content })\n      this.saveChat()\n    },\n    updateExistingMessage(message,\
+    \ update) {\n      const existng = this.chat.messages.find(m => m.doc_id === message.doc_id)\n\
+    \      Object.assign(existng, update)\n      this.saveChat()\n    },\n    removeMessageMention(mention)\
+    \ {\n      const orgMention = this.mentionList.find(m => m === mention)\n    \
+    \  if (orgMention) {\n        this.setEditorText(this.editorText.replace(\"@\"\
+    +mention.name, \"\"))\n      } else {\n        this.files = this.files.filter(f\
+    \ => f !== mention.file)\n      }\n    },\n    onPRViewBranchChanged({ fromBranch:\
+    \ from_branch, toBranch: to_branch }) {\n      this.chat.pr_view = {\n       \
+    \ from_branch, to_branch\n      }\n      this.saveChat()\n    },\n    async refreshPRView()\
+    \ {\n      await this.saveChat()\n      await this.$storex.api.repo.changes(this.chat)\
+    \ \n    },\n    async onPRFileComment({ chat, title, files, description, profiles,\
+    \ mode, column }) {\n      if (chat) {\n        chat.messages.push({\n       \
+    \   user: this.$user.username,\n          role: \"user\",\n          content:\
+    \ description\n        })\n        chat.profiles = profiles.map(p => p.name)\n\
+    \        await this.$projects.saveChatInfo(chat)\n        await this.$storex.projects.chatWihProject(chat)\n\
+    \        \n      } else {\n        this.subtaskName = title\n        this.subtaskDescription\
+    \ = description\n        this.subtaskFiles = files\n        this.subtaskProfiles\
+    \ = profiles\n        this.subtaskMode = mode\n        this.subtaskColumn = column\n\
+    \        this.createSubtask(false)\n      }\n    },\n    async onPRFileCreateChat({\
+    \ title, files, description, profiles, mode, column }) {\n      this.$emit('sub-task',\
+    \ {\n          parent: this.chat,\n          name: title,\n          description,\n\
+    \          project_id: this.chatProject.id,\n          parent_id: this.chat.id,\n\
+    \          file_list: files,\n          profiles,\n          mode,\n         \
+    \ column,\n          activateChat: false\n        })\n    },\n    onPRChatMessage({\
+    \ file, message, metadata }) {\n      file.chat.messages.push({})\n    }\n  }\n\
+    }\n</script>\n```"
+  created_at: '2025-11-19 09:22:16.275732'
+  disable_knowledge: false
+  doc_id: 3d595d35-5ca5-4abb-9d12-01ee3604b84a
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 7.486343383789062e-05
+    model: openai/gpt-4o
+    time_taken: 78.71040034294128
+  profiles:
+  - daisyui_components
+  - VueDeveloper
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-11-19 09:22:16.275755'
+  user: null
+mode: chat
+name: changes-at-chat-chat-vue-2025-11-19-12-26-07-657087
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- VueDeveloper
+- Vue files
+- daisyui_components
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+target_project_id: null
+updated_at: '2025-11-19T12:27:29.285164'
+url: ''
+users: []
+visibility: ''

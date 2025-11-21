@@ -12,8 +12,11 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
-  <div class="h-full" v-if="kanban?.boards">
-    <div class="flex flex-col gap-2" v-if="!$projects.activeChat && !board">
+  <div class="h-full relative">
+    <div class="absolute bottom-0 left-0 right-0 z-20" v-if="loadingChats">
+      <progress class="progress w-full animate-pulse opacity-30"></progress>
+    </div>
+    <div class="flex flex-col gap-2" v-if="kanban?.boards && !$projects.activeChat && !board">
       <h1 class="px-2 text-2xl font-bold flex justify-between gap-2 border-b border-slate-700 pb-2">
         <div class="flex gap-2">
           <div class="avatar">
@@ -47,6 +50,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           {{  project.project_name }}
         </div>
       </div>
+
       <KanbanList
         :boards="filteredParentBoards"
         @select="selectBoard"
@@ -209,14 +213,14 @@ import ProjectDetailt from '../ProjectDetailt.vue'
                   </div>
                 </div>
               </div>
-              <div class="grow overflow-y-auto">
+              <div class="column-tasks grow overflow-y-auto">
                 <draggable
                   v-model="column.tasks"
                   group="tasks"
                   itemKey="id"
                   :disabled="$ui.isMobile"
                   @end="onColumnTaskListChanged(column)"
-                  class="mt-3"
+                  class="mt-3 h-full"
                 >
                   <template #item="{ element: task }">
                     <TaskCard
@@ -349,7 +353,8 @@ export default {
       showFileFinder: false,
       pinnedChats: [],
       topChats: [],
-      columnProject: null // Initialize columnProject
+      columnProject: null,
+      loadingChats: false
     }
   },
   created() {
@@ -465,20 +470,25 @@ export default {
   },
   methods: {
     buildFilteredColumns() {
-      if (!this.filter) {
-        this.filteredColumns = this.columns
-      } else {
-        const filterText = this.filter.toLowerCase()
-        this.filteredColumns = this.columns.map(column => {
-          const filteredTasks = column.tasks.filter(task => {
-            const taskNameMatches = task.name.toLowerCase().includes(filterText)
-            const messageContentMatches = task.messages?.some(message =>
-              message.content.toLowerCase().includes(filterText)
-            )
-            return taskNameMatches || messageContentMatches
+      this.loadingChats += 1
+      try {  
+        if (!this.filter) {
+          this.filteredColumns = this.columns
+        } else {
+          const filterText = this.filter.toLowerCase()
+          this.filteredColumns = this.columns.map(column => {
+            const filteredTasks = column.tasks.filter(task => {
+              const taskNameMatches = task.name.toLowerCase().includes(filterText)
+              const messageContentMatches = task.messages?.some(message =>
+                message.content.toLowerCase().includes(filterText)
+              )
+              return taskNameMatches || messageContentMatches
+            })
+            return { ...column, tasks: filteredTasks }
           })
-          return { ...column, tasks: filteredTasks }
-        })
+        }
+      } finally {
+        this.loadingChats -= 1
       }
     },
     async projectChanged() {
@@ -490,18 +500,24 @@ export default {
       this.isDropdownOpen = !this.isDropdownOpen
     },
     async selectBoard(board) {
-      this.$projects.setActiveBoard(board)
-      this.isDropdownOpen = false
-      await this.$projects.loadChats()
-      if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
-        Object.keys(this.kanban.boards)
-          .filter(b => this.kanban.boards[b])
-          .forEach(b => this.kanban.boards[b].active = (b === board))
-        this.kanban.boards[board].last_update = new Date().toISOString()
-        this.saveKanban()
+      this.loadingChats += 1
+      try {
+        this.filteredColumns = []
+        await this.$projects.setActiveBoard(board)
+        this.isDropdownOpen = false
+        await this.$projects.loadChats()
+        if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
+          Object.keys(this.kanban.boards)
+            .filter(b => this.kanban.boards[b])
+            .forEach(b => this.kanban.boards[b].active = (b === board))
+          this.kanban.boards[board].last_update = new Date().toISOString()
+          this.saveKanban()
+        }
+        this.buildKanban()
+        this.showChildrenBoards = !!this.childBoards?.length
+      } finally {
+        this.loadingChats -= 1
       }
-      this.buildKanban()
-      this.showChildrenBoards = !!this.childBoards?.length
     },
     async editKanban(board) {
       if (!this.newBoardName.trim()) {

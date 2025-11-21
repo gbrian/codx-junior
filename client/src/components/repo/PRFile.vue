@@ -5,6 +5,8 @@ import CodeComment from "./CodeComment.vue"
 import Chat from "../chat/Chat.vue"
 import CodeViewer from "../CodeViewer.vue"
 import ChatEntry from "../ChatEntry.vue"
+import ProfileViewer from '../profiles/ProfileViewer.vue'
+import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 </script>
 <template>
   <div class="grow flex flex-col gap-2 border-2 border-slate-600 rounded-md py-1" :key="file.fileFullName">
@@ -26,7 +28,9 @@ import ChatEntry from "../ChatEntry.vue"
           </span>
           <div class="avatar-group -space-x-2" v-else>
             
-            <div class="avatar" :title="profile.name" v-for="profile in file.profiles" :key="profile.name">
+            <div class="avatar" :title="profile.name" v-for="profile in file.profiles" :key="profile.name"
+              @click.stop="toggleProfile(profile)"
+            >
               <div class="w-5">
                 <img :src="profile.avatar" />
               </div>
@@ -102,59 +106,63 @@ import ChatEntry from "../ChatEntry.vue"
       </button>
 
     </div>
-    <div class="grow flex flex-col" v-if="!file.collapse">
-      <ChatEntry :message="lastMessage" :menu-less="true" v-if="showMessage" />
-      <div class="grow overflow-auto" v-if="file.parsed && showDiff">
-        <div class="flex items-center gap-2 px-2 py-1 text-xs">
-          <div class="flex gap-2 items-center">
-            Split / Unified
-            <input type="checkbox" v-model="diffSplit" class="toggle toggle-sm" />
+    <VerticalSplitter class="grow flex h-full" 
+      :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
+      v-if="!file.collapse">
+      <template v-slot:left>
+        <ChatEntry :message="lastMessage" :menu-less="true" v-if="showMessage" />
+        <div class="grow overflow-auto" v-if="file.parsed && showDiff">
+          <div class="flex items-center gap-2 px-2 py-1 text-xs">
+            <div class="flex gap-2 items-center">
+              Split / Unified
+              <input type="checkbox" v-model="diffSplit" class="toggle toggle-sm" />
+            </div>
+            <div class="flex gap-2 items-center">
+              Text wrap
+              <input type="checkbox" v-model="diffWrap" class="toggle toggle-sm" />
+            </div>
           </div>
-          <div class="flex gap-2 items-center">
-            Text wrap
-            <input type="checkbox" v-model="diffWrap" class="toggle toggle-sm" />
-          </div>
-        </div>
-        <DiffView
-          :data="file"
-          :diff-view-theme="'dark'" 
-          :diff-view-add-widget="false"
-          :diff-view-wrap="diffWrap"
-          :diff-view-highlight="true"
-          :diffViewFontSize="10"
-          :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"          
-        >
-          <template #widget="{ onClose, lineNumber, side }">
-            <div class="absolute z-[100] top-0 left-0 right-0 bottom-0 bg-base-300">
-              <div class="flex flex-col items-center justify-center w-full">
-                <CodeComment 
-                  @close="onClose"
-                  @save="onAddComment($event, file, lineNumber, side, onClose)"
-                />
+          <DiffView
+            :data="file"
+            :diff-view-theme="'dark'" 
+            :diff-view-add-widget="true"
+            :diff-view-wrap="diffWrap"
+            :diff-view-highlight="true"
+            :diffViewFontSize="10"
+            :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"          
+          >
+            <template #widget="{ onClose, lineNumber, side }">
+              <div class="flex w-full pr-4 flex-col m-2">
+                <CodeComment @close="onClose" @save="[onClose(), onAddComment({ lineNumber, side, message: $event })]" />
               </div>
-            </div>
-          </template>
-          <template #extend="{ data }">
-            <div class="flex border bg-slate-400 px-[10px] py-[8px]">
-              <h2 class="text-[20px]">>> {{ data }}</h2>
-            </div>
-          </template>
-        </DiffView>
-      </div>
-      <div class="p-2" v-if="theChat && showChat">
-        <Chat class="overflow-auto min-h-96" 
-          :chat="theChat" 
-          :enableDelete="true"
-          :readOnly="false"
-        />
-      </div>
-      <CodeViewer class="overflow-auto mb-20 p-2" 
-        :code="fileContent"
-        :language="file.extension"
-        :file="file.fileFullName" 
-        :diffOption="false"
-        v-if="showFile && fileContent" />
-    </div>
+            </template>
+            <template #extend="{ data }">
+              <div class="flex border bg-slate-400 px-[10px] py-[8px]">
+                <h2 class="text-[20px]">>> {{ data }}</h2>
+              </div>
+            </template>
+          </DiffView>
+        </div>
+        <div class="p-2" v-if="theChat && showChat">
+          <Chat class="overflow-auto min-h-96" 
+            :chat="theChat" 
+            :enableDelete="true"
+            :readOnly="false"
+          />
+        </div>
+        <CodeViewer class="overflow-auto mb-20 p-2" 
+          :code="fileContent"
+          :language="file.extension"
+          :file="file.fileFullName" 
+          :diffOption="false"
+          v-if="showFile && fileContent" />
+      </template>
+      <template v-slot:right v-if="selectedProfile">
+        <div class="max-h-[1024px] overflow-auto">
+          <ProfileViewer :profile="selectedProfile"  />
+        </div>
+      </template>
+    </VerticalSplitter>
   </div>
 </template>
 <script>
@@ -165,7 +173,8 @@ export default {
       showOption: this.option || 'diff',
       fileContent: null,
       diffSplit: false,
-      diffWrap: true
+      diffWrap: true,
+      selectedProfile: null
     }
   },
   created() {
@@ -221,6 +230,15 @@ export default {
     async loadFileContent() {
       this.fileContent = await this.$storex.api.files.read(this.file.fileFullName)
       this.showOption = 'file'
+    },
+    toggleProfile(profile) {
+      if (this.selectedProfile === profile) {
+        profile = null
+      }
+      this.selectedProfile = profile
+    },
+    onAddComment({ lineNumber, side, message, metadata }) {
+      this.$emit('new-chat', { file: this.file, message, metadata })
     }
   },
   expose: ['file']
