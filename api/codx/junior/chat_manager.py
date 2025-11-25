@@ -13,7 +13,7 @@ import yaml
 from slugify import slugify
 from collections import deque
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
@@ -75,7 +75,7 @@ class ChatManager:
                 chat = self.load_chat_from_path(chat_file=file_path, chat_only=True)
                 return chat
             except Exception as ex:
-                logger.exception(f"Error loading chat {ex}")
+                logger.error(f"Error loading chat {ex}")
             return None
             
         return sorted([chat \
@@ -301,6 +301,45 @@ class ChatManager:
         
         return filtered_chats
 
+
+    def traverse_chat_messages(self, chat_id, all_chats: List[Chat]) -> List[Message]:
+        """
+        Traverse messages in the chat and its descendants, yielding messages.
+        """
+        messages = []
+        chat = self.find_by_id(chat_id)
+
+        # Traverse current chat messages
+        logger.info("chat_export traversing chat: %s, messages: %s", chat.name, len(chat.messages))
+        for message in chat.messages:
+            # Check if there's a chat pointing to this message
+            linked_chat = next((c for c in all_chats if c.message_id == message.doc_id), None)
+            if linked_chat:
+                messages.extend(self.traverse_chat_messages(chat_id=linked_chat.id, all_chats=all_chats))
+            
+            # Append the message itself
+            messages.append(message)
+        
+        # Find child chats and sort them by child_index
+        child_chats = sorted([c for c in all_chats if c.parent_id == chat.id], key=lambda x: x.child_index)
+        for child_chat in child_chats:
+            messages.extend(self.traverse_chat_messages(chat_id=child_chat.id, all_chats=all_chats))
+        
+        return messages
+
+    def build_markdown_document(self, chat_id) -> str:
+        """
+        Traverse the chat and generate a markdown document.
+        Ignore messages with the 'hide' flag set to True.
+        """
+        all_chats = self.list_chats()
+        messages = self.traverse_chat_messages(chat_id=chat_id, all_chats=all_chats)
+        markdown = ""
+        for msg in messages:
+            if not msg.hide:
+                markdown += f"# {msg.content}\n\n"
+        return markdown
+
     def export_chat(self, chat_id: str, export_format: str) -> ExportedDocument:
         """
         Export a chat and its descendants to the specified format.
@@ -309,38 +348,8 @@ class ChatManager:
         :param export_format: The format to export to (e.g., markdown, docx, pdf, excel).
         :return: An ExportedDocument containing the exported chat.
         """
-        chat = self.find_by_id(chat_id)
-        if not chat:
-            raise ValueError(f"Chat with id {chat_id} not found")
-
-        # Get all chats once
-        all_chats = self.list_chats()
-
-        # Build the chat tree
-        chat_tree = self.build_chat_tree(chat, all_chats)
-
+        chat = self.find_by_id(chat_id=chat_id)
+        content = self.build_markdown_document(chat_id=chat_id)
         # Use ChatExport to export the chat
-        chat_exporter = ChatExport(chat_tree=chat_tree, export_format=export_format)
+        chat_exporter = ChatExport(chat=chat, content=content, export_format=export_format)
         return chat_exporter.export_chat()
-
-    def build_chat_tree(self, chat: Chat, all_chats: list) -> Dict[str, Any]:
-        """
-        Build a tree structure from a chat and its descendants.
-
-        :param chat: The root chat object.
-        :param all_chats: List of all chat objects.
-        :return: A dictionary representing the chat tree.
-        """
-        def get_chat_descendants(chat):
-            descendants = []
-            for child_chat in [c for c in all_chats if c.parent_id == chat.id]:
-                descendants.append({
-                    "chat": child_chat,
-                    "children": get_chat_descendants(child_chat)
-                })
-            return descendants
-
-        return {
-            "chat": chat,
-            "children": get_chat_descendants(chat)
-        }

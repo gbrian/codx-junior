@@ -254,7 +254,11 @@ def api_list_chats(request: Request):
     if export_format:
         export = codx_junior_session.get_chat_manager().export_chat(chat_id=chat_id, export_format=export_format)
         # Initiate a download action with the exported document
-        return Response(content=export.content, media_type=export.content_type, headers={"Content-Disposition": f"attachment; filename={export.file_name}"})
+        return Response(
+                  content=export.content,
+                  media_type=export.content_type, 
+                  headers={"Content-Disposition": f"attachment; filename={export.file_name}"}
+              )
     
     if chat_id:
         return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)

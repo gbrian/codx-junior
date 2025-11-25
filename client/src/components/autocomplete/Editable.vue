@@ -7,13 +7,17 @@
     :class="isAutoCompleteMode && 'text-warning'"
     contenteditable
     @keydown="onKeyPress"
-    @input="onContentChange"  
+    @input="onContentChange"
   >
     <!-- Editor content -->
   </div>
 </template>
 
 <script>
+function isKeyWord(word) {
+  return /^[@#]/.test(word)
+}
+
 export default {
   props: ['suggestCallback', 'modelValue'],
   data() {
@@ -42,9 +46,60 @@ export default {
         this.editorContent = newVal
         this.$refs.editor.innerText = this.editorContent
       }
+    },
+    isAutoCompleteMode(newVal) {
+      if (!newVal) {
+        this.highlightKeywords()
+      }
     }
   },
   methods: {
+    highlightKeywords() {
+      const editor = this.$refs.editor
+      const content = editor.innerHTML
+      const regex = /([@#]\w+)/g
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = content
+
+      const walker = document.createTreeWalker(tempDiv, NodeFilter.SHOW_TEXT, null, false)
+      let node
+      let lastSpan // Remember the last span created
+      let index = 0 // Index for creating unique ids
+      while (node = walker.nextNode()) {
+        let match
+        while (match = regex.exec(node.nodeValue)) {
+          const keyword = match[0]
+          const span = document.createElement('span')
+          span.className = 'keyword text-info'
+          span.id = `keyword-${index++}` // Unique id with index
+          span.textContent = keyword
+          span.contentEditable = false
+
+          const index = match.index
+          const textBefore = node.nodeValue.slice(0, index)
+          const textAfter = node.nodeValue.slice(index + keyword.length)
+
+          const parent = node.parentNode
+          parent.insertBefore(document.createTextNode(textBefore), node)
+          parent.insertBefore(span, node)
+          node.nodeValue = textAfter
+
+          regex.lastIndex = 0
+          lastSpan = span // Remember the last span created
+        }
+      }
+
+      editor.innerHTML = tempDiv.innerHTML
+      // Set cursor after the last span created
+      if (lastSpan) {
+        const range = document.createRange()
+        range.setStartAfter(lastSpan)
+        range.collapse(true)
+        const selection = window.getSelection()
+        selection.removeAllRanges()
+        selection.addRange(range)
+      }
+    },
     onContentChange() {
       const content = this.$refs.editor.innerText
       if (content !== this.editorContent) {
@@ -54,7 +109,7 @@ export default {
     },
     onKeyPress(event) {
       const char = String.fromCharCode(event.which || event.keyCode)
-      if (this.isAutoCompleteMode &&  (event.key === 'Tab' || event.key === 'Enter')) {
+      if (this.isAutoCompleteMode && (event.key === 'Tab' || event.key === 'Enter')) {
         event.preventDefault()
         this.confirmAutoComplete()
         return false

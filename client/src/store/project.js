@@ -665,12 +665,12 @@ export const actions = actionTree(
         state.openedWorkspaces = [...state.openedWorkspaces, { workspace, app }]
       }
     },
-    async exportChat({ state }, { chat, exportFormat }) {
+    async exportChat({ state }, { chat, exportFormat, clipboard }) {
       const project = state.activeProject;
       const api = project.$api || await API.project(project);
 
       try {
-        return await api.chats.exportChat({ id: chat.id, exportFormat });
+        return await api.chats.exportChat({ id: chat.id, exportFormat, clipboard });
       } catch (error) {
         console.error("Error exporting chat:", error);
       }

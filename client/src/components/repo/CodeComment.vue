@@ -9,7 +9,7 @@
         </button>
         <button
           class="rounded-[4px] border px-[12px] py-[6px]"
-          @click="$emit('change', editComment)"
+          @click="$emit('save', editComment)"
         >
           Save
         </button>

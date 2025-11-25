@@ -1,14 +1,16 @@
 <template>
-  <ul class="dropdown-menu menu bg-base-300 p-2 overflow-auto max-h-40 z-50">
+  <ul class="dropdown-menu bg-base-300 p-2 overflow-auto max-h-40 z-50 flex flex-col gap-2">
     <template v-if="items.length">
       <li
+        class="p-2 rounded-lg hover:bg-base-100 click"
         :class="{ 'is-selected': index === selectedIndex }"
         v-for="(item, index) in items"
         :key="index"
+        :title="item.file || item.name"
         @click="selectItem(index)"
       >
-        <a>{{ item }}</a>
-    </li>
+        <a>{{ item.name }}</a>
+      </li>
     </template>
     <div class="item" v-else>No result</div>
   </ul>
@@ -26,6 +28,11 @@ export default {
       type: Function,
       required: true,
     },
+    
+    onSelect: {
+      type: Function,
+      required: true,
+    } 
   },
 
   data() {
@@ -73,10 +80,11 @@ export default {
     },
 
     selectItem(index) {
+      this.onSelect(index)
       const item = this.items[index]
 
       if (item) {
-        this.command({ id: item })
+        this.command({ id: item.name })
       }
     },
   },

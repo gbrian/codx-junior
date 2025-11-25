@@ -655,7 +655,7 @@ export default {
         child_index
       }, activateChat)
       
-      this.$projects.saveChat(chat)
+      await this.$projects.saveChat(chat)
       if (description) {
         this.$storex.projects.chatWihProject(chat)
       }

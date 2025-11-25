@@ -256,9 +256,15 @@ const initializeAPI = ({ project, user } = {}) => {
         const data = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`);
         return data;
       },
-      async exportChat({ id, exportFormat }) {
-        const data = await API.get(`/api/chats?export_format=${exportFormat}&id=${id}`);
-        return data;
+      async exportChat({ id, exportFormat, clipboard }) {
+        const path = `/api/chats?export_format=${exportFormat}&id=${id}`
+        if (clipboard) {
+          const data = await API.get(path);
+          return data;
+        } else {
+          const url = API.connection.prepareUrl(path)
+          window.open(url)
+        }
       },
       async newChat() {
         return {

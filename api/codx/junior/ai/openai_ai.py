@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings, llm_model: str = None, user: CodxUser = None):
-        from codx.junior.tools import TOOLS
-        self.tools = TOOLS
+        # from codx.junior.tools import TOOLS
+        self.tools = [] # TOOLS .... disabled, move to profiles
         
         self.settings = settings
         self.llm_settings = settings.get_llm_settings(llm_model=llm_model)

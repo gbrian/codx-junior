@@ -1,3 +1,13 @@
+<script setup>
+import StarterKit from '@tiptap/starter-kit'
+import Document from '@tiptap/extension-document'
+import Mention from '@tiptap/extension-mention'
+import Paragraph from '@tiptap/extension-paragraph'
+import Text from '@tiptap/extension-text'
+import { Editor, EditorContent } from '@tiptap/vue-3'
+import suggestion from './suggestion.js'
+</script>
+
 <template>
   <div v-if="editor">
     <editor-content :editor="editor" />
@@ -5,29 +15,9 @@
 </template>
 
 <script>
-import StarterKit from '@tiptap/starter-kit'
-import Document from '@tiptap/extension-document'
-import Mention from '@tiptap/extension-mention'
-import Paragraph from '@tiptap/extension-paragraph'
-import CodeBlock from '@tiptap/extension-code-block'
-import Text from '@tiptap/extension-text'
-import { Editor, EditorContent } from '@tiptap/vue-3'
-import suggestion from './suggestion.js'
-
 export default {
-  components: {
-    EditorContent,
-  },
-
-  props: {
-    modelValue: {
-      type: String,
-      default: '',
-    },
-  },
-
+  props: ['project', 'modelValue'],
   emits: ['update:modelValue'],
-
   data() {
     return {
       editor: null,
@@ -47,18 +37,19 @@ export default {
   },
 
   mounted() {
+    const search = this.onSearch.bind(this)
+    const onSelect = this.onSelect.bind(this)
     this.editor = new Editor({
       extensions: [
         StarterKit,
         Document,
         Paragraph,
         Text,
-        CodeBlock,
         Mention.configure({
           HTMLAttributes: {
             class: 'mention',
           },
-          suggestion,
+          suggestion: suggestion({ search }),
         }),
       ],
       content: this.modelValue,
@@ -67,7 +58,14 @@ export default {
       },
     })
   },
-
+  methods: {
+    onSearch(query) {
+      return Promise.resolve(query.length > 2 ? this.project?.$state.searchMentions(query, 6) : [])
+    },
+    onSelect(item) {
+      console.log("Suggestion selected", item)
+    }
+  },
   beforeUnmount() {
     this.editor.destroy()
   },

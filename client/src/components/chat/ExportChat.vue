@@ -14,9 +14,16 @@
         <input type="radio" class="radio" value="pdf" v-model="exportFormat" />
         As PDF
       </label>
-      <button class="btn" @click="exportChat" :disabled="loading">
-        <span class="loading loading-spinner loading-xs" v-if="loading"></span> Export
-      </button>
+      <div class="flex justify-end gap-2">
+        <button class="btn" @click="exportChat(false)" :disabled="loading">
+          <span class="loading loading-spinner loading-xs" v-if="loading"></span>
+          <i class="fa-solid fa-cloud-arrow-down" v-else></i> Download
+        </button>
+        <button class="btn" @click="exportChat(true)" :disabled="loading">
+          <span class="loading loading-spinner loading-xs" v-if="loading"></span>
+          <i class="fa-solid fa-copy" v-else></i> Copy
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -35,17 +42,19 @@ export default {
   props: ['chat'],
   data() {
     return {
-      exportFormat: 'docx',
+      exportFormat: 'markdown',
       loading: false
     };
   },
   methods: {
-    async exportChat() {
+    async exportChat(clipboard) {
       const { chat, exportFormat } = this
       try {
-        this.loading = true
-        const data = await this.$projects.exportChat({ chat, exportFormat })
-        this.downloadFile(data)
+          this.loading = true
+          const data = await this.$projects.exportChat({ chat, exportFormat, clipboard })
+          if (clipboard) {  
+            this.copyFile(data)
+          }
       } finally {
         this.loading = false
       }
@@ -77,6 +86,10 @@ export default {
       
       // Revoke the object URL to free up memory
       window.URL.revokeObjectURL(url);
+    },
+    copyFile(data) {
+      console.log("Copying data", data)
+      this.$ui.copyTextToClipboard(data)
     }
   },
 };

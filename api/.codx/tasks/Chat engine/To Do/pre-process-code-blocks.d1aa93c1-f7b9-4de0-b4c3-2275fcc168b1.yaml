@@ -1,0 +1,956 @@
+board: Chat engine
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: To Do
+column_id: ''
+created_at: '2025-11-24 18:10:38.738595'
+description: '1. The user has requested a Python class that sorts an array.
+
+  2. The user provided specific instructions for file content and tool usage.
+
+  3. The conversation involves generating and potentially testing the Python code.
+
+  4. The task requires creating a concise and functional sorting class.
+
+  5. There is an emphasis on using tools for file path conversion and content reading
+  if necessary.'
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Chat engine/To Do/pre-process-code-blocks.d1aa93c1-f7b9-4de0-b4c3-2275fcc168b1.yaml
+id: d1aa93c1-f7b9-4de0-b4c3-2275fcc168b1
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: When reading the ai response, we must detect code blocks from the streaming
+    response and process them with "code_block" tool before passing to the callback
+  created_at: '2025-11-24 18:10:38.736326'
+  disable_knowledge: true
+  doc_id: f2979651-ddf7-415f-980e-7e5054060530
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/ai/openai_ai.py
+  - /shared/codx-junior/api/codx/junior/tools/project_tools.py
+  - /shared/codx-junior/api/codx/junior/ai/openai_ai.py
+  - /shared/codx-junior/api/codx/junior/tools/project_tools.py
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-24 18:10:38.736348'
+  user: admin
+- content: "```py /shared/codx-junior/api/codx/junior/ai/openai_ai.py\n        import\
+    \ logging\nimport json\n\nfrom datetime import datetime\nfrom typing import Union\n\
+    from openai import OpenAI\nfrom openai.types.chat.chat_completion_system_message_param\
+    \ import ChatCompletionSystemMessageParam\nfrom openai.types.chat.chat_completion_user_message_param\
+    \ import ChatCompletionUserMessageParam\nfrom codx.junior.ai.ai_logger import\
+    \ AILogger\nfrom codx.junior.settings import CODXJuniorSettings\nfrom langchain.schema\
+    \ import AIMessage, HumanMessage, BaseMessage\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\nfrom codx.junior.utils.utils import clean_string, asyncify\n\
+    from codx.junior.model.model import CodxUser\n\nlogger = logging.getLogger(__name__)\n\
+    \nclass OpenAI_AI:\n    def __init__(self, settings: CODXJuniorSettings, llm_model:\
+    \ str = None, user: CodxUser = None):\n        from codx.junior.tools import TOOLS\n\
+    \        self.tools = TOOLS\n        \n        self.settings = settings\n    \
+    \    self.llm_settings = settings.get_llm_settings(llm_model=llm_model)\n    \
+    \    self.model = self.llm_settings.model\n        self.user = user\n        self.api_key\
+    \ = self.user.api_key if self.user and self.user.api_key else self.llm_settings.api_key\n\
+    \        self.base_url = self.llm_settings.api_url\n\n        try:\n         \
+    \   self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)\n     \
+    \       logger.info(\"Creating OpenAI client. USER: %s, URL: %s, API: %s*****\"\
+    , \n                self.user.username if self.user else \"NONE\",\n         \
+    \       self.base_url,\n                self.api_key[0:15])\n        except Exception\
+    \ as ex:\n            logger.error(\"Error creating OpenAI client: %s, %s*****\"\
+    , self.base_url, self.api_key[0:15])\n        self.ai_logger = AILogger(settings=settings)\n\
+    \n    def log(self, msg):\n        if self.settings.get_log_ai():\n          \
+    \  self.ai_logger.info(msg)\n\n    def convert_message_to_openai(self, gpt_message:\
+    \ Union[AIMessage, HumanMessage, BaseMessage]):\n        if gpt_message.type ==\
+    \ \"image\":\n            try:\n                return {\"content\": json.loads(gpt_message.content),\
+    \ \"role\": \"user\"}\n            except Exception as ex:\n                self.log(f\"\
+    Error converting image message '{ex}': {gpt_message}\")\n                raise\
+    \ ex\n        return {\n            \"role\": \"assistant\" if gpt_message.type\
+    \ == \"ai\" else \"user\",\n            \"content\": gpt_message.content\n   \
+    \     }\n\n    @profile_function\n    def chat_completions(self, messages, config:\
+    \ dict = {}):\n        kwargs = {\n            \"model\": self.model,\n      \
+    \      \"stream\": True,\n        }\n\n        if self.llm_settings.temperature\
+    \ >= 0:\n            kwargs[\"temperature\"] = float(self.llm_settings.temperature)\n\
+    \n        self.log(f\"OpenAI_AI chat_completions {self.llm_settings.provider}:\
+    \ {self.model} {self.base_url} {self.api_key[0:6]}...\")\n\n        openai_messages\
+    \ = [self.convert_message_to_openai(msg) for msg in messages]\n\n        if self.llm_settings.merge_messages:\n\
+    \            message = \"\\n\".join([message['content'] for message in openai_messages])\n\
+    \            openai_messages = [{\"role\": \"user\", \"content\": message}]\n\
+    \        self.log(f\"USER REQUEST:\\n{openai_messages}\")\n        if self.settings.get_log_ai():\n\
+    \            self.log(f\"\\nReceived AI response, start reading stream\\n{self.llm_settings}\"\
+    )\n        try:\n            request_headers = config.get(\"headers\", {})\n \
+    \           tags = request_headers.get(\"tags\", \"\")\n            tags = tags.split(\"\
+    ,\") + [\n                f\"temperature:{self.llm_settings.temperature}\",\n\
+    \                self.settings.project_name\n            ]\n            if self.user:\n\
+    \                tags.append(f\"user:{self.user.username}\")\n            request_headers[\"\
+    x-litellm-tags\"] = \",\".join(tags)\n\n            response_stream = self.client.chat.completions.create(\n\
+    \                **kwargs,\n                messages=openai_messages,\n      \
+    \          extra_headers=request_headers\n            )\n            callbacks\
+    \ = config.get(\"callbacks\", None)\n            content_parts = []\n\n      \
+    \      callback_data = {\n                \"buffer\": [],\n                \"\
+    ts\": datetime.now(),\n            }\n\n            def send_callback(chunk_content,\
+    \ flush=False):\n                if not callbacks:\n                    return\n\
+    \n                callback_data[\"buffer\"].append(chunk_content or \"\")\n  \
+    \              if flush or (datetime.now() - callback_data[\"ts\"]).total_seconds()\
+    \ > 1:\n                    callback_data[\"ts\"] = datetime.now()\n         \
+    \           message = \"\".join(callback_data[\"buffer\"]) if callback_data[\"\
+    buffer\"] else \"\"\n                    callback_data[\"buffer\"] = []\n    \
+    \                for cb in callbacks:\n                        try:\n        \
+    \                    cb(message)\n                        except Exception as\
+    \ ex:\n                            logger.exception(f\"ERROR IN CALLBACKS: {ex}\"\
+    )\n\n            for chunk in response_stream:\n                choice = chunk.choices[0]\n\
+    \                chunk_content = choice.delta.content\n                if not\
+    \ chunk_content:\n                    continue\n                chunk_content\
+    \ = clean_string(chunk_content)\n                content_parts.append(chunk_content)\n\
+    \                send_callback(chunk_content)\n\n            # Last chunks...\n\
+    \            send_callback(\"\", flush=True)\n        except Exception as ex:\n\
+    \            logger.error(\"Error reading AI response: %s, %s, %s\\n%s\", self.base_url,\
+    \ self.api_key[0:5], self.llm_settings, ex)\n            raise ex\n\n        response_content\
+    \ = \"\".join(content_parts)\n        self.log(f\"AI RESPONSE:\\n{response_content}\"\
+    )\n\n        messages.append(AIMessage(content=response_content))\n        return\
+    \ messages\n\n    @profile_function\n    async def a_chat_completions(self, messages,\
+    \ config: dict = {}):\n        kwargs = {\n            \"model\": self.model,\n\
+    \            \"stream\": True,\n            \"tools\": [tool[\"tool_json\"] for\
+    \ tool in self.tools]\n        }\n\n        if self.llm_settings.temperature >=\
+    \ 0:\n            kwargs[\"temperature\"] = float(self.llm_settings.temperature)\n\
+    \n        self.log(f\"OpenAI_AI chat_completions {self.llm_settings.provider}:\
+    \ {self.model} {self.base_url} {self.api_key[0:6]}...\")\n\n        openai_messages\
+    \ = [self.convert_message_to_openai(msg) for msg in messages]\n              \
+    \              \n        if self.llm_settings.merge_messages:\n            message\
+    \ = \"\\n\".join([message['content'] for message in openai_messages])\n      \
+    \      openai_messages = [{\"role\": \"user\", \"content\": message}]\n      \
+    \  self.log(f\"USER REQUEST:\\n{openai_messages}\")\n        if self.settings.get_log_ai():\n\
+    \            self.log(f\"\\nReceived AI response, start reading stream\\n{self.llm_settings}\"\
+    )\n        try:\n            request_headers = config.get(\"headers\", {})\n \
+    \           tags = request_headers.get(\"tags\", \"\")\n            tags = tags.split(\"\
+    ,\") + [\n                f\"temperature:{self.llm_settings.temperature}\",\n\
+    \                self.settings.project_name\n            ]\n            if self.user:\n\
+    \                tags.append(f\"user:{self.user.username}\")\n            request_headers[\"\
+    x-litellm-tags\"] = \",\".join(tags)\n\n            response_stream = self.client.chat.completions.create(\n\
+    \                **kwargs,\n                messages=openai_messages,\n      \
+    \          extra_headers=request_headers\n            )\n            callbacks\
+    \ = config.get(\"callbacks\", None)\n            content_parts = []\n\n      \
+    \      callback_data = {\n                \"buffer\": [],\n                \"\
+    ts\": datetime.now(),\n            }\n\n            tool_call_data = {\n     \
+    \           \"id\": None,\n                \"function\": None,\n             \
+    \   \"arguments\": \"\"\n            }\n            all_tool_calls = {}\n    \
+    \        last_tool_id = None\n\n            def send_callback(chunk_content, flush=False):\n\
+    \                if not callbacks:\n                    return\n\n           \
+    \     callback_data[\"buffer\"].append(chunk_content or \"\")\n              \
+    \  if flush or (datetime.now() - callback_data[\"ts\"]).total_seconds() > 1:\n\
+    \                    callback_data[\"ts\"] = datetime.now()\n                \
+    \    message = \"\".join(callback_data[\"buffer\"]) if callback_data[\"buffer\"\
+    ] else \"\"\n                    callback_data[\"buffer\"] = []\n            \
+    \        for cb in callbacks:\n                        try:\n                \
+    \            cb(message)\n                        except Exception as ex:\n  \
+    \                          logger.exception(f\"ERROR IN CALLBACKS: {ex}\")\n\n\
+    \            for chunk in response_stream:\n                # Check for tools\n\
+    \                choice = chunk.choices[0]\n                tool_calls = choice.delta.tool_calls\
+    \ if hasattr(choice, 'delta') else None \n                \n                if\
+    \ tool_calls:\n                    tool_call = tool_calls[0] \n              \
+    \      if tool_call.id and not all_tool_calls.get(tool_call.id):\n           \
+    \             last_tool_id = tool_call.id\n                        all_tool_calls[last_tool_id]\
+    \ = {\n                            \"id\": last_tool_id,\n                   \
+    \         \"function\": \"\",\n                            \"arguments\": \"\"\
+    \n                        }\n                    if tool_call.function.name:\n\
+    \                        all_tool_calls[last_tool_id][\"function\"] += tool_call.function.name\n\
+    \                        \n                    all_tool_calls[last_tool_id][\"\
+    arguments\"] += tool_call.function.arguments\n                \n             \
+    \   if choice.finish_reason == 'tool_calls':\n                    ai_tool_response\
+    \ = None\n                    for tool_call_data in all_tool_calls.values():\n\
+    \                        func_name = tool_call_data[\"function\"]\n          \
+    \              try:\n                            tools_response = await self.process_tool_calls(tool_call_data)\n\
+    \                            tool_output = tools_response[\"output\"] if \"output\"\
+    \ in tools_response else tools_response \n                            ai_tool_response\
+    \ = AIMessage(content=tool_output)\n                        except Exception as\
+    \ ex:\n                            logger.exception(\"Error processing '%s': %s\"\
+    , func_name, tool_call_data)\n                            error = f\"Error processing\
+    \ {func_name}:\\n{ex}\"\n                            ai_tool_response = AIMessage(content=error)\n\
+    \n                        messages.append(ai_tool_response)\n\n              \
+    \      return self.chat_completions(messages=messages, config=config)\n      \
+    \          \n                chunk_content = choice.delta.content\n          \
+    \      if not chunk_content:\n                    continue\n                chunk_content\
+    \ = clean_string(chunk_content)\n                content_parts.append(chunk_content)\n\
+    \                send_callback(chunk_content)\n\n            # Last chunks...\n\
+    \            send_callback(\"\", flush=True)\n        except Exception as ex:\n\
+    \            logger.error(\"Error reading AI response: %s, %s, %s\\n%s\", self.base_url,\
+    \ self.api_key[0:5], self.llm_settings, ex)\n            raise ex\n\n        response_content\
+    \ = \"\".join(content_parts)\n        self.log(f\"AI RESPONSE:\\n{response_content}\"\
+    )\n\n        messages.append(AIMessage(content=response_content))\n        return\
+    \ messages\n\n    @profile_function\n    async def process_tool_calls(self, tool_call_data):\n\
+    \        tool_response = None\n        self.log(f\"process_tool_calls: {tool_call_data}\"\
+    )\n        func_name = tool_call_data[\"function\"]\n        params = json.loads(tool_call_data[\"\
+    arguments\"])\n        \n        # Find the tool and execute the tool_call\n \
+    \       tool = next((t for t in self.tools if t[\"tool_json\"][\"function\"][\"\
+    name\"] == func_name), None)\n        if tool:\n            settings = tool.get(\"\
+    settings\", {\n              \"project_settings\": False,\n              \"async\"\
+    : False\n            })\n\n            if settings.get(\"project_settings\"):\n\
+    \                params[\"settings\"] = self.settings\n            \n        \
+    \    content = tool[\"tool_call\"](**params)\n            if settings[\"async\"\
+    ]:\n                content = await content\n            \n            tool_response\
+    \ = content\n\n        # Format the tool response as specified\n        tool_output\
+    \ = {\n            \"type\": \"function_call_output\",\n            \"call_id\"\
+    : tool_call_data[\"id\"],\n            \"output\": tool_response\n        }\n\n\
+    \        return tool_output\n    \n    @profile_function\n    def generate_image(self,\
+    \ prompt):\n        response = self.client.images.generate(\n            model=\"\
+    dall-e-3\",\n            prompt=prompt,\n            size=\"1024x1024\",\n   \
+    \         quality=\"standard\",\n            n=1,\n        )\n\n        return\
+    \ response.data[0].url\n\n    @profile_function\n    def embeddings(self):\n \
+    \       embeddings_ai_settings = self.settings.get_embeddings_settings()\n   \
+    \     client = OpenAI(\n            api_key=embeddings_ai_settings.api_key,\n\
+    \            base_url=embeddings_ai_settings.api_url\n        )\n\n        def\
+    \ embedding_func(content: str):\n            try:\n                response =\
+    \ client.embeddings.create(\n                    input=content,\n            \
+    \        model=embeddings_ai_settings.model\n                )\n             \
+    \   embeddings = []\n                for data in response.data:\n            \
+    \        embeddings = embeddings + data.embedding\n                return embeddings\n\
+    \            except Exception as ex:\n                logger.error(f\"Error creating\
+    \ embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}\")\n\
+    \                raise ex\n\n        return embedding_func\n\n        ```\n  \
+    \      "
+  created_at: '2025-11-24 18:10:38.736326'
+  disable_knowledge: false
+  doc_id: 48d4e302-91a2-4f3c-938e-247cedce3dc5
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-24 18:10:38.736348'
+  user: null
+- content: "To implement the feature of detecting code blocks from the streaming response\
+    \ and processing them with the `code_block` tool before passing them to the callback,\
+    \ you'll need to modify the `a_chat_completions` function in the `OpenAI_AI` class.\
+    \ Here's how you can update the function:\n\n1. **Detect Code Blocks**: You'll\
+    \ need a mechanism to detect when a code block starts and ends in the streamed\
+    \ content.\n2. **Process with `code_block` Tool**: Once a code block is detected,\
+    \ process it using the `code_block` function from `project_tools.py`.\n3. **Pass\
+    \ to Callback**: After processing, pass the processed code block to the callback\
+    \ function.\n\nHere's an updated version of the `a_chat_completions` function\
+    \ with these changes:\n\n```python\n@profile_function\nasync def a_chat_completions(self,\
+    \ messages, config: dict = {}):\n    kwargs = {\n        \"model\": self.model,\n\
+    \        \"stream\": True,\n        \"tools\": [tool[\"tool_json\"] for tool in\
+    \ self.tools]\n    }\n\n    if self.llm_settings.temperature >= 0:\n        kwargs[\"\
+    temperature\"] = float(self.llm_settings.temperature)\n\n    self.log(f\"OpenAI_AI\
+    \ chat_completions {self.llm_settings.provider}: {self.model} {self.base_url}\
+    \ {self.api_key[0:6]}...\")\n\n    openai_messages = [self.convert_message_to_openai(msg)\
+    \ for msg in messages]\n                        \n    if self.llm_settings.merge_messages:\n\
+    \        message = \"\\n\".join([message['content'] for message in openai_messages])\n\
+    \        openai_messages = [{\"role\": \"user\", \"content\": message}]\n    self.log(f\"\
+    USER REQUEST:\\n{openai_messages}\")\n    if self.settings.get_log_ai():\n   \
+    \     self.log(f\"\\nReceived AI response, start reading stream\\n{self.llm_settings}\"\
+    )\n    try:\n        request_headers = config.get(\"headers\", {})\n        tags\
+    \ = request_headers.get(\"tags\", \"\")\n        tags = tags.split(\",\") + [\n\
+    \            f\"temperature:{self.llm_settings.temperature}\",\n            self.settings.project_name\n\
+    \        ]\n        if self.user:\n            tags.append(f\"user:{self.user.username}\"\
+    )\n        request_headers[\"x-litellm-tags\"] = \",\".join(tags)\n\n        response_stream\
+    \ = self.client.chat.completions.create(\n            **kwargs,\n            messages=openai_messages,\n\
+    \            extra_headers=request_headers\n        )\n        callbacks = config.get(\"\
+    callbacks\", None)\n        content_parts = []\n\n        callback_data = {\n\
+    \            \"buffer\": [],\n            \"ts\": datetime.now(),\n        }\n\
+    \n        tool_call_data = {\n            \"id\": None,\n            \"function\"\
+    : None,\n            \"arguments\": \"\"\n        }\n        all_tool_calls =\
+    \ {}\n        last_tool_id = None\n\n        def send_callback(chunk_content,\
+    \ flush=False):\n            if not callbacks:\n                return\n\n   \
+    \         callback_data[\"buffer\"].append(chunk_content or \"\")\n          \
+    \  if flush or (datetime.now() - callback_data[\"ts\"]).total_seconds() > 1:\n\
+    \                callback_data[\"ts\"] = datetime.now()\n                message\
+    \ = \"\".join(callback_data[\"buffer\"]) if callback_data[\"buffer\"] else \"\"\
+    \n                callback_data[\"buffer\"] = []\n                for cb in callbacks:\n\
+    \                    try:\n                        cb(message)\n             \
+    \       except Exception as ex:\n                        logger.exception(f\"\
+    ERROR IN CALLBACKS: {ex}\")\n\n        code_block_active = False\n        code_language\
+    \ = ''\n        code_content = ''\n\n        for chunk in response_stream:\n \
+    \           # Check for tools\n            choice = chunk.choices[0]\n       \
+    \     tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None\
+    \ \n            \n            if tool_calls:\n                tool_call = tool_calls[0]\
+    \ \n                if tool_call.id and not all_tool_calls.get(tool_call.id):\n\
+    \                    last_tool_id = tool_call.id\n                    all_tool_calls[last_tool_id]\
+    \ = {\n                        \"id\": last_tool_id,\n                       \
+    \ \"function\": \"\",\n                        \"arguments\": \"\"\n         \
+    \           }\n                if tool_call.function.name:\n                 \
+    \   all_tool_calls[last_tool_id][\"function\"] += tool_call.function.name\n  \
+    \                  \n                all_tool_calls[last_tool_id][\"arguments\"\
+    ] += tool_call.function.arguments\n            \n            if choice.finish_reason\
+    \ == 'tool_calls':\n                ai_tool_response = None\n                for\
+    \ tool_call_data in all_tool_calls.values():\n                    func_name =\
+    \ tool_call_data[\"function\"]\n                    try:\n                   \
+    \     tools_response = await self.process_tool_calls(tool_call_data)\n       \
+    \                 tool_output = tools_response[\"output\"] if \"output\" in tools_response\
+    \ else tools_response \n                        ai_tool_response = AIMessage(content=tool_output)\n\
+    \                    except Exception as ex:\n                        logger.exception(\"\
+    Error processing '%s': %s\", func_name, tool_call_data)\n                    \
+    \    error = f\"Error processing {func_name}:\\n{ex}\"\n                     \
+    \   ai_tool_response = AIMessage(content=error)\n\n                    messages.append(ai_tool_response)\n\
+    \n                return self.chat_completions(messages=messages, config=config)\n\
+    \            \n            chunk_content = choice.delta.content\n            if\
+    \ not chunk_content:\n                continue\n            chunk_content = clean_string(chunk_content)\n\
+    \n            # Detect code block start\n            if chunk_content.startswith(\"\
+    ```\"):\n                code_block_active = True\n                code_language\
+    \ = chunk_content[3:].strip()\n                continue\n\n            # Detect\
+    \ code block end\n            if code_block_active and chunk_content.startswith(\"\
+    ```\"):\n                processed_code = await code_block('', code_content, code_language,\
+    \ settings=self.settings)\n                send_callback(processed_code, flush=True)\n\
+    \                code_block_active = False\n                code_content = ''\n\
+    \                continue\n\n            # Append content to code block or normal\
+    \ content\n            if code_block_active:\n                code_content +=\
+    \ chunk_content\n            else:\n                content_parts.append(chunk_content)\n\
+    \                send_callback(chunk_content)\n\n        # Last chunks...\n  \
+    \      send_callback(\"\", flush=True)\n    except Exception as ex:\n        logger.error(\"\
+    Error reading AI response: %s, %s, %s\\n%s\", self.base_url, self.api_key[0:5],\
+    \ self.llm_settings, ex)\n        raise ex\n\n    response_content = \"\".join(content_parts)\n\
+    \    self.log(f\"AI RESPONSE:\\n{response_content}\")\n\n    messages.append(AIMessage(content=response_content))\n\
+    \    return messages\n```\n\n### Key Changes:\n- **Code Block Detection**: Added\
+    \ logic to detect the start (`\"```\"`) and end of code blocks.\n- **Processing\
+    \ Code Blocks**: Used the `code_block` function to process code content when a\
+    \ block ends.\n- **Sending to Callback**: Processed code blocks are sent to the\
+    \ callback function when detected.\n\nThis implementation assumes that the code\
+    \ blocks are well-formed and that the `code_block` function is appropriately set\
+    \ up to process them. Adjust the logic as needed based on the specific requirements\
+    \ and structure of your project."
+  created_at: '2025-11-24 18:10:38.736326'
+  disable_knowledge: false
+  doc_id: 7cf3a74d-b9a6-48c1-85e9-7833b54257ba
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00020623207092285156
+    model: openai/gpt-4o
+    time_taken: 36.731528997421265
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-24 18:10:38.736348'
+  user: null
+- content: "chunk_content is multiline so we can't rely on checking if it starts with.\
+    \ Instead keep the buffering of\_chunk_content and add a processor function that\
+    \ will process that will be splitting buffer in lines, yield the lines not starting\
+    \ with (```) and keep the code block for processing, once processed stream the\
+    \ response to the call_back"
+  created_at: '2025-11-24 18:10:38.736326'
+  disable_knowledge: true
+  doc_id: be9a6748-dcc2-403b-ac17-b04ea4098439
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-24 18:10:38.736348'
+  user: admin
+- content: "```python\n@profile_function\nasync def a_chat_completions(self, messages,\
+    \ config: dict = {}):\n    kwargs = {\n        \"model\": self.model,\n      \
+    \  \"stream\": True,\n        \"tools\": [tool[\"tool_json\"] for tool in self.tools]\n\
+    \    }\n\n    if self.llm_settings.temperature >= 0:\n        kwargs[\"temperature\"\
+    ] = float(self.llm_settings.temperature)\n\n    self.log(f\"OpenAI_AI chat_completions\
+    \ {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...\"\
+    )\n\n    openai_messages = [self.convert_message_to_openai(msg) for msg in messages]\n\
+    \                        \n    if self.llm_settings.merge_messages:\n        message\
+    \ = \"\\n\".join([message['content'] for message in openai_messages])\n      \
+    \  openai_messages = [{\"role\": \"user\", \"content\": message}]\n    self.log(f\"\
+    USER REQUEST:\\n{openai_messages}\")\n    if self.settings.get_log_ai():\n   \
+    \     self.log(f\"\\nReceived AI response, start reading stream\\n{self.llm_settings}\"\
+    )\n    try:\n        request_headers = config.get(\"headers\", {})\n        tags\
+    \ = request_headers.get(\"tags\", \"\")\n        tags = tags.split(\",\") + [\n\
+    \            f\"temperature:{self.llm_settings.temperature}\",\n            self.settings.project_name\n\
+    \        ]\n        if self.user:\n            tags.append(f\"user:{self.user.username}\"\
+    )\n        request_headers[\"x-litellm-tags\"] = \",\".join(tags)\n\n        response_stream\
+    \ = self.client.chat.completions.create(\n            **kwargs,\n            messages=openai_messages,\n\
+    \            extra_headers=request_headers\n        )\n        callbacks = config.get(\"\
+    callbacks\", None)\n        content_parts = []\n\n        callback_data = {\n\
+    \            \"buffer\": [],\n            \"ts\": datetime.now(),\n        }\n\
+    \n        tool_call_data = {\n            \"id\": None,\n            \"function\"\
+    : None,\n            \"arguments\": \"\"\n        }\n        all_tool_calls =\
+    \ {}\n        last_tool_id = None\n\n        def send_callback(chunk_content,\
+    \ flush=False):\n            if not callbacks:\n                return\n\n   \
+    \         callback_data[\"buffer\"].append(chunk_content or \"\")\n          \
+    \  if flush or (datetime.now() - callback_data[\"ts\"]).total_seconds() > 1:\n\
+    \                callback_data[\"ts\"] = datetime.now()\n                message\
+    \ = \"\".join(callback_data[\"buffer\"]) if callback_data[\"buffer\"] else \"\"\
+    \n                callback_data[\"buffer\"] = []\n                for cb in callbacks:\n\
+    \                    try:\n                        cb(message)\n             \
+    \       except Exception as ex:\n                        logger.exception(f\"\
+    ERROR IN CALLBACKS: {ex}\")\n\n        code_block_active = False\n        code_language\
+    \ = ''\n        code_content = ''\n\n        def process_chunk_content(chunk_content):\n\
+    \            nonlocal code_block_active, code_language, code_content\n       \
+    \     lines = chunk_content.splitlines(keepends=True)\n            for line in\
+    \ lines:\n                if line.startswith(\"```\"):\n                    if\
+    \ code_block_active:\n                        processed_code = await code_block('',\
+    \ code_content, code_language, settings=self.settings)\n                     \
+    \   send_callback(processed_code, flush=True)\n                        code_block_active\
+    \ = False\n                        code_content = ''\n                    else:\n\
+    \                        code_block_active = True\n                        code_language\
+    \ = line[3:].strip()\n                elif code_block_active:\n              \
+    \      code_content += line\n                else:\n                    send_callback(line)\n\
+    \n        for chunk in response_stream:\n            # Check for tools\n     \
+    \       choice = chunk.choices[0]\n            tool_calls = choice.delta.tool_calls\
+    \ if hasattr(choice, 'delta') else None \n            \n            if tool_calls:\n\
+    \                tool_call = tool_calls[0] \n                if tool_call.id and\
+    \ not all_tool_calls.get(tool_call.id):\n                    last_tool_id = tool_call.id\n\
+    \                    all_tool_calls[last_tool_id] = {\n                      \
+    \  \"id\": last_tool_id,\n                        \"function\": \"\",\n      \
+    \                  \"arguments\": \"\"\n                    }\n              \
+    \  if tool_call.function.name:\n                    all_tool_calls[last_tool_id][\"\
+    function\"] += tool_call.function.name\n                    \n               \
+    \ all_tool_calls[last_tool_id][\"arguments\"] += tool_call.function.arguments\n\
+    \            \n            if choice.finish_reason == 'tool_calls':\n        \
+    \        ai_tool_response = None\n                for tool_call_data in all_tool_calls.values():\n\
+    \                    func_name = tool_call_data[\"function\"]\n              \
+    \      try:\n                        tools_response = await self.process_tool_calls(tool_call_data)\n\
+    \                        tool_output = tools_response[\"output\"] if \"output\"\
+    \ in tools_response else tools_response \n                        ai_tool_response\
+    \ = AIMessage(content=tool_output)\n                    except Exception as ex:\n\
+    \                        logger.exception(\"Error processing '%s': %s\", func_name,\
+    \ tool_call_data)\n                        error = f\"Error processing {func_name}:\\\
+    n{ex}\"\n                        ai_tool_response = AIMessage(content=error)\n\
+    \n                    messages.append(ai_tool_response)\n\n                return\
+    \ self.chat_completions(messages=messages, config=config)\n            \n    \
+    \        chunk_content = choice.delta.content\n            if not chunk_content:\n\
+    \                continue\n            chunk_content = clean_string(chunk_content)\n\
+    \n            # Process the chunk content\n            process_chunk_content(chunk_content)\n\
+    \n        # Last chunks...\n        send_callback(\"\", flush=True)\n    except\
+    \ Exception as ex:\n        logger.error(\"Error reading AI response: %s, %s,\
+    \ %s\\n%s\", self.base_url, self.api_key[0:5], self.llm_settings, ex)\n      \
+    \  raise ex\n\n    response_content = \"\".join(content_parts)\n    self.log(f\"\
+    AI RESPONSE:\\n{response_content}\")\n\n    messages.append(AIMessage(content=response_content))\n\
+    \    return messages\n```\n\n### Key Changes:\n- **Buffered Processing**: Added\
+    \ a `process_chunk_content` function to handle multiline `chunk_content` by splitting\
+    \ it into lines and processing each line.\n- **Code Block Management**: Code blocks\
+    \ are managed line-by-line, allowing for more accurate detection and processing.\n\
+    - **Sending to Callback**: The processed code blocks, as well as other content,\
+    \ are sent to the callback function appropriately."
+  created_at: '2025-11-24 18:10:38.736326'
+  disable_knowledge: false
+  doc_id: 87acc946-1724-49c9-80a0-cff181e3b5f5
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0001983642578125
+    model: openai/gpt-4o
+    time_taken: 13.464955806732178
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-24 18:10:38.736348'
+  user: null
+- content: Split "a_chat_completions" in smaller methods to help following with the
+    logic
+  created_at: '2025-11-24 18:10:38.736326'
+  disable_knowledge: true
+  doc_id: ede88bed-a289-4ae6-9a4a-648d88bb52fa
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-24 18:10:38.736348'
+  user: admin
+- content: "```python\n@profile_function\nasync def a_chat_completions(self, messages,\
+    \ config: dict = {}):\n    kwargs = self._prepare_request_kwargs()\n\n    self.log(f\"\
+    OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url}\
+    \ {self.api_key[0:6]}...\")\n\n    openai_messages = self._prepare_openai_messages(messages)\n\
+    \n    self.log(f\"USER REQUEST:\\n{openai_messages}\")\n    if self.settings.get_log_ai():\n\
+    \        self.log(f\"\\nReceived AI response, start reading stream\\n{self.llm_settings}\"\
+    )\n\n    try:\n        request_headers = self._prepare_request_headers(config)\n\
+    \        response_stream = self.client.chat.completions.create(\n            **kwargs,\n\
+    \            messages=openai_messages,\n            extra_headers=request_headers\n\
+    \        )\n        callbacks = config.get(\"callbacks\", None)\n        content_parts\
+    \ = []\n\n        callback_data = {\n            \"buffer\": [],\n           \
+    \ \"ts\": datetime.now(),\n        }\n\n        all_tool_calls = {}\n        last_tool_id\
+    \ = None\n\n        def send_callback(chunk_content, flush=False):\n         \
+    \   if not callbacks:\n                return\n\n            callback_data[\"\
+    buffer\"].append(chunk_content or \"\")\n            if flush or (datetime.now()\
+    \ - callback_data[\"ts\"]).total_seconds() > 1:\n                callback_data[\"\
+    ts\"] = datetime.now()\n                message = \"\".join(callback_data[\"buffer\"\
+    ]) if callback_data[\"buffer\"] else \"\"\n                callback_data[\"buffer\"\
+    ] = []\n                for cb in callbacks:\n                    try:\n     \
+    \                   cb(message)\n                    except Exception as ex:\n\
+    \                        logger.exception(f\"ERROR IN CALLBACKS: {ex}\")\n\n \
+    \       code_block_active = False\n        code_language = ''\n        code_content\
+    \ = ''\n\n        def process_chunk_content(chunk_content):\n            nonlocal\
+    \ code_block_active, code_language, code_content\n            lines = chunk_content.splitlines(keepends=True)\n\
+    \            for line in lines:\n                if line.startswith(\"```\"):\n\
+    \                    if code_block_active:\n                        processed_code\
+    \ = await code_block('', code_content, code_language, settings=self.settings)\n\
+    \                        send_callback(processed_code, flush=True)\n         \
+    \               code_block_active = False\n                        code_content\
+    \ = ''\n                    else:\n                        code_block_active =\
+    \ True\n                        code_language = line[3:].strip()\n           \
+    \     elif code_block_active:\n                    code_content += line\n    \
+    \            else:\n                    send_callback(line)\n\n        for chunk\
+    \ in response_stream:\n            self._handle_chunk(chunk, all_tool_calls, last_tool_id,\
+    \ messages, send_callback, process_chunk_content)\n\n        # Last chunks...\n\
+    \        send_callback(\"\", flush=True)\n    except Exception as ex:\n      \
+    \  logger.error(\"Error reading AI response: %s, %s, %s\\n%s\", self.base_url,\
+    \ self.api_key[0:5], self.llm_settings, ex)\n        raise ex\n\n    response_content\
+    \ = \"\".join(content_parts)\n    self.log(f\"AI RESPONSE:\\n{response_content}\"\
+    )\n\n    messages.append(AIMessage(content=response_content))\n    return messages\n\
+    \ndef _prepare_request_kwargs(self):\n    kwargs = {\n        \"model\": self.model,\n\
+    \        \"stream\": True,\n        \"tools\": [tool[\"tool_json\"] for tool in\
+    \ self.tools]\n    }\n\n    if self.llm_settings.temperature >= 0:\n        kwargs[\"\
+    temperature\"] = float(self.llm_settings.temperature)\n    return kwargs\n\ndef\
+    \ _prepare_openai_messages(self, messages):\n    openai_messages = [self.convert_message_to_openai(msg)\
+    \ for msg in messages]\n\n    if self.llm_settings.merge_messages:\n        message\
+    \ = \"\\n\".join([message['content'] for message in openai_messages])\n      \
+    \  openai_messages = [{\"role\": \"user\", \"content\": message}]\n    return\
+    \ openai_messages\n\ndef _prepare_request_headers(self, config):\n    request_headers\
+    \ = config.get(\"headers\", {})\n    tags = request_headers.get(\"tags\", \"\"\
+    )\n    tags = tags.split(\",\") + [\n        f\"temperature:{self.llm_settings.temperature}\"\
+    ,\n        self.settings.project_name\n    ]\n    if self.user:\n        tags.append(f\"\
+    user:{self.user.username}\")\n    request_headers[\"x-litellm-tags\"] = \",\"\
+    .join(tags)\n    return request_headers\n\ndef _handle_chunk(self, chunk, all_tool_calls,\
+    \ last_tool_id, messages, send_callback, process_chunk_content):\n    choice =\
+    \ chunk.choices[0]\n    tool_calls = choice.delta.tool_calls if hasattr(choice,\
+    \ 'delta') else None\n\n    if tool_calls:\n        tool_call = tool_calls[0]\n\
+    \        if tool_call.id and not all_tool_calls.get(tool_call.id):\n         \
+    \   last_tool_id = tool_call.id\n            all_tool_calls[last_tool_id] = {\n\
+    \                \"id\": last_tool_id,\n                \"function\": \"\",\n\
+    \                \"arguments\": \"\"\n            }\n        if tool_call.function.name:\n\
+    \            all_tool_calls[last_tool_id][\"function\"] += tool_call.function.name\n\
+    \n        all_tool_calls[last_tool_id][\"arguments\"] += tool_call.function.arguments\n\
+    \n    if choice.finish_reason == 'tool_calls':\n        ai_tool_response = None\n\
+    \        for tool_call_data in all_tool_calls.values():\n            func_name\
+    \ = tool_call_data[\"function\"]\n            try:\n                tools_response\
+    \ = await self.process_tool_calls(tool_call_data)\n                tool_output\
+    \ = tools_response[\"output\"] if \"output\" in tools_response else tools_response\n\
+    \                ai_tool_response = AIMessage(content=tool_output)\n         \
+    \   except Exception as ex:\n                logger.exception(\"Error processing\
+    \ '%s': %s\", func_name, tool_call_data)\n                error = f\"Error processing\
+    \ {func_name}:\\n{ex}\"\n                ai_tool_response = AIMessage(content=error)\n\
+    \n            messages.append(ai_tool_response)\n\n        return self.chat_completions(messages=messages,\
+    \ config=config)\n\n    chunk_content = choice.delta.content\n    if not chunk_content:\n\
+    \        return\n    chunk_content = clean_string(chunk_content)\n\n    # Process\
+    \ the chunk content\n    process_chunk_content(chunk_content)\n```\n\n### Key\
+    \ Changes:\n- **Method Extraction**: The main method `a_chat_completions` has\
+    \ been broken down into smaller methods: `_prepare_request_kwargs`, `_prepare_openai_messages`,\
+    \ `_prepare_request_headers`, and `_handle_chunk`.\n- **Improved Readability**:\
+    \ The logic is now easier to follow with each method handling a specific part\
+    \ of the process."
+  created_at: '2025-11-24 18:10:38.736326'
+  disable_knowledge: false
+  doc_id: 660ebaf2-0622-4076-b4b7-1f6ba84abbdb
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00019788742065429688
+    model: openai/gpt-4o
+    time_taken: 15.467544794082642
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-24 18:10:38.736348'
+  user: null
+- content: document openai_ai.py
+  created_at: '2025-11-24 18:26:05.644974'
+  disable_knowledge: true
+  doc_id: f0f509ba-05bb-48d1-8662-51ded11edddf
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/ai/openai_ai.py
+  - /shared/codx-junior/api/codx/junior/ai/openai_ai.py
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-24 18:26:05.644996'
+  user: admin
+- content: 'Testing code genaration and post processing:
+
+    Create a small class in python for sorting an array'
+  created_at: '2025-11-24 18:46:02.487810'
+  disable_knowledge: true
+  doc_id: 1e9e303c-794c-4cd6-98fb-a48490748ae5
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-24 18:46:02.487837'
+  user: admin
+- content: 'Here''s a simple Python class for sorting an array using the bubble sort
+    algorithm:
+
+
+    '
+  created_at: '2025-11-25 08:06:36.746674'
+  disable_knowledge: false
+  doc_id: 2108c3d2-8830-4a85-bee3-dc94255ba567
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00021266937255859375
+    model: openai/gpt-4o
+    time_taken: 3.715836524963379
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-25 08:06:36.746698'
+  user: null
+- content: "Keep openai_ai.py changes for code processing and discard:\n```python\n\
+    import logging\nimport json\n\n\nfrom datetime import datetime\nfrom typing import\
+    \ Union\nfrom openai import OpenAI\nfrom openai.types.chat.chat_completion_system_message_param\
+    \ import ChatCompletionSystemMessageParam\nfrom openai.types.chat.chat_completion_user_message_param\
+    \ import ChatCompletionUserMessageParam\nfrom codx.junior.ai.ai_logger import\
+    \ AILogger\nfrom codx.junior.settings import CODXJuniorSettings\nfrom langchain.schema\
+    \ import AIMessage, HumanMessage, BaseMessage\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\nfrom codx.junior.utils.utils import clean_string, asyncify\n\
+    from codx.junior.model.model import CodxUser\nfrom codx.junior.profiles.profile_manager\
+    \ import ProfileManager\n\n\nfrom codx.junior.model.model import (\n\_ \_ Profile\n\
+    )\n\n\n\n\nlogger = logging.getLogger(__name__)\n\n\nclass OpenAI_AI:\n\_ \_ def\
+    \ __init__(self, settings: CODXJuniorSettings, llm_model: str = None, user: CodxUser\
+    \ = None):\n\_ \_ \_ \_ # from codx.junior.tools import TOOLS\n\_ \_ \_ \_ self.tools\
+    \ = [] # TOOLS .... disabled, move to profiles\n\_ \_ \_ \_\_\n\_ \_ \_ \_ self.settings\
+    \ = settings\n\_ \_ \_ \_ self.llm_settings = settings.get_llm_settings(llm_model=llm_model)\n\
+    \_ \_ \_ \_ self.model = self.llm_settings.model\n\_ \_ \_ \_ self.user = user\n\
+    \_ \_ \_ \_ self.api_key = self.user.api_key if self.user and self.user.api_key\
+    \ else self.llm_settings.api_key\n\_ \_ \_ \_ self.base_url = self.llm_settings.api_url\n\
+    \n\n\_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ self.client = OpenAI(api_key=self.api_key,\
+    \ base_url=self.base_url)\n\_ \_ \_ \_ \_ \_ logger.info(\"Creating OpenAI client.\
+    \ USER: %s, URL: %s, API: %s*****\",\_\n\_ \_ \_ \_ \_ \_ \_ \_ self.user.username\
+    \ if self.user else \"NONE\",\n\_ \_ \_ \_ \_ \_ \_ \_ self.base_url,\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ self.api_key[0:15])\n\_ \_ \_ \_ except Exception as ex:\n\_\
+    \ \_ \_ \_ \_ \_ logger.error(\"Error creating OpenAI client: %s, %s*****\", self.base_url,\
+    \ self.api_key[0:15])\n\_ \_ \_ \_ self.ai_logger = AILogger(settings=settings)\n\
+    \n\n\_ \_ def get_profile_manager(self, settings = None):\n\_ \_ \_ \_ return\
+    \ ProfileManager(settings=settings or self.settings)\n\n\n\_ \_ def log(self,\
+    \ msg):\n\_ \_ \_ \_ if self.settings.get_log_ai():\n\_ \_ \_ \_ \_ \_ self.ai_logger.info(msg)\n\
+    \n\n\_ \_ def convert_message_to_openai(self, gpt_message: Union[AIMessage, HumanMessage,\
+    \ BaseMessage]):\n\_ \_ \_ \_ if gpt_message.type == \"image\":\n\_ \_ \_ \_ \_\
+    \ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ return {\"content\": json.loads(gpt_message.content),\
+    \ \"role\": \"user\"}\n\_ \_ \_ \_ \_ \_ except Exception as ex:\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ self.log(f\"Error converting image message '{ex}': {gpt_message}\"\
+    )\n\_ \_ \_ \_ \_ \_ \_ \_ raise ex\n\_ \_ \_ \_ return {\n\_ \_ \_ \_ \_ \_ \"\
+    role\": \"assistant\" if gpt_message.type == \"ai\" else \"user\",\n\_ \_ \_ \_\
+    \ \_ \_ \"content\": gpt_message.content\n\_ \_ \_ \_ }\n\n\n\_ \_ @profile_function\n\
+    \_ \_ def chat_completions(self, messages, config: dict = {}):\n\_ \_ \_ \_ kwargs\
+    \ = {\n\_ \_ \_ \_ \_ \_ \"model\": self.model,\n\_ \_ \_ \_ \_ \_ \"stream\"\
+    : True,\n\_ \_ \_ \_ }\n\n\n\_ \_ \_ \_ if self.llm_settings.temperature >= 0:\n\
+    \_ \_ \_ \_ \_ \_ kwargs[\"temperature\"] = float(self.llm_settings.temperature)\n\
+    \n\n\_ \_ \_ \_ self.log(f\"OpenAI_AI chat_completions {self.llm_settings.provider}:\
+    \ {self.model} {self.base_url} {self.api_key[0:6]}...\")\n\n\n\_ \_ \_ \_ openai_messages\
+    \ = [self.convert_message_to_openai(msg) for msg in messages]\n\n\n\_ \_ \_ \_\
+    \ if self.llm_settings.merge_messages:\n\_ \_ \_ \_ \_ \_ message = \"\\n\".join([message['content']\
+    \ for message in openai_messages])\n\_ \_ \_ \_ \_ \_ openai_messages = [{\"role\"\
+    : \"user\", \"content\": message}]\n\_ \_ \_ \_ self.log(f\"USER REQUEST:\\n{openai_messages}\"\
+    )\n\_ \_ \_ \_ if self.settings.get_log_ai():\n\_ \_ \_ \_ \_ \_ self.log(f\"\\\
+    nReceived AI response, start reading stream\\n{self.llm_settings}\")\n\_ \_ \_\
+    \ \_ try:\n\_ \_ \_ \_ \_ \_ request_headers = config.get(\"headers\", {})\n\_\
+    \ \_ \_ \_ \_ \_ tags = request_headers.get(\"tags\", \"\")\n\_ \_ \_ \_ \_ \_\
+    \ tags = tags.split(\",\") + [\n\_ \_ \_ \_ \_ \_ \_ \_ f\"temperature:{self.llm_settings.temperature}\"\
+    ,\n\_ \_ \_ \_ \_ \_ \_ \_ self.settings.project_name\n\_ \_ \_ \_ \_ \_ ]\n\_\
+    \ \_ \_ \_ \_ \_ if self.user:\n\_ \_ \_ \_ \_ \_ \_ \_ tags.append(f\"user:{self.user.username}\"\
+    )\n\_ \_ \_ \_ \_ \_ request_headers[\"x-litellm-tags\"] = \",\".join(tags)\n\n\
+    \n\_ \_ \_ \_ \_ \_ response_stream = self.client.chat.completions.create(\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ **kwargs,\n\_ \_ \_ \_ \_ \_ \_ \_ messages=openai_messages,\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ extra_headers=request_headers\n\_ \_ \_ \_ \_ \_ )\n\_\
+    \ \_ \_ \_ \_ \_ callbacks = config.get(\"callbacks\", None)\n\_ \_ \_ \_ \_ \_\
+    \ content_parts = []\n\n\n\_ \_ \_ \_ \_ \_ callback_data = {\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \"buffer\": [],\n\_ \_ \_ \_ \_ \_ \_ \_ \"ts\": datetime.now(),\n\_\
+    \ \_ \_ \_ \_ \_ }\n\n\n\_ \_ \_ \_ \_ \_ def send_callback(chunk_content, flush=False):\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ if not callbacks:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ return\n\
+    \n\n\_ \_ \_ \_ \_ \_ \_ \_ callback_data[\"buffer\"].append(chunk_content or\
+    \ \"\")\n\_ \_ \_ \_ \_ \_ \_ \_ if flush or (datetime.now() - callback_data[\"\
+    ts\"]).total_seconds() > 1:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ callback_data[\"ts\"\
+    ] = datetime.now()\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ message = \"\".join(callback_data[\"\
+    buffer\"]) if callback_data[\"buffer\"] else \"\"\n\_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ callback_data[\"buffer\"] = []\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ for cb in callbacks:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ cb(message)\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ except Exception as ex:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ logger.exception(f\"ERROR IN CALLBACKS:\
+    \ {ex}\")\n\n\n\_ \_ \_ \_ \_ \_ for chunk in response_stream:\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ choice = chunk.choices[0]\n\_ \_ \_ \_ \_ \_ \_ \_ chunk_content =\
+    \ choice.delta.content\n\_ \_ \_ \_ \_ \_ \_ \_ if not chunk_content:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ continue\n\_ \_ \_ \_ \_ \_ \_ \_ chunk_content = clean_string(chunk_content)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ content_parts.append(chunk_content)\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ send_callback(chunk_content)\n\n\n\_ \_ \_ \_ \_ \_ # Last chunks...\n\
+    \_ \_ \_ \_ \_ \_ send_callback(\"\", flush=True)\n\_ \_ \_ \_ except Exception\
+    \ as ex:\n\_ \_ \_ \_ \_ \_ logger.error(\"Error reading AI response: %s, %s,\
+    \ %s\\n%s\", self.base_url, self.api_key[0:5], self.llm_settings, ex)\n\_ \_ \_\
+    \ \_ \_ \_ raise ex\n\n\n\_ \_ \_ \_ response_content = \"\".join(content_parts)\n\
+    \_ \_ \_ \_ self.log(f\"AI RESPONSE:\\n{response_content}\")\n\n\n\_ \_ \_ \_\
+    \ messages.append(AIMessage(content=response_content))\n\_ \_ \_ \_ return messages\n\
+    \n\n\_ \_ @profile_function\n\_ \_ async def a_chat_completions(self, messages,\
+    \ config: dict = {}):\n\_ \_ \_ \_ kwargs = self._prepare_request_kwargs()\n\n\
+    \n\_ \_ \_ \_ self.log(f\"OpenAI_AI chat_completions {self.llm_settings.provider}:\
+    \ {self.model} {self.base_url} {self.api_key[0:6]}...\")\n\n\n\_ \_ \_ \_ openai_messages\
+    \ = self._prepare_openai_messages(messages)\n\n\n\_ \_ \_ \_ self.log(f\"USER\
+    \ REQUEST:\\n{openai_messages}\")\n\_ \_ \_ \_ if self.settings.get_log_ai():\n\
+    \_ \_ \_ \_ \_ \_ self.log(f\"\\nReceived AI response, start reading stream\\\
+    n{self.llm_settings}\")\n\n\n\_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ request_headers\
+    \ = self._prepare_request_headers(config)\n\_ \_ \_ \_ \_ \_ response_stream =\
+    \ self.client.chat.completions.create(\n\_ \_ \_ \_ \_ \_ \_ \_ **kwargs,\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ messages=openai_messages,\n\_ \_ \_ \_ \_ \_ \_ \_ extra_headers=request_headers\n\
+    \_ \_ \_ \_ \_ \_ )\n\_ \_ \_ \_ \_ \_ callbacks = config.get(\"callbacks\", None)\n\
+    \_ \_ \_ \_ \_ \_ content_parts = []\n\n\n\_ \_ \_ \_ \_ \_ callback_data = {\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \"buffer\": [],\n\_ \_ \_ \_ \_ \_ \_ \_ \"ts\": datetime.now(),\n\
+    \_ \_ \_ \_ \_ \_ }\n\n\n\_ \_ \_ \_ \_ \_ tools_manager = {\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ \"all_tool_calls\": {},\n\_ \_ \_ \_ \_ \_ \_ \_ \"last_tool_id\": None\n\
+    \_ \_ \_ \_ \_ \_ }\n\n\n\_ \_ \_ \_ \_ \_ def send_callback(chunk_content, flush=False):\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ content_parts.append(chunk_content or \"\")\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ if not callbacks:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ return\n\n\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ callback_data[\"buffer\"].append(chunk_content or \"\"\
+    )\n\_ \_ \_ \_ \_ \_ \_ \_ if flush or (datetime.now() - callback_data[\"ts\"\
+    ]).total_seconds() > 1:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ callback_data[\"ts\"] =\
+    \ datetime.now()\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ message = \"\".join(callback_data[\"\
+    buffer\"]) if callback_data[\"buffer\"] else \"\"\n\_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ callback_data[\"buffer\"] = []\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ for cb in callbacks:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ cb(message)\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ except Exception as ex:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ logger.exception(f\"ERROR IN CALLBACKS:\
+    \ {ex}\")\n\n\n\_ \_ \_ \_ \_ \_ code_block_active = False\n\_ \_ \_ \_ \_ \_\
+    \ code_language = ''\n\_ \_ \_ \_ \_ \_ code_content = ''\n\_ \_ \_ \_ \_ \_ code_file_path\
+    \ = ''\n\n\n\_ \_ \_ \_ \_ \_ async def process_chunk_content(chunk_content):\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ nonlocal code_block_active, code_language, code_content\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ lines = chunk_content.splitlines(keepends=True)\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ for line in lines:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ if line.startswith(\"\
+    ```\"):\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ if code_block_active:\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ logger.info(\"Processing code block: %s\\n%s\"\
+    , code_file_path, code_content)\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ processed_code\
+    \ = await self.process_project_file_before_saving(file_path=code_file_path, content=code_content)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ send_callback(processed_code, flush=True)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ code_block_active = False\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ code_content = ''\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ else:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ logger.info(\"\
+    Code block detected: %s\", line)\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ code_block_active\
+    \ = True\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ code_parts = line[3:].strip().split(\"\
+    \ \")\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ code_language = code_parts[0]\_\
+    \n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ code_file_path = code_parts[1] if\
+    \ len(code_parts) == 2 else f\"anonymous_file.{code_language}\"\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ elif code_block_active:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ code_content += line\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ else:\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ send_callback(line)\n\n\n\_ \_ \_ \_ \_ \_ for chunk in response_stream:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ await self._handle_chunk(tools_manager=tools_manager,\_\
+    \n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ chunk=chunk,\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ messages=messages,\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ process_chunk_content=process_chunk_content)\n\
+    \n\n\_ \_ \_ \_ \_ \_ # Last chunks...\n\_ \_ \_ \_ \_ \_ send_callback(\"\",\
+    \ flush=True)\n\_ \_ \_ \_ except Exception as ex:\n\_ \_ \_ \_ \_ \_ logger.error(\"\
+    Error reading AI response: %s, %s, %s\\n%s\", self.base_url, self.api_key[0:5],\
+    \ self.llm_settings, ex)\n\_ \_ \_ \_ \_ \_ raise ex\n\n\n\_ \_ \_ \_ response_content\
+    \ = \"\".join(content_parts)\n\_ \_ \_ \_ self.log(f\"AI RESPONSE:\\n{response_content}\"\
+    )\n\n\n\_ \_ \_ \_ messages.append(AIMessage(content=response_content))\n\_ \_\
+    \ \_ \_ return messages\n\n\n\_ \_ def _prepare_request_kwargs(self):\n\_ \_ \_\
+    \ \_ kwargs = {\n\_ \_ \_ \_ \_ \_ \"model\": self.model,\n\_ \_ \_ \_ \_ \_ \"\
+    stream\": True,\n\_ \_ \_ \_ \_ \_ \"tools\": [tool[\"tool_json\"] for tool in\
+    \ self.tools]\n\_ \_ \_ \_ }\n\n\n\_ \_ \_ \_ if self.llm_settings.temperature\
+    \ >= 0:\n\_ \_ \_ \_ \_ \_ kwargs[\"temperature\"] = float(self.llm_settings.temperature)\n\
+    \_ \_ \_ \_ return kwargs\n\n\n\_ \_ def _prepare_openai_messages(self, messages):\n\
+    \_ \_ \_ \_ openai_messages = [self.convert_message_to_openai(msg) for msg in\
+    \ messages]\n\n\n\_ \_ \_ \_ if self.llm_settings.merge_messages:\n\_ \_ \_ \_\
+    \ \_ \_ message = \"\\n\".join([message['content'] for message in openai_messages])\n\
+    \_ \_ \_ \_ \_ \_ openai_messages = [{\"role\": \"user\", \"content\": message}]\n\
+    \_ \_ \_ \_ return openai_messages\n\n\n\_ \_ def _prepare_request_headers(self,\
+    \ config):\n\_ \_ \_ \_ request_headers = config.get(\"headers\", {})\n\_ \_ \_\
+    \ \_ tags = request_headers.get(\"tags\", \"\")\n\_ \_ \_ \_ tags = tags.split(\"\
+    ,\") + [\n\_ \_ \_ \_ \_ \_ f\"temperature:{self.llm_settings.temperature}\",\n\
+    \_ \_ \_ \_ \_ \_ self.settings.project_name\n\_ \_ \_ \_ ]\n\_ \_ \_ \_ if self.user:\n\
+    \_ \_ \_ \_ \_ \_ tags.append(f\"user:{self.user.username}\")\n\_ \_ \_ \_ request_headers[\"\
+    x-litellm-tags\"] = \",\".join(tags)\n\_ \_ \_ \_ return request_headers\n\n\n\
+    \_ \_ async def _handle_chunk(self, tools_manager, chunk, messages, process_chunk_content):\n\
+    \_ \_ \_ \_ choice = chunk.choices[0]\n\_ \_ \_ \_ tool_calls = choice.delta.tool_calls\
+    \ if hasattr(choice, 'delta') else None\n\_ \_ \_ \_ all_tool_calls = tools_manager[\"\
+    all_tool_calls\"]\n\_ \_ \_ \_ last_tool_id = tools_manager.get(\"last_tool_id\"\
+    , None)\n\_ \_ \_ \_ if tool_calls:\n\_ \_ \_ \_ \_ \_ tool_call = tool_calls[0]\n\
+    \_ \_ \_ \_ \_ \_ if tool_call.id and not all_tool_calls.get(tool_call.id):\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ last_tool_id = tool_call.id\n\_ \_ \_ \_ \_ \_ \_ \_ tools_manager[\"\
+    last_tool_id\"] = tool_call.id\n\_ \_ \_ \_ \_ \_ \_ \_ all_tool_calls[last_tool_id]\
+    \ = {\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"id\": last_tool_id,\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \"function\": \"\",\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"arguments\"\
+    : \"\"\n\_ \_ \_ \_ \_ \_ \_ \_ }\n\_ \_ \_ \_ \_ \_ if tool_call.function.name\
+    \ and last_tool_id:\n\_ \_ \_ \_ \_ \_ \_ \_ all_tool_calls[last_tool_id][\"function\"\
+    ] += tool_call.function.name\n\_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ all_tool_calls[last_tool_id][\"\
+    arguments\"] += tool_call.function.arguments\n\n\n\_ \_ \_ \_ if choice.finish_reason\
+    \ == 'tool_calls':\n\_ \_ \_ \_ \_ \_ ai_tool_response = None\n\_ \_ \_ \_ \_\
+    \ \_ for tool_call_data in all_tool_calls.values():\n\_ \_ \_ \_ \_ \_ \_ \_ func_name\
+    \ = tool_call_data[\"function\"]\n\_ \_ \_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ tools_response = await self.process_tool_calls(tool_call_data)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ tool_output = tools_response[\"output\"] if \"output\"\
+    \ in tools_response else tools_response\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ ai_tool_response\
+    \ = AIMessage(content=tool_output)\n\_ \_ \_ \_ \_ \_ \_ \_ except Exception as\
+    \ ex:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ logger.exception(\"Error processing '%s':\
+    \ %s\", func_name, tool_call_data)\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ error = f\"\
+    Error processing {func_name}:\\n{ex}\"\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ ai_tool_response\
+    \ = AIMessage(content=error)\n\n\n\_ \_ \_ \_ \_ \_ \_ \_ messages.append(ai_tool_response)\n\
+    \n\n\_ \_ \_ \_ \_ \_ return self.chat_completions(messages=messages, config={})\n\
+    \n\n\_ \_ \_ \_ chunk_content = choice.delta.content\n\_ \_ \_ \_ if not chunk_content:\n\
+    \_ \_ \_ \_ \_ \_ return\n\_ \_ \_ \_ chunk_content = clean_string(chunk_content)\n\
+    \n\n\_ \_ \_ \_ # Process the chunk content\n\_ \_ \_ \_ await process_chunk_content(chunk_content)\n\
+    \_ \_\_\n\_ \_ @profile_function\n\_ \_ async def process_tool_calls(self, tool_call_data):\n\
+    \_ \_ \_ \_ tool_response = None\n\_ \_ \_ \_ self.log(f\"process_tool_calls:\
+    \ {tool_call_data}\")\n\_ \_ \_ \_ func_name = tool_call_data[\"function\"]\n\_\
+    \ \_ \_ \_ params = json.loads(tool_call_data[\"arguments\"])\n\_ \_ \_ \_\_\n\
+    \_ \_ \_ \_ # Find the tool and execute the tool_call\n\_ \_ \_ \_ tool = next((t\
+    \ for t in self.tools if t[\"tool_json\"][\"function\"][\"name\"] == func_name),\
+    \ None)\n\_ \_ \_ \_ if tool:\n\_ \_ \_ \_ \_ \_ settings = tool.get(\"settings\"\
+    , {\n\_ \_ \_ \_ \_ \_ \_ \"project_settings\": False,\n\_ \_ \_ \_ \_ \_ \_ \"\
+    async\": False\n\_ \_ \_ \_ \_ \_ })\n\n\n\_ \_ \_ \_ \_ \_ if settings.get(\"\
+    project_settings\"):\n\_ \_ \_ \_ \_ \_ \_ \_ params[\"settings\"] = self.settings\n\
+    \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ content = tool[\"tool_call\"](**params)\n\
+    \_ \_ \_ \_ \_ \_ if settings[\"async\"]:\n\_ \_ \_ \_ \_ \_ \_ \_ content = await\
+    \ content\n\_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ tool_response = content\n\n\n\
+    \_ \_ \_ \_ # Format the tool response as specified\n\_ \_ \_ \_ tool_output =\
+    \ {\n\_ \_ \_ \_ \_ \_ \"type\": \"function_call_output\",\n\_ \_ \_ \_ \_ \_\
+    \ \"call_id\": tool_call_data[\"id\"],\n\_ \_ \_ \_ \_ \_ \"output\": tool_response\n\
+    \_ \_ \_ \_ }\n\n\n\_ \_ \_ \_ return tool_output\n\_ \_\_\n\_ \_ @profile_function\n\
+    \_ \_ def generate_image(self, prompt):\n\_ \_ \_ \_ response = self.client.images.generate(\n\
+    \_ \_ \_ \_ \_ \_ model=\"dall-e-3\",\n\_ \_ \_ \_ \_ \_ prompt=prompt,\n\_ \_\
+    \ \_ \_ \_ \_ size=\"1024x1024\",\n\_ \_ \_ \_ \_ \_ quality=\"standard\",\n\_\
+    \ \_ \_ \_ \_ \_ n=1,\n\_ \_ \_ \_ )\n\n\n\_ \_ \_ \_ return response.data[0].url\n\
+    \n\n\_ \_ @profile_function\n\_ \_ def embeddings(self):\n\_ \_ \_ \_ embeddings_ai_settings\
+    \ = self.settings.get_embeddings_settings()\n\_ \_ \_ \_ client = OpenAI(\n\_\
+    \ \_ \_ \_ \_ \_ api_key=embeddings_ai_settings.api_key,\n\_ \_ \_ \_ \_ \_ base_url=embeddings_ai_settings.api_url\n\
+    \_ \_ \_ \_ )\n\n\n\_ \_ \_ \_ def embedding_func(content: str):\n\_ \_ \_ \_\
+    \ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ response = client.embeddings.create(\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ input=content,\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ model=embeddings_ai_settings.model\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ )\n\_ \_ \_ \_ \_ \_ \_ \_ embeddings = []\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ for data in response.data:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ embeddings\
+    \ = embeddings + data.embedding\n\_ \_ \_ \_ \_ \_ \_ \_ return embeddings\n\_\
+    \ \_ \_ \_ \_ \_ except Exception as ex:\n\_ \_ \_ \_ \_ \_ \_ \_ logger.error(f\"\
+    Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}:\
+    \ {ex}\")\n\_ \_ \_ \_ \_ \_ \_ \_ raise ex\n\n\n\_ \_ \_ \_ return embedding_func\n\
+    \n\n\n\n\_ \_ @profile_function\n\_ \_ async def process_project_file_before_saving(self,\
+    \ file_path: str, content: str):\n\_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ file_profiles\
+    \ = self.get_profile_manager().get_file_profiles(file_path=file_path)\n\_ \_ \_\
+    \ \_ \_ \_ logger.info(f\"Applying file profiles {[p.name for p in file_profiles]}\
+    \ to {file_path}\")\n\_ \_ \_ \_ \_ \_ if file_profiles:\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ for profile in file_profiles:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ content = await\
+    \ self.apply_file_profile(file_path=file_path, content=content, profile=profile)\n\
+    \_ \_ \_ \_ except Exception as ex:\n\_ \_ \_ \_ \_ \_ logger.exception(\"Error\
+    \ processing code content with profiles: %s\\n%s\", file_path, ex)\n\_ \_ \_ \_\
+    \ return content\n\_ \_\_\n\_ \_ async def apply_file_profile(self, file_path:\
+    \ str, content: str, profile: Profile):\n\_ \_ \_ \_ file_profile_prompt = f\"\
+    \"\"\n\_ \_ \_ \_ You are given a section of code that requires improvement by\
+    \ applying best practices. Your task is to refactor the code while ensuring that\
+    \ it adheres to the specified best practices. Please follow the instructions below:\n\
+    \n\n\_ \_ \_ \_ ### File Content:\n\_ \_ \_ \_ ```\n\_ \_ \_ \_ {content}\n\_\
+    \ \_ \_ \_ ```\n\n\n\_ \_ \_ \_ ### Instructions:\n\_ \_ \_ \_ ```\n\_ \_ \_ \_\
+    \ {profile.content}\n\_ \_ \_ \_ ```\n\_ \_ \_ \_ Return the final content without\
+    \ any kind of decoration or extra comments.\_\n\_ \_ \_ \_ Avoid surronding your\
+    \ response with fences (```), just return the final content.\n\_ \_ \_ \_ \"\"\
+    \"\n\n\n\_ \_ \_ \_ content_message = HumanMessage(content=file_profile_prompt)\n\
+    \n\n\_ \_ \_ \_ await self.a_chat_completions(messages=[content_message])\n```"
+  created_at: '2025-11-25 08:06:36.746674'
+  disable_knowledge: true
+  doc_id: 7e0f5ff4-0a32-4e2c-8b27-d52d65eaf885
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-25 08:06:36.746698'
+  user: admin
+mode: topic
+name: Pre-process code blocks
+parent_id: null
+parent_project_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+target_project_id: null
+updated_at: '2025-11-25T08:10:11.975443'
+url: ''
+users:
+- admin
+visibility: ''

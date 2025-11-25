@@ -52,22 +52,6 @@ TOOLS = [
         "tool_json": {
             "type": "function",
             "function": {
-                "name": "test_tool",
-                "description": "A test tool that returns 'test ok!'",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            }
-        },
-        "settings": {"async": False},
-        "tool_call": test_tool
-    },
-    {
-        "tool_json": {
-            "type": "function",
-            "function": {
                 "name": "project_search",
                 "description": "Search for documents within a project using the provided search string.",
                 "parameters": {

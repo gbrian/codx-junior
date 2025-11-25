@@ -132,8 +132,8 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
             :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"          
           >
             <template #widget="{ onClose, lineNumber, side }">
-              <div class="flex w-full pr-4 flex-col m-2">
-                <CodeComment @close="onClose" @save="[onClose(), onAddComment({ lineNumber, side, message: $event })]" />
+              <div class="flex w-2/3 pr-4 flex-col m-2">
+                <CodeComment @close="onClose" @save="onAddComment({ onClose, lineNumber, side, message: $event })" />
               </div>
             </template>
             <template #extend="{ data }">
@@ -223,7 +223,7 @@ export default {
   methods: {
     onShowChat() {
       if (!this.file.chat) {
-        this.$emit('new-chat', this.file)
+        this.$emit('new-chat', { file: this.file })
       }
       this.showOption = 'chat'
     },
@@ -237,8 +237,18 @@ export default {
       }
       this.selectedProfile = profile
     },
-    onAddComment({ lineNumber, side, message, metadata }) {
+    onAddComment({ lineNumber, side, message, onClose }) {
+      const metadata = this.file.chat?.metadata || { }
+      if (!metadata.fileComments) {
+        metadata.fileComments = {}
+      }
+      if(!metadata.fileComments[this.file.fileFullName]) {
+        metadata.fileComments[this.file.fileFullName] = []
+      } 
+      metadata.fileComments[this.file.fileFullName].push({ lineNumber, side, message })
+
       this.$emit('new-chat', { file: this.file, message, metadata })
+      onClose()
     }
   },
   expose: ['file']

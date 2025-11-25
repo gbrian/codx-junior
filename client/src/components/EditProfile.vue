@@ -10,9 +10,9 @@ import Markdown from './Markdown.vue';
       <button class="btn btn-sm" @click="cancelEdit">
         <i class="fa-solid fa-arrow-left"></i>
       </button>
-      <div class="avatar tooltip tooltip-bottom" :data-tip="profile.project?.project_name">
+      <div class="avatar tooltip tooltip-bottom" :data-tip="project?.project_name">
         <div class="w-6 rounded-full click" @click="switchProject">
-            <img :src="profile.project?.project_icon || '/only_icon.png'" />
+            <img :src="project?.project_icon || '/only_icon.png'" />
         </div>  
       </div>
        Profile
@@ -140,7 +140,7 @@ import Markdown from './Markdown.vue';
 
 <script>
 export default {
-  props: ['profile', 'allProfiles', 'loading'],
+  props: ['profile', 'project', 'allProfiles', 'loading'],
   data() {
     return {
       editProfile: { ...this.profile },
@@ -222,8 +222,8 @@ export default {
       this.editProfile.profiles = this.editProfile.profiles.filter(p => p !== profile)
     },
     switchProject() {
-      if (this.$project.project_id !== this.profile.project.project_id) {
-        const project = this.$projects.allProjects.find(p => p.project_id === this.profile.project.project_id)
+      if (this.$project.project_id !== this.project.project_id) {
+        const project = this.$projects.allProjects.find(p => p.project_id === this.project.project_id)
         project && this.$projects.setActiveProject(project)
       }
     }

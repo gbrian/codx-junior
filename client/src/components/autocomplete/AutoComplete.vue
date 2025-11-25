@@ -5,7 +5,8 @@ import { ComboboxAnchor, ComboboxContent, ComboboxEmpty, ComboboxGroup, Combobox
 <template>
   <ComboboxRoot
     v-model="value"
-    class="relative"
+    class="
+    "
   >
     <div class="mt-1 ml-1 flex items-center input input-sm input-bordered">
       <ComboboxAnchor class="grow">

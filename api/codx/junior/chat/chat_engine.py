@@ -157,16 +157,14 @@ class ChatEngine:
             chat_model = chat.llm_model
             messages = []
 
+            parent_content = None
             if chat.parent_id:
                 parent_content = self.get_chat_analysis_parents(chat=chat)
                 if parent_content:
-                    if not valid_messages:
+                    # Use parent content only for the first user message, skip when conversation flows
+                    if valid_messages and len(valid_messages) == 1 and valid_messages[0].role == 'user':
                         logger.info("[parent_content] Adding parent content to messages as no valid messages found")
                         messages.append(HumanMessage(content=parent_content))
-                    else:
-                        logger.info("[parent_content] Skip parent content as valid messages found")
-                else:
-                    logger.info("[parent_content] No parent content found for: %s", chat.parent_id)
             # Find projects for this
             query_mention_projects: List[CODXJuniorSettings] = [p for p in query_mentions.projects if p and hasattr(p, "codx_path")]
             search_projects: List[CODXJuniorSettings] = list(({
@@ -390,7 +388,7 @@ class ChatEngine:
                 response_message.is_thinking = False
                 send_message_event(content=response_message.content, done=True)
             except Exception as ex:
-                logger.exception(f"Error chatting with project: {ex} {chat.id}")
+                logger.error(f"Error chatting with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
 
 

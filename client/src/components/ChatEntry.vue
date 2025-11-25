@@ -13,8 +13,8 @@ import Document from './document/Document.vue'
       message.hide ? 'border-l-2 border-warning' : '',
       !message.done && 'border border-dashed border-sky-800 p-1',
       message.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
-      isTopic && 'border-l-8 p-2 bg-info/5 border-info/50',
-      editting && 'border border-dashed p-2 bg-warning/50 border-warning',
+      isTopic && 'border-l p-2 bg-info/5 border-info/50',
+      editting && 'border border-dashed p-2 border-warning',
     ]"
   >
     <div class="w-full">
@@ -42,25 +42,33 @@ import Document from './document/Document.vue'
               [{{ formatDate(message.updated_at) }}] 
               <span v-if="timeTaken">({{ timeTaken }} s.)</span>
             </div>
-            <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end"
+            <div :class="!editting && 'opacity-0'" class="group-hover:opacity-100 flex gap-2 items-center justify-end"
               v-if="menuLess !== true"
             >
               <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
-                  <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer', message)">
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Thread" 
+                    @click="$emit('subtask', message)"
+                    v-if="!editting"
+                  >
+                    <i class="fa-solid fa-comment-dots"></i>
+                  </button>      
+
+                  <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer', message)"
+                    v-if="!editting"
+                  >
                     <i class="fa-solid fa-check-double"></i>
                   </button>      
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard"
+                    v-if="!editting"
+                  >
                     <i class="fa-solid fa-copy"></i>
                   </button>      
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
-                    <i class="fa-solid fa-code"></i>
-                  </button>
                   <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
                     <i class="fa-regular fa-file-lines"></i>
                     <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
                   </button>
-                  <button v-if="canEditMessage && !editting" class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="editting = message.content">
+                  <button v-if="canEditMessage && !editting" class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="onEditMessage">
                     <i class="fa-solid fa-pencil"></i>
                   </button>
                   <button v-if="editting" class="btn btn-xs btn-success" @click="saveEditting">Save</button>
@@ -69,13 +77,13 @@ import Document from './document/Document.vue'
                     @click="$emit('enhance', message)">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                   </button>
-                  <div class="dropdown dropdown-hover dropdown-end">
+                  <div class="dropdown dropdown-hover dropdown-end" v-if="!editting">
                     <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
                       <i class="fa-solid fa-bars"></i>
                     </button>
                     <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300 z-50">
-                      <li @click="$emit('$1', message)"  v-if="message.done">
-                        <a><i class="fa-solid fa-comment-dots"></i> Thread</a>
+                      <li @click="toggleSrcView"  v-if="message.done">
+                        <a><i class="fa-solid fa-code"></i> Source</a>
                       </li>
                       <li class="text-warning" v-if="message.done">
                         <a @click.stop="$emit('hide', message)" class="text-left tooltip tooltip-bottom click"
@@ -125,7 +133,7 @@ import Document from './document/Document.vue'
             :class="['max-w-full border-slate-300/20', 
             (isCollapsed === undefined ? message.hide : isCollapsed) ? 'h-6 overflow-hidden': 'h-fit']">
           
-          <textarea v-if="editting" v-model="editting" class="h-96 input input-bordered w-full p-2"/>                
+          <textarea v-if="editting" v-model="editting" class="h-96 bg-transparent input w-full p-2"/>                
           <pre v-if="srcView">{{ message.content }}</pre>
           <Document 
             :content="messageContent"
@@ -385,6 +393,9 @@ export default {
     },
     cancelEditting() {
       this.editting = null
+    },
+    onEditMessage() {
+      this.editting = this.message.content
     }
   },
   mounted() {

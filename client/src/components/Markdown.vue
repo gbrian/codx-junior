@@ -8,7 +8,7 @@ import highlight from 'markdown-it-highlightjs'
 
 <template>
   <div class="w-full h-full flex gap-2">
-    <div class="text-md text-wrap max-w-full w-full overflow-y-auto prose leading-tight">
+    <div v-bind="$attrs" class="text-md text-wrap max-w-full w-full overflow-y-auto prose leading-tight">
       <div v-html="html"></div>
       <YoutubeViewer
         v-for="(url, index) in youtubeLinks"
@@ -53,6 +53,7 @@ const md = new MarkdownIt({
 md.use(emoji)
 
 export default {
+  inheritAttrs: false,
   props: ['text', 'mentionList', 'files'],
   data() {
     return {

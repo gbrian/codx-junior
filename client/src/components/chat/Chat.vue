@@ -11,23 +11,13 @@ import CheckLists from './CheckLists.vue'
 import MentionSelector from '../mentions/MentionSelector.vue'
 import PRView from '@/components/repo/PRView.vue'
 import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAutoComplete.vue'
-import EditableVue from '../autocomplete/Editable.vue'
+import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
 </script>
 
 <template>
   <div class="h-full flex flex-col gap-1">
-    <div class="grow relative flex flex-col">
+    <div class="grow relative flex flex-col gap-1">
       <div class="flex gap-2 items-center justify-bnetween">
-        <ProjectResourcesAutoCompleteVue 
-          class=""
-          :project="projectContext"
-          @select="onAddDocument"
-          @close="closeDocumentSearch"
-          v-if="showDocumentSearchModal"
-        />
-        <button class="btn btn-sm btn-outline" @click="closeDocumentSearch" v-else>
-          <i class="fa-solid fa-magnifying-glass"></i>
-        </button>
         <div class="w-full" v-if="chatFiles.length">
           <div class="my-2 text-xs">
             <span>
@@ -59,17 +49,6 @@ import EditableVue from '../autocomplete/Editable.vue'
           v-if="isPRView" />
         
         <div class="overflow-auto h-full" v-if="!isBrowser && !isPRView">
-          <div class="flex flex-col gap-1 mb-2">
-            <ChatEntry v-for="knowledgeMessage in knowledgeMessages"
-                class="rounded-lg overflow-hidden"
-                :key="knowledgeMessage.id"
-                :chat="chat"
-                :message="knowledgeMessage"
-                :isTopic="isTopic && !ix"
-                :mentionList="mentionList"
-                :menu-less="readOnly"
-              />
-          </div>
           <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
             <ChatEntry :class="['mb-4 rounded-md',
               isChannel ? '': 'py-2',
@@ -96,7 +75,7 @@ import EditableVue from '../autocomplete/Editable.vue'
               @add-file="onAddFile"
               @edit-message="onEditMessage($event, message)"
               @code-file-shown.stop="console.log"
-              @subtask="$emit('subtask', { chat: chat, message })"
+              @subtask="$emit('subtask', { chat, message })"
             />
           </div>
           <div class="anchor" ref="anchor"></div>
@@ -129,11 +108,7 @@ import EditableVue from '../autocomplete/Editable.vue'
         </span>
       </div>
 
-      <MentionSelector
-        :content="editorText" 
-        :project="projectContext || $projects" 
-        @select="onMentionReplace" />
-
+      <SimpleEditorVue class="h-40 border w-full" v-model="editorText" :project="projectContext" v-if="false" />
       <div class="border border-primary rounded-md bg-base-100 mt-2 pb-2" :class="['flex shadow indicator w-full', 
             'flex-col',
             editMessage && 'border-warning',
@@ -143,6 +118,14 @@ import EditableVue from '../autocomplete/Editable.vue'
         @drop.prevent="onDrop"
         v-if="!isBrowser && !isPRView && readOnly !== true"
         >
+                <ProjectResourcesAutoCompleteVue 
+          class=""
+          :project="projectContext"
+          @select="onAddDocument"
+          @close="closeDocumentSearch"
+          v-if="showDocumentSearchModal"
+        />
+
         <div class="editor" :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
           :contenteditable="!waiting"
           ref="editor"
@@ -151,7 +134,6 @@ import EditableVue from '../autocomplete/Editable.vue'
           
         >
         </div>
-        <EditableVue class="w-full h-96 border border-warning" :suggestCallback="() => 'AAAAAAAAAAAAAAAAA'"></EditableVue>
         <div class="flex justify-between items-end px-2 bg-base-300 rounded-b-md">
           <div class="carousel rounded-box">
             <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
@@ -189,7 +171,7 @@ import EditableVue from '../autocomplete/Editable.vue'
                 :class="isVoiceSession && 'btn-success animate-pulse'"
                 @click="sendMessage"
                 ref="sendButton"
-                v-if="!editMessage && !showDocumentSearchModal">
+                v-if="!editMessage">
                 <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
                 <i class="fa-solid fa-paper-plane" v-else></i>
               </button>
@@ -408,9 +390,6 @@ export default {
       const messages = this.chat?.messages
       return messages?.filter(m => !m.hide || this.showHidden) || []
     },
-    knowledgeMessages() {
-      return this.chat?.messages?.filter(m => !m.hide && m.is_answer)
-    },
     messages() {
       const { activeMessages } = this
       if (!activeMessages.length) {
@@ -428,7 +407,7 @@ export default {
         }
         return res
       }
-      return activeMessages.filter(message => (!message.hide || this.showHidden) && !message.is_answer)
+      return activeMessages.filter(message => (!message.hide || this.showHidden))
     },
     multiline() {
       return this.editorText?.split("\n").length > 1 || this.images?.length
@@ -460,7 +439,7 @@ export default {
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
         .map(w => w[1])
-      return [...this.mentionList.filter(m => mentions.includes(m.mention)), 
+      return [...this.mentionList?.filter(m => mentions.includes(m.mention)), 
               ...this.files.map(file => ({
                 name: file.split("/").reverse()[0],
                 file
@@ -504,6 +483,7 @@ export default {
   },
   methods: {
     async setProjectContext() {
+      this.projectContext = this.$project
       if (this.projectContext?.project_id !== this.chatProject.project_id) {
         this.projectContext = await this.$projects.loadProject(this.chatProject)
       }
@@ -648,7 +628,7 @@ export default {
       }
       this.searchingInKnowledge = true
       try {
-        const { response, documents } = await this.projectContext.api.knowledge.search(knowledgeSearch)
+        const { response, documents } = await this.projectContext.$api.knowledge.search(knowledgeSearch)
         const docs = documents.map(({ page_content, metadata: { language, score_analysis, source}}) => {
             const file = source
             const fileName = file.split("/").reverse()[0] 
@@ -815,6 +795,7 @@ export default {
         if (isProjectFile) {
           this.addFileToMessage(textContent)
           this.setEditorText(this.editorText.replace(textContent, ""))
+          e.preventDefault()
           return stop()
         }
       }
@@ -977,10 +958,10 @@ export default {
       this.saveChat()
     },
     onSaveFile({ file, content }) {
-      this.projectContext.api.files.write(file, content)
+      this.projectContext.$api.files.write(file, content)
     },
     onOpenFile(file) {
-      this.projectContext.api.coder.openFile(file)
+      this.projectContext.$api.coder.openFile(file)
     },
     addChatFile() {
       this.onAddFile(this.uploadProjectFile)
@@ -1047,7 +1028,7 @@ export default {
         this.createSubtask(false)
       }
     },
-    async onPRFileCreateChat({ title, files, description, profiles, mode, column }) {
+    async onPRFileCreateChat({ chat, title, files, description, metadata, profiles, mode, column }) {
       this.$emit('sub-task', {
           parent: this.chat,
           name: title,
@@ -1058,6 +1039,7 @@ export default {
           profiles,
           mode,
           column,
+          metadata,
           activateChat: false
         })
     },

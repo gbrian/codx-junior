@@ -3,8 +3,6 @@ import { posToDOMRect, VueRenderer } from '@tiptap/vue-3'
 
 import MentionList from './MentionList.vue'
 
-import { $storex } from '@/store'
-
 const updatePosition = (editor, element) => {
   const virtualElement = {
     getBoundingClientRect: () => posToDOMRect(editor.view, editor.state.selection.from, editor.state.selection.to),
@@ -22,13 +20,9 @@ const updatePosition = (editor, element) => {
   })
 }
 
-export default {
+export default ({ search, onSelect }) => ({
   items: async ({ query }) => {
-    return Promise.resolve(
-      $storex.projects.mentionList
-      .filter(item => item.searchIndex.includes(query.toLowerCase()))
-      .slice(0, 5)
-    )
+    return search(query)
   },
 
   render: () => {
@@ -41,7 +35,10 @@ export default {
           // parent: this,
           // propsData: props,
           // using vue 3:
-          props,
+          props: {
+            ...props,
+            onSelect
+          },
           editor: props.editor,
         })
 
@@ -50,7 +47,7 @@ export default {
         }
 
         component.element.style.position = 'absolute'
-
+        
         document.body.appendChild(component.element)
 
         updatePosition(props.editor, component.element)
@@ -82,4 +79,4 @@ export default {
       },
     }
   },
-}
+})

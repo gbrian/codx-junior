@@ -7,7 +7,10 @@ import glob
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 from codx.junior.settings import CODXJuniorSettings
+from codx.junior.engine import CODXJuniorSession
+
 from codx.junior.knowledge.knowledge_milvus import Knowledge
 from codx.junior.utils.utils import document_to_code_block
 
@@ -21,6 +24,27 @@ def get_ai(settings, tool_name):
   user = CodxUser(username=tool_name)
   return AI(settings=settings, user=user)
 
+
+async def code_block(file_path: str, code: str, code_language: str, **kwargs) -> str:
+    """
+    Ensure the code follows the project's standards and best practices and return it in a code block format.
+
+    Args:
+        file_path (str): Absolute file path.
+        code (str): The code to process.
+        code_language (str): The programming language of the code.
+
+    Returns:
+        str: The processed code in a code block format.
+    """
+    settings: CODXJuniorSettings = kwargs.get("settings", None)
+    if not settings:
+        raise Exception("Invalid project settings")
+    
+    session = CODXJuniorSession(settings=settings)
+    processed_code = await session.process_project_file_before_saving(file_path=file_path, content=code)
+    
+    return f"```{code_language} {file_path}\n{processed_code}\n```"
 
 
 def path_to_absolute_project_path(settings: CODXJuniorSettings, file_path: str):

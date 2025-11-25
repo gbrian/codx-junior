@@ -11,6 +11,7 @@ import ChatSelector from '@/components/chat/ChatSelector.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import ProjectDetailt from '@/components/ProjectDetailt.vue'
 import ExportChat from '@/components/chat/ExportChat.vue'
+import Markdown from '../components/Markdown.vue'
 </script>
 
 <template>
@@ -61,7 +62,7 @@ import ExportChat from '@/components/chat/ExportChat.vue'
                   </div>
 
                   <div class="cursor-pointer text-xs @md:text-md @xl:text-xl flex flex-col">
-                    <div class="flex gap-1 items-end">
+                    <div class="flex gap-1 items-start">
                       <span class="click tooltip" @click.stop="toggleChatPinned"
                         data-tip="Bookmark"
                       >
@@ -70,22 +71,25 @@ import ExportChat from '@/components/chat/ExportChat.vue'
                       </span>
                       
                       <div class="flex flex-col" :class="showChildChat && 'opacity-80'" @click="onChatNameClick">
-                        <div class="text-xs">[{{ formattedChatUpdatedDate }}]</div>
-                        <div>{{ chat.name }}</div>
+                        <div class="flex gap-1 text-xs gap-2">
+                          [{{ formattedChatUpdatedDate }}]
+                          <div class="flex items-center" v-if="showTaskProjectName">
+                            <span>[</span>
+                              {{ taskProject.project_name }}
+                            <span>]</span>
+                          </div>
+                        </div>
+                        <div>{{ computedChatName }}</div>
                       </div> 
                       <span v-if="showChildChat"> / {{ showChildChat.name }}</span>
                       <span class="text-xs hover:underline"
                       :class="showDescription ? 'text-error/70': 'text-info'"
                         @click.stop="showDescription = !showDescription"
-                        v-if="chat.description"> [{{ showDescription ? 'close': 'more' }}]
-                      </span>
-                      <span class="badge badge-md badge-outline" v-if="showTaskProjectName">
-                        <img :src="taskProject.project_icon" class="w-3 rounded-full mr-1" />
-                        {{ taskProject.project_name }}
+                        v-if="computedChatDescription"> [{{ showDescription ? 'close': 'more' }}]
                       </span>
                     </div>
                     <div class="text-xs" v-if="showDescription">
-                      {{ workingChat.description || '-- no description yet --' }}
+                      <markdown class="prose-sm" :text="computedChatDescription || '-- no description yet --'" />
                     </div>
                   </div>
                 </div>
@@ -169,17 +173,7 @@ import ExportChat from '@/components/chat/ExportChat.vue'
           </div>
         </div>
         <div class="flex justify-between">
-          <div class="flex gap-2 items-center">
-            <div class="badge badge-sm badge-info flex gap-2" v-for="tag in chat.tags" :key="tag">
-              {{ tag }}
-              <button class="btn btn-ghost" @click="removeTag(tag)">
-                x
-              </button>
-            </div>
-            <button class="btn btn-xs" @click="newTag = ''">
-              + Tag
-            </button>
-            
+          <div class="flex gap-2 items-center">  
             <div class="avatar-group -space-x-6 relative" v-if="images.length">
               <div class="avatar" v-for="image, ix in images" :key="ix">
                 <div class="w-8">
@@ -240,13 +234,13 @@ import ExportChat from '@/components/chat/ExportChat.vue'
           </template>
           <template v-slot:right>
             <Chat class="h-full overflow-auto" 
-            :chat="workingChat"
-            :showHidden="showHidden"
-            :childrenChats="showChatMenu ? null : childrenChats"
-            @refresh-chat="loadChat(workingChat)"
-            @remove-file="onRemoveFile" 
-            @delete="confirmDelete = true"
-            @subtask="onNewMessageSubtask"
+              :chat="workingChat"
+              :showHidden="showHidden"
+              :childrenChats="showChatMenu ? null : childrenChats"
+              @refresh-chat="loadChat(workingChat)"
+              @remove-file="onRemoveFile" 
+              @delete="confirmDelete = true"
+              @subtask="onNewMessageSubtask"
           />
           </template>
         </VerticalSplitter>
@@ -336,14 +330,14 @@ import ExportChat from '@/components/chat/ExportChat.vue'
             </div>
           </div>
         </modal>
-        <modal v-if="showSubtasksModal">
-          <div class="flex flex-col gap-4 p-4">
+        <modal class="w-2/3 h-2/3" v-if="showSubtasksModal">
+          <div class="h-full flex flex-col gap-4 p-4">
             <h3 class="font-bold text-2xl">Split into tasks</h3>
             <div class="tex-xl">Instructions:</div>
-            <textarea v-model="createTasksInstructions" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
+            <textarea v-model="createTasksInstructions" class="grow textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
             <div class="flex gap-2 justify-end">
-              <button class="btn btn-error" @click="showSubtasksModal = false">Cancel</button>
-              <button class="btn btn-primary" @click="createSubTasks">Create</button>
+              <button class="btn" @click="showSubtasksModal = false">Cancel</button>
+              <button class="btn bg-codx-primary" @click="createSubTasks">Create</button>
             </div>
           </div>
         </modal>
@@ -364,6 +358,7 @@ import ExportChat from '@/components/chat/ExportChat.vue'
 
 <script>
 export default {
+  components: { Markdown },
   props: ['chatMode', 'chat', 'kanban'],
   data() {
     return {
@@ -409,8 +404,12 @@ export default {
     if (this.isPRView) {
       await this.$projects.loadBranches()
     }
+    this.showDescription = this.isThread
   },
   computed: {
+    isThread() {
+      return !!this.chat.message_id
+    },
     branches() {
       return this.$projects.project_branches || []
     },
@@ -462,7 +461,7 @@ export default {
       return this.$projects.allChats
     },
     childrenChats() {
-      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
+      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id && !c.message_id)
         .sort((a, b) => a.name > b.name ? 1 : -1)
     },
     chatProject() {
@@ -491,6 +490,21 @@ export default {
     },
     workingChat() {
       return this.$projects.chats[this.showChildChat?.id || this.chat.id]
+    },
+    computedChatName() {
+      if (this.isThread) {
+        return 'Thread'
+      }
+      return this.chat.name
+    },
+    computedChatDescription() {
+      if (this.chat.message_id) {
+        const message = this.$storex.projects.allChats
+          .find(c => c.id === this.chat.parent_id)
+          ?.messages.find(m => m.doc_id === this.chat.message_id)
+        return message?.content || '-- no description yet --'
+      }
+      return this.chat.description
     }
   },
   watch: {
@@ -615,12 +629,24 @@ export default {
       this.subtaskMode = this.chat.mode
       this.subtaskColumn = this.chat.column
     },
-    onNewMessageSubtask({ chat: { id: subtaskParentId }, message: { id: subtaskMessageId }}) {
-      this.subtaskProject = this.$project.project_id
-      this.subtaskParentId = subtaskParentId
-      this.subtaskMessageId = subtaskMessageId
-      this.showSubtaskModal = true
-
+    async onNewMessageSubtask({ chat, mode, message: { column, files, profiles, doc_id: subtaskMessageId }}) {
+      const findChild = () => this.$projects.allChats.find(c => c.message_id === subtaskMessageId) 
+      if (!findChild()) {
+        await this.$emit('sub-task', {
+          parent: chat,
+          name: `${subtaskMessageId} - thread`,
+          project_id: chat.project_id,
+          parent_id: chat.parent_id,
+          message_id: subtaskMessageId,
+          file_list: files,
+          profiles: profiles,
+          mode,
+          column,
+          activateChat: true,
+          child_index: this.childrenChats?.length
+        })
+      }
+      this.$projects.setActiveChat(findChild())
     },
     getSubTaskParentSummary() {
       let { messages } = this
@@ -713,7 +739,7 @@ export default {
     },
     selectChildChat(childChat) {
       this.showChildChat = childChat
-      if (!childChat.messages?.length) {
+      if (childChat && !childChat.messages?.length) {
         this.$projects.loadChat(childChat)
       }
     },

@@ -3,6 +3,8 @@ import json
 import logging
 import pathlib
 import uuid
+import traceback
+
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from datetime import datetime
@@ -102,7 +104,7 @@ def read_global_settings():
 
 def write_global_settings(global_settings: GlobalSettings):
     global GLOBAL_SETTINGS
-    # logger.info(f"GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}")
+    # logger.exception(f"WRITE GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}, \n{traceback.format_stack()}")
     try:
         backup_up_global_settings()
         

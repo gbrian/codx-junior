@@ -67,7 +67,7 @@ export default {
         grouped[groupKey].children.push(item);
       });
       console.log("CodxMenu grouped items", grouped)
-      return Object.values(grouped);
+      return Object.keys(grouped).sort((a, b) => a > b ? 1: -1).map(k =>grouped[k]);
     }
   }
 }

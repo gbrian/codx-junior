@@ -1,5 +1,4 @@
 <script setup>
-import { computed, defineComponent } from 'vue';
 import MarkdownViewer from '../MarkdownViewer.vue';
 import Code from '../Code.vue';
 import TipTapDocument from './TipTapDocument.vue';
