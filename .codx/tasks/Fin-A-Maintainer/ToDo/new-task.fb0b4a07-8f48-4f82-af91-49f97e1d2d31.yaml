@@ -1,0 +1,37 @@
+board: Fin-A-Maintainer
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: ToDo
+column_id: ''
+created_at: '2025-11-25 15:11:08.584096'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Fin-A-Maintainer/ToDo/new-task.fb0b4a07-8f48-4f82-af91-49f97e1d2d31.yaml
+id: fb0b4a07-8f48-4f82-af91-49f97e1d2d31
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: prview
+name: New Task
+parent_id: null
+parent_project_id: null
+pinned: false
+pr_view:
+  from_branch: '* v1.2-find-a-mantainer'
+  to_branch: main
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+target_project_id: null
+updated_at: '2025-11-25T17:21:37.510484'
+url: ''
+users: []
+visibility: ''
