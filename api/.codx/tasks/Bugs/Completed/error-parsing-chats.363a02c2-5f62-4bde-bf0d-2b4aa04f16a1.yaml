@@ -1,0 +1,123 @@
+board: Bugs
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Completed
+column_id: ''
+created_at: '2025-05-19 11:23:08.461860'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Bugs/Completed/error-parsing-chats.363a02c2-5f62-4bde-bf0d-2b4aa04f16a1.yaml
+id: 363a02c2-5f62-4bde-bf0d-2b4aa04f16a1
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "This method is creating a chat from the file content:\n```py\n\n    @profile_function\n\
+    \    def deserialize_chat(self, content) -> Chat:\n        logger.info(f\"deserialize_chat\
+    \ content length: {len(content)}\")\n        lines = content.split(\"\\n\")\n\
+    \        \n        chat_json = json.loads(lines[0][4:-2])\n        logger.info(\"\
+    deserialize_chat chat_json\")\n        \n        chat = Chat(**chat_json)\n  \
+    \      chat.messages = []\n        chat_message = None\n        logger.info(f\"\
+    deserialize_chat lines {len(lines[1:])}\")\n        \n        for line in lines[1:]:\n\
+    \            if line.startswith(\"## [[{\") and line.endswith(\"}]]\"):\n    \
+    \            chat_message = Message(**json.loads(line[5:-2]))\n              \
+    \  chat_message.content = \"\"\n                chat.messages.append(chat_message)\n\
+    \                continue\n            if chat_message:\n                    chat_message.content\
+    \ = line \\\n                        if not chat_message.content \\\n        \
+    \                else f\"{chat_message.content}\\n{line}\"\n        return chat\n\
+    ```\n\nWhen there're many messages, content is too big, we need to:\n * Only serialize\
+    \ those not set to \"hide\"\n * Serilize only last 3 messages\n\nProbably we must\
+    \ find all messages headers and serialize the settings then count the message\
+    \ content lines and decide if we are \ngoing to add to the resulting chat"
+  created_at: '2025-05-19 11:23:08.460248'
+  disable_knowledge: false
+  doc_id: 68e52632-b774-4e47-88ce-e2983db651f6
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-19 11:23:08.460285'
+  user: admin
+- content: "To modify the `deserialize_chat` method to only include messages that\
+    \ are not set to \"hide\" and to serialize only the last three messages, you'll\
+    \ need to adjust the loop that processes each line of the chat content. Below\
+    \ is an example implementation that achieves this:\n\n```python\nfrom collections\
+    \ import deque\n\n@profile_function\ndef deserialize_chat(self, content) -> Chat:\n\
+    \    logger.info(f\"deserialize_chat content length: {len(content)}\")\n    lines\
+    \ = content.split(\"\\n\")\n    \n    chat_json = json.loads(lines[0][4:-2])\n\
+    \    logger.info(\"deserialize_chat chat_json\")\n    \n    chat = Chat(**chat_json)\n\
+    \    chat.messages = []\n    chat_message = None\n    logger.info(f\"deserialize_chat\
+    \ lines {len(lines[1:])}\")\n    \n    # Use a deque to keep track of the last\
+    \ three messages\n    last_three_messages = deque(maxlen=3)\n    \n    for line\
+    \ in lines[1:]:\n        if line.startswith(\"## [[{\") and line.endswith(\"}]]\"\
+    ):\n            message_data = json.loads(line[5:-2])\n            if message_data.get(\"\
+    hide\", False):\n                continue\n                \n            chat_message\
+    \ = Message(**message_data)\n            chat_message.content = \"\"\n       \
+    \     \n            # Only keep last 3 messages\n            last_three_messages.append(chat_message)\n\
+    \            continue\n        \n        if chat_message:\n            chat_message.content\
+    \ = line if not chat_message.content else f\"{chat_message.content}\\n{line}\"\
+    \n\n    # Set the messages for the chat\n    chat.messages = list(last_three_messages)\n\
+    \    return chat\n```\n\n### Explanation:\n\n1. **Using a Deque**: A `deque` (double-ended\
+    \ queue) is used to maintain only the last three messages, automatically discarding\
+    \ the oldest message when a new one is appended.\n\n2. **Filtering Messages**:\
+    \ When a message is parsed, it's checked for a `\"hide\"` flag. If this flag is\
+    \ `True`, the message is skipped.\n\n3. **Appending to Deque**: When a message\
+    \ is not hidden, it is added to the `last_three_messages` deque. This ensures\
+    \ that only the last three messages will be retained.\n\n4. **Chat Messages Assignment**:\
+    \ After processing all lines, the chat's `messages` attribute is set with the\
+    \ messages stored in the deque."
+  created_at: '2025-05-19 11:33:17.385355'
+  disable_knowledge: false
+  doc_id: 5059931b-7e70-4818-9bdc-7cdc9ebbd092
+  done: true
+  files:
+  - /codx/junior/chat_manager.py
+  - /codx/junior/app.py
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 45.702595949172974
+    model: gpt-4o
+    time_taken: 52.548826456069946
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-19 11:33:17.385412'
+  user: null
+mode: chat
+name: Error parsing chats
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-07-04T09:13:28.736159'
+url: ''
+users:
+- admin
+visibility: ''

@@ -1,0 +1,643 @@
+board: Project management
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-04-23 15:45:13.784220'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Project management/Backlog/forker.55202cb1-898f-43f7-a24f-e7084bb64d12.yaml
+id: 55202cb1-898f-43f7-a24f-e7084bb64d12
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "This is how you create a fork on github:\n\n\n```sh\ncurl -L \\\n\_ -X\
+    \ POST \\\n\_ -H \"Accept: application/vnd.github+json\" \\\n\_ -H \"Authorization:\
+    \ Bearer <YOUR-TOKEN>\" \\\n\_ -H \"X-GitHub-Api-Version: 2022-11-28\" \\\n\_\
+    \ https://api.github.com/repos/OWNER/REPO/forks \\\n\_ -d '{\"organization\":\"\
+    octocat\",\"name\":\"Hello-World\",\"default_branch_only\":true}'\n```\n\n\n```json\n\
+    \n{\n\_ \"id\": 1296269,\n\_ \"node_id\": \"MDEwOlJlcG9zaXRvcnkxMjk2MjY5\",\n\_\
+    \ \"name\": \"Hello-World\",\n\_ \"full_name\": \"octocat/Hello-World\",\n\_ \"\
+    owner\": {\n\_ \_ \"login\": \"octocat\",\n\_ \_ \"id\": 1,\n\_ \_ \"node_id\"\
+    : \"MDQ6VXNlcjE=\",\n\_ \_ \"avatar_url\": \"https://github.com/images/error/octocat_happy.gif\"\
+    ,\n\_ \_ \"gravatar_id\": \"\",\n\_ \_ \"url\": \"https://api.github.com/users/octocat\"\
+    ,\n\_ \_ \"html_url\": \"https://github.com/octocat\",\n\_ \_ \"followers_url\"\
+    : \"https://api.github.com/users/octocat/followers\",\n\_ \_ \"following_url\"\
+    : \"https://api.github.com/users/octocat/following{/other_user}\",\n\_ \_ \"gists_url\"\
+    : \"https://api.github.com/users/octocat/gists{/gist_id}\",\n\_ \_ \"starred_url\"\
+    : \"https://api.github.com/users/octocat/starred{/owner}{/repo}\",\n\_ \_ \"subscriptions_url\"\
+    : \"https://api.github.com/users/octocat/subscriptions\",\n\_ \_ \"organizations_url\"\
+    : \"https://api.github.com/users/octocat/orgs\",\n\_ \_ \"repos_url\": \"https://api.github.com/users/octocat/repos\"\
+    ,\n\_ \_ \"events_url\": \"https://api.github.com/users/octocat/events{/privacy}\"\
+    ,\n\_ \_ \"received_events_url\": \"https://api.github.com/users/octocat/received_events\"\
+    ,\n\_ \_ \"type\": \"User\",\n\_ \_ \"site_admin\": false\n\_ },\n\_ \"private\"\
+    : false,\n\_ \"html_url\": \"https://github.com/octocat/Hello-World\",\n\_ \"\
+    description\": \"This your first repo!\",\n\_ \"fork\": false,\n\_ \"url\": \"\
+    https://api.github.com/repos/octocat/Hello-World\",\n\_ \"archive_url\": \"https://api.github.com/repos/octocat/Hello-World/{archive_format}{/ref}\"\
+    ,\n\_ \"assignees_url\": \"https://api.github.com/repos/octocat/Hello-World/assignees{/user}\"\
+    ,\n\_ \"blobs_url\": \"https://api.github.com/repos/octocat/Hello-World/git/blobs{/sha}\"\
+    ,\n\_ \"branches_url\": \"https://api.github.com/repos/octocat/Hello-World/branches{/branch}\"\
+    ,\n\_ \"collaborators_url\": \"https://api.github.com/repos/octocat/Hello-World/collaborators{/collaborator}\"\
+    ,\n\_ \"comments_url\": \"https://api.github.com/repos/octocat/Hello-World/comments{/number}\"\
+    ,\n\_ \"commits_url\": \"https://api.github.com/repos/octocat/Hello-World/commits{/sha}\"\
+    ,\n\_ \"compare_url\": \"https://api.github.com/repos/octocat/Hello-World/compare/{base}...{head}\"\
+    ,\n\_ \"contents_url\": \"https://api.github.com/repos/octocat/Hello-World/contents/{+path}\"\
+    ,\n\_ \"contributors_url\": \"https://api.github.com/repos/octocat/Hello-World/contributors\"\
+    ,\n\_ \"deployments_url\": \"https://api.github.com/repos/octocat/Hello-World/deployments\"\
+    ,\n\_ \"downloads_url\": \"https://api.github.com/repos/octocat/Hello-World/downloads\"\
+    ,\n\_ \"events_url\": \"https://api.github.com/repos/octocat/Hello-World/events\"\
+    ,\n\_ \"forks_url\": \"https://api.github.com/repos/octocat/Hello-World/forks\"\
+    ,\n\_ \"git_commits_url\": \"https://api.github.com/repos/octocat/Hello-World/git/commits{/sha}\"\
+    ,\n\_ \"git_refs_url\": \"https://api.github.com/repos/octocat/Hello-World/git/refs{/sha}\"\
+    ,\n\_ \"git_tags_url\": \"https://api.github.com/repos/octocat/Hello-World/git/tags{/sha}\"\
+    ,\n\_ \"git_url\": \"git:github.com/octocat/Hello-World.git\",\n\_ \"issue_comment_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/issues/comments{/number}\"\
+    ,\n\_ \"issue_events_url\": \"https://api.github.com/repos/octocat/Hello-World/issues/events{/number}\"\
+    ,\n\_ \"issues_url\": \"https://api.github.com/repos/octocat/Hello-World/issues{/number}\"\
+    ,\n\_ \"keys_url\": \"https://api.github.com/repos/octocat/Hello-World/keys{/key_id}\"\
+    ,\n\_ \"labels_url\": \"https://api.github.com/repos/octocat/Hello-World/labels{/name}\"\
+    ,\n\_ \"languages_url\": \"https://api.github.com/repos/octocat/Hello-World/languages\"\
+    ,\n\_ \"merges_url\": \"https://api.github.com/repos/octocat/Hello-World/merges\"\
+    ,\n\_ \"milestones_url\": \"https://api.github.com/repos/octocat/Hello-World/milestones{/number}\"\
+    ,\n\_ \"notifications_url\": \"https://api.github.com/repos/octocat/Hello-World/notifications{?since,all,participating}\"\
+    ,\n\_ \"pulls_url\": \"https://api.github.com/repos/octocat/Hello-World/pulls{/number}\"\
+    ,\n\_ \"releases_url\": \"https://api.github.com/repos/octocat/Hello-World/releases{/id}\"\
+    ,\n\_ \"ssh_url\": \"git@github.com:octocat/Hello-World.git\",\n\_ \"stargazers_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/stargazers\",\n\_ \"statuses_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/statuses/{sha}\",\n\_ \"\
+    subscribers_url\": \"https://api.github.com/repos/octocat/Hello-World/subscribers\"\
+    ,\n\_ \"subscription_url\": \"https://api.github.com/repos/octocat/Hello-World/subscription\"\
+    ,\n\_ \"tags_url\": \"https://api.github.com/repos/octocat/Hello-World/tags\"\
+    ,\n\_ \"teams_url\": \"https://api.github.com/repos/octocat/Hello-World/teams\"\
+    ,\n\_ \"trees_url\": \"https://api.github.com/repos/octocat/Hello-World/git/trees{/sha}\"\
+    ,\n\_ \"clone_url\": \"https://github.com/octocat/Hello-World.git\",\n\_ \"mirror_url\"\
+    : \"git:git.example.com/octocat/Hello-World\",\n\_ \"hooks_url\": \"https://api.github.com/repos/octocat/Hello-World/hooks\"\
+    ,\n\_ \"svn_url\": \"https://svn.github.com/octocat/Hello-World\",\n\_ \"homepage\"\
+    : \"https://github.com\",\n\_ \"license\": {\n\_ \_ \"key\": \"mit\",\n\_ \_ \"\
+    name\": \"MIT License\",\n\_ \_ \"url\": \"https://api.github.com/licenses/mit\"\
+    ,\n\_ \_ \"spdx_id\": \"MIT\",\n\_ \_ \"node_id\": \"MDc6TGljZW5zZW1pdA==\",\n\
+    \_ \_ \"html_url\": \"https://github.com/licenses/mit\"\n\_ },\n\_ \"language\"\
+    : null,\n\_ \"forks_count\": 9,\n\_ \"forks\": 9,\n\_ \"stargazers_count\": 80,\n\
+    \_ \"watchers_count\": 80,\n\_ \"watchers\": 80,\n\_ \"size\": 108,\n\_ \"default_branch\"\
+    : \"master\",\n\_ \"open_issues_count\": 0,\n\_ \"open_issues\": 0,\n\_ \"is_template\"\
+    : false,\n\_ \"topics\": [\n\_ \_ \"octocat\",\n\_ \_ \"atom\",\n\_ \_ \"electron\"\
+    ,\n\_ \_ \"api\"\n\_ ],\n\_ \"has_issues\": true,\n\_ \"has_projects\": true,\n\
+    \_ \"has_wiki\": true,\n\_ \"has_pages\": false,\n\_ \"has_downloads\": true,\n\
+    \_ \"archived\": false,\n\_ \"disabled\": false,\n\_ \"visibility\": \"public\"\
+    ,\n\_ \"pushed_at\": \"2011-01-26T19:06:43Z\",\n\_ \"created_at\": \"2011-01-26T19:01:12Z\"\
+    ,\n\_ \"updated_at\": \"2011-01-26T19:14:43Z\",\n\_ \"permissions\": {\n\_ \_\
+    \ \"pull\": true,\n\_ \_ \"push\": false,\n\_ \_ \"admin\": false\n\_ },\n\_ \"\
+    allow_rebase_merge\": true,\n\_ \"template_repository\": {\n\_ \_ \"id\": 1296269,\n\
+    \_ \_ \"node_id\": \"MDEwOlJlcG9zaXRvcnkxMjk2MjY5\",\n\_ \_ \"name\": \"Hello-World-Template\"\
+    ,\n\_ \_ \"full_name\": \"octocat/Hello-World-Template\",\n\_ \_ \"owner\": {\n\
+    \_ \_ \_ \"login\": \"octocat\",\n\_ \_ \_ \"id\": 1,\n\_ \_ \_ \"node_id\": \"\
+    MDQ6VXNlcjE=\",\n\_ \_ \_ \"avatar_url\": \"https://github.com/images/error/octocat_happy.gif\"\
+    ,\n\_ \_ \_ \"gravatar_id\": \"\",\n\_ \_ \_ \"url\": \"https://api.github.com/users/octocat\"\
+    ,\n\_ \_ \_ \"html_url\": \"https://github.com/octocat\",\n\_ \_ \_ \"followers_url\"\
+    : \"https://api.github.com/users/octocat/followers\",\n\_ \_ \_ \"following_url\"\
+    : \"https://api.github.com/users/octocat/following{/other_user}\",\n\_ \_ \_ \"\
+    gists_url\": \"https://api.github.com/users/octocat/gists{/gist_id}\",\n\_ \_\
+    \ \_ \"starred_url\": \"https://api.github.com/users/octocat/starred{/owner}{/repo}\"\
+    ,\n\_ \_ \_ \"subscriptions_url\": \"https://api.github.com/users/octocat/subscriptions\"\
+    ,\n\_ \_ \_ \"organizations_url\": \"https://api.github.com/users/octocat/orgs\"\
+    ,\n\_ \_ \_ \"repos_url\": \"https://api.github.com/users/octocat/repos\",\n\_\
+    \ \_ \_ \"events_url\": \"https://api.github.com/users/octocat/events{/privacy}\"\
+    ,\n\_ \_ \_ \"received_events_url\": \"https://api.github.com/users/octocat/received_events\"\
+    ,\n\_ \_ \_ \"type\": \"User\",\n\_ \_ \_ \"site_admin\": false\n\_ \_ },\n\_\
+    \ \_ \"private\": false,\n\_ \_ \"html_url\": \"https://github.com/octocat/Hello-World-Template\"\
+    ,\n\_ \_ \"description\": \"This your first repo!\",\n\_ \_ \"fork\": false,\n\
+    \_ \_ \"url\": \"https://api.github.com/repos/octocat/Hello-World-Template\",\n\
+    \_ \_ \"archive_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/{archive_format}{/ref}\"\
+    ,\n\_ \_ \"assignees_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/assignees{/user}\"\
+    ,\n\_ \_ \"blobs_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/git/blobs{/sha}\"\
+    ,\n\_ \_ \"branches_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/branches{/branch}\"\
+    ,\n\_ \_ \"collaborators_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/collaborators{/collaborator}\"\
+    ,\n\_ \_ \"comments_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/comments{/number}\"\
+    ,\n\_ \_ \"commits_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/commits{/sha}\"\
+    ,\n\_ \_ \"compare_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/compare/{base}...{head}\"\
+    ,\n\_ \_ \"contents_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/contents/{+path}\"\
+    ,\n\_ \_ \"contributors_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/contributors\"\
+    ,\n\_ \_ \"deployments_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/deployments\"\
+    ,\n\_ \_ \"downloads_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/downloads\"\
+    ,\n\_ \_ \"events_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/events\"\
+    ,\n\_ \_ \"forks_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/forks\"\
+    ,\n\_ \_ \"git_commits_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/git/commits{/sha}\"\
+    ,\n\_ \_ \"git_refs_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/git/refs{/sha}\"\
+    ,\n\_ \_ \"git_tags_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/git/tags{/sha}\"\
+    ,\n\_ \_ \"git_url\": \"git:github.com/octocat/Hello-World-Template.git\",\n\_\
+    \ \_ \"issue_comment_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/issues/comments{/number}\"\
+    ,\n\_ \_ \"issue_events_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/issues/events{/number}\"\
+    ,\n\_ \_ \"issues_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/issues{/number}\"\
+    ,\n\_ \_ \"keys_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/keys{/key_id}\"\
+    ,\n\_ \_ \"labels_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/labels{/name}\"\
+    ,\n\_ \_ \"languages_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/languages\"\
+    ,\n\_ \_ \"merges_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/merges\"\
+    ,\n\_ \_ \"milestones_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/milestones{/number}\"\
+    ,\n\_ \_ \"notifications_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/notifications{?since,all,participating}\"\
+    ,\n\_ \_ \"pulls_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/pulls{/number}\"\
+    ,\n\_ \_ \"releases_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/releases{/id}\"\
+    ,\n\_ \_ \"ssh_url\": \"git@github.com:octocat/Hello-World-Template.git\",\n\_\
+    \ \_ \"stargazers_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/stargazers\"\
+    ,\n\_ \_ \"statuses_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/statuses/{sha}\"\
+    ,\n\_ \_ \"subscribers_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/subscribers\"\
+    ,\n\_ \_ \"subscription_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/subscription\"\
+    ,\n\_ \_ \"tags_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/tags\"\
+    ,\n\_ \_ \"teams_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/teams\"\
+    ,\n\_ \_ \"trees_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/git/trees{/sha}\"\
+    ,\n\_ \_ \"clone_url\": \"https://github.com/octocat/Hello-World-Template.git\"\
+    ,\n\_ \_ \"mirror_url\": \"git:git.example.com/octocat/Hello-World-Template\"\
+    ,\n\_ \_ \"hooks_url\": \"https://api.github.com/repos/octocat/Hello-World-Template/hooks\"\
+    ,\n\_ \_ \"svn_url\": \"https://svn.github.com/octocat/Hello-World-Template\"\
+    ,\n\_ \_ \"homepage\": \"https://github.com\",\n\_ \_ \"language\": null,\n\_\
+    \ \_ \"forks\": 9,\n\_ \_ \"forks_count\": 9,\n\_ \_ \"stargazers_count\": 80,\n\
+    \_ \_ \"watchers_count\": 80,\n\_ \_ \"watchers\": 80,\n\_ \_ \"size\": 108,\n\
+    \_ \_ \"default_branch\": \"master\",\n\_ \_ \"open_issues\": 0,\n\_ \_ \"open_issues_count\"\
+    : 0,\n\_ \_ \"is_template\": true,\n\_ \_ \"license\": {\n\_ \_ \_ \"key\": \"\
+    mit\",\n\_ \_ \_ \"name\": \"MIT License\",\n\_ \_ \_ \"url\": \"https://api.github.com/licenses/mit\"\
+    ,\n\_ \_ \_ \"spdx_id\": \"MIT\",\n\_ \_ \_ \"node_id\": \"MDc6TGljZW5zZW1pdA==\"\
+    ,\n\_ \_ \_ \"html_url\": \"https://api.github.com/licenses/mit\"\n\_ \_ },\n\_\
+    \ \_ \"topics\": [\n\_ \_ \_ \"octocat\",\n\_ \_ \_ \"atom\",\n\_ \_ \_ \"electron\"\
+    ,\n\_ \_ \_ \"api\"\n\_ \_ ],\n\_ \_ \"has_issues\": true,\n\_ \_ \"has_projects\"\
+    : true,\n\_ \_ \"has_wiki\": true,\n\_ \_ \"has_pages\": false,\n\_ \_ \"has_downloads\"\
+    : true,\n\_ \_ \"archived\": false,\n\_ \_ \"disabled\": false,\n\_ \_ \"visibility\"\
+    : \"public\",\n\_ \_ \"pushed_at\": \"2011-01-26T19:06:43Z\",\n\_ \_ \"created_at\"\
+    : \"2011-01-26T19:01:12Z\",\n\_ \_ \"updated_at\": \"2011-01-26T19:14:43Z\",\n\
+    \_ \_ \"permissions\": {\n\_ \_ \_ \"admin\": false,\n\_ \_ \_ \"push\": false,\n\
+    \_ \_ \_ \"pull\": true\n\_ \_ },\n\_ \_ \"allow_rebase_merge\": true,\n\_ \_\
+    \ \"temp_clone_token\": \"ABTLWHOULUVAXGTRYU7OC2876QJ2O\",\n\_ \_ \"allow_squash_merge\"\
+    : true,\n\_ \_ \"allow_auto_merge\": false,\n\_ \_ \"delete_branch_on_merge\"\
+    : true,\n\_ \_ \"allow_merge_commit\": true,\n\_ \_ \"subscribers_count\": 42,\n\
+    \_ \_ \"network_count\": 0\n\_ },\n\_ \"temp_clone_token\": \"ABTLWHOULUVAXGTRYU7OC2876QJ2O\"\
+    ,\n\_ \"allow_squash_merge\": true,\n\_ \"allow_auto_merge\": false,\n\_ \"delete_branch_on_merge\"\
+    : true,\n\_ \"allow_merge_commit\": true,\n\_ \"allow_forking\": true,\n\_ \"\
+    web_commit_signoff_required\": false,\n\_ \"subscribers_count\": 42,\n\_ \"network_count\"\
+    : 0,\n\_ \"organization\": {\n\_ \_ \"login\": \"octocat\",\n\_ \_ \"id\": 1,\n\
+    \_ \_ \"node_id\": \"MDQ6VXNlcjE=\",\n\_ \_ \"avatar_url\": \"https://github.com/images/error/octocat_happy.gif\"\
+    ,\n\_ \_ \"gravatar_id\": \"\",\n\_ \_ \"url\": \"https://api.github.com/users/octocat\"\
+    ,\n\_ \_ \"html_url\": \"https://github.com/octocat\",\n\_ \_ \"followers_url\"\
+    : \"https://api.github.com/users/octocat/followers\",\n\_ \_ \"following_url\"\
+    : \"https://api.github.com/users/octocat/following{/other_user}\",\n\_ \_ \"gists_url\"\
+    : \"https://api.github.com/users/octocat/gists{/gist_id}\",\n\_ \_ \"starred_url\"\
+    : \"https://api.github.com/users/octocat/starred{/owner}{/repo}\",\n\_ \_ \"subscriptions_url\"\
+    : \"https://api.github.com/users/octocat/subscriptions\",\n\_ \_ \"organizations_url\"\
+    : \"https://api.github.com/users/octocat/orgs\",\n\_ \_ \"repos_url\": \"https://api.github.com/users/octocat/repos\"\
+    ,\n\_ \_ \"events_url\": \"https://api.github.com/users/octocat/events{/privacy}\"\
+    ,\n\_ \_ \"received_events_url\": \"https://api.github.com/users/octocat/received_events\"\
+    ,\n\_ \_ \"type\": \"Organization\",\n\_ \_ \"site_admin\": false\n\_ },\n\_ \"\
+    parent\": {\n\_ \_ \"id\": 1296269,\n\_ \_ \"node_id\": \"MDEwOlJlcG9zaXRvcnkxMjk2MjY5\"\
+    ,\n\_ \_ \"name\": \"Hello-World\",\n\_ \_ \"full_name\": \"octocat/Hello-World\"\
+    ,\n\_ \_ \"owner\": {\n\_ \_ \_ \"login\": \"octocat\",\n\_ \_ \_ \"id\": 1,\n\
+    \_ \_ \_ \"node_id\": \"MDQ6VXNlcjE=\",\n\_ \_ \_ \"avatar_url\": \"https://github.com/images/error/octocat_happy.gif\"\
+    ,\n\_ \_ \_ \"gravatar_id\": \"\",\n\_ \_ \_ \"url\": \"https://api.github.com/users/octocat\"\
+    ,\n\_ \_ \_ \"html_url\": \"https://github.com/octocat\",\n\_ \_ \_ \"followers_url\"\
+    : \"https://api.github.com/users/octocat/followers\",\n\_ \_ \_ \"following_url\"\
+    : \"https://api.github.com/users/octocat/following{/other_user}\",\n\_ \_ \_ \"\
+    gists_url\": \"https://api.github.com/users/octocat/gists{/gist_id}\",\n\_ \_\
+    \ \_ \"starred_url\": \"https://api.github.com/users/octocat/starred{/owner}{/repo}\"\
+    ,\n\_ \_ \_ \"subscriptions_url\": \"https://api.github.com/users/octocat/subscriptions\"\
+    ,\n\_ \_ \_ \"organizations_url\": \"https://api.github.com/users/octocat/orgs\"\
+    ,\n\_ \_ \_ \"repos_url\": \"https://api.github.com/users/octocat/repos\",\n\_\
+    \ \_ \_ \"events_url\": \"https://api.github.com/users/octocat/events{/privacy}\"\
+    ,\n\_ \_ \_ \"received_events_url\": \"https://api.github.com/users/octocat/received_events\"\
+    ,\n\_ \_ \_ \"type\": \"User\",\n\_ \_ \_ \"site_admin\": false\n\_ \_ },\n\_\
+    \ \_ \"private\": false,\n\_ \_ \"html_url\": \"https://github.com/octocat/Hello-World\"\
+    ,\n\_ \_ \"description\": \"This your first repo!\",\n\_ \_ \"fork\": false,\n\
+    \_ \_ \"url\": \"https://api.github.com/repos/octocat/Hello-World\",\n\_ \_ \"\
+    archive_url\": \"https://api.github.com/repos/octocat/Hello-World/{archive_format}{/ref}\"\
+    ,\n\_ \_ \"assignees_url\": \"https://api.github.com/repos/octocat/Hello-World/assignees{/user}\"\
+    ,\n\_ \_ \"blobs_url\": \"https://api.github.com/repos/octocat/Hello-World/git/blobs{/sha}\"\
+    ,\n\_ \_ \"branches_url\": \"https://api.github.com/repos/octocat/Hello-World/branches{/branch}\"\
+    ,\n\_ \_ \"collaborators_url\": \"https://api.github.com/repos/octocat/Hello-World/collaborators{/collaborator}\"\
+    ,\n\_ \_ \"comments_url\": \"https://api.github.com/repos/octocat/Hello-World/comments{/number}\"\
+    ,\n\_ \_ \"commits_url\": \"https://api.github.com/repos/octocat/Hello-World/commits{/sha}\"\
+    ,\n\_ \_ \"compare_url\": \"https://api.github.com/repos/octocat/Hello-World/compare/{base}...{head}\"\
+    ,\n\_ \_ \"contents_url\": \"https://api.github.com/repos/octocat/Hello-World/contents/{+path}\"\
+    ,\n\_ \_ \"contributors_url\": \"https://api.github.com/repos/octocat/Hello-World/contributors\"\
+    ,\n\_ \_ \"deployments_url\": \"https://api.github.com/repos/octocat/Hello-World/deployments\"\
+    ,\n\_ \_ \"downloads_url\": \"https://api.github.com/repos/octocat/Hello-World/downloads\"\
+    ,\n\_ \_ \"events_url\": \"https://api.github.com/repos/octocat/Hello-World/events\"\
+    ,\n\_ \_ \"forks_url\": \"https://api.github.com/repos/octocat/Hello-World/forks\"\
+    ,\n\_ \_ \"git_commits_url\": \"https://api.github.com/repos/octocat/Hello-World/git/commits{/sha}\"\
+    ,\n\_ \_ \"git_refs_url\": \"https://api.github.com/repos/octocat/Hello-World/git/refs{/sha}\"\
+    ,\n\_ \_ \"git_tags_url\": \"https://api.github.com/repos/octocat/Hello-World/git/tags{/sha}\"\
+    ,\n\_ \_ \"git_url\": \"git:github.com/octocat/Hello-World.git\",\n\_ \_ \"issue_comment_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/issues/comments{/number}\"\
+    ,\n\_ \_ \"issue_events_url\": \"https://api.github.com/repos/octocat/Hello-World/issues/events{/number}\"\
+    ,\n\_ \_ \"issues_url\": \"https://api.github.com/repos/octocat/Hello-World/issues{/number}\"\
+    ,\n\_ \_ \"keys_url\": \"https://api.github.com/repos/octocat/Hello-World/keys{/key_id}\"\
+    ,\n\_ \_ \"labels_url\": \"https://api.github.com/repos/octocat/Hello-World/labels{/name}\"\
+    ,\n\_ \_ \"languages_url\": \"https://api.github.com/repos/octocat/Hello-World/languages\"\
+    ,\n\_ \_ \"merges_url\": \"https://api.github.com/repos/octocat/Hello-World/merges\"\
+    ,\n\_ \_ \"milestones_url\": \"https://api.github.com/repos/octocat/Hello-World/milestones{/number}\"\
+    ,\n\_ \_ \"notifications_url\": \"https://api.github.com/repos/octocat/Hello-World/notifications{?since,all,participating}\"\
+    ,\n\_ \_ \"pulls_url\": \"https://api.github.com/repos/octocat/Hello-World/pulls{/number}\"\
+    ,\n\_ \_ \"releases_url\": \"https://api.github.com/repos/octocat/Hello-World/releases{/id}\"\
+    ,\n\_ \_ \"ssh_url\": \"git@github.com:octocat/Hello-World.git\",\n\_ \_ \"stargazers_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/stargazers\",\n\_ \_ \"statuses_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/statuses/{sha}\",\n\_ \_\
+    \ \"subscribers_url\": \"https://api.github.com/repos/octocat/Hello-World/subscribers\"\
+    ,\n\_ \_ \"subscription_url\": \"https://api.github.com/repos/octocat/Hello-World/subscription\"\
+    ,\n\_ \_ \"tags_url\": \"https://api.github.com/repos/octocat/Hello-World/tags\"\
+    ,\n\_ \_ \"teams_url\": \"https://api.github.com/repos/octocat/Hello-World/teams\"\
+    ,\n\_ \_ \"trees_url\": \"https://api.github.com/repos/octocat/Hello-World/git/trees{/sha}\"\
+    ,\n\_ \_ \"clone_url\": \"https://github.com/octocat/Hello-World.git\",\n\_ \_\
+    \ \"mirror_url\": \"git:git.example.com/octocat/Hello-World\",\n\_ \_ \"hooks_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/hooks\",\n\_ \_ \"svn_url\"\
+    : \"https://svn.github.com/octocat/Hello-World\",\n\_ \_ \"homepage\": \"https://github.com\"\
+    ,\n\_ \_ \"language\": null,\n\_ \_ \"forks_count\": 9,\n\_ \_ \"stargazers_count\"\
+    : 80,\n\_ \_ \"watchers_count\": 80,\n\_ \_ \"size\": 108,\n\_ \_ \"default_branch\"\
+    : \"master\",\n\_ \_ \"open_issues_count\": 0,\n\_ \_ \"is_template\": true,\n\
+    \_ \_ \"topics\": [\n\_ \_ \_ \"octocat\",\n\_ \_ \_ \"atom\",\n\_ \_ \_ \"electron\"\
+    ,\n\_ \_ \_ \"api\"\n\_ \_ ],\n\_ \_ \"has_issues\": true,\n\_ \_ \"has_projects\"\
+    : true,\n\_ \_ \"has_wiki\": true,\n\_ \_ \"has_pages\": false,\n\_ \_ \"has_downloads\"\
+    : true,\n\_ \_ \"archived\": false,\n\_ \_ \"disabled\": false,\n\_ \_ \"visibility\"\
+    : \"public\",\n\_ \_ \"pushed_at\": \"2011-01-26T19:06:43Z\",\n\_ \_ \"created_at\"\
+    : \"2011-01-26T19:01:12Z\",\n\_ \_ \"updated_at\": \"2011-01-26T19:14:43Z\",\n\
+    \_ \_ \"permissions\": {\n\_ \_ \_ \"admin\": false,\n\_ \_ \_ \"push\": false,\n\
+    \_ \_ \_ \"pull\": true\n\_ \_ },\n\_ \_ \"allow_rebase_merge\": true,\n\_ \_\
+    \ \"temp_clone_token\": \"ABTLWHOULUVAXGTRYU7OC2876QJ2O\",\n\_ \_ \"allow_squash_merge\"\
+    : true,\n\_ \_ \"allow_auto_merge\": false,\n\_ \_ \"delete_branch_on_merge\"\
+    : true,\n\_ \_ \"allow_merge_commit\": true,\n\_ \_ \"subscribers_count\": 42,\n\
+    \_ \_ \"network_count\": 0,\n\_ \_ \"license\": {\n\_ \_ \_ \"key\": \"mit\",\n\
+    \_ \_ \_ \"name\": \"MIT License\",\n\_ \_ \_ \"url\": \"https://api.github.com/licenses/mit\"\
+    ,\n\_ \_ \_ \"spdx_id\": \"MIT\",\n\_ \_ \_ \"node_id\": \"MDc6TGljZW5zZW1pdA==\"\
+    ,\n\_ \_ \_ \"html_url\": \"https://api.github.com/licenses/mit\"\n\_ \_ },\n\_\
+    \ \_ \"forks\": 1,\n\_ \_ \"open_issues\": 1,\n\_ \_ \"watchers\": 1\n\_ },\n\_\
+    \ \"source\": {\n\_ \_ \"id\": 1296269,\n\_ \_ \"node_id\": \"MDEwOlJlcG9zaXRvcnkxMjk2MjY5\"\
+    ,\n\_ \_ \"name\": \"Hello-World\",\n\_ \_ \"full_name\": \"octocat/Hello-World\"\
+    ,\n\_ \_ \"owner\": {\n\_ \_ \_ \"login\": \"octocat\",\n\_ \_ \_ \"id\": 1,\n\
+    \_ \_ \_ \"node_id\": \"MDQ6VXNlcjE=\",\n\_ \_ \_ \"avatar_url\": \"https://github.com/images/error/octocat_happy.gif\"\
+    ,\n\_ \_ \_ \"gravatar_id\": \"\",\n\_ \_ \_ \"url\": \"https://api.github.com/users/octocat\"\
+    ,\n\_ \_ \_ \"html_url\": \"https://github.com/octocat\",\n\_ \_ \_ \"followers_url\"\
+    : \"https://api.github.com/users/octocat/followers\",\n\_ \_ \_ \"following_url\"\
+    : \"https://api.github.com/users/octocat/following{/other_user}\",\n\_ \_ \_ \"\
+    gists_url\": \"https://api.github.com/users/octocat/gists{/gist_id}\",\n\_ \_\
+    \ \_ \"starred_url\": \"https://api.github.com/users/octocat/starred{/owner}{/repo}\"\
+    ,\n\_ \_ \_ \"subscriptions_url\": \"https://api.github.com/users/octocat/subscriptions\"\
+    ,\n\_ \_ \_ \"organizations_url\": \"https://api.github.com/users/octocat/orgs\"\
+    ,\n\_ \_ \_ \"repos_url\": \"https://api.github.com/users/octocat/repos\",\n\_\
+    \ \_ \_ \"events_url\": \"https://api.github.com/users/octocat/events{/privacy}\"\
+    ,\n\_ \_ \_ \"received_events_url\": \"https://api.github.com/users/octocat/received_events\"\
+    ,\n\_ \_ \_ \"type\": \"User\",\n\_ \_ \_ \"site_admin\": false\n\_ \_ },\n\_\
+    \ \_ \"private\": false,\n\_ \_ \"html_url\": \"https://github.com/octocat/Hello-World\"\
+    ,\n\_ \_ \"description\": \"This your first repo!\",\n\_ \_ \"fork\": false,\n\
+    \_ \_ \"url\": \"https://api.github.com/repos/octocat/Hello-World\",\n\_ \_ \"\
+    archive_url\": \"https://api.github.com/repos/octocat/Hello-World/{archive_format}{/ref}\"\
+    ,\n\_ \_ \"assignees_url\": \"https://api.github.com/repos/octocat/Hello-World/assignees{/user}\"\
+    ,\n\_ \_ \"blobs_url\": \"https://api.github.com/repos/octocat/Hello-World/git/blobs{/sha}\"\
+    ,\n\_ \_ \"branches_url\": \"https://api.github.com/repos/octocat/Hello-World/branches{/branch}\"\
+    ,\n\_ \_ \"collaborators_url\": \"https://api.github.com/repos/octocat/Hello-World/collaborators{/collaborator}\"\
+    ,\n\_ \_ \"comments_url\": \"https://api.github.com/repos/octocat/Hello-World/comments{/number}\"\
+    ,\n\_ \_ \"commits_url\": \"https://api.github.com/repos/octocat/Hello-World/commits{/sha}\"\
+    ,\n\_ \_ \"compare_url\": \"https://api.github.com/repos/octocat/Hello-World/compare/{base}...{head}\"\
+    ,\n\_ \_ \"contents_url\": \"https://api.github.com/repos/octocat/Hello-World/contents/{+path}\"\
+    ,\n\_ \_ \"contributors_url\": \"https://api.github.com/repos/octocat/Hello-World/contributors\"\
+    ,\n\_ \_ \"deployments_url\": \"https://api.github.com/repos/octocat/Hello-World/deployments\"\
+    ,\n\_ \_ \"downloads_url\": \"https://api.github.com/repos/octocat/Hello-World/downloads\"\
+    ,\n\_ \_ \"events_url\": \"https://api.github.com/repos/octocat/Hello-World/events\"\
+    ,\n\_ \_ \"forks_url\": \"https://api.github.com/repos/octocat/Hello-World/forks\"\
+    ,\n\_ \_ \"git_commits_url\": \"https://api.github.com/repos/octocat/Hello-World/git/commits{/sha}\"\
+    ,\n\_ \_ \"git_refs_url\": \"https://api.github.com/repos/octocat/Hello-World/git/refs{/sha}\"\
+    ,\n\_ \_ \"git_tags_url\": \"https://api.github.com/repos/octocat/Hello-World/git/tags{/sha}\"\
+    ,\n\_ \_ \"git_url\": \"git:github.com/octocat/Hello-World.git\",\n\_ \_ \"issue_comment_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/issues/comments{/number}\"\
+    ,\n\_ \_ \"issue_events_url\": \"https://api.github.com/repos/octocat/Hello-World/issues/events{/number}\"\
+    ,\n\_ \_ \"issues_url\": \"https://api.github.com/repos/octocat/Hello-World/issues{/number}\"\
+    ,\n\_ \_ \"keys_url\": \"https://api.github.com/repos/octocat/Hello-World/keys{/key_id}\"\
+    ,\n\_ \_ \"labels_url\": \"https://api.github.com/repos/octocat/Hello-World/labels{/name}\"\
+    ,\n\_ \_ \"languages_url\": \"https://api.github.com/repos/octocat/Hello-World/languages\"\
+    ,\n\_ \_ \"merges_url\": \"https://api.github.com/repos/octocat/Hello-World/merges\"\
+    ,\n\_ \_ \"milestones_url\": \"https://api.github.com/repos/octocat/Hello-World/milestones{/number}\"\
+    ,\n\_ \_ \"notifications_url\": \"https://api.github.com/repos/octocat/Hello-World/notifications{?since,all,participating}\"\
+    ,\n\_ \_ \"pulls_url\": \"https://api.github.com/repos/octocat/Hello-World/pulls{/number}\"\
+    ,\n\_ \_ \"releases_url\": \"https://api.github.com/repos/octocat/Hello-World/releases{/id}\"\
+    ,\n\_ \_ \"ssh_url\": \"git@github.com:octocat/Hello-World.git\",\n\_ \_ \"stargazers_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/stargazers\",\n\_ \_ \"statuses_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/statuses/{sha}\",\n\_ \_\
+    \ \"subscribers_url\": \"https://api.github.com/repos/octocat/Hello-World/subscribers\"\
+    ,\n\_ \_ \"subscription_url\": \"https://api.github.com/repos/octocat/Hello-World/subscription\"\
+    ,\n\_ \_ \"tags_url\": \"https://api.github.com/repos/octocat/Hello-World/tags\"\
+    ,\n\_ \_ \"teams_url\": \"https://api.github.com/repos/octocat/Hello-World/teams\"\
+    ,\n\_ \_ \"trees_url\": \"https://api.github.com/repos/octocat/Hello-World/git/trees{/sha}\"\
+    ,\n\_ \_ \"clone_url\": \"https://github.com/octocat/Hello-World.git\",\n\_ \_\
+    \ \"mirror_url\": \"git:git.example.com/octocat/Hello-World\",\n\_ \_ \"hooks_url\"\
+    : \"https://api.github.com/repos/octocat/Hello-World/hooks\",\n\_ \_ \"svn_url\"\
+    : \"https://svn.github.com/octocat/Hello-World\",\n\_ \_ \"homepage\": \"https://github.com\"\
+    ,\n\_ \_ \"language\": null,\n\_ \_ \"forks_count\": 9,\n\_ \_ \"stargazers_count\"\
+    : 80,\n\_ \_ \"watchers_count\": 80,\n\_ \_ \"size\": 108,\n\_ \_ \"default_branch\"\
+    : \"master\",\n\_ \_ \"open_issues_count\": 0,\n\_ \_ \"is_template\": true,\n\
+    \_ \_ \"topics\": [\n\_ \_ \_ \"octocat\",\n\_ \_ \_ \"atom\",\n\_ \_ \_ \"electron\"\
+    ,\n\_ \_ \_ \"api\"\n\_ \_ ],\n\_ \_ \"has_issues\": true,\n\_ \_ \"has_projects\"\
+    : true,\n\_ \_ \"has_wiki\": true,\n\_ \_ \"has_pages\": false,\n\_ \_ \"has_downloads\"\
+    : true,\n\_ \_ \"archived\": false,\n\_ \_ \"disabled\": false,\n\_ \_ \"visibility\"\
+    : \"public\",\n\_ \_ \"pushed_at\": \"2011-01-26T19:06:43Z\",\n\_ \_ \"created_at\"\
+    : \"2011-01-26T19:01:12Z\",\n\_ \_ \"updated_at\": \"2011-01-26T19:14:43Z\",\n\
+    \_ \_ \"permissions\": {\n\_ \_ \_ \"admin\": false,\n\_ \_ \_ \"push\": false,\n\
+    \_ \_ \_ \"pull\": true\n\_ \_ },\n\_ \_ \"allow_rebase_merge\": true,\n\_ \_\
+    \ \"temp_clone_token\": \"ABTLWHOULUVAXGTRYU7OC2876QJ2O\",\n\_ \_ \"allow_squash_merge\"\
+    : true,\n\_ \_ \"allow_auto_merge\": false,\n\_ \_ \"delete_branch_on_merge\"\
+    : true,\n\_ \_ \"allow_merge_commit\": true,\n\_ \_ \"subscribers_count\": 42,\n\
+    \_ \_ \"network_count\": 0,\n\_ \_ \"license\": {\n\_ \_ \_ \"key\": \"mit\",\n\
+    \_ \_ \_ \"name\": \"MIT License\",\n\_ \_ \_ \"url\": \"https://api.github.com/licenses/mit\"\
+    ,\n\_ \_ \_ \"spdx_id\": \"MIT\",\n\_ \_ \_ \"node_id\": \"MDc6TGljZW5zZW1pdA==\"\
+    ,\n\_ \_ \_ \"html_url\": \"https://api.github.com/licenses/mit\"\n\_ \_ },\n\_\
+    \ \_ \"forks\": 1,\n\_ \_ \"open_issues\": 1,\n\_ \_ \"watchers\": 1\n\_ }\n}\n\
+    ```\n\n\nCreate a python class that exposes a method to fork a github repository.\
+    \ It will receive the repository url and optional repository name.\nwill create\
+    \ the fork and return the new fork url\n\n\nTo create the fork will read_global_settings\
+    \ and read the \"github_fork.token\" and \"github_fork.organization\""
+  created_at: '2025-04-23 15:45:13.782144'
+  disable_knowledge: false
+  doc_id: 0a0fb884-7add-4b18-82a6-57a4f4182b12
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-23 15:45:13.782187'
+  user: admin
+- content: "To create a Python class that interacts with the GitHub API to fork a\
+    \ repository, you can use the `requests` library to make HTTP requests. The class\
+    \ will read global settings for the GitHub token and organization, and provide\
+    \ a method to fork a repository given a repository URL and an optional repository\
+    \ name. Below is an example implementation:\n\n```python\nimport requests\nimport\
+    \ json\n\nclass GitHubForker:\n    def __init__(self, settings):\n        \"\"\
+    \"Initialize the GitHubForker with settings.\"\"\"\n        self.github_token\
+    \ = settings.get(\"github_fork.token\")\n        self.github_organization = settings.get(\"\
+    github_fork.organization\")\n\n        if not self.github_token:\n           \
+    \ raise ValueError(\"GitHub token not found in settings.\")\n        if not self.github_organization:\n\
+    \            raise ValueError(\"GitHub organization not found in settings.\")\n\
+    \n    def fork_repository(self, repository_url, fork_name=None):\n        \"\"\
+    \"Fork a GitHub repository.\n\n        Args:\n            repository_url (str):\
+    \ The URL of the repository to fork.\n            fork_name (str, optional): The\
+    \ name for the forked repository.\n\n        Returns:\n            str: The URL\
+    \ of the new forked repository.\n\n        Raises:\n            Exception: If\
+    \ the forking process fails.\n        \"\"\"\n        # Extract the owner and\
+    \ repository name from the repository URL\n        try:\n            _, owner,\
+    \ repo_name = repository_url.rstrip('/').rsplit('/', 2)\n        except ValueError:\n\
+    \            raise ValueError(\"Invalid repository URL.\")\n\n        # Set up\
+    \ the request headers\n        headers = {\n            \"Accept\": \"application/vnd.github+json\"\
+    ,\n            \"Authorization\": f\"Bearer {self.github_token}\",\n         \
+    \   \"X-GitHub-Api-Version\": \"2022-11-28\",\n        }\n\n        # Create the\
+    \ request payload with optional name and organization\n        data = {\n    \
+    \        \"organization\": self.github_organization\n        }\n        if fork_name:\n\
+    \            data[\"name\"] = fork_name\n\n        # Make the API request to fork\
+    \ the repository\n        url = f\"https://api.github.com/repos/{owner}/{repo_name}/forks\"\
+    \n        response = requests.post(url, headers=headers, data=json.dumps(data))\n\
+    \n        if response.status_code >= 400:\n            raise Exception(f\"Failed\
+    \ to fork repository: {response.json().get('message', 'Unknown error')}\")\n\n\
+    \        # Return the URL of the new forked repository\n        response_data\
+    \ = response.json()\n        return response_data.get(\"html_url\", \"\")\n\n\
+    # Example usage\nif __name__ == \"__main__\":\n    # Read global settings (replace\
+    \ with your actual settings reading mechanism)\n    global_settings = {\n    \
+    \    \"github_fork.token\": \"your_github_token\",\n        \"github_fork.organization\"\
+    : \"your_organization_name\"\n    }\n\n    # Create an instance of the GitHubForker\
+    \ class\n    forker = GitHubForker(global_settings)\n\n    # Use the fork_repository\
+    \ method to fork a repository\n    try:\n        forked_url = forker.fork_repository(\"\
+    https://github.com/octocat/Hello-World\", \"My-Forked-Repo\")\n        print(f\"\
+    Forked repository URL: {forked_url}\")\n    except Exception as e:\n        print(f\"\
+    Error: {e}\")\n```\n\n### Key Points:\n- The class `GitHubForker` initializes\
+    \ with a settings dictionary, from which it retrieves the GitHub token and organization.\n\
+    - The `fork_repository` method takes a `repository_url` and an optional `fork_name`\
+    \ as arguments.\n- It extracts the owner and repository name from the `repository_url`\
+    \ to construct the API endpoint.\n- It configures the necessary headers for GitHub\
+    \ API requests and sends a POST request to create a fork.\n- If successful, it\
+    \ returns the URL of the newly created forked repository.\n- In case of errors\
+    \ during the HTTP request, it raises an exception with a relevant error message.\n\
+    \n**Note**: Replace `\"your_github_token\"` and `\"your_organization_name\"` with\
+    \ the actual values for your setup. Additionally, ensure that the `requests` library\
+    \ is installed in your environment (`pip install requests`)."
+  created_at: '2025-04-23 15:45:13.782144'
+  disable_knowledge: false
+  doc_id: 7cb2fec3-9c8f-4822-baf3-2c21e3ca6dad
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 7.986131191253662
+    model: gpt-4o
+    time_taken: 16.126420736312866
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-23 15:45:13.782187'
+  user: null
+- content: 'Remove the example usage, just generate a class.
+
+    Add global_settings param to the init'
+  created_at: '2025-04-23 15:45:13.782144'
+  disable_knowledge: false
+  doc_id: 19154771-38a7-426c-9eda-b892e995276a
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-23 15:45:13.782187'
+  user: admin
+- content: "Certainly! Here's the revised `GitHubForker` class with the initialization\
+    \ parameter `global_settings`:\n\n```python\nimport requests\nimport json\n\n\
+    class GitHubForker:\n    def __init__(self, global_settings):\n        \"\"\"\
+    Initialize the GitHubForker with global settings.\"\"\"\n        self.github_access_token\
+    \ = global_settings.get(\"github_fork.token\")\n        self.github_organization_name\
+    \ = global_settings.get(\"github_fork.organization\")\n\n        if not self.github_access_token:\n\
+    \            raise ValueError(\"GitHub access token not found in global settings.\"\
+    )\n        if not self.github_organization_name:\n            raise ValueError(\"\
+    GitHub organization name not found in global settings.\")\n\n    def fork_repository(self,\
+    \ repository_url, fork_name=None):\n        \"\"\"Fork a GitHub repository.\n\n\
+    \        Args:\n            repository_url (str): The URL of the repository to\
+    \ fork.\n            fork_name (str, optional): The name for the forked repository.\n\
+    \n        Returns:\n            str: The URL of the new forked repository.\n\n\
+    \        Raises:\n            Exception: If the forking process fails.\n     \
+    \   \"\"\"\n        # Extract the owner and repository name from the repository\
+    \ URL\n        try:\n            _, owner_name, repository_name = repository_url.rstrip('/').rsplit('/',\
+    \ 2)\n        except ValueError:\n            raise ValueError(\"Invalid repository\
+    \ URL format.\")\n\n        # Set up the request headers\n        request_headers\
+    \ = {\n            \"Accept\": \"application/vnd.github+json\",\n            \"\
+    Authorization\": f\"Bearer {self.github_access_token}\",\n            \"X-GitHub-Api-Version\"\
+    : \"2022-11-28\",\n        }\n\n        # Create the request payload with optional\
+    \ name and organization\n        request_data = {\n            \"organization\"\
+    : self.github_organization_name\n        }\n        if fork_name:\n          \
+    \  request_data[\"name\"] = fork_name\n\n        # Make the API request to fork\
+    \ the repository\n        api_url = f\"https://api.github.com/repos/{owner_name}/{repository_name}/forks\"\
+    \n        response = requests.post(api_url, headers=request_headers, data=json.dumps(request_data))\n\
+    \n        if response.status_code >= 400:\n            raise Exception(f\"Failed\
+    \ to fork repository: {response.json().get('message', 'Unknown error')}\")\n\n\
+    \        # Return the URL of the new forked repository\n        response_data\
+    \ = response.json()\n        return response_data.get(\"html_url\", \"\")\n```\n\
+    \n### Key Changes:\n- The `__init__` method now takes `global_settings` as a parameter\
+    \ directly, with meaningful variable names for clarity.\n- Meaningful variable\
+    \ names are used throughout the class to enhance code readability.\n- Error handling\
+    \ ensures informative messages for invalid configurations or request failures."
+  created_at: '2025-04-23 15:45:13.782144'
+  disable_knowledge: false
+  doc_id: 9154c075-c9dc-4269-9d51-5155c7b3dd85
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 3.7055883407592773
+    model: gpt-4o
+    time_taken: 6.462378263473511
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-23 15:45:13.782187'
+  user: null
+- content: "Add new class in model.py GithubForker with the settings token and organization\
+    \ and add an Optional\_GithubForker to GlobalSettings"
+  created_at: '2025-04-23 15:45:13.782144'
+  disable_knowledge: false
+  doc_id: 670768d9-9a7d-45ab-b052-c519949d5e84
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-23 15:45:13.782187'
+  user: admin
+- content: "rename\_github_fork by\_github_settings"
+  created_at: '2025-04-23 15:45:13.782144'
+  disable_knowledge: false
+  doc_id: 869091b5-cda6-42cc-ba8c-1c704e9f08ee
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-23 15:45:13.782187'
+  user: admin
+- content: "Certainly! Following your instructions, I've renamed `github_fork` to\
+    \ `github_settings` and ensured that all variable names are meaningful within\
+    \ the context of the `GitHubForker` class.\n\n```python\nimport requests\nimport\
+    \ json\n\nclass GitHubForker:\n    def __init__(self, github_settings):\n    \
+    \    \"\"\"Initialize the GitHubForker with GitHub settings.\"\"\"\n        self.github_access_token\
+    \ = github_settings.get(\"github_settings.token\")\n        self.github_organization_name\
+    \ = github_settings.get(\"github_settings.organization\")\n\n        if not self.github_access_token:\n\
+    \            raise ValueError(\"GitHub access token not found in GitHub settings.\"\
+    )\n        if not self.github_organization_name:\n            raise ValueError(\"\
+    GitHub organization name not found in GitHub settings.\")\n\n    def fork_repository(self,\
+    \ repository_url, fork_name=None):\n        \"\"\"Fork a GitHub repository.\n\n\
+    \        Args:\n            repository_url (str): The URL of the repository to\
+    \ fork.\n            fork_name (str, optional): The name for the forked repository.\n\
+    \n        Returns:\n            str: The URL of the new forked repository.\n\n\
+    \        Raises:\n            Exception: If the forking process fails.\n     \
+    \   \"\"\"\n        # Extract the owner and repository name from the repository\
+    \ URL\n        try:\n            _, owner_name, repository_name = repository_url.rstrip('/').rsplit('/',\
+    \ 2)\n        except ValueError:\n            raise ValueError(\"Invalid repository\
+    \ URL format.\")\n\n        # Set up the request headers\n        request_headers\
+    \ = {\n            \"Accept\": \"application/vnd.github+json\",\n            \"\
+    Authorization\": f\"Bearer {self.github_access_token}\",\n            \"X-GitHub-Api-Version\"\
+    : \"2022-11-28\",\n        }\n\n        # Create the request payload with optional\
+    \ name and organization\n        fork_data = {\n            \"organization\":\
+    \ self.github_organization_name\n        }\n        if fork_name:\n          \
+    \  fork_data[\"name\"] = fork_name\n\n        # Make the API request to fork the\
+    \ repository\n        api_url = f\"https://api.github.com/repos/{owner_name}/{repository_name}/forks\"\
+    \n        response = requests.post(api_url, headers=request_headers, data=json.dumps(fork_data))\n\
+    \n        if response.status_code >= 400:\n            raise Exception(f\"Failed\
+    \ to fork repository: {response.json().get('message', 'Unknown error')}\")\n\n\
+    \        # Return the URL of the new forked repository\n        response_data\
+    \ = response.json()\n        return response_data.get(\"html_url\", \"\")\n```\n\
+    \n### Key Changes:\n- The class now expects `github_settings` as the initialization\
+    \ parameter.\n- The access token and organization name are fetched from `github_settings`.\n\
+    - All variable names are clear and descriptive, providing better readability and\
+    \ maintainability:\n  - `fork_data` instead of `request_data` to directly indicate\
+    \ its purpose.\n  - Used `github_settings` to indicate that it holds configurations/settings\
+    \ related to GitHub.\n\nThis setup ensures that configurations related to GitHub\
+    \ are clearly defined and used, and any potential issues are raised with proper\
+    \ error messages."
+  created_at: '2025-04-23 15:45:13.782144'
+  disable_knowledge: false
+  doc_id: 67cb66aa-7097-4cf5-8c05-8d9298a0524b
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 3.9837942123413086
+    model: gpt-4o
+    time_taken: 8.788740396499634
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-23 15:45:13.782187'
+  user: null
+mode: chat
+name: Forker
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-04-24T07:23:07.878234'
+url: ''
+users: []
+visibility: ''

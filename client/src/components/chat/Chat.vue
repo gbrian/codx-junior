@@ -9,34 +9,55 @@ import UserSelector from './UserSelector.vue'
 import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
 import CheckLists from './CheckLists.vue'
 import MentionSelector from '../mentions/MentionSelector.vue'
+import PRView from '@/components/repo/PRView.vue'
+import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAutoComplete.vue'
+import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-1 grow">
-    <div class="grow relative">
-      <CheckLists class="mb-2" :chat="theChat" @change="saveChat" />
-      <div class="overflow-y-auto overflow-x-hidden" :class="isBrowser && 'flex gap-1'">
-        <div class="w-3/4" v-if="isBrowser">
-          <Browser :token="$ui.monitors['shared']" />
+  <div class="h-full flex flex-col gap-1">
+    <div class="grow relative flex flex-col gap-1">
+      <div class="flex gap-2 items-center justify-bnetween">
+        <div class="w-full" v-if="chatFiles.length">
+          <div class="my-2 text-xs">
+            <span>
+              <i class="fa-solid fa-paperclip"></i>
+            </span>
+            <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 cursor-pointer text-accent" @click="$ui.openFile(file)">
+              <span class="click mr-1" @click.stop="$ui.copyTextToClipboard(file)"><i class="fa-solid fa-copy"></i></span>
+              <span :title="file" >{{ file?.split('/').reverse()[0] || '---error---' }}</span>
+              <span class="ml-2 cursor-pointer" @click.stop="removeFileFromChat(file)">
+                <i class="fa-regular fa-circle-xmark"></i>
+              </span>
+            </a>
+          </div>
         </div>
-        <div class="overflow-auto h-full">
+        <CheckLists class="" :chat="chat" @change="saveChat" />
+        
+      </div>
+      <div class="grow overflow-y-auto overflow-x-hidden">
+        <Browser class="" :token="$ui.monitors['shared']" v-if="isBrowser"/>
+        <PRView class="h-full overflow-auto" 
+          :fromBranch="chat.pr_view?.from_branch"
+          :toBranch="chat.pr_view?.to_branch"
+          :chat="chat"
+          @select="onPRViewBranchChanged"
+          @comment="onPRFileComment"
+          @change-column="$emit('change-column', $event)"
+          @new-chat="onPRFileCreateChat"
+          @chat-message="onPRChatMessage"
+          v-if="isPRView" />
+        
+        <div class="overflow-auto h-full" v-if="!isBrowser && !isPRView">
           <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
-            <ChatEntry v-for="knowledgeMessage in knowledgeMessages"
-              :key="knowledgeMessages.id" 
-              :chat="theChat"
-              :message="knowledgeMessage"
-              :isTopic="isTopic && !ix"
-              :mentionList="mentionList"
-            />
-            
             <ChatEntry :class="['mb-4 rounded-md',
-              isChannel ? '': 'bg-base-100 py-2',
-              editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '',
-              message.hide ? 'opacity-80 border border-dashed p-2 border-warning' : '']"
-              :chat="theChat"
+              isChannel ? '': 'py-2',
+              editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '']"
+              :chat="chat"
               :message="message"
               :isTopic="isTopic && !ix"
               :mentionList="mentionList"
+              :menu-less="readOnly"
               @edited="onMessageEdited"
               @enhance="onEditMessage(message, true)"
               @remove="removeMessage(message)"
@@ -45,15 +66,16 @@ import MentionSelector from '../mentions/MentionSelector.vue'
               @answer="toggleAnswer(message)"
               @run-edit="runEdit"
               @copy="onCopy(message)"
-              @add-file-to-chat="$emit('add-file', $event)"
+              @add-file-to-chat="onAddFile($event)"
               @image="imagePreview = { ...$event, readonly: true }"
               @generate-code="onGenerateCode"
               @reload-file="onReloadMessageFile"
               @open-file="onOpenFile"
               @save-file="onSaveFile"
+              @add-file="onAddFile"
               @edit-message="onEditMessage($event, message)"
               @code-file-shown.stop="console.log"
-              @subtask="$emit('subtask', { chat: theChat, message })"
+              @subtask="$emit('subtask', { chat, message })"
             />
           </div>
           <div class="anchor" ref="anchor"></div>
@@ -65,59 +87,54 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         </div>
       </div>
     </div>
-    <div class="chat chat-end" v-if="false && isBrowser">
-      <div class="chat-image avatar">
-        <div class="w-10 rounded-full">
-          <img src="/only_icon.png" alt="logo" />
-        </div>
-      </div>
-      <div class="chat-bubble">
-        <Markdown class="max-h-40 overflow-auto" :text="lastAIMessage.content" v-if="lastAIMessage" />
-        <div v-else>
-          <span class="font-bold">Let's navigate together:</span>
-          Use browser to navigate any web or try:
-          <span class="italic text-info">Find top 5 results for ....</span>
-        </div>
-      </div>
-    </div>
     <div class="sticky bottom-0 z-50 bg-base-300">
-      <div class="text-ellipsis overflow-hidden text-nowrap text-xs text-info">
-        {{  lastChatEvent }}
-      </div>
       <div class="flex gap-2">
         <span class="badge tooltip flex gap-2 items-center"
           :data-tip="mention.tooltip"
           :class="{ 'badge-primary': mention.project, 'badge-success badge-outline': mention.profile }"
-          v-for="mention in messageMentions" :key="mention.name">
+          v-for="mention in messageMentions" :key="mention.name"
+          :title="mention.file || mention.name"
+          >
           <i class="fa-solid fa-magnifying-glass" v-if="mention.project"></i>
           <img class="w-4 rounded-full" :src="mention.profile.avatar" v-if="mention.profile?.avatar" />
           <i class="fa-solid fa-user" v-if="mention.profile && !mention.profile.avatar"></i>
+          <i class="fa-solid fa-file-lines" v-if="mention.file"></i>
+          <i class="fa-solid fa-file-arrow-up" @click="onAddFile(mention.file)" v-if="mention.file"></i>
+          
           <div class="-mt-1">
             {{ mention.name }}
           </div>
+          <span class="click" @click="removeMessageMention(mention)">X</span>
         </span>
       </div>
 
-      <MentionSelector :content="editorText" :mentionList="mentionList" @select="onMentionReplace" />
-      <div :class="['flex bg-base-300 border rounded-md shadow indicator w-full', 
+      <SimpleEditorVue class="h-40 border w-full" v-model="editorText" :project="projectContext" v-if="false" />
+      <div class="border border-primary rounded-md bg-base-100 mt-2 pb-2" :class="['flex shadow indicator w-full', 
             'flex-col',
             editMessage && 'border-warning',
             onDraggingOverInput ? 'bg-warning/10': '']"
         @dragover.prevent="onDraggingOverInput = true"
         @dragleave.prevent="onDraggingOverInput = false"
-        @drop.prevent="onDrop">
-        <KnowledgeSearch class="p-2 h-60"
+        @drop.prevent="onDrop"
+        v-if="!isBrowser && !isPRView && readOnly !== true"
+        >
+                <ProjectResourcesAutoCompleteVue 
+          class=""
+          :project="projectContext"
           @select="onAddDocument"
+          @close="closeDocumentSearch"
           v-if="showDocumentSearchModal"
         />
-        <div v-else class="editor" :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
+
+        <div class="editor" :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
           :contenteditable="!waiting"
           ref="editor"
           @paste="onContentPaste"
           @keydown="onEditMessageKeyDown"
+          
         >
         </div>
-        <div class="flex justify-between items-end px-2">
+        <div class="flex justify-between items-end px-2 bg-base-300 rounded-b-md">
           <div class="carousel rounded-box">
             <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
               <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
@@ -131,13 +148,16 @@ import MentionSelector from '../mentions/MentionSelector.vue'
             </div>
           </div>
           <span class="loading loading-dots loading-md btn btn-sm" v-if="waiting"></span>
-          <div class="grow flex justify-between items-center" v-else>
+          <div class="grow flex gap-2 items-end" v-else>
             <UserSelector 
               class="dropdown-top"
               :selectedUser="selectedUser"
+              :profiles="profiles"
               @user-changed="selectedUser = $event"
             />
-            <div class="flex gap-2 items-center justify-end py-2" v-if="!searchingInKnowledge">
+            <div class="text-xs">Find: ctrl+f</div>
+            <div class="grow"></div>
+            <div class="flex gap-2 items-center justify-end" v-if="!searchingInKnowledge">
               <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
                 <i class="fa-solid fa-save"></i>
                 <div class="text-xs" v-if="editMessage && !showDocumentSearchModal">Edit</div>
@@ -151,18 +171,12 @@ import MentionSelector from '../mentions/MentionSelector.vue'
                 :class="isVoiceSession && 'btn-success animate-pulse'"
                 @click="sendMessage"
                 ref="sendButton"
-                v-if="!editMessage && !showDocumentSearchModal">
+                v-if="!editMessage">
                 <i class="fa-solid fa-microphone-lines" v-if="isVoiceSession"></i>
                 <i class="fa-solid fa-paper-plane" v-else></i>
               </button>
-              <button class="hidden btn btn btn-sm btn-circle btn-outline tooltip"
-                :class="isBrowser && 'btn-warning'"
-                data-tip="Ask codx-browser" @click="isBrowser = !isBrowser"
-                v-if="!editMessage">
-                <i class="fa-brands fa-chrome"></i>
-              </button>
               <button class="hidden btn btn btn-sm btn-outline tooltip btn-warning"
-                data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && theChat.mode === 'chat'">
+                data-tip="Make code changes" @click="improveCode()" v-if="!editMessage && chat.mode === 'chat'">
                 <i class="fa-solid fa-code"></i>
               </button>
 
@@ -184,15 +198,6 @@ import MentionSelector from '../mentions/MentionSelector.vue'
                       Test
                     </a>
                   </li>
-                  <li class="hidden btn btn-sm tooltip"
-                    :class="isBrowser && 'btn-success'"
-                    :data-tip="isBrowser ? 'Close browser' : 'Open browser'"
-                    @click="isBrowser = !isBrowser" v-if="!editMessage">
-                    <a>
-                      <i class="fa-brands fa-chrome"></i>
-                      {{ isBrowser ? 'Close' : 'Open' }} Browser
-                    </a>
-                  </li>
                   <li class="btn btn-sm tooltip"
                     :class="isVoiceSession && 'btn-success'"
                     :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
@@ -200,6 +205,15 @@ import MentionSelector from '../mentions/MentionSelector.vue'
                     <a>
                       <i class="fa-solid fa-microphone-lines"></i>
                       Voice mode
+                    </a>
+                  </li>
+                  <li class="btn btn-sm btn-error tooltip"
+                    :class="isVoiceSession && 'btn-success'"
+                    :data-tip="$ui.voiceLanguages[$ui.voiceLanguage]"
+                    @click="showDeleteModal = true" v-if="enableDelete">
+                    <a>
+                      <i class="fa-solid fa-trash-can"></i>
+                      Delete
                     </a>
                   </li>
                 </ul>
@@ -212,10 +226,12 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         </div>
       </div>
     </div>
-    <modal v-if="imagePreview">
-      <div class="flex flex-col gap-2">
+    <modal class="w-10/12 lg:w-3/4 h-10/12 lg:h-3/4" v-if="imagePreview">
+      <div class="h-full flex flex-col gap-2 justify-between">
         <div class="text-2xl">Upload image</div>
-        <div class="bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full" :style="`background-image: url(${imagePreview.src})`"></div>
+        <div class="grow">
+          <div class="bg-contain bg-no-repeat bg-base-300/20 bg-center h-full w-full" :style="`background-image: url(${imagePreview.src})`"></div>
+        </div>
         <div>
           Image alt: <span class="text-xs" v-if="imagePreview.alt?.length">{{ imagePreview.alt?.length }} chars.</span>
         </div>
@@ -265,14 +281,13 @@ import MentionSelector from '../mentions/MentionSelector.vue'
         </label>
       </div>
     </modal>
-
-    <modal v-if="showModal">
+    <modal v-if="showDeleteModal">
       <div class="flex flex-col gap-2">
         <div class="text-xl">Confirm Deletion</div>
         <p>Are you sure you want to delete this task?</p>
         <div class="font-bold text-primary text-xl">{{ taskToDelete.name }}</div>
         <div class="flex justify-end gap-2">
-          <button class="btn" @click="showModal = false">Cancel</button>
+          <button class="btn" @click="showDeleteModal = false">Cancel</button>
           <button class="btn btn-error" @click="deleteTask">Delete</button>
         </div>
       </div>
@@ -284,7 +299,7 @@ import MentionSelector from '../mentions/MentionSelector.vue'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'chatId', 'showHidden', 'childrenChats'],
+  props: ['chat', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete'],
   data() {
     return {
       waiting: false,
@@ -303,17 +318,16 @@ export default {
       selectFile: false,
       isVoiceSession: false,
       recognition: null,
-      isBrowser: false,
       syncEditableTextInterval: null,
-      showModal: false,
+      showDeleteModal: false,
       taskToDelete: null,
       selectedUser: null,
       refreshngMentions: null,
       selectedDocuments: null,
       showDocumentSearchModal: false,
       searchingInKnowledge: false,
-      projectContext: null,
-      uploadProjectFile: null
+      projectContext: this.$project,
+      uploadProjectFile: null,
     }
   },
   created() {
@@ -328,15 +342,24 @@ export default {
     clearInterval(this.syncEditableTextInterval)
   },
   computed: {
-    theChat() {
-      return this.chat || this.$projects.chats[this.chatId]
+    chatFiles() {
+      return this.chat.file_list || []
+    },
+    isPRView() {
+      return this.chat.mode === 'prview'
+    },
+    isBrowser() {
+      return this.chat.mode === 'browser'
     },
     visibleMessages() {
-      return this.theChat?.messages?.filter(m => !m.hide || this.showHidden) || []
+      return this.chat?.messages?.filter(m => !m.hide || this.showHidden) || []
     },
     lastAIMessage() {
       const { activeMessages } = this
-      const lastAiMessages = activeMessages.filter(m => m.role === 'assistant').reverse()
+      const lastAiMessages = activeMessages?.filter(m => m.role === 'assistant').reverse()
+      if (!lastAiMessages?.length) {
+        return null
+      }
       if (lastAiMessages.length < 2) {
         return lastAiMessages[0]
       }
@@ -345,17 +368,17 @@ export default {
       return { ...last, diffMessage: previous[0] }
     },
     lastUserMessage() {
-      const { messages } = this.theChat
-      const msgs = messages?.filter(m => !m.hide && m.role !== 'assistant')
+      const { messages } = this
+      const msgs = messages?.filter(m => m.role !== 'assistant')
       return msgs ? msgs[msgs.length - 1] : null
     },
     lastMessage() {
-      const { messages } = this.theChat
-      return messages ? messages[messages.length - 1] : null
+      const { messages } = this
+      return messages?.length ? messages[messages.length - 1] : null
     },
     diffMessage() {
       if (this.isTask) {
-        const { messages } = this.theChat
+        const { messages } = this.chat
         const aiMsgs = messages.filter(m => m.role === 'assistant')
         if (aiMsgs.length > 1) {
           return aiMsgs[aiMsgs.length - 2]
@@ -364,21 +387,17 @@ export default {
       return null
     },
     activeMessages() {
-      const { messages } = this.theChat
-      return messages.filter(m => !m.hide)
-    },
-    knowledgeMessages() {
-      return this.activeMessages.filter(m => m.is_answer)
-                .map(m => ({ ...m, collapse: true }))
+      const messages = this.chat?.messages
+      return messages?.filter(m => !m.hide || this.showHidden) || []
     },
     messages() {
-      const messages = this.theChat?.messages
-      if (!messages?.length) {
+      const { activeMessages } = this
+      if (!activeMessages.length) {
         return []
       }
-      if (this.isTask && !this.showHidden) {
+      if (this.isTask && !this.showHidden && activeMessages?.length) {
         const aiMsg = this.lastAIMessage
-        const lastMsg = this.activeMessages[this.activeMessages.length - 1]
+        const lastMsg = activeMessages[activeMessages.length - 1]
         const res = []
         if (aiMsg) {
           res.push(aiMsg)
@@ -388,7 +407,7 @@ export default {
         }
         return res
       }
-      return messages.filter(message => !message.hide || this.showHidden)
+      return activeMessages.filter(message => (!message.hide || this.showHidden))
     },
     multiline() {
       return this.editorText?.split("\n").length > 1 || this.images?.length
@@ -403,41 +422,48 @@ export default {
       return this.messageText || this.images?.length
     },
     isTask() {
-      return this.theChat?.mode === 'task'
+      return this.chat?.mode === 'task'
     },
     isTopic() {
-      return this.theChat?.mode === 'topic'
+      return this.chat?.mode === 'topic'
     },
     topicMessage() {
       return this.messages[0]
     },
     chatProject() {
-      return this.$projectContext || this.$project
+      return this.projectContext || this.$project
     },
     mentionList() {
-      return (this.projectContext || this.$projects).mentionList
+      return (this.projectContext?.$state || this.$projects).mentionList
     },
     messageMentions() {
       const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
         .map(w => w[1])
-      return this.mentionList.filter(m => mentions.includes(m.mention))
+      return [...this.mentionList?.filter(m => mentions.includes(m.mention)), 
+              ...this.files.map(file => ({
+                name: file.split("/").reverse()[0],
+                file
+              }))]
     },
     lastChatEvent() {
       const { events } = this.$storex.session
       const event = events[events.length - 1]
-      if (event?.data.chat?.id === this.theChat.id) {
+      if (event?.data.chat?.id === this.chat.id) {
         const message = event.data.message?.content || ""
         return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type || event.data.type || ''} ${event.data.text || ''}\n${message}`
       } 
     },
+    profiles() {
+      return this.projectContext?.profiles || []
+    },
     usersList() {
-      return [this.$store.state.user, ...this.projectContext.profiles]
+      return [this.$store.state.user, ...this.profiles]
     },
     isChannel() {
-      return this.theChat.mode === 'topic'
+      return this.chat.mode === 'topic'
     },
     chatProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.theChat.project_id) ||
+      return this.$projects.allProjectsById[this.chat.project_id] ||
                 this.$project
     },
     editor() {
@@ -445,7 +471,7 @@ export default {
     }
   },
   watch: {
-    theChat() {
+    chat() {
       this.initSelectedUserFromChat()
       this.setProjectContext()
     },
@@ -457,10 +483,13 @@ export default {
   },
   methods: {
     async setProjectContext() {
-      this.projectContext = await this.$service.project.loadProjectContext(this.chatProject)
+      this.projectContext = this.$project
+      if (this.projectContext?.project_id !== this.chatProject.project_id) {
+        this.projectContext = await this.$projects.loadProject(this.chatProject)
+      }
     },
     initSelectedUserFromChat() {
-      const messages = this.theChat.messages.filter(m => !m.hide && m.profiles?.length)
+      const messages = this.chat.messages.filter(m => !m.hide && m.profiles?.length)
       const lastProfileMessage = messages[messages.length - 1]
       if (lastProfileMessage) {
         const userName = lastProfileMessage.profiles[0]
@@ -483,8 +512,8 @@ export default {
       if (this.editMessage === message) {
         return this.onResetEdit()
       }
-      this.editMessageId = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)
-      this.editMessage = this.theChat.messages[this.editMessageId]
+      this.editMessageId = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
+      this.editMessage = this.chat.messages[this.editMessageId]
       const profile = this.editMessage.profiles[0]?.name
       if (profile) {
         this.selectedUser = profile
@@ -494,13 +523,11 @@ export default {
       } catch { }
       this.setEditorText(this.editMessage.content)
     },
-    toggleHide(message) {
-      message.hide = !message.hide
-      this.saveChat()
+    toggleHide({ doc_id, hide }) {
+      this.updateExistingMessage({ doc_id }, { hide: !hide })
     },
-    toggleAnswer(message) {
-      message.is_answer = !message.is_answer
-      this.saveChat()
+    toggleAnswer({ doc_id, is_answer }) {
+      this.updateExistingMessage({ doc_id }, { is_answer: !is_answer })
     },
     onCopy(message) {
       navigator.permissions.query({ name: "clipboard-read" }).then(result => {
@@ -512,7 +539,7 @@ export default {
     },
     async improveCode() {
       this.postMyMessage(this.editorText)
-      await this.$projects.codeImprove(this.theChat)
+      await this.$projects.codeImprove(this.chat)
       this.testProject()
     },
     runEdit(codeSnipped) {
@@ -526,8 +553,8 @@ export default {
       )
     },
     addMessage(msg) {
-      this.theChat.messages = [
-        ...this.theChat.messages || [],
+      this.chat.messages = [
+        ...this.chat.messages || [],
         msg
       ]
     },
@@ -539,7 +566,8 @@ export default {
       return profiles
     },
     getUserMessage(message) {
-      const files = this.messageMentions.filter(m => m.file).map(m => m.file)
+      const files = [...this.messageMentions.filter(m => m.file).map(m => m.file),
+                      ...(this.files ||[])]
       const profiles = this.getMessageProfiles()
       return {
         role: 'user',
@@ -553,7 +581,6 @@ export default {
     },
     postMyMessage(message) {
       const userMessage = this.getUserMessage(message)
-      userMessage.files.forEach(file => this.$emit('add-file', file))
       this.addMessage(userMessage)
       this.cleanUserInputAndWaitAnswer()
       return userMessage
@@ -561,6 +588,7 @@ export default {
     cleanUserInputAndWaitAnswer() {
       this.setEditorText("")
       this.images = []
+      this.files = []
       this.scrollToBottom()
     },
     async sendMessage() {
@@ -572,19 +600,19 @@ export default {
         this.updateMessage()
         this.saveChat()
       } else {
-        const message = this.editor.innerText        
+        const message = this.editorText        
         if (message?.length &&
           this.canPost && this.postMyMessage(message)) {
           await this.saveChat()
         }
         if (!this.isChannel || this.lastMessage?.profiles.length) {
-          await this.sendChatMessage(this.theChat)
+          await this.sendChatMessage(this.chat)
         }
       }
     },
     getSendMessage() {
       return this.editMessage ||
-        this.theChat.messages[this.theChat.messages.length - 1].content
+        this.chat.messages[this.chat.messages.length - 1].content
     },
     async askKnowledge() {
       const searchTerm = this.editor.innerText
@@ -600,7 +628,7 @@ export default {
       }
       this.searchingInKnowledge = true
       try {
-        const { response, documents } = await this.projectContext.api.knowledge.search(knowledgeSearch)
+        const { response, documents } = await this.projectContext.$api.knowledge.search(knowledgeSearch)
         const docs = documents.map(({ page_content, metadata: { language, score_analysis, source}}) => {
             const file = source
             const fileName = file.split("/").reverse()[0] 
@@ -668,7 +696,12 @@ export default {
       this.images = []
     },
     removeMessage(message) {
-      this.$emit("delete-message", message)
+      const ix = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
+      if (this.chat.mode == 'task' && message.role === "assistant" && ix > 1) {
+        this.chat.messages[ix - 1].hide = false
+      }
+      this.chat.messages = this.chat.messages.filter((_, i) => i !== ix)
+      this.saveChat()
     },
     async fileToMessage(file) {
       const content = await this.$storex.api.files.read(file)
@@ -680,18 +713,19 @@ export default {
       ].join("\n")
       
     },
-    async addSerchTerm(term, addToMessage) {
-      if (term.file) {
-        this.$emit('add-file', term.file)
-        if (addToMessage) {
-          const message = await this.fileToMessage(term.file)
-          const editorText = this.editorText += "\n" + message
-          this.setEditorText(editorText)
-        }
+    async addSerchTerm({ mention, orgText }) {
+      if (mention.file) {
+        this.onAddFile(mention.file)
+      } else {
+        this.setEditorText(
+          this.editorText.split(" ")
+              .map(w => w === orgText ? "@" + mention.name : w)
+              .join(" ")
+        )
       }
     },
     onMentionReplace({ mention, orgText }) {
-      this.addSerchTerm(mention)
+      this.addSerchTerm({ mention, orgText })
     },
     getEditorCaretCharOffset() {
       let caretOffset = 0
@@ -720,9 +754,9 @@ export default {
       const lastWorkIndex = text.slice(0, caretIndex).split(/\s/g).length - 1
       return text.split(/\s/g)[lastWorkIndex]
     },
-    saveChat() {
-      if (!this.theChat.temp) { 
-        return API.chats.save(this.theChat)
+    async saveChat() {
+      if (!this.chat.temp) { 
+        return await this.$projects.saveChat(this.chat)
       }
     },
     onDrop(e) {
@@ -739,20 +773,36 @@ export default {
       if (!e.clipboardData?.items) {
         return
       }
+      const stop = () => {
+        e.preventDefault()
+        return false
+      }
       var file = [...e.clipboardData?.items].filter(f => f.type.indexOf("image") !== -1)[0]?.getAsFile()
       if (file) {
         this.onInputImage(file)
-        e.preventDefault()
-        return false
+        return stop()
       }
       const text = [...e.clipboardData?.items].filter(f => f.type.indexOf("text") !== -1)[0]
       if (text) {
         const textContent = await new Promise(ok => text.getAsString(ok))
         const fileMention = this.mentionList.find(m => m.file === textContent)
         if (fileMention) {
-          this.addFileToChat(fileMention.file)
+          this.addFileToMessage(fileMention.file)
+          e.preventDefault()
+          return stop()
         }
-        return false
+        const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.project_path))
+        if (isProjectFile) {
+          this.addFileToMessage(textContent)
+          this.setEditorText(this.editorText.replace(textContent, ""))
+          e.preventDefault()
+          return stop()
+        }
+      }
+    },
+    addFileToMessage(file) {
+      if (!this.files.includes(file)) {
+        this.files.push(file)
       }
     },
     getFileImageUrl(file) {
@@ -805,7 +855,7 @@ export default {
       this.selectFile = false
     },
     onGenerateCode(codeBlockInfo) {
-      this.$projects.generateCode({ chat: this.theChat, codeBlockInfo })
+      this.$projects.generateCode({ chat: this.chat, codeBlockInfo })
     },
     removeImage(ix) {
       this.images = this.images.filter((i, imx) => imx !== ix)
@@ -827,6 +877,10 @@ export default {
     },
     removeFileFromMessage(message, file) {
       message.files = message.files.filter(f => f !== file)
+      this.saveChat()
+    },
+    removeFileFromChat(file) {
+      this.chat.file_list = this.chat.file_list?.filter(f => f !== file)
       this.saveChat()
     },
     toggleVoiceSession() {
@@ -873,45 +927,124 @@ export default {
         this.onResetEdit()
       } else if(event.key === 'Enter' && event.ctrlKey) {
         this.sendMessage()
-      } else {
+      } else if(event.key === 'f' && event.ctrlKey) {
+        this.toggleDocumentSearch()
+      }  else {
         return true
       }
       return stop()
     },
-    openDocumentSearch() {
+    toggleDocumentSearch() {
       this.showDocumentSearchModal = !this.showDocumentSearchModal
     },
+    openDocumentSearch() {
+      this.showDocumentSearchModal = true
+    },
+    closeDocumentSearch() {
+      this.showDocumentSearchModal = false
+    },
     onAddDocument(doc) {
-      const source = doc.metadata.source
-      this.addFileToChat(source)
-      this.saveChat()
+      const source = doc.file || doc.metadata?.source
+      if (source) {
+        this.addFileToMessage(source)
+        this.saveChat()
+      }
     },
     addFileToChat(filePath) {
-      this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], filePath])]
+      this.chat.file_list = [...new Set([...this.chat.file_list ||[], filePath])]
     },
     async onReloadMessageFile({ file, message }) {
       message.content = await this.fileToMessage(file)
       this.saveChat()
     },
     onSaveFile({ file, content }) {
-      this.projectContext.api.files.write(file, content)
+      this.projectContext.$api.files.write(file, content)
     },
     onOpenFile(file) {
-      this.projectContext.api.coder.openFile(file)
+      this.projectContext.$api.coder.openFile(file)
     },
     addChatFile() {
-      this.$emit('add-file', this.uploadProjectFile)
+      this.onAddFile(this.uploadProjectFile)
       this.uploadProjectFile = null
       this.selectFile = false
+    },
+    async onAddFile(file) {
+      if (this.chat.file_list?.includes(file)) {
+        return
+      }
+      this.chat.file_list = [...(this.chat.file_list || []), file]
+      this.addNewFile = null
+      await this.saveChat()
     },
     onEditMessage({ orgContent, newContent }, message) {
       message.content = message.content.replace(orgContent, newContent)
       this.saveChat()
     },
-    onMessageEdited(message) {
-      const existng = this.theChat.messages.find(m => m.doc_id === message.doc_id)
-      existng.content = message.content
+    onMessageEdited({ doc_id, content }) {
+      this.updateExistingMessage({ doc_id }, { content })
       this.saveChat()
+    },
+    updateExistingMessage(message, update) {
+      const existng = this.chat.messages.find(m => m.doc_id === message.doc_id)
+      Object.assign(existng, update)
+      this.saveChat()
+    },
+    removeMessageMention(mention) {
+      const orgMention = this.mentionList.find(m => m === mention)
+      if (orgMention) {
+        this.setEditorText(this.editorText.replace("@"+mention.name, ""))
+      } else {
+        this.files = this.files.filter(f => f !== mention.file)
+      }
+    },
+    onPRViewBranchChanged({ fromBranch: from_branch, toBranch: to_branch }) {
+      this.chat.pr_view = {
+        from_branch, to_branch
+      }
+      this.saveChat()
+    },
+    async refreshPRView() {
+      await this.saveChat()
+      await this.$storex.api.repo.changes(this.chat) 
+    },
+    async onPRFileComment({ chat, title, files, description, profiles, mode, column }) {
+      if (chat) {
+        chat.messages.push({
+          user: this.$user.username,
+          role: "user",
+          content: description
+        })
+        chat.profiles = profiles.map(p => p.name)
+        await this.$projects.saveChatInfo(chat)
+        await this.$storex.projects.chatWihProject(chat)
+        
+      } else {
+        this.subtaskName = title
+        this.subtaskDescription = description
+        this.subtaskFiles = files
+        this.subtaskProfiles = profiles
+        this.subtaskMode = mode
+        this.subtaskColumn = column
+        this.createSubtask(false)
+      }
+    },
+    async onPRFileCreateChat({ chat, title, files, description, metadata, profiles, mode, column }) {
+      this.$emit('sub-task', {
+          parent: this.chat,
+          name: title,
+          description,
+          project_id: this.chatProject.id,
+          parent_id: this.chat.id,
+          file_list: files,
+          profiles,
+          mode,
+          column,
+          metadata,
+          activateChat: false
+        })
+    },
+    onPRChatMessage({ file, message, metadata }) {
+      file.chat.messages.push({})
     }
   }
 }

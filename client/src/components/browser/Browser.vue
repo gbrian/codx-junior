@@ -2,7 +2,7 @@
 import NoVNC from '../NoVNC.vue';
 </script>
 <template>
-  <NoVNC class="m-1" :token="token" :key="token"/>
+  <NoVNC :token="token" :key="token"/>
 </template>
 
 <script>

@@ -9,27 +9,31 @@ import Document from './document/Document.vue'
 <template>
   <div class="chat-entry flex gap-1 items-start relative p-2"
     :class="[
+      message.hide ? 'hover:bg-base-100 opacity-50 hover:opacity-100': '',
+      message.hide ? 'border-l-2 border-warning' : '',
       !message.done && 'border border-dashed border-sky-800 p-1',
       message.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
-      isTopic && 'border border-dashed p-2 bg-info/20 border-info',
-      editting && 'border border-dashed p-2 bg-warning/50 border-warning',
+      isTopic && 'border-l p-2 bg-info/5 border-info/50',
+      editting && 'border border-dashed p-2 border-warning',
     ]"
   >
     <div class="w-full">
       <div class="w-full flex flex-col gap-1 hover:rounded-md group">
         <progress class="progress w-full" v-if="!message.done"></progress>
     
-        <div class="text-xs font-bold flex flex-col click">
+        <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
           <div class="badge badge-sm badge-success flex gap-1" v-if="message.is_answer">
             <ChatIcon mode="answer" /> Knowledge 
           </div>
-          <div class="badge badge-sm badge-success flex gap-1" v-if="isTopic">
+          <div class="badge badge-sm badge-info badge-outline flex gap-1" v-if="isTopic">
             <ChatIcon mode="topic" /> Topic 
           </div>              
-          <div class="flex justify-start gap-4 items-center p-2" @dblclick.stop="toggleCollapse">
+          <div class="flex gap-1 items-center" 
+            :class="message.hide && 'text-slate-500'">
+            <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             <div v-for="profile in messageProfiles" :key="profile.name">
               <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
-                <div class="ring-primary ring-offset-base-100 w-6 h-6 rounded-full ring ring-offset-2">
+                <div class="w-4 h-4 mt-1 rounded-full">
                   <img :src="profile.avatar" :alt="profile.name" />
                 </div>
               </div>
@@ -37,45 +41,52 @@ import Document from './document/Document.vue'
             <div class="flex gap-2 grow">
               [{{ formatDate(message.updated_at) }}] 
               <span v-if="timeTaken">({{ timeTaken }} s.)</span>
-              <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             </div>
-            <div class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end"
+            <div :class="!editting && 'opacity-0'" class="group-hover:opacity-100 flex gap-2 items-center justify-end"
               v-if="menuLess !== true"
             >
               <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
-                  <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer')">
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Thread" 
+                    @click="$emit('subtask', message)"
+                    v-if="!editting"
+                  >
+                    <i class="fa-solid fa-comment-dots"></i>
+                  </button>      
+
+                  <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer', message)"
+                    v-if="!editting"
+                  >
                     <i class="fa-solid fa-check-double"></i>
                   </button>      
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard">
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard"
+                    v-if="!editting"
+                  >
                     <i class="fa-solid fa-copy"></i>
                   </button>      
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View source" @click="toggleSrcView">
-                    <i class="fa-solid fa-code"></i>
-                  </button>
                   <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
                     <i class="fa-regular fa-file-lines"></i>
                     <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
                   </button>
-                  <button v-if="canEditMessage && !editting" class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="editting = message.content">
+                  <button v-if="canEditMessage && !editting" class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="onEditMessage">
                     <i class="fa-solid fa-pencil"></i>
                   </button>
                   <button v-if="editting" class="btn btn-xs btn-success" @click="saveEditting">Save</button>
                   <button v-if="editting" class="btn btn-xs btn-error" @click="cancelEditting">Cancel</button>
                   <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
-                    @click="$emit('enhance')">
+                    @click="$emit('enhance', message)">
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                   </button>
-                  <div class="dropdown dropdown-hover dropdown-end">
+                  <div class="dropdown dropdown-hover dropdown-end" v-if="!editting">
                     <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
                       <i class="fa-solid fa-bars"></i>
                     </button>
-                    <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300">
-                      <li @click="$emit('subtask')"  v-if="message.done">
-                        <a><i class="fa-solid fa-comment-dots"></i> Thread</a>
+                    <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300 z-50">
+                      <li @click="toggleSrcView"  v-if="message.done">
+                        <a><i class="fa-solid fa-code"></i> Source</a>
                       </li>
                       <li class="text-warning" v-if="message.done">
-                        <a @click.stop="$emit('hide')" class="text-left tooltip tooltip-bottom click"
+                        <a @click.stop="$emit('hide', message)" class="text-left tooltip tooltip-bottom click"
                             :data-tip="message.hide ? 'Click to add message to conversation' : 
                                               'Click to archive message from the conversation'">
                           <i class="fa-solid fa-box-archive"></i> {{ message.hide ? 'Show' : 'Archive' }}
@@ -118,17 +129,20 @@ import Document from './document/Document.vue'
             </div>
           </div>                
         </div>
-        <div @copy.stop="onMessageCopy" :class="['max-w-full group border-slate-300/20', message.collapse ? 'max-h-40 overflow-hidden': 'h-fit', 
-            message.hide ? 'text-slate-200': '']">
+        <div @copy.stop="onMessageCopy" 
+            :class="['max-w-full border-slate-300/20', 
+            (isCollapsed === undefined ? message.hide : isCollapsed) ? 'h-6 overflow-hidden': 'h-fit']">
           
-          <textarea v-if="editting" v-model="editting" class="h-96 input input-bordered w-full p-2"/>                
+          <textarea v-if="editting" v-model="editting" class="h-96 bg-transparent input w-full p-2"/>                
           <pre v-if="srcView">{{ message.content }}</pre>
           <Document 
             :content="messageContent"
+            :files="chatFiles"
             @generate-code="onGenerateCode" 
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
             @save-file="$emit('save-file', $event)"
+            @add-file="$emit('add-file', $event)"
             @edit-message="$emit('edit-message', $event)"
             :mentionList="mentionList"
             v-if="!showDiff && !editting && !srcView && !code_patches" />
@@ -205,6 +219,11 @@ export default {
     }
   },
   computed: {
+    isCollapsed() {
+      return this.message.collapsed !== undefined ?
+          this.message.collapsed :
+          this.message.is_answer ? true: false
+    },
     isMyMessage() {
       return this.message.user === this.$user.username
     },
@@ -222,7 +241,7 @@ export default {
         ? think : `${think.slice(0, 50)}...`
     },
     messageProfiles() {
-      let profiles = this.$projects.profiles.filter(p => this.message.profiles?.includes(p.name))
+      let profiles = this.$projects.profiles?.filter(p => this.message.profiles?.includes(p.name)) || []
       const user = this.$project.users.find(({ username }) => username === this.message.user)
       return [user, ...profiles].filter(u => !!u)
     },
@@ -281,7 +300,9 @@ export default {
     },
     allFiles() {
       return [...new Set([...this.message.files, ...this.messageContentProjectFiles])]
-        
+    },
+    chatFiles() {
+      return this.chat.file_list
     }
   },
   methods: {
@@ -290,9 +311,10 @@ export default {
     },
     extractImprovementData() {
       this.improvementData = null
-      if (this.message.content?.includes("```json")) {
+      if (this.message.content?.startsWith("```json")) {
         try {
-          const jsBlock = this.message.content.split("```json")[1].split("```")[0]
+          const lines = this.message.content.split("\n")
+          const jsBlock = lines.slice(1, lines.length-1).join("\n")
           this.improvementData = JSON.parse(jsBlock)
         } catch (ex) {
           console.error("Failed to parse improvement data", ex)
@@ -310,18 +332,22 @@ export default {
       }
     },
     toggleCollapse() {
-      this.message.collapse = !this.message.collapse
+      if (this.message.collapsed !== undefined) {
+        this.message.collapsed = !this.message.collapsed 
+      } else {
+        this.message.collapsed = !this.isCollapsed
+      }
     },
     toggleSrcView() {
       if (this.srcView = !this.srcView) {
         this.showDiff = false
-        this.message.collapse = false
+        this.collapsed = false
       }
     },
     toggleShowDiff() {
       if (this.showDiff = !this.showDiff) {
         this.srcView = false
-        this.message.collapse = false
+        this.collapsed = false
       }
     },
     onRemove() {
@@ -367,10 +393,13 @@ export default {
     },
     cancelEditting() {
       this.editting = null
+    },
+    onEditMessage() {
+      this.editting = this.message.content
     }
   },
   mounted() {
-    this.message.collapse = this.message.collapse || this.message.hide
+    this.collapsed = this.isCollapsed || this.message.hide
     this.extractImprovementData()
   }
 }

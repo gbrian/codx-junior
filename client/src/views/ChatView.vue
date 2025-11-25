@@ -8,17 +8,20 @@ import UserAvatar from '@/components/user/UserAvatar.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
 import ChatSelector from '@/components/chat/ChatSelector.vue'
-import PRView from '@/components/repo/PRView.vue'
+import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
+import ProjectDetailt from '@/components/ProjectDetailt.vue'
+import ExportChat from '@/components/chat/ExportChat.vue'
+import Markdown from '../components/Markdown.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full pb-2 px-2" v-if="chat">
+  <div class="flex flex-col h-full pb-1" v-if="chat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <input v-if="editName" type="text" class="input input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" />
+              <input type="text" class="input input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" v-if="editName" />
               <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2 mb-2">
                   <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
@@ -39,12 +42,12 @@ import PRView from '@/components/repo/PRView.vue'
                     <UserAvatar :width="7" :user="user" v-for="user in chatUsers" :key="user.username">
                       <li @click="removeUser(user)"><a>Remove</a></li>
                     </UserAvatar>  
-                    <ProfileAvatar :profile="chatProfiles[0]"
+                    <ProfileAvatar :profile="profile"
                       :project="taskProject"
                       width="7"
-                      v-if="chatProfiles.length">
+                      v-for="profile in chatProfiles" :key="profile.name">
                         <div class="flex justify-end gap-2">
-                          <div class="badge badge-xs badge-warning cursor-pointer" @click="removeProfile(chatProfiles[0])">
+                          <div class="badge badge-xs badge-warning cursor-pointer" @click="removeProfile(profile)">
                             change
                           </div>
                         </div>
@@ -58,8 +61,8 @@ import PRView from '@/components/repo/PRView.vue'
                 
                   </div>
 
-                  <div class="cursor-pointer text-xs @md:text-md @xl:text-xl flex flex-col" @click="editName = true">
-                    <div>
+                  <div class="cursor-pointer text-xs @md:text-md @xl:text-xl flex flex-col">
+                    <div class="flex gap-1 items-start">
                       <span class="click tooltip" @click.stop="toggleChatPinned"
                         data-tip="Bookmark"
                       >
@@ -67,18 +70,26 @@ import PRView from '@/components/repo/PRView.vue'
                         <i class="fa-regular fa-bookmark" v-else></i>
                       </span>
                       
-                      {{ chat.name }} 
-                      <span class="text-xs hover:underline text-info" 
+                      <div class="flex flex-col" :class="showChildChat && 'opacity-80'" @click="onChatNameClick">
+                        <div class="flex gap-1 text-xs gap-2">
+                          [{{ formattedChatUpdatedDate }}]
+                          <div class="flex items-center" v-if="showTaskProjectName">
+                            <span>[</span>
+                              {{ taskProject.project_name }}
+                            <span>]</span>
+                          </div>
+                        </div>
+                        <div>{{ computedChatName }}</div>
+                      </div> 
+                      <span v-if="showChildChat"> / {{ showChildChat.name }}</span>
+                      <span class="text-xs hover:underline"
+                      :class="showDescription ? 'text-error/70': 'text-info'"
                         @click.stop="showDescription = !showDescription"
-                        v-if="chat.description">more
-                      </span>
-                      <span class="badge badge-md badge-outline" v-if="showTaskProjectName">
-                        <img :src="taskProject.project_icon" class="w-3 rounded-full mr-1" />
-                        {{ taskProject.project_name }}
+                        v-if="computedChatDescription"> [{{ showDescription ? 'close': 'more' }}]
                       </span>
                     </div>
                     <div class="text-xs" v-if="showDescription">
-                      {{ chat.description }}
+                      <markdown class="prose-sm" :text="computedChatDescription || '-- no description yet --'" />
                     </div>
                   </div>
                 </div>
@@ -87,8 +98,14 @@ import PRView from '@/components/repo/PRView.vue'
             <div class="grow"></div>
             <div class="flex flex-col">
               <div class="flex gap-1 items-center">
-                <div class="flex gap-2 p-1 items-center -top-1" v-if="toggleChatOptions">
-                  <button class="btn" v-if="hiddenCount" @click="showHidden = !showHidden">
+                <div class="flex gap-2 p-1 items-center -top-1">
+                  <button class="btn btn-sm" v-if="childrenChats.length" 
+                    @click="showChatMenu = !showChatMenu"
+                    :class="showChatMenu && 'text-info'"
+                    >
+                    <i class="fa-solid fa-list"></i>
+                  </button>
+                  <button class="btn btn-sm" v-if="hiddenCount" @click="showHidden = !showHidden">
                     <div class="flex items-center gap-2 tooltip"
                       data-tip="Archived messages" 
                       :class="showHidden ? 'text-warning':''">
@@ -97,8 +114,8 @@ import PRView from '@/components/repo/PRView.vue'
                     </div>
                   </button>
                   <div class="dropdown dropdown-end">
-                    <div tabindex="0" role="button" class="btn m-1">
-                      <ChatIcon :mode="chat.mode" />
+                    <div tabindex="0" role="button" class="btn  btn-sm m-1">
+                      <ChatIcon :mode="workingChat.mode" />
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                       <li @click="setChatMode('chat')">
@@ -113,6 +130,9 @@ import PRView from '@/components/repo/PRView.vue'
                       <li class="flex gap-2" @click="setChatMode('prview')">
                         <a><ChatIcon mode="prview" /> Changes review</a>
                       </li>
+                      <li @click="setChatMode('browser')">
+                        <a><ChatIcon mode="browser" /> Browser</a>
+                      </li>
                       <li @click="openChatSearchModal">
                         <a><i class="fa-solid fa-link"></i> Link</a>
                       </li>
@@ -123,15 +143,15 @@ import PRView from '@/components/repo/PRView.vue'
                     <div tabindex="0" class="btn btn-sm flex items-center indicator">
                       <i class="fa-solid fa-bars"></i>
                     </div>
-                    <ul tabindex="0" class="dropdown-content menu bg-base-300 rounded-box z-[1] p-2 w-96 shadow">
+                    <ul tabindex="0" class="dropdown-content menu bg-base-300 border rounded-box z-[1] p-2 w-96 shadow">
                       <li @click="newSubChat()">
                         <a><i class="fa-solid fa-plus"></i> New sub task</a>
                       </li>
                       <li @click="createSubTasks()">
                         <a><i class="fa-solid fa-wand-magic-sparkles"></i> Create sub tasks</a>
                       </li>
-                      <li @click="onExport">
-                        <a><i class="fa-solid fa-copy"></i> Export</a>
+                      <li @click="showExportChat = true">
+                        <a><i class="fa-solid fa-file-arrow-down"></i> Export</a>
                       </li>
                       <li @click="showChatSelector = true">
                         <a><i class="fa-solid fa-link"></i> Link chats</a>
@@ -146,9 +166,6 @@ import PRView from '@/components/repo/PRView.vue'
                     </ul>
                   </div>
                 </div>
-                <div class="md:hidden btn btn-sm" @click="toggleChatOptions = !toggleChatOptions">
-                  <i class="fa-solid fa-bars"></i>
-                </div>
               </div>
               <div class="flex justify-end items-center">
               </div>
@@ -156,18 +173,7 @@ import PRView from '@/components/repo/PRView.vue'
           </div>
         </div>
         <div class="flex justify-between">
-          <div class="flex gap-2 items-center">
-            <div class="text-xs">{{ formattedChatUpdatedDate }}</div>
-            <div class="badge badge-sm badge-info flex gap-2" v-for="tag in chat.tags" :key="tag">
-              {{ tag }}
-              <button class="btn btn-ghost" @click="removeTag(tag)">
-                x
-              </button>
-            </div>
-            <button class="btn" @click="newTag = ''">
-              + tag
-            </button>
-            
+          <div class="flex gap-2 items-center">  
             <div class="avatar-group -space-x-6 relative" v-if="images.length">
               <div class="avatar" v-for="image, ix in images" :key="ix">
                 <div class="w-8">
@@ -182,40 +188,62 @@ import PRView from '@/components/repo/PRView.vue'
             </div>
           </div>
         </div>
-        <div class="w-full" v-if="chatFiles.length">
-          <div class="my-2 text-xs">
-            <span>
-              <i class="fa-solid fa-paperclip"></i>
-            </span>
-            <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 cursor-pointer text-accent" @click="$ui.openFile(file)">
-              <span :title="file" >{{ file.split('/').reverse()[0] }}</span>
-              <span class="ml-2 cursor-pointer" @click.stop="onRemoveFile(file)">
-                <i class="fa-regular fa-circle-xmark"></i>
-              </span>
-            </a>
-          </div>
-        </div>
-        <PRView class="h-full overflow-auto" 
-          :fromBranch="chat.pr_view?.from_branch"
-          :toBranch="chat.pr_view?.to_branch"
-          :extendedData="extendedData"
-          :prChats="prChats"
-          :chat="chat"
-          @select="onPRViewBranchChanged"
-          @comment="onPRFileComment"
-          v-if="isPRView" />
-        <Chat class="h-full overflow-auto" 
-          :chatId="chat.id"
-          :showHidden="showHidden"
-          :childrenChats="childrenChats"
-          @refresh-chat="loadChat(chat)"
-          @add-file="onAddFile"
-          @remove-file="onRemoveFile" 
-          @delete-message="onRemoveMessage"
-          @delete="confirmDelete = true"
-          @save="saveChat" 
-          @subtask="onNewMessageSubtask"
-          v-else />
+        <VerticalSplitter 
+          :panels="{
+            left: { defaultSize: 20 },
+            right: { defaultSize: 80 }
+          }">
+          <template v-slot:left v-if="childrenChats?.length && showChatMenu">
+            <div class="flex justify-start">
+              <button class="btn btn-xs btn-ghost" @click="showChatMenu = false">
+                <i class="fa-solid fa-caret-left"></i>
+              </button>
+            </div>
+            <ul class="flex flex-col overflow-auto h-full">
+              <li class="p-2 hover:bg-base-100 rounded-lg click"
+                v-for="childChat in childrenChats" :key="childChat.id"
+                :class="[
+                  (showChildChat?.name === childChat?.name) && 'text-warning',
+                  (childChat === dropOver) && 'bg-white border border-red-300'
+                ]"
+                @click="selectChildChat(childChat)"
+                @dragstart="onChildMenuDragStart($event, childChat)"
+                @dragenter.prevent=""
+                @dragover.prevent="onTaskDragover($event, childChat)"
+                @dragleave="dropOver = false"
+                @drop.prevent="onTaskDropped($event, childChat)"
+                :draggable="true"
+              >
+                <a class="group">
+                  <div class="flex gap-2 items-start">
+                    <ChatIcon :mode="childChat.mode" />
+                    <div class="flex flex-col gap-1"> 
+                      {{ childChat.name }}
+                      <div class="badge badge-outline badge-xs" v-if="childChat.column !== workingChat.column">
+                        {{ childChat.column }}
+                      </div>
+                    </div>
+                    <div class="grow hidden group-hover:flex text-xs justify-end" 
+                      @click.stop="$projects.setActiveChat(childChat)">
+                      <i class="fa-solid fa-up-right-from-square"></i>
+                    </div>
+                  </div>
+                </a>
+              </li>
+            </ul>
+          </template>
+          <template v-slot:right>
+            <Chat class="h-full overflow-auto" 
+              :chat="workingChat"
+              :showHidden="showHidden"
+              :childrenChats="showChatMenu ? null : childrenChats"
+              @refresh-chat="loadChat(workingChat)"
+              @remove-file="onRemoveFile" 
+              @delete="confirmDelete = true"
+              @subtask="onNewMessageSubtask"
+          />
+          </template>
+        </VerticalSplitter>
         <modal v-if="confirmDelete">
           <div class="">
             <h3 class="font-bold text-lg">Confirm Delete</h3>
@@ -271,12 +299,28 @@ import PRView from '@/components/repo/PRView.vue'
           <div class="flex flex-col gap-4 p-4">
             <h3 class="font-bold text-lg">Create New Subtask</h3>
             <input v-model="subtaskName" type="text" class="input input-bordered" placeholder="Subtask Name" />
+            
+            <!-- Dropdown for selecting subTaskMode -->
+            <div class="form-control">
+              <label class="label">
+                <span class="label-text">Select Subtask Mode</span>
+              </label>
+              <select class="select select-bordered" v-model="subtaskMode">
+                <option value="task" selected>Task</option>
+                <option value="chat">Chat</option>
+                <option value="topic">Topic</option>
+                <option value="prview">PR View</option>
+                <option value="browser">Browser</option>
+              </select>
+            </div>
+
             <textarea v-model="subtaskDescription" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
-            <select class="select" v-model="subtaskProject">
-              <option v-for="project in taskProjects" :key="project.project_name" :value="project.project_id">
-                {{ project.project_name }}
-              </option>
-            </select>
+            
+            <ProjectDetailt 
+              :project="$projects.allProjectsById[subtaskProject || chat.project_id || chatProject?.project_id]" 
+              :options="{ showFolders: false, showIcon: true, showSelector: true }"
+              @select="subtaskProject = $event.project_id"  
+            />
             <div class="flex" v-for="profile in subtaskProfiles" :key="profile.name">
               <div class="badge">{{ profile.name }}</div>
             </div>
@@ -286,19 +330,22 @@ import PRView from '@/components/repo/PRView.vue'
             </div>
           </div>
         </modal>
-        <modal v-if="showSubtasksModal">
-          <div class="flex flex-col gap-4 p-4">
+        <modal class="w-2/3 h-2/3" v-if="showSubtasksModal">
+          <div class="h-full flex flex-col gap-4 p-4">
             <h3 class="font-bold text-2xl">Split into tasks</h3>
             <div class="tex-xl">Instructions:</div>
-            <textarea v-model="createTasksInstructions" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
+            <textarea v-model="createTasksInstructions" class="grow textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
             <div class="flex gap-2 justify-end">
-              <button class="btn btn-error" @click="showSubtasksModal = false">Cancel</button>
-              <button class="btn btn-primary" @click="createSubTasks">Create</button>
+              <button class="btn" @click="showSubtasksModal = false">Cancel</button>
+              <button class="btn bg-codx-primary" @click="createSubTasks">Create</button>
             </div>
           </div>
         </modal>
         <modal v-if="showTaskSettings">
-          <TaskSettings :taskData="chat" @close="showTaskSettings = false" />
+          <TaskSettings :taskData="workingChat" @close="showTaskSettings = false" />
+        </modal>
+        <modal close="true" @close="showExportChat = false" v-if="showExportChat">
+          <ExportChat :chat="workingChat" @close="showExportChat = false" />
         </modal>
       </div>
       <modal close="true" @close="showChatSelector = false" v-if="showChatSelector">
@@ -311,6 +358,7 @@ import PRView from '@/components/repo/PRView.vue'
 
 <script>
 export default {
+  components: { Markdown },
   props: ['chatMode', 'chat', 'kanban'],
   data() {
     return {
@@ -322,14 +370,13 @@ export default {
       showHidden: false,
       confirmDelete: false,
       newTag: null,
-      toggleChatOptions: false,
       showSubtaskModal: false,
       showSubtasksModal: false,
       showTaskSettings: false,
       subtaskProfiles: [],
       subtaskName: '',
       subtaskDescription: '',
-      subtaskMode: '',
+      subtaskMode: 'task', // Default mode
       subtaskFiles: [],
       subtaskProject: null,
       subtaskParentId: null,
@@ -340,27 +387,34 @@ export default {
       showDescription: false,
       projectContext: null,
       showChatSelector: false,
-      extendedData: {}
+      showChatMenu: false,
+      showChildChat: null,
+      showExportChat: false,
+      dropOver: null
     }
   },
   created() {
     this.init()
   },
   async mounted() {
-    this.toggleChatOptions = !this.$ui.isMobile
+    this.showChatMenu = !this.$ui.isMobile
     this.chatProfiles = await this.$storex.api.project(this.taskProject)
       .then(p => p.profiles.list())
       .then(profiles => profiles.filter(p => this.chat.profiles.includes(p.name)))
     if (this.isPRView) {
       await this.$projects.loadBranches()
     }
+    this.showDescription = this.isThread
   },
   computed: {
+    isThread() {
+      return !!this.chat.message_id
+    },
     branches() {
       return this.$projects.project_branches || []
     },
     isPRView() {
-      return this.chat.mode === 'prview'
+      return this.workingChat.mode === 'prview'
     },
     taskAIModel() {
       return this.aiModels.find(m => m.name === this.chat.llm_model)
@@ -389,10 +443,10 @@ export default {
       ]
     },
     hiddenCount() {
-      return this.chat.messages?.filter(m => m.hide).length
+      return this.workingChat.messages?.filter(m => m.hide).length
     },
     messageCount() {
-      return this.chat.messages?.length
+      return this.workingChat.messages?.length
     },
     messages() {
       return this.chat.messages.filter(m => !m.hide || this.showHidden)
@@ -406,29 +460,25 @@ export default {
     chats() {
       return this.$projects.allChats
     },
-    prChats() {
-      return this.childrenChats.filter(c => c.file_list?.length === 1)
-            .reduce((acc, c) => ({ ...acc, [c.file_list[0]]: c }), {})
-    },
     childrenChats() {
-      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id)
-        .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
+      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id && !c.message_id)
+        .sort((a, b) => a.name > b.name ? 1 : -1)
     },
     chatProject() {
-      return this.subProjects.find(p => p.project_id === this.chat.project_id) ||
+      return this.$projects.allProjectsById[this.chat.project_id] ||
         this.$project
     },
     parentChat() {
       return this.$projects.allChats.find(c => c.id === this.chat?.parent_id)
     },
     chatFiles() {
-      return [...this.chat.file_list || [], ...this.parentChat?.file_list || []]
+      return this.workingChat.file_list || []
     },
     taskProjects() {
       return [this.$project, ...this.$projects.childProjects]
     },
     images() {
-      return (this.chat.messages ||[]).map(m => m.images || [])
+      return (this.workingChat.messages ||[]).map(m => m.images || [])
                 .reduce((a, b) => a.concat(b), [])
                 .map(i => {
                   try {
@@ -437,11 +487,33 @@ export default {
                   return null
                 })
                 .filter(i => !!i)
+    },
+    workingChat() {
+      return this.$projects.chats[this.showChildChat?.id || this.chat.id]
+    },
+    computedChatName() {
+      if (this.isThread) {
+        return 'Thread'
+      }
+      return this.chat.name
+    },
+    computedChatDescription() {
+      if (this.chat.message_id) {
+        const message = this.$storex.projects.allChats
+          .find(c => c.id === this.chat.parent_id)
+          ?.messages.find(m => m.doc_id === this.chat.message_id)
+        return message?.content || '-- no description yet --'
+      }
+      return this.chat.description
     }
   },
   watch: {
-    chat() {
-      this.init()
+    chat(newVal, oldVal) {
+      if (oldVal && 
+          newVal && 
+          oldVal.project_id !== newVal.project_id) {
+        this.init()
+      }
     }
   },
   methods: {
@@ -454,9 +526,9 @@ export default {
     async setProjectContext() {
       this.projectContext = await this.$service.project.loadProjectContext(this.$project)
     },
-    async saveChat() {
+    async saveChat(chat) {
       this.editName = false
-      await this.$projects.saveChat(this.chat)
+      await this.$projects.saveChat(chat || this.workingChat)
     },
     async confirmDeleteChat() {
       this.confirmDelete = false
@@ -497,7 +569,7 @@ export default {
       await this.saveChat()
     },
     async onRemoveFile(file) {
-      this.chat.file_list = (this.chat.file_list || []).filter(f => f !== file)
+      this.workingChat.file_list = (this.workingChat.file_list || []).filter(f => f !== file)
       this.addNewFile = null
       await this.saveChat()
     },
@@ -541,35 +613,78 @@ export default {
       }
       this.$emit('chats', this.kanban?.title || this.chat.board)
     },
-    newSubChat() {
-      this.subtaskProject = this.$project.project_id
+    newSubChat(message) {
+      this.subtaskProject = this.chat.project_id
       this.subtaskParentId = null
       this.subtaskMessageId = null
       this.showSubtaskModal = true
-    },
-    onNewMessageSubtask({ chat: { id: subtaskParentId }, message: { id: subtaskMessageId }}) {
-      this.subtaskProject = this.$project.project_id
-      this.subtaskParentId = subtaskParentId
-      this.subtaskMessageId = subtaskMessageId
-      this.showSubtaskModal = true
 
+      this.subtaskName = null
+      this.subtaskDescription = null
+      this.subtaskProject = null
+      this.subtaskParentId = this.chat.id
+      this.subtaskMessageId = message?.doc_id
+      this.subtaskFiles = []
+      this.subtaskProfiles = []
+      this.subtaskMode = this.chat.mode
+      this.subtaskColumn = this.chat.column
     },
-    createSubtask(activateChat) {
-      if (this.subtaskName.trim()) {
-        this.$emit('sub-task', {
-          parent: this.chat,
-          name: this.subtaskName,
-          description: this.subtaskDescription,
-          project_id: this.subtaskProject,
-          parent_id: this.subtaskParentId,
-          message_id: this.subtaskMessageId,
-          file_list: this.subtaskFiles,
-          profiles: this.subtaskProfiles,
-          mode: this.subtaskMode,
-          activateChat
+    async onNewMessageSubtask({ chat, mode, message: { column, files, profiles, doc_id: subtaskMessageId }}) {
+      const findChild = () => this.$projects.allChats.find(c => c.message_id === subtaskMessageId) 
+      if (!findChild()) {
+        await this.$emit('sub-task', {
+          parent: chat,
+          name: `${subtaskMessageId} - thread`,
+          project_id: chat.project_id,
+          parent_id: chat.parent_id,
+          message_id: subtaskMessageId,
+          file_list: files,
+          profiles: profiles,
+          mode,
+          column,
+          activateChat: true,
+          child_index: this.childrenChats?.length
         })
-        this.resetSubtaskModal()
       }
+      this.$projects.setActiveChat(findChild())
+    },
+    getSubTaskParentSummary() {
+      let { messages } = this
+      if (!messages.length) {
+        return ""
+      }
+      if (this.chat.mode === 'task') {
+        messages = messages.reverse()
+        const lastAI = messages.find(m => m.role === 'assistant')
+        if (lastAI) {
+          return lastAI.content
+        }
+      }
+      return messages.reduce((acc, m) => acc + "\n" + m.content, "")
+    },
+    createSubtask() {
+      if (!this.subtaskName.trim()) {
+        return
+      }
+      if (this.subtaskDescription) {
+        const parentContent = this.getSubTaskParentSummary()
+        this.subtaskDescription = `${parentContent}\n\n${this.subtaskDescription}`
+      }
+      this.$emit('sub-task', {
+        parent: this.chat,
+        name: this.subtaskName,
+        description: this.subtaskDescription,
+        project_id: this.subtaskProject,
+        parent_id: this.subtaskParentId,
+        message_id: this.subtaskMessageId,
+        file_list: this.subtaskFiles,
+        profiles: this.subtaskProfiles,
+        mode: this.subtaskMode,
+        column: this.subtaskColumn,
+        activateChat: this.chat.mode !== 'task',
+        child_index: this.childrenChats?.length
+      })
+      this.resetSubtaskModal()
     },
     cancelSubtask() {
       this.resetSubtaskModal()
@@ -581,6 +696,7 @@ export default {
       this.subtaskMode = 'chat'
       this.subtaskFiles = []
       this.subtaskProfiles = []
+      this.subtaskColumn = ''
     },
     addNewTag() {
       this.chat.tags = [...new Set([...this.chat.tags || [], this.newTag])]
@@ -592,7 +708,7 @@ export default {
       this.saveChat()
     },
     setChatMode(mode) {
-      this.chat.mode = mode
+      this.workingChat.mode = mode
       this.saveChat()
     },
     async createSubTasks() {
@@ -611,48 +727,54 @@ export default {
         this.navigateToChats()
       }
     },
-    onExport() {
-      this.$ui.copyTextToClipboard(JSON.stringify(this.chat, null, 2))
-    },
     async openChatSearchModal() {
       // Open a modal for linking chat
     },
     async onAddProfile() {
       this.showAddProfile = true
     },
-    onPRViewBranchChanged({ fromBranch: from_branch, toBranch: to_branch }) {
-      this.chat.pr_view = {
-        from_branch, to_branch
-      }
-      this.saveChat()
-    },
-    async refreshPRView() {
-      await this.saveChat()
-      await this.$storex.api.repo.changes(this.chat) 
-    },
-    async onPRFileComment({ chat, title, files, description, profiles, mode }) {
-      if (chat) {
-        chat.messages.push({
-          user: this.$user.username,
-          role: "user",
-          content: description
-        })
-        chat.profiles = profiles.map(p => p.name)
-        await this.$projects.saveChatInfo(chat)
-        await this.$storex.projects.chatWihProject(chat)
-        
-      } else {
-        this.subtaskName = title
-        this.subtaskDescription = description
-        this.subtaskFiles = files
-        this.subtaskProfiles = profiles
-        this.subtaskMode = mode
-        this.createSubtask(false)
-      }
-    },
     toggleChatPinned() {
       this.chat.pinned = !this.chat.pinned
       this.saveChat()  
+    },
+    selectChildChat(childChat) {
+      this.showChildChat = childChat
+      if (childChat && !childChat.messages?.length) {
+        this.$projects.loadChat(childChat)
+      }
+    },
+    onChatNameClick() {
+      if (this.showChildChat) {
+        this.selectChildChat(null)
+      } else {
+        this.editName = true
+      }
+    },
+    onChildMenuDragStart($event, childChat) {
+      console.log("Menu drag start", $event)
+      $event.dataTransfer.setData("chatId", childChat.id)
+    },
+    onTaskDragover($event, childChat) {
+      const id = $event.dataTransfer.getData("chatId")
+      if (id === childChat.id) {
+        this.dropOver = null
+        return
+      }
+      this.dropOver = childChat
+      console.log("Menu drag over", this.dropOver.name)
+      $event.preventDefault();
+      $event.target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    },
+    onTaskDropped($event, childChat) {
+      const id = $event.dataTransfer.getData("chatId")
+      if (id === childChat.id) {
+        return
+      }
+      return
+      const dropChat = this.childrenChats.find(c => c.id === id)
+      dropChat.parent_id = childChat.id
+      this.dropOver = null
+      this.saveChat(dropChat)
     }
   }
 }

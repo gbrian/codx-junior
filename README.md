@@ -130,6 +130,26 @@ While `codx-junior` defaults to code-server, feel free to use your favorite IDE 
 
 ![Project Settings](./assets/images/codx-junior-project-settings.png): Customize settings to tailor your project needs. **Benefit**: Offers flexibility in configuration, accommodating different project requirements.
 
+## Technological Functionalities
+
+The "codx-junior" platform offers a range of technological functionalities designed to enhance productivity and collaboration. Here's a brief overview of each feature:
+
+1. **Online Multiuser Environment**: Allows multiple users to work together in real-time on projects, facilitating collaboration and teamwork.
+
+2. **MoE (Mixture of Experts)**: Utilizes multiple AI models to perform tasks, ensuring that the best-suited AI is employed for each specific job.
+
+3. **RAG and Finetune Strategies**: Implements Retrieval-Augmented Generation (RAG) and finetuning techniques to ensure that AI experts are customized and aligned with the specific knowledge and requirements of individual projects.
+
+4. **Project Management Tools**: Provides tools to plan, organize, and manage project tasks and resources effectively.
+
+5. **Coding Tools**: Offers a suite of tools designed to aid in writing, testing, and debugging code.
+
+6. **Container Technology**: Uses containerization to run projects in isolated environments (sandboxes), allowing for safe testing and demonstration to users without affecting the main system.
+
+7. **Profiles (AI Customizations)**: Enables customization of AI profiles to better suit the needs and preferences of individual users or teams.
+
+These functionalities together create a robust platform for managing and executing tech projects efficiently.
+
 With all these features, `codx-junior` is geared up to help Full Stack Developers manage their projects efficiently, providing significant benefits for maintaining open-source projects.
 
 ## Open Source Support

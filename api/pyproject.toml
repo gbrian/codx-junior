@@ -41,7 +41,9 @@ dependencies = [
   'ffmpeg>=1.4',
   'aiofiles>=24.1.0',
   'docling>=2.45.0',
-  'html2text'
+  'html2text',
+  'watchdog',
+  'pypandoc>=1.16'
 ]
 
 classifiers = [
@@ -76,7 +78,8 @@ doc = [
     "sphinx-copybutton >= 0.5.1",
     "markdown-include >= 0.6.0",
     "sphinx_copybutton >= 0.5.2",
-    "ollama>=0.4.7"
+    "ollama>=0.4.7",
+    "azure-devops"
 ]
 
 

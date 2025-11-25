@@ -1,0 +1,906 @@
+board: Tools
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Tools
+column_id: ''
+created_at: '2025-09-13 14:25:52.617041'
+description: '1. The user provided instructions for generating file content with specific
+  naming conventions.
+
+  2. A Python code snippet was shared for handling tool call data in a streaming environment,
+  focusing on capturing and processing tool call arguments.
+
+  3. The user shared the content of two Python files: one for fetching webpages and
+  converting them to markdown, and another for an AI class handling chat completions
+  and tool calls.
+
+  4. The user requested that tool responses be formatted in a specific JSON structure,
+  including a `call_id` and `output`.
+
+  5. A solution was provided to modify the `process_tool_calls` method in the `OpenAI_AI`
+  class to format the tool responses as specified.'
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/tools/fetch_webpage.py
+- /shared/codx-junior/api/codx/junior/ai/openai_ai.py
+file_path: /shared/codx-junior/api/.codx/tasks/Tools/Tools/codx-junior-tools.5212c229-3b99-4d5e-a07a-4fd1bc0754bf.yaml
+id: 5212c229-3b99-4d5e-a07a-4fd1bc0754bf
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'We want to expose tools to models in AI.
+
+    Import the tools and add to the "tools" section in the request.
+
+    Check if the model uses tools.
+
+    Capture tools flow and invoke the tools'
+  created_at: '2025-09-13 16:15:02.434195'
+  disable_knowledge: true
+  doc_id: ea0ffecc-49c4-46c1-8c97-121d3deb38c1
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-13 16:15:02.434226'
+  user: admin
+- content: "To address the user comments and requirements, we need to import the `tools`\
+    \ from the appropriate module (if they are not already imported), add them to\
+    \ the `tools` section in the request, check if the model uses tools, and capture\
+    \ the tools flow to invoke the tools. Below is the updated code for `/shared/codx-junior/api/codx/junior/ai/openai_ai.py`:\n\
+    \n```python /shared/codx-junior/api/codx/junior/ai/openai_ai.py\nimport logging\n\
+    import json\nfrom datetime import datetime\n\nfrom typing import Union\nfrom openai\
+    \ import OpenAI\nfrom openai.types.chat.chat_completion_system_message_param import\
+    \ ChatCompletionSystemMessageParam\nfrom openai.types.chat.chat_completion_user_message_param\
+    \ import ChatCompletionUserMessageParam\n\nfrom codx.junior.ai.ai_logger import\
+    \ AILogger\n\nfrom codx.junior.settings import CODXJuniorSettings\nfrom langchain.schema\
+    \ import (\n    AIMessage,\n    HumanMessage,\n    BaseMessage\n)\n\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\n\nfrom codx.junior.utils.utils import clean_string\n\
+    \n# Import tools if not already imported\nfrom codx.junior.tools import fetch_webpage\n\
+    \nlogger = logging.getLogger(__name__)\n\n# Define tools\ntools = [\n    {\n \
+    \       \"type\": \"function\",\n        \"function\": {\n            \"name\"\
+    : \"read_file\",\n            \"description\": \"use to read the full content\
+    \ of a file reference.\",\n            \"parameters\": {\n                \"type\"\
+    : \"string\",\n                \"properties\": {\n                    \"file_path\"\
+    : {\n                        \"type\": \"string\",\n                        \"\
+    description\": \"Absolute file path\",\n                    }\n              \
+    \  },\n                \"required\": [\"file_path\"],\n            },\n      \
+    \  }\n    },\n    {\n        \"type\": \"function\",\n        \"function\": {\n\
+    \            \"name\": \"fetch_webpage\",\n            \"description\": \"Fetch\
+    \ a webpage and convert it to markdown format.\",\n            \"parameters\"\
+    : {\n                \"type\": \"object\",\n                \"properties\": {\n\
+    \                    \"url\": {\n                        \"type\": \"string\"\
+    ,\n                        \"description\": \"The URL of the webpage to fetch\"\
+    \n                    },\n                    \"include_images\": {\n        \
+    \                \"type\": \"boolean\",\n                        \"description\"\
+    : \"Whether to include image references in the markdown\"\n                  \
+    \  },\n                    \"max_length\": {\n                        \"type\"\
+    : \"integer\",\n                        \"description\": \"Maximum length of the\
+    \ output markdown\"\n                    },\n                    \"headers\":\
+    \ {\n                        \"type\": \"object\",\n                        \"\
+    description\": \"Optional HTTP headers for the request\"\n                   \
+    \ }\n                },\n                \"required\": [\"url\"]\n           \
+    \ }\n        }\n    }\n]\n\nclass OpenAI_AI:\n    def __init__(self, settings:\
+    \ CODXJuniorSettings, llm_model: str = None):\n        self.settings = settings\n\
+    \        self.llm_settings = settings.get_llm_settings(llm_model=llm_model)\n\n\
+    \        self.model = self.llm_settings.model\n        self.api_key = self.llm_settings.api_key\n\
+    \        self.base_url = self.llm_settings.api_url\n\n        try:\n         \
+    \   self.client = OpenAI(\n                api_key=self.api_key,\n           \
+    \     base_url=self.base_url\n            )\n        except Exception as ex:\n\
+    \            logger.error(\"Error creating OpenAI client: %s, %s*****\", self.base_url,\
+    \ self.api_key[0:5])\n        self.ai_logger = AILogger(settings=settings)\n\n\
+    \    def log(self, msg):\n        if self.settings.get_log_ai():\n           \
+    \ self.ai_logger.info(msg)\n\n    def convert_message(self, gpt_message: Union[AIMessage,\
+    \ HumanMessage, BaseMessage]):\n        if gpt_message.type == \"image\":\n  \
+    \          try:\n                return {\"content\": json.loads(gpt_message.content),\
+    \ \"role\": \"user\"}\n            except Exception as ex:\n                self.log(f\"\
+    Error converting image message '{ex}': {gpt_message}\")\n                raise\
+    \ ex\n        return {\n            \"role\": \"assistant\" if gpt_message.type\
+    \ == \"ai\" else \"user\",\n            \"content\": gpt_message.content\n   \
+    \     }\n\n    @profile_function\n    def chat_completions(self, messages, config:\
+    \ dict = {}):\n        kwargs = {\n            \"model\": self.model,\n      \
+    \      \"stream\": True,\n            \"tools\": tools  # Add tools to the request\n\
+    \        }\n\n        if self.llm_settings.temperature >= 0:\n            kwargs[\"\
+    temperature\"] = float(self.llm_settings.temperature)\n\n        self.log(f\"\
+    OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url}\
+    \ {self.api_key[0:6]}...\")\n\n        openai_messages = [self.convert_message(msg)\
+    \ for msg in messages]\n\n        if self.llm_settings.merge_messages:\n     \
+    \       message = \"\\n\".join([message['content'] for message in openai_messages])\n\
+    \            openai_messages = [{\"role\": \"user\", \"content\": message}]\n\
+    \        self.log(f\"USER REQUEST:\\n{openai_messages}\")\n        if self.settings.get_log_ai():\n\
+    \            self.log(f\"\\nReceived AI response, start reading stream\\n{self.llm_settings}\"\
+    )\n        try:\n            request_headers = config.get(\"headers\", {})\n \
+    \           tags = request_headers.get(\"tags\", \"\")\n            tags = tags.split(\"\
+    ,\") + [\n                f\"temp-{self.llm_settings.temperature}\",\n       \
+    \         self.settings.project_name\n            ]\n            request_headers[\"\
+    x-litellm-tags\"] = \",\".join(tags)\n\n            response_stream = self.client.chat.completions.create(\n\
+    \                **kwargs,\n                messages=openai_messages,\n      \
+    \          extra_headers=request_headers\n            )\n            callbacks\
+    \ = config.get(\"callbacks\", None)\n            content_parts = []\n\n      \
+    \      callback_data = {\n                \"buffer\": [],\n                \"\
+    ts\": datetime.now()\n            }\n\n            def send_callback(chunk_content,\
+    \ flush=False):\n                if not callbacks:\n                    return\n\
+    \n                callback_data[\"buffer\"].append(chunk_content or \"\")\n  \
+    \              if flush or (datetime.now() - callback_data[\"ts\"]).total_seconds()\
+    \ > 1:\n                    callback_data[\"ts\"] = datetime.now()\n         \
+    \           message = \"\".join(callback_data[\"buffer\"]) if callback_data[\"\
+    buffer\"] else \"\"\n                    callback_data[\"buffer\"] = []\n    \
+    \                for cb in callbacks:\n                        try:\n        \
+    \                    cb(message)\n                        except Exception as\
+    \ ex:\n                            logger.exception(f\"ERROR IN CALLBACKS: {ex}\"\
+    )\n\n            for chunk in response_stream:\n                # Check for tools\n\
+    \                tool_calls = self.process_tool_calls(chunk.choices[0].message)\n\
+    \                if tool_calls:\n                    messages.append(HumanMessage(content=tool_calls))\n\
+    \                    return self.chat_completions(messages=messages)\n       \
+    \         chunk_content = chunk.choices[0].delta.content\n                if not\
+    \ chunk_content:\n                    continue\n                chunk_content\
+    \ = clean_string(chunk_content)\n                content_parts.append(chunk_content)\n\
+    \                send_callback(chunk_content)\n            # Last chunks...\n\
+    \            send_callback(\"\", flush=True)\n        except Exception as ex:\n\
+    \            logger.error(\"Error reading AI response: %s, %s, %s\\n%s\", self.base_url,\
+    \ self.api_key[0:5], self.llm_settings, ex)\n            raise ex\n\n        response_content\
+    \ = \"\".join(content_parts)\n        self.log(f\"AI RESPONSE:\\n{response_content}\"\
+    )\n\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self,\
+    \ message):\n        tool_responses = []\n        for tool_call in message.tool_calls\
+    \ or []:\n            self.log(f\"process_tool_calls: {tool_call}\")\n       \
+    \     func = json.loads(tool_call.function)\n            name = func[\"name\"\
+    ]\n            params = func[\"arguments\"]\n\n            if name == \"read_file\"\
+    :\n                file_path = params[\"file_path\"]\n                content\
+    \ = self.tool_read_file(file_path)\n                tool_responses.append(f\"\
+    Content for {file_path}:\\n{content}\")\n            elif name == \"fetch_webpage\"\
+    :\n                url = params[\"url\"]\n                include_images = params.get(\"\
+    include_images\", True)\n                max_length = params.get(\"max_length\"\
+    )\n                headers = params.get(\"headers\")\n                content\
+    \ = self.tool_fetch_webpage(url, include_images, max_length, headers)\n      \
+    \          tool_responses.append(f\"Markdown content for {url}:\\n{content}\"\
+    )\n\n        return \"\\n\".join(tool_responses)\n\n    def tool_read_file(self,\
+    \ file_path):\n        with open(file_path, 'r') as f:\n            return f.read()\n\
+    \n    def tool_fetch_webpage(self, url, include_images=True, max_length=None,\
+    \ headers=None):\n        return fetch_webpage(url, include_images, max_length,\
+    \ headers)\n\n    @profile_function\n    def generate_image(self, prompt):\n \
+    \       response = self.client.images.generate(\n            model=\"dall-e-3\"\
+    ,\n            prompt=prompt,\n            size=\"1024x1024\",\n            quality=\"\
+    standard\",\n            n=1,\n        )\n\n        return response.data[0].url\n\
+    \n    @profile_function\n    def embeddings(self):\n        embeddings_ai_settings\
+    \ = self.settings.get_embeddings_settings()\n        client = OpenAI(\n      \
+    \      api_key=embeddings_ai_settings.api_key,\n            base_url=embeddings_ai_settings.api_url\n\
+    \        )\n\n        def embedding_func(content: str):\n            try:\n  \
+    \              response = client.embeddings.create(\n                    input=content,\n\
+    \                    model=embeddings_ai_settings.model\n                )\n \
+    \               embeddings = []\n                for data in response.data:\n\
+    \                    embeddings = embeddings + data.embedding\n              \
+    \  return embeddings\n            except Exception as ex:\n                logger.error(f\"\
+    Error creating embeddings {self.settings.project_name} {embeddings_ai_settings}:\
+    \ {ex}\")\n                raise ex\n\n        return embedding_func\n```\n\n\
+    In this updated code, I have:\n- Imported the `fetch_webpage` function.\n- Added\
+    \ `fetch_webpage` as a tool in the `tools` list.\n- Updated the `chat_completions`\
+    \ method to include `tools` in the request.\n- Implemented the `process_tool_calls`\
+    \ method to process tool calls and invoke the appropriate tool functions.\n- Added\
+    \ a `tool_fetch_webpage` method to handle fetching webpage content."
+  created_at: '2025-09-13 16:15:02.434195'
+  disable_knowledge: false
+  doc_id: 5fae2e78-a25d-4c5f-9eab-bfd774937ec7
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002124309539794922
+    model: openai/gpt-4o
+    time_taken: 60.57917785644531
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-09-13 16:15:02.434226'
+  user: null
+- content: "move the tools array to tools/__init__.py with this fields:\n\_* tool_json:\
+    \ contains the tool descriptiont to be send to the ai model\n\_* settings: { \"\
+    async\": True } Se of settings, if tool is async AI will have to await for the\
+    \ response\n\_* tool_call: A lambda to invoke from the AI with kwargs from the\
+    \ AI model response.\n\n\nIn tools __init__ import all tools (like fetch_webpage)\
+    \ create the entry in the TOOLS array and create the lambda that will call the\
+    \ function\n\nIn openai_ai import the TOOLS from the tools/__init__.py\_"
+  created_at: '2025-09-13 16:23:44.127407'
+  disable_knowledge: true
+  doc_id: ce88cf6b-9b9e-4742-86aa-a3bd9d698433
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-13 16:23:44.127429'
+  user: admin
+- content: "```python /shared/codx-junior/api/codx/junior/tools/__init__.py\nimport\
+    \ logging\nfrom typing import Optional, Dict\nfrom urllib.parse import urljoin\n\
+    \nimport httpx\nfrom bs4 import BeautifulSoup\nimport html2text\n\n# Import tools\n\
+    from .fetch_webpage import fetch_webpage\n\n# Configure logging\nlogging.basicConfig(level=logging.DEBUG)\n\
+    logger = logging.getLogger(__name__)\n\n# Define TOOLS\nTOOLS = [\n    {\n   \
+    \     \"tool_json\": {\n            \"type\": \"function\",\n            \"function\"\
+    : {\n                \"name\": \"read_file\",\n                \"description\"\
+    : \"use to read the full content of a file reference.\",\n                \"parameters\"\
+    : {\n                    \"type\": \"string\",\n                    \"properties\"\
+    : {\n                        \"file_path\": {\n                            \"\
+    type\": \"string\",\n                            \"description\": \"Absolute file\
+    \ path\",\n                        }\n                    },\n               \
+    \     \"required\": [\"file_path\"],\n                },\n            }\n    \
+    \    },\n        \"settings\": {\"async\": False},\n        \"tool_call\": lambda\
+    \ kwargs: tool_read_file(kwargs[\"file_path\"])\n    },\n    {\n        \"tool_json\"\
+    : {\n            \"type\": \"function\",\n            \"function\": {\n      \
+    \          \"name\": \"fetch_webpage\",\n                \"description\": \"Fetch\
+    \ a webpage and convert it to markdown format.\",\n                \"parameters\"\
+    : {\n                    \"type\": \"object\",\n                    \"properties\"\
+    : {\n                        \"url\": {\n                            \"type\"\
+    : \"string\",\n                            \"description\": \"The URL of the webpage\
+    \ to fetch\"\n                        },\n                        \"include_images\"\
+    : {\n                            \"type\": \"boolean\",\n                    \
+    \        \"description\": \"Whether to include image references in the markdown\"\
+    \n                        },\n                        \"max_length\": {\n    \
+    \                        \"type\": \"integer\",\n                            \"\
+    description\": \"Maximum length of the output markdown\"\n                   \
+    \     },\n                        \"headers\": {\n                           \
+    \ \"type\": \"object\",\n                            \"description\": \"Optional\
+    \ HTTP headers for the request\"\n                        }\n                \
+    \    },\n                    \"required\": [\"url\"]\n                }\n    \
+    \        }\n        },\n        \"settings\": {\"async\": True},\n        \"tool_call\"\
+    : lambda kwargs: fetch_webpage(kwargs[\"url\"], kwargs.get(\"include_images\"\
+    , True), kwargs.get(\"max_length\"), kwargs.get(\"headers\"))\n    }\n]\n\ndef\
+    \ tool_read_file(file_path):\n    with open(file_path, 'r') as f:\n        return\
+    \ f.read()\n```\n\n```python /shared/codx-junior/api/codx/junior/ai/openai_ai.py\n\
+    import logging\nimport json\nfrom datetime import datetime\n\nfrom typing import\
+    \ Union\nfrom openai import OpenAI\nfrom openai.types.chat.chat_completion_system_message_param\
+    \ import ChatCompletionSystemMessageParam\nfrom openai.types.chat.chat_completion_user_message_param\
+    \ import ChatCompletionUserMessageParam\n\nfrom codx.junior.ai.ai_logger import\
+    \ AILogger\n\nfrom codx.junior.settings import CODXJuniorSettings\nfrom langchain.schema\
+    \ import (\n    AIMessage,\n    HumanMessage,\n    BaseMessage\n)\n\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\n\nfrom codx.junior.utils.utils import clean_string\n\
+    \n# Import TOOLS from tools/__init__.py\nfrom codx.junior.tools import TOOLS\n\
+    \nlogger = logging.getLogger(__name__)\n\nclass OpenAI_AI:\n    def __init__(self,\
+    \ settings: CODXJuniorSettings, llm_model: str = None):\n        self.settings\
+    \ = settings\n        self.llm_settings = settings.get_llm_settings(llm_model=llm_model)\n\
+    \n        self.model = self.llm_settings.model\n        self.api_key = self.llm_settings.api_key\n\
+    \        self.base_url = self.llm_settings.api_url\n\n        try:\n         \
+    \   self.client = OpenAI(\n                api_key=self.api_key,\n           \
+    \     base_url=self.base_url\n            )\n        except Exception as ex:\n\
+    \            logger.error(\"Error creating OpenAI client: %s, %s*****\", self.base_url,\
+    \ self.api_key[0:5])\n        self.ai_logger = AILogger(settings=settings)\n\n\
+    \    def log(self, msg):\n        if self.settings.get_log_ai():\n           \
+    \ self.ai_logger.info(msg)\n\n    def convert_message(self, gpt_message: Union[AIMessage,\
+    \ HumanMessage, BaseMessage]):\n        if gpt_message.type == \"image\":\n  \
+    \          try:\n                return {\"content\": json.loads(gpt_message.content),\
+    \ \"role\": \"user\"}\n            except Exception as ex:\n                self.log(f\"\
+    Error converting image message '{ex}': {gpt_message}\")\n                raise\
+    \ ex\n        return {\n            \"role\": \"assistant\" if gpt_message.type\
+    \ == \"ai\" else \"user\",\n            \"content\": gpt_message.content\n   \
+    \     }\n\n    @profile_function\n    def chat_completions(self, messages, config:\
+    \ dict = {}):\n        kwargs = {\n            \"model\": self.model,\n      \
+    \      \"stream\": True,\n            \"tools\": [tool[\"tool_json\"] for tool\
+    \ in TOOLS]  # Add tools to the request\n        }\n\n        if self.llm_settings.temperature\
+    \ >= 0:\n            kwargs[\"temperature\"] = float(self.llm_settings.temperature)\n\
+    \n        self.log(f\"OpenAI_AI chat_completions {self.llm_settings.provider}:\
+    \ {self.model} {self.base_url} {self.api_key[0:6]}...\")\n\n        openai_messages\
+    \ = [self.convert_message(msg) for msg in messages]\n\n        if self.llm_settings.merge_messages:\n\
+    \            message = \"\\n\".join([message['content'] for message in openai_messages])\n\
+    \            openai_messages = [{\"role\": \"user\", \"content\": message}]\n\
+    \        self.log(f\"USER REQUEST:\\n{openai_messages}\")\n        if self.settings.get_log_ai():\n\
+    \            self.log(f\"\\nReceived AI response, start reading stream\\n{self.llm_settings}\"\
+    )\n        try:\n            request_headers = config.get(\"headers\", {})\n \
+    \           tags = request_headers.get(\"tags\", \"\")\n            tags = tags.split(\"\
+    ,\") + [\n                f\"temp-{self.llm_settings.temperature}\",\n       \
+    \         self.settings.project_name\n            ]\n            request_headers[\"\
+    x-litellm-tags\"] = \",\".join(tags)\n\n            response_stream = self.client.chat.completions.create(\n\
+    \                **kwargs,\n                messages=openai_messages,\n      \
+    \          extra_headers=request_headers\n            )\n            callbacks\
+    \ = config.get(\"callbacks\", None)\n            content_parts = []\n\n      \
+    \      callback_data = {\n                \"buffer\": [],\n                \"\
+    ts\": datetime.now()\n            }\n\n            def send_callback(chunk_content,\
+    \ flush=False):\n                if not callbacks:\n                    return\n\
+    \n                callback_data[\"buffer\"].append(chunk_content or \"\")\n  \
+    \              if flush or (datetime.now() - callback_data[\"ts\"]).total_seconds()\
+    \ > 1:\n                    callback_data[\"ts\"] = datetime.now()\n         \
+    \           message = \"\".join(callback_data[\"buffer\"]) if callback_data[\"\
+    buffer\"] else \"\"\n                    callback_data[\"buffer\"] = []\n    \
+    \                for cb in callbacks:\n                        try:\n        \
+    \                    cb(message)\n                        except Exception as\
+    \ ex:\n                            logger.exception(f\"ERROR IN CALLBACKS: {ex}\"\
+    )\n\n            for chunk in response_stream:\n                # Check for tools\n\
+    \                tool_calls = self.process_tool_calls(chunk.choices[0].message)\n\
+    \                if tool_calls:\n                    messages.append(HumanMessage(content=tool_calls))\n\
+    \                    return self.chat_completions(messages=messages)\n       \
+    \         chunk_content = chunk.choices[0].delta.content\n                if not\
+    \ chunk_content:\n                    continue\n                chunk_content\
+    \ = clean_string(chunk_content)\n                content_parts.append(chunk_content)\n\
+    \                send_callback(chunk_content)\n            # Last chunks...\n\
+    \            send_callback(\"\", flush=True)\n        except Exception as ex:\n\
+    \            logger.error(\"Error reading AI response: %s, %s, %s\\n%s\", self.base_url,\
+    \ self.api_key[0:5], self.llm_settings, ex)\n            raise ex\n\n        response_content\
+    \ = \"\".join(content_parts)\n        self.log(f\"AI RESPONSE:\\n{response_content}\"\
+    )\n\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self,\
+    \ message):\n        tool_responses = []\n        for tool_call in message.tool_calls\
+    \ or []:\n            self.log(f\"process_tool_calls: {tool_call}\")\n       \
+    \     func = json.loads(tool_call.function)\n            name = func[\"name\"\
+    ]\n            params = func[\"arguments\"]\n\n            # Find the tool and\
+    \ execute the tool_call\n            for tool in TOOLS:\n                if tool[\"\
+    tool_json\"][\"function\"][\"name\"] == name:\n                    content = tool[\"\
+    tool_call\"](params)\n                    tool_responses.append(content)\n\n \
+    \       return \"\\n\".join(tool_responses)\n\n    @profile_function\n    def\
+    \ generate_image(self, prompt):\n        response = self.client.images.generate(\n\
+    \            model=\"dall-e-3\",\n            prompt=prompt,\n            size=\"\
+    1024x1024\",\n            quality=\"standard\",\n            n=1,\n        )\n\
+    \n        return response.data[0].url\n\n    @profile_function\n    def embeddings(self):\n\
+    \        embeddings_ai_settings = self.settings.get_embeddings_settings()\n  \
+    \      client = OpenAI(\n            api_key=embeddings_ai_settings.api_key,\n\
+    \            base_url=embeddings_ai_settings.api_url\n        )\n\n        def\
+    \ embedding_func(content: str):\n            try:\n                response =\
+    \ client.embeddings.create(\n                    input=content,\n            \
+    \        model=embeddings_ai_settings.model\n                )\n             \
+    \   embeddings = []\n                for data in response.data:\n            \
+    \        embeddings = embeddings + data.embedding\n                return embeddings\n\
+    \            except Exception as ex:\n                logger.error(f\"Error creating\
+    \ embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}\")\n\
+    \                raise ex\n\n        return embedding_func\n```\n\nIn this updated\
+    \ code, I have:\n- Moved the `tools` array to `/shared/codx-junior/api/codx/junior/tools/__init__.py`.\n\
+    - Defined `TOOLS` with fields: `tool_json`, `settings`, and `tool_call`.\n- Imported\
+    \ `TOOLS` in `/shared/codx-junior/api/codx/junior/ai/openai_ai.py`.\n- Updated\
+    \ the `chat_completions` method to use `TOOLS`.\n- Implemented `process_tool_calls`\
+    \ to find and execute the appropriate tool call using lambdas."
+  created_at: '2025-09-13 16:23:44.127407'
+  disable_knowledge: false
+  doc_id: 90c61e80-6b61-4d3a-90cf-a5033cb63ed4
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00023508071899414062
+    model: openai/gpt-4o
+    time_taken: 70.15919280052185
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-09-13 16:23:44.127429'
+  user: null
+- content: "Fix this error:\n\n {'error': {'message': 'litellm.BadRequestError: OpenAIException\
+    \ - Invalid schema for function \\'read_file\\': schema must be a JSON Schema\
+    \ of \\'type: \"object\"\\', got \\'type: \"string\"\\'.. Received Model Group=openai/gpt-4o\\\
+    nAvailable Model Group Fallbacks=None', 'type': 'invalid_request_error', 'param':\
+    \ 'tools[0].function.parameters', 'code': '400'}}\n\nMake sure the tool_json schema\
+    \ is correct"
+  created_at: '2025-09-14 07:59:08.352281'
+  disable_knowledge: true
+  doc_id: 167100a6-a835-4a6e-ace6-0b2740a1e0b5
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-14 07:59:08.352305'
+  user: admin
+- content: "Fix the way we read tool_calls. As we read the repsonse in a stream way,\
+    \ response for tools is returned like that:\n```\n\n\_provider='openai' api_url='http://172.20.0.6:4000/v1'\
+    \ api_key='sk-RHvmduMUJQohXgmuUB-SXA' model='openai/gpt-4o' context_length=0 temperature=0.6\
+    \ vector_size=1536 chunk_size=8190 merge_messages=False model_type=<AIModelType.llm:\
+    \ 'llm'> url=''\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]:\
+    \ AI response choice: Choice(delta=ChoiceDelta(content=None, function_call=None,\
+    \ refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0, id='call_UgQEUaX1CgPfMN1k8NuMBwTX',\
+    \ function=ChoiceDeltaToolCallFunction(arguments='', name='fetch_webpage'), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='{\"', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='url', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='\":\"', name=None),\
+    \ type='function')]), finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ \_ [2025-09-14 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]:\
+    \ AI response choice: Choice(delta=ChoiceDelta(content=None, function_call=None,\
+    \ refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0, id=None,\
+    \ function=ChoiceDeltaToolCallFunction(arguments='https', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='://', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='docs', name=None),\
+    \ type='function')]), finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ \_ [2025-09-14 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]:\
+    \ AI response choice: Choice(delta=ChoiceDelta(content=None, function_call=None,\
+    \ refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0, id=None,\
+    \ function=ChoiceDeltaToolCallFunction(arguments='.l', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='inux', name=None),\
+    \ type='function')]), finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ \_ [2025-09-14 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]:\
+    \ AI response choice: Choice(delta=ChoiceDelta(content=None, function_call=None,\
+    \ refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0, id=None,\
+    \ function=ChoiceDeltaToolCallFunction(arguments='server', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='.io', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='/images', name=None),\
+    \ type='function')]), finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ \_ [2025-09-14 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]:\
+    \ AI response choice: Choice(delta=ChoiceDelta(content=None, function_call=None,\
+    \ refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0, id=None,\
+    \ function=ChoiceDeltaToolCallFunction(arguments='/docker', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='-web', name=None),\
+    \ type='function')]), finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ \_ [2025-09-14 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]:\
+    \ AI response choice: Choice(delta=ChoiceDelta(content=None, function_call=None,\
+    \ refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0, id=None,\
+    \ function=ChoiceDeltaToolCallFunction(arguments='top', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='/#', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='via', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='-d', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='ocker', name=None),\
+    \ type='function')]), finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ \_ [2025-09-14 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]:\
+    \ AI response choice: Choice(delta=ChoiceDelta(content=None, function_call=None,\
+    \ refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0, id=None,\
+    \ function=ChoiceDeltaToolCallFunction(arguments='-compose', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role='assistant', tool_calls=[ChoiceDeltaToolCall(index=0,\
+    \ id=None, function=ChoiceDeltaToolCallFunction(arguments='\"}', name=None), type='function')]),\
+    \ finish_reason=None, index=0, logprobs=None)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ \_ [2025-09-14\
+    \ 15:26:43] [INFO] [codx.junior.ai.ai_logger:13]: AI response choice: Choice(delta=ChoiceDelta(content=None,\
+    \ function_call=None, refusal=None, role=None, tool_calls=None), finish_reason='tool_calls',\
+    \ index=0, logprobs=None)\n```\n\n\nWe have to detect a too_call and buffer all\
+    \ data until reaching\_finish_reason='tool_calls', then call :\_process_tool_calls"
+  created_at: '2025-09-14 15:26:24.348382'
+  disable_knowledge: true
+  doc_id: a986f3dc-31a6-4774-ab60-89f098a69646
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-14 15:26:24.348404'
+  user: admin
+- content: "To fix the way tool calls are processed from a streamed response, we need\
+    \ to accumulate the tool call information until we reach the `finish_reason='tool_calls'`.\
+    \ Then, we can process the accumulated data as a complete tool call. Here's how\
+    \ you can modify the existing code to handle this:\n\n```python /shared/codx-junior/api/codx/junior/ai/openai_ai.py\n\
+    import logging\nimport json\nimport asyncio\nfrom datetime import datetime\nfrom\
+    \ typing import Union\nfrom openai import OpenAI\nfrom openai.types.chat.chat_completion_system_message_param\
+    \ import ChatCompletionSystemMessageParam\nfrom openai.types.chat.chat_completion_user_message_param\
+    \ import ChatCompletionUserMessageParam\nfrom codx.junior.ai.ai_logger import\
+    \ AILogger\nfrom codx.junior.settings import CODXJuniorSettings\nfrom langchain.schema\
+    \ import AIMessage, HumanMessage, BaseMessage\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\nfrom codx.junior.utils.utils import clean_string\n\
+    from codx.junior.tools import TOOLS\n\nlogger = logging.getLogger(__name__)\n\n\
+    class OpenAI_AI:\n    def __init__(self, settings: CODXJuniorSettings, llm_model:\
+    \ str = None):\n        self.settings = settings\n        self.llm_settings =\
+    \ settings.get_llm_settings(llm_model=llm_model)\n        self.model = self.llm_settings.model\n\
+    \        self.api_key = self.llm_settings.api_key\n        self.base_url = self.llm_settings.api_url\n\
+    \n        try:\n            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)\n\
+    \        except Exception as ex:\n            logger.error(\"Error creating OpenAI\
+    \ client: %s, %s*****\", self.base_url, self.api_key[0:5])\n        self.ai_logger\
+    \ = AILogger(settings=settings)\n\n    def log(self, msg):\n        if self.settings.get_log_ai():\n\
+    \            self.ai_logger.info(msg)\n\n    def convert_message(self, gpt_message:\
+    \ Union[AIMessage, HumanMessage, BaseMessage]):\n        if gpt_message.type ==\
+    \ \"image\":\n            try:\n                return {\"content\": json.loads(gpt_message.content),\
+    \ \"role\": \"user\"}\n            except Exception as ex:\n                self.log(f\"\
+    Error converting image message '{ex}': {gpt_message}\")\n                raise\
+    \ ex\n        return {\n            \"role\": \"assistant\" if gpt_message.type\
+    \ == \"ai\" else \"user\",\n            \"content\": gpt_message.content\n   \
+    \     }\n\n    @profile_function\n    def chat_completions(self, messages, config:\
+    \ dict = {}):\n        kwargs = {\n            \"model\": self.model,\n      \
+    \      \"stream\": True,\n            \"tools\": [tool[\"tool_json\"] for tool\
+    \ in TOOLS]\n        }\n\n        if self.llm_settings.temperature >= 0:\n   \
+    \         kwargs[\"temperature\"] = float(self.llm_settings.temperature)\n\n \
+    \       self.log(f\"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model}\
+    \ {self.base_url} {self.api_key[0:6]}...\")\n\n        openai_messages = [self.convert_message(msg)\
+    \ for msg in messages]\n\n        if self.llm_settings.merge_messages:\n     \
+    \       message = \"\\n\".join([message['content'] for message in openai_messages])\n\
+    \            openai_messages = [{\"role\": \"user\", \"content\": message}]\n\
+    \        self.log(f\"USER REQUEST:\\n{openai_messages}\")\n        if self.settings.get_log_ai():\n\
+    \            self.log(f\"\\nReceived AI response, start reading stream\\n{self.llm_settings}\"\
+    )\n        try:\n            request_headers = config.get(\"headers\", {})\n \
+    \           tags = request_headers.get(\"tags\", \"\")\n            tags = tags.split(\"\
+    ,\") + [\n                f\"temp-{self.llm_settings.temperature}\",\n       \
+    \         self.settings.project_name\n            ]\n            request_headers[\"\
+    x-litellm-tags\"] = \",\".join(tags)\n\n            response_stream = self.client.chat.completions.create(\n\
+    \                **kwargs,\n                messages=openai_messages,\n      \
+    \          extra_headers=request_headers\n            )\n            callbacks\
+    \ = config.get(\"callbacks\", None)\n            content_parts = []\n\n      \
+    \      callback_data = {\n                \"buffer\": [],\n                \"\
+    ts\": datetime.now(),\n            }\n\n            tool_call_buffer = []\n  \
+    \          tool_call_active = False\n\n            def send_callback(chunk_content,\
+    \ flush=False):\n                if not callbacks:\n                    return\n\
+    \n                callback_data[\"buffer\"].append(chunk_content or \"\")\n  \
+    \              if flush or (datetime.now() - callback_data[\"ts\"]).total_seconds()\
+    \ > 1:\n                    callback_data[\"ts\"] = datetime.now()\n         \
+    \           message = \"\".join(callback_data[\"buffer\"]) if callback_data[\"\
+    buffer\"] else \"\"\n                    callback_data[\"buffer\"] = []\n    \
+    \                for cb in callbacks:\n                        try:\n        \
+    \                    cb(message)\n                        except Exception as\
+    \ ex:\n                            logger.exception(f\"ERROR IN CALLBACKS: {ex}\"\
+    )\n\n            for chunk in response_stream:\n                # Check for tools\n\
+    \                choice = chunk.choices[0]\n                self.log(f\"AI response\
+    \ choice: {choice}\")\n                tool_calls = choice.delta.tool_calls if\
+    \ hasattr(choice, 'delta') else None \n                \n                if tool_calls:\n\
+    \                    tool_call_active = True\n                    tool_call_buffer.append(tool_calls)\n\
+    \                \n                if choice.finish_reason == 'tool_calls' and\
+    \ tool_call_active:\n                    tools_response = self.process_tool_calls(tool_call_buffer)\n\
+    \                    messages.append(HumanMessage(content=tools_response))\n \
+    \                   return self.chat_completions(messages=messages)\n        \
+    \        \n                chunk_content = choice.delta.content\n            \
+    \    if not chunk_content:\n                    continue\n                chunk_content\
+    \ = clean_string(chunk_content)\n                content_parts.append(chunk_content)\n\
+    \                send_callback(chunk_content)\n\n            # Last chunks...\n\
+    \            send_callback(\"\", flush=True)\n        except Exception as ex:\n\
+    \            logger.error(\"Error reading AI response: %s, %s, %s\\n%s\", self.base_url,\
+    \ self.api_key[0:5], self.llm_settings, ex)\n            raise ex\n\n        response_content\
+    \ = \"\".join(content_parts)\n        self.log(f\"AI RESPONSE:\\n{response_content}\"\
+    )\n\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self,\
+    \ tool_call_buffer):\n        tool_responses = []\n        accumulated_tool_call\
+    \ = ''.join([str(tc) for tc in tool_call_buffer])\n\n        self.log(f\"process_tool_calls:\
+    \ {accumulated_tool_call}\")\n        func = json.loads(accumulated_tool_call)\n\
+    \        name = func[\"name\"]\n        params = func[\"arguments\"]\n       \
+    \ # Find the tool and execute the tool_call\n        for tool in TOOLS:\n    \
+    \        if tool[\"tool_json\"][\"function\"][\"name\"] == name:\n           \
+    \     content = None\n                if tool[\"settings\"].get(\"async\", False):\n\
+    \                    content = asyncio.run(tool[\"tool_call\"](**params))\n  \
+    \              else:\n                    content = tool[\"tool_call\"](**params)\n\
+    \                tool_responses.append(content)\n\n        return \"\\n\".join(tool_responses)\n\
+    \n    @profile_function\n    def generate_image(self, prompt):\n        response\
+    \ = self.client.images.generate(\n            model=\"dall-e-3\",\n          \
+    \  prompt=prompt,\n            size=\"1024x1024\",\n            quality=\"standard\"\
+    ,\n            n=1,\n        )\n\n        return response.data[0].url\n\n    @profile_function\n\
+    \    def embeddings(self):\n        embeddings_ai_settings = self.settings.get_embeddings_settings()\n\
+    \        client = OpenAI(\n            api_key=embeddings_ai_settings.api_key,\n\
+    \            base_url=embeddings_ai_settings.api_url\n        )\n\n        def\
+    \ embedding_func(content: str):\n            try:\n                response =\
+    \ client.embeddings.create(\n                    input=content,\n            \
+    \        model=embeddings_ai_settings.model\n                )\n             \
+    \   embeddings = []\n                for data in response.data:\n            \
+    \        embeddings = embeddings + data.embedding\n                return embeddings\n\
+    \            except Exception as ex:\n                logger.error(f\"Error creating\
+    \ embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}\")\n\
+    \                raise ex\n\n        return embedding_func\n```\n\n### Key Changes:\n\
+    - Added a `tool_call_buffer` to accumulate tool call data.\n- Used a flag `tool_call_active`\
+    \ to track when tool call data is being accumulated.\n- Processed the complete\
+    \ tool call once `finish_reason='tool_calls'` is encountered.\n- Modified `process_tool_calls`\
+    \ to handle the buffered tool call data."
+  created_at: '2025-09-14 15:26:24.348382'
+  disable_knowledge: false
+  doc_id: e5e669fb-990e-4c5e-bb44-6cad876aa6a4
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.000202178955078125
+    model: openai/gpt-4o
+    time_taken: 38.43628931045532
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-09-14 15:26:24.348404'
+  user: null
+- content: 'First message contains "id" and "function" that we must use in the response,
+    save it and use subsequent messages to append the "arguments"
+
+
+    '
+  created_at: '2025-09-14 15:26:24.348382'
+  disable_knowledge: true
+  doc_id: 2427a80c-8743-4bf6-85d0-f7a812e5964b
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-14 15:26:24.348404'
+  user: admin
+- content: "To properly handle the streamed tool call data, you can modify the code\
+    \ to capture the `id` and `function` from the first message of a tool call and\
+    \ then append the `arguments` from subsequent messages. Once all the data is accumulated,\
+    \ you can process the complete tool call. Here's how you can implement this:\n\
+    \n```python /shared/codx-junior/api/codx/junior/ai/openai_ai.py\nimport logging\n\
+    import json\nimport asyncio\nfrom datetime import datetime\nfrom typing import\
+    \ Union\nfrom openai import OpenAI\nfrom openai.types.chat.chat_completion_system_message_param\
+    \ import ChatCompletionSystemMessageParam\nfrom openai.types.chat.chat_completion_user_message_param\
+    \ import ChatCompletionUserMessageParam\nfrom codx.junior.ai.ai_logger import\
+    \ AILogger\nfrom codx.junior.settings import CODXJuniorSettings\nfrom langchain.schema\
+    \ import AIMessage, HumanMessage, BaseMessage\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\nfrom codx.junior.utils.utils import clean_string\n\
+    from codx.junior.tools import TOOLS\n\nlogger = logging.getLogger(__name__)\n\n\
+    class OpenAI_AI:\n    def __init__(self, settings: CODXJuniorSettings, llm_model:\
+    \ str = None):\n        self.settings = settings\n        self.llm_settings =\
+    \ settings.get_llm_settings(llm_model=llm_model)\n        self.model = self.llm_settings.model\n\
+    \        self.api_key = self.llm_settings.api_key\n        self.base_url = self.llm_settings.api_url\n\
+    \n        try:\n            self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)\n\
+    \        except Exception as ex:\n            logger.error(\"Error creating OpenAI\
+    \ client: %s, %s*****\", self.base_url, self.api_key[0:5])\n        self.ai_logger\
+    \ = AILogger(settings=settings)\n\n    def log(self, msg):\n        if self.settings.get_log_ai():\n\
+    \            self.ai_logger.info(msg)\n\n    def convert_message(self, gpt_message:\
+    \ Union[AIMessage, HumanMessage, BaseMessage]):\n        if gpt_message.type ==\
+    \ \"image\":\n            try:\n                return {\"content\": json.loads(gpt_message.content),\
+    \ \"role\": \"user\"}\n            except Exception as ex:\n                self.log(f\"\
+    Error converting image message '{ex}': {gpt_message}\")\n                raise\
+    \ ex\n        return {\n            \"role\": \"assistant\" if gpt_message.type\
+    \ == \"ai\" else \"user\",\n            \"content\": gpt_message.content\n   \
+    \     }\n\n    @profile_function\n    def chat_completions(self, messages, config:\
+    \ dict = {}):\n        kwargs = {\n            \"model\": self.model,\n      \
+    \      \"stream\": True,\n            \"tools\": [tool[\"tool_json\"] for tool\
+    \ in TOOLS]\n        }\n\n        if self.llm_settings.temperature >= 0:\n   \
+    \         kwargs[\"temperature\"] = float(self.llm_settings.temperature)\n\n \
+    \       self.log(f\"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model}\
+    \ {self.base_url} {self.api_key[0:6]}...\")\n\n        openai_messages = [self.convert_message(msg)\
+    \ for msg in messages]\n\n        if self.llm_settings.merge_messages:\n     \
+    \       message = \"\\n\".join([message['content'] for message in openai_messages])\n\
+    \            openai_messages = [{\"role\": \"user\", \"content\": message}]\n\
+    \        self.log(f\"USER REQUEST:\\n{openai_messages}\")\n        if self.settings.get_log_ai():\n\
+    \            self.log(f\"\\nReceived AI response, start reading stream\\n{self.llm_settings}\"\
+    )\n        try:\n            request_headers = config.get(\"headers\", {})\n \
+    \           tags = request_headers.get(\"tags\", \"\")\n            tags = tags.split(\"\
+    ,\") + [\n                f\"temp-{self.llm_settings.temperature}\",\n       \
+    \         self.settings.project_name\n            ]\n            request_headers[\"\
+    x-litellm-tags\"] = \",\".join(tags)\n\n            response_stream = self.client.chat.completions.create(\n\
+    \                **kwargs,\n                messages=openai_messages,\n      \
+    \          extra_headers=request_headers\n            )\n            callbacks\
+    \ = config.get(\"callbacks\", None)\n            content_parts = []\n\n      \
+    \      callback_data = {\n                \"buffer\": [],\n                \"\
+    ts\": datetime.now(),\n            }\n\n            tool_call_data = {\n     \
+    \           \"id\": None,\n                \"function\": None,\n             \
+    \   \"arguments\": \"\"\n            }\n            tool_call_active = False\n\
+    \n            def send_callback(chunk_content, flush=False):\n               \
+    \ if not callbacks:\n                    return\n\n                callback_data[\"\
+    buffer\"].append(chunk_content or \"\")\n                if flush or (datetime.now()\
+    \ - callback_data[\"ts\"]).total_seconds() > 1:\n                    callback_data[\"\
+    ts\"] = datetime.now()\n                    message = \"\".join(callback_data[\"\
+    buffer\"]) if callback_data[\"buffer\"] else \"\"\n                    callback_data[\"\
+    buffer\"] = []\n                    for cb in callbacks:\n                   \
+    \     try:\n                            cb(message)\n                        except\
+    \ Exception as ex:\n                            logger.exception(f\"ERROR IN CALLBACKS:\
+    \ {ex}\")\n\n            for chunk in response_stream:\n                # Check\
+    \ for tools\n                choice = chunk.choices[0]\n                self.log(f\"\
+    AI response choice: {choice}\")\n                tool_calls = choice.delta.tool_calls\
+    \ if hasattr(choice, 'delta') else None \n                \n                if\
+    \ tool_calls:\n                    tool_call_active = True\n                 \
+    \   if tool_call_data[\"id\"] is None:\n                        # First part of\
+    \ the tool call\n                        tool_call_data[\"id\"] = tool_calls[0].id\n\
+    \                        tool_call_data[\"function\"] = tool_calls[0].function.name\n\
+    \                    # Append arguments\n                    tool_call_data[\"\
+    arguments\"] += tool_calls[0].function.arguments\n                \n         \
+    \       if choice.finish_reason == 'tool_calls' and tool_call_active:\n      \
+    \              tools_response = self.process_tool_calls(tool_call_data)\n    \
+    \                messages.append(HumanMessage(content=tools_response))\n     \
+    \               return self.chat_completions(messages=messages)\n            \
+    \    \n                chunk_content = choice.delta.content\n                if\
+    \ not chunk_content:\n                    continue\n                chunk_content\
+    \ = clean_string(chunk_content)\n                content_parts.append(chunk_content)\n\
+    \                send_callback(chunk_content)\n\n            # Last chunks...\n\
+    \            send_callback(\"\", flush=True)\n        except Exception as ex:\n\
+    \            logger.error(\"Error reading AI response: %s, %s, %s\\n%s\", self.base_url,\
+    \ self.api_key[0:5], self.llm_settings, ex)\n            raise ex\n\n        response_content\
+    \ = \"\".join(content_parts)\n        self.log(f\"AI RESPONSE:\\n{response_content}\"\
+    )\n\n        return AIMessage(content=response_content)\n\n    def process_tool_calls(self,\
+    \ tool_call_data):\n        tool_responses = []\n        self.log(f\"process_tool_calls:\
+    \ {tool_call_data}\")\n        func_name = tool_call_data[\"function\"]\n    \
+    \    params = json.loads(tool_call_data[\"arguments\"])\n        # Find the tool\
+    \ and execute the tool_call\n        for tool in TOOLS:\n            if tool[\"\
+    tool_json\"][\"function\"][\"name\"] == func_name:\n                content =\
+    \ None\n                if tool[\"settings\"].get(\"async\", False):\n       \
+    \             content = asyncio.run(tool[\"tool_call\"](**params))\n         \
+    \       else:\n                    content = tool[\"tool_call\"](**params)\n \
+    \               tool_responses.append(content)\n\n        return \"\\n\".join(tool_responses)\n\
+    \n    @profile_function\n    def generate_image(self, prompt):\n        response\
+    \ = self.client.images.generate(\n            model=\"dall-e-3\",\n          \
+    \  prompt=prompt,\n            size=\"1024x1024\",\n            quality=\"standard\"\
+    ,\n            n=1,\n        )\n\n        return response.data[0].url\n\n    @profile_function\n\
+    \    def embeddings(self):\n        embeddings_ai_settings = self.settings.get_embeddings_settings()\n\
+    \        client = OpenAI(\n            api_key=embeddings_ai_settings.api_key,\n\
+    \            base_url=embeddings_ai_settings.api_url\n        )\n\n        def\
+    \ embedding_func(content: str):\n            try:\n                response =\
+    \ client.embeddings.create(\n                    input=content,\n            \
+    \        model=embeddings_ai_settings.model\n                )\n             \
+    \   embeddings = []\n                for data in response.data:\n            \
+    \        embeddings = embeddings + data.embedding\n                return embeddings\n\
+    \            except Exception as ex:\n                logger.error(f\"Error creating\
+    \ embeddings {self.settings.project_name} {embeddings_ai_settings}: {ex}\")\n\
+    \                raise ex\n\n        return embedding_func\n```\n\n### Key Changes:\n\
+    - Introduced `tool_call_data` as a dictionary to store `id`, `function`, and `arguments`.\n\
+    - Captured the `id` and `function` from the first tool call message.\n- Accumulated\
+    \ `arguments` from subsequent messages.\n- Used `process_tool_calls` to process\
+    \ the accumulated tool call data once `finish_reason='tool_calls'` is encountered."
+  created_at: '2025-09-14 15:26:24.348382'
+  disable_knowledge: false
+  doc_id: b04c0028-3aa4-4228-8f75-e786469bc68a
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00012350082397460938
+    model: openai/gpt-4o
+    time_taken: 42.10841369628906
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-09-14 15:26:24.348404'
+  user: null
+- content: "The tools response muy be like in the example below:\n```python\n\n{\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \"type\": \"function_call_output\",\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ \"call_id\": item.call_id,\n\_ \_ \_ \_ \_ \_ \_ \_ \"output\": json.dumps({\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \"horoscope\": horoscope\n\_ \_ \_ \_ \_ \_ \_ \_ }\n\
+    ```"
+  created_at: '2025-09-14 15:52:08.999097'
+  disable_knowledge: true
+  doc_id: 31f435e4-e83d-43ae-a4de-5b5420a986d9
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-14 15:52:08.999120'
+  user: admin
+- content: "To ensure that the tool response is structured as specified, you can modify\
+    \ the `process_tool_calls` method in the `OpenAI_AI` class to format the output\
+    \ accordingly. Here's how you can implement this:\n\n```python /shared/codx-junior/api/codx/junior/ai/openai_ai.py\n\
+    def process_tool_calls(self, tool_call_data):\n    tool_responses = []\n    self.log(f\"\
+    process_tool_calls: {tool_call_data}\")\n    func_name = tool_call_data[\"function\"\
+    ]\n    params = json.loads(tool_call_data[\"arguments\"])\n\n    # Find the tool\
+    \ and execute the tool_call\n    for tool in TOOLS:\n        if tool[\"tool_json\"\
+    ][\"function\"][\"name\"] == func_name:\n            content = None\n        \
+    \    if tool[\"settings\"].get(\"async\", False):\n                loop = asyncio.get_event_loop()\n\
+    \                content = loop.run_until_complete(tool[\"tool_call\"](**params))\n\
+    \            else:\n                content = tool[\"tool_call\"](**params)\n\
+    \            tool_responses.append(content)\n\n    # Format the tool response\
+    \ as specified\n    tool_output = {\n        \"type\": \"function_call_output\"\
+    ,\n        \"call_id\": tool_call_data[\"id\"],\n        \"output\": json.dumps(tool_responses)\n\
+    \    }\n\n    return json.dumps(tool_output)\n```\n\n### Key Changes:\n- The `tool_responses`\
+    \ are wrapped in a dictionary with the keys `\"type\"`, `\"call_id\"`, and `\"\
+    output\"`.\n- The `\"output\"` key contains a JSON string of the `tool_responses`.\n\
+    - The entire `tool_output` dictionary is returned as a JSON string using `json.dumps`.\n\
+    \nThis ensures that the tool response is properly formatted and includes the `call_id`\
+    \ as specified."
+  created_at: '2025-09-14 15:52:08.999097'
+  disable_knowledge: false
+  doc_id: d994bad7-b093-489b-b30e-70e8e34bf4f0
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00022172927856445312
+    model: openai/gpt-4o
+    time_taken: 9.714638471603394
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-09-14 15:52:08.999120'
+  user: null
+mode: chat
+name: codx-junior tools
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-15T05:05:52.230241'
+url: ''
+users:
+- admin
+visibility: ''

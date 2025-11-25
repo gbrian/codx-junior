@@ -1,0 +1,433 @@
+board: Background Processes
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: ToDo
+column_id: ''
+created_at: '2025-10-27 07:44:45.579564'
+description: The conversation involves managing and testing a Python module for observing
+  file changes in projects using the `watchdog` library. The main script, `watch_project_file_changes.py`,
+  defines functionality to watch project directories for file changes and handle them
+  accordingly. The test script, `watch_project_file_changes.test.py`, contains unit
+  tests for this functionality using the `unittest` framework and mock objects. The
+  user requested to add missing imports to the test file. The task requires ensuring
+  the test script has all necessary imports to function correctly.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/tests/changes/watch_project_file_changes.test.py
+file_path: /shared/codx-junior/api/.codx/tasks/Background Processes/ToDo/watch-project-changes-test.424f21cf-846f-4968-a6e7-ccd70e030686.yaml
+id: 424f21cf-846f-4968-a6e7-ccd70e030686
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'project_search returned:
+
+
+    ```
+
+    ["\n        QUERY: change_manager\n        RETURNED:\n        ```txt /shared/codx-junior/api/codx/junior/changes/change_manager.py\n    /shared/codx-junior/api/codx/junior/changes/change_manager.py\nimport
+    os\nimport time\nimport logging\nimport asyncio\n\nfrom datetime import datetime,
+    timedelta\n\nfrom codx.junior.events.event_manager import EventManager\nfrom codx.junior.knowledge.knowledge_milvus
+    import Knowledge\nfrom codx.junior.globals import (\n  MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,\n  MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS,\n  CODX_JUNIOR_API_BACKGROUND\n)\nfrom
+    codx.junior.mentions.mention_manager import MentionManager\nfrom codx.junior.profiling.profiler
+    import profile_function\nfrom codx.junior.wiki.wiki_manager import WikiManager\nfrom
+    codx.junior.chat_manager import ChatManager\n\nfrom codx.junior.whisper.audio_manager
+    import AudioManager\n\nfrom langchain.schema.document import Document\n\nfrom
+    codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics\n\nlogger = logging.getLogger(__name__)\n\nclass
+    ChangeManager:\n    def __init__(self, settings, event_manager=None):\n        self.settings
+    = settings\n        if not event_manager:\n            event_manager = EventManager(codx_path=settings.codx_path)\n        self.event_manager
+    = event_manager\n        self.mention_manager = MentionManager(settings=settings,
+    event_manager=event_manager)\n        self.knowledge = Knowledge(settings=self.settings)\n        self.wiki_manager
+    = WikiManager(settings=settings)\n        self.audio_manager = AudioManager()\n        self.chat_manager
+    = ChatManager(settings=self.settings)\n\n    @classmethod\n    async def check_mentions_on_all_projects(cls,
+    all_projects):\n        tasks = []\n        for project in all_projects:\n            try:\n                change_manager
+    = ChangeManager(settings=project)\n    ```\n```txt /shared/codx-junior/api/codx/junior/engine.py\n    /shared/codx-junior/api/codx/junior/engine.py\nfile_has_mentions
+    = mention_manager.check_if_file_has_mentions(file_path=file_path)  \n        if
+    file_has_mentions:\n            return\n        is_media_file = self.audio_manager.is_valid_media_file(file_path=file_path)\n        self.log_info(f\"Reload
+    knowledge file {file_path} - is media: {is_media_file}\")\n        \n        if
+    is_media_file:\n            logger.info(f\"Converting media file {file_path}\")\n            transcript_info
+    = self.audio_manager.transcribe_from_file(file_path=file_path)\n            file_path
+    = transcript_info[\"transcript_file_path\"]\n            \n        knowledge.reload_path(path=file_path)\n        self.event_manager.send_knowled_event(type=\"loaded\",
+    file_path=file_path)\n\n        self.get_wiki().process_file_change(file_path=file_path)\n\n    def
+    extract_changes(self, content):\n        for block in extract_json_blocks(content):\n            try:\n                for
+    change in block:\n                    yield change[\"change\"]\n            except:\n                pass\n\n    async
+    def change_file(self, context_documents, query, file_path, org_content, save_changes=False):\n        profile_manager
+    = ProfileManager(settings=self.settings)\n        tasks = \"\\n *\".join(context_documents
+    + [query])\n        request = f\"\"\"Please produce a full version of this ##CONTENT
+    applying the changes requested in the ##TASKS section.\n        The output will
+    replace existing file so write all unchanged lines as well.\n        ##CONTENT:\n        {org_content}\n        \n        ##TASKS:\n        {tasks}\n\n        OUPUT
+    INSTRUCTIONS:\n        {AI_CODE_VALIDATE_RESPONSE_PARSER.get_format_instructions()}\n        \"\"\"\n    ```\n```txt
+    /shared/codx-junior/api/tests/test_change_manager.py\n    /shared/codx-junior/api/tests/test_change_manager.py\nimport
+    time\nimport unittest\nfrom unittest.mock import MagicMock, patch, AsyncMock\nfrom
+    codx.junior.changes.change_manager import ChangeManager\nfrom codx.junior.knowledge.knowledge_milvus
+    import Knowledge\nfrom codx.junior.mentions.mention_manager import MentionManager\n\n\nclass
+    TestChangeManager(unittest.TestCase):\n\n    def setUp(self):\n        self.settings
+    = MagicMock()\n        self.event_manager = MagicMock()\n\n        # Mock settings\n        self.settings.is_valid_project.return_value
+    = True\n        self.settings.project_name = \"TestProject\"\n        self.settings.watching
+    = True\n\n        # Create an instance of ChangeManager\n        self.change_manager
+    = ChangeManager(settings=self.settings, event_manager=self.event_manager)\n\n  \n    @patch.object(Knowledge,
+    ''clean_deleted_documents'')\n    @patch.object(Knowledge, ''detect_changes'')\n    def
+    test_check_project_changes_with_new_files(self, mock_detect_changes, mock_clean_deleted_documents):\n        #
+    Arrange\n        mock_detect_changes.return_value = [\"new_file.py\"]\n\n        #
+    Act\n        result = self.change_manager.check_project_changes()\n\n        #
+    Assert\n        self.assertTrue(result)\n\n    @patch.object(Knowledge, ''clean_deleted_documents'')\n    @patch.object(Knowledge,
+    ''detect_changes'')\n    @patch.object(Knowledge, ''reload_path'')\n    @patch.object(MentionManager,
+    ''check_file_for_mentions'', new_callable=AsyncMock)\n    def test_process_project_changes_with_new_files(self,
+    mock_check_file_for_mentions, mock_reload_path,\n                                                    mock_detect_changes,
+    mock_clean_deleted_documents):\n        # Arrange\n        mock_detect_changes.return_value
+    = ([\"new_file.py\"], None)\n        mock_check_file_for_mentions.return_value
+    = \"processed\"\n\n        # Mock ''os.stat'' to simulate file modification time\n        with
+    patch(''os.stat'') as mock_stat:\n            mock_stat.return_value.st_mtime
+    = time.time() - 10  # File modified 10 seconds ago\n    ```\n        "]
+
+    ```'
+  created_at: '2025-10-27 07:44:45.575354'
+  disable_knowledge: false
+  doc_id: 0bb1df66-2e53-46f6-80b8-aa4d5f9c71eb
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-27 07:44:45.575408'
+  user: null
+- content: 'project_search returned:
+
+
+    ```
+
+    ["\n        QUERY: find_all_projects\n        RETURNED:\n        ```txt /shared/codx-junior/api/codx/junior/project/project_discover.py\n    /shared/codx-junior/api/codx/junior/project/project_discover.py\nimport
+    os\nimport logging\nimport subprocess\n\nfrom threading import Thread\n\nfrom
+    codx.junior.profiling.profiler import profile_function\n\nfrom codx.junior.security.user_management
+    import UserSecurityManager\nfrom codx.junior.settings import CODXJuniorSettings,
+    CODXJuniorProject\nfrom codx.junior.model.model import CodxUser\n\nfrom codx.junior.metrics.codx_junior_metrics
+    import CODXJuniorMetrics\n\nlogger = logging.getLogger(__name__)\n\n_ALL_PROJECTS
+    = None\n_ALL_PROJECTS_PROC = None\ndef find_all_projects():\n    global _ALL_PROJECTS_PROC\n    global
+    _ALL_PROJECTS\n    \n    if not _ALL_PROJECTS_PROC:\n        _ALL_PROJECTS_PROC
+    = Thread(target=_update_all_projects)\n        _ALL_PROJECTS_PROC.start()\n    \n    if
+    not _ALL_PROJECTS and _ALL_PROJECTS_PROC:\n        logger.info(\"Waiting for _ALL_PROJECTS_PROC\")\n        _ALL_PROJECTS_PROC.join(timeout=60)\n    \n    return
+    _ALL_PROJECTS\n\ndef find_project_from_file_path(file_path: str):\n    \"\"\"Given
+    a file path, find the project parent\"\"\"\n    all_projects = find_all_projects().values()\n    matches
+    = [p for p in all_projects if file_path.startswith(p.project_path)]\n    if matches:\n        logger.info(f\"Find
+    projects for file {file_path}: {[m.project_name for m in matches]}\")\n        return
+    sorted(matches, key=lambda p: len(p.project_path))[-1]\n    return None\n  \ndef
+    find_project_by_id(project_id: str):\n    \"\"\"Given a project id, find the project\"\"\"\n    all_projects
+    = find_all_projects().values()\n    matches = [p for p in all_projects if p.project_id
+    == project_id]\n    return matches[0] if matches else None\n\ndef find_project_by_project_path(project_path:
+    str):\n    \"\"\"Given a project id, find the project\"\"\"\n    all_projects
+    = find_all_projects().values()\n    matches = [p for p in all_projects if p.project_path
+    == project_path]\n    return matches[0] if matches else None\n    ```\n```txt
+    /shared/codx-junior/api/codx/junior/project/project_discover.py\n    /shared/codx-junior/api/codx/junior/project/project_discover.py\ndef
+    find_project_by_name(project_name: str):\n    \"\"\"Given a project project_name,
+    find the project\"\"\"\n    all_projects = find_all_projects().values()\n    matches
+    = [p for p in all_projects if p.project_name == project_name]\n    return matches[0]
+    if matches else None\n\ndef find_all_user_projects(user: CodxUser):\n    user_security_manager
+    = UserSecurityManager()\n    all_projects = find_all_projects().values()\n    def
+    find_parent(project_path):\n        all_parents = [p for p in all_projects \\\n                        if
+    project_path.startswith(p.project_path) and \\\n                          project_path
+    != p.project_path]\n        all_parents.sort(key=lambda p: p.project_path)\n        return
+    all_parents[-1] if all_parents else None\n\n    for settings in all_projects:\n        current_settings
+    = settings\n        while current_settings:\n            permissions = user_security_manager.get_user_project_access(user=user,
+    settings=current_settings)\n            if permissions:\n                yield
+    CODXJuniorProject(** {\n                    **settings.__dict__,\n                    \"permissions\":
+    permissions\n                })\n                current_settings = None\n            else:\n                current_settings_name
+    = current_settings.project_name\n                current_settings = find_parent(current_settings.project_path)\n\ndef
+    get_project_dependencies(settings: CODXJuniorSettings):\n    \"\"\"Returns all
+    projects related with this project, including child projects and links\"\"\"\n    project_child_projects
+    = settings.get_sub_projects()\n    project_dependencies = [find_project_by_name(project_name)
+    for project_name in settings.get_project_dependencies()]\n    return project_child_projects,
+    project_dependencies\n\n# private\n@profile_function\ndef _update_all_projects():\n    global
+    _ALL_PROJECTS_PROC\n    global _ALL_PROJECTS\n    ```\n```txt /shared/codx-junior/api/codx/junior/project/project_discover.py\n    /shared/codx-junior/api/codx/junior/project/project_discover.py\ndef
+    find_project_parents(project: CODXJuniorSettings, user: CodxUser = None):\n    all_user_projects
+    = find_all_user_projects(user) if user else find_all_projects().values()\n    project_path
+    = project.project_path\n    all_parents = [p for p in all_user_projects if project_path.startswith(p.project_path)]\n    return
+    all_parents\n    ```\n        "]
+
+    ```'
+  created_at: '2025-10-27 07:44:45.575354'
+  disable_knowledge: false
+  doc_id: b44f65fb-f4b5-405a-a9ba-490df252a39b
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-27 07:44:45.575408'
+  user: null
+- content: 'project_search returned:
+
+
+    ```
+
+    ["\n        QUERY: find_project_from_file_path\n        RETURNED:\n        ```txt
+    /shared/codx-junior/api/codx/junior/project/project_discover.py\n    /shared/codx-junior/api/codx/junior/project/project_discover.py\nimport
+    os\nimport logging\nimport subprocess\n\nfrom threading import Thread\n\nfrom
+    codx.junior.profiling.profiler import profile_function\n\nfrom codx.junior.security.user_management
+    import UserSecurityManager\nfrom codx.junior.settings import CODXJuniorSettings,
+    CODXJuniorProject\nfrom codx.junior.model.model import CodxUser\n\nfrom codx.junior.metrics.codx_junior_metrics
+    import CODXJuniorMetrics\n\nlogger = logging.getLogger(__name__)\n\n_ALL_PROJECTS
+    = None\n_ALL_PROJECTS_PROC = None\ndef find_all_projects():\n    global _ALL_PROJECTS_PROC\n    global
+    _ALL_PROJECTS\n    \n    if not _ALL_PROJECTS_PROC:\n        _ALL_PROJECTS_PROC
+    = Thread(target=_update_all_projects)\n        _ALL_PROJECTS_PROC.start()\n    \n    if
+    not _ALL_PROJECTS and _ALL_PROJECTS_PROC:\n        logger.info(\"Waiting for _ALL_PROJECTS_PROC\")\n        _ALL_PROJECTS_PROC.join(timeout=60)\n    \n    return
+    _ALL_PROJECTS\n\ndef find_project_from_file_path(file_path: str):\n    \"\"\"Given
+    a file path, find the project parent\"\"\"\n    all_projects = find_all_projects().values()\n    matches
+    = [p for p in all_projects if file_path.startswith(p.project_path)]\n    if matches:\n        logger.info(f\"Find
+    projects for file {file_path}: {[m.project_name for m in matches]}\")\n        return
+    sorted(matches, key=lambda p: len(p.project_path))[-1]\n    return None\n  \ndef
+    find_project_by_id(project_id: str):\n    \"\"\"Given a project id, find the project\"\"\"\n    all_projects
+    = find_all_projects().values()\n    matches = [p for p in all_projects if p.project_id
+    == project_id]\n    return matches[0] if matches else None\n\ndef find_project_by_project_path(project_path:
+    str):\n    \"\"\"Given a project id, find the project\"\"\"\n    all_projects
+    = find_all_projects().values()\n    matches = [p for p in all_projects if p.project_path
+    == project_path]\n    return matches[0] if matches else None\n    ```\n```txt
+    /shared/codx-junior/api/codx/junior/api/file_finder.py\n    /shared/codx-junior/api/codx/junior/api/file_finder.py\nimport
+    logging\nimport os\nfrom typing import Dict, Any, Union, List, Optional\n\nfrom
+    fastapi import APIRouter, Request, Depends, UploadFile, Body\nfrom fastapi.responses
+    import FileResponse\n\nfrom codx.junior.engine import (\n  CODXJuniorSession,\n)\n\nfrom
+    codx.junior.utils.utils import path_join\n\nfrom codx.junior.file_manager import
+    FileManager\n\nlogger = logging.getLogger(__name__)\n\nrouter = APIRouter()\n\n@router.get(\"/file-finder\")\nasync
+    def find_files(request: Request) -> Dict:\n    \"\"\"\n    Process file finder
+    requests and return file information based on the request query parameters.\n\n    Args:\n        request
+    (Request): The incoming request object with query parameters.\n\n    Returns:\n        Dict[str,
+    Union[str, List[Dict[str, Any]]]]: A dictionary containing file information.\n    \"\"\"\n    #
+    Retrieve the session from the request state\n    codx_junior_session = request.state.codx_junior_session\n    settings
+    = codx_junior_session.settings\n    file_manager = FileManager(settings=settings)\n    \n    #
+    Extracting query parameters for adapter and path\n    adapter = request.query_params.get(\"adapter\",
+    \"local\")\n    path = request.query_params.get(\"path\", \"/\")\n    search_filter
+    = request.query_params.get(\"filter\")\n    path = path.split(\"://\")[-1]\n    if
+    \"local:\" in path:\n        path = \"/\"\n    q = request.query_params.get(\"q\")\n\n    logger.info(\"Processing
+    file finder request with adapter: %s, path: %s, q: %s\", adapter, path, q)\n\n    if
+    q in [''download'', ''preview'']:\n        file_path = file_manager.get_file_path(path)\n        return
+    FileResponse(file_path)\n\n    try:\n        # Use FileManager to retrieve file
+    information\n        file_response = file_manager.find_files(adapter=adapter,
+    path=path, search=search_filter)\n    except ValueError as e:\n        # Specific
+    exception on file processing\n        logger.error(\"An error occurred: %s\",
+    e)\n        raise Exception(str(e))\n    \n    return file_response\n    ```\n```txt
+    /shared/codx-junior/api/codx/junior/api/wiki.py\n    /shared/codx-junior/api/codx/junior/api/wiki.py\nimport
+    os\nimport logging\nimport datetime\nfrom fastapi import APIRouter, Request, Response,
+    status\nfrom fastapi.responses import FileResponse\n\nfrom typing import Any,
+    Dict\n\nfrom codx.junior.engine import (\n  CODXJuniorSession\n)\n\nfrom codx.junior.project.project_discover
+    import find_project_by_name\n\nfrom codx.junior.security.user_management import
+    UserSecurityManager, get_authenticated_user\nfrom codx.junior.model.model import
+    CodxUser, CodxUserLogin\n\nfrom codx.junior.wiki.wiki_manager import WikiManager\n\nfrom
+    codx.junior.sio.sio import (\n  sio,\n  sio_api_endpoint,\n  sio_send_event\n)\n\nlogger
+    = logging.getLogger(__name__)\n\nrouter = APIRouter()\n\n@router.get(\"/wiki/{project_name}/{wiki_path:path}\")\nasync
+    def wiki_page(request: Request, project_name: str, wiki_path: str, response: Response):\n    project
+    = find_project_by_name(project_name)\n    if not project or not project.project_wiki:\n        raise
+    Exception(\"Project has no wiki\")\n\n    if not wiki_path:\n        wiki_path
+    = \"index.html\"\n    dist_path = CODXJuniorSession(settings=project).get_wiki().dist_dir    \n    file_path
+    = f\"{dist_path}/{wiki_path}\"\n    if os.path.isfile(file_path):\n        return
+    FileResponse(file_path)\n    response.status_code = status.HTTP_404_NOT_FOUND\n\n@sio.on(\"codx-junior-wiki\")\n@sio_api_endpoint\nasync
+    def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):\n    wiki_manager
+    = codxjunior_session.get_wiki()\n    step = data.get(\"step\")\n    file_path
+    = data.get(\"file_path\")\n    ```\n        "]
+
+    ```'
+  created_at: '2025-10-27 07:44:45.575354'
+  disable_knowledge: false
+  doc_id: 1b5a4b24-172b-4145-96a9-c22cc18fe6fd
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-27 07:44:45.575408'
+  user: null
+- content: Add missing imports to test file
+  created_at: '2025-10-27 07:47:38.132872'
+  disable_knowledge: true
+  doc_id: d8ffae6d-f29a-4ef3-99ec-70a59174a126
+  done: true
+  files:
+  - /shared/codx-junior/api/tests/changes/watch_project_file_changes.test.py
+  - /shared/codx-junior/api/tests/changes/watch_project_file_changes.test.py
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-27 07:47:38.132898'
+  user: admin
+- content: 'project_search returned:
+
+
+    ```
+
+    ["\n        QUERY: find_all_projects\n        RETURNED:\n        ```txt /shared/codx-junior/api/codx/junior/project/project_discover.py\n    /shared/codx-junior/api/codx/junior/project/project_discover.py\nimport
+    os\nimport logging\nimport subprocess\n\nfrom threading import Thread\n\nfrom
+    codx.junior.profiling.profiler import profile_function\n\nfrom codx.junior.security.user_management
+    import UserSecurityManager\nfrom codx.junior.settings import CODXJuniorSettings,
+    CODXJuniorProject\nfrom codx.junior.model.model import CodxUser\n\nfrom codx.junior.metrics.codx_junior_metrics
+    import CODXJuniorMetrics\n\nlogger = logging.getLogger(__name__)\n\n_ALL_PROJECTS
+    = None\n_ALL_PROJECTS_PROC = None\ndef find_all_projects():\n    global _ALL_PROJECTS_PROC\n    global
+    _ALL_PROJECTS\n    \n    if not _ALL_PROJECTS_PROC:\n        _ALL_PROJECTS_PROC
+    = Thread(target=_update_all_projects)\n        _ALL_PROJECTS_PROC.start()\n    \n    if
+    not _ALL_PROJECTS and _ALL_PROJECTS_PROC:\n        logger.info(\"Waiting for _ALL_PROJECTS_PROC\")\n        _ALL_PROJECTS_PROC.join(timeout=60)\n    \n    return
+    _ALL_PROJECTS\n\ndef find_project_from_file_path(file_path: str):\n    \"\"\"Given
+    a file path, find the project parent\"\"\"\n    all_projects = find_all_projects().values()\n    matches
+    = [p for p in all_projects if file_path.startswith(p.project_path)]\n    if matches:\n        logger.info(f\"Find
+    projects for file {file_path}: {[m.project_name for m in matches]}\")\n        return
+    sorted(matches, key=lambda p: len(p.project_path))[-1]\n    return None\n  \ndef
+    find_project_by_id(project_id: str):\n    \"\"\"Given a project id, find the project\"\"\"\n    all_projects
+    = find_all_projects().values()\n    matches = [p for p in all_projects if p.project_id
+    == project_id]\n    return matches[0] if matches else None\n\ndef find_project_by_project_path(project_path:
+    str):\n    \"\"\"Given a project id, find the project\"\"\"\n    all_projects
+    = find_all_projects().values()\n    matches = [p for p in all_projects if p.project_path
+    == project_path]\n    return matches[0] if matches else None\n    ```\n```txt
+    /shared/codx-junior/api/codx/junior/project/project_discover.py\n    /shared/codx-junior/api/codx/junior/project/project_discover.py\ndef
+    find_project_by_name(project_name: str):\n    \"\"\"Given a project project_name,
+    find the project\"\"\"\n    all_projects = find_all_projects().values()\n    matches
+    = [p for p in all_projects if p.project_name == project_name]\n    return matches[0]
+    if matches else None\n\ndef find_all_user_projects(user: CodxUser):\n    user_security_manager
+    = UserSecurityManager()\n    all_projects = find_all_projects().values()\n    def
+    find_parent(project_path):\n        all_parents = [p for p in all_projects \\\n                        if
+    project_path.startswith(p.project_path) and \\\n                          project_path
+    != p.project_path]\n        all_parents.sort(key=lambda p: p.project_path)\n        return
+    all_parents[-1] if all_parents else None\n\n    for settings in all_projects:\n        current_settings
+    = settings\n        while current_settings:\n            permissions = user_security_manager.get_user_project_access(user=user,
+    settings=current_settings)\n            if permissions:\n                yield
+    CODXJuniorProject(** {\n                    **settings.__dict__,\n                    \"permissions\":
+    permissions\n                })\n                current_settings = None\n            else:\n                current_settings_name
+    = current_settings.project_name\n                current_settings = find_parent(current_settings.project_path)\n\ndef
+    get_project_dependencies(settings: CODXJuniorSettings):\n    \"\"\"Returns all
+    projects related with this project, including child projects and links\"\"\"\n    project_child_projects
+    = settings.get_sub_projects()\n    project_dependencies = [find_project_by_name(project_name)
+    for project_name in settings.get_project_dependencies()]\n    return project_child_projects,
+    project_dependencies\n\n# private\n@profile_function\ndef _update_all_projects():\n    global
+    _ALL_PROJECTS_PROC\n    global _ALL_PROJECTS\n    ```\n```txt /shared/codx-junior/api/codx/junior/project/project_discover.py\n    /shared/codx-junior/api/codx/junior/project/project_discover.py\ndef
+    find_project_parents(project: CODXJuniorSettings, user: CodxUser = None):\n    all_user_projects
+    = find_all_user_projects(user) if user else find_all_projects().values()\n    project_path
+    = project.project_path\n    all_parents = [p for p in all_user_projects if project_path.startswith(p.project_path)]\n    return
+    all_parents\n    ```\n        "]
+
+    ```'
+  created_at: '2025-10-27 07:47:38.132872'
+  disable_knowledge: false
+  doc_id: 66bd705d-d941-4851-af0a-2a3840d507cd
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-27 07:47:38.132898'
+  user: null
+- content: "To add the missing imports to the test file, you need to ensure that all\
+    \ necessary modules and classes used in the tests are imported. Based on the provided\
+    \ code, here's the updated test file with the necessary imports:\n\n```python\
+    \ /shared/codx-junior/api/tests/changes/watch_project_file_changes.test.py\nimport\
+    \ unittest\nfrom unittest.mock import patch, MagicMock\nfrom codx.junior.changes.watch_project_file_changes\
+    \ import WatchProjectFileChanges, get_common_path_and_merged_ignores\n\n# TESTS\n\
+    class TestWatchProjectFileChanges(unittest.TestCase):\n    def setUp(self):\n\
+    \        self.watcher = WatchProjectFileChanges()\n\n    @patch('codx.junior.project.project_discover.find_all_projects')\n\
+    \    def test_grouping_projects(self, mock_find_all_projects):\n        mock_find_all_projects.return_value\
+    \ = {\n            'project1': MagicMock(project_path='/path/to/project1', knowledge_file_ignore=['ignore1']),\n\
+    \            'project2': MagicMock(project_path='/path/to/project2', knowledge_file_ignore=['ignore2']),\n\
+    \            'project3': MagicMock(project_path='/path/to/project1/subproject',\
+    \ knowledge_file_ignore=['ignore3']),\n        }\n        project_groups = list(get_common_path_and_merged_ignores(mock_find_all_projects().values()))\n\
+    \        self.assertEqual(len(project_groups), 2)\n        self.assertIn('/path/to/project1',\
+    \ [group[0] for group in project_groups])\n        self.assertIn('/path/to/project2',\
+    \ [group[0] for group in project_groups])\n        for path, ignores in project_groups:\n\
+    \            if path == '/path/to/project1':\n                self.assertEqual(ignores,\
+    \ {'ignore1', 'ignore3'})\n            elif path == '/path/to/project2':\n   \
+    \             self.assertEqual(ignores, {'ignore2'})\n\n    @patch('codx.junior.project.project_discover.find_all_projects')\n\
+    \    def test_observers_are_recreated(self, mock_find_all_projects):\n       \
+    \ mock_find_all_projects.return_value = {\n            'project1': MagicMock(project_path='/path/to/project1',\
+    \ knowledge_file_ignore=[]),\n            'project2': MagicMock(project_path='/path/to/project2',\
+    \ knowledge_file_ignore=[]),\n        }\n        self.watcher.check_for_new_projects()\n\
+    \        self.assertEqual(len(self.watcher.observers), 2)\n\n        # Update\
+    \ projects to only one\n        mock_find_all_projects.return_value = {\n    \
+    \        'project1': MagicMock(project_path='/path/to/project1', knowledge_file_ignore=[]),\n\
+    \        }\n        self.watcher.check_for_new_projects()\n        self.assertEqual(len(self.watcher.observers),\
+    \ 1)\n\n        # Now test with 4 projects, 2 sharing the same parent path\n \
+    \       mock_find_all_projects.return_value = {\n            'project1': MagicMock(project_path='/path/to/project1',\
+    \ knowledge_file_ignore=[]),\n            'project2': MagicMock(project_path='/path/to/project2',\
+    \ knowledge_file_ignore=[]),\n            'project3': MagicMock(project_path='/path/to/project1/subproject1',\
+    \ knowledge_file_ignore=[]),\n            'project4': MagicMock(project_path='/path/to/project3',\
+    \ knowledge_file_ignore=[]),\n        }\n        self.watcher.check_for_new_projects()\n\
+    \        self.assertEqual(len(self.watcher.observers), 3)\n\nif __name__ == '__main__':\n\
+    \    unittest.main()\n```\n\nThis updated test file includes the necessary imports\
+    \ from the `watch_project_file_changes` module and the `unittest.mock` module."
+  created_at: '2025-10-27 07:47:38.132872'
+  disable_knowledge: false
+  doc_id: 89abca23-71b1-43dc-bb97-890e099a0375
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.1556532382965088
+    model: openai/gpt-4o
+    time_taken: 33.37980532646179
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-10-27 07:47:38.132898'
+  user: null
+mode: task
+name: Watch project changes test
+parent_id: 6da4d447-96f2-4a78-b0b4-39ed892c5f4f
+pinned: false
+pr_view: {}
+profiles: []
+project_id: ac9804d5-fcb2-4026-81c0-61f2308f6380
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-30T18:50:28.531791'
+url: ''
+users:
+- admin
+visibility: ''

@@ -50,10 +50,18 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         </div>
 
         <div class="flex justify-between mb-2">
+          <div class="label-text">Wiki</div>
+          <div class="w-2/3">
+            <input v-model="settings.project_wiki" type="checkbox" class="toggle" />
+            <div class="text-xs">Generate project's wiki</div>
+          </div>
+        </div>
+
+        <div class="flex justify-between mb-2">
           <div class="label-text">Wiki path</div>
           <div class="w-2/3">
-            <input v-model="settings.project_wiki" type="text" class="input input-bordered w-full" />
-            <div class="text-xs">The link to the project's wiki for documentation.</div>
+            <input v-model="settings.project_wiki_path" type="text" class="input input-bordered w-full" />
+            <div class="text-xs">Project's wiki folder.</div>
           </div>
         </div>
 

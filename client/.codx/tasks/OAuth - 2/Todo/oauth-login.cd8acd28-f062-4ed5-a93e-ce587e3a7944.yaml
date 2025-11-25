@@ -1,0 +1,336 @@
+board: OAuth - 2
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Todo
+column_id: ''
+created_at: '2025-08-30 16:43:53.391710'
+description: 'The conversation was about adding GitHub login functionality to an existing
+  application. Changes were made in three areas:
+
+
+  1. Updated the `Login.vue` component to include a "Login with GitHub" button and
+  handle GitHub login.
+
+  2. Modified the `users.js` store to support GitHub login actions.
+
+  3. Enhanced the `api.js` to handle OAuth provider information during the login process.'
+doc_id: null
+file_list:
+- /home/codx-junior/codx-junior/client/src/components/user/Login.vue
+- /home/codx-junior/codx-junior/client/src/store/users.js
+- /home/codx-junior/codx-junior/client/src/api/api.js
+file_path: /shared/codx-junior/client/.codx/tasks/OAuth - 2/Todo/oauth-login.cd8acd28-f062-4ed5-a93e-ce587e3a7944.yaml
+id: cd8acd28-f062-4ed5-a93e-ce587e3a7944
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Add the option to login using github, it will the add the aouth_priver:
+    "github" to the login post
+
+    Make the changes to the component, store and api'
+  created_at: '2025-08-30 16:43:53.389655'
+  disable_knowledge: true
+  doc_id: 2f4179cc-c687-4b95-af44-dca517d9354f
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 16:43:53.389682'
+  user: admin
+- content: "Add the option to login using github, it will the add the aouth_priver:\
+    \ \"github\" to the login post\nMake the changes to the component, store and api\n\
+    \                    Create new document based on user comments.\n           \
+    \         User comments:\n                    Add the option to login using github,\
+    \ it will the add the aouth_priver: \"github\" to the login post\nMake the changes\
+    \ to the component, store and api\n                    Important: Always return\
+    \ the markdown document without any comments before or after, to keep it clean."
+  created_at: '2025-08-30 16:43:53.389655'
+  disable_knowledge: false
+  doc_id: c5b0814e-55ff-40ee-8a49-883480b46e64
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 16:43:53.389682'
+  user: null
+- content: "```vue /home/codx-junior/codx-junior/client/src/components/user/Login.vue\n\
+    <script setup>\n</script>\n<template>\n  <div class=\"w-full h-full flex flex-col\
+    \ items-center justify-center gap-4 p-4\">\n    <form @submit.prevent=\"handleLogin\"\
+    \ class=\"card w-full max-w-md shadow-lg p-6 rounded-lg bg-base-300/80\">\n  \
+    \    <h2 class=\"text-3xl lg:text-5xl font-semibold mb-4 flex gap-2 items-center\
+    \ text-nowrap\">\n        <div class=\"avatar\">\n          <div class=\"w-24\
+    \ rounded-full\">\n            <img src=\"/only_icon.png\" />\n          </div>\n\
+    \        </div>\n        codx-junior\n      </h2>\n      <div class=\"form-control\
+    \ mb-4\">\n        <label class=\"label\">\n          <span class=\"label-text\"\
+    >Username</span>\n        </label>\n        <input type=\"text\" v-model=\"username\"\
+    \ class=\"input input-bordered w-full\" placeholder=\"Enter your username\" required\
+    \ />\n      </div>\n      <div class=\"form-control mb-6\">\n        <label class=\"\
+    label\">\n          <span class=\"label-text\">Password</span>\n        </label>\n\
+    \        <input type=\"password\" v-model=\"password\" class=\"input input-bordered\
+    \ w-full\" placeholder=\"Enter your password\" required />\n      </div>\n   \
+    \   <button type=\"submit\" class=\"btn btn-primary w-full\">Login</button>\n\
+    \    </form>\n    <button @click=\"handleGithubLogin\" class=\"btn btn-secondary\
+    \ w-full\">Login with GitHub</button>\n  </div>\n</template>\n<script>\nexport\
+    \ default {\n  data() {\n    return { \n      username: '', \n      password:\
+    \ '' \n    }\n  },\n  methods: {\n    async handleLogin() {\n      if (this.username\
+    \ && this.password) {\n        const { username, password } = this\n        await\
+    \ this.$users.login({ username, password })\n        if (!this.$user) {\n    \
+    \      this.$storex.session.onError(\"Invalid user name or password\")\n     \
+    \   }\n        window.location.reload()\n      }\n    },\n    handleGithubLogin()\
+    \ {\n      this.$users.login({ oauth_provider: \"github\" })\n    }\n  }\n}\n\
+    </script>\n```\n\n```js /home/codx-junior/codx-junior/client/src/store/users.js\n\
+    import { getterTree, mutationTree, actionTree } from 'typed-vuex'\nimport { $storex\
+    \ } from '.'\n\nexport const namespaced = true\n\nimport { API } from '../api/api'\n\
+    export const state = () => ({\n  onlineUsers: {}\n})\n\nexport const getters =\
+    \ getterTree(state, {\n  user: () => API.user,\n  isAdmin: () => API.user?.role\
+    \ === 'admin',\n  allUsers: ({ codxJunior, users }) => codxJunior ? [ codxJunior,\
+    \ ...users ] : [],\n  codxJunior: () => (      state.codxJunior = { \n       \
+    \ userName: \"codx-junior\", \n        avatar: API.globalSettings?.codx_junior_avatar\n\
+    \      })\n})\n\nexport const mutations = mutationTree(state, {\n  setOnlineUsers(state,\
+    \ users) {\n    state.onlineUsers = users\n  }\n})\n\nexport const actions = actionTree(\n\
+    \  { state, getters, mutations },\n  {\n    async init ({ state }, $storex) {\n\
+    \    },\n    async login({ _ }, user) {\n      try {\n        await API.users.login(user)\n\
+    \      } catch(ex) {\n        $storex.session.onError(\"Login error\")\n     \
+    \ }\n      $storex.init()\n    },\n    async logout() {\n      await API.users.logout()\n\
+    \      $storex.init()\n    },\n    async saveUser({ state }, user) {\n      await\
+    \ API.users.save(user)\n      $storex.session.onInfo(\"User account updated\"\
+    )\n    }\n  }\n)\n```\n\n```js /home/codx-junior/codx-junior/client/src/api/api.js\n\
+    import axios from 'axios'\n\n\nlet interceptors = {\n  request: [],\n  response:\
+    \ []\n}\n\nclass CodxJuniorConnection {\n  constructor({ settings, user } = {})\
+    \ {\n    this.user = user\n    this.settings = settings || {};    \n  }\n\n  get\
+    \ headers() {\n    return {\n      \"x-sid\": this.settings.sid,\n      \"Authentication\"\
+    : `Bearer ${this.user?.token}`\n    };\n  }\n\n  createConnection() {\n    this.axiosInstance\
+    \ = axios.create({});\n    this.liveRequests = 0;\n\n    this.axiosInstance.interceptors.request.use(...interceptors.request);\n\
+    \    this.axiosInstance.interceptors.response.use(...interceptors.response);\n\
+    \  }\n  \n  prepareUrl(url) {\n    const query = `codx_path=${encodeURIComponent(this.settings?.codx_path)}`;\n\
+    \    if (url.indexOf(\"codx_path\") === -1) {\n      let [path, params] = url.split(\"\
+    ?\");\n      if (params) {\n        params += `&${query}`;\n      } else {\n \
+    \       params = query;\n      }\n      url = `${path}?${params}`;\n      return\
+    \ url;\n    }\n    return url;\n  }\n\n  get(url) {\n    this.createConnection()\n\
+    \    this.liveRequests++;\n    return this.axiosInstance.get(this.prepareUrl(url),\
+    \ { headers: this.headers })\n      .then(({ data }) => data)\n      .finally(()\
+    \ => this.liveRequests--);\n  }\n\n  del(url) {\n    this.createConnection()\n\
+    \    this.liveRequests++;\n    return this.axiosInstance.delete(this.prepareUrl(url),\
+    \ { headers: this.headers })\n      .finally(() => this.liveRequests--);\n  }\n\
+    \n  post(url, data) {\n    this.createConnection()\n    this.liveRequests++;\n\
+    \    return this.axiosInstance.post(this.prepareUrl(url), data, { headers: this.headers\
+    \ })\n      .then(({ data }) => data)\n      .finally(() => this.liveRequests--);\n\
+    \  }\n\n  put(url, data) {\n    this.createConnection()\n    this.liveRequests++;\n\
+    \    return this.axiosInstance.put(this.prepareUrl(url), data, { headers: this.headers\
+    \ })\n          .then(({ data }) => data)\n          .finally(() => this.liveRequests--);\n\
+    \  }\n\n  delete(url) {\n    this.createConnection()\n    this.liveRequests++;\n\
+    \    return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers\
+    \ })\n          .then(({ data }) => data)\n          .finally(() => this.liveRequests--);\n\
+    \  }\n}\n\nconst initializeAPI = ({ project, user } = {}) => {\n  const API =\
+    \ {\n    sid: \"\",\n    connection: null,\n    _user: user,\n    get user ()\
+    \ {\n      return API._user\n    },\n    set user(user) {\n      API._user = user\n\
+    \      API.initConnection()\n    },\n    _activeProject: project,\n    get activeProject()\
+    \ {\n      return this._activeProject\n    },\n    set activeProject(value) {\n\
+    \      this._activeProject = value\n      API.initConnection()\n    },\n    get\
+    \ headers() {\n      return {\n        \"x-sid\": API.sid,\n        \"Authentication\"\
+    : `Bearer ${API.user?.token}`\n      };\n    },\n    set interceptors(value) {\n\
+    \      interceptors = value\n    },\n    initConnection() {\n      API.connection\
+    \ = new CodxJuniorConnection({\n        settings: API.activeProject,\n       \
+    \ user: API.user\n      })\n    },\n    get(url) {\n      return API.connection.get(url)\n\
+    \    },\n    del(url) {\n      return API.connection.del(url)\n    },\n    post(url,\
+    \ data) {\n      return API.connection.post(url, data)\n    },\n    put(url, data)\
+    \ {\n      return API.connection.put(url, data)\n    },\n    delete(url) {\n \
+    \     return API.connection.delete(url)\n    },\n    users: {\n      async list()\
+    \ {\n        API.userNetwork = await API.get('/api/users');\n      },\n      async\
+    \ login(user) {\n        if (!user) {\n          try {\n            user = API.user\
+    \ = JSON.parse(localStorage.getItem(\"CODX_USER\"))\n            API.initConnection()\n\
+    \          }catch{}\n          if (!user) {\n            return null\n       \
+    \   } \n        }\n        const data = await API.post('/api/users/login', user);\n\
+    \        API.user = data;\n        localStorage.setItem(\"CODX_USER\", JSON.stringify(API.user))\n\
+    \        await API.onUserLogin()\n        return data;\n      },\n      async\
+    \ save(user) {\n        const data = await API.put('/api/users', user);\n    \
+    \    API.user = data;\n        localStorage.setItem(\"CODX_USER\", JSON.stringify(API.user))\n\
+    \        return data;\n      },\n      async logout() {\n        API.user = null;\n\
+    \        API.activeProject = {}\n        localStorage.removeItem(\"CODX_USER\"\
+    )\n      }\n    },\n    apps: {\n      async list() {\n        const apps = await\
+    \ API.get('/api/apps');\n        return apps;\n      },\n      async run(appName)\
+    \ {\n        const data = await API.get(`/api/apps/run?app=${appName}`);\n   \
+    \     return data;\n      },\n      async runScript(script) {\n        const data\
+    \ = await API.post('/api/run/script', { script });\n        return data;\n   \
+    \   }\n    },\n    async project(projectOrId) {\n      if (!projectOrId.codx_path)\
+    \ {\n        projectOrId = API.allProjects.find(p => p.id === projectOrId || p.project_name\
+    \ === projectOrId) \n      }\n      if (projectOrId.codx_path === API.settings.codx_path)\
+    \ {\n        return API\n      }\n      return initializeAPI({ ...API, project:\
+    \ projectOrId })\n    },\n    projects: {\n      async list(withMetrics) {\n \
+    \       const data = await API.get(`/api/projects?with_metrics=${withMetrics ?\
+    \ 1 : 0}`);\n        API.allProjects = data;\n        return API.allProjects;\n\
+    \      },\n      create(projectPath) {\n        return API.post('/api/projects?project_path='\
+    \ + encodeURIComponent(projectPath), {});\n      },\n      delete() {\n      \
+    \  localStorage.setItem(\"API_SETTINGS\", \"\");\n        API.del('/api/projects');\n\
+    \        API.activeProject = null;\n      },\n      async readme() {\n       \
+    \ const data = await API.get('/api/projects/readme');\n        return data;\n\
+    \      },\n      watch(watching) {\n        API.activeProject.watching = watching\n\
+    \        API.settings.save()\n      },\n      test() {\n        return API.get('/api/project/script/test');\n\
+    \      },\n      async branches() {\n        const branches = await API.get('/api/projects/repo/branches');\n\
+    \        return branches;\n      },\n      helpWantedIssues() {\n        return\
+    \ API.get('/api/github/issues/help-wanted')\n      },\n      loadIssue(url) {\n\
+    \        return API.get('/api/github/issues/read?issue_url=' + encodeURIComponent(url))\
+    \ \n      },\n      ai: {\n        models: {\n          list() {\n           \
+    \ return API.get('/api/projects/ai/models')\n          }\n        }\n      }\n\
+    \    },\n    settings: {\n      async read() {\n        const data = await API.get('/api/settings');\n\
+    \        API.activeProject = { ...API.activeProject || {}, ...data };\n      \
+    \  if (API.activeProject) {\n          localStorage.setItem(\"API_SETTINGS\",\
+    \ JSON.stringify(data));\n        }\n        return data;\n      },\n      async\
+    \ save(settings) {\n        await API.put('/api/settings?', settings || API.activeProject);\n\
+    \        return API.settings.read();\n      },\n      global: {\n        async\
+    \ read() {\n          const data = await API.get('/api/global/settings');\n  \
+    \        API.globalSettings = data;\n          return data;\n        },\n    \
+    \    async write(settings) {\n          await API.post('/api/global/settings',\
+    \ settings);\n          return API.settings.global.read();\n        }\n      }\n\
+    \    },\n    knowledge: {\n      status() {\n        return API.get('/api/knowledge/status');\n\
+    \      },\n      reload() {\n        return API.get('/api/knowledge/reload');\n\
+    \      },\n      reloadFolder(path) {\n        return API.post(`/api/knowledge/reload-path`,\
+    \ { path });\n      },\n      search({\n        searchTerm: search_term,\n   \
+    \     searchType: search_type,\n        documentSearchType: document_search_type,\n\
+    \        cutoffScore: document_cutoff_score,\n        cutoffRag: document_cutoff_rag,\n\
+    \        documentCount: document_count\n      }) {\n        return API.post(`/api/knowledge/reload-search`,\
+    \ {\n          search_term,\n          search_type,\n          document_search_type,\n\
+    \          document_cutoff_score,\n          document_cutoff_rag,\n          document_count\n\
+    \        });\n      },\n      delete(sources) {\n        return API.post(`/api/knowledge/delete`,\
+    \ { sources });\n      },\n      deleteIndex(index) {\n        return API.del(`/api/knowledge/delete?index=${index}`);\n\
+    \      },\n      keywords() {\n        return API.get(`/api/knowledge/keywords`);\n\
+    \      },\n      searchKeywords(searchQuery) {\n        return API.get(`/api/knowledge/keywords?query=${searchQuery}`);\n\
+    \      }\n    },\n    chats: {\n      stream() {\n        return API.get('/api/stream');\n\
+    \      },\n      async list() {\n        const data = await API.get('/api/chats');\n\
+    \        return data;\n      },\n      async loadChat({ id, file_path }) {\n \
+    \       const data = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id\
+    \ || ''}`);\n        return data;\n      },\n      async newChat() {\n       \
+    \ return {\n          id: new Date().getTime(),\n          name: \"New chat\"\n\
+    \        };\n      },\n      async message(chat) {\n        return API.post('/api/chats?',\
+    \ chat);\n      },\n      async fromUrl(chat) {\n        return API.post('/api/chats/from-url?',\
+    \ chat);\n      },\n      async subTasks(chat) {\n        return API.post('/api/chats/sub-tasks?',\
+    \ chat);\n      },\n      save(chat) {\n        return API.put(`/api/chats?chatonly=0`,\
+    \ chat);\n      },\n      saveChatInfo(chat) {\n        return API.put(`/api/chats?chatonly=1`,\
+    \ chat);\n      },\n      delete(chat) {\n        return API.del(`/api/chats?chat_id=${chat.id}`);\n\
+    \      },\n      kanban: {\n        async load() {\n          const kanban = await\
+    \ API.get('/api/kanban');\n          return kanban;\n        },\n        async\
+    \ save(kanban) {\n          API.post('/api/kanban', kanban);\n        },\n   \
+    \     delete(kanban_title) {\n          API.delete('/api/kanban?kanban_title='\
+    \ + kanban_title);\n        }\n      }\n    },\n    run: {\n      improve(chat)\
+    \ {\n        return API.post('/api/run/improve?', chat);\n      },\n      patch(patch)\
+    \ {\n        return API.post('/api/run/improve/patch?', patch).then(({ data })\
+    \ => data);\n      },\n      edit(chat) {\n        return API.post('/api/run/edit?',\
+    \ chat);\n      },\n      liveEdit({ chat, html, url, message }) {\n        return\
+    \ API.post('/api/run/live-edit?', { chat_name: chat.name, html, url, message });\n\
+    \      },\n      changesSummary({ branch, rebuild }) {\n        return API.get(`/api/run/changes/summary?branch=${branch}&refresh=${rebuild}`).then(({\
+    \ data }) => data);\n      }\n    },\n    profiles: {\n      list() {\n      \
+    \  return API.get('/api/profiles');\n      },\n      load(name) {\n        return\
+    \ API.get(`/api/profiles/${name}`);\n      },\n      save(profile) {\n       \
+    \ return API.post(`/api/profiles`, profile);\n      },\n      async delete(name)\
+    \ {\n        await API.del(`/api/profiles/${name}`);\n      }\n    },\n    coder:\
+    \ {\n      openFile(file) {\n        API.get(`/api/code-server/file/open?file_name=${encodeURIComponent(file)}`);\n\
+    \      }\n    },\n    images: {\n      async upload(file) {\n        let formData\
+    \ = new FormData();\n        formData.append(\"file\", file);\n        const url\
+    \ = await API.post(`/api/images`, formData);\n        return window.location.origin\
+    \ + url;\n      }\n    },\n    data: {\n      rawQuery({ filter, limit }) {\n\
+    \        return API.get(`/api//data/query?search_filter=${filter}&limit=${limit}`)\n\
+    \      }\n    },\n    wiki: {\n      read(path) {\n        return API.get(`/api/wiki?file_path=${path}`);\n\
+    \      },\n      rebuild() {\n        return API.get('/api/wiki-engine/rebuild')\n\
+    \      },\n      build(settings) {\n        const search = Object.keys(settings).map(k\
+    \ => `${k}=${settings[k]}`).join(\"&\")\n        return API.get('/api/wiki-engine/build?'\
+    \ + search)\n      },\n      config() {\n        return API.get('/api/wiki-engine/config')\n\
+    \      },\n      save(wikiSettings) {\n        return API.put('/api/wiki-engine',\
+    \ wikiSettings)\n      }\n    },\n    engine: {\n      update() {\n        return\
+    \ API.get('/api/update');\n      }\n    },\n    browser: {\n      message(chat)\
+    \ {\n        return API.post('/api/browser', chat);\n      },\n    },\n    tools:\
+    \ {\n      async imageToText(file) {\n        const formData = new FormData();\n\
+    \        formData.append(\"file\", file);\n        return (await API.post(`/api/image-to-text`,\
+    \ formData)).data;\n      }\n    },\n    async onUserLogin() {\n      API.allProjects\
+    \ = await API.projects.list()\n      try {\n        const activeProject = JSON.parse(localStorage.getItem(\"\
+    API_SETTINGS\"))\n        API.activeProject = API.allProjects.find(p => p.project_id\
+    \ === activeProject.project_id)\n      } catch {}\n      if (!API.activeProject\
+    \ && API.allProjects.length) {\n        API.activeProject = API.allProjects[0]\n\
+    \      }\n      await Promise.all([\n        API.screen.getScreenResolution(),\n\
+    \        API.settings.global.read(),\n        API.users.list()\n      ])\n   \
+    \ },\n    async setActiveProject({ project_id }) {\n      if (project_id !== API.activeProject?.project_id)\
+    \ {\n        API.activeProject = API.allProjects?.find(p => p.project_id === project_id)\n\
+    \        await API.settings.read()\n      }\n      return API\n    },\n    logs:\
+    \ {\n      async read(logName, size) {\n        return API.get(`/api/logs/${logName}?log_size=${size}`);\n\
+    \      },\n      async list() {\n        return API.get('/api/logs');\n      }\n\
+    \    },\n    files: {\n      list(path) {\n        return API.get(`/api/files?path=${path}`);\n\
+    \      },\n      read(path) {\n        return API.get(`/api/files/read?path=${path}`);\n\
+    \      },\n      diff({ path, content }) {\n        return API.post(`/api/files/diff`,\
+    \ { path, content });\n      },\n      search(search) {\n        return API.get(`/api/files/find?search=${search}`);\n\
+    \      },\n      write(source, page_content) {\n        return API.post(`/api/files/write?path=${source}`,\
+    \ { page_content, metadata: { source } });\n      }\n    },\n    screen: {\n \
+    \     display: null,\n      async setScreenResolution(resolution) {\n        await\
+    \ API.post('/api/screen', { resolution });\n        return API.screen.getScreenResolution();\n\
+    \      },\n      async getScreenResolution() {\n        const display = await\
+    \ API.get('/api/screen');\n        API.screen.display = display;\n        return\
+    \ API.screen.display;\n      }\n    },\n    async restart() {\n      await API.post(\"\
+    /api/restart\");\n      let waitTime = 3;\n      return new Promise((ok, ko) =>\
+    \ {\n        const ix = setInterval(async () => {\n          if (--waitTime) {\n\
+    \            try {\n              await API.init();\n              clearInterval(ix);\n\
+    \              ok();\n            } catch { }\n          } else {\n          \
+    \  clearInterval(ix);\n            ko();\n          }\n        }, 5000);\n   \
+    \   });\n    },\n    get permissions () {\n      const permissions = API.activeProject?.permissions\
+    \ || []\n      const isAdmin = API.user?.role === 'admin'\n      const isProjectAdmin\
+    \ = permissions.includes(\"admin\")\n      return {\n        isAdmin,\n      \
+    \  isProjectAdmin\n      }\n    }\n  };\n  API.initConnection()\n  return API;\n\
+    };\n\nexport const API = initializeAPI()\n```"
+  created_at: '2025-08-30 16:43:53.389655'
+  disable_knowledge: false
+  doc_id: 2b04b8a0-d6d7-4f74-9018-7cb16a8ffda3
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00026607513427734375
+    model: openai/gpt-4o
+    time_taken: 121.55995512008667
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-08-30 16:43:53.389682'
+  user: null
+mode: task
+name: OAuth login
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-07T09:15:48.433145'
+url: ''
+users:
+- admin
+visibility: ''

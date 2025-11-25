@@ -1,0 +1,270 @@
+board: OAuth
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Done
+column_id: ''
+created_at: '2025-08-30 14:15:50.876894'
+description: The user provided a Python script that defines various models using Pydantic
+  to manage configurations and data for a project. They specifically requested the
+  addition of an OAuth provider list to the global settings, specifying the need for
+  attributes like name, client_id, and secret. The script was updated accordingly
+  to include an `OAuthProvider` model and a corresponding field in the `GlobalSettings`
+  class. The modified script encapsulates various configurations, AI models, providers,
+  user profiles, and other settings pertinent to the project's functionality. The
+  response was formatted to adhere to the specified file and path guidelines provided
+  by the user.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/model/model.py
+file_path: /shared/codx-junior/api/.codx/tasks/OAuth/Done/integrate-github-oauth.4dd38b56-dc25-419b-ba81-77bc1d7008d9.yaml
+id: 4dd38b56-dc25-419b-ba81-77bc1d7008d9
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Add OAuth provider list to global settings with:
+
+    * name
+
+    * client_id
+
+    * secret'
+  created_at: '2025-08-30 14:15:50.874876'
+  disable_knowledge: true
+  doc_id: ecb41f24-97a4-4b83-bf77-722fe2520d32
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 14:15:50.874912'
+  user: admin
+- content: "Add OAuth provider list to global settings with:\n* name\n* client_id\n\
+    * secret\n                    Create new document based on user comments.\n  \
+    \                  User comments:\n                    Add OAuth provider list\
+    \ to global settings with:\n* name\n* client_id\n* secret\n                  \
+    \  Important: Always return the markdown document without any comments before\
+    \ or after, to keep it clean."
+  created_at: '2025-08-30 14:15:50.874876'
+  disable_knowledge: false
+  doc_id: cead20e1-00fe-47ad-9e0b-8b1ec0ed8604
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 14:15:50.874912'
+  user: null
+- content: "```python /shared/codx-junior/api/codx/junior/model/model.py\nimport os\n\
+    import regex\n\nfrom pydantic import BaseModel, Field, constr, validator\nfrom\
+    \ enum import Enum\nfrom datetime import datetime\n\nfrom typing import List,\
+    \ Dict, Union, Optional\n\nKNOWLEDGE_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL')\n\
+    EMBEDDINGS_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL')\n\
+    \nclass ImageUrl(BaseModel):\n    url: str = Field(default=\"\")\n\nclass Content(BaseModel):\n\
+    \    type: str = Field(default='text')\n    text: str = Field(default=None)\n\
+    \    image_url: ImageUrl = Field(default=None)\n\nclass ChatMessage(BaseModel):\n\
+    \    role: str = Field(default='')\n    content: List[Content] = Field(default=[])\n\
+    \nclass Column(BaseModel):\n    name: str = Field(default='')\n    chat_ids: List[str]\
+    \ = Field(default=[])\n\nclass Board(BaseModel):\n    name: str = Field(default='')\n\
+    \    description: str = Field(default='')\n    remote_url: str = Field(default='')\n\
+    \    columns: List[Column] = Field(default=[])\n\nclass Logprobs(BaseModel):\n\
+    \    tokens: List[str]\n    token_logprobs: List[float]\n    top_logprobs: List[Dict[str,\
+    \ float]]\n    text_offset: List[int]\n\nclass KnowledgeReloadPath(BaseModel):\n\
+    \    path: str\n\nclass KnowledgeDeleteSources(BaseModel):\n    sources: List[str]\n\
+    \nclass KnowledgeSearch(BaseModel):\n    search_term: str\n    search_type: str\
+    \ = Field(default=None)\n    document_search_type: str = Field(default=None)\n\
+    \    document_count: int = Field(default=None)\n    document_cutoff_score: float\
+    \ = Field(default=None)\n    document_cutoff_rag: float = Field(default=None)\n\
+    \nclass Tool(BaseModel):\n    name: str = Field(default=\"\")\n    description:\
+    \ str = Field(default=\"\")\n\nclass CodxJuniorBaseTools(BaseModel):\n    knowledge:\
+    \ Tool = Tool(name=\"knowledge\", description=\"Project's knowledge search\")\n\
+    \    \nclass ProjectPermission(BaseModel):\n    project_id: str\n    permissions:\
+    \ str = Field(description=\"User permissions for the project\", default=[])\n\n\
+    class CodxUserLogin(BaseModel):\n    username: Optional[str] = Field(default=\"\
+    \")\n    password: Optional[str] = Field(default=\"\")\n    email: Optional[str]\
+    \ = Field(default=\"\")\n    token: Optional[str] = Field(default=\"\")\n\nclass\
+    \ CodxUserProjectProfile(BaseModel):\n    name: Optional[str] = Field(default=\"\
+    \")\n    coder: Optional[bool] = Field(description=\"Can access to coder and change\
+    \ project files\", default=False)\n    admin: Optional[bool] = Field(description=\"\
+    Can access to project's admin\", default=False)\n\nclass CodxUser(BaseModel):\n\
+    \    username: Optional[str] = Field(default=\"\")\n    email: Optional[str] =\
+    \ Field(default=\"\")\n    avatar: Optional[str] = Field(default=\"\")\n    theme:\
+    \ Optional[str] = Field(default=\"dim\")\n    projects: Optional[List[ProjectPermission]]\
+    \ = Field(default=[])\n    role: Optional[str] = Field(description=\"User role\"\
+    , default=\"user\")\n    token: Optional[str] = Field(default=\"\")\n    disabled:\
+    \ Optional[bool] = Field(default=False)\n    \nclass ProfileApiSettings(BaseModel):\n\
+    \    active: bool = Field(description=\"Model is visible through API\", default=False)\n\
+    \    model_name: Optional[str] = Field(description=\"Model's name\", default=None)\n\
+    \    description: Optional[str] = Field(description=\"Model's description\", default=None)\n\
+    \nclass Profile(BaseModel):\n    name: str = Field(default=\"\")\n    url: str\
+    \ = Field(default=\"\")\n    avatar: str = Field(default=\"\")\n    description:\
+    \ str = Field(default=\"\")\n    category: str = Field(default=\"\", description=\"\
+    Profile category: global, file, coding, ...\")\n    file_match: str = Field(default=\"\
+    \",\n        description=\"Optional regex to apply profiles based on file absolute\
+    \ path.\")\n    content: Optional[str] = Field(default=None)\n    path: str =\
+    \ Field(default=\"\")\n    content_path: str = Field(default=\"\")\n    profiles:\
+    \ Optional[List[str]] = Field(default=[])\n    llm_model: Optional[str] = Field(default='')\n\
+    \    use_knowledge: Optional[bool] = Field(default=True)\n    user: Optional[CodxUser]\
+    \ = Field(default=CodxUser())\n    tools: Optional[List[Tool]] = Field(default=[])\n\
+    \    tags: Optional[List[str]] = Field(default=[])\n    api_settings: Optional[ProfileApiSettings]\
+    \ = Field(description=\"Indicates if the profile is accessible through the LLM\
+    \ API\", default=ProfileApiSettings())\n    chat_mode: Optional[str] = Field(description=\"\
+    Affects on how conversation works. Like writing a document or chat messages\"\
+    , default=None)\n\nclass Document(BaseModel):\n    id: int = Field(default=None)\n\
+    \    page_content: str\n    metadata: dict\n\nclass LiveEdit(BaseModel):\n   \
+    \ chat_name: str\n    html: str\n    url: str\n    message: str\n\nclass OpenAISettings(BaseModel):\n\
+    \    openai_api_url: Optional[str] = Field(default=\"\")\n    openai_api_key:\
+    \ Optional[str] = Field(default=\"\")\n    openai_model: Optional[str] = Field(default=\"\
+    gpt-4o\")\n    \nclass AnthropicAISettings(BaseModel):\n    anthropic_api_url:\
+    \ Optional[str] = Field(default=\"\")\n    anthropic_api_key: Optional[str] =\
+    \ Field(default=\"\")\n    anthropic_model: Optional[str] = Field(default=\"claude-3-5-sonnet-20240620\"\
+    )\n\nclass MistralAISettings(BaseModel):\n    mistral_api_url: Optional[str] =\
+    \ Field(default=\"\")\n    mistral_api_key: Optional[str] = Field(default=\"\"\
+    )\n    mistral_model: Optional[str] = Field(default=\"codestral-latest\")\n\n\
+    class GitSettings(BaseModel):\n    username: Optional[str] = Field(default=\"\"\
+    )\n    email: Optional[str] = Field(default=\"\")\n\nclass ProjectScript(BaseModel):\n\
+    \    name: str = Field(description=\"Script name\")\n    description: str = Field(description=\"\
+    Script name\", default=\"\")\n    script: str = Field(description=\"Bash script\"\
+    , default=\"\")\n    status: str = Field(description=\"Script status: running,\
+    \ stopped, error\", default=\"stopped\")\n    background: bool = Field(description=\"\
+    Script runs in background\", default=False)\n    restart: bool = Field(description=\"\
+    Script must be restarted if stopped\", default=False)\n    pid_file_path: str\
+    \ = Field(default=\"\")\n    engine: str = Field(default=\"bash\")\n\nclass Bookmark(BaseModel):\n\
+    \    name: str\n    icon: Optional[str] = Field(default=\"\")\n    title: Optional[str]\
+    \ = Field(default=\"\")\n    url: Optional[str] = Field(default=\"\")\n    port:\
+    \ Optional[int] = Field(default=None)\n\nclass AIProvider(BaseModel):\n    name:\
+    \ Optional[str] = Field(default=\"\", description=\"Provider name\") \n    provider:\
+    \ Optional[str] = Field(default=\"llmfactory\", description=\"OpenAI compatible\
+    \ LLM protocols like: OpenAI, Ollama\") \n    api_url: Optional[str] = Field(description=\"\
+    Optional url if provider is remote\", default=\"http://0.0.0.0:11434/v1\")\n \
+    \   api_key: Optional[str] = Field(description=\"Optional api key\", default=\"\
+    sk-llmfactory\")\n    admin_url: Optional[str] = Field(description=\"Optional\
+    \ url if provider has an admin url\", default=\"\")\n\nclass AILLMModelSettings(BaseModel):\n\
+    \    temperature: Optional[float] = Field(default=1, description=\"Model temperature\"\
+    )\n    context_length: Optional[int] = Field(default=0)\n    merge_messages: Optional[bool]\
+    \ = Field(description=\"Flat conversation into a single message before sending\
+    \ to model\", default=False)\n    \nclass AIEmbeddingModelSettings(BaseModel):\n\
+    \    vector_size: Optional[int] = Field(default=1536, description=\"Model vector\
+    \ size\")\n    chunk_size: Optional[int] = Field(default=8190, description=\"\
+    Model chunk_size\")\n\nclass AIModelType(str, Enum):\n    llm = 'llm'\n    embeddings\
+    \ = 'embeddings'\n\nclass AIModel(BaseModel):\n    name: str = Field(description=\"\
+    Model name\")    \n    model_type: AIModelType = Field(description=\"Model type\"\
+    , default=AIModelType.llm)\n    ai_provider: str = Field(description=\"AI Provider\
+    \ name\")\n    ai_model: Optional[str] = Field(description=\"AI Provider's model\
+    \ name\", default=None)\n    settings: Union[AILLMModelSettings, AIEmbeddingModelSettings]\
+    \ = Field(description=\"Model settings\")\n    metadata: Optional[dict] = Field(description=\"\
+    Model's last update date\", default={})\n    url: Optional[str] = Field(description=\"\
+    Model info\", default=\"\")\n\nclass AISettings(BaseModel):\n    provider: Optional[str]\
+    \ = Field(default=\"\") \n    api_url: Optional[str] = Field(default=\"\")\n \
+    \   api_key: Optional[str] = Field(default=\"\")\n    model: Optional[str] = Field(default=\"\
+    \")\n    context_length: Optional[int] = Field(default=0)\n    temperature: Optional[float]\
+    \ = Field(default=0.8)\n    vector_size: Optional[int] = Field(default=1536)\n\
+    \    chunk_size: Optional[int] = Field(default=8190)\n    merge_messages: Optional[bool]\
+    \ = Field(default=False)\n    model_type: AIModelType = Field(description=\"Model\
+    \ type\", default=AIModelType.llm)\n    url: Optional[str] = Field(description=\"\
+    Model info\", default=\"\")\n    \nOLLAMA_PROVIDER = AIProvider(name=\"llmfactory\"\
+    ,\n                            provider=\"llmfactory\",\n                    \
+    \        api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_API'),\n             \
+    \               api_key=os.environ.get('CODX_JUNIOR_LLMFACTORY_KEY'))\n\nOLLAMA_EMBEDDINGS_MODEL\
+    \ = AIModel(name=\"embeddings\",\n                                ai_model=EMBEDDINGS_MODEL,\
+    \ \n                                model_type=AIModelType.embeddings,\n     \
+    \                           ai_provider=\"llmfactory\",\n                    \
+    \            settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),\n\
+    \                                url=f\"https://llmfactory.com/library/{EMBEDDINGS_MODEL}\"\
+    )\n\nOLLAMA_KNOWLEDGE_MODEL = AIModel(name=\"knowledge\",\n                  \
+    \          ai_model=KNOWLEDGE_MODEL,\n                            model_type=AIModelType.llm,\n\
+    \                            ai_provider=\"llmfactory\",\n                   \
+    \         settings=AILLMModelSettings(),\n                            url=f\"\
+    https://llmfactory.com/library/{KNOWLEDGE_MODEL}\")\n\nclass Workspace(BaseModel):\n\
+    \    id: str = Field(default=\"\")\n    name: str = Field(default=\"\")\n    description:\
+    \ str = Field(default=\"\")\n    project_ids: List[str] = Field(default=[])\n\
+    \    workspace_port: Optional[int] = Field(default=0)\n    workspace_start_port:\
+    \ Optional[int] = Field(default=0)\n    workspace_end_port: Optional[int] = Field(default=0)\n\
+    \    updated_at: Optional[str] = Field(default=None)    \n\nclass AgentSettings(BaseModel):\n\
+    \    max_agent_iteractions: int = 4\n\nclass OAuthProvider(BaseModel):\n    name:\
+    \ str\n    client_id: str\n    secret: str\n\nclass GlobalSettings(BaseModel):\n\
+    \    log_ai: bool = Field(default=True)\n    \n    embeddings_model: str = Field(default=OLLAMA_EMBEDDINGS_MODEL.name)\n\
+    \    llm_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n    rag_model:\
+    \ str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n    wiki_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n\
+    \n    git: GitSettings = Field(default=GitSettings())\n\n    agent_settings: AgentSettings\
+    \ = Field(description=\"Agent settings\", default=AgentSettings())\n\n    projects_root_path:\
+    \ Optional[str] = Field(default=None)\n    \n    log_ignore: List[str] = Field(default=[])\n\
+    \n    codx_junior_avatar: Optional[str] = Field(default=\"https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp\"\
+    )\n\n    enable_file_manager: Optional[bool] = Field(default=False)\n\n    project_scripts:\
+    \ Optional[List[ProjectScript]] = Field(default=[])\n\n    bookmarks: List[Bookmark]\
+    \ = Field(default=[\n        Bookmark(name=\"Coder\", title=\"code-server\", port=os.environ[\"\
+    CODX_JUNIOR_CODER_PORT\"]),\n        Bookmark(name=\"Desktop\", title=\"Desktop\"\
+    , port=os.environ[\"CODX_JUNIOR_NOVNC_PORT\"])\n    ])\n\n    ai_providers: List[AIProvider]\
+    \ = [\n        OLLAMA_PROVIDER\n    ]\n\n    ai_models: List[AIModel] = [\n  \
+    \    OLLAMA_KNOWLEDGE_MODEL,\n      OLLAMA_EMBEDDINGS_MODEL\n    ]\n\n    users:\
+    \ Optional[List[CodxUser]] = Field(default=[CodxUser(username=\"admin\", role=\"\
+    admin\", avatar=\"/only_icon.png\")])\n    user_logins: Optional[List[CodxUserLogin]]\
+    \ = Field(default=[])\n    secret: Optional[str] = Field(description=\"Encription\
+    \ secret\", default=\"codx-junior-rules\")\n\n    workspaces: Optional[List[Workspace]]\
+    \ = Field(default=[])\n    workspace_start_port: Optional[int] = Field(default=16000)\n\
+    \    workspace_end_port: Optional[int] = Field(default=17000)\n    workspace_docker_settings:\
+    \ Optional[dict] = Field(default={})\n\n    oauth_providers: Optional[List[OAuthProvider]]\
+    \ = Field(default=[])\n    \nclass Screen(BaseModel):\n    resolution: str = Field(default='')\n\
+    \    resolutions: List[str] = Field(default=[\n      \"1920x1080\",\n      \"\
+    1920x1200\",\n      \"1600x1200\",\n      \"1680x1050\",\n      \"1400x1050\"\
+    ,\n      \"1360x768\",\n      \"1280x1024\",\n      \"1280x960\",\n      \"1280x800\"\
+    ,\n      \"1280x720\",\n      \"1024x768\",\n      \"800x600\",\n      \"640x480\"\
+    \n    ])\n```"
+  created_at: '2025-08-30 14:15:50.874876'
+  disable_knowledge: false
+  doc_id: ac8eceb4-7c92-4b4b-b704-c829016d8345
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00020766258239746094
+    model: openai/gpt-4o
+    time_taken: 82.45687913894653
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-08-30 14:15:50.874912'
+  user: null
+mode: task
+name: Integrate github oauth
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-08-30T16:59:37.359481'
+url: ''
+users:
+- admin
+visibility: ''

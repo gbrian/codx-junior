@@ -269,7 +269,7 @@ class KnowledgeDB:
         
 
     @profile_function
-    def search(self, query: str):
+    def search(self, query: str, _limit: int = 50):
         search_params = {
             'params': { 'drop_ratio_search': 0.2 },
         }
@@ -279,7 +279,7 @@ class KnowledgeDB:
             data=[query],
             anns_field='sparse',
             output_fields=['page_content', 'metadata'], # Fields to return in search results; sparse field cannot be output
-            limit=50,
+            limit=_limit,
             search_params=search_params
         )
         results = reduce(lambda x,y: x + y, results)

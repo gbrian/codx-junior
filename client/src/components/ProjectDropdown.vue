@@ -6,9 +6,12 @@ import ProjectDetailt from './ProjectDetailt.vue';
     :class="isOpen ? 'dropdown-open': ''" 
     v-if="$project">
     <div class="flex items-start">
-      <ProjectDetailt @click="isOpen = !isOpen" />
+      <ProjectDetailt 
+        :project="$project" 
+        :options="{ folders: true }"
+        @select="$projects.setActiveProject($event)" />
     </div>
-    <ul class="dropdown-content menu bg-base-300 rounded-box z-[150] w-52 p-2 shadow"
+    <ul class="dropdown-content menu bg-base-300 rounded-box z-[150] w-60 p-2 shadow"
       @mouseleave="isOpen = false"
       @blur="isOpen = false"
       v-if="isOpen && false">
@@ -18,7 +21,7 @@ import ProjectDetailt from './ProjectDetailt.vue';
           </span>
           <input 
               type="text" 
-              class="p-2 bg-base-100 input input-xs w-2/3 items-center" 
+              class="p-2 bg-base-100 input input-xs items-center" 
               placeholder="Filter projects..." 
               v-model="filterValue" 
           />

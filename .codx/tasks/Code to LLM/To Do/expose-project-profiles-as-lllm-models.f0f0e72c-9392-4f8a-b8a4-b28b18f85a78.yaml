@@ -1,0 +1,115 @@
+board: Code to LLM
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: To Do
+column_id: ''
+created_at: '2025-03-25 18:13:10.718497'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Code to LLM/To Do/expose-project-profiles-as-lllm-models.f0f0e72c-9392-4f8a-b8a4-b28b18f85a78.yaml
+id: f0f0e72c-9392-4f8a-b8a4-b28b18f85a78
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'We can expose Project''s profiles as chatGPT compatible chat models.
+
+    We need a chatGPT completions endpoit and model names will be project-name:profile
+
+
+    In this way any other project or 3rd party tools can use our customised models.
+
+
+    It will go like this:
+
+    * POST request to completion endpoint
+
+    * Check auth if applies
+
+    * Extract project and profile from "model name"
+
+    * We use chat_with_project with process user request
+
+    * create a response'
+  created_at: '2025-03-25 18:13:10.714683'
+  disable_knowledge: false
+  doc_id: 73464e39-e3a6-442f-8cae-633f84da06b8
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-25 18:13:10.714732'
+  user: null
+- content: "Here's a refined version of the document based on the provided comments:\n\
+    \n---\n\n**Task: Expose Project Profiles as LLM Models**\n\n**Document:**\n\n\
+    To enable the usage of project-specific profiles as chatGPT-compatible models,\
+    \ we propose the following framework:\n\n1. **ChatGPT Completions Endpoint:**\n\
+    \   - Establish a completions endpoint that aligns with chatGPT standards to handle\
+    \ POST requests.\n\n2. **Model Naming Convention:**\n   - Each model will be identified\
+    \ by the format `project-name:profile`. This allows differentiation between various\
+    \ project profiles and ensures that specific customizations are accessible via\
+    \ clearly defined model names.\n\n3. **Integration with External Tools:**\n  \
+    \ - By using this approach, any external project or third-party tool can leverage\
+    \ our tailored models effectively.\n\n4. **Process Flow:**\n   - **POST Request\
+    \ Handling:** Incoming requests to the completions endpoint will be processed\
+    \ via a POST method.\n   - **Authentication:** Implement authentication mechanisms\
+    \ if applicable to ensure secure access.\n   - **Model Name Parsing:** From the\
+    \ provided model name, extract relevant project and profile information.\n   -\
+    \ **Customized Response Generation:**\n     - Employ the `chat_with_project` function\
+    \ to process the user's request.\n     - Generate a relevant response based on\
+    \ the project-specific profile.\n   \nThis strategy ensures that the distinct\
+    \ profiles within each project can be seamlessly integrated as chat models, enhancing\
+    \ flexibility and providing tailored interactions.\n\n--- \n\nThis document provides\
+    \ a concise overview of how project profiles can be exposed as chatGPT-compatible\
+    \ models, while ensuring secure and effective usage by external entities."
+  created_at: '2025-03-25 18:13:10.714683'
+  disable_knowledge: false
+  doc_id: 844696ed-063f-4c01-ae8f-19f63cfa1c7f
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 3.136630058288574
+    model: gpt-4o
+    time_taken: 6.850337505340576
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: ''
+  updated_at: '2025-03-25 18:13:10.714732'
+  user: null
+mode: task
+name: Expose project profiles as lllm models
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- analyst
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-03-26T10:36:38.307972'
+url: ''
+users: []
+visibility: ''

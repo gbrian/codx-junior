@@ -1,86 +1,4 @@
-import axios from 'axios'
-
-
-let interceptors = {
-  request: [],
-  response: []
-}
-
-class CodxJuniorConnection {
-  constructor({ settings, user } = {}) {
-    this.user = user
-    this.settings = settings || {};    
-  }
-
-  get headers() {
-    return {
-      "x-sid": this.settings.sid,
-      "Authentication": `Bearer ${this.user?.token}`
-    };
-  }
-
-  createConnection() {
-    this.axiosInstance = axios.create({});
-    this.liveRequests = 0;
-
-    this.axiosInstance.interceptors.request.use(...interceptors.request);
-    this.axiosInstance.interceptors.response.use(...interceptors.response);
-  }
-  
-  prepareUrl(url) {
-    const query = `codx_path=${encodeURIComponent(this.settings?.codx_path)}`;
-    if (url.indexOf("codx_path") === -1) {
-      let [path, params] = url.split("?");
-      if (params) {
-        params += `&${query}`;
-      } else {
-        params = query;
-      }
-      url = `${path}?${params}`;
-      return url;
-    }
-    return url;
-  }
-
-  get(url) {
-    this.createConnection()
-    this.liveRequests++;
-    return this.axiosInstance.get(this.prepareUrl(url), { headers: this.headers })
-      .then(({ data }) => data)
-      .finally(() => this.liveRequests--);
-  }
-
-  del(url) {
-    this.createConnection()
-    this.liveRequests++;
-    return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
-      .finally(() => this.liveRequests--);
-  }
-
-  post(url, data) {
-    this.createConnection()
-    this.liveRequests++;
-    return this.axiosInstance.post(this.prepareUrl(url), data, { headers: this.headers })
-      .then(({ data }) => data)
-      .finally(() => this.liveRequests--);
-  }
-
-  put(url, data) {
-    this.createConnection()
-    this.liveRequests++;
-    return this.axiosInstance.put(this.prepareUrl(url), data, { headers: this.headers })
-          .then(({ data }) => data)
-          .finally(() => this.liveRequests--);
-  }
-
-  delete(url) {
-    this.createConnection()
-    this.liveRequests++;
-    return this.axiosInstance.delete(this.prepareUrl(url), { headers: this.headers })
-          .then(({ data }) => data)
-          .finally(() => this.liveRequests--);
-  }
-}
+import { CodxJuniorConnection } from './connection'
 
 const initializeAPI = ({ project, user } = {}) => {
   const API = {
@@ -102,14 +20,8 @@ const initializeAPI = ({ project, user } = {}) => {
       this._activeProject = value
       API.initConnection()
     },
-    get headers() {
-      return {
-        "x-sid": API.sid,
-        "Authentication": `Bearer ${API.user?.token}`
-      };
-    },
     set interceptors(value) {
-      interceptors = value
+      Object.assign(this.connection.interceptors, value)
     },
     initConnection() {
       API.connection = new CodxJuniorConnection({
@@ -199,7 +111,11 @@ const initializeAPI = ({ project, user } = {}) => {
     },
     async project(projectOrId) {
       if (!projectOrId.codx_path) {
-        projectOrId = API.allProjects.find(p => p.id === projectOrId || p.project_name === projectOrId) 
+        const existingProject = API.allProjects.find(p => p.id === projectOrId || p.project_name === projectOrId) 
+        if (!existingProject) {
+          throw new Error("Invalid projectOrId: " + JSON.stringify(projectOrId))
+        }
+        projectOrId = existingProject
       }
       if (projectOrId.codx_path === API.settings.codx_path) {
         return API
@@ -339,6 +255,16 @@ const initializeAPI = ({ project, user } = {}) => {
       async loadChat({ id, file_path }) {
         const data = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`);
         return data;
+      },
+      async exportChat({ id, exportFormat, clipboard }) {
+        const path = `/api/chats?export_format=${exportFormat}&id=${id}`
+        if (clipboard) {
+          const data = await API.get(path);
+          return data;
+        } else {
+          const url = API.connection.prepareUrl(path)
+          window.open(url)
+        }
       },
       async newChat() {
         return {

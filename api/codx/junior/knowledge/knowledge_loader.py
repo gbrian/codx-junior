@@ -32,9 +32,14 @@ class KnowledgeLoader:
         if not last_update:
             return True
         file_stats = os.stat(file_path)
-        if file_stats.st_size == 0:
+        if file_stats.st_size == 0 or file_stats.st_size > (50 * 1024):
             return False
 
+        # Check if the file was modified within the last 10 minutes
+        ten_minutes_ago = time.time() - 10 * 60
+        if file_stats.st_mtime > ten_minutes_ago:
+            return False
+        
         if current_sources: 
             if file_path not in current_sources:
                 # New file

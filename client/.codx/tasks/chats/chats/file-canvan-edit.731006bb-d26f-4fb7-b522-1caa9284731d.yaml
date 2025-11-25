@@ -1,0 +1,1200 @@
+board: chats
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: chats
+column_id: ''
+created_at: '2025-08-20 06:54:33.174919'
+description: 'The conversation involves updating a Vue component to display file content
+  directly in the chat interface when a file is selected from search terms. The `addSerchTerm`
+  method was modified to read the file content using `this.$projects.readFile(term.file)`
+  and format it as:
+
+
+  ```ext file/path
+
+  File content here
+
+  ```
+
+
+  This change ensures that the file content is shown in the chat, rather than just
+  the file path. An error related to the use of `await` inside the method was also
+  addressed by ensuring proper asynchronous handling.'
+doc_id: null
+file_list:
+- /home/codx-junior/codx-junior/client/src/components/user/ChatBar.vue
+file_path: /shared/codx-junior/client/.codx/tasks/chats/chats/file-canvan-edit.731006bb-d26f-4fb7-b522-1caa9284731d.yaml
+id: 731006bb-d26f-4fb7-b522-1caa9284731d
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Change how files are added to the chat from the search term.
+
+    Instead of adding the file path to the "chat_files" create a new user message
+    with the content of the file in the format:
+
+
+
+    ```ext file/path
+
+    File content here
+
+    ```
+
+    Use this.$projects.readFile(filePath) async to get file content'
+  created_at: '2025-08-20 06:54:33.172906'
+  disable_knowledge: true
+  doc_id: 32f9c22a-a235-4d6f-b66e-8670590adb79
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-20 06:54:33.172933'
+  user: admin
+- content: "Certainly! To change how files are added to the chat from the search term,\
+    \ we need to modify the `addSerchTerm` method to create a new user message with\
+    \ the file content instead of just adding the file path. Here's the updated code:\n\
+    \n```vue\_/home/codx-junior/codx-junior/client/src/components/chat/Chat.vue\n\
+    <script setup>\nimport moment from 'moment'\nimport { API } from '../../api/api'\n\
+    import ChatEntry from '@/components/ChatEntry.vue'\nimport Browser from '@/components/browser/Browser.vue'\n\
+    import Markdown from '@/components/Markdown.vue'\nimport TaskCard from '../kanban/TaskCard.vue'\n\
+    import UserSelector from './UserSelector.vue'\nimport KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'\n\
+    import CheckLists from './CheckLists.vue'\n</script>\n\n<template>\n<div class=\"\
+    flex flex-col gap-1 grow\">\n<div class=\"grow relative\">\n<CheckLists class=\"\
+    mb-2\" :chat=\"theChat\" @change=\"saveChat\" />\n<div class=\"overflow-y-auto\
+    \ overflow-x-hidden\"\n:class=\"isBrowser && 'flex gap-1'\">\n<div class=\"w-3/4\"\
+    \ v-if=\"isBrowser\">\n<Browser :token=\"$ui.monitors['shared']\" />\n</div>\n\
+    <div class=\"overflow-auto h-full\">\n<div class=\"flex flex-col\" v-for=\"message\
+    \ in messages\" :key=\"message.id\">\n<div class=\"flex w-full flex-col gap-4\
+    \ bg-base-100 p-2 mb-2 rounded-md\" v-if=\"!message.content && !message.think\"\
+    >\n<div class=\"flex items-center gap-4\">\n<div class=\"skeleton h-8 w-8 shrink-0\
+    \ rounded-full\"></div>\n<div class=\"flex flex-col gap-4\">\n<div class=\"skeleton\
+    \ h-4 w-20\"></div>\n</div>\n</div>\n<div class=\"skeleton h-32 w-full\"></div>\n\
+    </div>\n<ChatEntry :class=\"['mb-4 rounded-md',\nisChannel ? '' : 'bg-base-100\
+    \ py-2',\neditMessage ? editMessage === message ? 'border border-warning' : 'opacity-40'\
+    \ : '',\nmessage.hide ? 'opacity-80 border border-dashed p-2 border-warning' :\
+    \ '']\"\n:chat=\"theChat\"\n:message=\"message\"\n@edit=\"onEditMessage(message)\"\
+    \n@enhance=\"onEditMessage(message, true)\"\n@remove=\"removeMessage(message)\"\
+    \n@remove-file=\"removeFileFromMessage(message, $event)\"\n@hide=\"toggleHide(message)\"\
+    \n@answer=\"toggleAnswer(message)\"\n@run-edit=\"runEdit\"\n@copy=\"onCopy(message)\"\
+    \n@add-file-to-chat=\"$emit('add-file', $event)\"\n@image=\"imagePreview = { ...$event,\
+    \ readonly: true }\"\n@generate-code=\"onGenerateCode\"\nv-else />\n</div>\n<div\
+    \ class=\"anchor\" ref=\"anchor\"></div>\n<div class=\"grid grid-cols-3 gap-2\
+    \ mb-2\" v-if=\"childrenChats?.length\">\n<div v-for=\"child in childrenChats\"\
+    \ :key=\"child.id\" class=\"relative\">\n<TaskCard class=\"click p-2 bg-base-100\
+    \ h-40\" :task=\"child\" @click=\"$projects.setActiveChat(child)\" />\n</div>\n\
+    </div>\n</div>\n</div>\n</div>\n<div class=\"chat chat-end\" v-if=\"false && isBrowser\"\
+    >\n<div class=\"chat-image avatar\">\n<div class=\"w-10 rounded-full\">\n<img\
+    \ src=\"/only_icon.png\" alt=\"logo\" />\n</div>\n</div>\n<div class=\"chat-bubble\"\
+    >\n<Markdown class=\"max-h-40 overflow-auto\" :text=\"lastAIMessage.content\"\
+    \ v-if=\"lastAIMessage\" />\n<div v-else>\n<span class=\"font-bold\">Let's navigate\
+    \ together:</span>\nUse browser to navigate any web or try:\n<span class=\"italic\
+    \ text-info\">Find top 5 results for ....</span>\n</div>\n</div>\n</div>\n<div\
+    \ class=\"sticky bottom-0 z-50 bg-base-300\">\n<div class=\"text-ellipsis overflow-hidden\
+    \ text-nowrap text-xs text-info\">\n{{ lastChatEvent }}\n</div>\n<div class=\"\
+    dropdown dropdown-top dropdown-open mb-1\" v-if=\"showTermSearch\">\n<div tabindex=\"\
+    0\" role=\"button\" class=\"rounded-md bg-base-300 w-fit p-2 hidden\">\n<div class=\"\
+    flex p-1 items-center text-sky-600\">\n<i class=\"fa-solid fa-at\"></i>\n<input\
+    \ type=\"text\" v-model=\"termSearchQuery\"\nref=\"termSearcher\"\nclass=\"-ml-1\
+    \ input input-xs text-lg bg-transparent\" placeholder=\"search term...\"\n@keydown.down.stop=\"\
+    onSelNext\"\n@keydown.up.stop=\"onSelPrev\"\n@keydown.enter.stop=\"addSerchTerm(searchTerms[searchTermSelIx])\"\
+    \n@keydown.esc=\"closeTermSearch\" />\n<button class=\"btn btn-xs btn-circle btn-outline\
+    \ btn-error\"\n@click=\"closeTermSearch\"\nv-if=\"termSearchQuery\">\n<i class=\"\
+    fa-solid fa-circle-xmark\"></i>\n</button>\n</div>\n</div>\n<ul tabindex=\"0\"\
+    \ class=\"dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit\"\
+    >\n<li class=\"tooltip text-lg\" :data-tip=\"term.tooltip\" v-for=\"(term, ix)\
+    \ in searchTerms\" :key=\"term.name\">\n<a @click=\"addSerchTerm(term)\">\n<div\
+    \ :class=\"[searchTermSelIx === ix ? 'underline':'']\">\n<span class=\"text-sky-600\
+    \ font-bold\">@{{ term.name }}</span>\n</div>\n</a>\n</li>\n</ul>\n</div>\n<div\
+    \ class=\"flex gap-2\">\n<span class=\"badge tooltip flex gap-2 items-center\"\
+    \n:data-tip=\"mention.tooltip\"\n:class=\"{ 'badge-primary': mention.project,\
+    \ 'badge-success badge-outline': mention.profile }\"\nv-for=\"mention in messageMentions\"\
+    \ :key=\"mention.name\">\n<i class=\"fa-solid fa-magnifying-glass\" v-if=\"mention.project\"\
+    ></i>\n<img class=\"w-4 rounded-full\" :src=\"mention.profile.avatar\" v-if=\"\
+    mention.profile?.avatar\" />\n<i class=\"fa-solid fa-user\" v-if=\"mention.profile\
+    \ && !mention.profile.avatar\"></i>\n<div class=\"-mt-1\">\n{{ mention.name }}\n\
+    </div>\n</span>\n</div>\n<div :class=\"['flex bg-base-300 border rounded-md shadow\
+    \ indicator w-full',\n'flex-col',\neditMessage && 'border-warning',\nonDraggingOverInput\
+    \ ? 'bg-warning/10': '']\"\n@dragover.prevent=\"onDraggingOverInput = true\"\n\
+    @dragleave.prevent=\"onDraggingOverInput = false\"\n@drop.prevent=\"onDrop\">\n\
+    <KnowledgeSearch class=\"p-2 h-60\"\n@select=\"onAddDocument\"\nv-if=\"showDocumentSearchModal\"\
+    \n/>\n<div v-else class=\"editor\" :class=\"['max-h-40 w-full px-2 py-1 overflow-auto\
+    \ text-wrap focus-visible:outline-none']\"\n:contenteditable=\"!waiting\"\nref=\"\
+    editor\"\n@paste=\"onContentPaste\"\n@keydown=\"onEditMessageKeyDown\"\n>\n</div>\n\
+    <div class=\"flex justify-between items-end px-2\">\n<div class=\"carousel rounded-box\"\
+    >\n<div class=\"carousel-item relative click flex flex-col\" v-for=\"(image, ix)\
+    \ in allImages\" :key=\"image.src\">\n<div class=\"bg-contain bg-no-repeat bg-center\
+    \ w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4\"\n:style=\"`background-image: url(${image.src})`\"\
+    \ @click=\"imagePreview = image\">\n</div>\n<p class=\"text-xs\">{{ image.alt.slice(0,\
+    \ 10) }}</p>\n<button class=\"btn btn-xs btn-circle btn-error absolute right-0\
+    \ top-0\"\n@click=\"removeImage(ix)\">\nX\n</button>\n</div>\n</div>\n<span class=\"\
+    loading loading-dots loading-md btn btn-sm\" v-if=\"waiting\"></span>\n<div class=\"\
+    grow flex justify-between items-center\" v-else>\n<UserSelector\nclass=\"dropdown-top\"\
+    \n:selectedUser=\"selectedUser\"\n@user-changed=\"selectedUser = $event\"\n/>\n\
+    <div class=\"flex gap-2 items-center justify-end py-2\" v-if=\"!searchingInKnowledge\"\
+    >\n<button class=\"btn btn-sm btn-info btn-outline\" @click=\"sendMessage\" v-if=\"\
+    editMessage\">\n<i class=\"fa-solid fa-save\"></i>\n<div class=\"text-xs\" v-if=\"\
+    editMessage && !showDocumentSearchModal\">Edit</div>\n</button>\n<button class=\"\
+    btn btn-sm tooltip\" data-tip=\"Save changes\" @click=\"onResetEdit\"\nv-if=\"\
+    editMessage\">\n<i class=\"fa-regular fa-circle-xmark\"></i>\n</button>\n<button\
+    \ class=\"btn btn-sm tooltip relative\"\n:class=\"showDocumentSearchModal ? 'btn-error'\
+    \ : 'btn-info'\"\n:data-tip=\"'Search documents'\"\n@click=\"askKnowledge\">\n\
+    <i class=\"fa-solid fa-file-lines\"></i>\n</button>\n<button class=\"btn btn-sm\
+    \ tooltip\"\n:class=\"isVoiceSession && 'btn-success animate-pulse'\"\ndata-tip=\"\
+    Ask codx-junior\"\n@click=\"sendMessage\"\nref=\"sendButton\"\nv-if=\"!editMessage\
+    \ && !showDocumentSearchModal\">\n<i class=\"fa-solid fa-microphone-lines\" v-if=\"\
+    isVoiceSession\"></i>\n<i class=\"fa-solid fa-paper-plane\" v-else></i>\n</button>\n\
+    <button class=\"hidden btn btn-sm tooltip\"\n:class=\"isBrowser && 'btn-warning'\"\
+    \ndata-tip=\"Ask codx-browser\" @click=\"isBrowser = !isBrowser\"\nv-if=\"!editMessage\"\
+    >\n<i class=\"fa-brands fa-chrome\"></i>\n{{ isBrowser ? 'Close' : 'Open' }} Browser\n\
+    </button>\n<button class=\"hidden btn btn-sm tooltip btn-warning\"\ndata-tip=\"\
+    Make code changes\" @click=\"improveCode()\" v-if=\"!editMessage && theChat.mode\
+    \ === 'chat'\">\n<i class=\"fa-solid fa-code\"></i>\n</button>\n\n<div class=\"\
+    dropdown dropdown-top dropdown-end\">\n<div tabindex=\"1\" role=\"button\" class=\"\
+    btn btn-sm m-1\">\n<i class=\"fa-solid fa-ellipsis-vertical\"></i>\n</div>\n<ul\
+    \ tabindex=\"1\" class=\"dropdown-content menu bg-base-200 rounded-box z-[1] w-52\
+    \ p-2 shadow gap-2\">\n<li class=\"btn btn-sm tooltip\"\ndata-tip=\"Attach files\"\
+    \n@click=\"selectFile = true\">\n<a>\n<i class=\"fa-solid fa-paperclip\"></i>\
+    \ Attach files\n</a>\n</li>\n<li class=\"btn btn-sm\" @click=\"testProject\" v-if=\"\
+    API.activeProject.script_test\">\n<a>\n<i class=\"fa-solid fa-flask\"></i>\nTest\n\
+    </a>\n</li>\n<li class=\"hidden btn btn-sm tooltip\"\n:class=\"isBrowser && 'btn-success'\"\
+    \n:data-tip=\"isBrowser ? 'Close browser' : 'Open browser'\"\n@click=\"isBrowser\
+    \ = !isBrowser\" v-if=\"!editMessage\">\n<a>\n<i class=\"fa-brands fa-chrome\"\
+    ></i>\n{{ isBrowser ? 'Close' : 'Open' }} Browser\n</a>\n</li>\n<li class=\"btn\
+    \ btn-sm tooltip\"\n:class=\"isVoiceSession && 'btn-success'\"\n:data-tip=\"$ui.voiceLanguages[$ui.voiceLanguage]\"\
+    \n@click=\"toggleVoiceSession\" v-if=\"!editMessage\">\n<a>\n<i class=\"fa-solid\
+    \ fa-microphone-lines\"></i>\nVoice mode\n</a>\n</li>\n</ul>\n</div>\n</div>\n\
+    <div class=\"flex gap-2 items-center justify-end py-2 animate-pulse\" v-else>\n\
+    Searching...\n</div>\n</div>\n</div>\n</div>\n</modal>\n<modal v-if=\"imagePreview\"\
+    >\n<div class=\"flex flex-col gap-2\">\n<div class=\"text-2xl\">Upload image</div>\n\
+    <div class=\"bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full\" :style=\"\
+    `background-image: url(${imagePreview.src})`\"></div>\n<div>\nImage alt: <span\
+    \ class=\"text-xs\" v-if=\"imagePreview.alt?.length\">{{ imagePreview.alt?.length\
+    \ }} chars.</span>\n</div>\n<pre class=\"alert alert-xs h-20 overflow-auto\" v-if=\"\
+    imagePreview.readonly\">{{ imagePreview.alt }}</pre>\n<div class=\"textarea input-bordered\"\
+    \ v-else>\n<textarea class=\"w-full bg-transparent\" v-model=\"imagePreview.alt\"\
+    \ placeholder=\"Image content\">\n</textarea>\n<div class=\"flex justify-end\"\
+    >\n<button class=\"btn btn-sm bg-purple-600 text-white tooltip\"\ndata-tip=\"\
+    Extract text\"\n@click=\"onExtractTextImage(imagePreview)\">\n<i class=\"fa-regular\
+    \ fa-closed-captioning\"></i>\n</button>\n</div>\n</div>\n<div class=\"flex justify-end\
+    \ gap-2\">\n<button class=\"btn\" @click=\"imagePreview = null\">Cancel</button>\n\
+    <button class=\"btn btn-primary\" @click=\"onAddImage\">Ok</button>\n</div>\n\
+    </div>\n</modal>\n<modal v-if=\"selectFile\">\n<label class=\"file-select\">\n\
+    <div class=\"select-button\">\n<span>Select File(s)</span>\n</div>\n<input type=\"\
+    file\" accept=\"image/*\" multiple @change=\"handleFileChange\" />\n<button class=\"\
+    btn btn-sm btn-error\" @click=\"selectFile = false\">Cancel</button>\n</label>\n\
+    </modal>\n\n<modal v-if=\"showModal\">\n<div class=\"flex flex-col gap-2\">\n\
+    <div class=\"text-xl\">Confirm Deletion</div>\n<p>Are you sure you want to delete\
+    \ this task?</p>\n<div class=\"font-bold text-primary text-xl\">{{ taskToDelete.name\
+    \ }}</div>\n<div class=\"flex justify-end gap-2\">\n<button class=\"btn\" @click=\"\
+    showModal = false\">Cancel</button>\n<button class=\"btn btn-error\" @click=\"\
+    deleteTask\">Delete</button>\n</div>\n</div>\n</modal>\n</div>\n</template>\n\n\
+    <script>\nconst defFormater = d => JSON.stringify(d, null, 2)\n\nexport default\
+    \ {\nprops: ['chat', 'chatId', 'showHidden', 'childrenChats'],\ndata() {\nreturn\
+    \ {\nwaiting: false,\neditMessage: null,\neditMessageId: null,\ntermSearchQuery:\
+    \ null,\nsearchTerms: null,\nsearchTermSelIx: -1,\nfiles: [],\nimages: [],\npreviewImage:\
+    \ null,\neditorText: \"\",\nimagePreview: null,\nonDraggingOverInput: false,\n\
+    testError: null,\npreviewStyle: {\nzoom: 0.6\n},\nselectFile: false,\nisVoiceSession:\
+    \ false,\nrecognition: null,\nisBrowser: false,\nsyncEditableTextInterval: null,\n\
+    showModal: false,\ntaskToDelete: null,\nselectedUser: null,\nrefreshngMentions:\
+    \ null,\nselectedDocuments: null,\nshowDocumentSearchModal: false,\nsearchingInKnowledge:\
+    \ false,\nprojectContext: null\n}\n},\ncreated() {\nthis.selectedUser = this.$user\n\
+    this.setProjectContext()\n},\nmounted() {\nthis.syncEditableTextInterval = setInterval(()\
+    \ => this.onMessageChange(), 100)\nthis.initSelectedUserFromChat()\n},\nunmounted()\
+    \ {\nclearInterval(this.syncEditableTextInterval)\n},\ncomputed: {\ntheChat()\
+    \ {\nreturn this.chat || this.$projects.chats[this.chatId]\n},\nvisibleMessages()\
+    \ {\nreturn this.theChat?.messages?.filter(m => !m.hide || this.showHidden) ||\
+    \ []\n},\nlastAIMessage() {\nconst { activeMessages } = this\nconst lastAiMessages\
+    \ = activeMessages.filter(m => m.role === 'assistant').reverse()\nif (lastAiMessages.length\
+    \ < 2) {\nreturn lastAiMessages[0]\n}\nconst [ last, ...previous ] = lastAiMessages\n\
+    \nreturn { ...last, diffMessage: previous[0] }\n},\nlastUserMessage() {\nconst\
+    \ { messages } = this.theChat\nconst msgs = messages?.filter(m => !m.hide && m.role\
+    \ !== 'assistant')\nreturn msgs ? msgs[msgs.length - 1] : null\n},\nlastMessage()\
+    \ {\nconst { messages } = this.theChat\nreturn messages ? messages[messages.length\
+    \ - 1] : null\n},\ndiffMessage() {\nif (this.isTask) {\nconst { messages } = this.theChat\n\
+    const aiMsgs = messages.filter(m => m.role === 'assistant')\nif (aiMsgs.length\
+    \ > 1) {\nreturn aiMsgs[aiMsgs.length - 2]\n}\n}\nreturn null\n},\nactiveMessages()\
+    \ {\nconst { messages } = this.theChat\nreturn messages.filter(m => !m.hide)\n\
+    },\nmessages() {\nconst messages = this.theChat?.messages\nif (!messages?.length)\
+    \ {\nreturn []\n}\nif (this.isTask) {\nconst aiMsg = this.lastAIMessage\nconst\
+    \ lastMsg = messages[messages.length - 1]\nconst res = []\nif (aiMsg) {\nres.push(aiMsg)\n\
+    }\nif (lastMsg && lastMsg?.role !== 'assistant') {\nres.push(lastMsg)\n}\nreturn\
+    \ res\n}\nreturn messages.filter(message => !message.hide || this.showHidden)\n\
+    },\nmultiline() {\nreturn this.editorText?.split(\"\\n\").length > 1 || this.images?.length\n\
+    },\nallImages() {\nreturn this.images\n},\nmessageText() {\nreturn this.editorText\n\
+    },\ncanPost() {\nreturn this.messageText || this.images?.length\n},\nisTask()\
+    \ {\nreturn this.theChat.mode === 'task'\n},\nmessageMentions() {\nconst mentions\
+    \ = [...this.messageText.matchAll(/@([^\\\\s]+)/mg)]\n.map(w => w[1])\nreturn\
+    \ this.$projects.mentionList.filter(m => mentions.includes(m.mention))\n},\nshowTermSearch()\
+    \ {\nreturn this.searchTerms?.length\n},\nlastChatEvent() {\nconst { events }\
+    \ = this.$store.state.session\nconst event = events[events.length - 1]\nif (event?.data.chat?.id\
+    \ === this.theChat.id) {\nconst message = event.data.message?.content || \"\"\n\
+    return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type || event.data.type\
+    \ || ''} ${event.data.text || ''}\\n${message}`\n}\n},\nusersList() {\nreturn\
+    \ [this.$store.state.user, ...this.projectContext.profiles]\n},\nisChannel() {\n\
+    return this.theChat.mode === 'channel'\n},\nchatProject() {\nreturn this.$projects.allProjects.find(p\
+    \ => p.project_id === this.theChat.project_id) ||\nthis.$project\n},\neditor()\
+    \ {\nreturn this.$el.querySelector('.editor')\n}\n},\nwatch: {\ntermSearchQuery(newVal)\
+    \ {\nif (newVal?.length > 2) {\nthis.searchKeywords()\n} else {\nthis.searchTerms\
+    \ = null\n}\n},\ntheChat() {\nthis.initSelectedUserFromChat()\nthis.setProjectContext()\n\
+    }\n},\nmethods: {\nasync setProjectContext() {\nthis.projectContext = await this.$service.project.loadProjectContext(this.chatProject)\n\
+    },\ninitSelectedUserFromChat() {\nconst messages = this.theChat.messages.filter(m\
+    \ => !m.hide && m.profiles?.length)\nconst lastProfileMessage = messages[messages.length\
+    \ - 1]\nif (lastProfileMessage) {\nconst userName = lastProfileMessage.profiles[0]\n\
+    const user = this.$projects.userList.find(u => u.name === userName)\nthis.selectedUser\
+    \ = user\n} else if (!this.selectedUser) {\nthis.selectedUser = this.$user\n}\n\
+    },\nzoomIn() {\nthis.previewStyle.zoom += 0.1\n},\nzoomOut() {\nthis.previewStyle.zoom\
+    \ -= 0.1\n},\nsetEditorText(text) {\nthis.editor.innerText = text\n},\nonEditMessage(message,\
+    \ enhance) {\nif (this.editMessage === message) {\nreturn this.onResetEdit()\n\
+    }\nthis.editMessageId = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)\n\
+    this.editMessage = this.theChat.messages[this.editMessageId]\nconst profile =\
+    \ this.editMessage.profiles[0]?.name\nif (profile) {\nthis.selectedUser = profile\n\
+    }\ntry {\nthis.images = message.images.map(JSON.parse)\n} catch { }\nthis.setEditorText(this.editMessage.content)\n\
+    },\ntoggleHide(message) {\nmessage.hide = !message.hide\nthis.saveChat()\n},\n\
+    toggleAnswer(message) {\nmessage.is_answer = !message.is_answer\nthis.saveChat()\n\
+    },\nonCopy(message) {\nnavigator.permissions.query({ name: \"clipboard-read\"\
+    \ }).then(result => {\nif (result.state == \"granted\" || result.state == \"prompt\"\
+    ) {\nnavigator.clipboard.writeText(message.content)\n}\n})\n.catch(console.error)\n\
+    },\nasync improveCode() {\nthis.postMyMessage()\nawait this.$projects.codeImprove(this.theChat)\n\
+    this.testProject()\n},\nrunEdit(codeSnipped) {\nthis.sendApiRequest(\n() => API.run.edit({\
+    \ id: \"\", messages: [{ role: 'user', content: codeSnipped }] }),\ndata => [\n\
+    data.messages.reverse()[0].content,\n\"\\n\\n\",\n...data.errors.map(e => ` *\
+    \ ${e}\\n`)\n].join(\"\\n\")\n)\n},\naddMessage(msg) {\nthis.theChat.messages\
+    \ = [\n...this.theChat.messages || [],\nmsg\n]\n},\ngetMessageProfiles() {\nconst\
+    \ profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)\n\
+    if (this.selectedUser?.isProfile) {\nprofiles.push(this.selectedUser.name)\n}\n\
+    return profiles\n},\ngetUserMessage() {\nconst message = this.editor.innerText\n\
+    const files = this.messageMentions.filter(m => m.file).map(m => m.file)\nconst\
+    \ profiles = this.getMessageProfiles()\nreturn {\nrole: 'user',\ncontent: message,\n\
+    images: this.images.map(JSON.stringify),\nfiles,\nprofiles,\nuser: this.$user.username,\n\
+    disable_knowledge: true,\n}\n},\npostMyMessage() {\nif (this.canPost) {\nconst\
+    \ userMessage = this.getUserMessage()\nuserMessage.files.forEach(file => this.$emit('add-file',\
+    \ file))\nthis.addMessage(userMessage)\nthis.cleanUserInputAndWaitAnswer()\nreturn\
+    \ userMessage\n}\n},\ncleanUserInputAndWaitAnswer() {\nthis.setEditorText(\"\"\
+    )\nthis.images = []\nthis.scrollToBottom()\n},\nasync sendMessage() {\nif (this.isVoiceSession\
+    \ && !this.canPost) {\nreturn\n}\n\nif (this.editMessage !== null) {\nthis.updateMessage()\n\
+    this.saveChat()\n} else {\nif (this.postMyMessage()) {\nawait this.saveChat()\n\
+    }\nif (!this.isChannel || this.lastMessage?.profiles.length) {\nawait this.sendChatMessage(this.theChat)\n\
+    }\n}\n},\ngetSendMessage() {\nreturn this.editMessage ||\nthis.theChat.messages[this.theChat.messages.length\
+    \ - 1].content\n},\nasync askKnowledge() {\nconst searchTerm = this.editor.innerText\n\
+    if (!searchTerm || searchTerm.length <= 10) {\nreturn\n}\nconst knowledgeSearch\
+    \ = {\nsearchTerm,\nsearchType: 'embeddings',\ndocumentSearchType: API.activeProject.knowledge_search_type,\n\
+    cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,\ndocumentCount:\
+    \ API.activeProject.knowledge_search_document_count\n}\nthis.searchingInKnowledge\
+    \ = true\ntry {\nconst { response, documents } = await API.knowledge.search(knowledgeSearch)\n\
+    const docs = documents.map(({ metadata: { score_analysis, source}}) => {\nconst\
+    \ file = source\nconst fileName = file.split(\"/\").reverse()[0]\nreturn [\n`###\
+    \ ${fileName}`,\nscore_analysis,\n].join(\"\\n\")\n}).join(\"\\n\")\nconst message\
+    \ = [\nresponse,\n\"\",\ndocs\n].join(\"\\n\")\nconst searchMessage = {\nrole:\
+    \ 'assistant',\ncontent: message,\nfiles: documents.map(doc => doc.metadata.source),\n\
+    disable_knowledge: true,\n}\nthis.addMessage(searchMessage)\nthis.saveChat()\n\
+    this.cleanUserInputAndWaitAnswer()\n} finally {\nthis.searchingInKnowledge = false\n\
+    }\n},\nasync sendApiRequest(apiCall, formater = defFormater) {\ntry {\nthis.waiting\
+    \ = true\nawait apiCall()\nthis.$emit('refresh-chat')\nthis.scrollToBottom()\n\
+    } catch (ex) {\nthis.addMessage({\nrole: 'assistant',\ncontent: ex.message\n})\n\
+    }\nthis.waiting = false\n},\nasync sendChatMessage(chat) {\nthis.waiting = true\n\
+    try {\nreturn await this.$storex.projects.chatWihProject(chat)\n} finally {\n\
+    this.waiting = false\n}\n},\nasync updateMessage() {\nconst { innerText } = this.editor\n\
+    const images = this.images.map(JSON.stringify)\n\nthis.editMessage.files = this.messageMentions.filter(m\
+    \ => m.file).map(m => m.file)\nthis.editMessage.profiles = this.getMessageProfiles()\n\
+    this.editMessage.content = innerText\nthis.editMessage.images = images\nthis.editMessage.updated_at\
+    \ = new Date().toISOString()\nthis.onResetEdit()\n},\nonResetEdit() {\nthis.editMessage\
+    \ = null\nthis.setEditorText(\"\")\nthis.editMessageId = null\nthis.images = []\n\
+    },\nremoveMessage(message) {\nthis.$emit(\"delete-message\", message)\n},\nasync\
+    \ searchKeywords() {\nconst searchQuery = this.termSearchQuery?.toLowerCase()\n\
+    this.searchTerms = this.projectContext.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))\n\
+    this.searchTermSelIx = 0\nif (!this.refreshngMentions) {\nthis.refreshngMentions\
+    \ = this.$projects.loadProjectKnowledge()\nthis.refreshngMentions.then(() => this.refreshngMentions\
+    \ = null)\n}\n},\naddSerchTerm(term) {\nif (term.file) {\ntry {\nconst fileContent\
+    \ = await this.$projects.readFile(term.file)\nconst userMessage = {\nrole: 'user',\n\
+    content: `\\`\\`\\`ext ${term.file}\\n${fileContent}\\n\\`\\`\\``\n}\nthis.addMessage(userMessage)\n\
+    this.saveChat()\n} catch (error) {\nconsole.error(\"Error reading file:\", error)\n\
+    }\n}\nthis.closeTermSearch()\n},\ngetEditorCaretCharOffset() {\nlet caretOffset\
+    \ = 0\nconst element = this.editor\nif (window.getSelection) {\nvar range = window.getSelection().getRangeAt(0)\n\
+    var preCaretRange = range.cloneRange()\npreCaretRange.selectNodeContents(element)\n\
+    preCaretRange.setEnd(range.endContainer, range.endOffset)\ncaretOffset = preCaretRange.toString().length\n\
+    } else if (document.selection && document.selection.type != \"Control\") {\nvar\
+    \ textRange = document.selection.createRange()\nvar preCaretTextRange = document.body.createTextRange()\n\
+    preCaretTextRange.moveToElementText(element)\npreCaretTextRange.setEndPoint(\"\
+    EndToEnd\", textRange)\ncaretOffset = preCaretTextRange.text.length\n}\nreturn\
+    \ caretOffset\n},\ngetCursorWord() {\nconst text = this.editor?.innerText\nif\
+    \ (!text.length) {\nreturn \"\"\n}\nconst caretIndex = this.getEditorCaretCharOffset()\n\
+    const lastWorkIndex = text.slice(0, caretIndex).split(/\\s/g).length - 1\nreturn\
+    \ text.split(/\\s/g)[lastWorkIndex]\n},\ndetectSearchTerm() {\nconst lastWord\
+    \ = this.getCursorWord()\nconst mention = lastWord[0] === '@' ? lastWord?.slice(1)\
+    \ : null\nif (mention?.length >= 3 &&\n!this.$projects.mentionList.find(m => m.name\
+    \ === mention)) {\nthis.termSearchQuery = mention\n}\nif (this.showTermSearch\
+    \ && !mention) {\nthis.closeTermSearch()\n}\n},\ncloseTermSearch() {\nthis.searchTerms\
+    \ = null\nthis.termSearchQuery = null\n},\nonSelNext() {\nthis.searchTermSelIx++\n\
+    if (this.searchTermSelIx === this.searchTerms?.length) {\nthis.searchTermSelIx\
+    \ = 0\n}\n},\nonSelPrev() {\nthis.searchTermSelIx--\nif (this.searchTermSelIx\
+    \ === -1) {\nthis.searchTermSelIx = this.searchTerms?.length - 1\n}\n},\nsaveChat()\
+    \ {\nif (!this.theChat.temp) {\nreturn API.chats.save(this.theChat)\n}\n},\nonDrop(e)\
+    \ {\nthis.onDraggingOverInput = false\nif (!e.dataTransfer.files) {\nreturn\n\
+    }\nvar file = [...e.dataTransfer.files].filter(f => f.type.indexOf(\"image\")\
+    \ !== -1)[0]\nif (file) {\nthis.onInputImage(file)\n}\n},\nasync onContentPaste(e)\
+    \ {\nif (!e.clipboardData?.items) {\nreturn\n}\nvar file = [...e.clipboardData?.items].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]?.getAsFile()\nif (file) {\nthis.onInputImage(file)\n\
+    e.preventDefault()\nreturn false\n}\n},\ngetFileImageUrl(file) {\nreturn new Promise(ok\
+    \ => {\nconst reader = new FileReader()\nreader.onload = (event) => {\nconst base64URL\
+    \ = event.target.result\nok(base64URL)\n}\nreader.readAsDataURL(file)\n})\n},\n\
+    async onInputImage(file) {\nconst base64URL = await this.getFileImageUrl(file)\n\
+    this.imagePreview = {\nsrc: base64URL,\nalt: \"\"\n}\n},\nonAddImage() {\nif (this.imagePreview.ix\
+    \ === undefined) {\nthis.images.push(this.imagePreview)\nthis.imagePreview.ix\
+    \ = this.images.length - 1\n}\nthis.imagePreview = null\n},\nasync onExtractTextImage(image)\
+    \ {\nfunction base64ToFile(base64Data, filename) {\nconst byteString = atob(base64Data.split(',')[1])\n\
+    const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0]\nconst\
+    \ byteArray = new Uint8Array(byteString.length)\nfor (let i = 0; i < byteString.length;\
+    \ i++) {\nbyteArray[i] = byteString.charCodeAt(i)\n}\nconst blob = new Blob([byteArray],\
+    \ { type: mimeString })\nreturn new File([blob], filename, { type: mimeString\
+    \ })\n}\n\nconst file = base64ToFile(image.src, \"image\")\nconst text = await\
+    \ API.tools.imageToText(file)\nimage.alt = text\n},\nasync handleFileChange({\
+    \ target: { files } }) {\nconst allUrls = await Promise.all([...files].map(file\
+    \ => this.getFileImageUrl(file)))\nconsole.log(\"handleFileChange\", allUrls)\n\
+    this.images = [\n...this.images,\n...allUrls.map((src, ix) => ({ src, alt: \"\"\
+    , ix: this.images.length + 1 + ix }))\n]\nthis.selectFile = false\n},\nonGenerateCode(codeBlockInfo)\
+    \ {\nthis.$projects.generateCode({ chat: this.theChat, codeBlockInfo })\n},\n\
+    removeImage(ix) {\nthis.images = this.images.filter((i, imx) => imx !== ix)\n\
+    },\nonMessageChange() {\nif (this.editor &&\nthis.editor.innerText != this.editorText)\
+    \ {\nthis.editorText = this.editor.innerText\nthis.detectSearchTerm()\n}\n},\n\
+    async testProject() {\nthrow new Error('Obsolte')\nconst data = await API.projects.test()\n\
+    this.testError = data\nif (this.testError) {\nthis.editMessage = this.testError\n\
+    this.setEditorText(this.editMessage)\n}\n},\nremoveFileFromMessage(message, file)\
+    \ {\nmessage.files = message.files.filter(f => f !== file)\nthis.saveChat()\n\
+    },\ntoggleVoiceSession() {\nif (this.isVoiceSession) {\nreturn this.stopVoiceSession()\n\
+    }\nlet silents = 5\nthis.isVoiceSession = true\n\nconst recognition = new (window.SpeechRecognition\
+    \ || window.webkitSpeechRecognition)()\nrecognition.lang = this.$ui.voiceLanguage\n\
+    recognition.interimResults = false\n\nrecognition.onresult = (event) => {\nconst\
+    \ transcript = event.results[0][0].transcript\nthis.editor.innerText += transcript\n\
+    }\n\nrecognition.onend = () => {\nif (this.isVoiceSession && silents--) {\nrecognition.start()\n\
+    } else {\nthis.stopVoiceSession()\n}\n}\n\nrecognition.start()\nthis.recognition\
+    \ = recognition\n},\nstopVoiceSession() {\nthis.recognition?.stop()\nthis.recognition\
+    \ = null\n},\nscrollToBottom() {\nsetTimeout(() => this.$refs.anchor?.scrollIntoView(),\
+    \ 200)\n},\nonEditMessageKeyDown(event) {\nconst stop = () => {\nevent.stopPropagation()\n\
+    event.preventDefault()\nreturn false\n}\nif (event.key === 'Escape') {\nthis.onResetEdit()\n\
+    } else if (event.key === 'Tab' && this.showTermSearch) {\nthis.addSerchTerm(this.searchTerms[this.searchTermSelIx])\n\
+    } else if(event.key === 'Enter' && event.ctrlKey) {\nthis.sendMessage()\n} else\
+    \ {\nreturn true\n}\nreturn stop()\n},\nopenDocumentSearch() {\nthis.showDocumentSearchModal\
+    \ = !this.showDocumentSearchModal\n},\nonAddDocument(doc) {\nconst source = doc.metadata.source\n\
+    this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], source])]\n\
+    this.saveChat()\n}\n}\n}\n</script>\n```\n\nIn this updated code, the `addSerchTerm`\
+    \ method now reads the file content using `this.$projects.readFile(term.file)`\
+    \ and creates a new user message with the content formatted as specified. The\
+    \ file path and content are included in the message in the format:\n\n```ext file/path\n\
+    File content here\n```\n\nThis ensures that the file content is displayed directly\
+    \ in the chat interface when a file is selected from the search terms."
+  created_at: '2025-08-20 11:52:16.330771'
+  disable_knowledge: false
+  doc_id: 1e4ad911-6f31-41d4-a508-fb395c9c4a76
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00022268295288085938
+    model: openai/mercury-coder
+    time_taken: 8.740204572677612
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-08-20T20:28:37.527Z'
+  user: null
+- content: "Error:\n\n[vue/compiler-sfc] Unexpected reserved word 'await'. (394:20)\n\
+    \n\n/home/codx-junior/codx-junior/client/src/components/chat/Chat.vue\n681|\_\
+    \ if (term.file) {\n682|\_ try {\n683|\_ const fileContent = await this.$projects.readFile(term.file)\n\
+    \_ \_|\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ ^\n684|\_ const userMessage = {\n685|\_\
+    \ role: 'user',"
+  created_at: '2025-08-20 11:52:16.330771'
+  disable_knowledge: true
+  doc_id: 04639c2a-dfe8-4a64-9064-27e9bfe2e1f1
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-20 11:52:16.330801'
+  user: admin
+- content: "Error:\n\n[vue/compiler-sfc] Unexpected reserved word 'await'. (394:20)\n\
+    \n\n/home/codx-junior/codx-junior/client/src/components/chat/Chat.vue\n681|\_\
+    \ if (term.file) {\n682|\_ try {\n683|\_ const fileContent = await this.$projects.readFile(term.file)\n\
+    \_ \_|\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ ^\n684|\_ const userMessage = {\n685|\_\
+    \ role: 'user',\n                    Update the document with user comments:\n\
+    \                    <document>\n                    Certainly! To change how\
+    \ files are added to the chat from the search term, we need to modify the `addSerchTerm`\
+    \ method to create a new user message with the file content instead of just adding\
+    \ the file path. Here's the updated code:\n\n```vue\_/home/codx-junior/codx-junior/client/src/components/chat/Chat.vue\n\
+    <script setup>\nimport moment from 'moment'\nimport { API } from '../../api/api'\n\
+    import ChatEntry from '@/components/ChatEntry.vue'\nimport Browser from '@/components/browser/Browser.vue'\n\
+    import Markdown from '@/components/Markdown.vue'\nimport TaskCard from '../kanban/TaskCard.vue'\n\
+    import UserSelector from './UserSelector.vue'\nimport KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'\n\
+    import CheckLists from './CheckLists.vue'\n</script>\n\n<template>\n<div class=\"\
+    flex flex-col gap-1 grow\">\n<div class=\"grow relative\">\n<CheckLists class=\"\
+    mb-2\" :chat=\"theChat\" @change=\"saveChat\" />\n<div class=\"overflow-y-auto\
+    \ overflow-x-hidden\"\n:class=\"isBrowser && 'flex gap-1'\">\n<div class=\"w-3/4\"\
+    \ v-if=\"isBrowser\">\n<Browser :token=\"$ui.monitors['shared']\" />\n</div>\n\
+    <div class=\"overflow-auto h-full\">\n<div class=\"flex flex-col\" v-for=\"message\
+    \ in messages\" :key=\"message.id\">\n<div class=\"flex w-full flex-col gap-4\
+    \ bg-base-100 p-2 mb-2 rounded-md\" v-if=\"!message.content && !message.think\"\
+    >\n<div class=\"flex items-center gap-4\">\n<div class=\"skeleton h-8 w-8 shrink-0\
+    \ rounded-full\"></div>\n<div class=\"flex flex-col gap-4\">\n<div class=\"skeleton\
+    \ h-4 w-20\"></div>\n</div>\n</div>\n<div class=\"skeleton h-32 w-full\"></div>\n\
+    </div>\n<ChatEntry :class=\"['mb-4 rounded-md',\nisChannel ? '' : 'bg-base-100\
+    \ py-2',\neditMessage ? editMessage === message ? 'border border-warning' : 'opacity-40'\
+    \ : '',\nmessage.hide ? 'opacity-80 border border-dashed p-2 border-warning' :\
+    \ '']\"\n:chat=\"theChat\"\n:message=\"message\"\n@edit=\"onEditMessage(message)\"\
+    \n@enhance=\"onEditMessage(message, true)\"\n@remove=\"removeMessage(message)\"\
+    \n@remove-file=\"removeFileFromMessage(message, $event)\"\n@hide=\"toggleHide(message)\"\
+    \n@answer=\"toggleAnswer(message)\"\n@run-edit=\"runEdit\"\n@copy=\"onCopy(message)\"\
+    \n@add-file-to-chat=\"$emit('add-file', $event)\"\n@image=\"imagePreview = { ...$event,\
+    \ readonly: true }\"\n@generate-code=\"onGenerateCode\"\nv-else />\n</div>\n<div\
+    \ class=\"anchor\" ref=\"anchor\"></div>\n<div class=\"grid grid-cols-3 gap-2\
+    \ mb-2\" v-if=\"childrenChats?.length\">\n<div v-for=\"child in childrenChats\"\
+    \ :key=\"child.id\" class=\"relative\">\n<TaskCard class=\"click p-2 bg-base-100\
+    \ h-40\" :task=\"child\" @click=\"$projects.setActiveChat(child)\" />\n</div>\n\
+    </div>\n</div>\n</div>\n</div>\n<div class=\"chat chat-end\" v-if=\"false && isBrowser\"\
+    >\n<div class=\"chat-image avatar\">\n<div class=\"w-10 rounded-full\">\n<img\
+    \ src=\"/only_icon.png\" alt=\"logo\" />\n</div>\n</div>\n<div class=\"chat-bubble\"\
+    >\n<Markdown class=\"max-h-40 overflow-auto\" :text=\"lastAIMessage.content\"\
+    \ v-if=\"lastAIMessage\" />\n<div v-else>\n<span class=\"font-bold\">Let's navigate\
+    \ together:</span>\nUse browser to navigate any web or try:\n<span class=\"italic\
+    \ text-info\">Find top 5 results for ....</span>\n</div>\n</div>\n</div>\n<div\
+    \ class=\"sticky bottom-0 z-50 bg-base-300\">\n<div class=\"text-ellipsis overflow-hidden\
+    \ text-nowrap text-xs text-info\">\n{{ lastChatEvent }}\n</div>\n<div class=\"\
+    dropdown dropdown-top dropdown-open mb-1\" v-if=\"showTermSearch\">\n<div tabindex=\"\
+    0\" role=\"button\" class=\"rounded-md bg-base-300 w-fit p-2 hidden\">\n<div class=\"\
+    flex p-1 items-center text-sky-600\">\n<i class=\"fa-solid fa-at\"></i>\n<input\
+    \ type=\"text\" v-model=\"termSearchQuery\"\nref=\"termSearcher\"\nclass=\"-ml-1\
+    \ input input-xs text-lg bg-transparent\" placeholder=\"search term...\"\n@keydown.down.stop=\"\
+    onSelNext\"\n@keydown.up.stop=\"onSelPrev\"\n@keydown.enter.stop=\"addSerchTerm(searchTerms[searchTermSelIx])\"\
+    \n@keydown.esc=\"closeTermSearch\" />\n<button class=\"btn btn-xs btn-circle btn-outline\
+    \ btn-error\"\n@click=\"closeTermSearch\"\nv-if=\"termSearchQuery\">\n<i class=\"\
+    fa-solid fa-circle-xmark\"></i>\n</button>\n</div>\n</div>\n<ul tabindex=\"0\"\
+    \ class=\"dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit\"\
+    >\n<li class=\"tooltip text-lg\" :data-tip=\"term.tooltip\" v-for=\"(term, ix)\
+    \ in searchTerms\" :key=\"term.name\">\n<a @click=\"addSerchTerm(term)\">\n<div\
+    \ :class=\"[searchTermSelIx === ix ? 'underline':'']\">\n<span class=\"text-sky-600\
+    \ font-bold\">@{{ term.name }}</span>\n</div>\n</a>\n</li>\n</ul>\n</div>\n<div\
+    \ class=\"flex gap-2\">\n<span class=\"badge tooltip flex gap-2 items-center\"\
+    \n:data-tip=\"mention.tooltip\"\n:class=\"{ 'badge-primary': mention.project,\
+    \ 'badge-success badge-outline': mention.profile }\"\nv-for=\"mention in messageMentions\"\
+    \ :key=\"mention.name\">\n<i class=\"fa-solid fa-magnifying-glass\" v-if=\"mention.project\"\
+    ></i>\n<img class=\"w-4 rounded-full\" :src=\"mention.profile.avatar\" v-if=\"\
+    mention.profile?.avatar\" />\n<i class=\"fa-solid fa-user\" v-if=\"mention.profile\
+    \ && !mention.profile.avatar\"></i>\n<div class=\"-mt-1\">\n{{ mention.name }}\n\
+    </div>\n</span>\n</div>\n<div :class=\"['flex bg-base-300 border rounded-md shadow\
+    \ indicator w-full',\n'flex-col',\neditMessage && 'border-warning',\nonDraggingOverInput\
+    \ ? 'bg-warning/10': '']\"\n@dragover.prevent=\"onDraggingOverInput = true\"\n\
+    @dragleave.prevent=\"onDraggingOverInput = false\"\n@drop.prevent=\"onDrop\">\n\
+    <KnowledgeSearch class=\"p-2 h-60\"\n@select=\"onAddDocument\"\nv-if=\"showDocumentSearchModal\"\
+    \n/>\n<div v-else class=\"editor\" :class=\"['max-h-40 w-full px-2 py-1 overflow-auto\
+    \ text-wrap focus-visible:outline-none']\"\n:contenteditable=\"!waiting\"\nref=\"\
+    editor\"\n@paste=\"onContentPaste\"\n@keydown=\"onEditMessageKeyDown\"\n>\n</div>\n\
+    <div class=\"flex justify-between items-end px-2\">\n<div class=\"carousel rounded-box\"\
+    >\n<div class=\"carousel-item relative click flex flex-col\" v-for=\"(image, ix)\
+    \ in allImages\" :key=\"image.src\">\n<div class=\"bg-contain bg-no-repeat bg-center\
+    \ w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4\"\n:style=\"`background-image: url(${image.src})`\"\
+    \ @click=\"imagePreview = image\">\n</div>\n<p class=\"text-xs\">{{ image.alt.slice(0,\
+    \ 10) }}</p>\n<button class=\"btn btn-xs btn-circle btn-error absolute right-0\
+    \ top-0\"\n@click=\"removeImage(ix)\">\nX\n</button>\n</div>\n</div>\n<span class=\"\
+    loading loading-dots loading-md btn btn-sm\" v-if=\"waiting\"></span>\n<div class=\"\
+    grow flex justify-between items-center\" v-else>\n<UserSelector\nclass=\"dropdown-top\"\
+    \n:selectedUser=\"selectedUser\"\n@user-changed=\"selectedUser = $event\"\n/>\n\
+    <div class=\"flex gap-2 items-center justify-end py-2\" v-if=\"!searchingInKnowledge\"\
+    >\n<button class=\"btn btn-sm btn-info btn-outline\" @click=\"sendMessage\" v-if=\"\
+    editMessage\">\n<i class=\"fa-solid fa-save\"></i>\n<div class=\"text-xs\" v-if=\"\
+    editMessage && !showDocumentSearchModal\">Edit</div>\n</button>\n<button class=\"\
+    btn btn-sm tooltip\" data-tip=\"Save changes\" @click=\"onResetEdit\"\nv-if=\"\
+    editMessage\">\n<i class=\"fa-regular fa-circle-xmark\"></i>\n</button>\n<button\
+    \ class=\"btn btn-sm tooltip relative\"\n:class=\"showDocumentSearchModal ? 'btn-error'\
+    \ : 'btn-info'\"\n:data-tip=\"'Search documents'\"\n@click=\"askKnowledge\">\n\
+    <i class=\"fa-solid fa-file-lines\"></i>\n</button>\n<button class=\"btn btn-sm\
+    \ tooltip\"\n:class=\"isVoiceSession && 'btn-success animate-pulse'\"\ndata-tip=\"\
+    Ask codx-junior\"\n@click=\"sendMessage\"\nref=\"sendButton\"\nv-if=\"!editMessage\
+    \ && !showDocumentSearchModal\">\n<i class=\"fa-solid fa-microphone-lines\" v-if=\"\
+    isVoiceSession\"></i>\n<i class=\"fa-solid fa-paper-plane\" v-else></i>\n</button>\n\
+    <button class=\"hidden btn btn-sm tooltip\"\n:class=\"isBrowser && 'btn-warning'\"\
+    \ndata-tip=\"Ask codx-browser\" @click=\"isBrowser = !isBrowser\"\nv-if=\"!editMessage\"\
+    >\n<i class=\"fa-brands fa-chrome\"></i>\n{{ isBrowser ? 'Close' : 'Open' }} Browser\n\
+    </button>\n<button class=\"hidden btn btn-sm tooltip btn-warning\"\ndata-tip=\"\
+    Make code changes\" @click=\"improveCode()\" v-if=\"!editMessage && theChat.mode\
+    \ === 'chat'\">\n<i class=\"fa-solid fa-code\"></i>\n</button>\n\n<div class=\"\
+    dropdown dropdown-top dropdown-end\">\n<div tabindex=\"1\" role=\"button\" class=\"\
+    btn btn-sm m-1\">\n<i class=\"fa-solid fa-ellipsis-vertical\"></i>\n</div>\n<ul\
+    \ tabindex=\"1\" class=\"dropdown-content menu bg-base-200 rounded-box z-[1] w-52\
+    \ p-2 shadow gap-2\">\n<li class=\"btn btn-sm tooltip\"\ndata-tip=\"Attach files\"\
+    \n@click=\"selectFile = true\">\n<a>\n<i class=\"fa-solid fa-paperclip\"></i>\
+    \ Attach files\n</a>\n</li>\n<li class=\"btn btn-sm\" @click=\"testProject\" v-if=\"\
+    API.activeProject.script_test\">\n<a>\n<i class=\"fa-solid fa-flask\"></i>\nTest\n\
+    </a>\n</li>\n<li class=\"hidden btn btn-sm tooltip\"\n:class=\"isBrowser && 'btn-success'\"\
+    \n:data-tip=\"isBrowser ? 'Close browser' : 'Open browser'\"\n@click=\"isBrowser\
+    \ = !isBrowser\" v-if=\"!editMessage\">\n<a>\n<i class=\"fa-brands fa-chrome\"\
+    ></i>\n{{ isBrowser ? 'Close' : 'Open' }} Browser\n</a>\n</li>\n<li class=\"btn\
+    \ btn-sm tooltip\"\n:class=\"isVoiceSession && 'btn-success'\"\n:data-tip=\"$ui.voiceLanguages[$ui.voiceLanguage]\"\
+    \n@click=\"toggleVoiceSession\" v-if=\"!editMessage\">\n<a>\n<i class=\"fa-solid\
+    \ fa-microphone-lines\"></i>\nVoice mode\n</a>\n</li>\n</ul>\n</div>\n</div>\n\
+    <div class=\"flex gap-2 items-center justify-end py-2 animate-pulse\" v-else>\n\
+    Searching...\n</div>\n</div>\n</div>\n</div>\n</modal>\n<modal v-if=\"imagePreview\"\
+    >\n<div class=\"flex flex-col gap-2\">\n<div class=\"text-2xl\">Upload image</div>\n\
+    <div class=\"bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full\" :style=\"\
+    `background-image: url(${imagePreview.src})`\"></div>\n<div>\nImage alt: <span\
+    \ class=\"text-xs\" v-if=\"imagePreview.alt?.length\">{{ imagePreview.alt?.length\
+    \ }} chars.</span>\n</div>\n<pre class=\"alert alert-xs h-20 overflow-auto\" v-if=\"\
+    imagePreview.readonly\">{{ imagePreview.alt }}</pre>\n<div class=\"textarea input-bordered\"\
+    \ v-else>\n<textarea class=\"w-full bg-transparent\" v-model=\"imagePreview.alt\"\
+    \ placeholder=\"Image content\">\n</textarea>\n<div class=\"flex justify-end\"\
+    >\n<button class=\"btn btn-sm bg-purple-600 text-white tooltip\"\ndata-tip=\"\
+    Extract text\"\n@click=\"onExtractTextImage(imagePreview)\">\n<i class=\"fa-regular\
+    \ fa-closed-captioning\"></i>\n</button>\n</div>\n</div>\n<div class=\"flex justify-end\
+    \ gap-2\">\n<button class=\"btn\" @click=\"imagePreview = null\">Cancel</button>\n\
+    <button class=\"btn btn-primary\" @click=\"onAddImage\">Ok</button>\n</div>\n\
+    </div>\n</modal>\n<modal v-if=\"selectFile\">\n<label class=\"file-select\">\n\
+    <div class=\"select-button\">\n<span>Select File(s)</span>\n</div>\n<input type=\"\
+    file\" accept=\"image/*\" multiple @change=\"handleFileChange\" />\n<button class=\"\
+    btn btn-sm btn-error\" @click=\"selectFile = false\">Cancel</button>\n</label>\n\
+    </modal>\n\n<modal v-if=\"showModal\">\n<div class=\"flex flex-col gap-2\">\n\
+    <div class=\"text-xl\">Confirm Deletion</div>\n<p>Are you sure you want to delete\
+    \ this task?</p>\n<div class=\"font-bold text-primary text-xl\">{{ taskToDelete.name\
+    \ }}</div>\n<div class=\"flex justify-end gap-2\">\n<button class=\"btn\" @click=\"\
+    showModal = false\">Cancel</button>\n<button class=\"btn btn-error\" @click=\"\
+    deleteTask\">Delete</button>\n</div>\n</div>\n</modal>\n</div>\n</template>\n\n\
+    <script>\nconst defFormater = d => JSON.stringify(d, null, 2)\n\nexport default\
+    \ {\nprops: ['chat', 'chatId', 'showHidden', 'childrenChats'],\ndata() {\nreturn\
+    \ {\nwaiting: false,\neditMessage: null,\neditMessageId: null,\ntermSearchQuery:\
+    \ null,\nsearchTerms: null,\nsearchTermSelIx: -1,\nfiles: [],\nimages: [],\npreviewImage:\
+    \ null,\neditorText: \"\",\nimagePreview: null,\nonDraggingOverInput: false,\n\
+    testError: null,\npreviewStyle: {\nzoom: 0.6\n},\nselectFile: false,\nisVoiceSession:\
+    \ false,\nrecognition: null,\nisBrowser: false,\nsyncEditableTextInterval: null,\n\
+    showModal: false,\ntaskToDelete: null,\nselectedUser: null,\nrefreshngMentions:\
+    \ null,\nselectedDocuments: null,\nshowDocumentSearchModal: false,\nsearchingInKnowledge:\
+    \ false,\nprojectContext: null\n}\n},\ncreated() {\nthis.selectedUser = this.$user\n\
+    this.setProjectContext()\n},\nmounted() {\nthis.syncEditableTextInterval = setInterval(()\
+    \ => this.onMessageChange(), 100)\nthis.initSelectedUserFromChat()\n},\nunmounted()\
+    \ {\nclearInterval(this.syncEditableTextInterval)\n},\ncomputed: {\ntheChat()\
+    \ {\nreturn this.chat || this.$projects.chats[this.chatId]\n},\nvisibleMessages()\
+    \ {\nreturn this.theChat?.messages?.filter(m => !m.hide || this.showHidden) ||\
+    \ []\n},\nlastAIMessage() {\nconst { activeMessages } = this\nconst lastAiMessages\
+    \ = activeMessages.filter(m => m.role === 'assistant').reverse()\nif (lastAiMessages.length\
+    \ < 2) {\nreturn lastAiMessages[0]\n}\nconst [ last, ...previous ] = lastAiMessages\n\
+    \nreturn { ...last, diffMessage: previous[0] }\n},\nlastUserMessage() {\nconst\
+    \ { messages } = this.theChat\nconst msgs = messages?.filter(m => !m.hide && m.role\
+    \ !== 'assistant')\nreturn msgs ? msgs[msgs.length - 1] : null\n},\nlastMessage()\
+    \ {\nconst { messages } = this.theChat\nreturn messages ? messages[messages.length\
+    \ - 1] : null\n},\ndiffMessage() {\nif (this.isTask) {\nconst { messages } = this.theChat\n\
+    const aiMsgs = messages.filter(m => m.role === 'assistant')\nif (aiMsgs.length\
+    \ > 1) {\nreturn aiMsgs[aiMsgs.length - 2]\n}\n}\nreturn null\n},\nactiveMessages()\
+    \ {\nconst { messages } = this.theChat\nreturn messages.filter(m => !m.hide)\n\
+    },\nmessages() {\nconst messages = this.theChat?.messages\nif (!messages?.length)\
+    \ {\nreturn []\n}\nif (this.isTask) {\nconst aiMsg = this.lastAIMessage\nconst\
+    \ lastMsg = messages[messages.length - 1]\nconst res = []\nif (aiMsg) {\nres.push(aiMsg)\n\
+    }\nif (lastMsg && lastMsg?.role !== 'assistant') {\nres.push(lastMsg)\n}\nreturn\
+    \ res\n}\nreturn messages.filter(message => !message.hide || this.showHidden)\n\
+    },\nmultiline() {\nreturn this.editorText?.split(\"\\n\").length > 1 || this.images?.length\n\
+    },\nallImages() {\nreturn this.images\n},\nmessageText() {\nreturn this.editorText\n\
+    },\ncanPost() {\nreturn this.messageText || this.images?.length\n},\nisTask()\
+    \ {\nreturn this.theChat.mode === 'task'\n},\nmessageMentions() {\nconst mentions\
+    \ = [...this.messageText.matchAll(/@([^\\\\s]+)/mg)]\n.map(w => w[1])\nreturn\
+    \ this.$projects.mentionList.filter(m => mentions.includes(m.mention))\n},\nshowTermSearch()\
+    \ {\nreturn this.searchTerms?.length\n},\nlastChatEvent() {\nconst { events }\
+    \ = this.$store.state.session\nconst event = events[events.length - 1]\nif (event?.data.chat?.id\
+    \ === this.theChat.id) {\nconst message = event.data.message?.content || \"\"\n\
+    return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type || event.data.type\
+    \ || ''} ${event.data.text || ''}\\n${message}`\n}\n},\nusersList() {\nreturn\
+    \ [this.$store.state.user, ...this.projectContext.profiles]\n},\nisChannel() {\n\
+    return this.theChat.mode === 'channel'\n},\nchatProject() {\nreturn this.$projects.allProjects.find(p\
+    \ => p.project_id === this.theChat.project_id) ||\nthis.$project\n},\neditor()\
+    \ {\nreturn this.$el.querySelector('.editor')\n}\n},\nwatch: {\ntermSearchQuery(newVal)\
+    \ {\nif (newVal?.length > 2) {\nthis.searchKeywords()\n} else {\nthis.searchTerms\
+    \ = null\n}\n},\ntheChat() {\nthis.initSelectedUserFromChat()\nthis.setProjectContext()\n\
+    }\n},\nmethods: {\nasync setProjectContext() {\nthis.projectContext = await this.$service.project.loadProjectContext(this.chatProject)\n\
+    },\ninitSelectedUserFromChat() {\nconst messages = this.theChat.messages.filter(m\
+    \ => !m.hide && m.profiles?.length)\nconst lastProfileMessage = messages[messages.length\
+    \ - 1]\nif (lastProfileMessage) {\nconst userName = lastProfileMessage.profiles[0]\n\
+    const user = this.$projects.userList.find(u => u.name === userName)\nthis.selectedUser\
+    \ = user\n} else if (!this.selectedUser) {\nthis.selectedUser = this.$user\n}\n\
+    },\nzoomIn() {\nthis.previewStyle.zoom += 0.1\n},\nzoomOut() {\nthis.previewStyle.zoom\
+    \ -= 0.1\n},\nsetEditorText(text) {\nthis.editor.innerText = text\n},\nonEditMessage(message,\
+    \ enhance) {\nif (this.editMessage === message) {\nreturn this.onResetEdit()\n\
+    }\nthis.editMessageId = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)\n\
+    this.editMessage = this.theChat.messages[this.editMessageId]\nconst profile =\
+    \ this.editMessage.profiles[0]?.name\nif (profile) {\nthis.selectedUser = profile\n\
+    }\ntry {\nthis.images = message.images.map(JSON.parse)\n} catch { }\nthis.setEditorText(this.editMessage.content)\n\
+    },\ntoggleHide(message) {\nmessage.hide = !message.hide\nthis.saveChat()\n},\n\
+    toggleAnswer(message) {\nmessage.is_answer = !message.is_answer\nthis.saveChat()\n\
+    },\nonCopy(message) {\nnavigator.permissions.query({ name: \"clipboard-read\"\
+    \ }).then(result => {\nif (result.state == \"granted\" || result.state == \"prompt\"\
+    ) {\nnavigator.clipboard.writeText(message.content)\n}\n})\n.catch(console.error)\n\
+    },\nasync improveCode() {\nthis.postMyMessage()\nawait this.$projects.codeImprove(this.theChat)\n\
+    this.testProject()\n},\nrunEdit(codeSnipped) {\nthis.sendApiRequest(\n() => API.run.edit({\
+    \ id: \"\", messages: [{ role: 'user', content: codeSnipped }] }),\ndata => [\n\
+    data.messages.reverse()[0].content,\n\"\\n\\n\",\n...data.errors.map(e => ` *\
+    \ ${e}\\n`)\n].join(\"\\n\")\n)\n},\naddMessage(msg) {\nthis.theChat.messages\
+    \ = [\n...this.theChat.messages || [],\nmsg\n]\n},\ngetMessageProfiles() {\nconst\
+    \ profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)\n\
+    if (this.selectedUser?.isProfile) {\nprofiles.push(this.selectedUser.name)\n}\n\
+    return profiles\n},\ngetUserMessage() {\nconst message = this.editor.innerText\n\
+    const files = this.messageMentions.filter(m => m.file).map(m => m.file)\nconst\
+    \ profiles = this.getMessageProfiles()\nreturn {\nrole: 'user',\ncontent: message,\n\
+    images: this.images.map(JSON.stringify),\nfiles,\nprofiles,\nuser: this.$user.username,\n\
+    disable_knowledge: true,\n}\n},\npostMyMessage() {\nif (this.canPost) {\nconst\
+    \ userMessage = this.getUserMessage()\nuserMessage.files.forEach(file => this.$emit('add-file',\
+    \ file))\nthis.addMessage(userMessage)\nthis.cleanUserInputAndWaitAnswer()\nreturn\
+    \ userMessage\n}\n},\ncleanUserInputAndWaitAnswer() {\nthis.setEditorText(\"\"\
+    )\nthis.images = []\nthis.scrollToBottom()\n},\nasync sendMessage() {\nif (this.isVoiceSession\
+    \ && !this.canPost) {\nreturn\n}\n\nif (this.editMessage !== null) {\nthis.updateMessage()\n\
+    this.saveChat()\n} else {\nif (this.postMyMessage()) {\nawait this.saveChat()\n\
+    }\nif (!this.isChannel || this.lastMessage?.profiles.length) {\nawait this.sendChatMessage(this.theChat)\n\
+    }\n}\n},\ngetSendMessage() {\nreturn this.editMessage ||\nthis.theChat.messages[this.theChat.messages.length\
+    \ - 1].content\n},\nasync askKnowledge() {\nconst searchTerm = this.editor.innerText\n\
+    if (!searchTerm || searchTerm.length <= 10) {\nreturn\n}\nconst knowledgeSearch\
+    \ = {\nsearchTerm,\nsearchType: 'embeddings',\ndocumentSearchType: API.activeProject.knowledge_search_type,\n\
+    cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,\ndocumentCount:\
+    \ API.activeProject.knowledge_search_document_count\n}\nthis.searchingInKnowledge\
+    \ = true\ntry {\nconst { response, documents } = await API.knowledge.search(knowledgeSearch)\n\
+    const docs = documents.map(({ metadata: { score_analysis, source}}) => {\nconst\
+    \ file = source\nconst fileName = file.split(\"/\").reverse()[0]\nreturn [\n`###\
+    \ ${fileName}`,\nscore_analysis,\n].join(\"\\n\")\n}).join(\"\\n\")\nconst message\
+    \ = [\nresponse,\n\"\",\ndocs\n].join(\"\\n\")\nconst searchMessage = {\nrole:\
+    \ 'assistant',\ncontent: message,\nfiles: documents.map(doc => doc.metadata.source),\n\
+    disable_knowledge: true,\n}\nthis.addMessage(searchMessage)\nthis.saveChat()\n\
+    this.cleanUserInputAndWaitAnswer()\n} finally {\nthis.searchingInKnowledge = false\n\
+    }\n},\nasync sendApiRequest(apiCall, formater = defFormater) {\ntry {\nthis.waiting\
+    \ = true\nawait apiCall()\nthis.$emit('refresh-chat')\nthis.scrollToBottom()\n\
+    } catch (ex) {\nthis.addMessage({\nrole: 'assistant',\ncontent: ex.message\n})\n\
+    }\nthis.waiting = false\n},\nasync sendChatMessage(chat) {\nthis.waiting = true\n\
+    try {\nreturn await this.$storex.projects.chatWihProject(chat)\n} finally {\n\
+    this.waiting = false\n}\n},\nasync updateMessage() {\nconst { innerText } = this.editor\n\
+    const images = this.images.map(JSON.stringify)\n\nthis.editMessage.files = this.messageMentions.filter(m\
+    \ => m.file).map(m => m.file)\nthis.editMessage.profiles = this.getMessageProfiles()\n\
+    this.editMessage.content = innerText\nthis.editMessage.images = images\nthis.editMessage.updated_at\
+    \ = new Date().toISOString()\nthis.onResetEdit()\n},\nonResetEdit() {\nthis.editMessage\
+    \ = null\nthis.setEditorText(\"\")\nthis.editMessageId = null\nthis.images = []\n\
+    },\nremoveMessage(message) {\nthis.$emit(\"delete-message\", message)\n},\nasync\
+    \ searchKeywords() {\nconst searchQuery = this.termSearchQuery?.toLowerCase()\n\
+    this.searchTerms = this.projectContext.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))\n\
+    this.searchTermSelIx = 0\nif (!this.refreshngMentions) {\nthis.refreshngMentions\
+    \ = this.$projects.loadProjectKnowledge()\nthis.refreshngMentions.then(() => this.refreshngMentions\
+    \ = null)\n}\n},\naddSerchTerm(term) {\nif (term.file) {\ntry {\nconst fileContent\
+    \ = await this.$projects.readFile(term.file)\nconst userMessage = {\nrole: 'user',\n\
+    content: `\\`\\`\\`ext ${term.file}\\n${fileContent}\\n\\`\\`\\``\n}\nthis.addMessage(userMessage)\n\
+    this.saveChat()\n} catch (error) {\nconsole.error(\"Error reading file:\", error)\n\
+    }\n}\nthis.closeTermSearch()\n},\ngetEditorCaretCharOffset() {\nlet caretOffset\
+    \ = 0\nconst element = this.editor\nif (window.getSelection) {\nvar range = window.getSelection().getRangeAt(0)\n\
+    var preCaretRange = range.cloneRange()\npreCaretRange.selectNodeContents(element)\n\
+    preCaretRange.setEnd(range.endContainer, range.endOffset)\ncaretOffset = preCaretRange.toString().length\n\
+    } else if (document.selection && document.selection.type != \"Control\") {\nvar\
+    \ textRange = document.selection.createRange()\nvar preCaretTextRange = document.body.createTextRange()\n\
+    preCaretTextRange.moveToElementText(element)\npreCaretTextRange.setEndPoint(\"\
+    EndToEnd\", textRange)\ncaretOffset = preCaretTextRange.text.length\n}\nreturn\
+    \ caretOffset\n},\ngetCursorWord() {\nconst text = this.editor?.innerText\nif\
+    \ (!text.length) {\nreturn \"\"\n}\nconst caretIndex = this.getEditorCaretCharOffset()\n\
+    const lastWorkIndex = text.slice(0, caretIndex).split(/\\s/g).length - 1\nreturn\
+    \ text.split(/\\s/g)[lastWorkIndex]\n},\ndetectSearchTerm() {\nconst lastWord\
+    \ = this.getCursorWord()\nconst mention = lastWord[0] === '@' ? lastWord?.slice(1)\
+    \ : null\nif (mention?.length >= 3 &&\n!this.$projects.mentionList.find(m => m.name\
+    \ === mention)) {\nthis.termSearchQuery = mention\n}\nif (this.showTermSearch\
+    \ && !mention) {\nthis.closeTermSearch()\n}\n},\ncloseTermSearch() {\nthis.searchTerms\
+    \ = null\nthis.termSearchQuery = null\n},\nonSelNext() {\nthis.searchTermSelIx++\n\
+    if (this.searchTermSelIx === this.searchTerms?.length) {\nthis.searchTermSelIx\
+    \ = 0\n}\n},\nonSelPrev() {\nthis.searchTermSelIx--\nif (this.searchTermSelIx\
+    \ === -1) {\nthis.searchTermSelIx = this.searchTerms?.length - 1\n}\n},\nsaveChat()\
+    \ {\nif (!this.theChat.temp) {\nreturn API.chats.save(this.theChat)\n}\n},\nonDrop(e)\
+    \ {\nthis.onDraggingOverInput = false\nif (!e.dataTransfer.files) {\nreturn\n\
+    }\nvar file = [...e.dataTransfer.files].filter(f => f.type.indexOf(\"image\")\
+    \ !== -1)[0]\nif (file) {\nthis.onInputImage(file)\n}\n},\nasync onContentPaste(e)\
+    \ {\nif (!e.clipboardData?.items) {\nreturn\n}\nvar file = [...e.clipboardData?.items].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]?.getAsFile()\nif (file) {\nthis.onInputImage(file)\n\
+    e.preventDefault()\nreturn false\n}\n},\ngetFileImageUrl(file) {\nreturn new Promise(ok\
+    \ => {\nconst reader = new FileReader()\nreader.onload = (event) => {\nconst base64URL\
+    \ = event.target.result\nok(base64URL)\n}\nreader.readAsDataURL(file)\n})\n},\n\
+    async onInputImage(file) {\nconst base64URL = await this.getFileImageUrl(file)\n\
+    this.imagePreview = {\nsrc: base64URL,\nalt: \"\"\n}\n},\nonAddImage() {\nif (this.imagePreview.ix\
+    \ === undefined) {\nthis.images.push(this.imagePreview)\nthis.imagePreview.ix\
+    \ = this.images.length - 1\n}\nthis.imagePreview = null\n},\nasync onExtractTextImage(image)\
+    \ {\nfunction base64ToFile(base64Data, filename) {\nconst byteString = atob(base64Data.split(',')[1])\n\
+    const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0]\nconst\
+    \ byteArray = new Uint8Array(byteString.length)\nfor (let i = 0; i < byteString.length;\
+    \ i++) {\nbyteArray[i] = byteString.charCodeAt(i)\n}\nconst blob = new Blob([byteArray],\
+    \ { type: mimeString })\nreturn new File([blob], filename, { type: mimeString\
+    \ })\n}\n\nconst file = base64ToFile(image.src, \"image\")\nconst text = await\
+    \ API.tools.imageToText(file)\nimage.alt = text\n},\nasync handleFileChange({\
+    \ target: { files } }) {\nconst allUrls = await Promise.all([...files].map(file\
+    \ => this.getFileImageUrl(file)))\nconsole.log(\"handleFileChange\", allUrls)\n\
+    this.images = [\n...this.images,\n...allUrls.map((src, ix) => ({ src, alt: \"\"\
+    , ix: this.images.length + 1 + ix }))\n]\nthis.selectFile = false\n},\nonGenerateCode(codeBlockInfo)\
+    \ {\nthis.$projects.generateCode({ chat: this.theChat, codeBlockInfo })\n},\n\
+    removeImage(ix) {\nthis.images = this.images.filter((i, imx) => imx !== ix)\n\
+    },\nonMessageChange() {\nif (this.editor &&\nthis.editor.innerText != this.editorText)\
+    \ {\nthis.editorText = this.editor.innerText\nthis.detectSearchTerm()\n}\n},\n\
+    async testProject() {\nthrow new Error('Obsolte')\nconst data = await API.projects.test()\n\
+    this.testError = data\nif (this.testError) {\nthis.editMessage = this.testError\n\
+    this.setEditorText(this.editMessage)\n}\n},\nremoveFileFromMessage(message, file)\
+    \ {\nmessage.files = message.files.filter(f => f !== file)\nthis.saveChat()\n\
+    },\ntoggleVoiceSession() {\nif (this.isVoiceSession) {\nreturn this.stopVoiceSession()\n\
+    }\nlet silents = 5\nthis.isVoiceSession = true\n\nconst recognition = new (window.SpeechRecognition\
+    \ || window.webkitSpeechRecognition)()\nrecognition.lang = this.$ui.voiceLanguage\n\
+    recognition.interimResults = false\n\nrecognition.onresult = (event) => {\nconst\
+    \ transcript = event.results[0][0].transcript\nthis.editor.innerText += transcript\n\
+    }\n\nrecognition.onend = () => {\nif (this.isVoiceSession && silents--) {\nrecognition.start()\n\
+    } else {\nthis.stopVoiceSession()\n}\n}\n\nrecognition.start()\nthis.recognition\
+    \ = recognition\n},\nstopVoiceSession() {\nthis.recognition?.stop()\nthis.recognition\
+    \ = null\n},\nscrollToBottom() {\nsetTimeout(() => this.$refs.anchor?.scrollIntoView(),\
+    \ 200)\n},\nonEditMessageKeyDown(event) {\nconst stop = () => {\nevent.stopPropagation()\n\
+    event.preventDefault()\nreturn false\n}\nif (event.key === 'Escape') {\nthis.onResetEdit()\n\
+    } else if (event.key === 'Tab' && this.showTermSearch) {\nthis.addSerchTerm(this.searchTerms[this.searchTermSelIx])\n\
+    } else if(event.key === 'Enter' && event.ctrlKey) {\nthis.sendMessage()\n} else\
+    \ {\nreturn true\n}\nreturn stop()\n},\nopenDocumentSearch() {\nthis.showDocumentSearchModal\
+    \ = !this.showDocumentSearchModal\n},\nonAddDocument(doc) {\nconst source = doc.metadata.source\n\
+    this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], source])]\n\
+    this.saveChat()\n}\n}\n}\n</script>\n```\n\nIn this updated code, the `addSerchTerm`\
+    \ method now reads the file content using `this.$projects.readFile(term.file)`\
+    \ and creates a new user message with the content formatted as specified. The\
+    \ file path and content are included in the message in the format:\n\n```ext file/path\n\
+    File content here\n```\n\nThis ensures that the file content is displayed directly\
+    \ in the chat interface when a file is selected from the search terms.\n     \
+    \               </document>\n                    User comments:\n            \
+    \        Error:\n\n[vue/compiler-sfc] Unexpected reserved word 'await'. (394:20)\n\
+    \n\n/home/codx-junior/codx-junior/client/src/components/chat/Chat.vue\n681|\_\
+    \ if (term.file) {\n682|\_ try {\n683|\_ const fileContent = await this.$projects.readFile(term.file)\n\
+    \_ \_|\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ ^\n684|\_ const userMessage = {\n685|\_\
+    \ role: 'user',\n                    Important: Always return the mardown document\
+    \ without any comments before or after, to keep it clean."
+  created_at: '2025-08-20 11:52:16.330771'
+  disable_knowledge: false
+  doc_id: 83d6c13d-2da3-4668-b761-5f2197552dcc
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-20 11:52:16.330801'
+  user: null
+- content: "```vue\_/home/codx-junior/codx-junior/client/src/components/chat/Chat.vue\n\
+    <script setup>\nimport moment from 'moment'\nimport { API } from '../../api/api'\n\
+    import ChatEntry from '@/components/ChatEntry.vue'\nimport Browser from '@/components/browser/Browser.vue'\n\
+    import Markdown from '@/components/Markdown.vue'\nimport TaskCard from '../kanban/TaskCard.vue'\n\
+    import UserSelector from './UserSelector.vue'\nimport KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'\n\
+    import CheckLists from './CheckLists.vue'\n</script>\n\n<template>\n<div class=\"\
+    flex flex-col gap-1 grow\">\n<div class=\"grow relative\">\n<CheckLists class=\"\
+    mb-2\" :chat=\"theChat\" @change=\"saveChat\" />\n<div class=\"overflow-y-auto\
+    \ overflow-x-hidden\"\n:class=\"isBrowser && 'flex gap-1'\">\n<div class=\"w-3/4\"\
+    \ v-if=\"isBrowser\">\n<Browser :token=\"$ui.monitors['shared']\" />\n</div>\n\
+    <div class=\"overflow-auto h-full\">\n<div class=\"flex flex-col\" v-for=\"message\
+    \ in messages\" :key=\"message.id\">\n<div class=\"flex w-full flex-col gap-4\
+    \ bg-base-100 p-2 mb-2 rounded-md\" v-if=\"!message.content && !message.think\"\
+    >\n<div class=\"flex items-center gap-4\">\n<div class=\"skeleton h-8 w-8 shrink-0\
+    \ rounded-full\"></div>\n<div class=\"flex flex-col gap-4\">\n<div class=\"skeleton\
+    \ h-4 w-20\"></div>\n</div>\n</div>\n<div class=\"skeleton h-32 w-full\"></div>\n\
+    </div>\n<ChatEntry :class=\"['mb-4 rounded-md',\nisChannel ? '' : 'bg-base-100\
+    \ py-2',\neditMessage ? editMessage === message ? 'border border-warning' : 'opacity-40'\
+    \ : '',\nmessage.hide ? 'opacity-80 border border-dashed p-2 border-warning' :\
+    \ '']\"\n:chat=\"theChat\"\n:message=\"message\"\n@edit=\"onEditMessage(message)\"\
+    \n@enhance=\"onEditMessage(message, true)\"\n@remove=\"removeMessage(message)\"\
+    \n@remove-file=\"removeFileFromMessage(message, $event)\"\n@hide=\"toggleHide(message)\"\
+    \n@answer=\"toggleAnswer(message)\"\n@run-edit=\"runEdit\"\n@copy=\"onCopy(message)\"\
+    \n@add-file-to-chat=\"$emit('add-file', $event)\"\n@image=\"imagePreview = { ...$event,\
+    \ readonly: true }\"\n@generate-code=\"onGenerateCode\"\nv-else />\n</div>\n<div\
+    \ class=\"anchor\" ref=\"anchor\"></div>\n<div class=\"grid grid-cols-3 gap-2\
+    \ mb-2\" v-if=\"childrenChats?.length\">\n<div v-for=\"child in childrenChats\"\
+    \ :key=\"child.id\" class=\"relative\">\n<TaskCard class=\"click p-2 bg-base-100\
+    \ h-40\" :task=\"child\" @click=\"$projects.setActiveChat(child)\" />\n</div>\n\
+    </div>\n</div>\n</div>\n</div>\n<div class=\"chat chat-end\" v-if=\"false && isBrowser\"\
+    >\n<div class=\"chat-image avatar\">\n<div class=\"w-10 rounded-full\">\n<img\
+    \ src=\"/only_icon.png\" alt=\"logo\" />\n</div>\n</div>\n<div class=\"chat-bubble\"\
+    >\n<Markdown class=\"max-h-40 overflow-auto\" :text=\"lastAIMessage.content\"\
+    \ v-if=\"lastAIMessage\" />\n<div v-else>\n<span class=\"font-bold\">Let's navigate\
+    \ together:</span>\nUse browser to navigate any web or try:\n<span class=\"italic\
+    \ text-info\">Find top 5 results for ....</span>\n</div>\n</div>\n</div>\n<div\
+    \ class=\"sticky bottom-0 z-50 bg-base-300\">\n<div class=\"text-ellipsis overflow-hidden\
+    \ text-nowrap text-xs text-info\">\n{{ lastChatEvent }}\n</div>\n<div class=\"\
+    dropdown dropdown-top dropdown-open mb-1\" v-if=\"showTermSearch\">\n<div tabindex=\"\
+    0\" role=\"button\" class=\"rounded-md bg-base-300 w-fit p-2 hidden\">\n<div class=\"\
+    flex p-1 items-center text-sky-600\">\n<i class=\"fa-solid fa-at\"></i>\n<input\
+    \ type=\"text\" v-model=\"termSearchQuery\"\nref=\"termSearcher\"\nclass=\"-ml-1\
+    \ input input-xs text-lg bg-transparent\" placeholder=\"search term...\"\n@keydown.down.stop=\"\
+    onSelNext\"\n@keydown.up.stop=\"onSelPrev\"\n@keydown.enter.stop=\"addSerchTerm(searchTerms[searchTermSelIx])\"\
+    \n@keydown.esc=\"closeTermSearch\" />\n<button class=\"btn btn-xs btn-circle btn-outline\
+    \ btn-error\"\n@click=\"closeTermSearch\"\nv-if=\"termSearchQuery\">\n<i class=\"\
+    fa-solid fa-circle-xmark\"></i>\n</button>\n</div>\n</div>\n<ul tabindex=\"0\"\
+    \ class=\"dropdown-content z-[1] menu p-2 shadow bg-base-300 rounded-box w-fit\"\
+    >\n<li class=\"tooltip text-lg\" :data-tip=\"term.tooltip\" v-for=\"(term, ix)\
+    \ in searchTerms\" :key=\"term.name\">\n<a @click=\"addSerchTerm(term)\">\n<div\
+    \ :class=\"[searchTermSelIx === ix ? 'underline':'']\">\n<span class=\"text-sky-600\
+    \ font-bold\">@{{ term.name }}</span>\n</div>\n</a>\n</li>\n</ul>\n</div>\n<div\
+    \ class=\"flex gap-2\">\n<span class=\"badge tooltip flex gap-2 items-center\"\
+    \n:data-tip=\"mention.tooltip\"\n:class=\"{ 'badge-primary': mention.project,\
+    \ 'badge-success badge-outline': mention.profile }\"\nv-for=\"mention in messageMentions\"\
+    \ :key=\"mention.name\">\n<i class=\"fa-solid fa-magnifying-glass\" v-if=\"mention.project\"\
+    ></i>\n<img class=\"w-4 rounded-full\" :src=\"mention.profile.avatar\" v-if=\"\
+    mention.profile?.avatar\" />\n<i class=\"fa-solid fa-user\" v-if=\"mention.profile\
+    \ && !mention.profile.avatar\"></i>\n<div class=\"-mt-1\">\n{{ mention.name }}\n\
+    </div>\n</span>\n</div>\n<div :class=\"['flex bg-base-300 border rounded-md shadow\
+    \ indicator w-full',\n'flex-col',\neditMessage && 'border-warning',\nonDraggingOverInput\
+    \ ? 'bg-warning/10': '']\"\n@dragover.prevent=\"onDraggingOverInput = true\"\n\
+    @dragleave.prevent=\"onDraggingOverInput = false\"\n@drop.prevent=\"onDrop\">\n\
+    <KnowledgeSearch class=\"p-2 h-60\"\n@select=\"onAddDocument\"\nv-if=\"showDocumentSearchModal\"\
+    \n/>\n<div v-else class=\"editor\" :class=\"['max-h-40 w-full px-2 py-1 overflow-auto\
+    \ text-wrap focus-visible:outline-none']\"\n:contenteditable=\"!waiting\"\nref=\"\
+    editor\"\n@paste=\"onContentPaste\"\n@keydown=\"onEditMessageKeyDown\"\n>\n</div>\n\
+    <div class=\"flex justify-between items-end px-2\">\n<div class=\"carousel rounded-box\"\
+    >\n<div class=\"carousel-item relative click flex flex-col\" v-for=\"(image, ix)\
+    \ in allImages\" :key=\"image.src\">\n<div class=\"bg-contain bg-no-repeat bg-center\
+    \ w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4\"\n:style=\"`background-image: url(${image.src})`\"\
+    \ @click=\"imagePreview = image\">\n</div>\n<p class=\"text-xs\">{{ image.alt.slice(0,\
+    \ 10) }}</p>\n<button class=\"btn btn-xs btn-circle btn-error absolute right-0\
+    \ top-0\"\n@click=\"removeImage(ix)\">\nX\n</button>\n</div>\n</div>\n<span class=\"\
+    loading loading-dots loading-md btn btn-sm\" v-if=\"waiting\"></span>\n<div class=\"\
+    grow flex justify-between items-center\" v-else>\n<UserSelector\nclass=\"dropdown-top\"\
+    \n:selectedUser=\"selectedUser\"\n@user-changed=\"selectedUser = $event\"\n/>\n\
+    <div class=\"flex gap-2 items-center justify-end py-2\" v-if=\"!searchingInKnowledge\"\
+    >\n<button class=\"btn btn-sm btn-info btn-outline\" @click=\"sendMessage\" v-if=\"\
+    editMessage\">\n<i class=\"fa-solid fa-save\"></i>\n<div class=\"text-xs\" v-if=\"\
+    editMessage && !showDocumentSearchModal\">Edit</div>\n</button>\n<button class=\"\
+    btn btn-sm tooltip\" data-tip=\"Save changes\" @click=\"onResetEdit\"\nv-if=\"\
+    editMessage\">\n<i class=\"fa-regular fa-circle-xmark\"></i>\n</button>\n<button\
+    \ class=\"btn btn-sm tooltip relative\"\n:class=\"showDocumentSearchModal ? 'btn-error'\
+    \ : 'btn-info'\"\n:data-tip=\"'Search documents'\"\n@click=\"askKnowledge\">\n\
+    <i class=\"fa-solid fa-file-lines\"></i>\n</button>\n<button class=\"btn btn-sm\
+    \ tooltip\"\n:class=\"isVoiceSession && 'btn-success animate-pulse'\"\ndata-tip=\"\
+    Ask codx-junior\"\n@click=\"sendMessage\"\nref=\"sendButton\"\nv-if=\"!editMessage\
+    \ && !showDocumentSearchModal\">\n<i class=\"fa-solid fa-microphone-lines\" v-if=\"\
+    isVoiceSession\"></i>\n<i class=\"fa-solid fa-paper-plane\" v-else></i>\n</button>\n\
+    <button class=\"hidden btn btn-sm tooltip\"\n:class=\"isBrowser && 'btn-warning'\"\
+    \ndata-tip=\"Ask codx-browser\" @click=\"isBrowser = !isBrowser\"\nv-if=\"!editMessage\"\
+    >\n<i class=\"fa-brands fa-chrome\"></i>\n{{ isBrowser ? 'Close' : 'Open' }} Browser\n\
+    </button>\n<button class=\"hidden btn btn-sm tooltip btn-warning\"\ndata-tip=\"\
+    Make code changes\" @click=\"improveCode()\" v-if=\"!editMessage && theChat.mode\
+    \ === 'chat'\">\n<i class=\"fa-solid fa-code\"></i>\n</button>\n\n<div class=\"\
+    dropdown dropdown-top dropdown-end\">\n<div tabindex=\"1\" role=\"button\" class=\"\
+    btn btn-sm m-1\">\n<i class=\"fa-solid fa-ellipsis-vertical\"></i>\n</div>\n<ul\
+    \ tabindex=\"1\" class=\"dropdown-content menu bg-base-200 rounded-box z-[1] w-52\
+    \ p-2 shadow gap-2\">\n<li class=\"btn btn-sm tooltip\"\ndata-tip=\"Attach files\"\
+    \n@click=\"selectFile = true\">\n<a>\n<i class=\"fa-solid fa-paperclip\"></i>\
+    \ Attach files\n</a>\n</li>\n<li class=\"btn btn-sm\" @click=\"testProject\" v-if=\"\
+    API.activeProject.script_test\">\n<a>\n<i class=\"fa-solid fa-flask\"></i>\nTest\n\
+    </a>\n</li>\n<li class=\"hidden btn btn-sm tooltip\"\n:class=\"isBrowser && 'btn-success'\"\
+    \n:data-tip=\"isBrowser ? 'Close browser' : 'Open browser'\"\n@click=\"isBrowser\
+    \ = !isBrowser\" v-if=\"!editMessage\">\n<a>\n<i class=\"fa-brands fa-chrome\"\
+    ></i>\n{{ isBrowser ? 'Close' : 'Open' }} Browser\n</a>\n</li>\n<li class=\"btn\
+    \ btn-sm tooltip\"\n:class=\"isVoiceSession && 'btn-success'\"\n:data-tip=\"$ui.voiceLanguages[$ui.voiceLanguage]\"\
+    \n@click=\"toggleVoiceSession\" v-if=\"!editMessage\">\n<a>\n<i class=\"fa-solid\
+    \ fa-microphone-lines\"></i>\nVoice mode\n</a>\n</li>\n</ul>\n</div>\n</div>\n\
+    <div class=\"flex gap-2 items-center justify-end py-2 animate-pulse\" v-else>\n\
+    Searching...\n</div>\n</div>\n</div>\n</div>\n</modal>\n<modal v-if=\"imagePreview\"\
+    >\n<div class=\"flex flex-col gap-2\">\n<div class=\"text-2xl\">Upload image</div>\n\
+    <div class=\"bg-contain bg-no-repeat bg-base-300/20 bg-center h-60 w-full\" :style=\"\
+    `background-image: url(${imagePreview.src})`\"></div>\n<div>\nImage alt: <span\
+    \ class=\"text-xs\" v-if=\"imagePreview.alt?.length\">{{ imagePreview.alt?.length\
+    \ }} chars.</span>\n</div>\n<pre class=\"alert alert-xs h-20 overflow-auto\" v-if=\"\
+    imagePreview.readonly\">{{ imagePreview.alt }}</pre>\n<div class=\"textarea input-bordered\"\
+    \ v-else>\n<textarea class=\"w-full bg-transparent\" v-model=\"imagePreview.alt\"\
+    \ placeholder=\"Image content\">\n</textarea>\n<div class=\"flex justify-end\"\
+    >\n<button class=\"btn btn-sm bg-purple-600 text-white tooltip\"\ndata-tip=\"\
+    Extract text\"\n@click=\"onExtractTextImage(imagePreview)\">\n<i class=\"fa-regular\
+    \ fa-closed-captioning\"></i>\n</button>\n</div>\n</div>\n<div class=\"flex justify-end\
+    \ gap-2\">\n<button class=\"btn\" @click=\"imagePreview = null\">Cancel</button>\n\
+    <button class=\"btn btn-primary\" @click=\"onAddImage\">Ok</button>\n</div>\n\
+    </div>\n</modal>\n<modal v-if=\"selectFile\">\n<label class=\"file-select\">\n\
+    <div class=\"select-button\">\n<span>Select File(s)</span>\n</div>\n<input type=\"\
+    file\" accept=\"image/*\" multiple @change=\"handleFileChange\" />\n<button class=\"\
+    btn btn-sm btn-error\" @click=\"selectFile = false\">Cancel</button>\n</label>\n\
+    </modal>\n\n<modal v-if=\"showModal\">\n<div class=\"flex flex-col gap-2\">\n\
+    <div class=\"text-xl\">Confirm Deletion</div>\n<p>Are you sure you want to delete\
+    \ this task?</p>\n<div class=\"font-bold text-primary text-xl\">{{ taskToDelete.name\
+    \ }}</div>\n<div class=\"flex justify-end gap-2\">\n<button class=\"btn\" @click=\"\
+    showModal = false\">Cancel</button>\n<button class=\"btn btn-error\" @click=\"\
+    deleteTask\">Delete</button>\n</div>\n</div>\n</modal>\n</div>\n</template>\n\n\
+    <script>\nconst defFormater = d => JSON.stringify(d, null, 2)\n\nexport default\
+    \ {\nprops: ['chat', 'chatId', 'showHidden', 'childrenChats'],\ndata() {\nreturn\
+    \ {\nwaiting: false,\neditMessage: null,\neditMessageId: null,\ntermSearchQuery:\
+    \ null,\nsearchTerms: null,\nsearchTermSelIx: -1,\nfiles: [],\nimages: [],\npreviewImage:\
+    \ null,\neditorText: \"\",\nimagePreview: null,\nonDraggingOverInput: false,\n\
+    testError: null,\npreviewStyle: {\nzoom: 0.6\n},\nselectFile: false,\nisVoiceSession:\
+    \ false,\nrecognition: null,\nisBrowser: false,\nsyncEditableTextInterval: null,\n\
+    showModal: false,\ntaskToDelete: null,\nselectedUser: null,\nrefreshngMentions:\
+    \ null,\nselectedDocuments: null,\nshowDocumentSearchModal: false,\nsearchingInKnowledge:\
+    \ false,\nprojectContext: null\n}\n},\ncreated() {\nthis.selectedUser = this.$user\n\
+    this.setProjectContext()\n},\nmounted() {\nthis.syncEditableTextInterval = setInterval(()\
+    \ => this.onMessageChange(), 100)\nthis.initSelectedUserFromChat()\n},\nunmounted()\
+    \ {\nclearInterval(this.syncEditableTextInterval)\n},\ncomputed: {\ntheChat()\
+    \ {\nreturn this.chat || this.$projects.chats[this.chatId]\n},\nvisibleMessages()\
+    \ {\nreturn this.theChat?.messages?.filter(m => !m.hide || this.showHidden) ||\
+    \ []\n},\nlastAIMessage() {\nconst { activeMessages } = this\nconst lastAiMessages\
+    \ = activeMessages.filter(m => m.role === 'assistant').reverse()\nif (lastAiMessages.length\
+    \ < 2) {\nreturn lastAiMessages[0]\n}\nconst [ last, ...previous ] = lastAiMessages\n\
+    \nreturn { ...last, diffMessage: previous[0] }\n},\nlastUserMessage() {\nconst\
+    \ { messages } = this.theChat\nconst msgs = messages?.filter(m => !m.hide && m.role\
+    \ !== 'assistant')\nreturn msgs ? msgs[msgs.length - 1] : null\n},\nlastMessage()\
+    \ {\nconst { messages } = this.theChat\nreturn messages ? messages[messages.length\
+    \ - 1] : null\n},\ndiffMessage() {\nif (this.isTask) {\nconst { messages } = this.theChat\n\
+    const aiMsgs = messages.filter(m => m.role === 'assistant')\nif (aiMsgs.length\
+    \ > 1) {\nreturn aiMsgs[aiMsgs.length - 2]\n}\n}\nreturn null\n},\nactiveMessages()\
+    \ {\nconst { messages } = this.theChat\nreturn messages.filter(m => !m.hide)\n\
+    },\nmessages() {\nconst messages = this.theChat?.messages\nif (!messages?.length)\
+    \ {\nreturn []\n}\nif (this.isTask) {\nconst aiMsg = this.lastAIMessage\nconst\
+    \ lastMsg = messages[messages.length - 1]\nconst res = []\nif (aiMsg) {\nres.push(aiMsg)\n\
+    }\nif (lastMsg && lastMsg?.role !== 'assistant') {\nres.push(lastMsg)\n}\nreturn\
+    \ res\n}\nreturn messages.filter(message => !message.hide || this.showHidden)\n\
+    },\nmultiline() {\nreturn this.editorText?.split(\"\\n\").length > 1 || this.images?.length\n\
+    },\nallImages() {\nreturn this.images\n},\nmessageText() {\nreturn this.editorText\n\
+    },\ncanPost() {\nreturn this.messageText || this.images?.length\n},\nisTask()\
+    \ {\nreturn this.theChat.mode === 'task'\n},\nmessageMentions() {\nconst mentions\
+    \ = [...this.messageText.matchAll(/@([^\\\\s]+)/mg)]\n.map(w => w[1])\nreturn\
+    \ this.$projects.mentionList.filter(m => mentions.includes(m.mention))\n},\nshowTermSearch()\
+    \ {\nreturn this.searchTerms?.length\n},\nlastChatEvent() {\nconst { events }\
+    \ = this.$store.state.session\nconst event = events[events.length - 1]\nif (event?.data.chat?.id\
+    \ === this.theChat.id) {\nconst message = event.data.message?.content || \"\"\n\
+    return `[${moment(event.ts).format('HH:mm:ss')}] ${event.data.event_type || event.data.type\
+    \ || ''} ${event.data.text || ''}\\n${message}`\n}\n},\nusersList() {\nreturn\
+    \ [this.$store.state.user, ...this.projectContext.profiles]\n},\nisChannel() {\n\
+    return this.theChat.mode === 'channel'\n},\nchatProject() {\nreturn this.$projects.allProjects.find(p\
+    \ => p.project_id === this.theChat.project_id) ||\nthis.$project\n},\neditor()\
+    \ {\nreturn this.$el.querySelector('.editor')\n}\n},\nwatch: {\ntermSearchQuery(newVal)\
+    \ {\nif (newVal?.length > 2) {\nthis.searchKeywords()\n} else {\nthis.searchTerms\
+    \ = null\n}\n},\ntheChat() {\nthis.initSelectedUserFromChat()\nthis.setProjectContext()\n\
+    }\n},\nmethods: {\nasync setProjectContext() {\nthis.projectContext = await this.$service.project.loadProjectContext(this.chatProject)\n\
+    },\ninitSelectedUserFromChat() {\nconst messages = this.theChat.messages.filter(m\
+    \ => !m.hide && m.profiles?.length)\nconst lastProfileMessage = messages[messages.length\
+    \ - 1]\nif (lastProfileMessage) {\nconst userName = lastProfileMessage.profiles[0]\n\
+    const user = this.$projects.userList.find(u => u.name === userName)\nthis.selectedUser\
+    \ = user\n} else if (!this.selectedUser) {\nthis.selectedUser = this.$user\n}\n\
+    },\nzoomIn() {\nthis.previewStyle.zoom += 0.1\n},\nzoomOut() {\nthis.previewStyle.zoom\
+    \ -= 0.1\n},\nsetEditorText(text) {\nthis.editor.innerText = text\n},\nonEditMessage(message,\
+    \ enhance) {\nif (this.editMessage === message) {\nreturn this.onResetEdit()\n\
+    }\nthis.editMessageId = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)\n\
+    this.editMessage = this.theChat.messages[this.editMessageId]\nconst profile =\
+    \ this.editMessage.profiles[0]?.name\nif (profile) {\nthis.selectedUser = profile\n\
+    }\ntry {\nthis.images = message.images.map(JSON.parse)\n} catch { }\nthis.setEditorText(this.editMessage.content)\n\
+    },\ntoggleHide(message) {\nmessage.hide = !message.hide\nthis.saveChat()\n},\n\
+    toggleAnswer(message) {\nmessage.is_answer = !message.is_answer\nthis.saveChat()\n\
+    },\nonCopy(message) {\nnavigator.permissions.query({ name: \"clipboard-read\"\
+    \ }).then(result => {\nif (result.state == \"granted\" || result.state == \"prompt\"\
+    ) {\nnavigator.clipboard.writeText(message.content)\n}\n})\n.catch(console.error)\n\
+    },\nasync improveCode() {\nthis.postMyMessage()\nawait this.$projects.codeImprove(this.theChat)\n\
+    this.testProject()\n},\nrunEdit(codeSnipped) {\nthis.sendApiRequest(\n() => API.run.edit({\
+    \ id: \"\", messages: [{ role: 'user', content: codeSnipped }] }),\ndata => [\n\
+    data.messages.reverse()[0].content,\n\"\\n\\n\",\n...data.errors.map(e => ` *\
+    \ ${e}\\n`)\n].join(\"\\n\")\n)\n},\naddMessage(msg) {\nthis.theChat.messages\
+    \ = [\n...this.theChat.messages || [],\nmsg\n]\n},\ngetMessageProfiles() {\nconst\
+    \ profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)\n\
+    if (this.selectedUser?.isProfile) {\nprofiles.push(this.selectedUser.name)\n}\n\
+    return profiles\n},\ngetUserMessage() {\nconst message = this.editor.innerText\n\
+    const files = this.messageMentions.filter(m => m.file).map(m => m.file)\nconst\
+    \ profiles = this.getMessageProfiles()\nreturn {\nrole: 'user',\ncontent: message,\n\
+    images: this.images.map(JSON.stringify),\nfiles,\nprofiles,\nuser: this.$user.username,\n\
+    disable_knowledge: true,\n}\n},\npostMyMessage() {\nif (this.canPost) {\nconst\
+    \ userMessage = this.getUserMessage()\nuserMessage.files.forEach(file => this.$emit('add-file',\
+    \ file))\nthis.addMessage(userMessage)\nthis.cleanUserInputAndWaitAnswer()\nreturn\
+    \ userMessage\n}\n},\ncleanUserInputAndWaitAnswer() {\nthis.setEditorText(\"\"\
+    )\nthis.images = []\nthis.scrollToBottom()\n},\nasync sendMessage() {\nif (this.isVoiceSession\
+    \ && !this.canPost) {\nreturn\n}\n\nif (this.editMessage !== null) {\nthis.updateMessage()\n\
+    this.saveChat()\n} else {\nif (this.postMyMessage()) {\nawait this.saveChat()\n\
+    }\nif (!this.isChannel || this.lastMessage?.profiles.length) {\nawait this.sendChatMessage(this.theChat)\n\
+    }\n}\n},\ngetSendMessage() {\nreturn this.editMessage ||\nthis.theChat.messages[this.theChat.messages.length\
+    \ - 1].content\n},\nasync askKnowledge() {\nconst searchTerm = this.editor.innerText\n\
+    if (!searchTerm || searchTerm.length <= 10) {\nreturn\n}\nconst knowledgeSearch\
+    \ = {\nsearchTerm,\nsearchType: 'embeddings',\ndocumentSearchType: API.activeProject.knowledge_search_type,\n\
+    cutoffScore: API.activeProject.knowledge_context_cutoff_relevance_score,\ndocumentCount:\
+    \ API.activeProject.knowledge_search_document_count\n}\nthis.searchingInKnowledge\
+    \ = true\ntry {\nconst { response, documents } = await API.knowledge.search(knowledgeSearch)\n\
+    const docs = documents.map(({ metadata: { score_analysis, source}}) => {\nconst\
+    \ file = source\nconst fileName = file.split(\"/\").reverse()[0]\nreturn [\n`###\
+    \ ${fileName}`,\nscore_analysis,\n].join(\"\\n\")\n}).join(\"\\n\")\nconst message\
+    \ = [\nresponse,\n\"\",\ndocs\n].join(\"\\n\")\nconst searchMessage = {\nrole:\
+    \ 'assistant',\ncontent: message,\nfiles: documents.map(doc => doc.metadata.source),\n\
+    disable_knowledge: true,\n}\nthis.addMessage(searchMessage)\nthis.saveChat()\n\
+    this.cleanUserInputAndWaitAnswer()\n} finally {\nthis.searchingInKnowledge = false\n\
+    }\n},\nasync sendApiRequest(apiCall, formater = defFormater) {\ntry {\nthis.waiting\
+    \ = true\nawait apiCall()\nthis.$emit('refresh-chat')\nthis.scrollToBottom()\n\
+    } catch (ex) {\nthis.addMessage({\nrole: 'assistant',\ncontent: ex.message\n})\n\
+    }\nthis.waiting = false\n},\nasync sendChatMessage(chat) {\nthis.waiting = true\n\
+    try {\nreturn await this.$store.dispatch('projects/chatWihProject', chat)\n} finally\
+    \ {\nthis.waiting = false\n}\n},\nasync updateMessage() {\nconst { innerText }\
+    \ = this.editor\nconst images = this.images.map(JSON.stringify)\n\nthis.editMessage.files\
+    \ = this.messageMentions.filter(m => m.file).map(m => m.file)\nthis.editMessage.profiles\
+    \ = this.getMessageProfiles()\nthis.editMessage.content = innerText\nthis.editMessage.images\
+    \ = images\nthis.editMessage.updated_at = new Date().toISOString()\nthis.onResetEdit()\n\
+    },\nonResetEdit() {\nthis.editMessage = null\nthis.setEditorText(\"\")\nthis.editMessageId\
+    \ = null\nthis.images = []\n},\nremoveMessage(message) {\nthis.$emit(\"delete-message\"\
+    , message)\n},\nasync searchKeywords() {\nconst searchQuery = this.termSearchQuery?.toLowerCase()\n\
+    this.searchTerms = this.projectContext.mentionList.filter(mention => mention.searchIndex.includes(searchQuery))\n\
+    this.searchTermSelIx = 0\nif (!this.refreshngMentions) {\nthis.refreshngMentions\
+    \ = this.$projects.loadProjectKnowledge()\nthis.refreshngMentions.then(() => this.refreshngMentions\
+    \ = null)\n}\n},\naddSerchTerm(term) {\nif (term.file) {\ntry {\nconst fileContent\
+    \ = await this.$projects.readFile(term.file)\nconst userMessage = {\nrole: 'user',\n\
+    content: `\\`\\`\\`ext ${term.file}\\n${fileContent}\\n\\`\\`\\``\n}\nthis.addMessage(userMessage)\n\
+    this.saveChat()\n} catch (error) {\nconsole.error(\"Error reading file:\", error)\n\
+    }\n}\nthis.closeTermSearch()\n},\ngetEditorCaretCharOffset() {\nlet caretOffset\
+    \ = 0\nconst element = this.editor\nif (window.getSelection) {\nvar range = window.getSelection().getRangeAt(0)\n\
+    var preCaretRange = range.cloneRange()\npreCaretRange.selectNodeContents(element)\n\
+    preCaretRange.setEnd(range.endContainer, range.endOffset)\ncaretOffset = preCaretRange.toString().length\n\
+    } else if (document.selection && document.selection.type != \"Control\") {\nvar\
+    \ textRange = document.selection.createRange()\nvar preCaretTextRange = document.body.createTextRange()\n\
+    preCaretTextRange.moveToElementText(element)\npreCaretTextRange.setEndPoint(\"\
+    EndToEnd\", textRange)\ncaretOffset = preCaretTextRange.text.length\n}\nreturn\
+    \ caretOffset\n},\ngetCursorWord() {\nconst text = this.editor?.innerText\nif\
+    \ (!text.length) {\nreturn \"\"\n}\nconst caretIndex = this.getEditorCaretCharOffset()\n\
+    const lastWorkIndex = text.slice(0, caretIndex).split(/\\s/g).length - 1\nreturn\
+    \ text.split(/\\s/g)[lastWorkIndex]\n},\ndetectSearchTerm() {\nconst lastWord\
+    \ = this.getCursorWord()\nconst mention = lastWord[0] === '@' ? lastWord?.slice(1)\
+    \ : null\nif (mention?.length >= 3 &&\n!this.$projects.mentionList.find(m => m.name\
+    \ === mention)) {\nthis.termSearchQuery = mention\n}\nif (this.showTermSearch\
+    \ && !mention) {\nthis.closeTermSearch()\n}\n},\ncloseTermSearch() {\nthis.searchTerms\
+    \ = null\nthis.termSearchQuery = null\n},\nonSelNext() {\nthis.searchTermSelIx++\n\
+    if (this.searchTermSelIx === this.searchTerms?.length) {\nthis.searchTermSelIx\
+    \ = 0\n}\n},\nonSelPrev() {\nthis.searchTermSelIx--\nif (this.searchTermSelIx\
+    \ === -1) {\nthis.searchTermSelIx = this.searchTerms?.length - 1\n}\n},\nsaveChat()\
+    \ {\nif (!this.theChat.temp) {\nreturn API.chats.save(this.theChat)\n}\n},\nonDrop(e)\
+    \ {\nthis.onDraggingOverInput = false\nif (!e.dataTransfer.files) {\nreturn\n\
+    }\nvar file = [...e.dataTransfer.files].filter(f => f.type.indexOf(\"image\")\
+    \ !== -1)[0]\nif (file) {\nthis.onInputImage(file)\n}\n},\nasync onContentPaste(e)\
+    \ {\nif (!e.clipboardData?.items) {\nreturn\n}\nvar file = [...e.clipboardData?.items].filter(f\
+    \ => f.type.indexOf(\"image\") !== -1)[0]?.getAsFile()\nif (file) {\nthis.onInputImage(file)\n\
+    e.preventDefault()\nreturn false\n}\n},\ngetFileImageUrl(file) {\nreturn new Promise(ok\
+    \ => {\nconst reader = new FileReader()\nreader.onload = (event) => {\nconst base64URL\
+    \ = event.target.result\nok(base64URL)\n}\nreader.readAsDataURL(file)\n})\n},\n\
+    async onInputImage(file) {\nconst base64URL = await this.getFileImageUrl(file)\n\
+    this.imagePreview = {\nsrc: base64URL,\nalt: \"\"\n}\n},\nonAddImage() {\nif (this.imagePreview.ix\
+    \ === undefined) {\nthis.images.push(this.imagePreview)\nthis.imagePreview.ix\
+    \ = this.images.length - 1\n}\nthis.imagePreview = null\n},\nasync onExtractTextImage(image)\
+    \ {\nfunction base64ToFile(base64Data, filename) {\nconst byteString = atob(base64Data.split(',')[1])\n\
+    const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0]\nconst\
+    \ byteArray = new Uint8Array(byteString.length)\nfor (let i = 0; i < byteString.length;\
+    \ i++) {\nbyteArray[i] = byteString.charCodeAt(i)\n}\nconst blob = new Blob([byteArray],\
+    \ { type: mimeString })\nreturn new File([blob], filename, { type: mimeString\
+    \ })\n}\n\nconst file = base64ToFile(image.src, \"image\")\nconst text = await\
+    \ API.tools.imageToText(file)\nimage.alt = text\n},\nasync handleFileChange({\
+    \ target: { files } }) {\nconst allUrls = await Promise.all([...files].map(file\
+    \ => this.getFileImageUrl(file)))\nconsole.log(\"handleFileChange\", allUrls)\n\
+    this.images = [\n...this.images,\n...allUrls.map((src, ix) => ({ src, alt: \"\"\
+    , ix: this.images.length + 1 + ix }))\n]\nthis.selectFile = false\n},\nonGenerateCode(codeBlockInfo)\
+    \ {\nthis.$projects.generateCode({ chat: this.theChat, codeBlockInfo })\n},\n\
+    removeImage(ix) {\nthis.images = this.images.filter((i, imx) => imx !== ix)\n\
+    },\nonMessageChange() {\nif (this.editor &&\nthis.editor.innerText != this.editorText)\
+    \ {\nthis.editorText = this.editor.innerText\nthis.detectSearchTerm()\n}\n},\n\
+    async testProject() {\nthrow new Error('Obsolte')\nconst data = await API.projects.test()\n\
+    this.testError = data\nif (this.testError) {\nthis.editMessage = this.testError\n\
+    this.setEditorText(this.editMessage)\n}\n},\nremoveFileFromMessage(message, file)\
+    \ {\nmessage.files = message.files.filter(f => f !== file)\nthis.saveChat()\n\
+    },\ntoggleVoiceSession() {\nif (this.isVoiceSession) {\nreturn this.stopVoiceSession()\n\
+    }\nlet silents = 5\nthis.isVoiceSession = true\n\nconst recognition = new (window.SpeechRecognition\
+    \ || window.webkitSpeechRecognition)()\nrecognition.lang = this.$ui.voiceLanguage\n\
+    recognition.interimResults = false\n\nrecognition.onresult = (event) => {\nconst\
+    \ transcript = event.results[0][0].transcript\nthis.editor.innerText += transcript\n\
+    }\n\nrecognition.onend = () => {\nif (this.isVoiceSession && silents--) {\nrecognition.start()\n\
+    } else {\nthis.stopVoiceSession()\n}\n}\n\nrecognition.start()\nthis.recognition\
+    \ = recognition\n},\nstopVoiceSession() {\nthis.recognition?.stop()\nthis.recognition\
+    \ = null\n},\nscrollToBottom() {\nsetTimeout(() => this.$refs.anchor?.scrollIntoView(),\
+    \ 200)\n},\nonEditMessageKeyDown(event) {\nconst stop = () => {\nevent.stopPropagation()\n\
+    event.preventDefault()\nreturn false\n}\nif (event.key === 'Escape') {\nthis.onResetEdit()\n\
+    } else if (event.key === 'Tab' && this.showTermSearch) {\nthis.addSerchTerm(this.searchTerms[this.searchTermSelIx])\n\
+    } else if(event.key === 'Enter' && event.ctrlKey) {\nthis.sendMessage()\n} else\
+    \ {\nreturn true\n}\nreturn stop()\n},\nopenDocumentSearch() {\nthis.showDocumentSearchModal\
+    \ = !this.showDocumentSearchModal\n},\nonAddDocument(doc) {\nconst source = doc.metadata.source\n\
+    this.theChat.file_list = [...new Set([...this.theChat.file_list ||[], source])]\n\
+    this.saveChat()\n}\n}\n}\n</script>\n```\n\nThis updated code should resolve the\
+    \ issue with the `await` keyword inside the `addSerchTerm` method. The method\
+    \ now correctly reads the file content and formats it as a user message in the\
+    \ specified format."
+  created_at: '2025-08-20 11:52:16.330771'
+  disable_knowledge: false
+  doc_id: 7dda7bbf-deaf-4d26-90fd-a38d3b6773a5
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002219676971435547
+    model: openai/mercury-coder
+    time_taken: 7.8006370067596436
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-08-20T20:30:22.687Z'
+  user: null
+- content: "```vue /home/codx-junior/codx-junior/client/src/components/user/ChatBar.vue\n\
+    <template>\n  <div class=\"flex flex-col\">hello\n    <div v-for=\"user in users\"\
+    \ :key=\"user.username\" class=\"avatar tooltip\"\n      :data-tip=\"user.username\"\
+    \n      @click=\"$service.project.openUserChat(user)\"\n    >\n      <div class=\"\
+    w-8 rounded-full\">\n        <img :src=\"user.avatar\" @error=\"user.avatar =\
+    \ errorAvatar\" />\n      </div>\n    </div>\n  </div>\n</template>\n<script>\n\
+    export default {\n  data() {\n    return {\n      errorAvatar: 'https://freesvg.org/img/abstract-user-flat-4.png'\n\
+    \    }\n  },\n  computed: {\n    users() {\n      return this.$project?.users\n\
+    \    }\n  }\n}\n</script>\n```"
+  created_at: '2025-08-20 11:52:16.330771'
+  disable_knowledge: true
+  doc_id: 958b71a1-7015-44cf-ba89-e6eace974ba1
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-20T20:57:39.021Z'
+  user: admin
+mode: task
+name: File canvan edit
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-08-20T20:58:19.451672'
+url: ''
+users:
+- admin
+visibility: ''

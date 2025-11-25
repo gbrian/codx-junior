@@ -5,7 +5,7 @@ import UserAvatar from '../user/UserAvatar.vue'
 <template>
     <div class="dropdown click" @click.stop="">
         <div tabindex="0" class="flex items-end gap-1 text-xs font-bold" @click="toggleDropdown">
-          <UserAvatar class="ring rounded-full h-6" :user="selectedUser" width="6" v-if="selectedUser" />
+          <UserAvatar class="ring rounded-full h-6" :title="selectedUser.avatar" :user="selectedUser" width="6" v-if="selectedUser" />
           <div v-else>
             <i class="fa-solid fa-plus"></i>
           </div>
@@ -26,7 +26,7 @@ import UserAvatar from '../user/UserAvatar.vue'
 
 <script>
 export default {
-  props: ['selectedUser', 'mini', 'open', 'allUsers'],
+  props: ['selectedUser', 'mini', 'open', 'profiles'],
   data() {
     return {
       isOpen: false,
@@ -35,11 +35,8 @@ export default {
   computed: {
     // Combine users from user and project profiles
     usersList() {
-      const users = [...this.$projects.userList]
-      if (this.allUsers) {
-        users.push(this.$project.users.map(u => ({ ...u, name: u.username })))
-      }
-      return users.filter((v,ix,arr) => arr.findIndex(u => u.name === v.name) === ix)
+      const users = [...this.$users.allUsers, ...this.profiles]
+      return users
     }
   },
   methods: {

@@ -1,0 +1,55 @@
+board: Default
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: done
+column_id: ''
+created_at: '2025-01-13 07:03:33.645633+00:00'
+description: ''
+doc_id: null
+file_list:
+- /codx/junior/project_watcher.py
+file_path: /shared/codx-junior/api/.codx/tasks/Default/done/project-watcher.9d5abf54-2fbb-47bb-943b-021c2de24ef3.yaml
+id: 9d5abf54-2fbb-47bb-943b-021c2de24ef3
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: watch_project callable will receive the proeject settings and the file
+    changed
+  created_at: '2025-01-13 07:33:24.530479'
+  disable_knowledge: false
+  doc_id: null
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-01-13 07:33:24.530502'
+  user: null
+mode: chat
+name: Project watcher
+parent_id: ''
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-01-17T19:26:45.505568'
+url: ''
+users: []
+visibility: ''

@@ -1,7 +1,11 @@
+<script setup>
+  // Import statements can be added here if needed in the future
+</script>
+
 <template>
   <div class="dropdown" :title="name">
-    <div tabindex="0"  class="avatar" @click="isOpen = !isOpen">
-      <div class="rounded-full tooltip" :class="`w-${width || 6}`" :data-tip="name" >
+    <div tabindex="0" class="avatar" @click="isOpen = !isOpen">
+      <div class="rounded-full tooltip" :class="`w-${width || 6}`" :data-tip="name">
         <img :src="image" />
       </div>
     </div>
@@ -10,14 +14,21 @@
     </ul>
   </div>
 </template>
+
 <script>
 export default {
   props: ['user', 'width'],
-  data () {
+  data() {
     return {
-      isOpen: false,
-      name: this.user.username || this.user.name,
-      image: this.user.avatar
+      isOpen: false
+    }
+  },
+  computed: {
+    name() {
+      return this.user.username || this.user.name
+    },
+    image() {
+      return this.user.avatar
     }
   }
 }

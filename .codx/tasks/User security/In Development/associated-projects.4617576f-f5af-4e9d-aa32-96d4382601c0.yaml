@@ -1,0 +1,96 @@
+board: User security
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Development
+column_id: ''
+created_at: '2025-05-15 15:53:25.664341'
+description: ''
+doc_id: null
+file_list:
+- /src/components/kanban/TaskSettings.vue
+file_path: /shared/codx-junior/.codx/tasks/User security/In Development/associated-projects.4617576f-f5af-4e9d-aa32-96d4382601c0.yaml
+id: 4617576f-f5af-4e9d-aa32-96d4382601c0
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Change the project selector at Task Settings by the name "Associated project"
+  created_at: '2025-05-15 15:53:25.662557'
+  disable_knowledge: false
+  doc_id: fbe3ef1b-b2e6-4425-ade8-367f832e5cd1
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-15 15:53:25.662615'
+  user: admin
+- content: "To change the project selector in `TaskSettings.vue` to display the label\
+    \ \"Associated project\", you only need to update the relevant section in the\
+    \ template to reflect this change. \n\nHere's the necessary modification:\n\n\
+    ```vue\n<!-- Before -->\n<ProfileSelector @select=\"addProfile($event)\" :project=\"\
+    taskProject\" />\n\n<!-- After -->\n<label class=\"label\">\n  <span class=\"\
+    label-text\">Associated project</span>\n</label>\n<ProfileSelector @select=\"\
+    addProfile($event)\" :project=\"taskProject\" />\n```\n\nThis modification inserts\
+    \ a label with the text \"Associated project\" before the existing `ProfileSelector`\
+    \ component. Here's how the updated part of the `/home/codx-junior/codx-junior/client/src/components/kanban/TaskSettings.vue`\
+    \ file should look:\n\n```vue\n<modal close=\"true\" @close=\"showProfileSelector\
+    \ = false\" v-if=\"showProfileSelector\">\n  <label class=\"label\">\n    <span\
+    \ class=\"label-text\">Associated project</span>\n  </label>\n  <ProfileSelector\
+    \ @select=\"addProfile($event)\" :project=\"taskProject\" />\n</modal>\n```\n\n\
+    This change is minimal, consistent with the existing code structure, and doesn't\
+    \ require any external references or imports."
+  created_at: '2025-05-15 15:53:25.662557'
+  disable_knowledge: false
+  doc_id: e164da3a-8ea1-4906-b8d3-2f3dcda15150
+  done: true
+  files:
+  - /src/views/CodxJunior.vue
+  - /src/components/kanban/TaskSettings.vue
+  - /src/components/workspaces/Workspaces.vue
+  - /src/components/kanban/TaskCard.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 11.0333571434021
+    model: gpt-4o
+    time_taken: 13.240011930465698
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-15 15:53:25.662615'
+  user: null
+mode: chat
+name: Associated projects
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: 7f19432b-5b9e-4f0d-b317-166f8c106650
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-15T16:18:50.012069'
+url: ''
+users: []
+visibility: ''

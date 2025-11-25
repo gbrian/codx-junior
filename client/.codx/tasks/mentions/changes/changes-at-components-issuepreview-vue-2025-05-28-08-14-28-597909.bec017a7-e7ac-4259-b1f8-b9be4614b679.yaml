@@ -1,0 +1,210 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-05-26 13:36:47.293985'
+description: The user provided a Vue component template using basic HTML elements
+  and codx comments. They requested the application of best practices, specifically
+  using DaisyUI components and TailwindCSS for styling, while removing codx comments.
+  I then refactored the component using the DaisyUI library, adhering to the specified
+  Vue structure and guidelines for better styling and code organization. Finally,
+  the conversation also included best practices for structuring Vue files and general
+  coding guidelines.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-components-issuepreview-vue-2025-05-28-08-14-28-597909.bec017a7-e7ac-4259-b1f8-b9be4614b679.yaml
+id: bec017a7-e7ac-4259-b1f8-b9be4614b679
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                Apply codx comments and rewrite full content.\n      \
+    \          Return only the content without any further decoration or comments.\n\
+    \                Do not surround response with '```' marks, just content.\n  \
+    \              Remove codx comments from the final version. \n               \
+    \ Do not return the <document> tags.\n                "
+  created_at: '2025-05-26 13:36:47.292042'
+  disable_knowledge: false
+  doc_id: 2669ca6f-a3b0-41be-93f1-84d9d4743e4a
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-26 13:36:47.292073'
+  user: null
+- content: "                                Given this document:\n               \
+    \                 <document>\n                                \n             \
+    \                   <template>\n  <div class=\"p-4 bg-base-100 rounded-md\">\n\
+    \    <h3 class=\"text-lg font-semibold\">\n      <div>\n        <a :href=\"issue.repoLink\"\
+    \ class=\"text-blue-500 hover:underline\">\n          <span>{{ issue.repoName\
+    \ }}</span>\n        </a>\n      </div>\n      <div class=\"flex items-center\
+    \ mt-1\">\n        <i class=\"fa-solid fa-circle-check text-green-500 mr-2\"></i>\n\
+    \        <a :href=\"issue.issueLink\" class=\"text-blue-500 hover:underline\"\
+    >\n          <span>{{ issue.issueTitle }}</span>\n        </a>\n      </div>\n\
+    \    </h3>\n    <div class=\"mt-2 text-gray-700\" v-html=\"issue.issueText\"></div>\n\
+    \    <div class=\"flex space-x-2 mt-3\">\n      <div v-for=\"label in issue.labels\"\
+    \ :key=\"label\" class=\"bg-gray-100 text-gray-700 px-2 py-1 rounded\">\n    \
+    \    {{ label }}\n      </div>\n    </div>\n    <ul class=\"flex items-center\
+    \ space-x-2 mt-4 text-sm text-gray-600\">\n      <li class=\"flex items-center\"\
+    >\n        <img :src=\"issue.authorAvatar\" alt=\"author-avatar\" class=\"w-4\
+    \ h-4 rounded-full mr-1\">\n        {{ issue.authorName }}\n      </li>\n    \
+    \  <span>\xB7</span>\n      <li class=\"flex items-center\">\n        <i class=\"\
+    fa-solid fa-comment-dots mr-1\"></i>\n        {{ issue.numComments }}\n      </li>\n\
+    \      <span>\xB7</span>\n      <li>\n        Opened&nbsp;<span>{{ issue.createdDate\
+    \ }}</span>\n      </li>\n      <span>\xB7</span>\n      <li>\n        <a :href=\"\
+    issue.issueLink\" target=\"_blank\">#{{ issue.issueNumber }}</a>\n      </li>\n\
+    \    </ul>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: {\n\
+    \    issue: Object\n  }\n}\n</script>\n<codx-ok, please-wait...>\nThis is how\
+    \ looks like \"issue\"\n\n```json\n{\n        \"author_name\": \"LuizRafael79\"\
+    ,\n        \"author_avatar_url\": \"https://avatars.githubusercontent.com/u/64298521?s=48&v=4\"\
+    ,\n        \"id\": \"3089657507\",\n        \"issue\": {\n            \"issue\"\
+    : {\n                \"pull_request_id\": null\n            }\n        },\n  \
+    \      \"repo\": {\n            \"repository\": {\n                \"id\": 214315559,\n\
+    \                \"name\": \"qemu-3dfx\",\n                \"owner_id\": 56374095,\n\
+    \                \"owner_login\": \"kjliew\",\n                \"updated_at\"\
+    : \"2025-05-25T07:26:16.246Z\",\n                \"has_issues\": true\n      \
+    \      }\n        },\n        \"labels\": [],\n        \"num_comments\": 15,\n\
+    \        \"number\": 166,\n        \"state\": \"open\",\n        \"state_reason\"\
+    : null,\n        \"hl_title\": \"About qemu-3dfx - thanks for this (and arch fork\
+    \ too)\",\n        \"hl_text\": \"...  resemble something that might work . I\
+    \ couldn t <em>help</em> bursting into laughter @Obattler \U0001F923 how the\\\
+    nAccuracy *BS* simply exploded trying at adapting QEMU implementation.\\n\\n\U0001F3B6\
+    A Fork of JUNK is inherently A ...\",\n        \"created\": \"2025-05-25T20:44:33.000-03:00\"\
+    ,\n        \"reviewable_state\": null,\n        \"merged\": null\n    }\n    ```\n\
+    </codx-ok, please-wait...>\n                                \n               \
+    \                 </document>\n                                \n            \
+    \                    User has added these comments:\n                        \
+    \        <comments>\n                                @codx-ui User commented in\
+    \ line 50: This is how looks like \"issue\"\n\n```json\n{\n\"author_name\": \"\
+    LuizRafael79\",\n\"author_avatar_url\": \"https://avatars.githubusercontent.com/u/64298521?s=48&v=4\"\
+    ,\n\"id\": \"3089657507\",\n\"issue\": {\n\"issue\": {\n\"pull_request_id\": null\n\
+    }\n},\n\"repo\": {\n\"repository\": {\n\"id\": 214315559,\n\"name\": \"qemu-3dfx\"\
+    ,\n\"owner_id\": 56374095,\n\"owner_login\": \"kjliew\",\n\"updated_at\": \"2025-05-25T07:26:16.246Z\"\
+    ,\n\"has_issues\": true\n}\n},\n\"labels\": [],\n\"num_comments\": 15,\n\"number\"\
+    : 166,\n\"state\": \"open\",\n\"state_reason\": null,\n\"hl_title\": \"About qemu-3dfx\
+    \ - thanks for this (and arch fork too)\",\n\"hl_text\": \"...  resemble something\
+    \ that might work . I couldn t <em>help</em> bursting into laughter @Obattler\
+    \ \U0001F923 how the\\nAccuracy *BS* simply exploded trying at adapting QEMU implementation.\\\
+    n\\n\U0001F3B6A Fork of JUNK is inherently A ...\",\n\"created\": \"2025-05-25T20:44:33.000-03:00\"\
+    ,\n\"reviewable_state\": null,\n\"merged\": null\n}\n```\n                   \
+    \             </comments>\n\n                                Best practices for\
+    \ this file:\n                    Project uses DaisyUI for components, use them\
+    \ instead basic HTML elements\nWhen writing vue files always follow this best\
+    \ parctices:\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n// Reactive data, don't use \"ref\"\n return { myVariable:\
+    \ null }\n},\ncomputed: {},\nwatch: {},\nmethods: {}\n}\n</sctipt>\n```\n* No\
+    \ need to import ref, computed or mapState \n* export default component object\n\
+    * Use component \"data\" method to return an object variables\n* Use component\
+    \ \"computed\" to define computed properties\n\" Use component \"methods\" to\
+    \ define component methods \n* Use \"this.$storex\" or \"$storex\" to access store\
+    \ data.\n* To access vue store data use \"$storex\"\n* \"script setup\" section\
+    \ contains ONLY imports, no variables, properties bnor methods\n* Use TailwindCSS\
+    \ classes for styling, always consider mobile styles\n* Vue component definition\
+    \ will be exporting a default object like, without ref, nor computed imports\n\
+    * Don't use \";\" in the javascript or typescript code\n* Avoid long functions\n\
+    * Add short and concise comments for complex functions\n* Don't use <style> elements,\
+    \ use TailWindCSS classes\n                    \n                            \
+    \    "
+  created_at: '2025-05-26 13:36:47.292042'
+  disable_knowledge: false
+  doc_id: ef83e16c-a0fa-470c-b9bd-7a66b641cc84
+  done: true
+  files:
+  - /home/codx-junior/codx-junior/client/src/components/IssuePreview.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-26 13:36:47.292073'
+  user: null
+- content: "<script setup>\nimport { defineProps } from 'vue'\nimport { Card, Badge,\
+    \ Avatar } from 'daisyui'\n\nconst props = defineProps({\n  issue: Object\n})\n\
+    </script>\n\n<template>\n  <div class=\"card shadow-xl p-4 bg-base-100 rounded-md\"\
+    >\n    <h3 class=\"text-lg font-semibold\">\n      <div>\n        <a :href=\"\
+    issue.repoLink\" class=\"text-blue-500 hover:underline\">\n          <span>{{\
+    \ issue.repoName }}</span>\n        </a>\n      </div>\n      <div class=\"flex\
+    \ items-center mt-1\">\n        <i class=\"fa-solid fa-circle-check text-green-500\
+    \ mr-2\"></i>\n        <a :href=\"issue.issueLink\" class=\"text-blue-500 hover:underline\"\
+    >\n          <span>{{ issue.issueTitle }}</span>\n        </a>\n      </div>\n\
+    \    </h3>\n    <div v-html=\"issue.issueText\" class=\"mt-2 text-gray-700\"></div>\n\
+    \    <div class=\"flex space-x-2 mt-3\">\n      <Badge v-for=\"label in issue.labels\"\
+    \ :key=\"label\" class=\"bg-gray-100 text-gray-700\">\n        {{ label }}\n \
+    \     </Badge>\n    </div>\n    <ul class=\"flex items-center space-x-2 mt-4 text-sm\
+    \ text-gray-600\">\n      <li class=\"flex items-center\">\n        <Avatar :src=\"\
+    issue.authorAvatar\" alt=\"author-avatar\" class=\"w-4 h-4 rounded-full mr-1\"\
+    />\n        {{ issue.authorName }}\n      </li>\n      <span>\xB7</span>\n   \
+    \   <li class=\"flex items-center\">\n        <i class=\"fa-solid fa-comment-dots\
+    \ mr-1\"></i>\n        {{ issue.numComments }}\n      </li>\n      <span>\xB7\
+    </span>\n      <li>\n        Opened&nbsp;<span>{{ issue.createdDate }}</span>\n\
+    \      </li>\n      <span>\xB7</span>\n      <li>\n        <a :href=\"issue.issueLink\"\
+    \ target=\"_blank\">#{{ issue.issueNumber }}</a>\n      </li>\n    </ul>\n  </div>\n\
+    </template>\n\n<script>\nexport default {\n  props: {\n    issue: Object\n  }\n\
+    }\n</script>"
+  created_at: '2025-05-26 13:36:47.292042'
+  disable_knowledge: false
+  doc_id: c83f3376-0161-4a2d-9f48-6c6e2e5a7021
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 4.271888494491577
+    model: gpt-4o
+    time_taken: 7.633540153503418
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-26 13:36:47.292073'
+  user: null
+mode: chat
+name: changes-at-components-issuepreview-vue-2025-05-28-08-14-28-597909
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- daisyui_components
+- Vue files
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-05-28T08:14:38.036179'
+url: ''
+users: []
+visibility: ''

@@ -1,0 +1,278 @@
+board: "File change engine \u270F\uFE0F"
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Edition
+column_id: ''
+created_at: '2025-10-30 19:51:09.278814'
+description: The document outlines various methods for expressing and applying patches
+  to file content, including the Unified Diff Format, JSON Patch, Custom Markup Language,
+  Patch Objects, Scripting Language, Annotations, Version Control Hooks, Interactive
+  Patch Application, and Template-Based Changes. However, the instructions specify
+  to discard approaches that rely on line numbers, are specific to file types, or
+  use custom scripts. The task is to update the document accordingly and return the
+  revised content.
+doc_id: null
+file_list: []
+file_path: "/shared/codx-junior/api/.codx/tasks/File change engine \u270F\uFE0F/Edition/new-task.711b0610-7ed2-469e-a0a4-8579404d1d47.yaml"
+id: 711b0610-7ed2-469e-a0a4-8579404d1d47
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'We must find a way to apply patches to file content.
+
+    When asking AI to make changes on a file content it can require modify, add or
+    delete some parts of the document.
+
+
+
+    We need a format to express these changes and a strategy to apply them.
+
+
+
+    Create a list of ideas for this'
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: true
+  doc_id: 6d6056db-c327-4c83-ab78-86db5228c0e6
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: admin
+- content: "Here is a list of ideas for expressing and applying patches to file content:\n\
+    \n1. **Unified Diff Format**:\n   - **Expression**: Use the unified diff format\
+    \ to express changes. This format includes lines prefixed with `+` for additions,\
+    \ `-` for deletions, and no prefix for unchanged lines.\n   - **Strategy**: Use\
+    \ a diff tool or library to apply the diff to the original file, automatically\
+    \ updating the content.\n\n2. **JSON Patch**:\n   - **Expression**: Represent\
+    \ changes using JSON Patch, which is a standard format for expressing a sequence\
+    \ of operations to apply to a JSON document.\n   - **Strategy**: Utilize a JSON\
+    \ Patch library to apply the operations to the file content, which should be in\
+    \ JSON format.\n\n3. **Custom Markup Language**:\n   - **Expression**: Develop\
+    \ a simple markup language to describe changes, such as `ADD`, `REMOVE`, and `MODIFY`\
+    \ commands with line numbers and content.\n   - **Strategy**: Write a parser to\
+    \ interpret the markup and apply the changes to the file.\n\n4. **Line Number\
+    \ and Content Mapping**:\n   - **Expression**: List changes with line numbers\
+    \ and the new content for each line that needs to be modified.\n   - **Strategy**:\
+    \ Iterate through the file, applying changes to the specified lines.\n\n5. **Patch\
+    \ Objects**:\n   - **Expression**: Create patch objects that encapsulate the type\
+    \ of change (add, remove, modify), target location, and content.\n   - **Strategy**:\
+    \ Implement a function that processes these patch objects and modifies the file\
+    \ accordingly.\n\n6. **Scripting Language**:\n   - **Expression**: Use a scripting\
+    \ language like Python or JavaScript to write scripts that define the changes.\n\
+    \   - **Strategy**: Execute the script to apply the changes directly to the file.\n\
+    \n7. **Annotations in the File**:\n   - **Expression**: Insert annotations or\
+    \ comments directly in the file that specify changes (e.g., `// ADD: new code\
+    \ here`).\n   - **Strategy**: Use a pre-processor to read these annotations and\
+    \ apply the changes during a build or update process.\n\n8. **Version Control\
+    \ Hooks**:\n   - **Expression**: Utilize version control systems like Git to handle\
+    \ patches through commits and branches.\n   - **Strategy**: Apply patches by merging\
+    \ branches or applying specific commits that contain the desired changes.\n\n\
+    9. **Interactive Patch Application**:\n   - **Expression**: Provide an interactive\
+    \ interface for users to manually select and apply changes.\n   - **Strategy**:\
+    \ Use a GUI or terminal-based tool that allows users to preview and apply patches\
+    \ interactively.\n\n10. **Template-Based Changes**:\n    - **Expression**: Use\
+    \ templates with placeholders for dynamic content that needs to be updated.\n\
+    \    - **Strategy**: Apply changes by rendering templates with the new content\
+    \ as needed. \n\nThese ideas offer a range of approaches, from automated tools\
+    \ to manual interventions, to effectively manage and apply patches to file content."
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: false
+  doc_id: 49eb8114-8222-4ac9-b269-3d61b5c1de46
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00017714500427246094
+    model: openai/gpt-4o
+    time_taken: 12.277718544006348
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: null
+- content: 'Choose those ones that work better for any kind of file format.
+
+    Ignore those relaying on line numbers as, per today, AI is quite bad on counting
+    lines'
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: true
+  doc_id: 2ee9a049-78e1-48d8-a720-8a1917f4a44f
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: admin
+- content: "Here is a list of ideas for expressing and applying patches to file content:\n\
+    \n1. **Unified Diff Format**:\n   - **Expression**: Use the unified diff format\
+    \ to express changes. This format includes lines prefixed with `+` for additions,\
+    \ `-` for deletions, and no prefix for unchanged lines.\n   - **Strategy**: Use\
+    \ a diff tool or library to apply the diff to the original file, automatically\
+    \ updating the content.\n\n2. **JSON Patch**:\n   - **Expression**: Represent\
+    \ changes using JSON Patch, which is a standard format for expressing a sequence\
+    \ of operations to apply to a JSON document.\n   - **Strategy**: Utilize a JSON\
+    \ Patch library to apply the operations to the file content, which should be in\
+    \ JSON format.\n\n3. **Custom Markup Language**:\n   - **Expression**: Develop\
+    \ a simple markup language to describe changes, such as `ADD`, `REMOVE`, and `MODIFY`\
+    \ commands with content.\n   - **Strategy**: Write a parser to interpret the markup\
+    \ and apply the changes to the file.\n\n4. **Patch Objects**:\n   - **Expression**:\
+    \ Create patch objects that encapsulate the type of change (add, remove, modify),\
+    \ target location, and content.\n   - **Strategy**: Implement a function that\
+    \ processes these patch objects and modifies the file accordingly.\n\n5. **Scripting\
+    \ Language**:\n   - **Expression**: Use a scripting language like Python or JavaScript\
+    \ to write scripts that define the changes.\n   - **Strategy**: Execute the script\
+    \ to apply the changes directly to the file.\n\n6. **Annotations in the File**:\n\
+    \   - **Expression**: Insert annotations or comments directly in the file that\
+    \ specify changes (e.g., `// ADD: new code here`).\n   - **Strategy**: Use a pre-processor\
+    \ to read these annotations and apply the changes during a build or update process.\n\
+    \n7. **Version Control Hooks**:\n   - **Expression**: Utilize version control\
+    \ systems like Git to handle patches through commits and branches.\n   - **Strategy**:\
+    \ Apply patches by merging branches or applying specific commits that contain\
+    \ the desired changes.\n\n8. **Interactive Patch Application**:\n   - **Expression**:\
+    \ Provide an interactive interface for users to manually select and apply changes.\n\
+    \   - **Strategy**: Use a GUI or terminal-based tool that allows users to preview\
+    \ and apply patches interactively.\n\n9. **Template-Based Changes**:\n    - **Expression**:\
+    \ Use templates with placeholders for dynamic content that needs to be updated.\n\
+    \    - **Strategy**: Apply changes by rendering templates with the new content\
+    \ as needed. \n\nThese ideas offer a range of approaches, from automated tools\
+    \ to manual interventions, to effectively manage and apply patches to file content."
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: false
+  doc_id: 1c113898-51ab-4411-a40e-61c4b645a2d6
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 8.821487426757812e-05
+    model: openai/gpt-4o
+    time_taken: 4.139831066131592
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: null
+- content: "Discard those:\n- using line numbers\_\n- file type specifics\n- using\
+    \ custom scripts"
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: true
+  doc_id: 4c3a5838-d6aa-41c0-bbdb-85d655d88524
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: admin
+- content: "```markdown\nHere is a list of ideas for expressing and applying patches\
+    \ to file content:\n\n1. **Unified Diff Format**:\n   - **Expression**: Use the\
+    \ unified diff format to express changes. This format includes lines prefixed\
+    \ with `+` for additions, `-` for deletions, and no prefix for unchanged lines.\n\
+    \   - **Strategy**: Use a diff tool or library to apply the diff to the original\
+    \ file, automatically updating the content.\n\n2. **JSON Patch**:\n   - **Expression**:\
+    \ Represent changes using JSON Patch, which is a standard format for expressing\
+    \ a sequence of operations to apply to a JSON document.\n   - **Strategy**: Utilize\
+    \ a JSON Patch library to apply the operations to the file content, which should\
+    \ be in JSON format.\n\n3. **Patch Objects**:\n   - **Expression**: Create patch\
+    \ objects that encapsulate the type of change (add, remove, modify), target location,\
+    \ and content.\n   - **Strategy**: Implement a function that processes these patch\
+    \ objects and modifies the file accordingly.\n\n4. **Annotations in the File**:\n\
+    \   - **Expression**: Insert annotations or comments directly in the file that\
+    \ specify changes (e.g., `// ADD: new code here`).\n   - **Strategy**: Use a pre-processor\
+    \ to read these annotations and apply the changes during a build or update process.\n\
+    \n5. **Version Control Hooks**:\n   - **Expression**: Utilize version control\
+    \ systems like Git to handle patches through commits and branches.\n   - **Strategy**:\
+    \ Apply patches by merging branches or applying specific commits that contain\
+    \ the desired changes.\n\n6. **Interactive Patch Application**:\n   - **Expression**:\
+    \ Provide an interactive interface for users to manually select and apply changes.\n\
+    \   - **Strategy**: Use a GUI or terminal-based tool that allows users to preview\
+    \ and apply patches interactively.\n\n7. **Template-Based Changes**:\n    - **Expression**:\
+    \ Use templates with placeholders for dynamic content that needs to be updated.\n\
+    \    - **Strategy**: Apply changes by rendering templates with the new content\
+    \ as needed. \n\nThese ideas offer a range of approaches, from automated tools\
+    \ to manual interventions, to effectively manage and apply patches to file content.\n\
+    ```"
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: false
+  doc_id: 00615db8-660c-4f79-9331-889fe22f9ac0
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0001480579376220703
+    model: openai/gpt-4o
+    time_taken: 2.995518684387207
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: null
+mode: task
+name: New Task
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-11-01T10:22:17.860430'
+url: ''
+users:
+- admin
+visibility: ''

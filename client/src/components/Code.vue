@@ -5,10 +5,10 @@ import MarkdownViewer from './MarkdownViewer.vue';
 import CodeViewer from './CodeViewer.vue'
 </script>
 <template>
-  <div class="rounded-md">
-    <div class="flex gap-2 w-full justify-end bg-base-100 p-2 rounded-t" ref="toolbar">
-      <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource"
-        v-if="showMermaid">
+  <div class="rounded-md p-2">
+    <div class="flex gap-2 w-full justify-end rounded-t" 
+      ref="toolbar" v-if="showMermaid">
+      <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource">
         <span v-if="showMermaidSource">View diagram</span>
         <span v-else>View code</span>
       </button>
@@ -30,8 +30,10 @@ import CodeViewer from './CodeViewer.vue'
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"
       @save-file="$emit('save-file', $event)" 
+      @add-file="$emit('add-file', $event)" 
       :language="language" 
       :file="file" 
+      :files="files"
       v-if="showCode" /> 
     <MarkdownViewer :text="codeText" v-if="showMarkdown" />
     <div class="" v-html="codeText" v-if="htmlPreview"></div>
@@ -43,7 +45,7 @@ const languageMapping = {
   "markdown": "md"
 }
 export default {
-  props: ['code', 'text', 'text-language', 'file-name'],
+  props: ['code', 'text', 'text-language', 'file-name', 'files'],
   data () {
     return {
       codeText: null,

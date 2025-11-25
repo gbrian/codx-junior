@@ -75,8 +75,6 @@ from codx.junior.utils.utils import (
 from codx.junior.whisper.audio_manager import AudioManager
 
 from codx.junior.model.model import CodxUser
-from codx.junior.chat_heatmap import ChatHeatmapReport
-from codx.junior.chat_wall import ChatWallReport
 
 logger = logging.getLogger(__name__)
 
@@ -271,9 +269,11 @@ class CODXJuniorSession:
             limit=knowledge_search.document_count
         )
         
+        """
         documents = validate_search_documents(query=knowledge_search.search_term,
                                               documents=documents,
                                               settings=self.settings)
+        
         chat = Chat(messages=
             [
                 Message(
@@ -287,9 +287,9 @@ class CODXJuniorSession:
             ])
         chat, _ = await self.chat_with_project(chat=chat, disable_knowledge=True)
         response = chat.messages[-1].content
-
+        """
         return {
-            "response": response,
+            "response": "",
             "documents": documents,
             "settings": {
                 "knowledge_search_type": self.settings.knowledge_search_type,
@@ -616,7 +616,8 @@ class CODXJuniorSession:
         knowledge = self.get_knowledge()
         status = knowledge.status()
         current_sources_and_updates = knowledge.get_db().get_all_sources()
-        pending_files, _ = knowledge.detect_changes(current_sources_and_updates=current_sources_and_updates)
+        # pending_files, _ = knowledge.detect_changes(current_sources_and_updates=current_sources_and_updates)
+        pending_files = []
         pending_files = [f for f in pending_files if f not in list(current_sources_and_updates.keys())]
         return {
             "current_sources_and_updates": current_sources_and_updates,
@@ -897,6 +898,7 @@ class CODXJuniorSession:
                 sub_task.board = chat.board
                 sub_task.column = chat.column
                 sub_task.project_id = chat.project_id
+                sub_task.mode = "task"
                 sub_task.messages = [
                     Message(role="user",
                     content=f""" 
@@ -1215,15 +1217,20 @@ class CODXJuniorSession:
     def get_project_apps(self):
         return APPS
 
-    def get_project_branches(self):
+    
+    def get_repo_branches(self):
         def get_barnches(cmd):
             stdout, _ = exec_command(cmd,
                 cwd=self.settings.project_path)
             return [s.strip() for s in stdout.split("\n") if s.strip()]
         branches = list(set(get_barnches("git branch") + get_barnches("git branch -r")))
         branches.sort()
+        return branches
+    
+    def get_project_branches(self):
         return {
-          "branches": branches,
+          "branches": self.get_repo_branches(),
+          "repo_tree": self.get_repo_tree()
         }
 
     def get_project_branch_commits(self, branch):
@@ -1247,6 +1254,37 @@ class CODXJuniorSession:
             from_branch = from_branch[2:]
         if to_branch.startswith("* "):
             to_branch = to_branch[2:]
+
+
+
+        git_branch_file_changed = f"git diff --name-only {to_branch}...{from_branch}"
+        branch_files, _ = exec_command(git_branch_file_changed,
+                            cwd=self.settings.project_path)
+        branch_files = branch_files.strip().split("\n")
+        
+        def get_git_file_diff(file_path):
+            cmd = f"git diff {to_branch}...{from_branch} -- {file_path}"
+            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.project_path)
+            logger.info("get_git_file_diff: %s: %s\n%s\n%s", file_path, git_cmd_out, self.settings.project_path, cmd)
+            return git_cmd_out.strip()
+
+
+        def get_git_file_commits(file_path):
+            pretty = '{ "commit": "%H", "author": "%an", "date": "%as", "message": "%f" }'
+            cmd = f"git log --pretty=format:'{pretty}' {from_branch} -- {file_path}"
+            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.project_path)
+            return [json.loads(line) for line in git_cmd_out.strip().split("\n")]
+
+        git_commits = []
+        try:
+            git_commits = get_git_file_commits(file_path)
+        except Exception as ex:
+            logger.error("Error reading branch commits: %s", ex)
+
+        branch_file_and_commits = { file_path: {
+                                        "commits": git_commits,
+                                        "diff": get_git_file_diff(file_path)
+                                    } for file_path in branch_files }
         
         git_diff_cmd = f"git diff {to_branch} {from_branch}" if from_branch != 'local' \
                         else f"git diff {to_branch}"
@@ -1268,11 +1306,16 @@ class CODXJuniorSession:
                         cwd=self.settings.project_path)
                     local_changes[file] = git_diff_local_out if git_diff_local_out else \
                                             f"diff --git a/ b/{file}\nnew file mode" 
-
+        for local_file, local_diff in local_changes.items():
+            if local_file in branch_file_and_commits:
+                branch_file_and_commits[local_file]["diff"] = local_diff
+            else:
+                branch_file_and_commits[local_file]  = { "diff": local_diff }
+                
         pr_details = self.get_pr_review_details(from_branch, to_branch)
 
-        commits = self.get_branch_commits(from_branch=from_branch,
-                                        repo_path=self.settings.project_path)
+        commits = []
+        # self.get_branch_commits(from_branch=from_branch, repo_path=self.settings.project_path)
 
         return {
           "diff": git_diff_cmd_out,
@@ -1281,7 +1324,8 @@ class CODXJuniorSession:
           "local_changes": local_changes,
           "repo_path": self.find_git_root_path(),
           "pr_details": pr_details,
-          "commits": commits
+          "commits": commits,
+          "branch_file_and_commits": branch_file_and_commits
         }
 
     def get_branch_commits(self, from_branch, repo_path):
@@ -1306,10 +1350,34 @@ class CODXJuniorSession:
 
         return log_list
 
-    def get_project_pr(self, from_branch: str, to_branch: str):
-        
-        pass
+    def get_repo_tree(self):
+        # Get all branches
+        branches = self.get_repo_branches()
+        repo_tree = []
 
+        for branch in branches:
+            branch_details = self.get_branch_details(branch_name=branch)
+
+            branch_info = {
+                "branch_name": branch,
+                "author": "",  # Author information can be extracted from the first commit if needed
+                "date": "",    # Date can be extracted from the first commit if needed
+                "commits": []
+            }
+
+            for commit in branch_details["commits"]:
+                commit_info = {
+                    "commit_id": commit['commit_hash'],
+                    "author": commit['author'],
+                    "date": commit['date'],
+                    "comment": commit['message'],
+                    "files": commit['files']
+                }
+                branch_info["commits"].append(commit_info)
+
+            repo_tree.append(branch_info)
+
+        return repo_tree
     def get_branch_details(self, branch_name: str):
         """
         Extracts commit details from a specified branch without checking it out.
@@ -1329,7 +1397,11 @@ class CODXJuniorSession:
         commits = []
         for entry in log_lines:
             if entry.strip():
-                commit_hash, author, date, message = entry.split('|', 3)
+                try:
+                    commit_hash, author, date, message = entry.split('|', 3)
+                except ValueError:
+                    self.log_error(f"Error parsing log entry: {entry}")
+                    continue
 
                 # Command to get files changed in each commit
                 file_changes_command = \
@@ -1347,7 +1419,7 @@ class CODXJuniorSession:
 
         return {
           "commits": commits,
-          "parent_branch": commits[-1]["commit_hash"]
+          "parent_branch": commits[-1]["commit_hash"] if commits else None
         }
 
     def get_project_current_branch(self):
@@ -1390,23 +1462,6 @@ class CODXJuniorSession:
         project_branches = self.get_project_branches()
         diff = project_branches["git_diff"]
         return self.get_knowledge().build_code_changes_summary(diff=diff, force=force)
-
-    def project_metrics(self):
-        try:
-            chats = self.get_chat_manager().list_chats()
-            last_update = datetime.today() - timedelta(days=5)
-            last_chats = self.get_chat_manager().find_chats(last_update)
-            chat_heatmap = ChatHeatmapReport()
-            chat_wall = ChatWallReport()
-            return {
-              "heatmap": chat_heatmap.generate_report(chats=chats),
-              "wall": chat_wall.generate_report(chats=last_chats),
-            }
-        except Exception as ex:
-            logger.error("Error getting heatmapo metrics")
-            return {
-              "error": str(ex)
-            }
 
     def get_pr_review_details(self, from_branch: str, to_branch: str):
         # Pull the latest changes from both branches to ensure we are comparing correctly

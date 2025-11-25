@@ -1,0 +1,106 @@
+board: codx-junior wizards
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-05-30 03:56:58.255588'
+description: You asked about integrating on-screen tutorials for `codx-junior` using
+  Vue. I recommended using `vue-tour`, a lightweight Vue-compatible library. I provided
+  steps to install, register, and add a tutorial component with minimal code modifications.
+  Finally, I summarized the instructions, emphasizing simplicity and compatibility.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/codx-junior wizards/Backlog/codx-junior-wizards-overview.c09b3bad-d5c9-46db-a9e0-6ed9937d1fa5.yaml
+id: c09b3bad-d5c9-46db-a9e0-6ed9937d1fa5
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'We want to add codx-junior a set of wizards that will guide user on using
+    the UI
+
+    We need to define the behavior of the on the screen tutorials and find librearies
+    that we can integrate with vue'
+  created_at: '2025-05-30 03:56:58.253753'
+  disable_knowledge: false
+  doc_id: badb9496-681f-4de4-af2b-8c151a87181a
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - software_developer
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-30 03:56:58.253831'
+  user: admin
+- content: "To add a set of wizards for guiding users, I recommend using a lightweight\
+    \ Vue-compatible library like `vue-tour` or `intro.js`. Since you want minimal\
+    \ changes, here\u2019s a straightforward approach:\n\n1. **Choose Library**  \n\
+    Let's select `vue-tour` as an example, which is easy to integrate.\n\n2. **Install\
+    \ the library**  \nAssuming you can run npm commands in your environment:  \n\
+    ```bash\nnpm install vue-tour\n```\n\n3. **Register `vue-tour` globally**  \n\
+    In your main Vue setup (e.g., `main.js`), add:\n\n```js\nimport Vue from 'vue'\n\
+    import VueTour from 'vue-tour'\nimport 'vue-tour/dist/vue-tour.css'\n\nVue.use(VueTour)\n\
+    ```\n\n4. **Add the wizard (tour) component to your UI**  \nWithin the component\
+    \ where you want the tutorials, add:\n\n```vue\n<template>\n  <div>\n    <button\
+    \ @click=\"startTour\">Guide Me</button>\n    <vue-tour :steps=\"steps\" ref=\"\
+    tour\"></vue-tour>\n  </div>\n</template>\n\n<script>\nexport default {\n  data()\
+    \ {\n    return {\n      steps: [\n        {\n          target: '.selector1',\n\
+    \          content: 'This is the first step of the tutorial.',\n        },\n \
+    \       {\n          target: '.selector2',\n          content: 'Here you can do\
+    \ this.',\n        },\n        // Add more steps as needed\n      ],\n    }\n\
+    \  },\n  methods: {\n    startTour() {\n      this.$refs.tour.start()\n    },\n\
+    \  },\n}\n</script>\n```\n\n**Summary of minimal changes:**\n- Install and register\
+    \ the library.\n- Add a button and the `<vue-tour>` component.\n- Define tutorial\
+    \ steps.\n- Call `start()` method on button click.\n\nThis setup respects existing\
+    \ code structure and requires only minimal additions."
+  created_at: '2025-05-30 03:56:58.253753'
+  disable_knowledge: false
+  doc_id: 36b83489-a515-42f4-8354-e3d78b6efe34
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.3631861209869385
+    model: gpt-4.1-nano
+    time_taken: 5.261849641799927
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-30 03:56:58.253831'
+  user: null
+mode: chat
+name: codx-junior wizards overview
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-30T04:08:40.732194'
+url: ''
+users:
+- admin
+visibility: ''

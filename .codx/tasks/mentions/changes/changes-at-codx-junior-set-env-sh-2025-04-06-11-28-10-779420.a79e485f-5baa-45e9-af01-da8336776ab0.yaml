@@ -1,0 +1,154 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-04-06 10:17:15.936542'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/mentions/changes/changes-at-codx-junior-set-env-sh-2025-04-06-11-28-10-779420.a79e485f-5baa-45e9-af01-da8336776ab0.yaml
+id: a79e485f-5baa-45e9-af01-da8336776ab0
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      ```\n                      # API virtual env\nexport\
+    \ CODX_JUNIOR_API_VENV=/tmp/.venv_codx_junior_api\n# Browser virtual env\nexport\
+    \ BROWSER_VENV=/tmp/.venv_codx_junior_browser\n# codx-junior API port\nif [ -z\
+    \ \"$CODX_JUNIOR_API_PORT\" ];then \n  export CODX_JUNIOR_API_PORT=19980\nfi\n\
+    @codx-ok, please-wait...: change the inline variable check by the if then form\n\
+    [ -z \"$CODX_JUNIOR_API_URL\" ] && export CODX_JUNIOR_API_URL=http://0.0.0.0:${CODX_JUNIOR_API_PORT}\n\
+    # codx-junior web port\n[ -z \"$CODX_JUNIOR_WEB_PORT\" ] && export CODX_JUNIOR_WEB_PORT=19981\n\
+    # codx-junior code-server port\n[ -z \"$CODX_JUNIOR_CODER_PORT\" ] && export CODX_JUNIOR_CODER_PORT=19982\n\
+    # Desktop port\n[ -z \"$CODX_JUNIOR_NOVNC_PORT\" ] && export CODX_JUNIOR_NOVNC_PORT=19983\n\
+    # codx-junior API background port\n[ -z \"$CODX_JUNIOR_API_PORT_BACKGROUND\" ]\
+    \ && export CODX_JUNIOR_API_PORT_BACKGROUND=19984\n# llmfactory server port\n\
+    [ -z \"$CODX_JUNIOR_LLMFACTORY_PORT\" ] && export CODX_JUNIOR_LLMFACTORY_PORT=19985\n\
+    [ -z \"$CODX_JUNIOR_LLMFACTORY_URL\" ] && export CODX_JUNIOR_LLMFACTORY_URL=http://0.0.0.0:${CODX_JUNIOR_LLMFACTORY_PORT}\n\
+    # codx-junior preview display\n[ -z \"$CODX_JUNIOR_DISPLAY\" ] && export CODX_JUNIOR_DISPLAY=:55\n\
+    # Serving client from API\n[ -z \"$CODX_SUPERVISOR_LOG_FOLDER\" ] && export CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-supervisor\n\
+    \n### OLLAMA\n[ -z \"$CODX_JUNIOR_EMBEDDINGS_MODEL\" ] && export CODX_JUNIOR_EMBEDDINGS_MODEL=nomic-embed-text\n\
+    \n# Miscellaneous\nexport DEBIAN_FRONTEND=noninteractive\n# Locales\nexport LANG=en_US.UTF-8\
+    \  \nexport LANGUAGE=en_US:en  \nexport LC_ALL=en_US.UTF-8\n                 \
+    \     ```\n                      \n                      User commented in line\
+    \ 8: change the inline variable check by the if then form\n                  \
+    \    "
+  created_at: '2025-04-06 10:17:15.934335'
+  disable_knowledge: false
+  doc_id: a2f2122b-e8c4-4db8-b3d5-314e706da8fa
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-06 10:17:15.934379'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content:\n              # API virtual env\nexport CODX_JUNIOR_API_VENV=/tmp/.venv_codx_junior_api\n\
+    # Browser virtual env\nexport BROWSER_VENV=/tmp/.venv_codx_junior_browser\n# codx-junior\
+    \ API port\nif [ -z \"$CODX_JUNIOR_API_PORT\" ];then \n  export CODX_JUNIOR_API_PORT=19980\n\
+    fi\n@codx-ok, please-wait...: change the inline variable check by the if then\
+    \ form\n[ -z \"$CODX_JUNIOR_API_URL\" ] && export CODX_JUNIOR_API_URL=http://0.0.0.0:${CODX_JUNIOR_API_PORT}\n\
+    # codx-junior web port\n[ -z \"$CODX_JUNIOR_WEB_PORT\" ] && export CODX_JUNIOR_WEB_PORT=19981\n\
+    # codx-junior code-server port\n[ -z \"$CODX_JUNIOR_CODER_PORT\" ] && export CODX_JUNIOR_CODER_PORT=19982\n\
+    # Desktop port\n[ -z \"$CODX_JUNIOR_NOVNC_PORT\" ] && export CODX_JUNIOR_NOVNC_PORT=19983\n\
+    # codx-junior API background port\n[ -z \"$CODX_JUNIOR_API_PORT_BACKGROUND\" ]\
+    \ && export CODX_JUNIOR_API_PORT_BACKGROUND=19984\n# llmfactory server port\n\
+    [ -z \"$CODX_JUNIOR_LLMFACTORY_PORT\" ] && export CODX_JUNIOR_LLMFACTORY_PORT=19985\n\
+    [ -z \"$CODX_JUNIOR_LLMFACTORY_URL\" ] && export CODX_JUNIOR_LLMFACTORY_URL=http://0.0.0.0:${CODX_JUNIOR_LLMFACTORY_PORT}\n\
+    # codx-junior preview display\n[ -z \"$CODX_JUNIOR_DISPLAY\" ] && export CODX_JUNIOR_DISPLAY=:55\n\
+    # Serving client from API\n[ -z \"$CODX_SUPERVISOR_LOG_FOLDER\" ] && export CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-supervisor\n\
+    \n### OLLAMA\n[ -z \"$CODX_JUNIOR_EMBEDDINGS_MODEL\" ] && export CODX_JUNIOR_EMBEDDINGS_MODEL=nomic-embed-text\n\
+    \n# Miscellaneous\nexport DEBIAN_FRONTEND=noninteractive\n# Locales\nexport LANG=en_US.UTF-8\
+    \  \nexport LANGUAGE=en_US:en  \nexport LC_ALL=en_US.UTF-8\n              "
+  created_at: '2025-04-06 10:17:15.934335'
+  disable_knowledge: false
+  doc_id: bd48fc6f-93d9-4133-bff1-57d71448032b
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-06 10:17:15.934379'
+  user: null
+- content: "# API virtual env\nexport CODX_JUNIOR_API_VENV=/tmp/.venv_codx_junior_api\n\
+    # Browser virtual env\nexport BROWSER_VENV=/tmp/.venv_codx_junior_browser\n# codx-junior\
+    \ API port\nif [ -z \"$CODX_JUNIOR_API_PORT\" ];then \n  export CODX_JUNIOR_API_PORT=19980\n\
+    fi\n# codx-junior API URL\nif [ -z \"$CODX_JUNIOR_API_URL\" ]; then\n  export\
+    \ CODX_JUNIOR_API_URL=http://0.0.0.0:${CODX_JUNIOR_API_PORT}\nfi\n# codx-junior\
+    \ web port\nif [ -z \"$CODX_JUNIOR_WEB_PORT\" ]; then\n  export CODX_JUNIOR_WEB_PORT=19981\n\
+    fi\n# codx-junior code-server port\nif [ -z \"$CODX_JUNIOR_CODER_PORT\" ]; then\n\
+    \  export CODX_JUNIOR_CODER_PORT=19982\nfi\n# Desktop port\nif [ -z \"$CODX_JUNIOR_NOVNC_PORT\"\
+    \ ]; then\n  export CODX_JUNIOR_NOVNC_PORT=19983\nfi\n# codx-junior API background\
+    \ port\nif [ -z \"$CODX_JUNIOR_API_PORT_BACKGROUND\" ]; then\n  export CODX_JUNIOR_API_PORT_BACKGROUND=19984\n\
+    fi\n# llmfactory server port\nif [ -z \"$CODX_JUNIOR_LLMFACTORY_PORT\" ]; then\n\
+    \  export CODX_JUNIOR_LLMFACTORY_PORT=19985\nfi\nif [ -z \"$CODX_JUNIOR_LLMFACTORY_URL\"\
+    \ ]; then\n  export CODX_JUNIOR_LLMFACTORY_URL=http://0.0.0.0:${CODX_JUNIOR_LLMFACTORY_PORT}\n\
+    fi\n# codx-junior preview display\nif [ -z \"$CODX_JUNIOR_DISPLAY\" ]; then\n\
+    \  export CODX_JUNIOR_DISPLAY=:55\nfi\n# Serving client from API\nif [ -z \"$CODX_SUPERVISOR_LOG_FOLDER\"\
+    \ ]; then\n  export CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-supervisor\n\
+    fi\n\n### OLLAMA\nif [ -z \"$CODX_JUNIOR_EMBEDDINGS_MODEL\" ]; then\n  export\
+    \ CODX_JUNIOR_EMBEDDINGS_MODEL=nomic-embed-text\nfi\n\n# Miscellaneous\nexport\
+    \ DEBIAN_FRONTEND=noninteractive\n# Locales\nexport LANG=en_US.UTF-8  \nexport\
+    \ LANGUAGE=en_US:en  \nexport LC_ALL=en_US.UTF-8"
+  created_at: '2025-04-06 10:17:15.934335'
+  disable_knowledge: false
+  doc_id: e2473997-5b2c-4b46-bf73-e56beec87731
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.6388163566589355
+    model: gpt-4o
+    time_taken: 4.4069342613220215
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-06 10:17:15.934379'
+  user: null
+mode: chat
+name: changes-at-codx-junior-set-env-sh-2025-04-06-11-28-10-779420
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-04-06T11:28:15.186794'
+url: ''
+users: []
+visibility: ''

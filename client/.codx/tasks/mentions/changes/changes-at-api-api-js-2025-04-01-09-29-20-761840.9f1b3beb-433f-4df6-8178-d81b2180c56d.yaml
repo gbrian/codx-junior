@@ -1,0 +1,505 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-04-01 08:23:05.665354'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-api-api-js-2025-04-01-09-29-20-761840.9f1b3beb-433f-4df6-8178-d81b2180c56d.yaml
+id: 9f1b3beb-433f-4df6-8178-d81b2180c56d
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      ```\n                      <codx-ok, please-wait...>\n\
+    extract the axios login into a class CodxJuniorConnection. \nThe CodxJuniorConnection\
+    \ will hold the settings details.\n\nAPI will be a function receiving a codx_path\
+    \ or a settings object. Then will use a CodxJuniorConnection to call the methods.\n\
+    \nMake sure all code is migrated without missing a single piecve of code\n\n</codx-ok,\
+    \ please-wait...>\nimport axios from 'axios'\n\nconst codx_key = window.location.search\n\
+    \                    .slice(1).split(\"&\")\n                    .map(p => p.split(\"\
+    =\"))\n                    .find(([k]) => k === \"codx_path\")\n\nconst query\
+    \ = () => `codx_path=${encodeURIComponent(API.lastSettings?.codx_path)}`\nconst\
+    \ prepareUrl = (url) => {\n  if (url.indexOf(\"codx_path\") === -1) {\n    let\
+    \ [path, params] = url.split(\"?\")\n    if (params) {\n      params += `&${query()}`\n\
+    \    } else {\n      params = query()\n    }\n    url =`${path}?${params}`\n \
+    \   return url\n  }\n  return url\n}\n\nconst axiosRequest = axios.create({\n\
+    })\nexport const API = {\n  sid: \"\",\n  axiosRequest,\n  liveRequests: 0,\n\
+    \  user: null,\n  get headers () {\n    return {\n      \"x-sid\": API.sid,\n\
+    \      \"Authentication\": `Bearer ${this.user?.token}`\n    }\n  },\n  get (url)\
+    \ {\n    API.liveRequests++\n    return axiosRequest.get(prepareUrl(url), { headers:\
+    \ API.headers })\n      .catch(console.error)\n      .finally(() => API.liveRequests--)\n\
+    \  },\n  del (url) {\n    API.liveRequests++\n    return axiosRequest.delete(prepareUrl(url),\
+    \ { headers: API.headers })\n      .catch(console.error)\n      .finally(() =>\
+    \ API.liveRequests--)\n  },\n  post (url, data) {\n    API.liveRequests++\n  \
+    \  return axiosRequest.post(prepareUrl(url), data, { headers: API.headers })\n\
+    \    .catch(console.error)\n    .finally(() => API.liveRequests--)\n  },\n  put\
+    \ (url, data) {\n    API.liveRequests++\n    return axiosRequest.put(prepareUrl(url),\
+    \ data, { headers: API.headers })\n    .catch(console.error)\n    .finally(()\
+    \ => API.liveRequests--)\n  },\n  lastSettings: {},\n  user: {\n    async login(user)\
+    \ {\n      const { data } = await API.post('/api/users/login', user)\n      API.user\
+    \ = data\n      return data\n    },\n    async save(user) {\n      const { data\
+    \ } = await API.post('/api/users/update', user)\n      API.user = data\n     \
+    \ return data\n    }\n  },\n  apps: {\n    async list(){\n      const { data:\
+    \ apps } = await API.get('/api/apps')\n      return apps\n    },\n    async run(appName){\n\
+    \      const { data } = await API.get(`/api/apps/run?app=${appName}`)\n      return\
+    \ data\n    } \n  },\n  project: {\n    async list () {\n      const res = await\
+    \ API.get('/api/projects')\n      if (API.lastSettings) {\n        API.allProjects\
+    \ = res.data\n      }\n      return res\n    },\n    create(projectPath) {\n \
+    \     return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath),\
+    \ {})\n    },\n    delete() {\n      localStorage.setItem(\"API_SETTINGS\", \"\
+    \")\n      API.del('/api/projects')\n      API.lastSettings = null\n    },\n \
+    \   async readme () {\n      const { data } = await API.get('/api/projects/readme')\n\
+    \      return data\n    },\n    watch () {\n      return API.get('/api/project/watch')\n\
+    \    },\n    unwatch () {\n      return API.get('/api/project/unwatch')\n    },\n\
+    \    test () {\n      return API.get('/api/project/script/test')\n    },\n   \
+    \ async branches () {\n      const { data: branches } = await API.get('/api/projects/repo/branches')\n\
+    \      return branches \n    }\n  },\n  settings: {\n    async read () {\n   \
+    \   const res = await API.get('/api/settings')\n      API.lastSettings = { ...API.lastSettings\
+    \ || {}, ...res.data }\n      if (API.lastSettings) {\n        localStorage.setItem(\"\
+    API_SETTINGS\", JSON.stringify(res.data))\n      }\n      return res\n    },\n\
+    \    async save(settings) {\n      await API.put('/api/settings?', settings ||\
+    \ API.lastSettings)\n      return API.settings.read()\n    },\n    global: {\n\
+    \      async read() {\n        const { data } = await API.get('/api/global/settings')\n\
+    \        API.globalSettings = data\n        return { data }\n      },\n      async\
+    \ write(settings) {\n        await API.post('/api/global/settings', settings)\n\
+    \        return API.settings.global.read()\n      }\n    }\n  },\n  knowledge:\
+    \ {\n    status () {\n      return API.get('/api/knowledge/status')\n    },\n\
+    \    reload () {\n      return API.get('/api/knowledge/reload')\n    },\n    reloadFolder\
+    \ (path) {\n      return API.post(`/api/knowledge/reload-path`, { path })\n  \
+    \  },\n    search ({ \n        searchTerm: search_term,\n        searchType: search_type,\n\
+    \        documentSearchType: document_search_type,\n        cutoffScore: document_cutoff_score,\n\
+    \        cutoffRag: document_cutoff_rag,\n        documentCount: document_count\n\
+    \    }) {\n      return API.post(`/api/knowledge/reload-search`, {\n         \
+    \ search_term,\n          search_type,\n          document_search_type,\n    \
+    \      document_cutoff_score,\n          document_cutoff_rag,\n          document_count\n\
+    \      })\n    },\n    delete (sources) {\n      return API.post(`/api/knowledge/delete`,\
+    \ { sources })  \n    },\n    deleteAll() {\n      return API.del(`/api/knowledge/delete`)\
+    \  \n    },\n    keywords() {\n      return API.get(`/api/knowledge/keywords`)\n\
+    \    },\n    searchKeywords (searchQuery) {\n      return API.get(`/api/knowledge/keywords?query=${searchQuery}`)\n\
+    \    }\n  },\n  chats: {\n    stream() {\n      return API.get('/api/stream')\n\
+    \    },\n    async list () {\n      const { data } = await API.get('/api/chats')\n\
+    \      return data\n    },\n    async loadChat ({ id, file_path }) {\n      const\
+    \ { data } = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id ||\
+    \ ''}`)\n      return data\n    },\n    async newChat () {\n      return {\n \
+    \       id: new Date().getTime(),\n        name: \"New chat\"\n      }\n    },\n\
+    \    async message (chat) {\n      return API.post('/api/chats?', chat)\n    },\n\
+    \    async subTasks (chat) {\n      return API.post('/api/chats/sub-tasks?', chat)\n\
+    \    },\n    save (chat) {\n      return API.put(`/api/chats?chatonly=0`, chat)\n\
+    \    },\n    saveChatInfo(chat) {\n      return API.put(`/api/chats?chatonly=1`,\
+    \ chat)\n    },\n    delete(chat) {\n      return API.del(`/api/chats?file_path=${chat.file_path}`)\n\
+    \    },\n    kanban: {\n      async load() {\n        const { data: kanban } =\
+    \ await API.get('/api/kanban')\n        return kanban\n      },\n      async save(kanban)\
+    \ {\n        API.post('/api/kanban', kanban)\n      }\n    }\n  },\n  run: {\n\
+    \    improve (chat) {\n      return API.post('/api/run/improve?', chat)\n    },\n\
+    \    patch (aiCodeGenerator) {\n      return API.post('/api/run/improve/patch?',\
+    \ aiCodeGenerator).then(({ data}) => data)\n    },\n    edit (chat) {\n      return\
+    \ API.post('/api/run/edit?', chat)\n    },\n    liveEdit ({ chat, html, url, message\
+    \ }) {\n      return API.post('/api/run/live-edit?', { chat_name: chat.name, html,\
+    \ url, message })\n    },\n    changesSummary({ branch, rebuild }) {\n      return\
+    \ API.get(`/api/run/changes/summary?branch=${branch}&refresh=${rebuild}`).then(({\
+    \ data}) => data)      \n    }\n  },\n  profiles: {\n    list () {\n      return\
+    \ API.get('/api/profiles')\n    },\n    load (name) {\n      return API.get(`/api/profiles/${name}`)\n\
+    \    },\n    save (profile) {\n      return API.post(`/api/profiles`, profile)\n\
+    \    },\n    async delete (name) {\n      await API.del(`/api/profiles/${name}`)\n\
+    \    }\n  },\n  coder: {\n    openFile(file) {\n      API.get(`/api/code-server/file/open?file_name=${encodeURIComponent(file)}`)\n\
+    \    }\n  },\n  images: {\n    async upload (file) {\n      let formData = new\
+    \ FormData()\n      formData.append(\"file\", file)\n      const { data: url }\
+    \ = await API.post(`/api/images`, formData)\n      return window.location.origin\
+    \ + url\n    }\n  },\n  wiki: {\n    read (path) {\n      return API.get(`/api/wiki?file_path=${path}`)\n\
+    \    }\n  },\n  engine: {\n    update () {\n      return API.get('/api/update')\n\
+    \    }\n  },\n  browser: {\n    message (chat) {\n      return API.post('/api/browser',\
+    \ chat)\n    },\n  },\n  tools: {\n    async imageToText (file) {\n      const\
+    \ formData = new FormData()\n      formData.append(\"file\", file)\n      return\
+    \ (await API.post(`/api/image-to-text`, formData)).data\n    }\n  },\n  async\
+    \ init (codx_path) {\n    API.liveRequests++\n    this.codx_path = codx_path\n\
+    \    if (codx_path) {\n      const { data: projects } = await API.project.list()\n\
+    \      API.lastSettings = projects.find(p => p.codx_path === codx_path)\n    \
+    \  if (API.lastSettings) {\n        await API.settings.read()\n        localStorage.setItem(\"\
+    API_CODX_PATH\", API.lastSettings.codx_path)\n      }\n      API.allProjects =\
+    \ projects\n    } else {\n      const codx_path = localStorage.getItem(\"API_CODX_PATH\"\
+    )\n      try {\n        const { data: projects } = await API.project.list()\n\
+    \        API.allProjects = projects\n        API.lastSettings = projects.find(p\
+    \ => p.codx_path === codx_path) ||\n                              projects[0]\n\
+    \      } catch (ex) {\n        console.error(\"Invalid settings\")\n      }\n\
+    \      API.screen.getScreenResolution()\n    }\n    API.liveRequests--\n    await\
+    \ API.settings.global.read()\n    console.log(\"API init\", codx_path, API)\n\
+    \  },\n  logs: {\n    async read(logName, size) {\n      return API.get(`/api/logs/${logName}?log_size=${size}`)\n\
+    \    },\n    async list() {\n      return API.get('/api/logs')\n    }\n  },\n\
+    \  files: {\n    list (path) {\n      return API.get(`/api/files?path=${path}`)\n\
+    \    },\n    read (path) {\n      return API.get(`/api/files/read?path=${path}`)\n\
+    \    },\n    search (search) {\n      return API.get(`/api/files/find?search=${search}`)\n\
+    \    },\n    write (source, page_content) {\n      return API.post(`/api/files/write?path=${source}`,\
+    \ { page_content, metadata: { source } } )\n    }\n  },\n  screen: {\n    display:\
+    \ null,\n    async setScreenResolution (resolution) {\n      await API.post('/api/screen',\
+    \ { resolution })\n      return API.screen.getScreenResolution()\n    },\n   \
+    \ async getScreenResolution () {\n      const { data: display } = await API.get('/api/screen')\
+    \ \n      API.screen.display = display\n      return API.screen.display\n    }\n\
+    \  },\n  async restart () {\n    await API.post(\"/api/restart\")\n    let waitTime\
+    \ = 3\n    return new Promise((ok, ko) => {\n      const ix = setInterval(async\
+    \ () => {\n        if (--waitTime) {\n          try {\n            await API.init()\n\
+    \            clearInterval(ix)\n            ok()\n          } catch {}\n     \
+    \   } else {\n          clearInterval(ix)\n          ko()\n        }\n      },\
+    \ 5000)\n    })\n  }\n}\nwindow.API = API\n                      ```\n       \
+    \               \n                      User commented in line 0: extract the\
+    \ axios login into a class CodxJuniorConnection.\nThe CodxJuniorConnection will\
+    \ hold the settings details.\n\nAPI will be a function receiving a codx_path or\
+    \ a settings object. Then will use a CodxJuniorConnection to call the methods.\n\
+    \nMake sure all code is migrated without missing a single piecve of code\n\n \
+    \                     "
+  created_at: '2025-04-01 08:23:05.662839'
+  disable_knowledge: false
+  doc_id: 0e611742-3718-496d-919b-716903780726
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-01 08:23:05.662873'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content:\n              <codx-ok, please-wait...>\nextract\
+    \ the axios login into a class CodxJuniorConnection. \nThe CodxJuniorConnection\
+    \ will hold the settings details.\n\nAPI will be a function receiving a codx_path\
+    \ or a settings object. Then will use a CodxJuniorConnection to call the methods.\n\
+    \nMake sure all code is migrated without missing a single piecve of code\n\n</codx-ok,\
+    \ please-wait...>\nimport axios from 'axios'\n\nconst codx_key = window.location.search\n\
+    \                    .slice(1).split(\"&\")\n                    .map(p => p.split(\"\
+    =\"))\n                    .find(([k]) => k === \"codx_path\")\n\nconst query\
+    \ = () => `codx_path=${encodeURIComponent(API.lastSettings?.codx_path)}`\nconst\
+    \ prepareUrl = (url) => {\n  if (url.indexOf(\"codx_path\") === -1) {\n    let\
+    \ [path, params] = url.split(\"?\")\n    if (params) {\n      params += `&${query()}`\n\
+    \    } else {\n      params = query()\n    }\n    url =`${path}?${params}`\n \
+    \   return url\n  }\n  return url\n}\n\nconst axiosRequest = axios.create({\n\
+    })\nexport const API = {\n  sid: \"\",\n  axiosRequest,\n  liveRequests: 0,\n\
+    \  user: null,\n  get headers () {\n    return {\n      \"x-sid\": API.sid,\n\
+    \      \"Authentication\": `Bearer ${this.user?.token}`\n    }\n  },\n  get (url)\
+    \ {\n    API.liveRequests++\n    return axiosRequest.get(prepareUrl(url), { headers:\
+    \ API.headers })\n      .catch(console.error)\n      .finally(() => API.liveRequests--)\n\
+    \  },\n  del (url) {\n    API.liveRequests++\n    return axiosRequest.delete(prepareUrl(url),\
+    \ { headers: API.headers })\n      .catch(console.error)\n      .finally(() =>\
+    \ API.liveRequests--)\n  },\n  post (url, data) {\n    API.liveRequests++\n  \
+    \  return axiosRequest.post(prepareUrl(url), data, { headers: API.headers })\n\
+    \    .catch(console.error)\n    .finally(() => API.liveRequests--)\n  },\n  put\
+    \ (url, data) {\n    API.liveRequests++\n    return axiosRequest.put(prepareUrl(url),\
+    \ data, { headers: API.headers })\n    .catch(console.error)\n    .finally(()\
+    \ => API.liveRequests--)\n  },\n  lastSettings: {},\n  user: {\n    async login(user)\
+    \ {\n      const { data } = await API.post('/api/users/login', user)\n      API.user\
+    \ = data\n      return data\n    },\n    async save(user) {\n      const { data\
+    \ } = await API.post('/api/users/update', user)\n      API.user = data\n     \
+    \ return data\n    }\n  },\n  apps: {\n    async list(){\n      const { data:\
+    \ apps } = await API.get('/api/apps')\n      return apps\n    },\n    async run(appName){\n\
+    \      const { data } = await API.get(`/api/apps/run?app=${appName}`)\n      return\
+    \ data\n    } \n  },\n  project: {\n    async list () {\n      const res = await\
+    \ API.get('/api/projects')\n      if (API.lastSettings) {\n        API.allProjects\
+    \ = res.data\n      }\n      return res\n    },\n    create(projectPath) {\n \
+    \     return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath),\
+    \ {})\n    },\n    delete() {\n      localStorage.setItem(\"API_SETTINGS\", \"\
+    \")\n      API.del('/api/projects')\n      API.lastSettings = null\n    },\n \
+    \   async readme () {\n      const { data } = await API.get('/api/projects/readme')\n\
+    \      return data\n    },\n    watch () {\n      return API.get('/api/project/watch')\n\
+    \    },\n    unwatch () {\n      return API.get('/api/project/unwatch')\n    },\n\
+    \    test () {\n      return API.get('/api/project/script/test')\n    },\n   \
+    \ async branches () {\n      const { data: branches } = await API.get('/api/projects/repo/branches')\n\
+    \      return branches \n    }\n  },\n  settings: {\n    async read () {\n   \
+    \   const res = await API.get('/api/settings')\n      API.lastSettings = { ...API.lastSettings\
+    \ || {}, ...res.data }\n      if (API.lastSettings) {\n        localStorage.setItem(\"\
+    API_SETTINGS\", JSON.stringify(res.data))\n      }\n      return res\n    },\n\
+    \    async save(settings) {\n      await API.put('/api/settings?', settings ||\
+    \ API.lastSettings)\n      return API.settings.read()\n    },\n    global: {\n\
+    \      async read() {\n        const { data } = await API.get('/api/global/settings')\n\
+    \        API.globalSettings = data\n        return { data }\n      },\n      async\
+    \ write(settings) {\n        await API.post('/api/global/settings', settings)\n\
+    \        return API.settings.global.read()\n      }\n    }\n  },\n  knowledge:\
+    \ {\n    status () {\n      return API.get('/api/knowledge/status')\n    },\n\
+    \    reload () {\n      return API.get('/api/knowledge/reload')\n    },\n    reloadFolder\
+    \ (path) {\n      return API.post(`/api/knowledge/reload-path`, { path })\n  \
+    \  },\n    search ({ \n        searchTerm: search_term,\n        searchType: search_type,\n\
+    \        documentSearchType: document_search_type,\n        cutoffScore: document_cutoff_score,\n\
+    \        cutoffRag: document_cutoff_rag,\n        documentCount: document_count\n\
+    \    }) {\n      return API.post(`/api/knowledge/reload-search`, {\n         \
+    \ search_term,\n          search_type,\n          document_search_type,\n    \
+    \      document_cutoff_score,\n          document_cutoff_rag,\n          document_count\n\
+    \      })\n    },\n    delete (sources) {\n      return API.post(`/api/knowledge/delete`,\
+    \ { sources })  \n    },\n    deleteAll() {\n      return API.del(`/api/knowledge/delete`)\
+    \  \n    },\n    keywords() {\n      return API.get(`/api/knowledge/keywords`)\n\
+    \    },\n    searchKeywords (searchQuery) {\n      return API.get(`/api/knowledge/keywords?query=${searchQuery}`)\n\
+    \    }\n  },\n  chats: {\n    stream() {\n      return API.get('/api/stream')\n\
+    \    },\n    async list () {\n      const { data } = await API.get('/api/chats')\n\
+    \      return data\n    },\n    async loadChat ({ id, file_path }) {\n      const\
+    \ { data } = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id ||\
+    \ ''}`)\n      return data\n    },\n    async newChat () {\n      return {\n \
+    \       id: new Date().getTime(),\n        name: \"New chat\"\n      }\n    },\n\
+    \    async message (chat) {\n      return API.post('/api/chats?', chat)\n    },\n\
+    \    async subTasks (chat) {\n      return API.post('/api/chats/sub-tasks?', chat)\n\
+    \    },\n    save (chat) {\n      return API.put(`/api/chats?chatonly=0`, chat)\n\
+    \    },\n    saveChatInfo(chat) {\n      return API.put(`/api/chats?chatonly=1`,\
+    \ chat)\n    },\n    delete(chat) {\n      return API.del(`/api/chats?file_path=${chat.file_path}`)\n\
+    \    },\n    kanban: {\n      async load() {\n        const { data: kanban } =\
+    \ await API.get('/api/kanban')\n        return kanban\n      },\n      async save(kanban)\
+    \ {\n        API.post('/api/kanban', kanban)\n      }\n    }\n  },\n  run: {\n\
+    \    improve (chat) {\n      return API.post('/api/run/improve?', chat)\n    },\n\
+    \    patch (aiCodeGenerator) {\n      return API.post('/api/run/improve/patch?',\
+    \ aiCodeGenerator).then(({ data}) => data)\n    },\n    edit (chat) {\n      return\
+    \ API.post('/api/run/edit?', chat)\n    },\n    liveEdit ({ chat, html, url, message\
+    \ }) {\n      return API.post('/api/run/live-edit?', { chat_name: chat.name, html,\
+    \ url, message })\n    },\n    changesSummary({ branch, rebuild }) {\n      return\
+    \ API.get(`/api/run/changes/summary?branch=${branch}&refresh=${rebuild}`).then(({\
+    \ data}) => data)      \n    }\n  },\n  profiles: {\n    list () {\n      return\
+    \ API.get('/api/profiles')\n    },\n    load (name) {\n      return API.get(`/api/profiles/${name}`)\n\
+    \    },\n    save (profile) {\n      return API.post(`/api/profiles`, profile)\n\
+    \    },\n    async delete (name) {\n      await API.del(`/api/profiles/${name}`)\n\
+    \    }\n  },\n  coder: {\n    openFile(file) {\n      API.get(`/api/code-server/file/open?file_name=${encodeURIComponent(file)}`)\n\
+    \    }\n  },\n  images: {\n    async upload (file) {\n      let formData = new\
+    \ FormData()\n      formData.append(\"file\", file)\n      const { data: url }\
+    \ = await API.post(`/api/images`, formData)\n      return window.location.origin\
+    \ + url\n    }\n  },\n  wiki: {\n    read (path) {\n      return API.get(`/api/wiki?file_path=${path}`)\n\
+    \    }\n  },\n  engine: {\n    update () {\n      return API.get('/api/update')\n\
+    \    }\n  },\n  browser: {\n    message (chat) {\n      return API.post('/api/browser',\
+    \ chat)\n    },\n  },\n  tools: {\n    async imageToText (file) {\n      const\
+    \ formData = new FormData()\n      formData.append(\"file\", file)\n      return\
+    \ (await API.post(`/api/image-to-text`, formData)).data\n    }\n  },\n  async\
+    \ init (codx_path) {\n    API.liveRequests++\n    this.codx_path = codx_path\n\
+    \    if (codx_path) {\n      const { data: projects } = await API.project.list()\n\
+    \      API.lastSettings = projects.find(p => p.codx_path === codx_path)\n    \
+    \  if (API.lastSettings) {\n        await API.settings.read()\n        localStorage.setItem(\"\
+    API_CODX_PATH\", API.lastSettings.codx_path)\n      }\n      API.allProjects =\
+    \ projects\n    } else {\n      const codx_path = localStorage.getItem(\"API_CODX_PATH\"\
+    )\n      try {\n        const { data: projects } = await API.project.list()\n\
+    \        API.allProjects = projects\n        API.lastSettings = projects.find(p\
+    \ => p.codx_path === codx_path) ||\n                              projects[0]\n\
+    \      } catch (ex) {\n        console.error(\"Invalid settings\")\n      }\n\
+    \      API.screen.getScreenResolution()\n    }\n    API.liveRequests--\n    await\
+    \ API.settings.global.read()\n    console.log(\"API init\", codx_path, API)\n\
+    \  },\n  logs: {\n    async read(logName, size) {\n      return API.get(`/api/logs/${logName}?log_size=${size}`)\n\
+    \    },\n    async list() {\n      return API.get('/api/logs')\n    }\n  },\n\
+    \  files: {\n    list (path) {\n      return API.get(`/api/files?path=${path}`)\n\
+    \    },\n    read (path) {\n      return API.get(`/api/files/read?path=${path}`)\n\
+    \    },\n    search (search) {\n      return API.get(`/api/files/find?search=${search}`)\n\
+    \    },\n    write (source, page_content) {\n      return API.post(`/api/files/write?path=${source}`,\
+    \ { page_content, metadata: { source } } )\n    }\n  },\n  screen: {\n    display:\
+    \ null,\n    async setScreenResolution (resolution) {\n      await API.post('/api/screen',\
+    \ { resolution })\n      return API.screen.getScreenResolution()\n    },\n   \
+    \ async getScreenResolution () {\n      const { data: display } = await API.get('/api/screen')\
+    \ \n      API.screen.display = display\n      return API.screen.display\n    }\n\
+    \  },\n  async restart () {\n    await API.post(\"/api/restart\")\n    let waitTime\
+    \ = 3\n    return new Promise((ok, ko) => {\n      const ix = setInterval(async\
+    \ () => {\n        if (--waitTime) {\n          try {\n            await API.init()\n\
+    \            clearInterval(ix)\n            ok()\n          } catch {}\n     \
+    \   } else {\n          clearInterval(ix)\n          ko()\n        }\n      },\
+    \ 5000)\n    })\n  }\n}\nwindow.API = API\n              "
+  created_at: '2025-04-01 08:23:05.662839'
+  disable_knowledge: false
+  doc_id: 122d02c5-53dc-452e-bfc7-9261bea440dc
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-01 08:23:05.662873'
+  user: null
+- content: "import axios from 'axios'\n\nclass CodxJuniorConnection {\n  constructor(settings)\
+    \ {\n    this.settings = settings || {};\n    this.axiosInstance = axios.create({});\n\
+    \    this.liveRequests = 0;\n  }\n\n  get headers() {\n    return {\n      \"\
+    x-sid\": this.settings.sid,\n      \"Authentication\": `Bearer ${this.settings.user?.token}`\n\
+    \    };\n  }\n  \n  prepareUrl(url) {\n    const query = `codx_path=${encodeURIComponent(this.settings?.lastSettings?.codx_path)}`;\n\
+    \    if (url.indexOf(\"codx_path\") === -1) {\n      let [path, params] = url.split(\"\
+    ?\");\n      if (params) {\n        params += `&${query}`;\n      } else {\n \
+    \       params = query;\n      }\n      url = `${path}?${params}`;\n      return\
+    \ url;\n    }\n    return url;\n  }\n\n  get(url) {\n    this.liveRequests++;\n\
+    \    return this.axiosInstance.get(this.prepareUrl(url), { headers: this.headers\
+    \ })\n      .catch(console.error)\n      .finally(() => this.liveRequests--);\n\
+    \  }\n\n  del(url) {\n    this.liveRequests++;\n    return this.axiosInstance.delete(this.prepareUrl(url),\
+    \ { headers: this.headers })\n      .catch(console.error)\n      .finally(() =>\
+    \ this.liveRequests--);\n  }\n\n  post(url, data) {\n    this.liveRequests++;\n\
+    \    return this.axiosInstance.post(this.prepareUrl(url), data, { headers: this.headers\
+    \ })\n      .catch(console.error)\n      .finally(() => this.liveRequests--);\n\
+    \  }\n\n  put(url, data) {\n    this.liveRequests++;\n    return this.axiosInstance.put(this.prepareUrl(url),\
+    \ data, { headers: this.headers })\n      .catch(console.error)\n      .finally(()\
+    \ => this.liveRequests--);\n  }\n}\n\nconst initializeAPI = (settingsOrPath) =>\
+    \ {\n  let settings;\n  if (typeof settingsOrPath === \"string\") {\n    settings\
+    \ = { codx_path: settingsOrPath };\n  } else {\n    settings = settingsOrPath;\n\
+    \  }\n\n  const connection = new CodxJuniorConnection(settings);\n\n  const API\
+    \ = {\n    sid: \"\",\n    user: null,\n    get headers() {\n      return {\n\
+    \        \"x-sid\": API.sid,\n        \"Authentication\": `Bearer ${API.user?.token}`\n\
+    \      };\n    },\n    get(url) {\n      connection.liveRequests++;\n      return\
+    \ connection.get(url)\n        .catch(console.error)\n        .finally(() => connection.liveRequests--);\n\
+    \    },\n    del(url) {\n      connection.liveRequests++;\n      return connection.del(url)\n\
+    \        .catch(console.error)\n        .finally(() => connection.liveRequests--);\n\
+    \    },\n    post(url, data) {\n      connection.liveRequests++;\n      return\
+    \ connection.post(url, data)\n        .catch(console.error)\n        .finally(()\
+    \ => connection.liveRequests--);\n    },\n    put(url, data) {\n      connection.liveRequests++;\n\
+    \      return connection.put(url, data)\n        .catch(console.error)\n     \
+    \   .finally(() => connection.liveRequests--);\n    },\n    lastSettings: {},\n\
+    \    user: {\n      async login(user) {\n        const { data } = await API.post('/api/users/login',\
+    \ user);\n        API.user = data;\n        return data;\n      },\n      async\
+    \ save(user) {\n        const { data } = await API.post('/api/users/update', user);\n\
+    \        API.user = data;\n        return data;\n      }\n    },\n    apps: {\n\
+    \      async list() {\n        const { data: apps } = await API.get('/api/apps');\n\
+    \        return apps;\n      },\n      async run(appName) {\n        const { data\
+    \ } = await API.get(`/api/apps/run?app=${appName}`);\n        return data;\n \
+    \     }\n    },\n    project: {\n      async list() {\n        const res = await\
+    \ API.get('/api/projects');\n        if (API.lastSettings) {\n          API.allProjects\
+    \ = res.data;\n        }\n        return res;\n      },\n      create(projectPath)\
+    \ {\n        return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath),\
+    \ {});\n      },\n      delete() {\n        localStorage.setItem(\"API_SETTINGS\"\
+    , \"\");\n        API.del('/api/projects');\n        API.lastSettings = null;\n\
+    \      },\n      async readme() {\n        const { data } = await API.get('/api/projects/readme');\n\
+    \        return data;\n      },\n      watch() {\n        return API.get('/api/project/watch');\n\
+    \      },\n      unwatch() {\n        return API.get('/api/project/unwatch');\n\
+    \      },\n      test() {\n        return API.get('/api/project/script/test');\n\
+    \      },\n      async branches() {\n        const { data: branches } = await\
+    \ API.get('/api/projects/repo/branches');\n        return branches;\n      }\n\
+    \    },\n    settings: {\n      async read() {\n        const res = await API.get('/api/settings');\n\
+    \        API.lastSettings = { ...API.lastSettings || {}, ...res.data };\n    \
+    \    if (API.lastSettings) {\n          localStorage.setItem(\"API_SETTINGS\"\
+    , JSON.stringify(res.data));\n        }\n        return res;\n      },\n     \
+    \ async save(settings) {\n        await API.put('/api/settings?', settings ||\
+    \ API.lastSettings);\n        return API.settings.read();\n      },\n      global:\
+    \ {\n        async read() {\n          const { data } = await API.get('/api/global/settings');\n\
+    \          API.globalSettings = data;\n          return { data };\n        },\n\
+    \        async write(settings) {\n          await API.post('/api/global/settings',\
+    \ settings);\n          return API.settings.global.read();\n        }\n      }\n\
+    \    },\n    knowledge: {\n      status() {\n        return API.get('/api/knowledge/status');\n\
+    \      },\n      reload() {\n        return API.get('/api/knowledge/reload');\n\
+    \      },\n      reloadFolder(path) {\n        return API.post(`/api/knowledge/reload-path`,\
+    \ { path });\n      },\n      search({\n        searchTerm: search_term,\n   \
+    \     searchType: search_type,\n        documentSearchType: document_search_type,\n\
+    \        cutoffScore: document_cutoff_score,\n        cutoffRag: document_cutoff_rag,\n\
+    \        documentCount: document_count\n      }) {\n        return API.post(`/api/knowledge/reload-search`,\
+    \ {\n          search_term,\n          search_type,\n          document_search_type,\n\
+    \          document_cutoff_score,\n          document_cutoff_rag,\n          document_count\n\
+    \        });\n      },\n      delete(sources) {\n        return API.post(`/api/knowledge/delete`,\
+    \ { sources });\n      },\n      deleteAll() {\n        return API.del(`/api/knowledge/delete`);\n\
+    \      },\n      keywords() {\n        return API.get(`/api/knowledge/keywords`);\n\
+    \      },\n      searchKeywords(searchQuery) {\n        return API.get(`/api/knowledge/keywords?query=${searchQuery}`);\n\
+    \      }\n    },\n    chats: {\n      stream() {\n        return API.get('/api/stream');\n\
+    \      },\n      async list() {\n        const { data } = await API.get('/api/chats');\n\
+    \        return data;\n      },\n      async loadChat({ id, file_path }) {\n \
+    \       const { data } = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id\
+    \ || ''}`);\n        return data;\n      },\n      async newChat() {\n       \
+    \ return {\n          id: new Date().getTime(),\n          name: \"New chat\"\n\
+    \        };\n      },\n      async message(chat) {\n        return API.post('/api/chats?',\
+    \ chat);\n      },\n      async subTasks(chat) {\n        return API.post('/api/chats/sub-tasks?',\
+    \ chat);\n      },\n      save(chat) {\n        return API.put(`/api/chats?chatonly=0`,\
+    \ chat);\n      },\n      saveChatInfo(chat) {\n        return API.put(`/api/chats?chatonly=1`,\
+    \ chat);\n      },\n      delete(chat) {\n        return API.del(`/api/chats?file_path=${chat.file_path}`);\n\
+    \      },\n      kanban: {\n        async load() {\n          const { data: kanban\
+    \ } = await API.get('/api/kanban');\n          return kanban;\n        },\n  \
+    \      async save(kanban) {\n          API.post('/api/kanban', kanban);\n    \
+    \    }\n      }\n    },\n    run: {\n      improve(chat) {\n        return API.post('/api/run/improve?',\
+    \ chat);\n      },\n      patch(aiCodeGenerator) {\n        return API.post('/api/run/improve/patch?',\
+    \ aiCodeGenerator).then(({ data }) => data);\n      },\n      edit(chat) {\n \
+    \       return API.post('/api/run/edit?', chat);\n      },\n      liveEdit({ chat,\
+    \ html, url, message }) {\n        return API.post('/api/run/live-edit?', { chat_name:\
+    \ chat.name, html, url, message });\n      },\n      changesSummary({ branch,\
+    \ rebuild }) {\n        return API.get(`/api/run/changes/summary?branch=${branch}&refresh=${rebuild}`).then(({\
+    \ data }) => data);\n      }\n    },\n    profiles: {\n      list() {\n      \
+    \  return API.get('/api/profiles');\n      },\n      load(name) {\n        return\
+    \ API.get(`/api/profiles/${name}`);\n      },\n      save(profile) {\n       \
+    \ return API.post(`/api/profiles`, profile);\n      },\n      async delete(name)\
+    \ {\n        await API.del(`/api/profiles/${name}`);\n      }\n    },\n    coder:\
+    \ {\n      openFile(file) {\n        API.get(`/api/code-server/file/open?file_name=${encodeURIComponent(file)}`);\n\
+    \      }\n    },\n    images: {\n      async upload(file) {\n        let formData\
+    \ = new FormData();\n        formData.append(\"file\", file);\n        const {\
+    \ data: url } = await API.post(`/api/images`, formData);\n        return window.location.origin\
+    \ + url;\n      }\n    },\n    wiki: {\n      read(path) {\n        return API.get(`/api/wiki?file_path=${path}`);\n\
+    \      }\n    },\n    engine: {\n      update() {\n        return API.get('/api/update');\n\
+    \      }\n    },\n    browser: {\n      message(chat) {\n        return API.post('/api/browser',\
+    \ chat);\n      },\n    },\n    tools: {\n      async imageToText(file) {\n  \
+    \      const formData = new FormData();\n        formData.append(\"file\", file);\n\
+    \        return (await API.post(`/api/image-to-text`, formData)).data;\n     \
+    \ }\n    },\n    async init(codx_path) {\n      connection.liveRequests++;\n \
+    \     this.codx_path = codx_path;\n      if (codx_path) {\n        const { data:\
+    \ projects } = await API.project.list();\n        API.lastSettings = projects.find(p\
+    \ => p.codx_path === codx_path);\n        if (API.lastSettings) {\n          await\
+    \ API.settings.read();\n          localStorage.setItem(\"API_CODX_PATH\", API.lastSettings.codx_path);\n\
+    \        }\n        API.allProjects = projects;\n      } else {\n        const\
+    \ codx_path = localStorage.getItem(\"API_CODX_PATH\");\n        try {\n      \
+    \    const { data: projects } = await API.project.list();\n          API.allProjects\
+    \ = projects;\n          API.lastSettings = projects.find(p => p.codx_path ===\
+    \ codx_path) ||\n            projects[0];\n        } catch (ex) {\n          console.error(\"\
+    Invalid settings\");\n        }\n        API.screen.getScreenResolution();\n \
+    \     }\n      connection.liveRequests--;\n      await API.settings.global.read();\n\
+    \      console.log(\"API init\", codx_path, API);\n    },\n    logs: {\n     \
+    \ async read(logName, size) {\n        return API.get(`/api/logs/${logName}?log_size=${size}`);\n\
+    \      },\n      async list() {\n        return API.get('/api/logs');\n      }\n\
+    \    },\n    files: {\n      list(path) {\n        return API.get(`/api/files?path=${path}`);\n\
+    \      },\n      read(path) {\n        return API.get(`/api/files/read?path=${path}`);\n\
+    \      },\n      search(search) {\n        return API.get(`/api/files/find?search=${search}`);\n\
+    \      },\n      write(source, page_content) {\n        return API.post(`/api/files/write?path=${source}`,\
+    \ { page_content, metadata: { source } });\n      }\n    },\n    screen: {\n \
+    \     display: null,\n      async setScreenResolution(resolution) {\n        await\
+    \ API.post('/api/screen', { resolution });\n        return API.screen.getScreenResolution();\n\
+    \      },\n      async getScreenResolution() {\n        const { data: display\
+    \ } = await API.get('/api/screen');\n        API.screen.display = display;\n \
+    \       return API.screen.display;\n      }\n    },\n    async restart() {\n \
+    \     await API.post(\"/api/restart\");\n      let waitTime = 3;\n      return\
+    \ new Promise((ok, ko) => {\n        const ix = setInterval(async () => {\n  \
+    \        if (--waitTime) {\n            try {\n              await API.init();\n\
+    \              clearInterval(ix);\n              ok();\n            } catch {\
+    \ }\n          } else {\n            clearInterval(ix);\n            ko();\n \
+    \         }\n        }, 5000);\n      });\n    }\n  };\n  return API;\n};\n\n\
+    window.API = initializeAPI;"
+  created_at: '2025-04-01 08:23:05.662839'
+  disable_knowledge: false
+  doc_id: b52d9e91-5c65-4703-b847-860c2a1756cb
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 1.9931056499481201
+    model: gpt-4o
+    time_taken: 51.10663318634033
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-01 08:23:05.662873'
+  user: null
+mode: chat
+name: changes-at-api-api-js-2025-04-01-09-29-20-761840
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-04-01T09:30:11.869317'
+url: ''
+users: []
+visibility: ''

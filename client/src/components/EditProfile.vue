@@ -2,7 +2,6 @@
 <script setup>
 import ExportImportButton from './ExportImportButton.vue';
 import Markdown from './Markdown.vue';
-import ProjectIcon from './ProjectIcon.vue';
 </script>
 
 <template>
@@ -11,9 +10,14 @@ import ProjectIcon from './ProjectIcon.vue';
       <button class="btn btn-sm" @click="cancelEdit">
         <i class="fa-solid fa-arrow-left"></i>
       </button>
-      Profile
+      <div class="avatar tooltip tooltip-bottom" :data-tip="project?.project_name">
+        <div class="w-6 rounded-full click" @click="switchProject">
+            <img :src="project?.project_icon || '/only_icon.png'" />
+        </div>  
+      </div>
+       Profile
       <div class="grow"></div>
-      <button type="button" class="btn btn-sm btn-primary" :class="loading && 'loading loading-spinner'" @click="onSubmit" :disabled="!canSave">Update</button>
+      <button type="button" class="btn btn-sm btn-primary" :class="loading && 'loading loading-spinner'" @click="onSubmit">Update</button>
       <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isOverriden || loading">Delete</button>
       <ExportImportButton :data="editProfile" @change="editProfile = $event" />
     </div>
@@ -27,25 +31,29 @@ import ProjectIcon from './ProjectIcon.vue';
       </div>
     </div>
     <div class="flex justify-between items-end gap-4">
-      <div class="border rounded-md">
-        <ProjectIcon :project="profile.project" @click="switchProject" />
-      </div>
       <div class="flex flex-col grow gap-1">
-        <div class="flex gap-2 items-center">Name: <input v-model="editProfile.name" type="text" placeholder="Name" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" /></div>
-        <div class="flex gap-2 items-center">Avatar: <input placeholder="Avatar" v-model="editProfile.avatar" type="text" class="bg-base-300 input input-sm input-bordered w-full" /></div>
+        <div class="flex gap-2 items-center">
+          Name* 
+          <input v-model="editProfile.name" type="text" placeholder="Name" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" />
+        <div class="flex gap-2 items-center">
+          <label for="category">Category*</label>
+            <select v-model="editProfile.category" :disabled="profile.category === 'project'" class="select select-sm select-bordered">
+              <option value="project" v-if="profile.category === 'project'">Project</option>
+              <option value="assistant">Assistant</option>
+              <option value="chat">Chat</option>
+              <option value="file">File</option>
+              <option value="agent">Agent</option>
+            </select>
+          </div>        
+        </div>
+        <div class="flex gap-2 items-center">Avatar <input placeholder="Avatar" v-model="editProfile.avatar" type="text" class="bg-base-300 input input-sm input-bordered w-full" /></div>
       </div>
     </div>
+    <div class="form-group">
+      <label for="description">Description</label>
+      <textarea id="description" v-model="editProfile.description" class="bg-base-300 textarea textarea-bordered w-full"></textarea>
+    </div>
     <div class="form-group flex space-x-4 text-xs">
-      <div class="w-1/2 flex flex-col gap-2">
-        <label for="category">Category</label>
-        <select v-model="editProfile.category" :disabled="profile.category === 'project'" class="select select-xs select-bordered">
-          <option value="project" v-if="profile.category === 'project'">Project</option>
-          <option value="assistant">Assistant</option>
-          <option value="chat">Chat</option>
-          <option value="file">File</option>
-          <option value="agent">Agent</option>
-        </select>
-      </div>
       <div class="w-1/2 flex flex-col gap-2">
         <label for="fileMatch">File Match</label>
         <input id="fileMatch" v-model="editProfile.file_match" type="text" 
@@ -132,7 +140,7 @@ import ProjectIcon from './ProjectIcon.vue';
 
 <script>
 export default {
-  props: ['profile', 'allProfiles', 'loading'],
+  props: ['profile', 'project', 'allProfiles', 'loading'],
   data() {
     return {
       editProfile: { ...this.profile },
@@ -160,10 +168,6 @@ export default {
       const { name: orgName } = this.profile
       return name !== orgName && this.allProfiles.find(p => p.name.toLowerCase() === name?.toLowerCase())
     },
-    canSave() {
-      const { name, category } = this.editProfile
-      return this.isOverriden && name && category && !this.nameTaken && this.isValidFileMatch
-    },
     isValidFileMatch() {
       if (this.editProfile.category !== "file") {
         return true
@@ -190,7 +194,19 @@ export default {
       this.confirmDelete = false
       this.$emit('delete')
     },
-    toggleContentPreview() {
+    async toggleContentPreview() {
+      /*
+      if (!this.editProfile.chat_id) {
+        const chat = await this.$projects.createNewChat({
+          name: `Profile ${this.editProfile.name}`,
+          mode: 'task',
+          board: "Profiles",
+          column: "Profile"
+        })
+        this.editProfile.chat_id = chat.id
+        this.onSubmit()
+      }
+      */
       this.contentPreview = !this.contentPreview
     },
     downloadProfileContent() {
@@ -206,8 +222,8 @@ export default {
       this.editProfile.profiles = this.editProfile.profiles.filter(p => p !== profile)
     },
     switchProject() {
-      if (this.$project.project_id !== this.profile.project.project_id) {
-        const project = this.$projects.allProjects.find(p => p.project_id === this.profile.project.project_id)
+      if (this.$project.project_id !== this.project.project_id) {
+        const project = this.$projects.allProjects.find(p => p.project_id === this.project.project_id)
         project && this.$projects.setActiveProject(project)
       }
     }

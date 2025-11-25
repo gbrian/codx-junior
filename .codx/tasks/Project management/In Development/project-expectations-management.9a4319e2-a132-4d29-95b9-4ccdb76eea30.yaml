@@ -1,0 +1,55 @@
+board: Project management
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Development
+column_id: ''
+created_at: '2025-04-16 14:16:29.541508'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Project management/In Development/project-expectations-management.9a4319e2-a132-4d29-95b9-4ccdb76eea30.yaml
+id: 9a4319e2-a132-4d29-95b9-4ccdb76eea30
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Maintain a clear and coherent plan aligning with both the project objectives
+    and stakeholder needs. Ensure project documentation is complete, accurate, and
+    up-to-date. Track the progress of the development team efficiently, ensuring adherence
+    to the project schedule.
+  created_at: '2025-04-16 14:16:29.539982'
+  disable_knowledge: false
+  doc_id: f2712c0a-66c7-41e1-a1e3-4b78e1754ba9
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-16 14:16:29.540012'
+  user: null
+mode: chat
+name: Project Expectations Management
+parent_id: 9f78b0e2-8094-42fc-8676-233d425b7e50
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-16T07:29:06.309198'
+url: ''
+users: []
+visibility: ''

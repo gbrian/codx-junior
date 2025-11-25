@@ -1,0 +1,94 @@
+board: Default
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: on going
+column_id: ''
+created_at: '2025-10-06 03:11:44.530383+00:00'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Default/on going/prompting.bd471aa9-7900-48a1-9a07-0ce78fc40975.yaml
+id: bd471aa9-7900-48a1-9a07-0ce78fc40975
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Generate a prompt for llms instructing to apply best practices lits to
+    a file content. Prompt must include place holders for the file content and the
+    best practices section
+  created_at: '2025-01-15 06:56:53.016156'
+  disable_knowledge: false
+  doc_id: null
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-01-15 06:56:53.016178'
+  user: null
+- content: "Certainly! Here's a structured prompt you can use to instruct a language\
+    \ model to apply best practices to a file's content:\n\n---\n\n**Prompt:**\n\n\
+    You are given a section of code that requires improvement by applying best practices.\
+    \ Your task is to refactor the code while ensuring that it adheres to the specified\
+    \ best practices. Please follow the instructions below:\n\n### File Content:\n\
+    ```\n{file_content}\n```\n\n### Best Practices:\n- Ensure code readability by\
+    \ using meaningful variable and function names.\n- Implement consistent code formatting\
+    \ (indentation, line spacing, etc.).\n- Optimize code for performance where applicable.\n\
+    - Add comments and documentation to explain complex logic.\n- Apply error handling\
+    \ and input validation.\n- Write clean and maintainable code following DRY (Don't\
+    \ Repeat Yourself) principles.\n- Ensure compatibility with the latest version\
+    \ of the language/framework.\n- Add unit tests to verify code functionality.\n\
+    - Use version control effectively to track changes.\n- Document all changes clearly\
+    \ in a changelog.\n\n### Instructions:\n1. Refactor the provided code content\
+    \ using the best practices outlined above.\n2. Ensure the code is well-commented\
+    \ and documented.\n3. Add any necessary unit tests to confirm the correctness\
+    \ of the refactored code.\n4. Provide a brief summary of the changes made and\
+    \ the reasoning behind them.\n\nPlease proceed with applying these best practices\
+    \ to the given file content.\n\n--- \n\nThis prompt is designed to guide the language\
+    \ model in refactoring code by applying a comprehensive set of best practices."
+  created_at: '2025-01-15 06:56:53.016156'
+  disable_knowledge: false
+  doc_id: null
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-01-15 06:56:53.016178'
+  user: null
+mode: chat
+name: Prompting
+parent_id: ''
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-04 08:02:58.977261+00:00'
+url: ''
+users: []
+visibility: ''

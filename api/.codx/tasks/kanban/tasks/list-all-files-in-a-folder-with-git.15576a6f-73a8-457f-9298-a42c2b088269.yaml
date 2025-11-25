@@ -1,0 +1,99 @@
+board: kanban
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: tasks
+column_id: ''
+created_at: '2025-03-11 10:57:54.594903'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/kanban/tasks/list-all-files-in-a-folder-with-git.15576a6f-73a8-457f-9298-a42c2b088269.yaml
+id: 15576a6f-73a8-457f-9298-a42c2b088269
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: We must get the files under source control with git for an specific folder
+    from command line
+  created_at: '2025-03-11 10:57:54.591965'
+  disable_knowledge: false
+  doc_id: b8f83d06-2438-42e4-898c-e03fe460ac03
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-11T11:03:59.689Z'
+  user: null
+- content: "Knowledge search query: \nWe must get the files under source control with\
+    \ git for an specific folder -> get files source control git specific folder"
+  created_at: '2025-03-11 10:57:54.591965'
+  disable_knowledge: false
+  doc_id: 4e0e4735-b3de-4d35-8100-f2b0e5845911
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: system
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-11 10:57:54.592004'
+  user: null
+- content: 'Knowledge search query: We must get the files under source control with
+    git for an specific folder from command line
+
+    We must get the files under source control with git for an specific folder from
+    command line -> get files source control git specific folder command line'
+  created_at: '2025-03-11 10:57:54.591965'
+  disable_knowledge: false
+  doc_id: 76fb9c2c-249f-4c0a-bfdc-5fd97fa2cfdd
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: system
+  task_item: ''
+  think: ''
+  updated_at: '2025-03-11 10:57:54.592004'
+  user: null
+mode: chat
+name: List all files in a folder with git
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-03-11T11:04:46.784775'
+url: ''
+users: []
+visibility: ''

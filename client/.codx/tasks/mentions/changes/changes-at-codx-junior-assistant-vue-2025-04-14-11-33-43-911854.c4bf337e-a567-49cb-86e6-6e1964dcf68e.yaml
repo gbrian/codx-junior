@@ -1,0 +1,148 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-04-14 11:23:56.312850'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-codx-junior-assistant-vue-2025-04-14-11-33-43-911854.c4bf337e-a567-49cb-86e6-6e1964dcf68e.yaml
+id: c4bf337e-a567-49cb-86e6-6e1964dcf68e
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      ```\n                      <template>\n  @codx-ok,\
+    \ please-wait...: this component will show a image in an avatar and expand to\
+    \ a chat \"How I can help you?\" input\n</template>\n                      ```\n\
+    \                      \n                      User commented in line 1: this\
+    \ component will show a image in an avatar and expand to a chat \"How I can help\
+    \ you?\" input\n                      "
+  created_at: '2025-04-14 11:23:56.311166'
+  disable_knowledge: false
+  doc_id: 1e57f386-d914-40ba-bc2c-788e907c7f8d
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-14 11:23:56.311202'
+  user: null
+- content: "Best practices for this file:\n                  Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\n# Vue vuejs coding best\
+    \ pratices\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Use TailwindCSS classes for styling, always consider\
+    \ mobile styles\n* Vue component definition will be exporting a default object\
+    \ like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\n* Don't use <style> elements, use TailWindCSS classes\n\
+    \                  "
+  created_at: '2025-04-14 11:23:56.311166'
+  disable_knowledge: false
+  doc_id: 97df8cc8-bf3d-4a61-8600-144cb52be253
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-14 11:23:56.311202'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content.\n              "
+  created_at: '2025-04-14 11:23:56.311166'
+  disable_knowledge: false
+  doc_id: c1b32cd5-ec13-4d0c-b945-9a00e1ee1b75
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-14 11:23:56.311202'
+  user: null
+- content: "<script setup>\nimport { Avatar, ChatBubble } from 'daisyui'\n</script>\n\
+    <template>\n  <div class=\"w-full h-full flex gap-2\">\n    <Avatar class=\"cursor-pointer\"\
+    >\n      <img src=\"/path/to/avatar.jpg\" alt=\"User Avatar\"/>\n    </Avatar>\n\
+    \    <ChatBubble class=\"hidden\">How can I help you?</ChatBubble>\n  </div>\n\
+    </template>\n<script>\nexport default {\n  props: [],\n  data() {\n    return\
+    \ { myVariable: null }\n  },\n  computed: {},\n  watch: {},\n  methods: {}\n}\n\
+    </script>"
+  created_at: '2025-04-14 11:23:56.311166'
+  disable_knowledge: false
+  doc_id: 8bd46b97-0ac3-480b-a1ab-af0638c994d7
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 3.1870856285095215
+    model: gpt-4o
+    time_taken: 3.562558650970459
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-14 11:23:56.311202'
+  user: null
+mode: chat
+name: changes-at-codx-junior-assistant-vue-2025-04-14-11-33-43-911854
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-04-14T11:33:47.475017'
+url: ''
+users: []
+visibility: ''

@@ -7,6 +7,7 @@ from typing import Dict
 
 from codx.junior.ai import AIManager
 from codx.junior.changes.change_manager import ChangeManager
+from codx.junior.changes.watch_project_file_changes import WatchProjectFileChanges
 from codx.junior.globals import (
     CODX_JUNIOR_API_BACKGROUND,
 )
@@ -28,20 +29,34 @@ QUARANTINE_TRACKER: Dict[str, Dict] = {}
 QUARANTINE_LOCK = Lock()
 QUARANTINE_DELAYS = [0, 1, 10, 30, 120]  # Minutes
 
-def start_background_services(app) -> None:
+RUN_BACKGROUND_PROCSSES=True
+WATCHER = None
+
+def start_background_services() -> None:
     """
     Function to start background services for project watching and processing.
     """
+
+    global WATCHER
+    global RUN_BACKGROUND_PROCSSES
+
+    RUN_BACKGROUND_PROCSSES = True
     if not CODX_JUNIOR_API_BACKGROUND:
         return
     logger.info("*** Starting background processes ***")
     reload_models()
 
     # Start the project checking in a separate thread
-    Thread(target=check_projects, args=(True,)).start()
-
-    # Start the project checking in a separate thread
     Thread(target=check_projects).start()
+
+    # Start the mention checking in a separate thread
+    # WATCHER = start_mention_checking()
+    
+def stop_background_services():
+    logger.info("Stopping background processes")
+    RUN_BACKGROUND_PROCSSES = False
+    # WATCHER.stop()
+    WATCHER = None
 
 def reload_models() -> None:
     """
@@ -83,7 +98,7 @@ def update_quarantine_status(project_name: str, success: bool) -> None:
         quarantine_info["last_checked"] = datetime.now()
 
 
-def check_projects(mention_only = False) -> None:
+def check_projects() -> None:
     """
     Continuously checks for updates in all projects.
     """
@@ -95,15 +110,14 @@ def check_projects(mention_only = False) -> None:
         try:
             session = ChangeManager(settings=project)
             #if not session.settings.metrics:
-            project.metrics = session.update_project_metrics()
-            await session.process_project_changes(mention_only)
+            await session.process_project_changes()
             update_quarantine_status(project.project_name, success=True)
         except Exception as ex:
             update_quarantine_status(project.project_name, success=False)
             project.last_error = str(ex)
             logger.exception(f"Error processing project changes: {project.project_name}\n{ex}")
 
-    while True:
+    while RUN_BACKGROUND_PROCSSES:
         try:
             projects = find_all_projects()
             for project in projects.values():
@@ -116,5 +130,17 @@ def check_projects(mention_only = False) -> None:
                     logger.error(f"Unhandled exception during project checking: {ex}")
         except Exception as ex:
             logger.exception(f"Error checking projects: {ex}")
-        time.sleep(0.1)
+        time.sleep(10)
+
+
+def start_mention_checking() -> None:
+    change_managers = {}
+    async def check_file_mentions(project, file_path):
+        if not project.project_id in change_managers:
+            change_managers[project.project_id] = ChangeManager(settings=project)
+        await change_managers[project.project_id].process_project_mentions(file_path=file_path)
+    logger.info("WatchProjectFileChanges start mention check")        
+    watcher = WatchProjectFileChanges(callback=check_file_mentions)
+    watcher.start()
+    return watcher
 

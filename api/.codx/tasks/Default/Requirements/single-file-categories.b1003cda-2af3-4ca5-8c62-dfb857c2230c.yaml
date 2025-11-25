@@ -1,0 +1,379 @@
+board: Default
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Requirements
+column_id: ''
+created_at: '2025-09-10 09:53:52.820832'
+description: The code provided is part of a Python script for managing wiki documents.
+  It includes functions to create a wiki document from a source file, assign a category
+  to the file, and determine the wiki file path. The script also prepares summary
+  prompts for updating or creating wiki content and logs changes made to the wiki.
+  It handles user instructions and language preferences, ensuring the generated content
+  is coherent and well-structured.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Default/Requirements/single-file-categories.b1003cda-2af3-4ca5-8c62-dfb857c2230c.yaml
+id: b1003cda-2af3-4ca5-8c62-dfb857c2230c
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "When processing a new document wiki, check if the category has the categoy[\"\
+    single_file\"] flag set to True. \nif so update (or create) the {categoy[\"path\"\
+    ]}.md file, if it is False, create a new file."
+  created_at: '2025-09-10 09:53:52.818339'
+  disable_knowledge: false
+  doc_id: 81a7caab-d56d-4c0c-9632-d8520416d8b2
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-10 09:53:52.818366'
+  user: null
+- content: "To implement the requested functionality, you need to modify the `create_wiki_document`\
+    \ method in the `WikiManager` class. Specifically, you will need to check if the\
+    \ category has the `single_file` flag set to `True`. If it does, you should update\
+    \ or create the `{category[\"path\"]}.md` file. If it is `False`, proceed to create\
+    \ a new file as usual. Here's how you can do it:\n\n```python /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py\n\
+    def create_wiki_document(self, source: str, update_wiki_conf: bool = True) ->\
+    \ Document:\n    if not self.is_wiki_active:\n        return None\n\n    file_content\
+    \ = self._read_file(source)\n    wiki_settings = self.load_wiki_settings()\n \
+    \   all_categories = self._get_all_categories(wiki_settings[\"categories\"])\n\
+    \    \n    # Check if we have already assigned a category \n    category = self._find_category_for_file(file_path=source,\
+    \ all_categories=all_categories)\n    user_language = wiki_settings.get(\"language\"\
+    , \"English\")\n    user_instructions = wiki_settings.get(\"prompt\", \"\")\n\n\
+    \    if not category:\n        categories_and_keywords = [{\n            \"path\"\
+    : category[\"path\"],\n            \"title\": category[\"title\"],\n         \
+    \   \"keywords\": category[\"keywords\"]\n        } for category in all_categories]\n\
+    \n        summary_prompt = f\"\"\"\n        <document>\n        {file_content}\n\
+    \        </document>\n        <categories>\n        {categories_and_keywords}\n\
+    \        </categories>\n        <user_instructions>\n        {user_instructions}\n\
+    \        </user_instructions>\n        <user_language>\n        {user_language}\n\
+    \        </user_language>\n\n        Analyze this document and match the best\
+    \ category from the list of categories for this document.\n        Only categories\
+    \ from the list are valid response and always return a .\n        Return a JSON\
+    \ dictionary with the \"path\" field category\n        Generated content must\
+    \ be in user_language: {user_language}\n        \"\"\"\n        messages = self._ai_chat(prompt=summary_prompt,\
+    \ clean=False)\n        metadata = next(extract_json_blocks(messages[-1].content))\n\
+    \        wiki_path = metadata[\"path\"]\n        category = next(filter(lambda\
+    \ x: x[\"path\"] == wiki_path, all_categories))\n        # Update category\n \
+    \       if \"files\" not in category:\n            category[\"files\"] = []\n\
+    \        if source not in category[\"files\"]:\n            category[\"files\"\
+    ].append({\"path\": source})\n            self.save_wiki_settings(wiki_settings)\n\
+    \n    title = category['title']\n    keywords = category['keywords']\n    project_name\
+    \ = self.settings.project_name\n    wiki_path = category[\"path\"]\n\n    # Determine\
+    \ the wiki file path based on the single_file flag\n    if category.get(\"single_file\"\
+    , False):\n        wiki_file_path = path_join(self.wiki_path, f\"{wiki_path}.md\"\
+    )\n    else:\n        wiki_file_path = path_join(self.wiki_path, wiki_path, self._get_file_wiki_name(source))\n\
+    \n    current_wiki_content = self._read_file(wiki_file_path) if os.path.isfile(wiki_file_path)\
+    \ else \"\"\n\n    summary_prompt = f\"\"\"\n    <document project=\"{project_name}\"\
+    \ file=\"{source}\" category=\"{title}\" keywords=\"{keywords}\">\n    {file_content}\n\
+    \    </document>\n    <user_instructions>\n    {user_instructions}\n    </user_instructions>\n\
+    \    <user_language>\n    {user_language}\n    </user_language>\n\n    Given this\
+    \ document generate a full detailed, fine-grained wiki documentation with examples\
+    \ and tips.\n    Resulting document must be in markdown syntax without further\
+    \ decoration or enclosing marks.\n    Do not include the name of the file in the\
+    \ document.\n    Important: Use only information from the document don't make\
+    \ it from other sources and add references to the document sections.\n    Generated\
+    \ content must be in user_language: {user_language}\n    \"\"\"\n    messages\
+    \ = self._ai_chat(prompt=summary_prompt)\n    page_content = messages[-1].content\n\
+    \n    logger.info(\"Creating wiki document at %s\", wiki_file_path)\n    os.makedirs(os.path.dirname(wiki_file_path),\
+    \ exist_ok=True)\n    write_file(wiki_file_path, page_content)\n    metadata =\
+    \ {\n        \"keywords\": keywords,\n        \"category\": title,\n        \"\
+    source\": source,\n        \"language\": \"md\",\n        \"wiki_path\": wiki_path\n\
+    \    }\n\n    # Update home\n    if current_wiki_content:\n        \"\"\" Create\
+    \ a changeset document from previous content\"\"\"\n        prompt = f\"\"\"\n\
+    \        <old_wiki>\n        {current_wiki_content}\n        </old_wiki>\n   \
+    \     <new_wiki>\n        {page_content}\n        </new_wiki>\n\n        Explain\
+    \ the changes done to the wiki page for {source}.\n        \"\"\"\n        changes\
+    \ = self._ai_chat(prompt=prompt)[-1].content\n        page_content = f\"\"\"\n\
+    \        <wiki_changes source=\"{source}\">\n        {changes}\n        </wiki_changes>\n\
+    \        \"\"\"\n\n    self.build_wiki_home(page_content)\n\n    # Update wiki\
+    \ configuration\n    if update_wiki_conf:\n        self._update_wiki_conf()\n\n\
+    \    return Document(page_content, metadata=metadata)\n```\n\n### Key Changes\n\
+    - **Single File Handling**: Added a check for `category.get(\"single_file\", False)`.\
+    \ If `True`, the wiki file path is set to `{category[\"path\"]}.md`. Otherwise,\
+    \ it follows the original logic of creating a new file.\n- **File Path Determination**:\
+    \ The `wiki_file_path` is determined based on whether the category is meant to\
+    \ consolidate documents into a single file or not."
+  created_at: '2025-09-10 09:53:52.818339'
+  disable_knowledge: false
+  doc_id: a6c8a60f-d324-4822-8387-c0f069c2f902
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.027945280075073242
+    model: openai/gpt-4o
+    time_taken: 55.94988465309143
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-09-10 09:53:52.818366'
+  user: null
+- content: "If\_current_wiki_content has \"content\" ask AI to update the content\
+    \ with the information coming from the source.\nIf it's empty or category is not\
+    \ single_file use current\_summary_prompt"
+  created_at: '2025-09-10 09:53:52.818339'
+  disable_knowledge: true
+  doc_id: 9ee06b8b-0512-49ac-a1fb-db7fcc85ba36
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-10 09:53:52.818366'
+  user: admin
+- content: "```python /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py\ndef\
+    \ create_wiki_document(self, source: str, update_wiki_conf: bool = True) -> Document:\n\
+    \    if not self.is_wiki_active:\n        return None\n\n    file_content = self._read_file(source)\n\
+    \    wiki_settings = self.load_wiki_settings()\n    all_categories = self._get_all_categories(wiki_settings[\"\
+    categories\"])\n    \n    # Check if we have already assigned a category \n  \
+    \  category = self._find_category_for_file(file_path=source, all_categories=all_categories)\n\
+    \    user_language = wiki_settings.get(\"language\", \"English\")\n    user_instructions\
+    \ = wiki_settings.get(\"prompt\", \"\")\n\n    if not category:\n        categories_and_keywords\
+    \ = [{\n            \"path\": category[\"path\"],\n            \"title\": category[\"\
+    title\"],\n            \"keywords\": category[\"keywords\"]\n        } for category\
+    \ in all_categories]\n\n        summary_prompt = f\"\"\"\n        <document>\n\
+    \        {file_content}\n        </document>\n        <categories>\n        {categories_and_keywords}\n\
+    \        </categories>\n        <user_instructions>\n        {user_instructions}\n\
+    \        </user_instructions>\n        <user_language>\n        {user_language}\n\
+    \        </user_language>\n\n        Analyze this document and match the best\
+    \ category from the list of categories for this document.\n        Only categories\
+    \ from the list are valid response and always return a .\n        Return a JSON\
+    \ dictionary with the \"path\" field category\n        Generated content must\
+    \ be in user_language: {user_language}\n        \"\"\"\n        messages = self._ai_chat(prompt=summary_prompt,\
+    \ clean=False)\n        metadata = next(extract_json_blocks(messages[-1].content))\n\
+    \        wiki_path = metadata[\"path\"]\n        category = next(filter(lambda\
+    \ x: x[\"path\"] == wiki_path, all_categories))\n        # Update category\n \
+    \       if \"files\" not in category:\n            category[\"files\"] = []\n\
+    \        if source not in category[\"files\"]:\n            category[\"files\"\
+    ].append({\"path\": source})\n            self.save_wiki_settings(wiki_settings)\n\
+    \n    title = category['title']\n    keywords = category['keywords']\n    project_name\
+    \ = self.settings.project_name\n    wiki_path = category[\"path\"]\n\n    # Determine\
+    \ the wiki file path based on the single_file flag\n    if category.get(\"single_file\"\
+    , False):\n        wiki_file_path = path_join(self.wiki_path, f\"{wiki_path}.md\"\
+    )\n    else:\n        wiki_file_path = path_join(self.wiki_path, wiki_path, self._get_file_wiki_name(source))\n\
+    \n    current_wiki_content = self._read_file(wiki_file_path) if os.path.isfile(wiki_file_path)\
+    \ else \"\"\n\n    # Prepare the summary or update prompt based on the content\n\
+    \    if current_wiki_content and category.get(\"single_file\", False):\n     \
+    \   # If current content exists and category is single_file, update the content\n\
+    \        summary_prompt = f\"\"\"\n        <current_wiki_content>\n        {current_wiki_content}\n\
+    \        </current_wiki_content>\n        <new_document_content>\n        {file_content}\n\
+    \        </new_document_content>\n        <user_instructions>\n        {user_instructions}\n\
+    \        </user_instructions>\n        <user_language>\n        {user_language}\n\
+    \        </user_language>\n\n        Update the current wiki content with the\
+    \ new information coming from the document.\n        Ensure the updated content\
+    \ is coherent and well-structured.\n        Generated content must be in user_language:\
+    \ {user_language}\n        \"\"\"\n    else:\n        # Use the original summary\
+    \ prompt if no current content or not single_file\n        summary_prompt = f\"\
+    \"\"\n        <document project=\"{project_name}\" file=\"{source}\" category=\"\
+    {title}\" keywords=\"{keywords}\">\n        {file_content}\n        </document>\n\
+    \        <user_instructions>\n        {user_instructions}\n        </user_instructions>\n\
+    \        <user_language>\n        {user_language}\n        </user_language>\n\n\
+    \        Given this document generate a full detailed, fine-grained wiki documentation\
+    \ with examples and tips.\n        Resulting document must be in markdown syntax\
+    \ without further decoration or enclosing marks.\n        Do not include the name\
+    \ of the file in the document.\n        Important: Use only information from the\
+    \ document don't make it from other sources and add references to the document\
+    \ sections.\n        Generated content must be in user_language: {user_language}\n\
+    \        \"\"\"\n\n    messages = self._ai_chat(prompt=summary_prompt)\n    page_content\
+    \ = messages[-1].content\n\n    logger.info(\"Creating wiki document at %s\",\
+    \ wiki_file_path)\n    os.makedirs(os.path.dirname(wiki_file_path), exist_ok=True)\n\
+    \    write_file(wiki_file_path, page_content)\n    metadata = {\n        \"keywords\"\
+    : keywords,\n        \"category\": title,\n        \"source\": source,\n     \
+    \   \"language\": \"md\",\n        \"wiki_path\": wiki_path\n    }\n\n    # Update\
+    \ home\n    if current_wiki_content:\n        \"\"\" Create a changeset document\
+    \ from previous content\"\"\"\n        prompt = f\"\"\"\n        <old_wiki>\n\
+    \        {current_wiki_content}\n        </old_wiki>\n        <new_wiki>\n   \
+    \     {page_content}\n        </new_wiki>\n\n        Explain the changes done\
+    \ to the wiki page for {source}.\n        \"\"\"\n        changes = self._ai_chat(prompt=prompt)[-1].content\n\
+    \        page_content = f\"\"\"\n        <wiki_changes source=\"{source}\">\n\
+    \        {changes}\n        </wiki_changes>\n        \"\"\"\n\n    self.build_wiki_home(page_content)\n\
+    \n    # Update wiki configuration\n    if update_wiki_conf:\n        self._update_wiki_conf()\n\
+    \n    return Document(page_content, metadata=metadata)\n```"
+  created_at: '2025-09-10 09:53:52.818339'
+  disable_knowledge: false
+  doc_id: 794addbf-598c-4b82-b95f-aa16e1596700
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.01471400260925293
+    model: openai/gpt-4o
+    time_taken: 45.98448872566223
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-09-10 09:53:52.818366'
+  user: null
+- content: "Split\_create_wiki_document into smaller methods"
+  created_at: '2025-09-10 09:53:52.818339'
+  disable_knowledge: true
+  doc_id: 12addbe9-60af-4f8e-90e1-0bfbaec929de
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-10 09:53:52.818366'
+  user: admin
+- content: "```python /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py\ndef\
+    \ create_wiki_document(self, source: str, update_wiki_conf: bool = True) -> Document:\n\
+    \    if not self.is_wiki_active:\n        return None\n\n    file_content = self._read_file(source)\n\
+    \    wiki_settings = self.load_wiki_settings()\n    category = self._assign_category_to_file(source,\
+    \ wiki_settings)\n\n    title = category['title']\n    keywords = category['keywords']\n\
+    \    project_name = self.settings.project_name\n    wiki_path = category[\"path\"\
+    ]\n    wiki_file_path = self._determine_wiki_file_path(category, source)\n\n \
+    \   current_wiki_content = self._read_file(wiki_file_path) if os.path.isfile(wiki_file_path)\
+    \ else \"\"\n\n    # Prepare the summary or update prompt based on the content\n\
+    \    summary_prompt = self._prepare_summary_prompt(current_wiki_content, category,\
+    \ file_content, project_name, source, title, keywords, wiki_settings)\n\n    messages\
+    \ = self._ai_chat(prompt=summary_prompt)\n    page_content = messages[-1].content\n\
+    \n    logger.info(\"Creating wiki document at %s\", wiki_file_path)\n    os.makedirs(os.path.dirname(wiki_file_path),\
+    \ exist_ok=True)\n    write_file(wiki_file_path, page_content)\n    metadata =\
+    \ {\n        \"keywords\": keywords,\n        \"category\": title,\n        \"\
+    source\": source,\n        \"language\": \"md\",\n        \"wiki_path\": wiki_path\n\
+    \    }\n\n    # Update home\n    if current_wiki_content:\n        page_content\
+    \ = self._create_changeset_document(current_wiki_content, page_content, source)\n\
+    \n    self.build_wiki_home(page_content)\n\n    # Update wiki configuration\n\
+    \    if update_wiki_conf:\n        self._update_wiki_conf()\n\n    return Document(page_content,\
+    \ metadata=metadata)\n\ndef _assign_category_to_file(self, source: str, wiki_settings:\
+    \ Dict[str, Any]) -> Dict[str, Any]:\n    all_categories = self._get_all_categories(wiki_settings[\"\
+    categories\"])\n    category = self._find_category_for_file(file_path=source,\
+    \ all_categories=all_categories)\n    user_language = wiki_settings.get(\"language\"\
+    , \"English\")\n    user_instructions = wiki_settings.get(\"prompt\", \"\")\n\n\
+    \    if not category:\n        categories_and_keywords = [{\n            \"path\"\
+    : category[\"path\"],\n            \"title\": category[\"title\"],\n         \
+    \   \"keywords\": category[\"keywords\"]\n        } for category in all_categories]\n\
+    \n        summary_prompt = f\"\"\"\n        <document>\n        {self._read_file(source)}\n\
+    \        </document>\n        <categories>\n        {categories_and_keywords}\n\
+    \        </categories>\n        <user_instructions>\n        {user_instructions}\n\
+    \        </user_instructions>\n        <user_language>\n        {user_language}\n\
+    \        </user_language>\n\n        Analyze this document and match the best\
+    \ category from the list of categories for this document.\n        Only categories\
+    \ from the list are valid response and always return a .\n        Return a JSON\
+    \ dictionary with the \"path\" field category\n        Generated content must\
+    \ be in user_language: {user_language}\n        \"\"\"\n        messages = self._ai_chat(prompt=summary_prompt,\
+    \ clean=False)\n        metadata = next(extract_json_blocks(messages[-1].content))\n\
+    \        wiki_path = metadata[\"path\"]\n        category = next(filter(lambda\
+    \ x: x[\"path\"] == wiki_path, all_categories))\n\n        # Update category\n\
+    \        if \"files\" not in category:\n            category[\"files\"] = []\n\
+    \        if source not in category[\"files\"]:\n            category[\"files\"\
+    ].append({\"path\": source})\n            self.save_wiki_settings(wiki_settings)\n\
+    \n    return category\n\ndef _determine_wiki_file_path(self, category: Dict[str,\
+    \ Any], source: str) -> str:\n    if category.get(\"single_file\", False):\n \
+    \       return path_join(self.wiki_path, f\"{category['path']}.md\")\n    else:\n\
+    \        return path_join(self.wiki_path, category[\"path\"], self._get_file_wiki_name(source))\n\
+    \ndef _prepare_summary_prompt(self, current_wiki_content: str, category: Dict[str,\
+    \ Any], file_content: str, project_name: str, source: str, title: str, keywords:\
+    \ List[str], wiki_settings: Dict[str, Any]) -> str:\n    user_language = wiki_settings.get(\"\
+    language\", \"English\")\n    user_instructions = wiki_settings.get(\"prompt\"\
+    , \"\")\n\n    if current_wiki_content and category.get(\"single_file\", False):\n\
+    \        return f\"\"\"\n        <current_wiki_content>\n        {current_wiki_content}\n\
+    \        </current_wiki_content>\n        <new_document_content>\n        {file_content}\n\
+    \        </new_document_content>\n        <user_instructions>\n        {user_instructions}\n\
+    \        </user_instructions>\n        <user_language>\n        {user_language}\n\
+    \        </user_language>\n\n        Update the current wiki content with the\
+    \ new information coming from the document.\n        Ensure the updated content\
+    \ is coherent and well-structured.\n        Generated content must be in user_language:\
+    \ {user_language}\n        \"\"\"\n    else:\n        return f\"\"\"\n       \
+    \ <document project=\"{project_name}\" file=\"{source}\" category=\"{title}\"\
+    \ keywords=\"{keywords}\">\n        {file_content}\n        </document>\n    \
+    \    <user_instructions>\n        {user_instructions}\n        </user_instructions>\n\
+    \        <user_language>\n        {user_language}\n        </user_language>\n\n\
+    \        Given this document generate a full detailed, fine-grained wiki documentation\
+    \ with examples and tips.\n        Resulting document must be in markdown syntax\
+    \ without further decoration or enclosing marks.\n        Do not include the name\
+    \ of the file in the document.\n        Important: Use only information from the\
+    \ document don't make it from other sources and add references to the document\
+    \ sections.\n        Generated content must be in user_language: {user_language}\n\
+    \        \"\"\"\n\ndef _create_changeset_document(self, current_wiki_content:\
+    \ str, page_content: str, source: str) -> str:\n    prompt = f\"\"\"\n    <old_wiki>\n\
+    \    {current_wiki_content}\n    </old_wiki>\n    <new_wiki>\n    {page_content}\n\
+    \    </new_wiki>\n\n    Explain the changes done to the wiki page for {source}.\n\
+    \    \"\"\"\n    changes = self._ai_chat(prompt=prompt)[-1].content\n    return\
+    \ f\"\"\"\n    <wiki_changes source=\"{source}\">\n    {changes}\n    </wiki_changes>\n\
+    \    \"\"\"\n```"
+  created_at: '2025-09-10 09:53:52.818339'
+  disable_knowledge: false
+  doc_id: 5c4e0d99-eb2a-441b-a01a-d7036b2bc84b
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.014539003372192383
+    model: openai/gpt-4o
+    time_taken: 50.678226709365845
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-09-10 09:53:52.818366'
+  user: null
+mode: task
+name: Single file categories
+parent_id: d08c311e-4c83-43b7-9b32-98e139e3ee04
+pinned: false
+pr_view: {}
+profiles: []
+project_id: ac9804d5-fcb2-4026-81c0-61f2308f6380
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-10T10:43:15.924632'
+url: ''
+users:
+- admin
+visibility: ''

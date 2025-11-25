@@ -1,0 +1,563 @@
+board: Background Processes
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: ToDo
+column_id: ''
+created_at: '2025-10-10 16:20:14.683740'
+description: The conversation involves creating a function to call the `check_mentions_on_all_projects`
+  method in a continuous thread. A code snippet is provided to implement this in Python,
+  with a suggestion to move the `ChangeManager` instance outside the loop for efficiency.
+  The document needs to be updated with this comment to generate a full file version.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/background.py
+file_path: /shared/codx-junior/api/.codx/tasks/Background Processes/ToDo/bacground-project-check.9e95b7af-e0a4-4210-9fac-814037dee1e1.yaml
+id: 9e95b7af-e0a4-4210-9fac-814037dee1e1
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Change the background processes python file and make sure the mentions
+    check is run in parallel for all projects.
+
+
+    /shared/codx-junior/api/codx/junior/background.py'
+  created_at: '2025-10-10 16:20:14.681491'
+  disable_knowledge: true
+  doc_id: adbed1b0-8ee8-44d0-b872-748323760974
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-10 16:20:14.681513'
+  user: admin
+- content: 'project_read_file returned:
+
+
+    ```
+
+    ["import asyncio\nimport logging\nimport time\nfrom datetime import datetime,
+    timedelta\nfrom threading import Thread, Lock\nfrom typing import Dict\n\nfrom
+    codx.junior.ai import AIManager\nfrom codx.junior.changes.change_manager import
+    ChangeManager\nfrom codx.junior.globals import (\n    CODX_JUNIOR_API_BACKGROUND,\n)\nfrom
+    codx.junior.project.project_discover import (\n    find_all_projects\n)\nfrom
+    codx.junior.settings import read_global_settings\n\n# Setup logging\nlogger =
+    logging.getLogger(__name__)\n\n# A global tracking dictionary to manage files
+    currently being processed\nFILES_CHECKING = {}\nFILES_CHECKING_LOCK = Lock()\nCHECK_TIMEOUT
+    = timedelta(minutes=1)\n\n# Quarantine settings\nQUARANTINE_TRACKER: Dict[str,
+    Dict] = {}\nQUARANTINE_LOCK = Lock()\nQUARANTINE_DELAYS = [0, 1, 10, 30, 120]  #
+    Minutes\n\ndef start_background_services(app) -> None:\n    \"\"\"\n    Function
+    to start background services for project watching and processing.\n    \"\"\"\n    if
+    not CODX_JUNIOR_API_BACKGROUND:\n        return\n    logger.info(\"*** Starting
+    background processes ***\")\n    reload_models()\n\n    # Start the project checking
+    in a separate thread\n    Thread(target=check_projects, args=(True,)).start()\n\n    #
+    Start the project checking in a separate thread\n    Thread(target=check_projects).start()\n\ndef
+    reload_models() -> None:\n    \"\"\"\n    Reload AI models based on the current
+    global settings.\n    \"\"\"\n    try:\n        AIManager().reload_models(read_global_settings())\n        logger.info(\"AI
+    models reloaded successfully.\")\n    except Exception as ex:\n        logger.exception(f\"Failed
+    to reload AI models: {ex}\")\n\n\ndef is_project_in_quarantine(project_name: str)
+    -> bool:\n    \"\"\"\n    Determine if a project is in quarantine based on its
+    last check time and the delay.\n    \"\"\"\n    quarantine_info = QUARANTINE_TRACKER.get(project_name)\n    if
+    not quarantine_info:\n        return False\n\n    delay_minutes = QUARANTINE_DELAYS[min(quarantine_info[\"fail_count\"],
+    len(QUARANTINE_DELAYS) - 1)]\n    next_allowed_check = quarantine_info[\"last_checked\"]
+    + timedelta(minutes=delay_minutes)\n    return datetime.now() < next_allowed_check\n\n\ndef
+    update_quarantine_status(project_name: str, success: bool) -> None:\n    \"\"\"\n    Update
+    the quarantine status of a project depending on whether the check was successful.\n    \"\"\"\n    with
+    QUARANTINE_LOCK:\n        quarantine_info = QUARANTINE_TRACKER.setdefault(project_name,
+    {\"fail_count\": 0, \"last_checked\": datetime.min})\n\n        if success:\n            quarantine_info[\"fail_count\"]
+    = 0  # Reset on success\n        else:\n            quarantine_info[\"fail_count\"]
+    += 1\n            logger.info(f''Adding project to quarantine: {project_name}
+    - error count: {quarantine_info[\"fail_count\"]}'')\n\n        quarantine_info[\"last_checked\"]
+    = datetime.now()\n\n\ndef check_projects(mention_only = False) -> None:\n    \"\"\"\n    Continuously
+    checks for updates in all projects.\n    \"\"\"\n\n    async def check_project(project)
+    -> None:\n        \"\"\"\n        Process and handle the changes in a project
+    asynchronously.\n        \"\"\"\n        try:\n            session = ChangeManager(settings=project)\n            #if
+    not session.settings.metrics:\n            await session.process_project_changes(mention_only)\n            update_quarantine_status(project.project_name,
+    success=True)\n        except Exception as ex:\n            update_quarantine_status(project.project_name,
+    success=False)\n            project.last_error = str(ex)\n            logger.exception(f\"Error
+    processing project changes: {project.project_name}\\n{ex}\")\n\n    while True:\n        try:\n            projects
+    = find_all_projects()\n            for project in projects.values():\n                if
+    is_project_in_quarantine(project.project_name):\n                    continue\n\n                try:\n                    asyncio.run(check_project(project=project))\n                except
+    Exception as ex:\n                    logger.error(f\"Unhandled exception during
+    project checking: {ex}\")\n        except Exception as ex:\n            logger.exception(f\"Error
+    checking projects: {ex}\")\n        time.sleep(0.1 if mention_only else 2)\n"]
+
+    ```'
+  created_at: '2025-10-10 16:20:14.681491'
+  disable_knowledge: false
+  doc_id: 917ceaac-9926-4005-b35a-11f1eec3a167
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-10 16:20:14.681513'
+  user: null
+- content: "To ensure that the mentions check is run in parallel for all projects,\
+    \ we can leverage Python's `asyncio` for concurrent execution. Here's how you\
+    \ can modify the `check_projects` function to run the mention checks in parallel:\n\
+    \n```python /shared/codx-junior/api/codx/junior/background.py\nimport asyncio\n\
+    import logging\nimport time\nfrom datetime import datetime, timedelta\nfrom threading\
+    \ import Thread, Lock\nfrom typing import Dict\n\nfrom codx.junior.ai import AIManager\n\
+    from codx.junior.changes.change_manager import ChangeManager\nfrom codx.junior.globals\
+    \ import (\n    CODX_JUNIOR_API_BACKGROUND,\n)\nfrom codx.junior.project.project_discover\
+    \ import (\n    find_all_projects\n)\nfrom codx.junior.settings import read_global_settings\n\
+    \n# Setup logging\nlogger = logging.getLogger(__name__)\n\n# A global tracking\
+    \ dictionary to manage files currently being processed\nFILES_CHECKING = {}\n\
+    FILES_CHECKING_LOCK = Lock()\nCHECK_TIMEOUT = timedelta(minutes=1)\n\n# Quarantine\
+    \ settings\nQUARANTINE_TRACKER: Dict[str, Dict] = {}\nQUARANTINE_LOCK = Lock()\n\
+    QUARANTINE_DELAYS = [0, 1, 10, 30, 120]  # Minutes\n\ndef start_background_services(app)\
+    \ -> None:\n    \"\"\"\n    Function to start background services for project\
+    \ watching and processing.\n    \"\"\"\n    if not CODX_JUNIOR_API_BACKGROUND:\n\
+    \        return\n    logger.info(\"*** Starting background processes ***\")\n\
+    \    reload_models()\n\n    # Start the project checking in a separate thread\n\
+    \    Thread(target=check_projects, args=(True,)).start()\n\n    # Start the project\
+    \ checking in a separate thread\n    Thread(target=check_projects).start()\n\n\
+    def reload_models() -> None:\n    \"\"\"\n    Reload AI models based on the current\
+    \ global settings.\n    \"\"\"\n    try:\n        AIManager().reload_models(read_global_settings())\n\
+    \        logger.info(\"AI models reloaded successfully.\")\n    except Exception\
+    \ as ex:\n        logger.exception(f\"Failed to reload AI models: {ex}\")\n\n\
+    def is_project_in_quarantine(project_name: str) -> bool:\n    \"\"\"\n    Determine\
+    \ if a project is in quarantine based on its last check time and the delay.\n\
+    \    \"\"\"\n    quarantine_info = QUARANTINE_TRACKER.get(project_name)\n    if\
+    \ not quarantine_info:\n        return False\n\n    delay_minutes = QUARANTINE_DELAYS[min(quarantine_info[\"\
+    fail_count\"], len(QUARANTINE_DELAYS) - 1)]\n    next_allowed_check = quarantine_info[\"\
+    last_checked\"] + timedelta(minutes=delay_minutes)\n    return datetime.now()\
+    \ < next_allowed_check\n\ndef update_quarantine_status(project_name: str, success:\
+    \ bool) -> None:\n    \"\"\"\n    Update the quarantine status of a project depending\
+    \ on whether the check was successful.\n    \"\"\"\n    with QUARANTINE_LOCK:\n\
+    \        quarantine_info = QUARANTINE_TRACKER.setdefault(project_name, {\"fail_count\"\
+    : 0, \"last_checked\": datetime.min})\n\n        if success:\n            quarantine_info[\"\
+    fail_count\"] = 0  # Reset on success\n        else:\n            quarantine_info[\"\
+    fail_count\"] += 1\n            logger.info(f'Adding project to quarantine: {project_name}\
+    \ - error count: {quarantine_info[\"fail_count\"]}')\n\n        quarantine_info[\"\
+    last_checked\"] = datetime.now()\n\ndef check_projects(mention_only=False) ->\
+    \ None:\n    \"\"\"\n    Continuously checks for updates in all projects.\n  \
+    \  \"\"\"\n\n    async def check_project(project) -> None:\n        \"\"\"\n \
+    \       Process and handle the changes in a project asynchronously.\n        \"\
+    \"\"\n        try:\n            session = ChangeManager(settings=project)\n  \
+    \          await session.process_project_changes(mention_only)\n            update_quarantine_status(project.project_name,\
+    \ success=True)\n        except Exception as ex:\n            update_quarantine_status(project.project_name,\
+    \ success=False)\n            project.last_error = str(ex)\n            logger.exception(f\"\
+    Error processing project changes: {project.project_name}\\n{ex}\")\n\n    async\
+    \ def check_all_projects() -> None:\n        \"\"\"\n        Check all projects\
+    \ in parallel.\n        \"\"\"\n        projects = find_all_projects()\n     \
+    \   tasks = [\n            check_project(project)\n            for project in\
+    \ projects.values()\n            if not is_project_in_quarantine(project.project_name)\n\
+    \        ]\n        await asyncio.gather(*tasks)\n\n    while True:\n        try:\n\
+    \            asyncio.run(check_all_projects())\n        except Exception as ex:\n\
+    \            logger.exception(f\"Error checking projects: {ex}\")\n        time.sleep(0.1\
+    \ if mention_only else 2)\n```\n\n### Key Changes:\n- Added an inner `async def\
+    \ check_all_projects()` function to gather and run all `check_project` tasks concurrently\
+    \ using `asyncio.gather`.\n- The `check_projects` function now runs `check_all_projects`\
+    \ using `asyncio.run` to handle all projects in parallel.\n- Used `asyncio.gather`\
+    \ to ensure all project checks are awaited and run concurrently."
+  created_at: '2025-10-10 16:20:14.681491'
+  disable_knowledge: false
+  doc_id: 7e992291-4e19-42be-8cea-f1a7f61131f4
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002033710479736328
+    model: openai/gpt-4o
+    time_taken: 15.142155885696411
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-10 16:20:14.681513'
+  user: null
+- content: "Add to\_/shared/codx-junior/api/codx/junior/changes/change_manager.py\
+    \ a new method to check mentions on all projects.\nIt will find the\_files changes\
+    \ in the last minute from all projects and, in parallel, process file mentions.\n\
+    \n\n\n"
+  created_at: '2025-10-10 16:20:14.681491'
+  disable_knowledge: true
+  doc_id: 938b0e74-e324-4156-9b21-e10d1f4bc594
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-10 16:20:14.681513'
+  user: admin
+- content: 'project_read_file returned:
+
+
+    ```
+
+    ["import os\nimport time\nimport logging\nimport asyncio \n\nfrom datetime import
+    datetime, timedelta\n\nfrom codx.junior.events.event_manager import EventManager\nfrom
+    codx.junior.knowledge.knowledge_milvus import Knowledge\nfrom codx.junior.globals
+    import (\n  MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,\n  MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS,\n  CODX_JUNIOR_API_BACKGROUND\n)\nfrom
+    codx.junior.mentions.mention_manager import MentionManager\nfrom codx.junior.profiling.profiler
+    import profile_function\nfrom codx.junior.wiki.wiki_manager import WikiManager\nfrom
+    codx.junior.chat_manager import ChatManager\n\nfrom codx.junior.whisper.audio_manager
+    import AudioManager\n\nfrom langchain.schema.document import Document\n\nfrom
+    codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics\n\nlogger = logging.getLogger(__name__)\n\nclass
+    ChangeManager:\n    def __init__(self, settings, event_manager=None):\n        self.settings
+    = settings\n        if not event_manager:\n            event_manager = EventManager(codx_path=settings.codx_path)\n        self.event_manager
+    = event_manager\n        self.mention_manager = MentionManager(settings=settings,
+    event_manager=event_manager)\n        self.knowledge = Knowledge(settings=self.settings)\n        self.wiki_manager
+    = WikiManager(settings=settings)\n        self.audio_manager = AudioManager()\n        self.chat_manager
+    = ChatManager(settings=self.settings)\n\n    async def process_project_changes(self,
+    mention_only: bool):\n        if not self.settings.is_valid_project():\n            logger.error(f\"Checking
+    project error, not valid: {self.settings.project_name}\") \n            \n            return\n\n        if
+    not mention_only:\n            self.knowledge.clean_deleted_documents()\n        current_sources_and_updates
+    = self.knowledge.get_db().get_all_sources()\n        new_files, _ = self.knowledge.detect_changes(current_sources_and_updates)\n            \n        tasks
+    = []  # List to hold tasks\n\n        TOUT = MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS
+    if mention_only else \\\n                MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS\n        def
+    is_valid_file(file_path):\n            if (int(time.time()) - int(\n                    os.stat(file_path).st_mtime)
+    < TOUT):\n                return True\n            return False\n\n        new_files
+    = [file_path for file_path in new_files if is_valid_file(file_path)]\n        \n        if
+    not new_files:\n            return\n        \n        logger.info(f\"Checking
+    project {self.settings.project_name} - files: {new_files}\") \n        \n        for
+    file_path in new_files:  # Process files concurrently\n            if mention_only:\n                tasks.append(self.process_project_mentions(file_path=file_path))  #
+    Append coroutine to tasks\n            elif self.settings.watching:\n                tasks.append(self.process_project_change(file_path=file_path))  #
+    Append coroutine to tasks\n\n        await asyncio.gather(*tasks)  # Run tasks
+    concurrently\n\n    async def process_project_mentions(self, file_path: str):\n        await
+    self.mention_manager.check_file_for_mentions(file_path=file_path)\n\n    async
+    def process_project_change(self, file_path: str):\n        logger.info(f\"[process_project_changes]
+    Processing file changes {file_path}\")\n        is_media_file = self.audio_manager.is_valid_media_file(file_path=file_path)\n        logger.info(f\"Reload
+    knowledge file {file_path} - is media: {is_media_file}\")    \n        if is_media_file:\n            logger.info(f\"Converting
+    media file {file_path}\")\n            transcript_info = self.audio_manager.transcribe_from_file(file_path=file_path)\n            self.knowledge.get_db().index_documents(documents=[Document(page_content=\"\",
+    metadata={\n              \"source\": file_path,\n              \"language\":
+    file_path.split(\".\")[-1],\n              \"type\": \"audio\"\n            })])\n            if
+    transcript_info[\"is_new\"]:\n                file_path = transcript_info[\"transcript_file_path\"]\n            else:\n                return\n        \n        self.knowledge.reload_path(path=file_path)\n        self.event_manager.send_knowled_event(type=\"loaded\",
+    file_path=file_path)\n        \n        if self.settings.project_wiki:\n            try:\n                await
+    self.wiki_manager.build_file(file_path=file_path)\n            except Exception
+    as ex:\n                logger.exception(f\"Error processing wiki changes for
+    file {file_path}\", ex)\n\n    def update_project_metrics(self):\n        metrics_manager
+    = CODXJuniorMetrics(settings=self.settings)\n        self.metrics = metrics_manager.project_metrics()\n          "]
+
+    ```'
+  created_at: '2025-10-10 16:20:14.681491'
+  disable_knowledge: false
+  doc_id: ab1334a4-851a-4bf1-a3e9-b162132efc4c
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-10 16:20:14.681513'
+  user: null
+- content: "To add a new method to the `ChangeManager` class for checking mentions\
+    \ on all projects, we need to utilize asynchronous programming to handle file\
+    \ changes in parallel. Here's how you can implement the new method:\n\n```python\
+    \ /shared/codx-junior/api/codx/junior/changes/change_manager.py\nimport os\nimport\
+    \ time\nimport logging\nimport asyncio\n\nfrom datetime import datetime, timedelta\n\
+    \nfrom codx.junior.events.event_manager import EventManager\nfrom codx.junior.knowledge.knowledge_milvus\
+    \ import Knowledge\nfrom codx.junior.globals import (\n  MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS,\n\
+    \  MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS,\n  CODX_JUNIOR_API_BACKGROUND\n\
+    )\nfrom codx.junior.mentions.mention_manager import MentionManager\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\nfrom codx.junior.wiki.wiki_manager import WikiManager\n\
+    from codx.junior.chat_manager import ChatManager\n\nfrom codx.junior.whisper.audio_manager\
+    \ import AudioManager\n\nfrom langchain.schema.document import Document\n\nfrom\
+    \ codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics\n\nlogger =\
+    \ logging.getLogger(__name__)\n\nclass ChangeManager:\n    def __init__(self,\
+    \ settings, event_manager=None):\n        self.settings = settings\n        if\
+    \ not event_manager:\n            event_manager = EventManager(codx_path=settings.codx_path)\n\
+    \        self.event_manager = event_manager\n        self.mention_manager = MentionManager(settings=settings,\
+    \ event_manager=event_manager)\n        self.knowledge = Knowledge(settings=self.settings)\n\
+    \        self.wiki_manager = WikiManager(settings=settings)\n        self.audio_manager\
+    \ = AudioManager()\n        self.chat_manager = ChatManager(settings=self.settings)\n\
+    \n    async def check_mentions_on_all_projects(self):\n        projects = self.settings.get_all_projects()\n\
+    \        tasks = []\n\n        for project in projects:\n            if not project.is_valid_project():\n\
+    \                logger.error(f\"Invalid project: {project.project_name}\")\n\
+    \                continue\n\n            project_changes = self.knowledge.get_project_changes(project)\n\
+    \            recent_files = [\n                file_path for file_path in project_changes\n\
+    \                if int(time.time()) - os.stat(file_path).st_mtime < MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS\n\
+    \            ]\n\n            for file_path in recent_files:\n               \
+    \ tasks.append(self.process_project_mentions(file_path=file_path))\n\n       \
+    \ await asyncio.gather(*tasks)\n\n    async def process_project_changes(self,\
+    \ mention_only: bool):\n        if not self.settings.is_valid_project():\n   \
+    \         logger.error(f\"Checking project error, not valid: {self.settings.project_name}\"\
+    ) \n            \n            return\n\n        if not mention_only:\n       \
+    \     self.knowledge.clean_deleted_documents()\n        current_sources_and_updates\
+    \ = self.knowledge.get_db().get_all_sources()\n        new_files, _ = self.knowledge.detect_changes(current_sources_and_updates)\n\
+    \            \n        tasks = []  # List to hold tasks\n\n        TOUT = MAX_OUTDATED_TIME_TO_PROVESS_FILE_MENTIONS_IN_SECS\
+    \ if mention_only else \\\n                MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS\n\
+    \        def is_valid_file(file_path):\n            if (int(time.time()) - int(\n\
+    \                    os.stat(file_path).st_mtime) < TOUT):\n                return\
+    \ True\n            return False\n\n        new_files = [file_path for file_path\
+    \ in new_files if is_valid_file(file_path)]\n        \n        if not new_files:\n\
+    \            return\n        \n        logger.info(f\"Checking project {self.settings.project_name}\
+    \ - files: {new_files}\") \n        \n        for file_path in new_files:  # Process\
+    \ files concurrently\n            if mention_only:\n                tasks.append(self.process_project_mentions(file_path=file_path))\
+    \  # Append coroutine to tasks\n            elif self.settings.watching:\n   \
+    \             tasks.append(self.process_project_change(file_path=file_path)) \
+    \ # Append coroutine to tasks\n\n        await asyncio.gather(*tasks)  # Run tasks\
+    \ concurrently\n\n    async def process_project_mentions(self, file_path: str):\n\
+    \        await self.mention_manager.check_file_for_mentions(file_path=file_path)\n\
+    \n    async def process_project_change(self, file_path: str):\n        logger.info(f\"\
+    [process_project_changes] Processing file changes {file_path}\")\n        is_media_file\
+    \ = self.audio_manager.is_valid_media_file(file_path=file_path)\n        logger.info(f\"\
+    Reload knowledge file {file_path} - is media: {is_media_file}\")    \n       \
+    \ if is_media_file:\n            logger.info(f\"Converting media file {file_path}\"\
+    )\n            transcript_info = self.audio_manager.transcribe_from_file(file_path=file_path)\n\
+    \            self.knowledge.get_db().index_documents(documents=[Document(page_content=\"\
+    \", metadata={\n              \"source\": file_path,\n              \"language\"\
+    : file_path.split(\".\")[-1],\n              \"type\": \"audio\"\n           \
+    \ })])\n            if transcript_info[\"is_new\"]:\n                file_path\
+    \ = transcript_info[\"transcript_file_path\"]\n            else:\n           \
+    \     return\n        \n        self.knowledge.reload_path(path=file_path)\n \
+    \       self.event_manager.send_knowled_event(type=\"loaded\", file_path=file_path)\n\
+    \        \n        if self.settings.project_wiki:\n            try:\n        \
+    \        await self.wiki_manager.build_file(file_path=file_path)\n           \
+    \ except Exception as ex:\n                logger.exception(f\"Error processing\
+    \ wiki changes for file {file_path}\", ex)\n\n    def update_project_metrics(self):\n\
+    \        metrics_manager = CODXJuniorMetrics(settings=self.settings)\n       \
+    \ self.metrics = metrics_manager.project_metrics()\n```\n\n### Explanation:\n\n\
+    - **`check_mentions_on_all_projects`:** This is the new method added to the `ChangeManager`\
+    \ class. It retrieves all projects and their recent file changes (within the last\
+    \ minute) and processes mentions in parallel using asynchronous tasks.\n- **`get_all_projects`:**\
+    \ Assumed to be a method in `settings` that returns a list of all project configurations.\n\
+    - **`get_project_changes`:** Assumed to be a method in `Knowledge` that retrieves\
+    \ file changes for a specific project.\n- **Concurrency:** Utilizes `asyncio.gather`\
+    \ to run mention processing tasks concurrently across different projects."
+  created_at: '2025-10-10 16:20:14.681491'
+  disable_knowledge: false
+  doc_id: c27583b6-cd4d-4a4d-b1ba-3c1d8cf34d2b
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002090930938720703
+    model: openai/gpt-4o
+    time_taken: 16.611533641815186
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-10 16:20:14.681513'
+  user: null
+- content: "Call change_manager\_check_mentions_on_all_projects method in a never\
+    \ ending thread sleeping 0.5 secconds between loops"
+  created_at: '2025-10-11 06:15:24.161733'
+  disable_knowledge: true
+  doc_id: 00cde7f8-5069-4823-b07e-a7436e694abc
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-11 06:15:24.161757'
+  user: admin
+- content: "To call the `check_mentions_on_all_projects` method from `change_manager`\
+    \ in a never-ending thread, we need to define a new function that will run in\
+    \ a separate thread. This function will continuously call the `check_mentions_on_all_projects`\
+    \ method, sleeping for 0.5 seconds between each loop. Here's how you can implement\
+    \ this:\n\n```python /shared/codx-junior/api/codx/junior/background.py\ndef start_mention_checking()\
+    \ -> None:\n    \"\"\"\n    Start a separate thread to continuously check mentions\
+    \ on all projects.\n    \"\"\"\n    def check_mentions():\n        while True:\n\
+    \            try:\n                ChangeManager().check_mentions_on_all_projects()\n\
+    \            except Exception as ex:\n                logger.exception(f\"Error\
+    \ checking mentions on all projects: {ex}\")\n            time.sleep(0.5)\n\n\
+    \    # Start the mention checking in a separate thread\n    Thread(target=check_mentions,\
+    \ daemon=True).start()\n```\n\nYou'll need to call `start_mention_checking()`\
+    \ from your `start_background_services` function or wherever appropriate to ensure\
+    \ it begins executing when your application starts. Make sure to handle any necessary\
+    \ imports for `Thread`, `time`, and `ChangeManager` at the top of your file."
+  created_at: '2025-10-11 06:15:24.161733'
+  disable_knowledge: false
+  doc_id: 3dd5b2e2-f693-4974-94a2-c76259f896c0
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00020241737365722656
+    model: openai/gpt-4o
+    time_taken: 4.900009870529175
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-11 06:15:24.161757'
+  user: null
+- content: "Keep\_ChangeManager instance out of the loop and reuse it.\ngenerate full\
+    \ file version"
+  created_at: '2025-10-11 06:15:24.161733'
+  disable_knowledge: true
+  doc_id: 2363ce37-13b8-494e-965c-580acc15ed8c
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-11 06:15:24.161757'
+  user: admin
+- content: "```python /shared/codx-junior/api/codx/junior/background.py\nimport asyncio\n\
+    import logging\nimport time\nfrom datetime import datetime, timedelta\nfrom threading\
+    \ import Thread, Lock\nfrom typing import Dict\n\nfrom codx.junior.ai import AIManager\n\
+    from codx.junior.changes.change_manager import ChangeManager\nfrom codx.junior.globals\
+    \ import (\n    CODX_JUNIOR_API_BACKGROUND,\n)\nfrom codx.junior.project.project_discover\
+    \ import (\n    find_all_projects\n)\nfrom codx.junior.settings import read_global_settings\n\
+    \n# Setup logging\nlogger = logging.getLogger(__name__)\n\n# A global tracking\
+    \ dictionary to manage files currently being processed\nFILES_CHECKING = {}\n\
+    FILES_CHECKING_LOCK = Lock()\nCHECK_TIMEOUT = timedelta(minutes=1)\n\n# Quarantine\
+    \ settings\nQUARANTINE_TRACKER: Dict[str, Dict] = {}\nQUARANTINE_LOCK = Lock()\n\
+    QUARANTINE_DELAYS = [0, 1, 10, 30, 120]  # Minutes\n\ndef start_background_services(app)\
+    \ -> None:\n    \"\"\"\n    Function to start background services for project\
+    \ watching and processing.\n    \"\"\"\n    if not CODX_JUNIOR_API_BACKGROUND:\n\
+    \        return\n    logger.info(\"*** Starting background processes ***\")\n\
+    \    reload_models()\n\n    # Start the project checking in a separate thread\n\
+    \    Thread(target=check_projects, args=(True,)).start()\n\n    # Start the project\
+    \ checking in a separate thread\n    Thread(target=check_projects).start()\n\n\
+    \    # Start the mention checking in a separate thread\n    start_mention_checking()\n\
+    \ndef reload_models() -> None:\n    \"\"\"\n    Reload AI models based on the\
+    \ current global settings.\n    \"\"\"\n    try:\n        AIManager().reload_models(read_global_settings())\n\
+    \        logger.info(\"AI models reloaded successfully.\")\n    except Exception\
+    \ as ex:\n        logger.exception(f\"Failed to reload AI models: {ex}\")\n\n\n\
+    def is_project_in_quarantine(project_name: str) -> bool:\n    \"\"\"\n    Determine\
+    \ if a project is in quarantine based on its last check time and the delay.\n\
+    \    \"\"\"\n    quarantine_info = QUARANTINE_TRACKER.get(project_name)\n    if\
+    \ not quarantine_info:\n        return False\n\n    delay_minutes = QUARANTINE_DELAYS[min(quarantine_info[\"\
+    fail_count\"], len(QUARANTINE_DELAYS) - 1)]\n    next_allowed_check = quarantine_info[\"\
+    last_checked\"] + timedelta(minutes=delay_minutes)\n    return datetime.now()\
+    \ < next_allowed_check\n\n\ndef update_quarantine_status(project_name: str, success:\
+    \ bool) -> None:\n    \"\"\"\n    Update the quarantine status of a project depending\
+    \ on whether the check was successful.\n    \"\"\"\n    with QUARANTINE_LOCK:\n\
+    \        quarantine_info = QUARANTINE_TRACKER.setdefault(project_name, {\"fail_count\"\
+    : 0, \"last_checked\": datetime.min})\n\n        if success:\n            quarantine_info[\"\
+    fail_count\"] = 0  # Reset on success\n        else:\n            quarantine_info[\"\
+    fail_count\"] += 1\n            logger.info(f'Adding project to quarantine: {project_name}\
+    \ - error count: {quarantine_info[\"fail_count\"]}')\n\n        quarantine_info[\"\
+    last_checked\"] = datetime.now()\n\n\ndef check_projects(mention_only = False)\
+    \ -> None:\n    \"\"\"\n    Continuously checks for updates in all projects.\n\
+    \    \"\"\"\n\n    async def check_project(project) -> None:\n        \"\"\"\n\
+    \        Process and handle the changes in a project asynchronously.\n       \
+    \ \"\"\"\n        try:\n            session = ChangeManager(settings=project)\n\
+    \            #if not session.settings.metrics:\n            await session.process_project_changes(mention_only)\n\
+    \            update_quarantine_status(project.project_name, success=True)\n  \
+    \      except Exception as ex:\n            update_quarantine_status(project.project_name,\
+    \ success=False)\n            project.last_error = str(ex)\n            logger.exception(f\"\
+    Error processing project changes: {project.project_name}\\n{ex}\")\n\n    while\
+    \ True:\n        try:\n            projects = find_all_projects()\n          \
+    \  for project in projects.values():\n                if is_project_in_quarantine(project.project_name):\n\
+    \                    continue\n\n                try:\n                    asyncio.run(check_project(project=project))\n\
+    \                except Exception as ex:\n                    logger.error(f\"\
+    Unhandled exception during project checking: {ex}\")\n        except Exception\
+    \ as ex:\n            logger.exception(f\"Error checking projects: {ex}\")\n \
+    \       time.sleep(0.1 if mention_only else 2)\n\n\ndef start_mention_checking()\
+    \ -> None:\n    \"\"\"\n    Start a separate thread to continuously check mentions\
+    \ on all projects.\n    \"\"\"\n    change_manager = ChangeManager()  # Create\
+    \ the ChangeManager instance outside the loop\n\n    def check_mentions():\n \
+    \       while True:\n            try:\n                change_manager.check_mentions_on_all_projects()\n\
+    \            except Exception as ex:\n                logger.exception(f\"Error\
+    \ checking mentions on all projects: {ex}\")\n            time.sleep(0.5)\n\n\
+    \    # Start the mention checking in a separate thread\n    Thread(target=check_mentions,\
+    \ daemon=True).start()\n```"
+  created_at: '2025-10-11 06:15:24.161733'
+  disable_knowledge: false
+  doc_id: 9bffbd7f-1c5e-44a0-8b01-a2a55fb51543
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00022649765014648438
+    model: openai/gpt-4o
+    time_taken: 11.519827127456665
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-11 06:15:24.161757'
+  user: null
+mode: task
+name: Bacground project check
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-11T06:18:24.881140'
+url: ''
+users:
+- admin
+visibility: ''

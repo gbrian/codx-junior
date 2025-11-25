@@ -7,7 +7,7 @@ import { TreeItem, TreeRoot } from 'radix-vue'
     v-slot="{ flattenItems }"
     class="list-none select-none text-blackA11 rounded-lg p-2 text-sm font-medium"
     :items="groupedItems"
-    :get-key="(item) => item.title"
+    :get-key="(item) => item[gkey]"
     :default-expanded="defaultExpanded"
   >
     <slot name="header"> 
@@ -18,7 +18,7 @@ import { TreeItem, TreeRoot } from 'radix-vue'
     <TreeItem
       v-for="item in flattenItems"
       v-slot="{ isExpanded }"
-      :key="item._id"
+      :key="item.value[gkey]"
       :style="{ 'padding-left': `${item.level - 0.5}rem` }"
       v-bind="item.bind"
       class="flex items-center py-1 px-2 my-0.5 rounded outline-none focus:ring-grass8 focus:ring-2 data-[selected]:bg-grass4"
@@ -30,35 +30,21 @@ import { TreeItem, TreeRoot } from 'radix-vue'
         <i class="fa-solid fa-angle-down" v-else></i>
       </template>
       <div class="pl-2 clilck" @click="onClickItem(item)">
-        <slot :item="item" name="item">{{ item.value.title }}</slot>
+        <slot :item="item" name="item">{{ item.value[gkey] }}</slot>
       </div>
     </TreeItem>
   </TreeRoot>
 </template>
 
 <script>
-function groupItemsBy(items, key) {
-  const grouped = {};
-  items.forEach((item) => {
-    const groupKey = item[key] || 'Ungrouped';
-    if (!grouped[groupKey]) {
-      grouped[groupKey] = {
-        title: groupKey,
-        icon: 'lucide:folder',
-        children: []
-      };
-    }
-    grouped[groupKey].children.push(item);
-  });
-  console.log("CodxMenu grouped items", grouped)
-  return Object.values(grouped);
-}
-
 export default {
-  props: ['items', 'item-key', 'default-expanded'],
+  props: ['items', 'item-key', 'item-title', 'default-expanded'],
   computed: {
     groupedItems() {
-      return groupItemsBy(this.items, this.itemKey);
+      return this.groupItemsBy(this.items, this.itemKey);
+    },
+    gkey() { 
+      return this.itemTitle || 'title'
     }
   },
   methods: {
@@ -66,6 +52,22 @@ export default {
       if (!item.hasChildren) {
         this.$emit('select', item.value)
       }
+    },
+    groupItemsBy(items, key) {
+      const grouped = {};
+      items.forEach((item) => {
+        const groupKey = item[key] || 'Ungrouped';
+        if (!grouped[groupKey]) {
+          grouped[groupKey] = {
+            [this.gkey]: groupKey,
+            icon: 'lucide:folder',
+            children: []
+          };
+        }
+        grouped[groupKey].children.push(item);
+      });
+      console.log("CodxMenu grouped items", grouped)
+      return Object.keys(grouped).sort((a, b) => a > b ? 1: -1).map(k =>grouped[k]);
     }
   }
 }

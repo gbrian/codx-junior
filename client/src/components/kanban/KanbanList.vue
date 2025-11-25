@@ -5,22 +5,42 @@ import ProjectIcon from '../ProjectIcon.vue';
 </script>
 
 <template>
-  <div class="w-full flex flex-col gap-2">
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" v-if="boards">
+  <div class="w-full flex flex-col gap-2" v-if="boards">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" >
+      <div
+        v-for="board in bookmarks"
+        :key="board.title"
+        @click="selectBoard(board)"
+        class="p-2 card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative border-warning h-32">
+            <div class="absolute top-0 left-0 bottom-0 right-0 opacity-30 rounded-md bg-cover"
+              :style="`background-image: url(${board.background})`" v-if="board.background">
+            </div>
+          <h2 class="card-title flex tooltip group" :data-tip="board.title">
+            <span class="flex items-center">
+              <i
+                :class="['fa-solid', 'fa-bookmark', board.bookmark ? 'text-warning' : 'text-gray-400']"
+                @click.stop="toggleBookmark(board)"
+                class="cursor-pointer mr-2"
+              ></i>
+              <div class="overflow-hidden">{{ board.title }}</div>
+            </span>
+          </h2>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" >
       <div
         v-for="board in sortedBoards"
         :key="board.title"
         @click="selectBoard(board)"
-        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative">
+        class="card card-bordered bg-base-100 shadow-md rounded-lg cursor-pointer bg-contain relative h-60">
         <div class="absolute top-0 left-0 bottom-0 right-0 opacity-30 rounded-md bg-cover"
            :style="`background-image: url(${board.background})`" v-if="board.background">
         </div>
         <div class="card-body flex flex-col">
           <span class="text-xs" v-if="board.last_update">[{{ moment(board.last_update).fromNow() }}]</span>
-          <h2 class="card-title flex justify-between tooltip group" :data-tip="board.title">
-            <div class="text-nowrap overflow-hidden">{{ board.title }}</div>
-            <span @click.stop="onEditBoard(board)" class="hidden group-hover:block click text-warning">
-              <i class="fas fa-cogs"></i>
+          <h2 class="card-title flex tooltip group" :data-tip="board.title">
+            <span class="flex items-center bg-base-100/80 pl-1 w-full rounded-md text-nowrap">
+              <div class="overflow-hidden">{{ board.title }}</div>
             </span>
           </h2>
           <p class="text-sm">{{ board.description }}</p>
@@ -61,17 +81,14 @@ export default {
   props: ['boards', 'options'],
   data () {
     return {
-      editBoard: null,
-      confirmDelete: false
     }
   },
-  created() {
-    this.$projects.loadKanban()
-  },
   computed: {
+    bookmarks() {
+      return this.boards.filter(b => b.bookmark)
+    },
     sortedBoards() {
-      // Sort boards based on last_update
-      return Object.values(this.boards)
+      return Object.values(this.boards.filter(b => !b.bookmark))
         .sort((a, b) => 
           a.last_update && b.last_update ? 
             a.last_update > b.last_update ? -1 : 1 :
@@ -85,19 +102,14 @@ export default {
     emitNewKanban() {
       this.$emit('new')
     },
-    saveBoard() {
-      this.$emit('edit', this.editBoard)
-      this.editBoard = null
-    },
     onDeleteBoard() {
-      this.$emit('delete', this.editBoard)
-      this.editBoard = null
-    },
-    onEditBoard(board) {
-      this.$emit('edit', board)
+      this.$emit('delete', this.board)
     },
     openRemoteBoard(board) {
       window.open(board.remote_url, '_blank')
+    },
+    toggleBookmark(board) {
+      this.$emit('bookmark', board);
     }
   }
 }

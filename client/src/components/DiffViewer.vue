@@ -4,16 +4,29 @@ import { DiffView, DiffModeEnum } from "@git-diff-view/vue";
 import { DiffFile, generateDiffFile } from "@git-diff-view/file";
 </script>
 <template>
+  <div>
+    <div class="flex items-center gap-2 px-2 py-1 text-xs">
+      <div class="flex gap-2 items-center">
+        Split / Unified
+        <input type="checkbox" v-model="diffSplit" class="toggle toggle-sm" />
+      </div>
+      <div class="flex gap-2 items-center">
+        Text wrap
+        <input type="checkbox" v-model="diffWrap" class="toggle toggle-sm" />
+      </div>
+  </div>
+
   <DiffView
     :diff-file="diffFile"
     :diff-view-font-size="14"
-    :diff-view-mode="DiffModeEnum.Split"
     :diff-view-highlight="true"
     :diff-view-add-widget="false"
-    :diff-view-wrap="false"
     :diff-view-theme="'dark'"
+    :diff-view-wrap="diffWrap"
+    :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"          
     v-if="data"
   />
+</div>
 </template>
 <script>
 export default {
@@ -21,7 +34,9 @@ export default {
   data() {
     return {
       data: null,
-      diffFile: null
+      diffFile: null,
+      diffWrap: true,
+      diffSplit: false
     }
   },
   async created() {

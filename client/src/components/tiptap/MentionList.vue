@@ -1,0 +1,123 @@
+<template>
+  <ul class="dropdown-menu bg-base-300 p-2 overflow-auto max-h-40 z-50 flex flex-col gap-2">
+    <template v-if="items.length">
+      <li
+        class="p-2 rounded-lg hover:bg-base-100 click"
+        :class="{ 'is-selected': index === selectedIndex }"
+        v-for="(item, index) in items"
+        :key="index"
+        :title="item.file || item.name"
+        @click="selectItem(index)"
+      >
+        <a>{{ item.name }}</a>
+      </li>
+    </template>
+    <div class="item" v-else>No result</div>
+  </ul>
+</template>
+
+<script>
+export default {
+  props: {
+    items: {
+      type: Array,
+      required: true,
+    },
+
+    command: {
+      type: Function,
+      required: true,
+    },
+    
+    onSelect: {
+      type: Function,
+      required: true,
+    } 
+  },
+
+  data() {
+    return {
+      selectedIndex: 0,
+    }
+  },
+
+  watch: {
+    items() {
+      this.selectedIndex = 0
+    },
+  },
+
+  methods: {
+    onKeyDown({ event }) {
+      if (event.key === 'ArrowUp') {
+        this.upHandler()
+        return true
+      }
+
+      if (event.key === 'ArrowDown') {
+        this.downHandler()
+        return true
+      }
+
+      if (event.key === 'Enter') {
+        this.enterHandler()
+        return true
+      }
+
+      return false
+    },
+
+    upHandler() {
+      this.selectedIndex = (this.selectedIndex + this.items.length - 1) % this.items.length
+    },
+
+    downHandler() {
+      this.selectedIndex = (this.selectedIndex + 1) % this.items.length
+    },
+
+    enterHandler() {
+      this.selectItem(this.selectedIndex)
+    },
+
+    selectItem(index) {
+      this.onSelect(index)
+      const item = this.items[index]
+
+      if (item) {
+        this.command({ id: item.name })
+      }
+    },
+  },
+}
+</script>
+
+<style lang="scss">
+/* Dropdown menu */
+.dropdown-menu {
+  border-radius: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  overflow: auto;
+  padding: 0.4rem;
+  position: relative;
+
+  button {
+    align-items: center;
+    background-color: transparent;
+    display: flex;
+    gap: 0.25rem;
+    text-align: left;
+    width: 100%;
+
+    &:hover,
+    &:hover.is-selected {
+      background-color: var(--gray-3);
+    }
+
+    &.is-selected {
+      background-color: var(--gray-2);
+    }
+  }
+}
+</style>

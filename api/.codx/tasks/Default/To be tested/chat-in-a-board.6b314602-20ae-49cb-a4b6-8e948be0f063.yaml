@@ -1,0 +1,52 @@
+board: Default
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: To be tested
+column_id: ''
+created_at: '2024-10-26T18:01:47.939458'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Default/To be tested/chat-in-a-board.6b314602-20ae-49cb-a4b6-8e948be0f063.yaml
+id: 6b314602-20ae-49cb-a4b6-8e948be0f063
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Testing save
+  created_at: '2025-01-04 07:21:40.542105'
+  disable_knowledge: false
+  doc_id: null
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-01-04 07:21:40.542133'
+  user: null
+mode: chat
+name: Chat in a board
+parent_id: ''
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-01-10T04:35:02.205314'
+url: ''
+users: []
+visibility: ''

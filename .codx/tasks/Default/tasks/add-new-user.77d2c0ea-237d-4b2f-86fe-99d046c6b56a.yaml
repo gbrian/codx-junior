@@ -1,0 +1,97 @@
+board: Default
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: tasks
+column_id: ''
+created_at: '2025-02-04 14:03:17.976326'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Default/tasks/add-new-user.77d2c0ea-237d-4b2f-86fe-99d046c6b56a.yaml
+id: 77d2c0ea-237d-4b2f-86fe-99d046c6b56a
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'In bash:
+
+    Add new user "codx-junior" to $USER_GROUP, allow sudo'
+  created_at: '2025-02-04 14:03:17.973973'
+  disable_knowledge: false
+  doc_id: d4a6bcc5-c1f2-44e7-bc9a-344a5bdc9c84
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-02-04 14:03:17.974017'
+  user: null
+- content: "To add a new user named \"codx-junior\" to an existing group stored in\
+    \ the `$USER_GROUP` environment variable and grant them sudo privileges, you can\
+    \ follow these steps in a Bash script. Make sure you have the necessary permissions\
+    \ to execute these commands:\n\n```bash\n#!/bin/bash\n\n# Check if USER_GROUP\
+    \ is set\nif [ -z \"$USER_GROUP\" ]; then\n  echo \"Error: USER_GROUP is not set.\"\
+    \n  exit 1\nfi\n\n# Create a new user 'codx-junior'\nsudo useradd -m -s /bin/bash\
+    \ codx-junior\n\n# Add 'codx-junior' to the specified user group\nsudo usermod\
+    \ -aG \"$USER_GROUP\" codx-junior\n\n# Grant 'codx-junior' sudo privileges\nsudo\
+    \ usermod -aG sudo codx-junior\n\necho \"User 'codx-junior' added to group '$USER_GROUP'\
+    \ and granted sudo privileges.\"\n```\n\n### Explanation:\n1. **Check for USER_GROUP:**\
+    \ The script first checks if the `$USER_GROUP` environment variable is set. If\
+    \ not, it outputs an error message and exits.\n2. **Create User:** The `useradd`\
+    \ command creates a new user with a home directory and sets the default shell\
+    \ to Bash.\n3. **Add to Group:** The `usermod -aG \"$USER_GROUP\" codx-junior`\
+    \ command adds the new user to the specified group.\n4. **Grant Sudo Privileges:**\
+    \ The `usermod -aG sudo codx-junior` command adds the user to the `sudo` group,\
+    \ granting them sudo privileges.\n5. **Output Message:** The script prints a confirmation\
+    \ message.\n\n### Additional Steps:\n- **Version Control with Git**: If this script\
+    \ is part of a larger project, make sure to commit the script to your Git repository\
+    \ with a meaningful commit message.\n- **Testing**: Consider testing this script\
+    \ in a safe environment before running it in production to ensure it behaves as\
+    \ expected.\n- **Documentation**: Update any project documentation to include\
+    \ details about this script if necessary"
+  created_at: '2025-02-04 14:03:17.973973'
+  disable_knowledge: false
+  doc_id: 4d5255cd-7175-4a56-95e0-37ac2b84f6ca
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-02-04 14:03:17.974017'
+  user: null
+mode: chat
+name: Add new user
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-02-05T05:43:36.547358'
+url: ''
+users: []
+visibility: ''

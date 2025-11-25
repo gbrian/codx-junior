@@ -1,0 +1,256 @@
+board: Knowledge
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Done
+column_id: ''
+created_at: '2025-07-05 15:09:47.604527'
+description: The conversation discusses building a hybrid search engine using Milvus
+  2.5, which supports both semantic and full-text searches. The setup involves creating
+  a data schema with fields for text and vectors, and using functions to convert text
+  into sparse vectors based on BM25. Search indices are created for both dense and
+  sparse vectors, enabling hybrid search capabilities. A Python class, `HybridSearchEngine`,
+  is proposed to manage indexing and searching documents, utilizing Milvus clients
+  for operations. The class facilitates document insertion and hybrid searching, ranking
+  results using both semantic and full-text search criteria.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Knowledge/Done/hybrid-knowledge-search.0e07aad3-18c4-4d5a-98f1-7b865d92a798.yaml
+id: 0e07aad3-18c4-4d5a-98f1-7b865d92a798
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "We must create a hybryd knowledge search engine for searching on project's\
+    \ files.\nSummaryze and structurte this post. Create a class for managing a hybrid\
+    \ search engine, it will receive the collection name. Expose methods to pass documents\
+    \ to index/update and a search method.\nDocuments has: id, content, and a \"metadata\"\
+    \ dictionary. The content is what we must use for searching.\nThe search method\
+    \ will receive a query and a limit value and return a list of documents\n```md\n\
+    \n>\_https://milvus.io/blog/get-started-with-hybrid-semantic-full-text-search-with-milvus-2-5.md\n\
+    Building the Data Schema and Search Indices\nWe import the required classes and\
+    \ functions:\n\n\nfrom pymilvus import MilvusClient, DataType, Function, FunctionType,\
+    \ model\n\n\nYou may have noticed two new entries for Milvus 2.5, Function and\
+    \ FunctionType, which we will explain shortly.\n\n\nNext we open the database\
+    \ with Milvus Standalone, that is, locally, and create the data schema. The schema\
+    \ comprises an integer primary key, a text string, a dense vector of dimension\
+    \ 384, and a sparse vector (of unlimited dimensionality). Note that Milvus Lite\
+    \ does not currently support full-text search, only Milvus Standalone and Milvus\
+    \ Distributed.\n\n\nclient = MilvusClient(uri=\"http://localhost:19530\")\n\n\n\
+    schema = client.create_schema()\n\n\nschema.add_field(field_name=\"id\", datatype=DataType.INT64,\
+    \ is_primary=True, auto_id=True)\nschema.add_field(field_name=\"text\", datatype=DataType.VARCHAR,\
+    \ max_length=1000, enable_analyzer=True)\nschema.add_field(field_name=\"dense\"\
+    , datatype=DataType.FLOAT_VECTOR, dim=768),\nschema.add_field(field_name=\"sparse\"\
+    , datatype=DataType.SPARSE_FLOAT_VECTOR)\n\n\n{'auto_id': False, 'description':\
+    \ '', 'fields': [{'name': 'id', 'description': '', 'type': <DataType.INT64: 5>,\
+    \ 'is_primary': True, 'auto_id': True}, {'name': 'text', 'description': '', 'type':\
+    \ <DataType.VARCHAR: 21>, 'params': {'max_length': 1000, 'enable_analyzer': True}},\
+    \ {'name': 'dense', 'description': '', 'type': <DataType.FLOAT_VECTOR: 101>, 'params':\
+    \ {'dim': 768}}, {'name': 'sparse', 'description': '', 'type': <DataType.SPARSE_FLOAT_VECTOR:\
+    \ 104>}], 'enable_dynamic_field': False}\n\n\nYou may have noticed the enable_analyzer=True\
+    \ parameter. This tells Milvus 2.5 to enable the lexical parser on this field\
+    \ and build a list of tokens and token frequencies, which are required for full-text\
+    \ search. The sparse field will hold a vector representation of the documentation\
+    \ as a bag-of-words produced from the parsing text.\n\n\nBut how do we connect\
+    \ the text and sparse fields, and tell Milvus how sparse should be calculated\
+    \ from text? This is where we need to invoke the Function object and add it to\
+    \ the schema:\n\n\nbm25_function = Function(\n\_ \_ name=\"text_bm25_emb\", #\
+    \ Function name\n\_ \_ input_field_names=[\"text\"], # Name of the VARCHAR field\
+    \ containing raw text data\n\_ \_ output_field_names=[\"sparse\"], # Name of the\
+    \ SPARSE_FLOAT_VECTOR field reserved to store generated embeddings\n\_ \_ function_type=FunctionType.BM25,\n\
+    )\n\n\nschema.add_function(bm25_function)\n\n\n{'auto_id': False, 'description':\
+    \ '', 'fields': [{'name': 'id', 'description': '', 'type': <DataType.INT64: 5>,\
+    \ 'is_primary': True, 'auto_id': True}, {'name': 'text', 'description': '', 'type':\
+    \ <DataType.VARCHAR: 21>, 'params': {'max_length': 1000, 'enable_analyzer': True}},\
+    \ {'name': 'dense', 'description': '', 'type': <DataType.FLOAT_VECTOR: 101>, 'params':\
+    \ {'dim': 768}}, {'name': 'sparse', 'description': '', 'type': <DataType.SPARSE_FLOAT_VECTOR:\
+    \ 104>, 'is_function_output': True}], 'enable_dynamic_field': False, 'functions':\
+    \ [{'name': 'text_bm25_emb', 'description': '', 'type': <FunctionType.BM25: 1>,\
+    \ 'input_field_names': ['text'], 'output_field_names': ['sparse'], 'params': {}}]}\n\
+    \n\nThe abstraction of the Function object is more general than that of applying\
+    \ full-text search. In the future, it may be used for other cases where one field\
+    \ needs to be a function of another field. In our case, we specify that sparse\
+    \ is a function of text via the function FunctionType.BM25. BM25 refers to a common\
+    \ metric in information retrieval used for calculating a query\u2019s similarity\
+    \ to a document (relative to a collection of documents).\n\n\nWe use the default\
+    \ embedding model in Milvus, which is paraphrase-albert-small-v2:\n\n\nembedding_fn\
+    \ = model.DefaultEmbeddingFunction()\n\n\nThe next step is to add our search indices.\
+    \ We have one for the dense vector and a separate one for the sparse vector. The\
+    \ index type is SPARSE_INVERTED_INDEX with BM25 since full-text search requires\
+    \ a different search method than those for standard dense vectors.\n\n\nindex_params\
+    \ = client.prepare_index_params()\n\n\nindex_params.add_index(\n\_ \_ field_name=\"\
+    dense\",\n\_ \_ index_type=\"AUTOINDEX\",\_\n\_ \_ metric_type=\"COSINE\"\n)\n\
+    \n\nindex_params.add_index(\n\_ \_ field_name=\"sparse\",\n\_ \_ index_type=\"\
+    SPARSE_INVERTED_INDEX\",\_\n\_ \_ metric_type=\"BM25\"\n)\n\n\nFinally, we create\
+    \ our collection:\n\n\nclient.drop_collection('demo')\nclient.list_collections()\n\
+    \n\n[]\n\n\nclient.create_collection(\n\_ \_ collection_name='demo',\_\n\_ \_\
+    \ schema=schema,\_\n\_ \_ index_params=index_params\n)\n\n\nclient.list_collections()\n\
+    \n\n['demo']\n\n\nAnd with that, we have an empty database set up to accept text\
+    \ documents and perform semantic and full-text searches!\n\n\nInserting Data and\
+    \ Performing Full-Text Search\nInserting data is no different than previous versions\
+    \ of Milvus:\n\n\ndocs = [\n\_ \_ 'information retrieval is a field of study.',\n\
+    \_ \_ 'information retrieval focuses on finding relevant information in large\
+    \ datasets.',\n\_ \_ 'data mining and information retrieval overlap in research.'\n\
+    ]\n\n\nembeddings = embedding_fn(docs)\n\n\nclient.insert('demo', [\n\_ \_ {'text':\
+    \ doc, 'dense': vec} for doc, vec in zip(docs, embeddings)\n])\n\n\n{'insert_count':\
+    \ 3, 'ids': [454387371651630485, 454387371651630486, 454387371651630487], 'cost':\
+    \ 0}\n\n\nLet\u2019s first illustrate a full-text search before we move on to\
+    \ hybrid search:\n\n\nsearch_params = {\n\_ \_ 'params': {'drop_ratio_search':\
+    \ 0.2},\n}\n\n\nresults = client.search(\n\_ \_ collection_name='demo',\_\n\_\
+    \ \_ data=['whats the focus of information retrieval?'],\n\_ \_ output_fields=['text'],\n\
+    \_ \_ anns_field='sparse',\n\_ \_ limit=3,\n\_ \_ search_params=search_params\n\
+    )\n\n\nThe search parameter drop_ratio_search refers to the proportion of lower-scoring\
+    \ documents to drop during the search algorithm.\n\n\nLet\u2019s view the results:\n\
+    \n\nfor hit in results[0]:\n\_ \_ print(hit)\n\n\n{'id': 454387371651630485, 'distance':\
+    \ 1.3352930545806885, 'entity': {'text': 'information retrieval is a field of\
+    \ study.'}}\n{'id': 454387371651630486, 'distance': 0.29726022481918335, 'entity':\
+    \ {'text': 'information retrieval focuses on finding relevant information in large\
+    \ datasets.'}}\n{'id': 454387371651630487, 'distance': 0.2715056240558624, 'entity':\
+    \ {'text': 'data mining and information retrieval overlap in research.'}}\n\n\n\
+    Performing Hybrid Semantic and Full-Text Search\nLet\u2019s now combine what we\u2019\
+    ve learned to perform a hybrid search that combines separate semantic and full-text\
+    \ searches with a reranker:\n\n\nfrom pymilvus import AnnSearchRequest, RRFRanker\n\
+    query = 'whats the focus of information retrieval?'\nquery_dense_vector = embedding_fn([query])\n\
+    \n\nsearch_param_1 = {\n\_ \_ \"data\": query_dense_vector,\n\_ \_ \"anns_field\"\
+    : \"dense\",\n\_ \_ \"param\": {\n\_ \_ \_ \_ \"metric_type\": \"COSINE\",\n\_\
+    \ \_ },\n\_ \_ \"limit\": 3\n}\nrequest_1 = AnnSearchRequest(**search_param_1)\n\
+    \n\nsearch_param_2 = {\n\_ \_ \"data\": [query],\n\_ \_ \"anns_field\": \"sparse\"\
+    ,\n\_ \_ \"param\": {\n\_ \_ \_ \_ \"metric_type\": \"BM25\",\n\_ \_ \_ \_ \"\
+    params\": {\"drop_ratio_build\": 0.0}\n\_ \_ },\n\_ \_ \"limit\": 3\n}\nrequest_2\
+    \ = AnnSearchRequest(**search_param_2)\n\n\nreqs = [request_1, request_2]\n\n\n\
+    ranker = RRFRanker()\n\n\nres = client.hybrid_search(\n\_ \_ collection_name=\"\
+    demo\",\n\_ \_ output_fields=['text'],\n\_ \_ reqs=reqs,\n\_ \_ ranker=ranker,\n\
+    \_ \_ limit=3\n)\nfor hit in res[0]:\n\_ \_ print(hit)\n\n\n{'id': 454387371651630485,\
+    \ 'distance': 0.032786883413791656, 'entity': {'text': 'information retrieval\
+    \ is a field of study.'}}\n{'id': 454387371651630486, 'distance': 0.032258063554763794,\
+    \ 'entity': {'text': 'information retrieval focuses on finding relevant information\
+    \ in large datasets.'}}\n{'id': 454387371651630487, 'distance': 0.0317460335791111,\
+    \ 'entity': {'text': 'data mining and information retrieval overlap in research.'}}\n\
+    \n\nAs you may have noticed, this is no different than a hybrid search with two\
+    \ separate semantic fields (available since Milvus 2.4). The results are identical\
+    \ to full-text search in this simple example, but for larger databases and keyword\
+    \ specific searches hybrid search typically has higher recall.\n```"
+  created_at: '2025-07-05 15:09:47.602508'
+  disable_knowledge: true
+  doc_id: 3ddece2f-90cd-42a2-bc4b-03be15438772
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-05 15:09:47.602545'
+  user: admin
+- content: "### Summary and Structure\n\n**Title: Building a Hybrid Knowledge Search\
+    \ Engine Using Milvus 2.5**\n\nThe blog post explains how to create a hybrid search\
+    \ engine using Milvus 2.5 that can perform both semantic and full-text searches\
+    \ across project files. Below is a structured summary and a corresponding class\
+    \ implementation in Python for managing the hybrid search engine.\n\n#### 1. Introduction\n\
+    - Discusses the hybrid search capabilities of Milvus 2.5.\n- Highlights the new\
+    \ features: Function and FunctionType.\n\n#### 2. Constructing the Data Schema\
+    \ and Search Indices\n- **Database Setup**: Connect to Milvus Standalone and create\
+    \ a schema.\n- **Schema Design**: \n  - Integer primary key.\n  - Text string\
+    \ with analyzer for full-text search.\n  - Dense and sparse vectors for semantic\
+    \ embeddings.\n- **Function Usage**: Defines sparse vectors as a function of text\
+    \ using BM25 for text similarity.\n- **Indexing**: \n  - Dense vectors indexed\
+    \ with cosine similarity.\n  - Sparse vectors indexed with SPARSE_INVERTED_INDEX\
+    \ for BM25.\n\n#### 3. Inserting Data\n- Example data inserted with embeddings\
+    \ generated using the default model.\n\n#### 4. Performing Full-Text Search\n\
+    - Full-text search is demonstrated with the collection, using drop ratio for search\
+    \ efficiency.\n\n#### 5. Conducting Hybrid Semantic and Full-Text Search\n- Explanation\
+    \ of combining semantic vector search with BM25 full-text search using RRF Ranker.\n\
+    \n---\n\n### Class Implementation: `HybridSearchEngine`\n\n```python\nfrom pymilvus\
+    \ import MilvusClient, DataType, Function, FunctionType, model, AnnSearchRequest,\
+    \ RRFRanker\n\nclass HybridSearchEngine:\n    def __init__(self, collection_name):\n\
+    \        self.collection_name = collection_name\n        self.client = MilvusClient(uri=\"\
+    http://localhost:19530\")\n        self.embedding_fn = model.DefaultEmbeddingFunction()\n\
+    \        self._setup_schema_and_indices()\n\n    def _setup_schema_and_indices(self):\n\
+    \        # Create schema and add fields\n        schema = self.client.create_schema()\n\
+    \        schema.add_field(field_name=\"id\", datatype=DataType.INT64, is_primary=True,\
+    \ auto_id=True)\n        schema.add_field(field_name=\"text\", datatype=DataType.VARCHAR,\
+    \ max_length=1000, enable_analyzer=True)\n        schema.add_field(field_name=\"\
+    dense\", datatype=DataType.FLOAT_VECTOR, dim=768)\n        schema.add_field(field_name=\"\
+    sparse\", datatype=DataType.SPARSE_FLOAT_VECTOR)\n        \n        # Define function\
+    \ for sparse vectors\n        bm25_function = Function(\n            name=\"text_bm25_emb\"\
+    ,\n            input_field_names=[\"text\"],\n            output_field_names=[\"\
+    sparse\"],\n            function_type=FunctionType.BM25,\n        )\n        schema.add_function(bm25_function)\n\
+    \        \n        # Prepare index parameters\n        index_params = self.client.prepare_index_params()\n\
+    \        index_params.add_index(field_name=\"dense\", index_type=\"AUTOINDEX\"\
+    , metric_type=\"COSINE\")\n        index_params.add_index(field_name=\"sparse\"\
+    , index_type=\"SPARSE_INVERTED_INDEX\", metric_type=\"BM25\")\n        \n    \
+    \    # Create collection\n        self.client.drop_collection(self.collection_name)\n\
+    \        self.client.create_collection(collection_name=self.collection_name, schema=schema,\
+    \ index_params=index_params)\n\n    def index_documents(self, documents):\n  \
+    \      if not isinstance(documents, list):\n            documents = [documents]\n\
+    \        \n        embeddings = self.embedding_fn([doc['content'] for doc in documents])\n\
+    \        indexed_data = [{'text': doc['content'], 'dense': vec} for doc, vec in\
+    \ zip(documents, embeddings)]\n        \n        return self.client.insert(self.collection_name,\
+    \ indexed_data)\n\n    def search(self, query, limit=3):\n        query_dense_vector\
+    \ = self.embedding_fn([query])\n        \n        # Prepare dense vector search\n\
+    \        search_param_1 = {\n            \"data\": query_dense_vector,\n     \
+    \       \"anns_field\": \"dense\",\n            \"param\": {\"metric_type\": \"\
+    COSINE\"},\n            \"limit\": limit\n        }\n        request_1 = AnnSearchRequest(**search_param_1)\n\
+    \        \n        # Prepare sparse vector search (BM25)\n        search_param_2\
+    \ = {\n            \"data\": [query],\n            \"anns_field\": \"sparse\"\
+    ,\n            \"param\": {\"metric_type\": \"BM25\", \"params\": {\"drop_ratio_build\"\
+    : 0.0}},\n            \"limit\": limit\n        }\n        request_2 = AnnSearchRequest(**search_param_2)\n\
+    \        \n        reqs = [request_1, request_2]\n        ranker = RRFRanker()\n\
+    \        \n        # Perform hybrid search\n        res = self.client.hybrid_search(\n\
+    \            collection_name=self.collection_name,\n            output_fields=['text'],\n\
+    \            reqs=reqs,\n            ranker=ranker,\n            limit=limit\n\
+    \        )\n        \n        return [{'id': hit.id, 'distance': hit.distance,\
+    \ 'content': hit.entity['text']} for hit in res[0]]\n```\n\n### Explanation\n\n\
+    - **Class `HybridSearchEngine`**: Manages the hybrid search operations using Milvus.\n\
+    \  - **Initialization**: Creates a Milvus client and calls the setup function\
+    \ for schema and indices.\n  - **Method `_setup_schema_and_indices`**: Sets up\
+    \ the schema, functions, and indexing mechanism for the collection.\n  - **Method\
+    \ `index_documents`**: Embeds the documents and inserts them into the collection.\n\
+    \  - **Method `search`**: Performs hybrid search using semantic and full-text\
+    \ searches, returning ranked results based on combined criteria."
+  created_at: '2025-07-05 15:09:47.602508'
+  disable_knowledge: false
+  doc_id: dd7d163a-5995-454d-90d0-d860e398ed78
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00021147727966308594
+    model: gpt-4o
+    time_taken: 24.40639853477478
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-07-05 15:09:47.602545'
+  user: null
+mode: chat
+name: Hybrid knowledge search
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-07-21T19:36:14.299085'
+url: ''
+users:
+- admin
+visibility: ''

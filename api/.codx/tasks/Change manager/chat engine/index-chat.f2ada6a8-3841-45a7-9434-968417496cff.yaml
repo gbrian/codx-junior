@@ -1,0 +1,814 @@
+board: Change manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: chat engine
+column_id: ''
+created_at: '2025-08-27 06:27:11.428019'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Change manager/chat engine/index-chat.f2ada6a8-3841-45a7-9434-968417496cff.yaml
+id: f2ada6a8-3841-45a7-9434-968417496cff
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Original code:\n```py\_/shared/codx-junior/api/codx/junior/chat/chat_engine.py\n\
+    \nimport os\nimport time\nimport uuid\nimport logging\nimport json\n\n\nfrom typing\
+    \ import List, Tuple, Dict, Optional\n\n\nfrom contextlib import contextmanager\n\
+    \n\nfrom langchain.schema import (\n\_ \_ BaseMessage,\n\_ \_ AIMessage,\n\_ \_\
+    \ HumanMessage,\n)\n\n\nfrom codx.junior.profiling.profiler import profile_function\n\
+    \n\nfrom codx.junior.model.model import (\n\_ \_ Document,\n\_ \_ Profile\n)\n\
+    from codx.junior.ai import AI\nfrom codx.junior.db import Chat, Message\nfrom\
+    \ codx.junior.context import (\n\_ \_ AICodeGerator, find_relevant_documents\n\
+    )\nfrom codx.junior.utils.utils import document_to_context\nfrom codx.junior.globals\
+    \ import (\n\_ AGENT_DONE_WORD,\n\_ find_project_by_id,\n\_ find_project_by_name\n\
+    )\n\n\nfrom codx.junior.utils.chat_utils import ChatUtils\n\n\nfrom codx.junior.chat_manager\
+    \ import ChatManager\nfrom codx.junior.profiles.profile_manager import ProfileManager\n\
+    \n\n\n\n# Set up logging\nlogger = logging.getLogger(__name__)\n\n\nclass ChatEngine:\n\
+    \_ \_ def __init__(self,\n\_ \_ \_ \_ \_ \_ \_ \_ settings,\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ event_manager):\n\_ \_ \_ \_ self.settings = settings\n\_ \_ \_ \_ self.event_manager\
+    \ = event_manager\n\n\n\_ \_ def get_profile_manager(self):\n\_ \_ \_ \_ return\
+    \ ProfileManager(settings=self.settings)\n\n\n\_ \_ def get_chat_manager(self):\n\
+    \_ \_ \_ \_ return ChatManager(settings=self.settings)\n\n\n\_ \_ @contextmanager\n\
+    \_ \_ def chat_action(self, chat: Chat, event: str):\n\_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"{event} starting\")\n\_ \_ \_ \_ logger.info(f\"Start chat {chat.name}\"\
+    )\n\_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ yield\n\_ \_ \_ \_ except Exception as\
+    \ ex:\n\_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat, message=f\"\
+    {event} error: {ex}\", event_type=\"error\")\n\_ \_ \_ \_ \_ \_ logger.exception(f\"\
+    Chat {chat.name} {event} error: {ex}\")\n\_ \_ \_ \_ finally:\n\_ \_ \_ \_ \_\
+    \ \_ self.event_manager.chat_event(chat=chat, message=f\"{event} done\")\n\_ \_\
+    \ \_ \_ \_ \_ logger.info(f\"Chat done {chat.name}\")\n\n\n\n\n\_ \_ @profile_function\n\
+    \_ \_ async def chat_with_project(self, chat: Chat, disable_knowledge: bool =\
+    \ False, callback=None, append_references: bool=True, chat_mode: str=None, iteration:\
+    \ int = 0):\n\_ \_ \_ \_ timing_info = {\n\_ \_ \_ \_ \_ \_ \"start_time\": time.time(),\n\
+    \_ \_ \_ \_ \_ \_ \"first_response\": None\n\_ \_ \_ \_ }\n\n\n\_ \_ \_ \_ # Invoke\
+    \ project based on project_id\n\_ \_ \_ \_ self = self.switch_project(chat.project_id)\n\
+    \n\n\_ \_ \_ \_ with self.chat_action(chat=chat, event=f\"Processing AI request\
+    \ {chat.name}\"):\n\_ \_ \_ \_ \_ \_ chat_mode = chat_mode or chat.mode or \"\
+    chat\"\n\_ \_ \_ \_ \_ \_ documents = []\n\_ \_ \_ \_ \_ \_ task_item = \"\"\n\
+    \n\n\_ \_ \_ \_ \_ \_ parent_chat = None\n\_ \_ \_ \_ \_ \_ if chat.parent_id:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ chat_manager = self.get_chat_manager()\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ parent_chat = chat_manager.find_by_id(chat.parent_id)\n\n\n\n\n\_ \_\
+    \ \_ \_ \_ \_ max_iterations = self.settings.get_agent_max_iterations()\n\_ \_\
+    \ \_ \_ \_ \_ iterations_left = max_iterations - iteration\n\n\n\_ \_ \_ \_ \_\
+    \ \_ def new_chat_message(role, content = \"\"):\n\_ \_ \_ \_ \_ \_ \_ \_ return\
+    \ Message(role=role,\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ content=content,\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ doc_id=str(uuid.uuid4()))\n\n\n\
+    \_ \_ \_ \_ \_ \_ response_message = new_chat_message(\"assistant\")\n\_ \_ \_\
+    \ \_ \_ \_ def send_message_event(content, done):\n\_ \_ \_ \_ \_ \_ \_ \_ if\
+    \ not response_message.is_thinking:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ response_message.is_thinking\
+    \ = True if \"<think>\" in content else None\n\_ \_ \_ \_ \_ \_ \_ \_ elif response_message.is_thinking\
+    \ and \\\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"</think>\" in content:\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ response_message.is_thinking = False\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ content = content.replace(\"<think>\", \"\
+    \").replace(\"</think>\", \"\")\n\n\n\_ \_ \_ \_ \_ \_ \_ \_ if not timing_info.get(\"\
+    first_response\"):\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ timing_info[\"first_response\"\
+    ] = time.time() - timing_info[\"start_time\"]\n\n\n\_ \_ \_ \_ \_ \_ \_ \_ if\
+    \ response_message.is_thinking:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ response_message.think\
+    \ = content\n\_ \_ \_ \_ \_ \_ \_ \_ else:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ response_message.content\
+    \ = content\n\_ \_ \_ \_ \_ \_ \_ \_ sources =\_ []\n\_ \_ \_ \_ \_ \_ \_ \_ if\
+    \ documents:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ sources = list(set([doc.metadata[\"\
+    source\"].replace(self.settings.project_path, \"\") for doc in documents]))\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ response_message.files = sources\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ response_message.task_item = task_item\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.done\
+    \ = done\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.message_event(chat=chat,\
+    \ message=response_message)\n\n\n\_ \_ \_ \_ \_ \_ send_message_event(\"\", False)\n\
+    \n\n\_ \_ \_ \_ \_ \_ valid_messages = [message for message in chat.messages if\
+    \ not message.hide and not message.improvement]\n\_ \_ \_ \_ \_ \_ ai_messages\
+    \ = [message for message in valid_messages if message.role == \"assistant\"]\n\
+    \_ \_ \_ \_ \_ \_ last_ai_message = ai_messages[-1] if ai_messages else None\n\
+    \_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ user_message = valid_messages[-1]\
+    \ if valid_messages else HumanMessage(content=\"\")\n\_ \_ \_ \_ \_ \_ query =\
+    \ user_message.content\n\n\n\_ \_ \_ \_ \_ \_ query_mentions = self.get_query_mentions(query=query)\n\
+    \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ def load_profiles():\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ profile_manager = self.get_profile_manager()\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ query_profiles = query_mentions[\"profiles\"]\n\_ \_ \_ \_ \_ \_ \_ \_ chat_profiles\
+    \ = [profile_manager.read_profile(profile_name) \\\n\_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ for profile_name \\\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ in chat.profiles + (user_message.profiles or [])]\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ all_profiles = [p for p in chat_profiles + query_profiles\
+    \ if p]\n\_ \_ \_ \_ \_ \_ \_ \_ all_profiles = profile_manager.get_profiles_and_parents(all_profiles)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ profile_names = [p.name for p in all_profiles]\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ logger.info(f\"Loading profiles: {profile_names}\")\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ return all_profiles\n\n\n\_ \_ \_ \_ \_ \_ is_refine = chat_mode\
+    \ == \"task\"\n\_ \_ \_ \_ \_ \_ is_agent = chat_mode\_ == \"agent\"\n\_ \_ \_\
+    \ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ chat_profiles = load_profiles()\n\_ \_ \_ \_ \_\
+    \ \_\_\n\_ \_ \_ \_ \_ \_ chat_profiles_content = \"\"\n\_ \_ \_ \_ \_ \_ chat_profile_names\
+    \ = []\n\_ \_ \_ \_ \_ \_ chat_model = chat.llm_model\n\_ \_ \_ \_ \_ \_ profiles_with_knowledge\
+    \ = []\n\_ \_ \_ \_ \_ \_ messages = []\n\n\n\_ \_ \_ \_ \_ \_ parent_content\
+    \ = self.get_chat_analysis_parents(chat=chat)\n\_ \_ \_ \_ \_ \_ if parent_content:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ messages.append(HumanMessage(content=parent_content))\n\
+    \n\n\n\n\_ \_ \_ \_ \_ \_ # Find projects for this\n\_ \_ \_ \_ \_ \_ query_mention_projects\
+    \ = [p for p in query_mentions[\"projects\"] if p and hasattr(p, \"codx_path\"\
+    )]\n\_ \_ \_ \_ \_ \_ search_projects = ({\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ settings.codx_path:\
+    \ settings for settings in query_mention_projects\n\_ \_ \_ \_ \_ \_ \_ \_ }).values()\n\
+    \n\n\n\n\_ \_ \_ \_ \_ \_ if chat_profiles:\n\_ \_ \_ \_ \_ \_ \_ \_ valid_profiles\
+    \ = [profile for profile in chat_profiles if profile]\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ chat_profiles_content = chat_profiles_content + \"\\n\".join([profile.content\
+    \ for profile in valid_profiles])\n\_ \_ \_ \_ \_ \_ \_ \_ chat_profile_names\
+    \ = [profile.name for profile in valid_profiles]\n\_ \_ \_ \_ \_ \_ \_ \_ if not\
+    \ chat_model:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ chat_models = list(set([profile.llm_model\
+    \ for profile in valid_profiles if profile.llm_model]))\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ chat_model = chat_models[0] if chat_models else None\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ if valid_profiles[0].chat_mode:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ chat_mode\
+    \ = valid_profiles[0].chat_mode\n\_ \_ \_ \_ \_ \_ \_ \_ # None profile uses knowledge,\
+    \ disable knowledge\n\_ \_ \_ \_ \_ \_ \_ \_ if not disable_knowledge:\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ profiles_with_knowledge = [p for p in valid_profiles\
+    \ if p.use_knowledge]\n\_ \_ \_ \_ \_ \_ \_ \_ if next((p for p in valid_profiles\
+    \ if p.chat_mode == 'task'), None):\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ is_refine =\
+    \ True\n\n\n\_ \_ \_ \_ \_ \_ if not search_projects:\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ disable_knowledge = True\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=\"Knowledge search is disabled: No search projects found\")\n\_ \_ \_\
+    \ \_ \_ \_ if disable_knowledge:\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=\"Knowledge search is disabled: Disabled by invocation\")\n\_ \_ \_\
+    \ \_ \_ \_ if not self.settings.use_knowledge:\n\_ \_ \_ \_ \_ \_ \_ \_ disable_knowledge\
+    \ = True\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat, message=\"\
+    Knowledge search is disabled: Project settings disabled\")\n\_ \_ \_ \_ \_ \_\
+    \ if user_message.disable_knowledge:\n\_ \_ \_ \_ \_ \_ \_ \_ disable_knowledge\
+    \ = True\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat, message=\"\
+    Knowledge search is disabled: Disabled by user message\")\n\_ \_\_\n\_ \_ \_ \_\
+    \ \_ \_ if is_refine:\n\_ \_ \_ \_ \_ \_ \_ \_ task_item = \"analysis\"\n\_ \_\
+    \ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ logger.info(f\"chat_with_project {chat.name} settings\
+    \ ready\")\n\_ \_ \_ \_ \_ \_ for message in chat.messages[0:-1]:\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ if message.hide or message.improvement:\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ continue\n\_ \_ \_ \_ \_ \_ \_ \_ msg = self.convert_message(message)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ messages.append(msg)\n\n\n\_ \_ \_ \_ \_ \_ context =\
+    \ \"\"\n\_ \_ \_ \_ \_ \_ documents = []\n\_ \_ \_ \_ \_ \_ chat_files = chat.file_list\
+    \ or []\n\_ \_ \_ \_ \_ \_ if parent_chat and parent_chat.file_list:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ chat_files = chat_files + parent_chat.file_list\n\n\n\_ \_ \_\
+    \ \_ \_ \_ ignore_documents = chat_files.copy()\n\_ \_ \_ \_ \_ \_ if chat.name:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ ignore_documents.append(f\"/{chat.name}\")\n\n\n\_ \_\
+    \ \_ \_ \_ \_ if chat_profile_names:\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"Chat profiles: {chat_profile_names}\")\n\n\n\_ \_ \_ \_ \_ \_ for\
+    \ chat_file in chat_files:\n\_ \_ \_ \_ \_ \_ \_ \_ chat_file_full_path = chat_file\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ if self.settings.project_path not in chat_file_full_path:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ if chat_file[0] == '/':\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ chat_file = chat_file[1:]\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ chat_file_full_path\
+    \ = f\"{self.settings.project_path}/{chat_file}\"\n\_ \_ \_ \_ \_ \_ \_ \_ try:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ with open(chat_file_full_path, 'r') as f:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ doc_context = document_to_context(\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ Document(page_content=f.read(), metadata={ \"source\": chat_file\
+    \ })\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ )\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ messages.append(HumanMessage(content=f\"\
+    \"\"\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ {doc_context}\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"\"\"))\n\_ \_ \_ \_ \_ \_ \_ \_ except Exception\
+    \ as ex:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ logger.error(f\"Error adding context file\
+    \ to chat {ex}\")\n\n\n\_ \_ \_ \_ \_ \_ # Prepare AI\n\_ \_ \_ \_ \_ \_ ai_settings\
+    \ = self.settings.get_llm_settings()\n\_ \_ \_ \_ \_ \_ if chat_model:\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ ai_settings.model = chat_model\n\_ \_ \_ \_ \_ \_ ai = self.get_ai(llm_model=ai_settings.model)\n\
+    \n\n\_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ if not disable_knowledge and search_projects:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ chat.messages.append(new_chat_message(\"assistant\", content=f\"\
+    Searching in {[p.project_name for p in search_projects]}\"))\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ logger.info(f\"chat_with_project start project search {search_projects}\"\
+    )\n\_ \_ \_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ doc_length = 0\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ if query:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ query_context\
+    \ = \"\\n\".join([message.content for message in messages])\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ search_query = self.create_knowledge_search_query(query=f\"\
+    {query_context}\\n{query}\")\n\_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ self.event_manager.chat_event(chat=chat, message=f\"Knowledge searching\
+    \ for: {search_query}\")\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ documents, file_list = self.select_afefcted_documents_from_knowledge(ai=ai,\
+    \ chat=chat, query=search_query, ignore_documents=ignore_documents, search_projects=search_projects)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ for doc in documents:\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ doc_context = document_to_context(doc)\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ context += f\"{doc_context}\\n\"\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ response_message.files\
+    \ = file_list\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ doc_length = len(documents)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat, message=f\"\
+    Knowledge search found {doc_length} relevant documents\")\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ except Exception as ex:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"!!Error searching in knowledge {ex}\", event_type=\"error\")\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ logger.exception(f\"!!Error searching in knowledge\
+    \ {ex}\")\n\_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ if context:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ messages.append(self.convert_message(\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ new_chat_message(role=\"user\", content=f\"\"\"<project_files>{context}</project_files>\"\
+    \"\")))\n\n\n\_ \_ \_ \_ \_ \_ if is_refine:\n\_ \_ \_ \_ \_ \_ \_ \_ existing_document\
+    \ = last_ai_message.content if last_ai_message else \"\"\_\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ refine_request = user_message.content\n\_ \_ \_ \_ \_ \_ \_ \_ parent_task\
+    \ = self.get_chat_analysis_parents(chat=chat)\n\_ \_ \_ \_ \_ \_ \_ \_ task_content\
+    \ = user_message.content\n\n\n\_ \_ \_ \_ \_ \_ \_ \_ if parent_task:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ task_content = f\"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ You\
+    \ are writting a child document.\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ This information\
+    \ comes from the parent document for your information:\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ <parent_document>\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ {parent_task}\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ </parent_document>\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"\
+    \"\"\n\_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ if existing_document:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ task_content += f\"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ Update the document with user comments:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ <document>\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ {existing_document}\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ </document>\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ User comments:\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ {user_message.content}\n\_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_ else:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ task_content\
+    \ += f\"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ Create new document based on user\
+    \ comments.\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ User comments:\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ {user_message.content}\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"\"\"\n\n\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ task_content += \"Important: Always return the mardown\
+    \ document without any comments before or after, to keep it clean.\"\n\n\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ refine_message = new_chat_message(role=\"user\", content=task_content)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ messages.append(self.convert_message(refine_message))\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ refine_message.hide = True\n\_ \_ \_ \_ \_ \_ \_ \_ chat.messages.append(refine_message)\n\
+    \n\n\_ \_ \_ \_ \_ \_ elif is_agent:\n\_ \_ \_ \_ \_ \_ \_ \_ refine_message =\
+    \ new_chat_message(role=\"user\", content=f\"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_ You\
+    \ are responsible to end this task.\n\_ \_ \_ \_ \_ \_ \_ \_ Follow instructions\
+    \ and try to solve it with the minimun iterations needed.\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ <task>\n\_ \_ \_ \_ \_ \_ \_ \_ { chat.name }\n\_ \_ \_ \_ \_ \_ \_ \_ </task>\n\
+    \n\n\_ \_ \_ \_ \_ \_ \_ \_ <parent_context>\n\_ \_ \_ \_ \_ \_ \_ \_ {self.get_chat_analysis_parents(chat=chat)}\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ </parent_context>\n\n\n\_ \_ \_ \_ \_ \_ \_ \_ <user_request>\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ {user_message.content}\n\_ \_ \_ \_ \_ \_ \_ \_ </user_request>\n\
+    \_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ You still have { iterations_left\
+    \ } attemps more to finish the task.\_\n\_ \_ \_ \_ \_ \_ \_ \_ Return { AGENT_DONE_WORD\
+    \ } when the task is done.\n\_ \_ \_ \_ \_ \_ \_ \_ \"\"\")\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ messages.append(self.convert_message(refine_message))\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ history_agent_instructions = self.convert_message(refine_message)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ history_agent_instructions.hide = True\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ chat.messages.append(history_agent_instructions)\n\_ \_ \_ \_ \_ \_\
+    \ else:\n\_ \_ \_ \_ \_ \_ \_ \_ messages.append(self.convert_message(user_message))\n\
+    \n\n\_ \_ \_ \_ \_ \_ if chat_profiles_content:\n\_ \_ \_ \_ \_ \_ \_ \_ messages[-1].content\
+    \ += f\"\\nInstructions:\\n{chat_profiles_content}\"\n\_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"Chatting with {ai_settings.model}\")\n\n\n\_ \_ \_ \_ \_ \_ if not\
+    \ callback:\n\_ \_ \_ \_ \_ \_ \_ \_ callback = lambda content: send_message_event(content=content,\
+    \ done=False)\n\_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ messages = ai.chat(messages,\
+    \ callback=callback)\n\_ \_ \_ \_ \_ \_ \_ \_ message_parts = messages[-1].content.replace(\"\
+    <think>\", \"\").split(\"</think>\")\n\_ \_ \_ \_ \_ \_ \_ \_ is_thinking = len(message_parts)\
+    \ == 2\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.think = message_parts[0] if is_thinking\
+    \ else None\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.content = message_parts[-1]\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ response_message.is_thinking = False\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ send_message_event(content=response_message.content, done=True)\n\_ \_\
+    \ \_ \_ \_ \_ except Exception as ex:\n\_ \_ \_ \_ \_ \_ \_ \_ logger.exception(f\"\
+    Error chating with project: {ex} {chat.id}\")\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.content\
+    \ = f\"Ops, sorry! There was an error with latest request: {ex}\"\n\n\n\_ \_ \_\
+    \ \_ \_ \_ response_message.meta_data[\"time_taken\"] = time.time() - timing_info[\"\
+    start_time\"]\n\_ \_ \_ \_ \_ \_ response_message.meta_data[\"first_chunk_time_taken\"\
+    ] = timing_info[\"first_response\"]\n\_ \_ \_ \_ \_ \_ response_message.meta_data[\"\
+    model\"] = ai_settings.model\n\_ \_ \_ \_ \_ \_ response_message.profiles = chat_profile_names\n\
+    \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ chat.messages.append(response_message)\n\
+    \n\n\_ \_ \_ \_ \_ \_ # Chat description\n\_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ description_message = ai.chat(messages=messages.copy(),\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ prompt=\"Create\
+    \ a 5 lines summary of the conversation\")[-1]\n\_ \_ \_ \_ \_ \_ \_ \_ chat.description\
+    \ = description_message.content\n\_ \_ \_ \_ \_ \_ except Exception as ex:\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ logger.exception(f\"Error chating with project: {ex} {chat.id}\"\
+    )\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.content = f\"Ops, sorry! There was\
+    \ an error with latest request: {ex}\"\n\n\n\_ \_ \_ \_ \_ \_ if chat_mode ==\
+    \ 'task':\n\_ \_ \_ \_ \_ \_ \_ \_ for message in chat.messages[:-1]:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ message.hide = True\n\n\n\_ \_ \_ \_ \_ \_ is_agent_done\
+    \ = AGENT_DONE_WORD in response_message.content\n\_ \_ \_ \_ \_ \_ if is_agent\
+    \ and not is_agent_done and iterations_left:\n\_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"Agent iteration {iteration + 1}\")\n\_ \_ \_ \_ \_ \_ \_ return self.chat_with_project(chat=chat,\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ disable_knowledge=disable_knowledge,\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ callback=callback,\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ append_references=append_references,\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ chat_mode=chat_mode,\n\_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ iteration=iteration + 1)\n\_ \_ \_ \_ \_ \_ else:\_ \_\_\n\_ \_ \_ \_ \_\
+    \ \_ \_ self.event_manager.chat_event(chat=chat, message=\"done\")\n\_ \_ \_ \_\
+    \ \_ \_ return chat, documents\n\n\n\_ \_ def switch_project(self, project_id:\
+    \ str) -> 'ChatEngine':\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Switch to another project\
+    \ based on the provided project ID.\n\n\n\_ \_ \_ \_ :param project_id: The ID\
+    \ of the project to switch to.\n\_ \_ \_ \_ :return: The ChatEngine instance after\
+    \ switching the project.\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ if not project_id or\
+    \ project_id == self.settings.project_id:\n\_ \_ \_ \_ \_ \_ logger.debug(f\"\
+    Already in project {project_id}\")\n\_ \_ \_ \_ \_ \_ return self\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ settings = find_project_by_id(project_id=project_id)\n\_ \_ \_\
+    \ \_ if settings:\n\_ \_ \_ \_ \_ \_ self.settings = settings\n\_ \_ \_ \_ \_\
+    \ \_ logger.info(f\"Switched to project ID {project_id}\")\n\_ \_ \_ \_ else:\n\
+    \_ \_ \_ \_ \_ \_ logger.warning(f\"No settings found for project ID {project_id}\"\
+    )\n\n\n\_ \_ \_ \_ return self\n\n\n\_ \_ def get_ai(self, llm_model: Optional[str]\
+    \ = None) -> AI:\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Get an AI instance configured\
+    \ for a specific model.\n\n\n\_ \_ \_ \_ :param llm_model: The name of the large\
+    \ language model.\n\_ \_ \_ \_ :return: An AI instance.\n\_ \_ \_ \_ \"\"\"\n\_\
+    \ \_ \_ \_ ai_instance = AI(settings=self.settings, llm_model=llm_model)\n\_ \_\
+    \ \_ \_ logger.debug(f\"AI instance created with model {llm_model}\")\n\_ \_ \_\
+    \ \_ return ai_instance\n\n\n\_ \_ def get_ai_code_generator_changes(self, response:\
+    \ str) -> AICodeGerator:\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Process the response\
+    \ string to generate AI code generator changes.\n\n\n\_ \_ \_ \_ :param response:\
+    \ The string output from the AI model.\n\_ \_ \_ \_ :return: An instance of AICodeGerator\
+    \ containing the parsed changes.\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ code_generator\
+    \ = AICodeGerator.from_response(response)\n\_ \_ \_ \_ for change in code_generator.code_changes:\n\
+    \_ \_ \_ \_ \_ \_ file_path = change.file_path\n\_ \_ \_ \_ \_ \_ if not file_path.startswith(self.settings.project_path):\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ change.file_path = os.path.join(self.settings.project_path,\
+    \ file_path)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ logger.info(f\"Code generator changes\
+    \ retrieved from response\")\n\_ \_ \_ \_ return code_generator\n\n\n\_ \_ def\
+    \ select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str,\
+    \ ignore_documents: List[str] = [], search_projects: List = []) -> Tuple[List[Document],\
+    \ List[str]]:\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Select documents from knowledge\
+    \ base that are affected by a given query.\n\n\n\_ \_ \_ \_ :param chat: Current\
+    \ chat object.\n\_ \_ \_ \_ :param ai: AI instance for processing.\n\_ \_ \_ \_\
+    \ :param query: Search query for selecting documents.\n\_ \_ \_ \_ :param ignore_documents:\
+    \ List of documents to ignore during search.\n\_ \_ \_ \_ :param search_projects:\
+    \ Projects to search within.\n\_ \_ \_ \_ :return: Tuple of a list of documents\
+    \ and a list of file paths.\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ def process_rag_query(rag_query:\
+    \ str) -> Tuple[List[Document], List[str]]:\n\_ \_ \_ \_ \_ \_ docs = []\n\_ \_\
+    \ \_ \_ \_ \_ file_list = []\n\_ \_ \_ \_ \_ \_ logger.debug(f\"Searching projects\
+    \ for query: {rag_query}\")\n\_ \_ \_ \_ \_ \_ for search_project in search_projects:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ if chat:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"Searching knowledge in {search_project.project_name}\")\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ project_docs, project_file_list = find_relevant_documents(query=rag_query,\
+    \ settings=search_project, ignore_documents=ignore_documents)\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ project_file_list = [os.path.join(search_project.project_path, file_path)\
+    \ for file_path in project_file_list]\n\_ \_ \_ \_ \_ \_ \_ \_ docs.extend(project_docs)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ file_list.extend(project_file_list)\n\_ \_ \_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ \_ \_ logger.info(f\"Documents selected from knowledge: {len(docs)}\"\
+    )\n\_ \_ \_ \_ \_ \_ return docs, file_list\n\n\n\_ \_ \_ \_ logger.debug(f\"\
+    Starting document selection with query: {query}\")\n\_ \_ \_ \_ return process_rag_query(query)\n\
+    \n\n\_ \_ def create_knowledge_search_query(self, query: str) -> str:\n\_ \_ \_\
+    \ \_ \"\"\"\n\_ \_ \_ \_ Create a search query string from the input for knowledge\
+    \ base searching.\n\n\n\_ \_ \_ \_ :param query: The initial user query.\n\_ \_\
+    \ \_ \_ :return: A processed query string suitable for knowledge base search.\n\
+    \_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ ai = self.get_ai()\n\_ \_ \_ \_ enhanced_query\
+    \ = ai.chat(prompt=f\"\"\"\n\_ \_ \_ \_ <text>\n\_ \_ \_ \_ {query}\n\_ \_ \_\
+    \ \_ </text>\n\n\n\_ \_ \_ \_ Extract keywords from the text to help searching\
+    \ in the knowledge base.\n\_ \_ \_ \_ Return just the search string without further\
+    \ decoration or comments.\n\_ \_ \_ \_ \"\"\")[-1].content.strip()\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ logger.debug(f\"Knowledge search query created: {enhanced_query}\"\
+    )\n\_ \_ \_ \_ return enhanced_query\n\n\n\_ \_ def get_query_mentions(self, query:\
+    \ str) -> Dict[str, List[Profile]]:\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Extract mentions\
+    \ of profiles and projects from the given query.\n\n\n\_ \_ \_ \_ :param query:\
+    \ The user's query string.\n\_ \_ \_ \_ :return: A dictionary containing lists\
+    \ of mentioned profiles and projects.\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ chat_utils\
+    \ = ChatUtils(profile_manager=self.get_profile_manager())\n\_ \_ \_ \_ query_mentions\
+    \ = chat_utils.get_query_mentions(query=query)\n\_ \_ \_ \_ logger.debug(f\"Query\
+    \ mentions extracted: {query_mentions}\")\n\_ \_ \_ \_ return query_mentions\n\
+    \n\n\_ \_ def get_chat_analysis_parents(self, chat: Chat):\n\_ \_ \_ \_ \"\"\"\
+    Given a chat, traverse all parents and return all analysis\"\"\"\n\_ \_ \_ \_\
+    \ parent_content = []\n\_ \_ \_ \_ chat_manager = self.get_chat_manager()\n\_\
+    \ \_ \_ \_ parent_chat = chat_manager.find_by_id(chat.parent_id)\n\_ \_ \_ \_\
+    \ while parent_chat:\n\_ \_ \_ \_ \_ \_ messages = [message.content for message\
+    \ in parent_chat.messages if not message.hide]\n\_ \_ \_ \_ \_ \_ if messages:\n\
+    \_ \_ \_ \_ \_ \_ \_ parent_content.append(\"\\n\".join(messages))\n\_ \_ \_ \_\
+    \ \_ \_ parent_chat = chat_manager.find_by_id(parent_chat.parent_id)\n\_ \_ \_\
+    \ \_ return \"\\n\".join(parent_content)\n\_ \_\_\n\_ \_ def convert_message(self,\
+    \ message):\n\_ \_ \_ \_ msg = None\n\_ \_ \_ \_ def parse_image(image):\n\_ \_\
+    \ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ return json.loads(image)\n\_ \_ \_\
+    \ \_ \_ \_ except:\n\_ \_ \_ \_ \_ \_ \_ \_ return {\"src\": image, \"alt\": \"\
+    \"}\n\_ \_ \_ \_ if message.images:\n\_ \_ \_ \_ \_ \_ images = [parse_image(image)\
+    \ for image in message.images]\n\_ \_ \_ \_ \_ \_ text_content = {\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ \"type\": \"text\",\n\_ \_ \_ \_ \_ \_ \_ \_ \"text\": message.content\n\
+    \_ \_ \_ \_ \_ \_ }\n\_ \_ \_ \_ \_ \_ content = [text_content] + [\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ {\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"type\": \"image_url\",\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"image_url\": {\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \"url\": image[\"src\"]\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ }\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ } for image in images]\n\n\n\_ \_ \_ \_ \_ \_ # self.log_info(f\"ImageMessage\
+    \ content: {content}\")\n\_ \_ \_ \_ \_ \_ msg = BaseMessage(type=\"image\", content=json.dumps(content))\n\
+    \_ \_ \_ \_ elif message.role == \"user\":\n\_ \_ \_ \_ \_ \_ msg = HumanMessage(content=message.content)\n\
+    \_ \_ \_ \_ else:\n\_ \_ \_ \_ \_ \_ msg = AIMessage(content=message.content)\n\
+    \_ \_\_\n\_ \_ \_ \_ return msg\n\_ \_ \_ \_\_\n\_ \_ def get_all_search_projects(self):\n\
+    \_ \_ \_ \_ project_child_projects, project_dependencies = self.get_project_dependencies()\n\
+    \_ \_ \_ \_ all_projects = [self.settings] + project_child_projects + project_dependencies\n\
+    \_ \_ \_ \_ return all_projects\n\n\n\_ \_ def get_project_dependencies(self):\n\
+    \_ \_ \_ \_ \"\"\"Returns all projects related with this project, including child\
+    \ projects and links\"\"\"\n\_ \_ \_ \_ project_child_projects = self.settings.get_sub_projects()\n\
+    \_ \_ \_ \_ project_dependencies = [find_project_by_name(project_name) for project_name\
+    \ in self.settings.get_project_dependencies()]\n\_ \_ \_ \_ return project_child_projects,\
+    \ project_dependencies\n\n\n\n\n```"
+  created_at: '2025-08-27 06:27:11.425932'
+  disable_knowledge: false
+  doc_id: 34e87c59-8611-491c-8d77-7753ff5a4101
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-27T06:31:39.374Z'
+  user: null
+- content: "Given the original code and the new code for ChatEngine we create a index_chat\
+    \ method that will convert the chat into a Document from langchain with all valid\
+    \ messages as page_content and metadata dict with:\_\n\_* \"source\": chat file_path\n\
+    \_* \"parser\": 'chat'\_\_\n\_* \"loader_type\": 'chat'\n\n\nAnd call \"knowledge.index_document\""
+  created_at: '2025-08-27 06:27:11.425932'
+  disable_knowledge: true
+  doc_id: 7795a493-9683-47e0-8008-66fd1cd64a6f
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - software_developer
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-27 06:27:11.425960'
+  user: admin
+- content: "To create the `index_chat` method in the `ChatEngine` class, which converts\
+    \ a given chat into a `Document` from `langchain`, I'll implement the method following\
+    \ your specifications. I'll ensure that all valid messages are included as `page_content`,\
+    \ and the metadata dictionary includes `\"source\"`, `\"parser\"`, and `\"loader_type\"\
+    `. I'll also assume there is a `knowledge.index_document()` function that needs\
+    \ to be called with this `Document`.\n\nHere's how the updated code will look:\n\
+    \n```py /shared/codx-junior/api/codx/junior/chat/chat_engine.py\nimport os\nimport\
+    \ time\nimport uuid\nimport logging\nimport json\n\n\nfrom typing import List,\
+    \ Tuple, Dict, Optional\n\n\nfrom contextlib import contextmanager\n\n\nfrom langchain.schema\
+    \ import (\n\_ \_ BaseMessage,\n\_ \_ AIMessage,\n\_ \_ HumanMessage,\n\_ \_ Document\
+    \  # Assuming Document is available here for use\n)\n\n\nfrom codx.junior.profiling.profiler\
+    \ import profile_function\n\n\nfrom codx.junior.model.model import (\n\_ \_ Profile\n\
+    )\nfrom codx.junior.ai import AI\nfrom codx.junior.db import Chat, Message\nfrom\
+    \ codx.junior.context import (\n\_ \_ AICodeGerator, find_relevant_documents\n\
+    )\nfrom codx.junior.utils.utils import document_to_context\nfrom codx.junior.globals\
+    \ import (\n\_ AGENT_DONE_WORD,\n\_ find_project_by_id,\n\_ find_project_by_name\n\
+    )\n\n\nfrom codx.junior.utils.chat_utils import ChatUtils\n\n\nfrom codx.junior.chat_manager\
+    \ import ChatManager\nfrom codx.junior.profiles.profile_manager import ProfileManager\n\
+    \n\n# Set up logging\nlogger = logging.getLogger(__name__)\n\n\nclass ChatEngine:\n\
+    \_ \_ def __init__(self,\n\_ \_ \_ \_ \_ \_ \_ \_ settings,\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ event_manager):\n\_ \_ \_ \_ self.settings = settings\n\_ \_ \_ \_ self.event_manager\
+    \ = event_manager\n\n\n\_ \_ def get_profile_manager(self):\n\_ \_ \_ \_ return\
+    \ ProfileManager(settings=self.settings)\n\n\n\_ \_ def get_chat_manager(self):\n\
+    \_ \_ \_ \_ return ChatManager(settings=self.settings)\n\n\n\_ \_ @contextmanager\n\
+    \_ \_ def chat_action(self, chat: Chat, event: str):\n\_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"{event} starting\")\n\_ \_ \_ \_ logger.info(f\"Start chat {chat.name}\"\
+    )\n\_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ yield\n\_ \_ \_ \_ except Exception as\
+    \ ex:\n\_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat, message=f\"\
+    {event} error: {ex}\", event_type=\"error\")\n\_ \_ \_ \_ \_ \_ logger.exception(f\"\
+    Chat {chat.name} {event} error: {ex}\")\n\_ \_ \_ \_ finally:\n\_ \_ \_ \_ \_\
+    \ \_ self.event_manager.chat_event(chat=chat, message=f\"{event} done\")\n\_ \_\
+    \ \_ \_ \_ \_ logger.info(f\"Chat done {chat.name}\")\n\n\n\_ \_ @profile_function\n\
+    \_ \_ async def chat_with_project(self, chat: Chat, disable_knowledge: bool =\
+    \ False, callback=None, append_references: bool=True, chat_mode: str=None, iteration:\
+    \ int = 0):\n\_ \_ \_ \_ timing_info = {\n\_ \_ \_ \_ \_ \_ \"start_time\": time.time(),\n\
+    \_ \_ \_ \_ \_ \_ \"first_response\": None\n\_ \_ \_ \_ }\n\n\_ \_ \_ \_ # Invoke\
+    \ project based on project_id\n\_ \_ \_ \_ self = self.switch_project(chat.project_id)\n\
+    \n\_ \_ \_ \_ with self.chat_action(chat=chat, event=f\"Processing AI request\
+    \ {chat.name}\"):\n\_ \_ \_ \_ \_ \_ chat_mode = chat_mode or chat.mode or \"\
+    chat\"\n\_ \_ \_ \_ \_ \_ documents = []\n\_ \_ \_ \_ \_ \_ task_item = \"\"\n\
+    \n\_ \_ \_ \_ \_ \_ parent_chat = None\n\_ \_ \_ \_ \_ \_ if chat.parent_id:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ chat_manager = self.get_chat_manager()\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ parent_chat = chat_manager.find_by_id(chat.parent_id)\n\n\_ \_ \_ \_\
+    \ \_ \_ max_iterations = self.settings.get_agent_max_iterations()\n\_ \_ \_ \_\
+    \ \_ \_ iterations_left = max_iterations - iteration\n\n\_ \_ \_ \_ \_ \_ def\
+    \ new_chat_message(role, content = \"\"):\n\_ \_ \_ \_ \_ \_ \_ \_ return Message(role=role,\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ content=content,\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ doc_id=str(uuid.uuid4()))\n\n\_ \_ \_ \_\
+    \ \_ \_ response_message = new_chat_message(\"assistant\")\n\_ \_ \_ \_ \_ \_\
+    \ def send_message_event(content, done):\n\_ \_ \_ \_ \_ \_ \_ \_ if not response_message.is_thinking:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ response_message.is_thinking = True if \"<think>\"\
+    \ in content else None\n\_ \_ \_ \_ \_ \_ \_ \_ elif response_message.is_thinking\
+    \ and \\\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"</think>\" in content:\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ response_message.is_thinking = False\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ content = content.replace(\"<think>\", \"\
+    \").replace(\"</think>\", \"\")\n\n\_ \_ \_ \_ \_ \_ \_ \_ if not timing_info.get(\"\
+    first_response\"):\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ timing_info[\"first_response\"\
+    ] = time.time() - timing_info[\"start_time\"]\n\n\_ \_ \_ \_ \_ \_ \_ \_ if response_message.is_thinking:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ response_message.think = content\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ else:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ response_message.content = content\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ sources =\_ []\n\_ \_ \_ \_ \_ \_ \_ \_ if documents:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ sources = list(set([doc.metadata[\"source\"].replace(self.settings.project_path,\
+    \ \"\") for doc in documents]))\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.files\
+    \ = sources\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.task_item = task_item\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ response_message.done = done\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.message_event(chat=chat,\
+    \ message=response_message)\n\n\_ \_ \_ \_ \_ \_ send_message_event(\"\", False)\n\
+    \n\_ \_ \_ \_ \_ \_ valid_messages = [message for message in chat.messages if\
+    \ not message.hide and not message.improvement]\n\_ \_ \_ \_ \_ \_ ai_messages\
+    \ = [message for message in valid_messages if message.role == \"assistant\"]\n\
+    \_ \_ \_ \_ \_ \_ last_ai_message = ai_messages[-1] if ai_messages else None\n\
+    \_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ user_message = valid_messages[-1]\
+    \ if valid_messages else HumanMessage(content=\"\")\n\_ \_ \_ \_ \_ \_ query =\
+    \ user_message.content\n\n\_ \_ \_ \_ \_ \_ query_mentions = self.get_query_mentions(query=query)\n\
+    \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ def load_profiles():\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ profile_manager = self.get_profile_manager()\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ query_profiles = query_mentions[\"profiles\"]\n\_ \_ \_ \_ \_ \_ \_ \_ chat_profiles\
+    \ = [profile_manager.read_profile(profile_name) \\\n\_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ for profile_name \\\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ in chat.profiles + (user_message.profiles or [])]\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ all_profiles = [p for p in chat_profiles + query_profiles\
+    \ if p]\n\_ \_ \_ \_ \_ \_ \_ \_ all_profiles = profile_manager.get_profiles_and_parents(all_profiles)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ profile_names = [p.name for p in all_profiles]\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ logger.info(f\"Loading profiles: {profile_names}\")\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ return all_profiles\n\n\_ \_ \_ \_ \_ \_ is_refine = chat_mode\
+    \ == \"task\"\n\_ \_ \_ \_ \_ \_ is_agent = chat_mode\_ == \"agent\"\n\_ \_ \_\
+    \ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ chat_profiles = load_profiles()\n\_ \_ \_ \_ \_\
+    \ \_\_\n\_ \_ \_ \_ \_ \_ chat_profiles_content = \"\"\n\_ \_ \_ \_ \_ \_ chat_profile_names\
+    \ = []\n\_ \_ \_ \_ \_ \_ chat_model = chat.llm_model\n\_ \_ \_ \_ \_ \_ profiles_with_knowledge\
+    \ = []\n\_ \_ \_ \_ \_ \_ messages = []\n\n\_ \_ \_ \_ \_ \_ parent_content =\
+    \ self.get_chat_analysis_parents(chat=chat)\n\_ \_ \_ \_ \_ \_ if parent_content:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ messages.append(HumanMessage(content=parent_content))\n\
+    \n\_ \_ \_ \_ \_ \_ # Find projects for this\n\_ \_ \_ \_ \_ \_ query_mention_projects\
+    \ = [p for p in query_mentions[\"projects\"] if p and hasattr(p, \"codx_path\"\
+    )]\n\_ \_ \_ \_ \_ \_ search_projects = ({\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ settings.codx_path:\
+    \ settings for settings in query_mention_projects\n\_ \_ \_ \_ \_ \_ \_ \_ }).values()\n\
+    \n\_ \_ \_ \_ \_ \_ if chat_profiles:\n\_ \_ \_ \_ \_ \_ \_ \_ valid_profiles\
+    \ = [profile for profile in chat_profiles if profile]\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ chat_profiles_content = chat_profiles_content + \"\\n\".join([profile.content\
+    \ for profile in valid_profiles])\n\_ \_ \_ \_ \_ \_ \_ \_ chat_profile_names\
+    \ = [profile.name for profile in valid_profiles]\n\_ \_ \_ \_ \_ \_ \_ \_ if not\
+    \ chat_model:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ chat_models = list(set([profile.llm_model\
+    \ for profile in valid_profiles if profile.llm_model]))\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ chat_model = chat_models[0] if chat_models else None\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ if valid_profiles[0].chat_mode:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ chat_mode\
+    \ = valid_profiles[0].chat_mode\n\_ \_ \_ \_ \_ \_ \_ \_ # None profile uses knowledge,\
+    \ disable knowledge\n\_ \_ \_ \_ \_ \_ \_ \_ if not disable_knowledge:\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ profiles_with_knowledge = [p for p in valid_profiles\
+    \ if p.use_knowledge]\n\_ \_ \_ \_ \_ \_ \_ \_ if next((p for p in valid_profiles\
+    \ if p.chat_mode == 'task'), None):\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ is_refine =\
+    \ True\n\n\_ \_ \_ \_ \_ \_ if not search_projects:\n\_ \_ \_ \_ \_ \_ \_ \_ disable_knowledge\
+    \ = True\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat, message=\"\
+    Knowledge search is disabled: No search projects found\")\n\_ \_ \_ \_ \_ \_ if\
+    \ disable_knowledge:\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=\"Knowledge search is disabled: Disabled by invocation\")\n\_ \_ \_\
+    \ \_ \_ \_ if not self.settings.use_knowledge:\n\_ \_ \_ \_ \_ \_ \_ \_ disable_knowledge\
+    \ = True\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat, message=\"\
+    Knowledge search is disabled: Project settings disabled\")\n\_ \_ \_ \_ \_ \_\
+    \ if user_message.disable_knowledge:\n\_ \_ \_ \_ \_ \_ \_ \_ disable_knowledge\
+    \ = True\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat, message=\"\
+    Knowledge search is disabled: Disabled by user message\")\n\_ \_\_\n\_ \_ \_ \_\
+    \ \_ \_ if is_refine:\n\_ \_ \_ \_ \_ \_ \_ \_ task_item = \"analysis\"\n\_ \_\
+    \ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ logger.info(f\"chat_with_project {chat.name} settings\
+    \ ready\")\n\_ \_ \_ \_ \_ \_ for message in chat.messages[0:-1]:\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ if message.hide or message.improvement:\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ continue\n\_ \_ \_ \_ \_ \_ \_ \_ msg = self.convert_message(message)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ messages.append(msg)\n\n\_ \_ \_ \_ \_ \_ context = \"\
+    \"\n\_ \_ \_ \_ \_ \_ documents = []\n\_ \_ \_ \_ \_ \_ chat_files = chat.file_list\
+    \ or []\n\_ \_ \_ \_ \_ \_ if parent_chat and parent_chat.file_list:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ chat_files = chat_files + parent_chat.file_list\n\n\_ \_ \_ \_\
+    \ \_ \_ ignore_documents = chat_files.copy()\n\_ \_ \_ \_ \_ \_ if chat.name:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ ignore_documents.append(f\"/{chat.name}\")\n\n\_ \_ \_\
+    \ \_ \_ \_ if chat_profile_names:\n\_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"Chat profiles: {chat_profile_names}\")\n\n\_ \_ \_ \_ \_ \_ for chat_file\
+    \ in chat_files:\n\_ \_ \_ \_ \_ \_ \_ \_ chat_file_full_path = chat_file\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ if self.settings.project_path not in chat_file_full_path:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ if chat_file[0] == '/':\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ chat_file = chat_file[1:]\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ chat_file_full_path\
+    \ = f\"{self.settings.project_path}/{chat_file}\"\n\_ \_ \_ \_ \_ \_ \_ \_ try:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ with open(chat_file_full_path, 'r') as f:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ doc_context = document_to_context(\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ Document(page_content=f.read(), metadata={ \"source\": chat_file\
+    \ })\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ )\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ messages.append(HumanMessage(content=f\"\
+    \"\"\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ {doc_context}\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"\"\"))\n\_ \_ \_ \_ \_ \_ \_ \_ except Exception\
+    \ as ex:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ logger.error(f\"Error adding context file\
+    \ to chat {ex}\")\n\n\_ \_ \_ \_ \_ \_ # Prepare AI\n\_ \_ \_ \_ \_ \_ ai_settings\
+    \ = self.settings.get_llm_settings()\n\_ \_ \_ \_ \_ \_ if chat_model:\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ ai_settings.model = chat_model\n\_ \_ \_ \_ \_ \_ ai = self.get_ai(llm_model=ai_settings.model)\n\
+    \n\_ \_ \_ \_ \_ \_ if not disable_knowledge and search_projects:\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ chat.messages.append(new_chat_message(\"assistant\", content=f\"\
+    Searching in {[p.project_name for p in search_projects]}\"))\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ logger.info(f\"chat_with_project start project search {search_projects}\"\
+    )\n\_ \_ \_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ doc_length = 0\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ if query:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ query_context\
+    \ = \"\\n\".join([message.content for message in messages])\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ search_query = self.create_knowledge_search_query(query=f\"\
+    {query_context}\\n{query}\")\n\_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ self.event_manager.chat_event(chat=chat, message=f\"Knowledge searching\
+    \ for: {search_query}\")\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ documents, file_list = self.select_afefcted_documents_from_knowledge(ai=ai,\
+    \ chat=chat, query=search_query, ignore_documents=ignore_documents, search_projects=search_projects)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ for doc in documents:\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ doc_context = document_to_context(doc)\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ context += f\"{doc_context}\\n\"\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ response_message.files\
+    \ = file_list\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ doc_length = len(documents)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat, message=f\"\
+    Knowledge search found {doc_length} relevant documents\")\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ except Exception as ex:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"!!Error searching in knowledge {ex}\", event_type=\"error\")\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ logger.exception(f\"!!Error searching in knowledge\
+    \ {ex}\")\n\_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ if context:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ messages.append(self.convert_message(\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ new_chat_message(role=\"user\", content=f\"\"\"<project_files>{context}</project_files>\"\
+    \"\")))\n\n\_ \_ \_ \_ \_ \_ if is_refine:\n\_ \_ \_ \_ \_ \_ \_ \_ existing_document\
+    \ = last_ai_message.content if last_ai_message else \"\"\_\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ refine_request = user_message.content\n\_ \_ \_ \_ \_ \_ \_ \_ parent_task\
+    \ = self.get_chat_analysis_parents(chat=chat)\n\_ \_ \_ \_ \_ \_ \_ \_ task_content\
+    \ = user_message.content\n\n\_ \_ \_ \_ \_ \_ \_ \_ if parent_task:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ task_content = f\"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ You\
+    \ are writting a child document.\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ This information\
+    \ comes from the parent document for your information:\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ <parent_document>\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ {parent_task}\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ </parent_document>\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"\
+    \"\"\n\_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ if existing_document:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ task_content += f\"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ Update the document with user comments:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ <document>\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ {existing_document}\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ </document>\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ User comments:\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ {user_message.content}\n\_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_ else:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ task_content\
+    \ += f\"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ Create new document based on user\
+    \ comments.\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ User comments:\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ \_ \_ {user_message.content}\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"\"\"\n\n\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ task_content += \"Important: Always return the mardown\
+    \ document without any comments before or after, to keep it clean.\"\n\n\n\_ \_\
+    \ \_ \_ \_ \_ \_ \_ refine_message = new_chat_message(role=\"user\", content=task_content)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ messages.append(self.convert_message(refine_message))\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ refine_message.hide = True\n\_ \_ \_ \_ \_ \_ \_ \_ chat.messages.append(refine_message)\n\
+    \n\n\_ \_ \_ \_ \_ \_ elif is_agent:\n\_ \_ \_ \_ \_ \_ \_ \_ refine_message =\
+    \ new_chat_message(role=\"user\", content=f\"\"\"\n\_ \_ \_ \_ \_ \_ \_ \_ You\
+    \ are responsible to end this task.\n\_ \_ \_ \_ \_ \_ \_ \_ Follow instructions\
+    \ and try to solve it with the minimun iterations needed.\n\_ \_ \_ \_ \_ \_ \_\
+    \ \_ <task>\n\_ \_ \_ \_ \_ \_ \_ \_ { chat.name }\n\_ \_ \_ \_ \_ \_ \_ \_ </task>\n\
+    \n\n\_ \_ \_ \_ \_ \_ \_ \_ <parent_context>\n\_ \_ \_ \_ \_ \_ \_ \_ {self.get_chat_analysis_parents(chat=chat)}\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ </parent_context>\n\n\n\_ \_ \_ \_ \_ \_ \_ \_ <user_request>\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ {user_message.content}\n\_ \_ \_ \_ \_ \_ \_ \_ </user_request>\n\
+    \_ \_ \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ \_ \_ You still have { iterations_left\
+    \ } attemps more to finish the task.\_\n\_ \_ \_ \_ \_ \_ \_ \_ Return { AGENT_DONE_WORD\
+    \ } when the task is done.\n\_ \_ \_ \_ \_ \_ \_ \_ \"\"\")\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ messages.append(self.convert_message(refine_message))\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ history_agent_instructions = self.convert_message(refine_message)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ history_agent_instructions.hide = True\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ chat.messages.append(history_agent_instructions)\n\_ \_ \_ \_ \_ \_\
+    \ else:\n\_ \_ \_ \_ \_ \_ \_ \_ messages.append(self.convert_message(user_message))\n\
+    \n\n\_ \_ \_ \_ \_ \_ if chat_profiles_content:\n\_ \_ \_ \_ \_ \_ \_ \_ messages[-1].content\
+    \ += f\"\\nInstructions:\\n{chat_profiles_content}\"\n\_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"Chatting with {ai_settings.model}\")\n\n\n\_ \_ \_ \_ \_ \_ if not\
+    \ callback:\n\_ \_ \_ \_ \_ \_ \_ \_ callback = lambda content: send_message_event(content=content,\
+    \ done=False)\n\_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ messages = ai.chat(messages,\
+    \ callback=callback)\n\_ \_ \_ \_ \_ \_ \_ \_ message_parts = messages[-1].content.replace(\"\
+    <think>\", \"\").split(\"</think>\")\n\_ \_ \_ \_ \_ \_ \_ \_ is_thinking = len(message_parts)\
+    \ == 2\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.think = message_parts[0] if is_thinking\
+    \ else None\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.content = message_parts[-1]\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ response_message.is_thinking = False\n\_ \_ \_ \_ \_ \_\
+    \ \_ \_ send_message_event(content=response_message.content, done=True)\n\_ \_\
+    \ \_ \_ \_ \_ except Exception as ex:\n\_ \_ \_ \_ \_ \_ \_ \_ logger.exception(f\"\
+    Error chating with project: {ex} {chat.id}\")\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.content\
+    \ = f\"Ops, sorry! There was an error with latest request: {ex}\"\n\n\n\_ \_ \_\
+    \ \_ \_ \_ response_message.meta_data[\"time_taken\"] = time.time() - timing_info[\"\
+    start_time\"]\n\_ \_ \_ \_ \_ \_ response_message.meta_data[\"first_chunk_time_taken\"\
+    ] = timing_info[\"first_response\"]\n\_ \_ \_ \_ \_ \_ response_message.meta_data[\"\
+    model\"] = ai_settings.model\n\_ \_ \_ \_ \_ \_ response_message.profiles = chat_profile_names\n\
+    \_ \_ \_ \_ \_ \_\_\n\_ \_ \_ \_ \_ \_ chat.messages.append(response_message)\n\
+    \n\n\_ \_ \_ \_ \_ \_ # Chat description\n\_ \_ \_ \_ \_ \_ try:\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ description_message = ai.chat(messages=messages.copy(),\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ prompt=\"Create\
+    \ a 5 lines summary of the conversation\")[-1]\n\_ \_ \_ \_ \_ \_ \_ \_ chat.description\
+    \ = description_message.content\n\_ \_ \_ \_ \_ \_ except Exception as ex:\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ logger.exception(f\"Error chating with project: {ex} {chat.id}\"\
+    )\n\_ \_ \_ \_ \_ \_ \_ \_ response_message.content = f\"Ops, sorry! There was\
+    \ an error with latest request: {ex}\"\n\n\n\_ \_ \_ \_ \_ \_ if chat_mode ==\
+    \ 'task':\n\_ \_ \_ \_ \_ \_ \_ \_ for message in chat.messages[:-1]:\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ \_ message.hide = True\n\n\n\_ \_ \_ \_ \_ \_ is_agent_done\
+    \ = AGENT_DONE_WORD in response_message.content\n\_ \_ \_ \_ \_ \_ if is_agent\
+    \ and not is_agent_done and iterations_left:\n\_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"Agent iteration {iteration + 1}\")\n\_ \_ \_ \_ \_ \_ \_ return self.chat_with_project(chat=chat,\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ disable_knowledge=disable_knowledge,\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ \_ \_ callback=callback,\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ append_references=append_references,\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ \_ \_ chat_mode=chat_mode,\n\_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ iteration=iteration + 1)\n\_ \_ \_ \_ \_ \_ else:\_ \_\_\n\_ \_ \_ \_ \_\
+    \ \_ \_ self.event_manager.chat_event(chat=chat, message=\"done\")\n\_ \_ \_ \_\
+    \ \_ \_ return chat, documents\n\n\n\_ \_ def switch_project(self, project_id:\
+    \ str) -> 'ChatEngine':\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Switch to another project\
+    \ based on the provided project ID.\n\n\_ \_ \_ \_ :param project_id: The ID of\
+    \ the project to switch to.\n\_ \_ \_ \_ :return: The ChatEngine instance after\
+    \ switching the project.\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ if not project_id or\
+    \ project_id == self.settings.project_id:\n\_ \_ \_ \_ \_ \_ logger.debug(f\"\
+    Already in project {project_id}\")\n\_ \_ \_ \_ \_ \_ return self\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ settings = find_project_by_id(project_id=project_id)\n\_ \_ \_\
+    \ \_ if settings:\n\_ \_ \_ \_ \_ \_ self.settings = settings\n\_ \_ \_ \_ \_\
+    \ \_ logger.info(f\"Switched to project ID {project_id}\")\n\_ \_ \_ \_ else:\n\
+    \_ \_ \_ \_ \_ \_ logger.warning(f\"No settings found for project ID {project_id}\"\
+    )\n\n\_ \_ \_ \_ return self\n\n\n\_ \_ def get_ai(self, llm_model: Optional[str]\
+    \ = None) -> AI:\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Get an AI instance configured\
+    \ for a specific model.\n\n\_ \_ \_ \_ :param llm_model: The name of the large\
+    \ language model.\n\_ \_ \_ \_ :return: An AI instance.\n\_ \_ \_ \_ \"\"\"\n\_\
+    \ \_ \_ \_ ai_instance = AI(settings=self.settings, llm_model=llm_model)\n\_ \_\
+    \ \_ \_ logger.debug(f\"AI instance created with model {llm_model}\")\n\_ \_ \_\
+    \ \_ return ai_instance\n\n\n\_ \_ def get_ai_code_generator_changes(self, response:\
+    \ str) -> AICodeGerator:\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Process the response\
+    \ string to generate AI code generator changes.\n\n\_ \_ \_ \_ :param response:\
+    \ The string output from the AI model.\n\_ \_ \_ \_ :return: An instance of AICodeGerator\
+    \ containing the parsed changes.\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ code_generator\
+    \ = AICodeGerator.from_response(response)\n\_ \_ \_ \_ for change in code_generator.code_changes:\n\
+    \_ \_ \_ \_ \_ \_ file_path = change.file_path\n\_ \_ \_ \_ \_ \_ if not file_path.startswith(self.settings.project_path):\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ change.file_path = os.path.join(self.settings.project_path,\
+    \ file_path)\n\_ \_ \_ \_\_\n\_ \_ \_ \_ logger.info(f\"Code generator changes\
+    \ retrieved from response\")\n\_ \_ \_ \_ return code_generator\n\n\n\_ \_ def\
+    \ select_afefcted_documents_from_knowledge(self, chat: Chat, ai: AI, query: str,\
+    \ ignore_documents: List[str] = [], search_projects: List = []) -> Tuple[List[Document],\
+    \ List[str]]:\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Select documents from knowledge\
+    \ base that are affected by a given query.\n\n\_ \_ \_ \_ :param chat: Current\
+    \ chat object.\n\_ \_ \_ \_ :param ai: AI instance for processing.\n\_ \_ \_ \_\
+    \ :param query: Search query for selecting documents.\n\_ \_ \_ \_ :param ignore_documents:\
+    \ List of documents to ignore during search.\n\_ \_ \_ \_ :param search_projects:\
+    \ Projects to search within.\n\_ \_ \_ \_ :return: Tuple of a list of documents\
+    \ and a list of file paths.\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ def process_rag_query(rag_query:\
+    \ str) -> Tuple[List[Document], List[str]]:\n\_ \_ \_ \_ \_ \_ docs = []\n\_ \_\
+    \ \_ \_ \_ \_ file_list = []\n\_ \_ \_ \_ \_ \_ logger.debug(f\"Searching projects\
+    \ for query: {rag_query}\")\n\_ \_ \_ \_ \_ \_ for search_project in search_projects:\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ if chat:\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ self.event_manager.chat_event(chat=chat,\
+    \ message=f\"Searching knowledge in {search_project.project_name}\")\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ project_docs, project_file_list = find_relevant_documents(query=rag_query,\
+    \ settings=search_project, ignore_documents=ignore_documents)\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ project_file_list = [os.path.join(search_project.project_path, file_path)\
+    \ for file_path in project_file_list]\n\_ \_ \_ \_ \_ \_ \_ \_ docs.extend(project_docs)\n\
+    \_ \_ \_ \_ \_ \_ \_ \_ file_list.extend(project_file_list)\n\_ \_ \_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ \_ \_ logger.info(f\"Documents selected from knowledge: {len(docs)}\"\
+    )\n\_ \_ \_ \_ \_ \_ return docs, file_list\n\n\_ \_ \_ \_ logger.debug(f\"Starting\
+    \ document selection with query: {query}\")\n\_ \_ \_ \_ return process_rag_query(query)\n\
+    \n\n\_ \_ def create_knowledge_search_query(self, query: str) -> str:\n\_ \_ \_\
+    \ \_ \"\"\"\n\_ \_ \_ \_ Create a search query string from the input for knowledge\
+    \ base searching.\n\n\_ \_ \_ \_ :param query: The initial user query.\n\_ \_\
+    \ \_ \_ :return: A processed query string suitable for knowledge base search.\n\
+    \_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ ai = self.get_ai()\n\_ \_ \_ \_ enhanced_query\
+    \ = ai.chat(prompt=f\"\"\"\n\_ \_ \_ \_ <text>\n\_ \_ \_ \_ {query}\n\_ \_ \_\
+    \ \_ </text>\n\n\_ \_ \_ \_ Extract keywords from the text to help searching in\
+    \ the knowledge base.\n\_ \_ \_ \_ Return just the search string without further\
+    \ decoration or comments.\n\_ \_ \_ \_ \"\"\")[-1].content.strip()\n\_ \_ \_ \_\
+    \_\n\_ \_ \_ \_ logger.debug(f\"Knowledge search query created: {enhanced_query}\"\
+    )\n\_ \_ \_ \_ return enhanced_query\n\n\n\_ \_ def get_query_mentions(self, query:\
+    \ str) -> Dict[str, List[Profile]]:\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ Extract mentions\
+    \ of profiles and projects from the given query.\n\n\_ \_ \_ \_ :param query:\
+    \ The user's query string.\n\_ \_ \_ \_ :return: A dictionary containing lists\
+    \ of mentioned profiles and projects.\n\_ \_ \_ \_ \"\"\"\n\_ \_ \_ \_ chat_utils\
+    \ = ChatUtils(profile_manager=self.get_profile_manager())\n\_ \_ \_ \_ query_mentions\
+    \ = chat_utils.get_query_mentions(query=query)\n\_ \_ \_ \_ logger.debug(f\"Query\
+    \ mentions extracted: {query_mentions}\")\n\_ \_ \_ \_ return query_mentions\n\
+    \n\n\_ \_ def get_chat_analysis_parents(self, chat: Chat):\n\_ \_ \_ \_ \"\"\"\
+    Given a chat, traverse all parents and return all analysis\"\"\"\n\_ \_ \_ \_\
+    \ parent_content = []\n\_ \_ \_ \_ chat_manager = self.get_chat_manager()\n\_\
+    \ \_ \_ \_ parent_chat = chat_manager.find_by_id(chat.parent_id)\n\_ \_ \_ \_\
+    \ while parent_chat:\n\_ \_ \_ \_ \_ \_ messages = [message.content for message\
+    \ in parent_chat.messages if not message.hide]\n\_ \_ \_ \_ \_ \_ if messages:\n\
+    \_ \_ \_ \_ \_ \_ \_ parent_content.append(\"\\n\".join(messages))\n\_ \_ \_ \_\
+    \ \_ \_ parent_chat = chat_manager.find_by_id(parent_chat.parent_id)\n\_ \_ \_\
+    \ \_ return \"\\n\".join(parent_content)\n\_ \_\_\n\_ \_ def convert_message(self,\
+    \ message):\n\_ \_ \_ \_ msg = None\n\_ \_ \_ \_ def parse_image(image):\n\_ \_\
+    \ \_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ \_ \_ return json.loads(image)\n\_ \_ \_\
+    \ \_ \_ \_ except:\n\_ \_ \_ \_ \_ \_ \_ \_ return {\"src\": image, \"alt\": \"\
+    \"}\n\_ \_ \_ \_ if message.images:\n\_ \_ \_ \_ \_ \_ images = [parse_image(image)\
+    \ for image in message.images]\n\_ \_ \_ \_ \_ \_ text_content = {\n\_ \_ \_ \_\
+    \ \_ \_ \_ \_ \"type\": \"text\",\n\_ \_ \_ \_ \_ \_ \_ \_ \"text\": message.content\n\
+    \_ \_ \_ \_ \_ \_ }\n\_ \_ \_ \_ \_ \_ content = [text_content] + [\n\_ \_ \_\
+    \ \_ \_ \_ \_ \_ {\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"type\": \"image_url\",\n\_\
+    \ \_ \_ \_ \_ \_ \_ \_ \_ \_ \"image_url\": {\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ \_\
+    \ \_ \"url\": image[\"src\"]\n\_ \_ \_ \_ \_ \_ \_ \_ \_ \_ }\n\_ \_ \_ \_ \_\
+    \ \_ \_ \_ } for image in images]\n\n\_ \_ \_ \_ \_ \_ # self.log_info(f\"ImageMessage\
+    \ content: {content}\")\n\_ \_ \_ \_ \_ \_ msg = BaseMessage(type=\"image\", content=json.dumps(content))\n\
+    \_ \_ \_ \_ elif message.role == \"user\":\n\_ \_ \_ \_ \_ \_ msg = HumanMessage(content=message.content)\n\
+    \_ \_ \_ \_ else:\n\_ \_ \_ \_ \_ \_ msg = AIMessage(content=message.content)\n\
+    \_ \_\_\n\_ \_ \_ \_ return msg\n\_ \_ \_ \_\_\n\_ \_ def get_all_search_projects(self):\n\
+    \_ \_ \_ \_ project_child_projects, project_dependencies = self.get_project_dependencies()\n\
+    \_ \_ \_ \_ all_projects = [self.settings] + project_child_projects + project_dependencies\n\
+    \_ \_ \_ \_ return all_projects\n\n\n\_ \_ def get_project_dependencies(self):\n\
+    \_ \_ \_ \_ \"\"\"Returns all projects related with this project, including child\
+    \ projects and links\"\"\"\n\_ \_ \_ \_ project_child_projects = self.settings.get_sub_projects()\n\
+    \_ \_ \_ \_ project_dependencies = [find_project_by_name(project_name) for project_name\
+    \ in self.settings.get_project_dependencies()]\n\_ \_ \_ \_ return project_child_projects,\
+    \ project_dependencies\n\n\_ \_ def index_chat(self, chat: Chat):\n\_ \_ \_ \_\
+    \ \"\"\"\n\_ \_ \_ \_ Index the chat as a Document in the knowledge system.\n\_\
+    \ \_ \_ \_ Converts valid chat messages into a single Document with appropriate\
+    \ metadata.\n\n\_ \_ \_ \_ :param chat: The chat to index.\n\_ \_ \_ \_ \"\"\"\
+    \n\_ \_ \_ \_ # Extract valid messages\n\_ \_ \_ \_ valid_messages = [message.content\
+    \ for message in chat.messages if not message.hide and not message.improvement]\n\
+    \n\_ \_ \_ \_ # Create Document from valid messages\n\_ \_ \_ \_ chat_document\
+    \ = Document(\n\_ \_ \_ \_ \_ \_ page_content=\"\\n\".join(valid_messages),\n\_\
+    \ \_ \_ \_ \_ \_ metadata={\n\_ \_ \_ \_ \_ \_ \_ \_ \"source\": chat.file_path,\
+    \  # Assuming chat has an attribute `file_path`\n\_ \_ \_ \_ \_ \_ \_ \_ \"parser\"\
+    : \"chat\",\n\_ \_ \_ \_ \_ \_ \_ \_ \"loader_type\": \"chat\"\n\_ \_ \_ \_ \_\
+    \ \_ }\n\_ \_ \_ \_ )\n\n\_ \_ \_ \_ # Call the indexing function (assuming it\
+    \ exists)\n\_ \_ \_ \_ try:\n\_ \_ \_ \_ \_ \_ knowledge.index_document(chat_document)\n\
+    \_ \_ \_ \_ \_ \_ logger.info(f\"Chat indexed successfully: {chat.file_path}\"\
+    )\n\_ \_ \_ \_ except Exception as ex:\n\_ \_ \_ \_ \_ \_ logger.exception(f\"\
+    Failed to index chat: {chat.file_path}, error: {ex}\")\n```\n\n### Breakdown:\n\
+    - **Extract Valid Messages**: I filtered out valid messages that are not hidden\
+    \ or marked for improvement.\n- **Create Document**: A `Document` is created using\
+    \ `page_content` aggregated from valid message contents and a `metadata` dictionary\
+    \ containing `\"source\"`, `\"parser\"`, and `\"loader_type\"`.\n- **Indexing\
+    \ Call**: It safely calls a (hypothetical) `knowledge.index_document` with the\
+    \ constructed `Document`."
+  created_at: '2025-08-27 06:27:11.425932'
+  disable_knowledge: false
+  doc_id: 3fa97bc6-e1ef-4756-8427-bac54989c3db
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-27 06:27:11.425960'
+  user: null
+mode: chat
+name: Index chat
+parent_id: 5673f7f5-2b38-49d3-91aa-ac5ee4b325a0
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: ac9804d5-fcb2-4026-81c0-61f2308f6380
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-08-27T06:37:52.517696'
+url: ''
+users:
+- admin
+visibility: ''

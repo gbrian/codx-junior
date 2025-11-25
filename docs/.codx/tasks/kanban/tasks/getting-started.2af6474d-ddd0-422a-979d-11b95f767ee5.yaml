@@ -1,0 +1,33 @@
+board: kanban
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: tasks
+column_id: ''
+created_at: '2025-05-13 08:17:45.563687'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/docs/.codx/tasks/kanban/tasks/getting-started.2af6474d-ddd0-422a-979d-11b95f767ee5.yaml
+id: 2af6474d-ddd0-422a-979d-11b95f767ee5
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: chat
+name: getting started
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-13T08:36:11.252584'
+url: ''
+users: []
+visibility: ''

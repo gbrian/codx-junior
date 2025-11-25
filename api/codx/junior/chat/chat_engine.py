@@ -55,9 +55,10 @@ class ChatEngine:
         return ProfileManager(settings=self.settings)
 
 
-    def get_chat_manager(self):
-        return ChatManager(settings=self.settings)
-
+    def get_chat_manager(self, project_id: str = None):
+        if not project_id:
+            return ChatManager(settings=self.settings)
+        return ChatManager(settings=find_project_by_id(project_id=project_id))
 
     @contextmanager
     def chat_action(self, chat: Chat, event: str):
@@ -95,7 +96,7 @@ class ChatEngine:
 
             parent_chat = None
             if chat.parent_id:
-                chat_manager = self.get_chat_manager()
+                chat_manager = self.get_chat_manager(project_id=chat.parent_project_id)
                 parent_chat = chat_manager.find_by_id(chat.parent_id)
 
             max_iterations = self.settings.get_agent_max_iterations()
@@ -141,7 +142,7 @@ class ChatEngine:
             last_ai_messages = [m for m in valid_messages if m.role == "assistant"]
             last_ai_message = last_ai_messages[-1] if last_ai_messages else None
                 
-            user_message = valid_messages[-1] if valid_messages else HumanMessage(content="")
+            user_message = valid_messages[-1] if valid_messages else Message(content="")
             query = user_message.content
 
             query_mentions: QueryMentions = self.get_query_mentions(chat=chat, user_message=user_message)
@@ -156,16 +157,21 @@ class ChatEngine:
             chat_model = chat.llm_model
             messages = []
 
-            parent_content = self.get_chat_analysis_parents(chat=chat)
-            if parent_content:
-                messages.append(HumanMessage(content=parent_content))
-
+            parent_content = None
+            if chat.parent_id:
+                parent_content = self.get_chat_analysis_parents(chat=chat)
+                if parent_content:
+                    # Use parent content only for the first user message, skip when conversation flows
+                    if valid_messages and len(valid_messages) == 1 and valid_messages[0].role == 'user':
+                        logger.info("[parent_content] Adding parent content to messages as no valid messages found")
+                        messages.append(HumanMessage(content=parent_content))
             # Find projects for this
             query_mention_projects: List[CODXJuniorSettings] = [p for p in query_mentions.projects if p and hasattr(p, "codx_path")]
             search_projects: List[CODXJuniorSettings] = list(({
                     settings.codx_path: settings for settings in query_mention_projects
                 }).values())
 
+            logger.info("Chat profiles: %s", [p.name for p in all_profiles])
             if all_profiles:
                 chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in all_profiles])
                 chat_profile_names = [profile.name for profile in all_profiles]
@@ -202,7 +208,7 @@ class ChatEngine:
 
             context = ""
             documents = []
-            chat_files = chat.file_list or []
+            chat_files = list(set((chat.file_list or []) + (user_message.files or [])))
             if parent_chat and parent_chat.file_list:
                 chat_files = chat_files + parent_chat.file_list
 
@@ -287,9 +293,18 @@ class ChatEngine:
                     new_chat_message(role="user", content=f"""<project_files>{context}</project_files>""")))
 
             if is_refine:
+                
                 existing_document = last_ai_message.content if last_ai_message else "" 
                 parent_task = self.get_chat_analysis_parents(chat=chat)
                 task_content = ""
+                
+                
+                # Include "is_answer" messages in the task document header
+                answer_messages = [message.content for message in chat.messages if message.is_answer]
+                if answer_messages:
+                    task_content += "Task Document Header:\n"
+                    task_content += "\n".join(answer_messages)
+                    task_content += "\n\n"
 
                 if parent_task:
                     task_content = f"""
@@ -373,7 +388,7 @@ class ChatEngine:
                 response_message.is_thinking = False
                 send_message_event(content=response_message.content, done=True)
             except Exception as ex:
-                logger.exception(f"Error chatting with project: {ex} {chat.id}")
+                logger.error(f"Error chatting with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
 
 
@@ -543,14 +558,14 @@ class ChatEngine:
 
         query = f"{content} {chat_profiles}"
         query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
-        logger.debug(f"Query mentions extracted: {query_mentions}")
+        logger.debug("Query mentions extracted fo '%s': %s", query, query_mentions)
         return query_mentions
 
 
     def get_chat_analysis_parents(self, chat: Chat):
         """Given a chat, traverse all parents and return all analysis"""
         parent_content = []
-        chat_manager = self.get_chat_manager()
+        chat_manager = self.get_chat_manager(project_id=chat.parent_project_id)
         parent_chat = chat_manager.find_by_id(chat.parent_id)
         while parent_chat:
             messages = [message.content for message in parent_chat.messages if not message.hide]

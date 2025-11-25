@@ -3,9 +3,10 @@ import EditProfile from '@/components/EditProfile.vue'
 import ProfileCard from '@/components/ProfileCard.vue';
 </script>
 <template>
-  <div class="p-6">
+  <div class="">
     <EditProfile 
       :profile="selectedProfile"
+      :project="selectedProfile.profile || $project"
       :allProfiles="profiles"
       :loading="loadingProfile"
       @save="saveSelectedProfile"
@@ -69,7 +70,7 @@ export default {
     async saveSelectedProfile(profile) {
       this.loadingProfile = true
       try {
-        this.$projects.saveProfile(profile)
+        this.$projects.saveProfile({ ...profile, project: null })
       } catch {}
       this.loadingProfile = false
     },

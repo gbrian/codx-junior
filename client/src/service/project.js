@@ -52,7 +52,7 @@ export class ProjectService extends Service {
                           .filter(p => !!p)
   }
 
-  mentionList(project, profiles, knowledge) {
+  async mentionList(project, profiles) {
     const parentProject = this.findParentProject(project)
     const childProjects = this.findChildProject(project)
     const projectDependencies = this.findProjectDependencies(project)
@@ -76,8 +76,8 @@ export class ProjectService extends Service {
         .filter(project => project)
         .map(project => ({ name: project.project_name, project, tooltip: `Search in project ${project.project_name}` })),
       ...[
-        ...knowledge?.files || [],
-        ...knowledge?.pending_files || []
+        ...project.knowledge?.files || [],
+        ...project.knowledge?.pending_files || []
       ]
         .map(file => ({ file,
                         name: file.split('/').reverse()[0],
@@ -103,18 +103,16 @@ export class ProjectService extends Service {
     }
 
     const API = await this.$storex.api.project(project)
-    const [models, profiles, knowledge ] = await Promise.all([
+    const [models, profiles ] = await Promise.all([
       API.projects.ai.models.list(),
       API.profiles.list(),
-      API.knowledge.status(),
     ])
-    const mentionList = this.mentionList(project, profiles, knowledge)
+    const mentionList = await this.mentionList(project, profiles)
     return {
       ...project,
       api: API,
       models,
       profiles,
-      knowledge,
       mentionList
     }
   }

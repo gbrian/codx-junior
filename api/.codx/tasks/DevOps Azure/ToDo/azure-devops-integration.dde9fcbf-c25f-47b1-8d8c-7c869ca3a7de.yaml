@@ -1,0 +1,601 @@
+board: DevOps Azure
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: ToDo
+column_id: ''
+created_at: '2025-11-07 10:01:51.453878'
+description: The task involves implementing a structure to handle settings for DevOps
+  providers at both the `codxjuniorsettings` and user levels. The process begins with
+  defining a generic dictionary for DevOps providers and implementing functions for
+  Azure DevOps interactions using its REST API. Additionally, integration of these
+  settings into a configuration management system is required. Comments instruct to
+  find and apply changes in `settings.py` and `model.py` files, and generate separate
+  files for each DevOps class.
+doc_id: null
+file_list:
+- /codx/junior/knowledge/settings.py  /codx/junior/settings.py
+file_path: /shared/codx-junior/api/.codx/tasks/DevOps Azure/ToDo/azure-devops-integration.dde9fcbf-c25f-47b1-8d8c-7c869ca3a7de.yaml
+id: dde9fcbf-c25f-47b1-8d8c-7c869ca3a7de
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'We must connect projects with DevOps providers like Azure DevOps.
+
+
+
+    Create DevOps provider dict settings at settings level.
+
+
+
+
+    We''ll have settings at codxjuniorsettings level and user level, just generic
+    dict extending DevOpsProvider that will have: I''d, name
+
+
+
+    Firts provider will be Azure DevOps.
+
+
+
+    Functions:
+
+    - read/write/list tasks with basic standard filters: date from-to, user, tags
+
+    - read/write pull requests
+
+
+    '
+  created_at: '2025-11-07 10:01:51.451620'
+  disable_knowledge: true
+  doc_id: d09f7a9d-eef9-4e82-a3bb-3979a8b4b700
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-07 10:01:51.451644'
+  user: admin
+- content: '> No resulsts found for: ''DevOpsProvider'' in project: ''codx-api'''
+  created_at: '2025-11-07 10:01:51.451620'
+  disable_knowledge: false
+  doc_id: 389c0253-d3b1-4a2b-87b1-33c525ba20d2
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-07 10:01:51.451644'
+  user: null
+- content: "To implement the requested functionality, we need to create a structure\
+    \ to handle settings for DevOps providers at the `codxjuniorsettings` level and\
+    \ user level. We'll start by defining a generic dictionary for DevOps providers\
+    \ and then implement the necessary functions for interacting with Azure DevOps.\n\
+    \n### Step 1: Define DevOps Provider Settings\n\nFirst, let's create a basic structure\
+    \ for the DevOps provider settings. We can create a Python module for this purpose.\n\
+    \n```python /absolute/path/to/your/project/settings/devops_providers.py\nclass\
+    \ DevOpsProvider:\n    def __init__(self, provider_id, name):\n        self.provider_id\
+    \ = provider_id\n        self.name = name\n\nclass AzureDevOpsProvider(DevOpsProvider):\n\
+    \    def __init__(self, provider_id, name, organization, project):\n        super().__init__(provider_id,\
+    \ name)\n        self.organization = organization\n        self.project = project\n\
+    ```\n\n### Step 2: Implement Functions for Azure DevOps\n\nNow, let's implement\
+    \ the functions for interacting with Azure DevOps. We'll use the Azure DevOps\
+    \ REST API for this purpose.\n\n```python /absolute/path/to/your/project/devops/azure.py\n\
+    import requests\n\nclass AzureDevOps:\n    def __init__(self, organization, project,\
+    \ personal_access_token):\n        self.organization = organization\n        self.project\
+    \ = project\n        self.headers = {\n            'Content-Type': 'application/json',\n\
+    \            'Authorization': f'Basic {personal_access_token}'\n        }\n\n\
+    \    def list_tasks(self, date_from=None, date_to=None, user=None, tags=None):\n\
+    \        # Implement logic to list tasks using Azure DevOps REST API\n       \
+    \ pass\n\n    def write_task(self, task_data):\n        # Implement logic to create\
+    \ or update a task using Azure DevOps REST API\n        pass\n\n    def list_pull_requests(self):\n\
+    \        # Implement logic to list pull requests using Azure DevOps REST API\n\
+    \        pass\n\n    def write_pull_request(self, pr_data):\n        # Implement\
+    \ logic to create or update a pull request using Azure DevOps REST API\n     \
+    \   pass\n```\n\n### Step 3: Integrate Settings at Different Levels\n\nFinally,\
+    \ we need to integrate these settings into the `codxjuniorsettings` and user-level\
+    \ settings. This can be done by creating a configuration management system that\
+    \ loads and saves these settings.\n\n```python /absolute/path/to/your/project/settings/config.py\n\
+    import json\n\nclass ConfigManager:\n    def __init__(self, file_path):\n    \
+    \    self.file_path = file_path\n        self.config = self._load_config()\n\n\
+    \    def _load_config(self):\n        try:\n            with open(self.file_path,\
+    \ 'r') as f:\n                return json.load(f)\n        except FileNotFoundError:\n\
+    \            return {}\n\n    def save_config(self):\n        with open(self.file_path,\
+    \ 'w') as f:\n            json.dump(self.config, f, indent=4)\n\n    def get_devops_provider(self,\
+    \ user_id):\n        # Logic to get DevOps provider settings for a specific user\n\
+    \        pass\n\n    def set_devops_provider(self, user_id, provider_settings):\n\
+    \        # Logic to set DevOps provider settings for a specific user\n       \
+    \ pass\n```\n\nThis setup provides a foundational structure to manage DevOps providers\
+    \ and interact with Azure DevOps. You can extend these classes and functions to\
+    \ handle more specific requirements and additional DevOps providers in the future."
+  created_at: '2025-11-07 10:01:51.451620'
+  disable_knowledge: false
+  doc_id: f6930567-5ef3-4160-b85f-02cfa8decbf3
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00017642974853515625
+    model: openai/gpt-4o
+    time_taken: 13.49075436592102
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-07 10:01:51.451644'
+  user: null
+- content: 'Find project settings at settings.py.
+
+    User model is at model.py find files and apply changes.
+
+    Generate all files affected changes. Create one file for each DevOps class stuff'
+  created_at: '2025-11-07 10:01:51.451620'
+  disable_knowledge: true
+  doc_id: 6e6406a8-678a-4c0f-b7bd-18eaa9a6f41e
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-07 10:01:51.451644'
+  user: admin
+- content: "> codx-api results for: 'settings.py'\n```txt /shared/codx-junior/api/codx/junior/knowledge/knowledge_training.py\n\
+    /shared/codx-junior/api/codx/junior/knowledge/knowledge_training.py\nclass KnowledgeTrainning:\n\
+    \    def __init__(self, settings):\n        self.settings = settings\n```\n```txt\
+    \ /shared/codx-junior/api/codx/junior/knowledge/knowledge_code_to_dcouments.py\n\
+    /shared/codx-junior/api/codx/junior/knowledge/knowledge_code_to_dcouments.py\n\
+    import logging\nimport json\n\nfrom langchain.schema import AIMessage, HumanMessage,\
+    \ SystemMessage\nfrom langchain.schema.document import Document\n\nfrom codx.junior.utils.utils\
+    \ import extract_json_blocks \n\nfrom codx.junior.ai import AI\nfrom codx.junior.settings\
+    \ import CODXJuniorSettings\nfrom codx.junior.knowledge.knowledge_prompts import\
+    \ KnowledgePrompts\nfrom codx.junior.prompts import CodeToChunksPrompt\n\nfrom\
+    \ codx.junior.knowledge.settings import (\n    LANGUAGE_FROM_EXTENSION\n)\n\n\
+    logger = logging.getLogger(__name__)\n\nclass KnowledgeCodeToDocuments:\n    def\
+    \ __init__(self, settings: CODXJuniorSettings):\n        self.settings = settings\n\
+    \        self.knowledge_prompts = KnowledgePrompts(settings=settings)\n      \
+    \  self.ai = None\n\n    def get_ai(self):\n        from codx.junior import build_ai\n\
+    \        if not self.ai:\n          self.ai = build_ai(settings=self.settings)\n\
+    \        return self.ai\n```\n```txt /shared/codx-junior/api/codx/junior/settings.py\n\
+    /shared/codx-junior/api/codx/junior/settings.py\nimport os\nimport json\nimport\
+    \ logging\nimport pathlib\nimport uuid\nfrom pydantic import BaseModel, Field\n\
+    from typing import Optional, List, Dict, Any\n\nfrom codx.junior.utils.utils import\
+    \ (\n  write_file,\n  exec_command\n)\nfrom codx.junior.model.model import (\n\
+    \    GlobalSettings,\n    ProjectScript,\n    AISettings,\n    AIModel,\n    AIProvider,\n\
+    \    AILLMModelSettings,\n    AIModelType\n)\n\nlogger = logging.getLogger(__name__)\n\
+    \nROOT_PATH = os.path.dirname(__file__)\nGLOBAL_SETTINGS = None\nHOME=os.environ.get(\"\
+    HOME\")\nGLOBAL_SETTINGS_PATH=os.environ.get(\"CODX_JUNIOR_GLOBAL_SETTINGS_PATH\"\
+    , None) or f\"{HOME}/global_settings.json\"\n\n# logger.info(f\"GLOBAL_SETTINGS_PATH\
+    \ is: {GLOBAL_SETTINGS_PATH}\")\n\nCODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES =\
+    \ [\"codx_path\", \"metrics\", \"users\", \"is_git_root\"]\n\ndef get_provider_settings(ai_provider:\
+    \ str, global_settings = None) -> AIProvider:\n    global_settings = global_settings\
+    \ or GLOBAL_SETTINGS\n    ai_provider_settings = [p for p in global_settings.ai_providers\
+    \ if p.name == ai_provider]\n    if not ai_provider_settings:\n        raise Exception(f\"\
+    LLM AI provider not found: {ai_provider}\")\n    \n    ai_provider = ai_provider_settings[0]\n\
+    \    ai_provider.api_url = os.path.expandvars(ai_provider.api_url or \"\")\n \
+    \   ai_provider.api_key = os.path.expandvars(ai_provider.api_key or \"\")\n\n\
+    \    return ai_provider/shared/codx-junior/api/codx/junior/settings.py\ndef get_model_settings(llm_model:\
+    \ str, global_settings = None) -> AISettings:\n    global_settings = global_settings\
+    \ or GLOBAL_SETTINGS\n    model_settings = [m for m in global_settings.ai_models\
+    \ if m.name == llm_model or m.ai_model == llm_model]\n    if not model_settings:\n\
+    \        raise Exception(f\"LLM model not found: {llm_model}\")\n    model: AIModel\
+    \ = model_settings[0]\n    provider = get_provider_settings(model.ai_provider,\
+    \ global_settings=global_settings)\n    ai_settings = AISettings(\n        **model.settings.__dict__,\n\
+    \        provider=provider.provider,\n        api_url=provider.api_url,\n    \
+    \    api_key=provider.api_key,\n        model=model.ai_model or model.name,\n\
+    \        model_type=model.model_type,\n        url=model.url\n    )\n    return\
+    \ ai_settings\n\ndef read_global_settings():\n    global GLOBAL_SETTINGS\n   \
+    \ try:\n        with open(GLOBAL_SETTINGS_PATH) as f:\n            GLOBAL_SETTINGS\
+    \ = GlobalSettings(**json.loads(f.read()))\n    except Exception as ex:\n    \
+    \    logger.error(f\"Error {ex} loading global settings from {GLOBAL_SETTINGS_PATH}\"\
+    )\n        GLOBAL_SETTINGS = GlobalSettings()\n    return GLOBAL_SETTINGS\n\n\n\
+    def write_global_settings(global_settings: GlobalSettings):\n    global GLOBAL_SETTINGS\n\
+    \    # logger.info(f\"GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}\"\
+    )\n    try:\n        old_settings = read_global_settings()\n        with open(GLOBAL_SETTINGS_PATH,\
+    \ \"w\") as f:\n            f.write(json.dumps(global_settings.dict()))\n\n  \
+    \      if global_settings.git.username:\n            exec_command(\n         \
+    \       f'git config --global user.name \"{global_settings.git.username}\"'\n\
+    \            )\n        if global_settings.git.email:\n            exec_command(f'git\
+    \ config --global user.email \"{global_settings.git.email}\"')\n\n        GLOBAL_SETTINGS\
+    \ = global_settings\n    except Exception as ex:\n        logger.exception(f\"\
+    Error saving global settings: {ex}\")/shared/codx-junior/api/codx/junior/settings.py\n\
+    @classmethod\n    def from_codx_path(cls, codx_path: str):\n        return CODXJuniorSettings.from_project_file(f\"\
+    {codx_path}/project.json\")\n        \n    @classmethod\n    def from_project_file(cls,\
+    \ project_file_path: str):\n        base = CODXJuniorSettings()\n        base.codx_path\
+    \ = project_file_path.replace(\"/project.json\", \"\")\n        base.project_path\
+    \ = base.codx_path.replace(\"/.codx\", \"\")\n        with open(project_file_path,\
+    \ \"r\") as f:\n            settings = json.loads(f.read())\n            settings\
+    \ = CODXJuniorSettings(**{**base.model_dump(), **settings})\n            # Avoid\
+    \ override\n            settings.codx_path = base.codx_path\n            if not\
+    \ settings.project_path or settings.project_path[0] != \"/\":\n              \
+    \  settings.project_path = base.project_path\n            if not settings.project_id:\n\
+    \                return settings.save_project()\n            settings.is_git_root\
+    \ = os.path.isdir(f\"{settings.project_path}/.git\")\n            return settings\n\
+    \n    @classmethod\n    def from_json(cls, settings: dict):\n        base = CODXJuniorSettings()\n\
+    \        new_settings = CODXJuniorSettings(**{ **base.__dict__, **settings })\n\
+    \        logging.info(f\"Project from json {settings}\")\n        logging.info(f\"\
+    Project from json - settings: {new_settings}\")\n        return new_settings\n\
+    \n    @classmethod\n    def get_valid_keys(cls):\n        keys = CODXJuniorSettings().__dict__.keys()\n\
+    \        return [k for k in keys if k not in CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES]\n\
+    ```\n```txt /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py\n/shared/codx-junior/api/codx/junior/wiki/wiki_manager.py\n\
+    class WikiManager:\n    \"\"\"\n    Manager class responsible for the creation\
+    \ and maintenance of a project wiki\n    using VitePress or MkDocs. It initializes,\
+    \ builds, and updates a wiki based on the project's\n    structure and changes\
+    \ in files.\n    \"\"\"\n    \n    def __init__(self, settings: CODXJuniorSettings)\
+    \ -> None:\n        self.settings: CODXJuniorSettings = settings\n        self.event_manager\
+    \ = EventManager(codx_path=settings.codx_path)\n        self.profile_manager =\
+    \ ProfileManager(settings=settings)\n        self.wiki_path: str = settings.get_project_wiki_path()\n\
+    \        self.db = KnowledgeDB(settings=settings)\n        self.loader = KnowledgeLoader(settings=settings)\n\
+    \        self.is_wiki_active = self.settings.project_wiki or False\n        self.wiki_home_path\
+    \ = os.path.join(self.wiki_path, \"index.md\")\n        self.wiki_settings_path\
+    \ = os.path.join(self.settings.codx_path, \"wiki_settings.json\")\n\n    def save_wiki_settings(self,\
+    \ wiki_settings: Any) -> None:\n        \"\"\"\n        Serialize and save the\
+    \ wiki_settings object to a JSON file.\n\n        Args:\n            wiki_settings:\
+    \ The list of wiki settings to save.\n        \"\"\"\n        self._fix_wiki_categories(wiki_settings)\n\
+    \        file_path = self._get_settings_path()\n        wiki_settings[\"path\"\
+    ] = file_path\n        write_file(file_path, json.dumps(wiki_settings, indent=2))\n\
+    \        logger.info(f\"Wiki settings successfully saved to {file_path}\")\n \
+    \       return self.load_wiki_settings()\n\n    def load_wiki_settings(self, with_files=False)\
+    \ -> Any:\n        \"\"\"\n        Read and deserialize the wiki_settings object\
+    \ from a JSON file./shared/codx-junior/api/codx/junior/wiki/wiki_manager.py\n\
+    def compile_wiki(self):\n        wiki_settings = self.load_wiki_settings()\n \
+    \       # Update mkdocs.yaml if mode is mkdocs\n        if wiki_settings.get(\"\
+    mode\") == \"mkdocs\":\n            self._update_mkdocs()\n\n    def rebuild_wiki(self):\n\
+    \        wiki_settings = self.load_wiki_settings()\n        categories = self._get_all_categories(wiki_settings[\"\
+    categories\"])\n        \n        for category in categories:\n            self.build_wiki_category(category[\"\
+    path\"])          \n\n    def _update_wiki_conf(self):\n        wiki_settings\
+    \ = self.load_wiki_settings()\n        if wiki_settings.get(\"mode\") == \"mkdocs\"\
+    :\n            self._update_mkdocs()\n\n    def _update_mkdocs(self) -> None:\n\
+    \        \"\"\"\n        Use AI to update the mkdocs.yaml file, taking into account\
+    \ the current content\n        of the mkdocs.yaml file and all the files and folders\
+    \ from the wiki_path.\n        \"\"\"\n        mkdocs_file_path = Path(self.settings.project_path)\
+    \ / MKDOCS_YAML_FILE_NAME\n\n        wiki_settings = self.load_wiki_settings()\n\
+    \        user_language = wiki_settings.get(\"language\", \"English\")\n      \
+    \  user_instructions = wiki_settings.get(\"prompt\", \"\")\n        \n       \
+    \ # Read the existing mkdocs.yaml content\n        current_mkdocs_content = {\n\
+    \          \"nav\": []\n        }\n        if mkdocs_file_path.exists():\n   \
+    \         with open(mkdocs_file_path, 'r') as mkdocs_file:\n                current_mkdocs_content\
+    \ = yaml.safe_load(mkdocs_file)\n```\n```txt /shared/codx-junior/api/codx/junior/ai/__init__.py\n\
+    The document outlines two important functionalities related to AI model management\
+    \ within a software system. The `prune_models` method is tasked with reducing\
+    \ the number of active AI models by utilizing the 'OllamaAI' class. Within this\
+    \ function, active models are filtered by their AI model identifiers or names.\
+    \ In contrast, the `load_model` method is responsible for loading an AI model\
+    \ if the associated provider is 'llmfactory'. This method also utilizes 'OllamaAI'\
+    \ to perform the loading operation based on specific AI model settings retrieved\
+    \ via a defined function. Both methods evidently place importance on leveraging\
+    \ global settings for comprehensive functionality within the AI model management\
+    \ workflow.\n```\n```txt /shared/codx-junior/api/codx/junior/project/project_manager.py\n\
+    /shared/codx-junior/api/codx/junior/project/project_manager.py\nsettings = CODXJuniorSettings()\n\
+    \    settings.project_name = project_path.split(\"/\")[-1]\n    settings.codx_path\
+    \ = f\"{project_path}/.codx\"\n    settings.watching = True\n    settings.repo_url\
+    \ = repo_url\n    settings.save_project()\n    if not os.path.isdir(os.path.join(project_path,\
+    \ \".git\")):\n        exec_command(\"git init\", cwd=project_path)\n    \n  \
+    \  _, stderr = exec_command(\"git branch\")\n    new_project = CODXJuniorSettings.from_project_file(f\"\
+    {project_path}/.codx/project.json\")\n    if user:\n        UserSecurityManager().add_user_to_project(project_id=new_project.project_id,\
+    \ user=user, permissions='admin')\n    return new_project\n```\n```txt /shared/codx-junior/api/codx/junior/tools/project_tools.py\n\
+    /shared/codx-junior/api/codx/junior/tools/project_tools.py\nRaises:\n        FileNotFoundError:\
+    \ If the file does not exist.\n    \"\"\"\n    settings: CODXJuniorSettings =\
+    \ kwargs.get(\"settings\", None)\n    if not settings:\n        raise Exception(\"\
+    Invalid project settings\")\n    file_path = path_to_absolute_project_path(settings=settings,\
+    \ file_path=file_path)\n    if not file_path or not file_path.startswith(settings.project_path):\n\
+    \        raise Exception(\"File path '%s' must belong to '%s'\" % (file_path,\
+    \ settings.project_path))\n    \n    with open(file_path, 'w') as file:\n    \
+    \    file.write(content)\n```"
+  created_at: '2025-11-07 10:01:51.451620'
+  disable_knowledge: false
+  doc_id: eb60f171-9511-438b-98fc-ffe51fea690a
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-07 10:01:51.451644'
+  user: null
+- content: "> codx-api results for: 'model.py'\n```txt /shared/codx-junior/api/codx/junior/ai/llmfactory.py\n\
+    The document describes a class, OllamaAI, that integrates with the Ollama client\
+    \ to manage machine learning models. It represents an interface to load, log,\
+    \ and prune AI models. The OllamaAI class takes AI settings as an argument to\
+    \ configure its operations. It features methods to pull models from a specified\
+    \ host, log activity, handle exceptions, and delete models not listed as active.\
+    \ The class utilizes structured logging for tracking activities and error management.\
+    \ The Client class is used to interact with the model repository, enabling functionalities\
+    \ such as fetching and listing models.\n```\n```txt /shared/codx-junior/api/codx/junior/ai/__init__.py\n\
+    The document details a Python module responsible for managing AI models within\
+    \ a software system. It focuses on an AIManager class, which handles reloading\
+    \ of AI models based on certain settings. These models are filtered to include\
+    \ only those provided by 'llmfactory'. The reload_models method retrieves and\
+    \ updates model settings, such as context length and embedding length, using information\
+    \ from the model itself. Logging mechanisms are used to handle errors and provide\
+    \ status updates on model loading. The document highlights the process of setting\
+    \ specific attributes in AI model settings such as context_length, chunk_size,\
+    \ and vector_size, and suggests pruning models not meeting certain criteria.\n\
+    ```\n```txt /shared/codx-junior/api/codx/junior/settings.py\n/shared/codx-junior/api/codx/junior/settings.py\n\
+    def get_model_settings(llm_model: str, global_settings = None) -> AISettings:\n\
+    \    global_settings = global_settings or GLOBAL_SETTINGS\n    model_settings\
+    \ = [m for m in global_settings.ai_models if m.name == llm_model or m.ai_model\
+    \ == llm_model]\n    if not model_settings:\n        raise Exception(f\"LLM model\
+    \ not found: {llm_model}\")\n    model: AIModel = model_settings[0]\n    provider\
+    \ = get_provider_settings(model.ai_provider, global_settings=global_settings)\n\
+    \    ai_settings = AISettings(\n        **model.settings.__dict__,\n        provider=provider.provider,\n\
+    \        api_url=provider.api_url,\n        api_key=provider.api_key,\n      \
+    \  model=model.ai_model or model.name,\n        model_type=model.model_type,\n\
+    \        url=model.url\n    )\n    return ai_settings\n\ndef read_global_settings():\n\
+    \    global GLOBAL_SETTINGS\n    try:\n        with open(GLOBAL_SETTINGS_PATH)\
+    \ as f:\n            GLOBAL_SETTINGS = GlobalSettings(**json.loads(f.read()))\n\
+    \    except Exception as ex:\n        logger.error(f\"Error {ex} loading global\
+    \ settings from {GLOBAL_SETTINGS_PATH}\")\n        GLOBAL_SETTINGS = GlobalSettings()\n\
+    \    return GLOBAL_SETTINGS\n\n\ndef write_global_settings(global_settings: GlobalSettings):\n\
+    \    global GLOBAL_SETTINGS\n    # logger.info(f\"GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}):\
+    \ {global_settings}\")\n    try:\n        old_settings = read_global_settings()\n\
+    \        with open(GLOBAL_SETTINGS_PATH, \"w\") as f:\n            f.write(json.dumps(global_settings.dict()))\n\
+    \n        if global_settings.git.username:\n            exec_command(\n      \
+    \          f'git config --global user.name \"{global_settings.git.username}\"\
+    '\n            )\n        if global_settings.git.email:\n            exec_command(f'git\
+    \ config --global user.email \"{global_settings.git.email}\"')\n\n        GLOBAL_SETTINGS\
+    \ = global_settings\n    except Exception as ex:\n        logger.exception(f\"\
+    Error saving global settings: {ex}\")/shared/codx-junior/api/codx/junior/settings.py\n\
+    watching: Optional[bool] = Field(default=False)\n    use_knowledge: Optional[bool]\
+    \ = Field(default=True)\n    knowledge_hnsw_M: Optional[int] = Field(default=1024)\n\
+    \    project_icon: Optional[str] = Field(default=\"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQRhLNgwkP06cH3_D3Unp8DqL9eFCyhI8lHwQ&s\"\
+    )\n\n    log_ignore: Optional[str] = Field(default=\"\")\n\n    project_scripts:\
+    \ Optional[List[ProjectScript]] = Field(default=[])\n\n    embeddings_model: \
+    \ str = Field(default=\"\")\n    llm_model: str = Field(default=\"\")\n    rag_model:\
+    \ str = Field(default=\"\")\n    wiki_model: str = Field(default=\"\")\n\n   \
+    \ last_error: str = Field(default=\"\")\n\n    urls: Optional[List[str]] = Field(default=[])\n\
+    \n    repo_url: Optional[str] = Field(default=None)\n\n    is_git_root: Optional[bool]\
+    \ = Field(default=False)\n\n    def __str__(self):\n        return str(self.model_dump())\n\
+    \n    def get_agent_max_iterations(self):\n        return GLOBAL_SETTINGS.agent_settings.max_agent_iteractions\n\
+    \n    def get_llm_settings(self, llm_model: str = None) -> AISettings:\n     \
+    \   if not llm_model:\n            llm_model = self.llm_model \n        if not\
+    \ llm_model:\n            llm_model = GLOBAL_SETTINGS.llm_model\n\n        return\
+    \ get_model_settings(llm_model)   \n\n    def get_embeddings_settings(self) ->\
+    \ AISettings:\n        embeddings_model = self.embeddings_model \n        if not\
+    \ embeddings_model:\n            embeddings_model = GLOBAL_SETTINGS.embeddings_model\n\
+    \n        return get_model_settings(embeddings_model)\n\n    def get_project_settings_file(self):\n\
+    \        return f\"{self.codx_path}/project.json\"\n\n    def get_project_workspaces(self):\n\
+    \        global_settings = read_global_settings()\n        return [w for w in\
+    \ global_settings.workspaces if self.project_id in w.project_ids]\n```\n```txt\
+    \ /shared/codx-junior/api/codx/junior/ai/ai.py\n/shared/codx-junior/api/codx/junior/ai/ai.py\n\
+    if self.cache:\n                self.cache[md5_key] = json.dumps(\n          \
+    \          {\n                        \"messages\": serialize_messages(messages),\n\
+    \                        \"content\": response_messages[-1].content,\n       \
+    \             }\n                )\n      \n        return response_messages\n\
+    \n    @profile_function\n    def embeddings(self, content: str):\n        return\
+    \ self.embeddings(content=content)\n\n    @staticmethod\n    def serialize_messages(messages:\
+    \ List[Message]) -> str:\n        try:\n            return json.dumps(messages_to_dict(messages))\n\
+    \        except Exception as ex:\n            logger.error(f\"serialize_messages\
+    \ error: {messages} {ex}\")\n            raise ex\n\n    @staticmethod\n    def\
+    \ deserialize_messages(jsondictstr: str) -> List[Message]:\n        data = json.loads(jsondictstr)\n\
+    \        # Modify implicit is_chunk property to ALWAYS false\n        # since\
+    \ Langchain's Message schema is stricter\n        prevalidated_data = [\n    \
+    \        {**item, \"data\": {**item[\"data\"], \"is_chunk\": False}} for item\
+    \ in data\n        ]\n        return list(messages_from_dict(prevalidated_data))\
+    \  # type: ignore\n\n\n    def create_chat_model(self, llm_model: str) -> BaseChatModel:\n\
+    \        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).chat_completions\n\
+    \n    def create_a_chat_model(self, llm_model: str) -> BaseChatModel:\n      \
+    \  return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).a_chat_completions\n\
+    \n    def get_openai_chat_client(self, llm_model: str = None):\n        return\
+    \ OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).client\n\
+    \n    def create_embeddings_model(self):\n        return OpenAI_AI(settings=self.settings,\
+    \ user=self.user).embeddings()\n\ndef serialize_messages(messages: List[Message])\
+    \ -> str:\n    return AI.serialize_messages(messages)\n\n\ndef messages_md5(messages:\
+    \ List[Message]):\n    messageaStr = \"\".join(map(lambda x: x.content, messages))\n\
+    \    return str(hashlib.md5(messageaStr.encode(\"utf-8\")).hexdigest())\n```\n\
+    ```txt /shared/codx-junior/api/codx/junior/model/model.py\n/shared/codx-junior/api/codx/junior/model/model.py\n\
+    class AILLMModelSettings(BaseModel):\n    temperature: Optional[float] = Field(default=1,\
+    \ description=\"Model temperature\")\n    context_length: Optional[int] = Field(default=0)\n\
+    \    merge_messages: Optional[bool] = Field(description=\"Flat conversation into\
+    \ a single message before sending to model\", default=False)\n    \nclass AIEmbeddingModelSettings(BaseModel):\n\
+    \    vector_size: Optional[int] = Field(default=1536, description=\"Model vector\
+    \ size\")\n    chunk_size: Optional[int] = Field(default=8190, description=\"\
+    Model chunk_size\")\n\nclass AIModelType(str, Enum):\n    llm = 'llm'\n    embeddings\
+    \ = 'embeddings'\n\nclass AIModel(BaseModel):\n    name: str = Field(description=\"\
+    Model name\")    \n    model_type: AIModelType = Field(description=\"Model type\"\
+    , default=AIModelType.llm)\n    ai_provider: str = Field(description=\"AI Provider\
+    \ name\")\n    ai_model: Optional[str] = Field(description=\"AI Provider's model\
+    \ name\", default=None)\n    settings: Union[AILLMModelSettings, AIEmbeddingModelSettings]\
+    \ = Field(description=\"Model settings\")\n    metadata: Optional[dict] = Field(description=\"\
+    Model's last update date\", default={})\n    url: Optional[str] = Field(description=\"\
+    Model info\", default=\"\")/shared/codx-junior/api/codx/junior/model/model.py\n\
+    class AISettings(BaseModel):\n    provider: Optional[str] = Field(default=\"\"\
+    ) \n    api_url: Optional[str] = Field(default=\"\")\n    api_key: Optional[str]\
+    \ = Field(default=\"\")\n    model: Optional[str] = Field(default=\"\")\n    context_length:\
+    \ Optional[int] = Field(default=0)\n    temperature: Optional[float] = Field(default=0.8)\n\
+    \    vector_size: Optional[int] = Field(default=1536)\n    chunk_size: Optional[int]\
+    \ = Field(default=8190)\n    merge_messages: Optional[bool] = Field(default=False)\n\
+    \    model_type: AIModelType = Field(description=\"Model type\", default=AIModelType.llm)\n\
+    \    url: Optional[str] = Field(description=\"Model info\", default=\"\")\n  \
+    \  \nOLLAMA_PROVIDER = AIProvider(name=\"llmfactory\",\n                     \
+    \       provider=\"llmfactory\",\n                            api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_API'),\n\
+    \                            api_key=os.environ.get('CODX_JUNIOR_LLMFACTORY_KEY'))\n\
+    \nOLLAMA_EMBEDDINGS_MODEL = AIModel(name=\"embeddings\",\n                   \
+    \             ai_model=EMBEDDINGS_MODEL, \n                                model_type=AIModelType.embeddings,\n\
+    \                                ai_provider=\"llmfactory\",\n               \
+    \                 settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),\n\
+    \                                url=f\"https://llmfactory.com/library/{EMBEDDINGS_MODEL}\"\
+    )\n\nOLLAMA_KNOWLEDGE_MODEL = AIModel(name=\"knowledge\",\n                  \
+    \          ai_model=KNOWLEDGE_MODEL,\n                            model_type=AIModelType.llm,\n\
+    \                            ai_provider=\"llmfactory\",\n                   \
+    \         settings=AILLMModelSettings(),\n                            url=f\"\
+    https://llmfactory.com/library/{KNOWLEDGE_MODEL}\")\n\nclass WorkspaceApp(BaseModel):\n\
+    \    name: str = Field(default=\"\")\n    description: str = Field(default=\"\"\
+    )\n    icon: str = Field(default=\"\")\n    port: Optional[int] = Field(default=3000)\n\
+    \    is_vnc: Optional[bool] = Field(default=False)/shared/codx-junior/api/codx/junior/model/model.py\n\
+    class Workspace(BaseModel):\n    id: str = Field(default=\"\")\n    name: str\
+    \ = Field(default=\"\")\n    description: str = Field(default=\"\")\n    project_ids:\
+    \ List[str] = Field(default=[])\n    apps: Optional[List[WorkspaceApp]] = Field(default=[])\n\
+    \    updated_at: Optional[str] = Field(default=None)    \n\nclass AgentSettings(BaseModel):\n\
+    \    max_agent_iteractions: int = 4\n\nclass OAuthProvider(BaseModel):\n    name:\
+    \ str = Field(default=\"\")\n    client_id: str = Field(default=\"\")\n    secret:\
+    \ str = Field(default=\"\")\n    token_url: str = Field(default=\"\")\n\nclass\
+    \ GlobalSettings(BaseModel):\n    log_ai: bool = Field(default=True)\n    \n \
+    \   embeddings_model: str = Field(default=OLLAMA_EMBEDDINGS_MODEL.name)\n    llm_model:\
+    \ str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n    rag_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n\
+    \    wiki_model: str = Field(default=OLLAMA_KNOWLEDGE_MODEL.name)\n\n    git:\
+    \ GitSettings = Field(default=GitSettings())\n\n    agent_settings: AgentSettings\
+    \ = Field(description=\"Agent settings\", default=AgentSettings())\n\n    projects_root_path:\
+    \ Optional[str] = Field(default=None)\n    \n    log_ignore: List[str] = Field(default=[])\n\
+    \n    codx_junior_avatar: Optional[str] = Field(default=\"https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp\"\
+    )\n\n    enable_file_manager: Optional[bool] = Field(default=False)\n\n    project_scripts:\
+    \ Optional[List[ProjectScript]] = Field(default=[])\n\n    bookmarks: List[Bookmark]\
+    \ = Field(default=[\n        Bookmark(name=\"Coder\", title=\"code-server\", port=os.environ[\"\
+    CODX_JUNIOR_CODER_PORT\"]),\n        Bookmark(name=\"Desktop\", title=\"Desktop\"\
+    , port=os.environ[\"CODX_JUNIOR_NOVNC_PORT\"])\n    ])\n\n    ai_providers: List[AIProvider]\
+    \ = [\n        OLLAMA_PROVIDER\n    ]\n\n    ai_models: List[AIModel] = [\n  \
+    \    OLLAMA_KNOWLEDGE_MODEL,\n      OLLAMA_EMBEDDINGS_MODEL\n    ]\n```\n```txt\
+    \ /shared/codx-junior/api/codx/junior/chat/chat_engine.py\n/shared/codx-junior/api/codx/junior/chat/chat_engine.py\n\
+    # Prepare AI\n            ai_settings = self.settings.get_llm_settings()\n   \
+    \         if chat_model:\n                ai_settings.model = chat_model\n   \
+    \         ai = self.get_ai(llm_model=ai_settings.model)\n            tags  = [\n\
+    \                      f\"{chat.mode}\"\n                    ] + [p.name for p\
+    \ in all_profiles]\n            if is_agent:\n                tags.append(\"agent\"\
+    )\n            ai_headers = {\n              \"tags\": \",\".join(tags)\n    \
+    \        }\n            async def ai_chat(messages=[], prompt=\"\", tags=\"\"\
+    , callback=None):\n                headers = ai_headers\n                if tags:\n\
+    \                    headers = { \n                      **ai_headers, \n    \
+    \                  \"tags\": ai_headers[\"tags\"] + \",\" + tags \n          \
+    \          }\n                return await ai.a_chat(messages=messages, prompt=prompt,\
+    \ callback=callback, headers=headers)\n```"
+  created_at: '2025-11-07 10:01:51.451620'
+  disable_knowledge: false
+  doc_id: 8a59d0fb-c25d-4578-b510-c025c9f6e8bf
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-07 10:01:51.451644'
+  user: null
+- content: "```markdown\nTo implement the requested functionality, we need to create\
+    \ a structure to handle settings for DevOps providers at the `codxjuniorsettings`\
+    \ level and user level. We'll start by defining a generic dictionary for DevOps\
+    \ providers and then implement the necessary functions for interacting with Azure\
+    \ DevOps.\n\n### Step 1: Define DevOps Provider Settings\n\nFirst, let's create\
+    \ a basic structure for the DevOps provider settings. We can create a Python module\
+    \ for this purpose.\n\n```python /shared/codx-junior/api/codx/junior/settings/devops_providers.py\n\
+    class DevOpsProvider:\n    def __init__(self, provider_id, name):\n        self.provider_id\
+    \ = provider_id\n        self.name = name\n\nclass AzureDevOpsProvider(DevOpsProvider):\n\
+    \    def __init__(self, provider_id, name, organization, project):\n        super().__init__(provider_id,\
+    \ name)\n        self.organization = organization\n        self.project = project\n\
+    ```\n\n### Step 2: Implement Functions for Azure DevOps\n\nNow, let's implement\
+    \ the functions for interacting with Azure DevOps. We'll use the Azure DevOps\
+    \ REST API for this purpose.\n\n```python /shared/codx-junior/api/codx/junior/devops/azure.py\n\
+    import requests\n\nclass AzureDevOps:\n    def __init__(self, organization, project,\
+    \ personal_access_token):\n        self.organization = organization\n        self.project\
+    \ = project\n        self.headers = {\n            'Content-Type': 'application/json',\n\
+    \            'Authorization': f'Basic {personal_access_token}'\n        }\n\n\
+    \    def list_tasks(self, date_from=None, date_to=None, user=None, tags=None):\n\
+    \        # Implement logic to list tasks using Azure DevOps REST API\n       \
+    \ pass\n\n    def write_task(self, task_data):\n        # Implement logic to create\
+    \ or update a task using Azure DevOps REST API\n        pass\n\n    def list_pull_requests(self):\n\
+    \        # Implement logic to list pull requests using Azure DevOps REST API\n\
+    \        pass\n\n    def write_pull_request(self, pr_data):\n        # Implement\
+    \ logic to create or update a pull request using Azure DevOps REST API\n     \
+    \   pass\n```\n\n### Step 3: Integrate Settings at Different Levels\n\nFinally,\
+    \ we need to integrate these settings into the `codxjuniorsettings` and user-level\
+    \ settings. This can be done by creating a configuration management system that\
+    \ loads and saves these settings.\n\n```python /shared/codx-junior/api/codx/junior/settings/config.py\n\
+    import json\n\nclass ConfigManager:\n    def __init__(self, file_path):\n    \
+    \    self.file_path = file_path\n        self.config = self._load_config()\n\n\
+    \    def _load_config(self):\n        try:\n            with open(self.file_path,\
+    \ 'r') as f:\n                return json.load(f)\n        except FileNotFoundError:\n\
+    \            return {}\n\n    def save_config(self):\n        with open(self.file_path,\
+    \ 'w') as f:\n            json.dump(self.config, f, indent=4)\n\n    def get_devops_provider(self,\
+    \ user_id):\n        # Logic to get DevOps provider settings for a specific user\n\
+    \        pass\n\n    def set_devops_provider(self, user_id, provider_settings):\n\
+    \        # Logic to set DevOps provider settings for a specific user\n       \
+    \ pass\n```\n\nThis setup provides a foundational structure to manage DevOps providers\
+    \ and interact with Azure DevOps. You can extend these classes and functions to\
+    \ handle more specific requirements and additional DevOps providers in the future.\n\
+    ```\n"
+  created_at: '2025-11-07 10:01:51.451620'
+  disable_knowledge: false
+  doc_id: ff3e6504-b408-4aec-9918-a85b78398e5b
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0001785755157470703
+    model: openai/gpt-4o
+    time_taken: 10.613110303878784
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-07 10:01:51.451644'
+  user: null
+mode: task
+name: 'Azure DevOps Integration '
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-11-10T08:19:25.545250'
+url: ''
+users:
+- admin
+visibility: ''

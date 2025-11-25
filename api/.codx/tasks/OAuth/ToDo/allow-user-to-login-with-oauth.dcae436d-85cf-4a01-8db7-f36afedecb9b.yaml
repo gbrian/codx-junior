@@ -1,0 +1,156 @@
+board: OAuth
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: ToDo
+column_id: ''
+created_at: '2025-08-30 16:43:53.391710'
+description: '1. The user provided Python code for a FastAPI-based application dealing
+  with user authentication and security management.
+
+  2. The user requested an enhancement to allow logging in via OAuth within the existing
+  login endpoint.
+
+  3. I updated the `/users/login` endpoint to check for an "oauth_provider" in the
+  request body and use global settings to facilitate OAuth login.
+
+  4. The response includes logic for interacting with OAuth providers, fetching tokens,
+  and handling authentication results.
+
+  5. The integration maintains the existing user authentication structure, seamlessly
+  adding OAuth capabilities.'
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/api/users.py
+- /shared/codx-junior/api/codx/junior/security/user_management.py
+- /shared/codx-junior/api/codx/junior/model/model.py
+file_path: /shared/codx-junior/api/.codx/tasks/OAuth/ToDo/allow-user-to-login-with-oauth.dcae436d-85cf-4a01-8db7-f36afedecb9b.yaml
+id: dcae436d-85cf-4a01-8db7-f36afedecb9b
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Allow user to login with OAuth.
+
+    in the login endnpoint check for "oauth_provider", then use the global settings
+    to read the OAuth information and perform a OAuth login'
+  created_at: '2025-08-30 16:43:53.389655'
+  disable_knowledge: true
+  doc_id: 6ea4d362-c75d-4eb2-b578-6dd7e50a0d72
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 16:43:53.389682'
+  user: admin
+- content: "Allow user to login with OAuth.\nin the login endnpoint check for \"oauth_provider\"\
+    , then use the global settings to read the OAuth information and perform a OAuth\
+    \ login\n                    Create new document based on user comments.\n   \
+    \                 User comments:\n                    Allow user to login with\
+    \ OAuth.\nin the login endnpoint check for \"oauth_provider\", then use the global\
+    \ settings to read the OAuth information and perform a OAuth login\n         \
+    \           Important: Always return the markdown document without any comments\
+    \ before or after, to keep it clean."
+  created_at: '2025-08-30 16:43:53.389655'
+  disable_knowledge: false
+  doc_id: 84743001-9753-40ca-b0f6-81a5c5971757
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 16:43:53.389682'
+  user: null
+- content: "```python /shared/codx-junior/api/codx/junior/api/users.py\nimport logging\n\
+    import datetime\nfrom fastapi import APIRouter, Request, Depends\nimport httpx\n\
+    \nfrom codx.junior.engine import (\n  CODXJuniorSession,\n)\n\nfrom codx.junior.security.user_management\
+    \ import UserSecurityManager, get_authenticated_user\nfrom codx.junior.model.model\
+    \ import CodxUser, CodxUserLogin, GlobalSettings\n\nlogger = logging.getLogger(__name__)\n\
+    \nrouter = APIRouter()\n\nasync def oauth_login(oauth_provider: str, request:\
+    \ Request):\n    global_settings = GlobalSettings()\n    provider_info = next((provider\
+    \ for provider in global_settings.oauth_providers if provider.name == oauth_provider),\
+    \ None)\n    if not provider_info:\n        logger.error(f\"OAuth provider not\
+    \ found: {oauth_provider}\")\n        return None\n    \n    token_url = f\"https://example.com/{oauth_provider}/token\"\
+    \  # Replace with actual token URL\n    headers = {\n        'Content-Type': 'application/x-www-form-urlencoded',\n\
+    \    }\n    data = {\n        'client_id': provider_info.client_id,\n        'client_secret':\
+    \ provider_info.secret,\n        'code': request.query_params.get('code'),\n \
+    \       'grant_type': 'authorization_code',\n    }\n    \n    async with httpx.AsyncClient()\
+    \ as client:\n        response = await client.post(token_url, headers=headers,\
+    \ data=data)\n        if response.status_code == 200:\n            token_data\
+    \ = response.json()\n            return token_data\n        else:\n          \
+    \  logger.error(f\"OAuth login failed for provider: {oauth_provider}, status:\
+    \ {response.status_code}\")\n            return None\n\n@router.post(\"/users/login\"\
+    )\nasync def user_login(request: Request):\n    body = await request.json()\n\
+    \    oauth_provider = body.get(\"oauth_provider\")\n    if oauth_provider:\n \
+    \       oauth_user_data = await oauth_login(oauth_provider=oauth_provider, request=request)\n\
+    \        if oauth_user_data:\n            # Implement user lookup/creation logic\
+    \ here based on oauth_user_data\n            return {\"message\": \"OAuth Login\
+    \ successful\", \"oauth_user_data\": oauth_user_data}\n\n    login_user = CodxUserLogin(**body)\n\
+    \    user = await get_authenticated_user(request=request)\n    logger.info(f\"\
+    user_login user: {user} - body: {login_user}\")\n    if user:\n        return\
+    \ user\n    return UserSecurityManager().login_user(user=login_user)\n\n@router.put(\"\
+    /users\")\nasync def user_update(request: Request, user: CodxUser = Depends(get_authenticated_user)):\n\
+    \    body = await request.json()\n    user_security_manager = UserSecurityManager()\n\
+    \    user_changes = CodxUser(**body)\n    if user.username != user_changes.username:\n\
+    \      logger.error(f\"User {user} not match {user_changes}\")\n      raise Exception(\"\
+    Invalid data\")\n    return user_security_manager.update_user(user_changes)\n\n\
+    @router.get(\"/users\")\ndef list_update():\n    return UserSecurityManager().list_user()\n\
+    ```"
+  created_at: '2025-08-30 16:43:53.389655'
+  disable_knowledge: false
+  doc_id: 698539ea-fd90-4e03-8e84-58863aa55425
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00020122528076171875
+    model: openai/gpt-4o
+    time_taken: 16.60940980911255
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-08-30 16:43:53.389682'
+  user: null
+mode: task
+name: Allow user to login with OAuth
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-08-30T17:01:22.295825'
+url: ''
+users:
+- admin
+visibility: ''

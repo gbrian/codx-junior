@@ -1,0 +1,124 @@
+board: Wiki manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Requirements
+column_id: ''
+created_at: '2025-09-06 13:43:12.162587'
+description: '1. The task involves modifying the `build_wiki_home` method in a Python
+  script to update a wiki''s home page content based on provided markdown content.
+
+  2. The method should strip the "files" field from the current categories before
+  using them in the AI prompt for relevance analysis.
+
+  3. The AI prompt is structured to include the markdown content, existing home page
+  content, stripped categories, user instructions, and language preferences.
+
+  4. The AI determines the relevance of the markdown content for inclusion on the
+  wiki''s front page, ensuring the content is coherent and well-structured.
+
+  5. The updated home page content is then written to the home page file, with logging
+  for successful updates and exception handling for errors.'
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Wiki manager/Requirements/add-categories-to-the-home-page.b14c1336-1db2-4fe3-b443-c58bd1ca8446.yaml
+id: b14c1336-1db2-4fe3-b443-c58bd1ca8446
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Home page must receive the categories information. For this first we need
+    to strip the "files" field from the current categories before using in the AI
+    prompt
+  created_at: '2025-09-06 13:43:12.160296'
+  disable_knowledge: false
+  doc_id: d41fca92-5b1a-4ded-8721-915776e4a46f
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-06 13:43:12.160325'
+  user: null
+- content: "To ensure that the home page receives the categories information without\
+    \ the \"files\" field, you need to modify the `build_wiki_home` method to strip\
+    \ the \"files\" field from the categories before including them in the AI prompt.\
+    \ Here\u2019s how you can do it:\n\n```python /shared/codx-junior/api/codx/junior/wiki/wiki_manager.py\n\
+    def build_wiki_home(self, markdown_content: str) -> None:\n    \"\"\"\n    Build\
+    \ or update the content of the home page of the wiki based on provided markdown\
+    \ content.\n    The method will decide if the content is relevant for the front\
+    \ page and update accordingly.\n\n    Args:\n        markdown_content: The markdown\
+    \ content from a modified project file.\n    \"\"\"\n    # Load current wiki settings\n\
+    \    wiki_settings = self.load_wiki_settings()\n    user_language = wiki_settings.get(\"\
+    language\", \"English\")\n    user_instructions = wiki_settings.get(\"prompt\"\
+    , \"\")\n\n    # Strip the \"files\" field from the categories\n    categories_without_files\
+    \ = [\n        {key: category[key] for key in category if key != \"files\"}\n\
+    \        for category in self._get_all_categories(wiki_settings[\"categories\"\
+    ])\n    ]\n\n    # Prepare the prompt for AI to decide on the relevance of the\
+    \ content\n    relevance_prompt = f\"\"\"\n    <markdown_content>\n    {markdown_content}\n\
+    \    </markdown_content>\n    <home_page_content>\n    {self._read_file(self.wiki_home_path)}\n\
+    \    </home_page_content>\n    <categories>\n    {json.dumps(categories_without_files,\
+    \ indent=2)}\n    </categories>\n    <user_instructions>\n    {user_instructions}\n\
+    \    </user_instructions>\n    <user_language>\n    {user_language}\n    </user_language>\n\
+    \n    Analyze the provided markdown content and decide if it contains important\
+    \ information \n    that should be included in the front page of the wiki. If\
+    \ relevant, update the home page content \n    with this information. Ensure that\
+    \ content is coherent and well-structured.\n    Remember that the home page must\
+    \ show a high level overview don't deep down into details user will navigate the\
+    \ wiki for this.\n    Generated content must be in user_language: {user_language}\n\
+    \    \"\"\"\n    \n    try:\n        messages = self._ai_chat(prompt=relevance_prompt)\n\
+    \        updated_home_content = messages[-1].content\n        \n        # Write\
+    \ the updated content to the home page file\n        write_file(self.wiki_home_path,\
+    \ updated_home_content)\n        logger.info(f\"Wiki home page successfully updated\
+    \ at {self.wiki_home_path}\")\n        \n    except Exception as e:\n        logger.exception(f\"\
+    Error updating wiki home page: {e}\")\n```\n\nIn this code, I've added a step\
+    \ to strip the \"files\" field from each category before passing them to the AI\
+    \ prompt. This ensures that the AI receives only the necessary category information\
+    \ for updating the home page."
+  created_at: '2025-09-06 13:43:12.160296'
+  disable_knowledge: false
+  doc_id: b359e43f-37b3-4186-9373-3a8748371683
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.010686159133911133
+    model: openai/gpt-4o
+    time_taken: 15.861664772033691
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-09-06 13:43:12.160325'
+  user: null
+mode: chat
+name: Add categories to the home page
+parent_id: 12bde209-5f75-4096-a454-868da745640f
+pinned: false
+pr_view: {}
+profiles: []
+project_id: ac9804d5-fcb2-4026-81c0-61f2308f6380
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-06T13:53:35.197016'
+url: ''
+users: []
+visibility: ''

@@ -1,0 +1,199 @@
+board: OAuth
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: ToDo
+column_id: ''
+created_at: '2025-09-01 15:14:16.729889'
+description: '1. The user provided specific instructions for content creation, emphasizing
+  the maintenance of a clean markdown document.
+
+  2. A JSON object was included detailing a Python script for handling GitHub OAuth,
+  focusing on class structure and functionality.
+
+  3. The script implements PKCE (Proof Key for Code Exchange), mandates code verifiers
+  to be between 43 and 128 characters, and restricts characters to a defined set.
+
+  4. The assistant adjusted the script to ensure the code verifier meets the PKCE
+  requirements.
+
+  5. The response returned the revised Python script in the designated file path without
+  extra comments.'
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/security/github_oauth.py
+file_path: /shared/codx-junior/api/.codx/tasks/OAuth/ToDo/fix-oauth-pkce.86a797e7-2a4c-43af-9473-f19f7be24492.yaml
+id: 86a797e7-2a4c-43af-9473-f19f7be24492
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'PKCE code_verifiers must be between 43 and 128 characters long (inclusive)
+    and must contain only the following characters: [a-zA-Z0-9_.~-] '
+  created_at: '2025-09-01 15:14:16.727904'
+  disable_knowledge: true
+  doc_id: c920a994-dccb-41c6-bee0-b6fa15300144
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-01 15:14:16.727930'
+  user: admin
+- content: "PKCE code_verifiers must be between 43 and 128 characters long (inclusive)\
+    \ and must contain only the following characters: [a-zA-Z0-9_.~-] \n         \
+    \           Create new document based on user comments.\n                    User\
+    \ comments:\n                    PKCE code_verifiers must be between 43 and 128\
+    \ characters long (inclusive) and must contain only the following characters:\
+    \ [a-zA-Z0-9_.~-] \n                    Important: Always return the markdown\
+    \ document without any comments before or after, to keep it clean."
+  created_at: '2025-09-01 15:14:16.727904'
+  disable_knowledge: false
+  doc_id: 2b794448-5f8a-4091-9561-e5b67283fec4
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-01 15:14:16.727930'
+  user: null
+- content: ''
+  created_at: '2025-09-01 15:14:16.727904'
+  disable_knowledge: true
+  doc_id: 55e27e8e-fd4f-4a09-bc93-0a23275b4db5
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-01 15:14:16.727930'
+  user: admin
+- content: "                    Create new document based on user comments.\n    \
+    \                User comments:\n                    \n\n                    Important:\
+    \ Always return the markdown document without any comments before or after, to\
+    \ keep it clean."
+  created_at: '2025-09-01 15:14:16.727904'
+  disable_knowledge: false
+  doc_id: dfb81785-06ee-4a6b-a428-10d21baf3992
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-09-01 15:14:16.727930'
+  user: null
+- content: "```python /shared/codx-junior/api/codx/junior/security/github_oauth.py\n\
+    import logging\nimport requests\nimport secrets\nimport hashlib\n\nlogger = logging.getLogger(__name__)\n\
+    \nclass GitHubOAuth:\n    def __init__(self, client_id, client_secret, redirect_uri,\
+    \ scope=''):\n        self.client_id = client_id\n        self.client_secret =\
+    \ client_secret\n        self.redirect_uri = redirect_uri\n        self.scope\
+    \ = scope\n        self.state = secrets.token_urlsafe(16)\n\n    def generate_pkce(self):\n\
+    \        \"\"\"Generate code verifier and code challenge for PKCE.\"\"\"\n   \
+    \     # Ensure the code_verifier length is within the required 43 to 128 range\
+    \ by generating more characters\n        code_verifier = secrets.token_urlsafe(64)\
+    \  # Generates a string greater than 43 characters\n        hashed = hashlib.sha256(code_verifier.encode()).digest()\n\
+    \        code_challenge = secrets.base64.urlsafe_b64encode(hashed).decode().strip('=')\n\
+    \        return code_verifier, code_challenge\n\n    def get_authorization_url(self,\
+    \ login=None, allow_signup=True, prompt=None):\n        \"\"\"Generate the GitHub\
+    \ authorization URL.\"\"\"\n        code_verifier, code_challenge = self.generate_pkce()\n\
+    \        params = {\n            'client_id': self.client_id,\n            'redirect_uri':\
+    \ self.redirect_uri,\n            'scope': self.scope,\n            'state': self.state,\n\
+    \            'code_challenge': code_challenge,\n            'code_challenge_method':\
+    \ 'S256',\n            'allow_signup': str(allow_signup).lower()\n        }\n\
+    \        if login:\n            params['login'] = login\n        if prompt:\n\
+    \            params['prompt'] = prompt\n\n        auth_url = requests.Request('GET',\
+    \ 'https://github.com/login/oauth/authorize', params=params).prepare().url\n \
+    \       return auth_url, code_verifier\n\n    def get_access_token(self, code,\
+    \ code_verifier):\n        \"\"\"Exchange code for an access token.\"\"\"\n  \
+    \      token_url = 'https://github.com/login/oauth/access_token'\n        headers\
+    \ = {\n          'Accept': 'application/json'\n        }\n        data = {\n \
+    \           'client_id': self.client_id,\n            'client_secret': self.client_secret,\n\
+    \            'code': code,\n            'redirect_uri': self.redirect_uri,\n \
+    \           'code_verifier': code_verifier,\n            'repository_id': ''\n\
+    \        }\n        logger.info(\"get_access_token %s\", data)\n        query_string\
+    \ = \"&\".join([f\"{k}={data[k]}\" for k in data.keys()])\n        response =\
+    \ requests.post(f\"{token_url}?{query_string}\", headers=headers)\n        try:\n\
+    \            response.raise_for_status()\n        except requests.exceptions.HTTPError\
+    \ as err:\n            logger.exception(\"Error requesting github access_token:\
+    \ %s - %s - %s\",\n                err.request.url,\n                str(err),\n\
+    \                err.response.text)\n            raise err\n        return response.json()\n\
+    \n    def get_user_info(self, access_token):\n        \"\"\"Retrieve user information\
+    \ using the access token.\"\"\"\n        headers = {'Authorization': f'Bearer\
+    \ {access_token}'}\n        user_info_url = 'https://api.github.com/user'\n  \
+    \      response = requests.get(user_info_url, headers=headers)\n        response.raise_for_status()\n\
+    \        return response.json()\n```"
+  created_at: '2025-09-01 15:14:16.727904'
+  disable_knowledge: false
+  doc_id: 8e437541-c77d-499d-8b59-bb78ba6c1f8c
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002002716064453125
+    model: openai/gpt-4o
+    time_taken: 5.708592653274536
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-09-01 15:14:16.727930'
+  user: null
+mode: task
+name: Fix oauth PKCE
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-01T15:17:30.670225'
+url: ''
+users:
+- admin
+visibility: ''

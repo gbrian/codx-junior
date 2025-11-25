@@ -13,6 +13,8 @@ import yaml
 from slugify import slugify
 from collections import deque
 
+from typing import Dict, Any, List
+
 from datetime import datetime, timezone, timedelta
 from codx.junior.settings import CODXJuniorSettings
 
@@ -20,6 +22,8 @@ from codx.junior.db import Chat, Message
 from codx.junior.utils.utils import write_file
 
 from codx.junior.profiling.profiler import profile_function
+
+from codx.junior.chat.chat_export import ChatExport, ExportedDocument
 
 
 logger = logging.getLogger(__name__)
@@ -64,16 +68,14 @@ class ChatManager:
         board = chat_parts[-3]
         return board, column, name
 
-    @profile_function
     def list_chats(self):
         file_paths = self.chat_paths()
-        @profile_function
         def list_chat_chat_info(file_path):
             try:
                 chat = self.load_chat_from_path(chat_file=file_path, chat_only=True)
                 return chat
             except Exception as ex:
-                logger.exception(f"Error loading chat {ex}")
+                logger.error(f"Error loading chat {ex}")
             return None
             
         return sorted([chat \
@@ -108,6 +110,17 @@ class ChatManager:
         chat.users = list(set(users))
         chat.profiles = list(set(profiles))
 
+        self.store_chat(chat)
+
+        # remove old chat
+        if current_chat:
+            logger.info(f"Save chat, current_chat {current_chat.id} at {current_chat.file_path}")
+            if chat.file_path != current_chat.file_path:
+                self.delete_chat(current_chat.file_path)
+
+        return chat
+
+    def store_chat(self, chat):
         yaml_chat_file = self.get_chat_file(chat)
         logger.info(f"Save chat {chat.id} at {yaml_chat_file}")
 
@@ -116,14 +129,6 @@ class ChatManager:
 
         # Serialize and save as YAML
         write_file(yaml_chat_file, yaml.dump(chat.dict()))
-
-        # remove old chat
-        if current_chat:
-            logger.info(f"Save chat, current_chat {current_chat.id} at {current_chat.file_path}")
-            if yaml_chat_file != current_chat.file_path:
-                self.delete_chat(current_chat.file_path)
-
-        return chat
 
     def delete_chat(self, file_path: str = None, chat_id: str = None):
         logger.info(f"Removing chat by file_path: {file_path}  - chat_id: {chat_id}")
@@ -147,7 +152,6 @@ class ChatManager:
             return chat
         return self.load_chat_from_path(chat_file=chat_file)
 
-    @profile_function
     def load_chat_from_path(self, chat_file: str, chat_only: bool = False):
         yaml_chat_file = chat_file.replace('.md', '.yaml')
 
@@ -155,7 +159,10 @@ class ChatManager:
             # Load from YAML if exists
             with open(yaml_chat_file, 'r') as f:
                 chat_data = yaml.safe_load(f)
-                return Chat(**chat_data)
+                chat = Chat(**chat_data)
+                if chat_only:
+                    chat.messages = []
+                return chat
 
         # Fallback to existing method if YAML file doesn't exist
         board, column, name = self.chat_board_column_name_from_path(chat_file)
@@ -178,9 +185,6 @@ class ChatManager:
         chat.board = board
         chat.column = column
         chat.file_path = chat_file
-        # Save chat to migrate to yaml
-        if not chat_only:
-            self.save_chat(chat)
         return chat
 
     def serialize_chat(self, chat: Chat):
@@ -204,9 +208,8 @@ class ChatManager:
     def delete_kanban(self, kanban_title: str):
         shutil.rmtree(f"{self.chat_path}/{kanban_title}")
 
-    @profile_function
     def deserialize_chat(self, content, chat_only: bool = False) -> Chat:
-        logger.info(f"deserialize_chat content length: {len(content)}")
+        # logger.info(f"deserialize_chat content length: {len(content)}")
         lines = content.split("\n")
         chat_json = json.loads(lines[0][4:-2])
         chat = Chat(**chat_json)
@@ -273,39 +276,8 @@ class ChatManager:
     def load_kanban(self):
         kanban_file = f"{self.chat_path}/kanban.json"
         logger.info(f"load_kanban {kanban_file}")
-        all_chats = self.list_chats()
-        kanban = self.load_kanban_from_file(kanban_file=kanban_file)
-        
-        all_board_dirs = [board for board in os.listdir(f"{self.chat_path}") \
-                            if os.path.isdir(f"{self.chat_path}/{board}")]
-        save_kanban = False
-        boards = kanban["boards"]
-        logger.info(f"Process boards {kanban_file}")
-        
-        for board in set([chat.board for chat in all_chats] + all_board_dirs):
-            if not boards.get(board):
-                boards[board] = {}
-            if not boards[board].get("columns"):
-                boards[board]["columns"] = []
-
-            all_board_columns = [col for col in os.listdir(f"{self.chat_path}/{board}") \
-                        if os.path.isdir(f"{self.chat_path}/{board}/{col}") ]
-            board_columns = boards[board]["columns"]
-            for col in set([chat.column for chat in all_chats if chat.board == board]
-                            +
-                            all_board_columns):
-                if not [c for c in board_columns if c["title"] == col]:
-                    board_columns.append({ "title" : col })
-                    save_kanban = True
-
-            for col in board_columns:
-                if not col.get("id"):
-                    col["id"] = str(uuid.uuid4())
-                    save_kanban = True
-
-        if save_kanban:
-            self.save_kanban(kanban)
-        return kanban
+        # all_chats = self.list_chats()
+        return self.load_kanban_from_file(kanban_file=kanban_file)
 
     def save_kanban(self, kanban):
         kanban_file = f"{self.chat_path}/kanban.json"
@@ -328,3 +300,56 @@ class ChatManager:
                 filtered_chats.append(chat)
         
         return filtered_chats
+
+
+    def traverse_chat_messages(self, chat_id, all_chats: List[Chat]) -> List[Message]:
+        """
+        Traverse messages in the chat and its descendants, yielding messages.
+        """
+        messages = []
+        chat = self.find_by_id(chat_id)
+
+        # Traverse current chat messages
+        logger.info("chat_export traversing chat: %s, messages: %s", chat.name, len(chat.messages))
+        for message in chat.messages:
+            # Check if there's a chat pointing to this message
+            linked_chat = next((c for c in all_chats if c.message_id == message.doc_id), None)
+            if linked_chat:
+                messages.extend(self.traverse_chat_messages(chat_id=linked_chat.id, all_chats=all_chats))
+            
+            # Append the message itself
+            messages.append(message)
+        
+        # Find child chats and sort them by child_index
+        child_chats = sorted([c for c in all_chats if c.parent_id == chat.id], key=lambda x: x.child_index)
+        for child_chat in child_chats:
+            messages.extend(self.traverse_chat_messages(chat_id=child_chat.id, all_chats=all_chats))
+        
+        return messages
+
+    def build_markdown_document(self, chat_id) -> str:
+        """
+        Traverse the chat and generate a markdown document.
+        Ignore messages with the 'hide' flag set to True.
+        """
+        all_chats = self.list_chats()
+        messages = self.traverse_chat_messages(chat_id=chat_id, all_chats=all_chats)
+        markdown = ""
+        for msg in messages:
+            if not msg.hide:
+                markdown += f"# {msg.content}\n\n"
+        return markdown
+
+    def export_chat(self, chat_id: str, export_format: str) -> ExportedDocument:
+        """
+        Export a chat and its descendants to the specified format.
+
+        :param chat_id: The ID of the chat to export.
+        :param export_format: The format to export to (e.g., markdown, docx, pdf, excel).
+        :return: An ExportedDocument containing the exported chat.
+        """
+        chat = self.find_by_id(chat_id=chat_id)
+        content = self.build_markdown_document(chat_id=chat_id)
+        # Use ChatExport to export the chat
+        chat_exporter = ChatExport(chat=chat, content=content, export_format=export_format)
+        return chat_exporter.export_chat()

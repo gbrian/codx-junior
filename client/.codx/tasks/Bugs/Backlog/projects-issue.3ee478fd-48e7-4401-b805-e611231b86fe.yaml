@@ -1,0 +1,520 @@
+board: Bugs
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: Backlog
+column_id: ''
+created_at: '2025-11-19 09:22:16.212555'
+description: The conversation focuses on debugging an issue where the active project
+  changes unexpectedly when loading a chat in a project management system. It identifies
+  potential causes, such as the initialization of the project store resetting the
+  active project and the `loadAllProjects` function setting the active project to
+  the first in the list. Additionally, it highlights the role of the `setActiveProject`
+  action and the `Kanban.vue` component in potentially affecting the active project.
+  Recommendations include debugging with console logs, ensuring intentional state
+  management, and conducting code reviews to trace and resolve the issue.
+doc_id: null
+file_list:
+- /shared/codx-junior/client/src/store/project.js
+- /shared/codx-junior/client/src/components/kanban/Kanban.vue
+file_path: /shared/codx-junior/client/.codx/tasks/Bugs/Backlog/projects-issue.3ee478fd-48e7-4401-b805-e611231b86fe.yaml
+id: 3ee478fd-48e7-4401-b805-e611231b86fe
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: When loading a chat the active project changes and that's an error. Check
+    project store and kanban.vue and find why the active project is changed
+  created_at: '2025-11-19 09:22:16.210314'
+  disable_knowledge: true
+  doc_id: 09d55338-b609-412c-bfa3-0b662c2dc8b5
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-19 09:22:16.210338'
+  user: admin
+- content: "> codx-junior-ui results for: 'project store'\n```txt /shared/codx-junior/client/src/store/project.js\n\
+    /shared/codx-junior/client/src/store/project.js\nimport { getterTree, mutationTree,\
+    \ actionTree } from 'typed-vuex'\nimport store, { $storex } from '.'\nimport {\
+    \ API } from '../api/api'\nimport { v4 as uuidv4 } from 'uuid'\n\nexport const\
+    \ namespaced = true\n\nexport const state = () => ({\n  allProjects: null,\n \
+    \ chats: {},\n  activeChat: null,\n  activeProject: null,\n  recentProjects: [],\
+    \ // New state property to keep track of recent projects\n  logs: null,\n  formatedLogs:\
+    \ [],\n  selectedLog: null,\n  autoRefresh: false,\n  changesSummary: null,\n\
+    \  selectedProfile: null,\n  kanban: null,\n  project_branches: {},\n  projectLoading:\
+    \ false,\n  knowledge: null,\n  activeBoard: null,\n  kanbanTemplates: [\n   \
+    \ {\n      name: \"Backlog\",\n      description: \"Backlog board\",\n      columns:\
+    \ [\n        { title: \"Backlog\", color: \"#FFC300\" },\n        { title: \"\
+    In Development\", color: \"#DAF7A6\" },\n        { title: \"Completed\", color:\
+    \ \"#C70039\" }\n      ]\n    },\n    {\n      name: \"Scrum\",\n      description:\
+    \ \"Scrum board\",\n      columns: [\n        { title: \"To Do\", color: \"#FF5733\"\
+    \ },\n        { title: \"In Progress\", color: \"#33FF57\" },\n        { title:\
+    \ \"Done\", color: \"#3357FF\" }\n      ]\n    },\n  ],\n  activeWizards: [],\n\
+    \  ai: {\n    models: []\n  },\n  openedWorkspaces: [],\n  projectBarnches: {}\n\
+    })/shared/codx-junior/client/src/store/project.js\nexport const mutations = mutationTree(state,\
+    \ {\n  setAllProjects(state, allProjects) {\n    state.allProjects = allProjects?.sort((a,\
+    \ b) => {\n        const aUpdated = a._metrics?.last_update || \"\"\n        const\
+    \ bUpdated = b._metrics?.last_update || \"\"\n        return aUpdated > bUpdated\
+    \ ? -1 : 1\n      })\n    state.activeChat = null\n  },\n  setLogs(state, logs)\
+    \ {\n    state.logs = logs\n  },\n  setFormatedLogs(state, formatedLogs) {\n \
+    \   state.formatedLogs = formatedLogs\n  },\n  setSelectedProfile(state, profile)\
+    \ {\n    state.selectedProfile = profile\n  },\n  setProjectLoading(state, value)\
+    \ {\n    state.projectLoading = value\n  },\n  setActiveBoard(state, boardName)\
+    \ {\n    state.activeBoard = boardName\n  },\n  addWizard(state, wizard) {\n \
+    \   wizard.id = wizard.id || new Date().getTime()\n    state.activeWizards.push(wizard)\n\
+    \  },\n  removeWizard(state, wizard) {\n    state.activeWizards = state.activeWizards.filter(w\
+    \ => w !== wizard)\n  },\n  addRecentProject(state, project) { // New mutation\
+    \ to update recent projects\n    state.recentProjects = [project, ...state.recentProjects.filter(p\
+    \ => p.codx_path !== project.codx_path)].slice(0, 5)\n  }\n})\n\n\nfunction createProjectChat(project,\
+    \ chat) {\n  return {\n    ...chat,\n    get chatLink() {\n      return `/project/${project.project_id}/chat/${chat.id}`\n\
+    \    }\n  }\n}/shared/codx-junior/client/src/store/project.js\nexport const getters\
+    \ = getterTree(state, {\n  allParentProjects: () => $storex.api.allProjects.filter(p\
+    \ => !p.parentProject),\n  profiles: state => $storex.profiles.profiles[state.activeProject.project_id]?.map(p\
+    \ => ({\n                        ...p,\n                        project: state.allProjects.find(({\
+    \ project_id }) => project_id === p.project_id)\n                      })),\n\
+    \  allChats: state => Object.values(state.chats || {}).map(chat =>createProjectChat(state.activeProject,\
+    \ chat)),\n  allBoards: state => Object.keys(state.kanban.boards).map(title =>\
+    \ ({ title, ...state.kanban.boards[title] })),\n  allTags: state => new Set(Object.values(state.chats||{})?.map(c\
+    \ => c.tags).reduce((a, b) => a.concat(b), []) || []),\n  allPRs: () => $storex.projects.allChats().filter(c\
+    \ => c.pr_view?.from_branch),\n  projectDependencies: state => {\n    const {\
+    \ project_dependencies } = state.activeProject\n    return project_dependencies?.split(\"\
+    ,\")\n        .map(project_name => state.allProjects\n        .find(p => p.project_name\
+    \ === project_name))\n        .filter(f => !!f) || []\n  },\n  childProjects:\
+    \ state => state.allProjects.filter(p => \n      p.project_path !== state.activeProject.project_path\
+    \ && p.project_path.startsWith(state.activeProject.project_path))\n  ,\n  parentProject:\
+    \ state => state.allProjects.find(p =>\n    p.project_path !== state.activeProject.project_path\
+    \ && state.activeProject.project_path.startsWith(p.project_path)),\n  projectHierarchy:\
+    \ (state) => {\n    const hierarchy = state.allProjects.map(project => ({ ...project\
+    \ }))\n    return hierarchy.map(project => {\n      project.parent_project = hierarchy\n\
+    \                        .filter(pp => project.project_path != pp.project_path)\
+    \ \n                        .find(pp => project.project_path.startsWith(pp.project_path))\n\
+    \      project.sub_projects = hierarchy\n                        .filter(pp =>\
+    \ project.project_path != pp.project_path)\n                        .filter(pp\
+    \ => pp.project_path.startsWith(project.project_path))\n      return project\n\
+    \    })\n  },/shared/codx-junior/client/src/store/project.js\n},\n  embeddingsModel:\
+    \ state => state.activeProject?.embeddings_model || \n                       \
+    \         $storex.api.globalSettings?.embeddings_model,\n  aiModel: state => state.activeProject?.llm_model\
+    \ || \n                      $storex.api.globalSettings?.llm_model,\n  chatModes:\
+    \ state => {\n    return {\n      \"task\": { name: \"Analyst\", profiles: [],\
+    \ icon: \"fa-solid fa-user-doctor\" },\n      \"chat\": { name: \"Developer\"\
+    , profiles: [], icon: \"fa-regular fa-comments\" },\n    }\n  },\n  branches:\
+    \ state => state.project_branches.branches,\n  currentBranch: state => state.project_branches.current_branch,\n\
+    \  mentionList: () => {\n    return [\n      ...$storex.api.userNetwork.map(user\
+    \ => ({ \n        name: user.username,\n        user,\n        tooltip: `User\
+    \ @${user.username}` \n      })),\n      ...$storex.projects.profiles.map(profile\
+    \ => ({ \n          name: profile.name,\n          profile,\n          tooltip:\
+    \ profile.description \n        })),\n      ...[\n        $storex.projects.activeProject,\n\
+    \        $storex.projects.parentProject,\n        ...$storex.projects.childProjects,\n\
+    \        ...$storex.projects.projectDependencies,\n      ]\n        .filter(project\
+    \ => project)\n        .map(project => ({ name: project.project_name, project,\
+    \ tooltip: `Search in project ${project.project_name}` })),\n      ...[\n    \
+    \    ...$storex.projects.knowledge?.files || [],\n        ...$storex.projects.knowledge?.pending_files\
+    \ || []\n      ]\n        .map(file => ({ file,\n                        name:\
+    \ file.split('/').reverse()[0],\n                        filePath: file.split('/').reverse().slice(0,\
+    \ 3).reverse().join('/')\n                      }))\n        .map(({ file, name,\
+    \ filePath }) => ({ \n                        name, \n                       \
+    \ file, \n                        searchIndex: filePath,\n                   \
+    \     tooltip: `Use file ${filePath}`\n                      })),\n    ].map(m\
+    \ => ({ \n      ...m,\n      avatar: m.user?.avatar || m.profile?.avatar || m.project?.project_icon,\n\
+    \      searchIndex: m.searchIndex || m.name.toLowerCase(),/shared/codx-junior/client/src/store/project.js\n\
+    mention: encodeURIComponent(m.name)\n    }))\n  },\n  lastAssistantChats: () =>\n\
+    \        $storex.projects.allChats\n          .filter(c => c.board === 'codx-junior')\n\
+    \          .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),\n\
+    \  userList: () => [$storex.users.user, ...$storex.projects.profiles.map(p =>\
+    \ ({ ...p, isProfile: true }))],\n  workspaces: state => Object.values(state.allProjects.map(p\
+    \ => p.workspaces)\n                          .reduce((a, b) => a.concat(b), [])\n\
+    \                          .reduce((acc, ws) => ({ ...acc, [ws.id]: ws }) , {}))\n\
+    })/shared/codx-junior/client/src/store/project.js\nexport const actions = actionTree(\n\
+    \  { state, getters, mutations },\n  {\n    async init ({ state }) {\n      $storex.projects.setAllProjects([])\n\
+    \      state.activeProject = null\n      state.activeChat = null\n\n      $storex.projects.loadAllProjects()\n\
+    \    },\n    async loadAllProjects(_, withMetrics) {\n      if ($storex.api.user)\
+    \ {\n        try {\n          await API.projects.list(withMetrics)\n         \
+    \ $storex.projects.setAllProjects(API.allProjects)\n          if (API.activeProject)\
+    \ {\n            try {\n              await $storex.projects.setActiveProject(API.activeProject)\n\
+    \            } catch {}\n          }\n          if (!$storex.projects.activeProject\
+    \ && $storex.projects.allProjects?.length) {\n            $storex.projects.setActiveProject($storex.projects.allProjects[0])\n\
+    \          }\n          return $storex.projects.allProjects\n        } catch {\n\
+    \          $storex.session.onError(\"Error loading projects\")\n        }\n  \
+    \    } \n      $storex.projects.setAllProjects([])\n      state.activeProject\
+    \ = null\n      state.activeChat = null\n    },\n    async setActiveProject ({\
+    \ state }, project) {\n      const { project_id, project_name, codx_path } = project\n\
+    \      if ( !codx_path ) {\n        project = $storex.projects.allProjects\n \
+    \         .find(p => p.project_name === project_name || \n                   \
+    \   p.project_id === project_id)\n      }\n      if (project?.codx_path === state.activeProject?.codx_path\
+    \ ) {\n        return\n      }\n\n      if (project?.codx_path) {\n        state.projectLoading\
+    \ = true\n        try {\n          const [_, models ] = await Promise.all([\n\
+    \            API.setActiveProject(project),\n            API.projects.ai.models.list()\n\
+    \          ])\n          state.ai.models = models/shared/codx-junior/client/src/store/project.js\n\
+    },\n    async onChatEvent({ state }, { event, data }) {\n      const {\n     \
+    \   chat: {\n          id: chatId\n        },\n        message,\n        event_type,\n\
+    \        type,\n        codx_path\n      } = data/shared/codx-junior/client/src/store/project.js\n\
+    if (event_type === 'error') {\n        $storex.ui.addNotification({ text: message,\
+    \ type: event_type })\n      }\n    \n      if (chatId && (!state.chats[chatId]\
+    \ || type === 'changed')) {\n        if (codx_path === state.activeProject.codx_path)\
+    \ {\n            await $storex.projects.loadChat({ id: chatId })\n        }\n\
+    \      }/shared/codx-junior/client/src/store/project.js\nawait $storex.api.chats.kanban.delete(title)\n\
+    \      $storex.projects.saveKanban()\n    },\n    async applyPatch(_,patch) {\n\
+    \      return API.run.patch(patch)\n    },\n    openWorkspaceApp({ state }, {\
+    \ workspace, app }) {\n      const ix = state.openedWorkspaces.findIndex(ows =>\
+    \ ows.workspace.id === workspace.id && app.port === ows.app.port)\n      if (ix\
+    \ !== -1) {\n        state.openedWorkspaces = state.openedWorkspaces.filter((_,\
+    \ iix) => iix != ix)\n      } else {\n        state.openedWorkspaces = [...state.openedWorkspaces,\
+    \ { workspace, app }]\n      }\n    }\n  }\n)\n```\n```txt /shared/codx-junior/client/src/components/chat/SendButton.vue\n\
+    /shared/codx-junior/client/src/components/chat/SendButton.vue\n<script setup>\n\
+    import UserAvatar from '../user/UserAvatar.vue'\n</script>\n\n<template>\n  <div\
+    \ class=\"btn btn-sm flex gap-1\" @click=\"sendSelectedUser\">\n    <div class=\"\
+    dropdown dropdown-top dropdown-end\" @click.stop=\"\">\n      <div tabindex=\"\
+    0\" class=\"\" @click=\"toggleDropdown\">\n        <UserAvatar :user=\"selectedUser\"\
+    \ />\n      </div>\n      <ul v-if=\"isOpen\" tabindex=\"0\" class=\"dropdown-content\
+    \ menu bg-base-100 rounded-box z-[50] w-52 p-2 shadow\">\n        <li v-for=\"\
+    user in usersList\" :key=\"user.id\" @click=\"selectUser(user)\">\n          <a>{{\
+    \ user.name }}</a>\n        </li>\n      </ul>\n    </div>\n    <div>\n      <slot></slot>\n\
+    \    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n\
+    \    return {\n      isOpen: false,\n      selectedUser: null\n    }\n  },\n \
+    \ created () {\n    this.selectedUser = this.$user\n  },\n  computed: {\n    //\
+    \ Combine users from user and project profiles\n    usersList() {\n      return\
+    \ [this.$store.state.user, ...this.$store.state.projects.profiles]\n    }\n  },\n\
+    \  methods: {\n    toggleDropdown() {\n      this.isOpen = !this.isOpen\n    },\n\
+    \    selectUser(user) {\n      this.selectedUser = user\n      this.toggleDropdown()\n\
+    \    },\n    // Emit selected user to the parent component\n    sendSelectedUser()\
+    \ {\n      const selUser = this.selectedUser === this.$user ? null : this.selectedUser\n\
+    \      this.$emit('send', selUser)\n    }\n  }\n}\n</script>\n```"
+  created_at: '2025-11-19 09:22:16.210314'
+  disable_knowledge: false
+  doc_id: 07c28304-239f-4efc-a9c4-387a48e898d3
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-19 09:22:16.210338'
+  user: null
+- content: "> codx-junior-ui results for: 'kanban.vue'\n```txt /shared/codx-junior/client/src/components/kanban/Kanban.vue\n\
+    /shared/codx-junior/client/src/components/kanban/Kanban.vue\n<script setup>\n\
+    import draggable from 'vuedraggable'\nimport TaskCard from './TaskCard.vue'\n\
+    import TaskCardLite from './TaskCardLite.vue'\nimport ChatViewVue from '../../views/ChatView.vue'\n\
+    import { v4 as uuidv4 } from 'uuid'\nimport VSwatches from '../VSwatches.vue'\n\
+    import KanbanList from './KanbanList.vue'\nimport ChatIcon from '../chat/ChatIcon.vue'\n\
+    import FileFinder from '../filebrowser/FileFinder.vue'\nimport ProjectDetailt\
+    \ from '../ProjectDetailt.vue'\n</script>\n\n<template>\n  <div class=\"h-full\"\
+    \ v-if=\"kanban?.boards\">\n    <div class=\"flex flex-col gap-2\" v-if=\"!$projects.activeChat\
+    \ && !board\">\n      <h1 class=\"px-2 text-2xl font-bold flex justify-between\
+    \ gap-2 border-b border-slate-700 pb-2\">\n        <div class=\"flex gap-2\">\n\
+    \          <div class=\"avatar\">\n            <div class=\"w-8 h-8 rounded-full\"\
+    >\n              <img :src=\"$project.project_icon\" />\n            </div>\n\
+    \          </div>\n          {{ $project.project_name }}\n        </div>\n   \
+    \     <div class=\"grow\"></div>\n        <input type=\"text\" v-model=\"boardFilter\"\
+    \ class=\"input input-sm input-bordered\" placeholder=\"Search boards\" />\n \
+    \       <button class=\"btn btn-sm btn-warning btn-outline\" @click=\"showNewBoardModal\"\
+    >\n          New kanban\n        </button>\n        <button class=\"btn btn-sm\
+    \ btn-outline\" @click=\"reloadKanban\">\n          <i class=\"fa-solid fa-rotate\"\
+    ></i> Reload\n        </button>\n      </h1>/shared/codx-junior/client/src/components/kanban/Kanban.vue\n\
+    </modal>\n    <modal v-if=\"showColumnModal\">\n      <h2 class=\"font-bold text-lg\"\
+    >Add/Edit Column</h2>\n      <div class=\"flex gap-1 items-center\">\n       \
+    \ <VSwatches v-model=\"columnColor\" class=\"h-full mt-1\" />\n        <input\
+    \ type=\"text\" v-model=\"columnTitle\" placeholder=\"Enter column name\"\n  \
+    \        class=\"grow input input-bordered w-full\"/>\n        \n      </div>/shared/codx-junior/client/src/components/kanban/Kanban.vue\n\
+    <script>\nconst ALL_BOARD_TITLE_ID = '$ALL'\nconst FILES_COLUMN = '__files__'\n\
+    export default {\n  data() {\n    return {\n      boardFilter: '',\n      filter:\
+    \ null,\n      showBoardModal: false,\n      showColumnModal: false,\n      newBoardType:\
+    \ 'manual',\n      newBoardIssueLink: '',\n      newBoardName: '',\n      newBoardDescription:\
+    \ '',\n      newBoardBackground: '',\n      newBoardBranch: '',\n      newBoardParent:\
+    \ null,\n      columnTitle: '',\n      columnColor: '#000000',\n      isDropdownOpen:\
+    \ false,\n      selectedColumn: null,\n      editColumnError: null,\n      columns:\
+    \ [],\n      selectedTemplate: null,\n      showChildrenBoards: false,\n     \
+    \ editBoard: null,\n      originalBoardName: null,\n      filteredColumns: [],\n\
+    \      confirmDeleteColumn: false,\n      showImportModalForColumn: null,\n  \
+    \    importOption: 'clipboard',\n      importUrl: '',\n      searchVisible: false,\n\
+    \      showFileFinder: false,\n      pinnedChats: [],\n      topChats: [],\n \
+    \     columnProject: null // Initialize columnProject\n    }\n  },\n  created()\
+    \ {\n    this.projectChanged()\n  },\n  computed: {\n    topProjects() {\n   \
+    \   const children = this.$storex.projects.childProjects\n      const parent =\
+    \ this.$project.parentProject\n      return parent ? [parent, ...children] : children\n\
+    \    },\n    filteredParentBoards() {\n      return this.parentBoards.filter(board\
+    \ => \n        board.title.toLowerCase().includes(this.boardFilter.toLowerCase())\n\
+    \      )\n    },\n    board() {\n      return this.$projects.activeBoard\n   \
+    \ },\n    lastUpdatedTask() {\n      return this.visibleTasks.sort((a, b) => \n\
+    \        (a.updated_at || new Date(1900, 1, 1)) > \n        (b.updated_at || new\
+    \ Date(1900, 1, 1)) ? -1 : 1)\n        .slice(0, 1)[0] || {}\n    },\n    showKanban()\
+    \ {\n      return this.kanban && this.activeKanbanBoard\n    },\n    kanban()\
+    \ {\n      return this.$projects.kanban\n    },\n    activeKanbanBoard() {\n \
+    \     return this.kanban.boards[this.board]\n    },\n    chats() {\n      const\
+    \ allChats = this.$projects.allChats\n      return Object.values(allChats || {}).map(c\
+    \ => ({\n        ...c,/shared/codx-junior/client/src/components/kanban/Kanban.vue\n\
+    !== oldValue.map(c => c.id).sort().join())\n      this.buildColumns()\n    },\n\
+    \    kanban() {\n      this.buildKanban()\n    }\n  },\n  methods: {\n    buildFilteredColumns()\
+    \ {\n      if (!this.filter) {\n        this.filteredColumns = this.columns\n\
+    \      } else {\n        const filterText = this.filter.toLowerCase()\n      \
+    \  this.filteredColumns = this.columns.map(column => {\n          const filteredTasks\
+    \ = column.tasks.filter(task => {\n            const taskNameMatches = task.name.toLowerCase().includes(filterText)\n\
+    \            const messageContentMatches = task.messages?.some(message =>\n  \
+    \            message.content.toLowerCase().includes(filterText)\n            )\n\
+    \            return taskNameMatches || messageContentMatches\n          })\n \
+    \         return { ...column, tasks: filteredTasks }\n        })\n      }\n  \
+    \  },\n    async projectChanged() {\n      await this.$projects.loadKanban()\n\
+    \      this.selectBoard()\n      this.buildKanban()\n    },\n    toggleDropdown()\
+    \ {\n      this.isDropdownOpen = !this.isDropdownOpen\n    },\n    async selectBoard(board)\
+    \ {\n      this.$projects.setActiveBoard(board)\n      this.isDropdownOpen = false\n\
+    \      await this.$projects.loadChats()\n      if (board && this.kanban.boards[board]\
+    \ && !this.kanban.boards[board].active) {\n        Object.keys(this.kanban.boards)\n\
+    \          .filter(b => this.kanban.boards[b])\n          .forEach(b => this.kanban.boards[b].active\
+    \ = (b === board))\n        this.kanban.boards[board].last_update = new Date().toISOString()\n\
+    \        this.saveKanban()\n      }\n      this.buildKanban()\n      this.showChildrenBoards\
+    \ = !!this.childBoards?.length\n    },\n    async editKanban(board) {\n      if\
+    \ (!this.newBoardName.trim()) {\n        return\n      }\n      board.title =\
+    \ this.newBoardName\n      board.description = this.newBoardDescription\n    \
+    \  board.background = this.newBoardBackground\n      board.last_update = new Date().toISOString()\n\
+    \      board.parent_id = this.newBoardParent\n      await this.saveKanban()\n\
+    \    },\n    async createNewChat(base, activateChat) {/shared/codx-junior/client/src/components/kanban/Kanban.vue\n\
+    tasks: this.boardChats\n              .filter(t => (t.column || '--none--') ===\
+    \ col && !t.pinned)\n              .sort((a, b) => a.pinned || (getChatIndex(a)\
+    \ < getChatIndex(b)) ? -1 : 1),\n            position: ix\n          }\n     \
+    \   }).sort((a, b) => a.position < b.position ? -1: 1)\n        || []\n      \
+    \  this.buildFilteredColumns()/shared/codx-junior/client/src/components/kanban/Kanban.vue\n\
+    this.chats.forEach(chat => {\n          if (chat.board === oldBoardName) {\n \
+    \           chat.board = boardName\n            this.$projects.saveChatInfo(chat)\n\
+    \          }\n        })\n      }\n      \n      this.kanban.boards[boardName]\
+    \ = board \n      board.description = this.newBoardDescription?.trim()\n     \
+    \ board.background = this.newBoardBackground?.trim()\n      board.parent_id =\
+    \ this.newBoardParent/shared/codx-junior/client/src/components/kanban/Kanban.vue\n\
+    this.$projects.deleteBoard(board)\n    },\n    onAddFile(filePaths) {\n      if\
+    \ (this.activeBoard) {\n        this.activeBoard.file_list = [...(this.activeBoard.file_list\
+    \ || []), ...filePaths]\n      }\n    },\n    reloadKanban() {\n      this.$projects.loadKanban()\n\
+    \    },\n    async moveChatsToColumn({ chats, column }) {\n      await Promise.all(chats.map(async\
+    \ chat => { \n        chat.column = column\n        await this.$projects.saveChatInfo(chat)\
+    \ \n      }))\n      this.buildColumns()\n    }\n  }\n  // @codx: add a dot line\
+    \ here..... .\n}\n</script>\n```\n```txt /shared/codx-junior/client/src/components/kanban/TaskSettings.vue\n\
+    /shared/codx-junior/client/src/components/kanban/TaskSettings.vue\n<script setup>\n\
+    import ProfileSelector from '../profile/ProfileSelector.vue'\n</script>\n```\n\
+    ```txt /shared/codx-junior/client/src/components/kanban/KanbanList.vue\n/shared/codx-junior/client/src/components/kanban/KanbanList.vue\n\
+    <script setup>\nimport moment from 'moment'\nimport KanbanSettings from './KanbanSettings.vue';\n\
+    import ProjectIcon from '../ProjectIcon.vue';\n</script>\n```\n```txt /shared/codx-junior/client/src/store/project.js\n\
+    /shared/codx-junior/client/src/store/project.js\nstate.kanban = await $storex.api.chats.kanban.load()\n\
+    \    },\n    async saveKanban({ state }, kanban) {\n      await $storex.api.chats.kanban.save(kanban\
+    \ || state.kanban)\n    },\n    async saveProfile({ state }, profile) {\n    \
+    \  const data = await $storex.profiles.saveProfile({ profile, project: state.activeProject\
+    \ })\n      await $storex.projects.loadProfiles()\n      if (state.selectedProfile.name\
+    \ === data.name) {\n        state.selectedProfile = $storex.projects.profiles.find(p\
+    \ => p.name === data.name)\n      }      \n    },\n    deleteProfile({ state },\
+    \ profile) {\n      if (profile.name === state.selectedProfile?.name) {\n    \
+    \    state.selectedProfile = null\n      }\n      $storex.api.profiles.delete(profile.name)\n\
+    \    },\n    createNewProfile({ state }, profile) {\n      state.selectedProfile\
+    \ = profile\n    },\n    async addBoard({ _ }, { title, parent_id, description,\
+    \ columns }) {\n      if (!$storex.projects.kanban) {\n        await $storex.projects.loadKanban()\n\
+    \      }\n      if (!$storex.projects.kanban.boards[title]) {\n        $storex.projects.kanban.boards[title]\
+    \ = {\n          id: uuidv4(),\n          title,\n          parent_id,\n     \
+    \     description,\n          columns,\n          last_update: new Date().toISOString()\n\
+    \        }        \n        $storex.projects.saveKanban()\n      }\n      $storex.projects.setActiveBoard(title)\n\
+    \      return $storex.projects.allBoards.find(b => b.title === title)\n    },\n\
+    \    async editBoard({ state }, { title, newTitle, description }) {\n      const\
+    \ existingBoard = state.kanban.boards[title]\n      existingBoard.description\
+    \ = description\n      if (title !== newTitle) {\n        if (!state.kanban.boards[newTitle])\
+    \ {\n          state.kanban.boards[newTitle] = existingBoard\n          delete\
+    \  state.kanban.boards[title]    \n        }\n      }\n      $storex.projects.saveKanban()\n\
+    \    },\n    async deleteBoard({ state }, { id, title }) {\n      delete state.kanban.boards[title]\n\
+    \      if (state.activeBoard == title) {\n        state.activeBoard = null\n \
+    \     }\n      // Delete board chats\n```"
+  created_at: '2025-11-19 09:22:16.210314'
+  disable_knowledge: false
+  doc_id: ec84df8e-8650-408e-b1d9-3b43d61e9f3d
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-19 09:22:16.210338'
+  user: null
+- content: "After reviewing the provided code snippets from the `project store` and\
+    \ `Kanban.vue`, here are some insights and potential reasons why the active project\
+    \ might change when loading a chat:\n\n1. **Project Store Initialization**: In\
+    \ the `project store`, the `init` action sets the `activeProject` to `null` before\
+    \ loading all projects. This means that whenever the store is initialized, the\
+    \ active project is reset, potentially leading to the active project changing\
+    \ when switching views or actions that trigger this initialization.\n\n   ```javascript\n\
+    \   async init ({ state }) {\n      $storex.projects.setAllProjects([])\n    \
+    \  state.activeProject = null\n      state.activeChat = null\n      $storex.projects.loadAllProjects()\n\
+    \   }\n   ```\n\n2. **Loading All Projects**: When `loadAllProjects` is called,\
+    \ it resets the active project to the first project in the list if no active project\
+    \ is set.\n\n   ```javascript\n   if (!$storex.projects.activeProject && $storex.projects.allProjects?.length)\
+    \ {\n       $storex.projects.setActiveProject($storex.projects.allProjects[0])\n\
+    \   }\n   ```\n\n   This could cause the active project to change if the list\
+    \ of projects is reloaded and no active project is set at that moment.\n\n3. **Active\
+    \ Project Setter**: The `setActiveProject` action checks if the `codx_path` of\
+    \ the new project is different from the current active project. If they are the\
+    \ same, it does nothing; otherwise, it sets the new project as active.\n\n   ```javascript\n\
+    \   async setActiveProject ({ state }, project) {\n       const { project_id,\
+    \ project_name, codx_path } = project\n       if (project?.codx_path === state.activeProject?.codx_path\
+    \ ) {\n           return\n       }\n       ...\n   }\n   ```\n\n   Ensure that\
+    \ the `codx_path` is correctly set and compared when changing projects to avoid\
+    \ unnecessary changes.\n\n4. **Kanban Component**: In `Kanban.vue`, the `projectChanged`\
+    \ method calls `loadKanban` and selects a board, which might indirectly affect\
+    \ the active project if the kanban loading or board selection logic involves changing\
+    \ the project.\n\n   ```javascript\n   async projectChanged() {\n       await\
+    \ this.$projects.loadKanban()\n       this.selectBoard()\n       this.buildKanban()\n\
+    \   }\n   ```\n\n   Ensure that the `loadKanban` and `selectBoard` methods do\
+    \ not inadvertently change the active project unless intended.\n\n### Recommendations:\n\
+    \n- **Debugging**: Add console logs or breakpoints in the `setActiveProject`,\
+    \ `init`, and `projectChanged` methods to trace when and why the active project\
+    \ is being changed.\n- **State Management**: Ensure that state changes are intentional\
+    \ and only occur where necessary. Double-check conditions in actions that might\
+    \ reset the active project.\n- **Code Review**: Review other components that might\
+    \ interact with the project store to ensure they do not unintentionally trigger\
+    \ project changes.\n\nBy carefully tracing the project state changes through these\
+    \ methods and ensuring correct conditions and logic, you should be able to identify\
+    \ and resolve the issue of the active project changing unexpectedly."
+  created_at: '2025-11-19 09:22:16.210314'
+  disable_knowledge: false
+  doc_id: 5b19047a-8b55-4333-b48c-8eade37d9a63
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002300739288330078
+    model: openai/gpt-4o
+    time_taken: 37.09132933616638
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-19 09:22:16.210338'
+  user: null
+- content: We need to debug it. Show call stack when state.activeProject is modified
+    and show it the console
+  created_at: '2025-11-19 09:22:16.210314'
+  disable_knowledge: true
+  doc_id: d1e1e7a8-40ee-4579-b686-1bcaa5a662cd
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-19 09:22:16.210338'
+  user: admin
+- content: "```javascript\nAfter reviewing the provided code snippets from the `project\
+    \ store` and `Kanban.vue`, here are some insights and potential reasons why the\
+    \ active project might change when loading a chat:\n\n1. **Project Store Initialization**:\
+    \ In the `project store`, the `init` action sets the `activeProject` to `null`\
+    \ before loading all projects. This means that whenever the store is initialized,\
+    \ the active project is reset, potentially leading to the active project changing\
+    \ when switching views or actions that trigger this initialization.\n\n   ```javascript\n\
+    \   async init ({ state }) {\n      $storex.projects.setAllProjects([])\n    \
+    \  state.activeProject = null\n      state.activeChat = null\n      console.log(\"\
+    Active project reset to null during initialization\", new Error().stack)\n   \
+    \   $storex.projects.loadAllProjects()\n   }\n   ```\n\n2. **Loading All Projects**:\
+    \ When `loadAllProjects` is called, it resets the active project to the first\
+    \ project in the list if no active project is set.\n\n   ```javascript\n   if\
+    \ (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {\n\
+    \       $storex.projects.setActiveProject($storex.projects.allProjects[0])\n \
+    \      console.log(\"Active project set to first project in list\", new Error().stack)\n\
+    \   }\n   ```\n\n   This could cause the active project to change if the list\
+    \ of projects is reloaded and no active project is set at that moment.\n\n3. **Active\
+    \ Project Setter**: The `setActiveProject` action checks if the `codx_path` of\
+    \ the new project is different from the current active project. If they are the\
+    \ same, it does nothing; otherwise, it sets the new project as active.\n\n   ```javascript\n\
+    \   async setActiveProject ({ state }, project) {\n       const { project_id,\
+    \ project_name, codx_path } = project\n       if (project?.codx_path === state.activeProject?.codx_path\
+    \ ) {\n           return\n       }\n       console.log(\"Active project changed\"\
+    , new Error().stack)\n       ...\n   }\n   ```\n\n   Ensure that the `codx_path`\
+    \ is correctly set and compared when changing projects to avoid unnecessary changes.\n\
+    \n4. **Kanban Component**: In `Kanban.vue`, the `projectChanged` method calls\
+    \ `loadKanban` and selects a board, which might indirectly affect the active project\
+    \ if the kanban loading or board selection logic involves changing the project.\n\
+    \n   ```javascript\n   async projectChanged() {\n       await this.$projects.loadKanban()\n\
+    \       this.selectBoard()\n       this.buildKanban()\n       console.log(\"Kanban\
+    \ project change triggered\", new Error().stack)\n   }\n   ```\n\n   Ensure that\
+    \ the `loadKanban` and `selectBoard` methods do not inadvertently change the active\
+    \ project unless intended.\n\n### Recommendations:\n\n- **Debugging**: Add console\
+    \ logs or breakpoints in the `setActiveProject`, `init`, and `projectChanged`\
+    \ methods to trace when and why the active project is being changed.\n- **State\
+    \ Management**: Ensure that state changes are intentional and only occur where\
+    \ necessary. Double-check conditions in actions that might reset the active project.\n\
+    - **Code Review**: Review other components that might interact with the project\
+    \ store to ensure they do not unintentionally trigger project changes.\n\nBy carefully\
+    \ tracing the project state changes through these methods and ensuring correct\
+    \ conditions and logic, you should be able to identify and resolve the issue of\
+    \ the active project changing unexpectedly.\n```"
+  created_at: '2025-11-19 09:22:16.210314'
+  disable_knowledge: false
+  doc_id: bf5529e7-05b1-41cf-9362-0c58b1a4bb75
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00019550323486328125
+    model: openai/gpt-4o
+    time_taken: 9.080715417861938
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-19 09:22:16.210338'
+  user: null
+mode: task
+name: Projects issue
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+target_project_id: null
+updated_at: '2025-11-19T11:06:03.618672'
+url: ''
+users:
+- admin
+visibility: ''

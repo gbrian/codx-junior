@@ -1,0 +1,394 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-04-06 17:24:37.622883'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-views-globalsettings-vue-2025-04-06-18-25-24-786503.33162580-2d22-452a-b71e-dc27f274b401.yaml
+id: 33162580-2d22-452a-b71e-dc27f274b401
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      ```\n                      <script setup>\nimport\
+    \ AISettings from './AISettings.vue'\nimport AgentSettings from '@/components/ai_settings/AgentSettings.vue'\n\
+    import ModelSelector from '@/components/ai_settings/ModelSelector.vue'\nimport\
+    \ ExportImportButton from '@/components/ExportImportButton.vue'\nimport SecurityUserList\
+    \ from '@/components/security/SecurityUserList.vue'\n</script>\n\n<template>\n\
+    \  <div class=\"w-full h-full flex flex-col gap-2 p-4 overflow-auto\" v-if=\"\
+    settings\">\n    <div class=\"text-xl font-medium my-2 flex justify-between\"\
+    >\n      Global Settings\n      <div class=\"flex justify-end gap-2 items-center\"\
+    >\n        <button class=\"btn btn-sm\" @click=\"reloadSettings\">Reload</button>\n\
+    \        <button class=\"btn btn-sm btn-primary\" @click=\"saveSettings\">Save</button>\n\
+    \        <ExportImportButton :data=\"settings\" @change=\"submit\">\n        \
+    \  @codx-ok, please-wait...: format tabs as: <li @click=\"...\"><a>XXXX</a></li>\n\
+    \          <div role=\"tablist\" class=\"tabs tabs-bordered\">\n          <button\n\
+    \            class=\"tab tab-lifted\"\n            :class=\"{ 'tab-active': activeTab\
+    \ === 'Settings' }\"\n            @click=\"activeTab = 'Settings'\"\n        \
+    \  >\n            General\n          </button>\n          <button\n          \
+    \  class=\"tab tab-lifted\"\n            :class=\"{ 'tab-active': activeTab ===\
+    \ 'AI Models' }\"\n            @click=\"activeTab = 'AI Models'\"\n          >\n\
+    \            AI Models\n          </button>\n          <button\n            class=\"\
+    tab tab-lifted\"\n            :class=\"{ 'tab-active': activeTab === 'Agents'\
+    \ }\"\n            @click=\"activeTab = 'Agents'\"\n          >\n            Agents\n\
+    \          </button>\n          <button\n            class=\"tab tab-lifted\"\n\
+    \            :class=\"{ 'tab-active': activeTab === 'Users' }\"\n            @click=\"\
+    activeTab = 'Users'\"\n          >\n            Users\n          </button>\n \
+    \       </div>\n\n        </ExportImportButton>\n      </div>\n    </div>\n  \
+    \  <SecurityUserList :settings=\"settings\" v-if=\"activeTab === 'Users'\" />\n\
+    \    <div v-if=\"activeTab === 'Settings'\" class=\"flex flex-col gap-4\">\n \
+    \     <div class=\"flex flex-col gap-4\">\n        <div class=\"flex flex-col\
+    \ gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">Global</div>\n\
+    \          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"\
+    flex items-center\">\n              <span class=\"w-1/4\">codx-junior Avatar:</span>\n\
+    \              <input v-model=\"settings.codx_junior_avatar\" type=\"text\" class=\"\
+    input input-bordered flex-grow\" />\n            </div>\n            <div class=\"\
+    flex items-center\">\n              <span class=\"w-1/4\">Projects Root Path:</span>\n\
+    \              <input v-model=\"settings.projects_root_path\" type=\"text\" class=\"\
+    input input-bordered flex-grow\" />\n            </div>\n          </div>\n  \
+    \      </div>\n        <div class=\"flex flex-col gap-2 text-xs\">\n         \
+    \ <div class=\"text-xl font-bold\">Git</div>\n          <div class=\"ml-6 p-2\
+    \ flex flex-col gap-2\">\n            <div class=\"flex items-center\">\n    \
+    \          <span class=\"w-1/4\">Username:</span>\n              <input v-model=\"\
+    settings.git.username\" type=\"text\" class=\"input input-bordered flex-grow\"\
+    \ />\n            </div>\n            <div class=\"flex items-center\">\n    \
+    \          <span class=\"w-1/4\">Email:</span>\n              <input v-model=\"\
+    settings.git.email\" type=\"text\" class=\"input input-bordered flex-grow\" />\n\
+    \            </div>\n          </div>\n        </div>\n        <div class=\"flex\
+    \ flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">AI</div>\n\
+    \          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"\
+    flex items-center\">\n              <span class=\"w-1/4\">Log AI:</span>\n   \
+    \           <input v-model=\"settings.log_ai\" type=\"checkbox\" class=\"checkbox\"\
+    \ />\n            </div>\n            <div class=\"font-bold\">Embeddings</div>\n\
+    \            <div class=\"text-xs\">Converts project's documents into embeddings\
+    \ for knowledge search</div>\n            <div class=\"flex flex-col gap-2\">\n\
+    \              <div class=\"flex items-center\">\n                <span class=\"\
+    p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.embeddings_model\"\
+    \ />\n              </div>\n            </div>\n            <div class=\"font-bold\"\
+    >Knowledge search</div>\n            <div class=\"text-xs\">Scores knowledge results\
+    \ based on user's request</div>\n            <div class=\"flex flex-col gap-2\"\
+    >\n              <div class=\"flex items-center\">\n                <span class=\"\
+    p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.rag_model\"\
+    \ />\n              </div>\n            </div>\n            <div class=\"font-bold\"\
+    >Reasoning</div>\n            <div class=\"text-xs\">Default Reasoning model</div>\n\
+    \            <div class=\"flex flex-col gap-2\">\n              <div class=\"\
+    flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n\
+    \                <ModelSelector v-model=\"settings.llm_model\" />\n          \
+    \    </div>\n            </div>\n            <div class=\"font-bold\">WIKI</div>\n\
+    \            <div class=\"text-xs\">Generates wiki documents from project's knowledge</div>\n\
+    \            <div class=\"flex flex-col gap-2\">\n              <div class=\"\
+    flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n\
+    \                <ModelSelector v-model=\"settings.wiki_model\" />\n         \
+    \     </div>\n            </div>\n          </div>\n        </div>\n      </div>\n\
+    \    </div>\n    <div v-if=\"activeTab === 'AI Models'\" class=\"flex flex-col\
+    \ gap-4\">\n      <AISettings :settings=\"settings\" />\n    </div>\n    <div\
+    \ v-if=\"activeTab === 'Agents'\" class=\"flex flex-col gap-4\">\n      <AgentSettings\
+    \ />\n    </div>\n    <modal v-if=\"showImport\" :close=\"true\" @close=\"showImport\
+    \ = false\">\n      <div class=\"flex flex-col gap-2\">\n        <div class=\"\
+    text-xl\">Paste your JSON settings here</div>\n        <textarea v-model=\"importData\"\
+    \ class=\"textarea textarea-bordered w-full\"></textarea>\n        <button class=\"\
+    btn btn-sm btn-primary\" @click=\"submit\">Import</button>\n      </div>\n   \
+    \ </modal>\n  </div>\n</template>\n\n<script>\nexport default {\n  data () {\n\
+    \    return {\n      activeTab: 'Settings',\n      settings: null,\n      importData:\
+    \ '',\n      showImport: false\n    }\n  },\n  created () {\n    this.loadSettings()\n\
+    \  },\n  methods: {\n    async loadSettings() {\n      const data = await this.$storex.api.settings.global.read()\n\
+    \      this.settings = data\n    },\n    async saveSettings() {\n      await this.$storex.api.settings.global.write(this.settings)\n\
+    \      this.loadSettings()\n    },\n    reloadSettings() {\n      this.loadSettings()\n\
+    \    },\n    async submit(importData) {\n      try {\n        const imported =\
+    \ importData\n        this.settings = { ...this.settings, ...imported }\n    \
+    \  } catch (e) {\n        console.error('Import failed', e)\n      }\n    }\n\
+    \  }\n}\n</script>\n                      ```\n                      \n      \
+    \                User commented in line 16: format tabs as: <li @click=\"...\"\
+    ><a>XXXX</a></li>\n                      "
+  created_at: '2025-04-06 17:24:37.621417'
+  disable_knowledge: false
+  doc_id: 09b2e737-954d-4fc6-a3fb-6fb06b267b28
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-06 17:24:37.621446'
+  user: null
+- content: "Best practices for this file:\n                  Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\n# Vue vuejs coding best\
+    \ pratices\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Use TailwindCSS classes for styling, always consider\
+    \ mobile styles\n* Vue component definition will be exporting a default object\
+    \ like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\n* Don't use <style> elements, use TailWindCSS classes\n\
+    \                  "
+  created_at: '2025-04-06 17:24:37.621417'
+  disable_knowledge: false
+  doc_id: b5a93ccc-984d-4c92-91c7-5829e867c823
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-06 17:24:37.621446'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content:\n              <script setup>\nimport AISettings\
+    \ from './AISettings.vue'\nimport AgentSettings from '@/components/ai_settings/AgentSettings.vue'\n\
+    import ModelSelector from '@/components/ai_settings/ModelSelector.vue'\nimport\
+    \ ExportImportButton from '@/components/ExportImportButton.vue'\nimport SecurityUserList\
+    \ from '@/components/security/SecurityUserList.vue'\n</script>\n\n<template>\n\
+    \  <div class=\"w-full h-full flex flex-col gap-2 p-4 overflow-auto\" v-if=\"\
+    settings\">\n    <div class=\"text-xl font-medium my-2 flex justify-between\"\
+    >\n      Global Settings\n      <div class=\"flex justify-end gap-2 items-center\"\
+    >\n        <button class=\"btn btn-sm\" @click=\"reloadSettings\">Reload</button>\n\
+    \        <button class=\"btn btn-sm btn-primary\" @click=\"saveSettings\">Save</button>\n\
+    \        <ExportImportButton :data=\"settings\" @change=\"submit\">\n        \
+    \  @codx-ok, please-wait...: format tabs as: <li @click=\"...\"><a>XXXX</a></li>\n\
+    \          <div role=\"tablist\" class=\"tabs tabs-bordered\">\n          <button\n\
+    \            class=\"tab tab-lifted\"\n            :class=\"{ 'tab-active': activeTab\
+    \ === 'Settings' }\"\n            @click=\"activeTab = 'Settings'\"\n        \
+    \  >\n            General\n          </button>\n          <button\n          \
+    \  class=\"tab tab-lifted\"\n            :class=\"{ 'tab-active': activeTab ===\
+    \ 'AI Models' }\"\n            @click=\"activeTab = 'AI Models'\"\n          >\n\
+    \            AI Models\n          </button>\n          <button\n            class=\"\
+    tab tab-lifted\"\n            :class=\"{ 'tab-active': activeTab === 'Agents'\
+    \ }\"\n            @click=\"activeTab = 'Agents'\"\n          >\n            Agents\n\
+    \          </button>\n          <button\n            class=\"tab tab-lifted\"\n\
+    \            :class=\"{ 'tab-active': activeTab === 'Users' }\"\n            @click=\"\
+    activeTab = 'Users'\"\n          >\n            Users\n          </button>\n \
+    \       </div>\n\n        </ExportImportButton>\n      </div>\n    </div>\n  \
+    \  <SecurityUserList :settings=\"settings\" v-if=\"activeTab === 'Users'\" />\n\
+    \    <div v-if=\"activeTab === 'Settings'\" class=\"flex flex-col gap-4\">\n \
+    \     <div class=\"flex flex-col gap-4\">\n        <div class=\"flex flex-col\
+    \ gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">Global</div>\n\
+    \          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"\
+    flex items-center\">\n              <span class=\"w-1/4\">codx-junior Avatar:</span>\n\
+    \              <input v-model=\"settings.codx_junior_avatar\" type=\"text\" class=\"\
+    input input-bordered flex-grow\" />\n            </div>\n            <div class=\"\
+    flex items-center\">\n              <span class=\"w-1/4\">Projects Root Path:</span>\n\
+    \              <input v-model=\"settings.projects_root_path\" type=\"text\" class=\"\
+    input input-bordered flex-grow\" />\n            </div>\n          </div>\n  \
+    \      </div>\n        <div class=\"flex flex-col gap-2 text-xs\">\n         \
+    \ <div class=\"text-xl font-bold\">Git</div>\n          <div class=\"ml-6 p-2\
+    \ flex flex-col gap-2\">\n            <div class=\"flex items-center\">\n    \
+    \          <span class=\"w-1/4\">Username:</span>\n              <input v-model=\"\
+    settings.git.username\" type=\"text\" class=\"input input-bordered flex-grow\"\
+    \ />\n            </div>\n            <div class=\"flex items-center\">\n    \
+    \          <span class=\"w-1/4\">Email:</span>\n              <input v-model=\"\
+    settings.git.email\" type=\"text\" class=\"input input-bordered flex-grow\" />\n\
+    \            </div>\n          </div>\n        </div>\n        <div class=\"flex\
+    \ flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">AI</div>\n\
+    \          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"\
+    flex items-center\">\n              <span class=\"w-1/4\">Log AI:</span>\n   \
+    \           <input v-model=\"settings.log_ai\" type=\"checkbox\" class=\"checkbox\"\
+    \ />\n            </div>\n            <div class=\"font-bold\">Embeddings</div>\n\
+    \            <div class=\"text-xs\">Converts project's documents into embeddings\
+    \ for knowledge search</div>\n            <div class=\"flex flex-col gap-2\">\n\
+    \              <div class=\"flex items-center\">\n                <span class=\"\
+    p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.embeddings_model\"\
+    \ />\n              </div>\n            </div>\n            <div class=\"font-bold\"\
+    >Knowledge search</div>\n            <div class=\"text-xs\">Scores knowledge results\
+    \ based on user's request</div>\n            <div class=\"flex flex-col gap-2\"\
+    >\n              <div class=\"flex items-center\">\n                <span class=\"\
+    p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.rag_model\"\
+    \ />\n              </div>\n            </div>\n            <div class=\"font-bold\"\
+    >Reasoning</div>\n            <div class=\"text-xs\">Default Reasoning model</div>\n\
+    \            <div class=\"flex flex-col gap-2\">\n              <div class=\"\
+    flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n\
+    \                <ModelSelector v-model=\"settings.llm_model\" />\n          \
+    \    </div>\n            </div>\n            <div class=\"font-bold\">WIKI</div>\n\
+    \            <div class=\"text-xs\">Generates wiki documents from project's knowledge</div>\n\
+    \            <div class=\"flex flex-col gap-2\">\n              <div class=\"\
+    flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n\
+    \                <ModelSelector v-model=\"settings.wiki_model\" />\n         \
+    \     </div>\n            </div>\n          </div>\n        </div>\n      </div>\n\
+    \    </div>\n    <div v-if=\"activeTab === 'AI Models'\" class=\"flex flex-col\
+    \ gap-4\">\n      <AISettings :settings=\"settings\" />\n    </div>\n    <div\
+    \ v-if=\"activeTab === 'Agents'\" class=\"flex flex-col gap-4\">\n      <AgentSettings\
+    \ />\n    </div>\n    <modal v-if=\"showImport\" :close=\"true\" @close=\"showImport\
+    \ = false\">\n      <div class=\"flex flex-col gap-2\">\n        <div class=\"\
+    text-xl\">Paste your JSON settings here</div>\n        <textarea v-model=\"importData\"\
+    \ class=\"textarea textarea-bordered w-full\"></textarea>\n        <button class=\"\
+    btn btn-sm btn-primary\" @click=\"submit\">Import</button>\n      </div>\n   \
+    \ </modal>\n  </div>\n</template>\n\n<script>\nexport default {\n  data () {\n\
+    \    return {\n      activeTab: 'Settings',\n      settings: null,\n      importData:\
+    \ '',\n      showImport: false\n    }\n  },\n  created () {\n    this.loadSettings()\n\
+    \  },\n  methods: {\n    async loadSettings() {\n      const data = await this.$storex.api.settings.global.read()\n\
+    \      this.settings = data\n    },\n    async saveSettings() {\n      await this.$storex.api.settings.global.write(this.settings)\n\
+    \      this.loadSettings()\n    },\n    reloadSettings() {\n      this.loadSettings()\n\
+    \    },\n    async submit(importData) {\n      try {\n        const imported =\
+    \ importData\n        this.settings = { ...this.settings, ...imported }\n    \
+    \  } catch (e) {\n        console.error('Import failed', e)\n      }\n    }\n\
+    \  }\n}\n</script>\n              "
+  created_at: '2025-04-06 17:24:37.621417'
+  disable_knowledge: false
+  doc_id: 72157238-2ac0-42bb-b8df-87e38a653ded
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-06 17:24:37.621446'
+  user: null
+- content: "<script setup>\nimport AISettings from './AISettings.vue'\nimport AgentSettings\
+    \ from '@/components/ai_settings/AgentSettings.vue'\nimport ModelSelector from\
+    \ '@/components/ai_settings/ModelSelector.vue'\nimport ExportImportButton from\
+    \ '@/components/ExportImportButton.vue'\nimport SecurityUserList from '@/components/security/SecurityUserList.vue'\n\
+    </script>\n\n<template>\n  <div class=\"w-full h-full flex flex-col gap-2 p-4\
+    \ overflow-auto\" v-if=\"settings\">\n    <div class=\"text-xl font-medium my-2\
+    \ flex justify-between\">\n      Global Settings\n      <div class=\"flex justify-end\
+    \ gap-2 items-center\">\n        <button class=\"btn btn-sm\" @click=\"reloadSettings\"\
+    >Reload</button>\n        <button class=\"btn btn-sm btn-primary\" @click=\"saveSettings\"\
+    >Save</button>\n        <ExportImportButton :data=\"settings\" @change=\"submit\"\
+    >\n          <ul role=\"tablist\" class=\"tabs tabs-bordered flex gap-2\">\n \
+    \           <li @click=\"activeTab = 'Settings'\" :class=\"{ 'tab-active': activeTab\
+    \ === 'Settings' }\" class=\"tab tab-lifted\"><a>General</a></li>\n          \
+    \  <li @click=\"activeTab = 'AI Models'\" :class=\"{ 'tab-active': activeTab ===\
+    \ 'AI Models' }\" class=\"tab tab-lifted\"><a>AI Models</a></li>\n           \
+    \ <li @click=\"activeTab = 'Agents'\" :class=\"{ 'tab-active': activeTab === 'Agents'\
+    \ }\" class=\"tab tab-lifted\"><a>Agents</a></li>\n            <li @click=\"activeTab\
+    \ = 'Users'\" :class=\"{ 'tab-active': activeTab === 'Users' }\" class=\"tab tab-lifted\"\
+    ><a>Users</a></li>\n          </ul>\n        </ExportImportButton>\n      </div>\n\
+    \    </div>\n    <SecurityUserList :settings=\"settings\" v-if=\"activeTab ===\
+    \ 'Users'\" />\n    <div v-if=\"activeTab === 'Settings'\" class=\"flex flex-col\
+    \ gap-4\">\n      <div class=\"flex flex-col gap-4\">\n        <div class=\"flex\
+    \ flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">Global</div>\n\
+    \          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"\
+    flex items-center\">\n              <span class=\"w-1/4\">codx-junior Avatar:</span>\n\
+    \              <input v-model=\"settings.codx_junior_avatar\" type=\"text\" class=\"\
+    input input-bordered flex-grow\" />\n            </div>\n            <div class=\"\
+    flex items-center\">\n              <span class=\"w-1/4\">Projects Root Path:</span>\n\
+    \              <input v-model=\"settings.projects_root_path\" type=\"text\" class=\"\
+    input input-bordered flex-grow\" />\n            </div>\n          </div>\n  \
+    \      </div>\n        <div class=\"flex flex-col gap-2 text-xs\">\n         \
+    \ <div class=\"text-xl font-bold\">Git</div>\n          <div class=\"ml-6 p-2\
+    \ flex flex-col gap-2\">\n            <div class=\"flex items-center\">\n    \
+    \          <span class=\"w-1/4\">Username:</span>\n              <input v-model=\"\
+    settings.git.username\" type=\"text\" class=\"input input-bordered flex-grow\"\
+    \ />\n            </div>\n            <div class=\"flex items-center\">\n    \
+    \          <span class=\"w-1/4\">Email:</span>\n              <input v-model=\"\
+    settings.git.email\" type=\"text\" class=\"input input-bordered flex-grow\" />\n\
+    \            </div>\n          </div>\n        </div>\n        <div class=\"flex\
+    \ flex-col gap-2 text-xs\">\n          <div class=\"text-xl font-bold\">AI</div>\n\
+    \          <div class=\"ml-6 p-2 flex flex-col gap-2\">\n            <div class=\"\
+    flex items-center\">\n              <span class=\"w-1/4\">Log AI:</span>\n   \
+    \           <input v-model=\"settings.log_ai\" type=\"checkbox\" class=\"checkbox\"\
+    \ />\n            </div>\n            <div class=\"font-bold\">Embeddings</div>\n\
+    \            <div class=\"text-xs\">Converts project's documents into embeddings\
+    \ for knowledge search</div>\n            <div class=\"flex flex-col gap-2\">\n\
+    \              <div class=\"flex items-center\">\n                <span class=\"\
+    p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.embeddings_model\"\
+    \ />\n              </div>\n            </div>\n            <div class=\"font-bold\"\
+    >Knowledge search</div>\n            <div class=\"text-xs\">Scores knowledge results\
+    \ based on user's request</div>\n            <div class=\"flex flex-col gap-2\"\
+    >\n              <div class=\"flex items-center\">\n                <span class=\"\
+    p-6 w-1/4\">Model:</span>\n                <ModelSelector v-model=\"settings.rag_model\"\
+    \ />\n              </div>\n            </div>\n            <div class=\"font-bold\"\
+    >Reasoning</div>\n            <div class=\"text-xs\">Default Reasoning model</div>\n\
+    \            <div class=\"flex flex-col gap-2\">\n              <div class=\"\
+    flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n\
+    \                <ModelSelector v-model=\"settings.llm_model\" />\n          \
+    \    </div>\n            </div>\n            <div class=\"font-bold\">WIKI</div>\n\
+    \            <div class=\"text-xs\">Generates wiki documents from project's knowledge</div>\n\
+    \            <div class=\"flex flex-col gap-2\">\n              <div class=\"\
+    flex items-center\">\n                <span class=\"p-6 w-1/4\">Model:</span>\n\
+    \                <ModelSelector v-model=\"settings.wiki_model\" />\n         \
+    \     </div>\n            </div>\n          </div>\n        </div>\n      </div>\n\
+    \    </div>\n    <div v-if=\"activeTab === 'AI Models'\" class=\"flex flex-col\
+    \ gap-4\">\n      <AISettings :settings=\"settings\" />\n    </div>\n    <div\
+    \ v-if=\"activeTab === 'Agents'\" class=\"flex flex-col gap-4\">\n      <AgentSettings\
+    \ />\n    </div>\n    <modal v-if=\"showImport\" :close=\"true\" @close=\"showImport\
+    \ = false\">\n      <div class=\"flex flex-col gap-2\">\n        <div class=\"\
+    text-xl\">Paste your JSON settings here</div>\n        <textarea v-model=\"importData\"\
+    \ class=\"textarea textarea-bordered w-full\"></textarea>\n        <button class=\"\
+    btn btn-sm btn-primary\" @click=\"submit\">Import</button>\n      </div>\n   \
+    \ </modal>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n\
+    \    return {\n      activeTab: 'Settings',\n      settings: null,\n      importData:\
+    \ '',\n      showImport: false\n    }\n  },\n  created() {\n    this.loadSettings()\n\
+    \  },\n  methods: {\n    async loadSettings() {\n      const data = await this.$storex.api.settings.global.read()\n\
+    \      this.settings = data\n    },\n    async saveSettings() {\n      await this.$storex.api.settings.global.write(this.settings)\n\
+    \      this.loadSettings()\n    },\n    reloadSettings() {\n      this.loadSettings()\n\
+    \    },\n    async submit(importData) {\n      try {\n        const imported =\
+    \ importData\n        this.settings = { ...this.settings, ...imported }\n    \
+    \  } catch (e) {\n        console.error('Import failed', e)\n      }\n    }\n\
+    \  }\n}\n</script>"
+  created_at: '2025-04-06 17:24:37.621417'
+  disable_knowledge: false
+  doc_id: 3c66d0a9-0f26-40c9-86f1-2aefdc0fefed
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 11.64150619506836
+    model: gpt-4o
+    time_taken: 25.142877340316772
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-06 17:24:37.621446'
+  user: null
+mode: chat
+name: changes-at-views-globalsettings-vue-2025-04-06-18-25-24-786503
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-04-06T18:25:49.930183'
+url: ''
+users: []
+visibility: ''

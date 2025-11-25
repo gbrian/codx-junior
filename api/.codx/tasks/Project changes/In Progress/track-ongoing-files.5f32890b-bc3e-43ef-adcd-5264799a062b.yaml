@@ -1,0 +1,32 @@
+board: Project changes
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: In Progress
+column_id: ''
+created_at: '2025-07-16 10:23:19.155803'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Project changes/In Progress/track-ongoing-files.5f32890b-bc3e-43ef-adcd-5264799a062b.yaml
+id: 5f32890b-bc3e-43ef-adcd-5264799a062b
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: chat
+name: Track ongoing files
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-07-16T10:27:30.205192'
+url: ''
+users: []
+visibility: ''

@@ -1,0 +1,271 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-04-21 11:32:16.656788'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-views-helpview-vue-2025-04-21-13-05-37-203858.cf005baa-42f6-44ed-88e4-e89b53c3ba67.yaml
+id: cf005baa-42f6-44ed-88e4-e89b53c3ba67
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      ```\n                      <template>\n  <div class=\"\
+    profile-container flex flex-col h-full\">\n    <h1 class=\"text-3xl font-bold\
+    \ mb-2\">Welcome to codx-junior</h1>    \n    <div class=\"text-sm text-secondary\
+    \ font-bold\">You'll Never Code Alone!</div>\n@codx-ok, please-wait...: add a\
+    \ filter control so user can filter projects by project_name or project_path\n\
+    \    <div class=\"flex flex-col gap-4 mt-4\">\n      <div class=\"text-xl font-bold\"\
+    >Projects</div>\n      <div class=\"grid grid-cols-3 gap-2\">\n        <div v-for=\"\
+    project in $projects.allProjects\" :key=\"project.project_id\" \n          class=\"\
+    p-4 rounded-md flex flex-col gap-2 bg-base-200 click\" @click=\"setActiveProject(project)\"\
+    >\n          <p class=\"text-xs flex gap-1 tooltip\" :data-tip=\"project.project_path\"\
+    ><i class=\"fa-solid fa-folder\"></i> \n            <span class=\"text-nowrap\
+    \ overflow-hidden text-ellipsis\">{{ project.project_path }}</span>\n        \
+    \  </p>\n          <div class=\"font-bold flex gap-2 items-start\">\n        \
+    \    <img class=\"w-6 h-6 rounded-full bg-white\" :src=\"project.project_icon\"\
+    \ />\n            {{ project.project_name }}\n          </div>\n          <div\
+    \ class=\"grow\"></div>\n        </div>\n      </div>\n      <div class=\"font-bold\"\
+    >Add project</div>\n      <div class=\"flex flex-col gap-2 rounded-md\">\n   \
+    \     <div class=\"group input input-bordered flex gap-1 items-center\">\n   \
+    \       <i class=\"fa-solid fa-i-cursor group-hover:animate-pulse\"></i>\n   \
+    \       <input type=\"text\" class=\"grow\" v-model=\"newProjectPath\">\n    \
+    \      <button class=\"btn btn-sm\" @click=\"createNewProject\">\n           \
+    \ <i class=\"fa-solid fa-plus\"></i>\n          </button>\n        </div>\n  \
+    \      <p class=\"text-xs italic text-center\">Project name, git url or path</p>\n\
+    \      </div>\n\n\n      <div class=\"\">\n        <div class=\"text-xl font-semibold\
+    \ mb-4\">Get Started with codx-junior</div>\n        <ul class=\"text-xs flex\
+    \ flex-col gap-2 ml-4\">\n          <li><i class=\"fa-brands fa-square-git\"></i><span\
+    \ class=\"font-bold\"> Clone your repo</span>\n            <div class=\"ml-6 text-xs\"\
+    >Copy paste the repo url and press \"Clone\"</div>\n          </li>\n        \
+    \  <li><i class=\"fa-solid fa-gear\"></i><span class=\"font-bold\"> Set your settings</span>\n\
+    \            <div class=\"ml-6 text-xs\">Review important settings like \n   \
+    \           <span class=\" text-warning underline click\" @click=\"$ui.setActiveTab('global-settings')\"\
+    >AI provider settings</span> and \n              <span class=\"underline click\"\
+    \ @click=\"$ui.setActiveTab('settings')\">Project settings</span>\n          \
+    \  </div>\n          </li>\n          <li><i class=\"fa-solid fa-book\"></i> <span\
+    \ class=\"font-bold\"> Review knowledge settings and profiles (optional)</span>\
+    \ \n            <div class=\"ml-6 text-xs\">Knowledge allows codx-junior to learn\
+    \ from the code base \n              <span class=\" text-secondary underline click\"\
+    \ @click=\"$ui.setActiveTab('knowledge')\"> check it here</span> and profiles\
+    \ improves codx-junior performance...\n              <span class=\" text-info\
+    \ underline click\" @click=\"$ui.setActiveTab('profiles')\"> check it at profiles</span>\n\
+    \            </div>\n          </li>\n        </ul>\n        <div class=\"text-xl\
+    \ font-semibold my-2\">Whats's next?</div>\n        <div class=\"flex gap-2\"\
+    >\n          <button class=\"btn btn-outline flex gap-2 tooltip tooltip-bottom\"\
+    \ data-tip=\"Solve issues chatting with codx!\" \n            @click=\"$ui.setActiveTab('tasks')\"\
+    >\n            <i class=\"fa-solid fa-list-check\"></i>\n            Tasks\n \
+    \         </button>\n          <button class=\"btn btn-outline flex gap-2 tooltip\
+    \ tooltip-bottom\" :data-tip=\"'Assisted coding with @codx' + ': ...'\"\n    \
+    \        @click=\"$ui.setShowCoder(true)\">\n            <i class=\"fa-solid fa-code\"\
+    ></i>\n            AI Coding\n          </button>\n          <button class=\"\
+    btn btn-outline flex gap-2 tooltip tooltip-bottom\" data-tip=\"Preview your changes\"\
+    \n            @click=\"$ui.setActiveTab('profiles')\">\n            <i class=\"\
+    fa-solid fa-circle-user\"></i>\n            Profiles\n          </button>\n  \
+    \      </div>\n      </div>\n      <div class=\"text-xs\">\n        <div class=\"\
+    mt-2\">Happy coding \U0001F929</div>\n        And don't forget to <span class=\"\
+    text-yellow-600\"><i class=\"fa-solid fa-star\"></i></span> us <a href=\"https://github.com/gbrian/codx-junior\"\
+    \ target=\"_blank\" class=\"text-blue-500 underline\">github.com/gbrian/codx-junior</a>\n\
+    \      </div>\n    </div>\n  </div>\n</template>\n<script>\nexport default {\n\
+    \  data () {\n    return {\n      newProjectPath: \"\"\n    }\n  },\n  methods:\
+    \ {\n    async createNewProject () {\n      await this.$projects.createNewProject(this.newProjectPath)\n\
+    \      this.newProjectPath = null\n      this.$ui.setActiveTab('tasks')\n    },\n\
+    \    setActiveProject(project) {\n      this.$projects.setActiveProject(project)\n\
+    \      this.$ui.setActiveTab('tasks')\n    }\n  }\n}\n</script>\n            \
+    \          ```\n                      \n                      User commented in\
+    \ line 4: add a filter control so user can filter projects by project_name or\
+    \ project_path\n                      "
+  created_at: '2025-04-21 11:32:16.655322'
+  disable_knowledge: false
+  doc_id: f6e2161e-6432-43e5-ae9e-271ad754e41e
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-21 11:32:16.655348'
+  user: null
+- content: "Best practices for this file:\n                  Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\n# Vue vuejs coding best\
+    \ pratices\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Use TailwindCSS classes for styling, always consider\
+    \ mobile styles\n* Vue component definition will be exporting a default object\
+    \ like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\n* Don't use <style> elements, use TailWindCSS classes\n\
+    \                  "
+  created_at: '2025-04-21 11:32:16.655322'
+  disable_knowledge: false
+  doc_id: 8ddb2f32-2617-48f0-af38-6fe93f32ffd3
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-21 11:32:16.655348'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content.\n              "
+  created_at: '2025-04-21 11:32:16.655322'
+  disable_knowledge: false
+  doc_id: 3f10d496-1a28-4a59-aac0-5cb2c538feb5
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-21 11:32:16.655348'
+  user: null
+- content: "<script setup>\n</script>\n\n<template>\n  <div class=\"profile-container\
+    \ flex flex-col h-full\">\n    <h1 class=\"text-3xl font-bold mb-2\">Welcome to\
+    \ codx-junior</h1>\n    <div class=\"text-sm text-secondary font-bold\">You'll\
+    \ Never Code Alone!</div>\n    <div class=\"flex flex-col gap-4 mt-4\">\n    \
+    \  <div class=\"flex items-center gap-2 mb-2\">\n        <input type=\"text\"\
+    \ class=\"input input-bordered\" placeholder=\"Filter projects...\" v-model=\"\
+    filterQuery\" />\n      </div>\n      <div class=\"text-xl font-bold\">Projects</div>\n\
+    \      <div class=\"grid grid-cols-3 gap-2\">\n        <div\n          v-for=\"\
+    project in filteredProjects\"\n          :key=\"project.project_id\"\n       \
+    \   class=\"p-4 rounded-md flex flex-col gap-2 bg-base-200 click\"\n         \
+    \ @click=\"setActiveProject(project)\"\n        >\n          <p class=\"text-xs\
+    \ flex gap-1 tooltip\" :data-tip=\"project.project_path\"\n            ><i class=\"\
+    fa-solid fa-folder\"></i>\n            <span class=\"text-nowrap overflow-hidden\
+    \ text-ellipsis\">{{ project.project_path }}</span>\n          </p>\n        \
+    \  <div class=\"font-bold flex gap-2 items-start\">\n            <img class=\"\
+    w-6 h-6 rounded-full bg-white\" :src=\"project.project_icon\" />\n           \
+    \ {{ project.project_name }}\n          </div>\n          <div class=\"grow\"\
+    ></div>\n        </div>\n      </div>\n      <div class=\"font-bold\">Add project</div>\n\
+    \      <div class=\"flex flex-col gap-2 rounded-md\">\n        <div class=\"group\
+    \ input input-bordered flex gap-1 items-center\">\n          <i class=\"fa-solid\
+    \ fa-i-cursor group-hover:animate-pulse\"></i>\n          <input type=\"text\"\
+    \ class=\"grow\" v-model=\"newProjectPath\" />\n          <button class=\"btn\
+    \ btn-sm\" @click=\"createNewProject\">\n            <i class=\"fa-solid fa-plus\"\
+    ></i>\n          </button>\n        </div>\n        <p class=\"text-xs italic\
+    \ text-center\">Project name, git url or path</p>\n      </div>\n      <div class=\"\
+    \">\n        <div class=\"text-xl font-semibold mb-4\">Get Started with codx-junior</div>\n\
+    \        <ul class=\"text-xs flex flex-col gap-2 ml-4\">\n          <li>\n   \
+    \         <i class=\"fa-brands fa-square-git\"></i><span class=\"font-bold\">\
+    \ Clone your repo</span>\n            <div class=\"ml-6 text-xs\">Copy paste the\
+    \ repo url and press \"Clone\"</div>\n          </li>\n          <li>\n      \
+    \      <i class=\"fa-solid fa-gear\"></i><span class=\"font-bold\"> Set your settings</span>\n\
+    \            <div class=\"ml-6 text-xs\">\n              Review important settings\
+    \ like\n              <span class=\"text-warning underline click\" @click=\"$ui.setActiveTab('global-settings')\"\
+    \n                >AI provider settings</span\n              >\n             \
+    \ and\n              <span class=\"underline click\" @click=\"$ui.setActiveTab('settings')\"\
+    >Project settings</span>\n            </div>\n          </li>\n          <li>\n\
+    \            <i class=\"fa-solid fa-book\"></i> <span class=\"font-bold\"> Review\
+    \ knowledge settings and profiles (optional)</span>\n            <div class=\"\
+    ml-6 text-xs\">\n              Knowledge allows codx-junior to learn from the\
+    \ code base\n              <span class=\"text-secondary underline click\" @click=\"\
+    $ui.setActiveTab('knowledge')\"> check it here</span>\n              and profiles\
+    \ improves codx-junior performance...\n              <span class=\"text-info underline\
+    \ click\" @click=\"$ui.setActiveTab('profiles')\"> check it at profiles</span>\n\
+    \            </div>\n          </li>\n        </ul>\n        <div class=\"text-xl\
+    \ font-semibold my-2\">Whats's next?</div>\n        <div class=\"flex gap-2\"\
+    >\n          <button\n            class=\"btn btn-outline flex gap-2 tooltip tooltip-bottom\"\
+    \n            data-tip=\"Solve issues chatting with codx!\"\n            @click=\"\
+    $ui.setActiveTab('tasks')\"\n          >\n            <i class=\"fa-solid fa-list-check\"\
+    ></i>\n            Tasks\n          </button>\n          <button\n           \
+    \ class=\"btn btn-outline flex gap-2 tooltip tooltip-bottom\"\n            :data-tip=\"\
+    'Assisted coding with @codx' + ': ...'\"\n            @click=\"$ui.setShowCoder(true)\"\
+    \n          >\n            <i class=\"fa-solid fa-code\"></i>\n            AI\
+    \ Coding\n          </button>\n          <button\n            class=\"btn btn-outline\
+    \ flex gap-2 tooltip tooltip-bottom\"\n            data-tip=\"Preview your changes\"\
+    \n            @click=\"$ui.setActiveTab('profiles')\"\n          >\n         \
+    \   <i class=\"fa-solid fa-circle-user\"></i>\n            Profiles\n        \
+    \  </button>\n        </div>\n      </div>\n      <div class=\"text-xs\">\n  \
+    \      <div class=\"mt-2\">Happy coding \U0001F929</div>\n        And don't forget\
+    \ to <span class=\"text-yellow-600\"><i class=\"fa-solid fa-star\"></i></span>\
+    \ us\n        <a href=\"https://github.com/gbrian/codx-junior\" target=\"_blank\"\
+    \ class=\"text-blue-500 underline\">github.com/gbrian/codx-junior</a>\n      </div>\n\
+    \    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n\
+    \    return {\n      newProjectPath: \"\",\n      filterQuery: \"\"\n    }\n \
+    \ },\n  computed: {\n    filteredProjects() {\n      return this.$projects.allProjects.filter(project\
+    \ => {\n        return (\n          project.project_name.toLowerCase().includes(this.filterQuery.toLowerCase())\
+    \ ||\n          project.project_path.toLowerCase().includes(this.filterQuery.toLowerCase())\n\
+    \        )\n      })\n    }\n  },\n  methods: {\n    async createNewProject()\
+    \ {\n      await this.$projects.createNewProject(this.newProjectPath)\n      this.newProjectPath\
+    \ = null\n      this.$ui.setActiveTab('tasks')\n    },\n    setActiveProject(project)\
+    \ {\n      this.$projects.setActiveProject(project)\n      this.$ui.setActiveTab('tasks')\n\
+    \    }\n  }\n}\n</script>"
+  created_at: '2025-04-21 11:32:16.655322'
+  disable_knowledge: false
+  doc_id: 405df716-9e83-4ed6-9a73-f8f3b8746370
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.584203004837036
+    model: gpt-4o
+    time_taken: 19.775261878967285
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-21 11:32:16.655348'
+  user: null
+mode: chat
+name: changes-at-views-helpview-vue-2025-04-21-13-05-37-203858
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-04-21T13:05:56.979729'
+url: ''
+users: []
+visibility: ''

@@ -1,0 +1,385 @@
+board: Default
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Ideas
+column_id: ''
+created_at: '2025-05-28 07:43:09.819678'
+description: The conversation focused on creating a Vue component called `IssuePreview`
+  for rendering GitHub issue previews. The user requested using TailwindCSS exclusively
+  and replacing SVGs with FontAwesome icons. The component should accept a single
+  "issue" prop containing all relevant data. Best practices for clean code, testing,
+  version control, and documentation were discussed to ensure maintainability. Instructions
+  were provided for setting up the component and including necessary dependencies
+  like FontAwesome.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Default/Ideas/github-issues-preview.ec5b4cc0-762e-4cdf-9b1e-67b2ba14e756.yaml
+id: ec5b4cc0-762e-4cdf-9b1e-67b2ba14e756
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Given a issue info like:\n```json\n{\n        \"author_name\": \"GaGandour\"\
+    ,\n        \"author_avatar_url\": \"https://avatars.githubusercontent.com/u/64374553?s=48&v=4\"\
+    ,\n        \"id\": \"3071878302\",\n        \"issue\": {\n            \"issue\"\
+    : {\n                \"pull_request_id\": null\n            }\n        },\n  \
+    \      \"repo\": {\n            \"repository\": {\n                \"id\": 842586148,\n\
+    \                \"name\": \"avante.nvim\",\n                \"owner_id\": 1206493,\n\
+    \                \"owner_login\": \"yetone\",\n                \"updated_at\"\
+    : \"2025-05-27T09:45:13.921Z\",\n                \"has_issues\": true\n      \
+    \      }\n        },\n        \"labels\": [\n            \"bug\"\n        ],\n\
+    \        \"num_comments\": 7,\n        \"number\": 2048,\n        \"state\": \"\
+    open\",\n        \"state_reason\": null,\n        \"hl_title\": \"bug: Ollama\
+    \ models can&#39;t apply changes to buffer\",\n        \"hl_text\": \"Describe\
+    \ the bug\\n\\nAvante works great when using copilot as a provider. However, I\
+    \ <em>wanted</em> to test a local LLM using ollama. When changing\\nthe provider\
+    \ to ollama and setting the model, AvanteAsk writes ...\",\n        \"created\"\
+    : \"2025-05-18T23:41:29.000+08:00\",\n        \"reviewable_state\": null,\n  \
+    \      \"merged\": null\n    },\n```\n\nCreate a VUE and TailWindCSS preview like\
+    \ this:\n```html\n<div class=\"Box-sc-g0xbh4-0 iwUbcA\"><h3 class=\"Box-sc-g0xbh4-0\
+    \ cvnppv\"><div class=\"Box-sc-g0xbh4-0 ksQFlo\"><a class=\"Box-sc-g0xbh4-0 hLbjXI\
+    \ prc-Link-Link-85e08\" href=\"/valkey-io/valkey-glide\" data-hovercard-url=\"\
+    /valkey-io/valkey-glide/hovercard\"><span>valkey-io/valkey-glide</span></a></div><div\
+    \ class=\"Box-sc-g0xbh4-0 MHoGG search-title\"><svg aria-hidden=\"true\" focusable=\"\
+    false\" class=\"octicon octicon-check-circle Octicon-sc-9kayk9-0 cmohea\" viewBox=\"\
+    0 0 16 16\" width=\"16\" height=\"16\" fill=\"currentColor\" display=\"inline-block\"\
+    \ overflow=\"visible\" style=\"vertical-align: text-bottom;\"><path d=\"M0 8a8\
+    \ 8 0 1 1 16 0A8 8 0 0 1 0 8Zm1.5 0a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Zm10.28-1.72-4.5\
+    \ 4.5a.75.75 0 0 1-1.06 0l-2-2a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018l1.47\
+    \ 1.47 3.97-3.97a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042Z\"></path></svg><a\
+    \ class=\"prc-Link-Link-85e08\" href=\"/valkey-io/valkey-glide/issues/3195\"><span\
+    \ class=\"Box-sc-g0xbh4-0 gKFdvh search-match prc-Text-Text-0ima0\">Nodejs StartSocketConnection\
+    \ is not a function</span></a></div></h3><div class=\"Box-sc-g0xbh4-0 dcdlju\"\
+    ><span class=\"Box-sc-g0xbh4-0 gKFdvh search-match prc-Text-Text-0ima0\">... Just\
+    \ <em>wanted</em> to understand better the previous conversation with Linus and\
+    \ what to expect from\nthe last release! ...</span></div><div class=\"Box-sc-g0xbh4-0\
+    \ jgRnBg\"><div><span class=\"prc-Label-Label--LG6X\" data-size=\"small\" data-variant=\"\
+    default\"><span class=\"Box-sc-g0xbh4-0 gKFdvh search-match prc-Text-Text-0ima0\"\
+    >node</span></span></div><div><span class=\"prc-Label-Label--LG6X\" data-size=\"\
+    small\" data-variant=\"default\"><span class=\"Box-sc-g0xbh4-0 gKFdvh search-match\
+    \ prc-Text-Text-0ima0\">question</span></span></div><div><span class=\"prc-Label-Label--LG6X\"\
+    \ data-size=\"small\" data-variant=\"default\"><span class=\"Box-sc-g0xbh4-0 gKFdvh\
+    \ search-match prc-Text-Text-0ima0\">User issue</span></span></div><div><span\
+    \ class=\"prc-Label-Label--LG6X\" data-size=\"small\" data-variant=\"default\"\
+    ><span class=\"Box-sc-g0xbh4-0 gKFdvh search-match prc-Text-Text-0ima0\">Users\
+    \ Pain</span></span></div></div><ul class=\"Box-sc-g0xbh4-0 bZkODq\"><li class=\"\
+    Box-sc-g0xbh4-0 eCfCAC\"><img data-component=\"Avatar\" class=\"Box-sc-g0xbh4-0\
+    \ edRbzn prc-Avatar-Avatar-ZRS-m\" alt=\"\" data-square=\"\" width=\"16\" height=\"\
+    16\" src=\"https://avatars.githubusercontent.com/u/1090602?s=48&amp;v=4\" data-testid=\"\
+    github-avatar\" style=\"--avatarSize-regular: 16px;\">phawxby</li><span class=\"\
+    Box-sc-g0xbh4-0 eXQoFa prc-Text-Text-0ima0\" aria-hidden=\"true\">\xB7</span><li\
+    \ class=\"Box-sc-g0xbh4-0 eCfCAC\"><svg aria-hidden=\"true\" focusable=\"false\"\
+    \ class=\"octicon octicon-comment-discussion Octicon-sc-9kayk9-0 hTWZgt\" viewBox=\"\
+    0 0 16 16\" width=\"16\" height=\"16\" fill=\"currentColor\" display=\"inline-block\"\
+    \ overflow=\"visible\" style=\"vertical-align: text-bottom;\"><path d=\"M1.75\
+    \ 1h8.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75 0 0 1 10.25 10H7.061l-2.574 2.573A1.458\
+    \ 1.458 0 0 1 2 11.543V10h-.25A1.75 1.75 0 0 1 0 8.25v-5.5C0 1.784.784 1 1.75\
+    \ 1ZM1.5 2.75v5.5c0 .138.112.25.25.25h1a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749\
+    \ 0 0 1 .53-.22h3.5a.25.25 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25h-8.5a.25.25\
+    \ 0 0 0-.25.25Zm13 2a.25.25 0 0 0-.25-.25h-.5a.75.75 0 0 1 0-1.5h.5c.966 0 1.75.784\
+    \ 1.75 1.75v5.5A1.75 1.75 0 0 1 14.25 12H14v1.543a1.458 1.458 0 0 1-2.487 1.03L9.22\
+    \ 12.28a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215l2.22 2.22v-2.19a.75.75\
+    \ 0 0 1 .75-.75h1a.25.25 0 0 0 .25-.25Z\"></path></svg>64</li><span class=\"Box-sc-g0xbh4-0\
+    \ eXQoFa prc-Text-Text-0ima0\" aria-hidden=\"true\">\xB7</span><li class=\"Box-sc-g0xbh4-0\
+    \ eCfCAC\">Opened&nbsp; <div title=\"Feb 17, 2025, 4:16 PM GMT+1\" class=\"Truncate__StyledTruncate-sc-23o1d2-0\
+    \ liVpTx\"><span class=\"prc-Text-Text-0ima0\" title=\"Feb 17, 2025, 4:16 PM GMT+1\"\
+    >on Feb 17</span></div></li><span class=\"Box-sc-g0xbh4-0 eXQoFa prc-Text-Text-0ima0\"\
+    \ aria-hidden=\"true\">\xB7</span><li class=\"Box-sc-g0xbh4-0 eCfCAC\"><a class=\"\
+    Box-sc-g0xbh4-0 hLbjXI prc-Link-Link-85e08\" href=\"/valkey-io/valkey-glide/issues/3195\"\
+    \ target=\"_blank\">#3195</a></li></ul></div>\n``` "
+  created_at: '2025-05-28 07:43:09.817936'
+  disable_knowledge: false
+  doc_id: 07100ab8-97b2-46fe-8fcb-3d25a853ae7c
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-28 07:43:09.817971'
+  user: null
+- content: '@software_developer'
+  created_at: '2025-05-28 07:43:09.817936'
+  disable_knowledge: false
+  doc_id: 02b8a80f-3d44-454d-9868-eb6977afe581
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - software_developer
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-28 07:43:09.817971'
+  user: admin
+- content: "Great! Here\u2019s a structured plan for implementing the requested VUE\
+    \ and TailWindCSS preview based on the provided JSON data. This plan ensures clean\
+    \ code practices, version control, testing, and documentation.\n\n### Step 1:\
+    \ Set Up the Vue Project\n\n1. **Initialize the Vue Project:**\n   ```bash\n \
+    \  vue create issue-previewer\n   cd issue-previewer\n   ```\n\n2. **Install TailwindCSS:**\n\
+    \   ```bash\n   npm install tailwindcss@latest postcss@latest autoprefixer@latest\n\
+    \   npx tailwindcss init\n   ```\n\n3. **Configure TailwindCSS:**\n\n   In `tailwind.config.js`,\
+    \ setup paths:\n   ```javascript\n   module.exports = {\n     purge: ['./src/**/*.{vue,js,ts,jsx,tsx}',\
+    \ './public/index.html'],\n     darkMode: false,\n     theme: {\n       extend:\
+    \ {},\n     },\n     variants: {\n       extend: {},\n     },\n     plugins: [],\n\
+    \   };\n   ```\n\n   In `src/assets/tailwind.css`:\n   ```css\n   @tailwind base;\n\
+    \   @tailwind components;\n   @tailwind utilities;\n   ```\n\n4. **Include Tailwind\
+    \ in Vue:**\n   Import `src/assets/tailwind.css` in `src/main.js`.\n\n### Step\
+    \ 2: Create the Issue Preview Vue Component\n\n1. **Create the Component:**\n\n\
+    \   Create a new file `src/components/IssuePreview.vue` and implement the following:\n\
+    \n   ```html\n   <template>\n     <div class=\"Box-sc-g0xbh4-0 iwUbcA\">\n   \
+    \    <h3 class=\"Box-sc-g0xbh4-0 cvnppv\">\n         <div class=\"Box-sc-g0xbh4-0\
+    \ ksQFlo\">\n           <a :href=\"repoLink\" class=\"Box-sc-g0xbh4-0 hLbjXI prc-Link-Link-85e08\"\
+    >\n             <span>{{ repoName }}</span>\n           </a>\n         </div>\n\
+    \         <div class=\"Box-sc-g0xbh4-0 MHoGG search-title\">\n           <svg\
+    \ aria-hidden=\"true\" focusable=\"false\" class=\"octicon octicon-check-circle\
+    \ Octicon-sc-9kayk9-0 cmohea\" viewBox=\"0 0 16 16\" width=\"16\" height=\"16\"\
+    \ fill=\"currentColor\" style=\"vertical-align: text-bottom;\">\n            \
+    \ <path d=\"M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm1.5 0a6.5 6.5 0 1 0 13 0 6.5 6.5\
+    \ 0 0 0-13 0Zm10.28-1.72-4.5 4.5a.75.75 0 0 1-1.06 0l-2-2a.751.751 0 0 1 .018-1.042.751.751\
+    \ 0 0 1 1.042-.018l1.47 1.47 3.97-3.97a.751.751 0 0 1 1.042.018.751.751 0 0 1\
+    \ .018 1.042Z\"></path>\n           </svg>\n           <a :href=\"issueLink\"\
+    \ class=\"prc-Link-Link-85e08\">\n             <span class=\"Box-sc-g0xbh4-0 gKFdvh\
+    \ search-match prc-Text-Text-0ima0\">{{ issueTitle }}</span>\n           </a>\n\
+    \         </div>\n       </h3>\n       <div class=\"Box-sc-g0xbh4-0 dcdlju\">\n\
+    \         <span class=\"Box-sc-g0xbh4-0 gKFdvh search-match prc-Text-Text-0ima0\"\
+    \ v-html=\"issueText\"></span>\n       </div>\n       <div class=\"Box-sc-g0xbh4-0\
+    \ jgRnBg\">\n         <div v-for=\"label in labels\" :key=\"label\">\n       \
+    \    <span class=\"prc-Label-Label--LG6X\" data-size=\"small\" data-variant=\"\
+    default\">\n             <span class=\"Box-sc-g0xbh4-0 gKFdvh search-match prc-Text-Text-0ima0\"\
+    >{{ label }}</span>\n           </span>\n         </div>\n       </div>\n    \
+    \   <ul class=\"Box-sc-g0xbh4-0 bZkODq\">\n         <li class=\"Box-sc-g0xbh4-0\
+    \ eCfCAC\">\n           <img :src=\"authorAvatar\" alt=\"author-avatar\" class=\"\
+    Box-sc-g0xbh4-0 edRbzn prc-Avatar-Avatar-ZRS-m\" width=\"16\" height=\"16\">\n\
+    \           {{ authorName }}\n         </li>\n         <span class=\"Box-sc-g0xbh4-0\
+    \ eXQoFa prc-Text-Text-0ima0\" aria-hidden=\"true\">\xB7</span>\n         <li\
+    \ class=\"Box-sc-g0xbh4-0 eCfCAC\">\n           <svg aria-hidden=\"true\" focusable=\"\
+    false\" class=\"octicon octicon-comment-discussion Octicon-sc-9kayk9-0 hTWZgt\"\
+    \ viewBox=\"0 0 16 16\" width=\"16\" height=\"16\" fill=\"currentColor\" style=\"\
+    vertical-align: text-bottom;\">\n             <path d=\"M1.75 1h8.5c.966 0 1.75.784\
+    \ 1.75 1.75v5.5A1.75 1.75 0 0 1 10.25 10H7.061l-2.574 2.573A1.458 1.458 0 0 1\
+    \ 2 11.543V10h-.25A1.75 1.75 0 0 1 0 8.25v-5.5C0 1.784.784 1 1.75 1ZM1.5 2.75v5.5c0\
+    \ .138.112.25.25.25h1a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h3.5a.25.25\
+    \ 0 0 0 .25-.25v-5.5a.25.25 0 0 0-.25-.25h-8.5a.25.25 0 0 0-.25.25Zm13 2a.25.25\
+    \ 0 0 0-.25-.25h-.5a.75.75 0 0 1 0-1.5h.5c.966 0 1.75.784 1.75 1.75v5.5A1.75 1.75\
+    \ 0 0 1 14.25 12H14v1.543a1.458 1.458 0 0 1-2.487 1.03L9.22 12.28a.749.749 0 0\
+    \ 1 .326-1.275.749.749 0 0 1 .734.215l2.22 2.22v-2.19a.75.75 0 0 1 .75-.75h1a.25.25\
+    \ 0 0 0 .25-.25Z\"></path>\n           </svg>\n           {{ numComments }}\n\
+    \         </li>\n         <span class=\"Box-sc-g0xbh4-0 eXQoFa prc-Text-Text-0ima0\"\
+    \ aria-hidden=\"true\">\xB7</span>\n         <li class=\"Box-sc-g0xbh4-0 eCfCAC\"\
+    >\n           Opened&nbsp; <div class=\"Truncate__StyledTruncate-sc-23o1d2-0 liVpTx\"\
+    ><span class=\"prc-Text-Text-0ima0\">{{ createdDate }}</span></div>\n        \
+    \ </li>\n         <span class=\"Box-sc-g0xbh4-0 eXQoFa prc-Text-Text-0ima0\" aria-hidden=\"\
+    true\">\xB7</span>\n         <li class=\"Box-sc-g0xbh4-0 eCfCAC\">\n         \
+    \  <a :href=\"issueLink\" target=\"_blank\">#{{ issueNumber }}</a>\n         </li>\n\
+    \       </ul>\n     </div>\n   </template>\n\n   <script>\n   export default {\n\
+    \     props: {\n       repoName: String,\n       repoLink: String,\n       issueLink:\
+    \ String,\n       issueTitle: String,\n       issueText: String,\n       labels:\
+    \ Array,\n       authorName: String,\n       authorAvatar: String,\n       numComments:\
+    \ Number,\n       createdDate: String,\n       issueNumber: Number\n     }\n \
+    \  }\n   </script>\n\n   <style scoped>\n   /* Add any specific styles here */\n\
+    \   </style>\n   ```\n\n### Step 3: Using the Component\n\n1. Open `src/App.vue`\
+    \ and use `<IssuePreview />` component:\n\n   ```html\n   <template>\n     <div\
+    \ id=\"app\">\n       <IssuePreview\n         :repoName=\"'yetone/avante.nvim'\"\
+    \n         :repoLink=\"'/yetone/avante.nvim'\"\n         :issueLink=\"'/yetone/avante.nvim/issues/2048'\"\
+    \n         :issueTitle=\"'bug: Ollama models can&#39;t apply changes to buffer'\"\
+    \n         :issueText=\"'Avante works great when using copilot as a provider.\
+    \ However, I <em>wanted</em> to test a local LLM using ollama...'\"\n        \
+    \ :labels=\"['bug']\"\n         :authorName=\"'GaGandour'\"\n         :authorAvatar=\"\
+    'https://avatars.githubusercontent.com/u/64374553?s=48&v=4'\"\n         :numComments=\"\
+    7\"\n         :createdDate=\"'May 18, 2025'\"\n         :issueNumber=\"2048\"\n\
+    \       />\n     </div>\n   </template>\n\n   <script>\n   import IssuePreview\
+    \ from './components/IssuePreview.vue';\n\n   export default {\n     name: 'App',\n\
+    \     components: {\n       IssuePreview\n     }\n   };\n   </script>\n\n   <style>\n\
+    \   @import './assets/tailwind.css';\n   </style>\n   ```\n\n### Step 4: Testing\n\
+    \n- **Write Unit Tests:**\n  Use Vue Test Utils and Jest, create test files e.g.,\
+    \ `IssuePreview.spec.js` to test the component's props and methods.\n\n```javascript\n\
+    import { mount } from '@vue/test-utils';\nimport IssuePreview from '@/components/IssuePreview.vue';\n\
+    \ndescribe('IssuePreview.vue', () => {\n  it('renders props correctly', () =>\
+    \ {\n    const wrapper = mount(IssuePreview, {\n      propsData: {\n        repoName:\
+    \ 'yetone/avante.nvim',\n        repoLink: '/yetone/avante.nvim',\n        issueLink:\
+    \ '/yetone/avante.nvim/issues/2048',\n        issueTitle: \"bug: Ollama models\
+    \ can't apply changes to buffer\",\n        issueText: 'Avante works great when\
+    \ using copilot as a provider...',\n        labels: ['bug'],\n        authorName:\
+    \ 'GaGandour',\n        authorAvatar: 'https://avatars.githubusercontent.com/u/64374553?s=48&v=4',\n\
+    \        numComments: 7,\n        createdDate: 'May 18, 2025',\n        issueNumber:\
+    \ 2048\n      }\n    });\n\n    expect(wrapper.text()).toContain('GaGandour');\n\
+    \    expect(wrapper.find('img').attributes('src')).toBe('https://avatars.githubusercontent.com/u/64374553?s=48&v=4');\n\
+    \    expect(wrapper.text()).toContain('bug: Ollama models can\\'t apply changes\
+    \ to buffer');\n  });\n});\n```\n\n### Step 5: Version Control and Documentation\n\
+    \n- **Version Control:**\n  Initialize Git and commit changes:\n  ```bash\n  git\
+    \ init\n  git add .\n  git commit -m \"Initial commit - Setup Vue and TailwindCSS\
+    \ for issue preview\"\n  ```\n\n- **Documentation:**\n  Keep project documentation\
+    \ in `README.md`. Regularly update it with new features, installation instructions,\
+    \ and usage examples.\n\n### Step 6: Agile and CI/CD\n\n- **Use Agile Tools:**\n\
+    \  Use tools like Jira or Trello for managing tasks and sprints. Implement user\
+    \ stories for each feature to track progress.\n\n- **Continuous Integration:**\n\
+    \  Use GitHub Actions or a similar CI/CD tool to automate testing and deployment\
+    \ processes. \n\nBy following this plan and maintaining these practices, the project\
+    \ will be well-structured, testable, and easy to maintain."
+  created_at: '2025-05-28 07:43:09.817936'
+  disable_knowledge: false
+  doc_id: 59589abb-b0f6-4ae3-bcc1-4932db4819a7
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 3.871661901473999
+    model: gpt-4o
+    time_taken: 32.25349140167236
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-28 07:43:09.817971'
+  user: null
+- content: "Great, keep only\_IssuePreview\n* it will receive a \"issue\" prop with\
+    \ all the fields\n* Remove all classes that are not from TailWindCSS\n* Replave\
+    \ svg by fontawesome icons using the <i > notation, like\_<i class=\"fa-solid\
+    \ fa-book\"></i>"
+  created_at: '2025-05-28 07:43:09.817936'
+  disable_knowledge: false
+  doc_id: 7982fd1e-d44f-475c-be5e-cd87eaff3f93
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-28 07:43:09.817971'
+  user: admin
+- content: "### Vue Component: IssuePreview\n\nHere is the updated Vue component with\
+    \ the requested changes, removing non-TailWindCSS classes and replacing SVGs with\
+    \ FontAwesome icons:\n\n```vue\n<template>\n  <div class=\"p-4 border-b border-gray-200\"\
+    >\n    <h3 class=\"text-lg font-semibold\">\n      <div>\n        <a :href=\"\
+    issue.repoLink\" class=\"text-blue-500 hover:underline\">\n          <span>{{\
+    \ issue.repoName }}</span>\n        </a>\n      </div>\n      <div class=\"flex\
+    \ items-center mt-1\">\n        <i class=\"fa-solid fa-circle-check text-green-500\
+    \ mr-2\"></i>\n        <a :href=\"issue.issueLink\" class=\"text-blue-500 hover:underline\"\
+    >\n          <span>{{ issue.issueTitle }}</span>\n        </a>\n      </div>\n\
+    \    </h3>\n    <div class=\"mt-2 text-gray-700\" v-html=\"issue.issueText\"></div>\n\
+    \    <div class=\"flex space-x-2 mt-3\">\n      <div v-for=\"label in issue.labels\"\
+    \ :key=\"label\" class=\"bg-gray-100 text-gray-700 px-2 py-1 rounded\">\n    \
+    \    {{ label }}\n      </div>\n    </div>\n    <ul class=\"flex items-center\
+    \ space-x-2 mt-4 text-sm text-gray-600\">\n      <li class=\"flex items-center\"\
+    >\n        <img :src=\"issue.authorAvatar\" alt=\"author-avatar\" class=\"w-4\
+    \ h-4 rounded-full mr-1\">\n        {{ issue.authorName }}\n      </li>\n    \
+    \  <span>\xB7</span>\n      <li class=\"flex items-center\">\n        <i class=\"\
+    fa-solid fa-comment-dots mr-1\"></i>\n        {{ issue.numComments }}\n      </li>\n\
+    \      <span>\xB7</span>\n      <li>\n        Opened&nbsp;<span>{{ issue.createdDate\
+    \ }}</span>\n      </li>\n      <span>\xB7</span>\n      <li>\n        <a :href=\"\
+    issue.issueLink\" target=\"_blank\">#{{ issue.issueNumber }}</a>\n      </li>\n\
+    \    </ul>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: {\n\
+    \    issue: Object\n  }\n}\n</script>\n\n<style scoped>\n/* Add any specific styles\
+    \ here if needed */\n</style>\n```\n\n### Instructions for Use\n\n1. **Update\
+    \ Main App:**\n   In `src/App.vue`, pass the `issue` prop to the `IssuePreview`\
+    \ component:\n\n   ```html\n   <template>\n     <div id=\"app\">\n       <IssuePreview\n\
+    \         :issue=\"{\n           repoName: 'yetone/avante.nvim',\n           repoLink:\
+    \ '/yetone/avante.nvim',\n           issueLink: '/yetone/avante.nvim/issues/2048',\n\
+    \           issueTitle: 'bug: Ollama models can\\'t apply changes to buffer',\n\
+    \           issueText: 'Avante works great when using copilot as a provider. However,\
+    \ I <em>wanted</em> to test a local LLM using ollama...',\n           labels:\
+    \ ['bug'],\n           authorName: 'GaGandour',\n           authorAvatar: 'https://avatars.githubusercontent.com/u/64374553?s=48&v=4',\n\
+    \           numComments: 7,\n           createdDate: 'May 18, 2025',\n       \
+    \    issueNumber: 2048\n         }\"\n       />\n     </div>\n   </template>\n\
+    \n   <script>\n   import IssuePreview from './components/IssuePreview.vue';\n\n\
+    \   export default {\n     name: 'App',\n     components: {\n       IssuePreview\n\
+    \     }\n   };\n   </script>\n\n   <style>\n   @import './assets/tailwind.css';\n\
+    \   </style>\n   ```\n\n2. **Install FontAwesome:**\n   If you haven't already,\
+    \ install FontAwesome to use its icons in your project:\n\n   ```bash\n   npm\
+    \ install @fortawesome/fontawesome-free\n   ```\n\n   Then, include it in your\
+    \ main.js or index.html:\n\n   ```javascript\n   import '@fortawesome/fontawesome-free/css/all.css';\n\
+    \   ```\n\n### Version Control\n\n- **Initialize Git and Track Changes:**\n  ```bash\n\
+    \  git init\n  git add .\n  git commit -m \"Implement Vue component IssuePreview\
+    \ with TailWindCSS and FontAwesome icons\"\n  ```\n\n### Testing\n\n- **Write\
+    \ Unit Tests:** Using Vue Test Utils and Jest to ensure the component works as\
+    \ expected:\n\n```javascript\nimport { mount } from '@vue/test-utils';\nimport\
+    \ IssuePreview from '@/components/IssuePreview.vue';\n\ndescribe('IssuePreview.vue',\
+    \ () => {\n  it('renders issue properties correctly', () => {\n    const issue\
+    \ = {\n      repoName: 'yetone/avante.nvim',\n      repoLink: '/yetone/avante.nvim',\n\
+    \      issueLink: '/yetone/avante.nvim/issues/2048',\n      issueTitle: \"bug:\
+    \ Ollama models can't apply changes to buffer\",\n      issueText: 'Avante works\
+    \ great when using copilot as a provider...',\n      labels: ['bug'],\n      authorName:\
+    \ 'GaGandour',\n      authorAvatar: 'https://avatars.githubusercontent.com/u/64374553?s=48&v=4',\n\
+    \      numComments: 7,\n      createdDate: 'May 18, 2025',\n      issueNumber:\
+    \ 2048\n    };\n\n    const wrapper = mount(IssuePreview, {\n      propsData:\
+    \ { issue }\n    });\n\n    expect(wrapper.text()).toContain(issue.authorName);\n\
+    \    expect(wrapper.find('img').attributes('src')).toBe(issue.authorAvatar);\n\
+    \    expect(wrapper.text()).toContain(issue.issueTitle);\n    expect(wrapper.text()).toContain(issue.numComments.toString());\n\
+    \  });\n});\n```\n\n### Agile Methodologies and Documentation\n\n- **Task Management:**\
+    \ Use tools like Jira or Trello to track progress and manage workflow.\n- **Documentation:**\
+    \ Keep documentation updated, regularly editing `README.md` to reflect new updates\
+    \ or changes.\n\nBy adhering to these steps and practices, the project development\
+    \ will remain robust, efficient, and easy to maintain."
+  created_at: '2025-05-28 07:43:09.817936'
+  disable_knowledge: false
+  doc_id: fc0c8579-0b97-40e4-951c-a8b689746815
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.461860418319702
+    model: gpt-4o
+    time_taken: 21.610647678375244
+  profiles:
+  - software_developer
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: ''
+  updated_at: '2025-05-28 07:43:09.817971'
+  user: null
+mode: chat
+name: Github issues preview
+parent_id: 15bc1694-828e-4c6a-bbfe-253775fbd6ff
+pinned: false
+pr_view: {}
+profiles:
+- software_developer
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-28T07:59:06.553972'
+url: ''
+users:
+- admin
+visibility: ''

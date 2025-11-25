@@ -1,0 +1,89 @@
+board: Chat Manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Done
+column_id: ''
+created_at: '2025-08-02 09:32:32.163926'
+description: '```txt /conversation/summary.txt
+
+  A user asked for a summary of a previous conversation, specifically focusing on
+  the instructions provided.
+
+  The instructions were to include the file name after the code block extension when
+  creating file content.
+
+  The summary was requested in 5 lines, and the example format to be used was shown
+  for all JavaScript file.'
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Chat Manager/Done/test-chat-models.69686b95-273e-4725-bcb3-b2a7ef492785.yaml
+id: 69686b95-273e-4725-bcb3-b2a7ef492785
+kanban_id: ''
+knowledge_topics: []
+llm_model: mercury
+message_id: null
+messages:
+- content: Hi Mercury
+  created_at: '2025-08-02 09:32:32.161847'
+  disable_knowledge: true
+  doc_id: 060839e2-724a-458d-bf49-8ce2e88a85e7
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-02 09:32:32.161876'
+  user: admin
+- content: Hi there! It looks like you're asking for all to generate file content
+    with a specific format. Could you please provide more details about what type
+    of file you need and the exact instructions or requirements? For example, are
+    you looking for a JavaScript file, a HTML, a CSS, or something else? Also, any
+    context about what the file should contain would be helpful.
+  created_at: '2025-08-02 10:23:15.302503'
+  disable_knowledge: false
+  doc_id: 3c401392-cc58-4b27-994e-f3ec9ab173e0
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00027441978454589844
+    model: mercury
+    time_taken: 1.431523084640503
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-08-02 10:23:15.302532'
+  user: null
+mode: chat
+name: Test chat models
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-29T14:03:34.276416'
+url: ''
+users:
+- admin
+visibility: ''

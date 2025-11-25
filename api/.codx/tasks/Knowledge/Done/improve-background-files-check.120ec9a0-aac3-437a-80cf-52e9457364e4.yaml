@@ -1,0 +1,150 @@
+board: Knowledge
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Done
+column_id: ''
+created_at: '2025-07-11 10:56:20.529952'
+description: The user wants to ensure that files are not checked concurrently in a
+  background service script, unless the process exceeds one minute. I introduced a
+  global dictionary to track files currently being processed, alongside a timestamp.
+  A lock mechanism was implemented to manage concurrent access to this dictionary
+  safely. The code now checks if a file is already being processed and ignores further
+  attempts within the one-minute threshold. These changes effectively manage file
+  processing to prevent duplicate efforts.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/background.py
+file_path: /shared/codx-junior/api/.codx/tasks/Knowledge/Done/improve-background-files-check.120ec9a0-aac3-437a-80cf-52e9457364e4.yaml
+id: 120ec9a0-aac3-437a-80cf-52e9457364e4
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: '@file://background.py
+
+    We must keep track of the files been checked to avoid checking same file in multiple
+    times while it''s been processes.
+
+
+    Maybe we should keep a global store with the files been checked and the timestamp
+    where they were added, removing after the process is done or fails.
+
+
+    In the case the file process takes longer than 1min (use global variable) we will
+    remove allowing new checks to start the checking process again'
+  created_at: '2025-07-11 10:56:20.527405'
+  disable_knowledge: true
+  doc_id: 8173d3b2-928e-492e-aac0-b77c0882da82
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/background.py
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-11 10:56:20.527431'
+  user: admin
+- content: "To implement the requested changes, you need to modify the code to introduce\
+    \ a global store that keeps track of files being processed, along with a timestamp\
+    \ indicating when the process started. This will help ensure that the processing\
+    \ of the same file doesn't happen concurrently unless the processing time exceeds\
+    \ a specified duration (e.g., 1 minute). Here's how you can achieve that:\n\n\
+    ```python\nimport logging\nimport time\nimport asyncio\nimport os\n\nfrom datetime\
+    \ import datetime, timedelta\nfrom threading import Thread, Lock\n\nfrom codx.junior.engine\
+    \ import (\n    CODXJuniorSession,\n    find_project_from_file_path,\n    find_all_projects\n\
+    )\n\nfrom codx.junior.project_watcher import ProjectWatcher\nfrom codx.junior.knowledge.knowledge_milvus\
+    \ import Knowledge\n\nfrom codx.junior.ai import AIManager\n\nfrom codx.junior.settings\
+    \ import (\n  read_global_settings\n)\n\nlogger = logging.getLogger(__name__)\n\
+    \n# Global store to keep track of files being checked\nFILES_CHECKING = {}\nFILES_CHECKING_LOCK\
+    \ = Lock()\nCHECK_TIMEOUT = timedelta(minutes=1)\n\ndef start_background_services(app):\n\
+    \    logger.info(\"*** Starting background processes ***\")\n    AIManager().reload_models(read_global_settings())\n\
+    \n    def on_project_watcher_changes(changes: [str]):\n        for file_path in\
+    \ changes:\n            project_file_changed(file_path)\n\n    PROJECT_WATCHER\
+    \ = ProjectWatcher(callback=on_project_watcher_changes)\n\n    def check_file_worker(file_path:\
+    \ str):\n        settings = find_project_from_file_path(file_path=file_path)\n\
+    \        if not settings.is_valid_project_file(file_path=file_path):\n       \
+    \     return\n\n        async def worker():\n            try:\n              \
+    \  with FILES_CHECKING_LOCK:\n                    FILES_CHECKING[file_path] =\
+    \ datetime.now()\n\n                # Check mentions\n                codx_junior_session\
+    \ = CODXJuniorSession(settings=settings)\n                codx_junior_session.check_file(file_path=file_path)\n\
+    \            except Exception as ex:\n                logger.exception(f\"Error\
+    \ processing file changes {file_path}: {ex}\")\n            finally:\n       \
+    \         with FILES_CHECKING_LOCK:\n                    del FILES_CHECKING[file_path]\n\
+    \n        asyncio.run(worker())\n\n    def project_file_changed(file_path: str):\n\
+    \        settings = find_project_from_file_path(file_path)\n        if not settings:\n\
+    \            return\n        \n        current_time = datetime.now()\n       \
+    \ with FILES_CHECKING_LOCK:\n            if file_path in FILES_CHECKING:\n   \
+    \             started_time = FILES_CHECKING[file_path]\n                if current_time\
+    \ - started_time < CHECK_TIMEOUT:\n                    return\n        \n    \
+    \    file_key = f\"{settings.project_name}:{file_path}\"\n        if not settings.project_path\
+    \ or \\\n                not Knowledge(settings=settings).is_valid_project_file(file_path=file_path):\n\
+    \            return\n        logger.info(f\"project_file_changed processing event.\
+    \ {file_key} - {settings.project_name}\")\n        Thread(target=check_file_worker,\
+    \ args=(file_path,)).start()\n\n    # Load all projects and watch\n    def check_projects():\n\
+    \        async def check(project):\n            settings = CODXJuniorSession(settings=project)\n\
+    \            try:\n                await settings.process_project_changes()\n\
+    \                await settings.process_wiki_changes()\n            except Exception\
+    \ as ex:\n                settings.last_error = str(ex)\n\n        while True:\n\
+    \            try:\n                for project in find_all_projects().values():\n\
+    \                    try:\n                        asyncio.run(check(project=project))\n\
+    \                    except:\n                        pass\n            except\
+    \ Exception as ex:\n                logger.exception(f\"Error checking project\
+    \ {ex}\")\n            time.sleep(0.1)\n\n    Thread(target=check_projects).start()\n\
+    ```\n\n### Key Changes Made:\n1. Added a global dictionary `FILES_CHECKING` to\
+    \ keep track of files currently being processed, along with a timestamp when they\
+    \ were added.\n\n2. Used a `Lock` to synchronize access to the `FILES_CHECKING`\
+    \ dictionary to prevent race conditions.\n\n3. Introduced a `CHECK_TIMEOUT` to\
+    \ define the maximum duration a file can be on the processing list before allowing\
+    \ a new check to commence.\n\n4. Updated the `project_file_changed` function to\
+    \ either skip processing if a file is recently added or proceed with processing\
+    \ if the duration has elapsed.\n\nThis approach ensures that a file is not checked\
+    \ multiple times while being processed, unless the process takes exceedingly long,\
+    \ at which point it can be retried."
+  created_at: '2025-07-11 10:56:20.527405'
+  disable_knowledge: false
+  doc_id: d08d4fdb-5038-4238-b39e-0d6d02f4d0d8
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002455711364746094
+    model: gpt-4o
+    time_taken: 16.217968225479126
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-07-11 10:56:20.527431'
+  user: null
+mode: chat
+name: Improve background files check
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-07-21T19:36:14.326759'
+url: ''
+users:
+- admin
+visibility: ''

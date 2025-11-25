@@ -29,7 +29,7 @@
 </template>
 <script>
 export default {
-  props: ['mentionList', 'content'],
+  props: ['project', 'content'],
   data() {
     return {
       termSearchQuery: null,
@@ -43,6 +43,9 @@ export default {
     },
     lastWord() {
       return this.content?.split(" ").reverse()[0]
+    },
+    mentionList() {
+      return this.project?.mentionList
     }
   },
   watch: {
@@ -62,16 +65,18 @@ export default {
       const mention = this.lastWord[0] === '@' ? this.lastWord?.slice(1) : null      
       this.termSearchQuery = mention?.toLowerCase()
       this.searchKeywords()
-      if (this.showTermSearch && !mention) {
+      const isLastWordUniqueMention = this.searchTerms?.length === 1 &&
+        ("@" + this.searchTerms[0].name) === this.lastWord
+      if (this.showTermSearch && (!mention || isLastWordUniqueMention)) {
         this.closeTermSearch()
       }
     },
     addSerchTerm(mention) {
+      this.closeTermSearch()
       this.$emit('select', { 
         orgText: this.lastWord,
         mention
       })
-      this.closeTermSearch()
     },
     closeTermSearch() {
       this.searchTerms = null

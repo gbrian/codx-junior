@@ -1,0 +1,32 @@
+board: Knowledge
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: To Do
+column_id: ''
+created_at: '2025-08-08 09:34:39.216637'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Knowledge/To Do/new-task.d07d7f84-d62d-41c1-a93f-e0ea2d73556f.yaml
+id: d07d7f84-d62d-41c1-a93f-e0ea2d73556f
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: chat
+name: New Task
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-08-08T09:52:23.385153'
+url: ''
+users: []
+visibility: ''

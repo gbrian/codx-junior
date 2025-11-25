@@ -1,20 +1,22 @@
 <script setup>
-import { computed, defineComponent } from 'vue';
 import MarkdownViewer from '../MarkdownViewer.vue';
 import Code from '../Code.vue';
+import TipTapDocument from './TipTapDocument.vue';
 </script>
 <template>
   <div class="flex flex-col">
     <div v-for="block in blocks" :key="block.hash">
-      <MarkdownViewer v-if="block.renderer === 'md'" :text="block.content" />
+      <MarkdownViewer :files="files" v-if="block.renderer === 'md'" :text="block.content" />
       <Code 
         :text="block.content"
         :text-language="block.type"
         :fileName="block.fileName"
+        :files="files"
         @generate-code="$emit('generate-code', $event)" 
         @reload-file="$emit('reload-file', { file: $event, message })"
         @open-file="$emit('open-file', $event)"
         @save-file="$emit('save-file', $event)"
+        @add-file="$emit('add-file', $event)"
         @edit-message="$emit('edit-message', $event)"
         v-if="block.renderer === 'code'" />
     </div>
@@ -49,7 +51,7 @@ function parseContent(content) {
     });
   }
   lines.forEach(line => {
-    const match = line.match(/^```(\w+)\s*(.*)$/);
+    const match = line.trim().match(/^```(\w+)\s*(.*)$/);
     if (match) {
       // If there is a match, it means a new block is starting
       if (currentContent.length > 0) {
@@ -58,7 +60,7 @@ function parseContent(content) {
       currentType = match[1];
       currentFileName = match[2];
       currentContent = [];
-    } else if (line === '```') {
+    } else if (line.trim() === '```') {
       // End of a block
       if (currentContent.length > 0) {
         addBlock()
@@ -80,7 +82,7 @@ function parseContent(content) {
 }
 
 export default {
-  props: ['content'],
+  props: ['content', 'files'],
   computed: {
     blocks() {
       return parseContent(this.content)

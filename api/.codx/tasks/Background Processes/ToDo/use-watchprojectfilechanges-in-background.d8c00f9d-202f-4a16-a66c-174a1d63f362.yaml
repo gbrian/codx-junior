@@ -1,0 +1,156 @@
+board: Background Processes
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: ToDo
+column_id: ''
+created_at: '2025-10-30 19:51:09.278814'
+description: The user has requested to update the "background" to use "WatchProjectFileChanges".
+  However, there's no specific information provided about the file or project details.
+  The task requires identifying the relevant file or context within a project to make
+  the necessary updates. Further steps would involve searching the project for related
+  files or references to "background" and "WatchProjectFileChanges" to understand
+  where and how the update should be implemented.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/background.py
+- /shared/codx-junior/api/codx/junior/changes/watch_project_file_changes.py
+file_path: /shared/codx-junior/api/.codx/tasks/Background Processes/ToDo/use-watchprojectfilechanges-in-background.d8c00f9d-202f-4a16-a66c-174a1d63f362.yaml
+id: d8c00f9d-202f-4a16-a66c-174a1d63f362
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Update background to use WatchProjectFileChanges\_"
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: true
+  doc_id: f69ca765-11fb-4240-8763-1a86fd69e8a4
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/background.py
+  - /shared/codx-junior/api/codx/junior/changes/watch_project_file_changes.py
+  - /shared/codx-junior/api/codx/junior/background.py
+  - /shared/codx-junior/api/codx/junior/changes/watch_project_file_changes.py
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: admin
+- content: "To update the `background.py` file to use `WatchProjectFileChanges`, we\
+    \ need to integrate the functionality of watching project file changes into the\
+    \ background service. Here's how you can modify the `background.py` file to include\
+    \ the `WatchProjectFileChanges` functionality:\n\n```python /shared/codx-junior/api/codx/junior/background.py\n\
+    import asyncio\nimport logging\nimport time\nfrom datetime import datetime, timedelta\n\
+    from threading import Thread, Lock\nfrom typing import Dict\n\nfrom codx.junior.ai\
+    \ import AIManager\nfrom codx.junior.changes.change_manager import ChangeManager\n\
+    from codx.junior.changes.watch_project_file_changes import WatchProjectFileChanges\n\
+    from codx.junior.globals import (\n    CODX_JUNIOR_API_BACKGROUND,\n)\nfrom codx.junior.project.project_discover\
+    \ import (\n    find_all_projects\n)\nfrom codx.junior.settings import read_global_settings\n\
+    \n# Setup logging\nlogger = logging.getLogger(__name__)\n\n# A global tracking\
+    \ dictionary to manage files currently being processed\nFILES_CHECKING = {}\n\
+    FILES_CHECKING_LOCK = Lock()\nCHECK_TIMEOUT = timedelta(minutes=1)\n\n# Quarantine\
+    \ settings\nQUARANTINE_TRACKER: Dict[str, Dict] = {}\nQUARANTINE_LOCK = Lock()\n\
+    QUARANTINE_DELAYS = [0, 1, 10, 30, 120]  # Minutes\n\ndef start_background_services(app)\
+    \ -> None:\n    \"\"\"\n    Function to start background services for project\
+    \ watching and processing.\n    \"\"\"\n    if not CODX_JUNIOR_API_BACKGROUND:\n\
+    \        return\n    logger.info(\"*** Starting background processes ***\")\n\
+    \    reload_models()\n\n    # Start the project checking in a separate thread\n\
+    \    Thread(target=check_projects).start()\n\n    # Start the mention checking\
+    \ in a separate thread\n    start_mention_checking()\n\n    # Start watching project\
+    \ file changes\n    watch_project_file_changes = WatchProjectFileChanges()\n \
+    \   Thread(target=watch_project_file_changes.start, daemon=True).start()\n\ndef\
+    \ reload_models() -> None:\n    \"\"\"\n    Reload AI models based on the current\
+    \ global settings.\n    \"\"\"\n    try:\n        AIManager().reload_models(read_global_settings())\n\
+    \        logger.info(\"AI models reloaded successfully.\")\n    except Exception\
+    \ as ex:\n        logger.exception(f\"Failed to reload AI models: {ex}\")\n\n\n\
+    def is_project_in_quarantine(project_name: str) -> bool:\n    \"\"\"\n    Determine\
+    \ if a project is in quarantine based on its last check time and the delay.\n\
+    \    \"\"\"\n    quarantine_info = QUARANTINE_TRACKER.get(project_name)\n    if\
+    \ not quarantine_info:\n        return False\n\n    delay_minutes = QUARANTINE_DELAYS[min(quarantine_info[\"\
+    fail_count\"], len(QUARANTINE_DELAYS) - 1)]\n    next_allowed_check = quarantine_info[\"\
+    last_checked\"] + timedelta(minutes=delay_minutes)\n    return datetime.now()\
+    \ < next_allowed_check\n\n\ndef update_quarantine_status(project_name: str, success:\
+    \ bool) -> None:\n    \"\"\"\n    Update the quarantine status of a project depending\
+    \ on whether the check was successful.\n    \"\"\"\n    with QUARANTINE_LOCK:\n\
+    \        quarantine_info = QUARANTINE_TRACKER.setdefault(project_name, {\"fail_count\"\
+    : 0, \"last_checked\": datetime.min})\n\n        if success:\n            quarantine_info[\"\
+    fail_count\"] = 0  # Reset on success\n        else:\n            quarantine_info[\"\
+    fail_count\"] += 1\n            logger.info(f'Adding project to quarantine: {project_name}\
+    \ - error count: {quarantine_info[\"fail_count\"]}')\n\n        quarantine_info[\"\
+    last_checked\"] = datetime.now()\n\n\ndef check_projects() -> None:\n    \"\"\"\
+    \n    Continuously checks for updates in all projects.\n    \"\"\"\n\n    async\
+    \ def check_project(project) -> None:\n        \"\"\"\n        Process and handle\
+    \ the changes in a project asynchronously.\n        \"\"\"\n        try:\n   \
+    \         session = ChangeManager(settings=project)\n            #if not session.settings.metrics:\n\
+    \            await session.process_project_changes()\n            update_quarantine_status(project.project_name,\
+    \ success=True)\n        except Exception as ex:\n            update_quarantine_status(project.project_name,\
+    \ success=False)\n            project.last_error = str(ex)\n            logger.exception(f\"\
+    Error processing project changes: {project.project_name}\\n{ex}\")\n\n    while\
+    \ True:\n        try:\n            projects = find_all_projects()\n          \
+    \  for project in projects.values():\n                if is_project_in_quarantine(project.project_name):\n\
+    \                    continue\n\n                try:\n                    asyncio.run(check_project(project=project))\n\
+    \                except Exception as ex:\n                    logger.error(f\"\
+    Unhandled exception during project checking: {ex}\")\n        except Exception\
+    \ as ex:\n            logger.exception(f\"Error checking projects: {ex}\")\n \
+    \       time.sleep(10)\n\n\ndef start_mention_checking() -> None:\n    \"\"\"\n\
+    \    Start a separate thread to continuously check mentions on all projects.\n\
+    \    \"\"\"\n    def check_mentions():\n        while True:\n            try:\n\
+    \                asyncio.run(\n                  ChangeManager.check_mentions_on_all_projects(all_projects=find_all_projects().values()\n\
+    \                  )\n                )\n            except Exception as ex:\n\
+    \                logger.exception(f\"Error checking mentions on all projects:\
+    \ {ex}\")\n            time.sleep(0.5)\n\n    # Start the mention checking in\
+    \ a separate thread\n    Thread(target=check_mentions, daemon=True).start()\n\
+    ```\n\n### Key Changes:\n- **Integration of `WatchProjectFileChanges`:** Added\
+    \ an instance of `WatchProjectFileChanges` and started its monitoring in a separate\
+    \ daemon thread within the `start_background_services` function. This will ensure\
+    \ that file changes are monitored continuously.\n- **Threading:** The file change\
+    \ watcher is started in its own thread to keep it running independently of other\
+    \ background processes."
+  created_at: '2025-10-30 19:51:09.276552'
+  disable_knowledge: false
+  doc_id: e51542ca-4921-4c3a-948b-712d7df8d15e
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0002086162567138672
+    model: openai/gpt-4o
+    time_taken: 20.864654064178467
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-10-30 19:51:09.276578'
+  user: null
+mode: task
+name: Use WatchProjectFileChanges in background
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-30T19:53:22.624897'
+url: ''
+users:
+- admin
+visibility: ''

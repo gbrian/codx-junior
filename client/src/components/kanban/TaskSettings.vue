@@ -18,6 +18,13 @@ import ProfileSelector from '../profile/ProfileSelector.vue'
         </select>
       </label>
       <label class="block mt-4">
+        <span>Parent Chat</span>
+        <select class="input input-bordered w-full" v-model="taskData.parent_id">
+          <option :value="null">None</option>
+          <option v-for="chat in orderedChats" :key="chat.id" :value="chat.id">{{ chat.name }}</option>
+        </select>
+      </label>
+      <label class="block mt-4">
         <span>Board</span>
         <select class="input input-bordered w-full" v-model="taskData.board">
           <option v-for="_, board in boards" :key="board" :value="board">{{ board }}</option>
@@ -62,7 +69,7 @@ import ProfileSelector from '../profile/ProfileSelector.vue'
       <input type="checkbox" />
       <div class="collapse-title font-semibold text-error">Delete</div>
       <div class="collapse-content text-sm">
-        <button class="mt-2 btn btn-error btn-wide" @click.stop="deleteTask">Confirm delete</button>
+        <button class="mt-2 btn btn-error btn-wide" @click.stop="deleteTask">Confirm delete "{{ taskData.name }}"</button>
       </div>
     </div>
     <modal close="true" @close="showProfileSelector = false" v-if="showProfileSelector">
@@ -106,6 +113,14 @@ export default {
         return this.projects.find(p => p.project_id === this.taskData.project_id)
       }
       return this.$project
+    },
+    allChats() {
+      return this.$projects.allChats
+    },
+    orderedChats() {
+      return this.allChats
+        .filter(chat => chat.board_id === this.taskData.board)
+        .concat(this.allChats.filter(chat => chat.board_id !== this.taskData.board))
     }
   },
   watch: {

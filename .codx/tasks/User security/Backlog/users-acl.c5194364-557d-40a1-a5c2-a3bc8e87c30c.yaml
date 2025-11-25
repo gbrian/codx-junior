@@ -1,0 +1,118 @@
+board: User security
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-04-16 14:16:29.541508'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/User security/Backlog/users-acl.c5194364-557d-40a1-a5c2-a3bc8e87c30c.yaml
+id: c5194364-557d-40a1-a5c2-a3bc8e87c30c
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: We need to reztrict cidx-junior users access to project folders they are
+    not assigned
+  created_at: '2025-04-16 14:16:29.539982'
+  disable_knowledge: false
+  doc_id: 989b53ca-6ecb-4891-992f-ddb6dc0a0e2c
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-16 14:16:29.540012'
+  user: null
+- content: '```md
+
+    **Objective:**
+
+    - Restrict access for cidx-junior users to project folders they are not assigned
+    to.
+
+
+    **Requirements:**
+
+    - Implement an access control system that can differentiate user roles.
+
+    - Ensure only authorized users have access to specific project folders.
+
+    - Regular updates to user-role assignments and folder access lists.
+
+
+    **Examples:**
+
+    - A cidx-junior user should only access folders listed under their project assignments.
+
+    - If "Project A" is not assigned, the cidx-junior user should not see or access
+    its folder.
+
+
+    **Acceptance Criteria:**
+
+    - [ ] The system correctly identifies user roles and project assignments.
+
+    - [ ] Unauthorized access attempts by cidx-junior users are logged.
+
+    - [ ] cidx-junior users report access only to assigned project folders.
+
+
+    **Additional Notes:**
+
+    - Consider notifying users if access is restricted due to role limitations.
+
+    - Evaluate potential integration with existing directory services for role management.
+
+    ```'
+  created_at: '2025-04-16 14:16:29.539982'
+  disable_knowledge: false
+  doc_id: 707e2647-625a-4677-89d5-8d303f834a3b
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 4.494380235671997
+    model: gpt-4o
+    time_taken: 7.59185528755188
+  profiles:
+  - analyst
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: ''
+  updated_at: '2025-04-16 14:16:29.540012'
+  user: null
+mode: task
+name: Users acl
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- analyst
+project_id: ac9804d5-fcb2-4026-81c0-61f2308f6380
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-05-15T16:14:03.167446'
+url: ''
+users: []
+visibility: ''

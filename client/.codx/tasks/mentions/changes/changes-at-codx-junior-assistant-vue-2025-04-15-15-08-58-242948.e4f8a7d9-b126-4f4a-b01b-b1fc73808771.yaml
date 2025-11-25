@@ -1,0 +1,155 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-04-15 14:49:38.834412'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-codx-junior-assistant-vue-2025-04-15-15-08-58-242948.e4f8a7d9-b126-4f4a-b01b-b1fc73808771.yaml
+id: e4f8a7d9-b126-4f4a-b01b-b1fc73808771
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "                      ```\n                      <script setup>\n</script>\n\
+    <template>\n  <div class=\"flex gap-2 items-center group relative\">\n    <div\
+    \ class=\"absolute right-0 w-96 hidden group-hover:flex transition-all\">\n  \
+    \    <input type=\"text\" placeholder=\"How can I help you?\" class=\"input input-bordered\
+    \ w-full\" />\n    </div>\n    <div class=\"avatar\">\n      <div class=\"w-8\
+    \ rounded-full\">\n        <img src=\"/only_icon.png\" />\n      </div>\n    </div>\n\
+    \  </div>\n  @codx-ok, please-wait...: align image to right\n</template>\n<script>\n\
+    export default {\n  props: [],\n  data() {\n    return {}\n  },\n  computed: {},\n\
+    \  watch: {},\n  methods: {}\n}\n</script>\n                      ```\n      \
+    \                \n                      User commented in line 13: align image\
+    \ to right\n                      "
+  created_at: '2025-04-15 14:49:38.832901'
+  disable_knowledge: false
+  doc_id: d3430441-a4ed-4e3b-8793-c1e47402ffd0
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-15 14:49:38.832936'
+  user: null
+- content: "Best practices for this file:\n                  Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\n# Vue vuejs coding best\
+    \ pratices\nVue files must always follow this structure in this order.\nNo other\
+    \ elements are valid:\n```example vue file\n<script setup>\nimport Component from\
+    \ './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n<div\
+    \ class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport default\
+    \ {\nprops: [].\ndata (){\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Use TailwindCSS classes for styling, always consider\
+    \ mobile styles\n* Vue component definition will be exporting a default object\
+    \ like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\n* Don't use <style> elements, use TailWindCSS classes\n\
+    \                  "
+  created_at: '2025-04-15 14:49:38.832901'
+  disable_knowledge: false
+  doc_id: 70bdf38b-afd3-49ae-9ce7-5da5eed0e0bd
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-15 14:49:38.832936'
+  user: null
+- content: "              Rewrite full file content replacing codx instructions with\
+    \ the minimum changes as possible.\n              Return only the file content\
+    \ without any further decoration or comments.\n              Do not surround response\
+    \ with '```' marks, just content.\n              "
+  created_at: '2025-04-15 14:49:38.832901'
+  disable_knowledge: false
+  doc_id: b014ee21-39b5-4817-ba42-2e31500d228f
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-15 14:49:38.832936'
+  user: null
+- content: "<script setup>\nimport { Input, Avatar } from 'daisyui'; \n</script>\n\
+    <template>\n  <div class=\"flex gap-2 items-center group relative\">\n    <div\
+    \ class=\"absolute right-0 w-96 hidden group-hover:flex transition-all\">\n  \
+    \    <Input type=\"text\" placeholder=\"How can I help you?\" class=\"input input-bordered\
+    \ w-full\" />\n    </div>\n    <Avatar class=\"ml-auto\">\n      <div class=\"\
+    w-8 rounded-full\">\n        <img src=\"/only_icon.png\" />\n      </div>\n  \
+    \  </Avatar>\n  </div>\n</template>\n<script>\nexport default {\n  props: [],\n\
+    \  data() {\n    return {}\n  },\n  computed: {},\n  watch: {},\n  methods: {}\n\
+    }\n</script>"
+  created_at: '2025-04-15 14:49:38.832901'
+  disable_knowledge: false
+  doc_id: 08a7a848-47b2-40e7-b4bc-4f7d20469415
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 2.5469071865081787
+    model: gpt-4o
+    time_taken: 3.8027234077453613
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-04-15 14:49:38.832936'
+  user: null
+mode: chat
+name: changes-at-codx-junior-assistant-vue-2025-04-15-15-08-58-242948
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-04-15T15:09:02.046199'
+url: ''
+users: []
+visibility: ''

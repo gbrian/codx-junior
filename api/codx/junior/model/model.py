@@ -25,12 +25,15 @@ class ChatMessage(BaseModel):
 class Column(BaseModel):
     name: str = Field(default='')
     chat_ids: List[str] = Field(default=[])
+    project_id: str = Field(default='')
 
 class Board(BaseModel):
     name: str = Field(default='')
     description: str = Field(default='')
     remote_url: str = Field(default='')
+    bookmark: Optional[bool] = Field(default=False)
     columns: List[Column] = Field(default=[])
+    project_id: str = Field(default='')
 
 class Logprobs(BaseModel):
     tokens: List[str]
@@ -118,6 +121,7 @@ class Profile(BaseModel):
     api_settings: Optional[ProfileApiSettings] = Field(description="Indicates if the profile is accessible through the LLM API", default=ProfileApiSettings())
     chat_mode: Optional[str] = Field(description="Affects on how conversation works. Like writing a document or chat messages", default=None)
     project_id: Optional[str] = Field(description="Profile's project", default=None)
+    chat_id: Optional[str] = Field(default="", description="Unique identifier for chat")
 
 class Document(BaseModel):
     id: int = Field(default=None)

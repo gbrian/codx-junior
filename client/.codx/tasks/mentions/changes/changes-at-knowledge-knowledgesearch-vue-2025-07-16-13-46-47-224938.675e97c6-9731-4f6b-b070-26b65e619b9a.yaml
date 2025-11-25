@@ -1,0 +1,150 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-07-16 10:35:43.186729'
+description: In the conversation, the user provided a document containing a basic
+  Vue component template and requested adaptations according to specific project guidelines
+  and coding best practices. The guidelines included using DaisyUI components in place
+  of basic HTML, following a precise Vue file structure, and using TailwindCSS for
+  styling. The final output involved creating a knowledge search control component
+  with instructions to handle user queries and emit an event when documents are added.
+  The resulting Vue file adhered to the specified structure and style guidelines without
+  importing unnecessary modules or utilizing long functions.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-knowledge-knowledgesearch-vue-2025-07-16-13-46-47-224938.675e97c6-9731-4f6b-b070-26b65e619b9a.yaml
+id: 675e97c6-9731-4f6b-b070-26b65e619b9a
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "        Apply codx comments and rewrite full content.\n        Return\
+    \ only the content without any further decoration or comments.\n        Do not\
+    \ surround response with '```' marks, just content.\n        Remove codx comments\
+    \ from the final version.\n        Do not return the <document> tags but respect\
+    \ tags present of the original content.\n        "
+  created_at: '2025-07-16 10:35:43.184900'
+  disable_knowledge: false
+  doc_id: 4fdeda0b-178e-452b-a35c-2c06350999ab
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-16 10:35:43.184925'
+  user: null
+- content: "                    Given this document:\n                    <document>\n\
+    \n                    <template>\n  @codx-ok, please-wait...: --knowledge Based\
+    \ on KnowledgeSettings: Create a knowledge search control that will receive a\
+    \ query from the user, use api to make a knowledge search, and paint results documents\
+    \ for the user to select one or more. When user press \"Add documents\" button\
+    \ will emit a \"add-documents\" event.\n</template>\n\n                    </document>\n\
+    \n                    User has added these comments:\n                    <comments>\n\
+    \                    @codx-ui User commented in line 1: --knowledge Based on KnowledgeSettings:\
+    \ Create a knowledge search control that will receive a query from the user, use\
+    \ api to make a knowledge search, and paint results documents for the user to\
+    \ select one or more. When user press \"Add documents\" button will emit a \"\
+    add-documents\" event.\n                    </comments>\n\n                  \
+    \  Best practices for this file:\n            Project uses DaisyUI for components,\
+    \ use them instead basic HTML elements\nWhen writing vue files always follow this\
+    \ best parctices:\nVue files must always follow this structure in this order.\n\
+    No other elements are valid:\n```example vue file\n<script setup>\nimport Component\
+    \ from './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n\
+    <div class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport\
+    \ default {\nprops: [].\ndata (){\n// Reactive data, don't use \"ref\"\n return\
+    \ { myVariable: null }\n},\ncomputed: {},\nwatch: {},\nmethods: {}\n}\n</sctipt>\n\
+    ```\n* No need to import ref, computed or mapState \n* export default component\
+    \ object\n* Use component \"data\" method to return an object variables\n* Use\
+    \ component \"computed\" to define computed properties\n\" Use component \"methods\"\
+    \ to define component methods \n* Use \"this.$storex\" or \"$storex\" to access\
+    \ store data.\n* To access vue store data use \"$storex\"\n* \"script setup\"\
+    \ section contains ONLY imports, no variables, properties bnor methods\n* Use\
+    \ TailwindCSS classes for styling, always consider mobile styles\n* Vue component\
+    \ definition will be exporting a default object like, without ref, nor computed\
+    \ imports\n* Don't use \";\" in the javascript or typescript code\n* Avoid long\
+    \ functions\n* Add short and concise comments for complex functions\n* Don't use\
+    \ <style> elements, use TailWindCSS classes\n            \n                  \
+    \  "
+  created_at: '2025-07-16 10:35:43.184900'
+  disable_knowledge: false
+  doc_id: 12ef906a-b0b1-496e-9f80-ecd599f17786
+  done: true
+  files:
+  - /shared/codx-junior/client/src/components/knowledge/KnowledgeSearch.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-07-16 10:35:43.184925'
+  user: null
+- content: "<template>\n  <div class=\"w-full h-full flex gap-2\">\n    <knowledge-search-control></knowledge-search-control>\n\
+    \  </div>\n</template>\n\n<script>\nimport KnowledgeSearchControl from './KnowledgeSearchControl.vue'\n\
+    \nexport default {\n  components: {\n    KnowledgeSearchControl\n  },\n  data\
+    \ () {\n    return { myVariable: null }\n  },\n  computed: {},\n  watch: {},\n\
+    \  methods: {}\n}\n</script>\n\n<script setup>\nimport KnowledgeSearchControl\
+    \ from './KnowledgeSearchControl.vue'\n</script>"
+  created_at: '2025-07-16 10:35:43.184900'
+  disable_knowledge: false
+  doc_id: 9cfb543e-8323-4e7b-a1c7-5d96c210789a
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 9.441375732421875e-05
+    model: gpt-4o
+    time_taken: 6.7462170124053955
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-07-16 10:35:43.184925'
+  user: null
+mode: chat
+name: changes-at-knowledge-knowledgesearch-vue-2025-07-16-13-46-47-224938
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- Vue files
+- daisyui_components
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-07-16T13:46:56.536758'
+url: ''
+users: []
+visibility: ''

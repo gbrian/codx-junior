@@ -3,7 +3,7 @@ from typing import Optional, Dict
 
 # Import tools
 from .fetch_webpage import fetch_webpage
-from .project_search import project_search
+from .project_tools import project_search, project_read_file, project_write_file
 from .code_writer import code_writer
 
 # Configure logging
@@ -45,24 +45,8 @@ TOOLS = [
                 }
             }
         },
-        "settings": {"async": True},
+        "settings": { "async": False },
         "tool_call": fetch_webpage
-    },
-    {
-        "tool_json": {
-            "type": "function",
-            "function": {
-                "name": "test_tool",
-                "description": "A test tool that returns 'test ok!'",
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                    "required": []
-                }
-            }
-        },
-        "settings": {"async": False},
-        "tool_call": test_tool
     },
     {
         "tool_json": {
@@ -76,6 +60,10 @@ TOOLS = [
                         "search": {
                             "type": "string",
                             "description": "The search query string used to find relevant documents."
+                        },
+                        "validation": {
+                            "type": "string",
+                            "description": "An optional brief text used to validate the content found by the search. This text will help reducing large documents and extracting only important content. "
                         }
                     },
                     "required": ["search"]
@@ -84,6 +72,27 @@ TOOLS = [
         },
         "settings": {"async": False, "project_settings": True},
         "tool_call": project_search
+    },
+    {
+        "tool_json": {
+            "type": "function",
+            "function": {
+                "name": "project_read_file",
+                "description": "Allows to read project's file content from a relative or absolute file path",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "file_path": {
+                            "type": "string",
+                            "description": "Relative or absolute path to the file to read."
+                        }
+                    },
+                    "required": ["file_path"]
+                }
+            }
+        },
+        "settings": { "async": False, "project_settings": True },
+        "tool_call": project_read_file
     }
 ]
 

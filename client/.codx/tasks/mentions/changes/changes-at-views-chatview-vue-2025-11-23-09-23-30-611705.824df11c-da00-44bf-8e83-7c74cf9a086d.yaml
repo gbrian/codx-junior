@@ -1,0 +1,1317 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: changes
+column_id: ''
+created_at: '2025-11-23 09:14:38.480565'
+description: The conversation involves updating the `/shared/codx-junior/client/src/views/ChatView.vue`
+  file based on specific instructions. The user commented on line 72, suggesting that
+  if a chat is a thread, the name should be "Thread" and the description should be
+  the message content. The task is to move chat name and description info to a computed
+  variable using `chat.parent_id` and `message_id`. The project uses DaisyUI for components
+  and follows a specific Vue component structure. Additionally, the project uses TailwindCSS
+  for styling and FontAwesome for icons.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-views-chatview-vue-2025-11-23-09-23-30-611705.824df11c-da00-44bf-8e83-7c74cf9a086d.yaml
+id: 824df11c-da00-44bf-8e83-7c74cf9a086d
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "\n                    ```document /shared/codx-junior/client/src/views/ChatView.vue\n\
+    \                    <script setup>\nimport moment from 'moment'\nimport AddFileDialog\
+    \ from '../components/chat/AddFileDialog.vue'\nimport Chat from '@/components/chat/Chat.vue'\n\
+    import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'\nimport UserSelector\
+    \ from '@/components/chat/UserSelector.vue'\nimport UserAvatar from '@/components/user/UserAvatar.vue'\n\
+    import TaskSettings from '@/components/kanban/TaskSettings.vue'\nimport ChatIcon\
+    \ from '@/components/chat/ChatIcon.vue'\nimport ChatSelector from '@/components/chat/ChatSelector.vue'\n\
+    import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'\nimport\
+    \ ProjectDetailt from '@/components/ProjectDetailt.vue'\nimport ExportChat from\
+    \ '@/components/chat/ExportChat.vue'\n</script>\n\n<template>\n  <div class=\"\
+    flex flex-col h-full pb-1\" v-if=\"chat\">\n    <div class=\"grow flex gap-2 h-full\
+    \ justify-between\">\n      <div class=\"grow flex flex-col w-full\">\n      \
+    \  <div class=\"flex gap-2 items-center\" v-if=\"!chatMode\">\n          <div\
+    \ class=\"flex items-start gap-2 w-full\">\n            <div class=\"flex gap-2\
+    \ items-start\">\n              <input type=\"text\" class=\"input input-bordered\"\
+    \ @keydown.enter.stop=\"saveChat\" @keydown.esc=\"editName = false\" v-model=\"\
+    chat.name\" v-if=\"editName\" />\n              <div class=\"font-bold flex flex-col\
+    \ -space-y-2\" v-else>\n                <div class=\"flex gap-2 mb-2\">\n    \
+    \              <div class=\"my-2 hover:underline cursor-pointer font-bold text-primary\"\
+    \ @click=\"navigateToParent()\">\n                    <i class=\"fa-solid fa-caret-left\"\
+    ></i> {{ kanban?.title || chat.board }}\n                  </div>\n          \
+    \        <div class=\"my-2 hover:underline cursor-pointer font-bold text-secondary\"\
+    \ @click=\"navigateToParent(parentChat)\" v-if=\"parentChat\">\n             \
+    \       <i class=\"fa-brands fa-trello\"></i>\n                    {{ parentChat.name\
+    \ }}\n                  </div>\n                </div>\n                <div class=\"\
+    flex gap-2\">\n                  <div class=\"flex gap-1\">\n                \
+    \    <div class=\"avatar\" :title=\"taskProject.project_name\" v-if=\"taskProject.project_id\
+    \ !== $project.project_id\">\n                      <div class=\"w-7 h-7 rounded-full\"\
+    >\n                        <img :src=\"taskProject.project_icon\"/>\n        \
+    \              </div>\n                    </div>\n                    <UserAvatar\
+    \ :width=\"7\" :user=\"user\" v-for=\"user in chatUsers\" :key=\"user.username\"\
+    >\n                      <li @click=\"removeUser(user)\"><a>Remove</a></li>\n\
+    \                    </UserAvatar>  \n                    <ProfileAvatar :profile=\"\
+    profile\"\n                      :project=\"taskProject\"\n                  \
+    \    width=\"7\"\n                      v-for=\"profile in chatProfiles\" :key=\"\
+    profile.name\">\n                        <div class=\"flex justify-end gap-2\"\
+    >\n                          <div class=\"badge badge-xs badge-warning cursor-pointer\"\
+    \ @click=\"removeProfile(profile)\">\n                            change\n   \
+    \                       </div>\n                        </div>\n             \
+    \       </ProfileAvatar>\n\n                    <UserSelector \n             \
+    \         class=\"dropdown-bottom\"\n                      :allUsers=\"true\"\n\
+    \                      @user-changed=\"onAddProfile($event)\"\n              \
+    \      />\n                \n                  </div>\n\n                  <div\
+    \ class=\"cursor-pointer text-xs @md:text-md @xl:text-xl flex flex-col\">\n  \
+    \                  <div class=\"flex gap-1 items-end\">\n                    \
+    \  <span class=\"click tooltip\" @click.stop=\"toggleChatPinned\"\n          \
+    \              data-tip=\"Bookmark\"\n                      >\n              \
+    \          <i class=\"text-warning fa-solid fa-bookmark\" v-if=\"chat.pinned\"\
+    \ ></i>\n                        <i class=\"fa-regular fa-bookmark\" v-else></i>\n\
+    \                      </span>\n                      \n                     \
+    \ <div class=\"flex flex-col\" :class=\"showChildChat && 'opacity-80'\" @click=\"\
+    onChatNameClick\">\n                        @codx-ok, please-wait...: chat can\
+    \ be a thread (\"chat.message_id\" not null), so name will be \"Thread\" and description\
+    \ the messge content. Move chat name and description info to a computed variable,\
+    \ use chat.parent_id to fin the parent chat and message_id to find the message.doc_id\
+    \ and content. If normal chat, use name and description as it's now\n        \
+    \                <div class=\"text-xs\">[{{ formattedChatUpdatedDate }}]</div>\n\
+    \                        <div>{{ chat.name }}</div>\n                      </div>\
+    \ \n                      <span v-if=\"showChildChat\"> / {{ showChildChat.name\
+    \ }}</span>\n                      <span class=\"text-xs hover:underline\"\n \
+    \                     :class=\"showDescription ? 'text-error/70': 'text-info'\"\
+    \n                        @click.stop=\"showDescription = !showDescription\"\n\
+    \                        v-if=\"chat.description\"> [{{ showDescription ? 'close':\
+    \ 'more' }}]\n                      </span>\n                      <span class=\"\
+    badge badge-md badge-outline\" v-if=\"showTaskProjectName\">\n               \
+    \         <img :src=\"taskProject.project_icon\" class=\"w-3 rounded-full mr-1\"\
+    \ />\n                        {{ taskProject.project_name }}\n               \
+    \       </span>\n                    </div>\n                    <div class=\"\
+    text-xs\" v-if=\"showDescription\">\n                      {{ workingChat.description\
+    \ || '-- no description yet --' }}\n                    </div>\n             \
+    \     </div>\n                </div>\n              </div>\n            </div>\n\
+    \            <div class=\"grow\"></div>\n            <div class=\"flex flex-col\"\
+    >\n              <div class=\"flex gap-1 items-center\">\n                <div\
+    \ class=\"flex gap-2 p-1 items-center -top-1\">\n                  <button class=\"\
+    btn btn-sm\" v-if=\"childrenChats.length\" \n                    @click=\"showChatMenu\
+    \ = !showChatMenu\"\n                    :class=\"showChatMenu && 'text-info'\"\
+    \n                    >\n                    <i class=\"fa-solid fa-list\"></i>\n\
+    \                  </button>\n                  <button class=\"btn btn-sm\" v-if=\"\
+    hiddenCount\" @click=\"showHidden = !showHidden\">\n                    <div class=\"\
+    flex items-center gap-2 tooltip\"\n                      data-tip=\"Archived messages\"\
+    \ \n                      :class=\"showHidden ? 'text-warning':''\">\n       \
+    \               ({{ hiddenCount }}/{{ messageCount }})\n                     \
+    \ <i class=\"fa-solid fa-box-archive\"></i>\n                    </div>\n    \
+    \              </button>\n                  <div class=\"dropdown dropdown-end\"\
+    >\n                    <div tabindex=\"0\" role=\"button\" class=\"btn  btn-sm\
+    \ m-1\">\n                      <ChatIcon :mode=\"workingChat.mode\" />\n    \
+    \                </div>\n                    <ul tabindex=\"0\" class=\"dropdown-content\
+    \ menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow\">\n                    \
+    \  <li @click=\"setChatMode('chat')\">\n                        <a><ChatIcon mode=\"\
+    chat\" /> Conversation</a>\n                      </li>\n                    \
+    \  <li @click=\"setChatMode('task')\">\n                        <a><ChatIcon mode=\"\
+    task\" /> Document</a>\n                      </li>\n                      <li\
+    \ @click=\"setChatMode('topic')\">\n                        <a><ChatIcon mode=\"\
+    topic\" /> Discussion</a>\n                      </li>\n                     \
+    \ <li class=\"flex gap-2\" @click=\"setChatMode('prview')\">\n               \
+    \         <a><ChatIcon mode=\"prview\" /> Changes review</a>\n               \
+    \       </li>\n                      <li @click=\"setChatMode('browser')\">\n\
+    \                        <a><ChatIcon mode=\"browser\" /> Browser</a>\n      \
+    \                </li>\n                      <li @click=\"openChatSearchModal\"\
+    >\n                        <a><i class=\"fa-solid fa-link\"></i> Link</a>\n  \
+    \                    </li>\n                    </ul>\n                  </div>\n\
+    \                  <div class=\"grow\"></div>\n                  <div class=\"\
+    dropdown dropdown-end dropdown-bottom\">\n                    <div tabindex=\"\
+    0\" class=\"btn btn-sm flex items-center indicator\">\n                      <i\
+    \ class=\"fa-solid fa-bars\"></i>\n                    </div>\n              \
+    \      <ul tabindex=\"0\" class=\"dropdown-content menu bg-base-300 border rounded-box\
+    \ z-[1] p-2 w-96 shadow\">\n                      <li @click=\"newSubChat()\"\
+    >\n                        <a><i class=\"fa-solid fa-plus\"></i> New sub task</a>\n\
+    \                      </li>\n                      <li @click=\"createSubTasks()\"\
+    >\n                        <a><i class=\"fa-solid fa-wand-magic-sparkles\"></i>\
+    \ Create sub tasks</a>\n                      </li>\n                      <li\
+    \ @click=\"showExportChat = true\">\n                        <a><i class=\"fa-solid\
+    \ fa-file-arrow-down\"></i> Export</a>\n                      </li>\n        \
+    \              <li @click=\"showChatSelector = true\">\n                     \
+    \   <a><i class=\"fa-solid fa-link\"></i> Link chats</a>\n                   \
+    \   </li>\n                      <li @click=\"saveChat\">\n                  \
+    \      <a><i class=\"fa-solid fa-floppy-disk\"></i> Save</a>\n               \
+    \       </li>\n                      <div class=\"divider\" v-if=\"childrenChats.length\"\
+    ></div>\n                      <li @click=\"showTaskSettings = true\">\n     \
+    \                   <a><i class=\"fa-solid fa-gear\"></i> Settings</a>\n     \
+    \                 </li>\n                    </ul>\n                  </div>\n\
+    \                </div>\n              </div>\n              <div class=\"flex\
+    \ justify-end items-center\">\n              </div>\n            </div>\n    \
+    \      </div>\n        </div>\n        <div class=\"flex justify-between\">\n\
+    \          <div class=\"flex gap-2 items-center\">\n            <div class=\"\
+    badge badge-sm badge-info flex gap-2\" v-for=\"tag in chat.tags\" :key=\"tag\"\
+    >\n              {{ tag }}\n              <button class=\"btn btn-ghost\" @click=\"\
+    removeTag(tag)\">\n                x\n              </button>\n            </div>\n\
+    \            <button class=\"btn btn-xs\" @click=\"newTag = ''\">\n          \
+    \    + Tag\n            </button>\n            \n            <div class=\"avatar-group\
+    \ -space-x-6 relative\" v-if=\"images.length\">\n              <div class=\"avatar\"\
+    \ v-for=\"image, ix in images\" :key=\"ix\">\n                <div class=\"w-8\"\
+    >\n                  <img :src=\"image.src\" />\n                </div>\n    \
+    \          </div>\n            </div>\n          </div>\n          <div class=\"\
+    flex gap-1 justify-end items-center\">\n            <div class=\"badge badge-sm\
+    \ badge-warning badge-outline p-3 gap-2\" v-if=\"taskAIModel\">\n            \
+    \  <i class=\"fa-solid fa-brain\"></i> {{ taskAIModel.name }}\n            </div>\n\
+    \          </div>\n        </div>\n        <VerticalSplitter \n          :panels=\"\
+    {\n            left: { defaultSize: 20 },\n            right: { defaultSize: 80\
+    \ }\n          }\">\n          <template v-slot:left v-if=\"childrenChats?.length\
+    \ && showChatMenu\">\n            <div class=\"flex justify-start\">\n       \
+    \       <button class=\"btn btn-xs btn-ghost\" @click=\"showChatMenu = false\"\
+    >\n                <i class=\"fa-solid fa-caret-left\"></i>\n              </button>\n\
+    \            </div>\n            <ul class=\"flex flex-col overflow-auto h-full\"\
+    >\n              <li class=\"p-2 hover:bg-base-100 rounded-lg click\"\n      \
+    \          v-for=\"childChat in childrenChats\" :key=\"childChat.id\"\n      \
+    \          :class=\"[\n                  (showChildChat?.name === childChat?.name)\
+    \ && 'text-warning',\n                  (childChat === dropOver) && 'bg-white\
+    \ border border-red-300'\n                ]\"\n                @click=\"selectChildChat(childChat)\"\
+    \n                @dragstart=\"onChildMenuDragStart($event, childChat)\"\n   \
+    \             @dragenter.prevent=\"\"\n                @dragover.prevent=\"onTaskDragover($event,\
+    \ childChat)\"\n                @dragleave=\"dropOver = false\"\n            \
+    \    @drop.prevent=\"onTaskDropped($event, childChat)\"\n                :draggable=\"\
+    true\"\n              >\n                <a class=\"group\">\n               \
+    \   <div class=\"flex gap-2 items-start\">\n                    <ChatIcon :mode=\"\
+    childChat.mode\" />\n                    <div class=\"flex flex-col gap-1\"> \n\
+    \                      {{ childChat.name }}\n                      <div class=\"\
+    badge badge-outline badge-xs\" v-if=\"childChat.column !== workingChat.column\"\
+    >\n                        {{ childChat.column }}\n                      </div>\n\
+    \                    </div>\n                    <div class=\"grow hidden group-hover:flex\
+    \ text-xs justify-end\" \n                      @click.stop=\"$projects.setActiveChat(childChat)\"\
+    >\n                      <i class=\"fa-solid fa-up-right-from-square\"></i>\n\
+    \                    </div>\n                  </div>\n                </a>\n\
+    \              </li>\n            </ul>\n          </template>\n          <template\
+    \ v-slot:right>\n            <Chat class=\"h-full overflow-auto\" \n         \
+    \   :chat=\"workingChat\"\n            :showHidden=\"showHidden\"\n          \
+    \  :childrenChats=\"showChatMenu ? null : childrenChats\"\n            @refresh-chat=\"\
+    loadChat(workingChat)\"\n            @remove-file=\"onRemoveFile\" \n        \
+    \    @delete=\"confirmDelete = true\"\n            @subtask=\"onNewMessageSubtask\"\
+    \n          />\n          </template>\n        </VerticalSplitter>\n        <modal\
+    \ v-if=\"confirmDelete\">\n          <div class=\"\">\n            <h3 class=\"\
+    font-bold text-lg\">Confirm Delete</h3>\n            <p class=\"text-error font-bold\"\
+    >Are you sure you want to delete this chat?</p>\n            <div class=\"text-xl\
+    \ p-1\">{{ chat.name }}</div>\n            <div class=\"modal-action\">\n    \
+    \          <button class=\"btn btn-error\" @click=\"confirmDeleteChat\">Delete</button>\n\
+    \              <button class=\"btn\" @click=\"resetConfirmDelete\">Cancel</button>\n\
+    \            </div>\n          </div>\n        </modal>\n        <modal class=\"\
+    modal modal-open\" role=\"dialog\" v-if=\"showFile || addFile !== null\">\n  \
+    \        <div class=\"modal-box flex flex-col gap-4 p-4\">\n            <h3 class=\"\
+    font-bold text-lg\" v-if=\"showFile\">\n              This file belongs to the\
+    \ task context:\n              <div class=\"font-thin\">{{ showFile }}</div>\n\
+    \            </h3>\n            <div v-else>\n              <input type=\"text\"\
+    \ class=\"input input-bordered w-full\" v-model=\"addFile\" placeholder=\"Add\
+    \ file to context, full path\" />\n            </div>\n            <div class=\"\
+    flex gap-2 justify-center\">\n              <button class=\"btn btn-error\" @click=\"\
+    removeFileFromContext\" v-if=\"showFile\">\n                Remove\n         \
+    \     </button>\n              <button class=\"btn btn-primary\" @click=\"addFileToContext\"\
+    \ v-else>\n                Add\n              </button>\n              <button\
+    \ class=\"btn\" @click=\"addFile = showFile = null\">\n                Close\n\
+    \              </button>\n            </div>\n          </div>\n        </modal>\n\
+    \        <modal v-if=\"newTag !== null\">\n          <div class=\"flex flex-col\
+    \ gap-2\">\n            <div class=\"text-xl\">New tag</div>\n            <select\
+    \ class=\"select select-sm select-bordered\" @change=\"newTag = $event.target.value\"\
+    >\n              <option value=\"\" selected>New</option>\n              <option\
+    \ v-for=\"t in $projects.allTags\" :key=\"t\" :value=\"t\">{{t}}</option>\n  \
+    \          </select>\n            <input type=\"text\" class=\"input input-sm\
+    \ input-bordered\" v-model=\"newTag\" />\n            <div class=\"flex gap-2\
+    \ justify-end\">\n              <button class=\"btn btn-error\" @click=\"newTag\
+    \ = null\">\n                Cancel\n              </button>\n              <button\
+    \ class=\"btn\" @click=\"addNewTag\" :disabled=\"newTag.length === 0\">\n    \
+    \            Add\n              </button>\n            </div>\n          </div>\n\
+    \        </modal>\n        <modal v-if=\"showSubtaskModal\">\n          <div class=\"\
+    flex flex-col gap-4 p-4\">\n            <h3 class=\"font-bold text-lg\">Create\
+    \ New Subtask</h3>\n            <input v-model=\"subtaskName\" type=\"text\" class=\"\
+    input input-bordered\" placeholder=\"Subtask Name\" />\n            \n       \
+    \     <!-- Dropdown for selecting subTaskMode -->\n            <div class=\"form-control\"\
+    >\n              <label class=\"label\">\n                <span class=\"label-text\"\
+    >Select Subtask Mode</span>\n              </label>\n              <select class=\"\
+    select select-bordered\" v-model=\"subtaskMode\">\n                <option value=\"\
+    task\" selected>Task</option>\n                <option value=\"chat\">Chat</option>\n\
+    \                <option value=\"topic\">Topic</option>\n                <option\
+    \ value=\"prview\">PR View</option>\n                <option value=\"browser\"\
+    >Browser</option>\n              </select>\n            </div>\n\n           \
+    \ <textarea v-model=\"subtaskDescription\" class=\"textarea textarea-bordered\"\
+    \ placeholder=\"Short Description (optional)\" rows=\"3\"></textarea>\n      \
+    \      \n            <ProjectDetailt \n              :project=\"$projects.allProjectsById[subtaskProject\
+    \ || chat.project_id || chatProject?.project_id]\" \n              :options=\"\
+    { showFolders: false, showIcon: true, showSelector: true }\"\n              @select=\"\
+    subtaskProject = $event.project_id\"  \n            />\n            <div class=\"\
+    flex\" v-for=\"profile in subtaskProfiles\" :key=\"profile.name\">\n         \
+    \     <div class=\"badge\">{{ profile.name }}</div>\n            </div>\n    \
+    \        <div class=\"flex gap-2 justify-end\">\n              <button class=\"\
+    btn btn-error\" @click=\"cancelSubtask\">Cancel</button>\n              <button\
+    \ class=\"btn btn-primary\" @click=\"createSubtask\">Create</button>\n       \
+    \     </div>\n          </div>\n        </modal>\n        <modal v-if=\"showSubtasksModal\"\
+    >\n          <div class=\"flex flex-col gap-4 p-4\">\n            <h3 class=\"\
+    font-bold text-2xl\">Split into tasks</h3>\n            <div class=\"tex-xl\"\
+    >Instructions:</div>\n            <textarea v-model=\"createTasksInstructions\"\
+    \ class=\"textarea textarea-bordered\" placeholder=\"Short Description (optional)\"\
+    \ rows=\"3\"></textarea>\n            <div class=\"flex gap-2 justify-end\">\n\
+    \              <button class=\"btn btn-error\" @click=\"showSubtasksModal = false\"\
+    >Cancel</button>\n              <button class=\"btn btn-primary\" @click=\"createSubTasks\"\
+    >Create</button>\n            </div>\n          </div>\n        </modal>\n   \
+    \     <modal v-if=\"showTaskSettings\">\n          <TaskSettings :taskData=\"\
+    workingChat\" @close=\"showTaskSettings = false\" />\n        </modal>\n     \
+    \   <modal close=\"true\" @close=\"showExportChat = false\" v-if=\"showExportChat\"\
+    >\n          <ExportChat :chat=\"workingChat\" @close=\"showExportChat = false\"\
+    \ />\n        </modal>\n      </div>\n      <modal close=\"true\" @close=\"showChatSelector\
+    \ = false\" v-if=\"showChatSelector\">\n        <ChatSelector />\n      </modal>\n\
+    \      <add-file-dialog v-if=\"addNewFile\" @open=\"onAddFile\" @close=\"addNewFile\
+    \ = false\" />\n    </div>\n  </div>\n</template>\n\n<script>\nexport default\
+    \ {\n  props: ['chatMode', 'chat', 'kanban'],\n  data() {\n    return {\n    \
+    \  showFile: null,\n      addFile: null,\n      showChatsTree: false,\n      editName:\
+    \ false,\n      addNewFile: null,\n      showHidden: false,\n      confirmDelete:\
+    \ false,\n      newTag: null,\n      showSubtaskModal: false,\n      showSubtasksModal:\
+    \ false,\n      showTaskSettings: false,\n      subtaskProfiles: [],\n      subtaskName:\
+    \ '',\n      subtaskDescription: '',\n      subtaskMode: 'task', // Default mode\n\
+    \      subtaskFiles: [],\n      subtaskProject: null,\n      subtaskParentId:\
+    \ null,\n      subtaskMessageId: null,\n      showAddProfile: false,\n      createTasksInstructions:\
+    \ '',\n      chatProfiles: [],\n      showDescription: false,\n      projectContext:\
+    \ null,\n      showChatSelector: false,\n      showChatMenu: false,\n      showChildChat:\
+    \ null,\n      showExportChat: false,\n      dropOver: null\n    }\n  },\n  created()\
+    \ {\n    this.init()\n  },\n  async mounted() {\n    this.showChatMenu = !this.$ui.isMobile\n\
+    \    this.chatProfiles = await this.$storex.api.project(this.taskProject)\n  \
+    \    .then(p => p.profiles.list())\n      .then(profiles => profiles.filter(p\
+    \ => this.chat.profiles.includes(p.name)))\n    if (this.isPRView) {\n      await\
+    \ this.$projects.loadBranches()\n    }\n  },\n  computed: {\n    branches() {\n\
+    \      return this.$projects.project_branches || []\n    },\n    isPRView() {\n\
+    \      return this.workingChat.mode === 'prview'\n    },\n    taskAIModel() {\n\
+    \      return this.aiModels.find(m => m.name === this.chat.llm_model)\n    },\n\
+    \    aiModels() {\n      return this.$projects.ai.models\n    },\n    showTaskProjectName()\
+    \ {\n      return this.taskProject && this.taskProject.project_id != this.$project.project_id\
+    \ \n    },\n    taskProject() {\n      return this.$projects.allProjects.find(p\
+    \ => p.project_id === this.chat.project_id) ||\n        this.$project\n    },\n\
+    \    chatUsers() {\n      return this.$storex.api.userNetwork.filter(({ username\
+    \ }) => this.chat.users?.includes(username))\n    },\n    chatModes() {\n    \
+    \  return this.$projects.chatModes\n    },\n    subProjects() {\n      return\
+    \ [\n        this.$project,\n        ...this.$projects.childProjects || [],\n\
+    \        ...this.$projects.projectDependencies || []\n      ]\n    },\n    hiddenCount()\
+    \ {\n      return this.workingChat.messages?.filter(m => m.hide).length\n    },\n\
+    \    messageCount() {\n      return this.workingChat.messages?.length\n    },\n\
+    \    messages() {\n      return this.chat.messages.filter(m => !m.hide || this.showHidden)\n\
+    \    },\n    formattedChatUpdatedDate() {\n      const updatedAt = this.chat.updated_at\n\
+    \      return moment(updatedAt).isAfter(moment().subtract(7, 'days'))\n      \
+    \  ? moment(updatedAt).fromNow()\n        : moment(updatedAt).format('YYYY-MM-DD')\n\
+    \    },\n    chats() {\n      return this.$projects.allChats\n    },\n    childrenChats()\
+    \ {\n      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id\
+    \ && !c.message_id)\n        .sort((a, b) => a.name > b.name ? 1 : -1)\n    },\n\
+    \    chatProject() {\n      return this.$projects.allProjectsById[this.chat.project_id]\
+    \ ||\n        this.$project\n    },\n    parentChat() {\n      return this.$projects.allChats.find(c\
+    \ => c.id === this.chat?.parent_id)\n    },\n    chatFiles() {\n      return this.workingChat.file_list\
+    \ || []\n    },\n    taskProjects() {\n      return [this.$project, ...this.$projects.childProjects]\n\
+    \    },\n    images() {\n      return (this.workingChat.messages ||[]).map(m =>\
+    \ m.images || [])\n                .reduce((a, b) => a.concat(b), [])\n      \
+    \          .map(i => {\n                  try {\n                    return i\
+    \ ? JSON.parse(i) : null\n                  } catch {}\n                  return\
+    \ null\n                })\n                .filter(i => !!i)\n    },\n    workingChat()\
+    \ {\n      return this.$projects.chats[this.showChildChat?.id || this.chat.id]\n\
+    \    }\n  },\n  watch: {\n    chat(newVal, oldVal) {\n      if (oldVal && \n \
+    \         newVal && \n          oldVal.project_id !== newVal.project_id) {\n \
+    \       this.init()\n      }\n    }\n  },\n  methods: {\n    async init() {\n\
+    \      this.setProjectContext()\n      await Promise.all(\n        this.childrenChats.map(chat\
+    \ => this.$projects.loadChat(chat))\n      )\n    },\n    async setProjectContext()\
+    \ {\n      this.projectContext = await this.$service.project.loadProjectContext(this.$project)\n\
+    \    },\n    async saveChat(chat) {\n      this.editName = false\n      await\
+    \ this.$projects.saveChat(chat || this.workingChat)\n    },\n    async confirmDeleteChat()\
+    \ {\n      this.confirmDelete = false\n      await this.$projects.deleteChat(this.chat)\n\
+    \      const parentChat = this.parentChat\n      if (parentChat) {\n        this.$projects.setActiveChat(parentChat)\n\
+    \      } else {\n        this.navigateToChats()\n      }\n    },\n    resetConfirmDelete()\
+    \ {\n      this.confirmDelete = false\n    },\n    async loadChat(chat) {\n  \
+    \    await this.$projects.setActiveChat(chat)\n      this.showChatsTree = false\n\
+    \    },\n    async removeFileFromContext() {\n      this.chat.profiles = this.chat.profiles?.filter(f\
+    \ => f !== this.showFile)\n      this.onRemoveFile(this.showFile)\n      await\
+    \ this.loadChat(this.chat)\n      this.showFile = null\n    },\n    async addFileToContext()\
+    \ {\n      this.onAddFile(this.addFile)\n      await this.saveChat()\n      await\
+    \ this.loadChat(this.chat)\n      this.showFile = null\n      this.addFile = null\n\
+    \    },\n    async onAddFile(file) {\n      if (this.chat.file_list?.includes(file))\
+    \ {\n        return\n      }\n      this.chat.file_list = [...(this.chat.file_list\
+    \ || []), file]\n      this.addNewFile = null\n      await this.saveChat()\n \
+    \   },\n    async onRemoveFile(file) {\n      this.workingChat.file_list = (this.workingChat.file_list\
+    \ || []).filter(f => f !== file)\n      this.addNewFile = null\n      await this.saveChat()\n\
+    \    },\n    async addProfile(profile) {\n      if (!this.chat.profiles?.includes(profile))\
+    \ {\n        this.chat.profiles = [...this.chat.profiles || [], profile]\n   \
+    \     await this.saveChat()\n      }\n      this.showAddProfile = false\n    },\n\
+    \    async addUserToChat(user) {\n      if (!this.chat.users?.includes(user.username))\
+    \ {\n        this.chat.users = [...this.chat.users || [], user.username]\n   \
+    \     await this.saveChat()\n      }\n      this.showAddProfile = false\n    },\n\
+    \    async removeUser(user) {\n      if (this.chat.users?.includes(user.username))\
+    \ {\n        this.chat.users = this.chat.users.filter(u => u !== user.username)\n\
+    \        await this.saveChat()\n      }\n    },\n    removeProfile(profile) {\n\
+    \      if (this.chat.profiles?.includes(profile.name)) {\n        this.chat.profiles\
+    \ = this.chat.profiles.filter(p => p !== profile.name)\n        this.saveChat()\n\
+    \      }\n    },\n    onRemoveMessage(message) {\n      const ix = this.chat.messages.findIndex(m\
+    \ => m.doc_id === message.doc_id)\n      if (this.chat.mode == 'task' && message.role\
+    \ === \"assistant\" && ix > 1) {\n        this.chat.messages[ix - 1].hide = false\n\
+    \      }\n      this.chat.messages = this.chat.messages.filter((_, i) => i !==\
+    \ ix)\n      this.saveChat()\n    },\n    navigateToChats() {\n      if (this.$ui.activeTab\
+    \ !== 'tasks') {\n        this.$ui.setActiveTab('tasks')\n      }\n      this.$emit('chats',\
+    \ this.kanban?.title || this.chat.board)\n    },\n    newSubChat(message) {\n\
+    \      this.subtaskProject = this.chat.project_id\n      this.subtaskParentId\
+    \ = null\n      this.subtaskMessageId = null\n      this.showSubtaskModal = true\n\
+    \n      this.subtaskName = null\n      this.subtaskDescription = null\n      this.subtaskProject\
+    \ = null\n      this.subtaskParentId = this.chat.id\n      this.subtaskMessageId\
+    \ = message?.doc_id\n      this.subtaskFiles = []\n      this.subtaskProfiles\
+    \ = []\n      this.subtaskMode = this.chat.mode\n      this.subtaskColumn = this.chat.column\n\
+    \    },\n    async onNewMessageSubtask({ chat, mode, message: { column, files,\
+    \ profiles, doc_id: subtaskMessageId }}) {\n      const findChild = () => this.$projects.allChats.find(c\
+    \ => c.message_id === subtaskMessageId) \n      if (!findChild()) {\n        await\
+    \ this.$emit('sub-task', {\n          parent: chat,\n          name: `${subtaskMessageId}\
+    \ - thread`,\n          project_id: chat.project_id,\n          parent_id: chat.parent_id,\n\
+    \          message_id: subtaskMessageId,\n          file_list: files,\n      \
+    \    profiles: profiles,\n          mode,\n          column,\n          activateChat:\
+    \ true,\n          child_index: this.childrenChats?.length\n        })\n     \
+    \ }\n      this.$projects.setActiveChat(findChild())\n    },\n    getSubTaskParentSummary()\
+    \ {\n      let { messages } = this\n      if (!messages.length) {\n        return\
+    \ \"\"\n      }\n      if (this.chat.mode === 'task') {\n        messages = messages.reverse()\n\
+    \        const lastAI = messages.find(m => m.role === 'assistant')\n        if\
+    \ (lastAI) {\n          return lastAI.content\n        }\n      }\n      return\
+    \ messages.reduce((acc, m) => acc + \"\\n\" + m.content, \"\")\n    },\n    createSubtask()\
+    \ {\n      if (!this.subtaskName.trim()) {\n        return\n      }\n      if\
+    \ (this.subtaskDescription) {\n        const parentContent = this.getSubTaskParentSummary()\n\
+    \        this.subtaskDescription = `${parentContent}\\n\\n${this.subtaskDescription}`\n\
+    \      }\n      this.$emit('sub-task', {\n        parent: this.chat,\n       \
+    \ name: this.subtaskName,\n        description: this.subtaskDescription,\n   \
+    \     project_id: this.subtaskProject,\n        parent_id: this.subtaskParentId,\n\
+    \        message_id: this.subtaskMessageId,\n        file_list: this.subtaskFiles,\n\
+    \        profiles: this.subtaskProfiles,\n        mode: this.subtaskMode,\n  \
+    \      column: this.subtaskColumn,\n        activateChat: this.chat.mode !== 'task',\n\
+    \        child_index: this.childrenChats?.length\n      })\n      this.resetSubtaskModal()\n\
+    \    },\n    cancelSubtask() {\n      this.resetSubtaskModal()\n    },\n    resetSubtaskModal()\
+    \ {\n      this.showSubtaskModal = false\n      this.subtaskName = ''\n      this.subtaskDescription\
+    \ = ''\n      this.subtaskMode = 'chat'\n      this.subtaskFiles = []\n      this.subtaskProfiles\
+    \ = []\n      this.subtaskColumn = ''\n    },\n    addNewTag() {\n      this.chat.tags\
+    \ = [...new Set([...this.chat.tags || [], this.newTag])]\n      this.newTag =\
+    \ null\n      this.saveChat()\n    },\n    removeTag(tag) {\n      this.chat.tags\
+    \ = this.chat.tags.filter(t => t !== tag)\n      this.saveChat()\n    },\n   \
+    \ setChatMode(mode) {\n      this.workingChat.mode = mode\n      this.saveChat()\n\
+    \    },\n    async createSubTasks() {\n      if (this.showSubtasksModal) {\n \
+    \       this.$emit('sub-tasks', { chat: this.chat, instructions: this.createTasksInstructions\
+    \ })\n        this.showSubtasksModal = false\n      } else {\n        this.showSubtasksModal\
+    \ = true\n        this.createTasksInstructions = \"\"\n      }\n    },\n    navigateToParent(parentChat)\
+    \ {\n      if (parentChat) {\n        this.$emit('chat', parentChat)\n      }\
+    \ else {\n        this.navigateToChats()\n      }\n    },\n    async openChatSearchModal()\
+    \ {\n      // Open a modal for linking chat\n    },\n    async onAddProfile()\
+    \ {\n      this.showAddProfile = true\n    },\n    toggleChatPinned() {\n    \
+    \  this.chat.pinned = !this.chat.pinned\n      this.saveChat()  \n    },\n   \
+    \ selectChildChat(childChat) {\n      this.showChildChat = childChat\n      if\
+    \ (!childChat.messages?.length) {\n        this.$projects.loadChat(childChat)\n\
+    \      }\n    },\n    onChatNameClick() {\n      if (this.showChildChat) {\n \
+    \       this.selectChildChat(null)\n      } else {\n        this.editName = true\n\
+    \      }\n    },\n    onChildMenuDragStart($event, childChat) {\n      console.log(\"\
+    Menu drag start\", $event)\n      $event.dataTransfer.setData(\"chatId\", childChat.id)\n\
+    \    },\n    onTaskDragover($event, childChat) {\n      const id = $event.dataTransfer.getData(\"\
+    chatId\")\n      if (id === childChat.id) {\n        this.dropOver = null\n  \
+    \      return\n      }\n      this.dropOver = childChat\n      console.log(\"\
+    Menu drag over\", this.dropOver.name)\n      $event.preventDefault();\n      $event.target.scrollIntoView({\
+    \ block: 'center', behavior: 'smooth' })\n    },\n    onTaskDropped($event, childChat)\
+    \ {\n      const id = $event.dataTransfer.getData(\"chatId\")\n      if (id ===\
+    \ childChat.id) {\n        return\n      }\n      return\n      const dropChat\
+    \ = this.childrenChats.find(c => c.id === id)\n      dropChat.parent_id = childChat.id\n\
+    \      this.dropOver = null\n      this.saveChat(dropChat)\n    }\n  }\n}\n</script>\n\
+    \                    ```\n\n                    Apply these changes to /shared/codx-junior/client/src/views/ChatView.vue:\n\
+    \                    User commented in line 72: chat can be a thread (\"chat.message_id\"\
+    \ not null), so name will be \"Thread\" and description the messge content. Move\
+    \ chat name and description info to a computed variable, use chat.parent_id to\
+    \ fin the parent chat and message_id to find the message.doc_id and content. If\
+    \ normal chat, use name and description as it's now\n                    \n  \
+    \                  Instructions:\n                      Best practices for this\
+    \ file:\n            Project uses DaisyUI for components, use them instead basic\
+    \ HTML elements\nAll components must have same structure: \"setup\", \"template\"\
+    , \"script\".\nVue Component Example:\n```vue file/path/to/Component.vue\n<script\
+    \ setup>\nimport Component from './component.vue'\nimport markdown from 'mardown'\n\
+    </script>\n<template>\n<div class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n\
+    <script>\nexport default {\nprops: [].\ndata (){\n// Reactive data, don't use\
+    \ \"ref\"\n return { myVariable: null }\n},\ncomputed: {},\nwatch: {},\nmethods:\
+    \ {}\n}\n</sctipt>\n```\nImportant:\n* No css, use TailwindCSS clases\n* No need\
+    \ to import ref, computed or mapState \n* export default component object\n* Use\
+    \ component \"data\" method to return an object variables\n* Use component \"\
+    computed\" to define computed properties\n\" Use component \"methods\" to define\
+    \ component methods \n* Use \"this.$storex\" or \"$storex\" to access store data.\n\
+    * To access vue store data use \"$storex\"\n* \"script setup\" section contains\
+    \ ONLY imports, no variables, properties bnor methods\n* Vue component definition\
+    \ will be exporting a default object like, without ref, nor computed imports\n\
+    * Don't use \";\" in the javascript or typescript code\n* Avoid long functions\n\
+    * Add short and concise comments for complex functions\nMake sure all vue components\
+    \ follow this structure:\n```vue\n<script setup><!-- Import all components and\
+    \ libraries on the top -->\n</script>\n<template><!-- Component markup -->\n<div></div>\n\
+    </template>\n<script><!-- Component logic -->\nexport default {\n}\n</script>\n\
+    ```\n\nUse fontawesome for icons like: <i class=\"fa-solid fa-right-from-bracket\"\
+    ></i>\n            \n                      Apply all comments to the document\
+    \ and return a final version.\n                      Pay attention to do not loose\
+    \ any detail or part of the document.\n                      Return only the file\
+    \ content \n                    "
+  created_at: '2025-11-23 09:14:38.478193'
+  disable_knowledge: false
+  doc_id: f1d68f89-de46-4b60-b99c-7229a345b8f0
+  done: true
+  files:
+  - /shared/codx-junior/client/src/views/ChatView.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  - VueDeveloper
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-23 09:14:38.478218'
+  user: null
+- content: "```vue /shared/codx-junior/client/src/views/ChatView.vue\n        <script\
+    \ setup>\nimport moment from 'moment'\nimport AddFileDialog from '../components/chat/AddFileDialog.vue'\n\
+    import Chat from '@/components/chat/Chat.vue'\nimport ProfileAvatar from '@/components/profile/ProfileAvatar.vue'\n\
+    import UserSelector from '@/components/chat/UserSelector.vue'\nimport UserAvatar\
+    \ from '@/components/user/UserAvatar.vue'\nimport TaskSettings from '@/components/kanban/TaskSettings.vue'\n\
+    import ChatIcon from '@/components/chat/ChatIcon.vue'\nimport ChatSelector from\
+    \ '@/components/chat/ChatSelector.vue'\nimport VerticalSplitter from '@/components/layout/VerticalSplitter.vue'\n\
+    import ProjectDetailt from '@/components/ProjectDetailt.vue'\nimport ExportChat\
+    \ from '@/components/chat/ExportChat.vue'\n</script>\n\n<template>\n  <div class=\"\
+    flex flex-col h-full pb-1\" v-if=\"chat\">\n    <div class=\"grow flex gap-2 h-full\
+    \ justify-between\">\n      <div class=\"grow flex flex-col w-full\">\n      \
+    \  <div class=\"flex gap-2 items-center\" v-if=\"!chatMode\">\n          <div\
+    \ class=\"flex items-start gap-2 w-full\">\n            <div class=\"flex gap-2\
+    \ items-start\">\n              <input type=\"text\" class=\"input input-bordered\"\
+    \ @keydown.enter.stop=\"saveChat\" @keydown.esc=\"editName = false\" v-model=\"\
+    chat.name\" v-if=\"editName\" />\n              <div class=\"font-bold flex flex-col\
+    \ -space-y-2\" v-else>\n                <div class=\"flex gap-2 mb-2\">\n    \
+    \              <div class=\"my-2 hover:underline cursor-pointer font-bold text-primary\"\
+    \ @click=\"navigateToParent()\">\n                    <i class=\"fa-solid fa-caret-left\"\
+    ></i> {{ kanban?.title || chat.board }}\n                  </div>\n          \
+    \        <div class=\"my-2 hover:underline cursor-pointer font-bold text-secondary\"\
+    \ @click=\"navigateToParent(parentChat)\" v-if=\"parentChat\">\n             \
+    \       <i class=\"fa-brands fa-trello\"></i>\n                    {{ parentChat.name\
+    \ }}\n                  </div>\n                </div>\n                <div class=\"\
+    flex gap-2\">\n                  <div class=\"flex gap-1\">\n                \
+    \    <div class=\"avatar\" :title=\"taskProject.project_name\" v-if=\"taskProject.project_id\
+    \ !== $project.project_id\">\n                      <div class=\"w-7 h-7 rounded-full\"\
+    >\n                        <img :src=\"taskProject.project_icon\"/>\n        \
+    \              </div>\n                    </div>\n                    <UserAvatar\
+    \ :width=\"7\" :user=\"user\" v-for=\"user in chatUsers\" :key=\"user.username\"\
+    >\n                      <li @click=\"removeUser(user)\"><a>Remove</a></li>\n\
+    \                    </UserAvatar>  \n                    <ProfileAvatar :profile=\"\
+    profile\"\n                      :project=\"taskProject\"\n                  \
+    \    width=\"7\"\n                      v-for=\"profile in chatProfiles\" :key=\"\
+    profile.name\">\n                        <div class=\"flex justify-end gap-2\"\
+    >\n                          <div class=\"badge badge-xs badge-warning cursor-pointer\"\
+    \ @click=\"removeProfile(profile)\">\n                            change\n   \
+    \                       </div>\n                        </div>\n             \
+    \       </ProfileAvatar>\n\n                    <UserSelector \n             \
+    \         class=\"dropdown-bottom\"\n                      :allUsers=\"true\"\n\
+    \                      @user-changed=\"onAddProfile($event)\"\n              \
+    \      />\n                \n                  </div>\n\n                  <div\
+    \ class=\"cursor-pointer text-xs @md:text-md @xl:text-xl flex flex-col\">\n  \
+    \                  <div class=\"flex gap-1 items-end\">\n                    \
+    \  <span class=\"click tooltip\" @click.stop=\"toggleChatPinned\"\n          \
+    \              data-tip=\"Bookmark\"\n                      >\n              \
+    \          <i class=\"text-warning fa-solid fa-bookmark\" v-if=\"chat.pinned\"\
+    \ ></i>\n                        <i class=\"fa-regular fa-bookmark\" v-else></i>\n\
+    \                      </span>\n                      \n                     \
+    \ <div class=\"flex flex-col\" :class=\"showChildChat && 'opacity-80'\" @click=\"\
+    onChatNameClick\">\n                        @codx-ok, please-wait...: chat can\
+    \ be a thread (\"chat.message_id\" not null), so name will be \"Thread\" and description\
+    \ the messge content. Move chat name and description info to a computed variable,\
+    \ use chat.parent_id to fin the parent chat and message_id to find the message.doc_id\
+    \ and content. If normal chat, use name and description as it's now\n        \
+    \                <div class=\"text-xs\">[{{ formattedChatUpdatedDate }}]</div>\n\
+    \                        <div>{{ chat.name }}</div>\n                      </div>\
+    \ \n                      <span v-if=\"showChildChat\"> / {{ showChildChat.name\
+    \ }}</span>\n                      <span class=\"text-xs hover:underline\"\n \
+    \                     :class=\"showDescription ? 'text-error/70': 'text-info'\"\
+    \n                        @click.stop=\"showDescription = !showDescription\"\n\
+    \                        v-if=\"chat.description\"> [{{ showDescription ? 'close':\
+    \ 'more' }}]\n                      </span>\n                      <span class=\"\
+    badge badge-md badge-outline\" v-if=\"showTaskProjectName\">\n               \
+    \         <img :src=\"taskProject.project_icon\" class=\"w-3 rounded-full mr-1\"\
+    \ />\n                        {{ taskProject.project_name }}\n               \
+    \       </span>\n                    </div>\n                    <div class=\"\
+    text-xs\" v-if=\"showDescription\">\n                      {{ workingChat.description\
+    \ || '-- no description yet --' }}\n                    </div>\n             \
+    \     </div>\n                </div>\n              </div>\n            </div>\n\
+    \            <div class=\"grow\"></div>\n            <div class=\"flex flex-col\"\
+    >\n              <div class=\"flex gap-1 items-center\">\n                <div\
+    \ class=\"flex gap-2 p-1 items-center -top-1\">\n                  <button class=\"\
+    btn btn-sm\" v-if=\"childrenChats.length\" \n                    @click=\"showChatMenu\
+    \ = !showChatMenu\"\n                    :class=\"showChatMenu && 'text-info'\"\
+    \n                    >\n                    <i class=\"fa-solid fa-list\"></i>\n\
+    \                  </button>\n                  <button class=\"btn btn-sm\" v-if=\"\
+    hiddenCount\" @click=\"showHidden = !showHidden\">\n                    <div class=\"\
+    flex items-center gap-2 tooltip\"\n                      data-tip=\"Archived messages\"\
+    \ \n                      :class=\"showHidden ? 'text-warning':''\">\n       \
+    \               ({{ hiddenCount }}/{{ messageCount }})\n                     \
+    \ <i class=\"fa-solid fa-box-archive\"></i>\n                    </div>\n    \
+    \              </button>\n                  <div class=\"dropdown dropdown-end\"\
+    >\n                    <div tabindex=\"0\" role=\"button\" class=\"btn  btn-sm\
+    \ m-1\">\n                      <ChatIcon :mode=\"workingChat.mode\" />\n    \
+    \                </div>\n                    <ul tabindex=\"0\" class=\"dropdown-content\
+    \ menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow\">\n                    \
+    \  <li @click=\"setChatMode('chat')\">\n                        <a><ChatIcon mode=\"\
+    chat\" /> Conversation</a>\n                      </li>\n                    \
+    \  <li @click=\"setChatMode('task')\">\n                        <a><ChatIcon mode=\"\
+    task\" /> Document</a>\n                      </li>\n                      <li\
+    \ @click=\"setChatMode('topic')\">\n                        <a><ChatIcon mode=\"\
+    topic\" /> Discussion</a>\n                      </li>\n                     \
+    \ <li class=\"flex gap-2\" @click=\"setChatMode('prview')\">\n               \
+    \         <a><ChatIcon mode=\"prview\" /> Changes review</a>\n               \
+    \       </li>\n                      <li @click=\"setChatMode('browser')\">\n\
+    \                        <a><ChatIcon mode=\"browser\" /> Browser</a>\n      \
+    \                </li>\n                      <li @click=\"openChatSearchModal\"\
+    >\n                        <a><i class=\"fa-solid fa-link\"></i> Link</a>\n  \
+    \                    </li>\n                    </ul>\n                  </div>\n\
+    \                  <div class=\"grow\"></div>\n                  <div class=\"\
+    dropdown dropdown-end dropdown-bottom\">\n                    <div tabindex=\"\
+    0\" class=\"btn btn-sm flex items-center indicator\">\n                      <i\
+    \ class=\"fa-solid fa-bars\"></i>\n                    </div>\n              \
+    \      <ul tabindex=\"0\" class=\"dropdown-content menu bg-base-300 border rounded-box\
+    \ z-[1] p-2 w-96 shadow\">\n                      <li @click=\"newSubChat()\"\
+    >\n                        <a><i class=\"fa-solid fa-plus\"></i> New sub task</a>\n\
+    \                      </li>\n                      <li @click=\"createSubTasks()\"\
+    >\n                        <a><i class=\"fa-solid fa-wand-magic-sparkles\"></i>\
+    \ Create sub tasks</a>\n                      </li>\n                      <li\
+    \ @click=\"showExportChat = true\">\n                        <a><i class=\"fa-solid\
+    \ fa-file-arrow-down\"></i> Export</a>\n                      </li>\n        \
+    \              <li @click=\"showChatSelector = true\">\n                     \
+    \   <a><i class=\"fa-solid fa-link\"></i> Link chats</a>\n                   \
+    \   </li>\n                      <li @click=\"saveChat\">\n                  \
+    \      <a><i class=\"fa-solid fa-floppy-disk\"></i> Save</a>\n               \
+    \       </li>\n                      <div class=\"divider\" v-if=\"childrenChats.length\"\
+    ></div>\n                      <li @click=\"showTaskSettings = true\">\n     \
+    \                   <a><i class=\"fa-solid fa-gear\"></i> Settings</a>\n     \
+    \                 </li>\n                    </ul>\n                  </div>\n\
+    \                </div>\n              </div>\n              <div class=\"flex\
+    \ justify-end items-center\">\n              </div>\n            </div>\n    \
+    \      </div>\n        </div>\n        <div class=\"flex justify-between\">\n\
+    \          <div class=\"flex gap-2 items-center\">\n            <div class=\"\
+    badge badge-sm badge-info flex gap-2\" v-for=\"tag in chat.tags\" :key=\"tag\"\
+    >\n              {{ tag }}\n              <button class=\"btn btn-ghost\" @click=\"\
+    removeTag(tag)\">\n                x\n              </button>\n            </div>\n\
+    \            <button class=\"btn btn-xs\" @click=\"newTag = ''\">\n          \
+    \    + Tag\n            </button>\n            \n            <div class=\"avatar-group\
+    \ -space-x-6 relative\" v-if=\"images.length\">\n              <div class=\"avatar\"\
+    \ v-for=\"image, ix in images\" :key=\"ix\">\n                <div class=\"w-8\"\
+    >\n                  <img :src=\"image.src\" />\n                </div>\n    \
+    \          </div>\n            </div>\n          </div>\n          <div class=\"\
+    flex gap-1 justify-end items-center\">\n            <div class=\"badge badge-sm\
+    \ badge-warning badge-outline p-3 gap-2\" v-if=\"taskAIModel\">\n            \
+    \  <i class=\"fa-solid fa-brain\"></i> {{ taskAIModel.name }}\n            </div>\n\
+    \          </div>\n        </div>\n        <VerticalSplitter \n          :panels=\"\
+    {\n            left: { defaultSize: 20 },\n            right: { defaultSize: 80\
+    \ }\n          }\">\n          <template v-slot:left v-if=\"childrenChats?.length\
+    \ && showChatMenu\">\n            <div class=\"flex justify-start\">\n       \
+    \       <button class=\"btn btn-xs btn-ghost\" @click=\"showChatMenu = false\"\
+    >\n                <i class=\"fa-solid fa-caret-left\"></i>\n              </button>\n\
+    \            </div>\n            <ul class=\"flex flex-col overflow-auto h-full\"\
+    >\n              <li class=\"p-2 hover:bg-base-100 rounded-lg click\"\n      \
+    \          v-for=\"childChat in childrenChats\" :key=\"childChat.id\"\n      \
+    \          :class=\"[\n                  (showChildChat?.name === childChat?.name)\
+    \ && 'text-warning',\n                  (childChat === dropOver) && 'bg-white\
+    \ border border-red-300'\n                ]\"\n                @click=\"selectChildChat(childChat)\"\
+    \n                @dragstart=\"onChildMenuDragStart($event, childChat)\"\n   \
+    \             @dragenter.prevent=\"\"\n                @dragover.prevent=\"onTaskDragover($event,\
+    \ childChat)\"\n                @dragleave=\"dropOver = false\"\n            \
+    \    @drop.prevent=\"onTaskDropped($event, childChat)\"\n                :draggable=\"\
+    true\"\n              >\n                <a class=\"group\">\n               \
+    \   <div class=\"flex gap-2 items-start\">\n                    <ChatIcon :mode=\"\
+    childChat.mode\" />\n                    <div class=\"flex flex-col gap-1\"> \n\
+    \                      {{ childChat.name }}\n                      <div class=\"\
+    badge badge-outline badge-xs\" v-if=\"childChat.column !== workingChat.column\"\
+    >\n                        {{ childChat.column }}\n                      </div>\n\
+    \                    </div>\n                    <div class=\"grow hidden group-hover:flex\
+    \ text-xs justify-end\" \n                      @click.stop=\"$projects.setActiveChat(childChat)\"\
+    >\n                      <i class=\"fa-solid fa-up-right-from-square\"></i>\n\
+    \                    </div>\n                  </div>\n                </a>\n\
+    \              </li>\n            </ul>\n          </template>\n          <template\
+    \ v-slot:right>\n            <Chat class=\"h-full overflow-auto\" \n         \
+    \   :chat=\"workingChat\"\n            :showHidden=\"showHidden\"\n          \
+    \  :childrenChats=\"showChatMenu ? null : childrenChats\"\n            @refresh-chat=\"\
+    loadChat(workingChat)\"\n            @remove-file=\"onRemoveFile\" \n        \
+    \    @delete=\"confirmDelete = true\"\n            @subtask=\"onNewMessageSubtask\"\
+    \n          />\n          </template>\n        </VerticalSplitter>\n        <modal\
+    \ v-if=\"confirmDelete\">\n          <div class=\"\">\n            <h3 class=\"\
+    font-bold text-lg\">Confirm Delete</h3>\n            <p class=\"text-error font-bold\"\
+    >Are you sure you want to delete this chat?</p>\n            <div class=\"text-xl\
+    \ p-1\">{{ chat.name }}</div>\n            <div class=\"modal-action\">\n    \
+    \          <button class=\"btn btn-error\" @click=\"confirmDeleteChat\">Delete</button>\n\
+    \              <button class=\"btn\" @click=\"resetConfirmDelete\">Cancel</button>\n\
+    \            </div>\n          </div>\n        </modal>\n        <modal class=\"\
+    modal modal-open\" role=\"dialog\" v-if=\"showFile || addFile !== null\">\n  \
+    \        <div class=\"modal-box flex flex-col gap-4 p-4\">\n            <h3 class=\"\
+    font-bold text-lg\" v-if=\"showFile\">\n              This file belongs to the\
+    \ task context:\n              <div class=\"font-thin\">{{ showFile }}</div>\n\
+    \            </h3>\n            <div v-else>\n              <input type=\"text\"\
+    \ class=\"input input-bordered w-full\" v-model=\"addFile\" placeholder=\"Add\
+    \ file to context, full path\" />\n            </div>\n            <div class=\"\
+    flex gap-2 justify-center\">\n              <button class=\"btn btn-error\" @click=\"\
+    removeFileFromContext\" v-if=\"showFile\">\n                Remove\n         \
+    \     </button>\n              <button class=\"btn btn-primary\" @click=\"addFileToContext\"\
+    \ v-else>\n                Add\n              </button>\n              <button\
+    \ class=\"btn\" @click=\"addFile = showFile = null\">\n                Close\n\
+    \              </button>\n            </div>\n          </div>\n        </modal>\n\
+    \        <modal v-if=\"newTag !== null\">\n          <div class=\"flex flex-col\
+    \ gap-2\">\n            <div class=\"text-xl\">New tag</div>\n            <select\
+    \ class=\"select select-sm select-bordered\" @change=\"newTag = $event.target.value\"\
+    >\n              <option value=\"\" selected>New</option>\n              <option\
+    \ v-for=\"t in $projects.allTags\" :key=\"t\" :value=\"t\">{{t}}</option>\n  \
+    \          </select>\n            <input type=\"text\" class=\"input input-sm\
+    \ input-bordered\" v-model=\"newTag\" />\n            <div class=\"flex gap-2\
+    \ justify-end\">\n              <button class=\"btn btn-error\" @click=\"newTag\
+    \ = null\">\n                Cancel\n              </button>\n              <button\
+    \ class=\"btn\" @click=\"addNewTag\" :disabled=\"newTag.length === 0\">\n    \
+    \            Add\n              </button>\n            </div>\n          </div>\n\
+    \        </modal>\n        <modal v-if=\"showSubtaskModal\">\n          <div class=\"\
+    flex flex-col gap-4 p-4\">\n            <h3 class=\"font-bold text-lg\">Create\
+    \ New Subtask</h3>\n            <input v-model=\"subtaskName\" type=\"text\" class=\"\
+    input input-bordered\" placeholder=\"Subtask Name\" />\n            \n       \
+    \     <!-- Dropdown for selecting subTaskMode -->\n            <div class=\"form-control\"\
+    >\n              <label class=\"label\">\n                <span class=\"label-text\"\
+    >Select Subtask Mode</span>\n              </label>\n              <select class=\"\
+    select select-bordered\" v-model=\"subtaskMode\">\n                <option value=\"\
+    task\" selected>Task</option>\n                <option value=\"chat\">Chat</option>\n\
+    \                <option value=\"topic\">Topic</option>\n                <option\
+    \ value=\"prview\">PR View</option>\n                <option value=\"browser\"\
+    >Browser</option>\n              </select>\n            </div>\n\n           \
+    \ <textarea v-model=\"subtaskDescription\" class=\"textarea textarea-bordered\"\
+    \ placeholder=\"Short Description (optional)\" rows=\"3\"></textarea>\n      \
+    \      \n            <ProjectDetailt \n              :project=\"$projects.allProjectsById[subtaskProject\
+    \ || chat.project_id || chatProject?.project_id]\" \n              :options=\"\
+    { showFolders: false, showIcon: true, showSelector: true }\"\n              @select=\"\
+    subtaskProject = $event.project_id\"  \n            />\n            <div class=\"\
+    flex\" v-for=\"profile in subtaskProfiles\" :key=\"profile.name\">\n         \
+    \     <div class=\"badge\">{{ profile.name }}</div>\n            </div>\n    \
+    \        <div class=\"flex gap-2 justify-end\">\n              <button class=\"\
+    btn btn-error\" @click=\"cancelSubtask\">Cancel</button>\n              <button\
+    \ class=\"btn btn-primary\" @click=\"createSubtask\">Create</button>\n       \
+    \     </div>\n          </div>\n        </modal>\n        <modal v-if=\"showSubtasksModal\"\
+    >\n          <div class=\"flex flex-col gap-4 p-4\">\n            <h3 class=\"\
+    font-bold text-2xl\">Split into tasks</h3>\n            <div class=\"tex-xl\"\
+    >Instructions:</div>\n            <textarea v-model=\"createTasksInstructions\"\
+    \ class=\"textarea textarea-bordered\" placeholder=\"Short Description (optional)\"\
+    \ rows=\"3\"></textarea>\n            <div class=\"flex gap-2 justify-end\">\n\
+    \              <button class=\"btn btn-error\" @click=\"showSubtasksModal = false\"\
+    >Cancel</button>\n              <button class=\"btn btn-primary\" @click=\"createSubTasks\"\
+    >Create</button>\n            </div>\n          </div>\n        </modal>\n   \
+    \     <modal v-if=\"showTaskSettings\">\n          <TaskSettings :taskData=\"\
+    workingChat\" @close=\"showTaskSettings = false\" />\n        </modal>\n     \
+    \   <modal close=\"true\" @close=\"showExportChat = false\" v-if=\"showExportChat\"\
+    >\n          <ExportChat :chat=\"workingChat\" @close=\"showExportChat = false\"\
+    \ />\n        </modal>\n      </div>\n      <modal close=\"true\" @close=\"showChatSelector\
+    \ = false\" v-if=\"showChatSelector\">\n        <ChatSelector />\n      </modal>\n\
+    \      <add-file-dialog v-if=\"addNewFile\" @open=\"onAddFile\" @close=\"addNewFile\
+    \ = false\" />\n    </div>\n  </div>\n</template>\n\n<script>\nexport default\
+    \ {\n  props: ['chatMode', 'chat', 'kanban'],\n  data() {\n    return {\n    \
+    \  showFile: null,\n      addFile: null,\n      showChatsTree: false,\n      editName:\
+    \ false,\n      addNewFile: null,\n      showHidden: false,\n      confirmDelete:\
+    \ false,\n      newTag: null,\n      showSubtaskModal: false,\n      showSubtasksModal:\
+    \ false,\n      showTaskSettings: false,\n      subtaskProfiles: [],\n      subtaskName:\
+    \ '',\n      subtaskDescription: '',\n      subtaskMode: 'task', // Default mode\n\
+    \      subtaskFiles: [],\n      subtaskProject: null,\n      subtaskParentId:\
+    \ null,\n      subtaskMessageId: null,\n      showAddProfile: false,\n      createTasksInstructions:\
+    \ '',\n      chatProfiles: [],\n      showDescription: false,\n      projectContext:\
+    \ null,\n      showChatSelector: false,\n      showChatMenu: false,\n      showChildChat:\
+    \ null,\n      showExportChat: false,\n      dropOver: null\n    }\n  },\n  created()\
+    \ {\n    this.init()\n  },\n  async mounted() {\n    this.showChatMenu = !this.$ui.isMobile\n\
+    \    this.chatProfiles = await this.$storex.api.project(this.taskProject)\n  \
+    \    .then(p => p.profiles.list())\n      .then(profiles => profiles.filter(p\
+    \ => this.chat.profiles.includes(p.name)))\n    if (this.isPRView) {\n      await\
+    \ this.$projects.loadBranches()\n    }\n  },\n  computed: {\n    branches() {\n\
+    \      return this.$projects.project_branches || []\n    },\n    isPRView() {\n\
+    \      return this.workingChat.mode === 'prview'\n    },\n    taskAIModel() {\n\
+    \      return this.aiModels.find(m => m.name === this.chat.llm_model)\n    },\n\
+    \    aiModels() {\n      return this.$projects.ai.models\n    },\n    showTaskProjectName()\
+    \ {\n      return this.taskProject && this.taskProject.project_id != this.$project.project_id\
+    \ \n    },\n    taskProject() {\n      return this.$projects.allProjects.find(p\
+    \ => p.project_id === this.chat.project_id) ||\n        this.$project\n    },\n\
+    \    chatUsers() {\n      return this.$storex.api.userNetwork.filter(({ username\
+    \ }) => this.chat.users?.includes(username))\n    },\n    chatModes() {\n    \
+    \  return this.$projects.chatModes\n    },\n    subProjects() {\n      return\
+    \ [\n        this.$project,\n        ...this.$projects.childProjects || [],\n\
+    \        ...this.$projects.projectDependencies || []\n      ]\n    },\n    hiddenCount()\
+    \ {\n      return this.workingChat.messages?.filter(m => m.hide).length\n    },\n\
+    \    messageCount() {\n      return this.workingChat.messages?.length\n    },\n\
+    \    messages() {\n      return this.chat.messages.filter(m => !m.hide || this.showHidden)\n\
+    \    },\n    formattedChatUpdatedDate() {\n      const updatedAt = this.chat.updated_at\n\
+    \      return moment(updatedAt).isAfter(moment().subtract(7, 'days'))\n      \
+    \  ? moment(updatedAt).fromNow()\n        : moment(updatedAt).format('YYYY-MM-DD')\n\
+    \    },\n    chats() {\n      return this.$projects.allChats\n    },\n    childrenChats()\
+    \ {\n      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id\
+    \ && !c.message_id)\n        .sort((a, b) => a.name > b.name ? 1 : -1)\n    },\n\
+    \    chatProject() {\n      return this.$projects.allProjectsById[this.chat.project_id]\
+    \ ||\n        this.$project\n    },\n    parentChat() {\n      return this.$projects.allChats.find(c\
+    \ => c.id === this.chat?.parent_id)\n    },\n    chatFiles() {\n      return this.workingChat.file_list\
+    \ || []\n    },\n    taskProjects() {\n      return [this.$project, ...this.$projects.childProjects]\n\
+    \    },\n    images() {\n      return (this.workingChat.messages ||[]).map(m =>\
+    \ m.images || [])\n                .reduce((a, b) => a.concat(b), [])\n      \
+    \          .map(i => {\n                  try {\n                    return i\
+    \ ? JSON.parse(i) : null\n                  } catch {}\n                  return\
+    \ null\n                })\n                .filter(i => !!i)\n    },\n    workingChat()\
+    \ {\n      return this.$projects.chats[this.showChildChat?.id || this.chat.id]\n\
+    \    }\n  },\n  watch: {\n    chat(newVal, oldVal) {\n      if (oldVal && \n \
+    \         newVal && \n          oldVal.project_id !== newVal.project_id) {\n \
+    \       this.init()\n      }\n    }\n  },\n  methods: {\n    async init() {\n\
+    \      this.setProjectContext()\n      await Promise.all(\n        this.childrenChats.map(chat\
+    \ => this.$projects.loadChat(chat))\n      )\n    },\n    async setProjectContext()\
+    \ {\n      this.projectContext = await this.$service.project.loadProjectContext(this.$project)\n\
+    \    },\n    async saveChat(chat) {\n      this.editName = false\n      await\
+    \ this.$projects.saveChat(chat || this.workingChat)\n    },\n    async confirmDeleteChat()\
+    \ {\n      this.confirmDelete = false\n      await this.$projects.deleteChat(this.chat)\n\
+    \      const parentChat = this.parentChat\n      if (parentChat) {\n        this.$projects.setActiveChat(parentChat)\n\
+    \      } else {\n        this.navigateToChats()\n      }\n    },\n    resetConfirmDelete()\
+    \ {\n      this.confirmDelete = false\n    },\n    async loadChat(chat) {\n  \
+    \    await this.$projects.setActiveChat(chat)\n      this.showChatsTree = false\n\
+    \    },\n    async removeFileFromContext() {\n      this.chat.profiles = this.chat.profiles?.filter(f\
+    \ => f !== this.showFile)\n      this.onRemoveFile(this.showFile)\n      await\
+    \ this.loadChat(this.chat)\n      this.showFile = null\n    },\n    async addFileToContext()\
+    \ {\n      this.onAddFile(this.addFile)\n      await this.saveChat()\n      await\
+    \ this.loadChat(this.chat)\n      this.showFile = null\n      this.addFile = null\n\
+    \    },\n    async onAddFile(file) {\n      if (this.chat.file_list?.includes(file))\
+    \ {\n        return\n      }\n      this.chat.file_list = [...(this.chat.file_list\
+    \ || []), file]\n      this.addNewFile = null\n      await this.saveChat()\n \
+    \   },\n    async onRemoveFile(file) {\n      this.workingChat.file_list = (this.workingChat.file_list\
+    \ || []).filter(f => f !== file)\n      this.addNewFile = null\n      await this.saveChat()\n\
+    \    },\n    async addProfile(profile) {\n      if (!this.chat.profiles?.includes(profile))\
+    \ {\n        this.chat.profiles = [...this.chat.profiles || [], profile]\n   \
+    \     await this.saveChat()\n      }\n      this.showAddProfile = false\n    },\n\
+    \    async addUserToChat(user) {\n      if (!this.chat.users?.includes(user.username))\
+    \ {\n        this.chat.users = [...this.chat.users || [], user.username]\n   \
+    \     await this.saveChat()\n      }\n      this.showAddProfile = false\n    },\n\
+    \    async removeUser(user) {\n      if (this.chat.users?.includes(user.username))\
+    \ {\n        this.chat.users = this.chat.users.filter(u => u !== user.username)\n\
+    \        await this.saveChat()\n      }\n    },\n    removeProfile(profile) {\n\
+    \      if (this.chat.profiles?.includes(profile.name)) {\n        this.chat.profiles\
+    \ = this.chat.profiles.filter(p => p !== profile.name)\n        this.saveChat()\n\
+    \      }\n    },\n    onRemoveMessage(message) {\n      const ix = this.chat.messages.findIndex(m\
+    \ => m.doc_id === message.doc_id)\n      if (this.chat.mode == 'task' && message.role\
+    \ === \"assistant\" && ix > 1) {\n        this.chat.messages[ix - 1].hide = false\n\
+    \      }\n      this.chat.messages = this.chat.messages.filter((_, i) => i !==\
+    \ ix)\n      this.saveChat()\n    },\n    navigateToChats() {\n      if (this.$ui.activeTab\
+    \ !== 'tasks') {\n        this.$ui.setActiveTab('tasks')\n      }\n      this.$emit('chats',\
+    \ this.kanban?.title || this.chat.board)\n    },\n    newSubChat(message) {\n\
+    \      this.subtaskProject = this.chat.project_id\n      this.subtaskParentId\
+    \ = null\n      this.subtaskMessageId = null\n      this.showSubtaskModal = true\n\
+    \n      this.subtaskName = null\n      this.subtaskDescription = null\n      this.subtaskProject\
+    \ = null\n      this.subtaskParentId = this.chat.id\n      this.subtaskMessageId\
+    \ = message?.doc_id\n      this.subtaskFiles = []\n      this.subtaskProfiles\
+    \ = []\n      this.subtaskMode = this.chat.mode\n      this.subtaskColumn = this.chat.column\n\
+    \    },\n    async onNewMessageSubtask({ chat, mode, message: { column, files,\
+    \ profiles, doc_id: subtaskMessageId }}) {\n      const findChild = () => this.$projects.allChats.find(c\
+    \ => c.message_id === subtaskMessageId) \n      if (!findChild()) {\n        await\
+    \ this.$emit('sub-task', {\n          parent: chat,\n          name: `${subtaskMessageId}\
+    \ - thread`,\n          project_id: chat.project_id,\n          parent_id: chat.parent_id,\n\
+    \          message_id: subtaskMessageId,\n          file_list: files,\n      \
+    \    profiles: profiles,\n          mode,\n          column,\n          activateChat:\
+    \ true,\n          child_index: this.childrenChats?.length\n        })\n     \
+    \ }\n      this.$projects.setActiveChat(findChild())\n    },\n    getSubTaskParentSummary()\
+    \ {\n      let { messages } = this\n      if (!messages.length) {\n        return\
+    \ \"\"\n      }\n      if (this.chat.mode === 'task') {\n        messages = messages.reverse()\n\
+    \        const lastAI = messages.find(m => m.role === 'assistant')\n        if\
+    \ (lastAI) {\n          return lastAI.content\n        }\n      }\n      return\
+    \ messages.reduce((acc, m) => acc + \"\\n\" + m.content, \"\")\n    },\n    createSubtask()\
+    \ {\n      if (!this.subtaskName.trim()) {\n        return\n      }\n      if\
+    \ (this.subtaskDescription) {\n        const parentContent = this.getSubTaskParentSummary()\n\
+    \        this.subtaskDescription = `${parentContent}\\n\\n${this.subtaskDescription}`\n\
+    \      }\n      this.$emit('sub-task', {\n        parent: this.chat,\n       \
+    \ name: this.subtaskName,\n        description: this.subtaskDescription,\n   \
+    \     project_id: this.subtaskProject,\n        parent_id: this.subtaskParentId,\n\
+    \        message_id: this.subtaskMessageId,\n        file_list: this.subtaskFiles,\n\
+    \        profiles: this.subtaskProfiles,\n        mode: this.subtaskMode,\n  \
+    \      column: this.subtaskColumn,\n        activateChat: this.chat.mode !== 'task',\n\
+    \        child_index: this.childrenChats?.length\n      })\n      this.resetSubtaskModal()\n\
+    \    },\n    cancelSubtask() {\n      this.resetSubtaskModal()\n    },\n    resetSubtaskModal()\
+    \ {\n      this.showSubtaskModal = false\n      this.subtaskName = ''\n      this.subtaskDescription\
+    \ = ''\n      this.subtaskMode = 'chat'\n      this.subtaskFiles = []\n      this.subtaskProfiles\
+    \ = []\n      this.subtaskColumn = ''\n    },\n    addNewTag() {\n      this.chat.tags\
+    \ = [...new Set([...this.chat.tags || [], this.newTag])]\n      this.newTag =\
+    \ null\n      this.saveChat()\n    },\n    removeTag(tag) {\n      this.chat.tags\
+    \ = this.chat.tags.filter(t => t !== tag)\n      this.saveChat()\n    },\n   \
+    \ setChatMode(mode) {\n      this.workingChat.mode = mode\n      this.saveChat()\n\
+    \    },\n    async createSubTasks() {\n      if (this.showSubtasksModal) {\n \
+    \       this.$emit('sub-tasks', { chat: this.chat, instructions: this.createTasksInstructions\
+    \ })\n        this.showSubtasksModal = false\n      } else {\n        this.showSubtasksModal\
+    \ = true\n        this.createTasksInstructions = \"\"\n      }\n    },\n    navigateToParent(parentChat)\
+    \ {\n      if (parentChat) {\n        this.$emit('chat', parentChat)\n      }\
+    \ else {\n        this.navigateToChats()\n      }\n    },\n    async openChatSearchModal()\
+    \ {\n      // Open a modal for linking chat\n    },\n    async onAddProfile()\
+    \ {\n      this.showAddProfile = true\n    },\n    toggleChatPinned() {\n    \
+    \  this.chat.pinned = !this.chat.pinned\n      this.saveChat()  \n    },\n   \
+    \ selectChildChat(childChat) {\n      this.showChildChat = childChat\n      if\
+    \ (!childChat.messages?.length) {\n        this.$projects.loadChat(childChat)\n\
+    \      }\n    },\n    onChatNameClick() {\n      if (this.showChildChat) {\n \
+    \       this.selectChildChat(null)\n      } else {\n        this.editName = true\n\
+    \      }\n    },\n    onChildMenuDragStart($event, childChat) {\n      console.log(\"\
+    Menu drag start\", $event)\n      $event.dataTransfer.setData(\"chatId\", childChat.id)\n\
+    \    },\n    onTaskDragover($event, childChat) {\n      const id = $event.dataTransfer.getData(\"\
+    chatId\")\n      if (id === childChat.id) {\n        this.dropOver = null\n  \
+    \      return\n      }\n      this.dropOver = childChat\n      console.log(\"\
+    Menu drag over\", this.dropOver.name)\n      $event.preventDefault();\n      $event.target.scrollIntoView({\
+    \ block: 'center', behavior: 'smooth' })\n    },\n    onTaskDropped($event, childChat)\
+    \ {\n      const id = $event.dataTransfer.getData(\"chatId\")\n      if (id ===\
+    \ childChat.id) {\n        return\n      }\n      return\n      const dropChat\
+    \ = this.childrenChats.find(c => c.id === id)\n      dropChat.parent_id = childChat.id\n\
+    \      this.dropOver = null\n      this.saveChat(dropChat)\n    }\n  }\n}\n</script>\n\
+    \        ```\n        "
+  created_at: '2025-11-23 09:14:38.478193'
+  disable_knowledge: false
+  doc_id: 3366a434-a7b7-4748-b4fa-84c1001f111f
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-23 09:14:38.478218'
+  user: null
+- content: "```vue /shared/codx-junior/client/src/views/ChatView.vue\n<script setup>\n\
+    import moment from 'moment'\nimport AddFileDialog from '../components/chat/AddFileDialog.vue'\n\
+    import Chat from '@/components/chat/Chat.vue'\nimport ProfileAvatar from '@/components/profile/ProfileAvatar.vue'\n\
+    import UserSelector from '@/components/chat/UserSelector.vue'\nimport UserAvatar\
+    \ from '@/components/user/UserAvatar.vue'\nimport TaskSettings from '@/components/kanban/TaskSettings.vue'\n\
+    import ChatIcon from '@/components/chat/ChatIcon.vue'\nimport ChatSelector from\
+    \ '@/components/chat/ChatSelector.vue'\nimport VerticalSplitter from '@/components/layout/VerticalSplitter.vue'\n\
+    import ProjectDetailt from '@/components/ProjectDetailt.vue'\nimport ExportChat\
+    \ from '@/components/chat/ExportChat.vue'\n</script>\n\n<template>\n  <div class=\"\
+    flex flex-col h-full pb-1\" v-if=\"chat\">\n    <div class=\"grow flex gap-2 h-full\
+    \ justify-between\">\n      <div class=\"grow flex flex-col w-full\">\n      \
+    \  <div class=\"flex gap-2 items-center\" v-if=\"!chatMode\">\n          <div\
+    \ class=\"flex items-start gap-2 w-full\">\n            <div class=\"flex gap-2\
+    \ items-start\">\n              <input type=\"text\" class=\"input input-bordered\"\
+    \ @keydown.enter.stop=\"saveChat\" @keydown.esc=\"editName = false\" v-model=\"\
+    chat.name\" v-if=\"editName\" />\n              <div class=\"font-bold flex flex-col\
+    \ -space-y-2\" v-else>\n                <div class=\"flex gap-2 mb-2\">\n    \
+    \              <div class=\"my-2 hover:underline cursor-pointer font-bold text-primary\"\
+    \ @click=\"navigateToParent()\">\n                    <i class=\"fa-solid fa-caret-left\"\
+    ></i> {{ kanban?.title || chat.board }}\n                  </div>\n          \
+    \        <div class=\"my-2 hover:underline cursor-pointer font-bold text-secondary\"\
+    \ @click=\"navigateToParent(parentChat)\" v-if=\"parentChat\">\n             \
+    \       <i class=\"fa-brands fa-trello\"></i>\n                    {{ parentChat.name\
+    \ }}\n                  </div>\n                </div>\n                <div class=\"\
+    flex gap-2\">\n                  <div class=\"flex gap-1\">\n                \
+    \    <div class=\"avatar\" :title=\"taskProject.project_name\" v-if=\"taskProject.project_id\
+    \ !== $project.project_id\">\n                      <div class=\"w-7 h-7 rounded-full\"\
+    >\n                        <img :src=\"taskProject.project_icon\"/>\n        \
+    \              </div>\n                    </div>\n                    <UserAvatar\
+    \ :width=\"7\" :user=\"user\" v-for=\"user in chatUsers\" :key=\"user.username\"\
+    >\n                      <li @click=\"removeUser(user)\"><a>Remove</a></li>\n\
+    \                    </UserAvatar>  \n                    <ProfileAvatar :profile=\"\
+    profile\"\n                      :project=\"taskProject\"\n                  \
+    \    width=\"7\"\n                      v-for=\"profile in chatProfiles\" :key=\"\
+    profile.name\">\n                        <div class=\"flex justify-end gap-2\"\
+    >\n                          <div class=\"badge badge-xs badge-warning cursor-pointer\"\
+    \ @click=\"removeProfile(profile)\">\n                            change\n   \
+    \                       </div>\n                        </div>\n             \
+    \       </ProfileAvatar>\n\n                    <UserSelector \n             \
+    \         class=\"dropdown-bottom\"\n                      :allUsers=\"true\"\n\
+    \                      @user-changed=\"onAddProfile($event)\"\n              \
+    \      />\n                \n                  </div>\n\n                  <div\
+    \ class=\"cursor-pointer text-xs @md:text-md @xl:text-xl flex flex-col\">\n  \
+    \                  <div class=\"flex gap-1 items-end\">\n                    \
+    \  <span class=\"click tooltip\" @click.stop=\"toggleChatPinned\"\n          \
+    \              data-tip=\"Bookmark\"\n                      >\n              \
+    \          <i class=\"text-warning fa-solid fa-bookmark\" v-if=\"chat.pinned\"\
+    \ ></i>\n                        <i class=\"fa-regular fa-bookmark\" v-else></i>\n\
+    \                      </span>\n                      \n                     \
+    \ <div class=\"flex flex-col\" :class=\"showChildChat && 'opacity-80'\" @click=\"\
+    onChatNameClick\">\n                        <div class=\"text-xs\">[{{ formattedChatUpdatedDate\
+    \ }}]</div>\n                        <div>{{ computedChatName }}</div>\n     \
+    \                 </div> \n                      <span v-if=\"showChildChat\"\
+    > / {{ showChildChat.name }}</span>\n                      <span class=\"text-xs\
+    \ hover:underline\"\n                      :class=\"showDescription ? 'text-error/70':\
+    \ 'text-info'\"\n                        @click.stop=\"showDescription = !showDescription\"\
+    \n                        v-if=\"computedChatDescription\"> [{{ showDescription\
+    \ ? 'close': 'more' }}]\n                      </span>\n                     \
+    \ <span class=\"badge badge-md badge-outline\" v-if=\"showTaskProjectName\">\n\
+    \                        <img :src=\"taskProject.project_icon\" class=\"w-3 rounded-full\
+    \ mr-1\" />\n                        {{ taskProject.project_name }}\n        \
+    \              </span>\n                    </div>\n                    <div class=\"\
+    text-xs\" v-if=\"showDescription\">\n                      {{ computedChatDescription\
+    \ || '-- no description yet --' }}\n                    </div>\n             \
+    \     </div>\n                </div>\n              </div>\n            </div>\n\
+    \            <div class=\"grow\"></div>\n            <div class=\"flex flex-col\"\
+    >\n              <div class=\"flex gap-1 items-center\">\n                <div\
+    \ class=\"flex gap-2 p-1 items-center -top-1\">\n                  <button class=\"\
+    btn btn-sm\" v-if=\"childrenChats.length\" \n                    @click=\"showChatMenu\
+    \ = !showChatMenu\"\n                    :class=\"showChatMenu && 'text-info'\"\
+    \n                    >\n                    <i class=\"fa-solid fa-list\"></i>\n\
+    \                  </button>\n                  <button class=\"btn btn-sm\" v-if=\"\
+    hiddenCount\" @click=\"showHidden = !showHidden\">\n                    <div class=\"\
+    flex items-center gap-2 tooltip\"\n                      data-tip=\"Archived messages\"\
+    \ \n                      :class=\"showHidden ? 'text-warning':''\">\n       \
+    \               ({{ hiddenCount }}/{{ messageCount }})\n                     \
+    \ <i class=\"fa-solid fa-box-archive\"></i>\n                    </div>\n    \
+    \              </button>\n                  <div class=\"dropdown dropdown-end\"\
+    >\n                    <div tabindex=\"0\" role=\"button\" class=\"btn  btn-sm\
+    \ m-1\">\n                      <ChatIcon :mode=\"workingChat.mode\" />\n    \
+    \                </div>\n                    <ul tabindex=\"0\" class=\"dropdown-content\
+    \ menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow\">\n                    \
+    \  <li @click=\"setChatMode('chat')\">\n                        <a><ChatIcon mode=\"\
+    chat\" /> Conversation</a>\n                      </li>\n                    \
+    \  <li @click=\"setChatMode('task')\">\n                        <a><ChatIcon mode=\"\
+    task\" /> Document</a>\n                      </li>\n                      <li\
+    \ @click=\"setChatMode('topic')\">\n                        <a><ChatIcon mode=\"\
+    topic\" /> Discussion</a>\n                      </li>\n                     \
+    \ <li class=\"flex gap-2\" @click=\"setChatMode('prview')\">\n               \
+    \         <a><ChatIcon mode=\"prview\" /> Changes review</a>\n               \
+    \       </li>\n                      <li @click=\"setChatMode('browser')\">\n\
+    \                        <a><ChatIcon mode=\"browser\" /> Browser</a>\n      \
+    \                </li>\n                      <li @click=\"openChatSearchModal\"\
+    >\n                        <a><i class=\"fa-solid fa-link\"></i> Link</a>\n  \
+    \                    </li>\n                    </ul>\n                  </div>\n\
+    \                  <div class=\"grow\"></div>\n                  <div class=\"\
+    dropdown dropdown-end dropdown-bottom\">\n                    <div tabindex=\"\
+    0\" class=\"btn btn-sm flex items-center indicator\">\n                      <i\
+    \ class=\"fa-solid fa-bars\"></i>\n                    </div>\n              \
+    \      <ul tabindex=\"0\" class=\"dropdown-content menu bg-base-300 border rounded-box\
+    \ z-[1] p-2 w-96 shadow\">\n                      <li @click=\"newSubChat()\"\
+    >\n                        <a><i class=\"fa-solid fa-plus\"></i> New sub task</a>\n\
+    \                      </li>\n                      <li @click=\"createSubTasks()\"\
+    >\n                        <a><i class=\"fa-solid fa-wand-magic-sparkles\"></i>\
+    \ Create sub tasks</a>\n                      </li>\n                      <li\
+    \ @click=\"showExportChat = true\">\n                        <a><i class=\"fa-solid\
+    \ fa-file-arrow-down\"></i> Export</a>\n                      </li>\n        \
+    \              <li @click=\"showChatSelector = true\">\n                     \
+    \   <a><i class=\"fa-solid fa-link\"></i> Link chats</a>\n                   \
+    \   </li>\n                      <li @click=\"saveChat\">\n                  \
+    \      <a><i class=\"fa-solid fa-floppy-disk\"></i> Save</a>\n               \
+    \       </li>\n                      <div class=\"divider\" v-if=\"childrenChats.length\"\
+    ></div>\n                      <li @click=\"showTaskSettings = true\">\n     \
+    \                   <a><i class=\"fa-solid fa-gear\"></i> Settings</a>\n     \
+    \                 </li>\n                    </ul>\n                  </div>\n\
+    \                </div>\n              </div>\n              <div class=\"flex\
+    \ justify-end items-center\">\n              </div>\n            </div>\n    \
+    \      </div>\n        </div>\n        <div class=\"flex justify-between\">\n\
+    \          <div class=\"flex gap-2 items-center\">\n            <div class=\"\
+    badge badge-sm badge-info flex gap-2\" v-for=\"tag in chat.tags\" :key=\"tag\"\
+    >\n              {{ tag }}\n              <button class=\"btn btn-ghost\" @click=\"\
+    removeTag(tag)\">\n                x\n              </button>\n            </div>\n\
+    \            <button class=\"btn btn-xs\" @click=\"newTag = ''\">\n          \
+    \    + Tag\n            </button>\n            \n            <div class=\"avatar-group\
+    \ -space-x-6 relative\" v-if=\"images.length\">\n              <div class=\"avatar\"\
+    \ v-for=\"image, ix in images\" :key=\"ix\">\n                <div class=\"w-8\"\
+    >\n                  <img :src=\"image.src\" />\n                </div>\n    \
+    \          </div>\n            </div>\n          </div>\n          <div class=\"\
+    flex gap-1 justify-end items-center\">\n            <div class=\"badge badge-sm\
+    \ badge-warning badge-outline p-3 gap-2\" v-if=\"taskAIModel\">\n            \
+    \  <i class=\"fa-solid fa-brain\"></i> {{ taskAIModel.name }}\n            </div>\n\
+    \          </div>\n        </div>\n        <VerticalSplitter \n          :panels=\"\
+    {\n            left: { defaultSize: 20 },\n            right: { defaultSize: 80\
+    \ }\n          }\">\n          <template v-slot:left v-if=\"childrenChats?.length\
+    \ && showChatMenu\">\n            <div class=\"flex justify-start\">\n       \
+    \       <button class=\"btn btn-xs btn-ghost\" @click=\"showChatMenu = false\"\
+    >\n                <i class=\"fa-solid fa-caret-left\"></i>\n              </button>\n\
+    \            </div>\n            <ul class=\"flex flex-col overflow-auto h-full\"\
+    >\n              <li class=\"p-2 hover:bg-base-100 rounded-lg click\"\n      \
+    \          v-for=\"childChat in childrenChats\" :key=\"childChat.id\"\n      \
+    \          :class=\"[\n                  (showChildChat?.name === childChat?.name)\
+    \ && 'text-warning',\n                  (childChat === dropOver) && 'bg-white\
+    \ border border-red-300'\n                ]\"\n                @click=\"selectChildChat(childChat)\"\
+    \n                @dragstart=\"onChildMenuDragStart($event, childChat)\"\n   \
+    \             @dragenter.prevent=\"\"\n                @dragover.prevent=\"onTaskDragover($event,\
+    \ childChat)\"\n                @dragleave=\"dropOver = false\"\n            \
+    \    @drop.prevent=\"onTaskDropped($event, childChat)\"\n                :draggable=\"\
+    true\"\n              >\n                <a class=\"group\">\n               \
+    \   <div class=\"flex gap-2 items-start\">\n                    <ChatIcon :mode=\"\
+    childChat.mode\" />\n                    <div class=\"flex flex-col gap-1\"> \n\
+    \                      {{ childChat.name }}\n                      <div class=\"\
+    badge badge-outline badge-xs\" v-if=\"childChat.column !== workingChat.column\"\
+    >\n                        {{ childChat.column }}\n                      </div>\n\
+    \                    </div>\n                    <div class=\"grow hidden group-hover:flex\
+    \ text-xs justify-end\" \n                      @click.stop=\"$projects.setActiveChat(childChat)\"\
+    >\n                      <i class=\"fa-solid fa-up-right-from-square\"></i>\n\
+    \                    </div>\n                  </div>\n                </a>\n\
+    \              </li>\n            </ul>\n          </template>\n          <template\
+    \ v-slot:right>\n            <Chat class=\"h-full overflow-auto\" \n         \
+    \   :chat=\"workingChat\"\n            :showHidden=\"showHidden\"\n          \
+    \  :childrenChats=\"showChatMenu ? null : childrenChats\"\n            @refresh-chat=\"\
+    loadChat(workingChat)\"\n            @remove-file=\"onRemoveFile\" \n        \
+    \    @delete=\"confirmDelete = true\"\n            @subtask=\"onNewMessageSubtask\"\
+    \n          />\n          </template>\n        </VerticalSplitter>\n        <modal\
+    \ v-if=\"confirmDelete\">\n          <div class=\"\">\n            <h3 class=\"\
+    font-bold text-lg\">Confirm Delete</h3>\n            <p class=\"text-error font-bold\"\
+    >Are you sure you want to delete this chat?</p>\n            <div class=\"text-xl\
+    \ p-1\">{{ chat.name }}</div>\n            <div class=\"modal-action\">\n    \
+    \          <button class=\"btn btn-error\" @click=\"confirmDeleteChat\">Delete</button>\n\
+    \              <button class=\"btn\" @click=\"resetConfirmDelete\">Cancel</button>\n\
+    \            </div>\n          </div>\n        </modal>\n        <modal class=\"\
+    modal modal-open\" role=\"dialog\" v-if=\"showFile || addFile !== null\">\n  \
+    \        <div class=\"modal-box flex flex-col gap-4 p-4\">\n            <h3 class=\"\
+    font-bold text-lg\" v-if=\"showFile\">\n              This file belongs to the\
+    \ task context:\n              <div class=\"font-thin\">{{ showFile }}</div>\n\
+    \            </h3>\n            <div v-else>\n              <input type=\"text\"\
+    \ class=\"input input-bordered w-full\" v-model=\"addFile\" placeholder=\"Add\
+    \ file to context, full path\" />\n            </div>\n            <div class=\"\
+    flex gap-2 justify-center\">\n              <button class=\"btn btn-error\" @click=\"\
+    removeFileFromContext\" v-if=\"showFile\">\n                Remove\n         \
+    \     </button>\n              <button class=\"btn btn-primary\" @click=\"addFileToContext\"\
+    \ v-else>\n                Add\n              </button>\n              <button\
+    \ class=\"btn\" @click=\"addFile = showFile = null\">\n                Close\n\
+    \              </button>\n            </div>\n          </div>\n        </modal>\n\
+    \        <modal v-if=\"newTag !== null\">\n          <div class=\"flex flex-col\
+    \ gap-2\">\n            <div class=\"text-xl\">New tag</div>\n            <select\
+    \ class=\"select select-sm select-bordered\" @change=\"newTag = $event.target.value\"\
+    >\n              <option value=\"\" selected>New</option>\n              <option\
+    \ v-for=\"t in $projects.allTags\" :key=\"t\" :value=\"t\">{{t}}</option>\n  \
+    \          </select>\n            <input type=\"text\" class=\"input input-sm\
+    \ input-bordered\" v-model=\"newTag\" />\n            <div class=\"flex gap-2\
+    \ justify-end\">\n              <button class=\"btn btn-error\" @click=\"newTag\
+    \ = null\">\n                Cancel\n              </button>\n              <button\
+    \ class=\"btn\" @click=\"addNewTag\" :disabled=\"newTag.length === 0\">\n    \
+    \            Add\n              </button>\n            </div>\n          </div>\n\
+    \        </modal>\n        <modal v-if=\"showSubtaskModal\">\n          <div class=\"\
+    flex flex-col gap-4 p-4\">\n            <h3 class=\"font-bold text-lg\">Create\
+    \ New Subtask</h3>\n            <input v-model=\"subtaskName\" type=\"text\" class=\"\
+    input input-bordered\" placeholder=\"Subtask Name\" />\n            \n       \
+    \     <!-- Dropdown for selecting subTaskMode -->\n            <div class=\"form-control\"\
+    >\n              <label class=\"label\">\n                <span class=\"label-text\"\
+    >Select Subtask Mode</span>\n              </label>\n              <select class=\"\
+    select select-bordered\" v-model=\"subtaskMode\">\n                <option value=\"\
+    task\" selected>Task</option>\n                <option value=\"chat\">Chat</option>\n\
+    \                <option value=\"topic\">Topic</option>\n                <option\
+    \ value=\"prview\">PR View</option>\n                <option value=\"browser\"\
+    >Browser</option>\n              </select>\n            </div>\n\n           \
+    \ <textarea v-model=\"subtaskDescription\" class=\"textarea textarea-bordered\"\
+    \ placeholder=\"Short Description (optional)\" rows=\"3\"></textarea>\n      \
+    \      \n            <ProjectDetailt \n              :project=\"$projects.allProjectsById[subtaskProject\
+    \ || chat.project_id || chatProject?.project_id]\" \n              :options=\"\
+    { showFolders: false, showIcon: true, showSelector: true }\"\n              @select=\"\
+    subtaskProject = $event.project_id\"  \n            />\n            <div class=\"\
+    flex\" v-for=\"profile in subtaskProfiles\" :key=\"profile.name\">\n         \
+    \     <div class=\"badge\">{{ profile.name }}</div>\n            </div>\n    \
+    \        <div class=\"flex gap-2 justify-end\">\n              <button class=\"\
+    btn btn-error\" @click=\"cancelSubtask\">Cancel</button>\n              <button\
+    \ class=\"btn btn-primary\" @click=\"createSubtask\">Create</button>\n       \
+    \     </div>\n          </div>\n        </modal>\n        <modal v-if=\"showSubtasksModal\"\
+    >\n          <div class=\"flex flex-col gap-4 p-4\">\n            <h3 class=\"\
+    font-bold text-2xl\">Split into tasks</h3>\n            <div class=\"tex-xl\"\
+    >Instructions:</div>\n            <textarea v-model=\"createTasksInstructions\"\
+    \ class=\"textarea textarea-bordered\" placeholder=\"Short Description (optional)\"\
+    \ rows=\"3\"></textarea>\n            <div class=\"flex gap-2 justify-end\">\n\
+    \              <button class=\"btn btn-error\" @click=\"showSubtasksModal = false\"\
+    >Cancel</button>\n              <button class=\"btn btn-primary\" @click=\"createSubTasks\"\
+    >Create</button>\n            </div>\n          </div>\n        </modal>\n   \
+    \     <modal v-if=\"showTaskSettings\">\n          <TaskSettings :taskData=\"\
+    workingChat\" @close=\"showTaskSettings = false\" />\n        </modal>\n     \
+    \   <modal close=\"true\" @close=\"showExportChat = false\" v-if=\"showExportChat\"\
+    >\n          <ExportChat :chat=\"workingChat\" @close=\"showExportChat = false\"\
+    \ />\n        </modal>\n      </div>\n      <modal close=\"true\" @close=\"showChatSelector\
+    \ = false\" v-if=\"showChatSelector\">\n        <ChatSelector />\n      </modal>\n\
+    \      <add-file-dialog v-if=\"addNewFile\" @open=\"onAddFile\" @close=\"addNewFile\
+    \ = false\" />\n    </div>\n  </div>\n</template>\n\n<script>\nexport default\
+    \ {\n  props: ['chatMode', 'chat', 'kanban'],\n  data() {\n    return {\n    \
+    \  showFile: null,\n      addFile: null,\n      showChatsTree: false,\n      editName:\
+    \ false,\n      addNewFile: null,\n      showHidden: false,\n      confirmDelete:\
+    \ false,\n      newTag: null,\n      showSubtaskModal: false,\n      showSubtasksModal:\
+    \ false,\n      showTaskSettings: false,\n      subtaskProfiles: [],\n      subtaskName:\
+    \ '',\n      subtaskDescription: '',\n      subtaskMode: 'task', // Default mode\n\
+    \      subtaskFiles: [],\n      subtaskProject: null,\n      subtaskParentId:\
+    \ null,\n      subtaskMessageId: null,\n      showAddProfile: false,\n      createTasksInstructions:\
+    \ '',\n      chatProfiles: [],\n      showDescription: false,\n      projectContext:\
+    \ null,\n      showChatSelector: false,\n      showChatMenu: false,\n      showChildChat:\
+    \ null,\n      showExportChat: false,\n      dropOver: null\n    }\n  },\n  created()\
+    \ {\n    this.init()\n  },\n  async mounted() {\n    this.showChatMenu = !this.$ui.isMobile\n\
+    \    this.chatProfiles = await this.$storex.api.project(this.taskProject)\n  \
+    \    .then(p => p.profiles.list())\n      .then(profiles => profiles.filter(p\
+    \ => this.chat.profiles.includes(p.name)))\n    if (this.isPRView) {\n      await\
+    \ this.$projects.loadBranches()\n    }\n  },\n  computed: {\n    branches() {\n\
+    \      return this.$projects.project_branches || []\n    },\n    isPRView() {\n\
+    \      return this.workingChat.mode === 'prview'\n    },\n    taskAIModel() {\n\
+    \      return this.aiModels.find(m => m.name === this.chat.llm_model)\n    },\n\
+    \    aiModels() {\n      return this.$projects.ai.models\n    },\n    showTaskProjectName()\
+    \ {\n      return this.taskProject && this.taskProject.project_id != this.$project.project_id\
+    \ \n    },\n    taskProject() {\n      return this.$projects.allProjects.find(p\
+    \ => p.project_id === this.chat.project_id) ||\n        this.$project\n    },\n\
+    \    chatUsers() {\n      return this.$storex.api.userNetwork.filter(({ username\
+    \ }) => this.chat.users?.includes(username))\n    },\n    chatModes() {\n    \
+    \  return this.$projects.chatModes\n    },\n    subProjects() {\n      return\
+    \ [\n        this.$project,\n        ...this.$projects.childProjects || [],\n\
+    \        ...this.$projects.projectDependencies || []\n      ]\n    },\n    hiddenCount()\
+    \ {\n      return this.workingChat.messages?.filter(m => m.hide).length\n    },\n\
+    \    messageCount() {\n      return this.workingChat.messages?.length\n    },\n\
+    \    messages() {\n      return this.chat.messages.filter(m => !m.hide || this.showHidden)\n\
+    \    },\n    formattedChatUpdatedDate() {\n      const updatedAt = this.chat.updated_at\n\
+    \      return moment(updatedAt).isAfter(moment().subtract(7, 'days'))\n      \
+    \  ? moment(updatedAt).fromNow()\n        : moment(updatedAt).format('YYYY-MM-DD')\n\
+    \    },\n    chats() {\n      return this.$projects.allChats\n    },\n    childrenChats()\
+    \ {\n      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id\
+    \ && !c.message_id)\n        .sort((a, b) => a.name > b.name ? 1 : -1)\n    },\n\
+    \    chatProject() {\n      return this.$projects.allProjectsById[this.chat.project_id]\
+    \ ||\n        this.$project\n    },\n    parentChat() {\n      return this.$projects.allChats.find(c\
+    \ => c.id === this.chat?.parent_id)\n    },\n    chatFiles() {\n      return this.workingChat.file_list\
+    \ || []\n    },\n    taskProjects() {\n      return [this.$project, ...this.$projects.childProjects]\n\
+    \    },\n    images() {\n      return (this.workingChat.messages ||[]).map(m =>\
+    \ m.images || [])\n                .reduce((a, b) => a.concat(b), [])\n      \
+    \          .map(i => {\n                  try {\n                    return i\
+    \ ? JSON.parse(i) : null\n                  } catch {}\n                  return\
+    \ null\n                })\n                .filter(i => !!i)\n    },\n    workingChat()\
+    \ {\n      return this.$projects.chats[this.showChildChat?.id || this.chat.id]\n\
+    \    },\n    computedChatName() {\n      if (this.chat.message_id) {\n       \
+    \ return 'Thread'\n      }\n      return this.chat.name\n    },\n    computedChatDescription()\
+    \ {\n      if (this.chat.message_id) {\n        const message = this.$storex.projects.allChats\n\
+    \          .find(c => c.id === this.chat.parent_id)\n          ?.messages.find(m\
+    \ => m.doc_id === this.chat.message_id)\n        return message?.content || '--\
+    \ no description yet --'\n      }\n      return this.chat.description\n    }\n\
+    \  },\n  watch: {\n    chat(newVal, oldVal) {\n      if (oldVal && \n        \
+    \  newVal && \n          oldVal.project_id !== newVal.project_id) {\n        this.init()\n\
+    \      }\n    }\n  },\n  methods: {\n    async init() {\n      this.setProjectContext()\n\
+    \      await Promise.all(\n        this.childrenChats.map(chat => this.$projects.loadChat(chat))\n\
+    \      )\n    },\n    async setProjectContext() {\n      this.projectContext =\
+    \ await this.$service.project.loadProjectContext(this.$project)\n    },\n    async\
+    \ saveChat(chat) {\n      this.editName = false\n      await this.$projects.saveChat(chat\
+    \ || this.workingChat)\n    },\n    async confirmDeleteChat() {\n      this.confirmDelete\
+    \ = false\n      await this.$projects.deleteChat(this.chat)\n      const parentChat\
+    \ = this.parentChat\n      if (parentChat) {\n        this.$projects.setActiveChat(parentChat)\n\
+    \      } else {\n        this.navigateToChats()\n      }\n    },\n    resetConfirmDelete()\
+    \ {\n      this.confirmDelete = false\n    },\n    async loadChat(chat) {\n  \
+    \    await this.$projects.setActiveChat(chat)\n      this.showChatsTree = false\n\
+    \    },\n    async removeFileFromContext() {\n      this.chat.profiles = this.chat.profiles?.filter(f\
+    \ => f !== this.showFile)\n      this.onRemoveFile(this.showFile)\n      await\
+    \ this.loadChat(this.chat)\n      this.showFile = null\n    },\n    async addFileToContext()\
+    \ {\n      this.onAddFile(this.addFile)\n      await this.saveChat()\n      await\
+    \ this.loadChat(this.chat)\n      this.showFile = null\n      this.addFile = null\n\
+    \    },\n    async onAddFile(file) {\n      if (this.chat.file_list?.includes(file))\
+    \ {\n        return\n      }\n      this.chat.file_list = [...(this.chat.file_list\
+    \ || []), file]\n      this.addNewFile = null\n      await this.saveChat()\n \
+    \   },\n    async onRemoveFile(file) {\n      this.workingChat.file_list = (this.workingChat.file_list\
+    \ || []).filter(f => f !== file)\n      this.addNewFile = null\n      await this.saveChat()\n\
+    \    },\n    async addProfile(profile) {\n      if (!this.chat.profiles?.includes(profile))\
+    \ {\n        this.chat.profiles = [...this.chat.profiles || [], profile]\n   \
+    \     await this.saveChat()\n      }\n      this.showAddProfile = false\n    },\n\
+    \    async addUserToChat(user) {\n      if (!this.chat.users?.includes(user.username))\
+    \ {\n        this.chat.users = [...this.chat.users || [], user.username]\n   \
+    \     await this.saveChat()\n      }\n      this.showAddProfile = false\n    },\n\
+    \    async removeUser(user) {\n      if (this.chat.users?.includes(user.username))\
+    \ {\n        this.chat.users = this.chat.users.filter(u => u !== user.username)\n\
+    \        await this.saveChat()\n      }\n    },\n    removeProfile(profile) {\n\
+    \      if (this.chat.profiles?.includes(profile.name)) {\n        this.chat.profiles\
+    \ = this.chat.profiles.filter(p => p !== profile.name)\n        this.saveChat()\n\
+    \      }\n    },\n    onRemoveMessage(message) {\n      const ix = this.chat.messages.findIndex(m\
+    \ => m.doc_id === message.doc_id)\n      if (this.chat.mode == 'task' && message.role\
+    \ === \"assistant\" && ix > 1) {\n        this.chat.messages[ix - 1].hide = false\n\
+    \      }\n      this.chat.messages = this.chat.messages.filter((_, i) => i !==\
+    \ ix)\n      this.saveChat()\n    },\n    navigateToChats() {\n      if (this.$ui.activeTab\
+    \ !== 'tasks') {\n        this.$ui.setActiveTab('tasks')\n      }\n      this.$emit('chats',\
+    \ this.kanban?.title || this.chat.board)\n    },\n    newSubChat(message) {\n\
+    \      this.subtaskProject = this.chat.project_id\n      this.subtaskParentId\
+    \ = null\n      this.subtaskMessageId = null\n      this.showSubtaskModal = true\n\
+    \n      this.subtaskName = null\n      this.subtaskDescription = null\n      this.subtaskProject\
+    \ = null\n      this.subtaskParentId = this.chat.id\n      this.subtaskMessageId\
+    \ = message?.doc_id\n      this.subtaskFiles = []\n      this.subtaskProfiles\
+    \ = []\n      this.subtaskMode = this.chat.mode\n      this.subtaskColumn = this.chat.column\n\
+    \    },\n    async onNewMessageSubtask({ chat, mode, message: { column, files,\
+    \ profiles, doc_id: subtaskMessageId }}) {\n      const findChild = () => this.$projects.allChats.find(c\
+    \ => c.message_id === subtaskMessageId) \n      if (!findChild()) {\n        await\
+    \ this.$emit('sub-task', {\n          parent: chat,\n          name: `${subtaskMessageId}\
+    \ - thread`,\n          project_id: chat.project_id,\n          parent_id: chat.parent_id,\n\
+    \          message_id: subtaskMessageId,\n          file_list: files,\n      \
+    \    profiles: profiles,\n          mode,\n          column,\n          activateChat:\
+    \ true,\n          child_index: this.childrenChats?.length\n        })\n     \
+    \ }\n      this.$projects.setActiveChat(findChild())\n    },\n    getSubTaskParentSummary()\
+    \ {\n      let { messages } = this\n      if (!messages.length) {\n        return\
+    \ \"\"\n      }\n      if (this.chat.mode === 'task') {\n        messages = messages.reverse()\n\
+    \        const lastAI = messages.find(m => m.role === 'assistant')\n        if\
+    \ (lastAI) {\n          return lastAI.content\n        }\n      }\n      return\
+    \ messages.reduce((acc, m) => acc + \"\\n\" + m.content, \"\")\n    },\n    createSubtask()\
+    \ {\n      if (!this.subtaskName.trim()) {\n        return\n      }\n      if\
+    \ (this.subtaskDescription) {\n        const parentContent = this.getSubTaskParentSummary()\n\
+    \        this.subtaskDescription = `${parentContent}\\n\\n${this.subtaskDescription}`\n\
+    \      }\n      this.$emit('sub-task', {\n        parent: this.chat,\n       \
+    \ name: this.subtaskName,\n        description: this.subtaskDescription,\n   \
+    \     project_id: this.subtaskProject,\n        parent_id: this.subtaskParentId,\n\
+    \        message_id: this.subtaskMessageId,\n        file_list: this.subtaskFiles,\n\
+    \        profiles: this.subtaskProfiles,\n        mode: this.subtaskMode,\n  \
+    \      column: this.subtaskColumn,\n        activateChat: this.chat.mode !== 'task',\n\
+    \        child_index: this.childrenChats?.length\n      })\n      this.resetSubtaskModal()\n\
+    \    },\n    cancelSubtask() {\n      this.resetSubtaskModal()\n    },\n    resetSubtaskModal()\
+    \ {\n      this.showSubtaskModal = false\n      this.subtaskName = ''\n      this.subtaskDescription\
+    \ = ''\n      this.subtaskMode = 'chat'\n      this.subtaskFiles = []\n      this.subtaskProfiles\
+    \ = []\n      this.subtaskColumn = ''\n    },\n    addNewTag() {\n      this.chat.tags\
+    \ = [...new Set([...this.chat.tags || [], this.newTag])]\n      this.newTag =\
+    \ null\n      this.saveChat()\n    },\n    removeTag(tag) {\n      this.chat.tags\
+    \ = this.chat.tags.filter(t => t !== tag)\n      this.saveChat()\n    },\n   \
+    \ setChatMode(mode) {\n      this.workingChat.mode = mode\n      this.saveChat()\n\
+    \    },\n    async createSubTasks() {\n      if (this.showSubtasksModal) {\n \
+    \       this.$emit('sub-tasks', { chat: this.chat, instructions: this.createTasksInstructions\
+    \ })\n        this.showSubtasksModal = false\n      } else {\n        this.showSubtasksModal\
+    \ = true\n        this.createTasksInstructions = \"\"\n      }\n    },\n    navigateToParent(parentChat)\
+    \ {\n      if (parentChat) {\n        this.$emit('chat', parentChat)\n      }\
+    \ else {\n        this.navigateToChats()\n      }\n    },\n    async openChatSearchModal()\
+    \ {\n      // Open a modal for linking chat\n    },\n    async onAddProfile()\
+    \ {\n      this.showAddProfile = true\n    },\n    toggleChatPinned() {\n    \
+    \  this.chat.pinned = !this.chat.pinned\n      this.saveChat()  \n    },\n   \
+    \ selectChildChat(childChat) {\n      this.showChildChat = childChat\n      if\
+    \ (!childChat.messages?.length) {\n        this.$projects.loadChat(childChat)\n\
+    \      }\n    },\n    onChatNameClick() {\n      if (this.showChildChat) {\n \
+    \       this.selectChildChat(null)\n      } else {\n        this.editName = true\n\
+    \      }\n    },\n    onChildMenuDragStart($event, childChat) {\n      console.log(\"\
+    Menu drag start\", $event)\n      $event.dataTransfer.setData(\"chatId\", childChat.id)\n\
+    \    },\n    onTaskDragover($event, childChat) {\n      const id = $event.dataTransfer.getData(\"\
+    chatId\")\n      if (id === childChat.id) {\n        this.dropOver = null\n  \
+    \      return\n      }\n      this.dropOver = childChat\n      console.log(\"\
+    Menu drag over\", this.dropOver.name)\n      $event.preventDefault();\n      $event.target.scrollIntoView({\
+    \ block: 'center', behavior: 'smooth' })\n    },\n    onTaskDropped($event, childChat)\
+    \ {\n      const id = $event.dataTransfer.getData(\"chatId\")\n      if (id ===\
+    \ childChat.id) {\n        return\n      }\n      return\n      const dropChat\
+    \ = this.childrenChats.find(c => c.id === id)\n      dropChat.parent_id = childChat.id\n\
+    \      this.dropOver = null\n      this.saveChat(dropChat)\n    }\n  }\n}\n</script>\n\
+    ```"
+  created_at: '2025-11-23 09:14:38.478193'
+  disable_knowledge: false
+  doc_id: 028aa6dd-1efc-464e-87ac-e0561a412068
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 7.581710815429688e-05
+    model: openai/gpt-4o
+    time_taken: 37.150572299957275
+  profiles:
+  - daisyui_components
+  - VueDeveloper
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-11-23 09:14:38.478218'
+  user: null
+mode: chat
+name: changes-at-views-chatview-vue-2025-11-23-09-23-30-611705
+parent_id: null
+parent_project_id: null
+pinned: false
+pr_view: {}
+profiles:
+- VueDeveloper
+- Vue files
+- daisyui_components
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+target_project_id: null
+updated_at: '2025-11-23T09:24:09.768256'
+url: ''
+users: []
+visibility: ''

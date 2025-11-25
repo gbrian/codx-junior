@@ -1,0 +1,336 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-11-05 17:57:52.493409'
+description: The task involves modifying the `TaskSettings.vue` file in a Vue.js project,
+  adhering to specific guidelines. The user asked to add a selector for changing the
+  `parent_id` of a chat, allowing null values and ordering chats from the same board
+  first. The project uses DaisyUI and TailwindCSS for styling, and components should
+  follow a specific structure with imports only in the `script setup` section. FontAwesome
+  should be used for icons, and the final version of the file should incorporate all
+  these instructions without losing any details.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-kanban-tasksettings-vue-2025-11-06-16-33-43-371505.a5eb9432-6fd1-4afc-931f-f255ab2d81d0.yaml
+id: a5eb9432-6fd1-4afc-931f-f255ab2d81d0
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "\n                    ```document /shared/codx-junior/client/src/components/kanban/TaskSettings.vue\n\
+    \                    <script setup>\nimport ProfileSelector from '../profile/ProfileSelector.vue'\n\
+    </script>\n\n<template>\n  <div class=\"flex flex-col gap-2\">\n    <h3 class=\"\
+    font-bold text-lg\">Task Settings</h3>\n    <div class=\"py-4\">\n      <label\
+    \ class=\"block\">\n        <span>Task Name</span>\n        <input type=\"text\"\
+    \ class=\"input input-bordered w-full\" v-model=\"taskData.name\"/>\n      </label>\n\
+    \      <label class=\"block mt-4\">\n        <span>Associated project</span>\n\
+    \        <select class=\"input input-bordered w-full\" v-model=\"taskData.project_id\"\
+    >\n          <option :value=\"null\">{{ $project.project_name }}</option>\n  \
+    \        <option v-for=\"project in projects\" :key=\"project.project_id\" :value=\"\
+    project.project_id\">{{ project.project_name }}</option>\n        </select>\n\
+    \      </label>\n      @codx-ok, please-wait...: add a selector to change the\
+    \ parent_id chat. Allow null. Use allChats. Order allChats to show first the chats\
+    \ from same board\n      <label class=\"block mt-4\">\n        <span>Board</span>\n\
+    \        <select class=\"input input-bordered w-full\" v-model=\"taskData.board\"\
+    >\n          <option v-for=\"_, board in boards\" :key=\"board\" :value=\"board\"\
+    >{{ board }}</option>\n        </select>\n      </label>\n      <label class=\"\
+    block mt-4\">\n        <span>Column</span>\n        <select class=\"input input-bordered\
+    \ w-full\" v-model=\"taskData.column\">\n          <option v-for=\"column in columns\"\
+    \ :key=\"column.title\" :value=\"column.title\">{{ column.title }}</option>\n\
+    \        </select>\n      </label>\n      <label class=\"block mt-4\">\n     \
+    \   <span>Mode</span>\n        <select class=\"input input-bordered w-full\" v-model=\"\
+    taskData.mode\">\n          <option v-for=\"mode in ['chat', 'task']\" :key=\"\
+    mode\" :value=\"mode\">{{ mode }}</option>\n        </select>\n      </label>\n\
+    \      <label class=\"block mt-4\">\n        <span>Profiles</span>\n        <button\
+    \ class=\"btn btn-sm\" @click=\"showProfileSelector = true\">\n          <i class=\"\
+    fa-solid fa-plus\"></i>\n        </button>\n        <div class=\"flex gap-2\"\
+    >\n          <div class=\"badge badge-sm badge-primary\" v-for=\"profile in taskData.profiles\"\
+    \ :key=\"profile\">{{ profile }}</div>\n        </div>\n      </label>\n     \
+    \ <label class=\"block mt-4\">\n        <span>AI Model</span>\n        <select\
+    \ class=\"input input-bordered w-full\" v-model=\"taskData.llm_model\">\n    \
+    \      <option value=\"\">-- default --</option>\n          <option v-for=\"model\
+    \ in aiModels\" :key=\"model.name\" :value=\"model.name\">\n            {{ model.name\
+    \ }} <span v-if=\"model.ai_model\"> ({{ model.ai_model }})</span>\n          </option>\n\
+    \        </select>\n      </label>\n    </div>\n    <div class=\"modal-action\"\
+    >\n      <button class=\"btn btn-ghost\" @click=\"$emit('close')\">Discard</button>\n\
+    \      <button class=\"btn btn-primary\" :class=\"!canSaveColumn && 'disabled'\"\
+    \ :disabled=\"!canSaveColumn\" @click=\"saveChanges\">Save</button>\n    </div>\n\
+    \    <div tabindex=\"0\" class=\"collapse\">\n      <input type=\"checkbox\" />\n\
+    \      <div class=\"collapse-title font-semibold text-error\">Delete</div>\n \
+    \     <div class=\"collapse-content text-sm\">\n        <button class=\"mt-2 btn\
+    \ btn-error btn-wide\" @click.stop=\"deleteTask\">Confirm delete</button>\n  \
+    \    </div>\n    </div>\n    <modal close=\"true\" @close=\"showProfileSelector\
+    \ = false\" v-if=\"showProfileSelector\">\n      <ProfileSelector @select=\"addProfile($event)\"\
+    \ :project=\"taskProject\" />\n    </modal>\n  </div>\n</template>\n\n<script>\n\
+    export default {\n  props: ['taskData'],\n  data() {\n    return {\n      showProfileSelector:\
+    \ false\n    }\n  },\n  computed: {\n    taskAIModel() {\n      return this.aiModels.find(m\
+    \ => m.name === this.taskData.llm_model)\n    },\n    aiModels() {\n      return\
+    \ this.$projects.ai.models\n    },\n    boards() {\n      return this.$projects.kanban.boards\n\
+    \    },\n    columns() {\n      return this.$projects.kanban.boards[this.taskData.board]?.columns\n\
+    \    },\n    canSaveColumn() {\n      return this.taskData.name?.length &&\n \
+    \             this.taskData.board?.length &&\n              this.taskData.column?.length\n\
+    \    },\n    projects() {\n      return this.$projects.allProjects\n        .sort((a,\
+    \ b) => a.project_name.toLowerCase() > b.project_name.toLowerCase() ? 1: -1)\n\
+    \    },\n    taskProject() {\n      if (this.taskData.project_id) {\n        return\
+    \ this.projects.find(p => p.project_id === this.taskData.project_id)\n      }\n\
+    \      return this.$project\n    },\n    allChats() {\n      return this.$projects.allChats\n\
+    \    }\n  },\n  watch: {\n    taskData() {\n      if (!this.columns.find(c =>\
+    \ c.title === this.taskData.column)) {\n        this.taskData.column = ''\n  \
+    \    }\n    } \n  },\n  methods: {\n    saveChanges() {\n      this.$projects.saveChatInfo(this.taskData)\n\
+    \      this.$emit('close')\n    },\n    deleteTask() {\n      this.$projects.deleteChat(this.taskData)\n\
+    \      this.$emit('close')\n    },\n    addProfile(profile) {\n      if (!this.taskData.profiles.includes(profile.name))\
+    \ {\n        this.taskData.profiles.push(profile.name)\n      }\n      this.showProfileSelector\
+    \ = false\n    }\n  }\n}\n</script>\n                    ```\n\n             \
+    \       Apply these changes to /shared/codx-junior/client/src/components/kanban/TaskSettings.vue:\n\
+    \                    User commented in line 19: add a selector to change the parent_id\
+    \ chat. Allow null. Use allChats. Order allChats to show first the chats from\
+    \ same board\n                    \n                    Instructions:\n      \
+    \                Best practices for this file:\n            Project uses DaisyUI\
+    \ for components, use them instead basic HTML elements\nAll components must have\
+    \ same structure: \"setup\", \"template\", \"script\".\nVue Component Example:\n\
+    ```vue file/path/to/Component.vue\n<script setup>\nimport Component from './component.vue'\n\
+    import markdown from 'mardown'\n</script>\n<template>\n<div class=\"w.full h-full\
+    \ flex gap-2\">\n</div>\n</template>\n<script>\nexport default {\nprops: [].\n\
+    data (){\n// Reactive data, don't use \"ref\"\n return { myVariable: null }\n\
+    },\ncomputed: {},\nwatch: {},\nmethods: {}\n}\n</sctipt>\n```\nImportant:\n* No\
+    \ css, use TailwindCSS clases\n* No need to import ref, computed or mapState \n\
+    * export default component object\n* Use component \"data\" method to return an\
+    \ object variables\n* Use component \"computed\" to define computed properties\n\
+    \" Use component \"methods\" to define component methods \n* Use \"this.$storex\"\
+    \ or \"$storex\" to access store data.\n* To access vue store data use \"$storex\"\
+    \n* \"script setup\" section contains ONLY imports, no variables, properties bnor\
+    \ methods\n* Vue component definition will be exporting a default object like,\
+    \ without ref, nor computed imports\n* Don't use \";\" in the javascript or typescript\
+    \ code\n* Avoid long functions\n* Add short and concise comments for complex functions\n\
+    Make sure all vue components follow this structure:\n```vue\n<script setup><!--\
+    \ Import all components and libraries on the top -->\n</script>\n<template><!--\
+    \ Component markup -->\n<div></div>\n</template>\n<script><!-- Component logic\
+    \ -->\nexport default {\n}\n</script>\n```\n\nUse fontawesome for icons like:\
+    \ <i class=\"fa-solid fa-right-from-bracket\"></i>\n            \n           \
+    \           Apply all comments to the document and return a final version.\n \
+    \                     Pay attention to do not loose any detail or part of the\
+    \ document.\n                      Return only the file content \n           \
+    \         "
+  created_at: '2025-11-05 17:57:52.491216'
+  disable_knowledge: false
+  doc_id: 7aced1a3-2672-4161-8e63-839ad60c00fb
+  done: true
+  files:
+  - /shared/codx-junior/client/src/components/kanban/TaskSettings.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  - VueDeveloper
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-05 17:57:52.491239'
+  user: null
+- content: "```vue /shared/codx-junior/client/src/components/kanban/TaskSettings.vue\n\
+    \        <script setup>\nimport ProfileSelector from '../profile/ProfileSelector.vue'\n\
+    </script>\n\n<template>\n  <div class=\"flex flex-col gap-2\">\n    <h3 class=\"\
+    font-bold text-lg\">Task Settings</h3>\n    <div class=\"py-4\">\n      <label\
+    \ class=\"block\">\n        <span>Task Name</span>\n        <input type=\"text\"\
+    \ class=\"input input-bordered w-full\" v-model=\"taskData.name\"/>\n      </label>\n\
+    \      <label class=\"block mt-4\">\n        <span>Associated project</span>\n\
+    \        <select class=\"input input-bordered w-full\" v-model=\"taskData.project_id\"\
+    >\n          <option :value=\"null\">{{ $project.project_name }}</option>\n  \
+    \        <option v-for=\"project in projects\" :key=\"project.project_id\" :value=\"\
+    project.project_id\">{{ project.project_name }}</option>\n        </select>\n\
+    \      </label>\n      @codx-ok, please-wait...: add a selector to change the\
+    \ parent_id chat. Allow null. Use allChats. Order allChats to show first the chats\
+    \ from same board\n      <label class=\"block mt-4\">\n        <span>Board</span>\n\
+    \        <select class=\"input input-bordered w-full\" v-model=\"taskData.board\"\
+    >\n          <option v-for=\"_, board in boards\" :key=\"board\" :value=\"board\"\
+    >{{ board }}</option>\n        </select>\n      </label>\n      <label class=\"\
+    block mt-4\">\n        <span>Column</span>\n        <select class=\"input input-bordered\
+    \ w-full\" v-model=\"taskData.column\">\n          <option v-for=\"column in columns\"\
+    \ :key=\"column.title\" :value=\"column.title\">{{ column.title }}</option>\n\
+    \        </select>\n      </label>\n      <label class=\"block mt-4\">\n     \
+    \   <span>Mode</span>\n        <select class=\"input input-bordered w-full\" v-model=\"\
+    taskData.mode\">\n          <option v-for=\"mode in ['chat', 'task']\" :key=\"\
+    mode\" :value=\"mode\">{{ mode }}</option>\n        </select>\n      </label>\n\
+    \      <label class=\"block mt-4\">\n        <span>Profiles</span>\n        <button\
+    \ class=\"btn btn-sm\" @click=\"showProfileSelector = true\">\n          <i class=\"\
+    fa-solid fa-plus\"></i>\n        </button>\n        <div class=\"flex gap-2\"\
+    >\n          <div class=\"badge badge-sm badge-primary\" v-for=\"profile in taskData.profiles\"\
+    \ :key=\"profile\">{{ profile }}</div>\n        </div>\n      </label>\n     \
+    \ <label class=\"block mt-4\">\n        <span>AI Model</span>\n        <select\
+    \ class=\"input input-bordered w-full\" v-model=\"taskData.llm_model\">\n    \
+    \      <option value=\"\">-- default --</option>\n          <option v-for=\"model\
+    \ in aiModels\" :key=\"model.name\" :value=\"model.name\">\n            {{ model.name\
+    \ }} <span v-if=\"model.ai_model\"> ({{ model.ai_model }})</span>\n          </option>\n\
+    \        </select>\n      </label>\n    </div>\n    <div class=\"modal-action\"\
+    >\n      <button class=\"btn btn-ghost\" @click=\"$emit('close')\">Discard</button>\n\
+    \      <button class=\"btn btn-primary\" :class=\"!canSaveColumn && 'disabled'\"\
+    \ :disabled=\"!canSaveColumn\" @click=\"saveChanges\">Save</button>\n    </div>\n\
+    \    <div tabindex=\"0\" class=\"collapse\">\n      <input type=\"checkbox\" />\n\
+    \      <div class=\"collapse-title font-semibold text-error\">Delete</div>\n \
+    \     <div class=\"collapse-content text-sm\">\n        <button class=\"mt-2 btn\
+    \ btn-error btn-wide\" @click.stop=\"deleteTask\">Confirm delete</button>\n  \
+    \    </div>\n    </div>\n    <modal close=\"true\" @close=\"showProfileSelector\
+    \ = false\" v-if=\"showProfileSelector\">\n      <ProfileSelector @select=\"addProfile($event)\"\
+    \ :project=\"taskProject\" />\n    </modal>\n  </div>\n</template>\n\n<script>\n\
+    export default {\n  props: ['taskData'],\n  data() {\n    return {\n      showProfileSelector:\
+    \ false\n    }\n  },\n  computed: {\n    taskAIModel() {\n      return this.aiModels.find(m\
+    \ => m.name === this.taskData.llm_model)\n    },\n    aiModels() {\n      return\
+    \ this.$projects.ai.models\n    },\n    boards() {\n      return this.$projects.kanban.boards\n\
+    \    },\n    columns() {\n      return this.$projects.kanban.boards[this.taskData.board]?.columns\n\
+    \    },\n    canSaveColumn() {\n      return this.taskData.name?.length &&\n \
+    \             this.taskData.board?.length &&\n              this.taskData.column?.length\n\
+    \    },\n    projects() {\n      return this.$projects.allProjects\n        .sort((a,\
+    \ b) => a.project_name.toLowerCase() > b.project_name.toLowerCase() ? 1: -1)\n\
+    \    },\n    taskProject() {\n      if (this.taskData.project_id) {\n        return\
+    \ this.projects.find(p => p.project_id === this.taskData.project_id)\n      }\n\
+    \      return this.$project\n    },\n    allChats() {\n      return this.$projects.allChats\n\
+    \    }\n  },\n  watch: {\n    taskData() {\n      if (!this.columns.find(c =>\
+    \ c.title === this.taskData.column)) {\n        this.taskData.column = ''\n  \
+    \    }\n    } \n  },\n  methods: {\n    saveChanges() {\n      this.$projects.saveChatInfo(this.taskData)\n\
+    \      this.$emit('close')\n    },\n    deleteTask() {\n      this.$projects.deleteChat(this.taskData)\n\
+    \      this.$emit('close')\n    },\n    addProfile(profile) {\n      if (!this.taskData.profiles.includes(profile.name))\
+    \ {\n        this.taskData.profiles.push(profile.name)\n      }\n      this.showProfileSelector\
+    \ = false\n    }\n  }\n}\n</script>\n        ```\n        "
+  created_at: '2025-11-05 17:57:52.491216'
+  disable_knowledge: false
+  doc_id: bb4d7c0a-3d26-45fa-9867-0c817fea2d29
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: ai
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-05 17:57:52.491239'
+  user: null
+- content: "```vue /shared/codx-junior/client/src/components/kanban/TaskSettings.vue\n\
+    <script setup>\nimport ProfileSelector from '../profile/ProfileSelector.vue'\n\
+    </script>\n\n<template>\n  <div class=\"flex flex-col gap-2\">\n    <h3 class=\"\
+    font-bold text-lg\">Task Settings</h3>\n    <div class=\"py-4\">\n      <label\
+    \ class=\"block\">\n        <span>Task Name</span>\n        <input type=\"text\"\
+    \ class=\"input input-bordered w-full\" v-model=\"taskData.name\"/>\n      </label>\n\
+    \      <label class=\"block mt-4\">\n        <span>Associated project</span>\n\
+    \        <select class=\"input input-bordered w-full\" v-model=\"taskData.project_id\"\
+    >\n          <option :value=\"null\">{{ $project.project_name }}</option>\n  \
+    \        <option v-for=\"project in projects\" :key=\"project.project_id\" :value=\"\
+    project.project_id\">{{ project.project_name }}</option>\n        </select>\n\
+    \      </label>\n      <label class=\"block mt-4\">\n        <span>Parent Chat</span>\n\
+    \        <select class=\"input input-bordered w-full\" v-model=\"taskData.parent_id\"\
+    >\n          <option :value=\"null\">None</option>\n          <option v-for=\"\
+    chat in orderedChats\" :key=\"chat.id\" :value=\"chat.id\">{{ chat.name }}</option>\n\
+    \        </select>\n      </label>\n      <label class=\"block mt-4\">\n     \
+    \   <span>Board</span>\n        <select class=\"input input-bordered w-full\"\
+    \ v-model=\"taskData.board\">\n          <option v-for=\"_, board in boards\"\
+    \ :key=\"board\" :value=\"board\">{{ board }}</option>\n        </select>\n  \
+    \    </label>\n      <label class=\"block mt-4\">\n        <span>Column</span>\n\
+    \        <select class=\"input input-bordered w-full\" v-model=\"taskData.column\"\
+    >\n          <option v-for=\"column in columns\" :key=\"column.title\" :value=\"\
+    column.title\">{{ column.title }}</option>\n        </select>\n      </label>\n\
+    \      <label class=\"block mt-4\">\n        <span>Mode</span>\n        <select\
+    \ class=\"input input-bordered w-full\" v-model=\"taskData.mode\">\n         \
+    \ <option v-for=\"mode in ['chat', 'task']\" :key=\"mode\" :value=\"mode\">{{\
+    \ mode }}</option>\n        </select>\n      </label>\n      <label class=\"block\
+    \ mt-4\">\n        <span>Profiles</span>\n        <button class=\"btn btn-sm\"\
+    \ @click=\"showProfileSelector = true\">\n          <i class=\"fa-solid fa-plus\"\
+    ></i>\n        </button>\n        <div class=\"flex gap-2\">\n          <div class=\"\
+    badge badge-sm badge-primary\" v-for=\"profile in taskData.profiles\" :key=\"\
+    profile\">{{ profile }}</div>\n        </div>\n      </label>\n      <label class=\"\
+    block mt-4\">\n        <span>AI Model</span>\n        <select class=\"input input-bordered\
+    \ w-full\" v-model=\"taskData.llm_model\">\n          <option value=\"\">-- default\
+    \ --</option>\n          <option v-for=\"model in aiModels\" :key=\"model.name\"\
+    \ :value=\"model.name\">\n            {{ model.name }} <span v-if=\"model.ai_model\"\
+    > ({{ model.ai_model }})</span>\n          </option>\n        </select>\n    \
+    \  </label>\n    </div>\n    <div class=\"modal-action\">\n      <button class=\"\
+    btn btn-ghost\" @click=\"$emit('close')\">Discard</button>\n      <button class=\"\
+    btn btn-primary\" :class=\"!canSaveColumn && 'disabled'\" :disabled=\"!canSaveColumn\"\
+    \ @click=\"saveChanges\">Save</button>\n    </div>\n    <div tabindex=\"0\" class=\"\
+    collapse\">\n      <input type=\"checkbox\" />\n      <div class=\"collapse-title\
+    \ font-semibold text-error\">Delete</div>\n      <div class=\"collapse-content\
+    \ text-sm\">\n        <button class=\"mt-2 btn btn-error btn-wide\" @click.stop=\"\
+    deleteTask\">Confirm delete</button>\n      </div>\n    </div>\n    <modal close=\"\
+    true\" @close=\"showProfileSelector = false\" v-if=\"showProfileSelector\">\n\
+    \      <ProfileSelector @select=\"addProfile($event)\" :project=\"taskProject\"\
+    \ />\n    </modal>\n  </div>\n</template>\n\n<script>\nexport default {\n  props:\
+    \ ['taskData'],\n  data() {\n    return {\n      showProfileSelector: false\n\
+    \    }\n  },\n  computed: {\n    taskAIModel() {\n      return this.aiModels.find(m\
+    \ => m.name === this.taskData.llm_model)\n    },\n    aiModels() {\n      return\
+    \ this.$storex.ai.models\n    },\n    boards() {\n      return this.$storex.kanban.boards\n\
+    \    },\n    columns() {\n      return this.$storex.kanban.boards[this.taskData.board]?.columns\n\
+    \    },\n    canSaveColumn() {\n      return this.taskData.name?.length &&\n \
+    \             this.taskData.board?.length &&\n              this.taskData.column?.length\n\
+    \    },\n    projects() {\n      return this.$storex.allProjects\n        .sort((a,\
+    \ b) => a.project_name.toLowerCase() > b.project_name.toLowerCase() ? 1: -1)\n\
+    \    },\n    taskProject() {\n      if (this.taskData.project_id) {\n        return\
+    \ this.projects.find(p => p.project_id === this.taskData.project_id)\n      }\n\
+    \      return this.$project\n    },\n    allChats() {\n      return this.$storex.allChats\n\
+    \    },\n    orderedChats() {\n      return this.allChats\n        .filter(chat\
+    \ => chat.board_id === this.taskData.board)\n        .concat(this.allChats.filter(chat\
+    \ => chat.board_id !== this.taskData.board))\n    }\n  },\n  watch: {\n    taskData()\
+    \ {\n      if (!this.columns.find(c => c.title === this.taskData.column)) {\n\
+    \        this.taskData.column = ''\n      }\n    } \n  },\n  methods: {\n    saveChanges()\
+    \ {\n      this.$storex.saveChatInfo(this.taskData)\n      this.$emit('close')\n\
+    \    },\n    deleteTask() {\n      this.$storex.deleteChat(this.taskData)\n  \
+    \    this.$emit('close')\n    },\n    addProfile(profile) {\n      if (!this.taskData.profiles.includes(profile.name))\
+    \ {\n        this.taskData.profiles.push(profile.name)\n      }\n      this.showProfileSelector\
+    \ = false\n    }\n  }\n}\n</script>\n```"
+  created_at: '2025-11-05 17:57:52.491216'
+  disable_knowledge: false
+  doc_id: 6aab4c5d-c52a-4352-a779-5fe58d3e8898
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 6.389617919921875e-05
+    model: openai/gpt-4o
+    time_taken: 39.71677494049072
+  profiles:
+  - daisyui_components
+  - VueDeveloper
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-11-05 17:57:52.491239'
+  user: null
+mode: chat
+name: changes-at-kanban-tasksettings-vue-2025-11-06-16-33-43-371505
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- daisyui_components
+- VueDeveloper
+- Vue files
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-11-06T16:34:29.879582'
+url: ''
+users: []
+visibility: ''

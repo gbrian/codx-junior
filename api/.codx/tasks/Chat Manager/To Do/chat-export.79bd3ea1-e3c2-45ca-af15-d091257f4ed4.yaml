@@ -1,0 +1,75 @@
+board: Chat Manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: To Do
+column_id: ''
+created_at: '2025-11-12 04:52:54.251878'
+description: The task involves creating a `ChatExport` class in the `chat_export.py`
+  file for exporting chats. In the chat manager, an `export_chat` function should
+  be added to handle chat exports based on `chat_id` and `export_format`. The chat
+  manager must recursively find a chat and all its descendants to build a chat tree,
+  which is then passed to `ChatExport`. The `ChatExport` class will generate a markdown
+  document from the chat tree, ignoring messages with a "hide" flag, and convert it
+  into the specified format (markdown, docx, pdf, excel) using `pypandoc`. The task
+  is split into changes needed in `chat_manager` and `chat_export`.
+doc_id: null
+file_list:
+- /shared/codx-junior/api/codx/junior/chat/chat_engine.py
+file_path: /shared/codx-junior/api/.codx/tasks/Chat Manager/To Do/chat-export.79bd3ea1-e3c2-45ca-af15-d091257f4ed4.yaml
+id: 79bd3ea1-e3c2-45ca-af15-d091257f4ed4
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Create a new class ChatExport in chat_export.py file to allow export chats.\n\
+    In the chat manager add an export_chat with chat_id and export_format.\nIn chat\
+    \ manager find the chat an all it's descendants (find all chats pointing to current\
+    \ chat by chid_chat.parent_id and order using chat.child_index) this must be recursive\
+    \ as child chats can have children as well.\n\n\nBuild a chat tree from the chat\
+    \ with its children and pass to ChatExport with the format.\n\n\nExport will first\
+    \ build a markdown document from the chat tree. It will traverse the the tree\
+    \ and generate a markdown document from the messages (ignoring messages with \"\
+    hide\" flag set) content.\n\n\nAfter the markdown document will be returned in\
+    \ the format using pypandoc when needed:\n- markdown\n- docx\n- pdf\n- excel\n\
+    \n\n\n\nSplit this task into two sections, dont miss any detail and add extra\
+    \ info:\n- Changes in chat_manager\n-\_ Changes in chat_export"
+  created_at: '2025-11-12 05:05:18.685736'
+  disable_knowledge: true
+  doc_id: 6496df86-49df-4036-93f8-7fa47f7229aa
+  done: true
+  files:
+  - /shared/codx-junior/api/codx/junior/chat/chat_engine.py
+  - /shared/codx-junior/api/codx/junior/chat/chat_engine.py
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-12 05:05:18.685762'
+  user: admin
+mode: task
+name: Chat export
+parent_id: null
+pinned: true
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-11-12T07:37:23.047739'
+url: ''
+users:
+- admin
+visibility: ''

@@ -106,7 +106,7 @@ class ProfileManager:
             return False
 
     def get_file_profiles(self, file_path: str):
-        return [profile for profile in self.list_profiles() \
+        return [profile for profile in self.list_all_profiles() \
           if self.is_profile_match(profile=profile, file_path=file_path)]
 
     def get_profiles_and_parents(self, profiles: []):

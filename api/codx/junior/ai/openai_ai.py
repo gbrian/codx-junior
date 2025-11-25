@@ -10,16 +10,15 @@ from codx.junior.ai.ai_logger import AILogger
 from codx.junior.settings import CODXJuniorSettings
 from langchain.schema import AIMessage, HumanMessage, BaseMessage
 from codx.junior.profiling.profiler import profile_function
-from codx.junior.utils.utils import clean_string
+from codx.junior.utils.utils import clean_string, asyncify
 from codx.junior.model.model import CodxUser
-
 
 logger = logging.getLogger(__name__)
 
 class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings, llm_model: str = None, user: CodxUser = None):
-        from codx.junior.tools import TOOLS
-        self.tools = TOOLS
+        # from codx.junior.tools import TOOLS
+        self.tools = [] # TOOLS .... disabled, move to profiles
         
         self.settings = settings
         self.llm_settings = settings.get_llm_settings(llm_model=llm_model)
@@ -98,13 +97,6 @@ class OpenAI_AI:
                 "ts": datetime.now(),
             }
 
-            tool_call_data = {
-                "id": None,
-                "function": None,
-                "arguments": ""
-            }
-            tool_call_active = False
-
             def send_callback(chunk_content, flush=False):
                 if not callbacks:
                     return
@@ -121,19 +113,7 @@ class OpenAI_AI:
                             logger.exception(f"ERROR IN CALLBACKS: {ex}")
 
             for chunk in response_stream:
-                # Check for tools
                 choice = chunk.choices[0]
-                tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None 
-                
-                if tool_calls:
-                    tool_call_active = True
-                    if tool_call_data["id"] is None:
-                        # First part of the tool call
-                        tool_call_data["id"] = tool_calls[0].id
-                        tool_call_data["function"] = tool_calls[0].function.name
-                    # Append arguments
-                    tool_call_data["arguments"] += tool_calls[0].function.arguments
-                                
                 chunk_content = choice.delta.content
                 if not chunk_content:
                     continue
@@ -167,7 +147,7 @@ class OpenAI_AI:
         self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
 
         openai_messages = [self.convert_message_to_openai(msg) for msg in messages]
-
+                            
         if self.llm_settings.merge_messages:
             message = "\n".join([message['content'] for message in openai_messages])
             openai_messages = [{"role": "user", "content": message}]
@@ -203,7 +183,8 @@ class OpenAI_AI:
                 "function": None,
                 "arguments": ""
             }
-            tool_call_active = False
+            all_tool_calls = {}
+            last_tool_id = None
 
             def send_callback(chunk_content, flush=False):
                 if not callbacks:
@@ -226,28 +207,34 @@ class OpenAI_AI:
                 tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None 
                 
                 if tool_calls:
-                    tool_call_active = True
-                    if tool_call_data["id"] is None:
-                        # First part of the tool call
-                        tool_call_data["id"] = tool_calls[0].id
-                        tool_call_data["function"] = tool_calls[0].function.name
-                    # Append arguments
-                    tool_call_data["arguments"] += tool_calls[0].function.arguments
+                    tool_call = tool_calls[0] 
+                    if tool_call.id and not all_tool_calls.get(tool_call.id):
+                        last_tool_id = tool_call.id
+                        all_tool_calls[last_tool_id] = {
+                            "id": last_tool_id,
+                            "function": "",
+                            "arguments": ""
+                        }
+                    if tool_call.function.name:
+                        all_tool_calls[last_tool_id]["function"] += tool_call.function.name
+                        
+                    all_tool_calls[last_tool_id]["arguments"] += tool_call.function.arguments
                 
-                if choice.finish_reason == 'tool_calls' and tool_call_active:
+                if choice.finish_reason == 'tool_calls':
                     ai_tool_response = None
-                    func_name = tool_call_data["function"]                        
-                    try:
-                        tools_response = await self.process_tool_calls(tool_call_data)
-                        tool_output = tools_response["output"]
-                        content = f"{func_name} returned:\n\n```\n{tool_output}\n```"
-                        ai_tool_response = AIMessage(content=content)
-                    except Exception as ex:
-                        logger.exception("Error processing: %s", func_name)
-                        error = f"Error processing {func_name}:\n{ex}"
-                        ai_tool_response = AIMessage(content=error)
+                    for tool_call_data in all_tool_calls.values():
+                        func_name = tool_call_data["function"]
+                        try:
+                            tools_response = await self.process_tool_calls(tool_call_data)
+                            tool_output = tools_response["output"] if "output" in tools_response else tools_response 
+                            ai_tool_response = AIMessage(content=tool_output)
+                        except Exception as ex:
+                            logger.exception("Error processing '%s': %s", func_name, tool_call_data)
+                            error = f"Error processing {func_name}:\n{ex}"
+                            ai_tool_response = AIMessage(content=error)
 
-                    messages.append(ai_tool_response)
+                        messages.append(ai_tool_response)
+
                     return self.chat_completions(messages=messages, config=config)
                 
                 chunk_content = choice.delta.content
@@ -271,7 +258,7 @@ class OpenAI_AI:
 
     @profile_function
     async def process_tool_calls(self, tool_call_data):
-        tool_responses = []
+        tool_response = None
         self.log(f"process_tool_calls: {tool_call_data}")
         func_name = tool_call_data["function"]
         params = json.loads(tool_call_data["arguments"])
@@ -279,26 +266,25 @@ class OpenAI_AI:
         # Find the tool and execute the tool_call
         tool = next((t for t in self.tools if t["tool_json"]["function"]["name"] == func_name), None)
         if tool:
-            tool_json = tool["tool_json"]
             settings = tool.get("settings", {
               "project_settings": False,
               "async": False
             })
 
-            if settings["project_settings"]:
+            if settings.get("project_settings"):
                 params["settings"] = self.settings
             
             content = tool["tool_call"](**params)
             if settings["async"]:
                 content = await content
             
-            tool_responses.append(content)
+            tool_response = content
 
         # Format the tool response as specified
         tool_output = {
             "type": "function_call_output",
             "call_id": tool_call_data["id"],
-            "output": json.dumps(tool_responses)
+            "output": tool_response
         }
 
         return tool_output

@@ -1,0 +1,456 @@
+board: Wiki manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Completed
+column_id: ''
+created_at: '2025-05-17 10:57:48.892252'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Wiki manager/Completed/initialize-wiki-project.308ab844-5788-4064-ba76-312c0b61d784.yaml
+id: 308ab844-5788-4064-ba76-312c0b61d784
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "@codx-api\_\nHelp me \"brainstorming\" how to manage the wiki generation\
+    \ for a project.\nEach project has a \"project_wiki\" setting to indicate if the\
+    \ user wants to generate a wiki from thr project's files\n\n\nIf the project has\
+    \ a wiki path setting we'll initialize that directory with the vitepress engine.\n\
+    Afterwards we need to understand what kind of project is and define a config.\n\
+    \n\nAnd have a method to process last changes and rebuild the wiki parts modified.\n\
+    \n\nWe must define the kind of project:\n\_ then we must define the wiki structure\
+    \ (config)\n\_ \_ \_ then we must define the files that will be used for each\
+    \ wiki entry\n\n\nExample:\n\"codx-api project is a FastAPI python project with\
+    \ classes and methods to interact with codx-junior. We'll generate a wiki to help\
+    \ other developers to use the API (endpoints) and to understand the classes and\
+    \ functions.\"\n\n\nSo we'll define, for example a config with endpoint, classes\
+    \ by functionality, utilities and examples; for each section we'll have a file\
+    \ in mardown,\_\nthen we'll process each file in the project and decide which\
+    \ wiki file or files are affected and updated.\n\n\nWhen defining the config we'll\
+    \ have comments explaining each section and the rules that a file must match to\
+    \ add content to that file\n\n\nWe need a diagram to express the logic.\n\n\n\
+    Vitepress config example\n```config.js\nimport fs from 'fs'\nimport path from\
+    \ 'path'\nimport { defineConfigWithTheme, type HeadConfig, type Plugin } from\
+    \ 'vitepress'\nimport type { Config as ThemeConfig } from '@vue/theme'\nimport\
+    \ llmstxt from 'vitepress-plugin-llms'\nimport baseConfig from '@vue/theme/config'\n\
+    import { headerPlugin } from './headerMdPlugin'\n// import { textAdPlugin } from\
+    \ './textAdMdPlugin'\n\n\nconst nav: ThemeConfig['nav'] = [\n\_ {\n\_ \_ text:\
+    \ 'Docs',\n\_ \_ activeMatch: `^/(guide|style-guide|cookbook|examples)/`,\n\_\
+    \ \_ items: [\n\_ \_ \_ { text: 'Guide', link: '/guide/introduction' },\n\_ \_\
+    \ \_ { text: 'Tutorial', link: '/tutorial/' },\n\_ \_ \_ { text: 'Examples', link:\
+    \ '/examples/' },\n\_ \_ \_ { text: 'Quick Start', link: '/guide/quick-start'\
+    \ },\n\_ \_ \_ // { text: 'Style Guide', link: '/style-guide/' },\n\_ \_ \_ {\
+    \ text: 'Glossary', link: '/glossary/' },\n\_ \_ \_ { text: 'Error Reference',\
+    \ link: '/error-reference/' },\n\_ \_ \_ {\n\_ \_ \_ \_ text: 'Vue 2 Docs',\n\_\
+    \ \_ \_ \_ link: 'https://v2.vuejs.org'\n\_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_\
+    \ text: 'Migration from Vue 2',\n\_ \_ \_ \_ link: 'https://v3-migration.vuejs.org/'\n\
+    \_ \_ \_ }\n\_ \_ ]\n\_ },\n\_ {\n\_ \_ text: 'API',\n\_ \_ activeMatch: `^/api/`,\n\
+    \_ \_ link: '/api/'\n\_ },\n\_ {\n\_ \_ text: 'Playground',\n\_ \_ link: 'https://play.vuejs.org'\n\
+    \_ },\n\_ {\n\_ \_ text: 'Ecosystem',\n\_ \_ activeMatch: `^/ecosystem/`,\n\_\
+    \ \_ items: [\n\_ \_ \_ {\n\_ \_ \_ \_ text: 'Resources',\n\_ \_ \_ \_ items:\
+    \ [\n\_ \_ \_ \_ \_ { text: 'Partners', link: '/partners/' },\n\_ \_ \_ \_ \_\
+    \ { text: 'Developers', link: '/developers/' },\n\_ \_ \_ \_ \_ { text: 'Themes',\
+    \ link: '/ecosystem/themes' },\n\_ \_ \_ \_ \_ { text: 'UI Components', link:\
+    \ 'https://ui-libs.vercel.app/' },\n\_ \_ \_ \_ \_ {\n\_ \_ \_ \_ \_ \_ text:\
+    \ 'Certification',\n\_ \_ \_ \_ \_ \_ link: 'https://certificates.dev/vuejs/?ref=vuejs-nav'\n\
+    \_ \_ \_ \_ \_ },\n\_ \_ \_ \_ \_ { text: 'Jobs', link: 'https://vuejobs.com/?ref=vuejs'\
+    \ },\n\_ \_ \_ \_ \_ { text: 'T-Shirt Shop', link: 'https://vue.threadless.com/'\
+    \ }\n\_ \_ \_ \_ ]\n\_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ text: 'Official Libraries',\n\
+    \_ \_ \_ \_ items: [\n\_ \_ \_ \_ \_ { text: 'Vue Router', link: 'https://router.vuejs.org/'\
+    \ },\n\_ \_ \_ \_ \_ { text: 'Pinia', link: 'https://pinia.vuejs.org/' },\n\_\
+    \ \_ \_ \_ \_ { text: 'Tooling Guide', link: '/guide/scaling-up/tooling.html'\
+    \ }\n\_ \_ \_ \_ ]\n\_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ text: 'Video Courses',\n\
+    \_ \_ \_ \_ items: [\n\_ \_ \_ \_ \_ {\n\_ \_ \_ \_ \_ \_ text: 'Vue Mastery',\n\
+    \_ \_ \_ \_ \_ \_ link: 'https://www.vuemastery.com/courses/'\n\_ \_ \_ \_ \_\
+    \ },\n\_ \_ \_ \_ \_ {\n\_ \_ \_ \_ \_ \_ text: 'Vue School',\n\_ \_ \_ \_ \_\
+    \ \_ link: 'https://vueschool.io/?friend=vuejs&utm_source=Vuejs.org&utm_medium=Link&utm_content=Navbar%20Dropdown'\n\
+    \_ \_ \_ \_ \_ }\n\_ \_ \_ \_ ]\n\_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ text: 'Help',\n\
+    \_ \_ \_ \_ items: [\n\_ \_ \_ \_ \_ {\n\_ \_ \_ \_ \_ \_ text: 'Discord Chat',\n\
+    \_ \_ \_ \_ \_ \_ link: 'https://discord.com/invite/HBherRA'\n\_ \_ \_ \_ \_ },\n\
+    \_ \_ \_ \_ \_ {\n\_ \_ \_ \_ \_ \_ text: 'GitHub Discussions',\n\_ \_ \_ \_ \_\
+    \ \_ link: 'https://github.com/vuejs/core/discussions'\n\_ \_ \_ \_ \_ },\n\_\
+    \ \_ \_ \_ \_ { text: 'DEV Community', link: 'https://dev.to/t/vue' }\n\_ \_ \_\
+    \ \_ ]\n\_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ text: 'News',\n\_ \_ \_ \_ items:\
+    \ [\n\_ \_ \_ \_ \_ { text: 'Blog', link: 'https://blog.vuejs.org/' },\n\_ \_\
+    \ \_ \_ \_ { text: 'Twitter', link: 'https://twitter.com/vuejs' },\n\_ \_ \_ \_\
+    \ \_ { text: 'Events', link: 'https://events.vuejs.org/' },\n\_ \_ \_ \_ \_ {\
+    \ text: 'Newsletters', link: '/ecosystem/newsletters' }\n\_ \_ \_ \_ ]\n\_ \_\
+    \ \_ }\n\_ \_ ]\n\_ },\n\_ {\n\_ \_ text: 'About',\n\_ \_ activeMatch: `^/about/`,\n\
+    \_ \_ items: [\n\_ \_ \_ { text: 'FAQ', link: '/about/faq' },\n\_ \_ \_ { text:\
+    \ 'Team', link: '/about/team' },\n\_ \_ \_ { text: 'Releases', link: '/about/releases'\
+    \ },\n\_ \_ \_ {\n\_ \_ \_ \_ text: 'Community Guide',\n\_ \_ \_ \_ link: '/about/community-guide'\n\
+    \_ \_ \_ },\n\_ \_ \_ { text: 'Code of Conduct', link: '/about/coc' },\n\_ \_\
+    \ \_ { text: 'Privacy Policy', link: '/about/privacy' },\n\_ \_ \_ {\n\_ \_ \_\
+    \ \_ text: 'The Documentary',\n\_ \_ \_ \_ link: 'https://www.youtube.com/watch?v=OrxmtDw4pVI'\n\
+    \_ \_ \_ }\n\_ \_ ]\n\_ },\n\_ {\n\_ \_ text: 'Sponsor',\n\_ \_ link: '/sponsor/'\n\
+    \_ },\n\_ {\n\_ \_ text: 'Experts',\n\_ \_ badge: { text: 'NEW' },\n\_ \_ activeMatch:\
+    \ `^/(partners|developers)/`,\n\_ \_ items: [\n\_ \_ \_ { text: 'Partners', link:\
+    \ '/partners/' },\n\_ \_ \_ { text: 'Developers', link: '/developers/', badge:\
+    \ { text: 'NEW' } }\n\_ \_ ]\n\_ }\n]\n\n\nexport const sidebar: ThemeConfig['sidebar']\
+    \ = {\n\_ '/guide/': [\n\_ \_ {\n\_ \_ \_ text: 'Getting Started',\n\_ \_ \_ items:\
+    \ [\n\_ \_ \_ \_ { text: 'Introduction', link: '/guide/introduction' },\n\_ \_\
+    \ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Quick Start',\n\_ \_ \_ \_ \_ link: '/guide/quick-start'\n\
+    \_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ },\n\_ \_ {\n\_ \_ \_ text: 'Essentials',\n\_\
+    \ \_ \_ items: [\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Creating an Application',\n\
+    \_ \_ \_ \_ \_ link: '/guide/essentials/application'\n\_ \_ \_ \_ },\n\_ \_ \_\
+    \ \_ {\n\_ \_ \_ \_ \_ text: 'Template Syntax',\n\_ \_ \_ \_ \_ link: '/guide/essentials/template-syntax'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Reactivity Fundamentals',\n\
+    \_ \_ \_ \_ \_ link: '/guide/essentials/reactivity-fundamentals'\n\_ \_ \_ \_\
+    \ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Computed Properties',\n\_ \_ \_ \_\
+    \ \_ link: '/guide/essentials/computed'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_\
+    \ \_ \_ \_ text: 'Class and Style Bindings',\n\_ \_ \_ \_ \_ link: '/guide/essentials/class-and-style'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Conditional Rendering',\n\
+    \_ \_ \_ \_ \_ link: '/guide/essentials/conditional'\n\_ \_ \_ \_ },\n\_ \_ \_\
+    \ \_ { text: 'List Rendering', link: '/guide/essentials/list' },\n\_ \_ \_ \_\
+    \ {\n\_ \_ \_ \_ \_ text: 'Event Handling',\n\_ \_ \_ \_ \_ link: '/guide/essentials/event-handling'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ { text: 'Form Input Bindings', link: '/guide/essentials/forms'\
+    \ },\n\_ \_ \_ \_ { text: 'Watchers', link: '/guide/essentials/watchers' },\n\_\
+    \ \_ \_ \_ { text: 'Template Refs', link: '/guide/essentials/template-refs' },\n\
+    \_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Components Basics',\n\_ \_ \_ \_ \_ link:\
+    \ '/guide/essentials/component-basics'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_\
+    \ \_ \_ text: 'Lifecycle Hooks',\n\_ \_ \_ \_ \_ link: '/guide/essentials/lifecycle'\n\
+    \_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ },\n\_ \_ {\n\_ \_ \_ text: 'Components In-Depth',\n\
+    \_ \_ \_ items: [\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Registration',\n\_ \_\
+    \ \_ \_ \_ link: '/guide/components/registration'\n\_ \_ \_ \_ },\n\_ \_ \_ \_\
+    \ { text: 'Props', link: '/guide/components/props' },\n\_ \_ \_ \_ { text: 'Events',\
+    \ link: '/guide/components/events' },\n\_ \_ \_ \_ { text: 'Component v-model',\
+    \ link: '/guide/components/v-model' },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Fallthrough\
+    \ Attributes',\n\_ \_ \_ \_ \_ link: '/guide/components/attrs'\n\_ \_ \_ \_ },\n\
+    \_ \_ \_ \_ { text: 'Slots', link: '/guide/components/slots' },\n\_ \_ \_ \_ {\n\
+    \_ \_ \_ \_ \_ text: 'Provide / inject',\n\_ \_ \_ \_ \_ link: '/guide/components/provide-inject'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Async Components',\n\_ \_\
+    \ \_ \_ \_ link: '/guide/components/async'\n\_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ },\n\
+    \_ \_ {\n\_ \_ \_ text: 'Reusability',\n\_ \_ \_ items: [\n\_ \_ \_ \_ {\n\_ \_\
+    \ \_ \_ \_ text: 'Composables',\n\_ \_ \_ \_ \_ link: '/guide/reusability/composables'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Custom Directives',\n\_ \_\
+    \ \_ \_ \_ link: '/guide/reusability/custom-directives'\n\_ \_ \_ \_ },\n\_ \_\
+    \ \_ \_ { text: 'Plugins', link: '/guide/reusability/plugins' }\n\_ \_ \_ ]\n\_\
+    \ \_ },\n\_ \_ {\n\_ \_ \_ text: 'Built-in Components',\n\_ \_ \_ items: [\n\_\
+    \ \_ \_ \_ { text: 'Transition', link: '/guide/built-ins/transition' },\n\_ \_\
+    \ \_ \_ {\n\_ \_ \_ \_ \_ text: 'TransitionGroup',\n\_ \_ \_ \_ \_ link: '/guide/built-ins/transition-group'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ { text: 'KeepAlive', link: '/guide/built-ins/keep-alive'\
+    \ },\n\_ \_ \_ \_ { text: 'Teleport', link: '/guide/built-ins/teleport' },\n\_\
+    \ \_ \_ \_ { text: 'Suspense', link: '/guide/built-ins/suspense' }\n\_ \_ \_ ]\n\
+    \_ \_ },\n\_ \_ {\n\_ \_ \_ text: 'Scaling Up',\n\_ \_ \_ items: [\n\_ \_ \_ \_\
+    \ { text: 'Single-File Components', link: '/guide/scaling-up/sfc' },\n\_ \_ \_\
+    \ \_ { text: 'Tooling', link: '/guide/scaling-up/tooling' },\n\_ \_ \_ \_ { text:\
+    \ 'Routing', link: '/guide/scaling-up/routing' },\n\_ \_ \_ \_ {\n\_ \_ \_ \_\
+    \ \_ text: 'State Management',\n\_ \_ \_ \_ \_ link: '/guide/scaling-up/state-management'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ { text: 'Testing', link: '/guide/scaling-up/testing'\
+    \ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Server-Side Rendering (SSR)',\n\_ \_\
+    \ \_ \_ \_ link: '/guide/scaling-up/ssr'\n\_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ },\n\
+    \_ \_ {\n\_ \_ \_ text: 'Best Practices',\n\_ \_ \_ items: [\n\_ \_ \_ \_ {\n\_\
+    \ \_ \_ \_ \_ text: 'Production Deployment',\n\_ \_ \_ \_ \_ link: '/guide/best-practices/production-deployment'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Performance',\n\_ \_ \_ \_\
+    \ \_ link: '/guide/best-practices/performance'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\
+    \_ \_ \_ \_ \_ text: 'Accessibility',\n\_ \_ \_ \_ \_ link: '/guide/best-practices/accessibility'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Security',\n\_ \_ \_ \_ \_\
+    \ link: '/guide/best-practices/security'\n\_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ },\n\
+    \_ \_ {\n\_ \_ \_ text: 'TypeScript',\n\_ \_ \_ items: [\n\_ \_ \_ \_ { text:\
+    \ 'Overview', link: '/guide/typescript/overview' },\n\_ \_ \_ \_ {\n\_ \_ \_ \_\
+    \ \_ text: 'TS with Composition API',\n\_ \_ \_ \_ \_ link: '/guide/typescript/composition-api'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'TS with Options API',\n\_\
+    \ \_ \_ \_ \_ link: '/guide/typescript/options-api'\n\_ \_ \_ \_ }\n\_ \_ \_ ]\n\
+    \_ \_ },\n\_ \_ {\n\_ \_ \_ text: 'Extra Topics',\n\_ \_ \_ items: [\n\_ \_ \_\
+    \ \_ {\n\_ \_ \_ \_ \_ text: 'Ways of Using Vue',\n\_ \_ \_ \_ \_ link: '/guide/extras/ways-of-using-vue'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Composition API FAQ',\n\_\
+    \ \_ \_ \_ \_ link: '/guide/extras/composition-api-faq'\n\_ \_ \_ \_ },\n\_ \_\
+    \ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Reactivity in Depth',\n\_ \_ \_ \_ \_ link: '/guide/extras/reactivity-in-depth'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Rendering Mechanism',\n\_\
+    \ \_ \_ \_ \_ link: '/guide/extras/rendering-mechanism'\n\_ \_ \_ \_ },\n\_ \_\
+    \ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Render Functions & JSX',\n\_ \_ \_ \_ \_ link:\
+    \ '/guide/extras/render-function'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_\
+    \ \_ text: 'Vue and Web Components',\n\_ \_ \_ \_ \_ link: '/guide/extras/web-components'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Animation Techniques',\n\_\
+    \ \_ \_ \_ \_ link: '/guide/extras/animation'\n\_ \_ \_ \_ }\n\_ \_ \_ \_ // {\n\
+    \_ \_ \_ \_ //\_ \_text: 'Building a Library for Vue',\n\_ \_ \_ \_ //\_ \_link:\
+    \ '/guide/extras/building-a-library'\n\_ \_ \_ \_ // },\n\_ \_ \_ \_ // {\n\_\
+    \ \_ \_ \_ //\_ \_text: 'Vue for React Devs',\n\_ \_ \_ \_ //\_ \_link: '/guide/extras/vue-for-react-devs'\n\
+    \_ \_ \_ \_ // }\n\_ \_ \_ ]\n\_ \_ }\n\_ ],\n\_ '/api/': [\n\_ \_ {\n\_ \_ \_\
+    \ text: 'Global API',\n\_ \_ \_ items: [\n\_ \_ \_ \_ { text: 'Application', link:\
+    \ '/api/application' },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'General',\n\_ \_\
+    \ \_ \_ \_ link: '/api/general'\n\_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ },\n\_ \_ {\n\
+    \_ \_ \_ text: 'Composition API',\n\_ \_ \_ items: [\n\_ \_ \_ \_ { text: 'setup()',\
+    \ link: '/api/composition-api-setup' },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Reactivity:\
+    \ Core',\n\_ \_ \_ \_ \_ link: '/api/reactivity-core'\n\_ \_ \_ \_ },\n\_ \_ \_\
+    \ \_ {\n\_ \_ \_ \_ \_ text: 'Reactivity: Utilities',\n\_ \_ \_ \_ \_ link: '/api/reactivity-utilities'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Reactivity: Advanced',\n\_\
+    \ \_ \_ \_ \_ link: '/api/reactivity-advanced'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\
+    \_ \_ \_ \_ \_ text: 'Lifecycle Hooks',\n\_ \_ \_ \_ \_ link: '/api/composition-api-lifecycle'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Dependency Injection',\n\_\
+    \ \_ \_ \_ \_ link: '/api/composition-api-dependency-injection'\n\_ \_ \_ \_ },\n\
+    \_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Helpers',\n\_ \_ \_ \_ \_ link: '/api/composition-api-helpers'\n\
+    \_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ },\n\_ \_ {\n\_ \_ \_ text: 'Options API',\n\_\
+    \ \_ \_ items: [\n\_ \_ \_ \_ { text: 'Options: State', link: '/api/options-state'\
+    \ },\n\_ \_ \_ \_ { text: 'Options: Rendering', link: '/api/options-rendering'\
+    \ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Options: Lifecycle',\n\_ \_ \_ \_ \_\
+    \ link: '/api/options-lifecycle'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_\
+    \ text: 'Options: Composition',\n\_ \_ \_ \_ \_ link: '/api/options-composition'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ { text: 'Options: Misc', link: '/api/options-misc'\
+    \ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Component Instance',\n\_ \_ \_ \_ \_\
+    \ link: '/api/component-instance'\n\_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ },\n\_ \_\
+    \ {\n\_ \_ \_ text: 'Built-ins',\n\_ \_ \_ items: [\n\_ \_ \_ \_ { text: 'Directives',\
+    \ link: '/api/built-in-directives' },\n\_ \_ \_ \_ { text: 'Components', link:\
+    \ '/api/built-in-components' },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Special\
+    \ Elements',\n\_ \_ \_ \_ \_ link: '/api/built-in-special-elements'\n\_ \_ \_\
+    \ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Special Attributes',\n\_ \_ \_ \_\
+    \ \_ link: '/api/built-in-special-attributes'\n\_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_\
+    \ },\n\_ \_ {\n\_ \_ \_ text: 'Single-File Component',\n\_ \_ \_ items: [\n\_\
+    \ \_ \_ \_ { text: 'Syntax Specification', link: '/api/sfc-spec' },\n\_ \_ \_\
+    \ \_ { text: '<script setup>', link: '/api/sfc-script-setup' },\n\_ \_ \_ \_ {\
+    \ text: 'CSS Features', link: '/api/sfc-css-features' }\n\_ \_ \_ ]\n\_ \_ },\n\
+    \_ \_ {\n\_ \_ \_ text: 'Advanced APIs',\n\_ \_ \_ items: [\n\_ \_ \_ \_ { text:\
+    \ 'Custom Elements', link: '/api/custom-elements' },\n\_ \_ \_ \_ { text: 'Render\
+    \ Function', link: '/api/render-function' },\n\_ \_ \_ \_ { text: 'Server-Side\
+    \ Rendering', link: '/api/ssr' },\n\_ \_ \_ \_ { text: 'TypeScript Utility Types',\
+    \ link: '/api/utility-types' },\n\_ \_ \_ \_ { text: 'Custom Renderer', link:\
+    \ '/api/custom-renderer' },\n\_ \_ \_ \_ { text: 'Compile-Time Flags', link: '/api/compile-time-flags'\
+    \ }\n\_ \_ \_ ]\n\_ \_ }\n\_ ],\n\_ '/examples/': [\n\_ \_ {\n\_ \_ \_ text: 'Basic',\n\
+    \_ \_ \_ items: [\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Hello World',\n\_ \_ \_\
+    \ \_ \_ link: '/examples/#hello-world'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_\
+    \ \_ \_ text: 'Handling User Input',\n\_ \_ \_ \_ \_ link: '/examples/#handling-input'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Attribute Bindings',\n\_\
+    \ \_ \_ \_ \_ link: '/examples/#attribute-bindings'\n\_ \_ \_ \_ },\n\_ \_ \_\
+    \ \_ {\n\_ \_ \_ \_ \_ text: 'Conditionals and Loops',\n\_ \_ \_ \_ \_ link: '/examples/#conditionals-and-loops'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Form Bindings',\n\_ \_ \_\
+    \ \_ \_ link: '/examples/#form-bindings'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_\
+    \ \_ \_ \_ text: 'Simple Component',\n\_ \_ \_ \_ \_ link: '/examples/#simple-component'\n\
+    \_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ },\n\_ \_ {\n\_ \_ \_ text: 'Practical',\n\_\
+    \ \_ \_ items: [\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Markdown Editor',\n\_ \_\
+    \ \_ \_ \_ link: '/examples/#markdown'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_\
+    \ \_ \_ text: 'Fetching Data',\n\_ \_ \_ \_ \_ link: '/examples/#fetching-data'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Grid with Sort and Filter',\n\
+    \_ \_ \_ \_ \_ link: '/examples/#grid'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_\
+    \ \_ \_ text: 'Tree View',\n\_ \_ \_ \_ \_ link: '/examples/#tree'\n\_ \_ \_ \_\
+    \ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'SVG Graph',\n\_ \_ \_ \_ \_ link: '/examples/#svg'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Modal with Transitions',\n\
+    \_ \_ \_ \_ \_ link: '/examples/#modal'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_\
+    \ \_ \_ \_ text: 'List with Transitions',\n\_ \_ \_ \_ \_ link: '/examples/#list-transition'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ ]\n\_ \_ },\n\_ \_ {\n\_ \_ \_ // https://eugenkiss.github.io/7guis/\n\
+    \_ \_ \_ text: '7 GUIs',\n\_ \_ \_ items: [\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text:\
+    \ 'Counter',\n\_ \_ \_ \_ \_ link: '/examples/#counter'\n\_ \_ \_ \_ },\n\_ \_\
+    \ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Temperature Converter',\n\_ \_ \_ \_ \_ link:\
+    \ '/examples/#temperature-converter'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_\
+    \ \_ \_ text: 'Flight Booker',\n\_ \_ \_ \_ \_ link: '/examples/#flight-booker'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Timer',\n\_ \_ \_ \_ \_ link:\
+    \ '/examples/#timer'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'CRUD',\n\
+    \_ \_ \_ \_ \_ link: '/examples/#crud'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_\
+    \ \_ \_ text: 'Circle Drawer',\n\_ \_ \_ \_ \_ link: '/examples/#circle-drawer'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'Cells',\n\_ \_ \_ \_ \_ link:\
+    \ '/examples/#cells'\n\_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ }\n\_ ],\n\_ '/style-guide/':\
+    \ [\n\_ \_ {\n\_ \_ \_ text: 'Style Guide',\n\_ \_ \_ items: [\n\_ \_ \_ \_ {\n\
+    \_ \_ \_ \_ \_ text: 'Overview',\n\_ \_ \_ \_ \_ link: '/style-guide/'\n\_ \_\
+    \ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'A - Essential',\n\_ \_ \_ \_\
+    \ \_ link: '/style-guide/rules-essential'\n\_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_\
+    \ \_ \_ \_ text: 'B - Strongly Recommended',\n\_ \_ \_ \_ \_ link: '/style-guide/rules-strongly-recommended'\n\
+    \_ \_ \_ \_ },\n\_ \_ \_ \_ {\n\_ \_ \_ \_ \_ text: 'C - Recommended',\n\_ \_\
+    \ \_ \_ \_ link: '/style-guide/rules-recommended'\n\_ \_ \_ \_ },\n\_ \_ \_ \_\
+    \ {\n\_ \_ \_ \_ \_ text: 'D - Use with Caution',\n\_ \_ \_ \_ \_ link: '/style-guide/rules-use-with-caution'\n\
+    \_ \_ \_ \_ }\n\_ \_ \_ ]\n\_ \_ }\n\_ ]\n}\n\n\n// Placeholder of the i18n config\
+    \ for @vuejs-translations.\n// const i18n: ThemeConfig['i18n'] = {\n// }\n\n\n\
+    function inlineScript(file: string): HeadConfig {\n\_ return [\n\_ \_ 'script',\n\
+    \_ \_ {},\n\_ \_ fs.readFileSync(\n\_ \_ \_ path.resolve(__dirname, `./inlined-scripts/${file}`),\n\
+    \_ \_ \_ 'utf-8'\n\_ \_ )\n\_ ]\n}\n\n\nexport default defineConfigWithTheme<ThemeConfig>({\n\
+    \_ extends: baseConfig,\n\n\n\_ sitemap: {\n\_ \_ hostname: 'https://vuejs.org'\n\
+    \_ },\n\n\n\_ lang: 'en-US',\n\_ title: 'Vue.js',\n\_ description: 'Vue.js - The\
+    \ Progressive JavaScript Framework',\n\_ srcDir: 'src',\n\_ srcExclude: ['tutorial/**/description.md'],\n\
+    \n\n\_ head: [\n\_ \_ ['meta', { name: 'theme-color', content: '#3c8772' }],\n\
+    \_ \_ ['meta', { property: 'og:url', content: 'https://vuejs.org/' }],\n\_ \_\
+    \ ['meta', { property: 'og:type', content: 'website' }],\n\_ \_ ['meta', { property:\
+    \ 'og:title', content: 'Vue.js' }],\n\_ \_ [\n\_ \_ \_ 'meta',\n\_ \_ \_ {\n\_\
+    \ \_ \_ \_ property: 'og:description',\n\_ \_ \_ \_ content: 'Vue.js - The Progressive\
+    \ JavaScript Framework'\n\_ \_ \_ }\n\_ \_ ],\n\_ \_ [\n\_ \_ \_ 'meta',\n\_ \_\
+    \ \_ {\n\_ \_ \_ \_ property: 'og:image',\n\_ \_ \_ \_ content: 'https://vuejs.org/images/logo.png'\n\
+    \_ \_ \_ }\n\_ \_ ],\n\_ \_ ['meta', { name: 'twitter:site', content: '@vuejs'\
+    \ }],\n\_ \_ ['meta', { name: 'twitter:card', content: 'summary' }],\n\_ \_ [\n\
+    \_ \_ \_ 'link',\n\_ \_ \_ {\n\_ \_ \_ \_ rel: 'preconnect',\n\_ \_ \_ \_ href:\
+    \ 'https://automation.vuejs.org'\n\_ \_ \_ }\n\_ \_ ],\n\_ \_ inlineScript('restorePreference.js'),\n\
+    \_ \_ inlineScript('uwu.js'),\n\_ \_ [\n\_ \_ \_ 'script',\n\_ \_ \_ {\n\_ \_\
+    \ \_ \_ src: 'https://cdn.usefathom.com/script.js',\n\_ \_ \_ \_ 'data-site':\
+    \ 'XNOLWPLB',\n\_ \_ \_ \_ 'data-spa': 'auto',\n\_ \_ \_ \_ defer: ''\n\_ \_ \_\
+    \ }\n\_ \_ ],\n\_ \_ [\n\_ \_ \_ 'script',\n\_ \_ \_ {\n\_ \_ \_ \_ src: 'https://vueschool.io/banner.js?affiliate=vuejs&type=top',\n\
+    \_ \_ \_ \_ async: 'true'\n\_ \_ \_ }\n\_ \_ ],\n\_ \_ inlineScript('perfops.js')\n\
+    \_ ],\n\n\n\_ themeConfig: {\n\_ \_ nav,\n\_ \_ sidebar,\n\_ \_ // Placeholder\
+    \ of the i18n config for @vuejs-translations.\n\_ \_ // i18n,\n\n\n\_ \_ localeLinks:\
+    \ [\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://cn.vuejs.org',\n\_ \_ \_ \_ text:\
+    \ '\u7B80\u4F53\u4E2D\u6587',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-zh-cn'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://ja.vuejs.org',\n\_ \_ \_ \_\
+    \ text: '\u65E5\u672C\u8A9E',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-ja'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://ua.vuejs.org',\n\_ \_ \_ \_\
+    \ text: '\u0423\u043A\u0440\u0430\u0457\u043D\u0441\u044C\u043A\u0430',\n\_ \_\
+    \ \_ \_ repo: 'https://github.com/vuejs-translations/docs-uk'\n\_ \_ \_ },\n\_\
+    \ \_ \_ {\n\_ \_ \_ \_ link: 'https://fr.vuejs.org',\n\_ \_ \_ \_ text: 'Fran\xE7\
+    ais',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-fr'\n\_ \_\
+    \ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://ko.vuejs.org',\n\_ \_ \_ \_ text:\
+    \ '\uD55C\uAD6D\uC5B4',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-ko'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://pt.vuejs.org',\n\_ \_ \_ \_\
+    \ text: 'Portugu\xEAs',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-pt'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://bn.vuejs.org',\n\_ \_ \_ \_\
+    \ text: '\u09AC\u09BE\u0982\u09B2\u09BE',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-bn'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://it.vuejs.org',\n\_ \_ \_ \_\
+    \ text: 'Italiano',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-it'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://fa.vuejs.org',\n\_ \_ \_ \_\
+    \ text: '\u0641\u0627\u0631\u0633\u06CC',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-fa'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://ru.vuejs.org',\n\_ \_ \_ \_\
+    \ text: '\u0420\u0443\u0441\u0441\u043A\u0438\u0439',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-ru'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://cs.vuejs.org',\n\_ \_ \_ \_\
+    \ text: '\u010Ce\u0161tina',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-cs'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://zh-hk.vuejs.org',\n\_ \_ \_\
+    \ \_ text: '\u7E41\u9AD4\u4E2D\u6587',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-zh-hk'\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: 'https://pl.vuejs.org',\n\_ \_ \_ \_\
+    \ text: 'Polski',\n\_ \_ \_ \_ repo: 'https://github.com/vuejs-translations/docs-pl',\n\
+    \_ \_ \_ },\n\_ \_ \_ {\n\_ \_ \_ \_ link: '/translations/',\n\_ \_ \_ \_ text:\
+    \ 'Help Us Translate!',\n\_ \_ \_ \_ isTranslationsDesc: true\n\_ \_ \_ }\n\_\
+    \ \_ ],\n\n\n\_ \_ algolia: {\n\_ \_ \_ indexName: 'vuejs',\n\_ \_ \_ appId: 'ML0LEBN7FQ',\n\
+    \_ \_ \_ apiKey: '21cf9df0734770a2448a9da64a700c22',\n\_ \_ \_ searchParameters:\
+    \ {\n\_ \_ \_ \_ facetFilters: ['version:v3']\n\_ \_ \_ }\n\_ \_ },\n\n\n\_ \_\
+    \ carbonAds: {\n\_ \_ \_ code: 'CEBDT27Y',\n\_ \_ \_ placement: 'vuejsorg'\n\_\
+    \ \_ },\n\n\n\_ \_ socialLinks: [\n\_ \_ \_ { icon: 'github', link: 'https://github.com/vuejs/'\
+    \ },\n\_ \_ \_ { icon: 'twitter', link: 'https://twitter.com/vuejs' },\n\_ \_\
+    \ \_ { icon: 'discord', link: 'https://discord.com/invite/vue' }\n\_ \_ ],\n\n\
+    \n\_ \_ editLink: {\n\_ \_ \_ repo: 'vuejs/docs',\n\_ \_ \_ text: 'Edit this page\
+    \ on GitHub'\n\_ \_ },\n\n\n\_ \_ footer: {\n\_ \_ \_ license: {\n\_ \_ \_ \_\
+    \ text: 'MIT License',\n\_ \_ \_ \_ link: 'https://opensource.org/licenses/MIT'\n\
+    \_ \_ \_ },\n\_ \_ \_ copyright: `Copyright \xA9 2014-${new Date().getFullYear()}\
+    \ Evan You`\n\_ \_ }\n\_ },\n\n\n\_ markdown: {\n\_ \_ theme: 'github-dark',\n\
+    \_ \_ config(md) {\n\_ \_ \_ md.use(headerPlugin)\n\_ \_ \_ // .use(textAdPlugin)\n\
+    \_ \_ }\n\_ },\n\n\n\_ vite: {\n\_ \_ define: {\n\_ \_ \_ __VUE_OPTIONS_API__:\
+    \ false\n\_ \_ },\n\_ \_ optimizeDeps: {\n\_ \_ \_ include: ['gsap', 'dynamics.js'],\n\
+    \_ \_ \_ exclude: ['@vue/repl']\n\_ \_ },\n\_ \_ // @ts-ignore\n\_ \_ ssr: {\n\
+    \_ \_ \_ external: ['@vue/repl']\n\_ \_ },\n\_ \_ server: {\n\_ \_ \_ host: true,\n\
+    \_ \_ \_ fs: {\n\_ \_ \_ \_ // for when developing with locally linked theme\n\
+    \_ \_ \_ \_ allow: ['../..']\n\_ \_ \_ }\n\_ \_ },\n\_ \_ build: {\n\_ \_ \_ chunkSizeWarningLimit:\
+    \ Infinity\n\_ \_ },\n\_ \_ json: {\n\_ \_ \_ stringify: true\n\_ \_ },\n\_ \_\
+    \ plugins: [\n\_ \_ \_ llmstxt({\n\_ \_ \_ \_ ignoreFiles: [\n\_ \_ \_ \_ \_ 'about/team/**/*',\n\
+    \_ \_ \_ \_ \_ 'about/team.md',\n\_ \_ \_ \_ \_ 'about/privacy.md',\n\_ \_ \_\
+    \ \_ \_ 'about/coc.md',\n\_ \_ \_ \_ \_ 'developers/**/*',\n\_ \_ \_ \_ \_ 'ecosystem/themes.md',\n\
+    \_ \_ \_ \_ \_ 'examples/**/*',\n\_ \_ \_ \_ \_ 'partners/**/*',\n\_ \_ \_ \_\
+    \ \_ 'sponsor/**/*',\n\_ \_ \_ \_ \_ 'index.md'\n\_ \_ \_ \_ ],\n\_ \_ \_ \_ customLLMsTxtTemplate:\
+    \ `\\\n# Vue.js\n\n\nVue.js - The Progressive JavaScript Framework\n\n\n## Table\
+    \ of Contents\n\n\n{toc}`\n\_ \_ \_ }) as Plugin\n\_ \_ ]\n\_ }\n})\n```"
+  created_at: '2025-05-17 16:38:20.713199'
+  disable_knowledge: false
+  doc_id: 708ebdb2-f700-43dd-a5a3-3555efa94ccb
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-17 16:38:20.713239'
+  user: admin
+- content: "Certainly! Let's break down the process of managing wiki generation for\
+    \ a project, specifically focusing on initializing the wiki directory with Vitepress,\
+    \ defining the project structure, and processing changes to rebuild the wiki.\n\
+    \n### Step-by-Step Guide\n\n1. **Initialize Wiki Directory**:\n   - If the project\
+    \ has a `project_wiki` setting, initialize the wiki directory using Vitepress.\n\
+    \   - Create a `home.md` file in the wiki directory to serve as the main entry\
+    \ point.\n\n2. **Define Project Structure**:\n   - Identify the type of project\
+    \ (e.g., FastAPI Python project).\n   - Define a configuration that specifies\
+    \ the structure of the wiki, including sections like endpoints, classes, utilities,\
+    \ and examples.\n   - Each section should have a corresponding markdown file.\n\
+    \n3. **Process File Changes**:\n   - Monitor the project files for changes.\n\
+    \   - When a change is detected, extract relevant parts from the changed file\
+    \ and add them to the appropriate wiki file.\n   - Use Vitepress to rebuild the\
+    \ wiki to reflect the changes.\n\n### Example Configuration\n\nHere\u2019s an\
+    \ example configuration for a FastAPI Python project:\n\n```python\n# codx_junior/api/codx/junior/engine.py\n\
+    \nimport os\nimport shutil\nimport markdown\nfrom pathlib import Path\n\nclass\
+    \ WikiManager:\n    def __init__(self, settings):\n        self.settings = settings\n\
+    \        self.wiki_path = settings.get_project_wiki_path()\n\n    def initialize_wiki(self):\n\
+    \        if not self.settings.project_wiki:\n            return\n\n        # Initialize\
+    \ wiki directory\n        if not os.path.exists(self.wiki_path):\n           \
+    \ os.makedirs(self.wiki_path)\n\n        # Create home.md file\n        home_md_path\
+    \ = os.path.join(self.wiki_path, 'home.md')\n        if not os.path.exists(home_md_path):\n\
+    \            with open(home_md_path, 'w', encoding='utf-8') as f:\n          \
+    \      f.write(f\"# {self.settings.project_name}\\n\")\n\n    def define_wiki_config(self):\n\
+    \        # Define the wiki structure\n        config = {\n            'sections':\
+    \ [\n                {'name': 'Endpoints', 'file': 'endpoints.md'},\n        \
+    \        {'name': 'Classes', 'file': 'classes.md'},\n                {'name':\
+    \ 'Utilities', 'file': 'utilities.md'},\n                {'name': 'Examples',\
+    \ 'file': 'examples.md'}\n            ]\n        }\n        return config\n\n\
+    \    def process_file_changes(self, file_path):\n        if not self.settings.project_wiki\
+    \ or not file_path.startswith(self.settings.project_path):\n            return\n\
+    \n        # Extract relevant parts from the file\n        with open(file_path,\
+    \ 'r', encoding='utf-8') as f:\n            content = f.read()\n\n        # Determine\
+    \ which wiki file to update\n        wiki_file = self.determine_wiki_file(file_path)\n\
+    \        if wiki_file:\n            self.update_wiki_file(wiki_file, content)\n\
+    \n    def determine_wiki_file(self, file_path):\n        # Logic to determine\
+    \ which wiki file to update based on file path\n        if 'endpoints' in file_path:\n\
+    \            return 'endpoints.md'\n        elif 'classes' in file_path:\n   \
+    \         return 'classes.md'\n        elif 'utils' in file_path:\n          \
+    \  return 'utilities.md'\n        elif 'examples' in file_path:\n            return\
+    \ 'examples.md'\n        return None\n\n    def update_wiki_file(self, wiki_file,\
+    \ content):\n        wiki_file_path = os.path.join(self.wiki_path, wiki_file)\n\
+    \        with open(wiki_file_path, 'a', encoding='utf-8') as f:\n            f.write(content\
+    \ + '\\n')\n\n    def rebuild_wiki(self):\n        # Rebuild the wiki using Vitepress\n\
+    \        os.system(f\"cd {self.wiki_path} && npx vitepress build\")\n```\n\n###\
+    \ Explanation\n\n1. **Initialization**:\n   - The `initialize_wiki` method checks\
+    \ if the project has a wiki setting and initializes the wiki directory if necessary.\n\
+    \   - It creates a `home.md` file in the wiki directory.\n\n2. **Configuration**:\n\
+    \   - The `define_wiki_config` method defines the structure of the wiki, including\
+    \ sections and their corresponding markdown files.\n\n3. **Processing Changes**:\n\
+    \   - The `process_file_changes` method monitors the project files for changes\
+    \ and extracts relevant parts from the changed file.\n   - The `determine_wiki_file`\
+    \ method determines which wiki file to update based on the file path.\n   - The\
+    \ `update_wiki_file` method appends the extracted content to the appropriate wiki\
+    \ file.\n\n4. **Rebuilding the Wiki**:\n   - The `rebuild_wiki` method uses Vitepress\
+    \ to rebuild the wiki to reflect the changes.\n\n### Diagram\n\nHere\u2019s a\
+    \ simple diagram to express the logic:\n\n```\n+-------------------+\n| Initialize\
+    \ Wiki   |\n| Directory         |\n+-------------------+\n          |\n      \
+    \    v\n+-------------------+\n| Define Wiki Config|\n+-------------------+\n\
+    \          |\n          v\n+-------------------+\n| Process File      |\n| Changes\
+    \           |\n+-------------------+\n          |\n          v\n+-------------------+\n\
+    | Update Wiki File  |\n+-------------------+\n          |\n          v\n+-------------------+\n\
+    | Rebuild Wiki      |\n+-------------------+\n```\n\nThis setup ensures that the\
+    \ wiki is initialized, configured, and updated dynamically based on changes in\
+    \ the project files."
+  created_at: '2025-05-17 16:38:20.713199'
+  disable_knowledge: false
+  doc_id: 9db7bf6f-c077-4424-bf21-0224a13a7bae
+  done: true
+  files:
+  - /codx/junior/engine.py
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 31.11923384666443
+    model: openai/mercury-coder-small
+    time_taken: 32.84347915649414
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-05-17 16:38:20.713239'
+  user: null
+mode: chat
+name: Initialize wiki project
+parent_id: 511c3d55-1065-4298-bc0a-a1d93cbd99c5
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-06-21T09:59:50.855147'
+url: ''
+users:
+- admin
+visibility: ''

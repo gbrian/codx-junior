@@ -31,6 +31,8 @@ from codx.junior.api.db_router import router as db_router
 
 from codx.junior.security.user_management import get_authenticated_user
 
+from codx.junior.chat.chat_export import ExportedDocument
+
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
@@ -101,7 +103,7 @@ from codx.junior.utils.utils import (
     exec_command,
 )
 
-from codx.junior.background import start_background_services
+from codx.junior.background import start_background_services, stop_background_services
 
 
 CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
@@ -131,6 +133,17 @@ app.include_router(github_router, prefix="/api")
 app.include_router(file_finder_router, prefix="/api")
 app.include_router(db_router, prefix="/api")
 
+@app.on_event("startup")
+async def startup_event():
+    logger.info("FASTAPI startup")
+    start_background_services()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("FASTAPI shutdown")
+    stop_background_services()
+    
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
 	exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
@@ -201,8 +214,6 @@ def api_health_check():
 @app.get("/api/knowledge/reload")
 async def api_knowledge_reload(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    await codx_junior_session.check_project_changes()
-    await codx_junior_session.reload_knowledge()
     return codx_junior_session.check_knowledge_status()
 
 @app.post("/api/knowledge/reload-path")
@@ -238,10 +249,23 @@ def api_list_chats(request: Request):
     codx_junior_session = request.state.codx_junior_session
     file_path = request.query_params.get("file_path")
     chat_id = request.query_params.get("id")
+    export_format = request.query_params.get("export_format")
+    
+    if export_format:
+        export = codx_junior_session.get_chat_manager().export_chat(chat_id=chat_id, export_format=export_format)
+        # Initiate a download action with the exported document
+        return Response(
+                  content=export.content,
+                  media_type=export.content_type, 
+                  headers={"Content-Disposition": f"attachment; filename={export.file_name}"}
+              )
+    
     if chat_id:
         return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
+    
     if file_path:
         return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
+    
     return codx_junior_session.list_chats()
 
 @profile_function
@@ -383,12 +407,9 @@ def api_project_watch(request: Request):
 
 @app.get("/api/projects")
 def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    with_metrics = request.query_params.get("with_metrics")
     return [{
       **project.__dict__,
-      "workspaces": project.get_project_workspaces(),
-      "metrics": get_codx_junior_session(request, project.codx_path).project_metrics() \
-                      if with_metrics else {}
+      "workspaces": project.get_project_workspaces()
     } for project in find_all_user_projects(user)]
 
 @app.get("/api/projects/metrics")
@@ -603,6 +624,4 @@ if CODX_JUNIOR_STATIC_FOLDER:
     app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")
 
 app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
-
-start_background_services(app)
 

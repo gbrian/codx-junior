@@ -8,7 +8,7 @@ import highlight from 'markdown-it-highlightjs'
 
 <template>
   <div class="w-full h-full flex gap-2">
-    <div class="text-md text-wrap max-w-full w-full overflow-y-auto prose leading-tight">
+    <div v-bind="$attrs" class="text-md text-wrap max-w-full w-full overflow-y-auto prose leading-tight">
       <div v-html="html"></div>
       <YoutubeViewer
         v-for="(url, index) in youtubeLinks"
@@ -21,10 +21,12 @@ import highlight from 'markdown-it-highlightjs'
       class="code-block"
       :key="new Date()"
       :code="code"
+      :files="files"
       @generate-code="$emit('generate-code', $event)"
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"
       @save-file="$emit('save-file', $event)"
+      @add-file="$emit('add-file', $event)"
       @edit-message="$emit('edit-message', $event)"
     />
   </div>
@@ -51,7 +53,8 @@ const md = new MarkdownIt({
 md.use(emoji)
 
 export default {
-  props: ['text', 'mentionList'],
+  inheritAttrs: false,
+  props: ['text', 'mentionList', 'files'],
   data() {
     return {
       codeBlocks: [],

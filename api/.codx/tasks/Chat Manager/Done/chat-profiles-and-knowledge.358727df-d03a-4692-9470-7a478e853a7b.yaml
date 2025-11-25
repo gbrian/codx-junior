@@ -1,0 +1,32 @@
+board: Chat Manager
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Done
+column_id: ''
+created_at: '2025-09-03 04:49:47.606400'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/api/.codx/tasks/Chat Manager/Done/chat-profiles-and-knowledge.358727df-d03a-4692-9470-7a478e853a7b.yaml
+id: 358727df-d03a-4692-9470-7a478e853a7b
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages: []
+mode: task
+name: Chat profiles and knowledge
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-09-29T14:03:34.291337'
+url: ''
+users: []
+visibility: ''

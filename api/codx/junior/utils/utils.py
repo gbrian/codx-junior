@@ -2,6 +2,8 @@ import os
 import logging
 import subprocess
 import string
+import inspect
+
 from pathlib import Path
 import json
 import hashlib
@@ -56,6 +58,19 @@ def document_to_context(doc):
     </document>
     """
 
+def document_to_code_block(doc):
+
+    content = doc.metadata.get('summary', doc.page_content)
+    source = str(Path(doc.metadata['source']).absolute())
+    language = doc.metadata.get('language')
+    extension = source.split(".")[-1] if "." in source else ""
+
+    return "\n".join([
+      f"```{ language or extension } {source}", 
+      content,
+      "```"
+    ])
+
 def remove_starting_block(content):
     if content.startswith("```"):
         return "\n".join(content.split("\n")[1:-1])
@@ -84,12 +99,14 @@ def extract_blocks(content):
           continue
 
 def exec_command(command: str, cwd: str=None, env: dict=None):
-    result = subprocess.run(command.split(" "),
-                                    cwd=cwd,
-                                    env=os.environ | (env or {}),
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT,
-                                    text=True)
+    result = subprocess.run(f"""
+    {command}
+    """, shell=True,
+        cwd=cwd,
+        env=os.environ | (env or {}),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True)
     return result.stdout, result.stderr
 
 def set_file_permissions(file_path: str):
@@ -117,3 +134,20 @@ def clean_string(string_to_clean: str) -> str:
     # NOT WORKING WITH SPANISH LANGUAGE, IT REMOVES VALID CHARS
     return string_to_clean
     # return ''.join(c if c in string.printable else ' ' for c in string_to_clean)
+
+
+async def asyncify(res):
+    """
+        mix sync and async code.
+        f can be sync or async:
+        res = await asyncify(f())
+    """
+    if inspect.iscoroutinefunction(res):
+        try:
+            res = await res
+        except Exception as ex:
+            # inspect.iscoroutinefunction... rare.. :(
+            cant_await = "can't be used in 'await'" in str(ex)
+            if not cant_await:
+                raise ex
+    return res

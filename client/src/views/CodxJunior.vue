@@ -1,40 +1,19 @@
 <script setup>
 import { API } from '../api/api'
 import TabViewVue from '@/components/TabView.vue'
-import ProjectDropdown from '@/components/ProjectDropdown.vue'
 import moment from 'moment'
+import { useId } from 'vue';
 </script>
 
 <template>
   <div class="absolute top-0 left-0 right-0 bottom-0 z-[100] m-2 rounded-lg bg-base-300/70 flex flex-col justify-center items-center" v-if="$projects.projectLoading">
     <div class="text-2xl">Loading...</div>
   </div>
-  <div class="codx-junior flex min-h-full relative group-codxjunior @container" v-else>
+  <div class="@container codx-junior flex min-h-full relative group-codxjunior" 
+    :class="(!$ui.isMobile && !$ui.showApp) && 'max-w-[1600px]'"
+  v-else>
     <div class="grow flex flex-col relative overflow-auto bg-base-300">
-      <div class="px-2 flex gap-2 items-center relative justify-between"
-        v-if="!isWelcomeView"
-      >
-        <div class="flex gap-4 items-start">
-          <ProjectDropdown />
-        </div>
-        <button class="btn btn-ghost mt-1 md:hidden" @click="showBar = true">
-          <i class="fa-solid fa-bars"></i>
-        </button>
-      </div>
-      <div class="text-xs text-info group relative hover:bg-base-300 opacity-10 hover:opacity-100" 
-        @click="openLastEvent"
-        v-if="lastEvent && $user.role === 'admin'">
-        <div class="overflow-hidden text-nowrap group-hover:opacity-0">{{ lastEvent }}</div>
-        <div class="flex flex-col gap-2 hidden group-hover:block group-hover:bg-base-300 absolute top-4 w-96 h-20 z-50">
-          <div v-for="event in lastEvents" :key="event.ts">
-            {{ formatEvent(event)  }}
-          </div>
-        </div>
-      </div>
-
-      <div class="grow overflow-auto"
-        :class="addSidePadding && '2xl:mx-70 4xl:mx-96 mx-20'"
-      >
+      <div class="grow overflow-auto p-1 md:p-2">
         <TabViewVue  :key="projectKey" />
       </div>
     </div>
@@ -78,9 +57,6 @@ export default {
     }
   },
   computed: {
-    addSidePadding () {
-      return !this.$ui.showApp && this.$ui.activeTab !== 'wiki'
-    },
     subProjects() {
       return Array.isArray(this.activeProject?.sub_projects)
         ? this.activeProject?.sub_projects

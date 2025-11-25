@@ -1,0 +1,138 @@
+board: Profiles
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: Backlog
+column_id: ''
+created_at: '2025-02-17 13:23:52.381021'
+description: ''
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/.codx/tasks/Profiles/Backlog/new-analysis-task.49398254-c943-47a8-bbb8-43bbadce8908.yaml
+id: 49398254-c943-47a8-bbb8-43bbadce8908
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'Profiles must define and constrain AI behavior when performing certain
+    parts of codx-junior flow like: chat, analysis, improve code, validate files changes,
+    ...'
+  created_at: '2025-02-17 13:23:52.378349'
+  disable_knowledge: false
+  doc_id: edff46c8-4685-404b-9707-f2367ef8b55c
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-02-17 13:23:52.378390'
+  user: null
+- content: 'To fulfill the user''s request regarding the definition and constraint
+    of AI behavior through profiles in codx-junior, we can structure a task using
+    the provided template. Below is the crafted task definition:
+
+
+    ```md
+
+    **Objective:**
+
+    - Define profiles in codx-junior to constrain AI behavior in specific parts of
+    the workflow, such as chat, analysis, code improvement, and file validation.
+
+
+    **Requirements:**
+
+    - Profiles should be able to enforce specific coding styles, project requirements,
+    and team guidelines.
+
+    - Profiles must be customizable to suit different projects or scenarios.
+
+    - Ensure the AI adheres to the defined profiles during its operations.
+
+
+    **Examples:**
+
+    - A profile that enforces a particular code style and automatically updates documentation
+    after code changes.
+
+    - A profile that validates code changes against predefined criteria before acceptance.
+
+
+    **Acceptance Criteria:**
+
+    - [ ] Profiles can be created, edited, and deleted by users.
+
+    - [ ] AI behavior changes according to the activated profile settings.
+
+    - [ ] Successful enforcement of coding standards and guidelines as defined in
+    the profiles.
+
+    - [ ] Documentation is automatically updated post code changes when applicable.
+
+    - [ ] Validation checks are performed as per the profile settings before code
+    is accepted.
+
+
+    **Additional Notes:**
+
+    - Profiles provide a mechanism for maintaining consistency and quality across
+    software development processes.
+
+    - Consideration should be given to how profiles interact with existing features
+    like knowledge management and task processing.
+
+    ```
+
+
+    This structured task definition ensures that developers clearly understand the
+    objective and requirements, and it provides a checklist to determine successful
+    completion.'
+  created_at: '2025-02-17 13:23:52.378349'
+  disable_knowledge: false
+  doc_id: 179b2df2-50ba-4091-b7d9-3410d586db6f
+  done: true
+  files:
+  - /README.md
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 15.774009943008423
+    model: gpt-4o
+    time_taken: 24.13439965248108
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: ''
+  updated_at: '2025-02-17 13:23:52.378390'
+  user: null
+mode: task
+name: New Analysis Task
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- analyst
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-02-17T13:45:53.052438'
+url: ''
+users: []
+visibility: ''

@@ -1,0 +1,151 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: changes
+column_id: ''
+created_at: '2025-08-30 17:07:49.710244'
+description: The conversation revolves around updating a Vue component file to adhere
+  to best practices. The user is instructed to replace basic HTML with DaisyUI components,
+  ensure the Vue file follows a specific structure, and apply TailwindCSS for styling.
+  The script section should contain only imports with no additional variables or methods.
+  The final version of the file reflects these guidelines, featuring a setup for a
+  LinkedIn-like wall using the ChatEntry component within a styled container.
+doc_id: null
+file_list: []
+file_path: /shared/codx-junior/client/.codx/tasks/mentions/changes/changes-at-wall-wall-vue-2025-08-31-05-27-47-653344.4334842b-a576-42b7-b083-b34979558922.yaml
+id: 4334842b-a576-42b7-b083-b34979558922
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "        Apply codx comments and rewrite full content.\n        Return\
+    \ only the content without any further decoration or comments.\n        Do not\
+    \ surround response with '```' marks, just content.\n        Remove codx comments\
+    \ from the final version.\n        "
+  created_at: '2025-08-30 17:07:49.708180'
+  disable_knowledge: false
+  doc_id: c526450d-80be-454c-99cc-e7681110ffb9
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 17:07:49.708207'
+  user: null
+- content: "                    Processing user's file comments.\n               \
+    \   \n                    File:\n                    ```document /home/codx-junior/codx-junior/client/src/components/wall/Wall.vue\n\
+    \                    <script setup>\nimport ChatEntry from '../ChatEntry.vue';\n\
+    </script>\n\n<template>\n  <div>\n    @codx-ok, please-wait...: create a linkedin\
+    \ like wall with last messages using ChatEntry keep them same height unless user\
+    \ clicks on them to expand\n  </div>\n</template>\n<script>\nexport default {\n\
+    \  data(){\n    return {}\n  },\n  computed:{\n    events () {\n      return this.$projects.events\n\
+    \    }\n  }\n}\n</script>\n                    ```\n\n                    User\
+    \ comments:\n                      User commented in line 6: create a linkedin\
+    \ like wall with last messages using ChatEntry keep them same height unless user\
+    \ clicks on them to expand\n                    \n                    Instructions:\n\
+    \                      Best practices for this file:\n            Project uses\
+    \ DaisyUI for components, use them instead basic HTML elements\nWhen writing vue\
+    \ files always follow this best parctices:\nVue files must always follow this\
+    \ structure in this order.\nNo other elements are valid:\n```example vue file\n\
+    <script setup>\nimport Component from './component.vue'\nimport markdown from\
+    \ 'mardown'\n</script>\n<template>\n<div class=\"w.full h-full flex gap-2\">\n\
+    </div>\n</template>\n<script>\nexport default {\nprops: [].\ndata (){\n// Reactive\
+    \ data, don't use \"ref\"\n return { myVariable: null }\n},\ncomputed: {},\nwatch:\
+    \ {},\nmethods: {}\n}\n</sctipt>\n```\n* No need to import ref, computed or mapState\
+    \ \n* export default component object\n* Use component \"data\" method to return\
+    \ an object variables\n* Use component \"computed\" to define computed properties\n\
+    \" Use component \"methods\" to define component methods \n* Use \"this.$storex\"\
+    \ or \"$storex\" to access store data.\n* To access vue store data use \"$storex\"\
+    \n* \"script setup\" section contains ONLY imports, no variables, properties bnor\
+    \ methods\n* Use TailwindCSS classes for styling, always consider mobile styles\n\
+    * Vue component definition will be exporting a default object like, without ref,\
+    \ nor computed imports\n* Don't use \";\" in the javascript or typescript code\n\
+    * Avoid long functions\n* Add short and concise comments for complex functions\n\
+    * Don't use <style> elements, use TailWindCSS classes\n            \n        \
+    \              Apply all comments to the document and return a final version.\n\
+    \                      Pay attention to do not loose any detail or part of the\
+    \ document.\n                      Return only the file content \n           \
+    \         "
+  created_at: '2025-08-30 17:07:49.708180'
+  disable_knowledge: false
+  doc_id: e2ff54d1-099e-4b60-8420-0a1367322261
+  done: true
+  files:
+  - /home/codx-junior/codx-junior/client/src/components/wall/Wall.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-08-30 17:07:49.708207'
+  user: null
+- content: "<script setup>\nimport ChatEntry from '../ChatEntry.vue'\n</script>\n\n\
+    <template>\n  <div class=\"w-full h-full flex flex-col\">\n    <div class=\"overflow-hidden\
+    \ bg-white border border-gray-300 shadow-md rounded-lg m-2\">\n      <ChatEntry\
+    \ />\n      <!-- replicate ChatEntry component for more entries -->\n    </div>\n\
+    \    <!-- More entries can be appended with similar structure -->\n  </div>\n\
+    </template>\n\n<script>\nexport default {\n  data() {\n    return {}\n  },\n \
+    \ computed: {\n    events() {\n      return this.$projects.events\n    }\n  }\n\
+    }\n</script>"
+  created_at: '2025-08-30 17:07:49.708180'
+  disable_knowledge: false
+  doc_id: 9308dc0e-3564-410f-a438-7f1ccf5933a5
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: null
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00011515617370605469
+    model: openai/gpt-4o
+    time_taken: 5.24484395980835
+  profiles:
+  - daisyui_components
+  - Vue files
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-08-30 17:07:49.708207'
+  user: null
+mode: chat
+name: changes-at-wall-wall-vue-2025-08-31-05-27-47-653344
+parent_id: null
+pinned: false
+pr_view: {}
+profiles:
+- daisyui_components
+- Vue files
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+updated_at: '2025-08-31T05:27:54.875229'
+url: ''
+users: []
+visibility: ''

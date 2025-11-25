@@ -1,0 +1,79 @@
+board: Mobile
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+column: ToDo
+column_id: ''
+created_at: '2025-10-24 15:51:26.518594'
+description: The user wants to move the wiki search option from the NavigationBar
+  to the bottom of the MobileMenu within a project. They have not provided specific
+  file paths or content related to the NavigationBar or MobileMenu, so further exploration
+  of the project's structure is needed to accomplish this task.
+doc_id: null
+file_list:
+- /shared/codx-junior/client/src/components/NavigationBar.vue
+- /shared/codx-junior/client/src/components/MobileMenu.vue
+file_path: /shared/codx-junior/client/.codx/tasks/Mobile/ToDo/mobile-navigationbar.2b1aec2c-43ed-4cb9-b646-50ce50c5db17.yaml
+id: 2b1aec2c-43ed-4cb9-b646-50ce50c5db17
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Find MobileMenu component file and show head lines and absolute file path
+  created_at: '2025-10-24 15:51:26.512941'
+  disable_knowledge: true
+  doc_id: 6c0532ca-7e4f-44e8-a3b9-ae60fb898ac8
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-24 15:51:26.513021'
+  user: admin
+- content: "Copy the wiki search option from NavigationBar to the MobileMenu. Place\
+    \ at the bottom\_"
+  created_at: '2025-10-24 15:51:26.512941'
+  disable_knowledge: true
+  doc_id: f836272a-d13f-451a-b899-11093aef917b
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-10-24 15:51:26.513021'
+  user: admin
+mode: task
+name: Mobile NavigationBar
+parent_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+updated_at: '2025-10-25T07:07:55.578104'
+url: ''
+users:
+- admin
+visibility: ''
