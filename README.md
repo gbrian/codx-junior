@@ -1,6 +1,4 @@
-<div style="border-radius:10px;margin-bottom:12px;background-image:url('./assets/images/NOV2025/codx-junior-ai-backgroound.png');background-position:30px">
-<img width="200" src="assets/images/NOV2025/codx-junior-avatar-3.png" style="margin-left:36%;border-radius:100%" />
-</div>
+<img width="100%" src="assets/images/NOV2025/codx-junior-banner.png" style="margin-bottom:10px;border-radius:20px" />
 
 ![Help wanted!](https://img.shields.io/badge/Help%20wanted!-8A2BE2)
 ![AI](https://img.shields.io/badge/AI-always-blue)
