@@ -601,17 +601,19 @@ export const actions = actionTree(
       await $storex.api.chats.kanban.save(kanban || state.kanban)
     },
     async saveProfile({ state }, profile) {
-      const data = await $storex.profiles.saveProfile({ profile, project: state.activeProject })
-      await $storex.projects.loadProfiles()
+      const project = state.allProjectsById[profile.project_id] || state.activeProject
+      const data = await $storex.profiles.saveProfile({ profile, project })
       if (state.selectedProfile.name === data.name) {
         state.selectedProfile = $storex.projects.profiles.find(p => p.name === data.name)
       }      
     },
     deleteProfile({ state }, profile) {
+      const project = state.allProjectsById[profile.project_id] || state.activeProject
       if (profile.name === state.selectedProfile?.name) {
         state.selectedProfile = null
       }
-      $storex.api.profiles.delete(profile.name)
+      $storex.profiles.deleteProfile({ profile, project })
+      $storex.profiles.loadProjectProfiles(state.activeProject)
     },
     createNewProfile({ state }, profile) {
       state.selectedProfile = profile

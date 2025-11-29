@@ -25,10 +25,13 @@ export const actions = actionTree(
       state.profiles[project.project_id] = profiles
     },
     async saveProfile({ state }, { project, profile }) {
-      const data = await $storex.api.profiles.save(profile)
+      const data = await project.$api.profiles.save(profile)
       const profiles = state.profiles[project.project_id]
       state.profiles[project.project_id] = [...profiles.filter(p => p.name !== data.name), data]
       return data
+    },
+    async deleteProfile({ state }, { project, profile }) {
+      await project.$api.profiles.delete(profile.name)
     }
   }
 )

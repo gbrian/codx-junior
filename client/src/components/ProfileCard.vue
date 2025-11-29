@@ -12,7 +12,12 @@ import ChatIcon from './chat/ChatIcon.vue';
       </div>
     </div>
     <div class="flex flex-col gap-1 items-center mt-4 tooltip" :data-tip="profile.name">
-      <h2 class="text-lg font-semibold overflow-hidden text-ellipsis">
+      <h2 class="text-lg font-semibold overflow-hidden text-ellipsis flex gap-2 items-center">
+        <div class="avatar tooltip tooltip-bottom" :data-tip="project?.project_name" v-if="project.project_icon">
+          <div class="w-6 rounded-full click">
+              <img :src="project.project_icon" />
+          </div>  
+        </div>  
         {{ profile.name }}
       </h2>
       <p class="badge badge-xs badge-success badge-outline">{{ profile.category }} {{ profile.file_match  }}</p>
@@ -49,6 +54,9 @@ export default {
     return {}
   },
   computed: {
+    project() {
+      return this.$projects.allProjectsById[this.profile.project_id] || this.$project
+    },
     useAvatar() {
       return this.profile.avatar ||
         `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=${this.profile.name}`

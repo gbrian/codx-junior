@@ -57,7 +57,7 @@ import StatuBar from './StatuBar.vue'
         @resize="size => $ui.setCodxJuniorWidth(size)">
         <CodxJuniorVue ref="codxJunior" 
           class="h-full" 
-          :class="[ showApp ? 'w-full' : 'w-full mx-10 2xl:mx-20' ]"
+          :class="[ showApp ? 'w-full' : 'w-full  xl:mx-10 2xl:mx-20' ]"
           :style="`zoom:${ zoom }`" 
           v-if="!$ui.isMobile || !$ui.showApp"
         />

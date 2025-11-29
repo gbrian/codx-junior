@@ -140,7 +140,7 @@ import Markdown from './Markdown.vue';
 
 <script>
 export default {
-  props: ['profile', 'project', 'allProfiles', 'loading'],
+  props: ['profile', 'allProfiles', 'loading'],
   data() {
     return {
       editProfile: { ...this.profile },
@@ -151,6 +151,9 @@ export default {
     }
   },
   computed: {
+    project() {
+      return this.$projects.allProjectsById[this.editProfile.project_id] || this.$project
+    },
     userAvatar() {
       return this.editProfile.avatar ||
         'https://img.daisyui.com/images/stock/photo-1534528741775-53994a69daeb.webp'

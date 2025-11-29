@@ -6,7 +6,6 @@ import ProfileCard from '@/components/ProfileCard.vue';
   <div class="">
     <EditProfile 
       :profile="selectedProfile"
-      :project="selectedProfile.profile || $project"
       :allProfiles="profiles"
       :loading="loadingProfile"
       @save="saveSelectedProfile"
@@ -65,12 +64,12 @@ export default {
       this.$projects.setSelectedProfile(selectedProfile)
     },
     async deleteSelectedProfile() {
-      this.$projects.deleteSelectedProfile(this.selectedProfile)
+      this.$projects.deleteProfile(this.selectedProfile)
     },
     async saveSelectedProfile(profile) {
       this.loadingProfile = true
       try {
-        this.$projects.saveProfile({ ...profile, project: null })
+        this.$projects.saveProfile(profile)
       } catch {}
       this.loadingProfile = false
     },

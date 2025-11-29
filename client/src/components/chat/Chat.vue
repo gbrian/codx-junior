@@ -1028,9 +1028,8 @@ export default {
         this.createSubtask(false)
       }
     },
-    async onPRFileCreateChat({ chat, title, files, description, metadata, profiles, mode, column }) {
-      this.$emit('sub-task', {
-          parent: this.chat,
+    async onPRFileCreateChat({ title, files, description, metadata, profiles, mode, column }) {
+      await this.$projects.createNewChat({
           name: title,
           description,
           project_id: this.chatProject.id,
@@ -1038,7 +1037,9 @@ export default {
           file_list: files,
           profiles,
           mode,
-          column,
+          column: column || this.chatProject.column,
+          board: this.chatProject.board,
+          
           metadata,
           activateChat: false
         })

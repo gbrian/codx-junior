@@ -3,7 +3,7 @@ import ProjectDetailt from './ProjectDetailt.vue'
 import WorkspacesSelector from './workspaces/WorkspacesSelector.vue'
 </script>
 <template>
-  <div class="absolute top-0 left-0 right-0 bottom-0 z-50 flex bg-base-300/50" @click="$emit('close')">
+  <div class="absolute top-0 left-0 right-0 bottom-0 z-50 flex bg-base-300/50" @click.stop="$emit('close')">
     <div class="h-full bg-base-100 shadow-lg z-50">
       <div class="tools flex flex-col gap-2 items-start p-4">
         <ProjectDetailt 

@@ -254,10 +254,10 @@ export default {
         return false
       })
 
-      return this.files?.filter(f => {
+      return (this.files?.filter(f => {
         const index = fileIndex(f)
         return matchByKey(f) && index.includes(textFilter)
-      }) || []
+      }) || []).sort((a, b) => a.fileFullName > b.fileFullName ? 1 : -1)
     },
     defaultExpanded() {
       return [...new Set(this.visibleFiles.map(i => i.folder))]
@@ -492,7 +492,16 @@ export default {
     onFileChat({ file, column, message: description, metadata }) {
       column = column || this.chat.column
       const { fileFullName, fileShortName, profiles } = file
-      this.$emit('new-chat', { title: fileShortName, description, files: [fileFullName], profiles, mode: 'task', column, metadata })
+      this.$emit('new-chat', { 
+        title: fileShortName, 
+        description, 
+        files: [fileFullName], 
+        profiles: profiles.map(p => p.name), 
+        mode: 'task', 
+        column,
+        metadata,
+        project_id: this.chat.project_id
+      })
     },
     onDataItemSelected(item) {
       if (item.hasChildren) {

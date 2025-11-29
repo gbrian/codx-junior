@@ -14,10 +14,9 @@ import ProjectIcon from './ProjectIcon.vue'
         $storex.session.connected ? '' : 'grayscale text-error',
         $ui.showApp && 'click'
       ]">
-      <div class="flex gap-2 items-center w-1/3">
+      <div class="flex gap-2 items-center w-1/3" @click="showMobileMenu = true">
         <div class="flex flex-col" v-if="$ui.isMobile">
-          <ProjectIcon class="cursor-pointer md:cursor-auto" :project="{ avatar: '/only_icon.png'}"
-            @click="showMobileMenu = true" />
+          <ProjectIcon class="cursor-pointer md:cursor-auto" :project="{ avatar: '/only_icon.png'}" />
           <MobileMenuVue class="md:hidden" v-if="showMobileMenu" @close="showMobileMenu = false" />
           <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
         </div>

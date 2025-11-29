@@ -1,0 +1,170 @@
+board: Docs v0.1
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: Backlog
+column_id: ''
+created_at: '2025-11-25 15:11:08.584096'
+description: "1. The provided markdown document outlines the home page of codx\u2011\
+  junior, an open\u2011source AI platform.  \n2. It introduces the hero section, features,\
+  \ and a banner image, emphasizing collaboration and open\u2011source support.  \n\
+  3. Comments request enhancements to the \"AI for the win\" section, highlighting\
+  \ AI\u2019s role in revolutionizing projects and freeing creativity.  \n4. They\
+  \ also request detail for the \"All in one\" feature, showcasing task management,\
+  \ container orchestration, testing, and collaboration tools.  \n5. The instructions\
+  \ ask for the document to be updated accordingly and returned with the applied changes."
+doc_id: null
+file_list:
+- /shared/codx-junior/docs/index.md
+file_path: /shared/codx-junior/docs/.codx/tasks/Docs v0.1/Backlog/index.01e5814a-dc8e-4773-8687-83183d9ad222.yaml
+id: 01e5814a-dc8e-4773-8687-83183d9ad222
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "Change the \"about me\" and explain like:\_\n\"I'm an open source AI platform\
+    \ built to assist repo owners to keep their repos sharp. So think on me as your\
+    \ more loyalty collaborator that will assist you no matter how hard the task is\"\
+    \n\n\nWrite in a friendly nerdy type\n\n"
+  created_at: '2025-11-25 15:11:08.581824'
+  disable_knowledge: true
+  doc_id: 3b4b8d9a-c140-4c5f-81b3-1a59c73bde4d
+  done: true
+  files:
+  - /shared/codx-junior/docs/index.md
+  - /shared/codx-junior/docs/index.md
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-25 15:11:08.581846'
+  user: admin
+- content: "```md /shared/codx-junior/docs/index.md\n---\nlayout: home\n\nhero:\n\
+    \  name: \"This is \"\n  text: \"codx-junior AI ;) \"\n  tagline: \"Maintaining\
+    \ open source projects is a labor of love, ...let's do it together!\"\n  image:\n\
+    \    src: /only_icon.png\n    alt: codx-junior\n  actions:\n    - theme: brand\n\
+    \      text: Let's start\n      link: /hello-codx-junior\n    - theme: alt\n \
+    \     text: Vote for us\n      link: https://www.producthunt.com/products/codx-junior#codx-junior\n\
+    \nfeatures:\n  - title: About me\n    details: I'm an open source AI platform\
+    \ built to assist repo owners in keeping their repos sharp. Think of me as your\
+    \ trusty collaborator, always ready to tackle even the hardest tasks, no matter\
+    \ how complex they get.\n  - title: AI for the win\n    details: More than an\
+    \ AI, a Mixture of Experts working together with you \n  - title:  All-In-One\n\
+    \    details: Setup and switch between unlimited custom profiles that act as your\
+    \ project's domain specialists helping you get clear and concise answers.\n  \n\
+    ---\n<img width=\"100%\" style=\"margin-top:20px;border-radius:20px\" src=\"/images/NOV2025/codx-junior-banner.png\"\
+    \ />\n\n> You will never code alone! \u2764\uFE0F\n```"
+  created_at: '2025-11-25 15:11:08.581824'
+  disable_knowledge: false
+  doc_id: 539195e8-3ea3-4d34-8ef0-e23bfddba7ce
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.0001850128173828125
+    model: openai/mercury
+    time_taken: 1.8653440475463867
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-25 15:11:08.581846'
+  user: null
+- content: "\"AI for the win\"\_\nThis section must enphasize about how AI can revolutionize\
+    \ our projects and liberate us from tedious tasks so we can boost our creativity.\n\
+    Tell that codx-junior is a mixture of AI models and features focused on open source\
+    \ project management\n\"All in one\"\nExplain that codx-junior has all you need\
+    \ from task management, running the project with containers, testing with dekstop\
+    \ and collaborate with all your contributors"
+  created_at: '2025-11-25 15:11:08.581824'
+  disable_knowledge: true
+  doc_id: d8ac0efd-5bc3-4b2f-bbff-5b9f3f6c4427
+  done: true
+  files: []
+  hide: true
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-11-25 15:11:08.581846'
+  user: admin
+- content: "```md /shared/codx-junior/docs/index.md\n---\nlayout: home\n\nhero:\n\
+    \  name: \"This is \"\n  text: \"codx-junior AI ;) \"\n  tagline: \"Maintaining\
+    \ open source projects is a labor of love, ...let's do it together!\"\n  image:\n\
+    \    src: /only_icon.png\n    alt: codx-junior\n  actions:\n    - theme: brand\n\
+    \      text: Let's start\n      link: /hello-codx-junior\n    - theme: alt\n \
+    \     text: Vote for us\n      link: https://www.producthunt.com/products/codx-junior#codx-junior\n\
+    \nfeatures:\n  - title: About me\n    details: I'm an open source AI platform\
+    \ built to assist repo owners in keeping their repos sharp. Think of me as your\
+    \ trusty collaborator, always ready to tackle even the hardest tasks, no matter\
+    \ how complex they get.\n  - title: AI for the win\n    details: AI can revolutionize\
+    \ our projects by automating tedious tasks, freeing us to focus on creativity.\
+    \ codx-junior is a mixture of AI models and features tailored for open source\
+    \ project management.\n  - title:  All-In-One\n    details: codx-junior provides\
+    \ everything you need: task management, containerized project execution, desktop\
+    \ testing, and seamless collaboration with all contributors.\n\n---\n<img width=\"\
+    100%\" style=\"margin-top:20px;border-radius:20px\" src=\"/images/NOV2025/codx-junior-banner.png\"\
+    \ />\n\n> You will never code alone! \u2764\uFE0F\n```"
+  created_at: '2025-11-25 15:11:08.581824'
+  disable_knowledge: false
+  doc_id: d81a7afd-d9bd-4e51-ae45-4608f10c5124
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00019240379333496094
+    model: openai/mercury
+    time_taken: 1.8024921417236328
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: analysis
+  think: null
+  updated_at: '2025-11-25 15:11:08.581846'
+  user: null
+mode: task
+name: Index
+parent_id: null
+parent_project_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+target_project_id: null
+updated_at: '2025-11-25T19:13:32.904003'
+url: ''
+users:
+- admin
+visibility: ''

@@ -2,27 +2,46 @@
 layout: home
 
 hero:
-  name: "codx-junior"
-  text: "FullStack AI Project Assistant"
-  tagline: "Gets IT all together."
+  name: "This is "
+  text: "codx-junior AI ;) "
+  tagline: "Maintaining open source projects is a labor of love, ...let's do it together!"
   image:
     src: /only_icon.png
     alt: codx-junior
   actions:
     - theme: brand
-      text: Hello codx-junior
+      text: Let's start
       link: /hello-codx-junior
     - theme: alt
       text: Vote for us
       link: https://www.producthunt.com/products/codx-junior#codx-junior
 
 features:
-  - title: <img class="feature-icon" src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQNfPQjRn4j1GSTmloSq65gDtH7YB1E1tw6Ew&s" /> Hybrid teams
-    details: The first platform for AI + FullStack Devs teams
-  - title: <img class="feature-icon" src="https://logowik.com/content/uploads/images/ollama-language-model1721162988.logowik.com.webp" /> MoE
-    details: More than an AI, a Mixture of Experts working together with you 
-  - title: <img class="feature-icon" src="https://static.vecteezy.com/system/resources/previews/027/142/043/non_2x/designer-girl-with-stylus-digital-illustrator-avatar-cartoon-flat-style-vector.jpg" /> Profiles
-    details: Setup and switch between unlimited custom profiles that act as your project's domain specialists helping you get clear and concise answers.
-  
+  - title: About me
+    details: I'm an open source AI platform built to assist repo owners in keeping their repos sharp. Think of me as your trusty collaborator, always ready to tackle even the hardest tasks, no matter how complex they get.
+  - title: AI for the win
+    details: AI can revolutionize our projects by automating tedious tasks, freeing us to focus on creativity. codx-junior is a mixture of AI models and features tailored for open source project management.
+  - title:  All-In-One
+    details: "codx-junior provides everything you need: task management, containerized project execution, desktop testing, and seamless collaboration with all contributors."
+
 ---
-![codx-junior](/images/codx-junior-editor.png)
+<div class="">
+<section class="">
+    <div
+        class="bg-gradient-to-br from-sky-800 via-sky-900 to-violet-400 p-6 sm:p-10 rounded-2xl w-full text-white flex items-center justify-between mx-auto my-10">
+        <div class="flex flex-col gap-6">
+            <div class="">
+                <span class="text-gray-200">Apply now</span>
+                <br>
+                <span class="text-gray-200 text-4xl text-white font-semibold">HELP WANTED!</span>
+            </div>
+          </div>
+        <div>
+      </div>
+    </div>
+</section>
+</div>
+
+<img width="100%" style="margin-top:20px;border-radius:20px" src="/images/NOV2025/codx-junior-banner.png" />
+
+> You will never code alone! ❤️

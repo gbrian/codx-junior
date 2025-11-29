@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div @click.stop="" v-if="project">
+  <div v-if="project">
     <div tabindex="0" role="button" class="flex flex-col gap-2 text-xl md:text-2xl"
       :title="project.project_name"
     >

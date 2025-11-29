@@ -64,22 +64,13 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
         </ul>
       </div>
 
-
-      <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="Last comment" 
-        :class="showMessage && 'btn-warning'"
-        @click="showOption = 'message'" 
-        v-if="file.chat"
-      >
-        <i class="fa-solid fa-message"></i>
-      </button>
-      
       <div class="indicator" v-if="file.chat"
         @click="showOption = 'chat'"
       >
         <span class="indicator-item indicator-end badge badge-secondary"
           v-if="showChat"
         >
-          <span class="click" @click.stop="$projects.setActiveChat(file.chat)"
+          <span class="click" @click.stop="navigateToChat"
             v-if="file.chat && showChat">
             <i class="fa-solid fa-arrow-up-right-from-square"></i>
           </span>
@@ -106,11 +97,12 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
       </button>
 
     </div>
-    <VerticalSplitter class="grow flex h-full" 
+    <VerticalSplitter class="grow flex h-full min-h-96" 
       :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
       v-if="!file.collapse">
+      
       <template v-slot:left>
-        <ChatEntry :message="lastMessage" :menu-less="true" v-if="showMessage" />
+        
         <div class="grow overflow-auto" v-if="file.parsed && showDiff">
           <div class="flex items-center gap-2 px-2 py-1 text-xs">
             <div class="flex gap-2 items-center">
@@ -143,6 +135,7 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
             </template>
           </DiffView>
         </div>
+
         <div class="p-2" v-if="theChat && showChat">
           <Chat class="overflow-auto min-h-96" 
             :chat="theChat" 
@@ -183,11 +176,6 @@ export default {
     }
   },
   computed: {
-    showMessage() {
-      return this.showOption === 'message' && 
-        this.file.chat &&
-        this.lastMessage
-    },
     showChat() {
       return this.showOption === 'chat'
     },
@@ -249,6 +237,10 @@ export default {
 
       this.$emit('new-chat', { file: this.file, message, metadata })
       onClose()
+    },
+    async navigateToChat() {
+      await this.$projects.setActiveChat(this.file.chat)
+      this.$ui.setActiveTab('tasks')
     }
   },
   expose: ['file']

@@ -37,10 +37,10 @@ logger = logging.getLogger(__name__)
 GLOBAL_CHAT_INSTRUCTIONS = """
 <instructions info="General to follow when generating your response">
   <instruction>
-    When creating file content add the file name after the code block extension like in "```js /absolute/file/path/file.js"
-    Use tools to convert relative project's file path to absolute.
-    Read file's content if not present in the comversation.
-    Use project search to find context if not clear on the conversation.
+    - IMPORTANT: Always add the file name after the code block language like in this example: "```js /absolute/file/path/file.js"
+    - Use tools to convert relative project's file path to absolute.
+    - Read file's content if not present in the comversation.
+    - Use project search to find context if not clear on the conversation.
   </instruction>
 </instructions>
 """
