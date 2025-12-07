@@ -32,6 +32,7 @@ COPY --chown=${USER} scripts ./scripts
 COPY --chown=${USER} codx-junior ./codx-junior
 COPY --chown=${USER} set_env.sh .
 COPY --chown=${USER} entrypoint.sh .
+COPY --chown=${USER} supervisor.conf .
 
 ENV CODX_JUNIOR_PATH=${HOME}/codx-junior
 

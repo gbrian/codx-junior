@@ -1,0 +1,59 @@
+board: kanban
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: tasks
+column_id: ''
+created_at: '2025-12-06 16:55:22.047333'
+description: ''
+doc_id: null
+file_list: []
+file_path: /home/codx-junior/codx-junior/.codx/tasks/kanban/tasks/.314cc170-9166-4dbb-a81c-894487110888.yaml
+id: 314cc170-9166-4dbb-a81c-894487110888
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: 'hello!
+
+
+    '
+  created_at: '2025-12-06 16:55:22.044430'
+  disable_knowledge: true
+  doc_id: b6d3efc8-a02c-461b-8554-e7e59c408285
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-12-06 16:55:22.044460'
+  user: admin
+mode: chat
+name: ''
+parent_id: null
+parent_project_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+target_project_id: null
+updated_at: '2025-12-06T19:14:53.470556'
+url: ''
+users:
+- admin
+visibility: ''

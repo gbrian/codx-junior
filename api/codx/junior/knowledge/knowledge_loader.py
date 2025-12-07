@@ -6,7 +6,6 @@ import subprocess
 import pathlib
 from datetime import datetime
 
-from langchain.document_loaders.generic import GenericLoader
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 
 

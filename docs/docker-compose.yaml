@@ -1,0 +1,16 @@
+services:
+  docs:
+    image: node:latest
+    volumes:
+      - ./docs:/app
+    working_dir: /app
+    restart: unless-stopped
+    command: bash -c "npm i && npm run docs:dev"
+    ports:
+      - 19000:19000
+    networks:
+      - codx-junior-network
+
+networks:
+  codx-junior-network:
+    external: true

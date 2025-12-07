@@ -20,8 +20,6 @@ from codx.junior.sio.sio import sio
 
 from codx.junior.profiling.profiler import profile_function
 
-from codx.junior.browser import run_browser_manager
-
 from codx.junior.api.chatGPTLikeApi import router as chatgpt_router
 from codx.junior.api.users import router as users_router
 from codx.junior.api.wiki import router as wiki_router
@@ -37,8 +35,6 @@ from codx.junior.chat.chat_export import ExportedDocument
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
 logger = logging.getLogger(__name__)
-
-run_browser_manager()
 
 def disable_logs(logs):
   for logger_id in logs:

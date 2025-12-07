@@ -40,7 +40,7 @@ from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
 
 from codx.junior.utils.utils import write_file
 
-from langchain.schema.document import Document
+from langchain_core.documents import Document
 
 from codx.junior.model.model import CodxUser
 

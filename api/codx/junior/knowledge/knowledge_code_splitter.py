@@ -1,9 +1,9 @@
 import logging
 import os
 
-from langchain.schema.document import Document
-from langchain.text_splitter import Language
-from langchain.document_loaders.parsers import LanguageParser
+from langchain_core.documents import Document
+from langchain_text_splitters import Language
+from langchain_community.document_loaders.parsers import LanguageParser
 from langchain_community.document_loaders.blob_loaders import Blob
 
 from codx.junior.settings import CODXJuniorSettings
@@ -11,7 +11,7 @@ from codx.junior.settings import CODXJuniorSettings
 # from codx.junior.browser.browseruse import BrowserUse
 
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 from llama_index.core.node_parser import CodeSplitter

@@ -8,7 +8,7 @@ from openai.types.chat.chat_completion_system_message_param import ChatCompletio
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 from codx.junior.ai.ai_logger import AILogger
 from codx.junior.settings import CODXJuniorSettings
-from langchain.schema import AIMessage, HumanMessage, BaseMessage
+from langchain.messages import AIMessage, HumanMessage
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.utils.utils import clean_string, asyncify
 from codx.junior.model.model import CodxUser
@@ -41,7 +41,7 @@ class OpenAI_AI:
         if self.settings.get_log_ai():
             self.ai_logger.info(msg)
 
-    def convert_message_to_openai(self, gpt_message: Union[AIMessage, HumanMessage, BaseMessage]):
+    def convert_message_to_openai(self, gpt_message: Union[AIMessage, HumanMessage]):
         if gpt_message.type == "image":
             try:
                 return {"content": json.loads(gpt_message.content), "role": "user"}

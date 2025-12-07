@@ -1,8 +1,8 @@
 import logging
 import json
 
-from langchain.schema import AIMessage, HumanMessage, SystemMessage
-from langchain.schema.document import Document
+from langchain.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.documents import Document
 
 from codx.junior.utils.utils import extract_json_blocks 
 

@@ -198,6 +198,7 @@ class AIModel(BaseModel):
     settings: Union[AILLMModelSettings, AIEmbeddingModelSettings] = Field(description="Model settings")
     metadata: Optional[dict] = Field(description="Model's last update date", default={})
     url: Optional[str] = Field(description="Model info", default="")
+    prompt_template: Optional[str] = Field(description="Model info", default="{ MESSAGE }")
 
 class AISettings(BaseModel):
     provider: Optional[str] = Field(default="") 

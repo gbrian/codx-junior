@@ -1,5 +1,5 @@
 import logging
-from langchain.text_splitter import RecursiveCharacterTextSplitter, Language
+from langchain_text_splitters import RecursiveCharacterTextSplitter, Language
 
 logger = logging.getLogger(__name__)
 

@@ -12,13 +12,10 @@ from pathlib import Path
 from typing import Optional
 
 import requests
-from langchain.schema import (
+from langchain.messages import (
     AIMessage,
-    HumanMessage,
-    BaseMessage
+    HumanMessage
 )
-
-from langchain.schema.document import Document
 
 from codx.junior.ai import AI
 from codx.junior.chat.chat_engine import ChatEngine
@@ -979,7 +976,7 @@ class CODXJuniorSession:
                 } for image in images]
 
             # self.log_info(f"ImageMessage content: {content}")
-            msg = BaseMessage(type="image", content=json.dumps(content))
+            msg = { "type": "image", "content": json.dumps(content) }
         elif m.role == "user":
             msg = HumanMessage(content=m.content)
         else:

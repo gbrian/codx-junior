@@ -1,4 +1,5 @@
 {
-    "workbench.colorTheme": "Default Dark Modern",
-    "files.autoSaveDelay": 60000
+    "files.autoSaveDelay": 60000,
+    "workbench.colorTheme": "Default Dark+",
+    "chat.disableAIFeatures": true
 }

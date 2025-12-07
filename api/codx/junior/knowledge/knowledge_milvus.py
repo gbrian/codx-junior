@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from codx.junior.model.model import CodxUser
 
-from langchain.schema.document import Document
+from langchain_core.documents import Document
 
 from codx.junior.utils.utils import (
   calculate_md5,

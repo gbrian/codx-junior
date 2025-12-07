@@ -7,12 +7,12 @@ from contextlib import contextmanager
 from json import JSONDecodeError
 from typing import List, Tuple, Optional
 
-from langchain.schema import (
-    BaseMessage,
+from langchain.messages import (
     AIMessage,
     HumanMessage,
 )
-from langchain.schema.document import Document
+
+from langchain_core.documents import Document
 
 from codx.junior.ai import AI
 from codx.junior.chat_manager import ChatManager
@@ -596,7 +596,7 @@ class ChatEngine:
                 } for image in images]
 
             # self.log_info(f"ImageMessage content: {content}")
-            msg = BaseMessage(type="image", content=json.dumps(content))
+            msg = { "type": "image", "content": json.dumps(content) }
         elif message.role == "user":
             msg = HumanMessage(content=message.content)
         else:

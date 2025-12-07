@@ -1,1 +1,0 @@
-Give me accurate description of what you see in the image

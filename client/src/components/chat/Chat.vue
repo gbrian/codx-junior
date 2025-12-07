@@ -48,9 +48,9 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
           @chat-message="onPRChatMessage"
           v-if="isPRView" />
         
-        <div class="overflow-auto h-full" v-if="!isBrowser && !isPRView">
-          <div class="flex flex-col" v-for="message, ix in messages" :key="message.id">
-            <ChatEntry :class="['mb-4 rounded-md',
+        <div class="overflow-y-auto w-full h-full" v-if="!isBrowser && !isPRView">
+          <div class="flex flex-col overflow-y-auto overflow-x-hidden w-full h-full" v-for="message, ix in messages" :key="message.id">
+            <ChatEntry :class="['max-w-full mb-4 rounded-md',
               isChannel ? '': 'py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '']"
               :chat="chat"

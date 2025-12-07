@@ -2,7 +2,7 @@
 import Iframe from '../Iframe.vue'
 </script>
 <template>
-  <div class="relative">
+  <div class="relative p-1 md:p-2">
     <Iframe ref="iframe" :url="filesUrl" @loaded="onIframeLoaded"
       title="files"
       :key="iframeKey"

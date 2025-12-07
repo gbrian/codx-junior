@@ -1,6 +1,6 @@
 <script setup>
-import Chat from '../chat/Chat.vue';
-Chat
+import Chat from '../chat/Chat.vue'
+import AIModelSettings from './AIModelSettings.vue'
 </script>
 
 <template>
@@ -76,88 +76,11 @@ Chat
       </div>
     </div>
     <modal v-if="showDialog">
-      <form class="flex flex-col gap-2" @submit.prevent="saveModel">
-        <div class="form-control">
-          <span class="label">Model Type</span>
-          <select class="select select-bordered" v-model="currentModel.model_type">
-            <option value="llm">LLM</option>
-            <option value="embeddings">Embeddings</option>
-          </select>
-        </div>
-        <div class="form-control">
-          <span class="label">AI Provider</span>
-          <select class="select select-bordered" v-model="currentModel.ai_provider">
-            <option v-for="provider in aiProviders" :key="provider.name" :value="provider.name">
-              {{ provider.name }}
-            </option>
-          </select>
-        </div>
-        <div class="divider"></div>
-        <div class="form-control">
-          <span class="label">Model Name</span>
-          <input
-            class="input input-bordered"
-            v-model="currentModel.name"
-            placeholder="Model Name"
-          />
-        </div>
-        <div class="form-control">
-          <span class="label">AI Provider Model's Name</span>
-          <input
-            class="input input-bordered"
-            v-model="currentModel.ai_model"
-            :placeholder="currentModel.name"
-          />
-        </div>
-        <div class="form-control">
-          <span class="label">Model url</span>
-          <input
-            class="input input-bordered"
-            v-model="currentModel.url"
-            placeholder="Url"
-          />
-        </div>
-        <div class="form-control" v-if="currentModelIsLLM">
-          <span class="label">Merge messages</span>
-          <input
-            type="checkbox"
-            class="toggle"
-            v-model.number="currentModel.settings.merge_messages"
-          />
-        </div>
-        <div class="form-control" v-if="currentModelIsLLM">
-          <span class="label">Temperature</span>
-          <input
-            type="number"
-            class="input input-bordered"
-            v-model.number="currentModel.settings.temperature"
-            placeholder="Temperature"
-            step="0.1"
-          />
-        </div>
-        <div class="form-control" v-if="!currentModelIsLLM">
-          <span class="label">Vector Size</span>
-          <input
-            type="number"
-            class="input input-bordered"
-            v-model.number="currentModel.settings.vector_size"
-            placeholder="Vector Size"
-          />
-        </div>
-        <div class="form-control" v-if="!currentModelIsLLM">
-          <span class="label">Chunk Size</span>
-          <input
-            type="number"
-            class="input input-bordered"
-            v-model.number="currentModel.settings.chunk_size"
-            placeholder="Chunk Size"
-          />
-        </div>
-        <div class="flex gap-2 justify-end">
-          <button class="btn btn-primary" type="submit">Save</button>
-          <button class="btn" @click="showDialog = false">Cancel</button>
-        </div>
-      </form>
+      <AIModelSettings
+        :aiProviders="aiProviders"
+        :model="currentModel" 
+        @save="saveModel"
+        @cancel="showDialog = false" />
     </modal>
 
     <modal v-if="showDeleteDialog">
@@ -194,11 +117,11 @@ export default {
         settings: {
           temperature: 1,
           vector_size: 1536,
-          chunk_size: 8190
-        }
+          chunk_size: 8190,
+        },
       },
       modelToDelete: null,
-      testModelChat: null
+      testModelChat: null,
     }
   },
   computed: {
@@ -210,7 +133,7 @@ export default {
     },
     currentModelIsLLM() {
       return this.currentModel?.model_type === 'llm'
-    }
+    },
   },
   methods: {
     editModel(model) {
@@ -237,15 +160,15 @@ export default {
       this.showDeleteDialog = false
     },
     async testModel(model) {
-      this.testModelChat = await this.$projects.createNewChat({ 
+      this.testModelChat = await this.$projects.createNewChat({
         temp: true,
-        model: model.name
+        model: model.name,
       })
     },
     closeTestModel() {
       this.$projects.deleteChat(this.testModelChat)
       this.testModelChat = null
-    }
-  }
+    },
+  },
 }
 </script>

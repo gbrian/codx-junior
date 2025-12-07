@@ -8,8 +8,8 @@ services:
       context: .
       # User permissions
       args:
-        - USER_GID=${USER_GID:-1001}
-        - USER_UID=${USER_UID:-1001}
+        - USER_GID=${USER_GID:-911}
+        - USER_UID=${USER_UID:-911}
     command: echo "Done"
 
   milvus:

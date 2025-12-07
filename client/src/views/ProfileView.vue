@@ -3,7 +3,7 @@ import EditProfile from '@/components/EditProfile.vue'
 import ProfileCard from '@/components/ProfileCard.vue';
 </script>
 <template>
-  <div class="">
+  <div class="p-1 md:p-2">
     <EditProfile 
       :profile="selectedProfile"
       :allProfiles="profiles"

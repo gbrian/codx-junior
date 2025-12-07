@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 _ALL_PROJECTS = None
 _ALL_PROJECTS_PROC = None
+
 def find_all_projects():
     global _ALL_PROJECTS_PROC
     global _ALL_PROJECTS
@@ -99,7 +100,8 @@ def _update_all_projects():
     result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     all_codx_path = result.stdout.decode('utf-8').split("\n")
     paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
-    logger.info(f"[find_all_projects] found {len(paths)} project flies")
+    logger.info(f"[find_all_projects] found {len(paths)} project files")
+
     def is_valid_project(settings):
         if not settings or not settings.project_name:
             return False
@@ -110,6 +112,11 @@ def _update_all_projects():
     for codx_path in paths:
         try:
             project_file_path = f"{codx_path}/project.json"
+            # Check read/write permissions
+            if not (os.access(project_file_path, os.R_OK) and os.access(project_file_path, os.W_OK)):
+                logger.warning(f"Skipping {project_file_path} due to insufficient permissions")
+                continue
+
             settings = CODXJuniorProject(**CODXJuniorSettings.from_project_file(project_file_path).__dict__)
             if is_valid_project(settings):
                 project_users = user_security_manager.get_users_with_project_access(project_id=settings.project_id)
@@ -126,7 +133,6 @@ def _update_all_projects():
     _ALL_PROJECTS = all_projects
     # logger.info("All projects: %s", _ALL_PROJECTS)
     _ALL_PROJECTS_PROC = None
-
 
 def find_project_parents(project: CODXJuniorSettings, user: CodxUser = None):
     all_user_projects = find_all_user_projects(user) if user else find_all_projects().values()

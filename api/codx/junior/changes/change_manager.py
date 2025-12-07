@@ -19,7 +19,7 @@ from codx.junior.chat_manager import ChatManager
 
 from codx.junior.whisper.audio_manager import AudioManager
 
-from langchain.schema.document import Document
+from langchain_core.documents import Document
 
 from codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics
 

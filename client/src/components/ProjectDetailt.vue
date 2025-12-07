@@ -6,7 +6,7 @@
     <div tabindex="0" role="button" class="flex flex-col gap-2 text-xl md:text-2xl"
       :title="project.project_name"
     >
-      <div class="flex gap-2 items-center py-1 px-2  text-nowrap">
+      <div class="flex gap-2 items-center py-2 px-2  text-nowrap">
         <!-- Dropdown Component -->
         <div class="dropdown dropdown-start">
           <div tabindex="0" role="button" class="flex gap-2 click items-center">

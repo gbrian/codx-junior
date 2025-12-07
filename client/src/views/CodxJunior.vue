@@ -13,7 +13,7 @@ import { useId } from 'vue';
     :class="(!$ui.isMobile && !$ui.showApp) && 'max-w-[1600px]'"
   v-else>
     <div class="grow flex flex-col relative overflow-auto bg-base-300">
-      <div class="grow overflow-auto p-1 md:p-2">
+      <div class="grow overflow-auto">
         <TabViewVue  :key="projectKey" />
       </div>
     </div>
