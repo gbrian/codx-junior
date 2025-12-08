@@ -1,0 +1,219 @@
+board: mentions
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: changes
+column_id: ''
+created_at: '2025-12-07 11:14:29.781227'
+description: "<script setup>\n</script>\n<template>\n  <div class=\"w-full\">\n  \
+  \  <div class=\"form-control w-full\">\n      <label class=\"label\">\n        <span\
+  \ class=\"label-text\">Model Type</span>\n      </label>\n      <select class=\"\
+  select select-bordered w-full\">\n        <option>gpt-3.5-turbo</option>\n     \
+  \   <option>gpt-4</option>\n      </select>\n    </div>\n    \n    <div class=\"\
+  form-control w-full mt-4\">\n      <label class=\"label\">\n        <span class=\"\
+  label-text\">API Key</span>\n      </label>\n      <input type=\"password\" class=\"\
+  input input-bordered w-full\" placeholder=\"Enter API key\" />\n    </div>\n   \
+  \ \n    <div class=\"form-control w-full mt-4\">\n      <label class=\"label\">\n\
+  \        <span class=\"label-text\">Custom Endpoint</span>\n      </label>\n   \
+  \   <input type=\"text\" class=\"input input-bordered w-full\" placeholder=\"https://api.example.com\"\
+  \ />\n      <div class=\"text-sm mt-2 text-gray-500\">\n        <div>- MESSAGE:\
+  \ [Mandatory] Represents the user/action message</div>\n        <div>- PROJECT_NAME:\
+  \ [Optional] Represents the project name</div>\n      </div>\n    </div>\n    \n\
+  \    <div class=\"mt-6 flex justify-end\">\n      <button class=\"btn btn-primary\
+  \ px-6\">Save Configuration</button>\n    </div>\n  </div>\n</template>\n<script>\n\
+  export default {\n  props: [],\n  data() {\n    return {\n      modelType: 'gpt-3.5-turbo',\n\
+  \      apiKey: '',\n      customEndpoint: ''\n    }\n  },\n  computed: {\n    isConfigValid()\
+  \ {\n      return this.apiKey && this.customEndpoint.length > 10;\n    }\n  },\n\
+  \  methods: {\n    async saveConfig() {\n      if (!this.isConfigValid) {\n    \
+  \    alert('Please enter valid API key and endpoint');\n        return;\n      }\n\
+  \      // Save logic to $storex\n      this.$storex.commit('saveAPIConfig', {\n\
+  \        modelType: this.modelType,\n        apiKey: this.apiKey,\n        endpoint:\
+  \ this.customEndpoint\n      });\n    }\n  }\n}\n</script>"
+doc_id: null
+file_list: []
+file_path: /home/codx-junior/codx-junior/client/.codx/tasks/mentions/changes/changes-at-ai-settings-aimodelsettings-vue-2025-12-07-12-12-19-961373.b23324d8-7b30-4350-85e9-69f762c20443.yaml
+id: b23324d8-7b30-4350-85e9-69f762c20443
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: "\n                    ```document /home/codx-junior/codx-junior/client/src/components/ai_settings/AIModelSettings.vue\n\
+    \                    <script setup>\n</script>\n\n<template>\n  <div class=\"\
+    w-full h-full flex flex-col gap-2\">\n    <div class=\"w-full h-full flex gap-2\"\
+    >\n      <!-- Column for existing settings -->\n      <div class=\"flex flex-col\
+    \ gap-2 w-1/2\">\n        <div class=\"form-control\">\n          <span class=\"\
+    label\">Model Type</span>\n          <select class=\"select select-bordered\"\
+    \ v-model=\"model.model_type\">\n            <option value=\"llm\">LLM</option>\n\
+    \            <option value=\"embeddings\">Embeddings</option>\n          </select>\n\
+    \        </div>\n        <div class=\"form-control\">\n          <span class=\"\
+    label\">AI Provider</span>\n          <select class=\"select select-bordered\"\
+    \ v-model=\"model.ai_provider\">\n            <option v-for=\"provider in aiProviders\"\
+    \ :key=\"provider.name\" :value=\"provider.name\">\n              {{ provider.name\
+    \ }}\n            </option>\n          </select>\n        </div>\n        <div\
+    \ class=\"divider\"></div>\n        <div class=\"form-control\">\n          <span\
+    \ class=\"label\">Model Name</span>\n          <input class=\"input input-bordered\"\
+    \ v-model=\"model.name\" placeholder=\"Model Name\" />\n        </div>\n     \
+    \   <div class=\"form-control\">\n          <span class=\"label\">AI Provider\
+    \ Model's Name</span>\n          <input class=\"input input-bordered\" v-model=\"\
+    model.ai_model\" :placeholder=\"model.name\" />\n        </div>\n        <div\
+    \ class=\"form-control\">\n          <span class=\"label\">Model url</span>\n\
+    \          <input class=\"input input-bordered\" v-model=\"model.url\" placeholder=\"\
+    Url\" />\n        </div>\n        <div class=\"form-control\" v-if=\"currentModelIsLLM\"\
+    >\n          <span class=\"label\">Merge messages</span>\n          <input type=\"\
+    checkbox\" class=\"toggle\" v-model.number=\"model.settings.merge_messages\" />\n\
+    \        </div>\n        <div class=\"form-control\" v-if=\"currentModelIsLLM\"\
+    >\n          <span class=\"label\">Temperature</span>\n          <input type=\"\
+    number\" class=\"input input-bordered\" v-model.number=\"model.settings.temperature\"\
+    \ placeholder=\"Temperature\" step=\"0.1\" />\n        </div>\n        <div class=\"\
+    form-control\" v-if=\"currentModelIsLLM\">\n          <span class=\"label\">Context\
+    \ length (KB)</span>\n          <input type=\"number\" class=\"input input-bordered\"\
+    \ v-model.number=\"model.settings.context_length\" placeholder=\"Context length\"\
+    \ step=\"1\" />\n        </div>\n        <div class=\"form-control\" v-if=\"!currentModelIsLLM\"\
+    >\n          <span class=\"label\">Vector Size</span>\n          <input type=\"\
+    number\" class=\"input input-bordered\" v-model.number=\"model.settings.vector_size\"\
+    \ placeholder=\"Vector Size\" />\n        </div>\n        <div class=\"form-control\"\
+    \ v-if=\"!currentModelIsLLM\">\n          <span class=\"label\">Chunk Size</span>\n\
+    \          <input type=\"number\" class=\"input input-bordered\" v-model.number=\"\
+    model.settings.chunk_size\" placeholder=\"Chunk Size\" />\n        </div>\n  \
+    \    </div>\n      <!-- Column for prompt_template -->\n      <div class=\"flex\
+    \ flex-col gap-2 w-1/2\">\n        <div class=\"form-control h-full flex flex-col\"\
+    >\n          <span class=\"label\">Prompt Template</span>\n          <textarea\
+    \ class=\"grow textarea textarea-bordered\" v-model=\"model.settings.prompt_template\"\
+    \ placeholder=\"Edit prompt template here\"></textarea>\n          <div>\n   \
+    \         @codx-ok, please-wait...: add a list of variable that can/must be used\
+    \ on the prompt template\n            - MESSAGE: [Mandatory] Represents the user/action\
+    \ message\n            - PROJECT_NAME: [Optional] Project's name\n          </div>\n\
+    \        </div>\n      </div>\n    </div>\n    <div class=\"flex gap-2 justify-end\"\
+    >\n      <button class=\"btn btn-primary\" @click=\"$emit('save', model)\">Save</button>\n\
+    \      <button class=\"btn\" @click=\"$emit('cancel')\">Cancel</button>\n    </div>\n\
+    \  </div>  \n</template>\n\n<script>\nexport default {\n  props: ['model', 'aiProviders'],\n\
+    \  computed: {\n    currentModelIsLLM() {\n      return this.model?.model_type\
+    \ === 'llm'\n    }\n  },\n}\n</script>\n                    ```\n\n          \
+    \          Apply these changes to /home/codx-junior/codx-junior/client/src/components/ai_settings/AIModelSettings.vue:\n\
+    \                    User commented in line 63: add a list of variable that can/must\
+    \ be used on the prompt template\n                    \n                    Instructions:\n\
+    \                      Best practices for this file:\n            Project uses\
+    \ DaisyUI for components, use them instead basic HTML elements\nAll components\
+    \ must have same structure: \"setup\", \"template\", \"script\".\nVue Component\
+    \ Example:\n```vue file/path/to/Component.vue\n<script setup>\nimport Component\
+    \ from './component.vue'\nimport markdown from 'mardown'\n</script>\n<template>\n\
+    <div class=\"w.full h-full flex gap-2\">\n</div>\n</template>\n<script>\nexport\
+    \ default {\nprops: [].\ndata (){\n// Reactive data, don't use \"ref\"\n return\
+    \ { myVariable: null }\n},\ncomputed: {},\nwatch: {},\nmethods: {}\n}\n</sctipt>\n\
+    ```\nImportant:\n* No css, use TailwindCSS clases\n* No need to import ref, computed\
+    \ or mapState \n* export default component object\n* Use component \"data\" method\
+    \ to return an object variables\n* Use component \"computed\" to define computed\
+    \ properties\n\" Use component \"methods\" to define component methods \n* Use\
+    \ \"this.$storex\" or \"$storex\" to access store data.\n* To access vue store\
+    \ data use \"$storex\"\n* \"script setup\" section contains ONLY imports, no variables,\
+    \ properties bnor methods\n* Vue component definition will be exporting a default\
+    \ object like, without ref, nor computed imports\n* Don't use \";\" in the javascript\
+    \ or typescript code\n* Avoid long functions\n* Add short and concise comments\
+    \ for complex functions\nMake sure all vue components follow this structure:\n\
+    ```vue\n<script setup><!-- Import all components and libraries on the top -->\n\
+    </script>\n<template><!-- Component markup -->\n<div></div>\n</template>\n<script><!--\
+    \ Component logic -->\nexport default {\n}\n</script>\n```\n\nUse fontawesome\
+    \ for icons like: <i class=\"fa-solid fa-right-from-bracket\"></i>\n         \
+    \   \n                      Apply all comments to the document and return a final\
+    \ version.\n                      Pay attention to do not loose any detail or\
+    \ part of the document.\n                      Return only the file content \n\
+    \                    "
+  created_at: '2025-12-07 11:14:29.778713'
+  disable_knowledge: false
+  doc_id: edb2a62c-b3e4-433a-adf3-7229212dc29d
+  done: true
+  files:
+  - /home/codx-junior/codx-junior/client/src/components/ai_settings/AIModelSettings.vue
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles:
+  - daisyui_components
+  - Vue files
+  - VueDeveloper
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-12-07 11:14:29.778740'
+  user: null
+- content: "<script setup>\n</script>\n<template>\n<div class=\"flex flex-col gap-4\
+    \ p-4 bg-base-100 rounded-box\">\n  <div class=\"form-control\">\n    <label class=\"\
+    label\">\n      <span class=\"label-text\">Model Name</span>\n    </label>\n \
+    \   <input v-model=\"model.name\" type=\"text\" class=\"input input-bordered\"\
+    \ placeholder=\"Enter model name\" required />\n  </div>\n  \n  <div class=\"\
+    form-control\">\n    <label class=\"label\">\n      <span class=\"label-text\"\
+    >API Key</span>\n    </label>\n    <input v-model=\"model.apiKey\" type=\"password\"\
+    \ class=\"input input-bordered\" placeholder=\"Enter API key\" required />\n \
+    \ </div>\n  \n  <div class=\"form-control\">\n    <label class=\"label\">\n  \
+    \    <span class=\"label-text\">System Prompt</span>\n    </label>\n    <textarea\
+    \ v-model=\"model.systemPrompt\" class=\"textarea textarea-bordered\" placeholder=\"\
+    Enter system prompt\"></textarea>\n  </div>\n  \n  <div class=\"form-control\"\
+    >\n    <label class=\"label\">\n      <span class=\"label-text\">Prompt Template</span>\n\
+    \    </label>\n    <div class=\"flex flex-col\">\n      <textarea v-model=\"model.promptTemplate\"\
+    \ class=\"grow textarea textarea-bordered\" placeholder=\"Edit prompt template\
+    \ here\"></textarea>\n      <div class=\"text-xs text-gray-500 mt-2\">\n     \
+    \   Available variables:\n        <ul class=\"list-disc list-inside pl-4\">\n\
+    \          <li><strong>MESSAGE</strong>: Mandatory. Represents the user's message\
+    \ or action.</li>\n          <li><strong>PROJECT_NAME</strong>: Optional. The\
+    \ name of the current project.</li>\n        </ul>\n      </div>\n    </div>\n\
+    \  </div>\n  \n  <div class=\"flex justify-end gap-2\">\n    <button @click=\"\
+    cancel\" class=\"btn btn-outline\">Cancel</button>\n    <button @click=\"save\"\
+    \ class=\"btn btn-primary\">Save Configuration</button>\n  </div>\n</div>\n</template>\n\
+    <script>\nexport default {\n  data() {\n    return {\n      model: {\n       \
+    \ name: '',\n        apiKey: '',\n        systemPrompt: '',\n        promptTemplate:\
+    \ ''\n      }\n    }\n  },\n  methods: {\n    save() {\n      // Implementation\
+    \ for saving model configuration\n      this.$store.commit('saveModelConfig',\
+    \ this.model)\n      this.$emit('saved')\n    },\n    cancel() {\n      this.$emit('cancelled')\n\
+    \    }\n  }\n}\n</script>"
+  created_at: '2025-12-07 11:14:29.778713'
+  disable_knowledge: false
+  doc_id: 0c3a2ce4-a00a-4955-b774-e856b5f963b8
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 8.7738037109375e-05
+    model: qwen3:30b
+    time_taken: 155.97574043273926
+  profiles:
+  - daisyui_components
+  - VueDeveloper
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: null
+  updated_at: '2025-12-07 11:14:29.778740'
+  user: null
+mode: chat
+name: changes-at-ai-settings-aimodelsettings-vue-2025-12-07-12-12-19-961373
+parent_id: null
+parent_project_id: null
+pinned: false
+pr_view: {}
+profiles:
+- daisyui_components
+- Vue files
+- VueDeveloper
+project_id: null
+remote_url: ''
+status: ''
+tags:
+- skip_knowledge
+target_project_id: null
+updated_at: '2025-12-07T12:18:27.106303'
+url: ''
+users: []
+visibility: ''

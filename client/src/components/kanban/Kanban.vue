@@ -67,7 +67,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
       </div>
 
       <ChatViewVue
-        class="h-full"
+        class="h-full rounded-lg"
         @chats="onChatEditDone"
         @sub-task="createSubTask"
         @sub-tasks="createSubTasks"
@@ -250,6 +250,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
           </draggable>
         </div>
       </div>
+      
       <modal v-if="showBoardModal">
         <h2 class="font-bold text-3xl">{{ editBoard ? 'Edit Board' : 'Add New Board' }}</h2>
         <div class="collapse bg-contain"

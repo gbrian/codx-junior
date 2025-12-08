@@ -27,16 +27,15 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-@router.get("/wiki/{project_name}/{wiki_path:path}")
-async def wiki_page(request: Request, project_name: str, wiki_path: str, response: Response):
-    project = find_project_by_name(project_name)
-    if not project or not project.project_wiki:
+@router.get("/wiki")
+async def wiki_page(request: Request, response: Response):
+    codx_junior_session = request.state.codx_junior_session
+    wiki_manager = codx_junior_session.get_wiki()
+    if not wiki_manager.is_wiki_active:
         raise Exception("Project has no wiki")
 
-    if not wiki_path:
-        wiki_path = "index.html"
-    dist_path = CODXJuniorSession(settings=project).get_wiki().dist_dir    
-    file_path = f"{dist_path}/{wiki_path}"
+    wiki_path = request.query_params.get("file_path")
+    file_path = f"{wiki_manager.wiki_path}/{wiki_path}" if wiki_path else wiki_manager.wiki_home_path
     if os.path.isfile(file_path):
         return FileResponse(file_path)
     response.status_code = status.HTTP_404_NOT_FOUND

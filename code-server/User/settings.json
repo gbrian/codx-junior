@@ -1,5 +1,8 @@
 {
     "files.autoSaveDelay": 60000,
     "workbench.colorTheme": "Default Dark+",
-    "chat.disableAIFeatures": true
+    "chat.disableAIFeatures": true,
+    "[vue]": {
+        "editor.defaultFormatter": "Vue.volar"
+    }
 }

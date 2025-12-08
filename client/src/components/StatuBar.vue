@@ -24,11 +24,13 @@ export default {
       const { lastEvent } = this.$storex.session
       if (lastEvent) {
         const messageType = lastEvent.data?.event_type || lastEvent.data?.type || lastEvent.type || ""
-        let message = lastEvent.data?.message?.content || lastEvent.data?.text || ""
+        let message = lastEvent.message?.content || lastEvent.text || ""
         if (messageType === 'loaded') {
           message = lastEvent.file_path
         }
-        return `[${moment(lastEvent.ts).format('HH:mm:ss')}] ${messageType} ${message}`
+        if (message) {
+          return `[${moment(lastEvent.ts).format('HH:mm:ss')}] ${messageType} ${message}`
+        }
       }
       return null
     }

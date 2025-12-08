@@ -35,8 +35,9 @@ import ProjectIcon from './ProjectIcon.vue'
           <SearchBar />
         </div>
 
-        <a class="btn btn-sm btn-outline text-codx-primary">
+        <a class="btn btn-sm btn-outline text-codx-primary" @click="newProject = true">
           <span class="hidden md:block">
+            New
             <i class="fa-solid fa-plus"></i>
           </span>
         </a>
@@ -179,7 +180,7 @@ import ProjectIcon from './ProjectIcon.vue'
           data-tip="Kanban"
           @click="setProjectTab('tasks')">
           <div class="flex gap-2 items-center">
-            <i class="fa-brands fa-trello"></i> Tasks
+            <i class="fa-brands fa-trello"></i> Kanban
           </div>
         </a>
       </div>
@@ -190,12 +191,25 @@ import ProjectIcon from './ProjectIcon.vue'
           data-tip="Profiles"
           @click="setProjectTab('profiles')">
           <div class="flex gap-2 items-center">
-            <i class="fa-solid fa-user-group"></i> Profiles
+            <i class="fa-solid fa-user-group"></i> Team
           </div>
         </a>
       </div>
 
-      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'file-finder' ? 'border-b-4 border-codx-secondary': '')]">
+
+      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'wiki' ? 'border-b-4 border-codx-secondary': '')]">
+        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+          data-tip="Wiki"
+          @click="setProjectTab('wiki')">
+          <div class="flex gap-2 items-center">
+            <i class="fa-solid fa-book"></i> Wiki
+          </div>
+        </a>
+      </div>
+
+      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'file-finder' ? 'border-b-4 border-codx-secondary': '')]"
+        v-if="$ui.isMobile"
+      >
         <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
           data-tip="File finder"
           @click="setProjectTab('file-finder')">

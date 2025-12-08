@@ -1,0 +1,80 @@
+board: kanban
+branch: ''
+chat_index: 0
+chat_links: []
+check_lists: []
+child_index: 0
+column: tasks
+column_id: ''
+created_at: '2025-12-07 11:14:29.833950'
+description: ''
+doc_id: null
+file_list: []
+file_path: /home/codx-junior/codx-junior/client/.codx/tasks/kanban/tasks/.39269181-da51-45e0-927b-fcc37b69a16f.yaml
+id: 39269181-da51-45e0-927b-fcc37b69a16f
+kanban_id: ''
+knowledge_topics: []
+llm_model: ''
+message_id: null
+messages:
+- content: Hi there
+  created_at: '2025-12-07 11:14:29.831377'
+  disable_knowledge: true
+  doc_id: 7b1ff1d8-a190-4d5a-b679-4c43a95f1896
+  done: true
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data: {}
+  profiles: []
+  read_by: []
+  role: user
+  task_item: ''
+  think: ''
+  updated_at: '2025-12-07 11:14:29.831405'
+  user: admin
+- content: 'Ops, sorry! There was an error with latest request: Failed to process
+    AI request after retries.'
+  created_at: '2025-12-07 11:14:29.831377'
+  disable_knowledge: false
+  doc_id: 8ed3757f-36ba-4fff-b798-46fe6a1dd686
+  done: false
+  files: []
+  hide: false
+  images: []
+  improvement: false
+  is_answer: false
+  is_thinking: false
+  knowledge_topics: []
+  meta_data:
+    first_chunk_time_taken: 0.00010991096496582031
+    model: qwen3:235b
+    time_taken: 4.0374462604522705
+  profiles: []
+  read_by: []
+  role: assistant
+  task_item: ''
+  think: ''
+  updated_at: '2025-12-07 11:14:29.831405'
+  user: null
+mode: chat
+name: ''
+parent_id: null
+parent_project_id: null
+pinned: false
+pr_view: {}
+profiles: []
+project_id: null
+remote_url: ''
+status: ''
+tags: []
+target_project_id: null
+updated_at: '2025-12-07T11:54:30.834094'
+url: ''
+users:
+- admin
+visibility: ''

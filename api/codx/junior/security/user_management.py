@@ -76,6 +76,7 @@ class UserSecurityManager():
                         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                         new_login = CodxUserLogin(username=user.username, email=user.email, password=hashed_password.decode('utf-8'))
                         self.global_settings.user_logins.append(new_login)
+                        logger.info("Create a new user login with the hashed password and save settings")
                         self.save_settings()
                         
                         return stored_user
@@ -93,6 +94,8 @@ class UserSecurityManager():
                 user_login = self.find_user_login(username=logged_user.username)
                 # logger.info(f"User logged {logged_user}")
                 user_login.token = self.get_user_token(user=logged_user)
+                
+                logger.info("User logged  and save settings")
                 self.save_settings()
                 logged_user.token = user_login.token
             return logged_user
@@ -113,6 +116,7 @@ class UserSecurityManager():
                 if stored_login:
                     hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
                     stored_login.password = hashed_password.decode('utf-8')
+            logger.info("Update user and save settings")
             self.save_settings()
 
         return existing_user
@@ -141,6 +145,7 @@ class UserSecurityManager():
             ))
             save_settings = True
         if save_settings:
+            logger.info("Add user to project and save settings")
             self.save_settings()
 
     def get_users_with_project_access(self, project_id: str):

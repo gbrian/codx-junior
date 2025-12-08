@@ -54,10 +54,7 @@ const createState = () => ({
 
 function getProfiles(project) {
   const { project_id } = project
-  return $storex.profiles.profiles[project_id]?.map(p => ({
-                        ...p,
-                        project: $storex.projects.allProjects.find(({ project_id }) => project_id === p.project_id)
-                      }))
+  return $storex.profiles.profiles[project_id]
 }
 
 const initProject = async project => {

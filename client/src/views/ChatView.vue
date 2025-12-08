@@ -15,7 +15,7 @@ import Markdown from '../components/Markdown.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full pb-1" v-if="chat">
+  <div class="flex flex-col h-full bg-base-300 p-1 @md:p-2" v-if="chat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">
@@ -144,6 +144,9 @@ import Markdown from '../components/Markdown.vue'
                       <i class="fa-solid fa-bars"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-300 border rounded-box z-[1] p-2 w-96 shadow">
+                      <li @click="newTag = true">
+                        <a><i class="fa-solid fa-plus"></i> New #tag</a>
+                      </li>
                       <li @click="newSubChat()">
                         <a><i class="fa-solid fa-plus"></i> New sub task</a>
                       </li>
@@ -170,6 +173,11 @@ import Markdown from '../components/Markdown.vue'
               <div class="flex justify-end items-center">
               </div>
             </div>
+          </div>
+        </div>
+        <div class="flex gap-2 items-center">  
+          <div class="text-xs font-bold" v-for="tag in chat.tags" :key="tag">
+            #{{ tag }}
           </div>
         </div>
         <div class="flex justify-between">

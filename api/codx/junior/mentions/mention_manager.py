@@ -274,20 +274,10 @@ class MentionManager:
         if analysis_chat:
             changes_chat.messages.append(analysis_chat.messages[-1])
 
-        file_profile_content = ""
-        if file_profiles:
-            file_profile_content = "\n".join([
-                profile.content for profile in file_profiles
-            ])
-
-            file_profile_content = f"""Best practices for this file:
-            {file_profile_content}
-            """
-
         changes_chat.messages.append(
             Message(
                 role="user",
-                profiles=[profile.name for profile in file_profiles],
+                profiles=profile_names,
                 files=[file_path],
                 content=f"""
                     ```document {file_path}
@@ -298,7 +288,6 @@ class MentionManager:
                     {query}
                     
                     Instructions:
-                      {file_profile_content}
                       Apply all comments to the document and return a final version.
                       Pay attention to do not loose any detail or part of the document.
                       Return only the file content 

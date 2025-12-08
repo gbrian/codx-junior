@@ -81,7 +81,7 @@ class WikiManager:
         self.db = KnowledgeDB(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
         self.is_wiki_active = self.settings.project_wiki or False
-        self.wiki_home_path = os.path.join(self.wiki_path, "index.md")
+        self.wiki_home_path = os.path.join(self.wiki_path, "home.md")
         self.wiki_settings_path = os.path.join(self.settings.codx_path, "wiki_settings.json")
 
     def save_wiki_settings(self, wiki_settings: Any) -> None:

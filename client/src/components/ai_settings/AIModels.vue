@@ -41,7 +41,7 @@ import AIModelSettings from './AIModelSettings.vue'
               <td>Context:</td>
               <td>
                 <span v-if="model.settings.context_length">
-                  {{ (model.settings.context_length || 0) / 1024 }}K
+                  {{ (model.settings.context_length || 0) }} KB
                 </span>
               </td>
             </tr>

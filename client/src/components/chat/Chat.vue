@@ -32,7 +32,7 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
             </a>
           </div>
         </div>
-        <CheckLists class="" :chat="chat" @change="saveChat" />
+        <CheckLists class="" :chat="chat" :readOnly="readOnly" @change="saveChat" />
         
       </div>
       <div class="grow overflow-y-auto overflow-x-hidden">
@@ -49,8 +49,8 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
           v-if="isPRView" />
         
         <div class="overflow-y-auto w-full h-full" v-if="!isBrowser && !isPRView">
-          <div class="flex flex-col overflow-y-auto overflow-x-hidden w-full h-full" v-for="message, ix in messages" :key="message.id">
-            <ChatEntry :class="['max-w-full mb-4 rounded-md',
+          <div class="flex flex-col overflow-y-auto overflow-x-hidden w-full" v-for="message, ix in messages" :key="message.id">
+            <ChatEntry :class="['max-w-full mb-4 rounded-md hover:bg-base-200',
               isChannel ? '': 'py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '']"
               :chat="chat"
@@ -152,7 +152,7 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
             <UserSelector 
               class="dropdown-top"
               :selectedUser="selectedUser"
-              :profiles="profiles"
+              :profiles="usersList"
               @user-changed="selectedUser = $event"
             />
             <div class="text-xs">Find: ctrl+f</div>
@@ -454,10 +454,10 @@ export default {
       } 
     },
     profiles() {
-      return this.projectContext?.profiles || []
+      return this.projectContext?.$state.profiles || []
     },
     usersList() {
-      return [this.$store.state.user, ...this.profiles]
+      return [this.$user, ...this.profiles]
     },
     isChannel() {
       return this.chat.mode === 'topic'
@@ -560,7 +560,7 @@ export default {
     },
     getMessageProfiles() {
       const profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
-      if (this.selectedUser?.isProfile) {
+      if (this.selectedUser?.name && this.selectedUser !== this.$user) {
          profiles.push(this.selectedUser.name)
       }
       return profiles
