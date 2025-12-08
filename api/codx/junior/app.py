@@ -541,6 +541,7 @@ def api_read_global_settings(user: CodxUser = Depends(get_authenticated_user)):
 @app.post("/api/global/settings")
 def api_write_global_settings(global_settings: GlobalSettings):
     AIManager().reload_models(global_settings)
+    logger.info("/api/global/settings save global settings")
     write_global_settings(global_settings=global_settings)
     
 @app.post("/api/run/script")

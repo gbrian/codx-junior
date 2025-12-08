@@ -1,14 +1,38 @@
-Make sure all vue components follow this structure:
-```vue
-<script setup><!-- Import all components and libraries on the top -->
+All components must have same structure: "setup", "template", "script".
+Vue Component Example:
+```vue file/path/to/Component.vue
+<script setup>
+import Component from './component.vue'
+import markdown from 'mardown'
 </script>
-<template><!-- Component markup -->
-<div></div>
+<template>
+<div class="w.full h-full flex gap-2">
+</div>
 </template>
-<script><!-- Component logic -->
+<script>
 export default {
+props: [].
+data (){
+// Reactive data, don't use "ref"
+ return { myVariable: null }
+},
+computed: {},
+watch: {},
+methods: {}
 }
-</script>
+</sctipt>
 ```
-
-Use fontawesome for icons like: <i class="fa-solid fa-right-from-bracket"></i>
+Important:
+* No css, use TailwindCSS clases
+* No need to import ref, computed or mapState 
+* export default component object
+* Use component "data" method to return an object variables
+* Use component "computed" to define computed properties
+" Use component "methods" to define component methods 
+* Use "this.$storex" or "$storex" to access store data.
+* To access vue store data use "$storex"
+* "script setup" section contains ONLY imports, no variables, properties bnor methods
+* Vue component definition will be exporting a default object like, without ref, nor computed imports
+* Don't use ";" in the javascript or typescript code
+* Avoid long functions
+* Add short and concise comments for complex functions
