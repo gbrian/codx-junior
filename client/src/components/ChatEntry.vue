@@ -4,6 +4,7 @@ import moment from 'moment'
 import { CodeDiff } from 'v-code-diff'
 import ChatIcon from './chat/ChatIcon.vue'
 import Document from './document/Document.vue'
+import UserSelector from './chat/UserSelector.vue'
 </script>
 
 <template>
@@ -32,12 +33,19 @@ import Document from './document/Document.vue'
             :class="message.hide && 'text-slate-500'">
             <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             <div v-for="profile in messageProfiles" :key="profile.name">
-              <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="profile.name">
+              <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="`@${profile.name}`">
                 <div class="w-4 h-4 mt-1 rounded-full">
                   <img :src="profile.avatar" :alt="profile.name" />
                 </div>
               </div>
             </div>
+            <UserSelector 
+              class="dropdown-bottom"
+              :selectedUser="usersList.find(u => u.name === message.user)"
+              :profiles="usersList"
+              @user-changed="message.profiles = [$event.name]"
+              v-if="editting"
+            />
             <div class="flex gap-2 grow">
               [{{ formatDate(message.updated_at) }}] 
               <span v-if="timeTaken">({{ timeTaken }} s.)</span>
@@ -208,7 +216,7 @@ import Document from './document/Document.vue'
 
 <script>
 export default {
-  props: ['chat', 'message', 'isTopic', 'mentionList', 'menu-less'],
+  props: ['chat', 'message', 'isTopic', 'mentionList', 'menu-less', 'usersList'],
   data() {
     return {
       srcView: false,

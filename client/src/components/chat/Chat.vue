@@ -11,12 +11,11 @@ import CheckLists from './CheckLists.vue'
 import MentionSelector from '../mentions/MentionSelector.vue'
 import PRView from '@/components/repo/PRView.vue'
 import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAutoComplete.vue'
-import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
 </script>
 
 <template>
   <div class="h-full flex flex-col gap-1">
-    <div class="grow relative flex flex-col gap-1">
+    <div class="grow relative flex flex-col gap-1" v-if="!inputOnly">
       <div class="flex gap-2 items-center justify-bnetween">
         <div class="w-full" v-if="chatFiles.length">
           <div class="my-2 text-xs">
@@ -46,6 +45,7 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
           @change-column="$emit('change-column', $event)"
           @new-chat="onPRFileCreateChat"
           @chat-message="onPRChatMessage"
+          @validate-files="onValidateChanges"
           v-if="isPRView" />
         
         <div class="overflow-y-auto w-full h-full" v-if="!isBrowser && !isPRView">
@@ -58,6 +58,7 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
               :isTopic="isTopic && !ix"
               :mentionList="mentionList"
               :menu-less="readOnly"
+              :usersList="usersList"
               @edited="onMessageEdited"
               @enhance="onEditMessage(message, true)"
               @remove="removeMessage(message)"
@@ -87,8 +88,8 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
         </div>
       </div>
     </div>
-    <div class="sticky bottom-0 z-50 bg-base-300">
-      <div class="flex gap-2">
+    <div class="sticky bottom-0 z-50 bg-base-300" v-if="!isPRView">
+      <div class="flex gap-2" v-if="!inputOnly">
         <span class="badge tooltip flex gap-2 items-center"
           :data-tip="mention.tooltip"
           :class="{ 'badge-primary': mention.project, 'badge-success badge-outline': mention.profile }"
@@ -108,15 +109,16 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
         </span>
       </div>
 
-      <SimpleEditorVue class="h-40 border w-full" v-model="editorText" :project="projectContext" v-if="false" />
-      <div class="border border-primary rounded-md bg-base-100 mt-2 pb-2" :class="['flex shadow indicator w-full', 
+      <div class="border border-primary rounded-md bg-base-100 mt-2 pb-2" 
+            :class="['flex shadow indicator w-full', 
             'flex-col',
+            isPRView && 'hidden',
             editMessage && 'border-warning',
             onDraggingOverInput ? 'bg-warning/10': '']"
         @dragover.prevent="onDraggingOverInput = true"
         @dragleave.prevent="onDraggingOverInput = false"
         @drop.prevent="onDrop"
-        v-if="!isBrowser && !isPRView && readOnly !== true"
+        v-if="!isBrowser && readOnly !== true"
         >
                 <ProjectResourcesAutoCompleteVue 
           class=""
@@ -155,7 +157,7 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
               :profiles="usersList"
               @user-changed="selectedUser = $event"
             />
-            <div class="text-xs">Find: ctrl+f</div>
+            <div class="text-xs click" @click="toggleDocumentSearch">Find: ctrl+f</div>
             <div class="grow"></div>
             <div class="flex gap-2 items-center justify-end" v-if="!searchingInKnowledge">
               <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
@@ -165,6 +167,12 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
               <button class="btn btn btn-sm btn-outline tooltip" data-tip="Save changes" @click="onResetEdit"
                 v-if="editMessage">
                 <i class="fa-regular fa-circle-xmark"></i>
+              </button>
+              <button class="btn btn btn-sm btn-circle tooltip"
+                data-tip="Add message"
+                @click="addNewMessage"
+                v-if="!editMessage">
+                <i class="fa-solid fa-plus"></i>
               </button>
               <button class="btn btn btn-sm btn-circle tooltip"
                 data-tip="Ask codx-junior"
@@ -299,7 +307,7 @@ import SimpleEditorVue from '../tiptap/SimpleEditor.vue'
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete'],
+  props: ['chat', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete', 'message', 'input-only'],
   data() {
     return {
       waiting: false,
@@ -328,15 +336,19 @@ export default {
       searchingInKnowledge: false,
       projectContext: this.$project,
       uploadProjectFile: null,
+      metadata: null
     }
   },
   created() {
     this.selectedUser = this.$user
     this.setProjectContext()
+    this.metadata = this.message?.metadata
+    this.editorText = this.message?.content
   },
   mounted() {
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
     this.initSelectedUserFromChat()
+    this.editorText && this.setEditorText(this.editorText)
   },
   unmounted() {
     clearInterval(this.syncEditableTextInterval)
@@ -437,8 +449,8 @@ export default {
       return (this.projectContext?.$state || this.$projects).mentionList
     },
     messageMentions() {
-      const mentions = [...this.messageText.matchAll(/@([^\s]+)/mg)]
-        .map(w => w[1])
+      const mentions = [...this.messageText?.matchAll(/@([^\s]+)/mg) || []]
+        .map(w => w[1]) || []
       return [...this.mentionList?.filter(m => mentions.includes(m.mention)), 
               ...this.files.map(file => ({
                 name: file.split("/").reverse()[0],
@@ -506,7 +518,9 @@ export default {
       this.previewStyle.zoom -= 0.1
     },
     setEditorText(text) {
-      this.editor.innerText = text
+      if (this.editor && this.editor.innerText !== undefined) {
+        this.editor.innerText = text
+      }
     },
     onEditMessage(message, enhance) {
       if (this.editMessage === message) {
@@ -558,17 +572,17 @@ export default {
         msg
       ]
     },
-    getMessageProfiles() {
+    getMessageProfiles(message) {
       const profiles = this.messageMentions.filter(m => m.profile).map(m => m.profile.name)
       if (this.selectedUser?.name && this.selectedUser !== this.$user) {
          profiles.push(this.selectedUser.name)
       }
-      return profiles
+      return profiles.filter((v, ix, arr) => arr.findIndex(vv => vv === v) === ix)
     },
     getUserMessage(message) {
       const files = [...this.messageMentions.filter(m => m.file).map(m => m.file),
                       ...(this.files ||[])]
-      const profiles = this.getMessageProfiles()
+      const profiles = this.getMessageProfiles(message)
       return {
         role: 'user',
         content: message,
@@ -577,6 +591,7 @@ export default {
         profiles,
         user: this.$user.username,
         disable_knowledge: true,
+        meta_data: this.metadata
       }
     },
     postMyMessage(message) {
@@ -589,24 +604,31 @@ export default {
       this.setEditorText("")
       this.images = []
       this.files = []
+      this.metadata = null
       this.scrollToBottom()
     },
-    async sendMessage() {
+    async addNewMessage() {
       if (this.isVoiceSession && !this.canPost) {
-        return
+        return false
       }
-
       if (this.editMessage !== null) {
         this.updateMessage()
         this.saveChat()
+        return false
       } else {
-        const message = this.editorText        
+        const message = this.editorText
         if (message?.length &&
           this.canPost && this.postMyMessage(message)) {
           await this.saveChat()
         }
+        return true
+      }
+    },
+    async sendMessage() {
+      if (this.addNewMessage()) {
         if (!this.isChannel || this.lastMessage?.profiles.length) {
           await this.sendChatMessage(this.chat)
+          this.$emit('send-message', this.lastMessage)
         }
       }
     },
@@ -1028,17 +1050,17 @@ export default {
         this.createSubtask(false)
       }
     },
-    async onPRFileCreateChat({ title, files, description, metadata, profiles, mode, column }) {
+    async onPRFileCreateChat({ title, files, description, metadata, profiles, mode, column, project_id, parent_id }) {
       await this.$projects.createNewChat({
           name: title,
           description,
-          project_id: this.chatProject.id,
-          parent_id: this.chat.id,
+          project_id: project_id || this.chatProject.project_id,
+          parent_id: parent_id || this.chat.id,
           file_list: files,
           profiles,
           mode,
-          column: column || this.chatProject.column,
-          board: this.chatProject.board,
+          column: column || this.chat.column,
+          board: this.chat.board,
           
           metadata,
           activateChat: false
@@ -1046,6 +1068,25 @@ export default {
     },
     onPRChatMessage({ file, message, metadata }) {
       file.chat.messages.push({})
+    },
+    onValidateChanges(files) {
+      const filesChanges = files.map(file => [
+        "```diff " + file.fileFullName,
+        file.diff,
+        "```"
+      ]).join("\n")
+
+      const validateMessage = [
+      filesChanges,
+      "\n\n",
+      `@wiki Validate these file changes and highlight:
+       * Possible errors or issues
+       * Missing functionality
+      `].join("\n")
+      
+      this.chat.messages.map(m => { m.hide = true })
+      this.editorText = validateMessage
+      this.sendMessage()
     }
   }
 }

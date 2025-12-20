@@ -12,7 +12,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
 
 <template>
-  <div class="h-full relative">
+  <div class="h-full relative" v-if="kanban">
     <div class="absolute top-0 left-0 right-0 bottom-0 bg-cover opacity-20 eounded-lg z-0"
       :style="{ backgroundImage: `url(${activeKanbanBoard.background}` }"
       v-if="activeKanbanBoard?.background"
@@ -21,7 +21,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     <div class="absolute bottom-0 left-0 right-0 z-20" v-if="loadingChats">
       <progress class="progress w-full animate-pulse opacity-30"></progress>
     </div>  
-    <div class="p-1 md:p-2 h-full absolute top-0 left-0 right-0 bottom-0 z-50">    
+    <div class="p-1 md:p-2 h-full absolute top-0 left-0 right-0 bottom-0 z-1">    
       <div class="flex flex-col gap-2" v-if="kanban?.boards && !$projects.activeChat && !board">
         <h1 class="px-2 text-2xl font-bold flex justify-between gap-2 border-b border-slate-700 pb-2">
           <div class="flex gap-2">

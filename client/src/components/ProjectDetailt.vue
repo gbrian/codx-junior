@@ -6,7 +6,7 @@
     <div tabindex="0" role="button" class="flex flex-col gap-2 text-xl md:text-2xl"
       :title="project.project_name"
     >
-      <div class="flex gap-2 items-center py-2 px-2  text-nowrap">
+      <div class="flex gap-2 items-center text-nowrap">
         <!-- Dropdown Component -->
         <div class="dropdown dropdown-start">
           <div tabindex="0" role="button" class="flex gap-2 click items-center">
@@ -19,12 +19,12 @@
             
             <i class="fa-solid fa-caret-right"></i>
           </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 p-2 shadow-sm"
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 shadow-sm -ml-4"
             v-if="options?.showSelector !== false"
           >
             <li>
               <!-- Search Input for Projects -->
-              <div class="flex items-center mb-2 input input-bordered">
+              <div class="flex items-center mb-2 input input-sm md:input-md input-bordered">
                 <input 
                   type="text" 
                   placeholder="Search projects..." 
@@ -35,19 +35,17 @@
                 <i class="fa-solid fa-magnifying-glass ml-2"></i>
                 <i class="fa-solid fa-xmark ml-2 cursor-pointer" @click="clearSearch"></i>
               </div>
-              <ul>
-                <li clss="group" v-for="matchedProject in matchedProjects" :key="matchedProject.project_name">
-                  <a @click.prevent.stop="onProjectSelected(matchedProject)">
-                    <img class="w-6 h-6 rounded bg-base-300" :src="matchedProject.project_icon"/>
-                    {{ matchedProject.project_name }}
-                    <span class="click tooltip" data-tip="Open folder"
-                      v-if="showFolders" @click.stop="$ui.coderOpenPath(matchedProject)"
-                    >
-                      <i class="fa-regular fa-folder"></i>
-                    </span>
-                  </a>
-                </li>
-              </ul>
+            </li>
+            <li clss="group" v-for="matchedProject in matchedProjects" :key="matchedProject.project_name">
+              <a @click.prevent.stop="onProjectSelected(matchedProject)">
+                <img class="w-6 h-6 rounded bg-base-300" :src="matchedProject.project_icon"/>
+                {{ matchedProject.project_name }}
+                <span class="click tooltip" data-tip="Open folder"
+                  v-if="showFolders" @click.stop="$ui.coderOpenPath(matchedProject)"
+                >
+                  <i class="fa-regular fa-folder"></i>
+                </span>
+              </a>
             </li>
             <li>
               <a @click.prevent.stop="onProjectSelected(project)">

@@ -72,6 +72,7 @@ class AI:
         *,
         max_response_length: Optional[int] = None,
         callback = None,
+        tools: List[str] = [],
         headers = {}
     ) -> List[Message]:
         if not messages:
@@ -101,9 +102,9 @@ class AI:
                 
                 response_messages = self.llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
                                                + messages, 
-                                               config={"callbacks": callbacks, "headers": headers})
+                                               config={"callbacks": callbacks, "headers": headers, "tools": tools })
             except Exception as ex:
-                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model}")
+                logger.exception(f"Failed to process AI. Non-retryable error processing AI request: {ex} {self.llm_model}")
                 raise RuntimeError("Failed to process AI request after retries.")
 
             if self.cache:
@@ -125,6 +126,7 @@ class AI:
         *,
         max_response_length: Optional[int] = None,
         callback = None,
+        tools: List[str] = [],
         headers = {}
     ) -> List[Message]:
         if not messages:
@@ -156,7 +158,7 @@ class AI:
                                                + messages, 
                                                config={"callbacks": callbacks, "headers": headers})
             except Exception as ex:
-                logger.exception(f"Non-retryable error processing AI request: {ex} {self.llm_model}")
+                logger.exception(f"Failed to process AI. Non-retryable error processing AI request: {ex} {self.llm_model}")
                 raise RuntimeError("Failed to process AI request after retries.")
 
             if self.cache:

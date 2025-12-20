@@ -137,5 +137,5 @@ def _update_all_projects():
 def find_project_parents(project: CODXJuniorSettings, user: CodxUser = None):
     all_user_projects = find_all_user_projects(user) if user else find_all_projects().values()
     project_path = project.project_path
-    all_parents = [p for p in all_user_projects if project_path.startswith(p.project_path)]
-    return all_parents
+    all_parents = [p for p in all_user_projects if project_path.startswith(p.project_path) and project_path != p.project_path]
+    return sorted(all_parents, key=lambda project: len(project.project_path))

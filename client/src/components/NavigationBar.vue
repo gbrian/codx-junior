@@ -5,16 +5,17 @@ import SearchBar from './bar/SearchBar.vue'
 import MobileMenuVue from './MobileMenu.vue'
 import ProjectDetailt from './ProjectDetailt.vue'
 import ProjectIcon from './ProjectIcon.vue'
+import NewProject from './project/NewProject.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex flex-col gap-4 mt-1">
     <div class="flex items-center shadow justify-between"
       :class="[
         $storex.session.connected ? '' : 'grayscale text-error',
         $ui.showApp && 'click'
       ]">
-      <div class="flex gap-2 items-center w-1/3" @click="showMobileMenu = true">
+      <div class="flex gap-2 items-center w-1/3" @click="showMobileMenu = !showMobileMenu">
         <div class="flex flex-col" v-if="$ui.isMobile">
           <ProjectIcon class="cursor-pointer md:cursor-auto" :project="{ avatar: '/only_icon.png'}" />
           <MobileMenuVue class="md:hidden" v-if="showMobileMenu" @close="showMobileMenu = false" />
@@ -32,7 +33,7 @@ import ProjectIcon from './ProjectIcon.vue'
       <div class="flex gap-2 justify-end w-1/3 items-center">
 
         <div class="w-40">
-          <SearchBar />
+          <SearchBar class="hidden md:flex" />
         </div>
 
         <a class="btn btn-sm btn-outline text-codx-primary" @click="newProject = true">
@@ -222,7 +223,7 @@ import ProjectIcon from './ProjectIcon.vue'
       <div class="grow"></div>
       <div class="flex gap-2 items-center pb-2">
       
-        <div class="dropdown dropdown-bottom" v-if="$projects.workspaces.length">
+        <div class="dropdown dropdown-bottom" v-if="false && $projects.workspaces.length">
           <div tabindex="0" class="flex gap-2 items-center text-center pb-2 click hover:bg-base-100 px-2 py-1 rounded-md">
             <i class="fa-solid fa-grip"></i> Workspaces
           </div>
@@ -254,8 +255,35 @@ import ProjectIcon from './ProjectIcon.vue'
             </div>
           </a>
         </div>
+
+        <div :class="['hover:bg-base-100 click relative pb-2', 
+          $ui.floatingCodxJunior ? '' : 'border-b-4 border-codx-primary']">
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show coder"
+          @click.stop="$ui.toggleFloatinCodxJunior()"
+          v-if="$ui.showApp"
+          >
+            <div class="flex gap-2 items-center">
+              <i class="fa-solid fa-thumbtack rotate-45" v-if="$ui.floatingCodxJunior"></i>
+              <i class="fa-solid fa-thumbtack" v-else></i>
+            </div>
+          </a>
+        </div>
+
+        <div :class="['hover:bg-base-100 click relative pb-2', 
+          $ui.showLogs ? 'border-b-4 border-codx-secondary': '']">
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show logs"
+          @click.stop="$ui.toggleLogs()">
+            <div class="flex gap-2 items-center">
+              <i class="fa-solid fa-file-lines"></i>
+            </div>
+          </a>
+        </div>
+
       </div>
     </div>
+    <modal close="true" @close="newProject = false" v-if="newProject">
+      <NewProject class="" />
+    </modal>
   </div>
 </template>
 
@@ -269,7 +297,8 @@ export default {
       tabInactive: 'text-warning bg-base-300 opacity-50 hover:opacity-100',
       restartModal: false,
       chat: null,
-      showMobileMenu: false
+      showMobileMenu: false,
+      newProject: false
     }
   },
   created () {

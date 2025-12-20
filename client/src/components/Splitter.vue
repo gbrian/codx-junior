@@ -21,7 +21,7 @@ import StatuBar from './StatuBar.vue'
     <SplitterGroup id="splitter-group-1" class="relative grow @container" 
       direction="horizontal" auto-save-id="splitter-group-1">
 
-      <SplitterPanel id="splitter-group-1-apps" :order="0" :min-size="20" :class="!$ui.showApp && 'hidden'">
+      <SplitterPanel id="splitter-group-1-apps" :order="0" :min-size="20" v-if="$ui.showApp">
         <SplitterGroup id="splitter-group-2" 
           :direction="isHorizontal ? 'horizontal' : 'vertical'"
           auto-save-id="splitter-group-2"
@@ -46,7 +46,8 @@ import StatuBar from './StatuBar.vue'
       <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="bg-stone-800 hover:bg-slate-600 w-1 hover:w-2 transition-all"
         v-if="$ui.showApp && showCodxJunior" />
 
-      <SplitterPanel id="splitter-group-1-codx-junior" :order="1" :min-size="showCodxJuniorFloating ? 0 : $ui.showApp ?  20 : 100"
+      <SplitterPanel id="splitter-group-1-codx-junior" :order="$ui.showApp ? 1 : 0" 
+        :min-size="showCodxJuniorFloating ? 0 : 20"
         :defaultSize="showCodxJuniorFloating ? 0 : $ui.codxJuniorWidth"
         class="flex items-center justify-center transition-all transition-discrete"
         :class="[
@@ -63,20 +64,14 @@ import StatuBar from './StatuBar.vue'
         />
       </SplitterPanel>
 
-      <SplitterResizeHandle id="splitter-group-1-resize-handle-2" class="bg-stone-800 hover:bg-slate-600 w-1 hover:w-2 transition-all" :class="!$ui.showLogs && 'hidden'"/>
+      <SplitterResizeHandle id="splitter-group-1-resize-handle-2" class="bg-stone-800 hover:bg-slate-600 w-1 hover:w-2 transition-all" 
+          v-if="$ui.showLogs" />
 
-      <SplitterPanel id="splitter-group-1-logs" :order="3" :defaultSize="25" :minSize="20" class="flex items-center justify-center"
+      <SplitterPanel id="splitter-group-1-logs" :order="showApp ? 2 : 1" :defaultSize="25" :minSize="20" class="flex items-center justify-center"
         v-if="$ui.showLogs">
         <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
       </SplitterPanel>
 
-      <!-- New SplitterPanel for WorkspacesViewer -->
-      <SplitterResizeHandle id="splitter-group-1-resize-handle-3" class="bg-stone-800 hover:bg-slate-600 w-1 hover:w-2 transition-all" v-if="showWorkspaces" />
-
-      <SplitterPanel id="splitter-group-1-panel-4" :order="4" :defaultSize="25" :minSize="20" class="flex items-center justify-center"
-        v-if="showWorkspaces">
-        <WorkspacesViewer class="w-full h-full" />
-      </SplitterPanel>
     </SplitterGroup>
     <StatuBar />
   </div>
@@ -102,9 +97,7 @@ export default {
       return this.$ui.showApp
     },
     showCodxJuniorFloating() {
-      return this.$ui.floatingCodxJunior || 
-        (this.$ui.showBrowser && this.$ui.showCoder) ||
-        (this.$ui.isMobile && (this.showApp || this.$ui.showLogs))
+      return !this.$ui.isMobile && this.$ui.floatingCodxJunior
     },
     showWorkspaces() {
       return this.$storex.projects.openedWorkspaces.length

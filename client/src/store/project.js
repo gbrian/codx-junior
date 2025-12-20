@@ -259,7 +259,7 @@ export const getters = getterTree(state, {
         $storex.projects.allChats
           .filter(c => c.board === 'codx-junior')
           .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),
-  userList: () => [$storex.users.user, ...$storex.projects.profiles.map(p => ({ ...p, isProfile: true }))],
+  userList: () => [$storex.users.user, ...$storex.projects.profiles?.map(p => ({ ...p, isProfile: true }))] || [],
   workspaces: state => Object.values(state.allProjects.map(p => p.workspaces)
                           .reduce((a, b) => a.concat(b), [])
                           .reduce((acc, ws) => ({ ...acc, [ws.id]: ws }) , {}))
@@ -337,11 +337,9 @@ export const actions = actionTree(
         state.activeChat = null
           }
         $storex.projects.addRecentProject(state.activeProject) 
-          await Promise.all([
-            $storex.projects.loadProfiles(),
-            $storex.projects.loadChats(),
-            $storex.projects.loadProjectKnowledge()
-          ])
+        $storex.projects.loadProfiles()
+        $storex.projects.loadChats()
+        $storex.projects.loadProjectKnowledge()
       } finally {
         state.projectLoading = false
       }
@@ -600,6 +598,7 @@ export const actions = actionTree(
     async saveProfile({ state }, profile) {
       const project = state.allProjectsById[profile.project_id] || state.activeProject
       const data = await $storex.profiles.saveProfile({ profile, project })
+      await $storex.projects.loadProfiles()
       if (state.selectedProfile.name === data.name) {
         state.selectedProfile = $storex.projects.profiles.find(p => p.name === data.name)
       }      

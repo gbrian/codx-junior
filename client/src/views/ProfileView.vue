@@ -21,7 +21,7 @@ import ProfileCard from '@/components/ProfileCard.vue';
         <input type="text" placeholder="Search profiles" v-model="searchQuery" class="input input-sm input-bordered w-full max-w-xs" />
         <button class="btn btn-sm btn-primary ml-4" @click="createNewProfile">Create New</button>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" v-if="profiles">
         <div v-for="profile in filteredProfiles" :key="profile.name"
           class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg" @click="openEditProfile(profile)">
           <ProfileCard class="click" :profile="profile" />
@@ -54,6 +54,9 @@ export default {
     }
   },
   created() {
+    this.loadProfiles()
+  },
+  mounted() {
     this.loadProfiles()
   },
   methods: {

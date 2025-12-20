@@ -4,9 +4,11 @@ import Code from '../Code.vue';
 import TipTapDocument from './TipTapDocument.vue';
 </script>
 <template>
-  <div class="flex flex-col">
+  <div class="flex flex-col @container/document">
     <div v-for="block in blocks" :key="block.hash">
-      <MarkdownViewer :files="files" v-if="block.renderer === 'md'" :text="block.content" />
+      <MarkdownViewer :files="files" 
+        class="prose-sm @lg/document:prose-md"
+        v-if="block.renderer === 'md'" :text="block.content" />
       <Code 
         :text="block.content"
         :text-language="block.type"

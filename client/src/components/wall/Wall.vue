@@ -12,7 +12,7 @@ import ProjectIcon from '../ProjectIcon.vue';
       No recent activity
     </div>
     <div class="grid grid-cols-2 @5xl:grid-cols-3 grid-flow-rows gap-2">
-      <div class="border border-slate-800 hover:border-slate-600 rounded-lg my-2 click group"
+      <div class="border border-slate-700 hover:border-slate-400 rounded-lg my-2 click group"
         v-for="chat in lastMessages" :key="chat.doc_id"
         @click="setActiveChat(chat)">
         <div class="flex gap-2 items-center bg-slate-800 px-2 rounded-t-lg border-b border-slate-600">
@@ -20,7 +20,7 @@ import ProjectIcon from '../ProjectIcon.vue';
           <div class="divider"></div>
           {{ chat.name }}
         </div>      
-        <div class="relative">
+        <div class="relative p-2">
           <ChatEntry
             class="rounded-b-lg overflow-auto opacity-60 h-60 group-hover:opacity-100" 
             :menu-less="true" 
@@ -64,6 +64,9 @@ export default {
   },
   methods: {
     async setActiveChat(chat) {
+      if (chat.project.project_id !== this.$project?.project_id) {
+        await this.$projects.setActiveProject(chat.project)
+      }
       this.$projects.setActiveChat(chat)
       this.$ui.setActiveTab('tasks')
     }

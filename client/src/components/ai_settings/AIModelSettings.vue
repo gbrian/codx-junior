@@ -71,7 +71,9 @@
         </div>
       </div>
     </div>
-    <div class="flex gap-2 justify-end">
+    <div class="flex gap-2">
+      <button class="btn btn-error" @click="$emit('delete', model)">Delete</button>
+      <div class="grow"></div>
       <button class="btn btn-primary" @click="$emit('save', model)">Save</button>
       <button class="btn" @click="$emit('cancel')">Cancel</button>
     </div>

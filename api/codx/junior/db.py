@@ -41,7 +41,7 @@ class Message(BaseModel):
     is_thinking: Optional[bool] = Field(default=False)
     disable_knowledge: Optional[bool] = Field(default=False)
     read_by: List[str] = Field(default=[])
-
+    error: Optional[str] = Field(default=None)
 
 class ChatId(BaseModel):
     chat_id: str = Field(default=None, description="Chat id")
@@ -51,8 +51,9 @@ class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
     project_id: Optional[str] = Field(default=None, description="Defines the project which this chat belongs")
-    target_project_id: Optional[str] = Field(default=None, description="None if it's the same as project_id or points for a specific project. Helps to keep chats on different projects to manage child projects.")
+    owner_project_id: Optional[str] = Field(default=None, description="Project owner.")
     parent_id: Optional[str] = Field(default=None, description="Parent chat")
+    parent_owner_project_id: Optional[str] = Field(default=None, description="Parent chat project owner.")
     parent_project_id: Optional[str] = Field(default=None, description="Parent chat project id")
     child_index: Optional[int] = Field(default=0, description="Child index. Used to sort chat content among other siblings")
     message_id: Optional[str] = Field(default=None, description="Parent message for threads")

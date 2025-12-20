@@ -73,12 +73,22 @@ def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvide
 
     return ai_provider
 
+def get_model(llm_model: str, global_settings = None) -> AIModel:
+    global_settings = global_settings or GLOBAL_SETTINGS
+    return next((m for m in global_settings.ai_models if m.name == llm_model or m.ai_model == llm_model), None)
+
+def save_model(model: AIModel, global_settings = None) -> AIModel:
+    global_settings = read_global_settings()
+    global_settings.ai_models = [m for m in global_settings.ai_models if m.name != model.name] + [model]
+    write_global_settings(global_settings=global_settings)
+
 def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
     global_settings = global_settings or GLOBAL_SETTINGS
-    model_settings = [m for m in global_settings.ai_models if m.name == llm_model or m.ai_model == llm_model]
+    model_settings = get_model(llm_model, global_settings)
+
     if not model_settings:
         raise Exception(f"LLM model not found: {llm_model}")
-    model: AIModel = model_settings[0]
+    model: AIModel = model_settings
     provider = get_provider_settings(model.ai_provider, global_settings=global_settings)
     ai_settings = AISettings(
         **model.settings.__dict__,
@@ -104,13 +114,15 @@ def read_global_settings():
 
 def write_global_settings(global_settings: GlobalSettings):
     global GLOBAL_SETTINGS
-    # logger.exception(f"WRITE GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}, \n{traceback.format_stack()}")
+    logger.exception(f"WRITE GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}, \n{traceback.format_stack()}")
     try:
+        global_settings_data = json.dumps(global_settings.dict())
+
         backup_up_global_settings()
         
         old_settings = read_global_settings()
         with open(GLOBAL_SETTINGS_PATH, "w") as f:
-            f.write(json.dumps(global_settings.dict()))
+            f.write(global_settings_data)
 
         if global_settings.git.username:
             exec_command(
@@ -121,7 +133,7 @@ def write_global_settings(global_settings: GlobalSettings):
 
         GLOBAL_SETTINGS = global_settings
     except Exception as ex:
-        logger.exception(f"Error saving global settings: {ex}")
+        logger.exception(f"Error saving global settings: {ex}: \n {global_settings}")
 
 def get_oauth_provider(oauth_provider: str):
     global_settings = read_global_settings()

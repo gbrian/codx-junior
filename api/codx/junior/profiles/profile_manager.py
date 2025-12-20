@@ -24,20 +24,45 @@ class ProfileManager:
         current_directory = os.path.dirname(current_file_path)
         self.base_profiles_path = f"{current_directory}"
 
-    def get_profiles (self):
+    def get_profiles(self):
+        return self.base_profiles(), self.project_profiles()
+
+    def base_profiles(self):
         def _files (file_gen):
             return [str(file) for file in file_gen]
 
         base_profiles = _files(pathlib.Path(self.base_profiles_path).rglob("**/*.profile"))
+        return _files(base_profiles)
+
+    def project_profiles(self):
+        def _files (file_gen):
+            return [str(file) for file in file_gen]
+
         project_profiles = _files(pathlib.Path(self.profiles_path).rglob("**/*.profile"))
-        return _files(base_profiles), _files(project_profiles)
+        return _files(project_profiles)
 
     def list_all_profiles(self):
-        all_parents = find_project_parents(project=self.settings)
+        parent_projects = find_project_parents(project=self.settings)
+        parent_projects.reverse()
+        all_projects = [self.settings] + parent_projects 
+        logger.info("list_all_profiles: %s", [p.project_name for p in all_projects])
+        
         profiles = {}
-        for project in all_parents + [self.settings]:
-            for profile in ProfileManager(settings=project).list_profiles():
-                profiles[profile.name] = profile  
+        
+        # Project and parent profiles
+        for project in all_projects :
+            project_profiles = ProfileManager(settings=project).project_profiles()
+            for profile_path in project_profiles:
+                profile = self.load_profile(profile_path)
+                if profile.name not in profiles:
+                    profiles[profile.name] = profile
+        
+        # Base profiles
+        for profile_path in self.base_profiles():
+            profile = self.load_profile(profile_path)
+            if profile.name not in profiles:
+                profiles[profile.name] = profile
+        
         return list(profiles.values())
 
 

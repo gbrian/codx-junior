@@ -96,8 +96,9 @@ class ChatEngine:
 
             parent_chat = None
             if chat.parent_id:
-                chat_manager = self.get_chat_manager(project_id=chat.parent_project_id)
+                chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
                 parent_chat = chat_manager.find_by_id(chat.parent_id)
+                # logger.info("[parent_chat] %s", parent_chat.nme)
 
             max_iterations = self.settings.get_agent_max_iterations()
             iterations_left = max_iterations - iteration
@@ -165,16 +166,31 @@ class ChatEngine:
                     if valid_messages and len(valid_messages) == 1 and valid_messages[0].role == 'user':
                         logger.info("[parent_content] Adding parent content to messages as no valid messages found")
                         messages.append(HumanMessage(content=parent_content))
+                    else:
+                        logger.info("[parent_content] discarded")
+                else:
+                    logger.info("[parent_content] not found")
             # Find projects for this
             query_mention_projects: List[CODXJuniorSettings] = [p for p in query_mentions.projects if p and hasattr(p, "codx_path")]
             search_projects: List[CODXJuniorSettings] = list(({
                     settings.codx_path: settings for settings in query_mention_projects
                 }).values())
 
+            context = ""
+            documents = []
+            chat_files = list(set((chat.file_list or []) + (user_message.files or [])))
+            if parent_chat and parent_chat.file_list:
+                chat_files = list(set(chat_files + parent_chat.file_list))
+
+            chat_tools = []
             logger.info("Chat profiles: %s", [p.name for p in all_profiles])
             if all_profiles:
                 chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in all_profiles])
                 chat_profile_names = [profile.name for profile in all_profiles]
+                for profile in all_profiles:
+                  chat_tools = chat_tools + profile.tools
+                chat_tools = list(set(chat_tools))
+                logger.info("Profies tools. '%s'\n %s", chat_tools, all_profiles) 
                 if not chat_model:
                     chat_models = list(set([profile.llm_model for profile in all_profiles if profile.llm_model]))
                     chat_model = chat_models[0] if chat_models else None
@@ -206,11 +222,6 @@ class ChatEngine:
                 msg = self.convert_message(message)
                 messages.append(msg)
 
-            context = ""
-            documents = []
-            chat_files = list(set((chat.file_list or []) + (user_message.files or [])))
-            if parent_chat and parent_chat.file_list:
-                chat_files = chat_files + parent_chat.file_list
 
             ignore_documents = chat_files.copy()
             if chat.name:
@@ -242,6 +253,7 @@ class ChatEngine:
 
             # Prepare AI
             ai_settings = self.settings.get_llm_settings()
+            logger.info("[chat_model] %s", chat_model)
             if chat_model:
                 ai_settings.model = chat_model
             ai = self.get_ai(llm_model=ai_settings.model)
@@ -251,16 +263,16 @@ class ChatEngine:
             if is_agent:
                 tags.append("agent")
             ai_headers = {
-              "tags": ",".join(tags)
+              "tags": ",".join(list(set(tags + chat_tools + chat_profile_names)))
             }
             async def ai_chat(messages=[], prompt="", tags="", callback=None):
                 headers = ai_headers
                 if tags:
                     headers = { 
                       **ai_headers, 
-                      "tags": ai_headers["tags"] + "," + tags 
+                      "tags": ai_headers["tags"] + "," + tags
                     }
-                return await ai.a_chat(messages=messages, prompt=prompt, callback=callback, headers=headers)
+                return await ai.a_chat(messages=messages, prompt=prompt, callback=callback, headers=headers, tools=chat_tools)
 
             if not disable_knowledge and search_projects:
                 chat.messages.append(new_chat_message("assistant", content=f"Searching in {[p.project_name for p in search_projects]}"))
@@ -388,10 +400,11 @@ class ChatEngine:
                 response_message.is_thinking = False
                 send_message_event(content=response_message.content, done=True)
             except Exception as ex:
-                logger.error(f"Error chatting with project: {ex} {chat.id}")
+                logger.exception(f"Ops, sorry!, Error chatting with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
-
-
+                response_message.error = ex.message
+                
+            response_message.meta_data = user_message.meta_data if user_message else {}
             response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
             response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
             response_message.meta_data["model"] = ai_settings.model
@@ -410,7 +423,7 @@ class ChatEngine:
                                             tags="chat-summary"))[-1]
                 chat.description = description_message.content
             except Exception as ex:
-                logger.exception(f"Error chatting with project: {ex} {chat.id}")
+                logger.exception(f"Ops, sorry!, Error chatting with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
 
 
@@ -551,22 +564,34 @@ class ChatEngine:
         :param query: The user's query string.
         :return: A dictionary containing lists of mentioned profiles and projects.
         """
+        profile_manager = self.get_profile_manager()
         content = user_message.content
-        profiles = chat.profiles + user_message.profiles
+        profiles = user_message.profiles if user_message.profiles else chat.profiles
+
+        chat_files = list(set(chat.file_list + user_message.files))
+        for chat_file in chat_files:
+            file_profiles = [p.name for p in profile_manager.get_file_profiles(file_path=chat_file)]
+            profiles = list(set(profiles + file_profiles))
+
+
         chat_profiles = [f"@{name}" for name in  profiles]
-        chat_utils = ChatUtils(profile_manager=self.get_profile_manager())
+        
+        chat_utils = ChatUtils(profile_manager=profile_manager)
 
         query = f"{content} {chat_profiles}"
         query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
         logger.debug("Query mentions extracted fo '%s': %s", query, query_mentions)
+
+
         return query_mentions
 
 
     def get_chat_analysis_parents(self, chat: Chat):
         """Given a chat, traverse all parents and return all analysis"""
         parent_content = []
-        chat_manager = self.get_chat_manager(project_id=chat.parent_project_id)
+        chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
         parent_chat = chat_manager.find_by_id(chat.parent_id)
+        logger.error("[parent_chat] parent_id: '%s' parent_project_id: '%s', Not found for chat: %s", chat.parent_id, chat.owner_project_id, chat.name)
         while parent_chat:
             messages = [message.content for message in parent_chat.messages if not message.hide]
             if messages:

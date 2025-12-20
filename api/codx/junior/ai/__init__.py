@@ -2,7 +2,13 @@ import logging
 
 from codx.junior.ai.ai import AI
 from codx.junior.model.model import AISettings, AIModel
-from codx.junior.settings import get_model_settings, get_provider_settings
+from codx.junior.settings import (
+  get_model_settings,
+  get_provider_settings,
+  read_global_settings,
+  get_model,
+  save_model
+)
 
 from codx.junior.ai.llmfactory import OllamaAI
 
@@ -43,8 +49,12 @@ class AIManager:
         llmfactory = OllamaAI(ai_settings=get_provider_settings('llmfactory', global_settings=global_settings))
         llmfactory.prune_models([m.ai_model or m.name for m in active_models])
 
+    def reload_model(self, model: AIModel):
+        global_settings = read_global_settings()
+        return self.load_model(model=model.name, global_settings=global_settings)
+
     def load_model(self, model: str, global_settings):
-        ai_settings = get_model_settings(llm_model=model,global_settings=global_settings)
+        ai_settings = get_model_settings(llm_model=model, global_settings=global_settings)
         if ai_settings.provider == 'llmfactory':
             return OllamaAI(ai_settings=ai_settings).load_model()
         return None

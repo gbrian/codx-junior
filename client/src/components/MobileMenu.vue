@@ -6,7 +6,7 @@ import WorkspacesSelector from './workspaces/WorkspacesSelector.vue'
   <div class="absolute top-0 left-0 right-0 bottom-0 z-50 flex bg-base-300/50" @click.stop="$emit('close')">
     <div class="h-full bg-base-100 shadow-lg z-50">
       <div class="tools flex flex-col gap-2 items-start p-4">
-        <ProjectDetailt 
+        <ProjectDetailt @click.stop=""
           :project="$project" 
           :options="{ folders: true, showIcon: true }"
           @select="$projects.setActiveProject($event)"
@@ -46,19 +46,6 @@ import WorkspacesSelector from './workspaces/WorkspacesSelector.vue'
           <i class="fa-solid fa-folder"></i>
           <span>File Finder</span>
         </a>
-
-        <div class="dropdown w-full" v-if="$projects.workspaces.length">
-          <div tabindex="0" role="button" class="flex items-center gap-4 py-2 hover:bg-base-100">
-            <i class="fa-solid fa-grip"></i>
-            <span>Workspaces</span>
-          </div>
-          <WorkspacesSelector tabindex="0"
-            class="dropdown-content bg-base-100 rounded-box z-1 w-full p-2 shadow-sm font-bold"
-            :workspaces="$projects.workspaces"
-            @select="onOpenWorkspace"
-            v-if="$projects.workspaces">
-          </WorkspacesSelector>
-        </div>
 
         <a class="flex items-center gap-4 py-2 hover:bg-base-100 w-full"
           v-if="canShowBrowser"

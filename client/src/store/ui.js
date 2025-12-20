@@ -60,6 +60,11 @@ export const mutations = mutationTree(state, {
       state.activeTab = tab
     }
   },
+  showTab(state, tab) {
+    if (tab !== state.activeTab) {
+      $storex.ui.setActiveTab(tab)
+    }
+  },
   loadState(state) {
     const savedState = localStorage.getItem('uiState')
     if (savedState) {

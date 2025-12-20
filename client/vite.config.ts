@@ -12,7 +12,8 @@ const {
   CODX_JUNIOR_NOVNC_PORT,
   CODX_JUNIOR_API_URL,
   USER_PORT_RANGE_START,
-  USER_PORT_RANGE_END
+  USER_PORT_RANGE_END,
+  DEBUG
 } = process.env
 const apiUrl = CODX_JUNIOR_API_URL || `http://0.0.0.0:${CODX_JUNIOR_API_PORT}`
 const coderUrl = `http://0.0.0.0:${CODX_JUNIOR_CODER_PORT}`
@@ -90,9 +91,7 @@ export default defineConfig({
   server: {
     allowedHosts: true,
     proxy,
-    watch: {
-      ignored: ["**/.codx/**"],
-    }
+    watch: DEBUG ? { ignored: ["**/.codx/**"] } : null
   },
   define: {
     'process.env': {

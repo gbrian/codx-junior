@@ -304,8 +304,10 @@ class MentionManager:
 
         logger.info(f"Mentions done file changes {file_path}")
 
-        self.event_manager.send_notification(text=f"codx mentions done for {file_path.split('/')[-1]}")
-        response = changes_chat.messages[-1].content.strip()
+        response_message = changes_chat.messages[-1]
+        if response_message.error:
+            raise Exception(response_message.error) 
+        response = response_message.content.strip()
 
         INVALID_HEADERS = ["<document>", "```"]
         def startswithInvalidHeaders(text):
@@ -346,5 +348,9 @@ class MentionManager:
                                                            callback=callback)
             logger.info(f"[{self.settings.project_name}] Mentions manager done for {file_path}")
             write_file(file_path=file_path, content=res)
+            self.event_manager.send_notification(text=f"codx mentions done for {file_path.split('/')[-1]}")
+            logger.info("Mentions done, write file: %s", file_path)
         except Exception as ex:
             logger.exception(f"Error processing mentions at {file_path}: {ex}")
+            self.event_manager.send_notification(text=f"codx mentions ERROR for file {file_path.split('/')[-1]}: {ex}")
+        

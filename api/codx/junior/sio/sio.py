@@ -96,7 +96,7 @@ async def io_ping(sid, data: dict = None):
 
 @sio.on("background-event")
 async def on_background_event(sid, data: dict):
-    logger.info(f"***************** On event bacground: {data}")
+    # logger.info(f"***************** On event bacground: {data}")
     event = data["event"]
     if event == "hello":
         return f"Hi! Is back: {CODX_JUNIOR_API_BACKGROUND}"

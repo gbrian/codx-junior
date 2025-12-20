@@ -163,6 +163,9 @@ const initializeAPI = ({ project, user } = {}) => {
         models: {
           list() {
             return API.get('/api/projects/ai/models')
+          },
+          reload(model) {
+            return API.post('/api/projects/ai/models/reload', model)
           }
         }
       },
@@ -332,6 +335,9 @@ const initializeAPI = ({ project, user } = {}) => {
       },
       async delete(name) {
         await API.del(`/api/profiles/${name}`);
+      },
+      tools() {
+        return API.get('/api/profiles/tools');
       }
     },
     coder: {

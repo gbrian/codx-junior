@@ -41,17 +41,22 @@ class UserSecurityManager():
     def get_user_token(self, user: CodxUser):
         return jwt.encode({ "username": user.username }, self.global_settings.secret, algorithm="HS256")
     
+    def get_user_from_token(self, token):
+        if not token:
+            return None
+        try:
+            decoded = jwt.decode(token, self.global_settings.secret, algorithms=["HS256"])
+            return CodxUserLogin(**decoded)
+        except:
+            return None
+
     def login_user(self, user: CodxUserLogin = None, token: str = None, oauth_password: str = None) -> CodxUser:
         def do_login(user: CodxUserLogin, token: str):
             if token:
-                try:
-                    decoded = jwt.decode(token, self.global_settings.secret, algorithms=["HS256"])
-                    user = CodxUserLogin(**decoded)
-                except Exception as ex:
-                    if not user:
-                        logging.error(f"Invalid token login {ex} {token}")
-                        return None
-
+                user = self.get_user_from_token(token)
+                if not user:
+                    logging.error(f"Invalid token login {ex} {token}")
+                    return None
             try:
                 stored_user = self.find_user(username=user.username)
                 stored_login = self.find_user_login(username=user.username)
@@ -92,11 +97,12 @@ class UserSecurityManager():
             # logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
             if logged_user:
                 user_login = self.find_user_login(username=logged_user.username)
-                # logger.info(f"User logged {logged_user}")
-                user_login.token = self.get_user_token(user=logged_user)
                 
-                logger.info("User logged  and save settings")
-                self.save_settings()
+                if not self.get_user_from_token(user_login.token):
+                    user_login.token = self.get_user_token(user=logged_user)
+                    logger.info("User logged  and save settings")
+                    self.save_settings()
+                
                 logged_user.token = user_login.token
             return logged_user
         except Exception as ex:

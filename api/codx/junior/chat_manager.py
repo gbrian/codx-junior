@@ -11,7 +11,7 @@ import shutil
 import yaml
 
 from slugify import slugify
-from collections import deque
+from collections import deque, defaultdict
 
 from typing import Dict, Any, List
 
@@ -49,12 +49,11 @@ class ChatManager:
         :param last_update: Only return paths for chats updated since this date.
         :return: List of file paths.
         """
-        all_paths = [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.md")] + \
-                    [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.yaml")]
+        all_paths = [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.yaml")]
         
         if last_update:
             # Filter paths by file modified time
-            return [path for path in all_paths if datetime.fromtimestamp(os.path.getmtime(path)) > last_update]
+            all_paths = [path for path in all_paths if datetime.fromtimestamp(os.path.getmtime(path)) > last_update]
         
         return all_paths
 
@@ -162,6 +161,7 @@ class ChatManager:
                 chat = Chat(**chat_data)
                 if chat_only:
                     chat.messages = []
+                chat.owner_project_id = self.settings.project_id
                 return chat
 
         # Fallback to existing method if YAML file doesn't exist
@@ -252,6 +252,8 @@ class ChatManager:
             file_path = next((path for path in self.chat_paths() if chat_id in path), None)
             if file_path:
                 return self.load_chat_from_path(chat_file=file_path)
+            else:
+                logger.error("[chat_id] not found: %s\n%s", chat_id, self.chat_paths())
         return None
 
     def load_kanban_from_file(self, kanban_file: str):

@@ -39,7 +39,7 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
           <span :class="[file.isDeleted && 'text-error', file.isNewFile && 'text-success']">
             {{ file.title }}
           </span>
-          {{ changes?.length }}
+          {{ changes?.length }} 
         </div>
       </div>
       <div class="grow"></div>
@@ -65,17 +65,8 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
       </div>
 
       <div class="indicator" v-if="file.chat"
-        @click="showOption = 'chat'"
+        @click="navigateToChat"
       >
-        <span class="indicator-item indicator-end badge badge-secondary"
-          v-if="showChat"
-        >
-          <span class="click" @click.stop="navigateToChat"
-            v-if="file.chat && showChat">
-            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-          </span>
-         <span v-if="file.messageCount">{{ file.messageCount }}</span> 
-        </span>
         <button class="btn btn-sm btn-outline" :class="showChat && 'btn-warning'"><i class="fa-regular fa-comment-dots"></i></button>
       </div>
       <button class="btn btn-sm btn-outline tooltip border-dashed text-slate-500" data-tip="Start revision" 
@@ -102,53 +93,74 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
       v-if="!file.collapse">
       
       <template v-slot:left>
-        
-        <div class="grow overflow-auto" v-if="file.parsed && showDiff">
-          <div class="flex items-center gap-2 px-2 py-1 text-xs">
-            <div class="flex gap-2 items-center">
-              Split / Unified
-              <input type="checkbox" v-model="diffSplit" class="toggle toggle-sm" />
-            </div>
-            <div class="flex gap-2 items-center">
-              Text wrap
-              <input type="checkbox" v-model="diffWrap" class="toggle toggle-sm" />
-            </div>
-          </div>
-          <DiffView
-            :data="file"
-            :diff-view-theme="'dark'" 
-            :diff-view-add-widget="true"
-            :diff-view-wrap="diffWrap"
-            :diff-view-highlight="true"
-            :diffViewFontSize="10"
-            :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"          
-          >
-            <template #widget="{ onClose, lineNumber, side }">
-              <div class="flex w-2/3 pr-4 flex-col m-2">
-                <CodeComment @close="onClose" @save="onAddComment({ onClose, lineNumber, side, message: $event })" />
+        <div class="@container/prfile">
+          <div class="flex flex-col @xl/prfile:flex-row">
+            <div class="grow overflow-auto" v-if="file.parsed && showDiff">
+              <div class="flex items-center gap-2 px-2 py-1 text-xs">
+                <div class="flex gap-2 items-center">
+                  Split / Unified
+                  <input type="checkbox" v-model="diffSplit" class="toggle toggle-sm" />
+                </div>
+                <div class="flex gap-2 items-center">
+                  Text wrap
+                  <input type="checkbox" v-model="diffWrap" class="toggle toggle-sm" />
+                </div>
               </div>
-            </template>
-            <template #extend="{ data }">
-              <div class="flex border bg-slate-400 px-[10px] py-[8px]">
-                <h2 class="text-[20px]">>> {{ data }}</h2>
-              </div>
-            </template>
-          </DiffView>
-        </div>
+              <DiffView
+                :data="file"
+                :diff-view-theme="'dark'" 
+                :diff-view-add-widget="true"
+                :diff-view-wrap="diffWrap"
+                :diff-view-highlight="true"
+                :diffViewFontSize="10"
+                :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"  
+                :extend-data="extendData"        
+              >
+                 <template #extend="{ data }">
+                  <div class="max-h-60 overflow-auto m-2 border rounded-lg">
+                    <ChatEntry 
+                      v-for="entry in data.entries" :key="entry.message.id"
+                      :message="entry.message" :chat="theChat" :menu-less="true"
+                    />
+                  </div>
+                  <div class="p-2 flex justify-end">
+                    <Chat class="overflow-auto h-96 grow" 
+                        :chat="theChat" 
+                        :enableDelete="true"
+                        :readOnly="false"
+                        :input-only="true"
+                        :message="{ metadata: { diff: { comment: data.entries[0].comment } } }"
+                        @send-message="data.AddMessage = false"
+                        v-if="data.AddMessage"
+                      />
+                      <button class="btn btn-sm btn-info" @click.stop="data.AddMessage = true" v-else>
+                        Add
+                      </button>
+                  </div>
+                </template>
+                <template #widget="{ onClose, lineNumber, side }">
+                  <div class="flex w-full pr-4 flex-col m-2">
+                    <Chat class="overflow-auto h-96" 
+                      :chat="theChat" 
+                      :enableDelete="true"
+                      :readOnly="false"
+                      :input-only="true"
+                      :message="{ metadata: { diff: { comment: { fileFullName: file.fileFullName, lineNumber, side } } } }"
+                      @send-message="onClose()"
+                    />
+                  </div>
+                </template>
+              </DiffView>
+            </div>
 
-        <div class="p-2" v-if="theChat && showChat">
-          <Chat class="overflow-auto min-h-96" 
-            :chat="theChat" 
-            :enableDelete="true"
-            :readOnly="false"
-          />
+            <CodeViewer class="grow overflow-auto mb-20 p-2" 
+              :code="fileContent"
+              :language="file.extension"
+              :file="file.fileFullName" 
+              :diffOption="false"
+              v-if="showFile && fileContent" />
+          </div>
         </div>
-        <CodeViewer class="overflow-auto mb-20 p-2" 
-          :code="fileContent"
-          :language="file.extension"
-          :file="file.fileFullName" 
-          :diffOption="false"
-          v-if="showFile && fileContent" />
       </template>
       <template v-slot:right v-if="selectedProfile">
         <div class="max-h-[1024px] overflow-auto">
@@ -167,26 +179,30 @@ export default {
       fileContent: null,
       diffSplit: false,
       diffWrap: true,
-      selectedProfile: null
+      selectedProfile: null,
+      showChat: false
     }
   },
   created() {
     if (this.showOption === 'diff' && this.file.isNewFile) {
       this.loadFileContent()
     }
+    if (this.file.chat) {
+      this.$projects.loadChat(this.file.chat)
+    }
   },
   computed: {
-    showChat() {
-      return this.showOption === 'chat'
-    },
     showFile() {
       return this.showOption === 'file'
     },
     showDiff() {
       return this.showOption === 'diff'
     },
+    messages() {
+      return this.theChat?.messages || []
+    },
     lastMessage() {
-      return this.theChat?.messages.reverse().find(m => !m.hide)
+      return this.messages.reverse().find(m => !m.hide)
     },
     changes() {
       return this.file.diff?.split("\n")
@@ -194,6 +210,29 @@ export default {
     },
     theChat() {
       return this.$projects.allChats.find(c => c.id === this.file.chat?.id)
+    },
+    extendData() {
+      const data = {}
+      this.messages.filter(m => m.meta_data?.diff)
+                .map(m => {
+                  const  {
+                    meta_data: {
+                      diff: { 
+                        comment
+                      } 
+                    }
+                  } = m
+                  const { lineNumber, side } = comment
+                  const key = side === 1 ? 'oldFile': 'newFile'
+                  const fileSide = data[key] || {}
+                  const entries = (fileSide[lineNumber] || { data: { entries: [] }}).data.entries
+                  entries.push({ comment, message: m })
+                  data[key] = {
+                    ...data[key] || {},
+                    [lineNumber]: { data: { entries } }
+                  }
+                })
+      return data
     }
   },
   watch: {
@@ -213,7 +252,7 @@ export default {
       if (!this.file.chat) {
         this.$emit('new-chat', { file: this.file })
       }
-      this.showOption = 'chat'
+      this.showChat = !this.showChat
     },
     async loadFileContent() {
       this.fileContent = await this.$storex.api.files.read(this.file.fileFullName)
@@ -240,7 +279,7 @@ export default {
     },
     async navigateToChat() {
       await this.$projects.setActiveChat(this.file.chat)
-      this.$ui.setActiveTab('tasks')
+      this.$ui.showTab('tasks')
     }
   },
   expose: ['file']

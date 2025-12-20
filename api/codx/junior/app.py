@@ -72,7 +72,8 @@ from codx.junior.model.model import (
     Document,
     GlobalSettings,
     Screen,
-    CodxUser
+    CodxUser,
+    AIModel
 )
 
 from codx.junior.settings import (
@@ -378,6 +379,11 @@ def api_list_profile(request: Request):
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.list_profiles()
 
+@app.get("/api/profiles/tools")
+def api_list_profile_tools(request: Request):
+    from codx.junior.tools import TOOLS
+    return [t["tool_json"]["function"] for t in TOOLS]
+
 @app.post("/api/profiles")
 async def api_create_profile(profile: Profile, request: Request):
     codx_junior_session = request.state.codx_junior_session
@@ -441,6 +447,10 @@ def api_project_readme(request: Request):
 def api_project_ai_models(request: Request):
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.settings.get_project_ai_models()
+
+@app.post("/api/projects/ai/models/reload")
+def api_project_ai_models(request: Request, model: AIModel):
+    return AIManager().reload_model(model)
 
 @app.post("/api/projects")
 def api_project_create(request: Request, user: CodxUser = Depends(get_authenticated_user)):

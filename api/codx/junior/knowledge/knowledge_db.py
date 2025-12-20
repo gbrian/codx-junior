@@ -214,7 +214,7 @@ class KnowledgeDB:
                 collection_name=self.index_fulltext_name,
                 data=data_search
             )
-            logger.info(f"[Full text] Adding {data_search} documents: response {res}")
+            # logger.info(f"[Full text] Adding {data_search} documents: response {res}")
             
         except Exception as ex:
             if "float_vector" in str(ex):

@@ -19,7 +19,7 @@ import ProjectCard from './ProjectCard.vue'
         </button>
       </div>
     </div>
-    <div class="grid grid-cols-2 md:grid-cols-2 gap-2">
+    <div class="grid grid-cols-2 @xl:grid-cols-3 gap-2">
       <ProjectCard
         v-for="project in filteredProjects"
         :key="project.project_id"

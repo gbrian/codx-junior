@@ -6,7 +6,7 @@ import ProjectIcon from '../ProjectIcon.vue';
 
 <template>
   <div class="w-full flex flex-col gap-2" v-if="boards">
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" >
+    <div class="grid grid-cols-1 @sm:grid-cols-2 @xl:grid-cols-3 gap-4" >
       <div
         v-for="board in bookmarks"
         :key="board.title"
@@ -27,7 +27,7 @@ import ProjectIcon from '../ProjectIcon.vue';
           </h2>
       </div>
     </div>
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" >
+    <div class="grid grid-cols-1 @sm:grid-cols-2 @xl:grid-cols-3 gap-4" >
       <div
         v-for="board in sortedBoards"
         :key="board.title"

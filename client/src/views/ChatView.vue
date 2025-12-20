@@ -21,7 +21,7 @@ import Markdown from '../components/Markdown.vue'
         <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <input type="text" class="input input-bordered" @keydown.enter.stop="saveChat" @keydown.esc="editName = false" v-model="chat.name" v-if="editName" />
+              <input type="text" class="input input-bordered" @keydown.enter.stop="saveChat(chat)" @keydown.esc="editName = false" v-model="chat.name" v-if="editName" />
               <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2 mb-2">
                   <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
@@ -47,8 +47,8 @@ import Markdown from '../components/Markdown.vue'
                       width="7"
                       v-for="profile in chatProfiles" :key="profile.name">
                         <div class="flex justify-end gap-2">
-                          <div class="badge badge-xs badge-warning cursor-pointer" @click="removeProfile(profile)">
-                            change
+                          <div class="badge badge-xs badge-error cursor-pointer" @click="removeProfile(profile)">
+                            remove
                           </div>
                         </div>
                     </ProfileAvatar>
@@ -405,7 +405,7 @@ export default {
     this.init()
   },
   async mounted() {
-    this.showChatMenu = !this.$ui.isMobile
+    this.showChatMenu = !this.$ui.isMobile && !this.isPRView
     this.chatProfiles = await this.$storex.api.project(this.taskProject)
       .then(p => p.profiles.list())
       .then(profiles => profiles.filter(p => this.chat.profiles.includes(p.name)))
@@ -563,7 +563,7 @@ export default {
     },
     async addFileToContext() {
       this.onAddFile(this.addFile)
-      await this.saveChat()
+      await this.saveChat(this.chat)
       await this.loadChat(this.chat)
       this.showFile = null
       this.addFile = null
@@ -574,37 +574,37 @@ export default {
       }
       this.chat.file_list = [...(this.chat.file_list || []), file]
       this.addNewFile = null
-      await this.saveChat()
+      await this.saveChat(this.chat)
     },
     async onRemoveFile(file) {
       this.workingChat.file_list = (this.workingChat.file_list || []).filter(f => f !== file)
       this.addNewFile = null
-      await this.saveChat()
+      await this.saveChat(this.chat)
     },
     async addProfile(profile) {
       if (!this.chat.profiles?.includes(profile)) {
         this.chat.profiles = [...this.chat.profiles || [], profile]
-        await this.saveChat()
+        await this.saveChat(this.chat)
       }
       this.showAddProfile = false
     },
     async addUserToChat(user) {
       if (!this.chat.users?.includes(user.username)) {
         this.chat.users = [...this.chat.users || [], user.username]
-        await this.saveChat()
+        await this.saveChat(this.chat)
       }
       this.showAddProfile = false
     },
     async removeUser(user) {
       if (this.chat.users?.includes(user.username)) {
         this.chat.users = this.chat.users.filter(u => u !== user.username)
-        await this.saveChat()
+        await this.saveChat(this.chat)
       }
     },
     removeProfile(profile) {
       if (this.chat.profiles?.includes(profile.name)) {
         this.chat.profiles = this.chat.profiles.filter(p => p !== profile.name)
-        this.saveChat()
+        this.saveChat(this.chat)
       }
     },
     onRemoveMessage(message) {

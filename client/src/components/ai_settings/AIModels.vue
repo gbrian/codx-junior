@@ -60,14 +60,18 @@ import AIModelSettings from './AIModelSettings.vue'
           </table>
         </div>
         <div class="flex gap-2 mt-4">
-          <button class="btn btn-xs btn-circle btn-outline text-info" @click.stop="">
-            <a :href="model.url" target="_blank" v-if="model.url"><i class="fa-solid fa-circle-info"></i></a>
+          <button class="btn btn-xs btn-circle btn-outline text-info" @click.stop="showModelInfo = model">            
+            <i class="fa-solid fa-circle-info"></i>
           </button>
           <button class="btn btn-xs btn-circle btn-outline" @click.stop="editModel(model)">
             <i class="fa-solid fa-pen-to-square"></i>
           </button>
-          <button class="btn btn-xs btn-circle btn-outline text-error" @click.stop="confirmDelete(model)">
-            <i class="fa-solid fa-trash-can"></i>
+          <div class="grow"></div>
+          <button class="btn btn-xs btn-circle btn-info btn-outline tooltip" 
+            :class="model.loading && 'animate.pulse btn-warning'"
+            data-tip="Reload model (depends on provider)"
+            @click.stop="reloadModel(model)">
+            <i class="fa-solid fa-arrows-rotate"></i>
           </button>
         </div>
       </div>
@@ -80,7 +84,14 @@ import AIModelSettings from './AIModelSettings.vue'
         :aiProviders="aiProviders"
         :model="currentModel" 
         @save="saveModel"
-        @cancel="showDialog = false" />
+        @cancel="showDialog = false"
+        @delete="confirmDelete"
+        />
+    </modal>
+
+    <modal class="w-1/3 h-2/3" close="true" @close="showModelInfo = null" v-if="showModelInfo">
+      <div class="text-2xl">{{ showModelInfo.name }}</div>
+      <pre class="overflow-auto">{{ showModelInfo.metadata?.info }}</pre>
     </modal>
 
     <modal v-if="showDeleteDialog">
@@ -122,6 +133,7 @@ export default {
       },
       modelToDelete: null,
       testModelChat: null,
+      showModelInfo: null
     }
   },
   computed: {
@@ -149,6 +161,7 @@ export default {
       // Add logic to save model
     },
     confirmDelete(model) {
+      this.showDialog = false
       this.modelToDelete = model
       this.showDeleteDialog = true
     },
@@ -169,6 +182,19 @@ export default {
       this.$projects.deleteChat(this.testModelChat)
       this.testModelChat = null
     },
+    async reloadModel(model) {
+      model.loading = true
+      try {
+        const info = await this.$storex.api.projects.ai.models.reload(model)
+        model.metadata = {
+          ...model.metadata ||{},       
+          info
+        }
+        this.showModelInfo = model
+      } finally {
+        model.loading = false
+      }
+    }
   },
 }
 </script>

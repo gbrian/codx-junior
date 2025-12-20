@@ -1397,7 +1397,6 @@ class CODXJuniorSession:
                 try:
                     commit_hash, author, date, message = entry.split('|', 3)
                 except ValueError:
-                    self.log_error(f"Error parsing log entry: {entry}")
                     continue
 
                 # Command to get files changed in each commit
