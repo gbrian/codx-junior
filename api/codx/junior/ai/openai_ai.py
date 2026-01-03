@@ -15,6 +15,17 @@ from codx.junior.model.model import CodxUser
 
 logger = logging.getLogger(__name__)
 
+GLOBAL_CHAT_INSTRUCTIONS = """
+<instructions info="General to follow when generating your response">
+  <instruction>
+    - IMPORTANT: Always add the file name after the code block language like in this example: "```js /absolute/file/path/file.js"
+    - Use tools to convert relative project's file path to absolute.
+    - Read file's content if not present in the comversation.
+    - Use project search to find context if not clear on the conversation.
+  </instruction>
+</instructions>
+"""
+
 class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings, llm_model: str = None, user: CodxUser = None):
         from codx.junior.tools import TOOLS
@@ -53,6 +64,16 @@ class OpenAI_AI:
             "content": gpt_message.content
         }
 
+    def preparer_messages_to_openai(self, messages):
+        oai_messages = [self.convert_message_to_openai(msg) for msg in messages]
+        oai_messages[-1]["content"] += "\n" + GLOBAL_CHAT_INSTRUCTIONS
+        if self.llm_settings.system:
+            oai_messages = [{
+              "role": "system",
+              "content": self.llm_settings.system
+            }] + oai_messages
+        return oai_messages
+
     @profile_function
     def chat_completions(self, messages, config: dict = {}):
         kwargs = {
@@ -65,7 +86,7 @@ class OpenAI_AI:
 
         self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
 
-        openai_messages = [self.convert_message_to_openai(msg) for msg in messages]
+        openai_messages = self.preparer_messages_to_openai(messages=messages) 
 
         if self.llm_settings.merge_messages:
             message = "\n".join([message['content'] for message in openai_messages])
@@ -149,7 +170,7 @@ class OpenAI_AI:
 
         self.log(f"OpenAI_AI chat_completions {self.llm_settings.provider}: {self.model} {self.base_url} {self.api_key[0:6]}...")
 
-        openai_messages = [self.convert_message_to_openai(msg) for msg in messages]
+        openai_messages = self.preparer_messages_to_openai(messages=messages)
                             
         if self.llm_settings.merge_messages:
             message = "\n".join([message['content'] for message in openai_messages])

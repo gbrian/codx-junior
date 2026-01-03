@@ -34,9 +34,9 @@ export default {
       const { openProject } = this
       if (openProject) {
         const folders = [openProject.project_path].map(f => `folder=${f}`).join("&")
-        return `/coder?${folders}`
+        return `/coder/?${folders}`
       }
-      return "/coder"
+      return "/coder/"
     }
   },
   methods: {

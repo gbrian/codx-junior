@@ -3,12 +3,15 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
 </script>
 
 <template>
-  <SplitterGroup class="h-full" :id="groupId" direction="horizontal">
+  <SplitterGroup :id="groupId" direction="horizontal">
     <SplitterPanel
       :id="`${groupId}-panel-splitter-1`"
       :min-size="panels?.left?.minSize || 10"
       :collapsible="panels?.left?.collapsible || true"
       :defaultSize="panels?.left?.defaultSize || 20"
+      :class="panels?.left?.class"
+      :style="panels?.left?.style"
+      style="overflow: auto !important"
       :order="1"
       v-if="$slots.left"
     >
@@ -24,6 +27,9 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
       :min-size="panels?.right?.minSize || 10"
       :collapsible="panels?.right?.collapsible || true"
       :defaultSize="panels?.right?.defaultSize || 20"
+      :class="panels?.right?.class"
+      :style="panels?.right?.style"
+      style="overflow: auto !important"
       :order="2"
       v-if="$slots.right"
     >

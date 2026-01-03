@@ -19,7 +19,7 @@ export const state = () => ({
     "en-US": "English",
     "es-SP": "Español"
   },
-  appActives: [],
+  openApps: {},
   appDivided: 'horizontal',
   resolution: API.screen.display?.resolution,
   resolutions: API.screen.display?.resolutions,
@@ -38,11 +38,13 @@ export const state = () => ({
 
   },
   theme: 'dark',
-  activeTab: 'home'
+  activeTab: 'home',
+  newProject: false,
+  activeApp: null,
+  appShowMode: null
 })
 
 export const getters = getterTree(state, {
-  showApp: state => state.showBrowser || state.showCoder,
   isLandscape: state => state.orientation !== 'portrait',
   monitorToken: state => state.monitors[state.monitor],
   isSharedScreen: () => window.location.pathname === '/shared',
@@ -51,10 +53,10 @@ export const getters = getterTree(state, {
 
 export const mutations = mutationTree(state, {
   setActiveTab(state, tab) {
-    tab = tab || 'hme'
+    tab = tab || 'home'
     if (state.activeTab === tab) {
-      if (state.appActives.length) {
-        state.activeTab = null  
+      if (state.activeApp) {
+        state.activeTab = null
       }
     } else {
       state.activeTab = tab
@@ -72,44 +74,9 @@ export const mutations = mutationTree(state, {
       Object.keys(parsedState)
         .forEach(k => state[k] = parsedState[k])
     }
+    state.activeApp = null
+    state.openApps = {}
     $storex.ui.handleResize()
-    if (state.isMobile && state.tabIx !== 'app') {
-      state.showCoder = false
-      state.showBrowser = false
-    }
-  },
-  toggleCoder(state) {
-    $storex.ui.setShowCoder(!state.showCoder)
-  },
-  toggleBrowser(state) {
-    $storex.ui.setShowBrowser(!state.showBrowser)
-  },
-  setShowCoder(state, show) {
-    state.showCoder = show
-    if (state.showCoder) {
-      state.appActives = ['coder', ...state.appActives]
-    } else {
-      state.appActives = state.appActives.filter(a => a !== 'coder')
-    }
-    if (state.showCoder && state.isMobile && state.showBrowser) {
-      $storex.ui.setShowBrowser(false)
-    }
-    if (!state.appActives.length) {
-      state.tabIx = state.lastActiveTab
-    }
-    $storex.ui.saveState()
-  },
-  setShowBrowser(state, show) {
-    state.showBrowser = show
-    if (state.showBrowser) {
-      state.appActives = ['browser', ...state.appActives]
-    } else {
-      state.appActives = state.appActives.filter(a => a !== 'browser')
-    }
-    if (state.showCoder && state.isMobile && state.showBrowser) {
-      $storex.ui.setShowCoder(false)
-    }
-    $storex.ui.saveState()
   },
   setCodxJuniorWidth(state, width) {
     state.codxJuniorWidth = width
@@ -166,6 +133,22 @@ export const mutations = mutationTree(state, {
   },
   setTheme(state, theme) {
     state.theme = theme
+  },
+  showNewProject(state, show) {
+    state.newProject = show
+  },
+  showApp(state, app) {
+    state.openApps[app.name] = app
+    state.activeApp = app
+  },
+  closeApp(state, app) {
+    delete state.openApps[app.name]
+    if (state.activeApp?.name === app.name) {
+      state.activeApp = state.openApps[Object.keys(state.openApps).reverse()[0]]
+    }
+  },
+  setAppShowMode(state, mode) {
+    state.appShowMode = mode
   }
 })
 

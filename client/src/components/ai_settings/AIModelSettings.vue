@@ -58,8 +58,10 @@
       <!-- Column for prompt_template -->
       <div class="flex flex-col gap-2 w-1/2">
         <div class="form-control h-full flex flex-col">
+          <span class="label">System</span>
+          <textarea class="h-20 textarea textarea-bordered" v-model="model.system" placeholder="Edit model system instructions"></textarea>
           <span class="label">Prompt Template</span>
-          <textarea class="grow textarea textarea-bordered" v-model="model.settings.prompt_template" placeholder="Edit prompt template here"></textarea>
+          <textarea class="grow textarea textarea-bordered" v-model="model.prompt_template" placeholder="Edit prompt template"></textarea>
           
           <div class="text-xs text-gray-500 mt-2">
             Available variables:

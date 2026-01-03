@@ -247,6 +247,7 @@ def api_list_chats(request: Request):
     file_path = request.query_params.get("file_path")
     chat_id = request.query_params.get("id")
     export_format = request.query_params.get("export_format")
+    from_date = request.query_params.get("from_date")
     
     if export_format:
         export = codx_junior_session.get_chat_manager().export_chat(chat_id=chat_id, export_format=export_format)
@@ -263,7 +264,7 @@ def api_list_chats(request: Request):
     if file_path:
         return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
     
-    return codx_junior_session.list_chats()
+    return codx_junior_session.list_chats(from_date=from_date)
 
 @profile_function
 @app.post("/api/chats")
@@ -409,10 +410,28 @@ def api_project_watch(request: Request):
 
 @app.get("/api/projects")
 def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    return [{
-      **project.__dict__,
-      "workspaces": project.get_project_workspaces()
-    } for project in find_all_user_projects(user)]
+    # return [{
+    #   **project.__dict__,
+    #   "workspaces": project.get_project_workspaces()
+    # } for project in find_all_user_projects(user)]
+
+    projects = list(find_all_user_projects(user))
+    workspaces = read_global_settings().workspaces
+
+    project_ids = [p.project_id for p in projects]
+    user_role = user.role
+
+    user_workspaces = [w for w in workspaces \
+        if "*" in w.project_ids or next((p for p in projects if p.project_id in w.project_ids), None)] 
+    if user_role != "admin":
+        for workspace in user_workspaces:
+            workspace.apps = [app for app in workspace.apps if not app.roles or user_role in app.roles]
+
+    return {
+        "projects": projects,
+        "workspaces": user_workspaces
+    }
+
 
 @app.get("/api/projects/metrics")
 async def api_chat_metrics(request: Request):

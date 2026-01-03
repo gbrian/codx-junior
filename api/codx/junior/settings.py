@@ -97,6 +97,8 @@ def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
         api_key=provider.api_key,
         model=model.ai_model or model.name,
         model_type=model.model_type,
+        system=model.system,
+        prompt_template=model.prompt_template,
         url=model.url
     )
     return ai_settings

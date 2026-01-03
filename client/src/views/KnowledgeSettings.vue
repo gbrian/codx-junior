@@ -42,10 +42,6 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
               <span class="text-info"><i class="fa-solid fa-file"></i></span>
               {{ $projects.embeddingsModel }}
             </div>
-            <button class="btn btn-sm" @click="toggleWatch()">
-              <span class="label-text mr-2">Watch changes</span>
-              <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="$project.watching" />
-            </button>
             <button class="btn btn-sm"
               @click="setSettings({ knowledge_enrich_documents: !$project.knowledge_enrich_documents })">
               <span class="label-text mr-2">Enrich documents</span>
@@ -65,7 +61,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
                 <i class="fa-2xl fa-solid fa-file"></i>
               </div>
               <div class="stat-title">Pending</div>
-              <div class="stat-value">{{ status?.pending_files?.length }}</div>
+              <div class="stat-value">{{ indexStatus?.total_pending }}</div>
               <div class="stat-desc"></div>
             </div>
 
@@ -74,7 +70,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
                 <i class="fa-2xl fa-solid fa-puzzle-piece"></i>
               </div>
               <div class="stat-title">Indexed</div>
-              <div class="stat-value">{{ status?.file_count }}</div>
+              <div class="stat-value">{{ indexStatus?.file_count }}</div>
               <div class="stat-desc"></div>
             </div>
 
@@ -92,7 +88,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
                 <i class="fa-2xl fa-solid fa-book"></i>
               </div>
               <div class="stat-title">Keywords</div>
-              <div class="stat-value">{{ status?.keyword_count }}</div>
+              <div class="stat-value">{{ indexStatus?.keyword_count }}</div>
               <div class="stat-desc"></div>
             </div>
           </div>
@@ -110,34 +106,40 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
 
     <WikiSettingsVue class="mt-2" v-if="selectedTab === 'Wiki'" />
 
-    <div v-if="selectedTab === 'Search'">
-      <div class="search flex flex-col gap-2" v-if="settings?.use_knowledge">
-        <div class="text-xl font-bold">Fine tune codx-junior knowledge search</div>
+    <div v-if="selectedTab === 'Search' && settings">
+      <div class="search flex flex-col gap-2" v-if="settings.use_knowledge">
+        <div class="text-xs font-bold">Fine tune codx-junior knowledge search</div>
         <div class="text-xs flex gap-2 items-center">
-          <i class="fa-solid fa-sliders"></i>
-          <div class="flex gap-2 items-center tooltip" data-tip="Search type">Search:
-            <select v-model="documentSearchType" class="w-20 select select-bordered select-xs">
-              <option value="similarity">similarity</option>
-            </select>
-          </div>
-          <div class="flex gap-2 items-center tooltip" data-tip="Limit results">Limit:
-            <input type="text" v-model="documentCount" class="w-20 input input-bordered input-xs max-w-xs" />
-          </div>
-          <div class="flex gap-2 items-center tooltip" data-tip="Rag distance (0-1)">Rag (0-1):
-            <input type="text" v-model="cutoffRag" class="w-20 input input-bordered input-xs max-w-xs" />
-          </div>
-          <div class="flex gap-2 items-center tooltip" data-tip="Content score (0-1)">Score:
-            <input type="text" v-model="cutoffScore" class="w-20 input input-bordered input-xs max-w-xs" />
-          </div>
-          <div class="flex gap-2 items-center tooltip" data-tip="Use keywords in search">Keywords:
-            <input type="checkbox" v-model="enableKeywords" class="w-20 checkbox checkbox-xs" />
-          </div>
-
-          <div class="grow"></div>
-          <button class="btn btn-sm tooltip hover:text-info" data-tip="Save these settings"
-            @click="saveKnowledgeSettings">
-            <i class="fa-solid fa-floppy-disk"></i>
+          <button class="btn btn-sm" @click="toggleWatch()">
+            <span class="label-text mr-2">Watch changes</span>
+            <input type="checkbox" class="toggle toggle-sm toggle-primary" :checked="settings.watching" />
           </button>
+          <div class="grow"></div>
+          <div class="flex gap-1 items-center">
+            <i class="fa-solid fa-sliders"></i>
+            <div class="flex gap-2 items-center tooltip hidden" data-tip="Search type">Search:
+              <select v-model="documentSearchType" class="w-20 select select-bordered select-xs">
+                <option value="similarity">similarity</option>
+              </select>
+            </div>
+            <div class="flex gap-2 items-center tooltip" data-tip="Limit results">Limit:
+              <input type="text" v-model="documentCount" class="w-10 input input-bordered input-xs max-w-xs" />
+            </div>
+            <div class="flex gap-2 items-center tooltip" data-tip="Rag distance (0-1)">Rag (0-1):
+              <input type="text" v-model="cutoffRag" class="w-10 input input-bordered input-xs max-w-xs" />
+            </div>
+            <div class="flex gap-2 items-center tooltip" data-tip="Content score (0-1)">Score:
+              <input type="text" v-model="cutoffScore" class="w-10 input input-bordered input-xs max-w-xs" />
+            </div>
+            <div class="flex gap-2 items-center tooltip" data-tip="Use keywords in search">Keywords:
+              <input type="checkbox" v-model="enableKeywords" class="w-10 checkbox checkbox-xs" />
+            </div>
+
+            <button class="btn btn-sm tooltip hover:text-info" data-tip="Save these settings"
+              @click="saveKnowledgeSettings">
+              <i class="fa-solid fa-floppy-disk"></i>
+            </button>
+          </div>
         </div>
         <label class="input input-bordered flex items-center gap-2">
           <select class="select select-xs" v-model="searchType">
@@ -252,29 +254,10 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
               </button>
             </div>
           </div>
-          <div class="text-xl flex gap-2 items-center mt-2">
-            <i class="fa-solid fa-hand"></i> Manual folder indexing
-          </div>
-          <div class="text-xs">Allows to index new folders or re-index existing ones</div>
-          <label class="input input-bordered flex items-center gap-2">
-            <input type="text" class="grow" :placeholder="projectPath" v-model="folderFilter" />
-            <span v-if="folderFilter" @click="reloadFolder(folderFilter)">
-              <i class="fa-solid fa-rotate-right"></i>
-            </span>
-            <span v-else>
-              <i class="fa-solid fa-magnifying-glass"></i>
-            </span>
-          </label>
-          <div class="dropdown dropdown-open" v-if="folderResulst">
-            <div class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-fit">
-              <ul>
-                <li class="" v-for="folder in folderResulst" :key="folder" @click="folderFilter = folder">
-                  <a>{{ folder }}</a>
-                </li>
-              </ul>
-            </div>
-          </div>
+          
+          
         </div>
+        
         <div class="text-xs font-bold py-2 flex flex-col gap-2">
           <div class="text-xl">Ignored patterns:</div>
           <div class="flex input input-sm input-bordered gap-2 max-w-xs items-center">
@@ -284,11 +267,11 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
             </div>
           </div>
           <div class="grid grid-cols-4 gap-2">
-            <span class="badge badge-xs flex gap-2 items-center w-fit rounded-full text-warning-content bg-warning"
+            <span class="badge flex gap-2 items-center w-fit rounded-full text-warning"
               v-for="(folder, ix) in ignoredFolders" :key="ix">
               {{ folder }}
-              <div class="btn btn-xs btn-circle" @click="removeEntriesFromIgnore([folder])">
-                <i class="fa-solid fa-minus"></i>
+              <div class="click text-error" @click="removeEntriesFromIgnore([folder])">
+                <i class="fa-solid fa-trash-can"></i>
               </div>
             </span>
           </div>
@@ -296,7 +279,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
         <div class="pb-2 flex gap-2 mt-4 justify-between">
           <div></div>
           <button class="btn btn-sm btn-error flex gap-2" @click="deleteKnowledge('')">
-            Delete Index ({{ status?.db_info?.embeddings?.row_count }})
+            Delete Index ({{ indexStatus?.db_info?.embeddings?.row_count }})
             <div v-if="resetKnowledge">
               (Really?
               <span class="hover:underline">YES</span> /
@@ -308,7 +291,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
     </div>
 
     <div v-if="selectedTab === 'Data'">
-      <DataExplorerVue :status="status" @drop="dropSelectedFiles" />
+      <DataExplorerVue :status="indexStatus" @drop="dropSelectedFiles" />
     </div>
   </div>
 </template>
@@ -320,7 +303,7 @@ export default {
       selectedTab: 'Search',
       documents: 0,
       embeddings: 0,
-      status: null,
+      indexStatus: null,
       loading: false,
       folderFilter: null,
       searchTerm: null,
@@ -336,13 +319,14 @@ export default {
       showIndexFiles: 0,
       fileFilter: null,
       addToIgnore: null,
-      settings: API.activeProject,
+      settings: null,
       resetKnowledge: false,
       refreshIx: null
     }
   },
   async created() {
     this.reloadStatus()
+    this.settings = this.$project.$api.activeProject
     this.refreshIx = setInterval(() => this.reloadStatus(), 20000)
     if (this.$ui.activeTab === 'wiki_settings') {
       this.selectedTab = 'Wiki'
@@ -356,8 +340,8 @@ export default {
       return this.settings.project_path
     },
     lastRefresh() {
-      if (this.status?.last_update) {
-        const ts = parseInt(this.status.last_update, 10) * 1000
+      if (this.indexStatus?.last_update) {
+        const ts = parseInt(this.indexStatus.last_update, 10) * 1000
         return moment(new Date(ts)).fromNow()
       }
       return null
@@ -368,7 +352,7 @@ export default {
       }
       const query = this.folderFilter.toLowerCase()
 
-      const allFolders = [...this.status?.pending_files || [], ...this.status?.folders || []]
+      const allFolders = [...this.indexStatus?.pending_files || [], ...this.indexStatus?.folders || []]
       return allFolders.filter((f, ix, arr) => arr.findIndex(e => e === f) === ix && f.toLowerCase().indexOf(query) !== -1)
         .slice(0, 20)
     },
@@ -391,9 +375,9 @@ export default {
     showFilesSelected() {
       switch (this.showIndexFiles) {
         case 0:
-          return this.status?.pending_files
+          return this.indexStatus?.pending_files
         case 1:
-          return this.status?.files
+          return this.indexStatus?.files
         default:
           return this.ignoredFolders
       }
@@ -430,7 +414,7 @@ export default {
     async reloadStatus() {
       const data = await API.knowledge.status()
       this.settings = { ...API.activeProject }
-      this.status = data
+      this.indexStatus = data
     },
     async reloadFolder(folderToReload) {
       this.reloadPath(folderToReload)
@@ -452,9 +436,9 @@ export default {
         const filePath = this.selectedFilePaths[0]
         try {
           await this.reloadPath(filePath, true)
-          const ix = this.status?.pending_files.indexOf(filePath)
+          const ix = this.indexStatus?.pending_files.indexOf(filePath)
           if (ix !== -1) {
-            this.status?.pending_files.splice(ix, 1)
+            this.indexStatus?.pending_files.splice(ix, 1)
           }
         } catch { }
         delete this.selectedFiles[filePath]

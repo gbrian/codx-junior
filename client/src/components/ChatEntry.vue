@@ -154,6 +154,9 @@ import UserSelector from './chat/UserSelector.vue'
             @edit-message="$emit('edit-message', $event)"
             :mentionList="mentionList"
             v-if="!showDiff && !editting && !srcView && !code_patches" />
+          <div class="alert alert-error text-xs" v-if="message.error">
+            {{ message.error }}
+          </div>
           <CodeDiff
             :new-string="message.diffMessage.content"
             :old-string="messageContent"

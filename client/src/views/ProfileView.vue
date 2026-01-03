@@ -72,7 +72,7 @@ export default {
     async saveSelectedProfile(profile) {
       this.loadingProfile = true
       try {
-        this.$projects.saveProfile(profile)
+        this.$projects.saveProfile({ ...profile, project: null })
       } catch {}
       this.loadingProfile = false
     },

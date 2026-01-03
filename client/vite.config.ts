@@ -13,7 +13,8 @@ const {
   CODX_JUNIOR_API_URL,
   USER_PORT_RANGE_START,
   USER_PORT_RANGE_END,
-  DEBUG
+  DEBUG,
+  DISABLE_PROXY
 } = process.env
 const apiUrl = CODX_JUNIOR_API_URL || `http://0.0.0.0:${CODX_JUNIOR_API_PORT}`
 const coderUrl = `http://0.0.0.0:${CODX_JUNIOR_CODER_PORT}`
@@ -35,7 +36,7 @@ const userPorts = [...new Array(userPortCount)].reduce((acc, v) =>
           }
       }) , {})
 
-const proxy = {
+const proxy = DISABLE_PROXY ? {} : {
   '/api': {
     target: apiUrl,
     changeOrigin: true,

@@ -17,13 +17,13 @@ import { DiffFile, generateDiffFile } from "@git-diff-view/file";
   </div>
 
   <DiffView
-    :diff-file="diffFile"
     :diff-view-font-size="14"
     :diff-view-highlight="true"
     :diff-view-add-widget="false"
     :diff-view-theme="'dark'"
     :diff-view-wrap="diffWrap"
     :diffViewMode="diffSplit ? DiffModeEnum.Split : DiffModeEnum.Unified"          
+    :data="data"
     v-if="data"
   />
 </div>
@@ -41,6 +41,8 @@ export default {
   },
   async created() {
     const language = this.language || this.file.split(".").reverse()[0]
+
+    
     this.diffFile = generateDiffFile(
                   this.file, 
                   this.orgContent,
@@ -48,7 +50,8 @@ export default {
                   this.newContent, 
                   language,
                   language)
-    this.diffFile.initRaw()
+    // this.diffFile.init();
+    // this.diffFile.buildSplitDiffLines()
 
     this.data = {
       oldFile: {

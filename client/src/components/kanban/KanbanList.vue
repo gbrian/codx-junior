@@ -1,7 +1,5 @@
 <script setup>
 import moment from 'moment'
-import KanbanSettings from './KanbanSettings.vue';
-import ProjectIcon from '../ProjectIcon.vue';
 </script>
 
 <template>

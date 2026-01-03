@@ -43,7 +43,7 @@ export default {
       this.rfb?.disconnect()
 
       const protocol = window.location.protocol.includes("https") ? "wss": "ws"
-      const url = `${protocol}://${window.location.host}/novnc?token=${this.token}`
+      const url = `${protocol}://${window.location.host}/preview`
       const options = {
         credentials: {
           password: "password"

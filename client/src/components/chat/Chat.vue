@@ -347,7 +347,6 @@ export default {
   },
   mounted() {
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
-    this.initSelectedUserFromChat()
     this.editorText && this.setEditorText(this.editorText)
   },
   unmounted() {
@@ -484,7 +483,6 @@ export default {
   },
   watch: {
     chat() {
-      this.initSelectedUserFromChat()
       this.setProjectContext()
     },
     uploadProjectFile(newVal, oldVal) {
@@ -498,17 +496,6 @@ export default {
       this.projectContext = this.$project
       if (this.projectContext?.project_id !== this.chatProject.project_id) {
         this.projectContext = await this.$projects.loadProject(this.chatProject)
-      }
-    },
-    initSelectedUserFromChat() {
-      const messages = this.chat.messages.filter(m => !m.hide && m.profiles?.length)
-      const lastProfileMessage = messages[messages.length - 1]
-      if (lastProfileMessage) {
-        const userName = lastProfileMessage.profiles[0]
-        const user = this.$projects.userList.find(u => u.name === userName) 
-        this.selectedUser = user
-      } else if (!this.selectedUser) {
-        this.selectedUser = this.$user
       }
     },
     zoomIn() {
@@ -951,6 +938,8 @@ export default {
         this.sendMessage()
       } else if(event.key === 'f' && event.ctrlKey) {
         this.toggleDocumentSearch()
+      } else if(event.key === 'b' && event.ctrlKey) {
+        this.createBlock()
       }  else {
         return true
       }
@@ -1087,6 +1076,10 @@ export default {
       this.chat.messages.map(m => { m.hide = true })
       this.editorText = validateMessage
       this.sendMessage()
+    },
+    createBlock() {
+      const clipboadText = "";
+      this.setEditorText(this.editorText + "```\n" + clipboadText + "\n```")
     }
   }
 }

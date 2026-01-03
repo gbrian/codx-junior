@@ -130,7 +130,7 @@ class WikiManager:
                 if ignore in file_path:
                     return False
             return True
-        repository_files = [f for f in repository_files if is_valid_file(f)]
+        repository_files = [f.replace(self.settings.project_path, '') for f in repository_files if is_valid_file(f)]
         repository_files = "\n".join(sorted(repository_files))
 
         logger.info("Valid wiki files:\n%s", repository_files)
@@ -407,6 +407,7 @@ class WikiManager:
             logger.exception(f"Error updating mkdocs.yaml: {e}")
 
     def _find_category_for_file(self, file_path, all_categories):
+        file_path = file_path.replace(self.settings.project_path, '')
         for category in all_categories:
             for file in category.get("files", []):
                 if file.get("path", "") == file_path:
@@ -454,7 +455,7 @@ class WikiManager:
             if "files" not in category:
                 category["files"] = []
             if source not in category["files"]:
-                category["files"].append({"path": source})
+                category["files"].append({"path": source.replace(self.settings.project_path, '')})
                 self.save_wiki_settings(wiki_settings)
 
         return category

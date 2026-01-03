@@ -11,7 +11,7 @@ import ProjectIcon from '../ProjectIcon.vue';
     <div class="alert" v-if="lastMessages.length === 0">
       No recent activity
     </div>
-    <div class="grid grid-cols-2 @5xl:grid-cols-3 grid-flow-rows gap-2">
+    <div class="grid grid-cols-1 @xl:grid-cols-2 @5xl:grid-cols-3 grid-flow-rows gap-2">
       <div class="border border-slate-700 hover:border-slate-400 rounded-lg my-2 click group"
         v-for="chat in lastMessages" :key="chat.doc_id"
         @click="setActiveChat(chat)">

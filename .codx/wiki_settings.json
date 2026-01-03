@@ -14,14 +14,14 @@
         {
           "name": "README Overview",
           "path": "/shared/codx-junior/README.md",
-          "slug": "readme-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/project-overview/readme-md.md"
+          "slug": "shared-codx-junior-readme-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/project-overview/shared-codx-junior-readme-md.md"
         },
         {
           "name": "License Information",
           "path": "/shared/codx-junior/LICENSE.md",
-          "slug": "license-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/project-overview/license-md.md"
+          "slug": "shared-codx-junior-license-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/project-overview/shared-codx-junior-license-md.md"
         }
       ],
       "id": "project-overview",
@@ -42,38 +42,38 @@
         {
           "name": "Docker Ignore",
           "path": "/shared/codx-junior/.dockerignore",
-          "slug": "dockerignore.md",
-          "wiki_file": "/shared/codx-junior/wiki/setup-and-installation/dockerignore.md"
+          "slug": "shared-codx-junior-dockerignore.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-dockerignore.md"
         },
         {
           "name": "Dockerfile",
           "path": "/shared/codx-junior/Dockerfile",
-          "slug": "dockerfile.md",
-          "wiki_file": "/shared/codx-junior/wiki/setup-and-installation/dockerfile.md"
+          "slug": "shared-codx-junior-dockerfile.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-dockerfile.md"
         },
         {
           "name": "Docker Compose",
           "path": "/shared/codx-junior/docker-compose.yaml",
-          "slug": "docker-compose-yaml.md",
-          "wiki_file": "/shared/codx-junior/wiki/setup-and-installation/docker-compose-yaml.md"
+          "slug": "shared-codx-junior-docker-compose-yaml.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-docker-compose-yaml.md"
         },
         {
           "name": "Install Script",
           "path": "/shared/codx-junior/installer.sh",
-          "slug": "installer-sh.md",
-          "wiki_file": "/shared/codx-junior/wiki/setup-and-installation/installer-sh.md"
+          "slug": "shared-codx-junior-installer-sh.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-installer-sh.md"
         },
         {
           "name": "Install Codx Junior",
           "path": "/shared/codx-junior/docker-init/install-codx-junior.sh",
-          "slug": "docker-init-install-codx-junior-sh.md",
-          "wiki_file": "/shared/codx-junior/wiki/setup-and-installation/docker-init-install-codx-junior-sh.md"
+          "slug": "shared-codx-junior-docker-init-install-codx-junior-sh.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-docker-init-install-codx-junior-sh.md"
         },
         {
           "name": "Initial Setup Guide",
           "path": "/shared/codx-junior/docs/initial-setup.md",
-          "slug": "docs-initial-setup-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/setup-and-installation/docs-initial-setup-md.md"
+          "slug": "shared-codx-junior-docs-initial-setup-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/setup-and-installation/shared-codx-junior-docs-initial-setup-md.md"
         }
       ],
       "id": "setup-and-installation",
@@ -94,26 +94,26 @@
         {
           "name": "Feature Overview",
           "path": "/shared/codx-junior/docs/features.md",
-          "slug": "docs-features-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/features-and-functionalities/docs-features-md.md"
+          "slug": "shared-codx-junior-docs-features-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/features-and-functionalities/shared-codx-junior-docs-features-md.md"
         },
         {
           "name": "Code Generation and Review",
           "path": "/shared/codx-junior/docs/features/code-generation-and-review.md",
-          "slug": "docs-features-code-generation-and-review-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/features-and-functionalities/docs-features-code-generation-and-review-md.md"
+          "slug": "shared-codx-junior-docs-features-code-generation-and-review-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/features-and-functionalities/shared-codx-junior-docs-features-code-generation-and-review-md.md"
         },
         {
           "name": "Collaboration Tools",
           "path": "/shared/codx-junior/docs/features/collaboration-and-communication.md",
-          "slug": "docs-features-collaboration-and-communication-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/features-and-functionalities/docs-features-collaboration-and-communication-md.md"
+          "slug": "shared-codx-junior-docs-features-collaboration-and-communication-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/features-and-functionalities/shared-codx-junior-docs-features-collaboration-and-communication-md.md"
         },
         {
           "name": "Project Dashboard",
           "path": "/shared/codx-junior/docs/features/project-dashboard.md",
-          "slug": "docs-features-project-dashboard-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/features-and-functionalities/docs-features-project-dashboard-md.md"
+          "slug": "shared-codx-junior-docs-features-project-dashboard-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/features-and-functionalities/shared-codx-junior-docs-features-project-dashboard-md.md"
         }
       ],
       "id": "features-and-functionalities",
@@ -133,20 +133,20 @@
         {
           "name": "Development Tools",
           "path": "/shared/codx-junior/docs/features/development-tools.md",
-          "slug": "docs-features-development-tools-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/development-and-testing/docs-features-development-tools-md.md"
+          "slug": "shared-codx-junior-docs-features-development-tools-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/development-and-testing/shared-codx-junior-docs-features-development-tools-md.md"
         },
         {
           "name": "Testing Procedures",
           "path": "/shared/codx-junior/tests/chatGPTApi/endpoint.tests.http",
-          "slug": "tests-chatgptapi-endpoint-tests-http.md",
-          "wiki_file": "/shared/codx-junior/wiki/development-and-testing/tests-chatgptapi-endpoint-tests-http.md"
+          "slug": "shared-codx-junior-tests-chatgptapi-endpoint-tests-http.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/development-and-testing/shared-codx-junior-tests-chatgptapi-endpoint-tests-http.md"
         },
         {
           "name": "Pytest Configuration",
           "path": "/shared/codx-junior/pytest.ini",
-          "slug": "pytest-ini.md",
-          "wiki_file": "/shared/codx-junior/wiki/development-and-testing/pytest-ini.md"
+          "slug": "shared-codx-junior-pytest-ini.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/development-and-testing/shared-codx-junior-pytest-ini.md"
         }
       ],
       "id": "development-and-testing",
@@ -167,20 +167,20 @@
         {
           "name": "Deployment Guide",
           "path": "/shared/codx-junior/docs/features/deployment-and-operations.md",
-          "slug": "docs-features-deployment-and-operations-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/deployment-and-operations/docs-features-deployment-and-operations-md.md"
+          "slug": "shared-codx-junior-docs-features-deployment-and-operations-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/deployment-and-operations/shared-codx-junior-docs-features-deployment-and-operations-md.md"
         },
         {
           "name": "Run Docker Script",
           "path": "/shared/codx-junior/scripts/run_docker.sh",
-          "slug": "scripts-run-docker-sh.md",
-          "wiki_file": "/shared/codx-junior/wiki/deployment-and-operations/scripts-run-docker-sh.md"
+          "slug": "shared-codx-junior-scripts-run-docker-sh.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/deployment-and-operations/shared-codx-junior-scripts-run-docker-sh.md"
         },
         {
           "name": "Supervisor Configuration",
           "path": "/shared/codx-junior/supervisor.conf",
-          "slug": "supervisor-conf.md",
-          "wiki_file": "/shared/codx-junior/wiki/deployment-and-operations/supervisor-conf.md"
+          "slug": "shared-codx-junior-supervisor-conf.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/deployment-and-operations/shared-codx-junior-supervisor-conf.md"
         }
       ],
       "id": "deployment-and-operations",
@@ -200,20 +200,20 @@
         {
           "name": "Knowledge Sharing",
           "path": "/shared/codx-junior/docs/features/knowledge-sharing.md",
-          "slug": "docs-features-knowledge-sharing-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/user-support-and-documentation/docs-features-knowledge-sharing-md.md"
+          "slug": "shared-codx-junior-docs-features-knowledge-sharing-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/user-support-and-documentation/shared-codx-junior-docs-features-knowledge-sharing-md.md"
         },
         {
           "name": "User Guide",
           "path": "/shared/codx-junior/docs/getting-started.md",
-          "slug": "docs-getting-started-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/user-support-and-documentation/docs-getting-started-md.md"
+          "slug": "shared-codx-junior-docs-getting-started-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/user-support-and-documentation/shared-codx-junior-docs-getting-started-md.md"
         },
         {
           "name": "FAQ and Troubleshooting",
           "path": "/shared/codx-junior/docs/collaboration.md",
-          "slug": "docs-collaboration-md.md",
-          "wiki_file": "/shared/codx-junior/wiki/user-support-and-documentation/docs-collaboration-md.md"
+          "slug": "shared-codx-junior-docs-collaboration-md.md",
+          "wiki_file": "/home/codx-junior/codx-junior/wiki/user-support-and-documentation/shared-codx-junior-docs-collaboration-md.md"
         }
       ],
       "id": "user-support-and-documentation",
@@ -222,6 +222,6 @@
     }
   ],
   "error": "[Errno 2] No such file or directory: '/shared/codx-junior/.codx/wiki_settings.json'",
-  "path": "/shared/codx-junior/.codx/wiki_settings.json",
+  "path": "/home/codx-junior/codx-junior/.codx/wiki_settings.json",
   "mode": "codx-junior"
 }

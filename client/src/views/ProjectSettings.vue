@@ -277,7 +277,7 @@ export default {
   },
   methods: {
     reloadSettings() {
-      this.settings = this.$project
+      this.settings = this.$project?.$api.activeProject
     },
     async saveSettings() {
       await this.$projects.saveSettings(this.settings)

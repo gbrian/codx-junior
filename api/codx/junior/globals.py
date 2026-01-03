@@ -2,12 +2,7 @@ import os
 import subprocess
 import logging
 
-from codx.junior.settings import CODXJuniorSettings, read_global_settings
-from codx.junior.utils.utils import exec_command
-from codx.junior.security.user_management import UserSecurityManager
-from codx.junior.model.model import CodxUser
-from codx.junior.db import Chat
-
+HOST_USER = os.environ.get("HOST_USER")
 
 """Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
 MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 60 * 60
@@ -32,15 +27,10 @@ APPS_COMMANDS = {
 
 AGENT_DONE_WORD = "$$@@AGENT_DONE@@$$$"
 
-def coder_open_file(settings: CODXJuniorSettings, file_name: str):
-    logger.info(f"coder_open_file {file_name}")
-    os.system(f"code-server -r {file_name}")
+from langchain_text_splitters import Language
 
-
-def update_engine():
-    try:
-        command = ["git", "pull"]
-        subprocess.run(command)
-    except Exception as ex:
-        logger.exception(ex)
-        return ex
+CURRENT_SPLITTER_LANGUAGES = [lang.lower() for lang in dir(Language)]
+LANGUAGE_PARSER_MAPPING = {
+    "ts": "js",
+    "cs": "csharp"
+}

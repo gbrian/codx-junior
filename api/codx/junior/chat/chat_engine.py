@@ -33,7 +33,7 @@ from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.utils.chat_utils import ChatUtils, QueryMentions
-from codx.junior.utils.utils import document_to_context
+from codx.junior.utils.utils import document_to_code_block
 
 from codx.junior.model.model import CodxUser
 
@@ -136,7 +136,7 @@ class ChatEngine:
                 response_message.done = done
                 self.event_manager.message_event(chat=chat, message=response_message)
 
-            send_message_event("", False)
+            send_message_event("> Processing request, please wait...\n", False)
 
             valid_messages = [message for message in chat.messages if not message.hide and not message.improvement]
             
@@ -178,7 +178,7 @@ class ChatEngine:
 
             context = ""
             documents = []
-            chat_files = list(set((chat.file_list or []) + (user_message.files or [])))
+            chat_files = list(set((chat.file_list or []) + (user_message.files or []))) + query_mentions.files
             if parent_chat and parent_chat.file_list:
                 chat_files = list(set(chat_files + parent_chat.file_list))
 
@@ -199,6 +199,8 @@ class ChatEngine:
                 # None profile uses knowledge, disable knowledge
                 if next((p for p in all_profiles if p.chat_mode == 'task'), None):
                     is_refine = True
+            elif chat_files:
+                chat_profiles_content = "Focus on the changes required by the task and keep all other content as it is."
 
             if not search_projects:
                 disable_knowledge = True
@@ -230,6 +232,8 @@ class ChatEngine:
             if chat_profile_names:
                 self.event_manager.chat_event(chat=chat, message=f"Chat profiles: {chat_profile_names}")
 
+            
+            chat_files_content = ""
             for chat_file in chat_files:
                 chat_file_full_path = chat_file
                 if self.settings.project_path not in chat_file_full_path and \
@@ -239,15 +243,12 @@ class ChatEngine:
                     chat_file_full_path = f"{self.settings.project_path}/{chat_file}"
                 try:
                   with open(chat_file_full_path, 'r') as f:
-                      doc_context = document_to_context(
+                      doc_context = document_to_code_block(
                         Document(page_content=f.read(),
                           metadata={ "source": chat_file }
                         )
                       )
-                      messages.append(HumanMessage(content=f"""
-                      ATTACHMENT: {chat_file}
-                      {doc_context}
-                      """))
+                      chat_files_content += doc_context + "\n"
                 except Exception as ex:
                     logger.error(f"Error adding context file to chat {ex}")
 
@@ -290,7 +291,7 @@ class ChatEngine:
                                                                                     ignore_documents=ignore_documents,
                                                                                     search_projects=search_projects)
                         for doc in documents:
-                            doc_context = document_to_context(doc)
+                            doc_context = document_to_code_block(doc)
                             context += f"{doc_context}\n"
                     
                         response_message.files = file_list
@@ -373,6 +374,14 @@ class ChatEngine:
                 messages.append(self.convert_message(user_message))
 
 
+            if chat_files_content:
+                messages[-1].content = f"""
+                ## Working Files:
+                {chat_files_content}
+                
+                ## User request
+                {messages[-1].content}"""
+
             if chat_profiles_content:
                 messages[-1].content += f"\nInstructions:\n{chat_profiles_content}"
             self.event_manager.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
@@ -402,9 +411,11 @@ class ChatEngine:
             except Exception as ex:
                 logger.exception(f"Ops, sorry!, Error chatting with project: {ex} {chat.id}")
                 response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
-                response_message.error = ex.message
+                response_message.error = str(ex)
                 
-            response_message.meta_data = user_message.meta_data if user_message else {}
+            response_message.meta_data = user_message.meta_data
+            if not response_message.meta_data:
+                response_message.meta_data = {}
             response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
             response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
             response_message.meta_data["model"] = ai_settings.model

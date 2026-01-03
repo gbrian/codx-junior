@@ -16,10 +16,12 @@ export default defineConfig({
       }
     },
     plugins: [
-      tailwindcss()
+      tailwindcss(),
     ],
   },
-  head: [['link', { rel: 'icon', href: '/only_icon.png' }]],
+  head: [
+    ['link', { rel: 'icon', href: '/only_icon.png' }],
+  ],
   themeConfig: {
     search: {
       provider: 'local'

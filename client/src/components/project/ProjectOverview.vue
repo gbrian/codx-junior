@@ -9,14 +9,11 @@ import ProjectCard from './ProjectCard.vue'
         <span v-if="filterQuery">Find projects: '{{ filterQuery }}'</span>
         <span v-else>Top projects</span>
       </div>
-      <div class="flex items-center gap-2 mb-2">
-        <input type="text" class="input input-sm input-bordered" placeholder="Filter projects..." v-model="filterQuery" />
-        <button class="btn btn-sm" @click="filterQuery = null">
+      <div class="flex items-center gap-2 mb-2 input input-sm input-bordered">
+        <input type="text" class="" placeholder="Filter projects..." v-model="filterQuery" />
+        <div class="click" @click="filterQuery = null" v-if="filterQuery">
           <i class="fa-solid fa-circle-xmark"></i>
-        </button>
-        <button class="btn btn-sm" @click="$projects.loadAllProjects(true)">
-          <i class="fa-solid fa-arrows-rotate"></i>
-        </button>
+        </div>
       </div>
     </div>
     <div class="grid grid-cols-2 @xl:grid-cols-3 gap-2">

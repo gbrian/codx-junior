@@ -124,8 +124,9 @@ const initializeAPI = ({ project, user } = {}) => {
     },
     projects: {
       async list(withMetrics) {
-        const data = await API.get(`/api/projects?with_metrics=${withMetrics ? 1 : 0}`);
-        API.allProjects = data;
+        const { projects, workspaces } = await API.get(`/api/projects?with_metrics=${withMetrics ? 1 : 0}`);
+        API.allProjects = projects
+        API.workspaces = workspaces
         API.allProjects.forEach(p => {
           const projectPath = p.project_path
           p.parentProject = API.allProjects
@@ -251,8 +252,15 @@ const initializeAPI = ({ project, user } = {}) => {
       stream() {
         return API.get('/api/stream');
       },
-      async list() {
-        const data = await API.get('/api/chats');
+      async list(filters) {
+        let qs = "";
+        if (filters) {
+            const params = Object.entries(filters)
+                .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+                .join("&");
+            qs = `?${params}`;
+        }
+        const data = await API.get(`/api/chats${qs}`);
         return data;
       },
       async loadChat({ id, file_path }) {

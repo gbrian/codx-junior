@@ -2,7 +2,6 @@ import logging
 import os
 
 from langchain_core.documents import Document
-from langchain_text_splitters import Language
 from langchain_community.document_loaders.parsers import LanguageParser
 from langchain_community.document_loaders.blob_loaders import Blob
 
@@ -24,10 +23,10 @@ from docling.document_converter import DocumentConverter
 
 from codx.junior.utils.utils import exec_command
 
-CURRENT_SPLITTER_LANGUAGES = [lang.lower() for lang in dir(Language)]
-LANGUAGE_PARSER_MAPPING = {
-    "ts": "js"
-}
+from codx.junior.globals import (
+  CURRENT_SPLITTER_LANGUAGES,
+  LANGUAGE_PARSER_MAPPING
+)
 
 logger = logging.getLogger(__name__)
 

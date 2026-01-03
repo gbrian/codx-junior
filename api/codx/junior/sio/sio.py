@@ -114,7 +114,6 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
     logger.info(f"codx-junior-chat {data.chat.name} {codxjunior_session.settings.project_name}")
     codxjunior_session.event_manager.chat_event(chat=data.chat, message="Chatting with project...")
     await codxjunior_session.chat_with_project(chat=data.chat)
-    await codxjunior_session.save_chat(data.chat)
 
 @sio.on("codx-junior-subtasks")
 @sio_api_endpoint
@@ -129,7 +128,6 @@ async def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSessio
 async def io_run_improve(sid, data: dict, codxjunior_session: CODXJuniorSession):
     data = SioChatMessage(**data)
     await codxjunior_session.improve_existing_code(chat=data.chat)
-    await codxjunior_session.save_chat(data.chat)
 
 @sio.on("codx-junior-generate-tasks")
 @sio_api_endpoint

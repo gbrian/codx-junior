@@ -10,7 +10,7 @@ import { useId } from 'vue';
     <div class="text-2xl">Loading...</div>
   </div>
   <div class="@container codx-junior flex min-h-full relative group-codxjunior" 
-    :class="(!$ui.isMobile && !$ui.showApp) && 'max-w-[1600px]'"
+    :class="(!$ui.isMobile && !$ui.activeApp) && 'max-w-[1600px]'"
   v-else>
     <div class="grow flex flex-col relative overflow-auto bg-base-300">
       <div class="grow overflow-auto">

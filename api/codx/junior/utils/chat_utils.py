@@ -14,6 +14,7 @@ from codx.junior.settings import CODXJuniorSettings
 class QueryMentions(BaseModel):
     projects: List[CODXJuniorSettings]
     profiles: List[Profile]
+    files: List[str]
 
 logger = logging.getLogger(__name__)
 class ChatUtils:
@@ -24,9 +25,12 @@ class ChatUtils:
         mentions = self.extract_query_mentions(query=query)
         projects = self.find_projects_by_mentions(mentions=mentions)
         profiles = self.find_profiles_by_mentions(mentions=mentions)
+        files = self.extract_files(query=query)
+
         return QueryMentions(**{
           "projects": projects,
-          "profiles": profiles
+          "profiles": profiles,
+          "files": files
         })
 
     def extract_query_mentions(self, query: str):
@@ -34,6 +38,11 @@ class ChatUtils:
         mentions = list(set([m[1:] for m in mentions])) if mentions else []
         # logger.info("Extracted mentions: %s", mentions)
         return mentions
+
+    def extract_files(self, query: str):
+        files = re.findall(r'file://[^\s]+', query) or []
+        logger.info("Query: '%s' files:\n%s", query, files)
+        return [file[len("file://"):] for file in files]
 
     def find_projects_by_mentions(self, mentions: [str]):
         return [project for project in [find_project_by_name(mention[1:]) for mention in mentions] if project]

@@ -8,27 +8,51 @@ from pathlib import Path
 import json
 import hashlib
 
-HOST_USER = os.environ.get("HOST_USER")
+from pydantic import BaseModel, Field
+from typing import Optional
+
+from codx.junior.globals import (
+  LANGUAGE_PARSER_MAPPING,
+  HOST_USER
+)
+
 logger = logging.getLogger(__name__)
 
 
+class TextBlock(BaseModel):
+    language: Optional[str] = Field(default="")
+    file_path: Optional[str] = Field(default="")
+    content: Optional[str] = Field(default="")
+
 def extract_code_blocks(content):
+    for text_block in extract_text_blocks(content=content):
+        yield text_block.content
+
+def extract_text_blocks(content):
     in_fence = False
     content_lines = []
+    text_block = TextBlock()
     def is_fence_line(line):
         return line.strip().startswith("```")
 
+    
     for line in content.split("\n"):
       if is_fence_line(line=line):
           if in_fence:
-              yield "\n".join(content_lines)
+              text_block.content = "\n".join(content_lines) 
+              yield text_block
               in_fence = False
               content_lines = []
+              text_block = TextBlock()
           else:  
             in_fence = True
+            parts = line.strip()[3:].split(" ")
+            text_block.language = parts[0] if parts else ""
+            text_block.file_path = parts[1] if parts and len(parts) > 1 else ""
           continue
       if in_fence:
           content_lines.append(line)
+
 
 def extract_json_blocks(content):
     for block in extract_code_blocks(content=content):
@@ -52,6 +76,8 @@ def document_to_context(doc):
     source = str(Path(doc.metadata['source']).absolute())
     language = doc.metadata.get('language')
     
+    language = LANGUAGE_PARSER_MAPPING.get(language, language)
+    
     return f"""
     <document keywords="{keywords}" category="{category}" source="{source}" language="{language}">
     {content}
@@ -65,8 +91,11 @@ def document_to_code_block(doc):
     language = doc.metadata.get('language')
     extension = source.split(".")[-1] if "." in source else ""
 
+    language = language or extension
+    language = LANGUAGE_PARSER_MAPPING.get(language, language)
+    
     return "\n".join([
-      f"```{ language or extension } {source}", 
+      f"```{ language } {source}", 
       content,
       "```"
     ])

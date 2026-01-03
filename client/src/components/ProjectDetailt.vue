@@ -11,13 +11,13 @@
         <div class="dropdown dropdown-start">
           <div tabindex="0" role="button" class="flex gap-2 click items-center">
             <div class="avatar" v-if="options?.showIcon">
-              <div class="w-10 rounded-md">
+              <div class="w-6 rounded-md">
                 <img :src="project.project_icon" />
               </div>
             </div>
-            <span class="mr-2" v-if="iconify !== true">{{ project.project_name }}</span>
+            <span class="mr-" v-if="iconify !== true">{{ project.project_name }}</span>
             
-            <i class="fa-solid fa-caret-right"></i>
+            <i class="fa-solid fa-caret-right" v-if="options?.showSelector !== false"></i>
           </div>
           <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 shadow-sm -ml-4"
             v-if="options?.showSelector !== false"

@@ -1,56 +1,13 @@
 <script setup>
-import IssuePreview from '../components/IssuePreview.vue'
-import ProjectCard from '../components/project/ProjectCard.vue'
-
 import { GitIssueWizard } from '../wizards/gitIssue.js'
 import Wall from '../components/wall/Wall.vue'
 import ProjectOverview from '@/components/project/ProjectOverview.vue'
-import NewProject from '@/components/project/NewProject.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <ul class="hidden menu menu-horizontal flex items-center m-0 p-0 mb-2">
-      <li @click="selection = 'home'" v-if="$users.isProjectAdmin">
-        <a>
-          <span class="hidden md:block">
-            <i class="fa-solid fa-house"></i>
-          </span>
-          Home
-        </a>
-      </li>
-      <li @click="showProjects">
-        <a>
-          <span class="hidden md:block">
-            <i class="fa-solid fa-cubes"></i>
-          </span>
-          Projects
-          <span class="badge badge-sm">{{ $projects.allProjects.length }}</span>
-        </a>
-      </li>
-      <li @click="addNewProject">
-        <a class="btn btn-xs btn-outline btn-primary">
-          <span class="hidden md:block">
-            <i class="fa-solid fa-plus"></i>
-          </span>
-          New Project
-        </a>
-      </li>
-      <div class="grow"></div>
-      <li>
-        <a href="https://github.com/gbrian/codx-junior" target="_blank">
-          <i class="fa-brands fa-github"></i>
-          <span class="hidden md:block">codx-junior</span>
-        </a>
-      </li>
-    </ul>
-    <div class="grow overflow-auto flex flex-col gap-2 md:p-4">
-      <ProjectOverview />
-      <Wall class="" ></Wall>
-      
-      <NewProject class="md:p-6" v-if="selection === 'new_project'"/>
-      
-    </div>  
+  <div class="flex flex-col h-full px-2">
+    <ProjectOverview />
+    <Wall class="" ></Wall>
   </div>
 </template>
 

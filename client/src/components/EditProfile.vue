@@ -169,7 +169,7 @@ export default {
                 ?.sort((a, b) => a.ai_provider > b.ai_provider ? 1 : -1)
     },
     isOverriden() {
-      return this.editProfile.path.startsWith(this.$project.project_path)
+      return this.editProfile.path?.startsWith(this.$project.project_path)
     },
     nameTaken() {
       const { name } = this.editProfile

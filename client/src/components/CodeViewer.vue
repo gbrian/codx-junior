@@ -58,10 +58,13 @@ import CodeEditor from 'simple-code-editor'
       <i class="fa-solid fa-terminal"></i>
     </div>
     <div class="view-code" :style="{ zoom }">
-      <DiffViewer :file="file" :orgContent="orgContent" 
-        :newContent="code" 
-        :diff="diff" 
-        v-if="showDiff"></DiffViewer>
+      <DiffViewer :file="file"
+        :orgContent="orgContent" 
+        :newContent="code"
+        :language="language" 
+        :diff="diff"
+        v-if="showDiff">
+      </DiffViewer>
       <CodeEditor v-model="edit"
             width="100%"
             :header="false"
@@ -69,7 +72,7 @@ import CodeEditor from 'simple-code-editor'
             v-if="edit"
           />
       <VueCodeHighlighter :code="code" :lang="fileLanguage" :title="fileName" 
-        v-if="!edit && !diff" />
+        v-if="code && !edit && !diff" />
     </div>
     <div class="flex justify-end gap-2">
       <button class="btn btn-sm btn-warning" @click="applyPatch" v-if="isPatch">

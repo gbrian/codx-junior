@@ -280,17 +280,18 @@ class MentionManager:
                 profiles=profile_names,
                 files=[file_path],
                 content=f"""
-                    ```document {file_path}
+                    <document>
                     {content}
-                    ```
+                    </document>
 
-                    Apply these changes to {file_path}:
+                    <user_instructions>
                     {query}
+                    </user_instructions>
                     
-                    Instructions:
-                      Apply all comments to the document and return a final version.
-                      Pay attention to do not loose any detail or part of the document.
-                      Return only the file content 
+                    Given the elements "document" and "user_instructions" do this:
+                     - Apply user_instructions to document content
+                     - Pay attention to do not loose any detail or part of the document.
+                     - IMPORTANT: Return only the new document content without <document> tags
                     """)
         )
 

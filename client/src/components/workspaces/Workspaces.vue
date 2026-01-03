@@ -17,18 +17,6 @@ import { v4 as uuidv4 } from 'uuid'
       <h3 class="text-lg font-bold">Settings</h3>
       <div class="form-control mt-4">
         <label class="label">
-          <span class="label-text">Workspace Start Port</span>
-        </label>
-        <input v-model="settings.workspace_start_port" type="number" placeholder="Start Port" class="input input-bordered w-full max-w-xs" required />
-      </div>
-      <div class="form-control mt-4">
-        <label class="label">
-          <span class="label-text">Workspace End Port</span>
-        </label>
-        <input v-model="settings.workspace_end_port" type="number" placeholder="End Port" class="input input-bordered w-full max-w-xs" required />
-      </div>
-      <div class="form-control mt-4">
-        <label class="label">
           <span class="label-text">Workspace Docker Settings</span>
         </label>
         <div v-for="(value, key) in settings.workspace_docker_settings" :key="key" class="flex gap-2 items-center mt-2">
@@ -74,47 +62,63 @@ import { v4 as uuidv4 } from 'uuid'
               </label>
               <textarea v-model="selectedWorkspace.description" placeholder="Workspace Description" class="textarea textarea-bordered w-full max-w-xs" required></textarea>
             </div>
-            <div class="form-control mt-4">
+            <div class="form-control mt-4 flex flex-col gap-2">
               <label class="label">
                 <span class="label-text">Apps</span>
               </label>
               <div v-for="(app, index) in selectedWorkspace.apps" :key="index" class="flex gap-2 items-center mt-2">
-                <select v-model="app.name" class="select select-bordered">
-                  <option value="coder">Code Server</option>
-                  <option value="desktop">Virtual Desktop</option>
-                </select>
+                <button class="btn btn-error btn-xs" @click="removeApp(index)">
+                  <i class="fa-regular fa-trash-can"></i>
+                </button>
+                <div class="min-w-10 grow"></div>
+                <div v-if="app.icon">
+                  <i :class="app.icon" v-if="app.icon.includes('fa')" />
+                  <img class="w-6 rounded-full" :src="app.icon" v-else />
+                </div>
+                <input v-model="app.icon" placeholder="App Icon" class="input input-bordered w-36" />
+                
+                <input v-model="app.name" placeholder="App Name" class="input input-bordered w-36" />
                 <input v-model="app.description" placeholder="App Description" class="input input-bordered w-36" />
+                <input v-model="app.path" type="text" placeholder="Path" class="input input-bordered w-36" />
                 <input v-model="app.port" type="number" placeholder="Port" class="input input-bordered w-20" />
+                <input v-model="app.path" type="text" placeholder="Path" class="input input-bordered w-36" />
+                <div class="dropdown dropdown-start">
+                  <div tabindex="0" role="button" class="btn m-1">Roles {{ app.roles?.length}}</div>
+                  <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
+                    <li @click="toggleRole(app, 'user')">
+                      <a><i class="fa-solid fa-check" v-if="app.roles?.includes('user')"></i> user</a>
+                    </li>
+                    <li @click="toggleRole(app, 'admin')">
+                      <a><i class="fa-solid fa-check" v-if="app.roles?.includes('admin')"></i>  admin</a>
+                    </li>
+                  </ul>
+                </div>
                 <label class="flex items-center">
                   <input type="checkbox" v-model="app.is_vnc" class="checkbox checkbox-xs" />
                   <span class="ml-1">VNC</span>
                 </label>
-                <button class="btn btn-error btn-xs" @click="removeApp(index)">
-                  <i class="fa-solid fa-circle-xmark"></i>
-                </button>
               </div>
-              <div class="flex gap-2 items-center mt-2">
-                <select v-model="newApp.name" class="select select-bordered">
-                  <option value="coder">Code Server</option>
-                  <option value="desktop">Virtual Desktop</option>
-                </select>
-                <input v-model="newApp.description" placeholder="App Description" class="input input-bordered w-36" />
-                <input v-model="newApp.port" type="number" placeholder="Port" class="input input-bordered w-20" />
-                <label class="flex items-center">
-                  <input type="checkbox" v-model="newApp.is_vnc" class="checkbox checkbox-xs" />
-                  <span class="ml-1">VNC</span>
-                </label>
+              <div class="flex justify-end">
                 <button class="btn btn-sm btn-primary" @click="addApp">
-                  <i class="fa-solid fa-plus"></i>
+                  <i class="fa-solid fa-plus"></i> App
                 </button>
               </div>
             </div>
-            <div class="form-control mt-4">
+            <div class="form-control mt-4 flex flex-col gap-2">
               <label class="label">
                 <span class="label-text">Associated Projects</span>
               </label>
+              <ul class="list-disc">
+                <li v-for="projectId in selectedWorkspace.project_ids" :key="projectId" class="flex items-center gap-2">
+                  <button class="btn btn-error btn-sm" @click="toggleProjectSelection(projectId)">
+                    <i class="fa-solid fa-circle-xmark"></i>
+                  </button>
+                  <span>{{ getProjectName(projectId) }}</span>
+                </li>
+              </ul>
               <div class="flex gap-1 items-center">
                 <select class="select select-sm select-bordered grow" v-model="selectedProjectId">
+                  <option value="*">All</option>
                   <option v-for="project in availableProjects" :key="project.project_id" :value="project.project_id">
                     {{ project.project_name }}
                   </option>
@@ -123,14 +127,6 @@ import { v4 as uuidv4 } from 'uuid'
                   <i class="fa-solid fa-plus"></i>
                 </button>
               </div>
-              <ul class="list-disc pl-5 mt-2">
-                <li v-for="projectId in selectedWorkspace.project_ids" :key="projectId" class="flex items-center">
-                  <span>{{ getProjectName(projectId) }}</span>
-                  <button class="btn btn-error btn-sm ml-2" @click="toggleProjectSelection(projectId)">
-                    <i class="fa-solid fa-circle-xmark"></i>
-                  </button>
-                </li>
-              </ul>
             </div>
             <div class="flex justify-end mt-4">
               <button class="btn btn-error" @click="deleteWorkspace(selectedWorkspace.id)">Delete</button>
@@ -206,6 +202,9 @@ export default {
       }
     },
     getProjectName(projectId) {
+      if (projectId === '*') {
+        return "All projects";
+      }
       const project = this.availableProjects.find(p => p.project_id === projectId)
       return project ? project.project_name : 'Unknown'
     },
@@ -222,13 +221,17 @@ export default {
       this.$delete(this.settings.workspace_docker_settings, key)
     },
     addApp() {
-      if (this.newApp.name && this.newApp.port) {
-        this.selectedWorkspace.apps.push({ ...this.newApp })
-        this.newApp = { name: '', description: '', port: null, is_vnc: false }
-      }
+      this.selectedWorkspace.apps.push({})
     },
     removeApp(index) {
       this.selectedWorkspace.apps.splice(index, 1)
+    },
+    toggleRole(app, role) {
+      if (app.roles?.includes(role)) {
+        app.roles = app.roles.filter(r => r != role)
+      } else {
+        app.roles = [...app.roles||[], role]
+      }
     }
   }
 }

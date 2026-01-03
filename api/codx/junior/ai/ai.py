@@ -28,17 +28,6 @@ Message = Union[AIMessage, HumanMessage, SystemMessage]
 # Set up logging
 logger = logging.getLogger(__name__)
 
-GLOBAL_CHAT_INSTRUCTIONS = """
-<instructions info="General to follow when generating your response">
-  <instruction>
-    - IMPORTANT: Always add the file name after the code block language like in this example: "```js /absolute/file/path/file.js"
-    - Use tools to convert relative project's file path to absolute.
-    - Read file's content if not present in the comversation.
-    - Use project search to find context if not clear on the conversation.
-  </instruction>
-</instructions>
-"""
-
 class AI:
     def __init__(
         self, settings: CODXJuniorSettings,
@@ -100,12 +89,11 @@ class AI:
                 self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
                 # Apply global instructions
                 
-                response_messages = self.llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
-                                               + messages, 
+                response_messages = self.llm(messages=messages, 
                                                config={"callbacks": callbacks, "headers": headers, "tools": tools })
             except Exception as ex:
                 logger.exception(f"Failed to process AI. Non-retryable error processing AI request: {ex} {self.llm_model}")
-                raise RuntimeError("Failed to process AI request after retries.")
+                raise RuntimeError(f"Failed to process AI request after retries. {ex}")
 
             if self.cache:
                 self.cache[md5_key] = json.dumps(
@@ -154,12 +142,11 @@ class AI:
                 self.log(f"Creating a new chat completion. Messages: {len(messages)} words: {len(''.join([m.content for m in messages]))}")
                 # Apply global instructions
                 
-                response_messages = await self.a_llm(messages=[HumanMessage(content=GLOBAL_CHAT_INSTRUCTIONS)]
-                                               + messages, 
+                response_messages = await self.a_llm(messages=messages, 
                                                config={"callbacks": callbacks, "headers": headers})
             except Exception as ex:
                 logger.exception(f"Failed to process AI. Non-retryable error processing AI request: {ex} {self.llm_model}")
-                raise RuntimeError("Failed to process AI request after retries.")
+                raise RuntimeError(f"Failed to process AI request after retries. {ex}")
 
             if self.cache:
                 self.cache[md5_key] = json.dumps(

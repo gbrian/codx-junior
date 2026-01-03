@@ -67,8 +67,11 @@ class ChatManager:
         board = chat_parts[-3]
         return board, column, name
 
-    def list_chats(self):
-        file_paths = self.chat_paths()
+    def list_chats(self, from_date: str = None):
+        last_update = None
+        if from_date:
+            last_update = datetime.fromisoformat(from_date)
+        file_paths = self.chat_paths(last_update=last_update)
         def list_chat_chat_info(file_path):
             try:
                 chat = self.load_chat_from_path(chat_file=file_path, chat_only=True)

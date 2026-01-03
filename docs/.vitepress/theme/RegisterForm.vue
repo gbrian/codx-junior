@@ -8,8 +8,10 @@ const register = () => {
 </script>
 
 <template>
-  <form @submit.prevent="register">
+  <form class="flex gap-2 items-center" @submit.prevent="register">
+    <div class="border border-white p-2 rounded-full">
     <input v-model="email" type="email" placeholder="Email" required />
-    <button type="submit">Register</button>
+    </div>
+    <button class="btn" type="submit">Register</button>
   </form>
 </template>

@@ -40,7 +40,6 @@ from codx.junior.globals import (
     CODX_JUNIOR_API_BACKGROUND,
     APPS,
     APPS_COMMANDS,
-    coder_open_file,
 )
 from codx.junior.project.project_discover import (
     find_project_by_id,
@@ -165,8 +164,8 @@ class CODXJuniorSession:
     def load_chat(self, board, chat_name):
         return self.get_chat_manager().load_chat(board=board, chat_name=chat_name)
     
-    def list_chats(self):
-        return self.get_chat_manager().list_chats()
+    def list_chats(self, from_date: str = None):
+        return self.get_chat_manager().list_chats(from_date=from_date)
 
     async def save_chat(self, chat: Chat, chat_only=False):
         chat = self.get_chat_manager().save_chat(chat, chat_only)
@@ -441,7 +440,8 @@ class CODXJuniorSession:
             stderr = ""
             if file_path not in chat.file_list:
                 chat.file_list.append(file_path) 
-                coder_open_file(self.settings, file_name=file_path)
+                self.coder_open_file(self.settings, file_name=file_path)
+        await self.save_chat(chat)
         return stdout, stderr
 
 
@@ -613,13 +613,17 @@ class CODXJuniorSession:
         knowledge = self.get_knowledge()
         status = knowledge.status()
         current_sources_and_updates = knowledge.get_db().get_all_sources()
-        # pending_files, _ = knowledge.detect_changes(current_sources_and_updates=current_sources_and_updates)
-        pending_files = []
+        pending_files, _ = knowledge.detect_changes(current_sources_and_updates=current_sources_and_updates)
+        total_pending = len(pending_files)
+        if total_pending > 1000:
+            pending_files = pending_files[0:1000]
+
         pending_files = [f for f in pending_files if f not in list(current_sources_and_updates.keys())]
         return {
             "current_sources_and_updates": current_sources_and_updates,
-            "pending_files": pending_files[0:2000],
+            "pending_files": pending_files,
             "total_pending_changes": len(pending_files),
+            "total_pending": total_pending,
             **status
         }
     
@@ -990,7 +994,7 @@ class CODXJuniorSession:
         chat_engine = ChatEngine(settings=self.settings,
                                 event_manager=self.event_manager,
                                 user=self.user)
-        return await chat_engine.chat_with_project(
+        await chat_engine.chat_with_project(
                             chat=chat,
                             disable_knowledge=disable_knowledge,
                             callback=callback,
@@ -998,6 +1002,9 @@ class CODXJuniorSession:
                             chat_mode=chat_mode,
                             iteration=iteration
                           )
+
+        await self.save_chat(chat)
+        return chat
     
 
     def check_project(self):

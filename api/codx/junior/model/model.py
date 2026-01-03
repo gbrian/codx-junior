@@ -198,6 +198,7 @@ class AIModel(BaseModel):
     settings: Union[AILLMModelSettings, AIEmbeddingModelSettings] = Field(description="Model settings")
     metadata: Optional[dict] = Field(description="Model's last update date", default={})
     url: Optional[str] = Field(description="Model info", default="")
+    system: Optional[str] = Field(description="Model system instructions", default="")
     prompt_template: Optional[str] = Field(description="Model info", default="{ MESSAGE }")
 
 class AISettings(BaseModel):
@@ -205,6 +206,8 @@ class AISettings(BaseModel):
     api_url: Optional[str] = Field(default="")
     api_key: Optional[str] = Field(default="")
     model: Optional[str] = Field(default="")
+    system: Optional[str] = Field(description="Model system instructions", default="")
+    prompt_template: Optional[str] = Field(description="Model info", default="")
     context_length: Optional[int] = Field(default=0)
     temperature: Optional[float] = Field(default=0.8)
     vector_size: Optional[int] = Field(default=1536)
@@ -233,11 +236,15 @@ OLLAMA_KNOWLEDGE_MODEL = AIModel(name="knowledge",
                             url=f"https://llmfactory.com/library/{KNOWLEDGE_MODEL}")
 
 class WorkspaceApp(BaseModel):
+    id: str = Field(default="")
     name: str = Field(default="")
     description: str = Field(default="")
     icon: str = Field(default="")
-    port: Optional[int] = Field(default=3000)
+    path: str = Field(default="")
+    port: Optional[str] = Field(default="")
     is_vnc: Optional[bool] = Field(default=False)
+    container_name: str = Field(default="")
+    roles: List[str] = Field(default=[])
 
 class Workspace(BaseModel):
     id: str = Field(default="")
@@ -245,7 +252,8 @@ class Workspace(BaseModel):
     description: str = Field(default="")
     project_ids: List[str] = Field(default=[])
     apps: Optional[List[WorkspaceApp]] = Field(default=[])
-    updated_at: Optional[str] = Field(default=None)    
+    updated_at: Optional[str] = Field(default=None)
+    file_path: str = Field(default="")
 
 class AgentSettings(BaseModel):
     max_agent_iteractions: int = 4
@@ -255,6 +263,29 @@ class OAuthProvider(BaseModel):
     client_id: str = Field(default="")
     secret: str = Field(default="")
     token_url: str = Field(default="")
+
+
+DEFAULT_WORKSPACE = Workspace(**{
+  "name": "codx-junior",
+  "description": "Default codx-junior workspace",
+  "apps": [
+    { 
+      "icon": "fa-solid fa-code",
+      "name": "Coder",
+      "description": "Coder coding environment",
+      "path": "/coder",
+      "roles": ["admin"]
+    },
+    { 
+      "icon": "fa-solid fa-desktop",
+      "name": "Desktop",
+      "description": "Virtual desktop",
+      "path": "/preview",
+      "roles": ["admin"]
+    }
+  ],
+  "project_ids": ["*"]
+})
 
 class GlobalSettings(BaseModel):
     log_ai: bool = Field(default=True)
@@ -296,12 +327,13 @@ class GlobalSettings(BaseModel):
     user_logins: Optional[List[CodxUserLogin]] = Field(default=[])
     secret: Optional[str] = Field(description="Encription secret", default="codx-junior-rules")
 
-    workspaces: Optional[List[Workspace]] = Field(default=[])
+    workspaces: Optional[List[Workspace]] = Field(default=[DEFAULT_WORKSPACE])
     workspace_start_port: Optional[int] = Field(default=16000)
     workspace_end_port: Optional[int] = Field(default=17000)
     workspace_docker_settings: Optional[dict] = Field(default={})
 
     oauth_providers: Optional[List[OAuthProvider]] = Field(default=[])
+    
     
 class Screen(BaseModel):
     resolution: str = Field(default='')

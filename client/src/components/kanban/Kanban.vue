@@ -9,6 +9,7 @@ import KanbanList from './KanbanList.vue'
 import ChatIcon from '../chat/ChatIcon.vue'
 import FileFinder from '../filebrowser/FileFinder.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
+import ChatHistoryVue from './ChatHistory.vue'
 </script>
 
 <template>
@@ -21,49 +22,53 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     <div class="absolute bottom-0 left-0 right-0 z-20" v-if="loadingChats">
       <progress class="progress w-full animate-pulse opacity-30"></progress>
     </div>  
-    <div class="p-1 md:p-2 h-full absolute top-0 left-0 right-0 bottom-0 z-1">    
+    <div class="px-2 h-full absolute top-0 left-0 right-0 bottom-0 z-1">    
       <div class="flex flex-col gap-2" v-if="kanban?.boards && !$projects.activeChat && !board">
-        <h1 class="px-2 text-2xl font-bold flex justify-between gap-2 border-b border-slate-700 pb-2">
-          <div class="flex gap-2">
-            <div class="avatar">
-              <div class="w-8 h-8 rounded-full">
-                <img :src="$project.project_icon" />
+        <div class="sticky top-0 z-20  bg-base-300 flex flex-col gap-1">
+          <h1 class="text-2xl font-bold flex justify-between gap-2 pb-2">
+            <input type="text" v-model="boardFilter" class="input input-sm input-bordered" placeholder="Search boards" />
+            <div class="grow"></div>
+            <button class="btn btn-sm btn-warning btn-outline" @click="showNewBoardModal">
+              <i class="fa-solid fa-plus"></i>
+              <span class="hidden @md:block">New kanban</span>
+            </button>
+            <button class="btn btn-sm" @click="showHistory = !showHistory"
+              :class="showHistory ? 'btn-info' : 'btn-outline'"
+            >
+              <i class="fa-solid fa-clock-rotate-left"></i>
+              <span class="hidden @md:block">History</span>
+            </button>
+          </h1>
+
+          <div class="flex gap-1 overflow-auto max-w-full pb-3">
+            <div class="badge badge-primary bagde-sm badge-outline click"
+              @click="$projects.setActiveProject($projects.parentProject)"
+              v-if="$projects.parentProject"
+            >
+            {{  $projects.parentProject.project_name }}
+            </div>
+            <div class="carousel carousel-center bg-neutral max-w-full space-x-2">
+              <div class="carousel-item flex gap-2 items-center border border-slate-500 click rounded-md px-1"
+                v-for="project in $projects.childProjects" :key="project.project_id"
+                @click="$projects.setActiveProject(project)"
+              >
+                <img class="w-4 h-4 rounded-full" :src="project.project_icon" />
+                {{  project.project_name }}
               </div>
             </div>
-            {{ $project.project_name }}
-          </div>
-          <div class="grow"></div>
-          <input type="text" v-model="boardFilter" class="input input-sm input-bordered" placeholder="Search boards" />
-          <button class="btn btn-sm btn-warning btn-outline" @click="showNewBoardModal">
-            New kanban
-          </button>
-          <button class="btn btn-sm btn-outline" @click="reloadKanban">
-            <i class="fa-solid fa-rotate"></i> Reload
-          </button>
-        </h1>
-
-        <div class="flex gap-2 overflow-auto max-w-full pb-3">
-          <div class="badge badge-primary bagde-sm badge-outline click"
-            @click="$projects.setActiveProject($projects.parentProject)"
-            v-if="$projects.parentProject"
-          >
-          {{  $projects.parentProject.project_name }}
-          </div>
-          <div class="badge bagde-sm badge-outline hover:text-info click text-nowrap shrink-0 w-fit"
-            v-for="project in $projects.childProjects" :key="project.project_id"
-            @click="$projects.setActiveProject(project)"
-          >
-            {{  project.project_name }}
           </div>
         </div>
 
+        <ChatHistoryVue v-if="showHistory" />
         <KanbanList
           :boards="filteredParentBoards"
           @select="selectBoard"
           @new="showNewBoardModal"
           @bookmark="toggleBookmark"
           @delete="onDeleteBoard"
+          v-else
         />
+
       </div>
 
       <ChatViewVue
@@ -363,7 +368,8 @@ export default {
       pinnedChats: [],
       topChats: [],
       columnProject: null,
-      loadingChats: false
+      loadingChats: false,
+      showHistory: false
     }
   },
   created() {

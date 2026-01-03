@@ -6,7 +6,7 @@ import AIModelSettings from './AIModelSettings.vue'
 <template>
   <div class="w-full h-full flex flex-col gap-2 p-4">
     <h1 class="text-2xl font-bold mb-4">AI Models</h1>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="grid grid-cols-1 @md:grid-cols-2 @xl:grid-cols-3 gap-4">
       <div
         v-for="model in aiModels"
         :key="model.name"

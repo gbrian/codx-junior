@@ -3,13 +3,17 @@ import HomeViewVue from '@/views/HomeView.vue'
 import SplitViewVue from '@/views/SplitView.vue'
 import SharedView from '@/views/SharedView.vue'
 import Login from './components/user/Login.vue';
+import NewProject from './components/project/NewProject.vue';
 </script>
 
 <template>
   <div class="w-full h-full flex relative bg-base-300 relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <Login v-if="isLogin" />
     <SplitViewVue v-else/>
-    
+    <modal class="w-full h-full md:w-1/3 md:h-fit" 
+      close="true" @close="$ui.showNewProject(false)" v-if="$ui.newProject">
+      <NewProject  />
+    </modal>
     <div class="absolute top-0 right-0 p-2">
       <div class="p-2 text-xs bg-error/30 hover:bg-error text-white rounded-md" v-if="errorNotifications.length">
         <div class="click" v-for="notification in errorNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">

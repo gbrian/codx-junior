@@ -1,29 +1,24 @@
 <script setup>
 import moment from 'moment'
-import WorkspacesSelector from './workspaces/WorkspacesSelector.vue'
-import SearchBar from './bar/SearchBar.vue'
 import MobileMenuVue from './MobileMenu.vue'
 import ProjectDetailt from './ProjectDetailt.vue'
-import ProjectIcon from './ProjectIcon.vue'
-import NewProject from './project/NewProject.vue'
+import AppIcon from './apps/AppIcon.vue';
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 mt-1">
+  <div class="flex flex-col gap-4">
     <div class="flex items-center shadow justify-between"
       :class="[
         $storex.session.connected ? '' : 'grayscale text-error',
-        $ui.showApp && 'click'
       ]">
       <div class="flex gap-2 items-center w-1/3" @click="showMobileMenu = !showMobileMenu">
-        <div class="flex flex-col" v-if="$ui.isMobile">
-          <ProjectIcon class="cursor-pointer md:cursor-auto" :project="{ avatar: '/only_icon.png'}" />
-          <MobileMenuVue class="md:hidden" v-if="showMobileMenu" @close="showMobileMenu = false" />
+        <div class="flex flex-col">
+          <MobileMenuVue class="" v-if="showMobileMenu" @click.stop="" @close="showMobileMenu = false" />
           <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
         </div>
         <ProjectDetailt 
           :project="$project" 
-          :options="{ showFolders: !$ui.isMobile, showIcon: !$ui.isMobile, showSelector: !$ui.isMobile }"
+          :options="{ showFolders: false, showIcon: !$ui.isMobile, showSelector: false }"
           @select="$projects.setActiveProject($event)"  
         /> 
 
@@ -31,16 +26,13 @@ import NewProject from './project/NewProject.vue'
       
 
       <div class="flex gap-2 justify-end w-1/3 items-center">
-
-        <div class="w-40">
-          <SearchBar class="hidden md:flex" />
-        </div>
-
-        <a class="btn btn-sm btn-outline text-codx-primary" @click="newProject = true">
-          <span class="hidden md:block">
-            New
-            <i class="fa-solid fa-plus"></i>
-          </span>
+        
+        <a class="btn btn-sm btn-outline text-codx-primary" @click="newQuickChat()">
+          <i class="fa-regular fa-comment"></i>
+        </a>
+        
+        <a class="btn btn-sm btn-outline text-primary" @click="$ui.showNewProject(true)">
+          <i class="fa-solid fa-plus"></i>
         </a>
 
         <div class="flex gap-1 items-center justify-end">
@@ -164,6 +156,52 @@ import NewProject from './project/NewProject.vue'
     </div>
 
     <div class="tools hidden md:flex gap-2 items-center w-full">
+
+      <div class="flex gap-2 items-center pb-2">
+            
+        <div class="tooltip tooltip-bottom" :data-tip="app.name" 
+          :class="['hover:bg-base-100 click relative pb-2', 
+            $ui.openApps[app.name] ? 'border-b-4 border-codx-secondary': '']"
+          v-for="app in $projects.projectApps" :key="app.name + app.path"
+          >
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500"
+          @click.stop="$ui.showApp(app)"
+          >
+            <div class="indicator flex gap-2 items-center">
+              <span class="indicator-item text-xs text-error" title="close" 
+                @click.stop="$ui.closeApp(app)" v-if="$ui.openApps[app.name]">
+                <i class="fa-regular fa-circle-xmark"></i>
+              </span>
+            
+              <AppIcon :app="app" />
+            </div>
+          </a>
+        </div>
+
+        <div class="dropdown">
+          <div tabindex="0" role="button" class="btn m-1">
+            <i class="fa-solid fa-gear"></i>
+          </div>
+          <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
+            <li @click.stop="$ui.toggleFloatinCodxJunior()"
+              v-if="$ui.activeApp">
+              <a>
+                <i class="fa-solid fa-thumbtack rotate-45" v-if="$ui.floatingCodxJunior"></i>
+                <i class="fa-solid fa-thumbtack" v-else></i>
+                {{ $ui.floatingCodxJunior ? 'Pin' : 'Float'  }} codx-junior
+              </a>
+            </li>
+            <li>
+              <a>
+
+              </a>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+      
+      <div class="grow"></div>
       
       <div :class="['hover:bg-base-100 click relative', 
         $ui.activeTab === 'home' ? 'border-b-4 border-codx-secondary': '']">
@@ -220,55 +258,6 @@ import NewProject from './project/NewProject.vue'
         </a>
       </div>
 
-      <div class="grow"></div>
-      <div class="flex gap-2 items-center pb-2">
-      
-        <div class="dropdown dropdown-bottom" v-if="false && $projects.workspaces.length">
-          <div tabindex="0" class="flex gap-2 items-center text-center pb-2 click hover:bg-base-100 px-2 py-1 rounded-md">
-            <i class="fa-solid fa-grip"></i> Workspaces
-          </div>
-          <WorkspacesSelector tabindex="0"
-            class="dropdown-content bg-base-100 rounded-box z-1 w-52 p-2 z-50 shadow-sm font-bold"
-            :workspaces="$projects.workspaces"
-            @select="onOpenWorkspace"
-            v-if="$projects.workspaces">
-          </WorkspacesSelector>
-        </div>
-      
-        <div :class="['hover:bg-base-100 click relative pb-2 ', 
-          $ui.appActives.includes('browser') ? 'border-b-4 border-codx-secondary': '']"
-          v-if="canShowBrowser">
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show display"
-            @click.stop="$ui.setShowBrowser(!$ui.appActives.includes('browser'))">
-            <div class="flex gap-2 items-center">
-              <i class="fa-brands fa-firefox"></i> 
-            </div>
-          </a>
-        </div>
-        
-        <div :class="['hover:bg-base-100 click relative pb-2', 
-          $ui.appActives.includes('coder') ? 'border-b-4 border-codx-secondary': '']">
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show coder"
-          @click.stop="$ui.setShowCoder(!$ui.appActives.includes('coder'))">
-            <div class="flex gap-2 items-center">
-              <i class="fa-solid fa-code"></i>
-            </div>
-          </a>
-        </div>
-
-        <div :class="['hover:bg-base-100 click relative pb-2', 
-          $ui.floatingCodxJunior ? '' : 'border-b-4 border-codx-primary']">
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show coder"
-          @click.stop="$ui.toggleFloatinCodxJunior()"
-          v-if="$ui.showApp"
-          >
-            <div class="flex gap-2 items-center">
-              <i class="fa-solid fa-thumbtack rotate-45" v-if="$ui.floatingCodxJunior"></i>
-              <i class="fa-solid fa-thumbtack" v-else></i>
-            </div>
-          </a>
-        </div>
-
         <div :class="['hover:bg-base-100 click relative pb-2', 
           $ui.showLogs ? 'border-b-4 border-codx-secondary': '']">
           <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show logs"
@@ -279,11 +268,7 @@ import NewProject from './project/NewProject.vue'
           </a>
         </div>
 
-      </div>
     </div>
-    <modal close="true" @close="newProject = false" v-if="newProject">
-      <NewProject class="" />
-    </modal>
   </div>
 </template>
 
@@ -342,6 +327,16 @@ export default {
     },
     onOpenWorkspace({ workspace, app }) {
       this.$projects.openWorkspaceApp({ workspace, app })
+    },
+    async newQuickChat() {
+      const chat = {
+        name: "Quick chat",
+        board: "Quick chats",
+        column: moment().format("YYYYMMDD"),
+        mode: 'chat'
+      }
+      this.$projects.createNewBoardChat({ chat })
+      this.$ui.showTab('tasks')
     }
   }
 }
