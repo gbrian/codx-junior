@@ -59,7 +59,7 @@ import ChatHistoryVue from './ChatHistory.vue'
           </div>
         </div>
 
-        <ChatHistoryVue v-if="showHistory" />
+        <ChatHistoryVue :projects="[$project, ...$projects.childProjects]" v-if="showHistory" />
         <KanbanList
           :boards="filteredParentBoards"
           @select="selectBoard"

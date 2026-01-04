@@ -10,26 +10,10 @@ import ProjectIconVue from '../ProjectIcon.vue'
     </div>
     <div class="grow">
       <div class="h-full overflow-auto">
-        <div class="" v-for="project, ix in projects" :key="project.project_id">
-          <div :tabindex="ix" class=""
-            @click="toggleVisibleProject(project)">
-            <div class="click flex gap-2 items-center hover:bg-base-100 rounded-md px-1">
-              <i class="fa-solid fa-chevron-down" v-if="project.open"></i>
-              <i class="fa-solid fa-chevron-up" v-else></i>
-              <ProjectIconVue inline="true" width="w-6" :project="project" />
-              {{  project.recentChats?.length }}
-            </div>
-            <div class="ml-6" v-if="project.open">
-              <progress class="progress w-fll" v-if="project.loading"></progress>
-              <div v-if="project.recentChats?.length == 0"> No results</div>
-              <div v-for="chat in project.recentChats" :key="chat.id"
-                @click.stop="openChat(project, chat)"
-              >
-                <ChatPreviewVue :chat="chat" />
-              </div>
-            </div>
-          </div>
-
+        <div v-for="chat in allChats" :key="chat.id"
+          @click.stop="openChat(chat.project, chat)"
+        >
+          <ChatPreviewVue :project="chat.project" :chat="chat" />
         </div>
       </div>
     </div>
@@ -37,23 +21,28 @@ import ProjectIconVue from '../ProjectIcon.vue'
 </template>
 <script>
 export default {
+  props: ['projects'],
   data() {
     return {
-      projects: null
+      allProjects: null
     }
   },
   created() {
     this.buildHistory()
   },
+  computed: {
+    allChats() {
+      return this.allProjects?.reduce((acc, p) => acc.concat(p.recentChats), [])
+              .sort((a,b) => a.updated_at > b.updated_at ? -1: 1)
+    }
+  },
   methods: {
     async buildHistory() {
-      this.projects = await Promise.all(
-                        [this.$project, ...this.$projects.childProjects]
-                        .map(p => this.loadProjectChats({ ...p })))
+      this.allProjects = await Promise.all(
+        this.projects.map(p => this.loadProjectChats({ ...p })))
 
-      this.projects = this.projects.filter(p => p.recentChats?.length)
+      this.allProjects = this.allProjects.filter(p => p.recentChats?.length)
                                   .map((p, ix) => ({ ...p, open: ix == 0}))
-
     },
     async loadProjectChats(project) {
       if (project.recentChats !== undefined) {
@@ -66,8 +55,7 @@ export default {
         }
         const chats = await project.$api.chats.list(filters)
         
-        project.recentChats = chats.sort((a,b) => a.updated_at > b.updated_at ? -1: 1)
-          .slice(0, 10)
+        project.recentChats = chats.map(c => ({ ...c, project}))
       } finally {
         project.loading = false
       }

@@ -1,13 +1,11 @@
 <script setup>
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
-import CoderVue from '../components/apps/Coder.vue'
-import PreviewVue from '../components/apps/Preview.vue'
 import CodxJuniorVue from '../views/CodxJunior.vue'
 import NavigationBar from '../components/NavigationBar.vue'
 import LogViewerVue from './LogViewer.vue'
 import StatuBar from './StatuBar.vue'
-
 import Navigator from './windowManager/Navigator.vue'
+import VerticalSplitter from './layout/VerticalSplitter.vue'
 </script>
 
 <template>
@@ -20,46 +18,37 @@ import Navigator from './windowManager/Navigator.vue'
       v-if="showNavigationBar"  
     />
 
-    <SplitterGroup id="splitter-group-1" class="relative grow @container" 
-      direction="horizontal" auto-save-id="splitter-group-1">
+    <VerticalSplitter class="grow flex h-full min-h-96" 
+      :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
+    >
+      
+      <template v-slot:left v-if="$ui.activeApp">
+        <Navigator class="w-full h-full" />
 
-      <SplitterPanel id="splitter-group-1-apps" :order="0" :min-size="20" v-if="$ui.activeApp">
-        
-        <Navigator class="w-full h-full" v-if="$ui.activeApp" />
+      </template>
+      <template v-slot:right v-if="$ui.activeTab || $ui.showLogs">
 
-      </SplitterPanel>
+        <VerticalSplitter class="grow flex h-full min-h-96" 
+          :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
+        >
+      
+          <template v-slot:left v-if="$ui.activeTab">
+            <CodxJuniorVue ref="codxJunior" 
+              class="h-full w-full" 
+              :class="[ activeApp ? 'px-2' : 'xl:mx-10 2xl:mx-20' ]"
+              :style="`zoom:${ zoom }`" 
+              v-if="!$ui.isMobile || !$ui.activeApp"
+            />
 
-      <SplitterResizeHandle id="splitter-group-1-resize-handle-1" class="bg-stone-800 hover:bg-slate-600 w-1 hover:w-2 transition-all"
-        v-if="$ui.activeApp && showCodxJunior" />
+          </template>
+          <template v-slot:right v-if="$ui.showLogs">
+            <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
+          
+          </template>
+        </VerticalSplitter>
 
-      <SplitterPanel id="splitter-group-1-codx-junior" :order="$ui.activeApp ? 1 : 0" 
-        :min-size="showCodxJuniorFloating ? 0 : 20"
-        :defaultSize="showCodxJuniorFloating ? 0 : $ui.codxJuniorWidth"
-        class="flex items-center justify-center transition-all transition-discrete"
-        :class="[
-          showCodxJuniorFloating ? 'absolute z-50 right-0 top-0 bottom-0 border-red-600 w-2 opacity-30 hover:w-2/4 hover:opacity-90' : '',
-          (showCodxJuniorFloating && mouseOnNavigation) && 'w-2/4 opacity-90',
-          !showCodxJunior && 'hidden'
-        ]"
-        @resize="size => $ui.setCodxJuniorWidth(size)">
-        <CodxJuniorVue ref="codxJunior" 
-          class="h-full w-full" 
-          :class="[ activeApp ? 'px-2' : 'xl:mx-10 2xl:mx-20' ]"
-          :style="`zoom:${ zoom }`" 
-          v-if="!$ui.isMobile || !$ui.activeApp"
-        />
-      </SplitterPanel>
-
-      <SplitterResizeHandle id="splitter-group-1-resize-handle-2" class="bg-stone-800 hover:bg-slate-600 w-1 hover:w-2 transition-all" 
-          v-if="$ui.showLogs" />
-
-      <SplitterPanel id="splitter-group-1-logs" :order="activeApp ? 2 : 1" :defaultSize="25" :minSize="20" class="flex items-center justify-center"
-        v-if="$ui.showLogs">
-        <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
-      </SplitterPanel>
-
-    </SplitterGroup>
-    
+      </template>
+    </VerticalSplitter>
     <StatuBar />
 
   </div>

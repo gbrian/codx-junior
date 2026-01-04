@@ -162,7 +162,7 @@ import AppIcon from './apps/AppIcon.vue';
         <div class="tooltip tooltip-bottom" :data-tip="app.name" 
           :class="['hover:bg-base-100 click relative pb-2', 
             $ui.openApps[app.name] ? 'border-b-4 border-codx-secondary': '']"
-          v-for="app in $projects.projectApps" :key="app.name + app.path"
+          v-for="app in projectApps" :key="app.name + app.path"
           >
           <a class="px-2 flex justify-center items-center w-full focus:text-orange-500"
           @click.stop="$ui.showApp(app)"
@@ -179,8 +179,8 @@ import AppIcon from './apps/AppIcon.vue';
         </div>
 
         <div class="dropdown">
-          <div tabindex="0" role="button" class="btn m-1">
-            <i class="fa-solid fa-gear"></i>
+          <div tabindex="0" role="button" class="btn btn-sm btn-ghost m-1">
+            <i class="fa-solid fa-ellipsis"></i>
           </div>
           <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
             <li @click.stop="$ui.toggleFloatinCodxJunior()"
@@ -191,9 +191,10 @@ import AppIcon from './apps/AppIcon.vue';
                 {{ $ui.floatingCodxJunior ? 'Pin' : 'Float'  }} codx-junior
               </a>
             </li>
+            <div class="divider"></div>
             <li>
               <a>
-
+                workspace
               </a>
             </li>
           </ul>
@@ -306,6 +307,12 @@ export default {
         return `[${moment(lastEvent.ts).format('HH:mm:ss')}] ${lastEvent.event} ${lastEvent.data.text || ''}\n${message}`
       }
       return "Show logs/events"
+    },
+    projectApps() {
+      return this.$storex.api.workspaces?.filter(w => w.project_ids.includes("*") || 
+                            w.project_ids.includes(this.$project?.project_id))
+                        .reduce((a, w) => a.concat(w.apps.map(a => ({ ...a, workspaceId: w.id }))), [])
+
     }
   },
   methods: {

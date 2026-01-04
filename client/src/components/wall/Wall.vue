@@ -1,6 +1,5 @@
 <script setup>
-import ChatEntry from '../ChatEntry.vue'
-import ProjectIcon from '../ProjectIcon.vue';
+import ChatPreview from './ChatPreview.vue';
 </script>
 
 <template>
@@ -11,23 +10,14 @@ import ProjectIcon from '../ProjectIcon.vue';
     <div class="alert" v-if="lastMessages.length === 0">
       No recent activity
     </div>
-    <div class="grid grid-cols-1 @xl:grid-cols-2 @5xl:grid-cols-3 grid-flow-rows gap-2">
-      <div class="border border-slate-700 hover:border-slate-400 rounded-lg my-2 click group"
+    <div class="grid grid-cols-1 @5xl:grid-cols-2 grid-flow-rows gap-2">
+      <div class="my-2 click group"
         v-for="chat in lastMessages" :key="chat.doc_id"
         @click="setActiveChat(chat)">
-        <div class="flex gap-2 items-center bg-slate-800 px-2 rounded-t-lg border-b border-slate-600">
-          <ProjectIcon inline="true" :project="chat.project" />
-          <div class="divider"></div>
-          {{ chat.name }}
-        </div>      
-        <div class="relative p-2">
-          <ChatEntry
-            class="rounded-b-lg overflow-auto opacity-60 h-60 group-hover:opacity-100" 
-            :menu-less="true" 
-            :message="chat.messages[0]" :chat="chat"
+          <ChatPreview
+            :project="chat.project"
+            :chat="chat"
             />
-          <div class="absolute top-0 left-0 right-0 bottom-0 z-20"></div>
-        </div>
       </div>
     </div>
   </div>

@@ -9,7 +9,7 @@ import RFB from '@novnc/novnc'
 <script>
 export default {
   name: 'NoVNCViewer',
-  props: ['token'],
+  props: ['path'],
   data() {
     return {
       rfb: null,
@@ -43,7 +43,7 @@ export default {
       this.rfb?.disconnect()
 
       const protocol = window.location.protocol.includes("https") ? "wss": "ws"
-      const url = `${protocol}://${window.location.host}/preview`
+      const url = `${protocol}://${window.location.host}${this.path}`
       const options = {
         credentials: {
           password: "password"

@@ -1,5 +1,6 @@
 <script setup>
 import { v4 as uuidv4 } from 'uuid'
+import AppIcon from '../apps/AppIcon.vue';
 </script>
 
 <template>
@@ -66,22 +67,15 @@ import { v4 as uuidv4 } from 'uuid'
               <label class="label">
                 <span class="label-text">Apps</span>
               </label>
-              <div v-for="(app, index) in selectedWorkspace.apps" :key="index" class="flex gap-2 items-center mt-2">
-                <button class="btn btn-error btn-xs" @click="removeApp(index)">
-                  <i class="fa-regular fa-trash-can"></i>
-                </button>
-                <div class="min-w-10 grow"></div>
-                <div v-if="app.icon">
-                  <i :class="app.icon" v-if="app.icon.includes('fa')" />
-                  <img class="w-6 rounded-full" :src="app.icon" v-else />
-                </div>
+              @codx-ok, please-wait...: Use a table to show all apps
+              <div v-for="(app, index) in selectedWorkspace.apps" :key="index" class="flex gap-2 justify-between items-center mt-2">
+                <AppIcon :app="app" />
                 <input v-model="app.icon" placeholder="App Icon" class="input input-bordered w-36" />
                 
                 <input v-model="app.name" placeholder="App Name" class="input input-bordered w-36" />
                 <input v-model="app.description" placeholder="App Description" class="input input-bordered w-36" />
                 <input v-model="app.path" type="text" placeholder="Path" class="input input-bordered w-36" />
                 <input v-model="app.port" type="number" placeholder="Port" class="input input-bordered w-20" />
-                <input v-model="app.path" type="text" placeholder="Path" class="input input-bordered w-36" />
                 <div class="dropdown dropdown-start">
                   <div tabindex="0" role="button" class="btn m-1">Roles {{ app.roles?.length}}</div>
                   <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
@@ -97,6 +91,11 @@ import { v4 as uuidv4 } from 'uuid'
                   <input type="checkbox" v-model="app.is_vnc" class="checkbox checkbox-xs" />
                   <span class="ml-1">VNC</span>
                 </label>
+                <div class="grow"></div>
+                <button class="btn btn-error btn-xs" @click="removeApp(index)">
+                  <i class="fa-regular fa-trash-can"></i>
+                </button>
+                
               </div>
               <div class="flex justify-end">
                 <button class="btn btn-sm btn-primary" @click="addApp">
