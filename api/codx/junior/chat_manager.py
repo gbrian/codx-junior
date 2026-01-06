@@ -275,6 +275,7 @@ class ChatManager:
                     "boards": kanban,
                     "tags": {}
                 }
+        logger.info("Loading %s kanban", self.settings.project_name)
         return kanban
 
     @profile_function
@@ -288,6 +289,7 @@ class ChatManager:
         kanban_file = f"{self.chat_path}/kanban.json"
         with open(kanban_file, 'w') as f:
             f.write(json.dumps(kanban))
+
 
     def find_chats(self, last_update: datetime = None):
         """

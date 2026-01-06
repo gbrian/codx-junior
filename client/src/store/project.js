@@ -191,9 +191,6 @@ export const mutations = mutationTree(state, {
   setProjectLoading(state, value) {
     state.projectLoading = value
   },
-  setActiveBoard(state, boardName) {
-    state.activeBoard = boardName
-  },
   addWizard(state, wizard) {
     wizard.id = wizard.id || new Date().getTime()
     state.activeWizards.push(wizard)
@@ -697,6 +694,13 @@ export const actions = actionTree(
               p.project_name === project_name ||
               p.codx_path === codx_path
       }))
-    }
+    },
+    async setActiveBoard({ state }, boardName) {
+      if (!state.kanban) {
+        await $storex.projects.loadKanban()
+      }
+      state.activeBoard = boardName
+      state.activeChat = null
+    },
   }
 )

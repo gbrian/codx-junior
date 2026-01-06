@@ -20,6 +20,7 @@ import ChatHistoryVue from './ChatHistory.vue'
     >
     </div>
     <div class="absolute bottom-0 left-0 right-0 z-20" v-if="loadingChats">
+      Loading...
       <progress class="progress w-full animate-pulse opacity-30"></progress>
     </div>  
     <div class="px-2 h-full absolute top-0 left-0 right-0 bottom-0 z-1">    
@@ -387,7 +388,8 @@ export default {
       )
     },
     board() {
-      return this.$projects.activeBoard
+      return this.kanban?.boards[this.$projects.activeBoard] ?
+        this.$projects.activeBoard: null
     },
     lastUpdatedTask() {
       return this.visibleTasks.sort((a, b) => 
@@ -396,10 +398,33 @@ export default {
         .slice(0, 1)[0] || {}
     },
     showKanban() {
-      return this.kanban && this.activeKanbanBoard
+      return this.kanban
     },
     kanban() {
       return this.$projects.kanban
+    },
+    dynamicBoards() {
+      if (!this.$projects.kanban?.boards) {
+        return {}
+      }
+      const baseBoards = this.$projects.kanban.boards
+      const distinct = arr => arr.filter((v, ix, arr) => arr.indexOf(v) === ix)
+      const missingChats = this.chats.filter(c => !baseBoards[c.board])
+      const missingBoards = distinct(missingChats.map(c => c.board)) 
+      return missingBoards.reduce((acc, b) => {
+        const columns = distinct(missingChats.filter(c => c.board === b).map(c => c.column))
+                            .map(column => {
+                              return {
+                               title: column,
+                              }  
+                            })
+        return {
+          ...acc,
+          [b]: {
+            columns
+          }
+        }
+      }, {})
     },
     activeKanbanBoard() {
       return this.kanban?.boards[this.board]
@@ -471,6 +496,9 @@ export default {
         this.buildKanban()
       }
     },
+    board() {
+      this.selectBoard()
+    },
     project() {
       this.projectChanged()
     },
@@ -516,9 +544,12 @@ export default {
     },
     async selectBoard(board) {
       this.loadingChats += 1
+      board = board || this.board
       try {
         this.filteredColumns = []
-        await this.$projects.setActiveBoard(board)
+        if (board !== this.board) {
+          await this.$projects.setActiveBoard(board)
+        }
         this.isDropdownOpen = false
         await this.$projects.loadChats()
         if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {

@@ -5,14 +5,23 @@ import ProjectIcon from '../ProjectIcon.vue'
 </script>
 <template>
   <div class="border border-slate-700 hover:border-slate-400 rounded-lg my-2 click group">
-    <div class="flex gap-2 items-center bg-slate-800 px-2 rounded-t-lg border-b border-slate-600">
-      <ProjectIcon inline="true" :project="project" v-if="project" />
-      <div class="divider"></div>
-      <div class="flex gap-2 items-center">
-        {{ chat.board }} / {{ chat.column }} / {{ chat.name }} 
+    <div class="flex gap-2 bg-slate-800 px-2 rounded-t-lg border-b border-slate-600">
+      <div class="flex flex-col">
+        <div class="flex gap-4 items-center">
+          <ProjectIcon inline="true" :project="project" v-if="project" />
+          <span class="underline">{{ chat.name }}</span>
+        </div>
+        <div class="px-2 flex gap-2 items-center" @click.stop="navigateBoard($project, chat.board)">
+          <button classs="btn btn-sm btn-primary">
+            <i class="fa-brands fa-trello"></i>
+            {{ chat.board }} 
+            <i class="fa-solid fa-table-columns"></i>
+            {{ chat.column }} 
+          </button>
+        </div>
       </div>
       <div class="grow"></div>
-      <span class="badge badge-outline">{{ moment(chat.updated_at).fromNow() }} </span>
+      <span class="badge badge-outline mt-4">{{ moment(chat.updated_at).fromNow() }} </span>
     </div>      
     <div class="relative p-2">
       <ChatEntry
@@ -30,6 +39,11 @@ import ProjectIcon from '../ProjectIcon.vue'
 </template>
 <script>
 export default {
-  props: ['project', 'chat']
+  props: ['project', 'chat'],
+  methods: {
+    navigateBoard(project, board) {
+      this.$router.$navigate.kanban.board({ project, board })
+    }
+  }
 }
 </script>
