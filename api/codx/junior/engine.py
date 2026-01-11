@@ -88,6 +88,9 @@ class CODXJuniorSession:
                                 channel=channel)
         self.audio_manager = AudioManager()
 
+    def update_last_access_time(self):
+        self.settings.last_access_time = str(datetime.now())
+
     def switch_project(self, project_id: str):
         if not project_id or project_id == self.settings.project_id:
             return self

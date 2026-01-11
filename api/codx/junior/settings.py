@@ -186,6 +186,8 @@ class CODXJuniorSettings(BaseModel):
 
     log_ignore: Optional[str] = Field(default="")
 
+    last_access_time: Optional[str] = Field(default="")
+
     project_scripts: Optional[List[ProjectScript]] = Field(default=[])
 
     embeddings_model:  str = Field(default="")
