@@ -1,0 +1,24 @@
+entrypoints:
+  web:
+    address: :80
+  websecure:
+    address: :443
+
+api:
+  dashboard: true
+  # basePath: "/traefik"
+  insecure: true
+
+log:
+  level: DEBUG
+  
+accessLog:
+  addInternals: true
+  format: json
+
+providers:
+  file:
+    directory: /config/routes
+    watch: true
+  docker: {}
+      

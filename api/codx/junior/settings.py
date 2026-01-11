@@ -57,7 +57,7 @@ def backup_up_global_settings():
         logger.error(f"Error cleaning up global backup settings: {ex}")
 
 
-# logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
+logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
 
 CODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = ["codx_path", "metrics", "users", "is_git_root"]
 
@@ -111,6 +111,7 @@ def read_global_settings():
     except Exception as ex:
         logger.error(f"Error {ex} loading global settings from {GLOBAL_SETTINGS_PATH}")
         GLOBAL_SETTINGS = GlobalSettings()
+        write_global_settings(GLOBAL_SETTINGS)
     return GLOBAL_SETTINGS
 
 
@@ -122,7 +123,6 @@ def write_global_settings(global_settings: GlobalSettings):
 
         backup_up_global_settings()
         
-        old_settings = read_global_settings()
         with open(GLOBAL_SETTINGS_PATH, "w") as f:
             f.write(global_settings_data)
 

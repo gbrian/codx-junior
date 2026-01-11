@@ -28,7 +28,7 @@ USERS = {}
 logger = logging.getLogger(__name__)
 
 #Socket io (sio) create a Socket.IO server
-sio = socketio.AsyncServer(cors_allowed_origins='*',async_mode='asgi')
+sio = socketio.AsyncServer(cors_allowed_origins='*', async_mode='asgi')
 
 SIO_POOL = ThreadPoolExecutor(max_workers=10)
 
@@ -72,6 +72,13 @@ async def error():
 async def connect(sid, env):
     logger.info("New Client Connected to This id :"+" "+str(sid))
 
+@sio.on("disconnect")
+async def disconnect(sid):
+    logger.info("Client Disconnected: "+" "+str(sid))
+    if USERS.get(sid):
+        del USERS[sid]
+    send_online_users(sid)  
+
 def send_online_users(sid):
     channel = SessionChannel(sio=sio, sid=sid)
     online_users = [{
@@ -80,14 +87,6 @@ def send_online_users(sid):
       "sid": sid
     } for sid in USERS.keys() if USERS.get("sid",{}).get("user")]
     channel.send_event('codx-junior-online-users', { "users": online_users })
-  
-
-@sio.on("disconnect")
-async def disconnect(sid):
-    logger.info("Client Disconnected: "+" "+str(sid))
-    if USERS.get(sid):
-        del USERS[sid]
-    send_online_users(sid)  
 
 @sio.on("codx-junior-ping")
 async def io_ping(sid, data: dict = None):

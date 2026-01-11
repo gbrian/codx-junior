@@ -1,0 +1,47 @@
+services:
+  codx-junior-default:
+    build:
+      context: .
+    image: codx-junior-default-workspace:latest
+    container_name: codx-junior-default-workspace
+    restart: unless-stopped
+    volumes:
+      # Projects volume mapping
+      - ${PROJECTS_PATH}:/home/projects
+      # - /custom/project/path:/custom/project/path 
+      # coder config
+      - ./coder:/coder
+      - ./config:/config
+      - ./coder/coder-init.sh:/custom-services.d/coder-init.sh
+      # Access docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - .env
+    environment:
+      - PUID=${USER_ID}
+      - PGID=${GROUP_ID}
+      - CODE_SERVER_PORT=${CODE_SERVER_PORT}
+    labels:
+      # Base image standard port 3000
+      - traefik.http.routers.codx-junior-default-workspace-webtop-router.rule=PathPrefix(`/preview`)
+      - traefik.http.routers.codx-junior-default-workspace-webtop-router.service=codx-junior-default-workspace-webtop-service
+      - traefik.http.services.codx-junior-default-workspace-webtop-service.loadbalancer.server.port=3000
+      - traefik.http.middlewares.codx-junior-default-workspace-webtop-path.replacepathregex.regex=^/preview/(.*)
+      - traefik.http.middlewares.codx-junior-default-workspace-webtop-path.replacepathregex.replacement=/$$1
+      - traefik.http.routers.codx-junior-default-workspace-webtop-router.middlewares=codx-junior-default-workspace-webtop-path
+      
+      # coder port ${CODE_SERVER_PORT}
+      - traefik.http.routers.codx-junior-default-workspace-coder-router.rule=PathPrefix(`/coder`)
+      - traefik.http.routers.codx-junior-default-workspace-coder-router.service=codx-junior-default-workspace-coder-service
+      - traefik.http.services.codx-junior-default-workspace-coder-service.loadbalancer.server.port=${CODE_SERVER_PORT}
+      - traefik.http.middlewares.codx-junior-default-workspace-coder-path.replacepathregex.regex=^/coder/(.*)
+      - traefik.http.middlewares.codx-junior-default-workspace-coder-path.replacepathregex.replacement=/$$1
+      - traefik.http.routers.codx-junior-default-workspace-coder-router.middlewares=codx-junior-default-workspace-coder-path
+
+    networks:
+      - codx-junior-demo
+
+networks:
+  codx-junior-demo:
+    external: true
+    name: codx-junior-demo

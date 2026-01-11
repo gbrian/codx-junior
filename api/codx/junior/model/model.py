@@ -310,8 +310,6 @@ class GlobalSettings(BaseModel):
     project_scripts: Optional[List[ProjectScript]] = Field(default=[])
 
     bookmarks: List[Bookmark] = Field(default=[
-        Bookmark(name="Coder", title="code-server", port=os.environ["CODX_JUNIOR_CODER_PORT"]),
-        Bookmark(name="Desktop", title="Desktop", port=os.environ["CODX_JUNIOR_NOVNC_PORT"])
     ])
 
     ai_providers: List[AIProvider] = [

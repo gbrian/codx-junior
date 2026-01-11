@@ -30,12 +30,6 @@ services:
       args:
         - USER_GID=${USER_GID:-1001}
         - USER_UID=${USER_UID:-1001}
-    environment:
-      # Basic
-      - CODX_JUNIOR_APPS=client api llm-factory
-      
-      # With docker in docker, remember to set "privileged=true" in the containers
-      # - CODX_JUNIOR_APPS=client api llm-factory docker
     volumes:
       - .:/home/codx-junior/codx-junior
     command: echo "Done"

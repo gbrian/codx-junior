@@ -1,3 +1,5 @@
+# Root folder for new projects
+export CODX_JUNIOR_PROJECTS_PATH=/home/codx-junior-projects
 # API virtual env
 export CODX_JUNIOR_API_VENV=${CODX_JUNIOR_API_VENV:-/tmp/.venv_codx_junior_api}
 # Browser virtual env
@@ -8,10 +10,6 @@ export CODX_JUNIOR_API_PORT=${CODX_JUNIOR_API_PORT:-19980}
 export CODX_JUNIOR_API_URL=http://0.0.0.0:${CODX_JUNIOR_API_PORT}
 # codx-junior web port
 export CODX_JUNIOR_WEB_PORT=${CODX_JUNIOR_WEB_PORT:-19981}
-# codx-junior code-server port
-export CODX_JUNIOR_CODER_PORT=${CODX_JUNIOR_CODER_PORT:-19982}
-# Desktop port
-export CODX_JUNIOR_NOVNC_PORT=${CODX_JUNIOR_NOVNC_PORT:-19983}
 # codx-junior API background port
 export CODX_JUNIOR_API_PORT_BACKGROUND=${CODX_JUNIOR_API_PORT_BACKGROUND:-19984}
 # llmfactory server port
@@ -37,7 +35,7 @@ export CODX_JUNIOR_DISPLAY=:55
 export CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-supervisor
 
 # Installation APPS
-export CODX_JUNIOR_APPS=${CODX_JUNIOR_APPS:-"client api llm-factory docker"}
+export CODX_JUNIOR_APPS=${CODX_JUNIOR_APPS:-"client api"}
 
 #Global settings path
 export CODX_JUNIOR_GLOBAL_SETTINGS_PATH=${CODX_JUNIOR_GLOBAL_SETTINGS_PATH:-/home/codx-junior/codx-junior-global-settings.json}

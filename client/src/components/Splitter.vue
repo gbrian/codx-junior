@@ -33,12 +33,14 @@ import VerticalSplitter from './layout/VerticalSplitter.vue'
         >
       
           <template v-slot:left v-if="$ui.activeTab">
-            <CodxJuniorVue ref="codxJunior" 
-              class="h-full w-full" 
-              :class="[ activeApp ? 'px-2' : 'xl:mx-10 2xl:mx-20' ]"
-              :style="`zoom:${ zoom }`" 
-              v-if="!$ui.isMobile || !$ui.activeApp"
-            />
+            <div class="flex flex-col items-center">
+              <CodxJuniorVue ref="codxJunior" 
+                class="h-full w-full" 
+                :class="[ activeApp ? 'px-2' : 'xl:mx-10 2xl:mx-20' ]"
+                :style="`zoom:${ zoom }`" 
+                v-if="!$ui.isMobile || !$ui.activeApp"
+              />
+            </div>
 
           </template>
           <template v-slot:right v-if="$ui.showLogs">

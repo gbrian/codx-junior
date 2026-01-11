@@ -1,0 +1,21 @@
+##################################################
+## codx-junior:api
+##################################################
+FROM codx-junior:debian
+
+USER ${USER}
+WORKDIR ${HOME}/codx-junior
+
+COPY --chown=${USER} api ./api
+COPY --chown=${USER} scripts ./scripts
+COPY --chown=${USER} codx-junior ./codx-junior
+COPY --chown=${USER} set_env.sh .
+
+ENV CODX_JUNIOR_PATH=${HOME}/codx-junior
+
+RUN bash scripts/install_base.sh
+
+ENV CODX_JUNIOR_APPS="api"
+RUN bash scripts/install.sh
+
+CMD [ "bash", "-c", "${HOME}/codx-junior/scripts/run_api.sh" ]

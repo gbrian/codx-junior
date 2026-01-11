@@ -91,10 +91,17 @@ export const actions = actionTree(
         state.events = state.events.filter(e => e.ts >= expireNotif)
       }
     },
-    connect () {
+    connect ({ state }) {
+      if (!API.user) {
+        if (state.socket) {
+          state.socket.close()
+        }
+        return
+      }
       const socket = io({
         path: '/api/socket.io',
-        reconnectionDelayMax: 1000
+        reconnectionDelayMax: 5000,
+        transports: ["websocket"]
        })
        socket.on("connect_error", (err) => {
         console.log(`connect_error due to ${err.message}`);

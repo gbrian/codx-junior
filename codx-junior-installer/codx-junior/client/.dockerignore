@@ -1,0 +1,12 @@
+# Ignore everything
+*
+
+# Allow image files and directories
+!client
+!scripts
+!codx-junior
+!set_env.sh
+
+# Just in case
+client/node_modules
+client/dist

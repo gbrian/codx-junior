@@ -1,0 +1,222 @@
+#########################################################################
+## 
+## codx-junior installer
+## 
+#########################################################################
+services:
+  ### RAG AND DB ########################################################
+  milvus:
+    image: milvusdb/milvus:v2.5.11
+    container_name: milvus-codx-junior
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - ETCD_USE_EMBED=true
+      - ETCD_DATA_DIR=/var/lib/milvus/etcd
+      - ETCD_CONFIG_PATH=/milvus/configs/embedEtcd.yaml
+      - COMMON_STORAGETYPE=local
+    volumes:
+      - milvus_data:/var/lib/milvus
+      - ./milvus_embedEtcd.yaml:/milvus/configs/embedEtcd.yaml
+      - ./milvus_user.yaml:/milvus/configs/user.yaml
+    restart: unless-stopped
+    command: milvus run standalone  1> /dev/null
+    healthcheck:
+      test: "curl -f http://localhost:9091/healthz"
+      interval: 30s
+      start_period: 90s
+      timeout: 20s
+      retries: 3
+
+  ###################################################################
+  ## OLLAMA
+  ## Model management
+  ###################################################################
+
+  ollama:
+    container_name: ollama-codx-junior
+    image: ollama/ollama
+    shm_size: "20gb"
+    restart: unless-stopped
+    environment:
+      - OLLAMA_MODELS=/root/.ollama
+      - OLLAMA_CONTEXT_LENGTH=131072
+    volumes:
+      - codx-junior-ollama:/root/.ollama
+    
+      
+  ###################################################################
+  ## LITE-LLM 
+  ## A LMM model proxy to simplify codx-junior AI Model management
+  ###################################################################
+    
+  litellm:
+    #build:
+    #  context: .
+    #  args:
+    #    target: runtime
+    image: ghcr.io/berriai/litellm:main-stable
+    container_name: litellm-codx-junior
+    #########################################
+    ## Uncomment these lines to start proxy with a config.yaml file ##
+    # volumes:
+    #  - ./config.yaml:/app/config.yaml
+    # command:
+    #  - "--config=/app/config.yaml"
+    ##############################################
+    # ports:
+    #   - "4000:4000" # Map the container port to the host, change the host port if necessary
+    environment:
+      DATABASE_URL: "postgresql://llmproxy:dbpassword9090@db:5432/litellm"
+      STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
+      OLLAMA_API_BASE: "http://ollama-codx-junior:11434/"
+    env_file:
+      - .env # Load local .env file
+    depends_on:
+      - db  # Indicates that this service depends on the 'db' service, ensuring 'db' starts first
+    healthcheck:  # Defines the health check configuration for the container
+      test:
+        - CMD-SHELL
+        - python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')"  # Command to execute for health check
+      interval: 30s  # Perform health check every 30 seconds
+      timeout: 10s   # Health check command times out after 10 seconds
+      retries: 3     # Retry up to 3 times if health check fails
+      start_period: 40s  # Wait 40 seconds after container start before beginning health checks
+    restart: unless-stopped
+
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    container_name: litellm_db-codx-junior
+    environment:
+      POSTGRES_DB: litellm
+      POSTGRES_USER: llmproxy
+      POSTGRES_PASSWORD: dbpassword9090
+    # ports:
+    #   - "5432:5432"
+    volumes:
+      - postgres_demo_data:/var/lib/postgresql/data # Persists Postgres data across container restarts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d litellm -U llmproxy"]
+      interval: 1s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus-codx-junior
+    volumes:
+      - prometheus_demo_data:/prometheus
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    # ports:
+    #   - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    restart: unless-stopped
+
+
+  codx-junior-api:
+    depends_on:
+      - milvus
+    # Build image first (see build.sh)
+    container_name: codx-junior-api
+    image: codx-junior:api
+    shm_size: 4gb
+    restart: unless-stopped
+    env_file:
+      - .env # Load local .env file
+    user: "1001:1001"
+    environment:
+      - DEBUG=0
+      - ANONYMIZED_TELEMETRY=False
+      - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/global_settings.json
+      - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
+      - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
+    volumes:
+      # Projects folder CODX_JUNIOR_PROJECTS_PATH  #######################################
+      - codx-junior-projects:/home/codx-junior-projects
+      # Global settings folder  ##########################################################
+      - codx-junior:/home/codx-junior/.codx-junior
+      
+      # Custom overrides (DEBUG)
+      - ../../.:/home/codx-junior/codx-junior
+      # Docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    # ports:
+    #   - 19980:19980
+    labels:
+      # Api
+      - traefik.enable=true
+      - traefik.http.routers.codx-junior-api.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.codx-junior-api.service=codx-junior-api-service
+      - traefik.http.routers.codx-junior-api.tls.certresolver=myresolver
+      - traefik.http.services.codx-junior-api-service.loadbalancer.server.port=19980
+      
+  codx-junior-client:
+    depends_on:
+      - codx-junior-api
+    container_name: codx-junior-client
+    image: codx-junior:client
+    restart: unless-stopped
+    env_file:
+      - .env # Load local .env file
+    environment:
+      - DEBUG=0
+    volumes:
+      # Custom overrides (DEBUG)
+      - ../../.:/home/codx-junior/codx-junior
+    # ports:
+    #   - 19981:19981
+    labels:
+      # Web
+      - traefik.enable=true
+      - traefik.docker.network=codx-junior_default
+      - traefik.http.routers.codx-junior.rule=Host(`${CODX_JUNIOR_DOMAIN}`)
+      - traefik.http.routers.codx-junior.service=codx-junior-service
+      - traefik.http.routers.codx-junior.tls.certresolver=myresolver
+      - traefik.http.services.codx-junior-service.loadbalancer.server.port=19981
+  
+  ###################################################################
+  ## Traefik 
+  ## A powerful and versatile proxy engine
+  ###################################################################
+  
+  traefik:
+    image: traefik:latest
+    container_name: traefik-codx-junior
+    restart: unless-stopped
+    env_file:
+      - .env # Load local .env file
+    command:
+      - "--configFile=/config/traefik.yaml"
+      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/config/acme.json"
+      # used during the challenge
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8088:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - ./traefik:/config
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=PathPrefix(`/traefik-dashboard`)"
+      - "traefik.http.routers.dashboard.entrypoints=web,websecure"
+
+
+volumes:
+  prometheus_demo_data:
+    name: litellm_prometheus_data # Logs data
+  postgres_demo_data:
+    name: litellm_postgres_data # LITELLM: Named volume for Postgres data persistence
+  milvus_data: # MILVUS data
+  codx-junior:
+    name: codx-junior
+  codx-junior-projects:
+    name: codx-junior-projects
+  codx-junior-ollama:
+    name: codx-junior-ollama

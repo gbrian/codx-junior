@@ -1,0 +1,10 @@
+services:
+  codx-junior-base:
+    image: codx-junior:api
+    build:
+      dockerfile: ./codx-junior-installer/codx-junior/api/Dockerfile.api
+      context: ../../.. # codx-junior base
+      args:
+        - USER_UID=1001
+        - GROUP_UID=1001
+    command: exit

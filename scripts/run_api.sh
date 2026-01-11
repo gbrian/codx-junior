@@ -19,7 +19,7 @@ if [ "$CODX_JUNIOR_API_BACKGROUND" != "" ]; then
   API_PORT=$CODX_JUNIOR_API_PORT_BACKGROUND
 fi
 
-if [ "$DEBUG" != ""]; then
+if [ "$DEBUG" != "" ]; then
   uvicorn codx.junior.main:app --workers ${WEB_CONCURRENCY:-4} --host 0.0.0.0 --port $API_PORT
 else
   uvicorn codx.junior.main:app --reload --host 0.0.0.0 --port $API_PORT

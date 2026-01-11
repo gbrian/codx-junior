@@ -1,0 +1,9 @@
+services:
+  codx-junior-dind:
+    image: codx-junior:dind
+    volumes:
+      - ../:/codx-junior
+    privileged: true
+    restart: unless-stopped
+    labels:
+      - com.host.description=label

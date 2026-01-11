@@ -1,0 +1,23 @@
+services:
+  code-junior-workspace:
+    builld: .
+    image: codercom/code-server:latest
+    container_name: code-junior-workspace
+    volumes:
+      - ${PROJECTS_PATH}:/home/projects
+    env_file:
+      - .env
+    command: --auth none
+    user: "${USER_ID}:${GROUP_ID}"       
+    labels:
+      - "traefik.http.routers.workspace-default-coder.rule=PathPrefix(`/coder`)"
+      - "traefik.http.routers.workspace-default-coder.middlewares=workspace-default-coder-path"
+      - "traefik.http.middlewares.workspace-default-coder-path.replacepathregex.regex=^/coder/(.*)"
+      - "traefik.http.middlewares.workspace-default-coder-path.replacepathregex.replacement=/$$1"
+    networks:
+      - codx-junior-demo
+
+networks:
+  codx-junior-demo:
+    external: true
+    name: codx-junior-demo

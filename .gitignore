@@ -10,7 +10,6 @@ core
 .idea
 .vscode
 static
-llm-factory/ollama-data
 pids
 ollama_models
 logs
@@ -21,6 +20,9 @@ client/public/wiki
 *.db
 *.wal
 *.lock
-llm-factory/litegpt/checkpoints
-llm-factory/litegpt/out
 docs/.vitepress/.temp
+
+# Default workspace
+## webtop's /config folder in Desktop workspace 
+codx-junior-installer/codx-junior/workspaces/default/config
+
