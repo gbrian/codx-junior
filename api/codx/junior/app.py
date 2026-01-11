@@ -185,6 +185,7 @@ async def add_codx_junior_settings(request: Request, call_next):
         try:
             codx_path = request.query_params.get("codx_path")
             request.state.codx_junior_session = get_codx_junior_session(request, codx_path)
+            request.state.codx_junior_session.update_last_access_time()
             # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:
             logger.error(f"Error loading settings {codx_path}: {ex}\n{request.url}")

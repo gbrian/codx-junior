@@ -1,6 +1,7 @@
 import os
 import logging
 import subprocess
+from datetime import datetime, timedelta
 
 from threading import Thread
 
@@ -139,3 +140,7 @@ def find_project_parents(project: CODXJuniorSettings, user: CodxUser = None):
     project_path = project.project_path
     all_parents = [p for p in all_user_projects if project_path.startswith(p.project_path) and project_path != p.project_path]
     return sorted(all_parents, key=lambda project: len(project.project_path))
+
+def find_active_projects():
+    last_access = datetime.now() - timedelta(minutes=30)
+    return [p for p in find_all_projects() if p.last_access_time >= str(last_access)]
