@@ -1163,7 +1163,7 @@ class CODXJuniorSession:
     
     @profile_function
     async def process_project_file_before_saving(self, file_path: str, content: str):
-        file_profiles = self.get_profile_manager().get_file_profiles(file_path=file_path)
+        file_profiles = self.get_profile_manager().get_file_profiles_by_file_path(file_path=file_path)
         self.log_info(f"Applying file profiles {[p.name for p in file_profiles]} to {file_path}")
         if file_profiles:
             for profile in file_profiles:

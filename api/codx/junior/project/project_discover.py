@@ -34,7 +34,8 @@ def find_all_projects():
 def find_project_from_file_path(file_path: str):
     """Given a file path, find the project parent"""
     all_projects = find_all_projects().values()
-    matches = [p for p in all_projects if file_path.startswith(p.project_path)]
+    matches = [p for p in all_projects if file_path.startswith(p.project_path) or \
+                                                file_path.startswith(p.codx_path)]
     if matches:
         logger.info(f"Find projects for file {file_path}: {[m.project_name for m in matches]}")
         return sorted(matches, key=lambda p: len(p.project_path))[-1]

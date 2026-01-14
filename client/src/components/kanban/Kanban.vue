@@ -40,24 +40,6 @@ import ChatHistoryVue from './ChatHistory.vue'
               <span class="hidden @md:block">History</span>
             </button>
           </h1>
-
-          <div class="flex gap-1 overflow-auto max-w-full pb-3">
-            <div class="badge badge-primary bagde-sm badge-outline click"
-              @click="$projects.setActiveProject($projects.parentProject)"
-              v-if="$projects.parentProject"
-            >
-            {{  $projects.parentProject.project_name }}
-            </div>
-            <div class="carousel carousel-center bg-neutral max-w-full space-x-2">
-              <div class="carousel-item flex gap-2 items-center border border-slate-500 click rounded-md px-1"
-                v-for="project in $projects.childProjects" :key="project.project_id"
-                @click="$projects.setActiveProject(project)"
-              >
-                <img class="w-4 h-4 rounded-full" :src="project.project_icon" />
-                {{  project.project_name }}
-              </div>
-            </div>
-          </div>
         </div>
 
         <ChatHistoryVue :projects="[$project, ...$projects.childProjects]" v-if="showHistory" />

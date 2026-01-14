@@ -1,6 +1,6 @@
 <template>
   <i :class="app.icon" v-if="isAwesome"></i>
-  <img class="w-6 rounded-full" :src="imageUrl" v-else />
+  <img class="w-6 h-6 rounded-full" :src="imageUrl" v-else />
 
 </template>
 <script>

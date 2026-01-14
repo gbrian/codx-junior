@@ -49,7 +49,9 @@ class Knowledge:
 
     def get_ai(self):
         if not self.ai:
-            self.ai = AI(settings=self.settings, user=CodxUser(username=__name__))
+            self.ai = AI(settings=self.settings,
+                        llm_model=self.settings.get_rag_model(),
+                        user=CodxUser(username=__name__))
         return self.ai
 
     def get_db(self):

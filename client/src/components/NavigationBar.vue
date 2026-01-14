@@ -7,26 +7,121 @@ import AppIcon from './apps/AppIcon.vue';
 
 <template>
   <div class="flex flex-col gap-4">
-    <div class="flex items-center shadow justify-between"
+    <div class="flex items-center"
       :class="[
         $storex.session.connected ? '' : 'grayscale text-error',
       ]">
-      <div class="flex gap-2 items-center w-1/3" @click="showMobileMenu = !showMobileMenu">
-        <div class="flex flex-col">
-          <MobileMenuVue class="" v-if="showMobileMenu" @click.stop="" @close="showMobileMenu = false" />
-          <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
+
+      <div class="tools hidden md:flex gap-2 items-center">
+
+        <div class="flex items-center pb-2">
+              
+          <div class="tooltip tooltip-top" :data-tip="app.name" 
+            :class="['hover:bg-base-100 click relative pb-2', 
+              $ui.openApps[app.name] ? 'border-b-4 border-codx-secondary': '']"
+              v-for="app in projectApps" :key="app.name + app.path"
+              @click.stop="$ui.showApp(app)"
+            >
+            <a class="px-2 text-xs flex justify-center items-center w-full focus:text-orange-500">
+              <div class="flex gap-2 items-center">
+                <AppIcon :app="app" />
+                <div class="max-w-10 text-nowrap text-ellipsis overflow-hidden">{{ app.name }}</div> 
+                <div class="text-error" title="close" v-if="$ui.openApps[app.name]" 
+                  @click.stop="$ui.closeApp(app)">
+                  <i class="fa-regular fa-circle-xmark"></i>
+                </div>
+              </div>
+            </a>
+          </div>
+
+          <div class="dropdown">
+            <div tabindex="0" role="button" class="btn btn-sm btn-ghost m-1">
+              <i class="fa-solid fa-ellipsis"></i>
+            </div>
+            <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
+              <li @click.stop="$ui.toggleFloatinCodxJunior()"
+                v-if="$ui.activeApp">
+                <a>
+                  <i class="fa-solid fa-thumbtack rotate-45" v-if="$ui.floatingCodxJunior"></i>
+                  <i class="fa-solid fa-thumbtack" v-else></i>
+                  {{ $ui.floatingCodxJunior ? 'Pin' : 'Float'  }} codx-junior
+                </a>
+              </li>
+              <div class="divider"></div>
+              <li>
+                <a>
+                  workspace
+                </a>
+              </li>
+            </ul>
+          </div>
+
         </div>
-        <ProjectDetailt 
-          :project="$project" 
-          :options="{ showFolders: false, showIcon: !$ui.isMobile, showSelector: false }"
-          @select="$projects.setActiveProject($event)"  
-        /> 
 
       </div>
-      
 
-      <div class="flex gap-2 justify-end w-1/3 items-center">
-        
+      <div class="divider"></div>
+
+      <div class="flex gap-2 items-center justify-center -mt-4 hidden">
+        <div :class="['hover:bg-base-100 click relative', 
+          $ui.activeTab === 'home' ? 'border-b-4 border-codx-secondary': '']">
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+            data-tip="Home"
+            @click="setActiveTab('home')">
+            <div class="flex gap-2 items-center">
+              <i class="fa-solid fa-home"></i> Home
+            </div>
+          </a>
+        </div>
+
+        <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'tasks' ? 'border-b-4 border-codx-secondary': '')]">
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+            data-tip="Kanban"
+            @click="setProjectTab('tasks')">
+            <div class="flex gap-2 items-center">
+              <i class="fa-brands fa-trello"></i> Kanban
+            </div>
+          </a>
+        </div>
+
+        <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'profiles' ? 'border-b-4 border-codx-secondary': '')]"
+            v-if="$users.isProjectAdmin">
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+            data-tip="Profiles"
+            @click="setProjectTab('profiles')">
+            <div class="flex gap-2 items-center">
+              <i class="fa-solid fa-user-group"></i> Team
+            </div>
+          </a>
+        </div>
+
+
+        <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'wiki' ? 'border-b-4 border-codx-secondary': '')]">
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+            data-tip="Wiki"
+            @click="setProjectTab('wiki')">
+            <div class="flex gap-2 items-center">
+              <i class="fa-solid fa-book"></i> Wiki
+            </div>
+          </a>
+        </div>
+
+        <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'file-finder' ? 'border-b-4 border-codx-secondary': '')]"
+          v-if="$ui.isMobile"
+        >
+          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
+            data-tip="File finder"
+            @click="setProjectTab('file-finder')">
+            <div class="flex gap-2 items-center">
+              <i class="fa-solid fa-folder"></i> Files
+            </div>
+          </a>
+        </div>
+      </div>
+      
+      <div class="grow"></div>
+
+      <div class="flex gap-2 justify-end items-center">
         <a class="btn btn-sm btn-outline text-codx-primary" @click="newQuickChat()">
           <i class="fa-regular fa-comment"></i>
         </a>
@@ -134,6 +229,20 @@ import AppIcon from './apps/AppIcon.vue';
             </ul>
           </div>
         </div>
+
+        <div class="flex gap-2 items-center" @click="showMobileMenu = !showMobileMenu">
+        <div class="flex flex-col">
+          <MobileMenuVue class="" v-if="showMobileMenu" @click.stop="" @close="showMobileMenu = false" />
+          <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
+        </div>
+        <ProjectDetailt 
+          :project="$project" 
+          :options="{ showFolders: false, showIcon: !$ui.isMobile, showSelector: false }"
+          @select="$projects.setActiveProject($event)"  
+        /> 
+
+      </div>
+      
       </div>
 
       <modal v-if="restartModal">
@@ -155,121 +264,6 @@ import AppIcon from './apps/AppIcon.vue';
       </modal>
     </div>
 
-    <div class="tools hidden md:flex gap-2 items-center w-full">
-
-      <div class="flex gap-2 items-center pb-2">
-            
-        <div class="tooltip tooltip-bottom" :data-tip="app.name" 
-          :class="['hover:bg-base-100 click relative pb-2', 
-            $ui.openApps[app.name] ? 'border-b-4 border-codx-secondary': '']"
-          v-for="app in projectApps" :key="app.name + app.path"
-          >
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500"
-          @click.stop="$ui.showApp(app)"
-          >
-            <div class="indicator flex gap-2 items-center">
-              <span class="indicator-item text-xs text-error" title="close" 
-                @click.stop="$ui.closeApp(app)" v-if="$ui.openApps[app.name]">
-                <i class="fa-regular fa-circle-xmark"></i>
-              </span>
-            
-              <AppIcon :app="app" />
-            </div>
-          </a>
-        </div>
-
-        <div class="dropdown">
-          <div tabindex="0" role="button" class="btn btn-sm btn-ghost m-1">
-            <i class="fa-solid fa-ellipsis"></i>
-          </div>
-          <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
-            <li @click.stop="$ui.toggleFloatinCodxJunior()"
-              v-if="$ui.activeApp">
-              <a>
-                <i class="fa-solid fa-thumbtack rotate-45" v-if="$ui.floatingCodxJunior"></i>
-                <i class="fa-solid fa-thumbtack" v-else></i>
-                {{ $ui.floatingCodxJunior ? 'Pin' : 'Float'  }} codx-junior
-              </a>
-            </li>
-            <div class="divider"></div>
-            <li>
-              <a>
-                workspace
-              </a>
-            </li>
-          </ul>
-        </div>
-
-      </div>
-      
-      <div class="grow"></div>
-      
-      <div :class="['hover:bg-base-100 click relative', 
-        $ui.activeTab === 'home' ? 'border-b-4 border-codx-secondary': '']">
-        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-          data-tip="Home"
-          @click="setActiveTab('home')">
-          <div class="flex gap-2 items-center">
-            <i class="fa-solid fa-home"></i> Home
-          </div>
-        </a>
-      </div>
-
-      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'tasks' ? 'border-b-4 border-codx-secondary': '')]">
-        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-          data-tip="Kanban"
-          @click="setProjectTab('tasks')">
-          <div class="flex gap-2 items-center">
-            <i class="fa-brands fa-trello"></i> Kanban
-          </div>
-        </a>
-      </div>
-
-      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'profiles' ? 'border-b-4 border-codx-secondary': '')]"
-          v-if="$users.isProjectAdmin">
-        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-          data-tip="Profiles"
-          @click="setProjectTab('profiles')">
-          <div class="flex gap-2 items-center">
-            <i class="fa-solid fa-user-group"></i> Team
-          </div>
-        </a>
-      </div>
-
-
-      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'wiki' ? 'border-b-4 border-codx-secondary': '')]">
-        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-          data-tip="Wiki"
-          @click="setProjectTab('wiki')">
-          <div class="flex gap-2 items-center">
-            <i class="fa-solid fa-book"></i> Wiki
-          </div>
-        </a>
-      </div>
-
-      <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'file-finder' ? 'border-b-4 border-codx-secondary': '')]"
-        v-if="$ui.isMobile"
-      >
-        <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-          data-tip="File finder"
-          @click="setProjectTab('file-finder')">
-          <div class="flex gap-2 items-center">
-            <i class="fa-solid fa-folder"></i> Files
-          </div>
-        </a>
-      </div>
-
-        <div :class="['hover:bg-base-100 click relative pb-2', 
-          $ui.showLogs ? 'border-b-4 border-codx-secondary': '']">
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom"  data-tip="Show logs"
-          @click.stop="$ui.toggleLogs()">
-            <div class="flex gap-2 items-center">
-              <i class="fa-solid fa-file-lines"></i>
-            </div>
-          </a>
-        </div>
-
-    </div>
   </div>
 </template>
 
@@ -312,6 +306,7 @@ export default {
       return this.$storex.api.workspaces?.filter(w => w.project_ids.includes("*") || 
                             w.project_ids.includes(this.$project?.project_id))
                         .reduce((a, w) => a.concat(w.apps.map(a => ({ ...a, workspaceId: w.id }))), [])
+                        .sort(a => this.$ui.openApps[a.name] ? -1: 1)
 
     }
   },

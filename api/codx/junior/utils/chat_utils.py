@@ -52,5 +52,5 @@ class ChatUtils:
         # logger.info("Project profiles: %s", [p.name for p in profiles])
         mention_profiles = [p for p in profiles if p.name in mentions]
         # logger.info("Extracted profiles for '%s': %s", mentions, mention_profiles)
-        return self.profile_manager.get_profiles_and_parents(mention_profiles)
+        return self.profile_manager.get_profiles_by_name(mention_profiles)
 
