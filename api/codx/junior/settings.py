@@ -28,7 +28,9 @@ logger = logging.getLogger(__name__)
 ROOT_PATH = os.path.dirname(__file__)
 GLOBAL_SETTINGS = None
 HOME=os.environ.get("HOME")
-GLOBAL_SETTINGS_PATH=os.environ.get("CODX_JUNIOR_GLOBAL_SETTINGS_PATH", None) or f"{HOME}/global_settings.json"
+
+GLOBAL_SETTINGS_FOLDER=os.environ.get("CODX_JUNIOR_CONFIG_FOLDER", HOME)
+GLOBAL_SETTINGS_PATH=f"{GLOBAL_SETTINGS_FOLDER}/global_settings.json"
 
 def backup_up_global_settings():
     backup_dir = os.path.join(os.path.dirname(GLOBAL_SETTINGS_PATH), "codx-junior-backup")

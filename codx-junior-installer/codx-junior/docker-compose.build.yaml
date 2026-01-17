@@ -1,0 +1,41 @@
+services:
+  #########################################################################
+  ## 
+  ## BUILD IMAGES
+  ## 
+  #########################################################################
+  codx-junior-debian-image:
+    image: codxjunior/codx-junior:debian
+    build:
+      dockerfile: ./codx-junior-installer/codx-junior/debian/Dockerfile.debian
+      context: ../.. # codx-junior base
+    command: sleep 1
+  codx-junior-api-image:
+    image: codxjunior/codx-junior:api
+    user: 1001:1001
+    build:
+      dockerfile: ./codx-junior-installer/codx-junior/api/Dockerfile.api
+      context: ../.. # codx-junior base
+      args:
+        - USER_UID=1001
+        - GROUP_UID=1001
+    command: sleep 1
+  codx-junior-client-image:
+    depends_on:
+      - codx-junior-debian-image
+      - codx-junior-api-image
+    image: codxjunior/codx-junior:client
+    build:
+      dockerfile: ./codx-junior-installer/codx-junior/client/Dockerfile.client
+      context: ../.. # codx-junior base
+      args:
+        - USER_UID=1001
+        - GROUP_UID=1001
+    command: sleep 1
+  codx-junior-dind-image:
+    image: codxjunior/codx-junior:dind
+    build:
+      dockerfile: ./codx-junior-installer/codx-junior-dind/Dockerfile
+      context: ../.. # codx-junior base
+    command: sleep 1
+  

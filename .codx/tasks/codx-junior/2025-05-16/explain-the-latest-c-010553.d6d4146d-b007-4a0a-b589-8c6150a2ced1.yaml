@@ -18427,7 +18427,7 @@ messages:
     \ AIModel,\n+    AIProvider,\n+    AILLMModelSettings,\n+    AIModelType\n+)\n\
     \ from codx.junior.utils import exec_command\n \n logger = logging.getLogger(__name__)\n\
     \ \n ROOT_PATH = os.path.dirname(__file__)\n GLOBAL_SETTINGS = None\n-\n+HOME=os.environ.get(\"\
-    HOME\")\n+GLOBAL_SETTINGS_PATH=os.environ.get(\"CODX_JUNIOR_GLOBAL_SETTINGS_PATH\"\
+    HOME\")\n+GLOBAL_SETTINGS_PATH=os.environ.get(\"CODX_JUNIOR_CONFIG_FOLDER\"\
     , None) or f\"{HOME}/global_settings.json\"\n+\n+logger.info(f\"GLOBAL_SETTINGS_PATH\
     \ is: {GLOBAL_SETTINGS_PATH}\")\n+\n+def get_provider_settings(ai_provider: str,\
     \ global_settings = None) -> AIProvider:\n+    global_settings = global_settings\
@@ -69646,7 +69646,7 @@ messages:
     Done\"\n+  \n+  codx-junior-all:\n+    # Build image first with \"codx-junior-build\"\
     \n+    image: codx-junior:latest\n+    container_name: codx-junior-all\n+    shm_size:\
     \ 4gb\n+    # Set to true if you want to use docker inside codx-junior\n+    privileged:\
-    \ true\n+    environment:\n+      # Settings file\n+      - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/.global_settings.json\n\
+    \ true\n+    environment:\n+      # Settings file\n+      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior/.global_settings.json\n\
     +      # LLM Settings (Use any OpenAI compatible)\n+      - CODX_JUNIOR_LLMFACTORY_API=https://api.openai.com/v1\n\
     +      - CODX_JUNIOR_LLMFACTORY_KEY=sk-********\n+      - CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL=gpt-4o\n\
     +      - CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL=text-embedding-3-small\n+   \
@@ -69920,7 +69920,7 @@ messages:
     Done\"\n+  \n+  codx-junior-all:\n+    # Build image first with \"codx-junior-build\"\
     \n+    image: codx-junior:latest\n+    container_name: codx-junior-all\n+    shm_size:\
     \ 4gb\n+    # Set to true if you want to use docker inside codx-junior\n+    privileged:\
-    \ true\n+    environment:\n+      # Settings file\n+      - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/.global_settings.json\n\
+    \ true\n+    environment:\n+      # Settings file\n+      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior/.global_settings.json\n\
     +      # LLM Settings (Use any OpenAI compatible)\n+      - CODX_JUNIOR_LLMFACTORY_API=https://api.openai.com/v1\n\
     +      - CODX_JUNIOR_LLMFACTORY_KEY=sk-********\n+      - CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL=gpt-4o\n\
     +      - CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL=text-embedding-3-small\n+   \
@@ -72550,7 +72550,7 @@ messages:
     nomic-embed-text\"}\n+\n+# codx-junior preview display\n+export CODX_JUNIOR_DISPLAY=:55\n\
     +# Serving client from API\n+export CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-supervisor\n\
     +\n+# Installation APPS\n+export CODX_JUNIOR_APPS=${CODX_JUNIOR_APPS:-\"client\
-    \ api llm-factory docker\"}\n+\n+#Global settings path\n+export CODX_JUNIOR_GLOBAL_SETTINGS_PATH=${CODX_JUNIOR_GLOBAL_SETTINGS_PATH}\n\
+    \ api llm-factory docker\"}\n+\n+#Global settings path\n+export CODX_JUNIOR_CONFIG_FOLDER=${CODX_JUNIOR_CONFIG_FOLDER}\n\
     +\n+### OLLAMA\n+export CODX_JUNIOR_EMBEDDINGS_MODEL=nomic-embed-text\n+\n+# Miscellaneous\n\
     +export DEBIAN_FRONTEND=noninteractive\n+# Locales\n+export LANG=en_US.UTF-8 \
     \ \n+export LANGUAGE=en_US:en  \n+export LC_ALL=en_US.UTF-8\n\\ No newline at\
@@ -72561,7 +72561,7 @@ messages:
     %(ENV_CODX_JUNIOR_LLMFACTORY_URL)s\",\n+            CODX_JUNIOR_CODER_PORT=\"\
     %(ENV_CODX_JUNIOR_CODER_PORT)s\",\n+            CODX_JUNIOR_NOVNC_PORT=\"%(ENV_CODX_JUNIOR_NOVNC_PORT)s\"\
     ,\n+            CODX_JUNIOR_API_PORT=\"%(ENV_CODX_JUNIOR_API_PORT)s\",\n+    \
-    \        WEB_PORT=\"%(ENV_CODX_JUNIOR_WEB_PORT)s\",\n+            CODX_JUNIOR_GLOBAL_SETTINGS_PATH=\"\
+    \        WEB_PORT=\"%(ENV_CODX_JUNIOR_WEB_PORT)s\",\n+            CODX_JUNIOR_CONFIG_FOLDER=\"\
     %(ENV_CODX_JUNIOR_GLOBAL_SETTINGS_PATH)s\",\n+            CODX_JUNIOR_API_PORT_BACKGROUND=\"\
     %(ENV_CODX_JUNIOR_API_PORT_BACKGROUND)s\"\n+autorestart=true\n+priority=300\n\
     +user=%(ENV_USER)s\n+redirect_stderr=true\n+directory=%(ENV_CODX_JUNIOR_PATH)s\n\
@@ -72657,7 +72657,7 @@ messages:
     +stdout_logfile_backups=7\n+\n+[program:codx-junior-llm-factory]\n+environment=HOME=\"\
     %(ENV_HOME)s\",USER=\"%(ENV_USER)s\",\n+            CODX_JUNIOR_LLMFACTORY_URL=\"\
     %(ENV_CODX_JUNIOR_LLMFACTORY_URL)s\",\n+            CODX_JUNIOR_API_PORT=\"%(ENV_CODX_JUNIOR_API_PORT)s\"\
-    ,\n+            CODX_JUNIOR_GLOBAL_SETTINGS_PATH=\"%(ENV_CODX_JUNIOR_GLOBAL_SETTINGS_PATH)s\"\
+    ,\n+            CODX_JUNIOR_CONFIG_FOLDER=\"%(ENV_CODX_JUNIOR_GLOBAL_SETTINGS_PATH)s\"\
     ,\n+            CODX_JUNIOR_API_PORT_BACKGROUND=\"%(ENV_CODX_JUNIOR_API_PORT_BACKGROUND)s\"\
     \n+autorestart=true\n+priority=300\n+user=%(ENV_USER)s\n+redirect_stderr=true\n\
     +directory=%(ENV_CODX_JUNIOR_PATH)s\n+command=bash %(ENV_CODX_JUNIOR_PATH)s/scripts/run_api_background.sh\n\

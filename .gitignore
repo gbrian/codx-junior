@@ -21,8 +21,10 @@ client/public/wiki
 *.wal
 *.lock
 docs/.vitepress/.temp
+acme.json
+
 
 # Default workspace
 ## webtop's /config folder in Desktop workspace 
-codx-junior-installer/codx-junior/workspaces/default/config
-
+codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-default/config
+codx-junior-installer/codx-junior-dind/images

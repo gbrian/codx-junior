@@ -1,0 +1,57 @@
+services:
+  codx-junior-default:
+    #####################################################################################
+    ## 
+    ## NOTE: codx-junior-auth@file
+    ## 
+    ## Use codx-junior-auth middleware to secure the workspace endpoints
+    #####################################################################################
+    image: codxjunior/codx-junior-default-workspace:latest
+    container_name: codx-junior-default-workspace
+    restart: unless-stopped
+    volumes:
+      - /codx-junior:/codx-junior
+      # Projects volume mapping
+      - codx-junior-projects:/home/projects
+      # - /custom/project/path:/custom/project/path 
+      # coder config
+      - ./coder:/coder
+      - ./config:/config
+      - ./coder/coder-init.sh:/custom-services.d/coder-init.sh
+      # Access docker
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - ./.workspace.env
+    environment:
+      - PUID=${USER_ID:-1001}
+      - PGID=${GROUP_ID:-1001}
+      - CODE_SERVER_PORT=${CODE_SERVER_PORT:-9080}
+    labels:
+      - traefik.enable=true
+      # Base image standard port 3000
+      - traefik.http.routers.codx-junior-default-workspace-webtop-router.rule=PathPrefix(`/workspace-default/preview`)
+      - traefik.http.routers.codx-junior-default-workspace-webtop-router.service=codx-junior-default-workspace-webtop-service
+      - traefik.http.services.codx-junior-default-workspace-webtop-service.loadbalancer.server.port=3000
+      - traefik.http.middlewares.codx-junior-default-workspace-webtop-path.replacepathregex.regex=^/workspace-default/preview/(.*)
+      - traefik.http.middlewares.codx-junior-default-workspace-webtop-path.replacepathregex.replacement=/$$1
+      - traefik.http.middlewares.codx-junior-auth.forwardAuth.address=http://codx-junior-api:19980/api/forward-auth
+      - traefik.http.routers.codx-junior-default-workspace-webtop-router.middlewares=codx-junior-default-workspace-webtop-path,codx-junior-auth
+      
+      # coder port ${CODE_SERVER_PORT}
+      - traefik.http.routers.codx-junior-default-workspace-coder-router.rule=PathPrefix(`/workspace-default/coder`)
+      - traefik.http.routers.codx-junior-default-workspace-coder-router.service=codx-junior-default-workspace-coder-service
+      - traefik.http.services.codx-junior-default-workspace-coder-service.loadbalancer.server.port=${CODE_SERVER_PORT:-9080}
+      - traefik.http.middlewares.codx-junior-default-workspace-coder-path.replacepathregex.regex=^/workspace-default/coder/(.*)
+      - traefik.http.middlewares.codx-junior-default-workspace-coder-path.replacepathregex.replacement=/$$1
+      - traefik.http.routers.codx-junior-default-workspace-coder-router.middlewares=codx-junior-default-workspace-coder-path,codx-junior-auth
+    networks:
+      - codx-junior
+
+volumes:
+  codx-junior-projects:
+    external: true
+
+networks:
+  codx-junior:
+    name: codx-junior_default
+    external: true

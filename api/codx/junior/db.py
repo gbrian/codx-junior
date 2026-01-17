@@ -5,7 +5,6 @@ import uuid
 from slugify import slugify
 
 from codx.junior.settings import CODXJuniorSettings
-from tinydb import TinyDB, Query, where
 
 from pydantic import BaseModel, Field
 from typing import Optional, List

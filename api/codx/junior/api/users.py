@@ -1,6 +1,6 @@
 import logging
 import datetime
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Response, Depends
 import httpx
 
 from codx.junior.engine import (
@@ -16,6 +16,15 @@ from codx.junior.settings import get_oauth_provider
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get("/forward-auth")
+async def proxy_forward_auth(request: Request):
+    logger.info("[proxy_forward_auth] headers: %s", request.headers)
+    cookies = request.headers.get("cookie", "").split(":")[-1].split(";")
+    logger.info("[proxy_forward_auth] cookies: %s", cookies)
+    
+    return "ok"
 
 @router.get("/users/oauth-login-url/{oauth_provider}")
 async def get_oauth_login_url(oauth_provider: str, request: Request):
@@ -64,7 +73,7 @@ async def oauth_login(request: Request):
     return {"error": "OAuth login failed"}
 
 @router.post("/users/login")
-async def user_login(request: Request):
+async def user_login(request: Request, response: Response):
     body = await request.json()
     oauth_provider = body.get("oauth_provider")
     if oauth_provider:
@@ -76,7 +85,9 @@ async def user_login(request: Request):
     user = get_authenticated_user(request=request)
     logger.info(f"user_login user: {user} - body: {login_user}")
     if user:
+        response.set_cookie(key="codx-session", value=user.token)
         return user
+    response.set_cookie(key="codx-session", value="")
     return UserSecurityManager().login_user(user=login_user)
 
 @router.put("/users")

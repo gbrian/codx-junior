@@ -29029,7 +29029,7 @@ index f507cde..34cb902 100644
  GLOBAL_SETTINGS = None
 -
 +HOME=os.environ.get("HOME")
-+GLOBAL_SETTINGS_PATH=os.environ.get("CODX_JUNIOR_GLOBAL_SETTINGS_PATH", None) or f"{HOME}/global_settings.json"
++GLOBAL_SETTINGS_PATH=os.environ.get("CODX_JUNIOR_CONFIG_FOLDER", None) or f"{HOME}/global_settings.json"
 +
 +logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
 +
@@ -143283,7 +143283,7 @@ index 0000000..6c342e0
 +    privileged: true
 +    environment:
 +      # Settings file
-+      - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/.global_settings.json
++      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior/.global_settings.json
 +      # LLM Settings (Use any OpenAI compatible)
 +      - CODX_JUNIOR_LLMFACTORY_API=https://api.openai.com/v1
 +      - CODX_JUNIOR_LLMFACTORY_KEY=sk-********
@@ -143826,7 +143826,7 @@ index 0000000..3365391
 +    privileged: true
 +    environment:
 +      # Settings file
-+      - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/.global_settings.json
++      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior/.global_settings.json
 +      # LLM Settings (Use any OpenAI compatible)
 +      - CODX_JUNIOR_LLMFACTORY_API=https://api.openai.com/v1
 +      - CODX_JUNIOR_LLMFACTORY_KEY=sk-********
@@ -149362,7 +149362,7 @@ index 0000000..29373fa
 +export CODX_JUNIOR_APPS=${CODX_JUNIOR_APPS:-"client api llm-factory docker"}
 +
 +#Global settings path
-+export CODX_JUNIOR_GLOBAL_SETTINGS_PATH=${CODX_JUNIOR_GLOBAL_SETTINGS_PATH}
++export CODX_JUNIOR_CONFIG_FOLDER=${CODX_JUNIOR_CONFIG_FOLDER}
 +
 +### OLLAMA
 +export CODX_JUNIOR_EMBEDDINGS_MODEL=nomic-embed-text
@@ -149389,7 +149389,7 @@ index 0000000..0940f54
 +            CODX_JUNIOR_NOVNC_PORT="%(ENV_CODX_JUNIOR_NOVNC_PORT)s",
 +            CODX_JUNIOR_API_PORT="%(ENV_CODX_JUNIOR_API_PORT)s",
 +            WEB_PORT="%(ENV_CODX_JUNIOR_WEB_PORT)s",
-+            CODX_JUNIOR_GLOBAL_SETTINGS_PATH="%(ENV_CODX_JUNIOR_GLOBAL_SETTINGS_PATH)s",
++            CODX_JUNIOR_CONFIG_FOLDER="%(ENV_CODX_JUNIOR_GLOBAL_SETTINGS_PATH)s",
 +            CODX_JUNIOR_API_PORT_BACKGROUND="%(ENV_CODX_JUNIOR_API_PORT_BACKGROUND)s"
 +autorestart=true
 +priority=300
@@ -149624,7 +149624,7 @@ index 0000000..9f8d5d8
 +environment=HOME="%(ENV_HOME)s",USER="%(ENV_USER)s",
 +            CODX_JUNIOR_LLMFACTORY_URL="%(ENV_CODX_JUNIOR_LLMFACTORY_URL)s",
 +            CODX_JUNIOR_API_PORT="%(ENV_CODX_JUNIOR_API_PORT)s",
-+            CODX_JUNIOR_GLOBAL_SETTINGS_PATH="%(ENV_CODX_JUNIOR_GLOBAL_SETTINGS_PATH)s",
++            CODX_JUNIOR_CONFIG_FOLDER="%(ENV_CODX_JUNIOR_GLOBAL_SETTINGS_PATH)s",
 +            CODX_JUNIOR_API_PORT_BACKGROUND="%(ENV_CODX_JUNIOR_API_PORT_BACKGROUND)s"
 +autorestart=true
 +priority=300

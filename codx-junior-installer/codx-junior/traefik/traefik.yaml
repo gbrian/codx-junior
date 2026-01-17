@@ -1,8 +1,16 @@
 entrypoints:
   web:
     address: :80
+    observability:
+      accessLogs: false
+      metrics: true
+      tracing: true
   websecure:
     address: :443
+    observability:
+      accessLogs: false
+      metrics: true
+      tracing: true
 
 api:
   dashboard: true
@@ -15,6 +23,10 @@ log:
 accessLog:
   addInternals: true
   format: json
+  fields:
+    headers:
+      defaultMode: keep
+
 
 providers:
   file:
@@ -22,3 +34,15 @@ providers:
     watch: true
   docker: {}
       
+certificatesResolvers:
+  sslresolver:
+    acme:
+      storage: "/config/letsencrypt/acme.json"
+      httpChallenge:
+        entryPoint: web
+
+http:
+  middlewares:
+    codx-junior-auth:
+      forwardAuth:
+        address: "http://codx-junior-api:19980/forward-auth"

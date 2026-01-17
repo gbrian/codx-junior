@@ -1,7 +1,8 @@
-echo "Build codx-junior docker"
+echo "Build codx-junior:latest"
+CWD=$PWD
+cd codx-junior-installer/codx-junior
 
-if [ "$1" == "base" ]; then
-    docker build -t codx-junior:base --target base .
-else
-    docker build -t codx-junior:latest .
-fi
+docker-compose build codx-junior-debian-image 
+docker-compose build codx-junior-api-image codx-junior-image
+
+cd $CWD

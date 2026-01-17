@@ -9,6 +9,7 @@ dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &
 # 2. Wait for Docker to be ready
 echo "[init] Waiting for Docker daemon to start..."
 until docker info >/dev/null 2>&1; do
+  tail -n 1 /var/log/dockerd.log
   sleep 1
 done
 echo "[init] Docker daemon is up and running."
@@ -27,4 +28,5 @@ fi
 # 4. Keep the container alive by tailing the daemon logs
 # This ensures the container stays running after scripts finish
 echo "[init] Custom initialization complete. Tailing logs..."
-tail -f /var/log/dockerd.log
+cd /codx-junior/codx-junior-installer/codx-junior
+docker-compose logs --tail=0 --follow

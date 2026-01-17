@@ -67,7 +67,6 @@ import AppIcon from '../apps/AppIcon.vue';
               <label class="label">
                 <span class="label-text">Apps</span>
               </label>
-              @codx-ok, please-wait...: Use a table to show all apps
               <div v-for="(app, index) in selectedWorkspace.apps" :key="index" class="flex gap-2 justify-between items-center mt-2">
                 <AppIcon :app="app" />
                 <input v-model="app.icon" placeholder="App Icon" class="input input-bordered w-36" />

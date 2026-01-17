@@ -62,7 +62,7 @@ messages:
     \    ProjectScript,\n    AISettings,\n    AIModel,\n    AIProvider,\n    AILLMModelSettings,\n\
     \    AIModelType\n)\n\nlogger = logging.getLogger(__name__)\n\nROOT_PATH = os.path.dirname(__file__)\n\
     GLOBAL_SETTINGS = None\nHOME=os.environ.get(\"HOME\")\nGLOBAL_SETTINGS_PATH=os.environ.get(\"\
-    CODX_JUNIOR_GLOBAL_SETTINGS_PATH\", None) or f\"{HOME}/global_settings.json\"\n\
+    CODX_JUNIOR_CONFIG_FOLDER\", None) or f\"{HOME}/global_settings.json\"\n\
     \ndef backup_up_global_settings():\n    backup_dir = os.path.join(os.path.dirname(GLOBAL_SETTINGS_PATH),\
     \ \"codx-junior-backup\")\n    os.makedirs(backup_dir, exist_ok=True)\n    \n\
     \    # Create a backup file name with the current date and time\n    timestamp\

@@ -14,11 +14,11 @@ bash "${CODX_JUNIOR_PATH}/scripts/logo.sh"
 function kill_pid() {
   if [ "$1" != "" ]; then
     echo "Stopping pid: $1"
-    sudo kill $1
+    kill $1
     ps --pid "$1" > /dev/null
     if [ "$?" -eq 0 ]; then
         echo "Forcing kill $1."
-        sudo kill -9 $1
+        kill -9 $1
     fi
   fi
 }
@@ -135,7 +135,7 @@ function run_supervisor {
     kill_apps
     if [ "$(id -u)" != "0" ]; then
       echo "Switching supervisor to root"
-      sudo USER=$USER HOME=$HOME bash ${CODX_JUNIOR_PATH}/codx-junior supervisor
+      USER=$USER HOME=$HOME bash ${CODX_JUNIOR_PATH}/codx-junior supervisor
     else
       echo "Running supervisor $USER - $HOME - CODX_JUNIOR_PATH: $CODX_JUNIOR_PATH"
 

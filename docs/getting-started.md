@@ -43,7 +43,7 @@ services:
     privileged: true
     environment:
       # Settings file
-      - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/.global_settings.json
+      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior/.global_settings.json
       # LLM Settings (Use any OpenAI compatible)
       - CODX_JUNIOR_LLMFACTORY_API=https://api.openai.com/v1
       - CODX_JUNIOR_LLMFACTORY_KEY=sk-********

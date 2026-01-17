@@ -64,7 +64,7 @@ messages:
     \      - codx-junior-demo\n      \n  codx-junior-demo:\n    container_name: codx-junior-demo\n\
     \    image: codx-junior:latest\n    shm_size: 4gb\n    restart: unless-stopped\n\
     \    environment:\n      - DEBUG=0\n      - ANONYMIZED_TELEMETRY=False\n     \
-    \ - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/global_settings.json\n\
+    \ - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior/global_settings.json\n\
     \      - CODX_JUNIOR_MILVUS_UI_URL=http://milvus:9091\n      - CODX_JUNIOR_MILVUS_URL=http://milvus:19530\n\
     \    volumes:\n      - /shared/codx-junior-demo/projects:/codx-junior-demo\n \
     \     - /shared/codx-junior-demo/demo_global_settings.json:/home/codx-junior/.codx-junior/global_settings.json\n\
@@ -171,7 +171,7 @@ messages:
     \      - codx-junior-demo\n      \n  codx-junior-demo:\n    container_name: codx-junior-demo\n\
     \    image: codx-junior:latest\n    shm_size: 4gb\n    restart: unless-stopped\n\
     \    environment:\n      - DEBUG=0\n      - ANONYMIZED_TELEMETRY=False\n     \
-    \ - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/global_settings.json\n\
+    \ - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior/global_settings.json\n\
     \      - CODX_JUNIOR_MILVUS_UI_URL=http://milvus:9091\n      - CODX_JUNIOR_MILVUS_URL=http://milvus:19530\n\
     \    volumes:\n      - /shared/codx-junior-demo/projects:/codx-junior-demo\n \
     \     - /shared/codx-junior-demo/demo_global_settings.json:/home/codx-junior/.codx-junior/global_settings.json\n\
@@ -291,7 +291,7 @@ messages:
     \      - codx-junior-demo\n      \n  codx-junior-demo:\n    container_name: codx-junior-demo\n\
     \    image: codx-junior:latest\n    shm_size: 4gb\n    restart: unless-stopped\n\
     \    environment:\n      - DEBUG=0\n      - ANONYMIZED_TELEMETRY=False\n     \
-    \ - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/global_settings.json\n\
+    \ - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior/global_settings.json\n\
     \      - CODX_JUNIOR_MILVUS_UI_URL=http://milvus:9091\n      - CODX_JUNIOR_MILVUS_URL=http://milvus:19530\n\
     \    volumes:\n      - /shared/codx-junior-demo/projects:/codx-junior-demo\n \
     \     - /shared/codx-junior-demo/demo_global_settings.json:/home/codx-junior/.codx-junior/global_settings.json\n\

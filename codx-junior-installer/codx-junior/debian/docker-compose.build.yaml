@@ -1,9 +1,0 @@
-services:
-  codx-junior-debian:
-    image: codx-junior:debian
-    build:
-      dockerfile: ./codx-junior-installer/codx-junior/debian/Dockerfile.debian
-      context: ../../.. # codx-junior base
-      args:
-        - USER_UID=1001
-        - GROUP_UID=1001

@@ -42,4 +42,8 @@ ENV CODX_JUNIOR_PATH=${HOME}/codx-junior
 
 RUN bash scripts/install_base.sh
 
+# Install codx-cli
+RUN curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s
+
+
 

@@ -266,25 +266,26 @@ class OAuthProvider(BaseModel):
 
 
 DEFAULT_WORKSPACE = Workspace(**{
-  "name": "codx-junior",
-  "description": "Default codx-junior workspace",
-  "apps": [
-    { 
-      "icon": "fa-solid fa-code",
-      "name": "Coder",
-      "description": "Coder coding environment",
-      "path": "/coder",
-      "roles": ["admin"]
-    },
-    { 
-      "icon": "fa-solid fa-desktop",
-      "name": "Desktop",
-      "description": "Virtual desktop",
-      "path": "/preview",
-      "roles": ["admin"]
-    }
-  ],
-  "project_ids": ["*"]
+    "name": "codx-junior",
+    "description": "Default codx-junior workspace",
+    "file_path": "codx-junior-workspace-default",
+    "apps": [
+        { 
+        "icon": "fa-solid fa-code",
+        "name": "Coder",
+        "description": "Coder coding environment",
+        "path": "/coder",
+        "roles": ["admin"]
+        },
+        { 
+        "icon": "fa-solid fa-desktop",
+        "name": "Desktop",
+        "description": "Virtual desktop",
+        "path": "/preview",
+        "roles": ["admin"]
+        },
+    ],
+    "project_ids": ["*"]
 })
 
 class GlobalSettings(BaseModel):

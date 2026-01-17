@@ -22,10 +22,3 @@ echo "Starting installation..."
 # Configure Git
 echo "Configuring Git..."
 git config --global --add safe.directory '*'
-
-# Create necessary directories
-echo "Creating necessary directories..."
-sudo mkdir -p "${CODX_SUPERVISOR_LOG_FOLDER}"
-
-# Install codx-cli
-curl -sL "https://raw.githubusercontent.com/gbrian/codx-cli/main/codx.sh" | bash -s

@@ -79,6 +79,7 @@ services:
         - CMD-SHELL
         - python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/liveliness')"  # Command to execute for health check
       interval: 30s  # Perform health check every 30 seconds
+      
       timeout: 10s   # Health check command times out after 10 seconds
       retries: 3     # Retry up to 3 times if health check fails
       start_period: 40s  # Wait 40 seconds after container start before beginning health checks
@@ -120,18 +121,19 @@ services:
   codx-junior-api:
     depends_on:
       - milvus
+      - litellm
     # Build image first (see build.sh)
     container_name: codx-junior-api
-    image: codx-junior:api
+    image: codxjunior/codx-junior:api
     shm_size: 4gb
     restart: unless-stopped
     env_file:
       - .env # Load local .env file
     user: "1001:1001"
     environment:
-      - DEBUG=0
+      - DEBUG=1
       - ANONYMIZED_TELEMETRY=False
-      - CODX_JUNIOR_GLOBAL_SETTINGS_PATH=/home/codx-junior/.codx-junior/global_settings.json
+      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior
       - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
       - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
     volumes:
@@ -151,14 +153,11 @@ services:
       - traefik.enable=true
       - traefik.http.routers.codx-junior-api.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/api`)
       - traefik.http.routers.codx-junior-api.service=codx-junior-api-service
-      - traefik.http.routers.codx-junior-api.tls.certresolver=myresolver
       - traefik.http.services.codx-junior-api-service.loadbalancer.server.port=19980
       
   codx-junior-client:
-    depends_on:
-      - codx-junior-api
     container_name: codx-junior-client
-    image: codx-junior:client
+    image: codxjunior/codx-junior:client
     restart: unless-stopped
     env_file:
       - .env # Load local .env file
@@ -172,10 +171,8 @@ services:
     labels:
       # Web
       - traefik.enable=true
-      - traefik.docker.network=codx-junior_default
       - traefik.http.routers.codx-junior.rule=Host(`${CODX_JUNIOR_DOMAIN}`)
       - traefik.http.routers.codx-junior.service=codx-junior-service
-      - traefik.http.routers.codx-junior.tls.certresolver=myresolver
       - traefik.http.services.codx-junior-service.loadbalancer.server.port=19981
   
   ###################################################################
@@ -189,12 +186,10 @@ services:
     restart: unless-stopped
     env_file:
       - .env # Load local .env file
+    environment:
+      - TRAEFIK_CERTIFICATESRESOLVERS_SSLRESOLVER_ACME_EMAIL=${ACME_EMAIL:-your-ssl@email.here}
     command:
       - "--configFile=/config/traefik.yaml"
-      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
-      - "--certificatesresolvers.myresolver.acme.storage=/config/acme.json"
-      # used during the challenge
-      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
     ports:
       - "80:80"
       - "443:443"
@@ -206,7 +201,6 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=PathPrefix(`/traefik-dashboard`)"
       - "traefik.http.routers.dashboard.entrypoints=web,websecure"
-
 
 volumes:
   prometheus_demo_data:

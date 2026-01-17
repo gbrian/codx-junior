@@ -321,7 +321,7 @@ messages:
     import (\n  write_file,\n  exec_command\n)\nfrom codx.junior.model.model import
     (\n    GlobalSettings,\n    ProjectScript,\n    AISettings,\n    AIModel,\n    AIProvider,\n    AILLMModelSettings,\n    AIModelType\n)\n\nlogger
     = logging.getLogger(__name__)\n\nROOT_PATH = os.path.dirname(__file__)\nGLOBAL_SETTINGS
-    = None\nHOME=os.environ.get(\"HOME\")\nGLOBAL_SETTINGS_PATH=os.environ.get(\"CODX_JUNIOR_GLOBAL_SETTINGS_PATH\",
+    = None\nHOME=os.environ.get(\"HOME\")\nGLOBAL_SETTINGS_PATH=os.environ.get(\"CODX_JUNIOR_CONFIG_FOLDER\",
     None) or f\"{HOME}/global_settings.json\"\n\n# logger.info(f\"GLOBAL_SETTINGS_PATH
     is: {GLOBAL_SETTINGS_PATH}\")\n\nCODX_JUNIOR_SETTINGS_COMPUTED_PROPERTIES = [\"codx_path\",
     \"metrics\", \"users\", \"is_git_root\"]\n\ndef get_provider_settings(ai_provider:

@@ -38,10 +38,10 @@ export CODX_SUPERVISOR_LOG_FOLDER=/var/log/codx-junior-supervisor
 export CODX_JUNIOR_APPS=${CODX_JUNIOR_APPS:-"client api"}
 
 #Global settings path
-export CODX_JUNIOR_GLOBAL_SETTINGS_PATH=${CODX_JUNIOR_GLOBAL_SETTINGS_PATH:-/home/codx-junior/codx-junior-global-settings.json}
+export CODX_JUNIOR_CONFIG_FOLDER=${CODX_JUNIOR_CONFIG_FOLDER:-/home/codx-junior/codx-junior-global-settings.json}
 
-### OLLAMA
-export CODX_JUNIOR_EMBEDDINGS_MODEL=nomic-embed-text
+# Workspaces
+export CODX_JUNIOR_WORKSPACES_FOLDER=${CODX_JUNIOR_CONFIG_FOLDER}/workspaces
 
 # Miscellaneous
 export DEBIAN_FRONTEND=noninteractive

@@ -24,8 +24,8 @@ if [ "$USER_ID" != "" ];then
     groupmod -g $USER_GROUP codx-junior
   fi
   
-  sudo chown -R codx-junior $HOME
-  sudo chown -R codx-junior $CODX_JUNIOR_API_VENV
+  chown -R codx-junior $HOME
+  chown -R codx-junior $CODX_JUNIOR_API_VENV
 fi
 
 

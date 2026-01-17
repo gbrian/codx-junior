@@ -1,9 +1,8 @@
 ##################################################
 ## codx-junior:api
 ##################################################
-FROM codx-junior:debian
+FROM codx-junior/codx-junior:debian
 
-USER ${USER}
 WORKDIR ${HOME}/codx-junior
 
 COPY --chown=${USER} api ./api

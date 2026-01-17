@@ -1,7 +1,4 @@
-import ollama
 import logging
-
-from ollama import Client
 
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.ai_logger import AILogger
@@ -17,9 +14,9 @@ class OllamaAI:
     def __init__(self, ai_settings: AISettings):
         self.ai_settings = ai_settings
         self.host = self.ai_settings.api_url.replace("/v1", "")
-        self.client = Client(
-          host=self.host
-        )
+        # self.client = Client(
+        #   host=self.host
+        # )
 
     def log(self, msg):
         logger.info(msg)
