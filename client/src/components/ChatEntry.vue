@@ -56,7 +56,7 @@ import UserSelector from './chat/UserSelector.vue'
               <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
                   <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Thread" 
-                    @click="$emit('subtask', message)"
+                    @click="$emit('thread', message)"
                     v-if="!editting"
                   >
                     <i class="fa-solid fa-comment-dots"></i>

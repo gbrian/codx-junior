@@ -151,7 +151,7 @@ class Knowledge:
             **next(extract_json_blocks(messages[-1].content))
           }
         except Exception as ex:
-          logger.info(f"Error enriching document {source}: {ex}")
+          logger.error(f"Error enriching document {source}: {ex}")
           doc.metadata["error"] = doc.metadata.get("error", []) + [str(ex)]
 
       if self.settings.knowledge_generate_training_dataset:

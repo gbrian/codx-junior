@@ -11,7 +11,7 @@ import { ComboboxAnchor, ComboboxContent, ComboboxEmpty, ComboboxGroup, Combobox
     <div class="mt-1 ml-1 flex items-center input input-sm input-bordered">
       <ComboboxAnchor class="grow">
         <ComboboxInput
-          class="h-full"
+          class="h-full w-full"
           placeholder="Search..."
           ref="input"
           @input="onInput"

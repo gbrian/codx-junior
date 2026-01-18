@@ -110,6 +110,7 @@ def check_projects() -> None:
         try:
             session = ChangeManager(settings=project)
             #if not session.settings.metrics:
+            logger.info(">>>>> Checking project: %s", project.project_name)
             await session.process_project_changes()
             update_quarantine_status(project.project_name, success=True)
         except Exception as ex:

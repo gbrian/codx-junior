@@ -18,7 +18,9 @@ export default {
   },
   methods: {
     onSearch(query) {
-      this.results = this.project?.$state.searchMentions(query, 20)
+      this.results = this.project?.$state.searchMentions(query, 20).concat(
+        this.project.$state.mentions?.find(m => m.searchIndex.includes(query.toLowerCase()))
+      )
     }
   }
 }

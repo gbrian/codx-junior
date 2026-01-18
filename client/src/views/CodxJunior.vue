@@ -14,7 +14,7 @@ import ProjectInlineNavigatorVue from '../components/project/ProjectInlineNaviga
     :class="(!$ui.isMobile && !$ui.activeApp) && 'max-w-[1600px]'"
   v-else>
     <div class="grow flex flex-col relative overflow-auto bg-base-300">
-      <ProjectInlineNavigatorVue />
+      <ProjectInlineNavigatorVue class="shrink-0" />
       <div class="grow overflow-auto">
         <TabViewVue  :key="projectKey" />
       </div>
