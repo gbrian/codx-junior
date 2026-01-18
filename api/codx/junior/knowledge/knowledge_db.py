@@ -27,22 +27,26 @@ CODX_JUNIOR_MILVUS_URL = os.environ.get("CODX_JUNIOR_MILVUS_URL", "http://milvus
 
 logger = logging.getLogger(__name__)
 
-MILVUS = {
-  "client": MilvusClient(
-                uri=CODX_JUNIOR_MILVUS_URL,
-                token="root:Milvus"
-            )
-}
+
 def connect_milvus_client():
-    MILVUS["client"] = MilvusClient(
-                    uri=CODX_JUNIOR_MILVUS_URL,
-                    token="root:Milvus"
-                )
+    try:
+        MILVUS["client"] = MilvusClient(
+                        uri=CODX_JUNIOR_MILVUS_URL,
+                        token="root:Milvus"
+                    )
+        return MILVUS["client"]
+    except Exception as ex:
+        logger.exception("Milvus not ready", ex)
+    return None
+
+MILVUS = {}
+connect_milvus_client()
 
 def get_milvus_client():
-    client = MILVUS["client"]
+    client = MILVUS.get("client")
     if not client:
-        connect_milvus_client()
+        if not connect_milvus_client():
+            raise Exception("Couldn't connect to MILVUS server, check logs.")
     try:
         client.list_databases()
         return client

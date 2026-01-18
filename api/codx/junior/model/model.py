@@ -218,7 +218,7 @@ class AISettings(BaseModel):
     
 OLLAMA_PROVIDER = AIProvider(name="llmfactory",
                             provider="llmfactory",
-                            api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_API'),
+                            api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_URL'),
                             api_key=os.environ.get('CODX_JUNIOR_LLMFACTORY_KEY'))
 
 OLLAMA_EMBEDDINGS_MODEL = AIModel(name="embeddings",
@@ -274,14 +274,21 @@ DEFAULT_WORKSPACE = Workspace(**{
         "icon": "fa-solid fa-code",
         "name": "Coder",
         "description": "Coder coding environment",
-        "path": "/coder",
+        "path": "/workspace-default/coder/",
         "roles": ["admin"]
         },
         { 
         "icon": "fa-solid fa-desktop",
         "name": "Desktop",
         "description": "Virtual desktop",
-        "path": "/preview",
+        "path": "/workspace-default/preview/index.html",
+        "roles": ["admin"]
+        },
+        { 
+        "icon": "https://framerusercontent.com/images/GtfMdzyrMj6FQY6lGLqI6bh2LYM.png",
+        "name": "LiteLLM",
+        "description": "LiteLLM Models manager",
+        "path": "/litellm/ui",
         "roles": ["admin"]
         },
     ],

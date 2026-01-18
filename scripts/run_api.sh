@@ -32,6 +32,7 @@ if [ "$CODX_JUNIOR_API_BACKGROUND" != "" ]; then
 fi
 
 sudo chown -R $USER ${CODX_JUNIOR_CONFIG_FOLDER}
+sudo chown -R $USER ${CODX_JUNIOR_PROJECTS_PATH}
 
 if [ "$DEBUG" == "" ]; then
   uvicorn codx.junior.main:app --workers ${WEB_CONCURRENCY:-4} --host 0.0.0.0 --port $API_PORT

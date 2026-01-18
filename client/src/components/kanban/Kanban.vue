@@ -460,7 +460,7 @@ export default {
       return this.boards[this.activeBoard?.parent_id]
     },
     boards() {
-      const { kanban: { boards }, chats } = this
+      const { kanban: { boards = {} } = {}, chats = [] } = this
       return [
         ...Object.keys(boards).map(board => ({
           ...boards[board],

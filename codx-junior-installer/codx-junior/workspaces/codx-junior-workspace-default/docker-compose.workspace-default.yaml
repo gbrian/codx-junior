@@ -34,7 +34,6 @@ services:
       - traefik.http.services.codx-junior-default-workspace-webtop-service.loadbalancer.server.port=3000
       - traefik.http.middlewares.codx-junior-default-workspace-webtop-path.replacepathregex.regex=^/workspace-default/preview/(.*)
       - traefik.http.middlewares.codx-junior-default-workspace-webtop-path.replacepathregex.replacement=/$$1
-      - traefik.http.middlewares.codx-junior-auth.forwardAuth.address=http://codx-junior-api:19980/api/forward-auth
       - traefik.http.routers.codx-junior-default-workspace-webtop-router.middlewares=codx-junior-default-workspace-webtop-path,codx-junior-auth
       
       # coder port ${CODE_SERVER_PORT}

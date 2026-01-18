@@ -59,10 +59,10 @@ services:
     container_name: litellm-codx-junior
     #########################################
     ## Uncomment these lines to start proxy with a config.yaml file ##
-    # volumes:
-    #  - ./config.yaml:/app/config.yaml
-    # command:
-    #  - "--config=/app/config.yaml"
+    volumes:
+      - ./litellm/config.yaml:/app/config.yaml
+    command:
+      - "--config=/app/config.yaml"
     ##############################################
     # ports:
     #   - "4000:4000" # Map the container port to the host, change the host port if necessary
@@ -70,6 +70,9 @@ services:
       DATABASE_URL: "postgresql://llmproxy:dbpassword9090@db:5432/litellm"
       STORE_MODEL_IN_DB: "True" # allows adding models to proxy via UI
       OLLAMA_API_BASE: "http://ollama-codx-junior:11434/"
+      PROXY_BASE_URL: https://${CODX_JUNIOR_DOMAIN}/litellm
+      LITELLM_BASE_URL: https://${CODX_JUNIOR_DOMAIN}/litellm
+      SERVER_ROOT_PATH: /litellm
     env_file:
       - .env # Load local .env file
     depends_on:
@@ -84,6 +87,17 @@ services:
       retries: 3     # Retry up to 3 times if health check fails
       start_period: 40s  # Wait 40 seconds after container start before beginning health checks
     restart: unless-stopped
+    labels:
+      # Api
+      - traefik.enable=true
+      - traefik.http.routers.codx-junior-litellm.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/litellm`)
+      - traefik.http.routers.codx-junior-litellm.service=codx-junior-litellm-service
+      - traefik.http.services.codx-junior-litellm-service.loadbalancer.server.port=4000
+      - traefik.http.middlewares.codx-junior-litellm-path.replacepathregex.regex=^/litellm/(.*)
+      - traefik.http.middlewares.codx-junior-litellm-path.replacepathregex.replacement=/$$1
+      - traefik.http.routers.codx-junior-litellm.middlewares=codx-junior-auth
+      
+
 
   db:
     image: postgres:16
@@ -154,6 +168,7 @@ services:
       - traefik.http.routers.codx-junior-api.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/api`)
       - traefik.http.routers.codx-junior-api.service=codx-junior-api-service
       - traefik.http.services.codx-junior-api-service.loadbalancer.server.port=19980
+      - traefik.http.middlewares.codx-junior-auth.forwardAuth.address=http://codx-junior-api:19980/api/forward-auth
       
   codx-junior-client:
     container_name: codx-junior-client
@@ -202,12 +217,22 @@ services:
       - "traefik.http.routers.dashboard.rule=PathPrefix(`/traefik-dashboard`)"
       - "traefik.http.routers.dashboard.entrypoints=web,websecure"
 
+  codx-junior-init:
+    depends_on:
+      - ollama
+    image: codxjunior/codx-junior:debian # reuse existing image
+    volumes:
+      - ./initial-setup.sh:/initial-setup.sh
+    command: bash /initial-setup.sh
+
+
 volumes:
   prometheus_demo_data:
-    name: litellm_prometheus_data # Logs data
+    name: codx-junior-litellm_prometheus_data # Logs data
   postgres_demo_data:
-    name: litellm_postgres_data # LITELLM: Named volume for Postgres data persistence
+    name: codx-junior-litellm_postgres_data # LITELLM: Named volume for Postgres data persistence
   milvus_data: # MILVUS data
+    name: codx-junior-milvus_data
   codx-junior:
     name: codx-junior
   codx-junior-projects:

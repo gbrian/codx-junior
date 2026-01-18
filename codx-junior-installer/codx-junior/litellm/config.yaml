@@ -1,0 +1,24 @@
+model_list:
+  - model_name: ollama/gemma3                 # Name used in your API calls
+    litellm_params:
+      model: ollama/gemma3            # Provider/model identifier
+      api_base: http://ollama-codx-junior:11434
+    
+  - model_name: ollama/phi4
+    litellm_params:
+      model: ollama/phi4
+      api_base: http://ollama-codx-junior:11434
+
+litellm_settings:
+  # Enable JSON formatting for console logs
+  json_logs: true 
+  # Ensure message logging is NOT turned off
+  turn_off_message_logging: false 
+
+general_settings:
+  # Required to see prompt/response content in the LiteLLM UI/DB logs
+  store_prompts_in_spend_logs: true 
+  # Ensure models and their metadata are tracked
+  store_model_in_db: true 
+
+  master_key: os.environ/LITELLM_MASTER_KEY ///
