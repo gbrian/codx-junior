@@ -49,7 +49,9 @@ class Knowledge:
 
     def get_ai(self):
         if not self.ai:
-            self.ai = AI(settings=self.settings, user=CodxUser(username=__name__))
+            self.ai = AI(settings=self.settings,
+                        llm_model=self.settings.get_rag_model(),
+                        user=CodxUser(username=__name__))
         return self.ai
 
     def get_db(self):
@@ -149,7 +151,7 @@ class Knowledge:
             **next(extract_json_blocks(messages[-1].content))
           }
         except Exception as ex:
-          logger.info(f"Error enriching document {source}: {ex}")
+          logger.error(f"Error enriching document {source}: {ex}")
           doc.metadata["error"] = doc.metadata.get("error", []) + [str(ex)]
 
       if self.settings.knowledge_generate_training_dataset:

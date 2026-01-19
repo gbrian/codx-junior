@@ -138,7 +138,10 @@ export const mutations = mutationTree(state, {
     state.newProject = show
   },
   showApp(state, app) {
-    state.openApps[app.name] = app
+    state.openApps = {
+      ...state.openApps,
+      [app.name]: app
+    }
     state.activeApp = app
   },
   closeApp(state, app) {
@@ -231,6 +234,17 @@ export const actions = actionTree(
                         items.filter(i => i.types.includes(itemType))
                               .map(i => getText(i)))
       return allTexts.reduce((a, b) => a + b, "")
+    },
+    async shareScreen() {
+      // Note: This requires a user gesture (like a button click)
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        preferCurrentTab: true,
+      });
+      // Crop the stream to a specific element using CropTarget (if supported)
+      const [track] = stream.getVideoTracks();
+      // const cropTarget = await CropTarget.fromElement(document.querySelector(`.app-${encodeURIComponent(app.name)}`));
+      // await track.cropTo(cropTarget);
+      // this.videoThumb = track;
     }
   },
 )

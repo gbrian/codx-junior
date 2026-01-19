@@ -76,7 +76,7 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
               @add-file="onAddFile"
               @edit-message="onEditMessage($event, message)"
               @code-file-shown.stop="console.log"
-              @subtask="$emit('subtask', { chat, message })"
+              @thread="onNewThread"
             />
           </div>
           <div class="anchor" ref="anchor"></div>
@@ -120,7 +120,7 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
         @drop.prevent="onDrop"
         v-if="!isBrowser && readOnly !== true"
         >
-                <ProjectResourcesAutoCompleteVue 
+        <ProjectResourcesAutoCompleteVue 
           class=""
           :project="projectContext"
           @select="onAddDocument"
@@ -1080,6 +1080,10 @@ export default {
     createBlock() {
       const clipboadText = "";
       this.setEditorText(this.editorText + "```\n" + clipboadText + "\n```")
+    },
+    onNewThread(message) {
+      const { chat } = this
+      this.$projects.createNewThread({ chat, message })
     }
   }
 }

@@ -3,6 +3,7 @@ import { API } from '../api/api'
 import TabViewVue from '@/components/TabView.vue'
 import moment from 'moment'
 import { useId } from 'vue';
+import ProjectInlineNavigatorVue from '../components/project/ProjectInlineNavigator.vue';
 </script>
 
 <template>
@@ -13,6 +14,7 @@ import { useId } from 'vue';
     :class="(!$ui.isMobile && !$ui.activeApp) && 'max-w-[1600px]'"
   v-else>
     <div class="grow flex flex-col relative overflow-auto bg-base-300">
+      <ProjectInlineNavigatorVue class="shrink-0" />
       <div class="grow overflow-auto">
         <TabViewVue  :key="projectKey" />
       </div>

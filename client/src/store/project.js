@@ -560,6 +560,34 @@ export const actions = actionTree(
       }
       return chat
     },
+    async createNewThread(_, { chat, mode, message }) {
+      const { files, profiles, doc_id: subtaskMessageId } = message
+      const findChild = $storex.projects.allChats.find(c => c.message_id === subtaskMessageId) 
+
+      if (!findChild) {
+        const boardTitle = chat.board
+        const columnTitle = chat.column
+        await $storex.projects.createNewBoardChat({ boardTitle, columnTitle,
+          chat: {
+            parent: chat,
+            name: `${subtaskMessageId} - thread`,
+            project_id: chat.project_id,
+            parent_id: chat.parent_id,
+            message_id: subtaskMessageId,
+            file_list: files,
+            profiles: profiles,
+            mode,
+            board: chat.board,
+            column: chat.column,
+            activateChat: true,
+            child_index: this.childrenChats?.length,
+            messages: [{ ...message, doc_id: null }]
+          }
+        })
+      } else {
+        this.$projects.setActiveChat(findChild)
+      }
+    },
     async createNewBoardChat({ state }, { boardTitle, columnTitle, chat }) {
       boardTitle = boardTitle || chat.board
       columnTitle = columnTitle || chat.column

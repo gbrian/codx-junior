@@ -9,7 +9,8 @@ from codx.junior.model.model import Profile
 from codx.junior.utils.utils import write_file
 
 from codx.junior.project.project_discover import (
-    find_project_parents
+    find_project_parents,
+    find_all_projects
 )
 
 logger = logging.getLogger(__name__)
@@ -24,9 +25,6 @@ class ProfileManager:
         current_directory = os.path.dirname(current_file_path)
         self.base_profiles_path = f"{current_directory}"
 
-    def get_profiles(self):
-        return self.base_profiles(), self.project_profiles()
-
     def base_profiles(self):
         def _files (file_gen):
             return [str(file) for file in file_gen]
@@ -34,53 +32,39 @@ class ProfileManager:
         base_profiles = _files(pathlib.Path(self.base_profiles_path).rglob("**/*.profile"))
         return _files(base_profiles)
 
-    def project_profiles(self):
+    def project_profile_paths(self):
         def _files (file_gen):
             return [str(file) for file in file_gen]
 
-        project_profiles = _files(pathlib.Path(self.profiles_path).rglob("**/*.profile"))
-        return _files(project_profiles)
+        project_profile_paths = _files(pathlib.Path(self.profiles_path).rglob("**/*.profile"))
+        return _files(project_profile_paths)
 
     def list_all_profiles(self):
         parent_projects = find_project_parents(project=self.settings)
-        parent_projects.reverse()
-        all_projects = [self.settings] + parent_projects 
-        logger.info("list_all_profiles: %s", [p.project_name for p in all_projects])
+        logger.info("list_all_profiles: %s", [p.project_name for p in parent_projects])
         
-        profiles = {}
+        all_profiles = {}
         
         # Project and parent profiles
-        for project in all_projects :
-            project_profiles = ProfileManager(settings=project).project_profiles()
-            for profile_path in project_profiles:
-                profile = self.load_profile(profile_path)
-                if profile.name not in profiles:
-                    profiles[profile.name] = profile
+        for project in parent_projects :
+            profiles = ProfileManager(settings=project).list_profiles()
+            for profile in profiles:
+                all_profiles[profile.name] = profile
         
         # Base profiles
-        for profile_path in self.base_profiles():
-            profile = self.load_profile(profile_path)
-            if profile.name not in profiles:
-                profiles[profile.name] = profile
+        for profile in self.list_profiles():
+            all_profiles[profile.name] = profile
         
-        return list(profiles.values())
+        return list(all_profiles.values())
 
 
     def list_profiles(self):
-        base_profiles , project_profiles = self.get_profiles()
-        
-        def is_oveeriden(project_file_path):
-            base_name = os.path.basename(project_file_path)
-            return [project_profile for project_profile in project_profiles if base_name in project_profile]
-        
-        base_profiles = [profile_path for profile_path in base_profiles if not is_oveeriden(profile_path)]
-        profiles = [self.load_profile(profile_path) for profile_path in base_profiles + project_profiles]
-        return profiles
+        return [self.load_profile(profile_path) for profile_path in self.project_profile_paths()]
 
     def read_profile(self, profile_name) -> Profile:
-        profiles = self.list_profiles()
-        match_profiles = [p for p in profiles if p.name == profile_name]
-        return match_profiles[0] if match_profiles else None
+        project_profile_paths = self.project_profile_paths()
+        match_profiles = [profile_path for profile_path in project_profile_paths if profile_name in profile_path]
+        return self.read_profile(match_profiles[0]) if match_profiles else None
 
     def load_profile(self, profile_path) -> Profile:
         profile = None
@@ -118,9 +102,9 @@ class ProfileManager:
         return self.read_profile(profile_name=profile.name)
 
     def delete_profile(self, profile_name):
-        _, project_profiles = self.get_profiles()
+        project_profile_paths = self.project_profile_paths()
         profile_file_name = f"{profile_name}.profile"
-        profile_path = [file_path for file_path in project_profiles if file_path.endswith(profile_file_name)]
+        profile_path = [file_path for file_path in project_profile_paths if file_path.endswith(profile_file_name)]
         if profile_path:
             os.remove(profile_path[0])
 
@@ -130,24 +114,10 @@ class ProfileManager:
         except:
             return False
 
-    def get_file_profiles(self, file_path: str):
+    def get_file_profiles_by_file_path(self, file_path: str):
         return [profile for profile in self.list_all_profiles() \
           if self.is_profile_match(profile=profile, file_path=file_path)]
 
-    def get_profiles_and_parents(self, profiles: []):
-        """
-        Return all inmediate parent profiles from a profile list
-        """
-        project_profiles = self.list_profiles()
+    def get_profiles_by_name(self, profiles: []):
+        return [p for p in self.list_all_profiles() if p.name in profiles]
 
-        all_profiles = list(profiles)
-        def add_profile(profile_name):
-            profile = next((p for p in project_profiles if p.name == profile_name), None)
-            if profile and profile not in all_profiles:
-                all_profiles.append(profile)
-
-        for profile in profiles:
-            for profile_name in profile.profiles:
-                add_profile(profile_name)
-        
-        return all_profiles

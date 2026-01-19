@@ -6,32 +6,33 @@ import LogViewerVue from './LogViewer.vue'
 import StatuBar from './StatuBar.vue'
 import Navigator from './windowManager/Navigator.vue'
 import VerticalSplitter from './layout/VerticalSplitter.vue'
+import RightBarVue from './project/RightBar.vue'
 </script>
 
 <template>
-  <div class="bg-base-300 flex flex-col h-full pt-2">
-    <NavigationBar class="pt-2 px-2 border-b-2 border-slate-400/30 mb-2" :right="true" 
-      @mouseenter="mouseOnNavigation = true" 
-      @mouseover="mouseOnNavigation = true"
-      @mouseleave="mouseOnNavigation = false"
-      @blur="mouseOnNavigation = false" 
-      v-if="showNavigationBar"  
-    />
+  <div class="flex">
+    <div class="bg-base-300 flex flex-col h-full pt-2 grow">
+      <NavigationBar class="pt-2 px-2 border-b-2 border-slate-400/30 mb-2" :right="true" 
+        @mouseenter="mouseOnNavigation = true" 
+        @mouseover="mouseOnNavigation = true"
+        @mouseleave="mouseOnNavigation = false"
+        @blur="mouseOnNavigation = false" 
+        v-if="showNavigationBar"  
+      />
 
-    <VerticalSplitter class="grow flex h-full min-h-96" 
-      :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
-    >
-      
-      <template v-slot:left v-if="$ui.activeApp">
-        <Navigator class="w-full h-full" />
+      <VerticalSplitter class="grow flex h-full min-h-96" 
+        :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
+      >
+        
+        <template v-slot:left v-if="$ui.activeApp">
+          <Navigator class="w-full h-full" />
 
-      </template>
-      <template v-slot:right v-if="$ui.activeTab || $ui.showLogs">
+        </template>
+        <template v-slot:right v-if="$ui.activeTab || $ui.showLogs">
 
         <VerticalSplitter class="grow flex h-full min-h-96" 
           :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
         >
-      
           <template v-slot:left v-if="$ui.activeTab">
             <div class="flex flex-col items-center">
               <CodxJuniorVue ref="codxJunior" 
@@ -42,17 +43,19 @@ import VerticalSplitter from './layout/VerticalSplitter.vue'
               />
             </div>
 
-          </template>
-          <template v-slot:right v-if="$ui.showLogs">
-            <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
-          
-          </template>
-        </VerticalSplitter>
+            </template>
+            <template v-slot:right v-if="$ui.showLogs">
+              <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
+            
+            </template>
+          </VerticalSplitter>
 
-      </template>
-    </VerticalSplitter>
-    <StatuBar />
+        </template>
+      </VerticalSplitter>
+      <StatuBar />
 
+    </div>
+    <RightBarVue />
   </div>
 </template>
 <script>

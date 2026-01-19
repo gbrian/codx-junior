@@ -581,7 +581,7 @@ class ChatEngine:
 
         chat_files = list(set(chat.file_list + user_message.files))
         for chat_file in chat_files:
-            file_profiles = [p.name for p in profile_manager.get_file_profiles(file_path=chat_file)]
+            file_profiles = [p.name for p in profile_manager.get_file_profiles_by_file_path(file_path=chat_file)]
             profiles = list(set(profiles + file_profiles))
 
 

@@ -205,8 +205,7 @@ class MentionManager:
     async def check_file_for_mentions_inner(self, mentions, file_path: str, content: str = None, callback=None):
         logger.info(f"Inside check_file_for_mentions_inner for {file_path}")
         
-        file_profiles = self.profile_manager.get_file_profiles(file_path=file_path)
-        file_profiles = self.profile_manager.get_profiles_and_parents(file_profiles)
+        file_profiles = self.profile_manager.get_file_profiles_by_file_path(file_path=file_path)
         profile_names = [p.name for p in file_profiles]
 
         self.event_manager.send_notification(text=f"codx {len(mentions)} mentions in {file_path.split('/')[-1]} profiles: {profile_names}")

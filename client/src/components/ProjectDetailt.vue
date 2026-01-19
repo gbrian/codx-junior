@@ -19,7 +19,7 @@
             
             <i class="fa-solid fa-caret-right" v-if="options?.showSelector !== false"></i>
           </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 shadow-sm -ml-4"
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1000] shadow-sm -ml-4"
             v-if="options?.showSelector !== false"
           >
             <li>

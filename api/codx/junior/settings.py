@@ -358,6 +358,9 @@ class CODXJuniorSettings(BaseModel):
     def get_wiki_model(self):
         return self.wiki_model or GLOBAL_SETTINGS.wiki_model
 
+    def get_rag_model(self):
+        return self.rag_model or GLOBAL_SETTINGS.rag_model
+
     def get_project_ai_models(self):
         return GLOBAL_SETTINGS.ai_models
 
