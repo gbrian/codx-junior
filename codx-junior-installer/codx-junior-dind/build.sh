@@ -7,4 +7,4 @@ echo "Build codx-junior-dind"
 #     docker save -o images/codx-junior-api.tar codx-junior:api
 #     docker save -o images/codx-junior-latest.tar codx-junior:latest
 # fi
-cd ../.. && docker build -t codx-junior:dind -f codx-junior-installer/codx-junior-dind/Dockerfile .
+cd ../.. && docker build --no-cache -t codxjunior/codx-junior:dind -f codx-junior-installer/codx-junior-dind/Dockerfile .

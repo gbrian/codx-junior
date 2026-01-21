@@ -1,53 +1,34 @@
 <script setup>
-import MobileMenuVue from '../MobileMenu.vue'
-import ProjectIconVue from '../ProjectIcon.vue'
 import CodxDropdownVue from './CodxDropdown.vue'
-
+import BarButton from './BarButton.vue';
 </script>
 <template>
   <div class="flex flex-col items-center px-1 py-2 bg-base-100 gap-4">
+    <BarButton tab="projects" @click="$ui.setActiveTab('projects')">
+      <i class="fa-solid fa-cubes"></i>
+    </BarButton>
 
-    <div class="flex gap-2 items-center click" @click="showMobileMenu = !showMobileMenu">
-      <div class="flex flex-col">
-        <MobileMenuVue class="" v-if="showMobileMenu" @click.stop="" @close="showMobileMenu = false" />
-        <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
-      </div>
-      <ProjectIconVue
-        :icon-only="true"
-        :project="$project" 
-      /> 
-    </div>
-
-
-    <div class="click " 
-      :class="$ui.activeTab === 'projects' ? 'text-primary': ''"
-      @click="$ui.setActiveTab('projects')">
-      <i class="fa-xl fa-solid fa-cubes"></i>
-    </div>
-
-    <div class="click "
+    <BarButton 
       @click="$ui.showNewProject(true)">
-      <i class="fa-xl fa-solid fa-plus"></i>
-    </div>
+      <i class="fa-solid fa-plus"></i>
+    </BarButton>
 
-    <div class="click "
-      :class="!$project ? 'text-slate-400' : ($ui.activeTab === 'tasks' ? 'text-primary': '')"
+    <BarButton tab="tasks"
       @click="$ui.setActiveTab('tasks')">
-      <i class="fa-xl fa-brands fa-trello"></i>
-    </div>
+      <i class="fa-brands fa-trello"></i>
+    </BarButton>
 
-    <div class="click "
+    <BarButton tab="profiles"
+      @click="$ui.setActiveTab('profiles')"
       v-if="$users.isProjectAdmin"
-      :class="!$project ? 'text-slate-400' : ($ui.activeTab === 'profiles' ? 'text-primary': '')"
-      @click="$ui.setActiveTab('profiles')">
-      <i class="fa-xl fa-solid fa-user-group"></i>
-    </div>
+    >
+      <i class="fa-solid fa-user-group"></i>
+    </BarButton>
 
-    <div class="click "
-      :class="!$project ? 'text-slate-400' : ($ui.activeTab === 'file-finder' ? 'text-primary': '')"
+    <BarButton tab="file-finder"
       @click="$ui.setActiveTab('file-finder')">
-      <i class="fa-xl fa-solid fa-folder"></i>
-    </div>
+      <i class="fa-solid fa-folder"></i>
+    </BarButton>
   
     <div class="grow"></div>
   

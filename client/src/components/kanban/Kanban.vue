@@ -19,7 +19,7 @@ import ChatHistoryVue from './ChatHistory.vue'
       v-if="activeKanbanBoard?.background"
     >
     </div>
-    <div class="absolute bottom-0 left-0 right-0 z-20" v-if="loadingChats">
+    <div class="absolute bottom-0 left-0 right-0 z-20 text-xs @xl:text-md" v-if="loadingChats">
       Loading...
       <progress class="progress w-full animate-pulse opacity-30"></progress>
     </div>  

@@ -36,8 +36,7 @@ class ProfileManager:
         def _files (file_gen):
             return [str(file) for file in file_gen]
 
-        project_profile_paths = _files(pathlib.Path(self.profiles_path).rglob("**/*.profile"))
-        return _files(project_profile_paths)
+        return _files(list(pathlib.Path(self.profiles_path).rglob("*.profile")))
 
     def list_all_profiles(self):
         parent_projects = find_project_parents(project=self.settings)
@@ -64,7 +63,7 @@ class ProfileManager:
     def read_profile(self, profile_name) -> Profile:
         project_profile_paths = self.project_profile_paths()
         match_profiles = [profile_path for profile_path in project_profile_paths if profile_name in profile_path]
-        return self.read_profile(match_profiles[0]) if match_profiles else None
+        return self.load_profile(match_profiles[0]) if match_profiles else None
 
     def load_profile(self, profile_path) -> Profile:
         profile = None

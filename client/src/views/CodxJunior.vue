@@ -10,13 +10,17 @@ import ProjectInlineNavigatorVue from '../components/project/ProjectInlineNaviga
   <div class="absolute top-0 left-0 right-0 bottom-0 z-[100] m-2 rounded-lg bg-base-300/70 flex flex-col justify-center items-center" v-if="$projects.projectLoading">
     <div class="text-2xl">Loading...</div>
   </div>
-  <div class="@container codx-junior flex min-h-full relative group-codxjunior" 
+  <div class="@container codx-junior flex min-h-full relative group-codxjunior pt-2" 
     :class="(!$ui.isMobile && !$ui.activeApp) && 'max-w-[1600px]'"
   v-else>
     <div class="grow flex flex-col relative overflow-auto bg-base-300">
       <ProjectInlineNavigatorVue class="shrink-0" />
       <div class="grow overflow-auto">
-        <TabViewVue  :key="projectKey" />
+        <div class="h-full relative">
+          <div class="absolute top-0 left-0 right-0 bottom-0 overflow-auto">
+            <TabViewVue  :key="projectKey" />
+          </div>
+        </div>
       </div>
     </div>
     <div class="modal modal-open" role="dialog" v-if="showOpenProjectModal">

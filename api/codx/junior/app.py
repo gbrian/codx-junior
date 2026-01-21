@@ -582,20 +582,16 @@ def run_script(data: dict, request: Request):
 
 @app.get("/api/logs")
 def api_logs_list():
-    stdout, _ = exec_command(f"ls {os.environ['CODX_SUPERVISOR_LOG_FOLDER']}")
-    codx_logs = [log for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
-
-    stdout, _ = exec_command("docker ps --format {{.Names}}")
+    stdout, _ = exec_command("sudo docker ps --format {{.Names}}")
     containers = [f"🐋:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
    
-    
-    return sorted(codx_logs) + containers
+    return sorted(containers)
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
     log_size = request.query_params.get("log_size") or "100"
     if "🐋" in log_name:
-        stdout, err_logs = exec_command(f"docker logs -n {log_size} {log_name.split(':')[1]}")
+        stdout, err_logs = exec_command(f"sudo docker logs -n {log_size} {log_name.split(':')[1]}")
         if err_logs:
             logger.error(f"Error reading logs {log_name}: {err_logs}")
         return stdout.split("\n")

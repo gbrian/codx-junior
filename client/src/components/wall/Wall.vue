@@ -3,21 +3,23 @@ import ChatPreview from './ChatPreview.vue';
 </script>
 
 <template>
-  <div class="w-full">
-    <div class="text-2xl">
-      Recent activity <span v-if="project">: {{ project.project_name }}</span>
-    </div>
-    <div class="alert" v-if="lastMessages.length === 0">
-      No recent activity
-    </div>
-    <div class="grid grid-cols-1 @5xl:grid-cols-2 grid-flow-rows gap-2">
-      <div class="my-2 click group"
-        v-for="chat in lastMessages" :key="chat.doc_id"
-        @click="setActiveChat(chat)">
-          <ChatPreview
-            :project="chat.project"
-            :chat="chat"
-            />
+  <div class="w-full h-full relative">
+    <div class="absolute top-0 left-0 right-0 bottom-0 overflow-auto">
+      <div class="text-2xl">
+        Recent activity <span v-if="project">: {{ project.project_name }}</span>
+      </div>
+      <div class="alert" v-if="lastMessages.length === 0">
+        No recent activity
+      </div>
+      <div class="grid grid-cols-1 @5xl:grid-cols-2 grid-flow-rows gap-2">
+        <div class="my-2 click group"
+          v-for="chat in lastMessages" :key="chat.doc_id"
+          @click="setActiveChat(chat)">
+            <ChatPreview
+              :project="chat.project"
+              :chat="chat"
+              />
+        </div>
       </div>
     </div>
   </div>

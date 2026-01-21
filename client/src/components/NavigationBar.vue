@@ -1,8 +1,9 @@
 <script setup>
 import moment from 'moment'
-import MobileMenuVue from './MobileMenu.vue'
 import AppIcon from './apps/AppIcon.vue';
-import ProjectIconVue from './ProjectIcon.vue'
+import BarButton from './project/BarButton.vue';
+import MobileMenuVue from './MobileMenu.vue';
+import ProjectIconVue from './ProjectIcon.vue';
 </script>
 
 <template>
@@ -12,130 +13,32 @@ import ProjectIconVue from './ProjectIcon.vue'
         $storex.session.connected ? '' : 'grayscale text-error',
       ]">
 
-      <div class="tools hidden md:flex gap-2 items-center">
-
-        <div class="flex gap-1 items-center pb-2">
-              
-          <div class="tooltip tooltip-top" :data-tip="app.name" 
-            :class="['hover:bg-base-100 click relative pt-1 shadow rounded-lg border-t-4 ', 
-              `group`,
-              $ui.openApps[app.name] ? 'border-codx-secondary': 'opacity-80 hover:opacity-100 border-slate-700']"
-              v-for="app in projectApps" :key="app.name + app.path"
-              @click.stop="activeAppPanel(app)"
-            >
-            <a class="px-2 flex justify-center items-center w-full focus:text-orange-500">
-              <div class="flex gap-2 items-center">
-                <span class="click" @click.stop="toggleAppPanel(app)" v-if="$ui.openApps[app.name]">
-                  <i class="fa-solid fa-caret-right" v-if="$ui.openApps[app.name].left"></i>
-                  <i class="fa-solid fa-caret-left" v-else></i>
-                </span>
-                <AppIcon :app="app" />
-                <div class="max-w-10 text-nowrap text-ellipsis overflow-hidden">{{ app.name }}</div> 
-                <div class="text-error" title="close" v-if="$ui.openApps[app.name]" 
-                  @click.stop="$ui.closeApp(app)">
-                  <i class="fa-regular fa-circle-xmark"></i>
-                </div>
-              </div>
-            </a>
-            <video :src="videoThumb" class="hidden group:block" />
-          </div>
-
-          <div class="dropdown">
-            <div tabindex="0" role="button" class="btn btn-sm btn-ghost m-1">
-              <i class="fa-solid fa-ellipsis"></i>
-            </div>
-            <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
-              <li @click.stop="$ui.toggleFloatinCodxJunior()"
-                v-if="$ui.activeApp">
-                <a>
-                  <i class="fa-solid fa-thumbtack rotate-45" v-if="$ui.floatingCodxJunior"></i>
-                  <i class="fa-solid fa-thumbtack" v-else></i>
-                  {{ $ui.floatingCodxJunior ? 'Pin' : 'Float'  }} codx-junior
-                </a>
-              </li>
-              <div class="divider"></div>
-              <li>
-                <a>
-                  workspace
-                </a>
-              </li>
-            </ul>
-          </div>
-
+      <div class="flex items-center -mt-2" @click="showMobileMenu = !showMobileMenu">
+        <div class="flex flex-col">
+          <MobileMenuVue class="" v-if="showMobileMenu" @click.stop="" @close="showMobileMenu = false" />
+          <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
         </div>
-
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="flex gap-2 items-center justify-center -mt-4 hidden">
-        <div :class="['hover:bg-base-100 click relative', 
-          $ui.activeTab === 'home' ? 'border-b-4 border-codx-secondary': '']">
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-            data-tip="Home"
-            @click="setActiveTab('home')">
-            <div class="flex gap-2 items-center">
-              <i class="fa-solid fa-home"></i> Home
-            </div>
-          </a>
-        </div>
-
-        <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'tasks' ? 'border-b-4 border-codx-secondary': '')]">
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-            data-tip="Kanban"
-            @click="setProjectTab('tasks')">
-            <div class="flex gap-2 items-center">
-              <i class="fa-brands fa-trello"></i> Kanban
-            </div>
-          </a>
-        </div>
-
-        <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'profiles' ? 'border-b-4 border-codx-secondary': '')]"
-            v-if="$users.isProjectAdmin">
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-            data-tip="Profiles"
-            @click="setProjectTab('profiles')">
-            <div class="flex gap-2 items-center">
-              <i class="fa-solid fa-user-group"></i> Team
-            </div>
-          </a>
-        </div>
-
-
-        <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'wiki' ? 'border-b-4 border-codx-secondary': '')]">
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-            data-tip="Wiki"
-            @click="setProjectTab('wiki')">
-            <div class="flex gap-2 items-center">
-              <i class="fa-solid fa-book"></i> Wiki
-            </div>
-          </a>
-        </div>
-
-        <div :class="['hover:bg-base-100 click relative', !$project ? 'text-slate-400' : ($ui.activeTab === 'file-finder' ? 'border-b-4 border-codx-secondary': '')]"
-          v-if="$ui.isMobile"
-        >
-          <a class="px-2 flex justify-center items-center w-full focus:text-orange-500 tooltip tooltip-bottom" 
-            data-tip="File finder"
-            @click="setProjectTab('file-finder')">
-            <div class="flex gap-2 items-center">
-              <i class="fa-solid fa-folder"></i> Files
-            </div>
-          </a>
-        </div>
+        <ProjectIconVue
+          :icon-only="true"
+          :project="$project" 
+          width="w-8"
+          class="mt-1"
+        /> 
+        <span class="text-xl">{{ $project?.project_name }}</span>
       </div>
       
       <div class="grow"></div>
 
       <div class="flex gap-2 justify-end items-center">
-        <a class="btn btn-sm btn-outline text-codx-primary" @click="newQuickChat()">
+        <BarButton class="text-codx-primary btn-outline" @click="newQuickChat()">
           <i class="fa-regular fa-comment"></i>
-        </a>
+        </BarButton>
         
-        <a class="btn btn-sm btn-outline text-primary" @click="$ui.showNewProject(true)">
+        <BarButton class="btn-outline" @click="$ui.showNewProject(true)">
           <i class="fa-solid fa-plus"></i>
-        </a>
-    </div>
+        </BarButton>
+
+      </div>
 
       <modal v-if="restartModal">
         <div class="flex flex-col gap-2 font-mono">
@@ -171,7 +74,6 @@ export default {
       chat: null,
       showMobileMenu: false,
       newProject: false,
-      videoThumb: null
     }
   },
   created () {
@@ -195,13 +97,6 @@ export default {
       }
       return "Show logs/events"
     },
-    projectApps() {
-      return this.$storex.api.workspaces?.filter(w => w.project_ids.includes("*") || 
-                            w.project_ids.includes(this.$project?.project_id))
-                        .reduce((a, w) => a.concat(w.apps.map(a => ({ ...a, workspaceId: w.id }))), [])
-                        .sort(a => this.$ui.openApps[a.name] && this.$ui.openApps[a.name].left ? -1: 1)
-
-    }
   },
   methods: {
     setActiveTab(tab) {
@@ -232,21 +127,6 @@ export default {
       }
       this.$projects.createNewBoardChat({ chat })
       this.$ui.showTab('tasks')
-    },
-    toggleAppPanel({ name }) {
-      const app = this.$ui.openApps[name]
-      this.$ui.showApp({
-        ...app,
-        left: !app.left,
-        ts: new Date().getTime()
-      })
-    },
-    activeAppPanel(app) {
-      app = app || this.$ui.openApps[app.name]
-      this.$ui.showApp({
-        ...app,
-        ts: new Date().getTime()
-      })
     }
   }
 }

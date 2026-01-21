@@ -90,8 +90,10 @@ import UserSelector from './chat/UserSelector.vue'
                       <i class="fa-solid fa-bars"></i>
                     </button>
                     <ul tabindex="0" class="dropdown-content menu rounded-box shadow w-32 p-2 bg-base-300 z-50">
-                      <li @click="toggleSrcView"  v-if="message.done">
-                        <a><i class="fa-solid fa-code"></i> Source</a>
+                      <li class="text-error">
+                        <a class="hover:underline" @click="confirmRemove">
+                          <i class="fa-solid fa-trash-can"></i> Delete
+                        </a>
                       </li>
                       <li class="text-warning" v-if="message.done">
                         <a @click.stop="$emit('hide', message)" class="text-left tooltip tooltip-bottom click"
@@ -100,10 +102,8 @@ import UserSelector from './chat/UserSelector.vue'
                           <i class="fa-solid fa-box-archive"></i> {{ message.hide ? 'Show' : 'Archive' }}
                         </a>                  
                       </li>
-                      <li class="text-error">
-                        <a class="hover:underline" @click="confirmRemove">
-                          <i class="fa-solid fa-trash-can"></i> Delete
-                        </a>
+                      <li @click="toggleSrcView"  v-if="message.done">
+                        <a><i class="fa-solid fa-code"></i> Source</a>
                       </li>
                     </ul>
                   </div>

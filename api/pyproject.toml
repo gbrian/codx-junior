@@ -40,7 +40,8 @@ dependencies = [
   'docling>=2.45.0',
   'html2text',
   'watchdog',
-  'pypandoc>=1.16'
+  'pypandoc>=1.16',
+  'ollama>=0.6.1'
 ]
 
 classifiers = [

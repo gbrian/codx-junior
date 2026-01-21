@@ -73,6 +73,8 @@ services:
       PROXY_BASE_URL: https://${CODX_JUNIOR_DOMAIN}/litellm
       LITELLM_BASE_URL: https://${CODX_JUNIOR_DOMAIN}/litellm
       SERVER_ROOT_PATH: /litellm
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
     env_file:
       - .env # Load local .env file
     depends_on:

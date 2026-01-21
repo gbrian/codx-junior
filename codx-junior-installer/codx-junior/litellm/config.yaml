@@ -21,4 +21,3 @@ general_settings:
   # Ensure models and their metadata are tracked
   store_model_in_db: true 
 
-  master_key: os.environ/LITELLM_MASTER_KEY ///

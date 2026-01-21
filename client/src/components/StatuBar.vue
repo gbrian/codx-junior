@@ -1,8 +1,11 @@
 <script setup>
 import moment from 'moment';
+import AppBar from './apps/AppBar.vue';
 </script>
 <template>
-    <div class="relative h-6 bg-white/10 flex">
+    <div class="relative flex p-1 bg-base-100">
+      <AppBar></AppBar>
+      <div class="grow"></div>
       <div class="absolute top-0 right-0 h-full flex justify-end" v-if="$session.apiCalls">
         <div class="w-60 px-1 bg-gradient-to-r from-transparent to-codx-secondary/70 animate-pulse text-right">
         </div> 
@@ -14,7 +17,6 @@ import moment from 'moment';
         <span class="text-info"><i class="fa-solid fa-circle-info"></i></span>
         {{  lastEvent }}
       </div>
-      <div class="grow"></div>
     </div>
 </template>
 <script>
