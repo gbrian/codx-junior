@@ -1,5 +1,5 @@
 # Root folder for new projects
-export CODX_JUNIOR_PROJECTS_PATH=/home/codx-junior-projects
+export CODX_JUNIOR_PROJECTS_PATH=${CODX_JUNIOR_PROJECTS_PATH:-/home/codx-junior-projects}
 # API virtual env
 export CODX_JUNIOR_API_VENV=${CODX_JUNIOR_API_VENV:-/tmp/.venv_codx_junior_api}
 # Browser virtual env
@@ -12,6 +12,8 @@ export CODX_JUNIOR_API_URL=http://0.0.0.0:${CODX_JUNIOR_API_PORT}
 export CODX_JUNIOR_WEB_PORT=${CODX_JUNIOR_WEB_PORT:-19981}
 # codx-junior API background port
 export CODX_JUNIOR_API_PORT_BACKGROUND=${CODX_JUNIOR_API_PORT_BACKGROUND:-19984}
+
+export CODX_JUNIOR_STATIC_FOLDER=${CODX_JUNIOR_STATIC_FOLDER:-~/codx-junior-static}
 
 # llmfactory server port
 export CODX_JUNIOR_LLMFACTORY_URL=http://litellm-codx-junior:4000/v1

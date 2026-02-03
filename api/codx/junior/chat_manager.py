@@ -25,6 +25,7 @@ from codx.junior.profiling.profiler import profile_function
 
 from codx.junior.chat.chat_export import ChatExport, ExportedDocument
 
+from codx.junior.events.event_manager import EventManager
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +33,15 @@ DEFAULT_BOARD = "kanban"
 DEFAULT_COLUMN = "tasks"
 
 class ChatManager:
-    def __init__(self, settings: CODXJuniorSettings):
+    def __init__(self, settings: CODXJuniorSettings, event_manager=None):
         self.settings = settings
         self.chat_path = f"{settings.codx_path}/tasks"
+        self.event_manager = event_manager if event_manager else EventManager(codx_path=settings.codx_path)
         os.makedirs(self.chat_path, exist_ok=True)
         os.makedirs(f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}", exist_ok=True)
 
     def get_chat_file(self, chat: Chat):
-        chat_file = f"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.yaml"
+        chat_file = f"{self.chat_path}/{chat.board}/{chat.column}/{slugify(chat.name)}.{chat.id}.json"
         return chat_file
 
     def chat_paths(self, last_update: datetime = None):
@@ -49,7 +51,8 @@ class ChatManager:
         :param last_update: Only return paths for chats updated since this date.
         :return: List of file paths.
         """
-        all_paths = [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.yaml")]
+        all_paths = [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.yaml")] + \
+                    [str(file_path) for file_path in pathlib.Path(self.chat_path).rglob("*.json")]
         
         if last_update:
             # Filter paths by file modified time
@@ -111,26 +114,30 @@ class ChatManager:
             profiles = profiles + msg.profiles
         chat.users = list(set(users))
         chat.profiles = list(set(profiles))
+        chat.file_path = self.get_chat_file(chat)
 
-        self.store_chat(chat)
+        self.store_chat(chat=chat)
 
         # remove old chat
+        # old yaml
+        if os.path.isfile(chat.file_path.replace(".json", ".yaml")):
+            logger.info("Remove old yaml chat: %s", chat.file_path)
+            os.remove(chat.file_path.replace(".json", ".yaml"))
+        # old path
         if current_chat:
             logger.info(f"Save chat, current_chat {current_chat.id} at {current_chat.file_path}")
             if chat.file_path != current_chat.file_path:
                 self.delete_chat(current_chat.file_path)
-
+        
+        self.event_manager.chat_event(chat=chat, event_type="changed")
+        
         return chat
 
     def store_chat(self, chat):
-        yaml_chat_file = self.get_chat_file(chat)
-        logger.info(f"Save chat {chat.id} at {yaml_chat_file}")
-
-        # Update file_path to point to YAML version
-        chat.file_path = yaml_chat_file
-
-        # Serialize and save as YAML
-        write_file(yaml_chat_file, yaml.dump(chat.dict()))
+        logger.info("Save chat: %s", chat.file_path)
+        os.makedirs(os.path.dirname(chat.file_path), exist_ok=True)
+        with open(chat.file_path, 'w') as f:
+            f.write(json.dumps(chat.model_dump(), indent=2))
 
     def delete_chat(self, file_path: str = None, chat_id: str = None):
         logger.info(f"Removing chat by file_path: {file_path}  - chat_id: {chat_id}")
@@ -155,81 +162,37 @@ class ChatManager:
         return self.load_chat_from_path(chat_file=chat_file)
 
     def load_chat_from_path(self, chat_file: str, chat_only: bool = False):
-        yaml_chat_file = chat_file.replace('.md', '.yaml')
-
-        if os.path.isfile(yaml_chat_file):
-            # Load from YAML if exists
-            with open(yaml_chat_file, 'r') as f:
-                chat_data = yaml.safe_load(f)
+        
+        logger.info("Load chat from path: %s", chat_file)
+        if ".json" in chat_file and os.path.isfile(chat_file):
+            with open(chat_file, 'r') as f:
+                chat_data = json.loads(f.read())
                 chat = Chat(**chat_data)
                 if chat_only:
                     chat.messages = []
                 chat.owner_project_id = self.settings.project_id
                 return chat
 
-        # Fallback to existing method if YAML file doesn't exist
-        board, column, name = self.chat_board_column_name_from_path(chat_file)
-        if not board or not column:
-            new_chat_file = f"{self.chat_path}/{DEFAULT_BOARD}/{DEFAULT_COLUMN}/{name}.md"
-            if chat_file:
-                os.rename(chat_file, new_chat_file)
-            chat_file = new_chat_file
-            board = DEFAULT_BOARD
-            column = DEFAULT_COLUMN
+        # TODO: Remove old veriosn yaml compatibility        
+        yaml_chat_file = chat_file.replace('.json', '.yaml')
+        # logger.info("Load chat from path yaml fallback: %s", yaml_chat_file)
+        if os.path.isfile(yaml_chat_file):
+            # Load from YAML if exists
+            with open(yaml_chat_file, 'r') as f:
+                chat_data = yaml.safe_load(f)
+                chat = Chat(**chat_data)
+                chat.owner_project_id = self.settings.project_id
+                chat.file_path = self.get_chat_file(chat)
+                # logger.info("Save chat from with path: %s", chat.file_path)
+                self.store_chat(chat=chat)
+                # logger.info("Remove old chat: %s", yaml_chat_file)
+                os.remove(yaml_chat_file)
+                return self.load_chat_from_path(chat_file=chat.file_path, chat_only=chat_only)
 
-        with open(chat_file, 'r') as f:
-            content = f.read()
-            chat = self.deserialize_chat(content=content, chat_only=chat_only)
-
-        if not chat.created_at:
-            stats = os.stat(chat_file)
-            chat.created_at = str(datetime.fromtimestamp(stats.st_ctime, tz=timezone.utc))
-            chat.updated_at = str(datetime.fromtimestamp(stats.st_mtime, tz=timezone.utc))
-        chat.board = board
-        chat.column = column
-        chat.file_path = chat_file
-        return chat
-
-    def serialize_chat(self, chat: Chat):
-        chat_json = { **chat.__dict__ }
-        del chat_json["messages"]  
-        header = f"# [[{json.dumps(chat_json)}]]"
-        def serialize_message(message):
-            if not message.created_at:
-                message.created_at = datetime.now().isoformat()
-            message_json = { **message.__dict__ }
-            del message_json["content"]
-            return "\n".join([
-                    f"## [[{json.dumps(message_json)}]]",
-                    message.content
-                ]
-            )
-        messages = [serialize_message(message) for message in chat.messages]
-        chat_content = "\n".join([header] + messages)
-        return chat_content
+        return None
 
     def delete_kanban(self, kanban_title: str):
         shutil.rmtree(f"{self.chat_path}/{kanban_title}")
-
-    def deserialize_chat(self, content, chat_only: bool = False) -> Chat:
-        # logger.info(f"deserialize_chat content length: {len(content)}")
-        lines = content.split("\n")
-        chat_json = json.loads(lines[0][4:-2])
-        chat = Chat(**chat_json)
-        chat.messages = []
-        if not chat_only:
-            chat_message = None
-            for line in lines[1:]:
-                if line.startswith("## [[{") and line.endswith("}]]"):
-                    chat_message = Message(**json.loads(line[5:-2]))
-                    chat_message.content = ""
-                    chat.messages.append(chat_message)
-                    continue
-                if chat_message:
-                        chat_message.content = line \
-                            if not chat_message.content \
-                            else f"{chat_message.content}\n{line}"
-        return chat
 
     def chat_count(self):
         return len(self.chat_paths())

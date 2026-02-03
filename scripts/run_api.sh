@@ -7,7 +7,6 @@ echo "Starting api USER: ${USER} HOME: ${HOME}"
 source ${CODX_JUNIOR_PATH}/set_env.sh
 
 export PYTHONPATH=${CODX_JUNIOR_PATH}/api
-export CODX_JUNIOR_STATIC_FOLDER=${CODX_JUNIOR_PATH}/client/dist
 
 cd ${CODX_JUNIOR_PATH}/api
 if [ ! -d "$CODX_JUNIOR_API_VENV/bin" ]; then

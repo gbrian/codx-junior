@@ -158,6 +158,7 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
               @user-changed="selectedUser = $event"
             />
             <div class="text-xs click" @click="toggleDocumentSearch">Find: ctrl+f</div>
+            <div class="text-xs text-warning click" @click="hideAll"><i class="fa-solid fa-box-archive"></i> Hide all: ctrl+shift+a</div>
             <div class="grow"></div>
             <div class="flex gap-2 items-center justify-end" v-if="!searchingInKnowledge">
               <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
@@ -578,7 +579,8 @@ export default {
         profiles,
         user: this.$user.username,
         disable_knowledge: true,
-        meta_data: this.metadata
+        meta_data: this.metadata,
+        done: true
       }
     },
     postMyMessage(message) {
@@ -938,12 +940,18 @@ export default {
         this.sendMessage()
       } else if(event.key === 'f' && event.ctrlKey) {
         this.toggleDocumentSearch()
+      } else if(event.key === 'A' && event.ctrlKey && event.shiftKey) {
+        this.hideAll()
       } else if(event.key === 'b' && event.ctrlKey) {
         this.createBlock()
       }  else {
         return true
       }
       return stop()
+    },
+    hideAll() {
+      this.chat.messages.forEach(m => { m.hide = true })
+      this.saveChat()
     },
     toggleDocumentSearch() {
       this.showDocumentSearchModal = !this.showDocumentSearchModal

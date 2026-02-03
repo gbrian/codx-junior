@@ -1,9 +1,18 @@
 <script setup>
+import Chat from '../chat/Chat.vue';
 </script>
 
 <template>
   <div class="w-full h-full flex flex-col gap-2">
-    <div class="w-full h-full flex gap-2">
+    <div role="tablist" class="tabs tabs-border">
+      <a role="tab" class="tab" :class="tabIx === 0 && 'tab-active'" @click="tabIx = 0">
+        Settings
+      </a>
+      <a role="tab" class="tab" :class="tabIx === 1 && 'tab-active'"  @click="newChat">
+        Test chat
+      </a>
+    </div>
+    <div class="w-full grow flex gap-2" v-if="tabIx === 0">
       <!-- Column for existing settings -->
       <div class="flex flex-col gap-2 w-1/2">
         <div class="form-control">
@@ -73,6 +82,9 @@
         </div>
       </div>
     </div>
+
+    <Chat class="w-full min-h-full grow " :chat="testChat" v-if="tabIx === 1 && testChat" />
+
     <div class="flex gap-2">
       <button class="btn btn-error" @click="$emit('delete', model)">Delete</button>
       <div class="grow"></div>
@@ -85,10 +97,27 @@
 <script>
 export default {
   props: ['model', 'aiProviders'],
+  data() {
+    return {
+      tabIx: 0,
+      testChat: null
+    }
+  },
   computed: {
     currentModelIsLLM() {
       return this.model?.model_type === 'llm'
     }
   },
+  methods: {
+    async newChat() {
+      if (!this.testChat) {
+        this.testChat = await this.$projects.createNewChat({
+          test: true,
+          name: "test " + this.model.name
+        })
+      }
+      this.tabIx = 1
+    }
+  }
 }
 </script>

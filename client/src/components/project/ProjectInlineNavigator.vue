@@ -2,6 +2,11 @@
 </script>
 <template>
   <div class="flex gap-1 overflow-auto max-w-full pb-3 text-xs" v-if="$project">
+    <div class="btn btn-sm"
+    
+    >
+      <i class="fa-solid fa-caret-right"></i>
+    </div>
     <div class="carousel carousel-center bg-neutral max-w-full space-x-2">
       <div class="carousel-item flex gap-2 items-center border border-slate-600 click rounded-md px-1"
         @click="$projects.setActiveProject($projects.parentProject)"

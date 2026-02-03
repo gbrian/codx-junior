@@ -25,6 +25,9 @@
             <li>
               <!-- Search Input for Projects -->
               <div class="flex items-center mb-2 input input-sm md:input-md input-bordered">
+                <span class="click" @click="$projects.loadAllProjects()">
+                  <i class="fa-solid fa-arrows-rotate"></i>
+                </span>
                 <input 
                   type="text" 
                   placeholder="Search projects..." 

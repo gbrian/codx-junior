@@ -59,7 +59,7 @@ import ChatHistoryVue from './ChatHistory.vue'
         @chats="onChatEditDone"
         @sub-task="createSubTask"
         @sub-tasks="createSubTasks"
-        @chat="$projects.setActiveChat($event)"
+        @chat="setActiveChat($event)"
         @change-column="moveChatsToColumn"
         :kanban="activeBoard"
         :chat="$projects.activeChat"
@@ -70,7 +70,7 @@ import ChatHistoryVue from './ChatHistory.vue'
         <div class="flex gap-4 items-center">
           <div class="flex gap-2 items-center">
             <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2">
-              <div class="flex gap-2" @click="selectBoard()">
+              <div class="flex gap-2 items-center" @click="$projects.setActiveBoard()">
                 <div class="avatar">
                   <div class="w-8 h-8 rounded-full">
                     <img :src="$project.project_icon" />
@@ -81,15 +81,17 @@ import ChatHistoryVue from './ChatHistory.vue'
                 </span>
               </div>
               /
-              <div @click="selectBoard(parentBoard?.title)" v-if="parentBoard?.title">
+              <div @click.stop="selectBoard(parentBoard?.title)" v-if="parentBoard?.title">
                 {{ parentBoard?.title }} /
               </div>
-              <span class="font-bold">{{ activeBoard?.title }}</span>
-              <i
-                class="fa-solid fa-bookmark"
+              <span class="">
+                <i
+                class="text-xs fa-solid fa-bookmark"
                 :class="{ 'text-warning': activeBoard?.bookmark }"
                 @click="toggleBookmark"
               ></i>
+                {{ activeBoard?.title }}
+              </span>  
             </div>
           </div>
           <div class="grow"></div>
@@ -129,7 +131,7 @@ import ChatHistoryVue from './ChatHistory.vue'
               <div>Bookmarks</div>
             </h1>
             <div class="grid grid-cols-2 grid-flow-row gap-2">
-              <TaskCardLite @click="$projects.setActiveChat(task)" 
+              <TaskCardLite @click="setActiveChat(task)" 
                 :task="task" class="click h-20 overflow-hidden border rounded-md border-slate-600"
                 :class="task.pinned && 'border-warning'"
                 v-for="task in topChats" :key="task.id"/>
@@ -169,8 +171,9 @@ import ChatHistoryVue from './ChatHistory.vue'
                   <div class="cursor-pointer w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
                     :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
                     <span class="hidden group-hover:block">
-                      <i class="fa-solid fa-pen-to-square"></i>
+                      <i class="fa-solid fa-bars"></i>
                     </span>
+                    <span class="group-hover:hidden">{{ column.tasks.length }}</span>
                   </div>
                   <div class="flex gap-2 items-center grow"
                     :class="!column.valid && 'border border-dashed'"
@@ -185,7 +188,6 @@ import ChatHistoryVue from './ChatHistory.vue'
                   <div class="flex gap-2 items-center">
                     <div class="dropdown dropdown-end">
                       <div tabindex="0" role="button" class="btn btn-sm m-1 flex items-center">
-                        <span v-if="column.tasks?.length">({{ column.tasks.length }})</span>
                         <i class="mt-1 fa-solid fa-plus"></i>
                       </div>
                       <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
@@ -239,7 +241,7 @@ import ChatHistoryVue from './ChatHistory.vue'
         </div>
       </div>
       
-      <modal v-if="showBoardModal">
+      <modal close="true" @close="showBoardModal = false" v-if="showBoardModal">
         <h2 class="font-bold text-3xl">{{ editBoard ? 'Edit Board' : 'Add New Board' }}</h2>
         <div class="collapse bg-contain"
           :style="`background-image:url('${ newBoardBackground }')`"
@@ -258,12 +260,15 @@ import ChatHistoryVue from './ChatHistory.vue'
           </div>
         </div>
         
-        <div class="modal-action">
+        <div class="modal-action flex gap-2">
+          <button class="btn btn-error" @click="onDeleteBoard(newBoardName)">
+            Delete
+          </button>
+          <div class="grow"></div>
           <button class="btn" @click="addOrUpdateBoard" :disabled="isBoardNameTaken || !newBoardName">Save</button>
-          <button class="btn" @click="showBoardModal = false">Cancel</button>
         </div>
       </modal>
-      <modal v-if="showColumnModal">
+      <modal close="true" @close="showColumnModal = false" v-if="showColumnModal">
         <h2 class="font-bold text-lg">Add/Edit Column</h2>
         <div class="flex gap-1 items-center">
           <VSwatches v-model="columnColor" class="h-full mt-1" />
@@ -278,11 +283,16 @@ import ChatHistoryVue from './ChatHistory.vue'
           @select="columnProject = $event"    
         />
         <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
-        <div class="modal-action">
-          <button class="btn" @click="addOrUpdateColumn">OK</button>
-          <button class="btn" @click="showColumnModal = false">Cancel</button>
-          <button class="btn btn-error" @click="deleteColumn">Delete</button>
-          <div class="text-error text-xs" v-if="confirmDeleteColumn">
+        <div class="modal-action flex flex-col">
+          <div class="flex gap-2 w-full">
+            <button class="btn btn-error" @click="deleteColumn">
+              <span v-if="confirmDeleteColumn">Confirm delete?</span>
+              <span v-else>Delete</span>
+            </button>
+            <div class="grow"></div>
+            <button class="btn" @click="addOrUpdateColumn">Save</button>
+          </div>
+          <div class="text-error text-xs p-2" v-if="confirmDeleteColumn">
             Are you sure you want to delete this column? 
             All tasks will be removed.
           </div>
@@ -494,6 +504,10 @@ export default {
     }
   },
   methods: {
+    async setActiveChat(chat) {
+      chat && await this.$projects.reloadChat(chat)
+      this.$projects.setActiveChat(chat)
+    },
     buildFilteredColumns() {
       this.loadingChats += 1
       try {  
@@ -533,7 +547,6 @@ export default {
           await this.$projects.setActiveBoard(board)
         }
         this.isDropdownOpen = false
-        await this.$projects.loadChats()
         if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
           Object.keys(this.kanban.boards)
             .filter(b => this.kanban.boards[b])
@@ -565,7 +578,7 @@ export default {
         board: this.board || 'Default',
       })
       if (activateChat !== false) {
-        this.$projects.setActiveChat(chat)
+        this.setActiveChat(chat)
       }
       return chat
     },
@@ -658,14 +671,14 @@ export default {
       if (element.id === -1) {
         this.newChat()
       } else {
-        await this.$projects.setActiveChat(element)
+        await this.setActiveChat(element)
       }
     },
     async onChatEditDone(board) {
       if (this.board !== board) {
         this.selectBoard(board)
       }
-      await this.$projects.setActiveChat()
+      await this.setActiveChat()
       this.buildKanban()
     },
     async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
@@ -721,9 +734,11 @@ export default {
     },
     async deleteColumn() {
       if (this.confirmDeleteColumn) {
+        const column = this.columns.find(c => c.title === this.columnTitle)
+        column.tasks.forEach(chat => this.$projects.deleteChat(chat))
         this.resetColumnModal()
         this.activeKanbanBoard.columns = this.activeKanbanBoard.columns.filter(
-          column => column.id !== this.selectedColumn.id
+          col => col.id !== column.id
         )
         await this.saveKanban()
       }
@@ -779,6 +794,7 @@ export default {
       this.columnTitle = column?.title
       this.columnColor = column?.color || '#000000'
       this.columnProject = this.$projects.allProjectsById[column?.project_id] || this.$project
+      this.confirmDeleteColumn = false
       this.showColumnModal = true
     },
     async saveKanban() {
@@ -815,7 +831,7 @@ export default {
       this.showBoardModal = true
     },
     onDeleteBoard(board) {
-      this.$projects.deleteBoard(board)
+      // this.$projects.deleteBoard(board)
     },
     onAddFile(filePaths) {
       if (this.activeBoard) {

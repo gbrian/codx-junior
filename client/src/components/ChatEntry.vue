@@ -124,18 +124,15 @@ import UserSelector from './chat/UserSelector.vue'
         </div>
         
         <div v-if="message.think">
-          <div class="chat chat-start click"
+          <div class="alert click items-start"
             @click="message.full_think = !message.full_think"
           >
-            <div class="chat-bubble">
-              <div class="badge badge-info badge-outline">think</div>
+              <i class="fa-solid fa-brain"></i>
               {{ thinkText }}
               <div class="chat-footer opacity-50" v-if="message.is_thinking">
                 <span class="loading loading-dots"></span>
               </div>
-              <span class="underline" v-if="message.full_think">close</span>
-            </div>
-          </div>                
+          </div>    
         </div>
         <div @copy.stop="onMessageCopy" 
             :class="['max-w-full border-slate-300/20', 

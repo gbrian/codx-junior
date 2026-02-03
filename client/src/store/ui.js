@@ -49,6 +49,7 @@ export const getters = getterTree(state, {
   monitorToken: state => state.monitors[state.monitor],
   isSharedScreen: () => window.location.pathname === '/shared',
   enableFileManger: () => API.globalSettings?.enable_file_manager,
+  activeApps: () => Object.values($storex.ui.openApps)
 })
 
 export const mutations = mutationTree(state, {
@@ -61,22 +62,12 @@ export const mutations = mutationTree(state, {
     } else {
       state.activeTab = tab
     }
+    $storex.ui.saveState()
   },
   showTab(state, tab) {
     if (tab !== state.activeTab) {
       $storex.ui.setActiveTab(tab)
     }
-  },
-  loadState(state) {
-    const savedState = localStorage.getItem('uiState')
-    if (savedState) {
-      const parsedState = JSON.parse(savedState)
-      Object.keys(parsedState)
-        .forEach(k => state[k] = parsedState[k])
-    }
-    state.activeApp = null
-    state.openApps = {}
-    $storex.ui.handleResize()
   },
   setCodxJuniorWidth(state, width) {
     state.codxJuniorWidth = width
@@ -105,6 +96,7 @@ export const mutations = mutationTree(state, {
     state.coderProjectCodxPath = project.codx_path
   },
   setUIready(state) {
+    $storex.ui.loadState()
     state.uiReady = true
   },
   setFloatinCodxJunior(state, floating) {
@@ -140,15 +132,17 @@ export const mutations = mutationTree(state, {
   showApp(state, app) {
     state.openApps = {
       ...state.openApps,
-      [app.name]: app
+      [app.key]: app
     }
     state.activeApp = app
+    $storex.ui.saveState()
   },
   closeApp(state, app) {
-    delete state.openApps[app.name]
-    if (state.activeApp?.name === app.name) {
+    delete state.openApps[app.key]
+    if (state.activeApp?.key === app.key) {
       state.activeApp = state.openApps[Object.keys(state.openApps).reverse()[0]]
     }
+    $storex.ui.saveState()
   },
   setAppShowMode(state, mode) {
     state.appShowMode = mode
@@ -159,21 +153,54 @@ export const actions = actionTree(
   { state, getters, mutations },
   {
     async init ({ state }, $storex) {
-      $storex.ui.loadState()
       $storex.ui.handleResize()
       window.addEventListener('resize', () => $storex.ui.handleResize())
-      if (!state.tabIx) {
-        state.tabIx = 'home'
-      }
+      state.activeApp = "home"
       if (API.user?.theme) {
         state.theme = API.user.theme
       }
       state.coderProjectCodxPath = null
     },
     saveState({ state }) {
-      const data = { ...state, uiReady: false }
-      delete data.activeTab
+      if (!state.uiReady) {
+        // Ignore this calls as they can come from initialization
+        return
+      }
+      const data = { 
+        ...state, 
+        uiReady: false,
+        activeApp: null,
+        openApps: Object.keys(state.openApps),
+        activeProject: $storex.projects.activeProject?.project_id,
+        activeChat:  $storex.projects.activeChat?.id,
+      }
       localStorage.setItem('uiState', JSON.stringify(data))
+    },
+    async loadState({ state }) {
+      const savedState = localStorage.getItem('uiState')
+      if (savedState) {
+        const parsedState = JSON.parse(savedState)
+        Object.keys(parsedState)
+          .forEach(k => state[k] = parsedState[k])
+      }
+      const {
+        activeProject: project_id,
+        activeChat: chatId
+      } = state
+
+      if (project_id && project_id !== $storex.projects.activeProject?.project_id) {
+        await $storex.projects.setActiveProject({ project_id })
+      }
+      if (chatId) {
+        $storex.projects.setActiveChat({ id: chatId })
+      }
+      state.openApps = state.openApps.map(key => $storex.projects.projectApps.find(pa => pa.key === key)) 
+                          .filter(app => !!app)
+                          .reduce((acc, app) => ({ ...acc, [app.key]: app }), {})
+
+      state.activeApp = Object.values(state.openApps)[0]
+      
+      $storex.ui.handleResize()
     },
     handleResize({ state }) {
       const width = window.innerWidth
@@ -188,7 +215,6 @@ export const actions = actionTree(
     },
     async openFile({ state }, file) {
       if (state.isMobile) {
-        state.tabIx = 'help'
         state.openedFile = file
       } else {
         await API.coder.openFile(file)

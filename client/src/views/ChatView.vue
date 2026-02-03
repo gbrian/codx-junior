@@ -15,7 +15,7 @@ import Markdown from '../components/Markdown.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-base-300 p-1 @md:p-2" v-if="chat">
+  <div class="flex flex-col h-full bg-base-300 p-1 @md:p-2" v-if="workingChat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">
@@ -34,11 +34,6 @@ import Markdown from '../components/Markdown.vue'
                 </div>
                 <div class="flex gap-2">
                   <div class="flex gap-1">
-                    <div class="avatar" :title="taskProject.project_name" v-if="taskProject.project_id !== $project.project_id">
-                      <div class="w-7 h-7 rounded-full">
-                        <img :src="taskProject.project_icon"/>
-                      </div>
-                    </div>
                     <UserAvatar :width="7" :user="user" v-for="user in chatUsers" :key="user.username">
                       <li @click="removeUser(user)"><a>Remove</a></li>
                     </UserAvatar>  
@@ -62,31 +57,34 @@ import Markdown from '../components/Markdown.vue'
                   </div>
 
                   <div class="cursor-pointer text-xs @md:text-md @xl:text-xl flex flex-col">
-                    <div class="flex gap-1 items-start">
-                      <span class="click tooltip" @click.stop="toggleChatPinned"
+                    <div class="flex gap-2 items-start">
+                      <span class="click tooltip pt-1" @click.stop="toggleChatPinned"
                         data-tip="Bookmark"
                       >
                         <i class="text-warning fa-solid fa-bookmark" v-if="chat.pinned" ></i>
                         <i class="fa-regular fa-bookmark" v-else></i>
                       </span>
                       
-                      <div class="flex flex-col" :class="showChildChat && 'opacity-80'" @click="onChatNameClick">
+                      <div class="flex flex-col" :class="showChildChat && 'opacity-80'">
+                        <div>
+                          <span :class="showChildChat && 'opacity-70 hover:opacity-100'" @click="onChatNameClick">{{ computedChatName }}</span>
+                          <span v-if="showChildChat"> / {{ showChildChat.name }}</span>
+
+                        </div>
                         <div class="flex gap-1 text-xs gap-2">
                           [{{ formattedChatUpdatedDate }}]
-                          <div class="flex items-center" v-if="showTaskProjectName">
+                          <div class="flex items-center text-warning" v-if="showTaskProjectName">
                             <span>[</span>
                               {{ taskProject.project_name }}
                             <span>]</span>
                           </div>
+                          <span class="text-xs hover:underline"
+                              :class="showDescription ? 'text-error/70': 'text-info'"
+                            @click.stop="showDescription = !showDescription"
+                            v-if="computedChatDescription"> [{{ showDescription ? 'close': 'description' }}]
+                          </span>
                         </div>
-                        <div>{{ computedChatName }}</div>
                       </div> 
-                      <span v-if="showChildChat"> / {{ showChildChat.name }}</span>
-                      <span class="text-xs hover:underline"
-                      :class="showDescription ? 'text-error/70': 'text-info'"
-                        @click.stop="showDescription = !showDescription"
-                        v-if="computedChatDescription"> [{{ showDescription ? 'close': 'more' }}]
-                      </span>
                     </div>
                     <div class="text-xs" v-if="showDescription">
                       <markdown class="prose-sm" :text="computedChatDescription || '-- no description yet --'" />
@@ -105,7 +103,7 @@ import Markdown from '../components/Markdown.vue'
                     >
                     <i class="fa-solid fa-list"></i>
                   </button>
-                  <button class="btn btn-sm" v-if="hiddenCount" @click="showHidden = !showHidden">
+                  <button class="btn btn-sm" @click="showHidden = !showHidden">
                     <div class="flex items-center gap-2 tooltip"
                       data-tip="Archived messages" 
                       :class="showHidden ? 'text-warning':''">
@@ -144,9 +142,6 @@ import Markdown from '../components/Markdown.vue'
                       <i class="fa-solid fa-bars"></i>
                     </div>
                     <ul tabindex="0" class="dropdown-content menu bg-base-300 border rounded-box z-[1] p-2 w-96 shadow">
-                      <li @click="newTag = true">
-                        <a><i class="fa-solid fa-plus"></i> New #tag</a>
-                      </li>
                       <li @click="newSubChat()">
                         <a><i class="fa-solid fa-plus"></i> New sub task</a>
                       </li>
@@ -158,6 +153,13 @@ import Markdown from '../components/Markdown.vue'
                       </li>
                       <li @click="showChatSelector = true">
                         <a><i class="fa-solid fa-link"></i> Link chats</a>
+                      </li>
+                      <li @click="newTag = true">
+                        <a><i class="fa-solid fa-plus"></i> New #tag</a>
+                      </li>
+                      <hr>
+                      <li @click="reloadChat(workingChat)">
+                        <a><i class="fa-solid fa-recycle"></i> Load</a>
                       </li>
                       <li @click="saveChat">
                         <a><i class="fa-solid fa-floppy-disk"></i> Save</a>
@@ -533,6 +535,9 @@ export default {
     },
     async setProjectContext() {
       this.projectContext = await this.$service.project.loadProjectContext(this.$project)
+    },
+    async reloadChat() {
+      this.$projects.reloadChat(this.workingChat)
     },
     async saveChat(chat) {
       this.editName = false

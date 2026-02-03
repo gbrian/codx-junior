@@ -104,7 +104,7 @@ from codx.junior.background import start_background_services, stop_background_se
 
 
 CODX_JUNIOR_STATIC_FOLDER=os.environ.get("CODX_JUNIOR_STATIC_FOLDER")
-IMAGE_UPLOAD_FOLDER = f"{os.path.dirname(__file__)}/images"
+IMAGE_UPLOAD_FOLDER = f"{CODX_JUNIOR_STATIC_FOLDER}/images"
 os.makedirs(IMAGE_UPLOAD_FOLDER, exist_ok=True)
 
 GLOBAL_REQUEST_TIMEOUT=280
@@ -335,7 +335,7 @@ def api_image_upload(file: UploadFile):
         shutil.copyfileobj(file.file, file_object)   
 
     # Return the full URL to access the image
-    image_url = '/api/images/' + unique_filename
+    image_url = '/images/' + unique_filename
     return image_url
 
 @app.post("/api/run/improve")
@@ -589,7 +589,10 @@ def api_logs_list():
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
-    log_size = request.query_params.get("log_size") or "100"
+    log_size = request.query_params.get("log_size")
+    if not str(log_size).isnumeric():
+        log_size = 100
+
     if "🐋" in log_name:
         stdout, err_logs = exec_command(f"sudo docker logs -n {log_size} {log_name.split(':')[1]}")
         if err_logs:
@@ -641,10 +644,9 @@ def api_restart():
     logger.info(f"****************** API RESTARTING... bye *******************")
     exec_command("sudo kill 7")
 
-if CODX_JUNIOR_STATIC_FOLDER:
-    os.makedirs(CODX_JUNIOR_STATIC_FOLDER, exist_ok=True)
-    logger.info(f"API Static folder: {CODX_JUNIOR_STATIC_FOLDER}")
-    app.mount("/", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="client_chat")
+    
+logger.info("API Static folder: %s", CODX_JUNIOR_STATIC_FOLDER)
+logger.info("API Images folder: %s", IMAGE_UPLOAD_FOLDER)
 
-app.mount("/api/images", StaticFiles(directory=IMAGE_UPLOAD_FOLDER), name="images")
+app.mount("/api/static", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="static")
 

@@ -144,7 +144,7 @@ class CODXJuniorSession:
                               event_manager=self.event_manager)
 
     def get_chat_manager(self):
-        return ChatManager(settings=self.settings)
+        return ChatManager(settings=self.settings, event_manager=self.event_manager)
 
     def get_profile_manager(self, settings = None):
         return ProfileManager(settings=settings or self.settings)
@@ -172,7 +172,6 @@ class CODXJuniorSession:
 
     async def save_chat(self, chat: Chat, chat_only=False):
         chat = self.get_chat_manager().save_chat(chat, chat_only)
-        self.event_manager.chat_event(chat=chat, event_type="changed")
         return chat
 
     def delete_chat(self, chat_id):
@@ -183,9 +182,7 @@ class CODXJuniorSession:
         return self.get_profile_manager().list_all_profiles()
 
     async def save_profile(self, profile):
-        profile = self.get_profile_manager().save_profile(profile=profile)
-        await self.get_mention_manager().check_file_for_mentions(file_path=profile.content_path)
-        return self.read_profile(profile_name=profile.name)
+        return self.get_profile_manager().save_profile(profile=profile)
 
     def watch_project(self, watching):
         self.settings.watching = watching
@@ -316,7 +313,8 @@ class CODXJuniorSession:
         """Returns all projects related with this project, including child projects and links"""
         project_child_projects = self.settings.get_sub_projects()
         project_dependencies = [find_project_by_name(project_name) for project_name in self.settings.get_project_dependencies()]
-        return project_child_projects, project_dependencies
+        not_none = lambda col: [e for e in col if e]
+        return not_none(project_child_projects), not_none(project_dependencies)
 
     def get_all_search_projects(self):
         project_child_projects, project_dependencies = self.get_project_dependencies()

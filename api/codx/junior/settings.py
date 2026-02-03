@@ -249,6 +249,9 @@ class CODXJuniorSettings(BaseModel):
             settings.codx_path = base.codx_path
             if not settings.project_path or settings.project_path[0] != "/":
                 settings.project_path = base.project_path
+            # if settings.project_path[0] == '.': # relative
+            #     resolve_path = os.path.join(settings.codx_path, settings.project_path)
+            #     settings.project_path = os.path.abspath()
             if not settings.project_id:
                 return settings.save_project()
             settings.is_git_root = os.path.isdir(f"{settings.project_path}/.git")

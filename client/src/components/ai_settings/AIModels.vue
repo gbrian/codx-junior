@@ -1,5 +1,4 @@
 <script setup>
-import Chat from '../chat/Chat.vue'
 import AIModelSettings from './AIModelSettings.vue'
 </script>
 
@@ -18,9 +17,6 @@ import AIModelSettings from './AIModelSettings.vue'
             <div>
               <span>{{ model.name }}</span><span class="text-secondary" v-if="model.ai_model && model.name != model.ai_model"> / {{ model.ai_model }}</span>
             </div>
-            <button class="btn btn-xs btn-circle btn-outline" @click.stop="testModel(model)" v-if="model.model_type === 'llm'">
-              <i class="fa-solid fa-comments"></i>
-            </button>
           </h2>
           <span class="badge badge-xs badge-warning" v-if="model.model_type === 'llm'">
             <i class="fa-solid fa-brain"></i> LLM
@@ -79,7 +75,7 @@ import AIModelSettings from './AIModelSettings.vue'
         <span class="text-gray-500">Add New Model</span>
       </div>
     </div>
-    <modal v-if="showDialog">
+    <modal class="w-2/3 h-2/3 overflow-auto" v-if="showDialog">
       <AIModelSettings
         :aiProviders="aiProviders"
         :model="currentModel" 
@@ -105,12 +101,6 @@ import AIModelSettings from './AIModelSettings.vue'
         </div>
       </div>
     </modal>
-    <modal :close="true" @close="closeTestModel" v-if="testModelChat">
-      <div class="text-xl">
-        Test model <span class="text-primary font-bold">{{ testModelChat.model }}</span>
-      </div>
-      <Chat class="h-96" :chat="testModelChat" />
-    </modal>
   </div>
 </template>
 
@@ -132,7 +122,6 @@ export default {
         },
       },
       modelToDelete: null,
-      testModelChat: null,
       showModelInfo: null
     }
   },
@@ -171,16 +160,6 @@ export default {
         this.aiModels.splice(index, 1)
       }
       this.showDeleteDialog = false
-    },
-    async testModel(model) {
-      this.testModelChat = await this.$projects.createNewChat({
-        temp: true,
-        model: model.name,
-      })
-    },
-    closeTestModel() {
-      this.$projects.deleteChat(this.testModelChat)
-      this.testModelChat = null
     },
     async reloadModel(model) {
       model.loading = true

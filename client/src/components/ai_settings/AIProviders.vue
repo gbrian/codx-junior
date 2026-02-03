@@ -33,7 +33,7 @@ import Iframe from '../Iframe.vue';
               </td>
               <td>{{ provider.provider }}</td>
               <td class="w-20 overflow-hidden whitespace-nowrap text-ellipsis" :title="provider.api_url">{{ provider.api_url?.slice(0, 30) }}</td>
-              <td class="w-20 overflow-hidden whitespace-nowrap text-ellipsis" :title="provider.api_key">{{ provider.api_key?.slice(0, 30) }}</td>
+              <td class="w-20 overflow-hidden whitespace-nowrap text-ellipsis">{{ provider.api_key?.slice(0, 6) }}***********</td>
               <td class="flex gap-2">
                 <button class="btn btn-xs btn-circle btn-ghost" @click.stop="editProvider(provider)">
                   <i class="fa-solid fa-pen-to-square"></i>

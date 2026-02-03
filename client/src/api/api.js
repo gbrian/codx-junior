@@ -154,9 +154,6 @@ const initializeAPI = ({ project, user } = {}) => {
       test() {
         return API.get('/api/project/script/test');
       },
-      helpWantedIssues() {
-        return API.get('/api/github/issues/help-wanted')
-      },
       loadIssue(url) {
         return API.get('/api/github/issues/read?issue_url=' + encodeURIComponent(url)) 
       },
@@ -402,14 +399,8 @@ const initializeAPI = ({ project, user } = {}) => {
       }
     },
     async onUserLogin() {
-      API.allProjects = await API.projects.list()
-      try {
-        const activeProject = JSON.parse(localStorage.getItem("API_SETTINGS"))
-        API.activeProject = API.allProjects.find(p => p.project_id === activeProject.project_id)
-      } catch {}
-      if (!API.activeProject && API.allProjects.length) {
-        API.activeProject = API.allProjects[0]
-      }
+      API.allProjects = []
+      API.activeProject = null
       await Promise.all([
         API.screen.getScreenResolution(),
         API.settings.global.read(),

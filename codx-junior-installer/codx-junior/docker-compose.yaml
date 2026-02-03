@@ -41,6 +41,11 @@ services:
     environment:
       - OLLAMA_MODELS=/root/.ollama
       - OLLAMA_CONTEXT_LENGTH=131072
+      - OLLAMA_DEBUG=1
+      - OLLAMA_FLASH_ATTENTION=0
+      - OLLAMA_KEEP_ALIVE=-1
+      - OLLAMA_KV_CACHE_TYPE=q8_0
+      - OLLAMA_NUM_THREADS=6
     volumes:
       - codx-junior-ollama:/root/.ollama
     
@@ -152,12 +157,12 @@ services:
       - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior
       - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
       - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
+      - CODX_JUNIOR_API_VENV=/home/codx-junior/.codx-junior/.venv_codx_junior_api
     volumes:
       # Projects folder CODX_JUNIOR_PROJECTS_PATH  #######################################
-      - codx-junior-projects:/home/codx-junior-projects
+      - /home/codx-junior-projects:/home/codx-junior-projects
       # Global settings folder  ##########################################################
       - codx-junior:/home/codx-junior/.codx-junior
-      
       # Custom overrides (DEBUG)
       - ../../.:/home/codx-junior/codx-junior
       # Docker
@@ -171,6 +176,36 @@ services:
       - traefik.http.routers.codx-junior-api.service=codx-junior-api-service
       - traefik.http.services.codx-junior-api-service.loadbalancer.server.port=19980
       - traefik.http.middlewares.codx-junior-auth.forwardAuth.address=http://codx-junior-api:19980/api/forward-auth
+
+
+  codx-junior-api-background:
+    depends_on:
+      - codx-junior-api
+    container_name: codx-junior-api-background
+    image: codxjunior/codx-junior:api
+    shm_size: 4gb
+    restart: unless-stopped
+    env_file:
+      - .env # Load local .env file
+    user: "1001:1001"
+    environment:
+      - DEBUG=1
+      - ANONYMIZED_TELEMETRY=False
+      - CODX_JUNIOR_CONFIG_FOLDER=/home/codx-junior/.codx-junior
+      - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
+      - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
+      - CODX_JUNIOR_API_VENV=/home/codx-junior/.codx-junior/.venv_codx_junior_api
+      ## API BACKGROUND
+      - CODX_JUNIOR_API_BACKGROUND=1
+    volumes:
+      # Projects folder CODX_JUNIOR_PROJECTS_PATH  #######################################
+      - /home/codx-junior-projects:/home/codx-junior-projects
+      # Global settings folder  ##########################################################
+      - codx-junior:/home/codx-junior/.codx-junior      
+      # Custom overrides (DEBUG)
+      - ../../.:/home/codx-junior/codx-junior
+      # Docker
+      - /var/run/docker.sock:/var/run/docker.sock
       
   codx-junior-client:
     container_name: codx-junior-client

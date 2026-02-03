@@ -25,10 +25,6 @@ export default {
     if (!this.$users.isProjectAdmin) {
       this.selection = 'projects'
     }
-    this.issues = await this.$storex.api.projects.helpWantedIssues()
-    this.issues = this.issues.filter(i => i.hl_text)
-                    .map(issue => ({ ...issue, link: `https://github.com/${issue.repo.repository.owner_login}/${issue.repo.repository.name}/issues/${issue.number}`}))
-                    .sort((a, b) => a.created > b.created ? -1 : 1)
   },
   computed: {
     filteredProjects() {

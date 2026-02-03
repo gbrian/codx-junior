@@ -58,7 +58,9 @@ def find_project_by_name(project_name: str):
     """Given a project project_name, find the project"""
     all_projects = find_all_projects().values()
     matches = [p for p in all_projects if p.project_name == project_name]
-    return matches[0] if matches else None
+    project = matches[0] if matches else None
+    logger.exception("find_project_by_name '%s' not found", project_name)
+    return project
 
 def find_all_user_projects(user: CodxUser):
     user_security_manager = UserSecurityManager()

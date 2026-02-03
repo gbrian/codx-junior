@@ -9,10 +9,18 @@ services:
     image: codxjunior/codx-junior-default-workspace:latest
     container_name: codx-junior-default-workspace
     restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    devices:
+      - /dev/ppp:/dev/ppp
+    security_opt:
+      - seccomp:unconfined
     volumes:
-      - /codx-junior:/codx-junior
+      - /home/codx-junior/codx-junior:/home/codx-junior/codx-junior
+      - /shared:/shared
       # Projects volume mapping
-      - codx-junior-projects:/home/projects
+      - /home/codx-junior-projects:/home/codx-junior-projects
       # - /custom/project/path:/custom/project/path 
       # coder config
       - ./coder:/coder

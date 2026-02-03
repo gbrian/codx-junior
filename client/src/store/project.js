@@ -49,7 +49,8 @@ const createState = () => ({
     models: []
   },
   openedWorkspaces: [],
-  projectBarnches: {}
+  projectBarnches: {},
+  workspaces: []
 })
 
 function getProfiles(project) {
@@ -66,8 +67,8 @@ const initProject = async project => {
           project.$state.ai.models = models
 
           
-          project.$api.profiles.list().then(profiles => { project.$state.profiles = profiles })
-          project.$api.chats.list().then(chats => { project.$state.chats = chats })
+          project.$state.profiles = await project.$api.profiles.list()
+          project.$state.chats = await project.$api.chats.list()
           project.$api.knowledge.reload().then(knowledge => { project.$state.knowledge = knowledge })
           
           Object.assign(project.$state,  { 
@@ -256,9 +257,8 @@ export const getters = getterTree(state, {
           .filter(c => c.board === 'codx-junior')
           .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),
   userList: () => [$storex.users.user, ...$storex.projects.profiles?.map(p => ({ ...p, isProfile: true }))] || [],
-  workspaces: () => API.workspaces || [],
-  projectApps: state => API.workspaces?.filter(w => w.project_ids.includes("*") || w.project_ids.includes(state.activeProject?.project_id))
-                        .reduce((a, w) => a.concat(w.apps.map(a => ({ ...a, workspaceId: w.id }))), [])
+  projectApps: state => state.workspaces?.filter(w => w.project_ids.includes("*") || w.project_ids.includes(state.activeProject?.project_id))
+                        .reduce((a, w) => a.concat(w.apps.map(a => ({ ...a, workspaceName: w.name, key: `${w.name}-${a.name}` }))), [])
 })
 
 export const actions = actionTree(
@@ -269,7 +269,8 @@ export const actions = actionTree(
       state.activeProject = null
       state.activeChat = null
 
-      $storex.projects.loadAllProjects()
+      await $storex.projects.loadAllProjects()
+      $storex.ui.setUIready()      
     },
     async loadAllProjects({ state }, withMetrics) {
       if ($storex.api.user) {
@@ -293,7 +294,7 @@ export const actions = actionTree(
             } catch {}
           }
           if (!$storex.projects.activeProject && $storex.projects.allProjects?.length) {
-            $storex.projects.setActiveProject($storex.projects.allProjects[0])
+            await $storex.projects.setActiveProject($storex.projects.allProjects[0])
           }
           return $storex.projects.allProjects
         } catch (ex) {
@@ -318,24 +319,23 @@ export const actions = actionTree(
       if (project?.codx_path) {
       state.projectLoading = true
       try {
-        const [_, models ] = await Promise.all([
-          API.setActiveProject(project),
-          API.projects.ai.models.list()
-        ])
-        state.ai.models = models
 
+        API.setActiveProject(project)
+          
         const existsProject = state.allProjects.find(p => p.project_id === API.activeProject.project_id)
         if (!existsProject) {
           $storex.projects.setAllProjects([ ...state.allProjects, API.activeProject ])
         }
         state.activeProject = await initProject(state.allProjectsById[API.activeProject.project_id])
+        await $storex.projects.loadChats()
         if (state.activeChat?.project_id !== API.activeProject.project_id) {
           state.activeChat = null
         }
+        state.ai = state.activeProject.$state.ai
+
         $storex.projects.addRecentProject(state.activeProject) 
-        $storex.projects.loadProfiles()
-        $storex.projects.loadChats()
-        $storex.projects.loadProjectKnowledge()
+        state.workspaces = API.workspaces
+        $storex.ui.saveState()
       } finally {
         state.projectLoading = false
       }
@@ -373,18 +373,26 @@ export const actions = actionTree(
       await $storex.projects.loadChats()
     },
     async loadChat({ state }, chat) {
-      const loadedChat = await API.chats.loadChat(chat)
-      state.chats[loadedChat.id] = loadedChat
-      if (state.activeChat?.id === loadedChat.id) {
-        state.activeChat = state.chats[loadedChat.id]
+      if (!state.chats[chat.id]) {
+        chat = await API.chats.loadChat(chat)
+        state.chats[chat.id] = chat
       }
-      return loadedChat
+      if (state.activeChat?.id === chat.id) {
+        state.activeChat = state.chats[chat.id]
+      }
+      return chat
+    },
+    async reloadChat({ state }, chat) {
+      if (state.chats[chat.id]) {
+        delete state.chats[chat.id]
+      }
+      return $storex.projects.loadChat(chat)
     },
     async deleteChat({ state }, chat) {
       if (!chat.temp) {
         await API.chats.delete(chat)
-        await $storex.projects.loadChats()
-      } else {
+      }
+      if (state.chats[chat.id]) {
         delete state.chats[chat.id]
       }
     },
@@ -393,6 +401,7 @@ export const actions = actionTree(
         await $storex.projects.loadChat({ id, project_id })
       }
       state.activeChat = state.chats[id]
+      $storex.ui.saveState()
     },
     async addLogIgnore({ state }, ignore) {
       let ignores = state.activeProject.log_ignore?.split(",") || []
@@ -520,9 +529,14 @@ export const actions = actionTree(
         $storex.ui.addNotification({ text: message, type: event_type })
       }
     
-      if (chatId && (!state.chats[chatId] || type === 'changed')) {
+      const loadChat = chatId && (
+                          !state.chats[chatId] || 
+                          type === 'changed' || 
+                          event_type === 'done'
+                        )
+      if (loadChat) {
         if (codx_path === state.activeProject.codx_path) {
-            await $storex.projects.loadChat({ id: chatId })
+            await $storex.projects.reloadChat({ id: chatId })
         }
       }
 

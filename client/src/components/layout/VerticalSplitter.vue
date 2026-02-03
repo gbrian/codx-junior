@@ -21,7 +21,8 @@ import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
       :id="`${groupId}-panel-divider`"
       class="border-r border-slate-600 hover:bg-slate-600 w-2"
       v-if="$slots.left && $slots.right"
-    />
+    >
+    </SplitterResizeHandle>
     <SplitterPanel
       :id="`${groupId}-panel-splitter-2`"
       :min-size="panels?.right?.minSize || 10"

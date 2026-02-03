@@ -31,7 +31,6 @@ storex.init = async () => {
       await storex[m].init(storex)
     }
   }))
-  $storex.ui.setUIready()
 }
 storex.store = store
 storex.api = API

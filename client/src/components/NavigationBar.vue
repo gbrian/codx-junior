@@ -1,6 +1,5 @@
 <script setup>
 import moment from 'moment'
-import AppIcon from './apps/AppIcon.vue';
 import BarButton from './project/BarButton.vue';
 import MobileMenuVue from './MobileMenu.vue';
 import ProjectIconVue from './ProjectIcon.vue';
@@ -28,12 +27,17 @@ import ProjectIconVue from './ProjectIcon.vue';
       </div>
       
       <div class="grow"></div>
-
-      <div class="flex gap-2 justify-end items-center">
-        <BarButton class="text-codx-primary btn-outline" @click="newQuickChat()">
-          <i class="fa-regular fa-comment"></i>
-        </BarButton>
         
+      <div class="flex gap-2 justify-end items-center">
+      <div class="chat chat-end click" @click="newQuickChat()">
+          <div class="chat-image avatar">
+            <div class="w-10 rounded-full">
+              <img src="/only_icon.png" class="w-8 h-8" />
+            </div>
+          </div>
+          <div class="chat-bubble text-nowrap px-4">Ask me...</div>
+        </div>
+
         <BarButton class="btn-outline" @click="$ui.showNewProject(true)">
           <i class="fa-solid fa-plus"></i>
         </BarButton>

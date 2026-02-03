@@ -1,0 +1,68 @@
+{
+  "id": "88529cc4-6248-49da-bd0c-5ef23f89da9f",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "parent_id": null,
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "tags": [],
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "VueDeveloper"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "Navigator",
+  "pinned": false,
+  "description": "",
+  "messages": [
+    {
+      "doc_id": "8d94260f-edfb-4e17-bb81-debc66d4678f",
+      "role": "user",
+      "task_item": "",
+      "content": "Create browser like tabs with icon title and fontawesome cross (close).\napp.icon could be i tags with fontawesome (contains \"fa\") or img",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-01-02 16:48:43.788672",
+      "updated_at": "2026-01-02 16:48:43.788710",
+      "images": [],
+      "files": [],
+      "meta_data": {},
+      "profiles": [
+        "VueDeveloper"
+      ],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": true,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-01-02 06:47:03.441511",
+  "updated_at": "2026-01-02T16:50:52.232042",
+  "mode": "task",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Navigator",
+  "column": "UI",
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior/codx-junior/client/.codx/tasks/Navigator/UI/navigator.88529cc4-6248-49da-bd0c-5ef23f89da9f.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}

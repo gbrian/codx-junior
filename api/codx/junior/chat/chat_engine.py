@@ -70,7 +70,7 @@ class ChatEngine:
             self.event_manager.chat_event(chat=chat, message=f"{event} error: {ex}", event_type="error")
             logger.exception(f"Chat {chat.name} {event} error: {ex}")
         finally:
-            self.event_manager.chat_event(chat=chat, message=f"{event} done")
+            self.event_manager.chat_event(chat=chat, message=f"{event} done", event_type="done")
             logger.info(f"Chat done {chat.name}")
 
 
@@ -591,7 +591,7 @@ class ChatEngine:
 
         query = f"{content} {chat_profiles}"
         query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
-        logger.debug("Query mentions extracted fo '%s': %s", query, query_mentions)
+        logger.debug("Query mentions extracted for '%s...': %s", query[0:10], query_mentions)
 
 
         return query_mentions

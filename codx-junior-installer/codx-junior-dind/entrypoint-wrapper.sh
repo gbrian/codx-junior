@@ -28,5 +28,5 @@ fi
 # 4. Keep the container alive by tailing the daemon logs
 # This ensures the container stays running after scripts finish
 echo "[init] Custom initialization complete. Tailing logs..."
-cd /codx-junior/codx-junior-installer/codx-junior
+cd /home/codx-junior/codx-junior/codx-junior-installer/codx-junior
 docker-compose logs --tail=0 --follow
