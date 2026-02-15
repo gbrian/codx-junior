@@ -351,11 +351,14 @@ const initializeAPI = ({ project, user } = {}) => {
       }
     },
     images: {
-      async upload(file) {
+      async uploadFile(file) {
         let formData = new FormData();
         formData.append("file", file);
         const url = await API.post(`/api/images`, formData);
         return window.location.origin + url;
+      },
+      async upload(formData) {
+        return await API.post(`/api/images`, formData);
       }
     },
     data: {

@@ -71,6 +71,10 @@ class Knowledge:
             return False if os.stat(file_path).st_size else True
         return [file_path for file_path in changes if not is_empty(file_path)], current_sources_and_updates
 
+    def is_valid_file(self, file_path: str):
+        return self.loader.is_valid_file(
+                          ignore_paths=self.settings.get_ignore_patterns())
+      
     def reload(self, full: bool = False):
         if not self.settings.use_knowledge:
             return

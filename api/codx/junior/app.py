@@ -1,6 +1,7 @@
 import asyncio
 import faulthandler
 import logging
+import hashlib
 import os
 import shutil
 import time
@@ -60,6 +61,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 from starlette.status import HTTP_504_GATEWAY_TIMEOUT
+
+from contextlib import asynccontextmanager
 
 from codx.junior.db import (
     Chat
@@ -130,10 +133,21 @@ app.include_router(github_router, prefix="/api")
 app.include_router(file_finder_router, prefix="/api")
 app.include_router(db_router, prefix="/api")
 
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start your watcher in the background
+    stop_event = asyncio.Event()
+    # start_background_services(stop_event))
+    yield
+    # Clean up so Uvicorn can reload cleanly
+    stop_event.set()
+    await stop_background_services()
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("FASTAPI startup")
-    start_background_services()
 
 
 @app.on_event("shutdown")
@@ -321,22 +335,31 @@ def api_delete_kanban(request: Request):
     return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)
 
 @app.post("/api/images")
-def api_image_upload(file: UploadFile):
-    if file.filename == '':
+async def api_image_upload(file: UploadFile):
+    # Read the file content
+    file_content = await file.read()
+
+    if not file_content:
         return jsonify({'error': 'No selected file'}), 400
 
-    # Generate a unique filename using UUID
-    unique_filename = f"{str(uuid.uuid4())}-{file.filename}"
-    file_path = os.path.join(IMAGE_UPLOAD_FOLDER, unique_filename)
-    
-    # Save the file
-    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-    with open(file_path, "wb+") as file_object:
-        shutil.copyfileobj(file.file, file_object)   
+    # Create an MD5 hash from the file content
+    md5_hash = hashlib.md5(file_content).hexdigest()
 
-    # Return the full URL to access the image
-    image_url = '/images/' + unique_filename
-    return image_url
+    # Define the target directory for message images
+    message_image_folder = f"{CODX_JUNIOR_STATIC_FOLDER}/images/message"
+    os.makedirs(message_image_folder, exist_ok=True)
+
+    # Create the full path for the image using the hash
+    image_path = os.path.join(message_image_folder, md5_hash)
+
+    # Save the file if it doesn't exist
+    if not os.path.exists(image_path):
+        with open(image_path, "wb+") as file_object:
+            file_object.write(file_content)
+
+    # Return the relative path to access the image
+    image_url = f'/images/message/{md5_hash}'
+    return { "path": image_url }
 
 @app.post("/api/run/improve")
 async def api_run_improve(chat: Chat, request: Request):

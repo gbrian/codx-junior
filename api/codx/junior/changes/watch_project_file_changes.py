@@ -12,9 +12,10 @@ for log in ['watchdog']:
     logging.getLogger(log).setLevel(logging.ERROR)
 
 class WatchProjectFileChanges:
-    def __init__(self, callback):
+    def __init__(self, callback, stop_event):
         self.observers = []
         self.groups = {}
+        self.stop_event = stop_event
         self.callback = callback
         self._running = False  # To track the running state of the observer thread
 
@@ -64,12 +65,14 @@ class WatchProjectFileChanges:
         logger.info(f"Observers created for root paths: {list(self.groups.keys())}")
 
     def _observe_project(self, project_path, ignore_patterns):
-        event_handler = ProjectFileChangeHandler(project_path, ignore_patterns, self.callback)
-        observer = Observer()
-        observer.schedule(event_handler, path=project_path, recursive=True)
-        observer.start()
-        self.observers.append(observer)
-
+        if os.path.isdir(project_path):
+            event_handler = ProjectFileChangeHandler(project_path, ignore_patterns, self.callback)
+            observer = Observer()
+            observer.schedule(event_handler, path=project_path, recursive=True)
+            observer.start()
+            self.observers.append(observer)
+        else:
+            logger.error("_observe_project: '%s' is not a directory", project_path)
     def check_for_new_projects(self):
         try:
             all_projects = find_all_projects().values()

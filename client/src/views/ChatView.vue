@@ -15,7 +15,7 @@ import Markdown from '../components/Markdown.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-base-300 p-1 @md:p-2" v-if="workingChat">
+  <div class="flex flex-col h-full bg-base-300/80 p-1 @md:p-2" v-if="workingChat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">

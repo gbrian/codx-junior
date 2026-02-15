@@ -54,6 +54,47 @@ services:
     networks:
       - codx-junior
 
+
+  vscodium-web:
+    image: lscr.io/linuxserver/vscodium-web:latest
+    container_name: codx-junior-vscodium-web
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - CONNECTION_TOKEN= #optional
+      - CONNECTION_TOKEN_FILE= #optional
+      - SUDO_PASSWORD=password #optional
+      - SUDO_PASSWORD_HASH= #optional
+      - CODE_ARGS= #optional
+    volumes:
+      - /home/codx-junior/codx-junior:/home/codx-junior/codx-junior
+      - /shared:/shared
+      # Projects volume mapping
+      - /home/codx-junior-projects:/home/codx-junior-projects
+      # - /custom/project/path:/custom/project/path 
+      # coder config
+      - ./coder:/coder
+      # - ./config:/config
+      - ./coder/coder-init.sh:/custom-services.d/coder-init.sh
+      # Access docker
+      - /var/run/docker.sock:/var/run/docker.sock
+        #ports:
+    #  - 8000:8000
+    restart: unless-stopped
+    networks:
+      - codx-junior
+    labels:
+      - traefik.enable=true
+      # codium port ${CODE_SERVER_PORT}
+      - traefik.http.routers.codx-junior-default-workspace-codium-router.rule=PathPrefix(`/workspace-default/codium`)
+      - traefik.http.routers.codx-junior-default-workspace-codium-router.service=codx-junior-default-workspace-codium-service
+      - traefik.http.services.codx-junior-default-workspace-codium-service.loadbalancer.server.port=${CODE_SERVER_PORT:-8000}
+      - traefik.http.middlewares.codx-junior-default-workspace-codium-path.replacepathregex.regex=^/workspace-default/codium/(.*)
+      - traefik.http.middlewares.codx-junior-default-workspace-codium-path.replacepathregex.replacement=/$$1
+      - traefik.http.routers.codx-junior-default-workspace-codium-router.middlewares=codx-junior-default-workspace-codium-path,codx-junior-auth
+
+
 volumes:
   codx-junior-projects:
     external: true

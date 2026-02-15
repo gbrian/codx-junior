@@ -69,7 +69,7 @@ const initProject = async project => {
           
           project.$state.profiles = await project.$api.profiles.list()
           project.$state.chats = await project.$api.chats.list()
-          project.$api.knowledge.reload().then(knowledge => { project.$state.knowledge = knowledge })
+          // project.$api.knowledge.reload().then(knowledge => { project.$state.knowledge = knowledge })
           
           Object.assign(project.$state,  { 
             profiles: [], 

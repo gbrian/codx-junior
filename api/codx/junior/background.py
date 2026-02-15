@@ -32,13 +32,16 @@ QUARANTINE_DELAYS = [0, 1, 10, 30, 120]  # Minutes
 RUN_BACKGROUND_PROCSSES=True
 WATCHER = None
 
-def start_background_services() -> None:
+def start_background_services(stop_event) -> None:
     """
     Function to start background services for project watching and processing.
     """
 
     global WATCHER
     global RUN_BACKGROUND_PROCSSES
+
+    # Start the mention checking in a separate thread
+    WATCHER = start_mention_checking(stop_event)
 
     RUN_BACKGROUND_PROCSSES = True
     if not CODX_JUNIOR_API_BACKGROUND:
@@ -49,13 +52,11 @@ def start_background_services() -> None:
     # Start the project checking in a separate thread
     Thread(target=check_projects).start()
 
-    # Start the mention checking in a separate thread
-    # WATCHER = start_mention_checking()
     
-def stop_background_services():
+async def stop_background_services():
     logger.info("Stopping background processes")
     RUN_BACKGROUND_PROCSSES = False
-    # WATCHER.stop()
+    await WATCHER.stop()
     WATCHER = None
 
 def reload_models() -> None:
@@ -141,7 +142,7 @@ def start_mention_checking() -> None:
             change_managers[project.project_id] = ChangeManager(settings=project)
         await change_managers[project.project_id].process_project_mentions(file_path=file_path)
     logger.info("WatchProjectFileChanges start mention check")        
-    watcher = WatchProjectFileChanges(callback=check_file_mentions)
+    watcher = WatchProjectFileChanges(callback=check_file_mentions, stop_event=stop_event)
     watcher.start()
     return watcher
 

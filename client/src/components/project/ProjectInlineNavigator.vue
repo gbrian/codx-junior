@@ -2,9 +2,7 @@
 </script>
 <template>
   <div class="flex gap-1 overflow-auto max-w-full pb-3 text-xs" v-if="$project">
-    <div class="btn btn-sm"
-    
-    >
+    <div class="btn btn-sm" @click="$ui.closeTab()">
       <i class="fa-solid fa-caret-right"></i>
     </div>
     <div class="carousel carousel-center bg-neutral max-w-full space-x-2">

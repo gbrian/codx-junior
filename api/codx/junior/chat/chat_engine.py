@@ -339,8 +339,9 @@ class ChatEngine:
                     </comments>
 
                     INSTRUCTIONS:
-                     * Update the document with the comments
-                     * Return only the document content with comments applied
+                     * Read comments and update document content based on them  
+                     * Leave all parts of the document not affected by the comments untouched
+                     * Output the final document content
                     """
                 else:
                     task_content += user_message.content

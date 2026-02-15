@@ -4,6 +4,7 @@ set -e
 # 1. Start Docker daemon in the background
 # We redirect output to a log file so it doesn't clutter the init process
 rm -f /var/run/docker.pid || true
+rm /var/run/docker/containerd/containerd.pid || true
 dockerd-entrypoint.sh dockerd > /var/log/dockerd.log 2>&1 &
 
 # 2. Wait for Docker to be ready

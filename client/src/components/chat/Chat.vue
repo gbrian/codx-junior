@@ -3,12 +3,9 @@ import moment from 'moment'
 import { API } from '../../api/api'
 import ChatEntry from '@/components/ChatEntry.vue'
 import Browser from '@/components/browser/Browser.vue'
-import Markdown from '@/components/Markdown.vue'
 import TaskCard from '../kanban/TaskCard.vue'
 import UserSelector from './UserSelector.vue'
-import KnowledgeSearch from '../knowledge/KnowledgeSearch.vue'
 import CheckLists from './CheckLists.vue'
-import MentionSelector from '../mentions/MentionSelector.vue'
 import PRView from '@/components/repo/PRView.vue'
 import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAutoComplete.vue'
 </script>
@@ -138,11 +135,10 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
         </div>
         <div class="flex justify-between items-end px-2 bg-base-300 rounded-b-md">
           <div class="carousel rounded-box">
-            <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image.src">
+            <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image">
               <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
-                :style="`background-image: url(${image.src})`" @click="imagePreview = image">
+                :style="`background-image: url(${image})`" @click="imagePreview = { url: image }">
               </div>
-              <p class="text-xs">{{ image.alt.slice(0, 10) }}</p>
               <button class="btn btn-xs btn-circle btn-error absolute right-0 top-0"
                 @click="removeImage(ix)">
                 X
@@ -337,7 +333,8 @@ export default {
       searchingInKnowledge: false,
       projectContext: this.$project,
       uploadProjectFile: null,
-      metadata: null
+      metadata: null,
+      pasteWithShift: false
     }
   },
   created() {
@@ -796,6 +793,13 @@ export default {
       const text = [...e.clipboardData?.items].filter(f => f.type.indexOf("text") !== -1)[0]
       if (text) {
         const textContent = await new Promise(ok => text.getAsString(ok))
+        if (textContent.startsWith("<img")) {
+          const imageUrl = /src="([^"]+)/.exec(textContent)
+          if (imageUrl) {
+            this.images.push(imageUrl[1])
+            return stop()
+          }
+        }
         const fileMention = this.mentionList.find(m => m.file === textContent)
         if (fileMention) {
           this.addFileToMessage(fileMention.file)
@@ -803,7 +807,7 @@ export default {
           return stop()
         }
         const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.project_path))
-        if (isProjectFile) {
+        if (isProjectFile && !this.pasteWithShift) {
           this.addFileToMessage(textContent)
           this.setEditorText(this.editorText.replace(textContent, ""))
           e.preventDefault()
@@ -827,18 +831,25 @@ export default {
       })
     },
     async onInputImage(file) {
-      const base64URL = await this.getFileImageUrl(file)
       this.imagePreview = {
-        src: base64URL,
-        alt: ""
+        file
       }
     },
-    onAddImage() {
-      if (this.imagePreview.ix === undefined) {
-        this.images.push(this.imagePreview)
-        this.imagePreview.ix = this.images.length - 1
+    async onAddImage() {
+      if (!this.imagePreview) return
+
+      const formData = new FormData()
+      formData.append('file', this.imagePreview.file) 
+
+      try {
+        const response = await this.$storex.api.images.upload(formData)
+        const imagePath = response.path
+        this.images.push(imagePath)
+      } catch (error) {
+        console.error("Error uploading image:", error)
+      } finally {
+        this.imagePreview = null
       }
-      this.imagePreview = null
     },
     async onExtractTextImage(image) {
       function base64ToFile(base64Data, filename) {
@@ -857,12 +868,13 @@ export default {
       image.alt = text
     },
     async handleFileChange({ target: { files } }) {
-      const allUrls = await Promise.all([...files].map(file => this.getFileImageUrl(file)))
-      console.log("handleFileChange", allUrls)
-      this.images = [
-        ...this.images,
-        ...allUrls.map((src, ix) => ({ src, alt: "", ix: this.images.length + 1 + ix }))
-      ]
+      const imageFiles = [...files].filter(file => file.type.startsWith("image/"))
+      for (const file of imageFiles) {
+        this.imagePreview = {
+          file: file 
+        }
+        await this.onAddImage() 
+      }
       this.selectFile = false
     },
     onGenerateCode(codeBlockInfo) {
@@ -944,6 +956,12 @@ export default {
         this.hideAll()
       } else if(event.key === 'b' && event.ctrlKey) {
         this.createBlock()
+      } else if(event.key === 'v' && event.ctrlKey) {
+        this.pasteWithShift = false
+        return true
+      } else if(event.key === 'V' && event.ctrlKey) {
+        this.pasteWithShift = true
+        return true
       }  else {
         return true
       }

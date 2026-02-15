@@ -195,6 +195,7 @@ services:
       - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
       - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
       - CODX_JUNIOR_API_VENV=/home/codx-junior/.codx-junior/.venv_codx_junior_api
+      - CODX_JUNIOR_API_URL=http://codx-junior-api:19980
       ## API BACKGROUND
       - CODX_JUNIOR_API_BACKGROUND=1
     volumes:

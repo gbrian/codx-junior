@@ -139,7 +139,7 @@ import UserSelector from './chat/UserSelector.vue'
             (isCollapsed === undefined ? message.hide : isCollapsed) ? 'h-6 overflow-hidden': 'h-fit']">
           
           <textarea v-if="editting" v-model="editting" class="h-96 bg-transparent input w-full p-2"/>                
-          <pre v-if="srcView">{{ message.content }}</pre>
+            <pre v-if="srcView">{{ message.content }}</pre>
           <Document 
             :content="messageContent"
             :files="chatFiles"

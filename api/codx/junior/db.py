@@ -7,7 +7,7 @@ from slugify import slugify
 from codx.junior.settings import CODXJuniorSettings
 
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Union
 
 from datetime import datetime
 from enum import Enum
@@ -57,7 +57,7 @@ class Chat(BaseModel):
     child_index: Optional[int] = Field(default=0, description="Child index. Used to sort chat content among other siblings")
     message_id: Optional[str] = Field(default=None, description="Parent message for threads")
     status: str = Field(default='')
-    tags: List[str] = Field(default=[], description="Informative set of tags")
+    # tags: Optional[any] = Field(default=None, description="Informative set of tags")
     file_list: List[str] = Field(default=[])
     check_lists: Optional[List[dict]] = Field(default=[])
     profiles: List[str] = Field(default=[])

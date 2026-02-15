@@ -69,6 +69,9 @@ export const mutations = mutationTree(state, {
       $storex.ui.setActiveTab(tab)
     }
   },
+  closeTab(state) {
+    state.activeTab = null
+  },
   setCodxJuniorWidth(state, width) {
     state.codxJuniorWidth = width
     $storex.ui.saveState()

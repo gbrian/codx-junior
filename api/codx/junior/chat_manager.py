@@ -80,7 +80,7 @@ class ChatManager:
                 chat = self.load_chat_from_path(chat_file=file_path, chat_only=True)
                 return chat
             except Exception as ex:
-                logger.error(f"Error loading chat {ex}")
+                logger.error(f"Error loading chat '{file_path}': {ex}")
             return None
             
         return sorted([chat \
@@ -163,7 +163,7 @@ class ChatManager:
 
     def load_chat_from_path(self, chat_file: str, chat_only: bool = False):
         
-        logger.info("Load chat from path: %s", chat_file)
+        # logger.info("Load chat from path: %s", chat_file)
         if ".json" in chat_file and os.path.isfile(chat_file):
             with open(chat_file, 'r') as f:
                 chat_data = json.loads(f.read())

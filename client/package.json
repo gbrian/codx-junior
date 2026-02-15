@@ -20,6 +20,7 @@
     "@git-diff-view/vue": "^0.0.30",
     "@novnc/novnc": "github:novnc/noVNC#v1.7.0-beta",
     "@replit/novnc": "^2.2.0",
+    "@snowdreamtech/vue-tui-editor": "^0.1.4",
     "@tailwindcss/typography": "^0.5.10",
     "@tiptap/extension-code-block": "^3.10.7",
     "@tiptap/extension-highlight": "^3.10.7",
