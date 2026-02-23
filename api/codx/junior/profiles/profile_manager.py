@@ -10,7 +10,7 @@ from codx.junior.utils.utils import write_file
 
 from codx.junior.project.project_discover import (
     find_project_parents,
-    find_all_projects
+    find_project_by_name
 )
 
 logger = logging.getLogger(__name__)
@@ -40,6 +40,7 @@ class ProfileManager:
 
     def list_all_profiles(self):
         parent_projects = find_project_parents(project=self.settings)
+        parent_projects.append(find_project_by_name("codx-junior"))
         logger.info("list_all_profiles: %s", [p.project_name for p in parent_projects])
         
         all_profiles = {}

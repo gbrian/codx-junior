@@ -327,7 +327,7 @@ export default {
   async created() {
     this.reloadStatus()
     this.settings = this.$project.$api.activeProject
-    this.refreshIx = setInterval(() => this.reloadStatus(), 20000)
+    this.refreshIx = setInterval(() => this.reloadStatus(), 40000)
     if (this.$ui.activeTab === 'wiki_settings') {
       this.selectedTab = 'Wiki'
     }

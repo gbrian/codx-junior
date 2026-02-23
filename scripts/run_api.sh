@@ -9,18 +9,15 @@ source ${CODX_JUNIOR_PATH}/set_env.sh
 export PYTHONPATH=${CODX_JUNIOR_PATH}/api
 
 cd ${CODX_JUNIOR_PATH}/api
-if [ ! -d "$CODX_JUNIOR_API_VENV/bin" ]; then
-  echo "Installing codx-junior API for the first time at $CODX_JUNIOR_API_VENV ...will take some time."
-  python3.11 -m venv $CODX_JUNIOR_API_VENV
-  source ${CODX_JUNIOR_API_VENV}/bin/activate
-  
-  pip3 install wheel 
-  
-  pip3 install .  
-fi
 
 
 # Run the FastAPI application using uvicorn
+echo "Activate venv: ${CODX_JUNIOR_API_VENV}"
+if [ ! -d "${CODX_JUNIOR_API_VENV}/bin" ]; then
+  echo "!!! venv not found. Installing at: ${CODX_JUNIOR_API_VENV}"
+  bash ${CODX_JUNIOR_PATH}/scripts/install_api.sh
+fi
+
 source ${CODX_JUNIOR_API_VENV}/bin/activate
 
 echo "codx-junior api BACKGROUND: '${CODX_JUNIOR_API_BACKGROUND}' DEBUG: '${DEBUG}'"

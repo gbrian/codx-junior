@@ -44,7 +44,7 @@ import ChatHistoryVue from './ChatHistory.vue'
 
         <ChatHistoryVue :projects="[$project, ...$projects.childProjects]" v-if="showHistory" />
         <KanbanList
-          :boards="filteredParentBoards"
+          :boards="filteredBoards"
           @select="selectBoard"
           @new="showNewBoardModal"
           @bookmark="toggleBookmark"
@@ -374,8 +374,11 @@ export default {
       const parent = this.$project.parentProject
       return parent ? [parent, ...children] : children
     },
-    filteredParentBoards() {
-      return this.parentBoards.filter(board => 
+    filteredBoards() {
+      if (!this.boardFilter) {
+        return this.parentBoards 
+      }
+      return Object.values(this.boards).filter(board => 
         board.title.toLowerCase().includes(this.boardFilter.toLowerCase())
       )
     },

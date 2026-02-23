@@ -7,7 +7,7 @@ export BROWSER_VENV=/tmp/.venv_codx_junior_browser
 # codx-junior API port
 export CODX_JUNIOR_API_PORT=${CODX_JUNIOR_API_PORT:-19980}
 # codx-junior API URL
-export CODX_JUNIOR_API_URL=http://0.0.0.0:${CODX_JUNIOR_API_PORT}
+export CODX_JUNIOR_API_URL=${CODX_JUNIOR_API_URL:-http://0.0.0.0:${CODX_JUNIOR_API_PORT}}
 # codx-junior web port
 export CODX_JUNIOR_WEB_PORT=${CODX_JUNIOR_WEB_PORT:-19981}
 # codx-junior API background port

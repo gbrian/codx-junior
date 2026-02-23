@@ -2,6 +2,7 @@
 import MarkdownViewer from '../MarkdownViewer.vue';
 import Code from '../Code.vue';
 import TipTapDocument from './TipTapDocument.vue';
+import HTMLViewer from '../HTMLViewer.vue';
 </script>
 <template>
   <div class="flex flex-col @container/document">
@@ -21,6 +22,8 @@ import TipTapDocument from './TipTapDocument.vue';
         @add-file="$emit('add-file', $event)"
         @edit-message="$emit('edit-message', $event)"
         v-if="block.renderer === 'code'" />
+      <HTMLViewer :htmlContent="block.content" v-if="block.renderer === 'html'" />
+
     </div>
   </div>
 </template>
@@ -33,6 +36,16 @@ function generateHash(str) {
   }
   return hash;
 };
+
+function getRenderer(blockType) {
+  if (['markdown', 'md'].includes(blockType)){
+    return 'md'
+  } 
+  if (['html'].includes(blockType)) {
+    return blockType
+  }
+  return 'code'
+}
 // Define a function to parse the content into an array of objects with type and content
 function parseContent(content) {
   const blocks = [];
@@ -49,7 +62,7 @@ function parseContent(content) {
       content,
       hash,
       fileName: currentFileName,
-      renderer: ['markdown', 'md'].includes(currentType) ? 'md': 'code'
+      renderer: getRenderer(currentType)
     });
   }
   lines.forEach(line => {
@@ -87,7 +100,7 @@ export default {
   props: ['content', 'files'],
   computed: {
     blocks() {
-      return parseContent(this.content)
+      return parseContent(this.content || "")
     }
   }
 }

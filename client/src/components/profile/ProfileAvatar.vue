@@ -1,7 +1,10 @@
+<script setup>
+import Document from '../document/Document.vue';
+</script>
 <template>
   <div class="dropdown click">
     <div tabindex="0" class="avatar" v-if="profile">
-      <div class="rounded-full" :class="avatarWidth">
+      <div class="rounded-full bg-base-300" :class="avatarWidth">
         <img :src="profile.avatar" />
       </div>
     </div>
@@ -11,6 +14,7 @@
       <div class="card-body text-xs">
         <div class="badge badge-primary">{{ profile.name }}</div>
         <p>{{ profile.description }}</p>
+        <Document class="max-h-60 overflow-auto" :content="profile.content" />
         <slot></slot>
       </div>
     </div>

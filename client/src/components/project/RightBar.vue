@@ -25,6 +25,13 @@ import BarButton from './BarButton.vue';
       <i class="fa-solid fa-user-group"></i>
     </BarButton>
 
+    <BarButton tab="knowledge"
+      @click="$ui.setActiveTab('knowledge')"
+      v-if="$users.isProjectAdmin"
+    >
+      <i class="fa-solid fa-magnifying-glass"></i>
+    </BarButton>
+
     <BarButton tab="file-finder"
       @click="$ui.setActiveTab('file-finder')">
       <i class="fa-solid fa-folder"></i>

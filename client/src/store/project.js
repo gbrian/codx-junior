@@ -54,8 +54,8 @@ const createState = () => ({
 })
 
 function getProfiles(project) {
-  const { project_id } = project
-  return $storex.profiles.profiles[project_id]
+  const { project_id, $state } = project
+  return $state?.profiles || $storex.profiles.profiles[project_id]
 }
 
 const initProject = async project => {
@@ -65,15 +65,10 @@ const initProject = async project => {
             project.$api.projects.ai.models.list()
           ])
           project.$state.ai.models = models
-
-          
-          project.$state.profiles = await project.$api.profiles.list()
-          project.$state.chats = await project.$api.chats.list()
-          // project.$api.knowledge.reload().then(knowledge => { project.$state.knowledge = knowledge })
           
           Object.assign(project.$state,  { 
-            profiles: [], 
-            chats: [],
+            profiles: await project.$api.profiles.list(), 
+            chats: await project.$api.chats.list(),
             knowledge: {},
             _mentionList: null,
             get mentionList() {
@@ -398,7 +393,7 @@ export const actions = actionTree(
     },
     async setActiveChat({ state }, { id, project_id } = {}) {
       if (id) {
-        await $storex.projects.loadChat({ id, project_id })
+        await $storex.projects.reloadChat({ id, project_id })
       }
       state.activeChat = state.chats[id]
       $storex.ui.saveState()

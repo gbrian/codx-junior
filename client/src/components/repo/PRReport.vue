@@ -9,7 +9,7 @@ import PRFile from './PRFile.vue'
         :option="showOption"
         :columns="columns"
         ref="prFiles"
-        class="grow bg-base-200 mb-2"
+        class="bg-base-200 mb-2"
         @new-chat="$emit('new-chat', $event)"
         @chat-column="$emit('chat-column', $event)"
         @scroll-to="scrollToFile"

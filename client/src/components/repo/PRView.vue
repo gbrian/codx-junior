@@ -220,6 +220,9 @@ export default {
       return this.files?.filter(f => f.selected) || []
     },
     visibleFiles() {
+      if (this.selectedFiles?.length) {
+        return this.selectedFiles
+      }
       const fileIndex = ({ fileFullName, diff, chat }) => {
         const fields = [
           fileFullName.toLowerCase(),

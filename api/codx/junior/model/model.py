@@ -61,7 +61,10 @@ class Tool(BaseModel):
 
 class CodxJuniorBaseTools(BaseModel):
     knowledge: Tool = Tool(name="knowledge", description="Project's knowledge search")
-    
+
+class CommandTool(Tool):
+    command: Optional[str] = Field(description="Command", default=None)
+
 class ProjectPermission(BaseModel):
     project_id: str
     permissions: str = Field(description="User permissions for the project", default=[])
@@ -189,6 +192,7 @@ class AIEmbeddingModelSettings(BaseModel):
 class AIModelType(str, Enum):
     llm = 'llm'
     embeddings = 'embeddings'
+    image = 'image'
 
 class AIModel(BaseModel):
     name: str = Field(description="Model name")    

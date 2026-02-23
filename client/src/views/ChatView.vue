@@ -33,21 +33,20 @@ import Markdown from '../components/Markdown.vue'
                   </div>
                 </div>
                 <div class="flex gap-2">
-                  <div class="flex gap-1">
+                  <div class="flex gap-1 relative">
+                      <ProfileAvatar :profile="profile"
+                        :project="taskProject"
+                        width="7"
+                        v-for="profile in chatProfiles" :key="profile.name">
+                          <div class="flex justify-end gap-2">
+                            <div class="badge badge-xs badge-error cursor-pointer" @click="removeProfile(profile)">
+                              remove
+                            </div>
+                          </div>
+                      </ProfileAvatar>
                     <UserAvatar :width="7" :user="user" v-for="user in chatUsers" :key="user.username">
                       <li @click="removeUser(user)"><a>Remove</a></li>
                     </UserAvatar>  
-                    <ProfileAvatar :profile="profile"
-                      :project="taskProject"
-                      width="7"
-                      v-for="profile in chatProfiles" :key="profile.name">
-                        <div class="flex justify-end gap-2">
-                          <div class="badge badge-xs badge-error cursor-pointer" @click="removeProfile(profile)">
-                            remove
-                          </div>
-                        </div>
-                    </ProfileAvatar>
-
                     <UserSelector 
                       class="dropdown-bottom"
                       :allUsers="true"
@@ -247,7 +246,7 @@ import Markdown from '../components/Markdown.vue'
               :chat="workingChat"
               :showHidden="showHidden"
               :childrenChats="showChatMenu ? null : childrenChats"
-              @refresh-chat="loadChat(workingChat)"
+              @refresh-chat="reloadChat(workingChat)"
               @remove-file="onRemoveFile" 
               @delete="confirmDelete = true"
               @subtask="onNewMessageSubtask"
@@ -563,13 +562,13 @@ export default {
     async removeFileFromContext() {
       this.chat.profiles = this.chat.profiles?.filter(f => f !== this.showFile)
       this.onRemoveFile(this.showFile)
-      await this.loadChat(this.chat)
+      await this.reloadChat(this.chat)
       this.showFile = null
     },
     async addFileToContext() {
       this.onAddFile(this.addFile)
       await this.saveChat(this.chat)
-      await this.loadChat(this.chat)
+      await this.reloadChat(this.chat)
       this.showFile = null
       this.addFile = null
     },
@@ -753,7 +752,7 @@ export default {
     selectChildChat(childChat) {
       this.showChildChat = childChat
       if (childChat && !childChat.messages?.length) {
-        this.$projects.loadChat(childChat)
+        this.$projects.reloadChat(childChat)
       }
     },
     onChatNameClick() {

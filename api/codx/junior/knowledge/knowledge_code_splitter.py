@@ -19,8 +19,6 @@ from codx.junior.knowledge.settings import (
     CODE_PARSER_FROM_EXTENSION
 )
 
-from docling.document_converter import DocumentConverter
-
 from codx.junior.utils.utils import exec_command
 
 from codx.junior.globals import (
@@ -63,12 +61,12 @@ class KnowledgeCodeSplitter:
             #logger.error(f"[KnowledgeCodeSplitter] load_with_language_parser load error: {ex} - {file_path}")
             pass
           
-        if not file_path.endswith(".md") and False:
-            try:
-                return self.load_with_docling(file_path=file_path, code_parser_language=code_parser_language)
-            except Exception as ex:
-                logger.exception(f"[KnowledgeCodeSplitter] load_with_docling load error: {ex} - {file_path}")
-                pass
+        # if not file_path.endswith(".md") and False:
+        #     try:
+        #         return self.load_with_docling(file_path=file_path, code_parser_language=code_parser_language)
+        #     except Exception as ex:
+        #         logger.exception(f"[KnowledgeCodeSplitter] load_with_docling load error: {ex} - {file_path}")
+        #         pass
               
         try:
             return self.load_as_text(file_path=file_path)
@@ -126,6 +124,8 @@ class KnowledgeCodeSplitter:
             return docs
 
     def load_with_docling(self, file_path, code_parser_language):
+        from docling.document_converter import DocumentConverter
+
         extension = file_path.split(".")[-1]
         if extension in ["pdf", "docx", "xls", "jpg"]:
             markdown_path = file_path + ".md"

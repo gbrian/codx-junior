@@ -135,25 +135,19 @@ app.include_router(db_router, prefix="/api")
 
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # Start your watcher in the background
-    stop_event = asyncio.Event()
-    # start_background_services(stop_event))
-    yield
-    # Clean up so Uvicorn can reload cleanly
-    stop_event.set()
-    await stop_background_services()
-
+APP_STOP_EVENT = asyncio.Event()
+    
 @app.on_event("startup")
 async def startup_event():
+    start_background_services(APP_STOP_EVENT)
     logger.info("FASTAPI startup")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     logger.info("FASTAPI shutdown")
-    stop_background_services()
+    APP_STOP_EVENT.set()
+    await stop_background_services()
     
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

@@ -152,6 +152,11 @@ class DevOpsRepository(BaseModel):
     def __init__(self, repo_url: str):
         self.repo_url = repo_url
         
+class ProjectResource(BaseModel):
+    resource_id: str = None
+    creation_date: datetime = datetime.now()
+    metadata: Optional[dict] = None
+    content: Optional[List] = None
 
 class CODXJuniorSettings(BaseModel):
     project_id: Optional[str] = Field(default=None)
@@ -367,6 +372,17 @@ class CODXJuniorSettings(BaseModel):
     def get_project_ai_models(self):
         return GLOBAL_SETTINGS.ai_models
 
+    def write_file_resource(self, file_path: str, content) -> ProjectResource:
+        """Stores a file resource in the project's file resources"""
+        pass
+
+    def read_file_resource(self, file_path: str) -> ProjectResource:
+        """Reads a file resource in the project's file resources"""
+        pass
+
+    def delete_file_resource(self, file_path: str):
+        """Deletes a file resource in the project's file resources"""
+        pass
 
 
 class CODXJuniorProject(CODXJuniorSettings):

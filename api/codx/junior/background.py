@@ -36,16 +36,16 @@ def start_background_services(stop_event) -> None:
     """
     Function to start background services for project watching and processing.
     """
+    if not CODX_JUNIOR_API_BACKGROUND:
+        return
 
     global WATCHER
     global RUN_BACKGROUND_PROCSSES
 
     # Start the mention checking in a separate thread
-    WATCHER = start_mention_checking(stop_event)
+    # WATCHER = start_mention_checking(stop_event)
 
     RUN_BACKGROUND_PROCSSES = True
-    if not CODX_JUNIOR_API_BACKGROUND:
-        return
     logger.info("*** Starting background processes ***")
     reload_models()
 
@@ -54,9 +54,12 @@ def start_background_services(stop_event) -> None:
 
     
 async def stop_background_services():
+    if not CODX_JUNIOR_API_BACKGROUND:
+        return
+
     logger.info("Stopping background processes")
     RUN_BACKGROUND_PROCSSES = False
-    await WATCHER.stop()
+    #await WATCHER.stop()
     WATCHER = None
 
 def reload_models() -> None:
@@ -135,14 +138,14 @@ def check_projects() -> None:
         time.sleep(10)
 
 
-def start_mention_checking() -> None:
-    change_managers = {}
-    async def check_file_mentions(project, file_path):
-        if not project.project_id in change_managers:
-            change_managers[project.project_id] = ChangeManager(settings=project)
-        await change_managers[project.project_id].process_project_mentions(file_path=file_path)
-    logger.info("WatchProjectFileChanges start mention check")        
-    watcher = WatchProjectFileChanges(callback=check_file_mentions, stop_event=stop_event)
-    watcher.start()
-    return watcher
+#def start_mention_checking(stop_event) -> None:
+#    change_managers = {}
+#    async def check_file_mentions(project, file_path):
+#        if not project.project_id in change_managers:
+#            change_managers[project.project_id] = ChangeManager(settings=project)
+#        await change_managers[project.project_id].process_project_mentions(file_path=file_path)
+#    logger.info("WatchProjectFileChanges start mention check")        
+#    watcher = WatchProjectFileChanges(callback=check_file_mentions, stop_event=stop_event)
+#    watcher.start()
+#    return watcher
 

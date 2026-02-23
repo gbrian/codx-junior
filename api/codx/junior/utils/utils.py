@@ -140,13 +140,13 @@ def exec_command(command: str, cwd: str=None, env: dict=None):
 
 def set_file_permissions(file_path: str):
     if HOST_USER:
-        exec_command(f"chown {HOST_USER} {file_path}")
+        exec_command(f"sudo chown {HOST_USER} {file_path}")
 
 def write_file(file_path: str, content: str):
     os.makedirs(os.path.dirname(file_path), exist_ok=True)
+    set_file_permissions(file_path)
     with open(file_path, 'w') as f:
         f.write(clean_string(content))
-    set_file_permissions(file_path)
     
 def read_file(file_path: str, project_path: str = ""):
     if project_path and not file_path.startswith(project_path):

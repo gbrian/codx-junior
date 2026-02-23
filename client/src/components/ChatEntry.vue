@@ -5,6 +5,7 @@ import { CodeDiff } from 'v-code-diff'
 import ChatIcon from './chat/ChatIcon.vue'
 import Document from './document/Document.vue'
 import UserSelector from './chat/UserSelector.vue'
+import ProfileAvatar from './profile/ProfileAvatar.vue'
 </script>
 
 <template>
@@ -23,21 +24,11 @@ import UserSelector from './chat/UserSelector.vue'
         <progress class="progress w-full" v-if="!message.done"></progress>
     
         <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
-          <div class="badge badge-sm badge-success flex gap-1" v-if="message.is_answer">
-            <ChatIcon mode="answer" /> Knowledge 
-          </div>
-          <div class="badge badge-sm badge-info badge-outline flex gap-1" v-if="isTopic">
-            <ChatIcon mode="topic" /> Topic 
-          </div>              
           <div class="flex gap-1 items-center" 
             :class="message.hide && 'text-slate-500'">
             <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             <div v-for="profile in messageProfiles" :key="profile.name">
-              <div class="avatar tooltip tooltip-bottom tooltip-right" :data-tip="`@${profile.name}`">
-                <div class="w-4 h-4 mt-1 rounded-full">
-                  <img :src="profile.avatar" :alt="profile.name" />
-                </div>
-              </div>
+              <ProfileAvatar :profile="profile" width="8" />
             </div>
             <UserSelector 
               class="dropdown-bottom"
@@ -49,6 +40,16 @@ import UserSelector from './chat/UserSelector.vue'
             <div class="flex gap-2 grow">
               [{{ formatDate(message.updated_at) }}] 
               <span v-if="timeTaken">({{ timeTaken }} s.)</span>
+              
+              <div class="badge badge-sm badge-success flex gap-1" v-if="message.is_answer">
+                <ChatIcon mode="answer" /> Knowledge 
+              </div>
+              <div class="badge badge-sm badge-info badge-outline flex gap-1" v-if="isTopic">
+                <ChatIcon mode="topic" /> Topic 
+              </div>
+              <div class="badge badge-sm border-dashed badge-outline flex gap-1" v-if="thread">
+                <ChatIcon :mode="thread.mode" /> Thread 
+              </div>
             </div>
             <div :class="!editting && 'opacity-0'" class="group-hover:opacity-100 flex gap-2 items-center justify-end"
               v-if="menuLess !== true"
@@ -311,6 +312,9 @@ export default {
     },
     chatFiles() {
       return this.chat.file_list
+    },
+    thread() {
+      return this.$projects.allChats.find(c => c.message_id === this.message.doc_id)
     }
   },
   methods: {

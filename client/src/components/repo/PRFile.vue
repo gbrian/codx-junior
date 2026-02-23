@@ -1,7 +1,6 @@
 <script setup>
 import "@git-diff-view/vue/styles/diff-view.css"
 import { DiffView, DiffModeEnum } from "@git-diff-view/vue"
-import CodeComment from "./CodeComment.vue"
 import Chat from "../chat/Chat.vue"
 import CodeViewer from "../CodeViewer.vue"
 import ChatEntry from "../ChatEntry.vue"
@@ -16,7 +15,7 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
       >
         <div class="click flex gap-2 items-center truncate" :title="file.fileFullName" 
           @click="$ui.openFile(file.fileFullName)">
-          <button @click.stop="file.collapse = !file.collapse">
+          <button @click.stop="toggleCollapse">
             <i class="fa-solid fa-chevron-up" v-if="file.collapse"></i>
             <i class="fa-solid fa-chevron-down" v-else></i>
           </button>
@@ -90,7 +89,7 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
     </div>
     <VerticalSplitter class="grow flex h-full min-h-96" 
       :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
-      v-if="!file.collapse">
+      v-if="file.collapse === true">
       
       <template v-slot:left>
         <div class="@container/prfile">
@@ -172,10 +171,10 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 </template>
 <script>
 export default {
-  props: ['file', 'option', 'columns'],
+  props: ['file', 'columns'],
   data() {
     return {
-      showOption: this.option || 'diff',
+      showOption: null,
       fileContent: null,
       diffSplit: false,
       diffWrap: true,
@@ -184,9 +183,6 @@ export default {
     }
   },
   created() {
-    if (this.showOption === 'diff' && this.file.isNewFile) {
-      this.loadFileContent()
-    }
     if (this.file.chat) {
       this.$projects.loadChat(this.file.chat)
     }
@@ -280,6 +276,12 @@ export default {
     async navigateToChat() {
       await this.$projects.setActiveChat(this.file.chat)
       this.$ui.showTab('tasks')
+    },
+    toggleCollapse() {
+      this.file.collapse = !this.file.collapse
+      if (!this.showOption) {
+        this.showOption = 'diff'
+      }
     }
   },
   expose: ['file']

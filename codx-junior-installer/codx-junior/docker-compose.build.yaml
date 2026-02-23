@@ -11,6 +11,8 @@ services:
       context: ../.. # codx-junior base
     command: sleep 1
   codx-junior-api-image:
+    depends_on:
+      - codx-junior-debian-image
     image: codxjunior/codx-junior:api
     user: 1001:1001
     build:

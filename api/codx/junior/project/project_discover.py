@@ -11,12 +11,20 @@ from codx.junior.security.user_management import UserSecurityManager
 from codx.junior.settings import CODXJuniorSettings, CODXJuniorProject
 from codx.junior.model.model import CodxUser
 
+from codx.junior.settings import read_global_settings
+
 from codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics
 
 logger = logging.getLogger(__name__)
 
 _ALL_PROJECTS = None
 _ALL_PROJECTS_PROC = None
+
+
+def get_projects_root_path():
+    global_settings = read_global_settings()
+    projects_root_path = global_settings.projects_root_path or os.environ.get("CODX_JUNIOR_PROJECTS_PATH", None) or f"{os.environ['HOME']}/projects"
+    return projects_root_path
 
 def find_all_projects():
     global _ALL_PROJECTS_PROC
@@ -99,6 +107,7 @@ def _update_all_projects():
     global _ALL_PROJECTS
 
     all_projects = {}
+    projects_root_path = get_projects_root_path()
     user_security_manager = UserSecurityManager()
     project_path = "/"
     result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -109,7 +118,9 @@ def _update_all_projects():
     def is_valid_project(settings):
         if not settings or not settings.project_name:
             return False
-        if [p for p in all_projects.values() if p.project_name == settings.project_name]:
+        existing_project = all_projects.get(settings.project_id, None)
+        if existing_project and existing_project.project_path.startswith(projects_root_path):
+            # EDGE CASE: In case of duplicates, give preference to projects in the "projects_root_path" folder
             return False
         return True
 

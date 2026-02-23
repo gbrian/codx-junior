@@ -2,7 +2,7 @@ import os
 import subprocess
 import logging
 
-HOST_USER = os.environ.get("HOST_USER")
+HOST_USER = os.environ.get("HOST_USER") or os.environ.get("USER") 
 
 """Changed files older than MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS won't be processed"""
 MAX_OUTDATED_TIME_TO_PROCESS_FILE_CHANGE_IN_SECS = 60 * 60

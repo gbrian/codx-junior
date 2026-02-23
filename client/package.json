@@ -65,6 +65,7 @@
     "vue-router": "^4.3.0",
     "vue-window-manager": "^0.3.6",
     "vue3-swatches": "^1.2.4",
+    "vue3-virtual-scroller": "^0.2.3",
     "vuedraggable": "^4.1.0",
     "vuefinder": "^2.7.1",
     "vuex": "^4.1.0",

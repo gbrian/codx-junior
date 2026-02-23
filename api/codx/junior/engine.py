@@ -1205,7 +1205,7 @@ class CODXJuniorSession:
         if process:
             content = await self.process_project_file_before_saving(file_path=file_path, content=content)
         if not file_path.startswith(self.settings.project_path):
-            raise Exception(f"Can't write outside the project's path: {file_path}")
+            raise Exception(f"Can't write outside the project's path: {file_path} - {self.settings.project_path}")
         write_file(file_path=file_path, content=content)
         return { "file_path": file_path }
 

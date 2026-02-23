@@ -11,7 +11,7 @@ CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 sio_client = None
 if CODX_JUNIOR_API_BACKGROUND:
     sio_client = socketio.SimpleClient()
-    url = f'http://0.0.0.0:{os.environ["CODX_JUNIOR_API_PORT"]}'
+    url = os.environ["CODX_JUNIOR_API_URL"]
     while True:
         try:
             logger.info(f"***************** Background client SIOconnecting to {url}")

@@ -6,23 +6,16 @@ name = "codx-junior"
 version = "0.1.0"
 description = "Your AI coding assistant"
 readme = "README.md"
-requires-python = ">=3.8, <4.0"
+requires-python = ">=3.11, <4.0"
 dependencies = [
   'openai==2.8.1',
-  'pytest==7.3.1',
   'langchain==1.1.0',
   'langchain-community==0.4.1',
   'langchain-text-splitters==1.0.0',
   'flask>=2.0.2',
   'python-slugify>=8.0.1',
   'llama-index>=0.9.42',
-  'tree_sitter>=0.20.4',
-  'tree_sitter_languages',
-  'tree-sitter-java',
-  'tree-sitter-c-sharp',
-  'tree-sitter-html',
   'uvicorn==0.38.0',
-  'anthropic',
   'fastapi_socketio==0.0.10',
   'fastapi==0.122.0',
   'python-multipart>=0.0.20',
@@ -34,14 +27,11 @@ dependencies = [
   'watchfiles>=1.0.4',
   'pyjwt>=2.10.1',
   'bcrypt>=4.3.0',
-  'faster_whisper>=1.2.0',
   'ffmpeg>=1.4',
   'aiofiles>=24.1.0',
-  'docling>=2.45.0',
   'html2text',
   'watchdog',
   'pypandoc>=1.16',
-  'ollama>=0.6.1'
 ]
 
 classifiers = [
@@ -59,25 +49,6 @@ test = [
     "pytest >= 7.3.1",
 ]
 doc = [
-
-    "autodoc_pydantic >= 1.8.0",
-    "pydantic>=2.10.6",
-    "myst_parser >= 0.18.1",
-    "nbsphinx >= 0.8.9",
-    "sphinx >= 4.5.0",
-    "sphinx-autobuild >= 2021.3.14",
-    "sphinx_book_theme >= 0.3.3",
-    "sphinx_rtd_theme >= 1.0.0",
-    "sphinx-typlog-theme >= 0.8.0",
-    "sphinx-panels >= 0.6.0",
-    "toml >= 0.10.2",
-    "myst-nb >= 0.17.1",
-    "linkchecker >= 10.2.1",
-    "sphinx-copybutton >= 0.5.1",
-    "markdown-include >= 0.6.0",
-    "sphinx_copybutton >= 0.5.2",
-    "ollama>=0.4.7",
-    "azure-devops"
 ]
 
 
