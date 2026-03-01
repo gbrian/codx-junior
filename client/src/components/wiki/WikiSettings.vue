@@ -1,5 +1,5 @@
 <script setup>
-import { TreeItem, TreeRoot } from 'radix-vue'
+import WikiTree from './WikiTree.vue'
 </script>
 
 <template>
@@ -22,53 +22,12 @@ import { TreeItem, TreeRoot } from 'radix-vue'
     </div>
     
     <div class="w-full flex gap-2">
-      <div>
-        <TreeRoot
-          v-slot="{ flattenItems }"
-          class="shrink-0 list-none select-none w-56 text-blackA11 rounded-lg p-2 text-sm font-medium"
-          :items="wikiTree.categories"
-          :get-key="(item) => item.title"
-          :default-expanded="['components']"
-          v-if="wikiTree"
-        >
-          <TreeItem
-            v-for="item in flattenItems"
-            v-slot="{ isExpanded }"
-            :key="item._id"
-            :style="{ 'padding-left': `${item.level - 0.5}rem` }"
-            v-bind="item.bind"
-            class="click flex group items-start py-1 px-2 my-0.5 rounded outline-none focus:ring-grass8 focus:ring-2 data-[selected]:bg-grass4"
-          >
-            <template v-if="item.value.children?.length">
-              <span v-if="isExpanded"><i class="fa-solid fa-caret-down"></i></span>
-              <span v-else><i class="fa-solid fa-caret-right"></i></span>
-            </template>
-            <div class="grow ml-2 hover:underline justify-between flex gap-1 items-end"
-              :class="item.value.title === selectedItem?.title && 'text-warning underline'"
-              @click.stop="editItem(item.value)">
-              {{ item.value.title }} 
-              <div class="grow justify-end flex items-center gap-1" v-if="item.value.files?.length">
-                <div>{{ item.value.files?.length || 0 }}</div>
-                <div class="ml-2 relative">
-                  <i class="fa-regular fa-file-lines"></i>
-                  <span class="absolute bottom-1 right-2 bg-base-100"
-                    v-if="!item.value.single_file"
-                  ><i class="fa-regular fa-file-lines"></i></span>
-                </div>
-              </div>
-            </div>
-            <div class="ml-2 text-error opacity-0 group-hover:opacity-100 tooltip"
-              data-tip="Delete"
-              @click.stop="deleteItem(item.value)">
-              <i class="fa-solid fa-trash-can"></i>
-            </div>          
-            <div class="ml-2 text-warning opacity-0 group-hover:opacity-100 tooltip"
-              data-tip="Add child" @click.stop="addChild(item.value)">
-              <i class="fa-solid fa-plus"></i>
-            </div>          
-          </TreeItem>
-        </TreeRoot>
-      </div>
+      <WikiTree 
+        :wikiTree="wikiTree"
+        :viewOnly="viewOnly"
+        @select-item="editItem"
+        @delete-item="deleteItem"
+        @add-child="addChild" />
 
       <div class="grow flex flex-col gap-2">
         <div class="grow flex flex-col gap-2" v-if="selectedItem">
@@ -198,7 +157,8 @@ export default {
     return {
       selectedItem: null,
       wikiTree: null,
-      languages: ['English', 'Spanish', 'French', 'German']
+      languages: ['English', 'Spanish', 'French', 'German'],
+      viewOnly: false // default
     }
   },
   created() {
@@ -206,6 +166,7 @@ export default {
   },
   computed: {
     allItems() {
+      // Flatten all categories for easy access
       return this.wikiTree.categories.reduce((acc, item) => {
         const flatten = (node) => {
           acc.push(node)
@@ -220,13 +181,16 @@ export default {
   },
   methods: {
     async resetWikiSettings() {
+      // Fetch initial wiki configuration
       this.wikiTree = await this.$storex.api.wiki.config()
     },
     editItem(item) {
+      // Find parent and set selected item
       item.parent = this.allItems.find(p => p.children?.find(c => c.title === item.title))
       this.selectedItem = item
     },
     addChild(item) {
+      // Add new category or child page
       const newItem = { title: "New page" }
       if (!item) {
         this.wikiTree.categories.push(newItem)
@@ -235,6 +199,7 @@ export default {
       }
     },
     deleteItem(item) {
+      // Remove item from the tree
       const { parent, title } = item || this.selectedItem 
       const children = parent?.children || this.wikiTree.categories
       const ix = children.findIndex(p => p.title === title)
@@ -251,7 +216,7 @@ export default {
       await this.$projects.codxWiki({ step: "rebuild_wiki"})
     },
     async saveSettings() {
-
+      // Prepare data and save settings
       this.allItems.map(c => {
         c.keywords = Array.isArray(c.keywords) ? c.keywords : 
           c.keywords?.split(",").map(k => k.trim()).filter(k => !!k)

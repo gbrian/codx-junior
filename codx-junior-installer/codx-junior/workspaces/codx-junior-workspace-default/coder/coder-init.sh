@@ -1,7 +1,17 @@
 #!/usr/bin/with-contenv bash
 
+TARGET_UID=$PUID
+TARGET_GID=$PGID
+
+# Check if the current process matches the target
+if [ "$(id -u)" != "$TARGET_UID" ] || [ "$(id -g)" != "$TARGET_GID" ]; then
+    echo "Re-executing as UID $TARGET_UID and GID $TARGET_GID..."
+    # -u: specify user/UID, -g: specify group/GID
+    exec sudo -u "#$TARGET_UID" -g "#$TARGET_GID" "$0" "$@"
+fi
+
 runcoder(){
-  echo "Running coder for $USER"
+  echo "Running coder for user: $(id -u):$(id -g)"
 
   # Ensure the install script runs
   curl -fsSL https://code-server.dev/install.sh | sh
@@ -10,18 +20,21 @@ runcoder(){
   export CODER_HTTP_ADDRESS=0.0.0.0:${CODE_PORT}
 
   # Ensure directory exists before sed
-  mkdir -p ~/.config/code-server
-  touch ~/.config/code-server/config.yaml
+  CODE_SERVER_DIR=/config/.local/share/code-server
+  mkdir -p ${CODE_SERVER_DIR}
 
-  sed -i "s/127.0.0.1:8080/0.0.0.0:${CODE_PORT}/" ~/.config/code-server/config.yaml 
-  sed -i "s/auth: password/auth: none/" ~/.config/code-server/config.yaml 
-  
-  exec code-server
+  echo "
+bind-addr: 0.0.0.0:9080
+auth: none
+password: 8e240165f98d107aade5dbdc
+cert: false
+" > ${CODE_SERVER_DIR}/config.yaml 
+
+  exec code-server --config ${CODE_SERVER_DIR}/config.yaml
 }
 
-# Export the function so the subshell can see it
-export -f runcoder
+runcoder
 
-# Use sudo to run as specific UID and GID
-# Note: \# is used for numeric IDs in sudo
-sudo -u \#${PUID} -g \#${PGID} -E bash -c runcoder
+while true; do 
+  sleep 10
+done

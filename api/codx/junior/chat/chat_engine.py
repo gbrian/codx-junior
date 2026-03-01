@@ -80,9 +80,13 @@ class ChatEngine:
             "start_time": time.time(),
             "first_response": None
         }
-        if chat.project_id and chat.project_id != self.settings.project_id:
+        if chat.owner_project_id and chat.owner_project_id != self.settings.project_id:
+            logger.info("chat owner_project_id is not the same as current project, switching contexts: {} -> {}",
+                self.settings.project_id,
+                chat.owner_project_id
+            )
             # Invoke project based on project_id
-            return await self.switch_project(chat.project_id).chat_with_project(chat=chat,
+            return await self.switch_project(chat.owner_project_id).chat_with_project(chat=chat,
                                                                             disable_knowledge=disable_knowledge,
                                                                             callback=callback,
                                                                             append_references=append_references,
@@ -423,7 +427,8 @@ class ChatEngine:
             response_message.profiles = chat_profile_names
             
             chat.messages.append(response_message)
-
+            logger.info(f"Chat done, adding message to chat. {chat.messages[-1]}")
+            
 
             # Chat description
             try:

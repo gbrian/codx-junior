@@ -202,6 +202,20 @@ const initializeAPI = ({ project, user } = {}) => {
         async write(settings) {
           await API.post('/api/global/settings', settings);
           return API.settings.global.read();
+        },
+        plugins: {
+          async list() {
+            return await API.get('/api/plugins');
+          },
+          async add(plugin) {
+            return await API.post('/api/plugins', plugin);
+          },
+          async remove(pluginName) {
+            return await API.delete(`/api/plugins/${pluginName}`);
+          },
+          async loadFromFile(fileName) {
+            return await API.get(`/api/plugins/load_from_file?file_path=${encodeURIComponent(fileName)}`);
+          }
         }
       }
     },

@@ -43,6 +43,10 @@ import WorkspaceSettings from './WorkspaceSettings.vue'
           {{ workspace.description }}
           <div class="flex justify-end gap-2 items-center">
             {{ workspace.project_ids.length }} projects
+            <!-- Add clone button -->
+            <button class="btn btn-warning btn-xs" @click.stop="cloneWorkspace(workspace)">
+              Clone
+            </button>
           </div>
         </div>
       </div>
@@ -102,13 +106,11 @@ export default {
       }
     },
     saveWorkspace() {
-      if (!this.selectedWorkspace.id) {
-        this.settings.workspaces.push({ ...this.selectedWorkspace, id: uuidv4() })
+      const index = this.settings.workspaces.findIndex(ws => ws.id === this.selectedWorkspace.id)
+      if (index !== -1) {
+        this.settings.workspaces[index] = { ...this.selectedWorkspace }
       } else {
-        const index = this.settings.workspaces.findIndex(ws => ws.id === this.selectedWorkspace.id)
-        if (index !== -1) {
-          this.settings.workspaces[index] = { ...this.selectedWorkspace }
-        }
+        this.settings.workspaces.push({ ...this.selectedWorkspace, id: uuidv4() })
       }
       this.showModal = false
     },
@@ -122,7 +124,7 @@ export default {
     },
     getProjectName(projectId) {
       if (projectId === '*') {
-        return "All projects";
+        return "All projects"
       }
       const project = this.availableProjects.find(p => p.project_id === projectId)
       return project ? project.project_name : 'Unknown'
@@ -138,6 +140,11 @@ export default {
     },
     removeDockerSetting(key) {
       this.$delete(this.settings.workspace_docker_settings, key)
+    },
+    cloneWorkspace(workspace) {
+      // Clone the workspace and assign a new ID
+      const clonedWorkspace = { ...workspace, id: uuidv4(), name: `${workspace.name} (Copy)` }
+      this.settings.workspaces.push(clonedWorkspace)
     }
   }
 }

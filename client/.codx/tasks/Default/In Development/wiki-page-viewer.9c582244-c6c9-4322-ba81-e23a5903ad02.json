@@ -1,0 +1,97 @@
+{
+  "id": "9c582244-c6c9-4322-ba81-e23a5903ad02",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "parent_id": "fe6580ab-487a-4c30-b6e9-acbe6c214463",
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "VueDeveloper"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "Wiki Page viewer",
+  "pinned": false,
+  "description": "### Summary of the Conversation\n\n1. The task is to refactor the `WikiView.vue` component to display selected item's `wiki_files` in descending order using the `Document` component.\n2. Introduced a `sortedFiles` computed property to sort files in descending order based on the `slug`.\n3. Incorporated a `v-for` loop to iterate over the `sortedFiles` and render each file with the `Document` component.\n4. Ensured the README content is displayed when no category is selected.\n5. The updated component structure provides enhanced navigation and presentation of wiki files.",
+  "messages": [
+    {
+      "doc_id": "25346f55-ed57-401b-bd71-0651a1df99f9",
+      "role": "user",
+      "task_item": "",
+      "content": "\u00a0\"files\": [\n\u00a0 \u00a0 {\n\u00a0 \u00a0 \u00a0 \"name\": \"DB Router\",\n\u00a0 \u00a0 \u00a0 \"path\": \"/shared/codx-junior/api/codx/junior/api/db_router.py\",\n\u00a0 \u00a0 \u00a0 \"slug\": \"shared-codx-junior-api-codx-junior-api-db-router-py.md\",\n\u00a0 \u00a0 \u00a0 \"wiki_file\": \"/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/shared-codx-junior-api-codx-junior-api-db-router-py.md\"\n\u00a0 \u00a0 },\n\u00a0 \u00a0 {\n\u00a0 \u00a0 \u00a0 \"name\": \"DB Settings\",\n\u00a0 \u00a0 \u00a0 \"path\": \"/shared/codx-junior/api/codx/junior/settings.py\",\n\u00a0 \u00a0 \u00a0 \"slug\": \"shared-codx-junior-api-codx-junior-settings-py.md\",\n\u00a0 \u00a0 \u00a0 \"wiki_file\": \"/home/codx-junior-projects/codx-junior/api/wiki/database-and-data-storage/shared-codx-junior-api-codx-junior-settings-py.md\"\n\u00a0 \u00a0 }```\n\nWhen a iem is selected we'll show the item.files \"wiki_files\" in desc order using Document component\n``````\n\n```",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-02-27 03:33:18.801858",
+      "updated_at": "2026-02-27 03:33:18.801896",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/views/WikiView.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/views/WikiView.vue"
+      ],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": true,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "c12cbf7d-ac2a-4675-b9c7-836ffbf683c0",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "To implement the feature where selected item's `wiki_files` are displayed using the `Document` component in descending order, I'll update the `WikiView.vue` component. Here's how you can refactor and incorporate the `Document` component to display the contents of the selected item's files.\n\n### WikiView.vue - Updated Component\n\n```vue /home/codx-junior-projects/codx-junior/client/src/views/WikiView.vue\n<script setup>\nimport Document from '@/components/document/Document.vue'\nimport VerticalSplitter from '@/components/layout/VerticalSplitter.vue'\nimport WikiTree from '@/components/wiki/WikiTree.vue'\n</script>\n\n<template>\n  <div class=\"flex flex-col h-full gap-2 p-1 @md:p-2\">\n    <div class=\"text-2xl font-bold\">\n      <span class=\"click\" @click=\"viewReadme = false\">Wiki</span>\n      <span v-if=\"viewReadme\">/ README</span>\n    </div>\n    <VerticalSplitter class=\"grow overflow-hidden\" \n      :panels=\"{ \n        left: { defaultSize: 30 }, \n        right: { defaultSize: 70 }\n      }\">\n      \n      <template v-slot:left>\n        <div v-if=\"wikiTree\">\n          <ul class=\"menu\">\n            <li @click=\"selectedCategory = null\">\n              <a>README</a>\n            </li>\n            <WikiTree \n              :wikiTree=\"wikiTree\"\n              :viewOnly=\"true\"\n              @select-item=\"onSelectItem\" />\n          </ul>\n        </div>\n        <span v-else>Loading...</span>\n      </template>\n      \n      <template v-slot:right>\n        <div class=\"pl-2\">\n          <div v-if=\"selectedCategory\" class=\"flex flex-col gap-2\">\n            <div class=\"text-2xl flex gap-2 click\" @click=\"back()\">\n              {{ selectedCategory.title }}\n            </div>\n            <div class=\"text-sm\">{{ selectedCategory.description }}</div>\n            <div v-if=\"selectedCategory.files\" class=\"file-list mt-4\">\n              <div v-for=\"file in sortedFiles\" :key=\"file.slug\" class=\"mb-4\">\n                <Document :content=\"file.content || ''\" />\n              </div>\n            </div>\n          </div>\n          <Document v-else :content=\"readme || ''\" />\n        </div>\n      </template>\n      \n    </VerticalSplitter>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n    return {\n      viewReadme: false,\n      readme: null,\n      wikiTree: null,\n      selectedCategory: null\n    }\n  },\n  created() {\n    this.loadreadme()\n  },\n  computed: {\n    allItems() {\n      return this.wikiTree.categories.reduce((acc, item) => {\n        const flatten = (node, parent) => {\n          node.parent = parent\n          acc.push(node)\n          if (node.children) {\n            node.children.forEach(n => flatten(n, node))\n          }\n        }\n        flatten(item)\n        return acc\n      }, [])\n    },\n    sortedFiles() {\n      // Sort files in descending order by the slug (or another comparison criteria)\n      return (this.selectedCategory?.files || []).slice().sort((a, b) => b.slug.localeCompare(a.slug))\n    }\n  },\n  methods: {\n    async loadreadme() {\n      this.readme = await this.$project.$api.projects.readme()\n      this.wikiTree = await this.$storex.api.wiki.config()\n    },\n    onSelectItem(item) {\n      this.selectedCategory = item\n    },\n    back() {\n      this.selectedCategory = null\n    }\n  }\n}\n</script>\n```\n\n### Key Modifications:\n- Added a `computed` property `sortedFiles` to sort the item's `files` in descending order based on the `slug`.\n- Implemented a `v-for` directive within the `<template v-slot:right>` to iterate over `sortedFiles` and display each file using the `Document` component.\n- Ensured to handle cases when there are no selected categories with a `v-else` for the README content.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-02-27 03:33:18.801858",
+      "updated_at": "2026-02-27 03:33:18.801896",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "time_taken": 7.899738550186157,
+        "first_chunk_time_taken": 0.0642235279083252,
+        "model": "gpt-4o"
+      },
+      "profiles": [
+        "VueDeveloper"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-02-27 03:33:18.804796",
+  "updated_at": "2026-02-28T11:04:20.861338",
+  "mode": "task",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Default",
+  "column": "In Development",
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/client/.codx/tasks/Default/In Development/wiki-page-viewer.9c582244-c6c9-4322-ba81-e23a5903ad02.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}

@@ -1,0 +1,40 @@
+[tool.poetry]
+name = "azure-devops-pull-requests-plugin"
+version = "0.1.0"
+description = "A plugin to manage Azure DevOps pull requests and insert comments into files."
+authors = ["Your Name <your.email@example.com>"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11"
+]
+packages = [
+    { include = "azure_devops_pull_requests_plugin.py" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+azure-devops = "*"
+msrest = "*"
+python-dotenv = "*"
+pydantic = "*"
+azure-core = "*"
+setuptools = "*"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "*"
+pytest-mock = "*"
+
+[tool.poetry.urls]
+"Homepage" = "https://github.com/gbrian/codx-junior"
+"Bug Tracker" = "https://github.com/gbrian/codx-junior/issues"
+
+[tool.poetry.scripts]
+azure-devops-pull-requests = "azure_devops_pull_requests_plugin:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

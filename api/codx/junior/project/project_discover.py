@@ -113,6 +113,8 @@ def _update_all_projects():
     result = subprocess.run("find / -name .codx".split(" "), cwd=project_path, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     all_codx_path = result.stdout.decode('utf-8').split("\n")
     paths = [p for p in all_codx_path if os.path.isfile(f"{p}/project.json")]
+    
+    logger.info(f"[find_all_projects] projects root path: {projects_root_path}")
     logger.info(f"[find_all_projects] found {len(paths)} project files")
 
     def is_valid_project(settings):

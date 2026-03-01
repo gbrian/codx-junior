@@ -7,6 +7,8 @@ import SecurityUserList from '@/components/security/SecurityUserList.vue'
 import Workspaces from '@/components/workspaces/Workspaces.vue'
 import ProjectScripts from '@/components/project/ProjectScripts.vue'
 import OAuthSettings from '@/components/oauth_settings/OAuthSettings.vue'
+import PluginsEditor from '@/components/global_settings/plugins/PluginsEditor.vue'
+import EnvVariablesEditor from '@/components/global_settings/EnvVariablesEditor.vue'
 </script>
 
 <template>
@@ -19,18 +21,22 @@ import OAuthSettings from '@/components/oauth_settings/OAuthSettings.vue'
         <ExportImportButton :data="settings" @change="submit">
           <li @click="activeTab = 'Settings'" :class="{ 'tab-active': activeTab === 'Settings' }" class=""><a>General</a></li>
           <li @click="activeTab = 'AI Models'" :class="{ 'tab-active': activeTab === 'AI Models' }" class=""><a>AI Models</a></li>
+          <li @click="activeTab = 'Plugins'" :class="{ 'tab-active': activeTab === 'Plugins' }" class=""><a>Plugins</a></li>
           <li @click="activeTab = 'Workspaces'" :class="{ 'tab-active': activeTab === 'Workspaces' }" class=""><a>Workspaces</a></li>
           <li @click="activeTab = 'Users'" :class="{ 'tab-active': activeTab === 'Users' }" class=""><a>Users</a></li>
           <li @click="activeTab = 'Scripts'" :class="{ 'tab-active': activeTab === 'Scripts' }" class=""><a>Scripts</a></li>
           <li @click="activeTab = 'OAuth'" :class="{ 'tab-active': activeTab === 'OAuth' }" class=""><a>OAuth</a></li>
+          <li @click="activeTab = 'ENV Variables'" :class="{ 'tab-active': activeTab === 'ENV Variables' }" class=""><a>ENV Variables</a></li> <!-- Added new tab -->
           <li class="separator"></li>
         </ExportImportButton>
       </div>
     </div>
+
     <SecurityUserList :settings="settings" v-if="activeTab === 'Users'" />
     <Workspaces :settings="settings" v-if="activeTab === 'Workspaces'" />
     <ProjectScripts :settings="settings" v-if="activeTab === 'Scripts'" />
     <OAuthSettings  :settings="settings" v-if="activeTab === 'OAuth'" />
+    <PluginsEditor  v-if="activeTab === 'Plugins'" />
     <div v-if="activeTab === 'Settings'" class="flex flex-col gap-4">
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2 text-xs">
@@ -108,6 +114,7 @@ import OAuthSettings from '@/components/oauth_settings/OAuthSettings.vue'
     <div v-if="activeTab === 'Agents'" class="flex flex-col gap-4">
       <AgentSettings />
     </div>
+    <EnvVariablesEditor v-if="activeTab === 'ENV Variables'" :settings="settings" /> <!-- Added the component -->
     <modal v-if="showImport" :close="true" @close="showImport = false">
       <div class="flex flex-col gap-2">
         <div class="text-xl">Paste your JSON settings here</div>

@@ -10,8 +10,9 @@ import * as ui from './ui'
 import * as users from './users'
 import * as profiles from './profiles'
 import * as logs from './logs'
+import * as chats from './chats'
 
-const modules = { session, projects, ui, users, profiles, logs }
+const modules = { session, projects, ui, users, profiles, logs, chats }
 const storePattern = {
   state () {
     return {

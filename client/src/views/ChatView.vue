@@ -96,6 +96,11 @@ import Markdown from '../components/Markdown.vue'
             <div class="flex flex-col">
               <div class="flex gap-1 items-center">
                 <div class="flex gap-2 p-1 items-center -top-1">
+                  <div class="flex input input-sm input-bordered w-40 items-center">
+                    <input v-model="chatSearch" class="bg-transparant w-full" />
+                    <span class="text-error" @click="chatSearch = null" v-if="chatSearch"><i class="fa-regular fa-circle-xmark"></i></span>
+                    <span v-else><i class="fa-solid fa-magnifying-glass"></i></span>
+                  </div>
                   <button class="btn btn-sm" v-if="childrenChats.length" 
                     @click="showChatMenu = !showChatMenu"
                     :class="showChatMenu && 'text-info'"
@@ -246,6 +251,7 @@ import Markdown from '../components/Markdown.vue'
               :chat="workingChat"
               :showHidden="showHidden"
               :childrenChats="showChatMenu ? null : childrenChats"
+              :filter="chatSearch"
               @refresh-chat="reloadChat(workingChat)"
               @remove-file="onRemoveFile" 
               @delete="confirmDelete = true"
@@ -399,7 +405,8 @@ export default {
       showChatMenu: false,
       showChildChat: null,
       showExportChat: false,
-      dropOver: null
+      dropOver: null,
+      chatSearch: null
     }
   },
   created() {

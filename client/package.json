@@ -48,7 +48,7 @@
     "mermaid": "^11.6.0",
     "moment": "^2.30.1",
     "monaco-editor": "^0.54.0",
-    "monaco-editor-vue3": "^1.0.4",
+    "monaco-editor-vue3": "^1.0.5",
     "pinia": "^2.1.7",
     "radix-vue": "^1.9.7",
     "simple-code-editor": "^2.0.9",

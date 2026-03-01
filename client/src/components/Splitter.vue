@@ -5,7 +5,7 @@ import LogViewerVue from './LogViewer.vue'
 import StatuBar from './StatuBar.vue'
 import Navigator from './windowManager/Navigator.vue'
 import VerticalSplitter from './layout/VerticalSplitter.vue'
-import RightBarVue from './project/RightBar.vue'
+import VerticalBarVue from './project/VerticalBar.vue'
 </script>
 
 <template>
@@ -51,7 +51,7 @@ import RightBarVue from './project/RightBar.vue'
           </template>
         </VerticalSplitter>
       </div>
-      <RightBarVue />
+      <VerticalBarVue />
     </div>
     <StatuBar />
   </div>

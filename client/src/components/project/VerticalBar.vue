@@ -5,12 +5,16 @@ import BarButton from './BarButton.vue';
 <template>
   <div class="flex flex-col items-center px-1 py-2 bg-base-100 gap-4">
     <BarButton tab="projects" @click="$ui.setActiveTab('projects')">
-      <i class="fa-solid fa-cubes"></i>
+      <i class="fa-solid fa-home"></i>
     </BarButton>
 
     <BarButton 
       @click="$ui.showNewProject(true)">
       <i class="fa-solid fa-plus"></i>
+    </BarButton>
+
+    <BarButton tab="projects" @click="$ui.setActiveTab('wiki')">
+      <i class="fa-solid fa-graduation-cap"></i>
     </BarButton>
 
     <BarButton tab="tasks"

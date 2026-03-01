@@ -22,6 +22,9 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
             <a v-for="file in chatFiles" :key="file" :data-tip="file" class="group text-nowrap ml-2 hover:underline hover:bg-base-300 cursor-pointer text-accent" @click="$ui.openFile(file)">
               <span class="click mr-1" @click.stop="$ui.copyTextToClipboard(file)"><i class="fa-solid fa-copy"></i></span>
               <span :title="file" >{{ file?.split('/').reverse()[0] || '---error---' }}</span>
+              <span class="ml-2 cursor-pointer" @click.stop="addFileContentAsMessage(file)">
+                <i class="fa-regular fa-comment-dots"></i>
+              </span>
               <span class="ml-2 cursor-pointer" @click.stop="removeFileFromChat(file)">
                 <i class="fa-regular fa-circle-xmark"></i>
               </span>
@@ -304,7 +307,7 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
 const defFormater = d => JSON.stringify(d, null, 2)
 
 export default {
-  props: ['chat', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete', 'message', 'input-only'],
+  props: ['chat', 'filter', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete', 'message', 'input-only'],
   data() {
     return {
       waiting: false,
@@ -397,6 +400,9 @@ export default {
     },
     activeMessages() {
       const messages = this.chat?.messages
+      if (this.filter) {
+        return messages?.filter(m => m.content?.toLowerCase().includes(this.filter.toLowerCase()))  
+      }
       return messages?.filter(m => !m.hide || this.showHidden) || []
     },
     messages() {
@@ -707,6 +713,9 @@ export default {
       const ix = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
       if (this.chat.mode == 'task' && message.role === "assistant" && ix > 1) {
         this.chat.messages[ix - 1].hide = false
+        if (this.chat.messages[ix - 2]) {
+          this.chat.messages[ix - 2].hide = false
+        }
       }
       this.chat.messages = this.chat.messages.filter((_, i) => i !== ix)
       this.saveChat()
@@ -995,7 +1004,8 @@ export default {
       this.saveChat()
     },
     onSaveFile({ file, content }) {
-      this.projectContext.$api.files.write(file, content)
+      const { chat } = this
+      this.$storex.chats.writeFile({ chat, file, content })
     },
     onOpenFile(file) {
       this.projectContext.$api.coder.openFile(file)
@@ -1110,6 +1120,16 @@ export default {
     onNewThread(message) {
       const { chat } = this
       this.$projects.createNewThread({ chat, message })
+    },
+    async addFileContentAsMessage(file) {
+      const chat = this.chat
+      const content = await this.$storex.chats.readFile({ chat, file }) 
+      const codeBlock = ["```txt " + file, 
+        content,
+        "````"
+      ].join("\n")
+      const userMessage = this.getUserMessage(codeBlock)
+      this.addMessage(userMessage)
     }
   }
 }

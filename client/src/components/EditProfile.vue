@@ -149,11 +149,12 @@ export default {
       contentPreview: true,
       tab: 'content',
       newProfile: '',
-      tools: []
+      tools: [],
+      plugins: []
     }
   },
-  async created() {
-    this.tools = await this.project.$api.profiles.tools()
+  created() {
+    this.loadTools()
   },
   computed: {
     project() {
@@ -241,6 +242,11 @@ export default {
       } else {
         this.editProfile.tools = this.editProfile.tools.filter(tn => tn !== tool.name)
       }
+    },
+    async loadTools() {
+      const tools = await this.project.$api.profiles.tools()
+      const plugins = await this.$storex.api.settings.global.plugins.list()
+      this.tools = [...tools, ...plugins.filter(p => p.extends?.includes("profile"))]
     }
   }
 }

@@ -27,6 +27,7 @@ from codx.junior.api.wiki import router as wiki_router
 from codx.junior.api.github import router as github_router
 from codx.junior.api.file_finder import router as file_finder_router
 from codx.junior.api.db_router import router as db_router
+from codx.junior.api.global_settings import router as global_settings_router
 
 from codx.junior.security.user_management import get_authenticated_user
 
@@ -132,7 +133,7 @@ app.include_router(wiki_router, prefix="/api")
 app.include_router(github_router, prefix="/api")
 app.include_router(file_finder_router, prefix="/api")
 app.include_router(db_router, prefix="/api")
-
+app.include_router(global_settings_router, prefix="/api")
 
 
 APP_STOP_EVENT = asyncio.Event()

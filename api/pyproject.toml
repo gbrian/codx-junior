@@ -32,6 +32,7 @@ dependencies = [
   'html2text',
   'watchdog',
   'pypandoc>=1.16',
+  'jinja2>=3.0.3'
 ]
 
 classifiers = [

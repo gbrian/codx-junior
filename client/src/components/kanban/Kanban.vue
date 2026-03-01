@@ -811,6 +811,9 @@ export default {
       await this.$projects.saveKanban()
     },
     showNewBoardModal() {
+      this.editBoard = null
+      this.originalBoardName = null
+      this.newBoardBackground = null
       this.newBoardName = null
       this.newBoardDescription = null
       this.showBoardModal = true

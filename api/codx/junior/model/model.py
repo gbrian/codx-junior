@@ -98,6 +98,7 @@ class CodxUser(BaseModel):
     github: Optional[str] = Field(default="")
     apps: Optional[List[str]] = Field(default=[])
     api_key: Optional[str] = Field(default="")
+    env: Optional[dict] = Field(default={})
     
 class ProfileApiSettings(BaseModel):
     active: bool = Field(description="Model is visible through API", default=False)
@@ -299,6 +300,26 @@ DEFAULT_WORKSPACE = Workspace(**{
     "project_ids": ["*"]
 })
 
+# Define the PluginArgument model
+class PluginArgument(BaseModel):
+    name: str
+    description: str
+    default_value: str
+
+# Define the Plugin model with an async property
+class Plugin(BaseModel):
+    plugin_id: str
+    name: str
+    description: str
+    module_path: str
+    plugin_path: str
+    method: str
+    arguments: List[PluginArgument]
+    roles: List[str]
+    extends: List[str]
+    image: Optional[str] = Field(default=None)
+    async_: bool = Field(default=False, alias="async")  # Use alias for async
+
 class GlobalSettings(BaseModel):
     log_ai: bool = Field(default=True)
     
@@ -343,6 +364,10 @@ class GlobalSettings(BaseModel):
     workspace_docker_settings: Optional[dict] = Field(default={})
 
     oauth_providers: Optional[List[OAuthProvider]] = Field(default=[])
+
+    env: Optional[dict] = Field(default={})
+
+    plugins: List[Plugin] = Field(default=[])
     
     
 class Screen(BaseModel):

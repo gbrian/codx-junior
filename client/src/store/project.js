@@ -196,7 +196,7 @@ export const mutations = mutationTree(state, {
   },
   addRecentProject(state, project) { // New mutation to update recent projects
     state.recentProjects = [project, ...state.recentProjects.filter(p => p.codx_path !== project.codx_path)].slice(0, 5)
-  }
+  },
 })
 
 
@@ -252,8 +252,8 @@ export const getters = getterTree(state, {
           .filter(c => c.board === 'codx-junior')
           .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),
   userList: () => [$storex.users.user, ...$storex.projects.profiles?.map(p => ({ ...p, isProfile: true }))] || [],
-  projectApps: state => state.workspaces?.filter(w => w.project_ids.includes("*") || w.project_ids.includes(state.activeProject?.project_id))
-                        .reduce((a, w) => a.concat(w.apps.map(a => ({ ...a, workspaceName: w.name, key: `${w.name}-${a.name}` }))), [])
+  projectApps: state => state.workspaces?.reduce((a, w) => 
+                  a.concat(w.apps.map(a => ({ ...a, workspaceName: w.name, key: `${w.name}-${a.name}` }))), [])
 })
 
 export const actions = actionTree(
@@ -463,7 +463,8 @@ export const actions = actionTree(
     },
     async chatWihProject({ state }, chat) {
       const data = {
-        chat
+        chat,
+        codx_path: (await $storex.projects.getChatProject(chat)).codx_path
       }
       $storex.session.emit({ event: 'codx-junior-chat', data })
     },
@@ -472,7 +473,7 @@ export const actions = actionTree(
     },
     async createSubTasks({ state }, { chat, instructions }) {
       const data = {
-        codx_path: state.activeProject.codx_path,
+        codx_path: (await $storex.projects.getChatProject(chat)).codx_path,
         chat,
         instructions
       }
@@ -480,7 +481,7 @@ export const actions = actionTree(
     },
     async codeImprove({ state }, chat) {
       const data = {
-        codx_path: state.activeProject.codx_path,
+        codx_path: (await $storex.projects.getChatProject(chat)).codx_path,
         chat
       }
       $storex.session.socket.emit('codx-junior-improve', data)
@@ -501,9 +502,9 @@ export const actions = actionTree(
       }
       $storex.session.socket.emit('codx-junior-generate-code', data)
     },
-    createSubtasks({ state }, { chat, instructions }) {
+    async createSubtasks({ state }, { chat, instructions }) {
       const data = {
-        codx_path: state.activeProject.codx_path,
+        codx_path: (await $storex.projects.getChatProject(chat)).codx_path,
         chat,
         instructions
       }
@@ -739,5 +740,8 @@ export const actions = actionTree(
       state.activeBoard = boardName
       state.activeChat = null
     },
+    getChatProject({ state }, chat) {
+      return state.allProjectsById[chat.project_id] || state.activeProject
+    }
   }
 )

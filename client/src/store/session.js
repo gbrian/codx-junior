@@ -167,7 +167,6 @@ export const actions = actionTree(
     emit({ state }, { event, data }) {
       data = {
         ...data || {},
-        codx_path: $storex.projects.activeProject.codx_path
       }
       state.socket.emit(event, data)
     }

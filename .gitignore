@@ -3,7 +3,7 @@ node_modules
 __pycache__
 *egg-*
 client/.vite
-global_settings*
+global_settings.json
 **/.codx/db
 filebrowser.
 core
