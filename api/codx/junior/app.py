@@ -28,6 +28,7 @@ from codx.junior.api.github import router as github_router
 from codx.junior.api.file_finder import router as file_finder_router
 from codx.junior.api.db_router import router as db_router
 from codx.junior.api.global_settings import router as global_settings_router
+from codx.junior.api.project_search import router as project_search
 
 from codx.junior.security.user_management import get_authenticated_user
 
@@ -134,6 +135,7 @@ app.include_router(github_router, prefix="/api")
 app.include_router(file_finder_router, prefix="/api")
 app.include_router(db_router, prefix="/api")
 app.include_router(global_settings_router, prefix="/api")
+app.include_router(project_search, prefix="/api")
 
 
 APP_STOP_EVENT = asyncio.Event()
@@ -193,6 +195,7 @@ async def add_codx_junior_settings(request: Request, call_next):
     if codx_path and codx_path not in ["undefined", "null"]:
         try:
             codx_path = request.query_params.get("codx_path")
+            codx_path = request.headers.get("x-codx-path", codx_path)
             request.state.codx_junior_session = get_codx_junior_session(request, codx_path)
             request.state.codx_junior_session.update_last_access_time()
             # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")

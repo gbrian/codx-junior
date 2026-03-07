@@ -3,7 +3,6 @@ import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
 import hljs from 'highlight.js';
 import DiffViewer from './DiffViewer.vue';
-import CodeEditor from 'simple-code-editor'
 </script>
 
 <template>
@@ -65,12 +64,6 @@ import CodeEditor from 'simple-code-editor'
         :diff="diff"
         v-if="showDiff">
       </DiffViewer>
-      <CodeEditor v-model="edit"
-            width="100%"
-            :header="false"
-            :languages="[[fileLanguage, fileLanguage]]"
-            v-if="edit"
-          />
       <VueCodeHighlighter :code="code" :lang="fileLanguage" :title="fileName" 
         v-if="code && !edit && !diff" />
     </div>

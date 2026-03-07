@@ -52,9 +52,7 @@
             <option value="user">user</option>
           </select>
 
-          <input type="checkbox" checked="checked" class="checkbox tooltip"
-            data-tip="Same for children"
-            v-model="project.children" />
+          <input type="checkbox" class="checkbox" title="Same for children" v-model="project.children" />
 
           <button type="button" class="btn btn-error btn-sm" @click="removeProject(index)">
             <i class="fa-solid fa-minus"></i>

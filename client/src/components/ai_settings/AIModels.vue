@@ -25,34 +25,36 @@ import AIModelSettings from './AIModelSettings.vue'
             <i class="fa-solid fa-file"></i> Embeddings
           </span>
           <table class="w-full">
-            <tr>
-              <td>Provider:</td>
-              <td>{{ model.ai_provider }}</td>
-            </tr>
-            <tr v-if="model.model_type === 'llm'">
-              <td>Temperature:</td>
-              <td>{{ model.settings.temperature }}</td>
-            </tr>
-            <tr v-if="model.model_type === 'llm'">
-              <td>Context:</td>
-              <td>
-                <span v-if="model.settings.context_length">
-                  {{ (model.settings.context_length || 0) }} KB
-                </span>
-              </td>
-            </tr>
-            <tr v-if="model.model_type === 'llm' && model.settings.merge_messages">
-              <td>Merge messages:</td>
-              <td>{{ model.settings.merge_messages || '-' }}</td>
-            </tr>
-            <tr v-if="model.model_type === 'embeddings'">
-              <td>Vector Size:</td>
-              <td>{{ model.settings.vector_size || '-' }}</td>
-            </tr>
-            <tr v-if="model.model_type === 'embeddings'">
-              <td>Chunk Size:</td>
-              <td>{{ model.settings.chunk_size || '-' }}</td>
-            </tr>
+            <thead>
+              <tr>
+                <td>Provider:</td>
+                <td>{{ model.ai_provider }}</td>
+              </tr>
+              <tr v-if="model.model_type === 'llm'">
+                <td>Temperature:</td>
+                <td>{{ model.settings.temperature }}</td>
+              </tr>
+              <tr v-if="model.model_type === 'llm'">
+                <td>Context:</td>
+                <td>
+                  <span v-if="model.settings.context_length">
+                    {{ (model.settings.context_length || 0) }} KB
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="model.model_type === 'llm' && model.settings.merge_messages">
+                <td>Merge messages:</td>
+                <td>{{ model.settings.merge_messages || '-' }}</td>
+              </tr>
+              <tr v-if="model.model_type === 'embeddings'">
+                <td>Vector Size:</td>
+                <td>{{ model.settings.vector_size || '-' }}</td>
+              </tr>
+              <tr v-if="model.model_type === 'embeddings'">
+                <td>Chunk Size:</td>
+                <td>{{ model.settings.chunk_size || '-' }}</td>
+              </tr>
+            </thead>
           </table>
         </div>
         <div class="flex gap-2 mt-4">

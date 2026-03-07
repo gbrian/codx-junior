@@ -1,5 +1,4 @@
 <script setup>
-import CodeEditor from 'simple-code-editor';
 import MermaidViewerVue from './MermaidViewer.vue'
 import MarkdownViewer from './MarkdownViewer.vue';
 import CodeViewer from './CodeViewer.vue'
@@ -16,16 +15,6 @@ import CodeViewer from './CodeViewer.vue'
     <MermaidViewerVue :diagram="codeText" theme="dark" 
       @click="showMermaidSource = !showMermaidSource"
       v-if="showMermaid && !showMermaidSource" />
-    <!--CodeEditor
-      line-nums 
-      :value="codeText"
-      :languages="languages"
-      font-size="0.75rem"
-      width="100%"
-      theme="github-dark"
-      :header="false"
-      v-if="showCode"
-    ></CodeEditor -->
     <CodeViewer :code="codeText" 
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"

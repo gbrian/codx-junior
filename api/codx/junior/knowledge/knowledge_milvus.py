@@ -224,11 +224,11 @@ class Knowledge:
         self.delete_documents(all_documents)
 
         wiki_documents = {}
-        for source in all_sources:
-            wiki_doc = self.create_wiki_doc(source)
-            if wiki_doc:
-                logger.info("Indexing document and wiki doc: %s", wiki_doc)
-                wiki_documents[source] = wiki_doc 
+        # for source in all_sources:
+        #     wiki_doc = self.create_wiki_doc(source)
+        #     if wiki_doc:
+        #         logger.info("Indexing document and wiki doc: %s", wiki_doc)
+        #         wiki_documents[source] = wiki_doc 
         
         for doc in all_documents:
             source = doc.metadata.get("source")

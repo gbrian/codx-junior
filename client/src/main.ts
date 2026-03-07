@@ -8,7 +8,6 @@ import App from './App.vue'
 import Modal from './components/Modal.vue'
 import router from './router'
 import Markdown from '@/components/Markdown.vue'
-import FloatingVue from 'floating-vue'
 
 import 'vuefinder/dist/style.css'
 import VueFinder from 'vuefinder/dist/vuefinder'
@@ -70,7 +69,6 @@ const app = createApp(App)
               .mixin(globalMixin)
               .use(store)
               .use(router)
-              .use(FloatingVue)
               .use(VueFinder)
               .component('modal', Modal)
               .component('Markdown', Markdown)

@@ -107,7 +107,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
     <WikiSettingsVue class="mt-2" v-if="selectedTab === 'Wiki'" />
 
     <div v-if="selectedTab === 'Search' && settings">
-      <div class="search flex flex-col gap-2" v-if="settings.use_knowledge">
+      <div class="search flex flex-col gap-2">
         <div class="text-xs font-bold">Fine tune codx-junior knowledge search</div>
         <div class="text-xs flex gap-2 items-center">
           <button class="btn btn-sm" @click="toggleWatch()">
@@ -141,7 +141,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
             </button>
           </div>
         </div>
-        <label class="input input-bordered flex items-center gap-2">
+        <div class="input input-bordered flex items-center gap-2 w-full">
           <select class="select select-xs" v-model="searchType">
             <option value="fulltext">Full text</option>
             <option value="raw">Query</option>
@@ -149,7 +149,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
           <input type="text" class="flex-grow" placeholder="Search in knowledge" @keypress.enter="onKnowledgeSearch"
             v-model="searchTerm" />
           <i class="fa-solid fa-magnifying-glass" @click="onKnowledgeSearch"></i>
-        </label>
+        </div>
         <div class="flex flex-col gap-2" v-if="searchResults">
           <div class="text-xs">{{ { ...searchResults.settings } }}</div>
           <div class="chat chat-start" v-if="searchResults.response">

@@ -5,6 +5,8 @@ import vue from '@vitejs/plugin-vue'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import pugPlugin from "vite-plugin-pug"
 
+import tailwindcss from '@tailwindcss/vite';
+
 const {
   DEBUG,
 } = process.env
@@ -20,9 +22,10 @@ export default defineConfig({
     watch: DEBUG ? { ignored: ["**/.codx/**"] } : null
   },
   plugins: [
+    tailwindcss(),
     vue(),
     vueJsx(),
-    pugPlugin(options, locals)
+    pugPlugin(options, locals),
   ],
   resolve: {
     alias: {

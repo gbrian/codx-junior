@@ -1,7 +1,6 @@
 <script setup>
 import MarkdownViewer from '../MarkdownViewer.vue';
 import Code from '../Code.vue';
-import TipTapDocument from './TipTapDocument.vue';
 import HTMLViewer from '../HTMLViewer.vue';
 </script>
 <template>

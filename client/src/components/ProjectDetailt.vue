@@ -76,7 +76,7 @@
             <!-- Top Level Projects Section -->
             <li>
               <details>
-                <summary>Top Level Projects</summary>
+                <div>Top Level Projects</div>
                 <ul>
                   <li v-for="child in $projects.allParentProjects" :key="child.project_name">
                     <a @click.prevent.stop="onProjectSelected(child)">
@@ -95,7 +95,7 @@
             <!-- Child Projects Section -->
             <li v-if="$projects.childProjects?.length">
               <details open>
-                <summary>Child Projects</summary>
+                <div>Child Projects</div>
                 <ul>
                   <li v-for="child in $projects.childProjects" :key="child.project_name">
                     <a @click.prevent.stop="onProjectSelected(child)">

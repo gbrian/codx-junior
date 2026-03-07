@@ -143,7 +143,11 @@ export default {
     },
     cloneWorkspace(workspace) {
       // Clone the workspace and assign a new ID
-      const clonedWorkspace = { ...workspace, id: uuidv4(), name: `${workspace.name} (Copy)` }
+      const clonedWorkspace = { 
+        ...JSON.parse(JSON.stringify(workspace)), 
+        id: uuidv4(), 
+        name: `${workspace.name} (Copy)` 
+      }
       this.settings.workspaces.push(clonedWorkspace)
     }
   }

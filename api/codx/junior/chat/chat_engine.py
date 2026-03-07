@@ -206,10 +206,11 @@ class ChatEngine:
             elif chat_files:
                 chat_profiles_content = "Focus on the changes required by the task and keep all other content as it is."
 
-            if not search_projects:
-                disable_knowledge = True
-                self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: No search projects found")
-            if disable_knowledge:
+            if not disable_knowledge:
+              if not search_projects:
+                  disable_knowledge = True
+                  self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: No search projects found")
+            else:    
                 self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: Disabled by invocation")
             if not self.settings.use_knowledge:
                 disable_knowledge = True
@@ -441,7 +442,6 @@ class ChatEngine:
                 chat.description = description_message.content
             except Exception as ex:
                 logger.exception(f"Ops, sorry!, Error chatting with project: {ex} {chat.id}")
-                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
 
 
             if chat_mode == 'task':
@@ -676,3 +676,5 @@ class ChatEngine:
             logger.info(f"Chat indexed successfully: {chat.file_path}")
         except Exception as ex:
             logger.exception(f"Failed to index chat: {chat.file_path}, error: {ex}")
+
+

@@ -277,7 +277,6 @@ class KnowledgeDB:
         search_params = {
             'params': { 'drop_ratio_search': 0.2 },
         }
-        logger.info(f"[Full text search] {query}")
         results = self.db.search(
             collection_name=self.index_fulltext_name, 
             data=[query],
@@ -287,6 +286,7 @@ class KnowledgeDB:
             search_params=search_params
         )
         results = reduce(lambda x,y: x + y, results)
+        logger.info(f"[Full text search] '{query}' returned {len(results)} results")
         
         return self.db_results_to_documents(results)
 

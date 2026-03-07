@@ -15,18 +15,20 @@
             {{ provider.name }}
           </h2>
           <table class="w-full">
-            <tr>
-              <td>Client ID:</td>
-              <td>{{ provider.client_id }}</td>
-            </tr>
-            <tr>
-              <td>Secret:</td>
-              <td>{{ provider.secret }}</td>
-            </tr>
-            <tr>
-              <td>Callback URL:</td>
-              <td>{{ location.origin + '/auth/' + provider.name }}</td>
-            </tr>
+            <thead>
+              <tr>
+                <td>Client ID:</td>
+                <td>{{ provider.client_id }}</td>
+              </tr>
+              <tr>
+                <td>Secret:</td>
+                <td>{{ provider.secret }}</td>
+              </tr>
+              <tr>
+                <td>Callback URL:</td>
+                <td>{{ location.origin + '/auth/' + provider.name }}</td>
+              </tr>
+            </thead>
           </table>
         </div>
         <div class="flex gap-2 mt-4">

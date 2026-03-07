@@ -468,6 +468,16 @@ export const actions = actionTree(
       }
       $storex.session.emit({ event: 'codx-junior-chat', data })
     },
+    async chatSearch({ state }, { chat, query }) {
+      const data = {
+        chat: {
+          id: chat.id
+        },
+        query,
+        codx_path: (await $storex.projects.getChatProject(chat)).codx_path
+      }
+      $storex.session.emit({ event: 'codx-junior-chat-search', data })
+    },
     async codxWiki(_, data) {
       $storex.session.emit({ event: 'codx-junior-wiki', data })
     },

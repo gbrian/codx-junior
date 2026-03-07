@@ -89,6 +89,14 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
       </div>
     </div>
     <div class="sticky bottom-0 z-50 bg-base-300" v-if="!isPRView">
+      <div class="flex gap-2" v-if="mentionSuggestions?.length">
+        <div class="badge badge-info badge-outline click" 
+          v-for="mention in mentionSuggestions" :key="mention.searchIndex"
+          @click="addMention(mention)"  
+        >
+          @{{ mention.name }}
+        </div>
+      </div>
       <div class="flex gap-2" v-if="!inputOnly">
         <span class="badge tooltip flex gap-2 items-center"
           :data-tip="mention.tooltip"
@@ -337,7 +345,9 @@ export default {
       projectContext: this.$project,
       uploadProjectFile: null,
       metadata: null,
-      pasteWithShift: false
+      pasteWithShift: false,
+      mentionSuggestions: [],
+      mentions: []
     }
   },
   created() {
@@ -455,6 +465,7 @@ export default {
       const mentions = [...this.messageText?.matchAll(/@([^\s]+)/mg) || []]
         .map(w => w[1]) || []
       return [...this.mentionList?.filter(m => mentions.includes(m.mention)), 
+              ...this.mentions,
               ...this.files.map(file => ({
                 name: file.split("/").reverse()[0],
                 file
@@ -493,9 +504,22 @@ export default {
       if (newVal?.length >= 3 && newVal?.length > oldVal?.length) {
         this.detectSearchTerm()
       }
+    },
+    messageText() {
+      this.loadMentionSuggestions()
     }
   },
   methods: {
+    loadMentionSuggestions() {
+      this.mentionSuggestions = []
+      const replaceWord = this.getCursorWord()
+      if (replaceWord?.startsWith("@")) {
+          this.mentionSuggestions = [
+                ...this.mentions,
+                ...this.projectContext.$state.searchMentions(replaceWord.slice(1))
+          ]
+      }
+    },
     async setProjectContext() {
       this.projectContext = this.$project
       if (this.projectContext?.project_id !== this.chatProject.project_id) {
@@ -581,7 +605,6 @@ export default {
         files,
         profiles,
         user: this.$user.username,
-        disable_knowledge: true,
         meta_data: this.metadata,
         done: true
       }
@@ -596,6 +619,7 @@ export default {
       this.setEditorText("")
       this.images = []
       this.files = []
+      this.mentions = []
       this.metadata = null
       this.scrollToBottom()
     },
@@ -683,6 +707,14 @@ export default {
         })
       }
       this.waiting = false
+    },
+    async sendChatSearch(chat, query) {
+      this.waiting = true
+      try {
+        return await this.$storex.projects.chatSearch({ chat, query })
+      } finally {
+        this.waiting = false
+      }
     },
     async sendChatMessage(chat) {
       this.waiting = true
@@ -1130,7 +1162,10 @@ export default {
       ].join("\n")
       const userMessage = this.getUserMessage(codeBlock)
       this.addMessage(userMessage)
-    }
+    },
+    addMention(mention) {
+      this.mentions.push({ ...mention, active: true })
+    },
   }
 }
 </script>

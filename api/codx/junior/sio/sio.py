@@ -114,6 +114,16 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
     codxjunior_session.event_manager.chat_event(chat=data.chat, message="Chatting with project...")
     await codxjunior_session.chat_with_project(chat=data.chat)
 
+@sio.on("codx-junior-chat-search")
+@sio_api_endpoint
+async def io_chat_search(sid, msg_data: dict, codxjunior_session: CODXJuniorSession):
+    data = SioChatMessage(**msg_data)
+    logger.info(f"codx-junior-chat-search {data.chat.name} {codxjunior_session.settings.project_name}")
+    codxjunior_session.event_manager.chat_event(chat=data.chat, message="Chat search...")
+    chat_id = data.chat.id
+    query = msg_data["query"]
+    await codxjunior_session.chat_search(chat_id=chat_id, query=query)
+
 @sio.on("codx-junior-subtasks")
 @sio_api_endpoint
 async def io_chat_subtasks(sid, data: dict, codxjunior_session: CODXJuniorSession):

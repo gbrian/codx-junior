@@ -24,7 +24,7 @@
                   Project settings
                 </a>
               </li>
-              <li v-if="$project">
+              <li v-if="$project && $storex.api.permissions.isProjectAdmin">
                 <a @click.stop="setProjectTab('knowledge_settings')">
                   <i class="fa-solid fa-book"></i>
                   Knowledge settings

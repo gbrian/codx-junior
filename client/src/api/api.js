@@ -257,6 +257,9 @@ const initializeAPI = ({ project, user } = {}) => {
       },
       searchKeywords(searchQuery) {
         return API.get(`/api/knowledge/keywords?query=${searchQuery}`);
+      },
+      query(searchQuery) {
+        return API.get(`/api/project/search?query=${searchQuery}`);
       }
     },
     chats: {

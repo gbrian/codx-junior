@@ -7,7 +7,10 @@ import AppIcon from './AppIcon.vue';
         :class="['hover:bg-base-100 click relative p-1 shadow rounded-lg border-2 border-b-4 border-slate-500 ',
           `group`,
           $ui.openApps[app.key] ? 'border-b-codx-primary' : 'opacity-80 hover:opacity-100 border-slate-700']"
-          v-for="app in $projects.projectApps" :key="app.name + app.path" @click.stop="activeAppPanel(app)">
+          v-for="app in $projects.projectApps" :key="app.name + app.path" 
+          @click.stop="activeAppPanel(app)"
+          @click.ctrl="openNewWindowAppPanel(app)" 
+          >
           <a class="px-2 flex justify-center items-center w-full focus:text-orange-500">
               <div class="flex gap-2 items-center">
                   <span class="click" @click.stop="toggleAppPanel(app)" v-if="$ui.openApps[app.key]">
@@ -36,12 +39,17 @@ export default {
                 ts: new Date().getTime()
             })
         },
+        openNewWindowAppPanel(app) {
+          const { origin } = window.location
+          const url = `${origin}${app.path}`
+          window.open(url, app.name)
+        },
         activeAppPanel(app) {
-            app = app || this.$ui.openApps[app.key]
-            this.$ui.showApp({
-                ...app,
-                ts: new Date().getTime()
-            })
+          app = app || this.$ui.openApps[app.key]
+          this.$ui.showApp({
+              ...app,
+              ts: new Date().getTime()
+          })
         }
     }
 }

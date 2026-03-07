@@ -65,7 +65,8 @@ from codx.junior.utils.utils import (
     extract_json_blocks,
     exec_command,
     write_file,
-    clean_string
+    clean_string,
+    document_to_code_block
 )
 
 from codx.junior.whisper.audio_manager import AudioManager
@@ -243,6 +244,36 @@ class CODXJuniorSession:
             raise e
     
     @profile_function
+    async def chat_search(self, chat_id: str, query: str):
+        chat = self.get_chat_manager().find_by_id(chat_id=chat_id)
+        description = chat.description
+
+        query_search = f"""
+        Create an accurate short free text search query to find resouces associated to this user query: '{query}'
+        
+        Conversation context:
+        ```        
+        {description}
+        ```
+        """
+
+        ai = self.get_ai()
+        messages = await ai.a_chat(prompt=query_search)
+        freetext_query = messages[-1].content
+
+        documents = self.project_search(query=freetext_query)
+
+        doc_blocks = "\n".join([document_to_code_block(d) for d in documents])
+        document_analysis = f"""Based on the context below, answer user request: '{query}'.
+
+        Context:
+        {doc_blocks}
+        """
+        chat.messages.append(Message(role="user", content=document_analysis), task_item="search")
+        return await self.chat_with_project(chat=chat)
+
+    
+    @profile_function
     async def knowledge_search(self, knowledge_search: KnowledgeSearch):
         self.settings.knowledge_search_type = knowledge_search.document_search_type
         self.settings.knowledge_search_document_count = knowledge_search.document_count
@@ -342,6 +373,10 @@ class CODXJuniorSession:
         documents, _ = self.select_afefcted_documents_from_knowledge(chat=None, ai=self.get_ai(), query=query, search_projects=[])
         return documents
     
+    @profile_function
+    def project_search(self, query: str):
+        return self.get_knowledge().search(query=query)
+        
     @profile_function
     def select_afefcted_documents_from_knowledge(self, chat: Optional[Chat], ai: AI, query: str, ignore_documents=[], search_projects = []):
         for search_project in search_projects:

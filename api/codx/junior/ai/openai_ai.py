@@ -176,8 +176,6 @@ class OpenAI_AI:
             message = "\n".join([message['content'] for message in openai_messages])
             openai_messages = [{"role": "user", "content": message}]
         self.log(f"USER REQUEST:\n{json.dumps(openai_messages, indent=2)}")
-        if self.settings.get_log_ai():
-            self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
         try:
             request_headers = config.get("headers", {})
             tags = request_headers.get("tags", "")
@@ -224,6 +222,9 @@ class OpenAI_AI:
                             cb(message)
                         except Exception as ex:
                             logger.exception(f"ERROR IN CALLBACKS: {ex}")
+
+            if self.settings.get_log_ai():
+                self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
 
             for chunk in response_stream:
                 # Check for tools

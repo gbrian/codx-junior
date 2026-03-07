@@ -1,0 +1,197 @@
+## Profile Management
+
+The `ProfileManager` class is responsible for managing user profiles within the CODX Junior project. It handles loading, saving, deleting, and listing profiles, as well as matching profiles to specific files.
+
+### Initialization
+
+The `ProfileManager` is initialized with `CODXJuniorSettings`. It sets up the path for storing profiles and identifies the base profiles directory.
+
+```python
+# /codx/junior/profiles/profile_manager.py
+import os
+import json
+import pathlib
+import logging
+import re
+
+from codx.junior.settings import CODXJuniorSettings
+from codx.junior.model.model import Profile
+from codx.junior.utils.utils import write_file
+
+from codx.junior.project.project_discover import (
+    find_project_parents,
+    find_project_by_name
+)
+
+logger = logging.getLogger(__name__)
+
+class ProfileManager:
+    def __init__(self, settings: CODXJuniorSettings):
+        self.settings = settings
+        self.profiles_path = f"{settings.codx_path}/profiles"
+        os.makedirs(self.profiles_path, exist_ok=True)
+
+        current_file_path = os.path.abspath(__file__)
+        current_directory = os.path.dirname(current_file_path)
+        self.base_profiles_path = f"{current_directory}"
+```
+
+### Base Profiles
+
+The `base_profiles` method returns a list of all `.profile` files found in the `base_profiles_path`.
+
+```python
+    def base_profiles(self):
+        def _files (file_gen):
+            return [str(file) for file in file_gen]
+
+        base_profiles = _files(pathlib.Path(self.base_profiles_path).rglob("**/*.profile"))
+        return _files(base_profiles)
+```
+
+### Project Profile Paths
+
+The `project_profile_paths` method returns a list of all `.profile` files located within the project's profiles directory.
+
+```python
+    def project_profile_paths(self):
+        def _files (file_gen):
+            return [str(file) for file in file_gen]
+
+        return _files(list(pathlib.Path(self.profiles_path).rglob("*.profile")))
+```
+
+### Listing All Profiles
+
+The `list_all_profiles` method aggregates profiles from the current project, parent projects, and base profiles. It ensures that each profile is unique by using a dictionary to store them, keyed by profile name.
+
+```python
+    def list_all_profiles(self):
+        parent_projects = find_project_parents(project=self.settings)
+        parent_projects.append(find_project_by_name("codx-junior"))
+        logger.info("list_all_profiles: %s", [p.project_name for p in parent_projects])
+        
+        all_profiles = {}
+        
+        # Project and parent profiles
+        for project in parent_projects :
+            profiles = ProfileManager(settings=project).list_profiles()
+            for profile in profiles:
+                all_profiles[profile.name] = profile
+        
+        # Base profiles
+        for profile in self.list_profiles():
+            all_profiles[profile.name] = profile
+        
+        return list(all_profiles.values())
+```
+
+### Listing Project Profiles
+
+The `list_profiles` method returns a list of `Profile` objects loaded from the project's profile paths.
+
+```python
+    def list_profiles(self):
+        return [self.load_profile(profile_path) for profile_path in self.project_profile_paths()]
+```
+
+### Reading a Profile
+
+The `read_profile` method searches for a profile by its name within the project's profile paths and returns the corresponding `Profile` object. If no match is found, it returns `None`.
+
+```python
+    def read_profile(self, profile_name) -> Profile:
+        project_profile_paths = self.project_profile_paths()
+        match_profiles = [profile_path for profile_path in project_profile_paths if profile_name in profile_path]
+        return self.load_profile(match_profiles[0]) if match_profiles else None
+```
+
+### Loading a Profile
+
+The `load_profile` method reads a profile from a given file path, parses the JSON content, and creates a `Profile` object. It also handles backward compatibility for older profile formats and assigns a default avatar if none is provided.
+
+```python
+    def load_profile(self, profile_path) -> Profile:
+        profile = None
+        try:
+            with open(profile_path, 'r') as f:
+                content = f.read()
+                profile = Profile(**json.loads(content))
+                profile.path = profile_path
+
+            #TODO: Old versions
+            profile.content_path = f"{profile_path}.md"
+            if os.path.isfile(profile.content_path):
+                with open(profile.content_path, 'r') as f:
+                  profile.content = f.read()
+                self.save_profile(profile=profile)
+                os.remove(profile.content_path)
+                
+            if not profile.avatar:
+                profile.avatar = f"https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r={profile.name}"
+            profile.project_id = self.settings.project_id
+            return profile
+        except Exception as ex:
+            logger.exception(f"Error loading profile: {profile_path} {ex}")
+            raise ex
+```
+
+### Saving a Profile
+
+The `save_profile` method saves a `Profile` object to a `.profile` file in the project's profiles directory. It raises an exception if the profile name is invalid.
+
+```python
+    def save_profile(self, profile: Profile):
+        if not profile.name:
+            raise Exception('Invalid profie')
+
+        profile_path = f"{os.path.join(self.profiles_path, profile.name)}.profile"
+        
+        logger.info(f"Save profile {profile_path}")
+        with open(profile_path, 'w') as f:
+            f.write(json.dumps(profile.model_dump()))
+```
+
+### Deleting a Profile
+
+The `delete_profile` method removes a profile file from the project's profiles directory based on its name.
+
+```python
+    def delete_profile(self, profile_name):
+        project_profile_paths = self.project_profile_paths()
+        profile_file_name = f"{profile_name}.profile"
+        profile_path = [file_path for file_path in project_profile_paths if file_path.endswith(profile_file_name)]
+        if profile_path:
+            os.remove(profile_path[0])
+```
+
+### Profile Matching
+
+The `is_profile_match` method checks if a given file path matches the `file_match` pattern defined in a `Profile` object.
+
+```python
+    def is_profile_match(self, profile: Profile, file_path: str):
+        try:
+            return profile.file_match and re.search(profile.file_match, file_path)
+        except:
+            return False
+```
+
+### Getting Profiles by File Path
+
+The `get_file_profiles_by_file_path` method returns a list of all profiles that match a given file path using the `is_profile_match` method.
+
+```python
+    def get_file_profiles_by_file_path(self, file_path: str):
+        return [profile for profile in self.list_all_profiles() \
+          if self.is_profile_match(profile=profile, file_path=file_path)]
+```
+
+### Getting Profiles by Name
+
+The `get_profiles_by_name` method returns a list of `Profile` objects from all available profiles whose names are present in the provided list.
+
+```python
+    def get_profiles_by_name(self, profiles: []):
+        return [p for p in self.list_all_profiles() if p.name in profiles]
+```
