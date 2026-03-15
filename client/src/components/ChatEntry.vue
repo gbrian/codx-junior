@@ -39,7 +39,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
             />
             <div class="flex gap-2 grow">
               [{{ formatDate(message.updated_at) }}] 
-              <span v-if="timeTaken">({{ timeTaken }} s.)</span>
+              <span v-if="timeTaken">({{ timeTaken }})</span>
               
               <div class="badge badge-sm badge-success flex gap-1" v-if="message.is_answer">
                 <ChatIcon mode="answer" /> Knowledge 
@@ -290,12 +290,18 @@ export default {
       return this.improvementData?.code_patches
     },
     timeTaken () {
-      if (!this.message.meta_data?.time_taken) {
+      if (!this.message.meta_data) {
         return null
       }
-      const seconds = Math.floor(this.message.meta_data.time_taken)
-      const baseMoment = moment({h:0, m:0, s:0, ms:0})
-      return `${this.message.meta_data.model} ${baseMoment.add(seconds, 'seconds').format("mm:ss")}`
+      let timeTaken = '--'
+      if (this.message.meta_data?.time_taken) {
+        const seconds = Math.floor(this.message.meta_data.time_taken)
+        const baseMoment = moment({h:0, m:0, s:0, ms:0})
+        timeTaken = baseMoment.add(seconds, 'seconds').format("mm:ss")
+      } else if (this.message.meta_data?.start_time) {
+        timeTaken = moment(moment().diff(moment(this.message.meta_data?.start_time))).format("mm:ss")
+      }
+      return `${this.message.meta_data.model} ${timeTaken}`
     },
     chatProject() {
       if (this.chat.project_id) {

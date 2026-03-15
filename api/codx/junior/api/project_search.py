@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 @router.get("/project/search")
-async def search_projects(request: Request, query: str) -> List[Dict[str, Any]]:
+async def search_projects(request: Request, query: str):
     """
     Searches across project files, chat messages, and wiki pages.
 

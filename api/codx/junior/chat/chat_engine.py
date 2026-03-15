@@ -75,7 +75,7 @@ class ChatEngine:
 
 
     @profile_function
-    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0):
+    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0, system: str = None):
         timing_info: dict[str, float | None] = {
             "start_time": time.time(),
             "first_response": None
@@ -113,6 +113,10 @@ class ChatEngine:
                                 doc_id=str(uuid.uuid4()))
 
             response_message = new_chat_message("assistant")
+            response_message.meta_data = {
+              "start_time": timing_info["start_time"]
+            }
+            
             def send_message_event(content, done):
                 if not response_message.is_thinking:
                     if content and content.startswith("<think>") \
@@ -262,7 +266,11 @@ class ChatEngine:
             logger.info("[chat_model] %s", chat_model)
             if chat_model:
                 ai_settings.model = chat_model
-            ai = self.get_ai(llm_model=ai_settings.model)
+            ai = self.get_ai(llm_model=ai_settings.model, system=system)
+
+            self.event_manager.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
+            response_message.meta_data["model"] = ai_settings.model
+
             tags  = [
                       f"{chat.mode}"
                     ] + [p.name for p in all_profiles]
@@ -390,9 +398,7 @@ class ChatEngine:
 
             if chat_profiles_content:
                 messages[-1].content += f"\nInstructions:\n{chat_profiles_content}"
-            self.event_manager.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
-
-
+            
             if not callback:
                 callback = lambda content: send_message_event(content=content, done=False)
 
@@ -420,8 +426,6 @@ class ChatEngine:
                 response_message.error = str(ex)
                 
             response_message.meta_data = user_message.meta_data
-            if not response_message.meta_data:
-                response_message.meta_data = {}
             response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
             response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
             response_message.meta_data["model"] = ai_settings.model
@@ -485,14 +489,14 @@ class ChatEngine:
         return self
 
 
-    def get_ai(self, llm_model: Optional[str] = None) -> AI:
+    def get_ai(self, llm_model: Optional[str] = None, system: str = None) -> AI:
         """
         Get an AI instance configured for a specific model.
 
         :param llm_model: The name of the large language model.
         :return: An AI instance.
         """
-        ai_instance = AI(settings=self.settings, llm_model=llm_model, user=self.user)
+        ai_instance = AI(settings=self.settings, llm_model=llm_model, user=self.user, system=system)
         logger.debug(f"AI instance created with model {llm_model}")
         return ai_instance
 

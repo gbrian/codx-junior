@@ -1,10 +1,11 @@
 <script setup>
 import AutoCompleteVue from "./AutoComplete.vue";
+import _ from 'lodash'
 </script>
 <template>
   <AutoCompleteVue :results="results" 
     @search="onSearch"
-    @select="$emit('select', $event)"
+    @select="$emit('select-result', $event)"
     @close="$emit('close')"
   />
 </template>
@@ -13,15 +14,21 @@ export default {
   props: ['project'],
   data() {
     return {
-      results: []
+      results: [],
     }
   },
   methods: {
-    onSearch(query) {
-      this.results = this.project?.$state.searchMentions(query, 20).concat(
-        this.project.$state.mentions?.find(m => m.searchIndex.includes(query.toLowerCase()))
-      )
+    async onSearch(query) {
+      const res = await this.project.$api.knowledge.query(query)
+      const mappedValues = res.map(r => ({
+        ...r,
+        name: r.metadata.source.split('/').pop()
+      }))
+      const unique = mappedValues.reduce((acc, v) => ({ ...acc, [v.name]: v }), {})
+      this.results = Object.values(unique)
+                        .sort((a, b) => a.name.length < b.name.length ? -1: 1)
     }
   }
 }
 </script>
+

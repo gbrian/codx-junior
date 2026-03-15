@@ -32,7 +32,6 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
           </div>
         </div>
         <CheckLists class="" :chat="chat" :readOnly="readOnly" @change="saveChat" />
-        
       </div>
       <div class="grow overflow-y-auto overflow-x-hidden">
         <Browser class="" :token="$ui.monitors['shared']" v-if="isBrowser"/>
@@ -40,7 +39,7 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
           :fromBranch="chat.pr_view?.from_branch"
           :toBranch="chat.pr_view?.to_branch"
           :chat="chat"
-          @select="onPRViewBranchChanged"
+          @select-branch="onPRViewBranchChanged"
           @comment="onPRFileComment"
           @change-column="$emit('change-column', $event)"
           @new-chat="onPRFileCreateChat"
@@ -130,8 +129,8 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
         >
         <ProjectResourcesAutoCompleteVue 
           class=""
-          :project="projectContext"
-          @select="onAddDocument"
+          :project="chatProject"
+          @select-result="onAddDocument"
           @close="closeDocumentSearch"
           v-if="showDocumentSearchModal"
         />
@@ -276,7 +275,6 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
     <modal v-if="selectFile">
       <div class="flex flex-col">
         <div class="text-xl">Project file</div>
-        
         <input type="text" class="input input-bordered"
           placeholder="File path" 
           v-model="uploadProjectFile" 
@@ -284,8 +282,6 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
         <button class="btn btn-sm" @click="addChatFile">
           Add file
         </button>
-        
-        
         <label class="file-select">
           <div class="select-button">
             <span>Select File(s)</span>
@@ -342,7 +338,6 @@ export default {
       selectedDocuments: null,
       showDocumentSearchModal: false,
       searchingInKnowledge: false,
-      projectContext: this.$project,
       uploadProjectFile: null,
       metadata: null,
       pasteWithShift: false,
@@ -352,7 +347,6 @@ export default {
   },
   created() {
     this.selectedUser = this.$user
-    this.setProjectContext()
     this.metadata = this.message?.metadata
     this.editorText = this.message?.content
   },
@@ -456,15 +450,16 @@ export default {
       return this.messages[0]
     },
     chatProject() {
-      return this.projectContext || this.$project
+      return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) 
+                || this.$project
     },
     mentionList() {
-      return (this.projectContext?.$state || this.$projects).mentionList
+      return (this.chatProject?.$state || this.$projects).mentionList
     },
     messageMentions() {
       const mentions = [...this.messageText?.matchAll(/@([^\s]+)/mg) || []]
         .map(w => w[1]) || []
-      return [...this.mentionList?.filter(m => mentions.includes(m.mention)), 
+      return [...this.mentionList?.filter(m => mentions.includes(m.mention)) || [], 
               ...this.mentions,
               ...this.files.map(file => ({
                 name: file.split("/").reverse()[0],
@@ -480,7 +475,7 @@ export default {
       } 
     },
     profiles() {
-      return this.projectContext?.$state.profiles || []
+      return this.chatProject?.$state.profiles || []
     },
     usersList() {
       return [this.$user, ...this.profiles]
@@ -488,18 +483,11 @@ export default {
     isChannel() {
       return this.chat.mode === 'topic'
     },
-    chatProject() {
-      return this.$projects.allProjectsById[this.chat.project_id] ||
-                this.$project
-    },
     editor() {
       return this.$el.querySelector('.editor')
     }
   },
   watch: {
-    chat() {
-      this.setProjectContext()
-    },
     uploadProjectFile(newVal, oldVal) {
       if (newVal?.length >= 3 && newVal?.length > oldVal?.length) {
         this.detectSearchTerm()
@@ -516,14 +504,8 @@ export default {
       if (replaceWord?.startsWith("@")) {
           this.mentionSuggestions = [
                 ...this.mentions,
-                ...this.projectContext.$state.searchMentions(replaceWord.slice(1))
+                ...this.chatProject.$state.searchMentions(replaceWord.slice(1))
           ]
-      }
-    },
-    async setProjectContext() {
-      this.projectContext = this.$project
-      if (this.projectContext?.project_id !== this.chatProject.project_id) {
-        this.projectContext = await this.$projects.loadProject(this.chatProject)
       }
     },
     zoomIn() {
@@ -543,9 +525,9 @@ export default {
       }
       this.editMessageId = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
       this.editMessage = this.chat.messages[this.editMessageId]
-      const profile = this.editMessage.profiles[0]?.name
+      const profile = this.editMessage.profiles?.[0] 
       if (profile) {
-        this.selectedUser = profile
+        this.selectedUser = this.usersList.find(u => u.name === profile) || this.$user
       } 
       try {
         this.images = message.images.map(JSON.parse)
@@ -666,8 +648,8 @@ export default {
       }
       this.searchingInKnowledge = true
       try {
-        const { response, documents } = await this.projectContext.$api.knowledge.search(knowledgeSearch)
-        const docs = documents.map(({ page_content, metadata: { language, score_analysis, source}}) => {
+        const { response, documents } = await this.chatProject.$api.knowledge.search(knowledgeSearch)
+        const docs = documents.map(({ page_content, metadata: { language, source}}) => {
             const file = source
             const fileName = file.split("/").reverse()[0] 
             return [
@@ -762,7 +744,7 @@ export default {
       ].join("\n")
       
     },
-    async addSerchTerm({ mention, orgText }) {
+    async onMentionReplace({ mention, orgText }) {
       if (mention.file) {
         this.onAddFile(mention.file)
       } else {
@@ -772,9 +754,6 @@ export default {
               .join(" ")
         )
       }
-    },
-    onMentionReplace({ mention, orgText }) {
-      this.addSerchTerm({ mention, orgText })
     },
     getEditorCaretCharOffset() {
       let caretOffset = 0
@@ -796,7 +775,7 @@ export default {
     },
     getCursorWord() {
       const text = this.editor?.innerText
-      if (!text.length) {
+      if (!text?.length) {
         return ""
       }
       const caretIndex = this.getEditorCaretCharOffset()
@@ -1025,7 +1004,6 @@ export default {
       const source = doc.file || doc.metadata?.source
       if (source) {
         this.addFileToMessage(source)
-        this.saveChat()
       }
     },
     addFileToChat(filePath) {
@@ -1040,7 +1018,7 @@ export default {
       this.$storex.chats.writeFile({ chat, file, content })
     },
     onOpenFile(file) {
-      this.projectContext.$api.coder.openFile(file)
+      this.chatProject.$api.coder.openFile(file)
     },
     addChatFile() {
       this.onAddFile(this.uploadProjectFile)
@@ -1069,7 +1047,7 @@ export default {
       this.saveChat()
     },
     removeMessageMention(mention) {
-      const orgMention = this.mentionList.find(m => m === mention)
+      const orgMention = this.mentionList?.find(m => m === mention)
       if (orgMention) {
         this.setEditorText(this.editorText.replace("@"+mention.name, ""))
       } else {

@@ -168,12 +168,20 @@ export const state = createState
 export const mutations = mutationTree(state, {
   setAllProjects(state, allProjects) {
     state.allProjects = allProjects?.sort((a, b) => {
-        const aUpdated = a._metrics?.last_update || ""
-        const bUpdated = b._metrics?.last_update || ""
-        return aUpdated > bUpdated ? -1 : 1
-      })
+            const aUpdated = a._metrics?.last_update || ""
+            const bUpdated = b._metrics?.last_update || ""
+            return aUpdated > bUpdated ? -1 : 1
+          })
     state.allProjectsById = state.allProjects?.reduce((acc, p) => ({ ...acc, [p.project_id]: p }), {}) || {}
-    state.activeChat = null
+        
+    allProjects.map(async project => {
+        let { $api } = project
+        if (!$api) {
+          project.$api = await API.project(project)
+          project.$state = createState()
+          initProject(project)
+        }
+    })
   },
   setLogs(state, logs) {
     state.logs = logs
@@ -271,18 +279,7 @@ export const actions = actionTree(
       if ($storex.api.user) {
         try {
           await API.projects.list(withMetrics)
-          const allProjectsWithExtras = await Promise.all(
-            API.allProjects.map(async project => {
-                  let { $api, $state } = state.allProjectsById[project.project_id] || {}
-                  $api = $api || await API.project(project)
-                  $state = $state || createState()
-                  return { 
-                    ...project, 
-                    $state,
-                    $api 
-                  }
-              }))
-          $storex.projects.setAllProjects(allProjectsWithExtras)
+          $storex.projects.setAllProjects(API.allProjects)
           if (API.activeProject) {
             try {
               await $storex.projects.setActiveProject(API.activeProject)
@@ -321,7 +318,7 @@ export const actions = actionTree(
         if (!existsProject) {
           $storex.projects.setAllProjects([ ...state.allProjects, API.activeProject ])
         }
-        state.activeProject = await initProject(state.allProjectsById[API.activeProject.project_id])
+        state.activeProject = state.allProjectsById[API.activeProject.project_id]
         await $storex.projects.loadChats()
         if (state.activeChat?.project_id !== API.activeProject.project_id) {
           state.activeChat = null

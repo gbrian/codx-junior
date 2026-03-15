@@ -4,7 +4,6 @@ import TaskCard from './TaskCard.vue'
 import TaskCardLite from './TaskCardLite.vue'
 import ChatViewVue from '../../views/ChatView.vue'
 import { v4 as uuidv4 } from 'uuid'
-import VSwatches from '../VSwatches.vue'
 import KanbanList from './KanbanList.vue'
 import ChatIcon from '../chat/ChatIcon.vue'
 import FileFinder from '../filebrowser/FileFinder.vue'
@@ -22,12 +21,12 @@ import ChatHistoryVue from './ChatHistory.vue'
     <div class="absolute bottom-0 left-0 right-0 z-20 text-xs @xl:text-md" v-if="loadingChats">
       Loading...
       <progress class="progress w-full animate-pulse opacity-30"></progress>
-    </div>  
-    <div class="@2xl:px-1 @5xl:px-4 h-full absolute top-0 left-0 right-0 bottom-0 z-1">    
+    </div>
+    <div class="@2xl:px-1 @5xl:px-4 h-full absolute top-0 left-0 right-0 bottom-0 z-1">
       <div class="flex flex-col gap-2" v-if="kanban?.boards && !$projects.activeChat && !board">
         <div class="sticky top-0 z-20  bg-base-300 flex flex-col gap-1">
-          <h1 class="text-2xl font-bold flex justify-between gap-2 pb-2">
-            <input type="text" v-model="boardFilter" class="input input-sm input-bordered" placeholder="Search boards" />
+          <h1 class="text-2xl font-bold flex justify-between gap-2 py-1">
+            <input type="text" v-model="boardFilter" class="input input-sm" placeholder="Search boards" />
             <div class="grow"></div>
             <button class="btn btn-sm btn-warning btn-outline" @click="showNewBoardModal">
               <i class="fa-solid fa-plus"></i>
@@ -66,7 +65,7 @@ import ChatHistoryVue from './ChatHistory.vue'
         v-if="$projects.activeChat"
       />
       <div class="flex flex-col h-full" v-if="!$projects.activeChat && showKanban">
-        
+
         <div class="flex gap-4 items-center">
           <div class="flex gap-2 items-center">
             <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2">
@@ -91,7 +90,7 @@ import ChatHistoryVue from './ChatHistory.vue'
                 @click="toggleBookmark"
               ></i>
                 {{ activeBoard?.title }}
-              </span>  
+              </span>
             </div>
           </div>
           <div class="grow"></div>
@@ -131,7 +130,7 @@ import ChatHistoryVue from './ChatHistory.vue'
               <div>Bookmarks</div>
             </h1>
             <div class="grid grid-cols-2 grid-flow-row gap-2">
-              <TaskCardLite @click="setActiveChat(task)" 
+              <TaskCardLite @click="setActiveChat(task)"
                 :task="task" class="click h-20 overflow-hidden border rounded-md border-slate-600"
                 :class="task.pinned && 'border-warning'"
                 v-for="task in topChats" :key="task.id"/>
@@ -142,7 +141,7 @@ import ChatHistoryVue from './ChatHistory.vue'
             <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between border-b border-slate-700">
               <div>Child Boards</div>
             </h1>
-            
+
             <KanbanList
               class="mb-2"
               :boards="childBoards"
@@ -168,7 +167,7 @@ import ChatHistoryVue from './ChatHistory.vue'
                 :style="{ borderColor: column.color }"
               >
                 <div class="group font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
-                  <div class="cursor-pointer w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100" 
+                  <div class="cursor-pointer w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100"
                     :style="{ backgroundColor: column.color }" @click="openColumnPropertiesModal(column)">
                     <span class="hidden group-hover:block">
                       <i class="fa-solid fa-bars"></i>
@@ -240,7 +239,7 @@ import ChatHistoryVue from './ChatHistory.vue'
           </draggable>
         </div>
       </div>
-      
+
       <modal close="true" @close="showBoardModal = false" v-if="showBoardModal">
         <h2 class="font-bold text-3xl">{{ editBoard ? 'Edit Board' : 'Add New Board' }}</h2>
         <div class="collapse bg-contain"
@@ -259,7 +258,7 @@ import ChatHistoryVue from './ChatHistory.vue'
             </select>
           </div>
         </div>
-        
+
         <div class="modal-action flex gap-2">
           <button class="btn btn-error" @click="onDeleteBoard(newBoardName)">
             Delete
@@ -271,16 +270,15 @@ import ChatHistoryVue from './ChatHistory.vue'
       <modal close="true" @close="showColumnModal = false" v-if="showColumnModal">
         <h2 class="font-bold text-lg">Add/Edit Column</h2>
         <div class="flex gap-1 items-center">
-          <VSwatches v-model="columnColor" class="h-full mt-1" />
           <input type="text" v-model="columnTitle" placeholder="Enter column name"
             class="grow input input-bordered w-full"/>
-          
+
         </div>
 
-        <ProjectDetailt 
-          :project="columnProject || $project" 
+        <ProjectDetailt
+          :project="columnProject || $project"
           :options="{ showFolders: false, showIcon: true, showSelector: true }"
-          @select="columnProject = $event"    
+          @select="columnProject = $event"
         />
         <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
         <div class="modal-action flex flex-col">
@@ -293,7 +291,7 @@ import ChatHistoryVue from './ChatHistory.vue'
             <button class="btn" @click="addOrUpdateColumn">Save</button>
           </div>
           <div class="text-error text-xs p-2" v-if="confirmDeleteColumn">
-            Are you sure you want to delete this column? 
+            Are you sure you want to delete this column?
             All tasks will be removed.
           </div>
         </div>
@@ -303,11 +301,11 @@ import ChatHistoryVue from './ChatHistory.vue'
         <h2 class="font-bold text-lg">Import Task</h2>
         <div class="form-control">
           <label class="label cursor-pointer">
-            <span class="label-text">Import from clipboard</span> 
+            <span class="label-text">Import from clipboard</span>
             <input type="radio" name="importOptions" value="clipboard" v-model="importOption" class="radio" />
           </label>
           <label class="label cursor-pointer">
-            <span class="label-text">Import from URL</span> 
+            <span class="label-text">Import from URL</span>
             <input type="radio" name="importOptions" value="url" v-model="importOption" class="radio" />
           </label>
           <input v-if="importOption === 'url'" type="text" v-model="importUrl" placeholder="Paste URL here" class="input input-bordered w-full mt-2"/>
@@ -376,9 +374,9 @@ export default {
     },
     filteredBoards() {
       if (!this.boardFilter) {
-        return this.parentBoards 
+        return this.parentBoards
       }
-      return Object.values(this.boards).filter(board => 
+      return Object.values(this.boards).filter(board =>
         board.title.toLowerCase().includes(this.boardFilter.toLowerCase())
       )
     },
@@ -387,8 +385,8 @@ export default {
         this.$projects.activeBoard: null
     },
     lastUpdatedTask() {
-      return this.visibleTasks.sort((a, b) => 
-        (a.updated_at || new Date(1900, 1, 1)) > 
+      return this.visibleTasks.sort((a, b) =>
+        (a.updated_at || new Date(1900, 1, 1)) >
         (b.updated_at || new Date(1900, 1, 1)) ? -1 : 1)
         .slice(0, 1)[0] || {}
     },
@@ -407,13 +405,13 @@ export default {
       const baseBoards = this.$projects.kanban.boards
       const distinct = arr => arr.filter((v, ix, arr) => arr.indexOf(v) === ix)
       const missingChats = this.chats.filter(c => !baseBoards[c.board])
-      const missingBoards = distinct(missingChats.map(c => c.board)) 
+      const missingBoards = distinct(missingChats.map(c => c.board))
       return missingBoards.reduce((acc, b) => {
         const columns = distinct(missingChats.filter(c => c.board === b).map(c => c.column))
                             .map(column => {
                               return {
                                title: column,
-                              }  
+                              }
                             })
         return {
           ...acc,
@@ -466,7 +464,7 @@ export default {
         }))
       ].reduce((acc, b) => ({ ...acc, [b.id]: {
         ...b,
-        tasks: chats.filter(c => 
+        tasks: chats.filter(c =>
                   !c.message_id && (b.id === ALL_BOARD_TITLE_ID || c.board === b.id))
                 .sort((a, b) => a.pinned && !b.pinned ? -1 : 1)
       }}), {})
@@ -520,7 +518,7 @@ export default {
     },
     buildFilteredColumns() {
       this.loadingChats += 1
-      try {  
+      try {
         if (!this.filter) {
           this.filteredColumns = this.columns
         } else {
@@ -585,7 +583,7 @@ export default {
       const chat = await this.$projects.createNewChat({
         ...base,
         id: uuidv4(),
-        board: this.board || 'Default',
+        board: base.board || activateChat?.board,
       })
       if (activateChat !== false) {
         this.setActiveChat(chat)
@@ -662,7 +660,7 @@ export default {
       this.pinnedChats = this.activeBoard?.tasks.filter(t => t.pinned) || []
       this.topChats = this.pinnedChats
     },
-    async onColumnTaskListChanged() {
+    async onColumnTaskListChanged(column) {
       if (this.$ui.isMobile) {
         return
       }
@@ -670,6 +668,7 @@ export default {
       kboard.columns = await Promise.all(this.filteredColumns.map(async (column, ix) => {
         const kcolumn = this.columns.find(kc => kc.id === column.id)
         kcolumn.chats = column.tasks.map(t => t.id)
+        // Update column for tasks that might have changed
         await Promise.all(column.tasks.filter(t => t.column !== column.title)
           .map(task => this.$storex.projects.saveChatInfo({ ...task, column: column.title })))
         return kcolumn
@@ -705,7 +704,7 @@ export default {
         file_list,
         child_index
       }, activateChat)
-      
+
       await this.$projects.saveChat(chat)
       if (description) {
         this.$storex.projects.chatWihProject(chat)
@@ -719,40 +718,51 @@ export default {
       if (!this.columnTitle) {
         return this.resetColumnModal()
       }
-      const existingColumnTitle = this.activeKanbanBoard.columns.find(c => c.title === this.columnTitle)
-      if (existingColumnTitle && existingColumnTitle.id !== this.selectedColumn?.id) {
-        this.editColumnError = 'Name already used'
+      // Check if the column title already exists in the current board
+      const existingColumn = this.activeKanbanBoard.columns.find(c => c.title === this.columnTitle && c.id !== this.selectedColumn?.id)
+      if (existingColumn) {
+        this.editColumnError = 'Column name already exists'
         return
       }
+
       if (this.selectedColumn) {
+        // Update existing column
         this.selectedColumn.title = this.columnTitle
         this.selectedColumn.color = this.columnColor
-        this.selectedColumn.project_id = this.columnProject?.project_id || null // Save project_id
+        this.selectedColumn.project_id = this.columnProject?.project_id || null
       } else {
+        // Add new column
         const newColumn = {
           id: uuidv4(),
           title: this.columnTitle,
           color: this.columnColor,
-          project_id: this.columnProject?.project_id || null // Save project_id
+          project_id: this.columnProject?.project_id || null,
+          chats: [] // Initialize with empty array for chats
         }
         this.activeBoard.columns.push(newColumn)
       }
       this.activeBoard.last_update = new Date().toISOString()
       await this.saveKanban()
       this.resetColumnModal()
-      this.buildKanban()
+      this.buildKanban() // Rebuild kanban to reflect changes
     },
     async deleteColumn() {
       if (this.confirmDeleteColumn) {
-        const column = this.columns.find(c => c.title === this.columnTitle)
-        column.tasks.forEach(chat => this.$projects.deleteChat(chat))
-        this.resetColumnModal()
+        const columnToDelete = this.columns.find(c => c.title === this.columnTitle)
+        if (columnToDelete) {
+          // Remove associated chats
+          await Promise.all(columnToDelete.tasks.map(chat => this.$projects.deleteChat(chat)))
+        }
+        // Remove from the board's columns array
         this.activeKanbanBoard.columns = this.activeKanbanBoard.columns.filter(
-          col => col.id !== column.id
+          col => col.title !== this.columnTitle
         )
         await this.saveKanban()
+        this.resetColumnModal()
+        this.buildKanban() // Rebuild kanban to reflect changes
+      } else {
+        this.confirmDeleteColumn = true
       }
-      this.confirmDeleteColumn = !this.confirmDeleteColumn
     },
     resetColumnModal() {
       this.showColumnModal = false
@@ -760,31 +770,34 @@ export default {
       this.columnColor = '#000000'
       this.selectedColumn = null
       this.editColumnError = null
+      this.confirmDeleteColumn = false // Reset confirmation flag
+      this.columnProject = null // Reset selected project
     },
     async addOrUpdateBoard() {
       const oldBoardName = this.originalBoardName
       const boardName = this.newBoardName.trim()
-      let board = this.editBoard ? this.kanban.boards[oldBoardName] :
-                                    {
-                                      title: boardName,
-                                      columns: [],
-                                    }
-      if (this.editBoard && boardName !== this.originalBoardName) {
+
+      if (!boardName) return
+
+      let board = this.editBoard ? this.kanban.boards[oldBoardName] : { title: boardName, columns: [], id: boardName }
+
+      if (this.editBoard && boardName !== oldBoardName) {
+        // If board name is changed, update chats' board field
+        const chatsToUpdate = this.chats.filter(chat => chat.board === oldBoardName)
+        await Promise.all(chatsToUpdate.map(async chat => {
+          chat.board = boardName
+          await this.$projects.saveChatInfo(chat)
+        }))
+        // Remove the old board entry
         delete this.kanban.boards[oldBoardName]
-        board.title = boardName
-        this.chats.forEach(chat => {
-          if (chat.board === oldBoardName) {
-            chat.board = boardName
-            this.$projects.saveChatInfo(chat)
-          }
-        })
       }
-      
-      this.kanban.boards[boardName] = board 
+
+      board.title = boardName
       board.description = this.newBoardDescription?.trim()
       board.background = this.newBoardBackground?.trim()
       board.parent_id = this.newBoardParent
 
+      this.kanban.boards[boardName] = board
       await this.saveKanban()
       this.showBoardModal = false
       this.resetNewBoardInfo()
@@ -798,12 +811,16 @@ export default {
       this.newBoardBranch = ''
       this.selectedTemplate = null
       this.newBoardIssueLink = ''
+      this.editBoard = null
+      this.originalBoardName = null
     },
     openColumnPropertiesModal(column) {
-      this.selectedColumn = this.activeKanbanBoard.columns.find(c => c.id === column.id)
-      this.columnTitle = column?.title
-      this.columnColor = column?.color || '#000000'
-      this.columnProject = this.$projects.allProjectsById[column?.project_id] || this.$project
+      // Find the actual column object from the active board's columns array
+      this.selectedColumn = this.activeBoard?.columns?.find(c => c.id === column.id) || column
+      this.columnTitle = this.selectedColumn?.title
+      this.columnColor = this.selectedColumn?.color || '#000000'
+      // Set columnProject based on the project_id of the selected column, or default to the current project
+      this.columnProject = this.$projects.allProjectsById[this.selectedColumn?.project_id] || this.$project
       this.confirmDeleteColumn = false
       this.showColumnModal = true
     },
@@ -817,10 +834,12 @@ export default {
       this.newBoardName = null
       this.newBoardDescription = null
       this.showBoardModal = true
-      this.newBoardParent = this.activeBoard?.id
+      // Set parent to the currently active board's ID if creating a sub-board
+      this.newBoardParent = this.activeBoard?.id || null
     },
     taskMatchesFilter(task) {
       const filterText = this.filter?.toLowerCase() || ''
+      if (!filterText) return true // No filter applied
       const taskNameMatches = task.name.toLowerCase().includes(filterText)
       const messageContentMatches = task.messages?.some(message =>
         message.content.toLowerCase().includes(filterText)
@@ -829,9 +848,11 @@ export default {
     },
     toggleBookmark({ title } = {}) {
       const boardTitle = (title || this.activeBoard?.title)
-      const board = this.kanban.boards[boardTitle] 
-      board.bookmark = !board.bookmark;
-      this.saveKanban();
+      const board = this.kanban.boards[boardTitle]
+      if (board) {
+        board.bookmark = !board.bookmark;
+        this.saveKanban();
+      }
     },
     onEditBoard(board) {
       board = board || this.activeBoard
@@ -843,21 +864,22 @@ export default {
       this.newBoardParent = board.parent_id
       this.showBoardModal = true
     },
-    onDeleteBoard(board) {
-      // this.$projects.deleteBoard(board)
+    onDeleteBoard(boardTitle) {
+      // TODO: We must define the logic with child boarda and chat
     },
     onAddFile(filePaths) {
       if (this.activeBoard) {
         this.activeBoard.file_list = [...(this.activeBoard.file_list || []), ...filePaths]
+        this.saveKanban()
       }
     },
     reloadKanban() {
       this.$projects.loadKanban()
     },
     async moveChatsToColumn({ chats, column }) {
-      await Promise.all(chats.map(async chat => { 
+      await Promise.all(chats.map(async chat => {
         chat.column = column
-        await this.$projects.saveChatInfo(chat) 
+        await this.$projects.saveChatInfo(chat)
       }))
       this.buildColumns()
     }

@@ -37,7 +37,7 @@ import BarButton from './BarButton.vue';
     </BarButton>
 
     <BarButton tab="file-finder"
-      @click="$ui.setActiveTab('file-finder')">
+      @click="$ui.setActiveTab('file-finder')" v-if="false">
       <i class="fa-solid fa-folder"></i>
     </BarButton>
   

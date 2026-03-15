@@ -9,22 +9,21 @@
       <div class="flex gap-2 items-center text-nowrap">
         <!-- Dropdown Component -->
         <div class="dropdown dropdown-start">
-          <div tabindex="0" role="button" class="flex gap-2 click items-center">
+          <div tabindex="0" role="button" class="flex gap-1 click items-center">
             <div class="avatar" v-if="options?.showIcon">
-              <div class="w-6 rounded-md">
+              <div class="w-7 rounded-md">
                 <img :src="project.project_icon" />
               </div>
             </div>
-            <span class="mr-" v-if="iconify !== true">{{ project.project_name }}</span>
+            <span class="-mt-1" v-if="iconify !== true">{{ project.project_name }}</span>
             
-            <i class="fa-solid fa-caret-right" v-if="options?.showSelector !== false"></i>
           </div>
-          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1000] shadow-sm -ml-4"
+          <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1000] shadow-sm min-w-60 border p-2 mt-2"
             v-if="options?.showSelector !== false"
           >
             <li>
               <!-- Search Input for Projects -->
-              <div class="flex items-center mb-2 input input-sm md:input-md input-bordered">
+              <div class="flex items-center mb-2 input input-sm">
                 <span class="click" @click="$projects.loadAllProjects()">
                   <i class="fa-solid fa-arrows-rotate"></i>
                 </span>

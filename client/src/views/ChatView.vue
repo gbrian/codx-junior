@@ -21,7 +21,11 @@ import Markdown from '../components/Markdown.vue'
         <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
-              <input type="text" class="input input-bordered" @keydown.enter.stop="saveChat(chat)" @keydown.esc="editName = false" v-model="chat.name" v-if="editName" />
+              <input type="text" class="input input-sm input-bordered"
+                @keydown.enter.stop="saveChat(chat)" 
+                @keydown.esc="editName = false" 
+                v-model="chat.name" 
+                v-if="editName" />
               <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2 mb-2">
                   <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
@@ -530,6 +534,8 @@ export default {
           oldVal.project_id !== newVal.project_id) {
         this.init()
       }
+      this.showChildChat = null
+      this.showChatMenu = false
     }
   },
   methods: {
@@ -660,6 +666,7 @@ export default {
           file_list: files,
           profiles: profiles,
           mode,
+          board: chat.board,
           column,
           activateChat: true,
           child_index: this.childrenChats?.length
@@ -699,6 +706,7 @@ export default {
         file_list: this.subtaskFiles,
         profiles: this.subtaskProfiles,
         mode: this.subtaskMode,
+        board: this.chat.board,
         column: this.subtaskColumn,
         activateChat: this.chat.mode !== 'task',
         child_index: this.childrenChats?.length

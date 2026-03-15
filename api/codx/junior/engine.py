@@ -73,6 +73,18 @@ from codx.junior.whisper.audio_manager import AudioManager
 
 from codx.junior.model.model import CodxUser
 
+GLOBAL_CHAT_INSTRUCTIONS = """
+<instructions info="General to follow when generating your response">
+  <instruction>
+    - IMPORTANT: Always add the file name after the code block language like in this example: "```js /absolute/file/path/file.js"
+    - Use tools to convert relative project's file path to absolute.
+    - Read file's content if not present in the comversation.
+    - Use project search to find context if not clear on the conversation.
+  </instruction>
+</instructions>
+"""
+
+
 logger = logging.getLogger(__name__)
 
 class CODXJuniorSession:
@@ -1036,7 +1048,8 @@ class CODXJuniorSession:
                             callback=callback,
                             append_references=append_references,
                             chat_mode=chat_mode,
-                            iteration=iteration
+                            iteration=iteration,
+                            system=GLOBAL_CHAT_INSTRUCTIONS
                           )
 
         await self.save_chat(chat)
@@ -1172,14 +1185,19 @@ class CODXJuniorSession:
             return f.read()
 
     def diff_file(self, path: str, content: str):
-        git_command = f"""
-        cat << EOF | git --no-pager diff --no-index -- - {path}
-        {content}
-        EOF
-        """
-
-        diff_out = os.popen(git_command).read()
         
+        # We use a list for the command to avoid shell injection and quoting issues
+        cmd = ["git", "diff", "--no-index", path, "-"]
+        
+        # Run the command and pipe 'content' into its stdin
+        result = subprocess.run(
+            cmd, 
+            input=content, 
+            text=True, 
+            capture_output=True
+        )
+        
+        diff_out = result.stdout
         git_command = f"""
         cat << EOF | git --no-pager diff --shortstat --no-index -- - {path}
         {content}

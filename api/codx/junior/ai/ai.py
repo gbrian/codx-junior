@@ -32,16 +32,19 @@ class AI:
     def __init__(
         self, settings: CODXJuniorSettings,
         llm_model: str = None,
-        user: CodxUser = None
+        user: CodxUser = None,
+        system: str = None
     ):
+        self.system = system
         self.user = user
         self.settings = settings
         self.llm_model = llm_model
+        self.cache = False
+        self.ai_logger = AILogger(settings=settings)
+
         self.llm = self.create_chat_model(llm_model=llm_model)
         self.a_llm = self.create_a_chat_model(llm_model=llm_model)
         self.embeddings = self.create_embeddings_model()
-        self.cache = False
-        self.ai_logger = AILogger(settings=settings)
         
 
     @profile_function
@@ -163,16 +166,16 @@ class AI:
         return self.embeddings(content=content)
 
     def create_chat_model(self, llm_model: str) -> BaseChatModel:
-        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).chat_completions
+        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user, system=self.system).chat_completions
 
     def create_a_chat_model(self, llm_model: str) -> BaseChatModel:
-        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).a_chat_completions
+        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user, system=self.system).a_chat_completions
 
     def get_openai_chat_client(self, llm_model: str = None):
-        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user).client
+        return OpenAI_AI(settings=self.settings, llm_model=llm_model, user=self.user, system=self.system).client
 
     def create_embeddings_model(self):
-        return OpenAI_AI(settings=self.settings, user=self.user).embeddings()
+        return OpenAI_AI(settings=self.settings, user=self.user, system=self.system).embeddings()
 
 def messages_md5(messages: List[Message]):
     messageaStr = "".join(map(lambda x: x.content, messages))

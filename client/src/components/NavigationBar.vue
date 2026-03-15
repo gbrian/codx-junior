@@ -1,8 +1,6 @@
 <script setup>
 import moment from 'moment'
-import BarButton from './project/BarButton.vue';
-import MobileMenuVue from './MobileMenu.vue';
-import ProjectIconVue from './ProjectIcon.vue';
+import ProjectDetailt from './ProjectDetailt.vue';
 </script>
 
 <template>
@@ -12,38 +10,14 @@ import ProjectIconVue from './ProjectIcon.vue';
         $storex.session.connected ? '' : 'grayscale text-error',
       ]">
 
-      <div class="flex items-center -mt-2" @click="showMobileMenu = !showMobileMenu">
-        <div class="flex flex-col">
-          <MobileMenuVue class="" v-if="showMobileMenu" @click.stop="" @close="showMobileMenu = false" />
-          <span class="animate-pulse text-xs text-center" v-if="!$storex.session.connected">...offline</span>
-        </div>
-        <ProjectIconVue
-          :icon-only="true"
+      <ProjectDetailt @click.stop=""
           :project="$project" 
-          width="w-8"
-          class="mt-1"
-        /> 
-        <span class="text-xl">{{ $project?.project_name }}</span>
-      </div>
+          :options="{ folders: true, showIcon: true }"
+          @select="$projects.setActiveProject($event)"
+        />
       
       <div class="grow"></div>
         
-      <div class="flex gap-2 justify-end items-center">
-      <div class="chat chat-end click" @click="newQuickChat()">
-          <div class="chat-image avatar">
-            <div class="w-10 rounded-full">
-              <img src="/only_icon.png" class="w-8 h-8" />
-            </div>
-          </div>
-          <div class="chat-bubble text-nowrap px-4">Ask me...</div>
-        </div>
-
-        <BarButton class="btn-outline" @click="$ui.showNewProject(true)">
-          <i class="fa-solid fa-plus"></i>
-        </BarButton>
-
-      </div>
-
       <modal v-if="restartModal">
         <div class="flex flex-col gap-2 font-mono">
           <div class="font-bold text-xl">Restart... really!!??</div>
@@ -68,7 +42,7 @@ import ProjectIconVue from './ProjectIcon.vue';
 
 <script>
 export default {
-  props: ['right'],
+  props: [],
   data() {
     return {
       isCollapsed: false,
@@ -121,16 +95,6 @@ export default {
     },
     onOpenWorkspace({ workspace, app }) {
       this.$projects.openWorkspaceApp({ workspace, app })
-    },
-    async newQuickChat() {
-      const chat = {
-        name: "Quick chat",
-        board: "Quick chats",
-        column: moment().format("YYYYMMDD"),
-        mode: 'chat'
-      }
-      this.$projects.createNewBoardChat({ chat })
-      this.$ui.showTab('tasks')
     }
   }
 }

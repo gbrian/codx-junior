@@ -357,7 +357,7 @@ export default {
       this.isInputVisible = !this.isInputVisible
     },
     onBranchChanged({ fromBranch, toBranch }) {
-      this.$emit('select', { fromBranch, toBranch })
+      this.$emit('select-branch', { fromBranch, toBranch })
     },
     onAddComment(comment, file, lineNumber, side, onClose) {
       const metadata = {

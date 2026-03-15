@@ -5,7 +5,7 @@ import ProjectOverview from '@/components/project/ProjectOverview.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full px-2">
+  <div class="h-full px-2 overflow-auto">
     <ProjectOverview />
     <Wall class="" ></Wall>
   </div>

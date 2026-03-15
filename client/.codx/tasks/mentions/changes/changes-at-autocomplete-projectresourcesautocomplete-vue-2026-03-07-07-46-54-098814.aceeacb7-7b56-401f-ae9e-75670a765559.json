@@ -1,0 +1,101 @@
+{
+  "id": "aceeacb7-7b56-401f-ae9e-75670a765559",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": null,
+  "parent_id": null,
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "daisyui_components",
+    "Vue files",
+    "VueDeveloper"
+  ],
+  "users": [],
+  "name": "changes-at-autocomplete-projectresourcesautocomplete-vue-2026-03-07-07-46-54-098814",
+  "pinned": false,
+  "description": "The user requested to implement a debounced search functionality for an autocomplete component. The requirement was to wait 1.5 seconds after the user pauses typing before triggering an API call to `this.$storex.api.knowledge.query(query)`. The code was updated to include a debounce mechanism using `setTimeout` and `clearTimeout` from lodash. Additionally, the results from the API call are now mapped to include a `title` extracted from the `metadata.source` of each result.",
+  "messages": [
+    {
+      "doc_id": "3202be8f-6a09-4e96-96bd-3729a1344098",
+      "role": "user",
+      "task_item": "",
+      "content": "\n                    <document>\n                    <script setup>\nimport AutoCompleteVue from \"./AutoComplete.vue\";\n</script>\n<template>\n  <AutoCompleteVue :results=\"results\" \n    @search=\"onSearch\"\n    @select=\"$emit('select', $event)\"\n    @close=\"$emit('close')\"\n  />\n</template>\n<script>\nexport default {\n  props: ['project'],\n  data() {\n    return {\n      results: []\n    }\n  },\n  methods: {\n    onSearch(query) {\n      /* \n      @codx-ok, please-wait...: wait until user has paused writting for 1.5 seconds and trigger a call to this.$storex.api.knowledge.query(query).  \n      query results example:\n      ```json\n      [\n    {\n        \"id\": \"464364576088053700\",\n        \"metadata\": {\n            \"source\": \"/home/codx-junior-projects/codx-junior/api/tests/db/test_db.py\",\n            \"language\": \"txt\",\n            \"loader_type\": \"text\",\n            \"splitter\": \"TextLoader\",\n            \"index\": 0,\n            \"total_docs\": 2,\n            \"length\": 1584,\n            \"index_date\": \"03/05/2026T07:10:18\",\n            \"indexed\": 1,\n            \"file_md5\": \"b1504db34f616e9e3f2abc2d6e9085fa\"\n        },\n        \"page_content\": \"/home/codx-junior-projects/codx-junior/api/tests/db/test_db.py\\nimport pytest\\nimport os\\nfrom datetime import datetime, timedelta\\nfrom codx.junior.db import CODXJuniorDB, Chat, Kanban, KanbanColumn, Message\\nfrom codx.junior.settings import CODXJuniorSettings\\n\\n@pytest.fixture\\ndef settings():\\n    codx_path = \\\"/tmp/test_project/.codx\\\"\\n    os.makedirs(codx_path, exist_ok=True)\\n    return CODXJuniorSettings(\\n        project_path=\\\"/tmp/test_project\\\",\\n        codx_path=codx_path\\n    )\\n\\n@pytest.fixture\\ndef db(settings):\\n    db = CODXJuniorDB(settings)\\n    db.reset()\\n    return db\\n\\ndef test_save_and_get_kanban(db):\\n    kanban = Kanban(\\n        title=\\\"Test Kanban\\\",\\n        description=\\\"Test Description\\\",\\n        columns=[\\n            KanbanColumn(title=\\\"Todo\\\", color=\\\"#ff0000\\\", index=0),\\n            KanbanColumn(title=\\\"Done\\\", color=\\\"#00ff00\\\", index=1)\\n        ]\\n    )\\n    \\n    saved_kanban = db.save_kanban(kanban)\\n    assert saved_kanban.doc_id is not None\\n    assert saved_kanban.created_at is not None\\n    assert saved_kanban.updated_at is not None\\n    \\n    kanbans = db.get_all_kankan()\\n    assert len(kanbans) >= 1\\n    assert kanbans[0].title == \\\"Test Kanban\\\"\\n\\ndef test_save_and_get_chat(db):\\n    chat = Chat(\\n        name=\\\"Test Chat\\\",\\n        kanban_id=\\\"test_kanban\\\",\\n        column_id=\\\"test_column\\\",\\n        messages=[\\n            Message(\\n                role=\\\"user\\\",\\n                content=\\\"Test message\\\",\\n                created_at=str(datetime.now())\\n            )\\n        ]\\n    )\\n    \\n    db.save_chat(chat)\\n    chats = db.get_kanban_chats(\\\"test_kanban\\\", \\\"test_column\\\")\\n    assert len(chats) > 0\\n    assert chats[0].name == \\\"Test Chat\\\"\",\n        \"type\": \"Document\"\n    }\n    ]\n    ```\n      Extract file name from source, strip path using it for the title\n      */\n      this.results = this.project?.$state.searchMentions(query, 20).concat(\n        this.project.$state.mentions?.find(m => m.searchIndex.includes(query.toLowerCase()))\n      )\n    }\n  }\n}\n</script>\n                    </document>\n\n                    <user_instructions>\n                    User commented in line 21: wait until user has paused writting for 1.5 seconds and trigger a call to this.$storex.api.knowledge.query(query).\n                    </user_instructions>\n                    \n                    Given the elements \"document\" and \"user_instructions\" do this:\n                     - Apply user_instructions to document content\n                     - Pay attention to do not loose any detail or part of the document.\n                     - IMPORTANT: Return only the new document content without <document> tags\n                    ",
+      "think": "",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-02-22 09:26:24.363203",
+      "updated_at": "2026-02-22 09:26:24.363239",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/autocomplete/ProjectResourcesAutoComplete.vue"
+      ],
+      "meta_data": {},
+      "profiles": [
+        "VueDeveloper",
+        "Vue files",
+        "daisyui_components"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "7895e080-6ce0-469e-8800-ceb203229dce",
+      "role": "assistant",
+      "task_item": "",
+      "content": "```vue /home/codx-junior-projects/codx-junior/client/src/components/autocomplete/ProjectResourcesAutoComplete.vue\n<script setup>\nimport AutoCompleteVue from \"./AutoComplete.vue\";\nimport _ from 'lodash'\n</script>\n<template>\n  <AutoCompleteVue :results=\"results\" \n    @search=\"onSearch\"\n    @select=\"$emit('select', $event)\"\n    @close=\"$emit('close')\"\n  />\n</template>\n<script>\nexport default {\n  props: ['project'],\n  data() {\n    return {\n      results: [],\n      debounceSearch: null\n    }\n  },\n  methods: {\n    onSearch(query) {\n      /* \n      @codx-ok, please-wait...: wait until user has paused writting for 1.5 seconds and trigger a call to this.$storex.api.knowledge.query(query).  \n      query results example:\n      ```json\n      [\n    {\n        \"id\": \"464364576088053700\",\n        \"metadata\": {\n            \"source\": \"/home/codx-junior-projects/codx-junior/api/tests/db/test_db.py\",\n            \"language\": \"txt\",\n            \"loader_type\": \"text\",\n            \"splitter\": \"TextLoader\",\n            \"index\": 0,\n            \"total_docs\": 2,\n            \"length\": 1584,\n            \"index_date\": \"03/05/2026T07:10:18\",\n            \"indexed\": 1,\n            \"file_md5\": \"b1504db34f616e9e3f2abc2d6e9085fa\"\n        },\n        \"page_content\": \"/home/codx-junior-projects/codx-junior/api/tests/db/test_db.py\\nimport pytest\\nimport os\\nfrom datetime import datetime, timedelta\\nfrom codx.junior.db import CODXJuniorDB, Chat, Kanban, KanbanColumn, Message\\nfrom codx.junior.settings import CODXJuniorSettings\\n\\n@pytest.fixture\\ndef settings():\\n    codx_path = \\\"/tmp/test_project/.codx\\\"\\n    os.makedirs(codx_path, exist_ok=True)\\n    return CODXJuniorSettings(\\n        project_path=\\\"/tmp/test_project\\\",\\n        codx_path=codx_path\\n    )\\n\\n@pytest.fixture\\ndef db(settings):\\n    db = CODXJuniorDB(settings)\\n    db.reset()\\n    return db\\n\\ndef test_save_and_get_kanban(db):\\n    kanban = Kanban(\\n        title=\\\"Test Kanban\\\",\\n        description=\\\"Test Description\\\",\\n        columns=[\\n            KanbanColumn(title=\\\"Todo\\\", color=\\\"#ff0000\\\", index=0),\\n            KanbanColumn(title=\\\"Done\\\", color=\\\"#00ff00\\\", index=1)\\n        ]\\n    )\\n    \\n    saved_kanban = db.save_kanban(kanban)\\n    assert saved_kanban.doc_id is not None\\n    assert saved_kanban.created_at is not None\\n    assert saved_kanban.updated_at is not None\\n    \\n    kanbans = db.get_all_kankan()\\n    assert len(kanbans) >= 1\\n    assert kanbans[0].title == \\\"Test Kanban\\\"\\n\\ndef test_save_and_get_chat(db):\\n    chat = Chat(\\n        name=\\\"Test Chat\\\",\\n        kanban_id=\\\"test_kanban\\\",\\n        column_id=\\\"test_column\\\",\\n        messages=[\\n            Message(\\n                role=\\\"user\\\",\\n                content=\\\"Test message\\\",\\n                created_at=str(datetime.now())\\n            )\\n        ]\\n    )\\n    \\n    db.save_chat(chat)\\n    chats = db.get_kanban_chats(\\\"test_kanban\\\", \\\"test_column\\\")\\n    assert len(chats) > 0\\n    assert chats[0].name == \\\"Test Chat\\\"\",\n        \"type\": \"Document\"\n    }\n    ]\n    ```\n      Extract file name from source, strip path using it for the title\n      */\n      clearTimeout(this.debounceSearch)\n      this.debounceSearch = setTimeout(() => {\n        this.$storex.api.knowledge.query(query).then(res => {\n          this.results = res.map(r => ({\n            ...r,\n            title: r.metadata.source.split('/').pop()\n          }))\n        })\n      }, 1500)\n    }\n  }\n}\n</script>\n```\n\n[project_resources_autocomplete.vue](https://github.com/codx-js/codx-junior/blob/main/client/src/components/autocomplete/ProjectResourcesAutoComplete.vue)",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-02-22 09:26:24.363203",
+      "updated_at": "2026-02-22 09:26:24.363239",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "time_taken": 2.9250149726867676,
+        "first_chunk_time_taken": 9.417533874511719e-05,
+        "model": "gemini-2.5-flash-lite"
+      },
+      "profiles": [
+        "VueDeveloper",
+        "daisyui_components"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-02-22 09:26:24.366045",
+  "updated_at": "2026-03-07T07:46:57.934285",
+  "mode": "chat",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "mentions",
+  "column": "changes",
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/client/.codx/tasks/mentions/changes/changes-at-autocomplete-projectresourcesautocomplete-vue-2026-03-07-07-46-54-098814.aceeacb7-7b56-401f-ae9e-75670a765559.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}

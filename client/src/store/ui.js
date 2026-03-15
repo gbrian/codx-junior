@@ -145,6 +145,11 @@ export const mutations = mutationTree(state, {
     if (state.activeApp?.key === app.key) {
       state.activeApp = state.openApps[Object.keys(state.openApps).reverse()[0]]
     }
+    if (!Object.keys(state.openApps).length) {
+      if (!state.activeTab) {
+        $storex.ui.showTab(state.lastActiveTab || 'home')
+      }
+    }
     $storex.ui.saveState()
   },
   setAppShowMode(state, mode) {

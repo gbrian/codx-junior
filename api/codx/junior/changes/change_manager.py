@@ -15,7 +15,6 @@ from codx.junior.globals import (
 from codx.junior.mentions.mention_manager import MentionManager
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.wiki.wiki_manager import WikiManager
-from codx.junior.chat_manager import ChatManager
 
 from codx.junior.whisper.audio_manager import AudioManager
 
@@ -35,7 +34,6 @@ class ChangeManager:
         self.knowledge = Knowledge(settings=self.settings)
         self.wiki_manager = WikiManager(settings=settings)
         self.audio_manager = AudioManager()
-        self.chat_manager = ChatManager(settings=self.settings)
 
     @classmethod
     async def check_mentions_on_all_projects(cls, all_projects):

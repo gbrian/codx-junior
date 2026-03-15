@@ -1,6 +1,5 @@
 <script setup>
 import CodxJuniorVue from '../views/CodxJunior.vue'
-import NavigationBar from '../components/NavigationBar.vue'
 import LogViewerVue from './LogViewer.vue'
 import StatuBar from './StatuBar.vue'
 import Navigator from './windowManager/Navigator.vue'
@@ -10,44 +9,30 @@ import VerticalBarVue from './project/VerticalBar.vue'
 
 <template>
   <div class="flex flex-col h-full">
-    <NavigationBar class="p-2 border-b-2 border-slate-400/30" :right="true" 
-      @mouseenter="mouseOnNavigation = true" 
-      @mouseover="mouseOnNavigation = true"
-      @mouseleave="mouseOnNavigation = false"
-      @blur="mouseOnNavigation = false" 
-      v-if="showNavigationBar"  
-    />
     <div class="flex grow">
-      <div class="grow h-full overflow-auto min-h-96">
+      <div class="grow h-full overflow-auto">
         <VerticalSplitter 
           :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
-        >
-          
+        > 
           <template v-slot:left v-if="$ui.activeApp">
             <Navigator class="w-full h-full" />
-
           </template>
           <template v-slot:right v-if="$ui.activeTab || $ui.showLogs">
-
-          <VerticalSplitter class="grow flex h-full min-h-96 relative" 
-            :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
-          >
-            <template v-slot:left v-if="$ui.activeTab">
-              <div class="flex flex-col items-center h-full">
-                <CodxJuniorVue ref="codxJunior" 
-                  class="h-full w-full" 
-                  :class="[ activeApp ? 'px-2' : 'xl:mx-10 2xl:mx-20' ]"
-                  :style="`zoom:${ zoom }`" 
-                  v-if="!$ui.isMobile || !$ui.activeApp"
-                />
-              </div>
+            <VerticalSplitter class="grow flex h-full relative" 
+              :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
+            >
+              <template v-slot:left v-if="$ui.activeTab">
+                <div class="h-full flex flex-col items-center">
+                  <CodxJuniorVue ref="codxJunior" 
+                    class="h-full w-full px-2" 
+                    :style="`zoom:${ zoom }`" 
+                  />
+                </div>
               </template>
               <template v-slot:right v-if="$ui.showLogs">
                 <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
-              
               </template>
             </VerticalSplitter>
-
           </template>
         </VerticalSplitter>
       </div>
@@ -60,7 +45,6 @@ import VerticalBarVue from './project/VerticalBar.vue'
 export default {
   data() {
     return {
-      mouseOnNavigation: false
     }
   },
   computed: {
@@ -73,9 +57,6 @@ export default {
     showCodxJunior() {
       return !!this.$ui.activeTab
     },
-    activeApp() {
-      return this.$ui.activeApp
-    },
     showCodxJuniorFloating() {
       return !this.$ui.isMobile && this.$ui.floatingCodxJunior
     },
@@ -85,7 +66,7 @@ export default {
     showNavigationBar() {
       return !this.$ui.isMobile || !this.$projects.activeChat 
             || this.$ui.activeTab !== 'tasks'
-            || this.activeApp
+            || this.$ui.activeApp
     }
   },
   mounted() {

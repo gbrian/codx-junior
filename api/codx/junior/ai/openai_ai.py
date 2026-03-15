@@ -15,19 +15,8 @@ from codx.junior.model.model import CodxUser
 
 logger = logging.getLogger(__name__)
 
-GLOBAL_CHAT_INSTRUCTIONS = """
-<instructions info="General to follow when generating your response">
-  <instruction>
-    - IMPORTANT: Always add the file name after the code block language like in this example: "```js /absolute/file/path/file.js"
-    - Use tools to convert relative project's file path to absolute.
-    - Read file's content if not present in the comversation.
-    - Use project search to find context if not clear on the conversation.
-  </instruction>
-</instructions>
-"""
-
 class OpenAI_AI:
-    def __init__(self, settings: CODXJuniorSettings, llm_model: str = None, user: CodxUser = None):
+    def __init__(self, settings: CODXJuniorSettings, llm_model: str = None, user: CodxUser = None, system: str = None):
         from codx.junior.tools import TOOLS
         self.tools = TOOLS
         
@@ -37,6 +26,7 @@ class OpenAI_AI:
         self.user = user
         self.api_key = self.user.api_key if self.user and self.user.api_key else self.llm_settings.api_key
         self.base_url = self.llm_settings.api_url
+        self.system = system
 
         try:
             self.client = OpenAI(api_key=self.api_key, base_url=self.base_url)
@@ -66,11 +56,11 @@ class OpenAI_AI:
 
     def preparer_messages_to_openai(self, messages):
         oai_messages = [self.convert_message_to_openai(msg) for msg in messages]
-        oai_messages[-1]["content"] += "\n" + GLOBAL_CHAT_INSTRUCTIONS
-        if self.llm_settings.system:
+        system_content = "\n".join([self.llm_settings.system or "", self.system or ""]).strip()
+        if system_content:
             oai_messages = [{
               "role": "system",
-              "content": self.llm_settings.system
+              "content": system_content
             }] + oai_messages
         return oai_messages
 
@@ -156,14 +146,16 @@ class OpenAI_AI:
 
     @profile_function
     async def a_chat_completions(self, messages, config: dict = {}):
-        # tools
-        chat_tools = [t for t in self.tools if t["tool_json"]["function"]["name"] in config.get("tools", [])]
-
         kwargs = {
             "model": self.model,
             "stream": True,
-            "tools": chat_tools
         }
+        # tools
+        selected_tools = config.get("tools", [])
+        chat_tools = [t for t in self.tools if t["tool_json"]["function"]["name"] in selected_tools]
+        if chat_tools:
+            kwargs["tools"] = chat_tools
+        
 
         if self.llm_settings.temperature >= 0:
             kwargs["temperature"] = float(self.llm_settings.temperature)
@@ -175,7 +167,6 @@ class OpenAI_AI:
         if self.llm_settings.merge_messages:
             message = "\n".join([message['content'] for message in openai_messages])
             openai_messages = [{"role": "user", "content": message}]
-        self.log(f"USER REQUEST:\n{json.dumps(openai_messages, indent=2)}")
         try:
             request_headers = config.get("headers", {})
             tags = request_headers.get("tags", "")
@@ -187,10 +178,15 @@ class OpenAI_AI:
                 tags.append(f"user:{self.user.username}")
             request_headers["x-litellm-tags"] = ",".join(tags)
 
-            response_stream = self.client.chat.completions.create(
+            request_params = {
                 **kwargs,
-                messages=openai_messages,
-                extra_headers=request_headers
+                "messages": openai_messages,
+                "extra_headers": request_headers
+            }
+            self.log(f"USER REQUEST:\n{json.dumps(request_params, indent=2)}")
+        
+            response_stream = self.client.chat.completions.create(
+              **request_params
             )
             callbacks = config.get("callbacks", None)
             content_parts = []
@@ -227,6 +223,8 @@ class OpenAI_AI:
                 self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
 
             for chunk in response_stream:
+                self.log(f"AI RESPONSE:\n{chunk.model_dump_json()}")
+        
                 # Check for tools
                 choice = chunk.choices[0]
                 tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None 
