@@ -23,6 +23,7 @@ import CodeViewer from './CodeViewer.vue'
       :language="language" 
       :file="file" 
       :files="files"
+      :project="project"
       v-if="showCode" /> 
     <MarkdownViewer :text="codeText" v-if="showMarkdown" />
     <div class="" v-html="codeText" v-if="htmlPreview"></div>
@@ -34,7 +35,7 @@ const languageMapping = {
   "markdown": "md"
 }
 export default {
-  props: ['code', 'text', 'text-language', 'file-name', 'files'],
+  props: ['code', 'text', 'text-language', 'file-name', 'files', 'project'],
   data () {
     return {
       codeText: null,

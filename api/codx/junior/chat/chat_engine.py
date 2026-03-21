@@ -245,16 +245,16 @@ class ChatEngine:
             chat_files_content = ""
             for chat_file in chat_files:
                 chat_file_full_path = chat_file
-                if self.settings.project_path not in chat_file_full_path and \
-                    not os.path.isfile(chat_file_full_path):
+                if not chat_file.startswith(self.settings.project_path) and \
+                    not os.path.isfile(chat_file):
                     if chat_file[0] == '/':
                         chat_file = chat_file[1:]
-                    chat_file_full_path = f"{self.settings.project_path}/{chat_file}"
+                    chat_file_full_path = os.path.join(self.settings.project_path, chat_file)
                 try:
                   with open(chat_file_full_path, 'r') as f:
                       doc_context = document_to_code_block(
                         Document(page_content=f.read(),
-                          metadata={ "source": chat_file }
+                          metadata={ "source": chat_file_full_path.replace(self.settings.project_path + "/", '') }
                         )
                       )
                       chat_files_content += doc_context + "\n"

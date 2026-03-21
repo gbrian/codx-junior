@@ -1,115 +1,144 @@
 <script setup>
+import moment from 'moment'
+import Chat from '../chat/Chat.vue'
 </script>
 <template>
-  <div class="relative">
-    <button class="btn btn-circle btn-ghost avatar dropdown-hover" 
-      popovertarget="popover-1" style="anchor-name:--anchor-1">
-      <div class="w-6 md:w-8 ring rounded-full">
+  <div class="dropdown dropdown-end dropdown-left"
+    :class="[ focused && 'dropdown-open']"
+    @click="handleFocusOut"
+  >
+    <div tabindex="0" role="button" class="click">
+      <div class="w-6 md:w-8 ring rounded-full"
+        :class="[ focused && 'ring ring-offset-2 ring-info']"
+      >
         <img :src="$storex.api.user.avatar" />
       </div>
-    </button>
-    
-    <div class="dropdown dropdown-left border menu w-60 rounded-box bg-base-100 shadow-sm"
-        popover id="popover-1" style="position-anchor:--anchor-1">
-      <div class="p-4 rounded-t-xl bg-base-100 hover:bg-slate-500/20">
-        <div class="flex gap-2 font-bold click items-center" @click="newQuickChat()">
-          <img src="/only_icon.png" class="w-7" />
-          Ask me anything...
+    </div>
+    <ul
+      tabindex="-1"
+      class="dropdown-content menu border bg-base-100 rounded-box z-1 w-[600px] p-2 shadow-sm mr-2"
+      :class="[ focused && 'border-info']"
+      >
+      <div>
+        <div class="grow flex flex-col gap-1 h-[600px] pb-2" 
+          @click.stop=""
+          @focusin.stop="handleFocusIn"
+          v-if="chat">
+          <div class="flex gap-2 items-center px-1">
+            <span class="font-bold">{{ chat.name }}</span>
+            <span class="grow"></span>
+            <span class="text-xs">[{{ moment(chat.updated_at || chat.created_at).fromNow() }}]</span>
+            <span class="click" @click="openChat">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+            </span>
+          </div>
+          <Chat class="h-full" :chat="chat" />
         </div>
       </div>
-
-      <ul class="menu">
+      <ul class="flex gap-2 items-center w-full px-2 overflow-hidden shrink-0">
+        <li class="mr-4">
+          <a
+            class="flex gap-1 tooltip tooltip-right click"
+            data-tip="New chat"
+            @click.stop="newQuickChat">
+            <i class="fa-regular fa-comment"></i>
+          </a>
+        </li>
         <li>
-          <a class="flex gap-1" @click.stop="setActiveTab('account')">
+          <a
+            class="flex gap-1 tooltip tooltip-right click"
+            data-tip="Account settings"
+            @click.stop="setActiveTab('account')">
             <i class="fa-regular fa-circle-user"></i>
-            Account settings
           </a>
         </li>
         <li v-if="$project && $storex.api.permissions.isProjectAdmin">
-          <a class="flex gap-1" @click.stop="setProjectTab('settings')">
+          <a
+            class="flex gap-1 tooltip tooltip-right click"
+            data-tip="Project settings"
+            @click.stop="setProjectTab('settings')">
             <i class="fa-solid fa-sliders"></i>
-            Project settings
           </a>
         </li>
         <li v-if="$project && $storex.api.permissions.isProjectAdmin">
-          <a @click.stop="setProjectTab('knowledge_settings')">
+          <a
+            class="flex gap-1 tooltip tooltip-right click"
+            data-tip="Knowledge settings"
+            @click.stop="setProjectTab('knowledge_settings')">
             <i class="fa-solid fa-book"></i>
-            Knowledge settings
           </a>
         </li>
         <li v-if="$storex.api.permissions.isAdmin">
-          <a class="flex gap-1" @click.stop="setActiveTab('global-settings')">
+          <a
+            class="flex gap-1 tooltip tooltip-right click"
+            data-tip="Global settings"
+            @click.stop="setActiveTab('global-settings')">
             <i class="fa-solid fa-gear"></i>
-            Global settings
           </a>
         </li>
         <li v-if="$storex.api.permissions.isAdmin">
-          <a class="flex gap-1" @click="$ui.toggleLogs()">
-            <i class="fa-solid fa-chart-line"></i> Logs
+          <a
+            class="flex gap-1 tooltip tooltip-right click"
+            data-tip="Logs"
+            @click="$ui.toggleLogs()">
+            <i class="fa-solid fa-chart-line"></i>
           </a>
         </li>
-        <li class="border"></li>
-        <li>
-          <a class="flex gap-1">
+        <li class="ml-4">
+          <a class="flex items-center gap-2 tooltip select select-sm" data-tip="Voice language">
             <i class="fa-solid fa-microphone-lines"></i>
-            <select class="select select-sm" @change="$ui.setVoiceLanguage($event.target.value)">
-              <option v-for="key, lang in $ui.voiceLanguages" :key="lang" :selected="$ui.voiceLanguage === lang"
-                :value="lang">{{ key }}</option>
-            </select>
-          </a>
-        </li>
-        <li class="hidden">
-          <a>
-            <i class="fa-solid fa-table-columns"></i>
-            <select class="select select-sm overflow-auto" @change="$ui.setAppDivided($event.target.value)">
-              <option v-for="divider in ['none', 'horizontal', 'vertical']" :key="divider" :value="divider">
-                {{ divider }}
+            <select
+              class="select select-sm select-ghost"
+              @change="$ui.setVoiceLanguage($event.target.value)">
+              <option
+                v-for="key, lang in $ui.voiceLanguages"
+                :key="lang"
+                :selected="$ui.voiceLanguage === lang"
+                :value="lang">
+                {{ key }}
               </option>
             </select>
           </a>
         </li>
-        <li class="hidden">
-          <a>
-            <span class="click" @click="$storex.api.screen.getScreenResolution()"><i
-                class="fa-solid fa-display"></i></span>
-            <select class="select select-sm overflow-auto" @change="$ui.setScreenResolution($event.target.value)">
-              <option disabled selected>Select Resolution</option>
-              <option v-for="resolution in $ui.resolutions" :key="resolution" :value="resolution"
-                :selected="$ui.resolution === resolution">
-                {{ resolution }}
-              </option>
-            </select>
-            <div class="dropdown dropdown-end group">
-              <div tabindex="2" role="button" class="btn btn-xs m-1">
-                <i class="fa-solid fa-up-right-and-down-left-from-center" v-if="$ui.noVNCSettings.resize === 'scale'"></i>
-                <i class="fa-solid fa-down-left-and-up-right-to-center" v-else></i>
-              </div>
-              <ul tabindex="2"
-                class="hidden group-hover:flex dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                <li @click="$ui.setNoVNCSettings({ resize: 'scale' })">
-                  <a><i class="fa-solid fa-up-right-and-down-left-from-center"></i> Local</a>
-                </li>
-                <li @click="$ui.setNoVNCSettings({ resize: 'remote' })">
-                  <a><i class="fa-solid fa-down-left-and-up-right-to-center"></i> Remote</a>
-                </li>
-              </ul>
-            </div>
-          </a>
-        </li>
-        <li class="border"></li>
+        <li class="grow"></li>
         <li>
-          <a class="flex gap-1" @click.stop="$users.logout()">
+          <a
+            class="flex gap-1 tooltip text-error"
+            data-tip="Log out"
+            @click.stop="$users.logout()">
             <i class="fa-solid fa-right-from-bracket"></i>
-            Log out
           </a>
         </li>
       </ul>
-    </div>
-</div>
+    </ul>
+  </div>
 </template>
 <script>
 export default {
+  data() {
+    return {
+      lastQuickChat: null,
+      showMenu: false,
+      focused: false
+    }
+  },
+  created() {
+    this.lastQuickChat = this.getLastQuickChat() || this.newQuickChat()
+  },
+  computed: {
+    chat() {
+      return this.$projects.allChats.find(c => c.id === this.lastQuickChat)
+    },
+    menu() {
+      return this.$refs?.menu
+    }
+  },
   methods: {
+    getLastQuickChat() {
+      return this.$projects.allChats
+        .filter(c => c.board === 'Quick chats')
+        .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)[0]?.id
+    },
     setActiveTab(tab) {
       this.$ui.setActiveTab(tab)
     },
@@ -127,9 +156,26 @@ export default {
         column: moment().format("YYYYMMDD"),
         mode: 'chat'
       }
-      this.$projects.createNewBoardChat({ chat })
+      await this.$projects.createNewBoardChat({ chat })
+      this.lastQuickChat = this.getLastQuickChat()
+    },
+    openChat() {
+      this.$projects.setActiveChat(this.chat)
       this.$ui.showTab('tasks')
+    },
+    toggleMenu() {
+      this.showMenu = !this.menu
+      if (this.showMenu) {
+        setTimeout(() => this.menu.focus(), 500)
+      }
+    },
+    handleFocusIn() {
+      this.focused = true
+    },
+    handleFocusOut() {
+      this.focused = false
     }
   }
 }
 </script>
+```

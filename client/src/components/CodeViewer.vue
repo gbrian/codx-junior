@@ -76,7 +76,7 @@ import DiffViewer from './DiffViewer.vue';
 </template>
 <script>
 export default {
-  props: ['code', 'language', 'file', 'diff-option', 'file-diff', 'files'],
+  props: ['code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project'],
   data() {
     return {
       showDiff: false,
@@ -104,6 +104,9 @@ export default {
     },
     canSave() {
       return this.edit || this.file
+    },
+    $api() {
+      return (this.project?.$api || this.$storex.api)
     }
   },
   methods: {
@@ -112,11 +115,11 @@ export default {
     },
     async onShowDiff() {
       if (!this.diff) {
-        const { diff, stats } = await this.$storex.api.files.diff({ path: this.file, content: this.code }) 
+        const { diff, stats } = await this.$api.files.diff({ path: this.file, content: this.code }) 
         this.diff = diff
         this.stats = stats
       }
-      this.orgContent = await this.$storex.api.files.read(this.file)
+      this.orgContent = await this.$api.files.read(this.file)
       this.showDiff = !this.showDiff
     },
     saveFile() {

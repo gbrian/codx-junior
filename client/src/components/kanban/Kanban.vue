@@ -22,7 +22,7 @@ import ChatHistoryVue from './ChatHistory.vue'
       Loading...
       <progress class="progress w-full animate-pulse opacity-30"></progress>
     </div>
-    <div class="@2xl:px-1 @5xl:px-4 h-full absolute top-0 left-0 right-0 bottom-0 z-1">
+    <div class="h-full absolute top-0 left-0 right-0 bottom-0 z-1">
       <div class="flex flex-col gap-2" v-if="kanban?.boards && !$projects.activeChat && !board">
         <div class="sticky top-0 z-20  bg-base-300 flex flex-col gap-1">
           <h1 class="text-2xl font-bold flex justify-between gap-2 py-1">

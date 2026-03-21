@@ -166,23 +166,6 @@ function buildMentions(project) {
 export const state = createState
 
 export const mutations = mutationTree(state, {
-  setAllProjects(state, allProjects) {
-    state.allProjects = allProjects?.sort((a, b) => {
-            const aUpdated = a._metrics?.last_update || ""
-            const bUpdated = b._metrics?.last_update || ""
-            return aUpdated > bUpdated ? -1 : 1
-          })
-    state.allProjectsById = state.allProjects?.reduce((acc, p) => ({ ...acc, [p.project_id]: p }), {}) || {}
-        
-    allProjects.map(async project => {
-        let { $api } = project
-        if (!$api) {
-          project.$api = await API.project(project)
-          project.$state = createState()
-          initProject(project)
-        }
-    })
-  },
   setLogs(state, logs) {
     state.logs = logs
   },
@@ -268,7 +251,7 @@ export const actions = actionTree(
   { state, getters, mutations },
   {
     async init ({ state }) {
-      $storex.projects.setAllProjects([])
+      await $storex.projects.setAllProjects([])
       state.activeProject = null
       state.activeChat = null
 
@@ -279,7 +262,7 @@ export const actions = actionTree(
       if ($storex.api.user) {
         try {
           await API.projects.list(withMetrics)
-          $storex.projects.setAllProjects(API.allProjects)
+          await $storex.projects.setAllProjects(API.allProjects)
           if (API.activeProject) {
             try {
               await $storex.projects.setActiveProject(API.activeProject)
@@ -316,7 +299,7 @@ export const actions = actionTree(
           
         const existsProject = state.allProjects.find(p => p.project_id === API.activeProject.project_id)
         if (!existsProject) {
-          $storex.projects.setAllProjects([ ...state.allProjects, API.activeProject ])
+          await $storex.projects.setAllProjects([ ...state.allProjects, API.activeProject ])
         }
         state.activeProject = state.allProjectsById[API.activeProject.project_id]
         await $storex.projects.loadChats()
@@ -434,7 +417,7 @@ export const actions = actionTree(
       }
       state.activeProject = null
       await $storex.projects.setActiveProject(API.activeProject)
-      $storex.projects.setAllProjects((state.allProjects||[])
+      await $storex.projects.setAllProjects((state.allProjects||[])
         .map(p => p.codx_path === state.activeProject.codx_path ? state.activeProject : p))
       return state.activeProject
     },
@@ -609,7 +592,8 @@ export const actions = actionTree(
       boardTitle = boardTitle || chat.board
       columnTitle = columnTitle || chat.column
       const newColumn = {
-        title: columnTitle
+        title: columnTitle,
+        chats: []
       }
       if (!state.kanban) {
         await $storex.projects.loadKanban()
@@ -622,16 +606,20 @@ export const actions = actionTree(
           }
         }
       }
-      const column = $storex.projects.allBoards
+      let column = $storex.projects.allBoards
                         .find(({ title }) => title === boardTitle).columns.find(({ title }) => title === columnTitle)
-      
+      if (!column) {
+        column = newColumn
+        state.kanban.boards[boardTitle].columns.push(column)
+      }
+
       chat = await $storex.projects.createNewChat({
         board: boardTitle,
         column: columnTitle,
         ...chat
       })
       $storex.projects.setActiveChat(chat)
-      column.chats = [...column.chats||[], chat.id]
+      column.chats = [...column?.chats||[], chat.id]
       $storex.projects.saveKanban(state.kanban)
       return $storex.projects.allChats.find(c => c.id === chat.id)
     },
@@ -749,6 +737,23 @@ export const actions = actionTree(
     },
     getChatProject({ state }, chat) {
       return state.allProjectsById[chat.project_id] || state.activeProject
-    }
+    },
+    async setAllProjects({ state }, allProjects) {
+      state.allProjects = allProjects?.sort((a, b) => {
+              const aUpdated = a._metrics?.last_update || ""
+              const bUpdated = b._metrics?.last_update || ""
+              return aUpdated > bUpdated ? -1 : 1
+            })
+      state.allProjectsById = state.allProjects?.reduce((acc, p) => ({ ...acc, [p.project_id]: p }), {}) || {}
+          
+      return Promise.all(allProjects.map(async project => {
+          let { $api } = project
+          if (!$api) {
+            project.$api = await API.project(project)
+            project.$state = createState()
+            initProject(project)
+          }
+      }))
+    },
   }
 )

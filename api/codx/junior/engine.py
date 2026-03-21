@@ -301,36 +301,38 @@ class CODXJuniorSession:
         
         documents = []
         response = ""
+        
         search_type = knowledge_search.search_type
-        documents = Knowledge(settings=self.settings).search(
-            knowledge_search.search_term,
-            search_type=search_type,
-            limit=knowledge_search.document_count
-        )
-        
-        """
-        documents = validate_search_documents(query=knowledge_search.search_term,
-                                              documents=documents,
-                                              settings=self.settings)
-        
-        chat = Chat(messages=
-            [
-                Message(
-                    role="user",
-                    content=doc.page_content)
-                for doc in documents] + [
-                    Message(
-                        role="user",
-                        content=f"Based on previos messages, give me really short answer about: {knowledge_search.search_term}"
-                    )
-            ])
-        chat, _ = await self.chat_with_project(chat=chat, disable_knowledge=True)
-        response = chat.messages[-1].content
-        """
+        llm_model = self.settings.get_wiki_model()
+        if search_type == 'raw':
+            documents = validate_search_documents(query=knowledge_search.search_term,
+                                                  documents=documents,
+                                                  settings=self.settings)
+            
+            chat = Chat(messages=
+                [
+                        Message(
+                            role="user",
+                            content=f"Answer user query: {knowledge_search.search_term}"
+                        )
+                ], llm_model=llm_model)
+            chat, docs = await self.chat_with_project(chat=chat)
+            response_message = chat.messages[-1]
+            response = response_message.content
+            llm_model = response_message.meta_data["model"]
+            documents = docs
+        else:
+            documents = Knowledge(settings=self.settings).search(
+                knowledge_search.search_term,
+                search_type=search_type,
+                limit=knowledge_search.document_count
+            )
+            
         return {
-            "response": "",
+            "response": response,
             "documents": documents,
             "settings": {
+                "llm_model": llm_model,
                 "knowledge_search_type": self.settings.knowledge_search_type,
                 "knowledge_search_document_count": self.settings.knowledge_search_document_count,
                 "knowledge_context_cutoff_relevance_score": self.settings.knowledge_context_cutoff_relevance_score,
@@ -1042,7 +1044,7 @@ class CODXJuniorSession:
         chat_engine = ChatEngine(settings=self.settings,
                                 event_manager=self.event_manager,
                                 user=self.user)
-        await chat_engine.chat_with_project(
+        chat, docs = await chat_engine.chat_with_project(
                             chat=chat,
                             disable_knowledge=disable_knowledge,
                             callback=callback,
@@ -1053,7 +1055,7 @@ class CODXJuniorSession:
                           )
 
         await self.save_chat(chat)
-        return chat
+        return chat, docs
     
 
     def check_project(self):
@@ -1180,12 +1182,22 @@ class CODXJuniorSession:
           "files": [self.parse_file_line(file, base_path) for file in sorted(files)]
         }
 
+    def get_project_file_path(self, path: str):
+        """ If path is not absolute or exist add project_path
+        """
+        if not path.startswith(self.settings.project_path) and not os.path.isfile(path):
+            path = os.path.join(self.settings.project_path, path)
+        return path
+
     def read_file(self, path: str):
+        path = self.get_project_file_path(path=path)
+        
         with open(path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
 
     def diff_file(self, path: str, content: str):
-        
+        path = self.get_project_file_path(path=path)
+
         # We use a list for the command to avoid shell injection and quoting issues
         cmd = ["git", "diff", "--no-index", path, "-"]
         

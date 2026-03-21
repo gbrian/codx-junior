@@ -62,6 +62,11 @@ class Knowledge:
     def refresh_last_update(self):
         self.get_db().refresh_last_update()
 
+    def get_all_repo_files(self):
+        return self.loader.list_repository_files(
+                          current_sources=None,
+                          ignore_paths=[])
+
     def detect_changes(self, current_sources_and_updates = None):
         changes = self.loader.list_repository_files(
                           current_sources=current_sources_and_updates,
@@ -268,7 +273,11 @@ class Knowledge:
     
 
     def search(self, query, search_type='fulltext', limit=100):
-        return self.get_db().search(query=query)
+        matches = self.get_db().search(query=query)
+        all_match_sources = [doc.metadata["source"] for doc in matches]
+        all_files = [Document(page_content="[[Project file]] content not loaded", metadata={ "source": path }) for path in self.get_all_repo_files() \
+                        if path not in all_match_sources and query.lower() in path.lower()]
+        return matches + all_files
 
     def doc_from_project_file(self, file_path):
         file_path = f"{self.settings.project_path}/{file_path}"

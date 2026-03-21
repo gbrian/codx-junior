@@ -28,7 +28,7 @@ import ProfileSelector from '../profile/ProfileSelector.vue'
         <label class="block mt-4">
           <span>Board</span>
           <select class="input input-bordered w-full" v-model="taskData.board">
-            <option v-for="_, board in boards" :key="board" :value="board">{{ board }}</option>
+            <option v-for="board in boards" :key="board" :value="board">{{ board }}</option>
           </select>
         </label>
         <label class="block mt-4">
@@ -96,7 +96,7 @@ export default {
       return this.$projects.ai.models
     },
     boards() {
-      return this.$projects.kanban.boards
+      return Object.keys(this.$projects.kanban.boards).sort((a, b) => a.title > b.title ? 1 : -1)
     },
     columns() {
       return this.$projects.kanban.boards[this.taskData.board]?.columns

@@ -5,13 +5,15 @@ import ChatEntry from '@/components/ChatEntry.vue'
 import Browser from '@/components/browser/Browser.vue'
 import TaskCard from '../kanban/TaskCard.vue'
 import UserSelector from './UserSelector.vue'
+import LLMModelSelector from './LLMModelSelector.vue'
 import CheckLists from './CheckLists.vue'
 import PRView from '@/components/repo/PRView.vue'
 import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAutoComplete.vue'
+import EmojiPicker from './EmojiPicker.vue'
 </script>
 
 <template>
-  <div class="h-full flex flex-col gap-1">
+  <div class="h-full flex flex-col gap-1 overflow-auto">
     <div class="grow relative flex flex-col gap-1" v-if="!inputOnly">
       <div class="flex gap-2 items-center justify-bnetween">
         <div class="w-full" v-if="chatFiles.length">
@@ -33,7 +35,7 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
         </div>
         <CheckLists class="" :chat="chat" :readOnly="readOnly" @change="saveChat" />
       </div>
-      <div class="grow overflow-y-auto overflow-x-hidden">
+      <div class="grow overflow-y-auto overflow-x-hidden pr-2">
         <Browser class="" :token="$ui.monitors['shared']" v-if="isBrowser"/>
         <PRView class="h-full overflow-auto" 
           :fromBranch="chat.pr_view?.from_branch"
@@ -49,7 +51,7 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
         
         <div class="overflow-y-auto w-full h-full" v-if="!isBrowser && !isPRView">
           <div class="flex flex-col overflow-y-auto overflow-x-hidden w-full" v-for="message, ix in messages" :key="message.id">
-            <ChatEntry :class="['max-w-full mb-4 rounded-md hover:bg-base-200',
+            <ChatEntry :class="['max-w-full mb-4 rounded-md hover:bg-base-200 border border-slate-600/0 hover:border-slate-600/70 rounded-lg',
               isChannel ? '': 'py-2',
               editMessage ? editMessage === message ? 'border border-warning' : 'opacity-40' : '']"
               :chat="chat"
@@ -87,7 +89,7 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
         </div>
       </div>
     </div>
-    <div class="sticky bottom-0 z-50 bg-base-300" v-if="!isPRView">
+    <div class="sticky -bottom-0 z-50" v-if="!isPRView">
       <div class="flex gap-2" v-if="mentionSuggestions?.length">
         <div class="badge badge-info badge-outline click" 
           v-for="mention in mentionSuggestions" :key="mention.searchIndex"
@@ -116,7 +118,7 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
         </span>
       </div>
 
-      <div class="border border-primary rounded-md bg-base-100 mt-2 pb-2" 
+      <div class="border border-primary rounded-md bg-base-100 my-2 pb-2 bg-base-300" 
             :class="['flex shadow indicator w-full', 
             'flex-col',
             isPRView && 'hidden',
@@ -134,8 +136,14 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
           @close="closeDocumentSearch"
           v-if="showDocumentSearchModal"
         />
+        <EmojiPicker class="px-2 py-1" 
+          :emoji-name="cursorWord.word" 
+          v-if="cursorWord.word?.startsWith(':')"
+          @emoji="replaceEmoji" 
+        />
 
-        <div class="editor" :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
+        <div class="editor" 
+          :class="['max-h-40 w-full px-2 py-1 overflow-auto text-wrap focus-visible:outline-none']"
           :contenteditable="!waiting"
           ref="editor"
           @paste="onContentPaste"
@@ -143,10 +151,10 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
           
         >
         </div>
-        <div class="flex justify-between items-end px-2 bg-base-300 rounded-b-md">
+        <div class="flex justify-between items-end px-2 rounded-b-md">
           <div class="carousel rounded-box">
             <div class="carousel-item relative click flex flex-col" v-for="image, ix in allImages" :key="image">
-              <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 bg-base-300 mr-4"
+              <div class="bg-contain bg-no-repeat bg-center w-10 h-10 lg:h-20 lg:w-20 mr-4"
                 :style="`background-image: url(${image})`" @click="imagePreview = { url: image }">
               </div>
               <button class="btn btn-xs btn-circle btn-error absolute right-0 top-0"
@@ -163,8 +171,18 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
               :profiles="usersList"
               @user-changed="selectedUser = $event"
             />
-            <div class="text-xs click" @click="toggleDocumentSearch">Find: ctrl+f</div>
-            <div class="text-xs text-warning click" @click="hideAll"><i class="fa-solid fa-box-archive"></i> Hide all: ctrl+shift+a</div>
+            <LLMModelSelector
+              class="dropdown-top"
+              :selectedModel="chat.llm_model"
+              :models="aiModels"
+              @model-changed="onLLMModelChanged"
+            />
+            <div class="text-xs click tooltip" data-tip="Find" @click="toggleDocumentSearch"><i class="fa-solid fa-magnifying-glass"></i> ctrl+f</div>
+            <div class="text-xs click tooltip" data-tip="Hide all" @click="hideAll">
+              <span class="text-warning">
+                <i class="fa-solid fa-box-archive"></i>
+              </span> ctrl+shift+a
+            </div>
             <div class="grow"></div>
             <div class="flex gap-2 items-center justify-end" v-if="!searchingInKnowledge">
               <button class="btn btn btn-sm btn-info btn-outline" @click="sendMessage" v-if="editMessage">
@@ -309,7 +327,6 @@ import ProjectResourcesAutoCompleteVue from '../autocomplete/ProjectResourcesAut
 
 <script>
 const defFormater = d => JSON.stringify(d, null, 2)
-
 export default {
   props: ['chat', 'filter', 'showHidden', 'childrenChats', 'readOnly', 'enableDelete', 'message', 'input-only'],
   data() {
@@ -342,7 +359,8 @@ export default {
       metadata: null,
       pasteWithShift: false,
       mentionSuggestions: [],
-      mentions: []
+      mentions: [],
+      cursorWord: {} 
     }
   },
   created() {
@@ -358,6 +376,9 @@ export default {
     clearInterval(this.syncEditableTextInterval)
   },
   computed: {
+    aiModels() {
+      return this.$projects.ai.models || []
+    },
     chatFiles() {
       return this.chat.file_list || []
     },
@@ -484,7 +505,7 @@ export default {
       return this.chat.mode === 'topic'
     },
     editor() {
-      return this.$el.querySelector('.editor')
+      return this.$el?.querySelector('.editor')
     }
   },
   watch: {
@@ -495,12 +516,32 @@ export default {
     },
     messageText() {
       this.loadMentionSuggestions()
+      this.updateCursorWord()
     }
   },
   methods: {
+    // Update the chat's LLM model and persist changes
+    onLLMModelChanged(modelName) {
+      this.chat.llm_model = modelName
+      this.saveChat()
+    },
+    updateCursorWord() {
+      const text = this.editor?.innerText
+      this.cursorWord = {}
+      if (text?.length) {
+        const caretIndex = this.getEditorCaretCharOffset()
+        const lastWorkIndex = text.slice(0, caretIndex).split(/\s/g).length - 1
+        const word = text.split(/\s/g)[lastWorkIndex]
+        this.cursorWord = {
+          caretIndex,
+          lastWorkIndex,
+          word
+        }
+      }
+    },
     loadMentionSuggestions() {
       this.mentionSuggestions = []
-      const replaceWord = this.getCursorWord()
+      const replaceWord = this.cursorWord.word
       if (replaceWord?.startsWith("@")) {
           this.mentionSuggestions = [
                 ...this.mentions,
@@ -773,15 +814,6 @@ export default {
       }
       return caretOffset
     },
-    getCursorWord() {
-      const text = this.editor?.innerText
-      if (!text?.length) {
-        return ""
-      }
-      const caretIndex = this.getEditorCaretCharOffset()
-      const lastWorkIndex = text.slice(0, caretIndex).split(/\s/g).length - 1
-      return text.split(/\s/g)[lastWorkIndex]
-    },
     async saveChat() {
       if (!this.chat.temp) { 
         return await this.$projects.saveChat(this.chat)
@@ -1013,9 +1045,11 @@ export default {
       message.content = await this.fileToMessage(file)
       this.saveChat()
     },
-    onSaveFile({ file, content }) {
+    async onSaveFile({ file, content }) {
       const { chat } = this
-      this.$storex.chats.writeFile({ chat, file, content })
+      await this.$storex.chats.writeFile({ chat, file, content })
+      const fileName = file.split("/").reverse()[0]
+      this.$ui.addNotification({ text: `File ${fileName} saved` })
     },
     onOpenFile(file) {
       this.chatProject.$api.coder.openFile(file)
@@ -1124,7 +1158,7 @@ export default {
       this.sendMessage()
     },
     createBlock() {
-      const clipboadText = "";
+      const clipboadText = ""
       this.setEditorText(this.editorText + "```\n" + clipboadText + "\n```")
     },
     onNewThread(message) {
@@ -1144,6 +1178,13 @@ export default {
     addMention(mention) {
       this.mentions.push({ ...mention, active: true })
     },
+    replaceEmoji({ emoji }) {
+      const { caretIndex, word } = this.cursorWord
+      const text = this.editor?.innerText
+      const left = text.slice(0, caretIndex - word.length)
+      const right = text.slice(caretIndex)
+      this.setEditorText(left + emoji + right)
+    }
   }
 }
 </script>

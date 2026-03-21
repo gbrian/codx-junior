@@ -9,7 +9,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
 </script>
 
 <template>
-  <div class="chat-entry flex gap-1 items-start relative p-2"
+  <div class="group chat-entry flex gap-1 items-start relative p-2"
     :class="[
       message.hide ? 'hover:bg-base-100 opacity-50 hover:opacity-100': '',
       message.hide ? 'border-l-2 border-warning' : '',
@@ -25,7 +25,11 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
     
         <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
           <div class="flex gap-1 items-center" 
-            :class="message.hide && 'text-slate-500'">
+            :class="[
+              message.hide && 'text-slate-500',
+              isTask && 'opacity-0 group-hover:opacity-30 hover:opacity-100'
+
+            ]">
             <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
             <div v-for="profile in messageProfiles" :key="profile.name">
               <ProfileAvatar :profile="profile" width="8" />
@@ -47,8 +51,8 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
               <div class="badge badge-sm badge-info badge-outline flex gap-1" v-if="isTopic">
                 <ChatIcon mode="topic" /> Topic 
               </div>
-              <div class="badge badge-sm border-dashed badge-outline flex gap-1" v-if="thread">
-                <ChatIcon :mode="thread.mode" /> Thread 
+              <div class="badge badge-sm border-dashed badge-outline flex gap-1" v-if="threadChat">
+                <ChatIcon :mode="threadChat.mode" /> Thread 
               </div>
             </div>
             <div :class="!editting && 'opacity-0'" class="group-hover:opacity-100 flex gap-2 items-center justify-end"
@@ -144,6 +148,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
           <Document 
             :content="messageContent"
             :files="chatFiles"
+            :project="chatProject"
             @generate-code="onGenerateCode" 
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
@@ -319,8 +324,11 @@ export default {
     chatFiles() {
       return this.chat.file_list
     },
-    thread() {
+    threadChat() {
       return this.$projects.allChats.find(c => c.message_id === this.message.doc_id)
+    },
+    isTask() {
+      return this.chat?.mode === 'task'
     }
   },
   methods: {
@@ -413,7 +421,11 @@ export default {
       this.editting = null
     },
     onEditMessage() {
-      this.editting = this.message.content
+      if (this.threadChat) {
+        this.$projects.setActiveChat(this.threadChat)
+      } else {
+        this.editting = this.message.content
+      }
     }
   },
   mounted() {

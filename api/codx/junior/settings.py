@@ -121,7 +121,7 @@ def write_global_settings(global_settings: GlobalSettings):
     global GLOBAL_SETTINGS
     logger.exception(f"WRITE GLOBAL_SETTINGS ({GLOBAL_SETTINGS_PATH}): {global_settings}, \n{traceback.format_stack()}")
     try:
-        global_settings_data = json.dumps(global_settings.dict())
+        global_settings_data = json.dumps(global_settings.dict(), indent=2)
 
         backup_up_global_settings()
         

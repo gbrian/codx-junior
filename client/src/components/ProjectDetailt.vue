@@ -8,7 +8,7 @@
     >
       <div class="flex gap-2 items-center text-nowrap">
         <!-- Dropdown Component -->
-        <div class="dropdown dropdown-start">
+        <div class="dropdown dropdown-start tooltip tooltip-right" :data-tip="project.project_name">
           <div tabindex="0" role="button" class="flex gap-1 click items-center">
             <div class="avatar" v-if="options?.showIcon">
               <div class="w-7 rounded-md">

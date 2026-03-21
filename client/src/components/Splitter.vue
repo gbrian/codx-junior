@@ -8,37 +8,35 @@ import VerticalBarVue from './project/VerticalBar.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <div class="flex grow">
-      <div class="grow h-full overflow-auto">
-        <VerticalSplitter 
-          :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
-        > 
-          <template v-slot:left v-if="$ui.activeApp">
-            <Navigator class="w-full h-full" />
-          </template>
-          <template v-slot:right v-if="$ui.activeTab || $ui.showLogs">
-            <VerticalSplitter class="grow flex h-full relative" 
-              :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
-            >
-              <template v-slot:left v-if="$ui.activeTab">
-                <div class="h-full flex flex-col items-center">
-                  <CodxJuniorVue ref="codxJunior" 
-                    class="h-full w-full px-2" 
-                    :style="`zoom:${ zoom }`" 
-                  />
-                </div>
-              </template>
-              <template v-slot:right v-if="$ui.showLogs">
-                <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
-              </template>
-            </VerticalSplitter>
-          </template>
-        </VerticalSplitter>
-      </div>
-      <VerticalBarVue />
+  <div class="flex">
+    <div class="grow flex flex-col h-full">
+      <VerticalSplitter 
+        :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
+      > 
+        <template v-slot:left v-if="$ui.activeApp">
+          <Navigator class="w-full h-full" />
+        </template>
+        <template v-slot:right v-if="$ui.activeTab || $ui.showLogs">
+          <VerticalSplitter class="grow flex h-full relative" 
+            :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
+          >
+            <template v-slot:left v-if="$ui.activeTab">
+              <div class="h-full flex flex-col items-center">
+                <CodxJuniorVue ref="codxJunior" 
+                  class="h-full w-full px-2" 
+                  :style="`zoom:${ zoom }`" 
+                />
+              </div>
+            </template>
+            <template v-slot:right v-if="$ui.showLogs">
+              <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
+            </template>
+          </VerticalSplitter>
+        </template>
+      </VerticalSplitter>
+      <StatuBar />
     </div>
-    <StatuBar />
+    <VerticalBarVue />
   </div>
 </template>
 <script>

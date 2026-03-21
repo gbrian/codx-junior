@@ -199,7 +199,7 @@ export const actions = actionTree(
       if (project_id && project_id !== $storex.projects.activeProject?.project_id) {
         await $storex.projects.setActiveProject({ project_id })
       }
-      if (chatId) {
+      if (chatId && $storex.projects.activeProject) {
         $storex.projects.setActiveChat({ id: chatId })
       }
       state.openApps = state.openApps.map(key => $storex.projects.projectApps.find(pa => pa.key === key)) 

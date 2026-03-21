@@ -14,7 +14,7 @@ import Code from './Code.vue'
         <i class="fa-solid fa-code"></i> <!-- Font Awesome Icon for zoom in -->
       </div>
     </div>
-    <Code :text="htmlContent" text-language="html" v-if="showCode" />
+    <Code :text="htmlContent" :project="project" text-language="html" v-if="showCode" />
     <iframe
       :srcdoc="htmlContent"
       sandbox="allow-popups allow-forms"
@@ -33,6 +33,9 @@ export default {
       type: String,
       required: true,
       default: '<html><body><p>No content provided</p></body></html>'
+    },
+    project: {
+      type: Object
     }
   },
   data() {

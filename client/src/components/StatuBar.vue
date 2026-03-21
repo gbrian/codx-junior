@@ -17,6 +17,15 @@ import AppBar from './apps/AppBar.vue';
         <span class="text-info"><i class="fa-solid fa-circle-info"></i></span>
         {{  lastEvent }}
       </div>
+      <div class="relative">
+        <div class="absolute right-0 bottom-0 flex flex-col gap-1 z-10 bg-base-100/40 rounded-lg p-2">
+          <div class="click" v-for="notification in $ui.notifications" 
+            :key="notification.ts" 
+            @click="$ui.removeNotification(notification)">
+            <pre><span class="click hover:underline">(X)</span>[{{ notification.ts }}] {{ notification.text }}</pre>
+          </div>
+        </div>
+      </div>
     </div>
 </template>
 <script>

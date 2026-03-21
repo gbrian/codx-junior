@@ -16,7 +16,7 @@ import MarkdownViewer from '../MarkdownViewer.vue';
       </div>
     </div>
     <div>
-      <Code :text="diffText(file.diff)" :text-language="'diff'" v-if="false && expandedFiles[file.path]"></Code>
+      <Code :text="diffText(file.diff)" :text-language="'diff'" :project="project" v-if="false && expandedFiles[file.path]"></Code>
       <MarkdownViewer :text="file.diff" v-if="expandedFiles[file.path]"/>
     </div>
   </div>
@@ -25,7 +25,7 @@ import MarkdownViewer from '../MarkdownViewer.vue';
 
 <script>
 export default {
-  props:['diff'],
+  props:['diff', 'project'],
   data () {
     return {
       expandedFiles: {}

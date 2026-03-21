@@ -15,7 +15,7 @@ import Markdown from '../components/Markdown.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-base-300/80 p-1 @md:p-2" v-if="workingChat">
+  <div class="flex flex-col h-full bg-base-300/80 p-1" v-if="workingChat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">
@@ -38,19 +38,12 @@ import Markdown from '../components/Markdown.vue'
                 </div>
                 <div class="flex gap-2">
                   <div class="flex gap-1 relative">
-                      <ProfileAvatar :profile="profile"
-                        :project="taskProject"
-                        width="7"
-                        v-for="profile in chatProfiles" :key="profile.name">
-                          <div class="flex justify-end gap-2">
-                            <div class="badge badge-xs badge-error cursor-pointer" @click="removeProfile(profile)">
-                              remove
-                            </div>
-                          </div>
-                      </ProfileAvatar>
-                    <UserAvatar :width="7" :user="user" v-for="user in chatUsers" :key="user.username">
-                      <li @click="removeUser(user)"><a>Remove</a></li>
-                    </UserAvatar>  
+                    <ProjectDetailt 
+                      :project="taskProject" 
+                      :iconify="true"
+                      :options="{ showFolders: false, showIcon: true, showSelector: true }"
+                      @select="setChatProject"  
+                    />
                     <UserSelector 
                       class="dropdown-bottom"
                       :allUsers="true"
@@ -76,11 +69,6 @@ import Markdown from '../components/Markdown.vue'
                         </div>
                         <div class="flex gap-1 text-xs gap-2">
                           [{{ formattedChatUpdatedDate }}]
-                          <div class="flex items-center text-warning" v-if="showTaskProjectName">
-                            <span>[</span>
-                              {{ taskProject.project_name }}
-                            <span>]</span>
-                          </div>
                           <span class="text-xs hover:underline"
                               :class="showDescription ? 'text-error/70': 'text-info'"
                             @click.stop="showDescription = !showDescription"
@@ -129,6 +117,9 @@ import Markdown from '../components/Markdown.vue'
                       </li>
                       <li @click="setChatMode('task')">
                         <a><ChatIcon mode="task" /> Document</a>
+                      </li>
+                      <li @click="setChatMode('slides')">
+                        <a><ChatIcon mode="slides" /> Slides</a>
                       </li>
                       <li @click="setChatMode('topic')">
                         <a><ChatIcon mode="topic" /> Discussion</a>
@@ -200,13 +191,9 @@ import Markdown from '../components/Markdown.vue'
               </div>
             </div>
           </div>
-          <div class="flex gap-1 justify-end items-center">
-            <div class="badge badge-sm badge-warning badge-outline p-3 gap-2" v-if="taskAIModel">
-              <i class="fa-solid fa-brain"></i> {{ taskAIModel.name }}
-            </div>
-          </div>
         </div>
         <VerticalSplitter 
+          class="mt-2"
           :panels="{
             left: { defaultSize: 20 },
             right: { defaultSize: 80 }
@@ -251,7 +238,7 @@ import Markdown from '../components/Markdown.vue'
             </ul>
           </template>
           <template v-slot:right>
-            <Chat class="h-full overflow-auto" 
+            <Chat 
               :chat="workingChat"
               :showHidden="showHidden"
               :childrenChats="showChatMenu ? null : childrenChats"
@@ -330,6 +317,7 @@ import Markdown from '../components/Markdown.vue'
                 <option value="topic">Topic</option>
                 <option value="prview">PR View</option>
                 <option value="browser">Browser</option>
+                <option value="slides">Slides</option>
               </select>
             </div>
 
@@ -550,6 +538,10 @@ export default {
     },
     async reloadChat() {
       this.$projects.reloadChat(this.workingChat)
+    },
+    setChatProject(project) {
+      this.workingChat.project_id = project.project_id
+      this.saveChat(this.workingChat) 
     },
     async saveChat(chat) {
       this.editName = false

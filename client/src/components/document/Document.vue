@@ -7,13 +7,14 @@ import HTMLViewer from '../HTMLViewer.vue';
   <div class="flex flex-col @container/document">
     <div v-for="block in blocks" :key="block.hash">
       <MarkdownViewer :files="files" 
-        class="prose-sm @lg/document:prose-md"
+        class=""
         v-if="block.renderer === 'md'" :text="block.content" />
       <Code 
         :text="block.content"
         :text-language="block.type"
         :fileName="block.fileName"
         :files="files"
+        :project="docProject"
         @generate-code="$emit('generate-code', $event)" 
         @reload-file="$emit('reload-file', { file: $event, message })"
         @open-file="$emit('open-file', $event)"
@@ -96,10 +97,13 @@ function parseContent(content) {
 }
 
 export default {
-  props: ['content', 'files'],
+  props: ['content', 'files', 'project'],
   computed: {
     blocks() {
       return parseContent(this.content || "")
+    },
+    docProject() {
+      return this.project || this.$project
     }
   }
 }
