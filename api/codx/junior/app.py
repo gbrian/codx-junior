@@ -82,7 +82,9 @@ from codx.junior.model.model import (
 )
 
 from codx.junior.settings import (
-  CODXJuniorSettings,
+  CODXJuniorSettings
+)
+from codx.junior.global_settings import (
   read_global_settings,
   write_global_settings
 )
@@ -155,13 +157,13 @@ async def shutdown_event():
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
 	exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
-	logger.error(f"{request}: {exc_str}")
+	logger.error(f"%s: %s", request, exc_str)
 	content = {'status_code': 10422, 'message': exc_str, 'data': None}
 	return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 @app.on_event("startup")
 def startup_event():
-    logger.info(f"Creating FASTAPI (BACKGROUND: {CODX_JUNIOR_API_BACKGROUND}): {app.__dict__}")
+    logger.info("Creating FASTAPI (BACKGROUND: %s): %s", CODX_JUNIOR_API_BACKGROUND, app.__dict__)
 
 @app.exception_handler(Exception)
 async def my_exception_handler(request: Request, ex: Exception):
@@ -178,7 +180,7 @@ async def add_process_time_header(request: Request, call_next):
         response.headers["X-Process-Time"] = str(process_time)
         return response
     finally:
-        logger.info(f"Request {request.url} - {time.time() - start_time} ms")
+        logger.info("Request %s - %d ms", request.url, time.time() - start_time)
 
 
 def get_codx_junior_session(request, codx_path):
@@ -200,7 +202,7 @@ async def add_codx_junior_settings(request: Request, call_next):
             request.state.codx_junior_session.update_last_access_time()
             # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:
-            logger.error(f"Error loading settings {codx_path}: {ex}\n{request.url}")
+            logger.error("Error loading settings %s: %s\n%s", codx_path, ex, request.url)
     return await call_next(request)
 
 # Adding a middleware returning a 504 error if the request processing time is above a certain threshold
@@ -208,12 +210,12 @@ async def add_codx_junior_settings(request: Request, call_next):
 async def timeout_middleware(request: Request, call_next):
     try:
         start_time = time.time()
-        logger.info(f"HTTP starting: {request.url}")
+        logger.info("HTTP starting: %s", request.url)
         return await asyncio.wait_for(call_next(request), timeout=GLOBAL_REQUEST_TIMEOUT)
 
     except asyncio.TimeoutError:
         process_time = time.time() - start_time
-        return JSONResponse({'detail': 'Request processing time excedeed limit',
+        return JSONResponse({'detail': 'Request processing time exceeded limit',
                              'processing_time': process_time},
                             status_code=HTTP_504_GATEWAY_TIMEOUT)
 
@@ -229,7 +231,7 @@ async def api_knowledge_reload(request: Request):
 @app.post("/api/knowledge/reload-path")
 def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    logger.info(f"**** API:knowledge_reload_path {knowledge_reload_path}")
+    logger.info("**** API:knowledge_reload_path %s", knowledge_reload_path)
     codx_junior_session.index_knowledge_source(sources=[knowledge_reload_path.path])
 
 @app.post("/api/knowledge/delete")
@@ -352,7 +354,7 @@ async def api_image_upload(file: UploadFile):
 
     # Save the file if it doesn't exist
     if not os.path.exists(image_path):
-        with open(image_path, "wb+") as file_object:
+        with open(image_path, "wb+", encoding='utf-8') as file_object:
             file_object.write(file_content)
 
     # Return the relative path to access the image
@@ -436,7 +438,6 @@ def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authent
     #   **project.__dict__,
     #   "workspaces": project.get_project_workspaces()
     # } for project in find_all_user_projects(user)]
-
     projects = list(find_all_user_projects(user))
     workspaces = read_global_settings().workspaces
 
@@ -523,7 +524,7 @@ def api_get_keywords(request: Request):
 @app.post("/api/knowledge/keywords")
 def api_extract_tags(doc: Document, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    logging.info(f"Extract keywords from {doc}")
+    logging.info("Extract keywords from %s", doc)
     doc = codx_junior_session.extract_tags(doc=doc)
     return doc.__dict__
 
@@ -598,7 +599,7 @@ def api_write_global_settings(global_settings: GlobalSettings):
 @app.post("/api/run/script")
 def run_script(data: dict, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    std, _ = exec_command(data["script"], cwd=codx_junior_session.settings.project_path)
+    std, _ = exec_command(data["script"], cwd=codx_junior_session.settings.abs_project_path)
     return std
 
 @app.get("/api/logs")
@@ -617,7 +618,7 @@ def api_logs_tail(log_name: str, request: Request):
     if "🐋" in log_name:
         stdout, err_logs = exec_command(f"sudo docker logs -n {log_size} {log_name.split(':')[1]}")
         if err_logs:
-            logger.error(f"Error reading logs {log_name}: {err_logs}")
+            logger.error("Error reading logs %s: %s", log_name, err_logs)
         return stdout.split("\n")
     else:   
         log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
@@ -625,7 +626,7 @@ def api_logs_tail(log_name: str, request: Request):
         try:
             logs, err_logs = exec_command(cmd)
             if err_logs:
-                logger.error(f"Error reading logs {log_name}: {err_logs}")
+                logger.error("Error reading logs %s: %s", log_name, err_logs)
             # return parse_logs(logs)
             def is_valid_log(l):
                 if "/api/logs" in l:
@@ -633,7 +634,7 @@ def api_logs_tail(log_name: str, request: Request):
                 return True
             return [l for l in logs.split("\n") if is_valid_log(l)]
         except Exception as ex:
-            logger.exception(f"Error reading logs: {ex}")
+            logger.exception("Error reading logs: %s", ex)
 
 @app.post("/api/screen")
 def api_screen_set(screen: Screen):
@@ -651,7 +652,7 @@ def api_screen_get():
         screen_line = [l for l in lines if l.startswith("Screen ")][0]
         screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
     except Exception as ex:
-        logger.error(f"Error extracting screen resolutions {ex}")
+        logger.error("Error extracting screen resolutions %s", ex)
     return screen
 
 @app.post("/api/image-to-text")
@@ -662,12 +663,18 @@ async def api_image_to_text_endpoint(file: UploadFile, request):
 
 @app.post("/api/restart")
 def api_restart():
-    logger.info(f"****************** API RESTARTING... bye *******************")
+    logger.info("****************** API RESTARTING... bye *******************")
     exec_command("sudo kill 7")
 
+@app.post("/api/shutdown")
+def api_shutdown():
+    """API endpoint to shut down the server."""
+    logger.info("Received request to shut down the server. Terminating...")
+    os._exit(0)
     
 logger.info("API Static folder: %s", CODX_JUNIOR_STATIC_FOLDER)
 logger.info("API Images folder: %s", IMAGE_UPLOAD_FOLDER)
 
 app.mount("/api/static", StaticFiles(directory=CODX_JUNIOR_STATIC_FOLDER, html=True), name="static")
 
+# Made with ❤️ by codx-junior

@@ -87,7 +87,7 @@ def document_to_context(doc):
 def document_to_code_block(doc):
 
     content = doc.metadata.get('summary', doc.page_content)
-    source = str(Path(doc.metadata['source']).absolute())
+    source = doc.metadata['source']
     language = doc.metadata.get('language')
     extension = source.split(".")[-1] if "." in source else ""
 

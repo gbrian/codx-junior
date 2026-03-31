@@ -2,7 +2,7 @@ import logging
 import subprocess
 from typing import List
 from codx.junior.model.model import Workspace
-from codx.junior.settings import get_model_settings, get_provider_settings
+from codx.junior.global_settings import read_global_settings
 from codx.junior.engine import find_all_projects
 
 logger = logging.getLogger(__name__)

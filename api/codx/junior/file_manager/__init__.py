@@ -36,7 +36,7 @@ class FileManager:
         elif local_path[0] == '/':
             local_path = local_path[1:]
         
-        return os.path.join(self.settings.project_path, local_path)         
+        return os.path.join(self.settings.abs_project_path, local_path)         
         
 
     def find_files(self, adapter: str, path: str, search: str = None) -> Dict[str, Union[str, List[Dict[str, Any]]]]:
@@ -51,7 +51,7 @@ class FileManager:
             Dict[str, Union[str, List[Dict[str, Any]]]]: A dictionary containing file information.
         """
         abs_base_path = self.get_file_path(path)         
-        dirname = abs_base_path.replace(self.settings.project_path, '')
+        dirname = abs_base_path.replace(self.settings.abs_project_path, '')
         if dirname[0] != '/':
             dirname = ("/%s", dirname) 
         result = {
@@ -140,7 +140,7 @@ class FileManager:
         """
         file_path = str(item)
         file_type = FILE_TYPE_DIR if item.is_dir() else FILE_TYPE_FILE
-        file_name = file_path.replace(self.settings.project_path, '')
+        file_name = file_path.replace(self.settings.abs_project_path, '')
         info = {
             "type": file_type,
             "path": file_name,

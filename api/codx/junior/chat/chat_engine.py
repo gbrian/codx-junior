@@ -80,13 +80,13 @@ class ChatEngine:
             "start_time": time.time(),
             "first_response": None
         }
-        if chat.owner_project_id and chat.owner_project_id != self.settings.project_id:
+        if chat.project_id and chat.project_id != self.settings.project_id:
             logger.info("chat owner_project_id is not the same as current project, switching contexts: {} -> {}",
                 self.settings.project_id,
-                chat.owner_project_id
+                chat.project_id
             )
             # Invoke project based on project_id
-            return await self.switch_project(chat.owner_project_id).chat_with_project(chat=chat,
+            return await self.switch_project(chat.project_id).chat_with_project(chat=chat,
                                                                             disable_knowledge=disable_knowledge,
                                                                             callback=callback,
                                                                             append_references=append_references,
@@ -138,7 +138,7 @@ class ChatEngine:
                     response_message.content = content
                 sources =  []
                 if documents:
-                    sources = list(set([d.metadata["source"].replace(self.settings.project_path, "") for d in documents]))
+                    sources = list(set([d.metadata["source"].replace(self.settings.abs_project_path, "") for d in documents]))
                 response_message.files = sources
                 response_message.task_item = task_item
                 response_message.done = done
@@ -200,8 +200,11 @@ class ChatEngine:
                 chat_tools = list(set(chat_tools))
                 logger.info("Profies tools. '%s'\n %s", chat_tools, all_profiles) 
                 if not chat_model:
-                    chat_models = list(set([profile.llm_model for profile in all_profiles if profile.llm_model]))
-                    chat_model = chat_models[0] if chat_models else None
+                    profile_models = list(set([profile for profile in all_profiles if profile.llm_model]))
+                    if profile_models:
+                        profile_model = profile_models[0]
+                        chat_model = profile_model.llm_model
+                        logger.info("chat_model '%s' from profile: '%s'", profile_model.llm_model, profile_model.name)
                 if all_profiles[0].chat_mode:
                     chat_mode = all_profiles[0].chat_mode
                 # None profile uses knowledge, disable knowledge
@@ -244,17 +247,21 @@ class ChatEngine:
             
             chat_files_content = ""
             for chat_file in chat_files:
+                logger.info("Loading chat_file '%s' for chat", chat_file)
                 chat_file_full_path = chat_file
-                if not chat_file.startswith(self.settings.project_path) and \
+                if not chat_file.startswith(self.settings.abs_project_path) and \
                     not os.path.isfile(chat_file):
+                    logger.info("Normalizing chat_file '%s' for project path: '%s'", chat_file, self.settings.abs_project_path)
                     if chat_file[0] == '/':
                         chat_file = chat_file[1:]
-                    chat_file_full_path = os.path.join(self.settings.project_path, chat_file)
+                    chat_file_full_path = os.path.join(self.settings.abs_project_path, chat_file)
                 try:
                   with open(chat_file_full_path, 'r') as f:
+                      source = chat_file_full_path.replace(self.settings.abs_project_path + "/", '')
+                      logger.info("Loading chat_file content from '%s' with source: '%s'", chat_file_full_path, source)
                       doc_context = document_to_code_block(
                         Document(page_content=f.read(),
-                          metadata={ "source": chat_file_full_path.replace(self.settings.project_path + "/", '') }
+                          metadata={ "source": source }
                         )
                       )
                       chat_files_content += doc_context + "\n"
@@ -511,8 +518,8 @@ class ChatEngine:
         code_generator = AICodeGenerator.from_response(response)
         for change in code_generator.code_changes:
             file_path = change.file_path
-            if not file_path.startswith(self.settings.project_path):
-                change.file_path = os.path.join(self.settings.project_path, file_path)
+            if not file_path.startswith(self.settings.abs_project_path):
+                change.file_path = os.path.join(self.settings.abs_project_path, file_path)
         
         logger.info(f"Code generator changes retrieved from response")
         return code_generator
@@ -544,7 +551,7 @@ class ChatEngine:
                 knowledge_documents = self.knowledge(settings=settings).search(query)
                 
                 project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project,knowledge_documents=knowledge_documents, ignore_documents=ignore_documents)
-                project_file_list: list[str] = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
+                project_file_list: list[str] = [os.path.join(search_project.abs_project_path, file_path) for file_path in project_file_list]
                 docs.extend(project_docs)
                 if file_list:
                     file_list.extend(project_file_list)
@@ -612,7 +619,8 @@ class ChatEngine:
         parent_content = []
         chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
         parent_chat = chat_manager.find_by_id(chat.parent_id)
-        logger.error("[parent_chat] parent_id: '%s' parent_project_id: '%s', Not found for chat: %s", chat.parent_id, chat.owner_project_id, chat.name)
+        if chat.parent_id and not parent_chat: 
+            logger.error("[parent_chat] parent_id: '%s' parent_project_id: '%s', Not found for chat: %s", chat.parent_id, chat.owner_project_id, chat.name)
         while parent_chat:
             messages = [message.content for message in parent_chat.messages if not message.hide]
             if messages:

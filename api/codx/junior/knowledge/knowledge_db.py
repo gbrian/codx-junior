@@ -84,7 +84,7 @@ class KnowledgeDB:
         self.ai = None
         self.settings = settings
 
-        self.path = self.settings.project_path
+        self.path = self.settings.abs_project_path
         self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(str(self.path))).strip()
         self.index_fulltext_name = f"{self.index_name}_full_text"
 

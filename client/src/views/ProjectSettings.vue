@@ -20,7 +20,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         <div class="flex justify-between mb-2">
           <div class="label-text">Project name</div>
           <div class="w-2/3">
-            <input v-model="settings.project_name" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.project_name" type="text" class="mb-1 input input-bordered w-full" />
             <div class="text-xs">The display name of your project.</div>
           </div>
         </div>
@@ -28,7 +28,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         <div class="flex justify-between mb-2">
           <div class="label-text">Project icon</div>
           <div class="w-2/3 flex gap-1 items-center">
-            <input v-model="settings.project_icon" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.project_icon" type="text" class="mb-1 input input-bordered w-full" />
             <img :src="settings.project_icon" alt="Project Icon" class="w-8 h-8 rounded-full" />
           </div>
         </div>
@@ -36,23 +36,16 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         <div class="flex justify-between mb-2">
           <div class="label-text">Project path</div>
           <div class="w-2/3">
-            <input v-model="settings.project_path" type="text" class="input input-bordered w-full" />
-            <div class="text-xs">The exact directory path to access project files. (Default: .codx parent's folder).</div>
-          </div>
-        </div>
-
-        <div class="flex justify-between mb-2">
-          <div class="label-text">Project preview url</div>
-          <div class="w-2/3">
-            <input v-model="settings.project_preview_url" type="text" class="input input-bordered w-full" />
-            <div class="text-xs">Project's preview url.</div>
+            <input v-model="settings.abs_project_path" type="text" class="mb-1 input input-bordered w-full" />
+            <div class="text-xs">Absolute path: {{ settings.abs_project_path }}</div>
+            <div class="text-xs">Project location: {{ settings.codx_path }}</div>
           </div>
         </div>
 
         <div class="flex justify-between mb-2">
           <div class="label-text">Wiki</div>
           <div class="w-2/3">
-            <input v-model="settings.project_wiki" type="checkbox" class="toggle" />
+            <input v-model="settings.project_wiki" type="checkbox" class="mb-1 toggle" />
             <div class="text-xs">Generate project's wiki</div>
           </div>
         </div>
@@ -60,7 +53,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         <div class="flex justify-between mb-2">
           <div class="label-text">Wiki path</div>
           <div class="w-2/3">
-            <input v-model="settings.project_wiki_path" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.project_wiki_path" type="text" class="mb-1 input input-bordered w-full" />
             <div class="text-xs">Project's wiki folder.</div>
           </div>
         </div>
@@ -68,7 +61,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         <div class="flex justify-between mb-2">
           <div class="label-text">Dependencies</div>
           <div class="w-2/3">
-            <input v-model="settings.project_dependencies" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.project_dependencies" type="text" class="mb-1 input input-bordered w-full" />
             <div class="text-xs">List of external libraries or modules required.</div>
           </div>
         </div>
@@ -133,21 +126,21 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         <div class="flex justify-between mb-2">
           <div class="label-text">Use knowledge</div>
           <div class="w-2/3">
-            <input v-model="settings.use_knowledge" type="checkbox" class="toggle" />
+            <input v-model="settings.use_knowledge" type="checkbox" class="mb-1 toggle" />
             <div class="text-xs">Enable/Disable context enhancement with project files.</div>
           </div>
         </div>
         <div class="flex justify-between mb-2">
           <div class="label-text">Training datasets</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_generate_training_dataset" type="checkbox" class="toggle" />
+            <input v-model="settings.knowledge_generate_training_dataset" type="checkbox" class="mb-1 toggle" />
             <div class="text-xs">Enable/Disable generating trainig datasets for this project.</div>
           </div>
         </div>
         <div class="flex justify-between mb-2">
           <div class="label-text">Watching</div>
           <div class="w-2/3">
-            <input v-model="settings.watching" type="checkbox" class="toggle" />
+            <input v-model="settings.watching" type="checkbox" class="mb-1 toggle" />
           </div>
         </div>
         <div>Context</div>
@@ -161,25 +154,25 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         <div class="flex justify-between mb-2">
           <div class="label-text">RAG distance</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_context_rag_distance" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.knowledge_context_rag_distance" type="text" class="mb-1 input input-bordered w-full" />
           </div>
         </div>
         <div class="flex justify-between mb-2">
           <div class="label-text">Cutoff Relevance score</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_context_cutoff_relevance_score" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.knowledge_context_cutoff_relevance_score" type="text" class="mb-1 input input-bordered w-full" />
           </div>
         </div>
         <div class="flex justify-between mb-2">
           <div class="label-text">Document count</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_search_document_count" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.knowledge_search_document_count" type="text" class="mb-1 input input-bordered w-full" />
           </div>
         </div>
         <div class="flex justify-between mb-2">
           <div class="label-text">HNSW M</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_hnsw_M" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.knowledge_hnsw_M" type="text" class="mb-1 input input-bordered w-full" />
           </div>
         </div>
 
@@ -188,39 +181,39 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         <div class="flex justify-between mb-2">
           <div class="label-text">Query subprojects</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_query_subprojects" type="checkbox" class="toggle" />
+            <input v-model="settings.knowledge_query_subprojects" type="checkbox" class="mb-1 toggle" />
           </div>
         </div>
 
         <div class="flex justify-between mb-2">
           <div class="label-text">Enrich documents</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_enrich_documents" type="checkbox" class="toggle" />
+            <input v-model="settings.knowledge_enrich_documents" type="checkbox" class="mb-1 toggle" />
           </div>
         </div>
         <div class="flex justify-between mb-2">
           <div class="label-text">Extract document tags</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_extract_document_tags" type="checkbox" class="toggle" />
+            <input v-model="settings.knowledge_extract_document_tags" type="checkbox" class="mb-1 toggle" />
           </div>
         </div>
         <div class="flex justify-between mb-2">
           <div class="label-text">External folders</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_external_folders" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.knowledge_external_folders" type="text" class="mb-1 input input-bordered w-full" />
           </div>
         </div>
 
         <div class="flex justify-between mb-2">
           <div class="label-text">File ignore</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_file_ignore" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.knowledge_file_ignore" type="text" class="mb-1 input input-bordered w-full" />
           </div>
         </div>
         <div class="flex justify-between mb-2">
           <div class="label-text">Search type</div>
           <div class="w-2/3">
-            <input v-model="settings.knowledge_search_type" type="text" class="input input-bordered w-full" />
+            <input v-model="settings.knowledge_search_type" type="text" class="mb-1 input input-bordered w-full" />
           </div>
         </div>
       </div>
@@ -231,7 +224,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
       <div class="flex justify-between mb-2">
         <div class="label-text">Save file mentions as tasks</div>
         <div class="w-2/3">
-          <input v-model="settings.save_mentions" type="checkbox" class="toggle" />
+          <input v-model="settings.save_mentions" type="checkbox" class="mb-1 toggle" />
           <div class="text-xs">Enable/Disable saving file mentions as tasks in the "mentions" board.</div>
         </div>
       </div>
@@ -276,8 +269,8 @@ export default {
     }
   },
   methods: {
-    reloadSettings() {
-      this.settings = this.$project?.$api.activeProject
+    async reloadSettings() {
+      this.settings = await this.$project?.$api.settings.read()
     },
     async saveSettings() {
       await this.$projects.saveSettings(this.settings)

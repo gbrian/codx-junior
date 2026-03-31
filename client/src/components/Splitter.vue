@@ -9,7 +9,7 @@ import VerticalBarVue from './project/VerticalBar.vue'
 
 <template>
   <div class="flex">
-    <div class="grow flex flex-col h-full">
+    <div class="grow flex flex-col h-full overflow-hidden">
       <VerticalSplitter 
         :panels="{ left: { defaultSize: 60 }, right: { defaultSize: 40 }}"
       > 
@@ -29,7 +29,9 @@ import VerticalBarVue from './project/VerticalBar.vue'
               </div>
             </template>
             <template v-slot:right v-if="$ui.showLogs">
-              <LogViewerVue class="text-xs bg-base-300 w-full h-full" />
+              <div class="relative w-full h-full">
+                <LogViewerVue class="text-xs bg-base-300 absolute top-0 left-0 w-full h-full overflow-auto" />
+              </div>
             </template>
           </VerticalSplitter>
         </template>

@@ -20,6 +20,7 @@ import CodeViewer from './CodeViewer.vue'
       @open-file="$emit('open-file', $event)"
       @save-file="$emit('save-file', $event)" 
       @add-file="$emit('add-file', $event)" 
+      @sub-task="$emit('sub-task', $event)" 
       :language="language" 
       :file="file" 
       :files="files"

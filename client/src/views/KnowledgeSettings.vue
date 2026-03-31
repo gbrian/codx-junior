@@ -6,7 +6,7 @@ import DataExplorerVue from '../components/data/DataExplorer.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 h-full px-4">
+  <div class="flex flex-col gap-2 h-full px-4" v-if="settings">
     <div class="font-medium flex flex-col gap-2">
       <div class="text-3xl flex justify-between items-center">
         Knowledge
@@ -326,7 +326,7 @@ export default {
   },
   async created() {
     this.reloadStatus()
-    this.settings = this.$project.$api.activeProject
+    this.loadSettings()
     this.refreshIx = setInterval(() => this.reloadStatus(), 40000)
     if (this.$ui.activeTab === 'wiki_settings') {
       this.selectedTab = 'Wiki'
@@ -336,8 +336,11 @@ export default {
     clearInterval(this.refreshIx)
   },
   computed: {
+    async loadSettings() {
+      this.settings = await API.settings.read()
+    },
     projectPath() {
-      return this.settings.project_path
+      return this.settings.abs_project_path
     },
     lastRefresh() {
       if (this.indexStatus?.last_update) {
@@ -413,8 +416,8 @@ export default {
   methods: {
     async reloadStatus() {
       const data = await API.knowledge.status()
-      this.settings = { ...API.activeProject }
       this.indexStatus = data
+      this.loadSettings()
     },
     async reloadFolder(folderToReload) {
       this.reloadPath(folderToReload)
@@ -453,19 +456,22 @@ export default {
       this.addEntriesToIgnore(newIgnore)
     },
     async addEntriesToIgnore(entries) {
+
       const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
       const newIgnore = new Set([...currIgnore, ...entries])
-      API.activeProject.knowledge_file_ignore = [...newIgnore].join(",")
-      await API.settings.save(API.activeProject)
+      
+      this.settings.knowledge_file_ignore = [...newIgnore].join(",")
+       
+      await API.settings.save(this.settings)
       await this.reloadStatus()
       this.selectedFiles = {}
       this.addToIgnore = null
     },
     async removeEntriesFromIgnore(entries) {
-      const currIgnore = API.activeProject?.knowledge_file_ignore?.split(',') || []
+      const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
       const newIgnore = currIgnore.filter(e => !entries.includes(e))
-      API.activeProject.knowledge_file_ignore = newIgnore.join(",")
-      await API.settings.save(API.activeProject)
+      this.settings.knowledge_file_ignore = newIgnore.join(",")
+      await API.settings.save(this.settings)
       await this.reloadStatus()
       this.selectedFiles = {}
       this.addToIgnore = null
@@ -523,7 +529,7 @@ export default {
     async saveKnowledgeSettings() {
       await API.settings.read()
       API.settings.save({
-        ...API.activeProject,
+        ...this.settings,
         knowledge_search_type: this.documentSearchType,
         knowledge_context_cutoff_relevance_score: this.cutoffScore,
         knowledge_search_document_count: this.documentCount,
@@ -538,7 +544,7 @@ export default {
     async setSettings(settings) {
       await API.settings.read()
       this.$projects.saveSettings({
-        ...API.activeProject,
+        ...this.settings,
         ...settings
       })
     },

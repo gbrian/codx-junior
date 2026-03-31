@@ -26,7 +26,7 @@ class AzureDevopsPullRequestPlugin:
         # Set up the Personal Access Token (PAT) and organization URL
         self.personal_access_token = personal_access_token
         self.organization_url = organization_url
-        self.project_path = project_path
+        self.abs_project_path = project_path
 
         logger.info(f"Settings {self.organization_url} {self.personal_access_token[0:10]}")
 
@@ -95,7 +95,7 @@ class AzureDevopsPullRequestPlugin:
 
         for file_path, comments_to_insert in comments_by_file.items():
             logger.debug(f"Processing file: {file_path}")
-            abs_file_path = os.path.join(self.project_path, file_path)
+            abs_file_path = os.path.join(self.abs_project_path, file_path)
             with open(abs_file_path, 'r') as file:
                 file_contents = file.readlines()
 

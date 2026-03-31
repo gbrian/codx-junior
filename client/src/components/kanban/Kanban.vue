@@ -267,6 +267,7 @@ import ChatHistoryVue from './ChatHistory.vue'
           <button class="btn" @click="addOrUpdateBoard" :disabled="isBoardNameTaken || !newBoardName">Save</button>
         </div>
       </modal>
+      
       <modal close="true" @close="showColumnModal = false" v-if="showColumnModal">
         <h2 class="font-bold text-lg">Add/Edit Column</h2>
         <div class="flex gap-1 items-center">
@@ -583,7 +584,7 @@ export default {
       const chat = await this.$projects.createNewChat({
         ...base,
         id: uuidv4(),
-        board: base.board || activateChat?.board,
+        board: base.board || this.board,
       })
       if (activateChat !== false) {
         this.setActiveChat(chat)
@@ -780,6 +781,10 @@ export default {
       if (!boardName) return
 
       let board = this.editBoard ? this.kanban.boards[oldBoardName] : { title: boardName, columns: [], id: boardName }
+      
+      if (this.editBoard && boardName !== oldBoardName && this.kanban.boards[boardName]) {
+        throw new Error(`Board '${boardName}' already  exists`)
+      }
 
       if (this.editBoard && boardName !== oldBoardName) {
         // If board name is changed, update chats' board field
@@ -790,6 +795,12 @@ export default {
         }))
         // Remove the old board entry
         delete this.kanban.boards[oldBoardName]
+        // Rename parents
+        Object.values(this.kanban.boards)
+          .filter(({ parent_id }) => parent_id === oldBoardName)
+          .forEach(b => {
+            b.parent_id = boardName
+          })
       }
 
       board.title = boardName

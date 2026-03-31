@@ -15,26 +15,28 @@ import CheckLists from '../chat/CheckLists.vue'
           {{ parentChat.name }}
         </div>
         <div class="flex justify-between">
-          <div class="font-semibold tracking-wide text-sm flex gap-2 mt-1">
-            <div class="avatar" :title="taskProject.project_name" v-if="taskProject !== $project">
-              <div class="w-6 h-6 rounded-full">
-                <img :src="taskProject.project_icon"/>
+          <div class="flex flex-col">
+            <div class="font-semibold tracking-wide text-sm flex gap-2 mt-1">
+              <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
+              <span class="click tooltip" @click.stop="toggleChatPinned"
+                data-tip="Bookmark"
+              >
+                <i class="text-warning fa-solid fa-bookmark" v-if="task.pinned" ></i>
+                <i class="fa-regular fa-bookmark" v-else></i>
+              </span>
+              <div class="overflow-hidden h-10 overflow-auto" :title="task.name">
+                {{ task.name }}
               </div>
             </div>
-            <UserAvatar :width="7" :user="user" v-for="user in taskUsers" :key="user.username">
-              <li @click="removeUser(user)" ><a>Remove</a></li>
-            </UserAvatar>  
-                    
-            <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
-            <span class="click tooltip" @click.stop="toggleChatPinned"
-              data-tip="Bookmark"
-            >
-              <i class="text-warning fa-solid fa-bookmark" v-if="task.pinned" ></i>
-              <i class="fa-regular fa-bookmark" v-else></i>
-            </span>
-                      
-            <div class="overflow-hidden h-10 overflow-auto" :title="task.name">{{ task.name }}</div>
+            <div class="text-xs flex" v-if="chatProject?.project_id !== $project.project_id">
+            <div class="avatar mr-1">
+              <div class="w-4 h-4 rounded-full">
+                <img :src="chatProject?.project_icon"/>
+              </div>
+            </div>
+            {{ chatProject?.project_name }}
           </div>
+        </div>
           <div class="flex gap-2 items-center">
             <div :class="`badge badge-outline badge-${badgeColor[task.mode]}`">{{ task.mode }}</div>
           </div>

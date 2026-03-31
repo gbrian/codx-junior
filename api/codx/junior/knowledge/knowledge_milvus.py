@@ -41,7 +41,7 @@ class Knowledge:
         self.ai = None
         self.db = None
         self.settings = settings
-        self.path = self.settings.project_path
+        self.path = self.settings.abs_project_path
         self.knowledge_prompts = KnowledgePrompts(settings=settings)
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
@@ -253,9 +253,9 @@ class Knowledge:
                 # logger.info(f"Indexing document DONE: {doc}")
                 
             except Exception as ex:
-                logger.exception(f"Error indexing document {source}: {ex} at project {self.settings.project_path}")
+                logger.exception(f"Error indexing document {source}: {ex} at project {self.settings.abs_project_path}")
                 if "float data" in str(ex):
-                  logger.error(f"{self.settings.project_path}: float data error, trying to reset index")
+                  logger.error(f"{self.settings.abs_project_path}: float data error, trying to reset index")
                   self.reset()
                 elif raiseIfError:
                     raise ex
@@ -269,7 +269,7 @@ class Knowledge:
         self.get_db().reset()
         changes, _ = self.detect_changes()
         for file in changes:
-            exec_command(f'touch "{file}"', cwd=self.settings.project_path)
+            exec_command(f'touch "{file}"', cwd=self.settings.abs_project_path)
     
 
     def search(self, query, search_type='fulltext', limit=100):
@@ -280,7 +280,7 @@ class Knowledge:
         return matches + all_files
 
     def doc_from_project_file(self, file_path):
-        file_path = f"{self.settings.project_path}/{file_path}"
+        file_path = f"{self.settings.abs_project_path}/{file_path}"
 
         with open(file_path, 'r') as f:
             metadata = {

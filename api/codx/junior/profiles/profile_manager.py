@@ -40,7 +40,9 @@ class ProfileManager:
 
     def list_all_profiles(self):
         parent_projects = find_project_parents(project=self.settings)
-        parent_projects.append(find_project_by_name("codx-junior"))
+        codx_junior = find_project_by_name("codx-junior")
+        if codx_junior:
+            parent_projects.append(codx_junior)
         logger.info("list_all_profiles: %s", [p.project_name for p in parent_projects])
         
         all_profiles = {}

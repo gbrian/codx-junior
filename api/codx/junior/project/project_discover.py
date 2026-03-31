@@ -11,7 +11,7 @@ from codx.junior.security.user_management import UserSecurityManager
 from codx.junior.settings import CODXJuniorSettings, CODXJuniorProject
 from codx.junior.model.model import CodxUser
 
-from codx.junior.settings import read_global_settings
+from codx.junior.global_settings import read_global_settings
 
 from codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics
 
@@ -26,11 +26,11 @@ def get_projects_root_path():
     projects_root_path = global_settings.projects_root_path or os.environ.get("CODX_JUNIOR_PROJECTS_PATH", None) or f"{os.environ['HOME']}/projects"
     return projects_root_path
 
-def find_all_projects():
+def find_all_projects(force: bool = False):
     global _ALL_PROJECTS_PROC
     global _ALL_PROJECTS
     
-    if not _ALL_PROJECTS_PROC:
+    if not _ALL_PROJECTS_PROC or force:
         _ALL_PROJECTS_PROC = Thread(target=_update_all_projects)
         _ALL_PROJECTS_PROC.start()
     
@@ -43,11 +43,11 @@ def find_all_projects():
 def find_project_from_file_path(file_path: str):
     """Given a file path, find the project parent"""
     all_projects = find_all_projects().values()
-    matches = [p for p in all_projects if file_path.startswith(p.project_path) or \
+    matches = [p for p in all_projects if file_path.startswith(p.abs_project_path) or \
                                                 file_path.startswith(p.codx_path)]
     if matches:
         logger.info(f"Find projects for file {file_path}: {[m.project_name for m in matches]}")
-        return sorted(matches, key=lambda p: len(p.project_path))[-1]
+        return sorted(matches, key=lambda p: len(p.abs_project_path))[-1]
     return None
   
 def find_project_by_id(project_id: str):
@@ -59,7 +59,7 @@ def find_project_by_id(project_id: str):
 def find_project_by_project_path(project_path: str):
     """Given a project id, find the project"""
     all_projects = find_all_projects().values()
-    matches = [p for p in all_projects if p.project_path == project_path]
+    matches = [p for p in all_projects if p.abs_project_path == project_path]
     return matches[0] if matches else None
 
 def find_project_by_name(project_name: str):
@@ -75,9 +75,9 @@ def find_all_user_projects(user: CodxUser):
     all_projects = find_all_projects().values()
     def find_parent(project_path):
         all_parents = [p for p in all_projects \
-                        if project_path.startswith(p.project_path) and \
-                          project_path != p.project_path]
-        all_parents.sort(key=lambda p: p.project_path)
+                        if project_path.startswith(p.abs_project_path) and \
+                          project_path != p.abs_project_path]
+        all_parents.sort(key=lambda p: p.abs_project_path)
         return all_parents[-1] if all_parents else None
 
     for settings in all_projects:
@@ -92,7 +92,7 @@ def find_all_user_projects(user: CodxUser):
                 current_settings = None
             else:
                 current_settings_name = current_settings.project_name
-                current_settings = find_parent(current_settings.project_path)
+                current_settings = find_parent(current_settings.abs_project_path)
 
 def get_project_dependencies(settings: CODXJuniorSettings):
     """Returns all projects related with this project, including child projects and links"""
@@ -121,9 +121,10 @@ def _update_all_projects():
         if not settings or not settings.project_name:
             return False
         existing_project = all_projects.get(settings.project_id, None)
-        if existing_project and existing_project.project_path.startswith(projects_root_path):
-            # EDGE CASE: In case of duplicates, give preference to projects in the "projects_root_path" folder
-            return False
+        if existing_project:
+            if not settings.abs_project_path.startswith(projects_root_path):
+                # EDGE CASE: In case of duplicates, give preference to projects in the "projects_root_path" folder
+                return False
         return True
 
     for codx_path in paths:
@@ -143,7 +144,7 @@ def _update_all_projects():
                 # logger.info("Project %s users: %s", settings.project_name, settings.users)
                 all_projects[settings.project_id] = settings
             else:
-                # logger.error(f"Error duplicate project at: {settings.project_path} at {project_exists[0].project_path}")
+                logger.error(f"Invalid project at: {settings.abs_project_path} at {project_exists[0].abs_project_path}")
                 pass 
         except Exception as ex:
             logger.exception(f"Error loading project {str(codx_path)} : {ex}")
@@ -153,9 +154,9 @@ def _update_all_projects():
 
 def find_project_parents(project: CODXJuniorSettings, user: CodxUser = None):
     all_user_projects = find_all_user_projects(user) if user else find_all_projects().values()
-    project_path = project.project_path
-    all_parents = [p for p in all_user_projects if project_path.startswith(p.project_path) and project_path != p.project_path]
-    return sorted(all_parents, key=lambda project: len(project.project_path))
+    project_path = project.abs_project_path
+    all_parents = [p for p in all_user_projects if project_path.startswith(p.abs_project_path) and project_path != p.abs_project_path]
+    return sorted(all_parents, key=lambda project: len(project.abs_project_path))
 
 def find_active_projects():
     last_access = datetime.now() - timedelta(minutes=30)

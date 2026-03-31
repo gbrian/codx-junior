@@ -3,7 +3,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
 </script>
 
 <template>
-  <div class="px-2 pt-4 gap-2 w-full max-w-full overflow-auto flex flex-col relative">
+  <div class="px-2 pt-4 gap-2 w-full overflow-auto flex flex-col relative">
     <header class="flex flex-row justify-between items-center">
       <h1 class="text-xl font-semibold">Dashboard</h1>
       <div class="flex gap-2 items-center">
@@ -66,7 +66,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
           <input class="input input-xs input-bordered" placeholder="CSV patterns to discard"
             v-model="discardPatterns" />
           <label class="input input-xs input-bordered flex items-center gap-2">
-            <input type="text" class="grow" placeholder="Search" v-model="filter" @keydown.enter="applyFilter" />
+            <input type="text" class="grow" placeholder="Search" v-model="filter" @keydown.enter="setNextMatchVisible" />
             <span v-if="filter">{{ matchCount }}</span>
             <span class="click" @click="clearFilter" v-if="filter"><i class="fa-regular fa-circle-xmark"></i></span>
             <span @click="applyFilter" v-else>
@@ -86,12 +86,10 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
         >
             {{ log }}
         </div-->
-        <pre class="-mb-3 text-wrap text-md/6 " v-for="log, ix in filteredLogs" :key="`${log}-${ix}`"
-          :class="log.includes('MATCH') ? 'text-success' :
+        <pre class="mb-1 text-wrap text-md/6 " v-for="log, ix in filteredLogs" :key="`${log}-${ix}`"
+          :class="log.includes('MATCH') ? 'log-match text-success' :
             log.includes('[ERROR]') ? 'text-error' : ''"
-        >
-          {{ log  }}
-        </pre>
+          :ref="log.includes('MATCH') ? 'match': null">{{ log }}</pre>
         <div class="h-20 text-primary animate-pulse w-full">
           ...
         </div>
@@ -121,7 +119,8 @@ export default {
         "WARNING": "text-warning"
       },
       timeSelection: null,
-      follow: false
+      follow: false,
+      matchElements: []
     }
   },
   created() {
@@ -146,7 +145,7 @@ export default {
               `[MATCH] ${log}` : log)
     },
     matchCount() {
-      return this.filteredLogs.filter(l => l.includes("[MATCH]")).length
+      return this.matchElements?.length
     }
   },
   watch: {
@@ -155,9 +154,22 @@ export default {
         const { logView } = this.$refs
         requestAnimationFrame(() => logView.scrollTo(0, logView.scrollHeight))
       }
+      setTimeout(() => this.listMatchElements(), 500)
     }
   },
   methods: {
+    listMatchElements() {
+      this.matchElements = [...this.$el.querySelectorAll('.log-match')]
+      this.matchElements[0]?.scrollIntoView()
+      this.currentSelectMatch = 0 
+    },
+    setNextMatchVisible() {
+      this.currentSelectMatch = this.currentSelectMatch + 1
+      if (this.currentSelectMatch >= this.matchElements.length) {
+        this.currentSelectMatch = 0
+      }
+      this.matchElements[this.currentSelectMatch]?.scrollIntoView()
+    },
     toggleModuleVisible(module) {
       const ix = this.visibleModules.indexOf(module)
       if (ix !== -1) {

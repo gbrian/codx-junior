@@ -11,7 +11,7 @@ from codx.junior.security.user_management import UserSecurityManager, get_authen
 from codx.junior.model.model import CodxUser, CodxUserLogin, GlobalSettings
 from codx.junior.security.github_oauth import GitHubOAuth, GITHUB_CLIENTS
 
-from codx.junior.settings import get_oauth_provider
+from codx.junior.global_settings import get_oauth_provider
 
 logger = logging.getLogger(__name__)
 

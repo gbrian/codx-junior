@@ -128,10 +128,10 @@ const initializeAPI = ({ project, user } = {}) => {
         API.allProjects = projects
         API.workspaces = workspaces
         API.allProjects.forEach(p => {
-          const projectPath = p.project_path
+          const projectPath = p.abs_project_path
           p.parentProject = API.allProjects
-                              .filter(p => p.project_path != projectPath && projectPath.startsWith(p.project_path))
-                              .sort((a, b) => a.project_path > b.project_path ? -1 : 1)[0]
+                              .filter(p => p.abs_project_path != projectPath && projectPath.startsWith(p.abs_project_path))
+                              .sort((a, b) => a.abs_project_path > b.abs_project_path ? -1 : 1)[0]
         })
         return API.allProjects;
       },

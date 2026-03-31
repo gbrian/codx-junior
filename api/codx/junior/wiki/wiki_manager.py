@@ -130,7 +130,7 @@ class WikiManager:
                 if ignore in file_path:
                     return False
             return True
-        repository_files = [f.replace(self.settings.project_path, '') for f in repository_files if is_valid_file(f)]
+        repository_files = [f.replace(self.settings.abs_project_path, '') for f in repository_files if is_valid_file(f)]
         repository_files = "\n".join(sorted(repository_files))
 
         logger.info("Valid wiki files:\n%s", repository_files)
@@ -346,7 +346,7 @@ class WikiManager:
         Use AI to update the mkdocs.yaml file, taking into account the current content
         of the mkdocs.yaml file and all the files and folders from the wiki_path.
         """
-        mkdocs_file_path = Path(self.settings.project_path) / MKDOCS_YAML_FILE_NAME
+        mkdocs_file_path = Path(self.settings.abs_project_path) / MKDOCS_YAML_FILE_NAME
 
         wiki_settings = self.load_wiki_settings()
         user_language = wiki_settings.get("language", "English")
@@ -407,7 +407,7 @@ class WikiManager:
             logger.exception(f"Error updating mkdocs.yaml: {e}")
 
     def _find_category_for_file(self, file_path, all_categories):
-        file_path = file_path.replace(self.settings.project_path, '')
+        file_path = file_path.replace(self.settings.abs_project_path, '')
         for category in all_categories:
             for file in category.get("files", []):
                 if file.get("path", "") == file_path:
@@ -455,7 +455,7 @@ class WikiManager:
             if "files" not in category:
                 category["files"] = []
             if source not in category["files"]:
-                category["files"].append({"path": source.replace(self.settings.project_path, '')})
+                category["files"].append({"path": source.replace(self.settings.abs_project_path, '')})
                 self.save_wiki_settings(wiki_settings)
 
         return category
@@ -492,7 +492,7 @@ class WikiManager:
             Generated content must be in user_language: {user_language}
             """
         else:
-            source = source.replace(self.settings.project_path, '')
+            source = source.replace(self.settings.abs_project_path, '')
             return f"""
             <document project="{project_name}" file="{source}" category="{title}" keywords="{keywords}">
             {file_content}
@@ -573,10 +573,10 @@ class WikiManager:
                 file["wiki_file"] = path_join(self.wiki_path, category["path"], file["slug"])
 
     def _read_file(self, file_path):
-        return read_file(file_path, self.settings.project_path)
+        return read_file(file_path, self.settings.abs_project_path)
 
     def _get_file_wiki_name(self, source):
-        return slugify(source.replace(self.settings.project_path, "")) + ".md"
+        return slugify(source.replace(self.settings.abs_project_path, "")) + ".md"
 
     def _get_ai(self) -> AI:
         """Create and return an AI engine instance for processing."""

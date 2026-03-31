@@ -198,7 +198,7 @@ import Markdown from '../components/Markdown.vue'
             left: { defaultSize: 20 },
             right: { defaultSize: 80 }
           }">
-          <template v-slot:left v-if="childrenChats?.length && showChatMenu && !isPRView">
+          <template v-slot:left v-if="showLeftMenu">
             <div class="flex justify-start">
               <button class="btn btn-xs btn-ghost" @click="showChatMenu = false">
                 <i class="fa-solid fa-caret-left"></i>
@@ -239,6 +239,7 @@ import Markdown from '../components/Markdown.vue'
           </template>
           <template v-slot:right>
             <Chat 
+              :class="[showLeftMenu && 'ml-2']"
               :chat="workingChat"
               :showHidden="showHidden"
               :childrenChats="showChatMenu ? null : childrenChats"
@@ -500,9 +501,6 @@ export default {
       return this.$projects.chats[this.showChildChat?.id || this.chat.id]
     },
     computedChatName() {
-      if (this.isThread) {
-        return 'Thread'
-      }
       return this.chat.name
     },
     computedChatDescription() {
@@ -513,6 +511,9 @@ export default {
         return message?.content || '-- no description yet --'
       }
       return this.chat.description
+    },
+    showLeftMenu() {
+      return this.childrenChats?.length && this.showChatMenu && !this.isPRView
     }
   },
   watch: {

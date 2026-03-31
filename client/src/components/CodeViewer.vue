@@ -28,9 +28,6 @@ import DiffViewer from './DiffViewer.vue';
         <div class="hover:text-info" @click="$emit('open-file', file)" :title="file">
           {{ fileName }}
         </div>
-        <div class="hover:text-info" @click="$emit('reload-file', file)">
-          <i class="fa-solid fa-arrows-rotate"></i>
-        </div>
         <div class="hover:text-info" @click="onShowDiff"
           v-if="diffOption !== false"
         >
@@ -51,6 +48,9 @@ import DiffViewer from './DiffViewer.vue';
       </div>      
       <div class="hover:text-info" @click="saveFile" v-if="canSave">
         <i class="fa-solid fa-floppy-disk"></i>
+      </div>
+      <div class="hover:text-info" @click="createSubTask">
+        <i class="fa-brands fa-trello"></i>
       </div>
     </div>
     <div @click="runCommand" v-if="isCommand">
@@ -148,6 +148,9 @@ export default {
       } else {
         this.edit = null
       }
+    },
+    createSubTask() {
+      this.$emit('sub-task', { file: this.file, content: this.code })
     }
   }
 }

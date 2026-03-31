@@ -44,7 +44,8 @@ from codx.junior.globals import (
 from codx.junior.project.project_discover import (
     find_project_by_id,
     find_project_by_name,
-    find_project_parents
+    find_project_parents,
+    find_all_user_projects
 )
 from codx.junior.knowledge.knowledge_keywords import KnowledgeKeywords
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
@@ -77,9 +78,6 @@ GLOBAL_CHAT_INSTRUCTIONS = """
 <instructions info="General to follow when generating your response">
   <instruction>
     - IMPORTANT: Always add the file name after the code block language like in this example: "```js /absolute/file/path/file.js"
-    - Use tools to convert relative project's file path to absolute.
-    - Read file's content if not present in the comversation.
-    - Use project search to find context if not clear on the conversation.
   </instruction>
 </instructions>
 """
@@ -122,15 +120,15 @@ class CODXJuniorSession:
 
     def coder_open_file(self, file_name: str):
         if not os.path.isfile(file_name) and \
-            not file_name.startswith(self.settings.project_path):
-            file_name = f"{self.settings.project_path}/{file_name}".replace("//", "/")
+            not file_name.startswith(self.settings.abs_project_path):
+            file_name = f"{self.settings.abs_project_path}/{file_name}".replace("//", "/")
 
 
         cmd = f'code-server -r "{file_name}"'
         os.system(cmd)
         return {
           "cmd": cmd,
-          "project_path": self.settings.project_path, 
+          "project_path": self.settings.abs_project_path, 
           "file_name": file_name
         }
       
@@ -404,10 +402,10 @@ class CODXJuniorSession:
             self.log_info(f"select_afefcted_documents_from_knowledge search subprojects: {rag_query} in {[p.project_name for p in search_projects]}")
             for search_project in search_projects:
                 if chat:    
-                    self.event_manager.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.project_path}")
+                    self.event_manager.chat_event(chat=chat, message=f"Search knowledge in {search_project.project_name}: {search_project.abs_project_path}")
                 knowledge_documents = Knowledge(settings=search_project).search(query)
                 project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project, knowledge_documents=knowledge_documents, ignore_documents=ignore_documents)
-                project_file_list = [os.path.join(search_project.project_path, file_path) for file_path in project_file_list]
+                project_file_list = [os.path.join(search_project.abs_project_path, file_path) for file_path in project_file_list]
                 if project_docs:
                     docs = docs + project_docs
                 if project_file_list:
@@ -425,7 +423,7 @@ class CODXJuniorSession:
         code = code_block_info["code"]
         try:
             self.event_manager.chat_event(chat=chat, message="Executing bash script")
-            stdout, stderr = exec_command(code, cwd=self.settings.project_path)
+            stdout, stderr = exec_command(code, cwd=self.settings.abs_project_path)
             chat.messages.append(Message(role="user", content=f"""
             Executing bash script
             ```{language}
@@ -473,11 +471,11 @@ class CODXJuniorSession:
 
         patch = code_generator.code_patches[0]
         ts = datetime.now().strftime('%H%M%S')
-        patch_file = f"{self.settings.project_path}/{ts}.patch"
+        patch_file = f"{self.settings.abs_project_path}/{ts}.patch"
         with open(patch_file, 'w') as f:
             f.write(clean_string(patch.patch))
         git_patch = f"git apply {patch_file}"
-        stdout, stderr = exec_command(git_patch, cwd=self.settings.project_path)
+        stdout, stderr = exec_command(git_patch, cwd=self.settings.abs_project_path)
         os.remove(patch_file)
         res = f"{stdout} {stderr}".lower()
         error = True if len(stderr or "") != 0 or "error" in res else False
@@ -523,7 +521,7 @@ class CODXJuniorSession:
         {profile_manager.read_profile("software_developer").content}
         ```
         Info about the project:
-        - Root path: {self.settings.project_path}
+        - Root path: {self.settings.abs_project_path}
         - Files tree view: {sources_tree}
         Use this information for generating file paths and understanding the project's folder structure.
 
@@ -572,8 +570,8 @@ class CODXJuniorSession:
         code_generator = AI_CODE_GENERATOR_PARSER.invoke(response)
         for change in code_generator.code_changes:
             file_path = change.file_path
-            if not file_path.startswith(self.settings.project_path):
-                change.file_path = os.path.join(self.settings.project_path, file_path)        
+            if not file_path.startswith(self.settings.abs_project_path):
+                change.file_path = os.path.join(self.settings.abs_project_path, file_path)        
         return code_generator
 
     def project_script_test(self):
@@ -582,7 +580,7 @@ class CODXJuniorSession:
             return
 
         command = self.settings.script_test.split(" ")
-        result = subprocess.run(command, cwd=self.settings.project_path,
+        result = subprocess.run(command, cwd=self.settings.abs_project_path,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT,
                                 text=True)
@@ -635,7 +633,7 @@ class CODXJuniorSession:
 
         if chat:
             file_paths = " ".join(changes_by_file_path.keys())
-            git_diff, _ = exec_command(f"git diff {file_paths}", cwd=self.settings.project_path)
+            git_diff, _ = exec_command(f"git diff {file_paths}", cwd=self.settings.abs_project_path)
             chat.messages.append(Message(role="assistant", content=f"```diff\n{git_diff}\n```"))
 
     async def change_file_with_instructions(self, instruction_list: [str], file_path: str, content: str):
@@ -692,8 +690,8 @@ class CODXJuniorSession:
             return
         
         # Determine the full path.
-        if not file_path.startswith(self.settings.project_path):
-            file_path = os.path.join(self.settings.project_path, file_path)
+        if not file_path.startswith(self.settings.abs_project_path):
+            file_path = os.path.join(self.settings.abs_project_path, file_path)
 
         # Read the existing content of the file if it exists
         existing_content = ""
@@ -1089,7 +1087,7 @@ class CODXJuniorSession:
         return f"> {wiki_file} not found"
 
     def get_readme(self):
-        project_path = self.settings.project_path
+        project_path = self.settings.abs_project_path
         readme_file = f"{project_path}/README.md"
         if os.path.isfile(readme_file):
             with open(readme_file, 'r', encoding='utf-8', errors='ignore') as f:
@@ -1163,8 +1161,8 @@ class CODXJuniorSession:
     
     def parse_file_line(self, file, base_path):
         file_path = os.path.join(base_path, file)
-        if not file_path.startswith(self.settings.project_path):
-            file_path = f"{self.settings.project_path}/{file_path}"
+        if not file_path.startswith(self.settings.abs_project_path):
+            file_path = f"{self.settings.abs_project_path}/{file_path}"
         is_dir = os.path.isdir(file_path)
         return {
           "name": file.split("/")[-1],
@@ -1185,8 +1183,8 @@ class CODXJuniorSession:
     def get_project_file_path(self, path: str):
         """ If path is not absolute or exist add project_path
         """
-        if not path.startswith(self.settings.project_path) and not os.path.isfile(path):
-            path = os.path.join(self.settings.project_path, path)
+        if not path.startswith(self.settings.abs_project_path) and not os.path.isfile(path):
+            path = os.path.join(self.settings.abs_project_path, path)
         return path
 
     def read_file(self, path: str):
@@ -1259,25 +1257,49 @@ class CODXJuniorSession:
         await self.chat_with_project(chat=chat, disable_knowledge=True)
         return chat.messages[-1].content
 
+    import os
+
+    def get_valid_project_file_path(self, file_path: str):
+        # Assume abs_project_path is an absolute path string
+        abs_project_path = self.settings.abs_project_path
+        
+        # If the file path starts with the current project's path and exists, return as it is
+        if file_path.startswith(abs_project_path):
+            return file_path
+
+        # Validate against all user project paths
+        for project in find_all_user_projects(self.user):
+            if file_path.startswith(project.abs_project_path):
+                return file_path
+
+        # If the file doesn't exist, it's considered a new project file
+        if file_path[0] == '/':
+            file_path = file_path[1:]
+        new_abs_file_path = os.path.normpath(os.path.join(abs_project_path, file_path))
+        return new_abs_file_path
+
     async def write_project_file(self, file_path: str, content: str, process: bool = True):
-        if not os.path.isfile(file_path) and \
-            not file_path.startswith(self.settings.project_path):
-            if file_path[0] == '/':
-                file_path = file_path[1:]
-            file_path = os.path.join(self.settings.project_path, file_path)
-        logger.info(f"write_project_file {file_path}")
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
-        if process:
-            content = await self.process_project_file_before_saving(file_path=file_path, content=content)
-        if not file_path.startswith(self.settings.project_path):
-            raise Exception(f"Can't write outside the project's path: {file_path} - {self.settings.project_path}")
-        write_file(file_path=file_path, content=content)
-        return { "file_path": file_path }
+        abs_file_path = self.get_valid_project_file_path(file_path)
+        if not abs_file_path:
+            raise Exception(f"Can't write files outside user's projects: {file_path}")
+        try:    
+            os.makedirs(os.path.dirname(abs_file_path), exist_ok=True)
+            if process:
+                content = await self.process_project_file_before_saving(file_path=abs_file_path, content=content)
+        
+            write_file(file_path=abs_file_path, content=content)
+            return { 
+                "file_path": file_path, 
+                "abs_file_path": abs_file_path, 
+                "project_path": self.settings.abs_project_path
+            }
+        except Exception as ex:
+            raise Exception(f"Error procesing file {abs_file_path}:\n{ex}")
 
     def search_files(self, search: str):
         sources = self.get_knowledge().get_all_sources()        
         all_sources = [s for s in sources if search in s]
-        base_path = self.settings.project_path
+        base_path = self.settings.abs_project_path
         return [self.parse_file_line(file, base_path) for file in sorted(all_sources)]
 
     def run_app(self, app_name: str):
@@ -1291,7 +1313,7 @@ class CODXJuniorSession:
     def get_repo_branches(self):
         def get_barnches(cmd):
             stdout, _ = exec_command(cmd,
-                cwd=self.settings.project_path)
+                cwd=self.settings.abs_project_path)
             return [s.strip() for s in stdout.split("\n") if s.strip()]
         branches = list(set(get_barnches("git branch") + get_barnches("git branch -r")))
         branches.sort()
@@ -1305,17 +1327,17 @@ class CODXJuniorSession:
 
     def get_project_branch_commits(self, branch):
         commits, _ = exec_command(f"git log {branch}",
-            cwd=self.settings.project_path)
+            cwd=self.settings.abs_project_path)
         return {
           "commits": commits,
         }
 
     def find_git_root_path(self):
         if self.settings.is_git_root:
-           return self.settings.project_path
+           return self.settings.abs_project_path
         for parent in find_project_parents(project=self.settings):
             if parent.is_git_root:
-                return parent.project_path
+                return parent.abs_project_path
         return ""
 
     def get_repo_changes(self, from_branch: str, to_branch: str):
@@ -1329,20 +1351,20 @@ class CODXJuniorSession:
 
         git_branch_file_changed = f"git diff --name-only {to_branch}...{from_branch}"
         branch_files, _ = exec_command(git_branch_file_changed,
-                            cwd=self.settings.project_path)
+                            cwd=self.settings.abs_project_path)
         branch_files = branch_files.strip().split("\n")
         
         def get_git_file_diff(file_path):
             cmd = f"git diff {to_branch}...{from_branch} -- {file_path}"
-            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.project_path)
-            logger.info("get_git_file_diff: %s: %s\n%s\n%s", file_path, git_cmd_out, self.settings.project_path, cmd)
+            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
+            logger.info("get_git_file_diff: %s: %s\n%s\n%s", file_path, git_cmd_out, self.settings.abs_project_path, cmd)
             return git_cmd_out.strip()
 
 
         def get_git_file_commits(file_path):
             pretty = '{ "commit": "%H", "author": "%an", "date": "%as", "message": "%f" }'
             cmd = f"git log --pretty=format:'{pretty}' {from_branch} -- {file_path}"
-            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.project_path)
+            git_cmd_out, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
             return [json.loads(line) for line in git_cmd_out.strip().split("\n")]
 
         git_commits = []
@@ -1360,20 +1382,20 @@ class CODXJuniorSession:
                         else f"git diff {to_branch}"
 
         git_diff_cmd_out, _ = exec_command(git_diff_cmd,
-                cwd=self.settings.project_path)
+                cwd=self.settings.abs_project_path)
 
         git_diff_cmd_stat_out, _ = exec_command(git_diff_cmd.replace("git diff", "git diff --shortstat"),
-                cwd=self.settings.project_path)
+                cwd=self.settings.abs_project_path)
 
         local_changes = {}
             
         if is_current_branch:
-            git_local, _ = exec_command("git status -s", cwd=self.settings.project_path)
+            git_local, _ = exec_command("git status -s", cwd=self.settings.abs_project_path)
             local_files = [f.strip().split(" ")[-1] for f in git_local.split("\n")]
             for file in local_files:
-                if os.path.isfile(os.path.join(self.settings.project_path, file)):
+                if os.path.isfile(os.path.join(self.settings.abs_project_path, file)):
                     git_diff_local_out, _ = exec_command(f"git diff {to_branch} {file}",
-                        cwd=self.settings.project_path)
+                        cwd=self.settings.abs_project_path)
                     local_changes[file] = git_diff_local_out if git_diff_local_out else \
                                             f"diff --git a/ b/{file}\nnew file mode" 
         for local_file, local_diff in local_changes.items():
@@ -1385,7 +1407,7 @@ class CODXJuniorSession:
         pr_details = self.get_pr_review_details(from_branch, to_branch)
 
         commits = []
-        # self.get_branch_commits(from_branch=from_branch, repo_path=self.settings.project_path)
+        # self.get_branch_commits(from_branch=from_branch, repo_path=self.settings.abs_project_path)
 
         return {
           "diff": git_diff_cmd_out,
@@ -1460,7 +1482,7 @@ class CODXJuniorSession:
         """
         # Command to get commit details from the specified branch
         log_command = f"git log -g --format=%H|%an|%cI|%s {branch_name}"
-        stdout, _ = exec_command(log_command, cwd=self.settings.project_path)
+        stdout, _ = exec_command(log_command, cwd=self.settings.abs_project_path)
 
         log_lines = stdout.split('\n')
 
@@ -1475,7 +1497,7 @@ class CODXJuniorSession:
                 # Command to get files changed in each commit
                 file_changes_command = \
                     f'git show --name-only --pretty=format:{commit_hash}'
-                stdout, _ = exec_command(file_changes_command, cwd=self.settings.project_path)
+                stdout, _ = exec_command(file_changes_command, cwd=self.settings.abs_project_path)
                 file_changes = stdout.strip().split('\n')
                 commits.append({
                     'entry_line': entry,
@@ -1498,8 +1520,8 @@ class CODXJuniorSession:
     def get_project_parent_branch(self):
         current_branch = self.get_project_current_branch()
         stdout, _ = exec_command(f"git reflog {current_branch}",
-                              cwd=self.settings.project_path)
-        self.log_info(f"get_project_parent_branch reflog: {stdout} cwd: {self.settings.project_path}")
+                              cwd=self.settings.abs_project_path)
+        self.log_info(f"get_project_parent_branch reflog: {stdout} cwd: {self.settings.abs_project_path}")
         creation_line = [l for l in stdout.split("\n") if "Created from" in l][0]
         # 808a14a v1.0-hello-codx-junior@{53}: branch: Created from refs/remotes/origin/v1.0-hello-codx-junior
         if "refs/remotes/" in creation_line:
@@ -1518,10 +1540,10 @@ class CODXJuniorSession:
             self.log_info(f"get_project_changes parent_branch {parent_branch}")
         
         diff_out, _ = exec_command(f"git diff {parent_branch}",
-                      cwd=self.settings.project_path)
+                      cwd=self.settings.abs_project_path)
 
         diff_stat_out, _ = exec_command(f"git diff --shortstat {parent_branch}",
-                      cwd=self.settings.project_path)
+                      cwd=self.settings.abs_project_path)
         return {
           "diff": diff_out,
           "stats": diff_stat_out
@@ -1534,12 +1556,12 @@ class CODXJuniorSession:
 
     def get_pr_review_details(self, from_branch: str, to_branch: str):
         # Pull the latest changes from both branches to ensure we are comparing correctly
-        exec_command(f"git fetch origin {to_branch}:{to_branch}", cwd=self.settings.project_path)
-        exec_command(f"git fetch origin {from_branch}:{from_branch}", cwd=self.settings.project_path)
+        exec_command(f"git fetch origin {to_branch}:{to_branch}", cwd=self.settings.abs_project_path)
+        exec_command(f"git fetch origin {from_branch}:{from_branch}", cwd=self.settings.abs_project_path)
 
         # Get the list of files changed between the two branches
         diff_command = f"git diff --name-status {to_branch}..{from_branch}"
-        stdout, _ = exec_command(diff_command, cwd=self.settings.project_path)
+        stdout, _ = exec_command(diff_command, cwd=self.settings.abs_project_path)
         file_changes = stdout.strip().split('\n')
 
         # Prepare the list to hold the changes
@@ -1556,11 +1578,11 @@ class CODXJuniorSession:
 
                 # Get the diff for the file
                 file_diff_command = f"git diff {to_branch}..{from_branch} -- {file_path}"
-                file_diff, _ = exec_command(file_diff_command, cwd=self.settings.project_path)
+                file_diff, _ = exec_command(file_diff_command, cwd=self.settings.abs_project_path)
 
                 # Get the commits for the file
                 file_commits_command = f"git log --oneline {to_branch}..{from_branch} -- {file_path}"
-                file_commits_stdout, _ = exec_command(file_commits_command, cwd=self.settings.project_path)
+                file_commits_stdout, _ = exec_command(file_commits_command, cwd=self.settings.abs_project_path)
                 file_commits = file_commits_stdout.strip().split('\n')
 
                 changes.append({

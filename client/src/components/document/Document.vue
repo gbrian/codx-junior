@@ -21,9 +21,8 @@ import HTMLViewer from '../HTMLViewer.vue';
         @save-file="$emit('save-file', $event)"
         @add-file="$emit('add-file', $event)"
         @edit-message="$emit('edit-message', $event)"
-        v-if="block.renderer === 'code'" />
-      <HTMLViewer :htmlContent="block.content" v-if="block.renderer === 'html'" />
-
+        @sub-task="$emit('sub-task', $event)"
+        v-else />
     </div>
   </div>
 </template>
@@ -53,6 +52,7 @@ function parseContent(content) {
   let currentType = 'markdown'; // Default type
   let currentContent = [];
   let currentFileName = '';
+  let fenceCount = 0
 
   function addBlock() {
     const content = currentContent.join('\n')
@@ -64,32 +64,35 @@ function parseContent(content) {
       fileName: currentFileName,
       renderer: getRenderer(currentType)
     });
+    currentType = 'markdown'; // Default type
+    currentContent = [];
+    currentFileName = '';
+    fenceCount = 0
   }
   lines.forEach(line => {
     const match = line.trim().match(/^```(\w+)\s*(.*)$/);
-    if (match) {
-      // If there is a match, it means a new block is starting
-      if (currentContent.length > 0) {
-        addBlock()
-      }
-      currentType = match[1];
-      currentFileName = match[2];
-      currentContent = [];
+    if (match){
+      if (!fenceCount) {
+        if (currentContent.length) {
+          addBlock()
+        }
+        currentType = match[1];
+        currentFileName = match[2];
+      }      
+      fenceCount++
     } else if (line.trim() === '```') {
       // End of a block
-      if (currentContent.length > 0) {
+      --fenceCount
+      if (!fenceCount && currentContent.length > 0) {
         addBlock()
       }
-      currentType = 'markdown'; // Reset to default type
-      currentContent = [];
-      currentFileName = '';
-    } else {
+    } else if (currentContent) {
       currentContent.push(line);
     }
   });
 
   // Push the last block if any content is left
-  if (currentContent.length > 0) {
+  if (currentContent) {
     addBlock()
   }
   console.log("Document blocks: ", blocks)

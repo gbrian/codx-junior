@@ -22,9 +22,9 @@ class WatchProjectFileChanges:
     def _create_groups(self, projects):
         """Group all projects by a their root path"""
         groups = {}
-        projects = sorted(projects, key=lambda p: len(p.project_path))
+        projects = sorted(projects, key=lambda p: len(p.abs_project_path))
         for project in projects:
-            path = project.project_path
+            path = project.abs_project_path
             key = next((k for k in groups if path.startswith(k)), path)
             if not key in groups:
                 groups[key] = [project]
@@ -47,7 +47,7 @@ class WatchProjectFileChanges:
 
     def _has_changed(self, projects):
         def get_project_root(project):
-            return next((k for k in self.groups if project.project_path.startswith(k)), None)
+            return next((k for k in self.groups if project.abs_project_path.startswith(k)), None)
         return True if next((True for p in projects if get_project_root(p) is None), False) else False
 
     def _observe_projects(self, all_projects):
@@ -113,13 +113,13 @@ class WatchProjectFileChanges:
 
 class ProjectFileChangeHandler(FileSystemEventHandler):
     def __init__(self, project_path, ignore_patterns, callback):
-        self.project_path = project_path
+        self.abs_project_path = project_path
         self.ignore_patterns = set(ignore_patterns)
         self.callback = callback
 
     async def on_modified(self, event):
         if not event.is_directory and not self._is_ignored(event.src_path):
-            logger.info(f"Change detected in project: {self.project_path}, file: {event.src_path}")
+            logger.info(f"Change detected in project: {self.abs_project_path}, file: {event.src_path}")
             project = find_project_from_file_path(event.src_path)
             if project:
                 # Log the file path and the project (project_name) found for the file path

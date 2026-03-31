@@ -76,6 +76,8 @@ services:
       - ../../.:/home/codx-junior/codx-junior
       # Docker
       - /var/run/docker.sock:/var/run/docker.sock
+      # Traefik
+      - ./traefik:/traefik
     # ports:
     #   - 19980:19980
     labels:

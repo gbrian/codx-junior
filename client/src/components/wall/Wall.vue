@@ -37,7 +37,7 @@ export default {
       if (this.project) {
         const { project_path } = this.project
         const childProjects = allProjects
-          .filter(p => p.project_path !== project_path && p.project_path.startsWith(project_path))
+          .filter(p => p.abs_project_path !== project_path && p.abs_project_path.startsWith(project_path))
         return [this.project, ...childProjects]
       }
       return allProjects

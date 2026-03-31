@@ -74,7 +74,7 @@ export default {
       return files
     },
     openFile(file) {
-      const filePath = `${this.$project.project_path}/${file.path}`
+      const filePath = `${this.$project.abs_project_path}/${file.path}`
       this.$ui.openFile(filePath)
     },
     toggleCollapse(filePath) {

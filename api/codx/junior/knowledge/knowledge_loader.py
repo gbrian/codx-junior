@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class KnowledgeLoader:
     def __init__(self, settings: CODXJuniorSettings):
-        self.path = settings.project_path
+        self.path = settings.abs_project_path
         self.settings = settings
 
     def should_index_doc(self, file_path, last_update, current_sources):

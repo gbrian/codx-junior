@@ -6,9 +6,12 @@ import json
 import jinja2 
 
 from codx.junior.settings import (
-  read_global_settings, 
-  write_global_settings,
   CODXJuniorSettings,
+)
+
+from codx.junior.global_settings import (
+  read_global_settings, 
+  write_global_settings
 )
 
 from codx.junior.model.model import (

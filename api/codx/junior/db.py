@@ -107,7 +107,7 @@ class CODXJuniorDB:
         self.settings = settings
         self.index_name = re.sub('[^a-zA-Z0-9\._]', '', slugify(self.settings.codx_path))
         self.db_path = f"{self.settings.codx_path}/{self.index_name}.db.json"
-        self.client = PROJECT_DATABASES.get(self.settings.project_path, None)
+        self.client = PROJECT_DATABASES.get(self.settings.abs_project_path, None)
         if not self.client:
             self.init_client()
         self.kanban_table = self.client.table('kanban', cache_size=0)
@@ -116,15 +116,15 @@ class CODXJuniorDB:
 
     def init_client(self):
         if self.client is None:
-            logger.info(f"Connected to database: {self.settings.project_path}")
+            logger.info(f"Connected to database: {self.settings.abs_project_path}")
             self.client = TinyDB(self.db_path, sort_keys=True, indent=4, separators=(',', ': '))
-            PROJECT_DATABASES[self.settings.project_path] = self.client
+            PROJECT_DATABASES[self.settings.abs_project_path] = self.client
         
     def reset(self):
-        logger.info(f"Reseting DB {self.settings.project_path}")
+        logger.info(f"Reseting DB {self.settings.abs_project_path}")
         if os.path.exists(self.db_path):
             os.remove(self.db_path)
-            PROJECT_DATABASES[self.settings.project_path] = None
+            PROJECT_DATABASES[self.settings.abs_project_path] = None
             self.init_client()
 
     def save_kanban(self, kanban: Kanban):

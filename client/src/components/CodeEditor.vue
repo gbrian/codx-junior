@@ -116,12 +116,12 @@ export default {
   },
   methods: {
     async projectChanged () {
-      const { files } = await this.$storex.api.files.list(this.project.project_path)
+      const { files } = await this.$storex.api.files.list(this.project.abs_project_path)
       this.items = files
       if (this.$ui.openedFile) {
         this.item = {
           "name": this.$ui.openedFile.split("/").reverse()[0],
-          "file_path": `${this.$project.project_path}/${this.$ui.openedFile}`,
+          "file_path": `${this.$project.abs_project_path}/${this.$ui.openedFile}`,
           "is_dir": false
         }
         this.onOpenItem(this.item)

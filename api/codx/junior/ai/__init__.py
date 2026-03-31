@@ -2,15 +2,13 @@ import logging
 
 from codx.junior.ai.ai import AI
 from codx.junior.model.model import AISettings, AIModel
-from codx.junior.settings import (
-  get_model_settings,
-  get_provider_settings,
-  read_global_settings,
-  get_model,
-  save_model
-)
 
 from codx.junior.ai.llmfactory import OllamaAI
+from codx.junior.global_settings import (
+  read_global_settings,
+  get_provider_settings,
+  get_model_settings
+)
 
 AI = AI
 logger = logging.getLogger(__name__)

@@ -33,12 +33,13 @@ class AI:
         self, settings: CODXJuniorSettings,
         llm_model: str = None,
         user: CodxUser = None,
-        system: str = None
+        system: str = None,
     ):
         self.system = system
         self.user = user
         self.settings = settings
         self.llm_model = llm_model
+        self.llm_settings = settings.get_llm_settings(llm_model=llm_model)
         self.cache = False
         self.ai_logger = AILogger(settings=settings)
 

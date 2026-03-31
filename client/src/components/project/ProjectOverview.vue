@@ -41,7 +41,7 @@ export default {
       )
       return this.filterQuery ? projects.filter(project =>
         project.project_name.toLowerCase().includes(this.filterQuery.toLowerCase()) ||
-        project.project_path.toLowerCase().includes(this.filterQuery.toLowerCase())
+        project.abs_project_path.toLowerCase().includes(this.filterQuery.toLowerCase())
       ) : projects.slice(0, 6)
     }
   },

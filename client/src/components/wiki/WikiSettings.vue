@@ -77,7 +77,7 @@ import WikiTree from './WikiTree.vue'
                 data-tip="Build wiki" @click.stop="buildWiki(file)">
                 <i class="fa-solid fa-rotate-right"></i>
               </div>
-              <div :title="file.path.replace($project.project_path, '')">
+              <div :title="file.path.replace($project.abs_project_path, '')">
                 {{ file.name }}
               </div>
               <div class="grow"></div>

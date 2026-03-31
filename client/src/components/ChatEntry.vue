@@ -11,51 +11,52 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
 <template>
   <div class="group chat-entry flex gap-1 items-start relative p-2"
     :class="[
-      message.hide ? 'hover:bg-base-100 opacity-50 hover:opacity-100': '',
-      message.hide ? 'border-l-2 border-warning' : '',
-      !message.done && 'border border-dashed border-sky-800 p-1',
-      message.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
+      displayMessage.hide ? 'hover:bg-base-100 opacity-50 hover:opacity-100': '',
+      displayMessage.hide ? 'border-l-2 border-warning' : '',
+      !displayMessage.done && 'border border-dashed border-sky-800 p-1',
+      displayMessage.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
       isTopic && 'border-l p-2 bg-info/5 border-info/50',
       editting && 'border border-dashed p-2 border-warning',
     ]"
   >
     <div class="w-full">
       <div class="w-full flex flex-col gap-1 hover:rounded-md group">
-        <progress class="progress w-full" v-if="!message.done"></progress>
+        <progress class="progress w-full" v-if="!displayMessage.done"></progress>
     
         <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
           <div class="flex gap-1 items-center" 
             :class="[
-              message.hide && 'text-slate-500',
-              isTask && 'opacity-0 group-hover:opacity-30 hover:opacity-100'
-
+              displayMessage.hide && 'text-slate-500',
+              isTask && 'opacity-10 group-hover:opacity-30 hover:opacity-100'
             ]">
-            <span class="text-warning" v-if="message.hide"><i class="fa-solid fa-box-archive"></i></span>
+            <span class="text-warning" v-if="displayMessage.hide"><i class="fa-solid fa-box-archive"></i></span>
             <div v-for="profile in messageProfiles" :key="profile.name">
-              <ProfileAvatar :profile="profile" width="8" />
+              <ProfileAvatar :profile="profile" width="6" />
             </div>
             <UserSelector 
               class="dropdown-bottom"
-              :selectedUser="usersList.find(u => u.name === message.user)"
+              :selectedUser="usersList.find(u => u.name === displayMessage.user)"
               :profiles="usersList"
-              @user-changed="message.profiles = [$event.name]"
+              @user-changed="displayMessage.profiles = [$event.name]"
               v-if="editting"
             />
             <div class="flex gap-2 grow">
-              [{{ formatDate(message.updated_at) }}] 
+              [{{ formatDate(displayMessage.updated_at) }}] 
               <span v-if="timeTaken">({{ timeTaken }})</span>
               
-              <div class="badge badge-sm badge-success flex gap-1" v-if="message.is_answer">
+              <div class="badge badge-sm badge-success flex gap-1" v-if="displayMessage.is_answer">
                 <ChatIcon mode="answer" /> Knowledge 
               </div>
               <div class="badge badge-sm badge-info badge-outline flex gap-1" v-if="isTopic">
                 <ChatIcon mode="topic" /> Topic 
               </div>
-              <div class="badge badge-sm border-dashed badge-outline flex gap-1" v-if="threadChat">
+              <div class="badge badge-sm border-dashed badge-outline flex gap-1" 
+                @click="openThread"
+                v-if="threadChat">
                 <ChatIcon :mode="threadChat.mode" /> Thread 
               </div>
             </div>
-            <div :class="!editting && 'opacity-0'" class="group-hover:opacity-100 flex gap-2 items-center justify-end"
+            <div class="group-hover:opacity-100 flex gap-2 items-center justify-end"
               v-if="menuLess !== true"
             >
               <div class="px-2 flex flex-col">
@@ -77,7 +78,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
                   >
                     <i class="fa-solid fa-copy"></i>
                   </button>      
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="message.diffMessage">
+                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="displayMessage.diffMessage">
                     <i class="fa-regular fa-file-lines"></i>
                     <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
                   </button>
@@ -100,14 +101,14 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
                           <i class="fa-solid fa-trash-can"></i> Delete
                         </a>
                       </li>
-                      <li class="text-warning" v-if="message.done">
+                      <li class="text-warning" v-if="displayMessage.done">
                         <a @click.stop="$emit('hide', message)" class="text-left tooltip tooltip-bottom click"
-                            :data-tip="message.hide ? 'Click to add message to conversation' : 
+                            :data-tip="displayMessage.hide ? 'Click to add message to conversation' : 
                                               'Click to archive message from the conversation'">
-                          <i class="fa-solid fa-box-archive"></i> {{ message.hide ? 'Show' : 'Archive' }}
+                          <i class="fa-solid fa-box-archive"></i> {{ displayMessage.hide ? 'Show' : 'Archive' }}
                         </a>                  
                       </li>
-                      <li @click="toggleSrcView"  v-if="message.done">
+                      <li @click="toggleSrcView"  v-if="displayMessage.done">
                         <a><i class="fa-solid fa-code"></i> Source</a>
                       </li>
                     </ul>
@@ -118,7 +119,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
           </div>
         </div>
         <div class="flex w-full flex-col gap-4 bg-base-100 p-2 mb-2 rounded-md" 
-              v-if="!message.content && !message.think">
+              v-if="!displayMessage.content && !displayMessage.think">
           <div class="flex items-center gap-4">
             <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
             <div class="flex flex-col gap-4">
@@ -128,23 +129,23 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
           <div class="skeleton h-32 w-full"></div>
         </div>
         
-        <div v-if="message.think">
+        <div v-if="displayMessage.think">
           <div class="alert click items-start"
-            @click="message.full_think = !message.full_think"
+            @click="displayMessage.full_think = !displayMessage.full_think"
           >
               <i class="fa-solid fa-brain"></i>
               {{ thinkText }}
-              <div class="chat-footer opacity-50" v-if="message.is_thinking">
+              <div class="chat-footer opacity-50" v-if="displayMessage.is_thinking">
                 <span class="loading loading-dots"></span>
               </div>
           </div>    
         </div>
         <div @copy.stop="onMessageCopy" 
             :class="['max-w-full border-slate-300/20', 
-            (isCollapsed === undefined ? message.hide : isCollapsed) ? 'h-6 overflow-hidden': 'h-fit']">
+            (isCollapsed === undefined ? displayMessage.hide : isCollapsed) ? 'h-6 overflow-hidden': 'h-fit']">
           
           <textarea v-if="editting" v-model="editting" class="h-96 bg-transparent input w-full p-2"/>                
-            <pre v-if="srcView">{{ message.content }}</pre>
+            <pre v-if="srcView">{{ displayMessage.content }}</pre>
           <Document 
             :content="messageContent"
             :files="chatFiles"
@@ -155,13 +156,14 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
             @save-file="$emit('save-file', $event)"
             @add-file="$emit('add-file', $event)"
             @edit-message="$emit('edit-message', $event)"
+            @sub-task="$emit('sub-task', $event)"
             :mentionList="mentionList"
             v-if="!showDiff && !editting && !srcView && !code_patches" />
-          <div class="alert alert-error text-xs" v-if="message.error">
-            {{ message.error }}
+          <div class="alert alert-error text-xs" v-if="displayMessage.error">
+            {{ displayMessage.error }}
           </div>
           <CodeDiff
-            :new-string="message.diffMessage.content"
+            :new-string="displayMessage.diffMessage.content"
             :old-string="messageContent"
             theme="dark"
             v-if="showDiff"
@@ -169,7 +171,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
           <div v-if="code_patches">
             <div class="mt-2 p-2 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
               <div class="text-xs font-bold text-primary" :title="patch.file_path">
-                {{ patch.file_path.replace($project.project_path, '') }}
+                {{ patch.file_path.replace($project.abs_project_path, '') }}
               </div>
               <div class="">{{ patch.description }}</div>
               <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
@@ -185,7 +187,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
               </div>
             </div>
           </div>
-          <div class="chat-footer opacity-50" v-if="message.content && !message.done">
+          <div class="chat-footer opacity-50" v-if="displayMessage.content && !displayMessage.done">
             <span class="loading loading-dots"></span>
           </div>
           <div v-if="images">
@@ -198,7 +200,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
               </div>
             </div>
           </div>
-          <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="message.files?.length">
+          <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="displayMessage.files?.length">
             Linked files:
             <div v-for="file in allFiles" :key="file" :title="file" class="flex gap-2 items-center click">
               <div class="flex gap-2 click hover:underline" @click="openFile(file)">
@@ -232,14 +234,17 @@ export default {
       editting: false
     }
   },
+  created() {
+    this.loadThreadChat()
+  },
   computed: {
     isCollapsed() {
-      return this.message.collapsed !== undefined ?
-          this.message.collapsed :
-          this.message.is_answer ? true: false
+      return this.displayMessage.collapsed !== undefined ?
+          this.displayMessage.collapsed :
+          this.displayMessage.is_answer ? true: false
     },
     isMyMessage() {
-      return this.message.user === this.$user.username
+      return this.displayMessage.user === this.$user.username
     },
     isChannelMessage() {
       return this.chat.mode === 'channel'
@@ -254,15 +259,20 @@ export default {
       return (full_think || is_thinking) 
         ? think : `${think.slice(0, 50)}...`
     },
+    displayMessage() {
+      return this.threadChat?.messages
+        .filter(m => !m.hide)
+        .reverse()[0] || this.message
+    },
     messageProfiles() {
-      let profiles = this.$projects.profiles?.filter(p => this.message.profiles?.includes(p.name)) || []
-      const user = this.$project.users.find(({ username }) => username === this.message.user)
+      let profiles = this.$projects.profiles?.filter(p => this.displayMessage.profiles?.includes(p.name)) || []
+      const user = this.$project.users.find(({ username }) => username === this.displayMessage.user)
       return [user, ...profiles].filter(u => !!u)
     },
     html() {
       if (!this.showDoc) {
         try {
-          return this.md.render(this.message.content)
+          return this.md.render(this.displayMessage.content)
         } catch (ex) {
           console.error("Message can't be rendered", this.message)
         }
@@ -282,7 +292,7 @@ export default {
       })
     },
     messageContent() {
-      const { content } = this.message
+      const { content } = this.displayMessage
       return content
     },
     selection () {
@@ -295,18 +305,18 @@ export default {
       return this.improvementData?.code_patches
     },
     timeTaken () {
-      if (!this.message.meta_data) {
+      if (!this.displayMessage.meta_data) {
         return null
       }
       let timeTaken = '--'
-      if (this.message.meta_data?.time_taken) {
-        const seconds = Math.floor(this.message.meta_data.time_taken)
+      if (this.displayMessage.meta_data?.time_taken) {
+        const seconds = Math.floor(this.displayMessage.meta_data.time_taken)
         const baseMoment = moment({h:0, m:0, s:0, ms:0})
         timeTaken = baseMoment.add(seconds, 'seconds').format("mm:ss")
-      } else if (this.message.meta_data?.start_time) {
-        timeTaken = moment(moment().diff(moment(this.message.meta_data?.start_time))).format("mm:ss")
+      } else if (this.displayMessage.meta_data?.start_time) {
+        timeTaken = moment(moment().diff(moment(this.displayMessage.meta_data?.start_time))).format("mm:ss")
       }
-      return `${this.message.meta_data.model} ${timeTaken}`
+      return `${this.displayMessage.meta_data.model} ${timeTaken}`
     },
     chatProject() {
       if (this.chat.project_id) {
@@ -316,10 +326,10 @@ export default {
     },
     messageContentProjectFiles() {
       return this.messageContent.split(" ")
-              .filter(word => word.startsWith(this.$project.project_path))
+              .filter(word => word.startsWith(this.$project.abs_project_path))
     },
     allFiles() {
-      return [...new Set([...this.message.files, ...this.messageContentProjectFiles])]
+      return [...new Set([...this.displayMessage.files, ...this.messageContentProjectFiles])]
     },
     chatFiles() {
       return this.chat.file_list
@@ -331,15 +341,20 @@ export default {
       return this.chat?.mode === 'task'
     }
   },
+  watch: {
+    message() {
+      this.loadThreadChat()
+    }
+  },
   methods: {
     formatDate(date) {
       return moment(date).format('DD/MMM HH:mm:ss')
     },
     extractImprovementData() {
       this.improvementData = null
-      if (this.message.content?.startsWith("```json")) {
+      if (this.displayMessage.content?.startsWith("```json")) {
         try {
-          const lines = this.message.content.split("\n")
+          const lines = this.displayMessage.content.split("\n")
           const jsBlock = lines.slice(1, lines.length-1).join("\n")
           this.improvementData = JSON.parse(jsBlock)
         } catch (ex) {
@@ -358,10 +373,10 @@ export default {
       }
     },
     toggleCollapse() {
-      if (this.message.collapsed !== undefined) {
-        this.message.collapsed = !this.message.collapsed 
+      if (this.displayMessage.collapsed !== undefined) {
+        this.displayMessage.collapsed = !this.displayMessage.collapsed 
       } else {
-        this.message.collapsed = !this.isCollapsed
+        this.displayMessage.collapsed = !this.isCollapsed
       }
     },
     toggleSrcView() {
@@ -391,7 +406,7 @@ export default {
       this.isRemove = false
     },
     copyMessageToClipboard() {
-      this.copyTextToClipboard(this.message.content)
+      this.copyTextToClipboard(this.displayMessage.content)
     },
     async applyPatch(patch) {
       patch.working = true 
@@ -413,7 +428,7 @@ export default {
       this.$ui.openFile(file)
     },
     saveEditting() {
-      this.message.content = this.editting
+      this.displayMessage.content = this.editting
       this.editting = null
       this.$emit('edited', this.message)
     },
@@ -422,14 +437,22 @@ export default {
     },
     onEditMessage() {
       if (this.threadChat) {
-        this.$projects.setActiveChat(this.threadChat)
+        this.openThread()
       } else {
-        this.editting = this.message.content
+        this.editting = this.displayMessage.content
+      }
+    },
+    openThread() {
+      this.$projects.setActiveChat(this.threadChat)
+    },
+    loadThreadChat() {
+      if (this.threadChat) {
+        this.$projects.reloadChat(this.threadChat)
       }
     }
   },
   mounted() {
-    this.collapsed = this.isCollapsed || this.message.hide
+    this.collapsed = this.isCollapsed || this.displayMessage.hide
     this.extractImprovementData()
   }
 }

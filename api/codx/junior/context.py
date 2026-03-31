@@ -174,7 +174,7 @@ def find_relevant_documents(query: str, settings, knowledge_documents, ignore_do
         relevant_documents = documents
         if ai_validate:
             relevant_documents = validate_search_documents(query, documents, settings)
-        file_list = [os.path.join(settings.project_path, str(Path(doc.metadata["source"]).absolute())) for doc in relevant_documents]
+        file_list = [os.path.join(settings.abs_project_path, str(Path(doc.metadata["source"]).absolute())) for doc in relevant_documents]
         file_list = list(dict.fromkeys(file_list))  # Remove duplicates
         return relevant_documents, file_list
     return [], []

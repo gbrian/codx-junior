@@ -32,7 +32,8 @@ dependencies = [
   'html2text',
   'watchdog',
   'pypandoc>=1.16',
-  'jinja2>=3.0.3'
+  'jinja2>=3.0.3',
+  '"vllm"'
 ]
 
 classifiers = [
@@ -58,6 +59,10 @@ codx-junior = 'codx.app:app'
 
 [tool.setuptools]
 packages = ["codx"]
+
+[tool.uv.index]
+name = "vllm-cpu-nightly"
+url = "https://wheels.vllm.ai/nightly/cpu"
 
 [tool.ruff]
 select = ["F", "E", "W", "I001"]

@@ -209,19 +209,19 @@ export const getters = getterTree(state, {
   allPRs: () => $storex.projects.allChats().filter(c => c.pr_view?.from_branch),
   projectDependencies: state => getProjectDependencies(state.activeProject),
   childProjects: state => state.allProjects.filter(p => 
-      p.project_path !== state.activeProject.project_path && p.project_path.startsWith(state.activeProject.project_path))
+      p.abs_project_path !== state.activeProject.abs_project_path && p.abs_project_path.startsWith(state.activeProject.abs_project_path))
   ,
   parentProject: state => state.allProjects.find(p =>
-    p.project_path !== state.activeProject.project_path && state.activeProject.project_path.startsWith(p.project_path)),
+    p.abs_project_path !== state.activeProject.abs_project_path && state.activeProject.abs_project_path.startsWith(p.abs_project_path)),
   projectHierarchy: (state) => {
     const hierarchy = state.allProjects.map(project => ({ ...project }))
     return hierarchy.map(project => {
       project.parent_project = hierarchy
-                        .filter(pp => project.project_path != pp.project_path) 
-                        .find(pp => project.project_path.startsWith(pp.project_path))
+                        .filter(pp => project.abs_project_path != pp.abs_project_path) 
+                        .find(pp => project.abs_project_path.startsWith(pp.abs_project_path))
       project.sub_projects = hierarchy
-                        .filter(pp => project.project_path != pp.project_path)
-                        .filter(pp => pp.project_path.startsWith(project.project_path))
+                        .filter(pp => project.abs_project_path != pp.abs_project_path)
+                        .filter(pp => pp.abs_project_path.startsWith(project.abs_project_path))
       return project
     })
   },
@@ -533,6 +533,7 @@ export const actions = actionTree(
           if (currentMessage) {
             currentMessage.is_thinking = message.is_thinking
             currentMessage.done = message.done
+            currentMessage.meta_data = message.meta_data
             if (message.is_thinking) {
               currentMessage.think += message.think
             } else {

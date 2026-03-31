@@ -37,7 +37,7 @@ export default {
   props: ['item'],
   computed: {
     source() {
-      return this.item.metadata.source.replace(this.$project.project_path, '')
+      return this.item.metadata.source.replace(this.$project.abs_project_path, '')
     }
   }
 }

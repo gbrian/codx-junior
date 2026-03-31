@@ -33,7 +33,7 @@ export default {
     coderUrl () {
       const { openProject } = this
       if (openProject) {
-        const folders = [openProject.project_path].map(f => `folder=${f}`).join("&")
+        const folders = [openProject.abs_project_path].map(f => `folder=${f}`).join("&")
         return `/coder/?${folders}`
       }
       return "/coder/"

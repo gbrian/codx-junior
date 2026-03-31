@@ -33,15 +33,15 @@ export class ProjectService extends Service {
   findParentProject(project) {
     const  { allProjects } = this.$storex.api
     return allProjects.find(p =>
-      p.project_path !== project.project_path && 
-      project.project_path.startsWith(p.project_path))
+      p.abs_project_path !== project.abs_project_path && 
+      project.abs_project_path.startsWith(p.abs_project_path))
   }
 
   findChildProject(project) {
     const  { allProjects } = this.$storex.api
     return allProjects.filter(p => 
-      p.project_path !== project.project_path && 
-      p.project_path.startsWith(project.project_path))
+      p.abs_project_path !== project.abs_project_path && 
+      p.abs_project_path.startsWith(project.abs_project_path))
   }
 
   findProjectDependencies(project) {

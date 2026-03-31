@@ -48,13 +48,13 @@ async def code_block(file_path: str, code: str, code_language: str, **kwargs) ->
 
 
 def path_to_absolute_project_path(settings: CODXJuniorSettings, file_path: str):
-    if not file_path.startswith(settings.project_path):
+    if not file_path.startswith(settings.abs_project_path):
         if file_path[0] == '/':
             file_path = file_path[1:]
-        new_file_path = os.path.join(settings.project_path, file_path)
+        new_file_path = os.path.join(settings.abs_project_path, file_path)
         if os.path.isfile(new_file_path):
             return new_file_path
-        res = glob.glob(file_path, root_dir=settings.project_path, recursive=True, include_hidden=True)
+        res = glob.glob(file_path, root_dir=settings.abs_project_path, recursive=True, include_hidden=True)
         return str(res[0]) if res else None
     return file_path
 
@@ -127,8 +127,8 @@ def project_read_file(file_path: str, **kwargs) -> str:
     if not settings:
         raise Exception("Invalid project settings")
     file_path = path_to_absolute_project_path(settings=settings, file_path=file_path) 
-    if not file_path or not file_path.startswith(settings.project_path):
-        raise Exception("File path '%s' must belong to '%s'" % (file_path, settings.project_path))
+    if not file_path or not file_path.startswith(settings.abs_project_path):
+        raise Exception("File path '%s' must belong to '%s'" % (file_path, settings.abs_project_path))
     extension = file_path.split(".")[-1] if "." in file_path else ""
     with open(file_path, 'r') as file:
         return f"""```{extension} {file_path}
@@ -153,8 +153,8 @@ def project_write_file(file_path: str, content: str, **kwargs) -> str:
     if not settings:
         raise Exception("Invalid project settings")
     file_path = path_to_absolute_project_path(settings=settings, file_path=file_path)
-    if not file_path or not file_path.startswith(settings.project_path):
-        raise Exception("File path '%s' must belong to '%s'" % (file_path, settings.project_path))
+    if not file_path or not file_path.startswith(settings.abs_project_path):
+        raise Exception("File path '%s' must belong to '%s'" % (file_path, settings.abs_project_path))
     
     with open(file_path, 'w') as file:
         file.write(content)

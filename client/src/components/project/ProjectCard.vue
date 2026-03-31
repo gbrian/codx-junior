@@ -10,8 +10,8 @@ import HeatMap from '../metrics/HeatMap.vue';
     </div>
     <div class="text-xs flex gap-1 tooltip -mt-1 click hover:underline hover:text-info" 
         @click.stop="$ui.coderOpenPath(project)" 
-        :data-tip="project.project_path">
-      <span class="text-nowrap overflow-hidden text-ellipsis">{{ project.project_path }}</span>
+        :data-tip="project.abs_project_path">
+      <span class="text-nowrap overflow-hidden text-ellipsis">{{ project.abs_project_path }}</span>
     </div>
     <div class="grow"></div>
     <div class="text-xs" v-if="metrics?.last_update">

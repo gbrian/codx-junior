@@ -16,7 +16,7 @@ class TestWikiManager(unittest.TestCase):
         self.mock_settings.get_project_wiki_path.return_value = '/path/to/wiki'
         self.mock_settings.project_name = 'MyProject'
         self.mock_settings.project_icon = 'icon.png'
-        self.mock_settings.project_path = '/path/to/project'
+        self.mock_settings.abs_project_path = '/path/to/project'
         
         # Initialize WikiManager with mocked settings
         self.manager = WikiManager(self.mock_settings)
