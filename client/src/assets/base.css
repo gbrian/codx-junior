@@ -11,3 +11,7 @@
 .codx-secondary {
   color: #8f008f;
 }
+
+div[data-reka-popper-content-wrapper] {
+  z-index: 100;
+}

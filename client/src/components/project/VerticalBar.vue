@@ -1,9 +1,10 @@
 <script setup>
 import CodxDropdownVue from './CodxDropdown.vue'
-import BarButton from './BarButton.vue';
+import BarButton from './BarButton.vue'
 </script>
 <template>
   <div class="flex flex-col items-center px-1 py-2 bg-base-100 gap-4">
+
     <BarButton tab="home" @click="$ui.setActiveTab('home')">
       <i class="fa-solid fa-home"></i>
     </BarButton>

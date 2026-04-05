@@ -2,7 +2,6 @@
 import { API } from '../api/api'
 import TabViewVue from '@/components/TabView.vue'
 import moment from 'moment'
-import NavigationBar from '@/components/NavigationBar.vue';
 </script>
 
 <template>
@@ -13,7 +12,6 @@ import NavigationBar from '@/components/NavigationBar.vue';
     :class="(!$ui.isMobile && !$ui.activeApp) && 'max-w-[1600px]'"
   v-else>
     <div class="grow flex flex-col relative overflow-auto bg-base-300">
-      <NavigationBar class="mb-2" />
       <div class="grow overflow-auto">
         <div class="h-full relative">
           <div class="absolute top-0 left-0 right-0 bottom-0 overflow-auto">

@@ -29,3 +29,4 @@ acme.json
 codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-default/config
 codx-junior-installer/codx-junior-dind/images
 projects/
+codx-junior-installer/vllm/.cache

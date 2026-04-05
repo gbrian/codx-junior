@@ -13,8 +13,6 @@ from codx.junior.model.model import CodxUser
 
 from codx.junior.global_settings import read_global_settings
 
-from codx.junior.metrics.codx_junior_metrics import CODXJuniorMetrics
-
 logger = logging.getLogger(__name__)
 
 _ALL_PROJECTS = None
@@ -139,7 +137,8 @@ def _update_all_projects():
             if is_valid_project(settings):
                 project_users = user_security_manager.get_users_with_project_access(project_id=settings.project_id)
                 settings.users = project_users
-                settings.metrics = CODXJuniorMetrics(settings=settings).project_metrics()
+                # Move away from this fiel to avoid circular dependecies
+                # settings.metrics = CODXJuniorMetrics(settings=settings).project_metrics()
 
                 # logger.info("Project %s users: %s", settings.project_name, settings.users)
                 all_projects[settings.project_id] = settings

@@ -12,7 +12,7 @@ from datetime import datetime
 from codx.junior.global_settings import (
   get_model_settings,
   read_global_settings,
-  GLOBAL_SETTINGS
+  get_global_settings
 )
 
 from codx.junior.utils.utils import (
@@ -87,20 +87,20 @@ class CODXJuniorSettings(BaseModel):
         return str(self.model_dump())
 
     def get_agent_max_iterations(self):
-        return GLOBAL_SETTINGS.agent_settings.max_agent_iteractions
+        return get_global_settings().agent_settings.max_agent_iteractions
 
     def get_llm_settings(self, llm_model: str = None) -> AISettings:
         if not llm_model:
             llm_model = self.llm_model 
         if not llm_model:
-            llm_model = GLOBAL_SETTINGS.llm_model
+            llm_model = get_global_settings().llm_model
 
         return get_model_settings(llm_model)   
 
     def get_embeddings_settings(self) -> AISettings:
         embeddings_model = self.embeddings_model 
         if not embeddings_model:
-            embeddings_model = GLOBAL_SETTINGS.embeddings_model
+            embeddings_model = get_global_settings().embeddings_model
 
         return get_model_settings(embeddings_model)
 
@@ -215,7 +215,7 @@ class CODXJuniorSettings(BaseModel):
         return []
 
     def get_log_ai(self):
-        return GLOBAL_SETTINGS.log_ai
+        return get_global_settings().log_ai
 
     def get_sub_projects_paths(self):
         sub_projects = self.get_sub_projects()
@@ -237,13 +237,13 @@ class CODXJuniorSettings(BaseModel):
         return not [p for p in self.get_ignore_patterns() if p in file_path]
 
     def get_wiki_model(self):
-        return self.wiki_model or GLOBAL_SETTINGS.wiki_model
+        return self.wiki_model or get_global_settings().wiki_model
 
     def get_rag_model(self):
-        return self.rag_model or GLOBAL_SETTINGS.rag_model
+        return self.rag_model or get_global_settings().rag_model
 
     def get_project_ai_models(self):
-        return GLOBAL_SETTINGS.ai_models
+        return get_global_settings().ai_models
 
 
 class CODXJuniorProject(CODXJuniorSettings):

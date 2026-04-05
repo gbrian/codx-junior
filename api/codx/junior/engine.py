@@ -1042,19 +1042,22 @@ class CODXJuniorSession:
         chat_engine = ChatEngine(settings=self.settings,
                                 event_manager=self.event_manager,
                                 user=self.user)
-        chat, docs = await chat_engine.chat_with_project(
-                            chat=chat,
-                            disable_knowledge=disable_knowledge,
-                            callback=callback,
-                            append_references=append_references,
-                            chat_mode=chat_mode,
-                            iteration=iteration,
-                            system=GLOBAL_CHAT_INSTRUCTIONS
-                          )
+        try:
+            chat, docs = await chat_engine.chat_with_project(
+                                chat=chat,
+                                disable_knowledge=disable_knowledge,
+                                callback=callback,
+                                append_references=append_references,
+                                chat_mode=chat_mode,
+                                iteration=iteration,
+                                system=GLOBAL_CHAT_INSTRUCTIONS
+                              )
+            logger.info("chat_with_project save chat: %s", chat.name)
+            await self.save_chat(chat)
+            return chat, docs
+        except Exception as ex:
+            logger.exception("Error processing chat", ex)
 
-        await self.save_chat(chat)
-        return chat, docs
-    
 
     def check_project(self):
         try:

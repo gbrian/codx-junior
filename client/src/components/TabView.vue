@@ -8,7 +8,7 @@ import WikiViewVue from "../views/WikiView.vue"
 import DocsViewVue from "../views/DocsView.vue"
 import GlobalSettingsVue from "../views/GlobalSettings.vue"
 import CodeEditorVue from "./CodeEditor.vue"
-import KanbanVue from "./kanban/Kanban.vue"
+import KanbanContainerVue from "./kanban/KanbanContainer.vue"
 import Files from "./apps/Files.vue"
 import MetricsViewer from "./metrics/MetricsViewer.vue"
 import PreviewVue from "./apps/Preview.vue"
@@ -19,7 +19,7 @@ import Wall from "./wall/Wall.vue"
 </script>
 <template>
   <CodeEditorVue v-bind="$attrs" v-if="false && $ui.isMobile && $ui.showCoder" :class="$ui.activeTab" />
-  <KanbanVue v-if="$ui.activeTab === 'tasks'" />
+  <KanbanContainerVue v-if="$ui.activeTab === 'tasks'" />
   <KnowledgeViewVue class="" v-bind="$attrs" v-if="$ui.activeTab === 'knowledge'" :class="$ui.activeTab" />
   <KnowledgeSettingsVue class="px-2" v-bind="$attrs" v-if="['knowledge_settings', 'wiki_settings'].includes($ui.activeTab)" :class="$ui.activeTab" />
   <WikiViewVue v-bind="$attrs" v-if="$ui.activeTab == 'wiki'"></WikiViewVue>

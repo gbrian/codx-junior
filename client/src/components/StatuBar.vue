@@ -1,11 +1,17 @@
 <script setup>
-import moment from 'moment';
-import AppBar from './apps/AppBar.vue';
+import moment from 'moment'
+import AppBar from './apps/AppBar.vue'
+import MainMenu from './main-menu/MainMenu.vue'
 </script>
 <template>
     <div class="relative flex p-1 bg-base-100">
-      <AppBar></AppBar>
-      <div class="grow"></div>
+      
+      <MainMenu />
+      
+      <div class="grow flex justify-center">
+        <AppBar></AppBar>
+      </div>
+      
       <div class="absolute top-0 right-0 h-full flex justify-end" v-if="$session.apiCalls">
         <div class="w-60 px-1 bg-gradient-to-r from-transparent to-codx-secondary/70 animate-pulse text-right">
         </div> 

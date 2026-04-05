@@ -106,7 +106,7 @@ import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
     </div>
 
     <!-- Bottom sticky input area -->
-    <div class="sticky -bottom-0 z-50" v-if="!isPRView">
+    <div class="sticky -bottom-0" v-if="!isPRView">
       <ChatMentionBar
         :suggestions="mentionSuggestions"
         :active-mentions="messageMentions"

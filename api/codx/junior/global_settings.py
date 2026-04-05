@@ -56,6 +56,8 @@ def backup_up_global_settings():
 
 logger.info(f"GLOBAL_SETTINGS_PATH is: {GLOBAL_SETTINGS_PATH}")
 
+def get_global_settings():
+    return GLOBAL_SETTINGS
 
 def get_provider_settings(ai_provider: str, global_settings = None) -> AIProvider:
     global_settings = global_settings or GLOBAL_SETTINGS

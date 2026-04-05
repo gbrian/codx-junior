@@ -18,6 +18,7 @@
   "dependencies": {
     "@git-diff-view/file": "^0.0.40",
     "@git-diff-view/vue": "^0.0.40",
+    "@iconify/vue": "^5.0.0",
     "@novnc/novnc": "github:novnc/noVNC#v1.7.0-beta",
     "@replit/novnc": "^2.2.0",
     "@tailwindcss/vite": "^4.2.1",
@@ -35,6 +36,7 @@
     "monaco-editor": "^0.55.1",
     "monaco-editor-vue3": "^1.0.5",
     "radix-vue": "^1.9.7",
+    "reka-ui": "^2.9.3",
     "simple-code-editor": "^2.0.9",
     "socket.io": "^4.8.0",
     "socket.io-client": "^4.8.0",

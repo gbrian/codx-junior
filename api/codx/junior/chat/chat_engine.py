@@ -80,13 +80,13 @@ class ChatEngine:
             "start_time": time.time(),
             "first_response": None
         }
-        if chat.project_id and chat.project_id != self.settings.project_id:
+        if chat.owner_project_id and chat.owner_project_id != self.settings.project_id:
             logger.info("chat owner_project_id is not the same as current project, switching contexts: {} -> {}",
                 self.settings.project_id,
-                chat.project_id
+                chat.owner_project_id
             )
             # Invoke project based on project_id
-            return await self.switch_project(chat.project_id).chat_with_project(chat=chat,
+            return await self.switch_project(chat.owner_project_id).chat_with_project(chat=chat,
                                                                             disable_knowledge=disable_knowledge,
                                                                             callback=callback,
                                                                             append_references=append_references,
@@ -144,8 +144,6 @@ class ChatEngine:
                 response_message.done = done
                 self.event_manager.message_event(chat=chat, message=response_message)
 
-            send_message_event("> Processing request, please wait...\n", False)
-
             valid_messages = [message for message in chat.messages if not message.hide and not message.improvement]
             
             last_ai_messages = [m for m in valid_messages if m.role == "assistant"]
@@ -200,7 +198,7 @@ class ChatEngine:
                 chat_tools = list(set(chat_tools))
                 logger.info("Profies tools. '%s'\n %s", chat_tools, all_profiles) 
                 if not chat_model:
-                    profile_models = list(set([profile for profile in all_profiles if profile.llm_model]))
+                    profile_models = list([profile for profile in all_profiles if profile.llm_model])
                     if profile_models:
                         profile_model = profile_models[0]
                         chat_model = profile_model.llm_model
@@ -277,6 +275,7 @@ class ChatEngine:
 
             self.event_manager.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
             response_message.meta_data["model"] = ai_settings.model
+            send_message_event("> Processing request, please wait...\n", False)
 
             tags  = [
                       f"{chat.mode}"

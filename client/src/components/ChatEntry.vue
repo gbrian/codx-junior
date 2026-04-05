@@ -314,7 +314,7 @@ export default {
         const baseMoment = moment({h:0, m:0, s:0, ms:0})
         timeTaken = baseMoment.add(seconds, 'seconds').format("mm:ss")
       } else if (this.displayMessage.meta_data?.start_time) {
-        timeTaken = moment(moment().diff(moment(this.displayMessage.meta_data?.start_time))).format("mm:ss")
+        timeTaken = moment(this.displayMessage.meta_data?.start_time).fromNow()
       }
       return `${this.displayMessage.meta_data.model} ${timeTaken}`
     },

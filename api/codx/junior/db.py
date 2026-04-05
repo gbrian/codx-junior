@@ -16,6 +16,23 @@ from codx.junior.model.model import PRView
 
 logger = logging.getLogger(__name__)
 
+
+class KanbanColumn(BaseModel):
+    doc_id: Optional[str] = Field(default=None)
+    title: str = Field(default=None)
+    color: Optional[str]
+    index: int = Field(default=0)
+    chats: List[str] = Field(default=[])
+
+class Kanban(BaseModel):
+    doc_id: Optional[str] = Field(default=None)
+    title: str = Field(default=None)
+    description: Optional[str]
+    index: int = Field(default=0)
+    columns: Optional[List[KanbanColumn]] = Field(default=[])
+    created_at: str = Field(default=str(datetime.now()))
+    updated_at: str = Field(default=str(datetime.now()))
+
 class MessageTaskItem(Enum):
     SUMMARY = "summary"
 
@@ -49,7 +66,7 @@ class ChatId(BaseModel):
 class Chat(BaseModel):
     id: Optional[str] = Field(default=None)
     doc_id: Optional[str] = Field(default=None)
-    project_id: Optional[str] = Field(default=None, description="Defines the project which this chat belongs")
+    project_id: Optional[str] = Field(default=None, description="Defines the project which this chat works, see owner_project_id for the project where the chat was created")
     owner_project_id: Optional[str] = Field(default=None, description="Project owner.")
     parent_id: Optional[str] = Field(default=None, description="Parent chat")
     parent_owner_project_id: Optional[str] = Field(default=None, description="Parent chat project owner.")
@@ -73,6 +90,7 @@ class Chat(BaseModel):
     column_id: str = Field(default='')
     board: str = Field(default='')
     column: str = Field(default='')
+    columns: List[KanbanColumn] = Field(default=[])
     chat_index: Optional[int] = Field(default=0)
     url: str = Field(default='')
     branch: str = Field(default='')
@@ -84,22 +102,6 @@ class Chat(BaseModel):
     chat_links: List[ChatId] = Field(default=[])
     pr_view: Optional[dict] = Field(default={}, description="Pull request view")
     
-
-class KanbanColumn(BaseModel):
-    doc_id: Optional[str] = Field(default=None)
-    title: str = Field(default=None)
-    color: Optional[str]
-    index: int = Field(default=0)
-
-class Kanban(BaseModel):
-    doc_id: Optional[str] = Field(default=None)
-    title: str = Field(default=None)
-    description: Optional[str]
-    index: int = Field(default=0)
-    columns: Optional[List[KanbanColumn]] = Field(default=[])
-    created_at: str = Field(default=str(datetime.now()))
-    updated_at: str = Field(default=str(datetime.now()))
-
 PROJECT_DATABASES = {}
 
 class CODXJuniorDB:

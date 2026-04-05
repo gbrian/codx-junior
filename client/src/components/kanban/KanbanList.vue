@@ -4,6 +4,22 @@ import moment from 'moment'
 
 <template>
   <div class="w-full flex flex-col gap-2" v-if="boards">
+    <div class="sticky top-0 z-20 bg-base-300 flex flex-col gap-1">
+      <h1 class="text-2xl font-bold flex justify-between gap-2 py-1">
+        <input type="text" v-model="boardFilter" class="input input-sm" placeholder="Search boards" />
+        <div class="grow"></div>
+        <button class="btn btn-sm btn-warning btn-outline" @click="$emit('new-board')">
+          <i class="fa-solid fa-plus"></i>
+          <span class="hidden @md:block">New kanban</span>
+        </button>
+        <button class="btn btn-sm" @click="$emit('toogle-history')">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          <span class="hidden @md:block">History</span>
+        </button>
+      </h1>
+    </div>
+
+
     <div class="grid grid-cols-1 @sm:grid-cols-2 @xl:grid-cols-3 gap-4" >
       <div
         v-for="board in bookmarks"
@@ -36,6 +52,9 @@ import moment from 'moment'
         </div>
         <div class="card-body flex flex-col">
           <span class="text-xs" v-if="board.last_update">[{{ moment(board.last_update).fromNow() }}]</span>
+          <span class="text-xs" v-if="board.parent_id">
+            [{{ board.parent_id }}]
+          </span>
           <h2 class="card-title flex tooltip group" :data-tip="board.title">
             <span class="flex items-center bg-base-100/80 pl-1 w-full rounded-md text-nowrap">
               <div class="overflow-hidden">{{ board.title }}</div>
@@ -60,16 +79,6 @@ import moment from 'moment'
 
         </div>
       </div>
-      <div
-        @click="emitNewKanban"
-        class="card card-bordered card-dashed bg-base-200 border-slate-600 border-dashed shadow-md p-4 rounded-lg flex items-center justify-center cursor-pointer"
-        v-if="options?.addNew !== false"
-      >
-        <div class="card-body flex items-center justify-center">
-          <i class="fas fa-plus text-gray-600 mr-2"></i>
-          <span class="font-bold text-lg">New Kanban</span>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -79,6 +88,7 @@ export default {
   props: ['boards', 'options'],
   data () {
     return {
+      boardFilter: ''
     }
   },
   computed: {
@@ -86,12 +96,22 @@ export default {
       return this.boards.filter(b => b.bookmark)
     },
     sortedBoards() {
-      return Object.values(this.boards.filter(b => !b.bookmark))
+      return Object.values(this.filteredBoards.filter(b => !b.bookmark))
         .sort((a, b) => 
           a.last_update && b.last_update ? 
             a.last_update > b.last_update ? -1 : 1 :
               a.last_update ? -1 : 1)
-    }
+    },
+    rootBoards() {
+      const allBoards = this.boards.map(b => b.title) 
+      return this.boards.filter(b => !allBoards.includes(b.parent_id))
+    },
+    filteredBoards() {
+      if (!this.boardFilter) return this.rootBoards
+      return this.boards.filter(board =>
+        board.title.toLowerCase().includes(this.boardFilter.toLowerCase())
+      )
+    },
   },
   methods: {
     selectBoard(board) {

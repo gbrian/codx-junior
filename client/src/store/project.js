@@ -515,19 +515,9 @@ export const actions = actionTree(
         $storex.ui.addNotification({ text: message, type: event_type })
       }
     
-      const loadChat = chatId && (
-                          !state.chats[chatId] || 
-                          type === 'changed' || 
-                          event_type === 'done'
-                        )
-      if (loadChat) {
-        if (codx_path === state.activeProject.codx_path) {
-            await $storex.projects.reloadChat({ id: chatId })
-        }
-      }
-
       if (chatId) {
-        const chat = state.chats[chatId] || await $storex.projects.loadChat({ id: chatId })
+        const { project_id } = $storex.projects.allProjects.find(p => p.codx_path === codx_path)
+        const chat = state.chats[chatId] || await $storex.projects.reloadChat({ id: chatId, project_id })
         if (chat && message) {
           const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
           if (currentMessage) {

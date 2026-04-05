@@ -27,6 +27,8 @@ from codx.junior.chat.chat_export import ChatExport, ExportedDocument
 
 from codx.junior.events.event_manager import EventManager
 
+from codx.junior.project.project_discover import find_project_by_id 
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_BOARD = "kanban"
@@ -90,6 +92,13 @@ class ChatManager:
             reverse=True)
 
     def save_chat(self, chat: Chat, chat_only=False):
+        
+        # Check owner_project_id
+        if chat.owner_project_id != self.settings.project_id:
+            chat_project = find_project_by_id(chat.owner_project_id)
+            chat_manager = ChatManager(settings=chat_project, event_manager=self.event_manager)
+            return chat_manager.save_chat(chat=chat, chat_only=chat_only)
+
         if not chat.board:
             chat.board = "kanban"
         if not chat.column:
@@ -163,33 +172,13 @@ class ChatManager:
 
     def load_chat_from_path(self, chat_file: str, chat_only: bool = False):
         
-        # logger.info("Load chat from path: %s", chat_file)
-        if ".json" in chat_file and os.path.isfile(chat_file):
-            with open(chat_file, 'r') as f:
-                chat_data = json.loads(f.read())
-                chat = Chat(**chat_data)
-                if chat_only:
-                    chat.messages = []
-                chat.owner_project_id = self.settings.project_id
-                return chat
-
-        # TODO: Remove old veriosn yaml compatibility        
-        yaml_chat_file = chat_file.replace('.json', '.yaml')
-        # logger.info("Load chat from path yaml fallback: %s", yaml_chat_file)
-        if os.path.isfile(yaml_chat_file):
-            # Load from YAML if exists
-            with open(yaml_chat_file, 'r') as f:
-                chat_data = yaml.safe_load(f)
-                chat = Chat(**chat_data)
-                chat.owner_project_id = self.settings.project_id
-                chat.file_path = self.get_chat_file(chat)
-                # logger.info("Save chat from with path: %s", chat.file_path)
-                self.store_chat(chat=chat)
-                # logger.info("Remove old chat: %s", yaml_chat_file)
-                os.remove(yaml_chat_file)
-                return self.load_chat_from_path(chat_file=chat.file_path, chat_only=chat_only)
-
-        return None
+        with open(chat_file, 'r') as f:
+            chat_data = json.loads(f.read())
+            chat = Chat(**chat_data)
+            if chat_only:
+                chat.messages = []
+            chat.owner_project_id = self.settings.project_id
+            return chat
 
     def delete_kanban(self, kanban_title: str):
         shutil.rmtree(f"{self.chat_path}/{kanban_title}")

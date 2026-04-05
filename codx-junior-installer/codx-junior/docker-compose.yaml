@@ -67,6 +67,8 @@ services:
       - CODX_JUNIOR_MILVUS_UI_URL=http://milvus-codx-junior:9091
       - CODX_JUNIOR_MILVUS_URL=http://milvus-codx-junior:19530
       - CODX_JUNIOR_API_VENV=/home/codx-junior/.codx-junior/.venv_codx_junior_api
+      # vLLM
+      - VLLM_DEVICE=cpu
     volumes:
       # Projects folder CODX_JUNIOR_PROJECTS_PATH  #######################################
       - /home/codx-junior-projects:/home/codx-junior-projects
