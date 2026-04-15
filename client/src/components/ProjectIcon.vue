@@ -6,8 +6,9 @@ import BarButton from './project/BarButton.vue';
       <div>
           <div class="avatar indicator" :data-tip="online !== false ? '' : 'offline'">
               <span class="indicator-item badge badge-xs badge-error" v-if="online === false">!</span>
-              <div class="rounded-full w-10 h-10" 
+              <div class="rounded-full" 
                   :class="[
+                    `w-${width || 10} h-${width || 10}`,
                     online === false && 'grayscale animate-pulse',
                   ]">
                   <img :src="theProject?.project_icon || '/only_icon.png'" />

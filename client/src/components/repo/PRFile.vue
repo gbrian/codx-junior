@@ -6,6 +6,7 @@ import CodeViewer from "../CodeViewer.vue"
 import ChatEntry from "../ChatEntry.vue"
 import ProfileViewer from '../profiles/ProfileViewer.vue'
 import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
+import Editor from "../monaco/Editor.vue"
 </script>
 <template>
   <div class="grow flex flex-col gap-2 border-2 border-slate-600 rounded-md py-1" :key="file.fileFullName">
@@ -81,9 +82,27 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
       </button>
 
       <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="File content"
-        :class="showFile && 'btn-warning'"
+        :class="[
+          showFile && 'border-warning',
+        ]"
         @click="showOption = 'file'">
-        <i class="fa-solid fa-file-lines"></i>
+        <span :class="[
+          showFile && 'text-warning',
+        ]">
+          <i class="fa-solid fa-file-lines"></i>
+        </span>
+        <div class="dropdown dropdown-left" @click.stop="">
+          <div tabindex="0" role="button" class="btn btn-xs btn-ghost">
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+          </div>
+          <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
+            <li @click.stop="loadFileContent">
+              <a><i class="fa-solid fa-arrows-rotate"></i> Reload file</a></li>
+            <li @click.stop="saveFileContent">
+              <a><i class="fa-solid fa-floppy-disk"></i> Save changes</a></li>
+          </ul>
+        </div>
+
       </button>
 
     </div>
@@ -94,7 +113,7 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
       <template v-slot:left>
         <div class="@container/prfile">
           <div class="flex flex-col @xl/prfile:flex-row">
-            <div class="grow overflow-auto" v-if="file.parsed && showDiff">
+            <div class="grow overflow-auto" v-if="false && file.parsed && showDiff">
               <div class="flex items-center gap-2 px-2 py-1 text-xs">
                 <div class="flex gap-2 items-center">
                   Split / Unified
@@ -151,13 +170,18 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
                 </template>
               </DiffView>
             </div>
-
+            <Editor v-model="fileContent" 
+              :language="file.language"
+              :orifinalCode="''"
+              :diff="file.parsed && showDiff"
+              v-if="showFile && fileContent" />
+            
             <CodeViewer class="grow overflow-auto mb-20 p-2" 
               :code="fileContent"
               :language="file.extension"
-              :file="file.fileFullName" 
+              :file="file.fileFullName"
               :diffOption="false"
-              v-if="showFile && fileContent" />
+              v-if="false && showFile && fileContent" />
           </div>
         </div>
       </template>
@@ -179,7 +203,8 @@ export default {
       diffSplit: false,
       diffWrap: true,
       selectedProfile: null,
-      showChat: false
+      showChat: false,
+      fileContentChanged: false
     }
   },
   created() {
@@ -241,6 +266,11 @@ export default {
     showOption(newVal) {
       newVal === 'file' && this.loadFileContent()
       newVal === 'chat' && this.onShowChat()
+    },
+    fileContent(_, oldVal) {
+      if (!oldVal) {
+        this.fileContentChanged = true
+      }
     }
   },
   methods: {
@@ -251,8 +281,13 @@ export default {
       this.showChat = !this.showChat
     },
     async loadFileContent() {
+      this.fileContentChanged = null
+      this.fileContent = null
       this.fileContent = await this.$storex.api.files.read(this.file.fileFullName)
       this.showOption = 'file'
+    },
+    async saveFileContent() {
+      await this.$storex.api.files.write(this.file.fileFullName, this.fileContent)
     },
     toggleProfile(profile) {
       if (this.selectedProfile === profile) {
@@ -280,7 +315,11 @@ export default {
     toggleCollapse() {
       this.file.collapse = !this.file.collapse
       if (!this.showOption) {
-        this.showOption = 'diff'
+        if (!this.file.parsed || this.file.isNewFile) {
+          this.showOption = 'diff'
+        } else {
+          this.loadFileContent()
+        }
       }
     }
   },

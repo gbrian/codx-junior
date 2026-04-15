@@ -2,19 +2,22 @@
 </script>
 
 <template>
-  <div>
+  <div v-if="project">
     <button class="flex gap-1 click items-center"
-      popovertarget="project-detail-popover-1" style="anchor-name:--project-detail-anchor-1"
+      :popovertarget="`project-detail-popover-${uid}`" 
+      :style="`anchor-name:--project-detail-anchor-${uid}`"
     >
-      <div class="avatar" v-if="options?.showIcon">
-        <div class="w-8 rounded-md">
+      <div class="avatar tooltip tooltip-right" :data-tip="project.project_name" v-if="options?.showIcon">
+        <div class="w-6 rounded-full">
           <img :src="project.project_icon" />
         </div>
       </div>
       <span class="" v-if="iconify !== true">{{ project.project_name }}</span>
     </button>
     <div class="dropdown menu w-52 border border-white/40 rounded-lg bg-base-100 shadow-sm"
-      popover id="project-detail-popover-1" style="position-anchor:--project-detail-anchor-1">
+      :class="[position]"
+      popover :id="`project-detail-popover-${uid}`" 
+      :style="`position-anchor:--project-detail-anchor-${uid}`">
 
       <!-- Search Input for Projects -->
       <div class="flex items-center p-2 input input-sm">
@@ -122,10 +125,12 @@
 </template>
 
 <script>
+import { v4 as uuidv4 } from 'uuid'
 export default {
   props: ['project', 'iconify', 'options', 'position'],
   data() {
     return {
+      uid: uuidv4(),
       searchQuery: '',
       matchedProjects: []
     }

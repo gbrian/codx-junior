@@ -125,11 +125,20 @@ class CODXJuniorSettings(BaseModel):
             settings = CODXJuniorSettings(**{**base.model_dump(), **settings})
             # Avoid override
             settings.codx_path = base.codx_path
-            settings.abs_project_path = base.project_path
+            # User set absolute path in project_path
+            if settings.project_path \
+                and settings.project_path.startswith("/") \
+                and os.path.isdir(settings.project_path):
+                settings.abs_project_path = settings.project_path
+            else:
+                # User set reltive project_path
+                if settings.project_path:
+                    norm_project_path = os.path.normpath(os.path.join(base.project_path, settings.project_path))
+                    settings.abs_project_path = norm_project_path        
+            # project_path is empty, use same as base
             if not settings.abs_project_path:
-                settings.abs_project_path = base.abs_project_path
-            if settings.abs_project_path and settings.abs_project_path[0] != "/":
-                settings.abs_project_path =  os.path.normpath(os.path.join(base.project_path, settings.project_path))
+                settings.abs_project_path = base.project_path
+    
             if not settings.project_id:
                 return settings.save_project()
             settings.is_git_root = os.path.isdir(f"{settings.abs_project_path}/.git")

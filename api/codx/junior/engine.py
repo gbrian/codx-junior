@@ -75,11 +75,15 @@ from codx.junior.whisper.audio_manager import AudioManager
 from codx.junior.model.model import CodxUser
 
 GLOBAL_CHAT_INSTRUCTIONS = """
-<instructions info="General to follow when generating your response">
-  <instruction>
-    - IMPORTANT: Always add the file name after the code block language like in this example: "```js /absolute/file/path/file.js"
-  </instruction>
-</instructions>
+CRITICAL INFORMATION: 
+When generating "code blocks" or "markdown blocks", always add the file name after the code block language.
+Example:
+
+```js /project/path/folder/file_name.js
+ import dummy from 'module'
+```
+
+Use valid file path based on the project and conversation context.
 """
 
 
@@ -1186,9 +1190,8 @@ class CODXJuniorSession:
     def get_project_file_path(self, path: str):
         """ If path is not absolute or exist add project_path
         """
-        if not path.startswith(self.settings.abs_project_path) and not os.path.isfile(path):
-            path = os.path.join(self.settings.abs_project_path, path)
-        return path
+        abs_file_path, _ = self.get_valid_project_file_path(file_path=path)
+        return abs_file_path
 
     def read_file(self, path: str):
         path = self.get_project_file_path(path=path)
@@ -1260,44 +1263,39 @@ class CODXJuniorSession:
         await self.chat_with_project(chat=chat, disable_knowledge=True)
         return chat.messages[-1].content
 
-    import os
-
     def get_valid_project_file_path(self, file_path: str):
-        # Assume abs_project_path is an absolute path string
-        abs_project_path = self.settings.abs_project_path
-        
-        # If the file path starts with the current project's path and exists, return as it is
-        if file_path.startswith(abs_project_path):
-            return file_path
-
         # Validate against all user project paths
         for project in find_all_user_projects(self.user):
             if file_path.startswith(project.abs_project_path):
-                return file_path
+                return file_path, project
 
-        # If the file doesn't exist, it's considered a new project file
-        if file_path[0] == '/':
-            file_path = file_path[1:]
-        new_abs_file_path = os.path.normpath(os.path.join(abs_project_path, file_path))
-        return new_abs_file_path
+        # Check if the file path is valid or within user's projects
+        if os.path.exists(file_path) and not file_path.startswith(self.settings.abs_project_path):
+            raise Exception(f"Can't work with files outside user's projects: {os.path.abspath(file_path)}")
+
+        # Handle new project file (ensure proper path joining)
+        norm_file_path = os.path.normpath(file_path.lstrip('/'))
+        new_abs_file_path = os.path.normpath(os.path.join(self.settings.abs_project_path, norm_file_path))
+        return new_abs_file_path, self.settings
 
     async def write_project_file(self, file_path: str, content: str, process: bool = True):
-        abs_file_path = self.get_valid_project_file_path(file_path)
-        if not abs_file_path:
-            raise Exception(f"Can't write files outside user's projects: {file_path}")
-        try:    
+        abs_file_path, file_project = self.get_valid_project_file_path(file_path)
+        try:
             os.makedirs(os.path.dirname(abs_file_path), exist_ok=True)
+            
             if process:
                 content = await self.process_project_file_before_saving(file_path=abs_file_path, content=content)
-        
+
             write_file(file_path=abs_file_path, content=content)
-            return { 
-                "file_path": file_path, 
-                "abs_file_path": abs_file_path, 
+            return {
+                "file_project": file_project.project_name,
+                "file_project_path": file_project.abs_project_path,
+                "file_path": file_path,
+                "abs_file_path": abs_file_path,
                 "project_path": self.settings.abs_project_path
             }
         except Exception as ex:
-            raise Exception(f"Error procesing file {abs_file_path}:\n{ex}")
+            raise Exception(f"Error processing file {abs_file_path}:\n{ex}")
 
     def search_files(self, search: str):
         sources = self.get_knowledge().get_all_sources()        

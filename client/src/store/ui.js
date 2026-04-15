@@ -62,12 +62,20 @@ export const mutations = mutationTree(state, {
     } else {
       state.activeTab = tab
     }
+    $storex.ui.showApp({
+      name: tab,
+      component: tab
+    })
     $storex.ui.saveState()
   },
   showTab(state, tab) {
     if (tab !== state.activeTab) {
       $storex.ui.setActiveTab(tab)
     }
+    $storex.ui.showApp({
+      name: tab,
+      component: tab
+    })
   },
   closeTab(state) {
     state.activeTab = null
@@ -78,6 +86,10 @@ export const mutations = mutationTree(state, {
   },
   toggleLogs(state) {
     state.showLogs = !state.showLogs
+    $storex.ui.showApp({
+      name: 'Logs',
+      component: 'log-viewer'
+    })
   },
   setVoiceLanguage(state, voiceLanguage) {
     state.voiceLanguage = voiceLanguage
@@ -133,6 +145,7 @@ export const mutations = mutationTree(state, {
     state.newProject = show
   },
   showApp(state, app) {
+    app.key = `${app.key}-${(new Date().getTime())}`
     state.openApps = {
       ...state.openApps,
       [app.key]: app
@@ -279,6 +292,11 @@ export const actions = actionTree(
       // const cropTarget = await CropTarget.fromElement(document.querySelector(`.app-${encodeURIComponent(app.name)}`));
       // await track.cropTo(cropTarget);
       // this.videoThumb = track;
+    },
+    openNewWindowAppPanel(_, app) {
+      const { origin } = window.location
+      const url = `${origin}${app.path}`
+      window.open(url, app.name)
     }
   },
 )

@@ -2,6 +2,8 @@
 export CODX_JUNIOR_PROJECTS_PATH=${CODX_JUNIOR_PROJECTS_PATH:-/home/codx-junior-projects}
 # API virtual env
 export CODX_JUNIOR_API_VENV=${CODX_JUNIOR_API_VENV:-/tmp/.venv_codx_junior_api}
+# Logs
+export CODX_JUNIOR_API_LOGS=${CODX_JUNIOR_API_LOGS:-/tmp/codx-junior-logs}
 # Browser virtual env
 export BROWSER_VENV=/tmp/.venv_codx_junior_browser
 # codx-junior API port

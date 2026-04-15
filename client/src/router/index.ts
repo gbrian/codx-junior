@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { $storex } from '../store'
 import SplitView from '@/views/SplitView.vue'
 import Navigate from './navigate'
+import DesktopView from '@/views/DesktopView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -9,7 +10,7 @@ const router = createRouter({
     {
       path: '/*',
       name: 'codx-junior-split',
-      component: SplitView
+      component: DesktopView
     },
   ]
 });

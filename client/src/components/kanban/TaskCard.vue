@@ -4,6 +4,7 @@ import ProfileAvatar from '../profile/ProfileAvatar.vue'
 import UserAvatar from '../user/UserAvatar.vue'
 import TaskSettings from './TaskSettings.vue';
 import CheckLists from '../chat/CheckLists.vue'
+import ChatIcon from '../chat/ChatIcon.vue'
 </script>
 
 <template>
@@ -18,6 +19,7 @@ import CheckLists from '../chat/CheckLists.vue'
           <div class="flex flex-col">
             <div class="font-semibold tracking-wide text-sm flex gap-2 mt-1">
               <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
+              <ChatIcon :chat="task" />
               <span class="click tooltip" @click.stop="toggleChatPinned"
                 data-tip="Bookmark"
               >
@@ -37,13 +39,14 @@ import CheckLists from '../chat/CheckLists.vue'
             {{ chatProject?.project_name }}
           </div>
         </div>
-          <div class="flex gap-2 items-center">
-            <div :class="`badge badge-outline badge-${badgeColor[task.mode]}`">{{ task.mode }}</div>
+         <div class="flex gap-2 items-center"> 
+            <button class="btn btn-circle btn-sm" @click.stop="openSettingsModal">
+              <i class="fas fa-cog"></i>
+            </button>
           </div>
         </div>
       </div>
-      <div class="text-xs overflow-auto"
-        :class="'max-h-72'"
+      <div class="text-xs overflow-auto max-h-20"
       >
         {{ task.description }}
       </div>
@@ -59,20 +62,18 @@ import CheckLists from '../chat/CheckLists.vue'
           <div v-for="tag in task.tags" :key="tag" class="font-bold text-xs text-info flex gap-2">
             #{{ tag }}
           </div>
-          <span class="text-xs tooltip"
-            :data-tip="`${task.file_list?.length} files`"
-            v-if="task.file_list?.length">
-            <i class="fa-solid fa-paperclip"></i>
-          </span>
         </div>
+      </div>
+      <div class="flex flex-col gap-1">
+          <span class="text-xs tooltip text-info"
+            :data-tip="file"
+            v-for="file in task.file_list" :key="file">
+            <i class="fa-solid fa-paperclip"></i> {{ file.split('/').pop() }}
+            <i class="click fa-solid fa-copy" @click.stop="$ui.copyTextToClipboard(file)"></i>
+          </span>
       </div>
       <div class="grow"></div>
       <div class="flex justify-between items-center">
-        <div class="flex justify-end">
-          <button class="btn btn-circle btn-sm" @click.stop="openSettingsModal">
-            <i class="fas fa-cog"></i>
-          </button>
-        </div>
         <div class="flex justify-between items-center badge badge-warning" v-if="subTasks.length">
           <div class="text-xs font-bold tooltip tooltip-left" :data-tip="`${subTasks.length} sub tasks`">
             {{ subTasks.length }}
@@ -84,7 +85,7 @@ import CheckLists from '../chat/CheckLists.vue'
         </div>
       </div>
     </div>
-    <CheckLists class="mb-2" :chat="task" @change="saveTask" />
+    <CheckLists class="mb-2" :chat="task" @change="saveTask" v-if="false" />
       
     <modal v-if="isSettingsModalOpen" @click.stop>
       <TaskSettings :taskData="taskData" @close="discardChanges" />

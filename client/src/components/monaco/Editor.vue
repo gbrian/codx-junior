@@ -1,21 +1,30 @@
 <script setup>
 import { CodeEditor } from 'monaco-editor-vue3'
+import { DiffEditor } from 'monaco-editor-vue3';
 </script>
 
 <template>
-  <div class="h-400">
+  <div class="h-96">
+    <DiffEditor
+      v-model:value="code"
+      :original="originalCode"
+      :language="language"
+      theme="vs-dark"
+      v-if="diff"
+    />
     <CodeEditor
       v-model:value="code"
-      language="javascript"
+      :language="language"
       theme="vs-dark"
       :options="editorOptions"
+      v-else
     />
   </div>
 </template>
 
 <script>
 export default {
-  props: ['modelValue'],
+  props: ['diff', 'modelValue', 'language', 'originalCode'],
   computed: {
     code: {
       get() {

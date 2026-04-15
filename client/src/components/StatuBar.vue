@@ -1,6 +1,6 @@
 <script setup>
 import moment from 'moment'
-import AppBar from './apps/AppBar.vue'
+import QuickBar from './project/QuickBar.vue'
 import MainMenu from './main-menu/MainMenu.vue'
 </script>
 <template>
@@ -8,8 +8,8 @@ import MainMenu from './main-menu/MainMenu.vue'
       
       <MainMenu />
       
-      <div class="grow flex justify-center">
-        <AppBar></AppBar>
+      <div class="grow flex gap-4 justify-center">
+        <QuickBar></QuickBar>
       </div>
       
       <div class="absolute top-0 right-0 h-full flex justify-end" v-if="$session.apiCalls">

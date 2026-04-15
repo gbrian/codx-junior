@@ -10,7 +10,7 @@ import {
 <template>
   <MenubarSub @click.stop="">
     <MenubarSubTrigger
-      class="hover:bg-base-300 group leading-none rounded flex items-center h-6 px-2 my-1 relative select-none outline-none data-[state=open]:bg-green4 data-[state=open]:text-grass11 data-[highlighted]:bg-gradient-to-br data-[highlighted]:from-green9 data-[highlighted]:to-green10 data-[highlighted]:text-green1 data-[highlighted]:data-[state=open]:text-green1 data-[disabled]:text-mauve8 data-[disabled]:pointer-events-none"
+      class="hover:bg-base-300 group leading-none rounded flex items-center px-2 py-3 relative select-none outline-none hover:bg-base-300 data-[state=open]:bg-green4 data-[state=open]:text-grass11 data-[highlighted]:bg-gradient-to-br data-[highlighted]:from-green9 data-[highlighted]:to-green10 data-[highlighted]:text-green1 data-[highlighted]:data-[state=open]:text-green1 data-[disabled]:text-mauve8 data-[disabled]:pointer-events-none"
     >
       <div class="grow">
         <slot name="menubaritem">

@@ -2,13 +2,11 @@
 import draggable from 'vuedraggable'
 import TaskCard from './TaskCard.vue'
 import TaskCardLite from './TaskCardLite.vue'
-import ChatViewVue from '../../views/ChatView.vue'
 import { v4 as uuidv4 } from 'uuid'
 import KanbanList from './KanbanList.vue'
 import ChatIcon from '../chat/ChatIcon.vue'
 import FileFinder from '../filebrowser/FileFinder.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
-import ChatHistoryVue from './ChatHistory.vue'
 </script>
 
 <template>
@@ -25,7 +23,7 @@ import ChatHistoryVue from './ChatHistory.vue'
     <div class="h-full absolute top-0 left-0 right-0 bottom-0 z-1">
 
       <!-- Kanban board view -->
-      <div class="flex flex-col h-full" v-if="!$projects.activeChat && showKanban">
+      <div class="flex flex-col h-full p-2">
         <div class="flex gap-4 items-center">
           <div class="flex gap-2 items-center">
             <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2">
@@ -82,26 +80,11 @@ import ChatHistoryVue from './ChatHistory.vue'
 
         <KanbanList
           :boards="childBoards"
+          @select="$emit('select-board', $event)"
           v-if="showChildrenBoards"
         />
 
         <div class="mt-3 grow relative flex flex-col gap-2">
-          <!-- Pinned/bookmarked tasks -->
-          <div v-if="topChats?.length">
-            <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between border-b border-slate-700">
-              <div>Bookmarks</div>
-            </h1>
-            <div class="grid grid-cols-2 grid-flow-row gap-2">
-              <TaskCardLite
-                v-for="task in topChats" :key="task.id"
-                @click="setActiveChat(task)"
-                :task="task"
-                class="click h-20 overflow-hidden border rounded-md border-slate-600"
-                :class="task.pinned && 'border-warning'"
-              />
-            </div>
-          </div>
-
           <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between border-b border-slate-700">
             <div>Tasks</div>
           </h1>
@@ -336,9 +319,6 @@ export default {
         )
         .slice(0, 1)[0] || {}
     },
-    showKanban() {
-      return this.board
-    },
     kanban() {
       return this.$projects.kanban || { boards: {} }
     },
@@ -431,7 +411,14 @@ export default {
   methods: {
     async setActiveChat(chat) {
       chat && await this.$projects.reloadChat(chat)
-      this.$projects.setActiveChat(chat)
+      // this.$projects.setActiveChat(chat)
+      this.$ui.showApp({
+        name: chat.name,
+        component: 'chat',
+        params: {
+          chat
+        }
+       })
     },
 
     async projectChanged() {
@@ -488,7 +475,7 @@ export default {
           position: ix,
           project: this.$projects.allProjectsById[storeColumn.project_id] || null,
           tasks: this.boardChats
-            .filter(t => (t.column || '--none--') === col && !t.pinned)
+            .filter(t => (t.column || '--none--') === col)
             .sort((a, b) => (a.pinned || getChatIndex(a) < getChatIndex(b) ? -1 : 1))
         }
       }).sort((a, b) => (a.position < b.position ? -1 : 1))
@@ -506,8 +493,9 @@ export default {
       return columns.map(col => ({
         ...col,
         tasks: col.tasks.filter(task =>
-          task.name?.toLowerCase().includes(text) ||
-          task.messages?.some(m => m.content?.toLowerCase().includes(text))
+          Object.keys(task)
+            .reduce((acc, k) => `${acc} ${JSON.stringify(task[k])}`, '')
+            .toLowerCase().includes(text)
         )
       }))
     },
@@ -630,7 +618,7 @@ export default {
       this.columnTitle = this.columnTitle.trim()
       if (!this.columnTitle) return this.resetColumnModal()
 
-      const existing = this.activeKanbanBoard.columns.find(
+      const existing = this.activeKanbanBoard.columns?.find(
         c => c.title === this.columnTitle && c.id !== this.selectedColumn?.id
       )
       if (existing) {
@@ -647,13 +635,16 @@ export default {
           storeCol.project_id = this.columnProject?.project_id || null
         }
       } else {
-        this.activeKanbanBoard.columns.push({
-          id: uuidv4(),
-          title: this.columnTitle,
-          color: this.columnColor,
-          project_id: this.columnProject?.project_id || null,
-          chats: []
-        })
+        this.activeKanbanBoard.columns = 
+            [
+              ...this.activeKanbanBoard.columns ||[], 
+              {
+                id: uuidv4(),
+                title: this.columnTitle,
+                color: this.columnColor,
+                project_id: this.columnProject?.project_id || null,
+                chats: []
+              }]
       }
 
       this.activeKanbanBoard.last_update = new Date().toISOString()

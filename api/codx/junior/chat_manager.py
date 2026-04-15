@@ -94,7 +94,7 @@ class ChatManager:
     def save_chat(self, chat: Chat, chat_only=False):
         
         # Check owner_project_id
-        if chat.owner_project_id != self.settings.project_id:
+        if chat.owner_project_id and chat.owner_project_id != self.settings.project_id:
             chat_project = find_project_by_id(chat.owner_project_id)
             chat_manager = ChatManager(settings=chat_project, event_manager=self.event_manager)
             return chat_manager.save_chat(chat=chat, chat_only=chat_only)

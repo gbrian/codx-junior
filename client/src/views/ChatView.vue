@@ -2,9 +2,7 @@
 import moment from 'moment'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
-import ProfileAvatar from '@/components/profile/ProfileAvatar.vue'
 import UserSelector from '@/components/chat/UserSelector.vue'
-import UserAvatar from '@/components/user/UserAvatar.vue'
 import TaskSettings from '@/components/kanban/TaskSettings.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
 import ChatSelector from '@/components/chat/ChatSelector.vue'
@@ -12,24 +10,25 @@ import VerticalSplitter from '@/components/layout/VerticalSplitter.vue'
 import ProjectDetailt from '@/components/ProjectDetailt.vue'
 import ExportChat from '@/components/chat/ExportChat.vue'
 import Markdown from '../components/Markdown.vue'
+import ProjectIcon from '@/components/ProjectIcon.vue'
 </script>
 
 <template>
-  <div class="flex flex-col h-full bg-base-300/80 p-1" v-if="workingChat">
+  <div class="p-2 flex flex-col h-full bg-base-300/80 p-1" v-if="workingChat">
     <div class="grow flex gap-2 h-full justify-between">
       <div class="grow flex flex-col w-full">
         <div class="flex gap-2 items-center" v-if="!chatMode">
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
               <input type="text" class="input input-sm input-bordered"
-                @keydown.enter.stop="saveChat(chat)" 
+                @keydown.enter.stop="saveChat(theChat)" 
                 @keydown.esc="editName = false" 
-                v-model="chat.name" 
+                v-model="theChat.name" 
                 v-if="editName" />
               <div class="font-bold flex flex-col -space-y-2" v-else>
                 <div class="flex gap-2 mb-2">
                   <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
-                    <i class="fa-solid fa-caret-left"></i> {{ kanban?.title || chat.board }}
+                    <i class="fa-solid fa-caret-left"></i> {{ kanban?.title || theChat.board }}
                   </div>
                   <div class="my-2 hover:underline cursor-pointer font-bold text-secondary" @click="navigateToParent(parentChat)" v-if="parentChat">
                     <i class="fa-brands fa-trello"></i>
@@ -57,7 +56,7 @@ import Markdown from '../components/Markdown.vue'
                       <span class="click tooltip pt-1" @click.stop="toggleChatPinned"
                         data-tip="Bookmark"
                       >
-                        <i class="text-warning fa-solid fa-bookmark" v-if="chat.pinned" ></i>
+                        <i class="text-warning fa-solid fa-bookmark" v-if="theChat.pinned" ></i>
                         <i class="fa-regular fa-bookmark" v-else></i>
                       </span>
                       
@@ -177,7 +176,7 @@ import Markdown from '../components/Markdown.vue'
           </div>
         </div>
         <div class="flex gap-2 items-center">  
-          <div class="text-xs font-bold" v-for="tag in chat.tags" :key="tag">
+          <div class="text-xs font-bold" v-for="tag in theChat.tags" :key="tag">
             #{{ tag }}
           </div>
         </div>
@@ -221,7 +220,10 @@ import Markdown from '../components/Markdown.vue'
               >
                 <a class="group">
                   <div class="flex gap-2 items-start">
-                    <ChatIcon :mode="childChat.mode" />
+                    <ProjectIcon 
+                      width="6"
+                      icon-only="true"
+                      :project="$projects.allProjectsById[childChat.project_id] || $project" />
                     <div class="flex flex-col gap-1"> 
                       {{ childChat.name }}
                       <div class="badge badge-outline badge-xs" v-if="childChat.column !== workingChat.column">
@@ -255,7 +257,7 @@ import Markdown from '../components/Markdown.vue'
           <div class="">
             <h3 class="font-bold text-lg">Confirm Delete</h3>
             <p class="text-error font-bold">Are you sure you want to delete this chat?</p>
-            <div class="text-xl p-1">{{ chat.name }}</div>
+            <div class="text-xl p-1">{{ theChat.name }}</div>
             <div class="modal-action">
               <button class="btn btn-error" @click="confirmDeleteChat">Delete</button>
               <button class="btn" @click="resetConfirmDelete">Cancel</button>
@@ -325,7 +327,7 @@ import Markdown from '../components/Markdown.vue'
             <textarea v-model="subtaskDescription" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
             
             <ProjectDetailt 
-              :project="$projects.allProjectsById[subtaskProject || chat.project_id || chatProject?.project_id]" 
+              :project="$projects.allProjectsById[subtaskProject || theChat.project_id || chatProject?.project_id]" 
               :options="{ showFolders: false, showIcon: true, showSelector: true }"
               @select="subtaskProject = $event.project_id"  
             />
@@ -367,7 +369,7 @@ import Markdown from '../components/Markdown.vue'
 <script>
 export default {
   components: { Markdown },
-  props: ['chatMode', 'chat', 'kanban'],
+  props: ['chatMode', 'chat', 'kanban', 'params'],
   data() {
     return {
       showFile: null,
@@ -409,15 +411,18 @@ export default {
     this.showChatMenu = !this.$ui.isMobile && !this.isPRView
     this.chatProfiles = await this.$storex.api.project(this.taskProject)
       .then(p => p.profiles.list())
-      .then(profiles => profiles.filter(p => this.chat.profiles.includes(p.name)))
+      .then(profiles => profiles.filter(p => this.theChat.profiles.includes(p.name)))
     if (this.isPRView) {
       await this.$projects.loadBranches()
     }
     this.showDescription = this.isThread
   },
   computed: {
+    theChat() {
+      return this.chat || this.params?.params.chat
+    },
     isThread() {
-      return !!this.chat.message_id
+      return !!this.theChat.message_id
     },
     branches() {
       return this.$projects.project_branches || []
@@ -426,7 +431,7 @@ export default {
       return this.workingChat.mode === 'prview'
     },
     taskAIModel() {
-      return this.aiModels.find(m => m.name === this.chat.llm_model)
+      return this.aiModels.find(m => m.name === this.theChat.llm_model)
     },
     aiModels() {
       return this.$projects.ai.models
@@ -435,11 +440,11 @@ export default {
       return this.taskProject && this.taskProject.project_id != this.$project.project_id 
     },
     taskProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id) ||
+      return this.$projects.allProjects.find(p => p.project_id === this.theChat.project_id) ||
         this.$project
     },
     chatUsers() {
-      return this.$storex.api.userNetwork.filter(({ username }) => this.chat.users?.includes(username))
+      return this.$storex.api.userNetwork.filter(({ username }) => this.theChat.users?.includes(username))
     },
     chatModes() {
       return this.$projects.chatModes
@@ -458,10 +463,10 @@ export default {
       return this.workingChat.messages?.length
     },
     messages() {
-      return this.chat.messages.filter(m => !m.hide || this.showHidden)
+      return this.theChat.messages.filter(m => !m.hide || this.showHidden)
     },
     formattedChatUpdatedDate() {
-      const updatedAt = this.chat.updated_at
+      const updatedAt = this.theChat.updated_at
       return moment(updatedAt).isAfter(moment().subtract(7, 'days'))
         ? moment(updatedAt).fromNow()
         : moment(updatedAt).format('YYYY-MM-DD')
@@ -470,15 +475,15 @@ export default {
       return this.$projects.allChats
     },
     childrenChats() {
-      return this.$storex.projects.allChats.filter(c => c.parent_id === this.chat.id && !c.message_id)
+      return this.$storex.projects.allChats.filter(c => c.parent_id === this.theChat.id && !c.message_id)
         .sort((a, b) => a.name > b.name ? 1 : -1)
     },
     chatProject() {
-      return this.$projects.allProjectsById[this.chat.project_id] ||
+      return this.$projects.allProjectsById[this.theChat.project_id] ||
         this.$project
     },
     parentChat() {
-      return this.$projects.allChats.find(c => c.id === this.chat?.parent_id)
+      return this.$projects.allChats.find(c => c.id === this.theChat?.parent_id)
     },
     chatFiles() {
       return this.workingChat.file_list || []
@@ -498,19 +503,19 @@ export default {
                 .filter(i => !!i)
     },
     workingChat() {
-      return this.$projects.chats[this.showChildChat?.id || this.chat.id]
+      return this.$projects.chats[this.showChildChat?.id || this.theChat.id]
     },
     computedChatName() {
-      return this.chat.name
+      return this.theChat.name
     },
     computedChatDescription() {
-      if (this.chat.message_id) {
+      if (this.theChat.message_id) {
         const message = this.$storex.projects.allChats
-          .find(c => c.id === this.chat.parent_id)
-          ?.messages.find(m => m.doc_id === this.chat.message_id)
+          .find(c => c.id === this.theChat.parent_id)
+          ?.messages.find(m => m.doc_id === this.theChat.message_id)
         return message?.content || '-- no description yet --'
       }
-      return this.chat.description
+      return this.theChat.description
     },
     showLeftMenu() {
       return this.childrenChats?.length && this.showChatMenu && !this.isPRView
@@ -550,7 +555,7 @@ export default {
     },
     async confirmDeleteChat() {
       this.confirmDelete = false
-      await this.$projects.deleteChat(this.chat)
+      await this.$projects.deleteChat(this.theChat)
       const parentChat = this.parentChat
       if (parentChat) {
         this.$projects.setActiveChat(parentChat)
@@ -566,73 +571,73 @@ export default {
       this.showChatsTree = false
     },
     async removeFileFromContext() {
-      this.chat.profiles = this.chat.profiles?.filter(f => f !== this.showFile)
+      this.theChat.profiles = this.theChat.profiles?.filter(f => f !== this.showFile)
       this.onRemoveFile(this.showFile)
-      await this.reloadChat(this.chat)
+      await this.reloadChat(this.theChat)
       this.showFile = null
     },
     async addFileToContext() {
       this.onAddFile(this.addFile)
-      await this.saveChat(this.chat)
-      await this.reloadChat(this.chat)
+      await this.saveChat(this.theChat)
+      await this.reloadChat(this.theChat)
       this.showFile = null
       this.addFile = null
     },
     async onAddFile(file) {
-      if (this.chat.file_list?.includes(file)) {
+      if (this.theChat.file_list?.includes(file)) {
         return
       }
-      this.chat.file_list = [...(this.chat.file_list || []), file]
+      this.theChat.file_list = [...(this.theChat.file_list || []), file]
       this.addNewFile = null
-      await this.saveChat(this.chat)
+      await this.saveChat(this.theChat)
     },
     async onRemoveFile(file) {
       this.workingChat.file_list = (this.workingChat.file_list || []).filter(f => f !== file)
       this.addNewFile = null
-      await this.saveChat(this.chat)
+      await this.saveChat(this.theChat)
     },
     async addProfile(profile) {
-      if (!this.chat.profiles?.includes(profile)) {
-        this.chat.profiles = [...this.chat.profiles || [], profile]
-        await this.saveChat(this.chat)
+      if (!this.theChat.profiles?.includes(profile)) {
+        this.theChat.profiles = [...this.theChat.profiles || [], profile]
+        await this.saveChat(this.theChat)
       }
       this.showAddProfile = false
     },
     async addUserToChat(user) {
-      if (!this.chat.users?.includes(user.username)) {
-        this.chat.users = [...this.chat.users || [], user.username]
-        await this.saveChat(this.chat)
+      if (!this.theChat.users?.includes(user.username)) {
+        this.theChat.users = [...this.theChat.users || [], user.username]
+        await this.saveChat(this.theChat)
       }
       this.showAddProfile = false
     },
     async removeUser(user) {
-      if (this.chat.users?.includes(user.username)) {
-        this.chat.users = this.chat.users.filter(u => u !== user.username)
-        await this.saveChat(this.chat)
+      if (this.theChat.users?.includes(user.username)) {
+        this.theChat.users = this.theChat.users.filter(u => u !== user.username)
+        await this.saveChat(this.theChat)
       }
     },
     removeProfile(profile) {
-      if (this.chat.profiles?.includes(profile.name)) {
-        this.chat.profiles = this.chat.profiles.filter(p => p !== profile.name)
-        this.saveChat(this.chat)
+      if (this.theChat.profiles?.includes(profile.name)) {
+        this.theChat.profiles = this.theChat.profiles.filter(p => p !== profile.name)
+        this.saveChat(this.theChat)
       }
     },
     onRemoveMessage(message) {
-      const ix = this.chat.messages.findIndex(m => m.doc_id === message.doc_id)
-      if (this.chat.mode == 'task' && message.role === "assistant" && ix > 1) {
-        this.chat.messages[ix - 1].hide = false
+      const ix = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)
+      if (this.theChat.mode == 'task' && message.role === "assistant" && ix > 1) {
+        this.theChat.messages[ix - 1].hide = false
       }
-      this.chat.messages = this.chat.messages.filter((_, i) => i !== ix)
+      this.theChat.messages = this.theChat.messages.filter((_, i) => i !== ix)
       this.saveChat()
     },
     navigateToChats() {
       if (this.$ui.activeTab !== 'tasks') {
         this.$ui.setActiveTab('tasks')
       }
-      this.$emit('chats', this.kanban?.title || this.chat.board)
+      this.$emit('chats', this.kanban?.title || this.theChat.board)
     },
     newSubChat(message) {
-      this.subtaskProject = this.chat.project_id
+      this.subtaskProject = this.theChat.project_id
       this.subtaskParentId = null
       this.subtaskMessageId = null
       this.showSubtaskModal = true
@@ -640,12 +645,12 @@ export default {
       this.subtaskName = null
       this.subtaskDescription = null
       this.subtaskProject = null
-      this.subtaskParentId = this.chat.id
+      this.subtaskParentId = this.theChat.id
       this.subtaskMessageId = message?.doc_id
       this.subtaskFiles = []
       this.subtaskProfiles = []
-      this.subtaskMode = this.chat.mode
-      this.subtaskColumn = this.chat.column
+      this.subtaskMode = this.theChat.mode
+      this.subtaskColumn = this.theChat.column
     },
     async onNewMessageSubtask({ chat, mode, message: { column, files, profiles, doc_id: subtaskMessageId }}) {
       const findChild = () => this.$projects.allChats.find(c => c.message_id === subtaskMessageId) 
@@ -672,7 +677,7 @@ export default {
       if (!messages.length) {
         return ""
       }
-      if (this.chat.mode === 'task') {
+      if (this.theChat.mode === 'task') {
         messages = messages.reverse()
         const lastAI = messages.find(m => m.role === 'assistant')
         if (lastAI) {
@@ -690,7 +695,7 @@ export default {
         this.subtaskDescription = `${parentContent}\n\n${this.subtaskDescription}`
       }
       this.$emit('sub-task', {
-        parent: this.chat,
+        parent: this.theChat,
         name: this.subtaskName,
         description: this.subtaskDescription,
         project_id: this.subtaskProject,
@@ -699,9 +704,9 @@ export default {
         file_list: this.subtaskFiles,
         profiles: this.subtaskProfiles,
         mode: this.subtaskMode,
-        board: this.chat.board,
+        board: this.theChat.board,
         column: this.subtaskColumn,
-        activateChat: this.chat.mode !== 'task',
+        activateChat: this.theChat.mode !== 'task',
         child_index: this.childrenChats?.length
       })
       this.resetSubtaskModal()
@@ -719,12 +724,12 @@ export default {
       this.subtaskColumn = ''
     },
     addNewTag() {
-      this.chat.tags = [...new Set([...this.chat.tags || [], this.newTag])]
+      this.theChat.tags = [...new Set([...this.theChat.tags || [], this.newTag])]
       this.newTag = null
       this.saveChat()
     },
     removeTag(tag) {
-      this.chat.tags = this.chat.tags.filter(t => t !== tag)
+      this.theChat.tags = this.theChat.tags.filter(t => t !== tag)
       this.saveChat()
     },
     setChatMode(mode) {
@@ -733,7 +738,7 @@ export default {
     },
     async createSubTasks() {
       if (this.showSubtasksModal) {
-        this.$emit('sub-tasks', { chat: this.chat, instructions: this.createTasksInstructions })
+        this.$emit('sub-tasks', { chat: this.theChat, instructions: this.createTasksInstructions })
         this.showSubtasksModal = false
       } else {
         this.showSubtasksModal = true
@@ -754,7 +759,7 @@ export default {
       this.showAddProfile = true
     },
     toggleChatPinned() {
-      this.chat.pinned = !this.chat.pinned
+      this.theChat.pinned = !this.theChat.pinned
       this.saveChat()  
     },
     selectChildChat(childChat) {

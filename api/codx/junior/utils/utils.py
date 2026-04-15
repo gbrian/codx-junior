@@ -13,7 +13,8 @@ from typing import Optional
 
 from codx.junior.globals import (
   LANGUAGE_PARSER_MAPPING,
-  HOST_USER
+  HOST_USER,
+  LOGS_FOLDER
 )
 
 logger = logging.getLogger(__name__)
@@ -183,3 +184,23 @@ async def asyncify(res):
             if not cant_await:
                 raise ex
     return res
+
+
+def create_file_logger(logger_name):
+    # 1. Create a custom logger
+    logger = logging.getLogger('path_logger')
+    logger.setLevel(logging.INFO)
+
+    # 2. Create a file handler
+    file_path = f'{LOGS_FOLDER}/{logger_name}.log'
+    stdout, _ = exec_command(f"mkdir -p $(dirname {file_path})")
+    file_handler = logging.FileHandler(file_path)
+
+    # 3. Add a format (optional but recommended)
+    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s]\n%(message)s')
+    file_handler.setFormatter(formatter)
+
+    # 4. Add the handler to your logger
+    logger.addHandler(file_handler)
+
+    return logger

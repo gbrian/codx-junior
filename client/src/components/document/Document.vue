@@ -3,49 +3,54 @@ import MarkdownViewer from '../MarkdownViewer.vue';
 import Code from '../Code.vue';
 import HTMLViewer from '../HTMLViewer.vue';
 </script>
+
 <template>
   <div class="flex flex-col @container/document">
     <div v-for="block in blocks" :key="block.hash">
-      <MarkdownViewer :files="files" 
-        class=""
-        v-if="block.renderer === 'md'" :text="block.content" />
-      <Code 
+      <MarkdownViewer
+        :files="files"
+        v-if="block.renderer === 'md'"
+        :text="block.content"
+      />
+      <Code
         :text="block.content"
         :text-language="block.type"
         :fileName="block.fileName"
         :files="files"
         :project="docProject"
-        @generate-code="$emit('generate-code', $event)" 
+        @generate-code="$emit('generate-code', $event)"
         @reload-file="$emit('reload-file', { file: $event, message })"
         @open-file="$emit('open-file', $event)"
         @save-file="$emit('save-file', $event)"
         @add-file="$emit('add-file', $event)"
         @edit-message="$emit('edit-message', $event)"
         @sub-task="$emit('sub-task', $event)"
-        v-else />
+        v-else
+      />
     </div>
   </div>
 </template>
+
 <script>
 function generateHash(str) {
-  let hash = 0;
+  let hash = 0
   for (const char of str) {
-    hash = (hash << 5) - hash + char.charCodeAt(0);
-    hash |= 0; // Constrain to 32bit integer
+    hash = (hash << 5) - hash + char.charCodeAt(0)
+    hash |= 0 // Constrain to 32bit integer
   }
-  return hash;
-};
+  return hash
+}
 
 function getRenderer(blockType) {
-  if (['markdown', 'md'].includes(blockType)){
+  if (['markdown', 'md'].includes(blockType)) {
     return 'md'
-  } 
+  }
   if (['html'].includes(blockType)) {
     return blockType
   }
   return 'code'
 }
-// Define a function to parse the content into an array of objects with type and content
+
 function parseContent(content) {
   const blocks = [];
   const lines = content.split('\n');
@@ -103,12 +108,11 @@ export default {
   props: ['content', 'files', 'project'],
   computed: {
     blocks() {
-      return parseContent(this.content || "")
+      return parseContent(this.content || '')
     },
     docProject() {
       return this.project || this.$project
-    }
-  }
+    },
+  },
 }
 </script>
-

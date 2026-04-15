@@ -34,6 +34,8 @@ from codx.junior.security.user_management import get_authenticated_user
 
 from codx.junior.chat.chat_export import ExportedDocument
 
+from codx.junior.globals import LOGS_FOLDER
+
 
 CODX_JUNIOR_API_BACKGROUND = os.environ.get("CODX_JUNIOR_API_BACKGROUND")
 
@@ -607,7 +609,10 @@ def api_logs_list():
     stdout, _ = exec_command("sudo docker ps --format {{.Names}}")
     containers = [f"🐋:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
    
-    return sorted(containers)
+    stdout, _ = exec_command(f"ls {LOGS_FOLDER}")
+    files = [f"🗃️:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
+   
+    return sorted(containers + files)
 
 @app.get("/api/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
@@ -621,7 +626,8 @@ def api_logs_tail(log_name: str, request: Request):
             logger.error("Error reading logs %s: %s", log_name, err_logs)
         return stdout.split("\n")
     else:   
-        log_file = f"{os.environ['CODX_SUPERVISOR_LOG_FOLDER']}/{log_name}.log"
+        log_name = log_name.split(":")[-1]
+        log_file = f"{LOGS_FOLDER}/{log_name}.log"
         cmd = f"tail -n {log_size} {log_file}"
         try:
             logs, err_logs = exec_command(cmd)

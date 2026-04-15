@@ -4,6 +4,8 @@ import pathlib
 import logging
 import re
 
+from typing import List
+
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.model.model import Profile
 from codx.junior.utils.utils import write_file
@@ -14,6 +16,34 @@ from codx.junior.project.project_discover import (
 )
 
 logger = logging.getLogger(__name__)
+
+def generate_llm_tree(root_path, indent="", is_last=True, ignore_list=None):
+    if ignore_list is None:
+        ignore_list = {'.git', '__pycache__', '.vscode', '.DS_Store', 'node_modules', 'venv'}
+    
+    path = pathlib.Path(root_path)
+    if not path.exists():
+        return "Invalid Path"
+
+    # Header for the root on the first call
+    tree_str = f"{indent}{'└── ' if is_last else '├── '}{path.name}/\n"
+    
+    # Update indent for children
+    new_indent = indent + ("    " if is_last else "│   ")
+    
+    # Filter and sort items (directories first, then files)
+    items = [i for i in path.iterdir() if i.name not in ignore_list]
+    items.sort(key=lambda x: (not x.is_dir(), x.name.lower()))
+    
+    for i, item in enumerate(items):
+        last_item = (i == len(items) - 1)
+        if item.is_dir():
+            tree_str += generate_llm_tree(item, new_indent, last_item, ignore_list)
+        #else:
+        #    connector = "└── " if last_item else "├── "
+        #    tree_str += f"{new_indent}{connector}{item.name}\n"
+            
+    return tree_str
 
 class ProfileManager:
     def __init__(self, settings: CODXJuniorSettings):
@@ -57,7 +87,7 @@ class ProfileManager:
         for profile in self.list_profiles():
             all_profiles[profile.name] = profile
         
-        return list(all_profiles.values())
+        return [self.get_profile_With_content(profile=p) for p in list(all_profiles.values())]
 
 
     def list_profiles(self):
@@ -100,7 +130,8 @@ class ProfileManager:
         
         logger.info(f"Save profile {profile_path}")
         with open(profile_path, 'w') as f:
-            f.write(json.dumps(profile.model_dump()))
+            profile.parsed_content = None
+            f.write(json.dumps(profile.model_dump(), indent=2))
 
     def delete_profile(self, profile_name):
         project_profile_paths = self.project_profile_paths()
@@ -122,3 +153,66 @@ class ProfileManager:
     def get_profiles_by_name(self, profiles: []):
         return [p for p in self.list_all_profiles() if p.name in profiles]
 
+    def get_profile_content_context(self, profile: Profile):
+        return {
+          "project_path": lambda: self.settings.abs_project_path,
+          "project_name": lambda: self.settings.project_name,
+          # "project_tree": lambda: generate_llm_tree(self.settings.abs_project_path)
+        }
+
+    def get_profile_With_content(self, profile: Profile):
+        context = self.get_profile_content_context(profile=profile)
+        
+        # Regex explains:
+        # {{    -> Matches literal opening braces
+        # \s*   -> Matches optional whitespace
+        # (\w+) -> Captures the variable name (alphanumeric/underscore)
+        # \s*   -> Matches optional whitespace
+        # }}    -> Matches literal closing braces
+        pattern = r'\{\{\s*(\w+)\s*\}\}'
+
+        def replacement_logic(match):
+            variable_name = match.group(1)
+            # Returns the value if found, otherwise keeps the original {{var}} text
+            fnc = context.get(variable_name, None)
+            if fnc:
+                return str(fnc())
+            return match.group(0)
+
+        profile.parsed_content = re.sub(pattern, replacement_logic, profile.content or "")
+        return profile
+
+    def get_all_linked_profiles(self, profile: Profile, seen: set = None) -> List[Profile]:
+        # Fix: Initialize seen inside the function to avoid state leakage
+        if seen is None:
+            seen = []
+        
+        # We use a list for the return value to maintain order, but a set for O(1) lookups
+        results = []
+        
+        # Combine current profile with its neighbors
+        neighbors = [profile] + self.get_profiles_by_name(profile.profiles or [])
+        
+        for linked_profile in neighbors:
+            # Use a unique identifier (like an ID) for the set check
+            if linked_profile not in seen:
+                seen.append(linked_profile)
+                results.append(linked_profile)
+                # Extend results with nested links
+                results.extend(self.get_all_linked_profiles(linked_profile, seen))
+                
+        return results
+
+    def reduce_linked_profiles(self, profiles: List[Profile]) -> List[Profile]:
+        all_unique_seen = []
+        deduplicated_list = []
+        
+        for profile in profiles:
+            # This will now correctly start fresh for each top-level profile
+            for linked in self.get_all_linked_profiles(profile):
+                if linked not in all_unique_seen:
+                    all_unique_seen.append(linked)
+                    deduplicated_list.append(linked)
+                    
+        return deduplicated_list
+        

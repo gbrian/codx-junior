@@ -80,13 +80,13 @@ class ChatEngine:
             "start_time": time.time(),
             "first_response": None
         }
-        if chat.owner_project_id and chat.owner_project_id != self.settings.project_id:
-            logger.info("chat owner_project_id is not the same as current project, switching contexts: {} -> {}",
+        if chat.project_id and chat.project_id != self.settings.project_id:
+            logger.info("chat project_id is not the same as current project, switching contexts: '%s' -> '%s'",
                 self.settings.project_id,
-                chat.owner_project_id
+                chat.project_id
             )
             # Invoke project based on project_id
-            return await self.switch_project(chat.owner_project_id).chat_with_project(chat=chat,
+            return await self.switch_project(chat.project_id).chat_with_project(chat=chat,
                                                                             disable_knowledge=disable_knowledge,
                                                                             callback=callback,
                                                                             append_references=append_references,
@@ -94,6 +94,10 @@ class ChatEngine:
                                                                             iteration=iteration)
 
         with self.chat_action(chat=chat, event=f"Processing AI request {chat.name}"):
+            logger.info("Processing chat '%s'. Current project: '%s' target project '%s'",
+              chat.name,
+              self.settings.project_name,
+              chat.project_id)
             chat_mode = chat_mode or chat.mode or "chat"
             documents = []
             task_item = ""
@@ -145,7 +149,13 @@ class ChatEngine:
                 self.event_manager.message_event(chat=chat, message=response_message)
 
             valid_messages = [message for message in chat.messages if not message.hide and not message.improvement]
-            
+            all_messages_content_lines = "".join([m.content for m in valid_messages]).split("\n")
+            all_messages_content_code_block_file_paths = {
+                                                                line.split()[-1] 
+                                                                for line in all_messages_content_lines 
+                                                                if line.startswith("```") and len(line.split()) >= 3
+                                                            }
+
             last_ai_messages = [m for m in valid_messages if m.role == "assistant"]
             last_ai_message = last_ai_messages[-1] if last_ai_messages else None
                 
@@ -154,7 +164,7 @@ class ChatEngine:
 
             query_mentions: QueryMentions = self.get_query_mentions(chat=chat, user_message=user_message)
 
-            all_profiles = query_mentions.profiles
+            all_profiles =  query_mentions.profiles
 
             is_refine = chat_mode == "task"
             is_agent = chat_mode  == "agent"
@@ -164,18 +174,19 @@ class ChatEngine:
             chat_model = chat.llm_model
             messages = []
 
-            parent_content = None
-            if chat.parent_id:
-                parent_content = self.get_chat_analysis_parents(chat=chat)
-                if parent_content:
-                    # Use parent content only for the first user message, skip when conversation flows
-                    if valid_messages and len(valid_messages) == 1 and valid_messages[0].role == 'user':
-                        logger.info("[parent_content] Adding parent content to messages as no valid messages found")
-                        messages.append(HumanMessage(content=parent_content))
-                    else:
-                        logger.info("[parent_content] discarded")
-                else:
-                    logger.info("[parent_content] not found")
+            # TODO: Rethink this:
+            # parent_content = None
+            # if chat.parent_id:
+            #     parent_content = self.get_chat_analysis_parents(chat=chat)
+            #     if parent_content:
+            #         # Use parent content only for the first user message, skip when conversation flows
+            #         if valid_messages and len(valid_messages) == 1 and valid_messages[0].role == 'user':
+            #             logger.info("[parent_content] Adding parent content to messages as no valid messages found")
+            #             messages.append(HumanMessage(content=parent_content))
+            #         else:
+            #             logger.info("[parent_content] discarded")
+            #     else:
+            #         logger.info("[parent_content] not found")
             # Find projects for this
             query_mention_projects: List[CODXJuniorSettings] = [p for p in query_mentions.projects if p and hasattr(p, "codx_path")]
             search_projects: List[CODXJuniorSettings] = list(({
@@ -191,7 +202,7 @@ class ChatEngine:
             chat_tools = []
             logger.info("Chat profiles: %s", [p.name for p in all_profiles])
             if all_profiles:
-                chat_profiles_content = chat_profiles_content + "\n".join([profile.content for profile in all_profiles])
+                chat_profiles_content = chat_profiles_content + "\n".join([f"###PROFILE: {profile.name}\n{profile.parsed_content}" for profile in all_profiles])
                 chat_profile_names = [profile.name for profile in all_profiles]
                 for profile in all_profiles:
                   chat_tools = chat_tools + profile.tools
@@ -203,8 +214,6 @@ class ChatEngine:
                         profile_model = profile_models[0]
                         chat_model = profile_model.llm_model
                         logger.info("chat_model '%s' from profile: '%s'", profile_model.llm_model, profile_model.name)
-                if all_profiles[0].chat_mode:
-                    chat_mode = all_profiles[0].chat_mode
                 # None profile uses knowledge, disable knowledge
                 if next((p for p in all_profiles if p.chat_mode == 'task'), None):
                     is_refine = True
@@ -245,6 +254,9 @@ class ChatEngine:
             
             chat_files_content = ""
             for chat_file in chat_files:
+                if chat_file in all_messages_content_code_block_file_paths:
+                    # Already in the body of the messages, skip
+                    continue
                 logger.info("Loading chat_file '%s' for chat", chat_file)
                 chat_file_full_path = chat_file
                 if not chat_file.startswith(self.settings.abs_project_path) and \
@@ -593,19 +605,19 @@ class ChatEngine:
         """
         profile_manager = self.get_profile_manager()
         content = user_message.content
-        profiles = user_message.profiles if user_message.profiles else chat.profiles
+        profiles = (user_message.profiles if user_message.profiles else chat.profiles) or []
 
         chat_files = list(set(chat.file_list + user_message.files))
         for chat_file in chat_files:
-            file_profiles = [p.name for p in profile_manager.get_file_profiles_by_file_path(file_path=chat_file)]
-            profiles = list(set(profiles + file_profiles))
-
-
+            file_profiles = [p.name \
+                              for p in profile_manager.get_file_profiles_by_file_path(file_path=chat_file)]
+            profiles = profiles + file_profiles
+        
         chat_profiles = [f"@{name}" for name in  profiles]
         
         chat_utils = ChatUtils(profile_manager=profile_manager)
 
-        query = f"{content} {chat_profiles}"
+        query = f"{content} {chat_profiles} @project"
         query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
         logger.debug("Query mentions extracted for '%s...': %s", query[0:10], query_mentions)
 

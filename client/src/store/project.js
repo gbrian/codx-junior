@@ -55,7 +55,7 @@ const createState = () => ({
 
 function getProfiles(project) {
   const { project_id, $state } = project
-  return $state?.profiles || $storex.profiles.profiles[project_id]
+  return $state?.profiles || $storex.profiles.profilesByProject[project_id]
 }
 
 const initProject = async project => {
@@ -517,19 +517,26 @@ export const actions = actionTree(
     
       if (chatId) {
         const { project_id } = $storex.projects.allProjects.find(p => p.codx_path === codx_path)
-        const chat = state.chats[chatId] || await $storex.projects.reloadChat({ id: chatId, project_id })
+        if (type === 'changed' || !state.chats[chatId]) {
+            await $storex.projects.reloadChat({ id: chatId, project_id })
+        }
+        const chat = state.chats[chatId]
         if (chat && message) {
           const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
           if (currentMessage) {
-            currentMessage.is_thinking = message.is_thinking
-            currentMessage.done = message.done
-            currentMessage.meta_data = message.meta_data
-            if (message.is_thinking) {
-              currentMessage.think += message.think
+            if (event_type === "done") {
+              Object.assign(currentMessage, message)
             } else {
-              currentMessage.content += message.content
+              currentMessage.is_thinking = message.is_thinking
+              currentMessage.done = message.done
+              currentMessage.meta_data = message.meta_data
+              if (message.is_thinking) {
+                currentMessage.think += message.think
+              } else {
+                currentMessage.content += message.content
+              }
+              currentMessage.updated_at = new Date().toISOString()
             }
-            currentMessage.updated_at = new Date().toISOString()
           } else {
             chat.messages.push(message)
           }

@@ -32,7 +32,6 @@ import Wall from "./wall/Wall.vue"
   <MetricsViewer class="w-full h-full" v-if="$ui.activeTab == 'metrics'" :class="$ui.activeTab" />
   <PreviewVue class="h-full w-full" :app="'preview'" v-if="$ui.showBrowser && $ui.isMobile" />
   
-
   <FileFinderVue v-if="$ui.activeTab === 'file-finder'" />
   <AccountSettings v-if="$ui.activeTab == 'account'" :class="$ui.activeTab" />
   <ProjectOverview v-if="$ui.activeTab == 'projects'" :class="$ui.activeTab" />

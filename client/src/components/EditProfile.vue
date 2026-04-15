@@ -15,7 +15,9 @@ import Markdown from './Markdown.vue';
             <img :src="project?.project_icon || '/only_icon.png'" />
         </div>  
       </div>
-       Profile <span class="badge badge-warning badge-sm" v-if="isOverriden">Overriden</span>
+       Profile 
+       <span class="badge badge-warning badge-sm" v-if="isOverriden">Overriden</span>
+       <span class="badge badge-info badge-sm" v-if="isProjectProfile">Built-in</span>
       <div class="grow"></div>
       <button type="button" class="btn btn-sm btn-primary" :class="loading && 'loading loading-spinner'" @click="onSubmit">Update</button>
       <button type="button" @click="onDeleteProfile" class="btn btn-sm btn-error" :disabled="!isOverriden || loading">Delete</button>
@@ -36,10 +38,11 @@ import Markdown from './Markdown.vue';
         <div class="flex flex-col grow gap-1">
           <div class="flex gap-2 items-center">
             Name* 
-            <input v-model="editProfile.name" type="text" placeholder="Name" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" />
-          <div class="flex gap-2 items-center">
+            <input v-model="editProfile.name" type="text" v-if="!isProjectProfile" placeholder="Name" :class="nameTaken && 'text-error'" class="bg-base-300 input input-sm input-bordered w-full" />
+            <div v-else>{{ editProfile.name }}</div>
+          <div class="flex gap-2 items-center" v-if="!isProjectProfile">
             <label for="category">Category*</label>
-              <select v-model="editProfile.category" :disabled="profile.category === 'project'" class="select select-sm select-bordered">
+              <select v-model="editProfile.category" class="select select-sm select-bordered">
                 <option value="project" v-if="profile.category === 'project'">Project</option>
                 <option value="assistant">Assistant</option>
                 <option value="chat">Chat</option>
@@ -64,7 +67,7 @@ import Markdown from './Markdown.vue';
           class="bg-base-300 input input-xs input-bordered w-full" />
       </div>
       <div class="form-group">
-        <label for="description">Parent profiles</label>
+        <label for="description">Linked profiles</label>
         <div class="flex gap-2">
           <select v-model="newProfile" @change="addProfile" class="select select-xs select-bordered">
             <option value="">Add a profile</option>
@@ -126,7 +129,9 @@ import Markdown from './Markdown.vue';
             </button>
           </label>
         </div>
-        <Markdown class="p-2 rounded-md" :class="contentPreview ? 'bg-base-100 border border-slate-700' : 'bg-base-300'" :text="editProfile.content" v-if="contentPreview" />
+        <Markdown class="p-2 rounded-md" :class="contentPreview ? 'bg-base-100 border border-slate-700' : 'bg-base-300'"
+          :text="editProfile.parsed_content"
+          v-if="contentPreview" />
         <textarea id="content" v-model="editProfile.content" class="textarea textarea-bordered w-full h-96 bg-base-300 overflow-auto" v-else></textarea>
       </div>
     </div>
@@ -157,6 +162,9 @@ export default {
     this.loadTools()
   },
   computed: {
+    isProjectProfile() {
+      return this.profile.category === 'project'
+    },
     project() {
       return this.$projects.allProjectsById[this.editProfile.project_id] || this.$project
     },

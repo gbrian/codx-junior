@@ -10,7 +10,11 @@ from codx.junior.ai.ai_logger import AILogger
 from codx.junior.settings import CODXJuniorSettings
 from langchain.messages import AIMessage, HumanMessage
 from codx.junior.profiling.profiler import profile_function
-from codx.junior.utils.utils import clean_string, asyncify
+from codx.junior.utils.utils import (
+  clean_string, 
+  asyncify,
+  create_file_logger
+)
 from codx.junior.model.model import CodxUser
 
 logger = logging.getLogger(__name__)
@@ -223,8 +227,7 @@ class OpenAI_AI:
                 self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
 
             for chunk in response_stream:
-                self.log(f"AI RESPONSE:\n{chunk.model_dump_json()}")
-        
+                
                 # Check for tools
                 choice = chunk.choices[0]
                 tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None 

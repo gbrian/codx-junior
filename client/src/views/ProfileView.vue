@@ -3,7 +3,7 @@ import EditProfile from '@/components/EditProfile.vue'
 import ProfileCard from '@/components/ProfileCard.vue';
 </script>
 <template>
-  <div class="p-1 md:p-2">
+  <div class="p-1 md:p-2 h-full overflow-auto">
     <EditProfile 
       :profile="selectedProfile"
       :allProfiles="profiles"
@@ -24,7 +24,7 @@ import ProfileCard from '@/components/ProfileCard.vue';
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" v-if="profiles">
         <div v-for="profile in filteredProfiles" :key="profile.name"
           class="card bg-base-300 hover:bg-base-200 w-full shadow-lg rounded-lg" @click="openEditProfile(profile)">
-          <ProfileCard class="click" :profile="profile" />
+          <ProfileCard class="click h-96" :profile="profile" />
         </div>
       </div>
     </div>
@@ -41,15 +41,14 @@ export default {
   },
   computed: {
     profiles() {
-      return this.$projects.profiles
+      return this.$storex.profiles.profiles
     },
     selectedProfile() {
       return this.$projects.selectedProfile
     },
     filteredProfiles() {
-      return this.profiles.filter(profile =>
-        profile.name.toLowerCase().includes(this.searchQuery.toLowerCase()) ||
-        profile.category.toLowerCase().includes(this.searchQuery.toLowerCase())
+      return this.profiles.filter(profile => 
+        Object.keys(profile).reduce((acc, k) => `${acc} ${profile[k]}`, '').toLowerCase().includes(this.searchQuery.toLowerCase())
       ).sort((a, b) => a.name > b.name ? 1 : -1);
     }
   },
@@ -74,7 +73,9 @@ export default {
       try {
         this.$projects.saveProfile({ ...profile, project: null })
       } catch {}
+      this.loadProfiles()
       this.loadingProfile = false
+      this.$ui.addNotification({ text: `Profile '${profile.name}' saved` })
     },
     createNewProfile() {
       this.$projects.createNewProfile({ 

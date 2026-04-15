@@ -34,3 +34,5 @@ LANGUAGE_PARSER_MAPPING = {
     "ts": "js",
     "cs": "csharp"
 }
+
+LOGS_FOLDER = os.environ.get("CODX_JUNIOR_API_LOGS", "/tmp/codx-junior-logs")

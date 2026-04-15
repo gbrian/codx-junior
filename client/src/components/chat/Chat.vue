@@ -106,7 +106,7 @@ import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
     </div>
 
     <!-- Bottom sticky input area -->
-    <div class="sticky -bottom-0" v-if="!isPRView">
+    <div class="sticky bottom-0 z-2" v-if="!isPRView">
       <ChatMentionBar
         :suggestions="mentionSuggestions"
         :active-mentions="messageMentions"
@@ -526,7 +526,11 @@ export default {
           if (imageUrl) { this.images.push(imageUrl[1]); return stop() }
         }
         const fileMention = this.mentionList.find(m => m.file === textContent)
-        if (fileMention) { this.addFileToMessage(fileMention.file); e.preventDefault(); return stop() }
+        if (fileMention) { 
+          this.addFileToMessage(fileMention.file); 
+          e.preventDefault(); 
+          return stop() 
+        }
         const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
         if (isProjectFile && !this.pasteWithShift) {
           this.addFileToMessage(textContent)
@@ -537,7 +541,9 @@ export default {
       }
     },
     addFileToMessage(file) {
-      if (!this.files.includes(file)) this.files.push(file)
+      if (!this.files.includes(file)) {
+        this.files.push(file)
+      }
     },
     async onInputImage(file) {
       this.imagePreview = { file }
@@ -741,7 +747,11 @@ export default {
     },
     async addFileContentAsMessage(file) {
       const content = await this.$storex.chats.readFile({ chat: this.chat, file })
-      const codeBlock = ["```txt " + file, content, "````"].join("\n")
+      const codeBlock = [
+        "```" + file.split(".")[1] + " " + file, 
+        content, 
+        "```"]
+        .join("\n")
       this.addMessage(this.getUserMessage(codeBlock))
     },
     addMention(mention) {

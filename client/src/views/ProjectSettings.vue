@@ -3,7 +3,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 h-full" v-if="settings">
+  <div class="flex flex-col gap-2 h-full overflow-auto" v-if="settings">
     <div class="text-xl font-medium my-2 flex justify-between px-2">
       Settings
       <div class="grow"></div>
@@ -36,7 +36,7 @@ import ModelSelector from '@/components/ai_settings/ModelSelector.vue'
         <div class="flex justify-between mb-2">
           <div class="label-text">Project path</div>
           <div class="w-2/3">
-            <input v-model="settings.abs_project_path" type="text" class="mb-1 input input-bordered w-full" />
+            <input v-model="settings.project_path" type="text" class="mb-1 input input-bordered w-full" />
             <div class="text-xs">Absolute path: {{ settings.abs_project_path }}</div>
             <div class="text-xs">Project location: {{ settings.codx_path }}</div>
           </div>

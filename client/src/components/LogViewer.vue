@@ -57,7 +57,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
           @filter-module="toggleProfilerVisible"
           :logs="profilerLogs" class="mb-6" />
       </div>
-      <select @change="onLogChange" class="border select-xs rounded w-1/3">
+      <select @change="onLogChange" class="select select-sm rounded w-1/3">
         <option :selected="log === $storex.logs.selectedLog" 
           v-for="log in $storex.logs.logNames" :key="log" :value="log">{{ log }}</option>
       </select>
@@ -86,10 +86,10 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
         >
             {{ log }}
         </div-->
-        <pre class="mb-1 text-wrap text-md/6 " v-for="log, ix in filteredLogs" :key="`${log}-${ix}`"
-          :class="log.includes('MATCH') ? 'log-match text-success' :
-            log.includes('[ERROR]') ? 'text-error' : ''"
-          :ref="log.includes('MATCH') ? 'match': null">{{ log }}</pre>
+        <div class="mb-2 text-wrap" 
+          :class="[]"
+          v-for="log, ix in filteredLogs" :key="`${log}-${ix}`"
+          :ref="log.includes('log-match') ? 'match': null" v-html="log"></div>
         <div class="h-20 text-primary animate-pulse w-full">
           ...
         </div>
@@ -136,13 +136,24 @@ export default {
                                             ({ timestamp, path: `${module}.${method}` , time_taken }))
     },
     filteredLogs() {
-      const discards = this.discardPatterns?.toLowerCase().split(",")
-      const filters = this.filter?.toLowerCase().split(",")
-      return this.$storex.logs.rawLogs?.filter(log => !discards?.length ||
-        !discards.find(d => log.toLowerCase().includes(d)))
-        .map(log => !filters ? log : 
-            filters.find(f => log.toLocaleLowerCase().includes(f)) ?
-              `[MATCH] ${log}` : log)
+      const discards = this.discardPatterns?.toLowerCase().split(",");
+      const filters = this.filter?.split(",").filter(f => f.trim() !== "");
+
+      return this.$storex.logs.rawLogs
+        ?.filter(log => !discards?.length || !discards.find(d => log.toLowerCase().includes(d)))
+        .map(l => l.includes('[ERROR]') ? `<span class="text-error">${l}</span>` : l)
+        .map(log => {
+          if (!filters?.length) return log;
+
+          let highlightedLog = log;
+          filters.forEach(f => {
+            // Escape special characters and use 'gi' for case-insensitive global matching
+            const regex = new RegExp(`(${f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            highlightedLog = highlightedLog.replace(regex, '<span class="log-match badge badge-sm badge-info badge-outline">$1</span>');
+          });
+
+          return highlightedLog;
+        });
     },
     matchCount() {
       return this.matchElements?.length

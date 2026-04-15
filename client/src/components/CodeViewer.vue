@@ -3,6 +3,7 @@ import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
 import hljs from 'highlight.js';
 import DiffViewer from './DiffViewer.vue';
+import Editor from './monaco/Editor.vue';
 </script>
 
 <template>
@@ -66,6 +67,7 @@ import DiffViewer from './DiffViewer.vue';
       </DiffViewer>
       <VueCodeHighlighter :code="code" :lang="fileLanguage" :title="fileName" 
         v-if="code && !edit && !diff" />
+      <Editor v-model="edit" :language="fileLanguage" v-if="edit" />
     </div>
     <div class="flex justify-end gap-2">
       <button class="btn btn-sm btn-warning" @click="applyPatch" v-if="isPatch">
@@ -83,7 +85,7 @@ export default {
       orgContent: null,
       diff: this.fileDiff,
       zoom: 1,
-      edit: false,
+      edit: null
     }
   },
   computed: {

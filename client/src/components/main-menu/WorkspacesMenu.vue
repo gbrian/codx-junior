@@ -14,6 +14,9 @@ import AppIcon from '../apps/AppIcon.vue';
       >
         <AppIcon :app="app" />
         {{ app.name }}
+        <button class="btn btn-sm" @click="$ui.openNewWindowAppPanel(app)">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        </button>
       </MenubarItem>
     </MenubarSub>
   </MenubarSub>

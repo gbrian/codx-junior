@@ -1,9 +1,11 @@
 import os
 import logging
 from datetime import datetime
+from codx.junior.utils.utils import (
+  create_file_logger
+)
 
-# Set up logging
-logger = logging.getLogger(__name__)
+logger = create_file_logger(__name__)
 
 class AILogger:
     def __init__(self, settings):
