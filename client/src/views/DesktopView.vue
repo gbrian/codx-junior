@@ -1,4 +1,4 @@
-<script setup>
+men<script setup>
 import Desktop from '@/components/desktop/Desktop.vue'
 </script>
 <template>
@@ -46,6 +46,7 @@ export default {
       this.apps.forEach(app => this.addAppPanel(app))
     },
     addAppPanel(app) {
+      if (!app?.key) return
       this.panelsApi.addPanel({ 
                             id: app.key,
                             title: app.name,

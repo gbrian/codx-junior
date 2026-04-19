@@ -202,7 +202,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
           </div>
           <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="displayMessage.files?.length">
             Linked files:
-            <div v-for="file in allFiles" :key="file" :title="file" class="flex gap-2 items-center click">
+            <div v-for="file in displayMessage.files" :key="file" :title="file" class="flex gap-2 items-center click">
               <div class="flex gap-2 click hover:underline" @click="openFile(file)">
                 <div class="click tooltip tooltip-right" data-tip="Attach file" @click.stop="$emit('add-file-to-chat', file)">
                   <i class="fa-solid fa-file-arrow-up"></i>

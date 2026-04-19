@@ -1,5 +1,6 @@
 <script setup>
 import moment from 'moment'
+import { v4 as uuidv4 } from 'uuid'
 import AddFileDialog from '../components/chat/AddFileDialog.vue'
 import Chat from '@/components/chat/Chat.vue'
 import UserSelector from '@/components/chat/UserSelector.vue'
@@ -26,11 +27,12 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                 v-model="theChat.name" 
                 v-if="editName" />
               <div class="font-bold flex flex-col -space-y-2" v-else>
-                <div class="flex gap-2 mb-2">
+                <div class="flex gap-2 mb-2 shrink-0">
                   <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
-                    <i class="fa-solid fa-caret-left"></i> {{ kanban?.title || theChat.board }}
+                    {{ kanban?.title || theChat.board }}
                   </div>
-                  <div class="my-2 hover:underline cursor-pointer font-bold text-secondary" @click="navigateToParent(parentChat)" v-if="parentChat">
+                  <div class="my-2 hover:underline cursor-pointer font-bold text-secondary" @click="navigateToParent(parentChat)"
+                    v-if="parentChat">
                     <i class="fa-brands fa-trello"></i>
                     {{ parentChat.name }}
                   </div>
@@ -336,7 +338,7 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
             </div>
             <div class="flex gap-2 justify-end">
               <button class="btn btn-error" @click="cancelSubtask">Cancel</button>
-              <button class="btn btn-primary" @click="createSubtask">Create</button>
+              <button class="btn btn-primary" @click="onCreateSubtask">Create</button>
             </div>
           </div>
         </modal>
@@ -419,7 +421,11 @@ export default {
   },
   computed: {
     theChat() {
-      return this.chat || this.params?.params.chat
+      const {
+        id,
+        owner_project_id
+      } = (this.chat || this.params?.params.chat)
+      return this.$projects.allChats.find(({ id: chatId } ) => chatId === id)
     },
     isThread() {
       return !!this.theChat.message_id
@@ -545,13 +551,13 @@ export default {
     async reloadChat() {
       this.$projects.reloadChat(this.workingChat)
     },
-    setChatProject(project) {
+    async setChatProject(project) {
       this.workingChat.project_id = project.project_id
-      this.saveChat(this.workingChat) 
+      await this.saveChat(this.workingChat)
     },
     async saveChat(chat) {
       this.editName = false
-      await this.$projects.saveChat(chat || this.workingChat)
+      return this.$projects.saveChat(chat || this.workingChat)
     },
     async confirmDeleteChat() {
       this.confirmDelete = false
@@ -655,7 +661,7 @@ export default {
     async onNewMessageSubtask({ chat, mode, message: { column, files, profiles, doc_id: subtaskMessageId }}) {
       const findChild = () => this.$projects.allChats.find(c => c.message_id === subtaskMessageId) 
       if (!findChild()) {
-        await this.$emit('sub-task', {
+        await this.createSubTask({
           parent: chat,
           name: `${subtaskMessageId} - thread`,
           project_id: chat.project_id,
@@ -686,7 +692,7 @@ export default {
       }
       return messages.reduce((acc, m) => acc + "\n" + m.content, "")
     },
-    createSubtask() {
+    onCreateSubtask() {
       if (!this.subtaskName.trim()) {
         return
       }
@@ -694,7 +700,7 @@ export default {
         const parentContent = this.getSubTaskParentSummary()
         this.subtaskDescription = `${parentContent}\n\n${this.subtaskDescription}`
       }
-      this.$emit('sub-task', {
+      this.createSubTask({
         parent: this.theChat,
         name: this.subtaskName,
         description: this.subtaskDescription,
@@ -735,15 +741,6 @@ export default {
     setChatMode(mode) {
       this.workingChat.mode = mode
       this.saveChat()
-    },
-    async createSubTasks() {
-      if (this.showSubtasksModal) {
-        this.$emit('sub-tasks', { chat: this.theChat, instructions: this.createTasksInstructions })
-        this.showSubtasksModal = false
-      } else {
-        this.showSubtasksModal = true
-        this.createTasksInstructions = ""
-      }
     },
     navigateToParent(parentChat) {
       if (parentChat) {
@@ -800,6 +797,33 @@ export default {
       dropChat.parent_id = childChat.id
       this.dropOver = null
       this.saveChat(dropChat)
+    },
+    async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
+      const chat = await this.$projects.createNewChat({
+        id: uuidv4(),
+        board: parent.board,
+        name,
+        mode,
+        profiles,
+        column: column || parent.column,
+        parent_id: parent_id || parent.id,
+        message_id,
+        project_id: project_id || parent.project_id,
+        messages: description ? [{ role: 'user', content: description }] : [],
+        file_list,
+        child_index
+      })
+      await this.$projects.saveChat(chat)
+      if (description) this.$storex.projects.chatWihProject(chat)
+    },
+    async createSubTasks() {
+      if (this.showSubtasksModal) {
+        this.$projects.createSubtasks({ chat: this.theChat, instructions: this.createTasksInstructions })
+        this.showSubtasksModal = false
+      } else {
+        this.showSubtasksModal = true
+        this.createTasksInstructions = ""
+      }
     }
   }
 }

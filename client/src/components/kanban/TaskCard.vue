@@ -19,7 +19,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
           <div class="flex flex-col">
             <div class="font-semibold tracking-wide text-sm flex gap-2 mt-1">
               <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
-              <ChatIcon :chat="task" />
+              <ChatIcon :mode="task.mode" />
               <span class="click tooltip" @click.stop="toggleChatPinned"
                 data-tip="Bookmark"
               >

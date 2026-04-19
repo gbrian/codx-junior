@@ -57,10 +57,6 @@ class ChangeManager:
         await asyncio.gather(*tasks)
 
     async def process_project_changes(self):
-        if not self.settings.is_valid_project():
-            # logger.error(f"Checking project error, not valid: {self.settings.project_name}") 
-            return
-        
         current_sources_and_updates = self.knowledge.get_db().get_all_sources()
         new_files, _ = self.knowledge.detect_changes(current_sources_and_updates)
 

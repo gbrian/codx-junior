@@ -20,6 +20,7 @@ import FileFinderVue from '../filebrowser/FileFinder.vue'
 import ProjectOverview from "../project/ProjectOverview.vue"
 import Wall from "../wall/Wall.vue"
 import ChatView from '@/views/ChatView.vue'
+import Tab from './Tab.vue'
 </script>
 <template>
   <dockview-vue
@@ -51,7 +52,8 @@ export default {
     'file-finder': FileFinderVue,
     'projects': ProjectOverview,
     'activity': Wall,
-    'chat': ChatView
+    'chat': ChatView,
+    'tab': Tab
   },
   props: {
     // Initial panels to render on mount

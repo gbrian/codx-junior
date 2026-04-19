@@ -18,6 +18,7 @@ import HTMLViewer from '../HTMLViewer.vue';
         :fileName="block.fileName"
         :files="files"
         :project="docProject"
+        :finished="block.finished"
         @generate-code="$emit('generate-code', $event)"
         @reload-file="$emit('reload-file', { file: $event, message })"
         @open-file="$emit('open-file', $event)"
@@ -59,7 +60,7 @@ function parseContent(content) {
   let currentFileName = '';
   let fenceCount = 0
 
-  function addBlock() {
+  function addBlock(finished) {
     const content = currentContent.join('\n')
     const hash = generateHash(content)
     blocks.push({
@@ -67,7 +68,8 @@ function parseContent(content) {
       content,
       hash,
       fileName: currentFileName,
-      renderer: getRenderer(currentType)
+      renderer: getRenderer(currentType),
+      finished
     });
     currentType = 'markdown'; // Default type
     currentContent = [];
@@ -89,7 +91,7 @@ function parseContent(content) {
       // End of a block
       --fenceCount
       if (!fenceCount && currentContent.length > 0) {
-        addBlock()
+        addBlock(true)
       }
     } else if (currentContent) {
       currentContent.push(line);
@@ -100,7 +102,6 @@ function parseContent(content) {
   if (currentContent) {
     addBlock()
   }
-  console.log("Document blocks: ", blocks)
   return blocks;
 }
 

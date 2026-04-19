@@ -146,7 +146,7 @@ export default {
     async saveSettings() {
       await this.$storex.api.settings.global.write(this.settings)
       this.$projects.loadAllProjects()
-      
+      this.$projects.reloadProject()
       this.loadSettings()
       this.$ui.addNotification({ text: "Saved" })
       

@@ -375,8 +375,10 @@ export const actions = actionTree(
       if (id) {
         await $storex.projects.reloadChat({ id, project_id })
       }
-      state.activeChat = state.chats[id]
-      $storex.ui.saveState()
+      //state.activeChat = state.chats[id]
+      if (state.chats[id]) {
+        $storex.ui.openChat(state.chats[id])
+      }
     },
     async addLogIgnore({ state }, ignore) {
       let ignores = state.activeProject.log_ignore?.split(",") || []

@@ -167,6 +167,15 @@ export const mutations = mutationTree(state, {
   },
   setAppShowMode(state, mode) {
     state.appShowMode = mode
+  },
+  openChat(state, chat) {
+    $storex.ui.showApp({
+      name: chat.name,
+      component: 'chat',
+      params: {
+        chat
+      }
+    })
   }
 })
 

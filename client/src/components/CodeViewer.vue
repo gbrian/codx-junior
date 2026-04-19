@@ -29,11 +29,6 @@ import Editor from './monaco/Editor.vue';
         <div class="hover:text-info" @click="$emit('open-file', file)" :title="file">
           {{ fileName }}
         </div>
-        <div class="hover:text-info" @click="onShowDiff"
-          v-if="diffOption !== false"
-        >
-          <i class="fa-solid fa-code-compare"></i>
-        </div>
       </div>
       <div class="hover:text-info" @click="zoomOut">
         <i class="fa-solid fa-magnifying-glass-minus"></i>
@@ -53,6 +48,15 @@ import Editor from './monaco/Editor.vue';
       <div class="hover:text-info" @click="createSubTask">
         <i class="fa-brands fa-trello"></i>
       </div>
+      <div class="grow"></div>
+      <span class="text-xs text-info">
+        <span v-if="loadingStats">Loading...</span>
+        <span @click="onShowDiff"  
+          v-if="stats">
+          <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
+          <i class="fa-solid fa-code-compare" v-else></i> 
+          {{ stats }}</span>
+      </span>
     </div>
     <div @click="runCommand" v-if="isCommand">
       <i class="fa-solid fa-terminal"></i>
@@ -66,7 +70,7 @@ import Editor from './monaco/Editor.vue';
         v-if="showDiff">
       </DiffViewer>
       <VueCodeHighlighter :code="code" :lang="fileLanguage" :title="fileName" 
-        v-if="code && !edit && !diff" />
+        v-if="code && !edit && !showDiff" />
       <Editor v-model="edit" :language="fileLanguage" v-if="edit" />
     </div>
     <div class="flex justify-end gap-2">
@@ -78,14 +82,17 @@ import Editor from './monaco/Editor.vue';
 </template>
 <script>
 export default {
-  props: ['code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project'],
+  props: ['code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished'],
   data() {
     return {
       showDiff: false,
       orgContent: null,
       diff: this.fileDiff,
       zoom: 1,
-      edit: null
+      edit: null,
+      loadingStats: false,
+      stats: null,
+      diff: null
     }
   },
   computed: {
@@ -111,18 +118,40 @@ export default {
       return (this.project?.$api || this.$storex.api)
     }
   },
+  watch: {
+    finished() {
+      if (this.finished) {
+        this.loadDiffInfo()
+      }
+    }
+  },
+  mounted() {
+    if (this.finished) {
+      this.loadDiffInfo()
+    }
+  },
   methods: {
     applyPatch() {
       this.$projects.applyPatch({ patch: this.code })
     },
     async onShowDiff() {
       if (!this.diff) {
-        const { diff, stats } = await this.$api.files.diff({ path: this.file, content: this.code }) 
-        this.diff = diff
-        this.stats = stats
+        await this.loadDiffInfo()
       }
       this.orgContent = await this.$api.files.read(this.file)
       this.showDiff = !this.showDiff
+    },
+    async loadDiffInfo() {
+      try {
+        this.loadingStats = true
+        if (this.file) {
+          const { diff, stats } = await this.$api.files.diff({ path: this.file, content: this.code }) 
+          this.diff = diff
+          this.stats = stats
+        }
+      } finally {
+        this.loadingStats = false
+      }
     },
     saveFile() {
       if (this.edit) {

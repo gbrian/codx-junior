@@ -79,7 +79,7 @@ CRITICAL INFORMATION:
 When generating "code blocks" or "markdown blocks", always add the file name after the code block language.
 Example:
 
-```js /project/path/folder/file_name.js
+```js /folder/file_name.js
  import dummy from 'module'
 ```
 

@@ -27,7 +27,7 @@ import ChatPreview from './ChatPreview.vue';
 
 <script>
 export default {
-  props: ['project'],
+  props: ['project', 'board'],
   data() {
     return {}
   },

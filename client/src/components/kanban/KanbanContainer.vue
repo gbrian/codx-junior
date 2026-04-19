@@ -27,8 +27,6 @@ import NewEditBoardModal from './NewEditBoardModal.vue'
     <ChatViewVue
       class="h-full rounded-lg my-2"
       @chats="onChatEditDone"
-      @sub-task="createSubTask"
-      @sub-tasks="createSubTasks"
       @chat="setActiveChat($event)"
       @change-column="moveChatsToColumn"
       :kanban="activeBoard"
@@ -72,6 +70,11 @@ export default {
   created() {
     this.projectChanged()
   },
+  watch: {
+    $project() {
+      this.projectChanged()
+    }
+  },
   computed: {
     kanban() {
       return this.$projects.kanban || { boards: {} }
@@ -98,11 +101,6 @@ export default {
     },
     showKanbanList() {
       return !this.showHistory && !this.showChatView && !this.showKanban
-    }
-  },
-  watch: {
-    project() {
-      this.projectChanged()
     }
   },
   methods: {
@@ -175,30 +173,6 @@ export default {
     async setActiveChat(chat) {
       chat && await this.$projects.reloadChat(chat)
       this.$projects.setActiveChat(chat)
-    },
-
-    async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
-      const chat = await this.$projects.createNewChat({
-        id: uuidv4(),
-        board: parent.board,
-        name,
-        mode,
-        profiles,
-        column: column || parent.column,
-        parent_id: parent_id || parent.id,
-        message_id,
-        project_id: project_id || parent.project_id,
-        messages: description ? [{ role: 'user', content: description }] : [],
-        file_list,
-        child_index
-      })
-      if (activateChat !== false) await this.setActiveChat(chat)
-      await this.$projects.saveChat(chat)
-      if (description) this.$storex.projects.chatWihProject(chat)
-    },
-
-    async createSubTasks(event) {
-      this.$projects.createSubtasks(event)
     },
 
     async moveChatsToColumn({ chats, column }) {

@@ -3,7 +3,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
 </script>
 
 <template>
-  <div class="px-2 pt-4 gap-2 w-full overflow-auto flex flex-col relative">
+  <div class="px-2 pt-4 gap-2 w-full overflow-auto flex flex-col h-full relative">
     <header class="flex flex-row justify-between items-center">
       <h1 class="text-xl font-semibold">Dashboard</h1>
       <div class="flex gap-2 items-center">
@@ -90,7 +90,7 @@ import RequestMetrics from './metrics/RequestMetrics.vue'
           :class="[]"
           v-for="log, ix in filteredLogs" :key="`${log}-${ix}`"
           :ref="log.includes('log-match') ? 'match': null" v-html="log"></div>
-        <div class="h-20 text-primary animate-pulse w-full">
+        <div class="text-primary animate-pulse w-full">
           ...
         </div>
       </div>

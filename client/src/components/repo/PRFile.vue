@@ -310,7 +310,6 @@ export default {
     },
     async navigateToChat() {
       await this.$projects.setActiveChat(this.file.chat)
-      this.$ui.showTab('tasks')
     },
     toggleCollapse() {
       this.file.collapse = !this.file.collapse

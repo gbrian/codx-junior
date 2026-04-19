@@ -7,6 +7,7 @@ import KanbanList from './KanbanList.vue'
 import ChatIcon from '../chat/ChatIcon.vue'
 import FileFinder from '../filebrowser/FileFinder.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
+import ChatPreview from '../wall/ChatPreview.vue'
 </script>
 
 <template>
@@ -21,7 +22,30 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     </div>
 
     <div class="h-full absolute top-0 left-0 right-0 bottom-0 z-1">
-
+      <!--Activity -->
+      <div class="overflow-auto relative" v-if="showActivity">
+        <div class="flex gap-2 sticky top-0 bg-base-300 z-10 p-2 rounded-md">
+          <button class="btn btn-warning btn-sm" @click="showActivity = false">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </button>
+          <div class="text-2xl">
+            Recent activity <span v-if="project">: {{ project.project_name }}</span>
+          </div>
+          <div class="alert" v-if="lastMessages.length === 0">
+            No recent activity
+          </div>
+        </div>
+        <div class="h-96 grid grid-cols-1 @5xl:grid-cols-2 grid-flow-rows gap-2">
+          <div class="my-2 click group"
+            v-for="chat in lastMessages" :key="chat.doc_id"
+            @click="setActiveChat(chat)">
+              <ChatPreview
+                :project="chat.project"
+                :chat="chat"
+                />
+          </div>
+        </div>
+      </div>
       <!-- Kanban board view -->
       <div class="flex flex-col h-full p-2">
         <div class="flex gap-4 items-center">
@@ -72,6 +96,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
               <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                 <li @click="showColumnModal = true"><a><i class="fa-solid fa-plus"></i> Column</a></li>
                 <li @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> Board</a></li>
+                <li @click="showActivity = !showActivity"><a><i class="fa-solid fa-clock-rotate-left"></i> Activity</a></li>
                 <li @click="onEditBoard()"><a><i class="fas fa-cogs"></i> Settings</a></li>
               </ul>
             </div>
@@ -294,7 +319,8 @@ export default {
       topChats: [],
       columnProject: null,
       loadingChats: false,
-      showHistory: false
+      showHistory: false,
+      showActivity: false
     }
   },
   created() {
@@ -357,6 +383,9 @@ export default {
         column: c.column || '--none--'
       }))
     },
+    lastMessages () {
+      return this.chats.sort((a, b) => a.last_update > b.last_update ? -1:1)
+    },
     boardChats() {
       return this.chats.filter(c => c.board === this.board)
     },
@@ -411,14 +440,7 @@ export default {
   methods: {
     async setActiveChat(chat) {
       chat && await this.$projects.reloadChat(chat)
-      // this.$projects.setActiveChat(chat)
-      this.$ui.showApp({
-        name: chat.name,
-        component: 'chat',
-        params: {
-          chat
-        }
-       })
+      this.$projects.setActiveChat(chat)
     },
 
     async projectChanged() {
