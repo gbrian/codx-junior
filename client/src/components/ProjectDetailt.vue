@@ -1,4 +1,5 @@
 <script setup>
+import { v4 as uuidv4 } from 'uuid'
 </script>
 
 <template>
@@ -7,8 +8,8 @@
       :popovertarget="`project-detail-popover-${uid}`" 
       :style="`anchor-name:--project-detail-anchor-${uid}`"
     >
-      <div class="avatar tooltip tooltip-right" :data-tip="project.project_name" v-if="options?.showIcon">
-        <div class="w-6 rounded-full">
+      <div class="avatar tooltip tooltip-right" :data-tip="project.project_name" v-if="options?.showIcon !== false">
+        <div class="rounded-full" :class="['w-'+ iconSize]">
           <img :src="project.project_icon" />
         </div>
       </div>
@@ -17,7 +18,9 @@
     <div class="dropdown menu w-52 border border-white/40 rounded-lg bg-base-100 shadow-sm"
       :class="[position]"
       popover :id="`project-detail-popover-${uid}`" 
-      :style="`position-anchor:--project-detail-anchor-${uid}`">
+      :style="`position-anchor:--project-detail-anchor-${uid}`"
+      v-if="!disabled"
+    >
 
       <!-- Search Input for Projects -->
       <div class="flex items-center p-2 input input-sm">
@@ -125,9 +128,21 @@
 </template>
 
 <script>
-import { v4 as uuidv4 } from 'uuid'
 export default {
-  props: ['project', 'iconify', 'options', 'position'],
+  props: {
+    iconify: Boolean,
+    options: Object,
+    position: String,
+    disabled: Boolean,
+    iconSize: {
+      type: Number,
+      default: () => (6)
+    },
+    modelValue: {
+      type: Object,
+      default: () => (null)
+    }
+  },
   data() {
     return {
       uid: uuidv4(),
@@ -136,23 +151,25 @@ export default {
     }
   },
   computed: {
+    project() {
+      return this.modelValue || this.$project
+    },
     showFolders() {
       return this.options?.showFolders
     }
   },
   methods: {
     filterProjects() {
-      // Filters projects based on the search query
       this.matchedProjects = this.$projects.allProjects.filter((proj) => 
         proj.project_name.toLowerCase().includes(this.searchQuery.toLowerCase())
       )
     },
     clearSearch() {
-      // Clears the search input
       this.searchQuery = ''
       this.matchedProjects = []
     },
     onProjectSelected(project) {
+      this.$emit('update:modelValue', project)
       this.$emit('select', project)
     }
   }

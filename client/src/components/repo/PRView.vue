@@ -388,8 +388,8 @@ export default {
       try {
         const lines = diff.replace("diff --git ", "").split("\n")
         const [oldFile, newFile] = lines[0].trim().split(" ")
-        const oldName = oldFile.replace("a/", "")
-        const newName = newFile.replace("b/", "")
+        const oldName = oldFile?.replace("a/", "") || ""
+        const newName = newFile?.replace("b/", "") || ""
 
         let parsed = null
         try {
@@ -451,7 +451,7 @@ export default {
           ...this.getChatInfo(chat)
         }
       } catch (ex) {
-        console.error(`Error parsing diff\n*** ${ex}\n${diff}`)
+        console.error(`Error parsing diff\n*** ${diff}`, ex)
       }
       return null
     },

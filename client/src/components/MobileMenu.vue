@@ -2,11 +2,10 @@
 import ProjectDetailt from './ProjectDetailt.vue'
 </script>
 <template>
-  <div class="absolute top-0 left-0 right-0 bottom-0 z-50 flex justify-start bg-base-300/50" @click.stop="$emit('close')">
+  <div class="flex justify-start bg-base-300/50" @click.stop="$emit('close')">
     <div class="h-full bg-base-100 shadow-lg z-50 w-1/6" @click.stop="">
-      <div class="tools flex flex-col h-full gap-2 items-start p-4">
+      <div class="tools flex h-full gap-2 items-start p-4">
         <ProjectDetailt @click.stop=""
-          :project="$project" 
           :options="{ folders: true, showIcon: true }"
           @select="$projects.setActiveProject($event)"
         />

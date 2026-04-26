@@ -72,10 +72,12 @@ export const mutations = mutationTree(state, {
     if (tab !== state.activeTab) {
       $storex.ui.setActiveTab(tab)
     }
-    $storex.ui.showApp({
-      name: tab,
-      component: tab
-    })
+    if (!state.isMobile) {
+      $storex.ui.showApp({
+        name: tab,
+        component: tab
+      })
+    }
   },
   closeTab(state) {
     state.activeTab = null
@@ -145,13 +147,11 @@ export const mutations = mutationTree(state, {
     state.newProject = show
   },
   showApp(state, app) {
-    app.key = `${app.key}-${(new Date().getTime())}`
+    app.tabId = app.tabId || `${app.key || app.name}-${(new Date().getTime())}`
     state.openApps = {
       ...state.openApps,
-      [app.key]: app
+      [app.tabId]: app
     }
-    state.activeApp = app
-    $storex.ui.saveState()
   },
   closeApp(state, app) {
     delete state.openApps[app.key]
@@ -173,7 +173,11 @@ export const mutations = mutationTree(state, {
       name: chat.name,
       component: 'chat',
       params: {
-        chat
+        chat: {
+          id: chat.id,
+          name: chat.name,
+          owner_project_id: chat.owner_project_id
+        }
       }
     })
   }

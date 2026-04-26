@@ -1,15 +1,17 @@
 <script setup>
-import HomeViewVue from '@/views/HomeView.vue'
 import SplitViewVue from '@/views/SplitView.vue'
-import SharedView from '@/views/SharedView.vue'
 import Login from './components/user/Login.vue';
 import NewProject from './components/project/NewProject.vue';
+import HomeMobile from './views/HomeMobile.vue';
 </script>
 
 <template>
-  <div class="w-full h-full flex relative bg-base-300 relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
+  <div class="w-full h-full relative bg-base-300 relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <Login v-if="isLogin" />
+    
+    <HomeMobile v-if="$ui.isMobile" />
     <SplitViewVue v-else/>
+
     <modal class="w-full h-full md:w-1/3 md:h-fit" 
       close="true" @close="$ui.showNewProject(false)" v-if="$ui.newProject">
       <NewProject  />

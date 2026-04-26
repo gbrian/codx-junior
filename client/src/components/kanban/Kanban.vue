@@ -93,7 +93,7 @@ import ChatPreview from '../wall/ChatPreview.vue'
               <div tabindex="0" class="btn btn-sm mt-1">
                 <i class="fa-solid fa-ellipsis-vertical"></i>
               </div>
-              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
+              <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
                 <li @click="showColumnModal = true"><a><i class="fa-solid fa-plus"></i> Column</a></li>
                 <li @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> Board</a></li>
                 <li @click="showActivity = !showActivity"><a><i class="fa-solid fa-clock-rotate-left"></i> Activity</a></li>
@@ -105,6 +105,8 @@ import ChatPreview from '../wall/ChatPreview.vue'
 
         <KanbanList
           :boards="childBoards"
+          @new-board="showNewBoardModal"
+          @toogle-history="showActivity = !showActivity"
           @select="$emit('select-board', $event)"
           v-if="showChildrenBoards"
         />
@@ -234,9 +236,8 @@ import ChatPreview from '../wall/ChatPreview.vue'
           <input type="text" v-model="columnTitle" placeholder="Enter column name" class="grow input input-bordered w-full" />
         </div>
         <ProjectDetailt
-          :project="columnProject || $project"
+          v-model="columnProject"
           :options="{ showFolders: false, showIcon: true, showSelector: true }"
-          @select="columnProject = $event"
         />
         <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
         <div class="modal-action flex flex-col">
@@ -762,6 +763,7 @@ export default {
       this.columnColor = column.color || '#000000'
       this.columnProject = this.$projects.allProjectsById[column.project_id] || this.$project
       this.confirmDeleteColumn = false
+      this.columnProject = this.$project
       this.showColumnModal = true
     },
 

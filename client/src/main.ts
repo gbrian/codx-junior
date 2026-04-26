@@ -79,6 +79,10 @@ const globalMixin = {
     },
     $service () {
       return service
+    },
+    $app () {
+      const appId = this.$props.params?.api.id
+      return this.$ui.openApps[appId]
     }
   },
   methods: {
@@ -114,10 +118,5 @@ window.setTimeout(() =>
       script1.src = "https://cdn.jsdelivr.net/npm/eruda";
       document.body.appendChild(script1);
 
-      script1.onload = function() {
-        var script2 = document.createElement('script');
-        script2.innerHTML = "eruda.init();";
-        document.body.appendChild(script2);
-      };
     }
-  })(), 2000)
+  })(), 10)

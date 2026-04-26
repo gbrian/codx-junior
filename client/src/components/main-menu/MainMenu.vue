@@ -9,9 +9,7 @@ import {
 import MenubarItem from './MenubarItem.vue'
 import WorkspacesMenu from './WorkspacesMenu.vue';
 import SettingsMenu from  './SettingsMenu.vue';
-import ProjectLabel from './ProjectLabel.vue';
 import ProjectDetailt from '../ProjectDetailt.vue';
-import ProjectIcon from '../ProjectIcon.vue';
 </script>
 
 <template>
@@ -80,10 +78,13 @@ import ProjectIcon from '../ProjectIcon.vue';
         <i class="fa-solid fa-circle-exclamation"></i>
       </span>
       <ProjectDetailt @click.stop=""
-          :project="$project" 
           :options="{ folders: true, showIcon: true }"
           @select="$projects.setActiveProject($event)"
         />
     </div>
   </div>
 </template>
+<script>
+export default {
+}
+</script>

@@ -7,9 +7,9 @@ import ProjectDetailt from './ProjectDetailt.vue';
     v-if="$project">
     <div class="flex items-start">
       <ProjectDetailt 
-        :project="$project" 
         :options="{ folders: true }"
-        @select="$projects.setActiveProject($event)" />
+        @select="$projects.setActiveProject($event)"
+    />
     </div>
     <ul class="dropdown-content menu bg-base-300 rounded-box z-[150] w-60 p-2 shadow"
       @mouseleave="isOpen = false"

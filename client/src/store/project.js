@@ -9,7 +9,7 @@ export const namespaced = true
 const createState = () => ({
   allProjects: [],
   allProjectsById: {},
-  chats: {},
+  chats: [],
   activeChat: null,
   activeProject: null,
   recentProjects: [],
@@ -347,6 +347,16 @@ export const actions = actionTree(
       await API.chats.saveChatInfo({ ...chat, messages: [] })
       await $storex.projects.loadChats()
     },
+    async findProjectChat({ state }, { id, owner_project_id }) {
+      const project = state.allProjectsById[owner_project_id]
+      const chat = project.$state.chats.find(c => c.id === id)
+      if (chat) {
+        return chat
+      }
+      const loadedChat = await project.$api.chats.loadChat({ id, owner_project_id }) 
+      project.$state.chats = project.$state.chats = [...project.$state.chats, loadedChat]
+      return loadedChat 
+    },
     async loadChat({ state }, chat) {
       if (!state.chats[chat.id]) {
         chat = await API.chats.loadChat(chat)
@@ -375,8 +385,9 @@ export const actions = actionTree(
       if (id) {
         await $storex.projects.reloadChat({ id, project_id })
       }
-      //state.activeChat = state.chats[id]
-      if (state.chats[id]) {
+      if ($storex.ui.isMobile) {
+        state.activeChat = state.chats[id]
+      } else if (state.chats[id]) {
         $storex.ui.openChat(state.chats[id])
       }
     },

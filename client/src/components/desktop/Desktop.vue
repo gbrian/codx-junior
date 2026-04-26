@@ -22,14 +22,17 @@ import Wall from "../wall/Wall.vue"
 import ChatView from '@/views/ChatView.vue'
 import Tab from './Tab.vue'
 </script>
+
 <template>
   <dockview-vue
     class="dockview-theme-abyss w-full h-full"
     @ready="onReady"
-    :components="registeredComponents"
   />
 </template>
+
 <script>
+const STORAGE_KEY = 'dockview-layout'
+
 export default {
   name: 'Desktop',
   components: {
@@ -53,42 +56,105 @@ export default {
     'projects': ProjectOverview,
     'activity': Wall,
     'chat': ChatView,
-    'tab': Tab
+    tabComponent: Tab
   },
   props: {
-    // Initial panels to render on mount
-    panels: {
-      type: Array,
-      default: () => []
+    // localStorage key to persist layout
+    storageKey: {
+      type: String,
+      default: STORAGE_KEY
     }
   },
   data() {
     return {
       dockviewApi: null,
-      // Map of registered component names to Vue components
       registeredComponents: {
         'window': Window,
         'app-window': AppWindow,
+      },
+      layoutRestored: false
+    }
+  },
+  computed: {
+    apps() {
+      const { openApps } = this.$ui
+      return Object.values(openApps)
+    },
+    panelTabIds() {
+      return this.dockviewApi?.panels.map(p => p.id)
+    },
+    uiReady() {
+      return this.$ui.uiReady
+    }
+  },
+  watch: {
+    apps(newVal) {
+      const { panelTabIds } = this
+      newVal
+        .filter(({ tabId }) => !panelTabIds.includes(tabId))
+        .forEach(app => this.addAppPanel(app))
+      if (!newVal.length) {
+        this.init()
       }
+    },
+    uiReady() {
+      this.restoreLayout()
     }
   },
   methods: {
-    // Store dockview API and add initial panels
+    init() {
+      if (!this.panelTabIds.length) {
+        this.$ui.showTab('home')
+      }
+    },
+    addAppPanel(app) {
+      if (!app?.tabId) return
+      const component = app.component || 'app-window' 
+      const renderer = 'always' 
+      this.addPanel({
+        id: app.tabId,
+        title: app.name,
+        component,
+        renderer,
+        params: {
+          ...app.params || {},
+          app
+        }
+      })
+    },
+    // Store dockview API, restore saved layout or add initial panels
     onReady(event) {
       this.dockviewApi = event.api
-      this.panels.forEach(panel => this.addPanel(panel))
+      this.restoreLayout()
+      // Auto-save layout when panels are added or removed
+      this.dockviewApi.onDidAddPanel(this.onAddPanel.bind(this))
+      this.dockviewApi.onDidRemovePanel(this.onRemovePanel.bind(this))
+      this.dockviewApi.onDidLayoutChange(this.saveLayout.bind(this))
     },
-
+    onAddPanel() {
+      this.saveLayout()
+    },
+    onRemovePanel(panel) {
+      this.$ui.closeApp(panel.params.app)
+      this.saveLayout()
+    },
     // Add a new panel to the desktop
-    addPanel({ id, title, component = 'window', position, params }) {
+    addPanel({ id, title, component = 'window', position, params, renderer }) {
       if (!this.dockviewApi) return
-      this.dockviewApi.addPanel({
-        id,
-        title,
-        component,
-        position,
-        params
-      })
+      if (!this.dockviewApi.panels.find(p => p.id === id)) {
+        this.dockviewApi.addPanel({ 
+            id, 
+            title, 
+            component, 
+            position, 
+            renderer, 
+            params: {
+                ...params,
+                tabName: title,
+            },
+            tabComponent: 'tabComponent'
+        })
+      }
     },
 
     // Remove a panel by id
@@ -100,12 +166,58 @@ export default {
 
     // Register a new component so it can be used as a panel
     registerComponent(name, component) {
-      // this.registeredComponents = {
-      //   ...this.registeredComponents,
-      //   [name]: component
-      // }
+      this.registeredComponents = {
+        ...this.registeredComponents,
+        [name]: component
+      }
+    },
+
+    // Serialize current layout to JSON and save to localStorage
+    saveLayout() {
+      if (!this.dockviewApi) return null
+      const layout = this.dockviewApi.toJSON()
+      localStorage.setItem(this.storageKey, JSON.stringify(layout))
+      return layout
+    },
+
+    // Load layout JSON from localStorage and restore it
+    restoreLayout(layout = null) {
+      if (this.layoutRestored) return true
+      if (!this.dockviewApi || !this.uiReady) return false
+      try {
+        const data = layout || JSON.parse(localStorage.getItem(this.storageKey))
+        if (!data) return false
+        this.dockviewApi.fromJSON(data)
+        this.dockviewApi.panels.forEach(panel => {
+          this.$ui.showApp(panel.params.app)
+        })
+        this.init()
+        this.layoutRestored = true        
+      } catch (e) {
+        console.warn('Failed to restore dockview layout:', e)
+        return false
+      }
+    },
+
+    // Clear saved layout from localStorage
+    clearSavedLayout() {
+      localStorage.removeItem(this.storageKey)
+      this.$emit('layout-cleared')
+    },
+
+    // Get current layout as plain JSON object (without saving)
+    getLayout() {
+      return this.dockviewApi ? this.dockviewApi.toJSON() : null
     }
   },
-  expose: [ "addPanel", "removePanel", "registerComponent" ]
+  expose: [
+    "addPanel",
+    "removePanel",
+    "registerComponent",
+    "saveLayout",
+    "restoreLayout",
+    "clearSavedLayout",
+    "getLayout"
+  ]
 }
 </script>

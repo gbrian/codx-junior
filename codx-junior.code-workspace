@@ -1,10 +1,24 @@
 {
-    "folders": [
+	"folders": [
         {
-            "path": "."
+            "path": "client"
         },
         {
-            "path": "../home/projects"
+            "path": "api"
+        },
+        {
+            "path": "notebooks"
         }
-    ]
+    ],
+    "settings": {
+        "sqltools.useNodeRuntime": true,
+        "sqltools.connections": [
+            {
+                "previewLimit": 50,
+                "driver": "SQLite",
+                "name": "app-ng-mro",
+                "database": "/shared/app-ng-mro/.vscode/.codx/db/shared-app-ng-mro/chroma.sqlite3"
+            }
+        ]
+    }
 }

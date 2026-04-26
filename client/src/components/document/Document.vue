@@ -88,8 +88,15 @@ function parseContent(content) {
       }      
       fenceCount++
     } else if (line.trim() === '```') {
-      // End of a block
-      --fenceCount
+      // End of a block or empty block?
+      if (fenceCount) {
+        --fenceCount
+      } else {
+        if (currentContent.length) {
+          addBlock(true)
+        }
+        ++fenceCount
+      }
       if (!fenceCount && currentContent.length > 0) {
         addBlock(true)
       }

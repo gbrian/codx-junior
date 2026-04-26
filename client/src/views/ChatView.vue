@@ -329,9 +329,8 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
             <textarea v-model="subtaskDescription" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
             
             <ProjectDetailt 
-              :project="$projects.allProjectsById[subtaskProject || theChat.project_id || chatProject?.project_id]" 
+              :project="subtaskProject" 
               :options="{ showFolders: false, showIcon: true, showSelector: true }"
-              @select="subtaskProject = $event.project_id"  
             />
             <div class="flex" v-for="profile in subtaskProfiles" :key="profile.name">
               <div class="badge">{{ profile.name }}</div>
@@ -403,7 +402,9 @@ export default {
       showChildChat: null,
       showExportChat: false,
       dropOver: null,
-      chatSearch: null
+      chatSearch: null,
+      taskProject: null,
+      theChat: null
     }
   },
   created() {
@@ -420,13 +421,6 @@ export default {
     this.showDescription = this.isThread
   },
   computed: {
-    theChat() {
-      const {
-        id,
-        owner_project_id
-      } = (this.chat || this.params?.params.chat)
-      return this.$projects.allChats.find(({ id: chatId } ) => chatId === id)
-    },
     isThread() {
       return !!this.theChat.message_id
     },
@@ -444,10 +438,6 @@ export default {
     },
     showTaskProjectName() {
       return this.taskProject && this.taskProject.project_id != this.$project.project_id 
-    },
-    taskProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.theChat.project_id) ||
-        this.$project
     },
     chatUsers() {
       return this.$storex.api.userNetwork.filter(({ username }) => this.theChat.users?.includes(username))
@@ -509,7 +499,7 @@ export default {
                 .filter(i => !!i)
     },
     workingChat() {
-      return this.$projects.chats[this.showChildChat?.id || this.theChat.id]
+      return this.$projects.chats[this.showChildChat?.id || this.theChat?.id]
     },
     computedChatName() {
       return this.theChat.name
@@ -540,10 +530,16 @@ export default {
   },
   methods: {
     async init() {
+      this.theChat = await this.$service.chat.findChat(this.chat || this.params?.params.chat)
       this.setProjectContext()
       await Promise.all(
         this.childrenChats.map(chat => this.$projects.loadChat(chat))
       )
+      this.setTaskProject()
+    },
+    setTaskProject() {
+      this.taskProject = this.$projects.allProjects.find(p => p.project_id === this.theChat.project_id) || this.$project
+      this.subtaskProject = this.$projects.allProjectsById[this.theChat.project_id || this.chatProject?.project_id] || this.$project
     },
     async setProjectContext() {
       this.projectContext = await this.$service.project.loadProjectContext(this.$project)
@@ -643,14 +639,13 @@ export default {
       this.$emit('chats', this.kanban?.title || this.theChat.board)
     },
     newSubChat(message) {
-      this.subtaskProject = this.theChat.project_id
+      this.subtaskProject = null
       this.subtaskParentId = null
       this.subtaskMessageId = null
       this.showSubtaskModal = true
 
       this.subtaskName = null
       this.subtaskDescription = null
-      this.subtaskProject = null
       this.subtaskParentId = this.theChat.id
       this.subtaskMessageId = message?.doc_id
       this.subtaskFiles = []
@@ -704,7 +699,7 @@ export default {
         parent: this.theChat,
         name: this.subtaskName,
         description: this.subtaskDescription,
-        project_id: this.subtaskProject,
+        project_id: this.subtaskProject?.project_id,
         parent_id: this.subtaskParentId,
         message_id: this.subtaskMessageId,
         file_list: this.subtaskFiles,

@@ -15,6 +15,9 @@ import MenubarItem from './MenubarItem.vue';
     <MenubarItem class="flex gap-2 hover:bg-base-300">
       Global settings
     </MenubarItem>
+    <MenubarItem class="flex gap-2 hover:bg-base-300" v-if="$ui.isMobile" @click="showEruda">
+      Mobile console
+    </MenubarItem>
   </MenubarSub>
 </template>
 <script>
@@ -39,6 +42,9 @@ export default {
           left: !app?.left,
           ts: new Date().getTime()
       })
+    },
+    showEruda() {
+      window.eruda.init()
     }
   }
 }

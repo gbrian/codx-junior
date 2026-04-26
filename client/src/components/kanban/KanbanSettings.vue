@@ -7,7 +7,7 @@ import ProjectDetailt from '../ProjectDetailt.vue';
   <h2 class="font-bold text-3xl">{{ editBoard ? 'Edit Board' : 'Add New Board' }}</h2>
   
   <ProjectDetailt 
-      :project="boardProject" 
+      v-model="boardProject" 
       :options="{ folders: false }"
       @select="board.project_id = $event.project_id" />
 
@@ -45,13 +45,11 @@ export default {
   props: ['board'],
   data() {
     return {
-      confirmDelete: false
+      confirmDelete: false,
+      boardProject: this.$projects.allProjects.find(p => p.project_id === this.board.project_id) 
     }
   },
   computed: {
-    boardProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.board.project_id)
-    }
   },
   methods: {
     updateBoardSettings() {

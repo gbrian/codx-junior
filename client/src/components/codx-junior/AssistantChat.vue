@@ -13,7 +13,10 @@ import ProjectDetailt from '../ProjectDetailt.vue';
         @user-changed="selectedUser = $event"
         v-if="selectedUser"
       />
-      <ProjectDetailt :iconify="true" :project="project" @select="project = $event" v-if="false" />
+      <ProjectDetailt 
+        :iconify="true" 
+        v-model="project" 
+        v-if="false" />
       <input type="text" class="grow" v-model="query" placeholder="How can I help you?"
         @keydown.enter="sendMessage" />
       <div class="dropdown dropdown-end">

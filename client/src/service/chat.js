@@ -16,4 +16,8 @@ export class ChatService extends Service {
     chat.messages.push(message)
     return this.$storex.projects.chatWihProject(chat)
   }
+
+  async findChat({ id, owner_project_id } = {}) {
+    return id ? await this.projects.findProjectChat({ id, owner_project_id }) : null
+  }
 }

@@ -11,7 +11,6 @@ import ProjectDetailt from './ProjectDetailt.vue';
       ]">
 
       <ProjectDetailt @click.stop=""
-          :project="$project" 
           :options="{ folders: true, showIcon: true }"
           @select="$projects.setActiveProject($event)"
         />
