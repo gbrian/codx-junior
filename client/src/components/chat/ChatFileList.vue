@@ -18,6 +18,24 @@
       <span class="ml-2 cursor-pointer" @click.stop="$emit('add-as-message', file)">
         <i class="fa-regular fa-comment-dots"></i>
       </span>
+      <!-- Notebook sync icon: only shown for .ipynb files -->
+      <span
+        v-if="isNotebook(file)"
+        class="ml-2 cursor-pointer text-warning"
+        :title="'Sync notebook: ' + file"
+        @click.stop="$emit('sync-notebook', file)"
+      >
+        <i class="fa-solid fa-book-open"></i>
+      </span>
+      <!-- Export chat to notebook icon: only shown for .ipynb files -->
+      <span
+        v-if="isNotebook(file)"
+        class="ml-2 cursor-pointer text-success"
+        :title="'Export chat to notebook: ' + file"
+        @click.stop="$emit('export-notebook', file)"
+      >
+        <i class="fa-solid fa-file-export"></i>
+      </span>
       <span class="ml-2 cursor-pointer" @click.stop="$emit('remove', file)">
         <i class="fa-regular fa-circle-xmark"></i>
       </span>
@@ -30,6 +48,11 @@ export default {
   props: {
     files: { type: Array, default: () => [] }
   },
-  emits: ['remove', 'add-as-message']
+  emits: ['remove', 'add-as-message', 'sync-notebook', 'export-notebook'],
+  methods: {
+    isNotebook(file) {
+      return file?.endsWith('.ipynb')
+    }
+  }
 }
 </script>

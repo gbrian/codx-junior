@@ -1,11 +1,9 @@
 <script setup>
 import Iframe from '../Iframe.vue';
-import NoVNC from '../NoVNC.vue';
 </script>
 <template>
   <div class="w-full h-full" :class="loaded ? '': 'opacity-10'">
-    <NoVNC class="w-full h-full" :path="theApp.path" v-if="theApp.is_vnc"></NoVNC>
-    <Iframe class="w-full h-full" :key="theApp.path" :url="theApp.path" @loaded="loaded = true" v-else></Iframe>
+    <Iframe class="w-full h-full" :key="theApp.path" :url="theApp.path" @loaded="loaded = true"></Iframe>
   </div>
 </template>
 <script>

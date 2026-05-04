@@ -160,7 +160,7 @@ export default {
       this.lastQuickChat = this.getLastQuickChat()
     },
     openChat() {
-      this.$projects.setActiveChat(this.chat)
+      this.$chats.setActiveChat(this.chat)
       this.$ui.showTab('tasks')
     },
     toggleMenu() {

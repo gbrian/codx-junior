@@ -29,6 +29,7 @@ from codx.junior.api.file_finder import router as file_finder_router
 from codx.junior.api.db_router import router as db_router
 from codx.junior.api.global_settings import router as global_settings_router
 from codx.junior.api.project_search import router as project_search
+from codx.junior.api.knowledge import router as knowledge_router
 
 from codx.junior.security.user_management import get_authenticated_user
 
@@ -140,6 +141,7 @@ app.include_router(file_finder_router, prefix="/api")
 app.include_router(db_router, prefix="/api")
 app.include_router(global_settings_router, prefix="/api")
 app.include_router(project_search, prefix="/api")
+app.include_router(knowledge_router, prefix="/api")
 
 
 APP_STOP_EVENT = asyncio.Event()
@@ -202,7 +204,6 @@ async def add_codx_junior_settings(request: Request, call_next):
             codx_path = request.headers.get("x-codx-path", codx_path)
             request.state.codx_junior_session = get_codx_junior_session(request, codx_path)
             request.state.codx_junior_session.update_last_access_time()
-            # logger.info(f"CODXJuniorEngine settings: {settings.__dict__ if settings else {}}")
         except Exception as ex:
             logger.error("Error loading settings %s: %s\n%s", codx_path, ex, request.url)
     return await call_next(request)
@@ -224,144 +225,6 @@ async def timeout_middleware(request: Request, call_next):
 @app.get("/api/health")
 def api_health_check():
     return "ok"
-
-@app.get("/api/knowledge/reload")
-async def api_knowledge_reload(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.check_knowledge_status()
-
-@app.post("/api/knowledge/reload-path")
-def api_knowledge_reload_path(knowledge_reload_path: KnowledgeReloadPath, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    logger.info("**** API:knowledge_reload_path %s", knowledge_reload_path)
-    codx_junior_session.index_knowledge_source(sources=[knowledge_reload_path.path])
-
-@app.post("/api/knowledge/delete")
-def api_knowledge_delete_path(knowledge_delete_sources: KnowledgeDeleteSources, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.delete_knowledge_source(sources=knowledge_delete_sources.sources)
-
-@app.delete("/api/knowledge/delete")
-def api_knowledge_reload_all(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.delete_knowledge()
-
-
-@app.post("/api/knowledge/reload-search")
-async def api_knowledge_search_endpoint(knowledge_search_params: KnowledgeSearch, request: Request):
-    logger.info("API:knowledge_search_endpoint")
-    codx_junior_session = request.state.codx_junior_session
-    return (await codx_junior_session.knowledge_search(knowledge_search=knowledge_search_params))
-
-@app.get("/api/knowledge/status")
-def api_knowledge_status(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.check_knowledge_status()
-
-@app.get("/api/chats")
-def api_list_chats(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    file_path = request.query_params.get("file_path")
-    chat_id = request.query_params.get("id")
-    export_format = request.query_params.get("export_format")
-    from_date = request.query_params.get("from_date")
-    
-    if export_format:
-        export = codx_junior_session.get_chat_manager().export_chat(chat_id=chat_id, export_format=export_format)
-        # Initiate a download action with the exported document
-        return Response(
-                  content=export.content,
-                  media_type=export.content_type, 
-                  headers={"Content-Disposition": f"attachment; filename={export.file_name}"}
-              )
-    
-    if chat_id:
-        return codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
-    
-    if file_path:
-        return codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
-    
-    return codx_junior_session.list_chats(from_date=from_date)
-
-@profile_function
-@app.post("/api/chats")
-async def api_chat(chat: Chat, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
-    await codx_junior_session.chat_with_project(chat=chat)
-    await codx_junior_session.save_chat(chat)
-    return chat
-
-@profile_function
-@app.post("/api/chats/from-url")
-async def api_chat_form_url(chat: Chat, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.chat_event(chat=chat, message="Loading chat...")
-    codx_junior_session.init_chat_from_url(chat=chat)
-    await codx_junior_session.save_chat(chat)
-    return chat
-
-@profile_function
-@app.post("/api/chats/sub-tasks")
-async def api_chat_subtasks(chat: Chat, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return await codx_junior_session.generate_tasks(chat=chat)
-
-@app.put("/api/chats")
-async def api_save_chat(chat: Chat, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    chat_only = request.query_params.get("chatonly") == "1"
-    await codx_junior_session.save_chat(chat, chat_only=chat_only)
-
-@app.delete("/api/chats")
-def api_delete_chat(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    chat_id = request.query_params.get("chat_id")
-    codx_junior_session.delete_chat(chat_id)
-
-@app.get("/api/kanban")
-def api_kanban(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.get_chat_manager().load_kanban()
-
-@app.post("/api/kanban")
-async def api_set_kanban(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    kanban = await request.json()
-    codx_junior_session.get_chat_manager().save_kanban(kanban)
-
-@app.delete("/api/kanban")
-def api_delete_kanban(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    kanban_title = request.query_params.get("kanban_title")
-    return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)
-
-@app.post("/api/images")
-async def api_image_upload(file: UploadFile):
-    # Read the file content
-    file_content = await file.read()
-
-    if not file_content:
-        return jsonify({'error': 'No selected file'}), 400
-
-    # Create an MD5 hash from the file content
-    md5_hash = hashlib.md5(file_content).hexdigest()
-
-    # Define the target directory for message images
-    message_image_folder = f"{CODX_JUNIOR_STATIC_FOLDER}/images/message"
-    os.makedirs(message_image_folder, exist_ok=True)
-
-    # Create the full path for the image using the hash
-    image_path = os.path.join(message_image_folder, md5_hash)
-
-    # Save the file if it doesn't exist
-    if not os.path.exists(image_path):
-        with open(image_path, "wb+", encoding='utf-8') as file_object:
-            file_object.write(file_content)
-
-    # Return the relative path to access the image
-    image_url = f'/images/message/{md5_hash}'
-    return { "path": image_url }
 
 @app.post("/api/run/improve")
 async def api_run_improve(chat: Chat, request: Request):
@@ -436,14 +299,9 @@ def api_project_watch(request: Request):
 
 @app.get("/api/projects")
 def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authenticated_user)):
-    # return [{
-    #   **project.__dict__,
-    #   "workspaces": project.get_project_workspaces()
-    # } for project in find_all_user_projects(user)]
     projects = list(find_all_user_projects(user))
     workspaces = read_global_settings().workspaces
 
-    project_ids = [p.project_id for p in projects]
     user_role = user.role
 
     user_workspaces = [w for w in workspaces \
@@ -493,7 +351,7 @@ def api_project_ai_models(request: Request):
     return codx_junior_session.settings.get_project_ai_models()
 
 @app.post("/api/projects/ai/models/reload")
-def api_project_ai_models(request: Request, model: AIModel):
+def api_project_ai_models_reload(request: Request, model: AIModel):
     return AIManager().reload_model(model)
 
 @app.post("/api/projects")
@@ -501,7 +359,7 @@ def api_project_create(request: Request, user: CodxUser = Depends(get_authentica
     project_path = request.query_params.get("project_path")
     try:
         return CODXJuniorSettings.from_project_file(f"${project_path}/.codx/project.json")
-    except:
+    except Exception:
         return create_project(project_path=project_path, user=user)
 
 @app.delete("/api/projects")
@@ -517,18 +375,122 @@ def api_project_unwatch(request: Request):
     find_all_projects()
     return { "OK": 1 }
 
-@app.get("/api/knowledge/keywords")
-def api_get_keywords(request: Request):
+@app.get("/api/chats")
+def api_list_chats(request: Request):
     codx_junior_session = request.state.codx_junior_session
-    query = request.query_params.get("query")
-    return codx_junior_session.get_keywords(query=query)
+    file_path = request.query_params.get("file_path")
+    chat_id = request.query_params.get("id")
+    export_format = request.query_params.get("export_format")
+    from_date = request.query_params.get("from_date")
+    
+    if export_format:
+        export = codx_junior_session.get_chat_manager().export_chat(chat_id=chat_id, export_format=export_format)
+        # Initiate a download action with the exported document
+        return Response(
+                  content=export.content,
+                  media_type=export.content_type, 
+                  headers={"Content-Disposition": f"attachment; filename={export.file_name}"}
+              )
+    
+    if chat_id:
+        chat = codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
+        if not chat:
+            logger.error('Chat not found. chat_id: %s, project: %s', chat_id, codx_junior_session.settings.project_name)
+        return chat
 
-@app.post("/api/knowledge/keywords")
-def api_extract_tags(doc: Document, request: Request):
+    if file_path:
+        chat = codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
+        if not chat:
+            logger.error('Chat not found. file_path: %s, project: %s', file_path, codx_junior_session.settings.project_name)
+        return chat
+
+    return codx_junior_session.list_chats(from_date=from_date)
+
+@profile_function
+@app.post("/api/chats")
+async def api_chat(chat: Chat, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    logging.info("Extract keywords from %s", doc)
-    doc = codx_junior_session.extract_tags(doc=doc)
-    return doc.__dict__
+    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
+    await codx_junior_session.chat_with_project(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@profile_function
+@app.post("/api/chats/from-url")
+async def api_chat_form_url(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    codx_junior_session.chat_event(chat=chat, message="Loading chat...")
+    codx_junior_session.init_chat_from_url(chat=chat)
+    await codx_junior_session.save_chat(chat)
+    return chat
+
+@profile_function
+@app.post("/api/chats/sub-tasks")
+async def api_chat_subtasks(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return await codx_junior_session.generate_tasks(chat=chat)
+
+@app.put("/api/chats")
+async def api_save_chat(chat: Chat, request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    chat_only = request.query_params.get("chatonly") == "1"
+    await codx_junior_session.save_chat(chat, chat_only=chat_only)
+
+@app.delete("/api/chats")
+def api_delete_chat(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    chat_id = request.query_params.get("chat_id")
+    codx_junior_session.delete_chat(chat_id)
+
+@app.get("/api/kanban")
+def api_kanban(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_chat_manager().load_kanban()
+
+@app.post("/api/kanban")
+async def api_set_kanban(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    kanban = await request.json()
+    codx_junior_session.get_chat_manager().save_kanban(kanban)
+
+@app.delete("/api/kanban")
+def api_delete_kanban(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    kanban_title = request.query_params.get("kanban_title")
+    return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)
+
+@app.post("/api/images")
+async def api_image_upload(file: UploadFile):
+    """
+    Upload an image file and store it using an MD5 hash as the filename.
+    Returns the relative URL path to access the uploaded image.
+    """
+    # Read the file content as bytes
+    file_content: bytes = await file.read()
+
+    if not file_content:
+        return JSONResponse(content={'error': 'No selected file'}, status_code=400)
+
+    # Create an MD5 hash from the file content to use as a unique filename
+    md5_hash: str = hashlib.md5(file_content).hexdigest()
+
+    # Define the target directory for message images
+    message_image_folder = f"{CODX_JUNIOR_STATIC_FOLDER}/images/message"
+    os.makedirs(message_image_folder, exist_ok=True)
+
+    # Create the full path for the image using the hash
+    image_path = os.path.join(message_image_folder, md5_hash)
+
+    # Save the file only if it doesn't already exist (avoids duplicate writes)
+    if not os.path.exists(image_path):
+        logger.info("Saving uploaded image to %s", image_path)
+        # Open in binary write mode - no encoding argument for binary mode
+        with open(image_path, "wb") as file_object:
+            file_object.write(file_content)
+
+    # Return the relative path to access the image
+    image_url = f'/images/message/{md5_hash}'
+    return {"path": image_url}
 
 @app.get("/api/code-server/file/open")
 def api_file_open(request: Request):
@@ -555,7 +517,7 @@ async def api_get_file_diff(request: Request):
     return codx_junior_session.diff_file(path=data["path"], content=data["content"])
 
 @app.post("/api/files/diff/comments")
-async def api_get_file_diff(request: Request):
+async def api_get_file_diff_comments(request: Request):
     codx_junior_session = request.state.codx_junior_session
     data = await request.json()
     return codx_junior_session.diff_file_comments(path=data["path"], content=data["content"], comments=data["comments"])
@@ -567,7 +529,7 @@ async def api_post_file(doc: Document, request: Request):
     return await codx_junior_session.write_project_file(file_path=file_path, content=doc.page_content, process=False)
 
 @app.get("/api/files/find")
-def api_get_file(request: Request):
+def api_find_files(request: Request):
     codx_junior_session = request.state.codx_junior_session
     search = request.query_params.get("search")
     return codx_junior_session.search_files(search=search)
@@ -633,13 +595,13 @@ def api_logs_tail(log_name: str, request: Request):
             logs, err_logs = exec_command(cmd)
             if err_logs:
                 logger.error("Error reading logs %s: %s", log_name, err_logs)
-            # return parse_logs(logs)
-            def is_valid_log(l):
-                if "/api/logs" in l:
-                    return False
-                return True
-            return [l for l in logs.split("\n") if is_valid_log(l)]
-        except Exception as ex:
+
+            def is_valid_log(line: str) -> bool:
+                """Filter out log lines related to the logs endpoint itself."""
+                return "/api/logs" not in line
+
+            return [line for line in logs.split("\n") if is_valid_log(line)]
+        except OSError as ex:
             logger.exception("Error reading logs: %s", ex)
 
 @app.post("/api/screen")
@@ -657,14 +619,14 @@ def api_screen_get():
         lines = res.split("\n")
         screen_line = [l for l in lines if l.startswith("Screen ")][0]
         screen.resolution = screen_line.split("current ")[1].split(",")[0].replace(" ", "")
-    except Exception as ex:
+    except (IndexError, KeyError) as ex:
         logger.error("Error extracting screen resolutions %s", ex)
     return screen
 
 @app.post("/api/image-to-text")
-async def api_image_to_text_endpoint(file: UploadFile, request):
+async def api_image_to_text_endpoint(file: UploadFile, request: Request):
     codx_junior_session = request.state.codx_junior_session
-    file_bytes = await file.read()            
+    file_bytes = await file.read()
     return codx_junior_session.api_image_to_text(file_bytes)
 
 @app.post("/api/restart")

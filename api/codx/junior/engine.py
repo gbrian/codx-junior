@@ -671,11 +671,15 @@ class CODXJuniorSession:
             pending_files = pending_files[0:1000]
 
         pending_files = [f for f in pending_files if f not in list(current_sources_and_updates.keys())]
+
+        collection_metrics = knowledge.get_db().get_collection_metrics()
+
         return {
             "current_sources_and_updates": current_sources_and_updates,
             "pending_files": pending_files,
             "total_pending_changes": len(pending_files),
             "total_pending": total_pending,
+            "collection_metrics": collection_metrics,
             **status
         }
     

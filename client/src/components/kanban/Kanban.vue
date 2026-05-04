@@ -440,8 +440,8 @@ export default {
   },
   methods: {
     async setActiveChat(chat) {
-      chat && await this.$projects.reloadChat(chat)
-      this.$projects.setActiveChat(chat)
+      chat && await this.$chats.reloadChat(chat)
+      this.$chats.setActiveChat(chat)
     },
 
     async projectChanged() {
@@ -565,7 +565,7 @@ export default {
     },
 
     async createNewChat(base, activateChat) {
-      const chat = await this.$projects.createNewChat({
+      const chat = await this.$chats.createNewChat({
         ...base,
         id: uuidv4(),
         board: base.board || this.board
@@ -591,7 +591,7 @@ export default {
           id: null,
           column: this.showImportModalForColumn.title
         })
-        this.$projects.saveChat(newChat)
+        this.$chats.saveChat(newChat)
       } else if (this.importOption === 'url') {
         await this.$projects.createNewChatFromUrl({
           board: this.board || 'Default',
@@ -629,7 +629,7 @@ export default {
         file_list,
         child_index
       }, activateChat)
-      await this.$projects.saveChat(chat)
+      await this.$chats.saveChat(chat)
       if (description) this.$storex.projects.chatWihProject(chat)
     },
 
@@ -683,7 +683,7 @@ export default {
       }
       const viewCol = this.viewColumns.find(c => c.title === this.columnTitle)
       if (viewCol) {
-        await Promise.all(viewCol.tasks.map(chat => this.$projects.deleteChat(chat)))
+        await Promise.all(viewCol.tasks.map(chat => this.$chats.deleteChat(chat)))
       }
       this.activeKanbanBoard.columns = this.activeKanbanBoard.columns.filter(
         c => c.title !== this.columnTitle

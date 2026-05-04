@@ -161,6 +161,7 @@ class ChatEngine:
                 
             user_message = valid_messages[-1] if valid_messages else Message(content="")
             query = user_message.content
+            task_item = user_message.task_item
 
             query_mentions: QueryMentions = self.get_query_mentions(chat=chat, user_message=user_message)
 

@@ -18,17 +18,18 @@ import ProjectDetailt from '../ProjectDetailt.vue';
 <script>
 export default {
   props: ['params'],
-  data () {
+  data() {
     return {
-      project: null,
-      chat: null
+      project: null
     }
   },
   created() {
-    this.chat = this.$service.chat.findChat(this.params.params.chat)
     this.project = this.$projects.allProjectsById[this.projectId]
   },
   computed: {
+    chat() {
+      return this.$chats.chats[this.params.params.chat?.id]
+    },
     tabName() {
       return this.chat?.name || this.params.params.tabName
     },
@@ -43,6 +44,11 @@ export default {
     },
     projectId() {
       return this.params.params.project_id
+    }
+  },
+  watch: {
+    chat(newVal, oldVal) {
+        console.log("Chat has changed", this.chat)
     }
   },
   methods: {

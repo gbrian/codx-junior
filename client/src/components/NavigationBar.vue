@@ -83,7 +83,7 @@ export default {
       this.$projects.setActiveProject(project)
     },
     async newQuickChat() {
-      await this.$projects.createNewChat({ temp: true })
+      await this.$chats.createNewChat({ temp: true })
     },
     setProjectTab(tab) {
       if (this.$project) { 

@@ -102,9 +102,9 @@ export default {
   methods: {
     openLastEvent() {
       const { data: { chat: { id } } } = this.$session.events[this.$session.events.length-1]
-      const chat = this.$projects.chats[id];
+      const chat = this.$chats.chats[id];
       if (chat) {
-        this.$projects.setActiveChat(chat)
+        this.$chats.setActiveChat(chat)
         if (!this.$ui.activeTab !== 'tasks') {
           this.$ui.setActiveTab('tasks')
         }
@@ -144,7 +144,7 @@ export default {
     },
     openTask(task) {
       this.setActiveTab('tasks')
-      this.$projects.setActiveChat(task)
+      this.$chats.setActiveChat(task)
     },
     removeNotification(notification) {
       this.$session.removeNotification(notification)

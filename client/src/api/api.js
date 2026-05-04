@@ -246,6 +246,9 @@ const initializeAPI = ({ project, user } = {}) => {
           document_count
         });
       },
+      aiSearch(query) {
+        return API.get(`/api/knowledge/ai-search?query=${encodeURIComponent(query)}`);
+      },
       delete(sources) {
         return API.post(`/api/knowledge/delete`, { sources });
       },

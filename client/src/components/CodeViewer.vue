@@ -148,6 +148,9 @@ export default {
           const { diff, stats } = await this.$api.files.diff({ path: this.file, content: this.code }) 
           this.diff = diff
           this.stats = stats
+          if (!stats && diff) {
+            this.stats = 'File changes'
+          }
         }
       } finally {
         this.loadingStats = false
@@ -181,7 +184,12 @@ export default {
       }
     },
     createSubTask() {
-      this.$emit('sub-task', { file: this.file, content: this.code })
+      const content = [
+        "```" + this.fileLanguage + " " + this.file,
+        this.code,
+        "```"
+      ].join("\n")
+      this.$emit('sub-task', { file: this.file, content })
     }
   }
 }

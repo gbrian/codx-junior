@@ -82,7 +82,7 @@ export default {
   },
   computed: {
     chat() {
-      return this.$projects.chats[this.chatId]
+      return this.$chats.chats[this.chatId]
     },
     showAssistant() {
       return this.isOpen || this.keepOpen
@@ -91,7 +91,7 @@ export default {
       if (!this.chat) {
         return null
       }
-      return [...this.$projects.chats[this.chat.id]?.messages || []].reverse().find(m => m.role === 'assistant')
+      return [...this.$chats.chats[this.chat.id]?.messages || []].reverse().find(m => m.role === 'assistant')
     },
     chatMessages() {
       return this.chat?.messages?.length ?
@@ -110,7 +110,7 @@ export default {
     async newChat(query) {
       const column = moment().format("YYYY-MM-DD")
       const name = `${query.replace(/[^a-zA-Z0-9 ]/g, '-').slice(0, 20)} - ${moment().format("hhmmss")}` 
-      const chat = await this.$projects.createNewChat({
+      const chat = await this.$chats.createNewChat({
         board: 'codx-junior',
         column,
         description: query,
@@ -119,7 +119,7 @@ export default {
         name
       })
       this.chatId = chat.id
-      this.$projects.setActiveChat(chat)
+      this.$chats.setActiveChat(chat)
     },
     async sendMessage() {
       if (!this.chat) {
@@ -161,7 +161,7 @@ export default {
     },
     goToChat() {
       this.$ui.setActiveTab('tasks')
-      this.$projects.setActiveChat(this.chat)
+      this.$chats.setActiveChat(this.chat)
     },
     closeAssitant() {
       this.keepOpen = false
@@ -192,7 +192,7 @@ export default {
       return context.join("\n")
     },
     async loadChat(chat) {
-      await this.$projects.loadChat(chat)
+      await this.$chats.loadChat(chat)
       this.chatId = chat.id
     }
   }

@@ -1,34 +1,255 @@
 import { getterTree, mutationTree, actionTree } from 'typed-vuex'
 import store, { $storex } from '.'
+import { API } from '../api/api'
+import { v4 as uuidv4 } from 'uuid'
 
 export const namespaced = true
 
 export const state = () => ({
-  chats: null,
+  chats: {},
+  chatsById: {},
 })
 
+// Helper to register a chat into chatsById
+function registerChatById(state, chat) {
+  if (chat?.id) {
+    state.chatsById = { ...state.chatsById, [chat.id]: chat }
+  }
+}
+
+function getChatWorkingProject({ owner_project_id, project_id }) {
+  return $storex.projects.allProjectsById[project_id || owner_project_id] ||
+            $storex.projects.activeProject
+}
+
 export const getters = getterTree(state, {
+  allChats: state => Object.values(state.chats || {}),
+  allTags: state => new Set(Object.values(state.chats || {})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
+  allPRs: state => Object.values(state.chats || {}).filter(c => c.pr_view?.from_branch),
 })
 
 export const mutations = mutationTree(state, {
 })
-
-function getProjectChat({ owner_project_id, project_id }) {
-  return $storex.projects.allProjectsById[owner_project_id, project_id] ||
-            $storex.projects.activeProject
-}
 
 export const actions = actionTree(
   { state, getters, mutations },
   {
     async init ({ state }) {
     },
+    async loadChats({ state }) {
+      const chats = await API.chats.list()
+      state.chats = chats.reduce((acc, chat) => ({ ...acc, [chat.id]: chat }), {})
+      // Register all loaded chats into chatsById
+      state.chatsById = { ...state.chatsById, ...state.chats }
+      await $storex.chats.setActiveChat(state.chats[state.activeChat?.id])
+    },
+    async saveChat({ state }, chat) {
+      const savedChat = await API.chats.save(chat)
+      registerChatById(state, savedChat)
+    },
+    async saveChatInfo(_, chat) {
+      await API.chats.saveChatInfo({ ...chat, messages: [] })
+      await $storex.chats.loadChat(chat)
+    },
+    async findProjectChat({ state }, { id, owner_project_id }) {
+      const project = $storex.projects.allProjectsById[owner_project_id]
+      const chat = state.chats[id]
+      if (chat) {
+        registerChatById(state, chat)
+        return chat
+      }
+      const loadedChat = await project.$api.chats.loadChat({ id, owner_project_id })
+      if (loadedChat) {
+        registerChatById(state, loadedChat)
+        return loadedChat
+      }
+      return null
+    },
+    async loadChat({ state }, chat) {
+      if (!state.chats[chat.id]) {
+        chat = await API.chats.loadChat(chat)
+        state.chats[chat.id] = chat
+      }
+      registerChatById(state, state.chats[chat.id])
+      if (state.activeChat?.id === chat.id) {
+        state.activeChat = state.chats[chat.id]
+      }
+      return chat
+    },
+    async reloadChat({ state }, chat) {
+      if (state.chats[chat.id]) {
+        delete state.chats[chat.id]
+      }
+      return $storex.chats.loadChat(chat)
+    },
+    async deleteChat({ state }, chat) {
+      if (!chat.temp) {
+        await API.chats.delete(chat)
+      }
+      if (state.chats[chat.id]) {
+        delete state.chats[chat.id]
+      }
+      if (state.chatsById[chat.id]) {
+        const updatedChatsById = { ...state.chatsById }
+        delete updatedChatsById[chat.id]
+        state.chatsById = updatedChatsById
+      }
+    },
+    async setActiveChat({ state }, { id, project_id } = {}) {
+      if (id) {
+        await $storex.chats.reloadChat({ id, project_id })
+      }
+      if ($storex.ui.isMobile) {
+        $storex.projects.activeChat = state.chats[id]
+      } else if (state.chats[id]) {
+        $storex.ui.openChat(state.chats[id])
+      }
+    },
+    async createNewChat({ state }, chat) {
+      chat = {
+        id: uuidv4(),
+        mode: 'chat',
+        profiles: [],
+        chat_index: 0,
+        messages: [],
+        ...chat
+      }
+      state.chats[chat.id] = chat
+      registerChatById(state, chat)
+      if (!chat.temp) {
+        await $storex.chats.saveChat(chat)
+      }
+      return chat
+    },
+    async createNewChatFromUrl({ state }, chat) {
+      chat = {
+        id: uuidv4(),
+        mode: 'chat',
+        profiles: [],
+        chat_index: 0,
+        ...chat
+      }
+      state.chats[chat.id] = await API.chats.fromUrl(chat)
+      registerChatById(state, state.chats[chat.id])
+      if (!chat.temp) {
+        $storex.projects.activeChat = state.chats[chat.id]
+      }
+      return state.chats[chat.id]
+    },
+    async createNewBoardChat({ state }, { boardTitle, columnTitle, chat }) {
+      boardTitle = boardTitle || chat.board
+      columnTitle = columnTitle || chat.column
+      const newColumn = {
+        title: columnTitle,
+        chats: []
+      }
+      if (!$storex.projects.kanban) {
+        await $storex.projects.loadKanban()
+      }
+      if (!$storex.projects.kanban.boards[boardTitle]) {
+        $storex.projects.kanban.boards = {
+          ...$storex.projects.kanban.boards,
+          [boardTitle]: {
+            columns: [newColumn]
+          }
+        }
+      }
+      let column = $storex.projects.allBoards
+                        .find(({ title }) => title === boardTitle).columns.find(({ title }) => title === columnTitle)
+      if (!column) {
+        column = newColumn
+        $storex.projects.kanban.boards[boardTitle].columns.push(column)
+      }
+
+      chat = await $storex.chats.createNewChat({
+        board: boardTitle,
+        column: columnTitle,
+        ...chat
+      })
+      $storex.chats.setActiveChat(chat)
+      column.chats = [...column?.chats || [], chat.id]
+      $storex.projects.saveKanban($storex.projects.kanban)
+      return $storex.chats[chat.id]
+    },
+    async createNewThread(_, { chat, mode, message }) {
+      const { files, profiles, doc_id: subtaskMessageId } = message
+      const findChild = $storex.chats.allChats.find(c => c.message_id === subtaskMessageId)
+
+      if (!findChild) {
+        const boardTitle = chat.board
+        const columnTitle = chat.column
+        await $storex.chats.createNewBoardChat({
+          boardTitle, columnTitle,
+          chat: {
+            parent: chat,
+            name: `${subtaskMessageId} - thread`,
+            project_id: chat.project_id,
+            parent_id: chat.parent_id,
+            message_id: subtaskMessageId,
+            file_list: files,
+            profiles: profiles,
+            mode,
+            board: chat.board,
+            column: chat.column,
+            activateChat: true,
+            messages: [{ ...message, doc_id: null }]
+          }
+        })
+      } else {
+        $storex.chats.setActiveChat(findChild)
+      }
+    },
+    async onChatEvent({ state }, { event, data }) {
+      const {
+        chat: {
+          id: chatId
+        },
+        message,
+        event_type,
+        type,
+        codx_path
+      } = data
+
+      if (event_type === 'error') {
+        $storex.ui.addNotification({ text: message, type: event_type })
+      }
+
+      if (chatId) {
+        const { project_id } = $storex.projects.allProjects.find(p => p.codx_path === codx_path)
+        if (type === 'changed' || !state.chats[chatId]) {
+          await $storex.chats.reloadChat({ id: chatId, project_id })
+        }
+        const chat = state.chats[chatId]
+        if (chat && message) {
+          const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
+          if (currentMessage) {
+            if (event_type === "done") {
+              Object.assign(currentMessage, message)
+            } else {
+              currentMessage.is_thinking = message.is_thinking
+              currentMessage.done = message.done
+              currentMessage.meta_data = message.meta_data
+              if (message.is_thinking) {
+                currentMessage.think += message.think
+              } else {
+                currentMessage.content += message.content
+              }
+              currentMessage.updated_at = new Date().toISOString()
+            }
+          } else {
+            chat.messages.push(message)
+          }
+        }
+        // Keep chatsById in sync after event processing
+        registerChatById(state, chat)
+      }
+    },
     async readFile({ state }, { chat, file }) {
-      const project = getProjectChat(chat) 
+      const project = getChatWorkingProject(chat)
       return project.$api.files.read(file)
     },
     async writeFile({ state }, { chat, file, content }) {
-      const project = getProjectChat(chat) 
+      const project = getChatWorkingProject(chat)
       return project.$api.files.write(file, content)
     }
   }

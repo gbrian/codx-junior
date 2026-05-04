@@ -30,7 +30,8 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
               isTask && 'opacity-10 group-hover:opacity-30 hover:opacity-100'
             ]">
             <span class="text-warning" v-if="displayMessage.hide"><i class="fa-solid fa-box-archive"></i></span>
-            <div v-for="profile in messageProfiles" :key="profile.name">
+            <div class="tooltip tooltip-right" :data-tip="profile.name || profile.username" 
+                v-for="profile in messageProfiles" :key="profile.name">
               <ProfileAvatar :profile="profile" width="6" />
             </div>
             <UserSelector 
@@ -443,11 +444,11 @@ export default {
       }
     },
     openThread() {
-      this.$projects.setActiveChat(this.threadChat)
+      this.$chats.setActiveChat(this.threadChat)
     },
     loadThreadChat() {
       if (this.threadChat) {
-        this.$projects.reloadChat(this.threadChat)
+        this.$chats.reloadChat(this.threadChat)
       }
     }
   },

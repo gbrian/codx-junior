@@ -74,6 +74,9 @@ const globalMixin = {
     $users () {
       return $storex.users
     },
+    $chats () {
+      return $storex.chats
+    },
     $globalSettings() {
       return $storex.api.globalSettings
     },

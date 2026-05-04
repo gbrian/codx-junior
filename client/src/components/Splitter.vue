@@ -34,7 +34,7 @@ export default {
       return this.$storex.projects.openedWorkspaces.length
     },
     showNavigationBar() {
-      return !this.$ui.isMobile || !this.$projects.activeChat 
+      return !this.$ui.isMobile || !this.$chats.activeChat 
             || this.$ui.activeTab !== 'tasks'
             || this.$ui.activeApp
     }

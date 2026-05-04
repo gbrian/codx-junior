@@ -22,11 +22,13 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
           <div class="flex items-start gap-2 w-full">
             <div class="flex gap-2 items-start">
               <input type="text" class="input input-sm input-bordered"
-                @keydown.enter.stop="saveChat(theChat)" 
+                @keydown.enter.stop="saveChatInfo(theChat)" 
                 @keydown.esc="editName = false" 
                 v-model="theChat.name" 
                 v-if="editName" />
-              <div class="font-bold flex flex-col -space-y-2" v-else>
+              <div class="font-bold flex -space-y-2" 
+                :class="[isVibe ? 'items-start gap-2 flex-row-reverse' : 'flex-col']"
+                v-else>
                 <div class="flex gap-2 mb-2 shrink-0">
                   <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
                     {{ kanban?.title || theChat.board }}
@@ -39,8 +41,9 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                 </div>
                 <div class="flex gap-2">
                   <div class="flex gap-1 relative">
+                    <!-- targetProject: project that will be affected by the chat -->
                     <ProjectDetailt 
-                      :project="taskProject" 
+                      v-model="targetProject" 
                       :iconify="true"
                       :options="{ showFolders: false, showIcon: true, showSelector: true }"
                       @select="setChatProject"  
@@ -50,7 +53,6 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                       :allUsers="true"
                       @user-changed="onAddProfile($event)"
                     />
-                
                   </div>
 
                   <div class="cursor-pointer text-xs @md:text-md @xl:text-xl flex flex-col">
@@ -66,9 +68,12 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                         <div>
                           <span :class="showChildChat && 'opacity-70 hover:opacity-100'" @click="onChatNameClick">{{ computedChatName }}</span>
                           <span v-if="showChildChat"> / {{ showChildChat.name }}</span>
-
                         </div>
                         <div class="flex gap-1 text-xs gap-2">
+                          <!-- ownerProject: project where the chat was created -->
+                          <span class="text-xs text-base-content/50" v-if="showTaskProjectName" :title="`Owner: ${ownerProject?.title}`">
+                            <i class="fa-solid fa-house text-xs"></i> {{ ownerProject?.title }}
+                          </span>
                           [{{ formattedChatUpdatedDate }}]
                           <span class="text-xs hover:underline"
                               :class="showDescription ? 'text-error/70': 'text-info'"
@@ -122,8 +127,8 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                       <li @click="setChatMode('slides')">
                         <a><ChatIcon mode="slides" /> Slides</a>
                       </li>
-                      <li @click="setChatMode('topic')">
-                        <a><ChatIcon mode="topic" /> Discussion</a>
+                      <li @click="setChatMode('vibe')">
+                        <a><ChatIcon mode="vibe" /> Vibe</a>
                       </li>
                       <li class="flex gap-2" @click="setChatMode('prview')">
                         <a><ChatIcon mode="prview" /> Changes review</a>
@@ -233,7 +238,7 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                       </div>
                     </div>
                     <div class="grow hidden group-hover:flex text-xs justify-end" 
-                      @click.stop="$projects.setActiveChat(childChat)">
+                      @click.stop="$chats.setActiveChat(childChat)">
                       <i class="fa-solid fa-up-right-from-square"></i>
                     </div>
                   </div>
@@ -311,7 +316,6 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
             <h3 class="font-bold text-lg">Create New Subtask</h3>
             <input v-model="subtaskName" type="text" class="input input-bordered" placeholder="Subtask Name" />
             
-            <!-- Dropdown for selecting subTaskMode -->
             <div class="form-control">
               <label class="label">
                 <span class="label-text">Select Subtask Mode</span>
@@ -328,8 +332,9 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
 
             <textarea v-model="subtaskDescription" class="textarea textarea-bordered" placeholder="Short Description (optional)" rows="3"></textarea>
             
+            <!-- subtaskProject defaults to targetProject of parent chat -->
             <ProjectDetailt 
-              :project="subtaskProject" 
+              v-model="subtaskProject" 
               :options="{ showFolders: false, showIcon: true, showSelector: true }"
             />
             <div class="flex" v-for="profile in subtaskProfiles" :key="profile.name">
@@ -387,7 +392,7 @@ export default {
       subtaskProfiles: [],
       subtaskName: '',
       subtaskDescription: '',
-      subtaskMode: 'task', // Default mode
+      subtaskMode: 'task',
       subtaskFiles: [],
       subtaskProject: null,
       subtaskParentId: null,
@@ -403,7 +408,10 @@ export default {
       showExportChat: false,
       dropOver: null,
       chatSearch: null,
-      taskProject: null,
+      // ownerProject: project where the chat was originally created (chat.owner_project_id)
+      ownerProject: null,
+      // targetProject: project the chat work targets (chat.project_id)
+      targetProject: null,
       theChat: null
     }
   },
@@ -411,14 +419,6 @@ export default {
     this.init()
   },
   async mounted() {
-    this.showChatMenu = !this.$ui.isMobile && !this.isPRView
-    this.chatProfiles = await this.$storex.api.project(this.taskProject)
-      .then(p => p.profiles.list())
-      .then(profiles => profiles.filter(p => this.theChat.profiles.includes(p.name)))
-    if (this.isPRView) {
-      await this.$projects.loadBranches()
-    }
-    this.showDescription = this.isThread
   },
   computed: {
     isThread() {
@@ -428,7 +428,10 @@ export default {
       return this.$projects.project_branches || []
     },
     isPRView() {
-      return this.workingChat.mode === 'prview'
+      return this.workingChat?.mode === 'prview'
+    },
+    isVibe() {
+      return this.workingChat?.mode === 'vibe'
     },
     taskAIModel() {
       return this.aiModels.find(m => m.name === this.theChat.llm_model)
@@ -436,8 +439,9 @@ export default {
     aiModels() {
       return this.$projects.ai.models
     },
+    // Show owner label only when owner differs from current active project
     showTaskProjectName() {
-      return this.taskProject && this.taskProject.project_id != this.$project.project_id 
+      return this.ownerProject && this.ownerProject.project_id !== this.$project.project_id
     },
     chatUsers() {
       return this.$storex.api.userNetwork.filter(({ username }) => this.theChat.users?.includes(username))
@@ -445,7 +449,8 @@ export default {
     chatModes() {
       return this.$projects.chatModes
     },
-    subProjects() {
+    // All projects available: current + children + dependencies
+    allAvailableProjects() {
       return [
         this.$project,
         ...this.$projects.childProjects || [],
@@ -467,16 +472,13 @@ export default {
         ? moment(updatedAt).fromNow()
         : moment(updatedAt).format('YYYY-MM-DD')
     },
-    chats() {
-      return this.$projects.allChats
-    },
     childrenChats() {
-      return this.$storex.projects.allChats.filter(c => c.parent_id === this.theChat.id && !c.message_id)
+      return this.$chats.allChats
+        .filter(c => c.parent_id === this.theChat.id && !c.message_id)
         .sort((a, b) => a.name > b.name ? 1 : -1)
     },
     chatProject() {
-      return this.$projects.allProjectsById[this.theChat.project_id] ||
-        this.$project
+      return this.$projects.allProjectsById[this.theChat.project_id] || this.$project
     },
     parentChat() {
       return this.$projects.allChats.find(c => c.id === this.theChat?.parent_id)
@@ -484,22 +486,18 @@ export default {
     chatFiles() {
       return this.workingChat.file_list || []
     },
-    taskProjects() {
-      return [this.$project, ...this.$projects.childProjects]
-    },
     images() {
-      return (this.workingChat.messages ||[]).map(m => m.images || [])
-                .reduce((a, b) => a.concat(b), [])
-                .map(i => {
-                  try {
-                    return i ? JSON.parse(i) : null
-                  } catch {}
-                  return null
-                })
-                .filter(i => !!i)
+      return (this.workingChat.messages || [])
+        .map(m => m.images || [])
+        .reduce((a, b) => a.concat(b), [])
+        .map(i => {
+          try { return i ? JSON.parse(i) : null } catch {}
+          return null
+        })
+        .filter(i => !!i)
     },
     workingChat() {
-      return this.$projects.chats[this.showChildChat?.id || this.theChat?.id]
+      return this.$chats.chats[this.showChildChat?.id || this.theChat?.id]
     },
     computedChatName() {
       return this.theChat.name
@@ -519,9 +517,7 @@ export default {
   },
   watch: {
     chat(newVal, oldVal) {
-      if (oldVal && 
-          newVal && 
-          oldVal.project_id !== newVal.project_id) {
+      if (oldVal && newVal && oldVal.project_id !== newVal.project_id) {
         this.init()
       }
       this.showChildChat = null
@@ -531,53 +527,79 @@ export default {
   methods: {
     async init() {
       this.theChat = await this.$service.chat.findChat(this.chat || this.params?.params.chat)
+      // Resolve projects before loading children and context
+      this.setTaskProject()
       this.setProjectContext()
       await Promise.all(
-        this.childrenChats.map(chat => this.$projects.loadChat(chat))
+        this.childrenChats.map(chat => this.$chats.loadChat(chat))
       )
-      this.setTaskProject()
+      this.chatProfiles = await this.$storex.api.project(this.ownerProject)
+        .then(p => p.profiles.list())
+        .then(profiles => profiles.filter(p => this.theChat.profiles.includes(p.name)))
+      if (this.isPRView) {
+        await this.$projects.loadBranches()
+      }
+      this.showChatMenu = !this.$ui.isMobile && !this.isPRView
+      this.showDescription = this.isThread
     },
+
     setTaskProject() {
-      this.taskProject = this.$projects.allProjects.find(p => p.project_id === this.theChat.project_id) || this.$project
-      this.subtaskProject = this.$projects.allProjectsById[this.theChat.project_id || this.chatProject?.project_id] || this.$project
+      this.ownerProject = this.$projects.allProjectsById[this.theChat.owner_project_id]
+      this.targetProject = this.$projects.allProjectsById[this.theChat.project_id] || this.$project
+      // subtaskProject inherits targetProject by default
+      this.subtaskProject = this.targetProject
     },
+
     async setProjectContext() {
       this.projectContext = await this.$service.project.loadProjectContext(this.$project)
     },
+
     async reloadChat() {
-      this.$projects.reloadChat(this.workingChat)
+      this.$chats.reloadChat(this.workingChat)
     },
+
     async setChatProject(project) {
+      // Update targetProject and persist
+      this.targetProject = project
       this.workingChat.project_id = project.project_id
       await this.saveChat(this.workingChat)
     },
+
     async saveChat(chat) {
       this.editName = false
-      return this.$projects.saveChat(chat || this.workingChat)
+      return this.$chats.saveChat(chat || this.workingChat)
+    },
+    saveChatInfo(chat) {
+      this.editName = false
+      this.$chats.saveChatInfo(chat)
     },
     async confirmDeleteChat() {
       this.confirmDelete = false
-      await this.$projects.deleteChat(this.theChat)
+      await this.$chats.deleteChat(this.theChat)
       const parentChat = this.parentChat
       if (parentChat) {
-        this.$projects.setActiveChat(parentChat)
+        this.$chats.setActiveChat(parentChat)
       } else {
         this.navigateToChats()
       }
     },
+
     resetConfirmDelete() {
       this.confirmDelete = false
     },
+
     async loadChat(chat) {
-      await this.$projects.setActiveChat(chat)
+      await this.$chats.setActiveChat(chat)
       this.showChatsTree = false
     },
+
     async removeFileFromContext() {
       this.theChat.profiles = this.theChat.profiles?.filter(f => f !== this.showFile)
       this.onRemoveFile(this.showFile)
       await this.reloadChat(this.theChat)
       this.showFile = null
     },
+
     async addFileToContext() {
       this.onAddFile(this.addFile)
       await this.saveChat(this.theChat)
@@ -585,19 +607,20 @@ export default {
       this.showFile = null
       this.addFile = null
     },
+
     async onAddFile(file) {
-      if (this.theChat.file_list?.includes(file)) {
-        return
-      }
+      if (this.theChat.file_list?.includes(file)) return
       this.theChat.file_list = [...(this.theChat.file_list || []), file]
       this.addNewFile = null
       await this.saveChat(this.theChat)
     },
+
     async onRemoveFile(file) {
       this.workingChat.file_list = (this.workingChat.file_list || []).filter(f => f !== file)
       this.addNewFile = null
       await this.saveChat(this.theChat)
     },
+
     async addProfile(profile) {
       if (!this.theChat.profiles?.includes(profile)) {
         this.theChat.profiles = [...this.theChat.profiles || [], profile]
@@ -605,6 +628,7 @@ export default {
       }
       this.showAddProfile = false
     },
+
     async addUserToChat(user) {
       if (!this.theChat.users?.includes(user.username)) {
         this.theChat.users = [...this.theChat.users || [], user.username]
@@ -612,18 +636,21 @@ export default {
       }
       this.showAddProfile = false
     },
+
     async removeUser(user) {
       if (this.theChat.users?.includes(user.username)) {
         this.theChat.users = this.theChat.users.filter(u => u !== user.username)
         await this.saveChat(this.theChat)
       }
     },
+
     removeProfile(profile) {
       if (this.theChat.profiles?.includes(profile.name)) {
         this.theChat.profiles = this.theChat.profiles.filter(p => p !== profile.name)
         this.saveChat(this.theChat)
       }
     },
+
     onRemoveMessage(message) {
       const ix = this.theChat.messages.findIndex(m => m.doc_id === message.doc_id)
       if (this.theChat.mode == 'task' && message.role === "assistant" && ix > 1) {
@@ -632,29 +659,30 @@ export default {
       this.theChat.messages = this.theChat.messages.filter((_, i) => i !== ix)
       this.saveChat()
     },
+
     navigateToChats() {
       if (this.$ui.activeTab !== 'tasks') {
         this.$ui.setActiveTab('tasks')
       }
       this.$emit('chats', this.kanban?.title || this.theChat.board)
     },
-    newSubChat(message) {
-      this.subtaskProject = null
-      this.subtaskParentId = null
-      this.subtaskMessageId = null
-      this.showSubtaskModal = true
 
-      this.subtaskName = null
-      this.subtaskDescription = null
+    newSubChat(message) {
       this.subtaskParentId = this.theChat.id
       this.subtaskMessageId = message?.doc_id
+      this.subtaskName = null
+      this.subtaskDescription = null
       this.subtaskFiles = []
       this.subtaskProfiles = []
       this.subtaskMode = this.theChat.mode
       this.subtaskColumn = this.theChat.column
+      // Subtask targets same project as parent chat by default
+      this.subtaskProject = this.targetProject
+      this.showSubtaskModal = true
     },
+
     async onNewMessageSubtask({ chat, mode, message: { column, files, profiles, doc_id: subtaskMessageId }}) {
-      const findChild = () => this.$projects.allChats.find(c => c.message_id === subtaskMessageId) 
+      const findChild = () => this.$projects.allChats.find(c => c.message_id === subtaskMessageId)
       if (!findChild()) {
         await this.createSubTask({
           parent: chat,
@@ -663,7 +691,7 @@ export default {
           parent_id: chat.parent_id,
           message_id: subtaskMessageId,
           file_list: files,
-          profiles: profiles,
+          profiles,
           mode,
           board: chat.board,
           column,
@@ -671,26 +699,22 @@ export default {
           child_index: this.childrenChats?.length
         })
       }
-      this.$projects.setActiveChat(findChild())
+      this.$chats.setActiveChat(findChild())
     },
+
     getSubTaskParentSummary() {
       let { messages } = this
-      if (!messages.length) {
-        return ""
-      }
+      if (!messages.length) return ""
       if (this.theChat.mode === 'task') {
         messages = messages.reverse()
         const lastAI = messages.find(m => m.role === 'assistant')
-        if (lastAI) {
-          return lastAI.content
-        }
+        if (lastAI) return lastAI.content
       }
       return messages.reduce((acc, m) => acc + "\n" + m.content, "")
     },
+
     onCreateSubtask() {
-      if (!this.subtaskName.trim()) {
-        return
-      }
+      if (!this.subtaskName.trim()) return
       if (this.subtaskDescription) {
         const parentContent = this.getSubTaskParentSummary()
         this.subtaskDescription = `${parentContent}\n\n${this.subtaskDescription}`
@@ -699,7 +723,8 @@ export default {
         parent: this.theChat,
         name: this.subtaskName,
         description: this.subtaskDescription,
-        project_id: this.subtaskProject?.project_id,
+        // Use selected subtaskProject (defaults to targetProject)
+        project_id: this.subtaskProject?.project_id || this.targetProject?.project_id,
         parent_id: this.subtaskParentId,
         message_id: this.subtaskMessageId,
         file_list: this.subtaskFiles,
@@ -712,9 +737,11 @@ export default {
       })
       this.resetSubtaskModal()
     },
+
     cancelSubtask() {
       this.resetSubtaskModal()
     },
+
     resetSubtaskModal() {
       this.showSubtaskModal = false
       this.subtaskName = ''
@@ -724,19 +751,23 @@ export default {
       this.subtaskProfiles = []
       this.subtaskColumn = ''
     },
+
     addNewTag() {
       this.theChat.tags = [...new Set([...this.theChat.tags || [], this.newTag])]
       this.newTag = null
       this.saveChat()
     },
+
     removeTag(tag) {
       this.theChat.tags = this.theChat.tags.filter(t => t !== tag)
       this.saveChat()
     },
+
     setChatMode(mode) {
       this.workingChat.mode = mode
       this.saveChat()
     },
+
     navigateToParent(parentChat) {
       if (parentChat) {
         this.$emit('chat', parentChat)
@@ -744,22 +775,27 @@ export default {
         this.navigateToChats()
       }
     },
+
     async openChatSearchModal() {
       // Open a modal for linking chat
     },
+
     async onAddProfile() {
       this.showAddProfile = true
     },
+
     toggleChatPinned() {
       this.theChat.pinned = !this.theChat.pinned
-      this.saveChat()  
+      this.saveChat()
     },
+
     selectChildChat(childChat) {
       this.showChildChat = childChat
       if (childChat && !childChat.messages?.length) {
-        this.$projects.reloadChat(childChat)
+        this.$chats.reloadChat(childChat)
       }
     },
+
     onChatNameClick() {
       if (this.showChildChat) {
         this.selectChildChat(null)
@@ -767,10 +803,11 @@ export default {
         this.editName = true
       }
     },
+
     onChildMenuDragStart($event, childChat) {
-      console.log("Menu drag start", $event)
       $event.dataTransfer.setData("chatId", childChat.id)
     },
+
     onTaskDragover($event, childChat) {
       const id = $event.dataTransfer.getData("chatId")
       if (id === childChat.id) {
@@ -778,23 +815,22 @@ export default {
         return
       }
       this.dropOver = childChat
-      console.log("Menu drag over", this.dropOver.name)
-      $event.preventDefault();
+      $event.preventDefault()
       $event.target.scrollIntoView({ block: 'center', behavior: 'smooth' })
     },
+
     onTaskDropped($event, childChat) {
       const id = $event.dataTransfer.getData("chatId")
-      if (id === childChat.id) {
-        return
-      }
-      return
+      if (id === childChat.id) return
       const dropChat = this.childrenChats.find(c => c.id === id)
+      if (!dropChat) return
       dropChat.parent_id = childChat.id
       this.dropOver = null
       this.saveChat(dropChat)
     },
+
     async createSubTask({ parent, name, mode, description, project_id, parent_id, message_id, file_list, activateChat, child_index, column, profiles }) {
-      const chat = await this.$projects.createNewChat({
+      const chat = await this.$chats.createNewChat({
         id: uuidv4(),
         board: parent.board,
         name,
@@ -803,14 +839,17 @@ export default {
         column: column || parent.column,
         parent_id: parent_id || parent.id,
         message_id,
+        // Inherit owner from parent; target project is explicit project_id
+        owner_project_id: parent.owner_project_id || parent.project_id,
         project_id: project_id || parent.project_id,
         messages: description ? [{ role: 'user', content: description }] : [],
         file_list,
         child_index
       })
-      await this.$projects.saveChat(chat)
+      await this.$chats.saveChat(chat)
       if (description) this.$storex.projects.chatWihProject(chat)
     },
+
     async createSubTasks() {
       if (this.showSubtasksModal) {
         this.$projects.createSubtasks({ chat: this.theChat, instructions: this.createTasksInstructions })

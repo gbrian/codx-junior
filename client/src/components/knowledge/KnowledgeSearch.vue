@@ -1,5 +1,4 @@
 <script setup>
-import { API } from '../../api/api'
 import MarkdownVue from '@/components/Markdown.vue'
 </script>
 

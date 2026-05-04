@@ -1,0 +1,16 @@
+{
+  "name": "browser",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "pupeteer.js",
+  "scripts": {
+    "start": "node pupeteer.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "puppeteer-core": "^24.42.0"
+  }
+}

@@ -17,12 +17,14 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
     v-if="!readOnly"
   >
     <!-- Document search autocomplete -->
-    <ProjectResourcesAutoCompleteVue
-      :project="chatProject"
-      @select-result="$emit('add-document', $event)"
-      @close="$emit('close-search')"
-      v-if="showDocumentSearch"
-    />
+    <modal close="true" @close="$emit('close-knowledge')" v-if="showDocumentSearch">
+        <ProjectResourcesAutoCompleteVue
+        :project="chatProject"
+        @select-result="$emit('add-document', $event)"
+        @close="$emit('close-search')"
+        v-if="showDocumentSearch"
+        />
+    </modal>
 
     <!-- Emoji picker -->
     <EmojiPicker

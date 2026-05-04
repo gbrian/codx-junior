@@ -214,7 +214,7 @@ export default {
     async toggleContentPreview() {
       /*
       if (!this.editProfile.chat_id) {
-        const chat = await this.$projects.createNewChat({
+        const chat = await this.$chats.createNewChat({
           name: `Profile ${this.editProfile.name}`,
           mode: 'task',
           board: "Profiles",

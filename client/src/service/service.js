@@ -3,22 +3,28 @@ export default class Service {
     this.$storex = $storex
   }
   
-  get api() {
+  get $api() {
     return $storex.api
   }
-  get projects() {
+  get $projects() {
     return $storex.projects
   }
-  get project() {
+  get $chats() {
+    return $storex.chats
+  }
+  get $project() {
     return $storex.projects.activeProject
   }
-  get session() {
+  get $session() {
     return $storex.session
   }
-  get user() {
+  get $ui() {
+    return $storex.ui
+  }
+  get $user() {
     return $storex.api.user
   }
-  get users() {
+  get $users() {
     return $storex.users
   }
   get globalSettings() {

@@ -101,6 +101,7 @@ export default {
       this.$storex.projects.kanban.boards[boardName] = updatedBoard
       this.$storex.projects.saveKanban()
       this.showBoardModal = false
+      this.onClose()
     },
 
     onDeleteBoard() {
@@ -108,6 +109,10 @@ export default {
       delete this.$storex.projects.kanban.boards[this.board.title]
       this.$storex.projects.saveKanban()
       this.showBoardModal = false
+      this.onClose()
+    },
+    onClose() {
+        this.$emit('close')
     }
   }
 }

@@ -30,7 +30,7 @@ import NewEditBoardModal from './NewEditBoardModal.vue'
       @chat="setActiveChat($event)"
       @change-column="moveChatsToColumn"
       :kanban="activeBoard"
-      :chat="$projects.activeChat"
+      :chat="$chats.activeChat"
       v-if="showChatView"
     />
 
@@ -46,9 +46,7 @@ import NewEditBoardModal from './NewEditBoardModal.vue'
       <NewEditBoardModal
         :board="editingBoard"
         :boards="boards"
-        @change="onSaveBoard"
-        @cancel-edit="closeBoardModal"
-        @delete="onDeleteBoard"
+        @close="closeBoardModal"
       />
     </modal>
 
@@ -94,7 +92,7 @@ export default {
         : null
     },
     showChatView() {
-      return !this.showHistory && !!this.$projects.activeChat
+      return !this.showHistory && !!this.$chats.activeChat
     },
     showKanban() {
       return !this.showHistory && !this.showChatView && !!this.activeBoard
@@ -167,12 +165,12 @@ export default {
     },
 
     onChatEditDone() {
-      this.$projects.setActiveChat()
+      this.$chats.setActiveChat()
     },
 
     async setActiveChat(chat) {
-      chat && await this.$projects.reloadChat(chat)
-      this.$projects.setActiveChat(chat)
+      chat && await this.$chats.reloadChat(chat)
+      this.$chats.setActiveChat(chat)
     },
 
     async moveChatsToColumn({ chats, column }) {

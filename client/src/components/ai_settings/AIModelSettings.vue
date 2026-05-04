@@ -111,7 +111,7 @@ export default {
   methods: {
     async newChat() {
       if (!this.testChat) {
-        this.testChat = await this.$projects.createNewChat({
+        this.testChat = await this.$chats.createNewChat({
           test: true,
           name: "test " + this.model.name
         })

@@ -12,7 +12,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
     <div v-if="image" :style="`background-image: url(${image.src})`" class="bg-contain bg-no-repeat bg-center h-28 bg-base-300"></div>
     <div class="h-full flex flex-col justify-between gap-2">
       <div>
-        <div v-if="parentChat" class="text-xs text-primary/40 hover:text-primary text-nowrap overflow-hidden" @click.stop="$projects.setActiveChat(parentChat)">
+        <div v-if="parentChat" class="text-xs text-primary/40 hover:text-primary text-nowrap overflow-hidden" @click.stop="$chats.setActiveChat(parentChat)">
           {{ parentChat.name }}
         </div>
         <div class="flex justify-between">
@@ -133,7 +133,7 @@ export default {
       return this.$projects.allProjects.find(p => p.project_id === this.task.project_id && p.project_id !== this.$project.project_id)
     },
     parentChat() {
-      return this.$projects.chats[this.task.parent_id]
+      return this.$chats.chats[this.task.parent_id]
     },
     updating() {
       const { chat, message } = this.$session.lastEvent || {}

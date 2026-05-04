@@ -48,18 +48,21 @@ import Editor from "../monaco/Editor.vue"
       </div>
 
       <div class="dropdown dropdown-left" @click.stop="">
-        <div tabindex="0" class="click border rounded-lg text-sm px-2 py-1"
+        <div tabindex="0" class="click border rounded-lg text-sm px-2 py-1 max-w-32 overflow-hidden text-nowrap text-ellipsis"
+          :title="file.column?.title"
           :class="`border-[${file.column?.color || 'gainsboro'}] text-[${file.column?.color || 'gainsboro'}]`">
-          {{  file.column?.title || '...'  }}
+          <i class="fa-solid fa-table-columns"></i> {{  file.column?.title || '...'  }}
         </div>
         <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-20 p-2 shadow-sm">
           <li v-for="column in columns" 
             :key="column.title"
-            class="mb-2 text-sm border rounded-lg"
+            class="mb-2 text-sm border rounded-lg overflow-hidden text-nowrap text-ellipsis"
             :class="`border-[${column?.color || 'gainsboro'}] text-[${column?.color || 'gainsboro'}]`"
             @click="$emit('chat-column', { file, column: column.title})"
             >
-            <a>{{ column.title }}</a>
+            <a class="overflow-hidden text-nowrap text-ellipsis">
+            <i class="fa-solid fa-table-columns"></i>    {{ column.title }}
+            </a>
           </li>
         </ul>
       </div>
@@ -73,12 +76,19 @@ import Editor from "../monaco/Editor.vue"
         @click="onShowChat(file)" v-else>
         <i class="fa-solid fa-comments"></i>
       </button>
-      
+
       <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="File changes"
         :class="showDiff && 'btn-warning'"
         @click="showOption = 'diff'" 
         disabled="!file.parsed || file.isNewFile">
         <i class="fa-solid fa-code-merge"></i>
+      </button>
+
+      <button class="btn btn-sm btn-outline tooltip border-dashed text-slate-500" 
+        data-tip="Review" 
+        :disabled="!review"
+        @click="showChat = true">
+        <a><i class="fa-solid fa-certificate"></i></a>
       </button>
 
       <button class="btn btn-sm btn-sm btn-outline tooltip" data-tip="File content"
@@ -96,6 +106,8 @@ import Editor from "../monaco/Editor.vue"
             <i class="fa-solid fa-ellipsis-vertical"></i>
           </div>
           <ul tabindex="-1" class="dropdown-content menu bg-base-100 rounded-box z-1 w-52 p-2 shadow-sm">
+            <li @click.stop="validateFile" :disabled="file.isDeleted">
+              <a><i class="fa-solid fa-certificate"></i> Validate file</a></li>
             <li @click.stop="loadFileContent">
               <a><i class="fa-solid fa-arrows-rotate"></i> Reload file</a></li>
             <li @click.stop="saveFileContent">
@@ -182,6 +194,7 @@ import Editor from "../monaco/Editor.vue"
               :file="file.fileFullName"
               :diffOption="false"
               v-if="false && showFile && fileContent" />
+            <ChatEntry :chat="file.chat" :message="review" v-if="showChat && review" />
           </div>
         </div>
       </template>
@@ -195,7 +208,7 @@ import Editor from "../monaco/Editor.vue"
 </template>
 <script>
 export default {
-  props: ['file', 'columns'],
+  props: ['prChat', 'file', 'columns'],
   data() {
     return {
       showOption: null,
@@ -209,7 +222,7 @@ export default {
   },
   created() {
     if (this.file.chat) {
-      this.$projects.loadChat(this.file.chat)
+      this.$chats.loadChat(this.file.chat)
     }
   },
   computed: {
@@ -254,6 +267,9 @@ export default {
                   }
                 })
       return data
+    },
+    review() {
+      return this.file.chat?.messages.filter(m => !m.hide && m.task_item === 'review').reverse()[0]
     }
   },
   watch: {
@@ -274,9 +290,9 @@ export default {
     }
   },
   methods: {
-    onShowChat() {
+    async onShowChat() {
       if (!this.file.chat) {
-        this.$emit('new-chat', { file: this.file })
+        await this.$emit('new-chat', { file: this.file })
       }
       this.showChat = !this.showChat
     },
@@ -309,7 +325,7 @@ export default {
       onClose()
     },
     async navigateToChat() {
-      await this.$projects.setActiveChat(this.file.chat)
+      await this.$chats.setActiveChat(this.file.chat)
     },
     toggleCollapse() {
       this.file.collapse = !this.file.collapse
@@ -320,6 +336,9 @@ export default {
           this.loadFileContent()
         }
       }
+    },
+    async validateFile() {
+      this.$service.chat.validateFile({ file: this.file, parentChat: this.prChat })
     }
   },
   expose: ['file']

@@ -6,27 +6,27 @@ export class ProjectService extends Service {
         projectPath.includes("/issues/")) {
         projectPath = projectPath.split("/issues/")[0]
     } 
-    await this.projects.createNewProject(projectPath)
+    await this.$projects.createNewProject(projectPath)
   }
   
   async watch(watching) {
     this.project.$api.activeProject.watching = watching
-    this.projects.saveSettings(this.project.$api.activeProject)
+    this.$projects.saveSettings(this.project.$api.activeProject)
   }
 
   async openUserChat(user) {
-    const chat = this.projects.allChats.find(({ column, board, name }) => 
+    const chat = this.$projects.allChats.find(({ column, board, name }) => 
       column === "chats" && board === "chats" && name === user.username
-    ) ||  await this.projects.createNewChat({
+    ) ||  await this.$chats.createNewChat({
       board: "chats",
       column: "chats",
       name: user.username,
       mode: 'channel'
     })
-    this.projects.setActiveChat(chat)
+    this.$projects.setActiveChat(chat)
    
-    if ($storex.ui.activeTab !== 'tasks') {
-      this.$storex.ui.setActiveTab('tasks')
+    if (this.$ui.activeTab !== 'tasks') {
+      this.$ui.setActiveTab('tasks')
     }
   }
 

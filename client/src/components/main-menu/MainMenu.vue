@@ -10,6 +10,7 @@ import MenubarItem from './MenubarItem.vue'
 import WorkspacesMenu from './WorkspacesMenu.vue';
 import SettingsMenu from  './SettingsMenu.vue';
 import ProjectDetailt from '../ProjectDetailt.vue';
+import MenuDivider from './MenuDivider.vue';
 </script>
 
 <template>
@@ -58,15 +59,20 @@ import ProjectDetailt from '../ProjectDetailt.vue';
               <i class="fa-solid fa-magnifying-glass"></i>
               Knowledge
             </MenubarItem>
-            <div class="divider"></div>
+            <MenuDivider />
             <WorkspacesMenu />
-            <div class="divider"></div>
-            <MenubarItem @click="$ui.setActiveTab('settings')"
-              v-if="$users.isProjectAdmin">
-              <i class="fa-solid fa-sliders"></i>
-              Project
-            </MenubarItem>
+            <MenuDivider />
             <SettingsMenu />
+            <MenuDivider />
+            <MenubarItem>
+                <a
+                        class="flex gap-1 tooltip text-error"
+                        data-tip="Log out"
+                        @click.stop="$users.logout()">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                        Log out
+                    </a>
+            </MenubarItem>
           </MenubarContent>
         </MenubarPortal>
       </MenubarMenu>

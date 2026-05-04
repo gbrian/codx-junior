@@ -9,7 +9,6 @@ export const namespaced = true
 const createState = () => ({
   allProjects: [],
   allProjectsById: {},
-  chats: [],
   activeChat: null,
   activeProject: null,
   recentProjects: [],
@@ -79,20 +78,7 @@ const initProject = async project => {
             },
             searchMentions(query, limit = 10) {
               const fuseOptions = {
-                // isCaseSensitive: false,
                 includeScore: false,
-                // ignoreDiacritics: false,
-                // shouldSort: true,
-                // includeMatches: false,
-                // findAllMatches: false,
-                // minMatchCharLength: 1,
-                // location: 0,
-                // threshold: 0.6,
-                // distance: 100,
-                // useExtendedSearch: false,
-                // ignoreLocation: false,
-                // ignoreFieldNorm: false,
-                // fieldNormWeight: 1,
                 keys: [
                   "name",
                   "searchIndex",
@@ -185,11 +171,10 @@ export const mutations = mutationTree(state, {
   removeWizard(state, wizard) {
     state.activeWizards = state.activeWizards.filter(w => w !== wizard)
   },
-  addRecentProject(state, project) { // New mutation to update recent projects
+  addRecentProject(state, project) {
     state.recentProjects = [project, ...state.recentProjects.filter(p => p.codx_path !== project.codx_path)].slice(0, 5)
   },
 })
-
 
 function createProjectChat(project, chat) {
   return {
@@ -203,10 +188,10 @@ function createProjectChat(project, chat) {
 export const getters = getterTree(state, {
   allParentProjects: () => $storex.api.allProjects.filter(p => !p.parentProject),
   profiles: state => getProfiles(state.activeProject),
-  allChats: state => Object.values(state.chats || {}).map(chat =>createProjectChat(state.activeProject, chat)),
+  allChats: state => $storex.chats.allChats.map(chat => createProjectChat(state.activeProject, chat)),
   allBoards: state => Object.keys(state.kanban.boards).map(title => ({ title, ...state.kanban.boards[title] })),
-  allTags: state => new Set(Object.values(state.chats||{})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
-  allPRs: () => $storex.projects.allChats().filter(c => c.pr_view?.from_branch),
+  allTags: () => $storex.chats.allTags,
+  allPRs: () => $storex.chats.allPRs,
   projectDependencies: state => getProjectDependencies(state.activeProject),
   childProjects: state => state.allProjects.filter(p => 
       p.abs_project_path !== state.activeProject.abs_project_path && p.abs_project_path.startsWith(state.activeProject.abs_project_path))
@@ -239,7 +224,7 @@ export const getters = getterTree(state, {
   currentBranch: state => state.project_branches.current_branch,
   mentionList: () => buildMentions($storex.projects.activeProject),
   lastAssistantChats: () =>
-        $storex.projects.allChats
+        $storex.chats.allChats
           .filter(c => c.board === 'codx-junior')
           .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),
   userList: () => [$storex.users.user, ...$storex.projects.profiles?.map(p => ({ ...p, isProfile: true }))] || [],
@@ -302,7 +287,7 @@ export const actions = actionTree(
           await $storex.projects.setAllProjects([ ...state.allProjects, API.activeProject ])
         }
         state.activeProject = state.allProjectsById[API.activeProject.project_id]
-        await $storex.projects.loadChats()
+        await $storex.chats.loadChats()
         if (state.activeChat?.project_id !== API.activeProject.project_id) {
           state.activeChat = null
         }
@@ -334,62 +319,6 @@ export const actions = actionTree(
     },
     async createPR({ state }, { fromBranch, toBranch }) {
       state.activePR = await $storex.api.repo.changes({ fromBranch, toBranch })
-    },
-    async loadChats({ state }) {
-      const chats = await API.chats.list()
-      state.chats = chats.reduce((acc, chat) => ({ ...acc, [chat.id]: chat }), {})
-      $storex.projects.setActiveChat(state.chats[state.activeChat?.id])
-    },
-    async saveChat (_, chat) {
-      await API.chats.save(chat)
-    },
-    async saveChatInfo (_, chat) {
-      await API.chats.saveChatInfo({ ...chat, messages: [] })
-      await $storex.projects.loadChats()
-    },
-    async findProjectChat({ state }, { id, owner_project_id }) {
-      const project = state.allProjectsById[owner_project_id]
-      const chat = project.$state.chats.find(c => c.id === id)
-      if (chat) {
-        return chat
-      }
-      const loadedChat = await project.$api.chats.loadChat({ id, owner_project_id }) 
-      project.$state.chats = project.$state.chats = [...project.$state.chats, loadedChat]
-      return loadedChat 
-    },
-    async loadChat({ state }, chat) {
-      if (!state.chats[chat.id]) {
-        chat = await API.chats.loadChat(chat)
-        state.chats[chat.id] = chat
-      }
-      if (state.activeChat?.id === chat.id) {
-        state.activeChat = state.chats[chat.id]
-      }
-      return chat
-    },
-    async reloadChat({ state }, chat) {
-      if (state.chats[chat.id]) {
-        delete state.chats[chat.id]
-      }
-      return $storex.projects.loadChat(chat)
-    },
-    async deleteChat({ state }, chat) {
-      if (!chat.temp) {
-        await API.chats.delete(chat)
-      }
-      if (state.chats[chat.id]) {
-        delete state.chats[chat.id]
-      }
-    },
-    async setActiveChat({ state }, { id, project_id } = {}) {
-      if (id) {
-        await $storex.projects.reloadChat({ id, project_id })
-      }
-      if ($storex.ui.isMobile) {
-        state.activeChat = state.chats[id]
-      } else if (state.chats[id]) {
-        $storex.ui.openChat(state.chats[id])
-      }
     },
     async addLogIgnore({ state }, ignore) {
       let ignores = state.activeProject.log_ignore?.split(",") || []
@@ -513,204 +442,6 @@ export const actions = actionTree(
       }
       $storex.session.socket.emit('codx-junior-generate-tasks', data)
     },
-    async onChatEvent({ state }, { event, data }) {
-      const {
-        chat: {
-          id: chatId
-        },
-        message,
-        event_type,
-        type,
-        codx_path
-      } = data
-
-      if (event_type === 'error') {
-        $storex.ui.addNotification({ text: message, type: event_type })
-      }
-    
-      if (chatId) {
-        const { project_id } = $storex.projects.allProjects.find(p => p.codx_path === codx_path)
-        if (type === 'changed' || !state.chats[chatId]) {
-            await $storex.projects.reloadChat({ id: chatId, project_id })
-        }
-        const chat = state.chats[chatId]
-        if (chat && message) {
-          const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
-          if (currentMessage) {
-            if (event_type === "done") {
-              Object.assign(currentMessage, message)
-            } else {
-              currentMessage.is_thinking = message.is_thinking
-              currentMessage.done = message.done
-              currentMessage.meta_data = message.meta_data
-              if (message.is_thinking) {
-                currentMessage.think += message.think
-              } else {
-                currentMessage.content += message.content
-              }
-              currentMessage.updated_at = new Date().toISOString()
-            }
-          } else {
-            chat.messages.push(message)
-          }
-        }
-      }
-    },
-    async createNewChat({ state }, chat) {
-      chat = {
-        id: uuidv4(),
-        mode: 'chat',
-        profiles: [],
-        chat_index: 0,
-        messages: [],
-        ...chat
-      }
-      state.chats[chat.id] = chat
-      if (!chat.temp) {
-        await $storex.projects.saveChat(chat)
-      }
-      return chat
-    },
-    async createNewThread(_, { chat, mode, message }) {
-      const { files, profiles, doc_id: subtaskMessageId } = message
-      const findChild = $storex.projects.allChats.find(c => c.message_id === subtaskMessageId) 
-
-      if (!findChild) {
-        const boardTitle = chat.board
-        const columnTitle = chat.column
-        await $storex.projects.createNewBoardChat({ boardTitle, columnTitle,
-          chat: {
-            parent: chat,
-            name: `${subtaskMessageId} - thread`,
-            project_id: chat.project_id,
-            parent_id: chat.parent_id,
-            message_id: subtaskMessageId,
-            file_list: files,
-            profiles: profiles,
-            mode,
-            board: chat.board,
-            column: chat.column,
-            activateChat: true,
-            child_index: this.childrenChats?.length,
-            messages: [{ ...message, doc_id: null }]
-          }
-        })
-      } else {
-        this.$projects.setActiveChat(findChild)
-      }
-    },
-    async createNewBoardChat({ state }, { boardTitle, columnTitle, chat }) {
-      boardTitle = boardTitle || chat.board
-      columnTitle = columnTitle || chat.column
-      const newColumn = {
-        title: columnTitle,
-        chats: []
-      }
-      if (!state.kanban) {
-        await $storex.projects.loadKanban()
-      }
-      if (!state.kanban.boards[boardTitle]) {
-        state.kanban.boards = {
-          ...state.kanban.boards,
-          [boardTitle]: {
-            columns: [newColumn]
-          }
-        }
-      }
-      let column = $storex.projects.allBoards
-                        .find(({ title }) => title === boardTitle).columns.find(({ title }) => title === columnTitle)
-      if (!column) {
-        column = newColumn
-        state.kanban.boards[boardTitle].columns.push(column)
-      }
-
-      chat = await $storex.projects.createNewChat({
-        board: boardTitle,
-        column: columnTitle,
-        ...chat
-      })
-      $storex.projects.setActiveChat(chat)
-      column.chats = [...column?.chats||[], chat.id]
-      $storex.projects.saveKanban(state.kanban)
-      return $storex.projects.allChats.find(c => c.id === chat.id)
-    },
-    async createNewChatFromUrl({ state}, chat) {
-      chat = {
-        id: uuidv4(),
-        mode: 'chat',
-        profiles: [],
-        chat_index: 0,
-        ...chat
-      }
-      state.chats[chat.id] = await API.chats.fromUrl(chat)
-      if (!chat.temp) {
-        state.activeChat = state.chats[chat.id]
-      }
-      return state.chats[chat.id]
-    },
-    async loadKanban({ state }) {
-      state.kanban = await $storex.api.chats.kanban.load()
-    },
-    async saveKanban({ state }, kanban) {
-      await $storex.api.chats.kanban.save(kanban || state.kanban)
-    },
-    async saveProfile({ state }, profile) {
-      const project = state.allProjectsById[profile.project_id] || state.activeProject
-      const data = await $storex.profiles.saveProfile({ profile, project })
-      await $storex.projects.loadProfiles()
-      if (state.selectedProfile.name === data.name) {
-        state.selectedProfile = $storex.projects.profiles.find(p => p.name === data.name)
-      }      
-    },
-    deleteProfile({ state }, profile) {
-      const project = state.allProjectsById[profile.project_id] || state.activeProject
-      if (profile.name === state.selectedProfile?.name) {
-        state.selectedProfile = null
-      }
-      $storex.profiles.deleteProfile({ profile, project })
-      $storex.profiles.loadProjectProfiles(state.activeProject)
-    },
-    createNewProfile({ state }, profile) {
-      state.selectedProfile = profile
-    },
-    async addBoard({ _ }, { title, parent_id, description, columns }) {
-      if (!$storex.projects.kanban) {
-        await $storex.projects.loadKanban()
-      }
-      if (!$storex.projects.kanban.boards[title]) {
-        $storex.projects.kanban.boards[title] = {
-          id: uuidv4(),
-          title,
-          parent_id,
-          description,
-          columns,
-          last_update: new Date().toISOString()
-        }        
-        $storex.projects.saveKanban()
-      }
-      $storex.projects.setActiveBoard(title)
-      return $storex.projects.allBoards.find(b => b.title === title)
-    },
-    async editBoard({ state }, { title, newTitle, description }) {
-      const existingBoard = state.kanban.boards[title]
-      existingBoard.description = description
-      if (title !== newTitle) {
-        if (!state.kanban.boards[newTitle]) {
-          state.kanban.boards[newTitle] = existingBoard
-          delete  state.kanban.boards[title]    
-        }
-      }
-      $storex.projects.saveKanban()
-    },
-    async deleteBoard({ state }, { id, title }) {
-      delete state.kanban.boards[title]
-      if (state.activeBoard == title) {
-        state.activeBoard = null
-      }
-      // Delete board chats
-      await $storex.api.chats.kanban.delete(title)
-      $storex.projects.saveKanban()
-    },
     async applyPatch(_,patch) {
       return API.run.patch(patch)
     },
@@ -765,6 +496,69 @@ export const actions = actionTree(
             initProject(project)
           }
       }))
+    },
+    async loadKanban({ state }) {
+      state.kanban = await $storex.api.chats.kanban.load()
+    },
+    async saveKanban({ state }, kanban) {
+      await $storex.api.chats.kanban.save(kanban || state.kanban)
+    },
+    async saveProfile({ state }, profile) {
+      const project = state.allProjectsById[profile.project_id] || state.activeProject
+      const data = await $storex.profiles.saveProfile({ profile, project })
+      await $storex.projects.loadProfiles()
+      if (state.selectedProfile.name === data.name) {
+        state.selectedProfile = $storex.projects.profiles.find(p => p.name === data.name)
+      }      
+    },
+    deleteProfile({ state }, profile) {
+      const project = state.allProjectsById[profile.project_id] || state.activeProject
+      if (profile.name === state.selectedProfile?.name) {
+        state.selectedProfile = null
+      }
+      $storex.profiles.deleteProfile({ profile, project })
+      $storex.profiles.loadProjectProfiles(state.activeProject)
+    },
+    createNewProfile({ state }, profile) {
+      state.selectedProfile = profile
+    },
+    async addBoard({ _ }, { title, parent_id, description, columns }) {
+      if (!$storex.projects.kanban) {
+        await $storex.projects.loadKanban()
+      }
+      if (!$storex.projects.kanban.boards[title]) {
+        $storex.projects.kanban.boards[title] = {
+          id: uuidv4(),
+          title,
+          parent_id,
+          description,
+          columns,
+          last_update: new Date().toISOString()
+        }        
+        $storex.projects.saveKanban()
+      }
+      $storex.projects.setActiveBoard(title)
+      return $storex.projects.allBoards.find(b => b.title === title)
+    },
+    async editBoard({ state }, { title, newTitle, description }) {
+      const existingBoard = state.kanban.boards[title]
+      existingBoard.description = description
+      if (title !== newTitle) {
+        if (!state.kanban.boards[newTitle]) {
+          state.kanban.boards[newTitle] = existingBoard
+          delete state.kanban.boards[title]    
+        }
+      }
+      $storex.projects.saveKanban()
+    },
+    async deleteBoard({ state }, { id, title }) {
+      delete state.kanban.boards[title]
+      if (state.activeBoard == title) {
+        state.activeBoard = null
+      }
+      // Delete board chats
+      await $storex.api.chats.kanban.delete(title)
+      $storex.projects.saveKanban()
     },
   }
 )

@@ -137,7 +137,7 @@ export const actions = actionTree(
         data.project = $storex.projects.allProjects?.find(p => p.codx_path === codx_path)
       }
       if (chat) {
-        $storex.projects.onChatEvent({ event, data })
+        $storex.chats.onChatEvent({ event, data })
       }
       if (type === 'notification') {
         $storex.ui.addNotification(data)

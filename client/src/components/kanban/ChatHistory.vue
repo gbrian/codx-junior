@@ -65,7 +65,7 @@ export default {
       project.open = !project.open
     },
     openChat({ project_id }, { id }) {
-      this.$projects.setActiveChat({ id, project_id })
+      this.$chats.setActiveChat({ id, project_id })
     }
   }
 }

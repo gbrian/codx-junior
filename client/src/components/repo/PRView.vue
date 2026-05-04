@@ -40,10 +40,10 @@ import ChatEntryVue from '../ChatEntry.vue'
             <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow-sm">
               <li @click="onValidateSelected" v-if="selectedFiles.length"><a>Validate changes</a></li>
               <li @click="onBulkAction" v-if="selectedFiles.length"><a>Custom action...</a></li>
-              <li @click="setFilesColumn" v-if="selectedFiles.length"><a>
+              <li class="overflow-hidden text-nowrap text-ellipsis" @click="setFilesColumn" v-if="selectedFiles.length"><a>
                 <select @click.stop="" class="select select-xs select-bordered" v-model="chatColumn">
                   <option v-for="column, ix in columns" :value="column.title" :key="column.title + ix">
-                    {{ column.title }}
+                    <i class="fa-solid fa-table-columns"></i> {{ column.title }}
                   </option>
                 </select>
                 <button class="btn btn-xs">Set</button>
@@ -69,9 +69,13 @@ import ChatEntryVue from '../ChatEntry.vue'
             <img :src="profile.avatar" />
           </div>
         </div>
-        <div class="click px-2 py-1 border rounded-full flex gap-2 tooltip text-xs" v-for="column in columns"
-          :key="column.title" :class="`text-[${column.color}] border-[${column.color}]`"
+        <div class="click px-2 py-1 border rounded-full flex gap-2 items-center tooltip text-xs overflow-hidden text-nowrap text-ellipsis" 
+            v-for="column in columns"
+          :key="column.title" 
+          :title="column.title"
+          :class="`text-[${column.color}] border-[${column.color}]`"
           @click="filter = (filter||'') + ' column:' + column.title">
+          <i class="fa-solid fa-table-columns"></i> 
           {{ column.title }}
           {{ column.chats?.length }}
         </div>
@@ -129,6 +133,7 @@ import ChatEntryVue from '../ChatEntry.vue'
         <SplitterPanel class="w-full h-full overflow-auto" id="splitter-group-1-panel-2" :min-size="20" :defaultSize="70" :order="1">
           <PRReport  
             ref="prReport"
+            :prChat="chat"
             :files="visibleFiles"
             :columns="columns"
             @new-chat="onFileChat"

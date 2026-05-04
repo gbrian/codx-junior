@@ -153,6 +153,7 @@ import WikiTree from './WikiTree.vue'
 
 <script>
 export default {
+  props: ['project'],
   data() {
     return {
       selectedItem: null,
@@ -182,7 +183,7 @@ export default {
   methods: {
     async resetWikiSettings() {
       // Fetch initial wiki configuration
-      this.wikiTree = await this.$storex.api.wiki.config()
+      this.wikiTree = await this.project.$api.wiki.config()
     },
     editItem(item) {
       // Find parent and set selected item
@@ -207,7 +208,7 @@ export default {
     },
     async buildTree() {
       await this.saveSettings()
-      this.wikiTree = await this.$storex.api.wiki.build({ step: "create_wiki_tree" })
+      this.wikiTree = await this.project.$api.wiki.build({ step: "create_wiki_tree" })
     },
     async compileWiki() {
       await this.$projects.codxWiki({ step: "compile_wiki"})
@@ -224,7 +225,7 @@ export default {
           delete c.parent
         }
       })
-      await this.$storex.api.wiki.save(this.wikiTree)
+      await this.project.$api.wiki.save(this.wikiTree)
     },
     async buildWiki(file) {
       await this.saveSettings()

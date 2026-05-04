@@ -2,7 +2,7 @@
   "id": "580ad19e-694d-4f38-b6cf-598a0d9144d0",
   "doc_id": null,
   "project_id": null,
-  "owner_project_id": null,
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": "382367f8-9ec7-42c2-9e5c-5bdb8fba07aa",
   "parent_owner_project_id": null,
   "parent_project_id": null,
@@ -18,20 +18,24 @@
   "description": "",
   "messages": [],
   "created_at": "2026-02-19 07:41:14.315769",
-  "updated_at": "2026-02-19T07:42:46.218137",
-  "mode": "task",
+  "updated_at": "2026-05-01T10:07:29.682923",
+  "mode": "prview",
   "kanban_id": "",
   "column_id": "",
   "board": "AImages",
   "column": "Doc",
+  "columns": [],
   "chat_index": 0,
   "url": "",
   "branch": "",
-  "file_path": "/home/codx-junior/codx-junior/.codx/tasks/AImages/Doc/ai-class-update.580ad19e-694d-4f38-b6cf-598a0d9144d0.json",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/AImages/Doc/ai-class-update.580ad19e-694d-4f38-b6cf-598a0d9144d0.json",
   "llm_model": "",
   "visibility": "",
   "remote_url": "",
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {
+    "from_branch": "* v1.3-demo-site",
+    "to_branch": "main"
+  }
 }

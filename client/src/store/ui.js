@@ -154,8 +154,8 @@ export const mutations = mutationTree(state, {
     }
   },
   closeApp(state, app) {
-    delete state.openApps[app.key]
-    if (state.activeApp?.key === app.key) {
+    delete state.openApps[app.tabId]
+    if (state.activeApp?.tabId === app.tabId) {
       state.activeApp = state.openApps[Object.keys(state.openApps).reverse()[0]]
     }
     if (!Object.keys(state.openApps).length) {
