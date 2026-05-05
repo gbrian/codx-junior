@@ -30,33 +30,35 @@ import Editor from './monaco/Editor.vue';
           {{ fileName }}
         </div>
       </div>
-      <div class="hover:text-info" @click="zoomOut">
-        <i class="fa-solid fa-magnifying-glass-minus"></i>
+      <div class="flex gap-2" v-if="finished">
+        <div class="hover:text-info" @click="zoomOut">
+            <i class="fa-solid fa-magnifying-glass-minus"></i>
+        </div>
+        <div class="hover:text-info" @click="zoomIn">
+            <i class="fa-solid fa-magnifying-glass-plus"></i>
+        </div>
+        <div class="hover:text-info" @click="onCopy">
+            <i class="fa-solid fa-copy"></i>
+        </div>
+        <div class="hover:text-info" :class="edit && 'text-warning'" @click="onEdit">
+            <i class="fa-solid fa-edit"></i>
+        </div>      
+        <div class="hover:text-info" @click="saveFile" v-if="canSave">
+            <i class="fa-solid fa-floppy-disk"></i>
+        </div>
+        <div class="hover:text-info" @click="createSubTask">
+            <i class="fa-brands fa-trello"></i>
+        </div>
+        <div class="grow"></div>
+        <span class="text-xs text-info">
+            <span v-if="loadingStats">Loading...</span>
+            <span @click="onShowDiff"  
+            v-if="stats">
+            <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
+            <i class="fa-solid fa-code-compare" v-else></i> 
+            {{ stats }}</span>
+        </span>
       </div>
-      <div class="hover:text-info" @click="zoomIn">
-        <i class="fa-solid fa-magnifying-glass-plus"></i>
-      </div>
-      <div class="hover:text-info" @click="onCopy">
-        <i class="fa-solid fa-copy"></i>
-      </div>
-      <div class="hover:text-info" :class="edit && 'text-warning'" @click="onEdit">
-        <i class="fa-solid fa-edit"></i>
-      </div>      
-      <div class="hover:text-info" @click="saveFile" v-if="canSave">
-        <i class="fa-solid fa-floppy-disk"></i>
-      </div>
-      <div class="hover:text-info" @click="createSubTask">
-        <i class="fa-brands fa-trello"></i>
-      </div>
-      <div class="grow"></div>
-      <span class="text-xs text-info">
-        <span v-if="loadingStats">Loading...</span>
-        <span @click="onShowDiff"  
-          v-if="stats">
-          <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
-          <i class="fa-solid fa-code-compare" v-else></i> 
-          {{ stats }}</span>
-      </span>
     </div>
     <div @click="runCommand" v-if="isCommand">
       <i class="fa-solid fa-terminal"></i>

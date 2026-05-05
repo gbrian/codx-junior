@@ -13,6 +13,7 @@ import HTMLViewer from '../HTMLViewer.vue';
         :text="block.content"
       />
       <Code
+        :class="!block.finished && 'border border-dashed border-slate-400'"
         :text="block.content"
         :text-language="block.type"
         :fileName="block.fileName"
@@ -28,6 +29,9 @@ import HTMLViewer from '../HTMLViewer.vue';
         @sub-task="$emit('sub-task', $event)"
         v-else
       />
+      <div class="chat-footer opacity-50 text-xs font-bold" v-if="!block.finished">
+        loading <span class="loading loading-spinner"></span>
+      </div>
     </div>
   </div>
 </template>
@@ -37,79 +41,85 @@ function generateHash(str) {
   let hash = 0
   for (const char of str) {
     hash = (hash << 5) - hash + char.charCodeAt(0)
-    hash |= 0 // Constrain to 32bit integer
+    hash |= 0
   }
   return hash
 }
 
 function getRenderer(blockType) {
-  if (['markdown', 'md'].includes(blockType)) {
-    return 'md'
-  }
-  if (['html'].includes(blockType)) {
-    return blockType
-  }
+  if (['markdown', 'md'].includes(blockType)) return 'md'
+  if (['html'].includes(blockType)) return blockType
   return 'code'
 }
 
 function parseContent(content) {
-  const blocks = [];
-  const lines = content.split('\n');
-  let currentType = 'markdown'; // Default type
-  let currentContent = [];
-  let currentFileName = '';
-  let fenceCount = 0
+  const blocks = []
+  const lines = content.split('\n')
+  let currentType = 'markdown'
+  let currentContent = []
+  let currentFileName = ''
+  // Track nesting depth: 0 = markdown level, 1+ = inside typed block(s)
+  let nestingDepth = 0
 
-  function addBlock(finished) {
-    const content = currentContent.join('\n')
-    const hash = generateHash(content)
+  function setAllFinished() {
+    blocks.forEach(b => b.finished = true)
+  }
+
+  function addBlock() {
+    const blockContent = currentContent.join('\n')
+    const hash = generateHash(blockContent)
+    setAllFinished()
     blocks.push({
       type: currentType,
-      content,
+      content: blockContent,
       hash,
       fileName: currentFileName,
       renderer: getRenderer(currentType),
-      finished
-    });
-    currentType = 'markdown'; // Default type
-    currentContent = [];
-    currentFileName = '';
-    fenceCount = 0
+      finished: false
+    })
+    // Reset state
+    currentType = 'markdown'
+    currentContent = []
+    currentFileName = ''
   }
-  lines.forEach(line => {
-    const match = line.trim().match(/^```(\w+)\s*(.*)$/);
-    if (match){
-      if (!fenceCount) {
-        if (currentContent.length) {
-          addBlock()
-        }
-        currentType = match[1];
-        currentFileName = match[2];
-      }      
-      fenceCount++
-    } else if (line.trim() === '```') {
-      // End of a block or empty block?
-      if (fenceCount) {
-        --fenceCount
-      } else {
-        if (currentContent.length) {
-          addBlock(true)
-        }
-        ++fenceCount
-      }
-      if (!fenceCount && currentContent.length > 0) {
-        addBlock(true)
-      }
-    } else if (currentContent) {
-      currentContent.push(line);
-    }
-  });
 
-  // Push the last block if any content is left
-  if (currentContent) {
+  for (const line of lines) {
+    const openMatch = line.match(/^```(\w+)\s*(.*)$/)
+    const closeMatch = line === '```'
+
+    if (nestingDepth === 0 && openMatch) {
+      // At top level: opening a new typed block — flush any markdown content first
+      if (currentContent.length) {
+        addBlock()
+      }
+      nestingDepth = 1
+      currentType = openMatch[1]
+      currentFileName = openMatch[2] || ''
+    } else if (nestingDepth === 1 && closeMatch) {
+      // Closing the top-level typed block
+      addBlock()
+      nestingDepth = 0
+    } else if (nestingDepth >= 1 && openMatch) {
+      // Nested opening inside a typed block — treat as content, increase depth
+      nestingDepth++
+      currentContent.push(line)
+    } else if (nestingDepth > 1 && closeMatch) {
+      // Closing a nested block — treat as content, decrease depth
+      nestingDepth--
+      currentContent.push(line)
+    } else {
+      // Regular content line at any level
+      currentContent.push(line)
+    }
+  }
+
+  // Flush any remaining content
+  if (currentContent.length) {
     addBlock()
   }
-  return blocks;
+
+  setAllFinished()
+  return blocks
 }
 
 export default {

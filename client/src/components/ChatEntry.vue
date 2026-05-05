@@ -137,9 +137,6 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
           >
               <i class="fa-solid fa-brain"></i>
               {{ thinkText }}
-              <div class="chat-footer opacity-50" v-if="displayMessage.is_thinking">
-                <span class="loading loading-dots"></span>
-              </div>
           </div>    
         </div>
         <div @copy.stop="onMessageCopy" 
@@ -188,9 +185,6 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
                 <div class="text-xs text-success" v-else>Patch applied</div>
               </div>
             </div>
-          </div>
-          <div class="chat-footer opacity-50" v-if="displayMessage.content && !displayMessage.done">
-            <span class="loading loading-dots"></span>
           </div>
           <div v-if="images">
             <div class="carousel gap-2" v-if="images?.length">

@@ -18,6 +18,7 @@ faulthandler.enable()
 from codx.junior.ai import AIManager
 
 from codx.junior.sio.sio import sio
+from codx.junior.sio.session_channel import SessionChannel
 
 from codx.junior.profiling.profiler import profile_function
 
@@ -93,8 +94,7 @@ from codx.junior.global_settings import (
 )
 
 from codx.junior.engine import (
-    CODXJuniorSession,
-    SessionChannel
+    CODXJuniorSession
 )
 
 from codx.junior.project.project_discover import (

@@ -66,7 +66,7 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                       
                       <div class="flex flex-col" :class="showChildChat && 'opacity-80'">
                         <div>
-                          <span :class="showChildChat && 'opacity-70 hover:opacity-100'" @click="onChatNameClick">{{ computedChatName }}</span>
+                          <span :class="showChildChat && 'opacity-70 hover:opacity-100'" @dblclick="onChatNameClick">{{ computedChatName }}</span>
                           <span v-if="showChildChat"> / {{ showChildChat.name }}</span>
                         </div>
                         <div class="flex gap-1 text-xs gap-2">

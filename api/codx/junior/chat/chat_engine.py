@@ -16,18 +16,13 @@ from langchain_core.documents import Document
 
 from codx.junior.ai import AI
 from codx.junior.chat_manager import ChatManager
-from codx.junior.context import (
-    AICodeGenerator, find_relevant_documents
-)
+from codx.junior.context import AICodeGenerator
 from codx.junior.db import Chat, Message
-from codx.junior.globals import (
-    AGENT_DONE_WORD,
-)
+from codx.junior.globals import AGENT_DONE_WORD
 from codx.junior.project.project_discover import (
-  find_project_by_id,
-  get_project_dependencies
+    find_project_by_id,
+    get_project_dependencies,
 )
-
 from codx.junior.knowledge.knowledge_milvus import Knowledge
 from codx.junior.knowledge.knowledge_ai_search import KnowledgeAISearch
 from codx.junior.knowledge.knowledge_ai_search_message import build_search_message
@@ -36,133 +31,264 @@ from codx.junior.profiling.profiler import profile_function
 from codx.junior.settings import CODXJuniorSettings
 from codx.junior.utils.chat_utils import ChatUtils, QueryMentions
 from codx.junior.utils.utils import document_to_code_block
-
 from codx.junior.model.model import CodxUser
+from codx.junior.chat.chat_knowledge import ChatKnowledge
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
+# Chat mode constants
+CHAT_MODE_TASK = "task"
+CHAT_MODE_AGENT = "agent"
+CHAT_MODE_VIBE = "vibe"
+TASK_ITEM_SEARCH = "search"
+TASK_ITEM_ANALYSIS = "analysis"
+
 
 class ChatEngine:
-    def __init__(self,
-                settings,
-                event_manager,
-                user: CodxUser = None):
+    """
+    Core engine for managing chat interactions with AI models.
+
+    Handles message processing, knowledge search, context building,
+    and AI response generation for various chat modes.
+
+    flowchart TD
+        A[User Message] --> B{Chat Mode?}
+        B -->|vibe| C[AI Search Context]
+        B -->|search| C
+        C --> D[Build Context]
+        B -->|task| E[Refine Document]
+        B -->|agent| F[Agent Iteration]
+        B -->|chat| G[Standard Chat]
+        D --> G
+        E --> H[AI Response]
+        F --> H
+        G --> H
+        H --> I[Return Chat + Documents]
+    """
+
+    def __init__(
+        self,
+        settings: CODXJuniorSettings,
+        event_manager,
+        user: CodxUser = None
+    ) -> None:
+        """
+        Initialize the ChatEngine with project settings, event manager, and optional user.
+
+        :param settings: The current project's settings.
+        :param event_manager: Event manager for emitting chat/search events.
+        :param user: Optional authenticated user for the session.
+        """
         self.settings = settings
         self.event_manager = event_manager
         self.knowledge = Knowledge(settings=settings)
+        self.chat_knowledge = ChatKnowledge(
+            settings=settings,
+            event_manager=event_manager
+        )
         self.user = user
 
-    def get_profile_manager(self):
+    def get_profile_manager(self) -> ProfileManager:
+        """Return a ProfileManager instance for the current settings."""
         return ProfileManager(settings=self.settings)
 
+    def get_chat_manager(self, project_id: str = None) -> ChatManager:
+        """
+        Return a ChatManager, optionally scoped to a specific project.
 
-    def get_chat_manager(self, project_id: str = None):
+        :param project_id: Optional project ID to scope the manager.
+        :return: A ChatManager instance.
+        """
         if not project_id:
             return ChatManager(settings=self.settings)
         return ChatManager(settings=find_project_by_id(project_id=project_id))
 
     @contextmanager
     def chat_action(self, chat: Chat, event: str):
+        """
+        Context manager that emits start/done/error events around a chat action.
+
+        :param chat: The chat being processed.
+        :param event: Human-readable event name for logging and notifications.
+        """
         self.event_manager.chat_event(chat=chat, message=f"{event} starting")
-        logger.info(f"Start chat {chat.name}")
+        logger.info("Start chat %s", chat.name)
         try:
             yield
         except Exception as ex:
-            self.event_manager.chat_event(chat=chat, message=f"{event} error: {ex}", event_type="error")
-            logger.exception(f"Chat {chat.name} {event} error: {ex}")
+            self.event_manager.chat_event(
+                chat=chat,
+                message=f"{event} error: {ex}",
+                event_type="error"
+            )
+            logger.exception("Chat %s %s error: %s", chat.name, event, ex)
         finally:
-            self.event_manager.chat_event(chat=chat, message=f"{event} done", event_type="done")
-            logger.info(f"Chat done {chat.name}")
-
+            self.event_manager.chat_event(
+                chat=chat,
+                message=f"{event} done",
+                event_type="done"
+            )
+            logger.info("Chat done %s", chat.name)
 
     @profile_function
-    async def chat_with_project(self, chat: Chat, disable_knowledge: bool = False, callback=None, append_references: bool=True, chat_mode: str=None, iteration: int = 0, system: str = None):
-        timing_info: dict[str, float | None] = {
+    async def chat_with_project(
+        self,
+        chat: Chat,
+        disable_knowledge: bool = False,
+        callback=None,
+        append_references: bool = True,
+        chat_mode: str = None,
+        iteration: int = 0,
+        system: str = None
+    ):
+        """
+        Main entry point for processing a chat interaction with a project.
+
+        Handles context gathering, knowledge search, AI response generation,
+        and agent iteration logic.
+
+        flowchart TD
+            A[Start] --> B{Project match?}
+            B -->|No| C[Switch project context]
+            B -->|Yes| D[Resolve chat mode & profiles]
+            D --> E{vibe or search?}
+            E -->|Yes| F[AI Search for context]
+            F --> G[Build context string]
+            E -->|No| G
+            G --> H{Knowledge enabled?}
+            H -->|Yes| I[RAG document search]
+            I --> J[Add docs to context]
+            H -->|No| J
+            J --> K{chat_mode?}
+            K -->|task| L[Refine document]
+            K -->|agent| M[Agent prompt]
+            K -->|chat| N[Standard user message]
+            L --> O[AI Chat]
+            M --> O
+            N --> O
+            O --> P[Parse response]
+            P --> Q{Agent done?}
+            Q -->|No, iterations left| R[Recurse]
+            Q -->|Yes| S[Return chat + docs]
+
+        :param chat: The Chat object containing messages and metadata.
+        :param disable_knowledge: If True, skip knowledge base search.
+        :param callback: Optional streaming callback for partial responses.
+        :param append_references: Whether to append document references to the response.
+        :param chat_mode: Override for the chat mode ('chat', 'task', 'agent', 'vibe').
+        :param iteration: Current agent iteration count.
+        :param system: Optional system prompt override.
+        :return: Tuple of (updated Chat, list of Documents).
+        """
+        timing_info: dict = {
             "start_time": time.time(),
             "first_response": None
         }
+
         if chat.project_id and chat.project_id != self.settings.project_id:
-            logger.info("chat project_id is not the same as current project, switching contexts: '%s' -> '%s'",
+            logger.info(
+                "chat project_id is not the same as current project, switching contexts:"
+                " '%s' -> '%s'",
                 self.settings.project_id,
                 chat.project_id
             )
-            # Invoke project based on project_id
-            return await self.switch_project(chat.project_id).chat_with_project(chat=chat,
-                                                                            disable_knowledge=disable_knowledge,
-                                                                            callback=callback,
-                                                                            append_references=append_references,
-                                                                            chat_mode=chat_mode,
-                                                                            iteration=iteration)
+            return await self.switch_project(chat.project_id).chat_with_project(
+                chat=chat,
+                disable_knowledge=disable_knowledge,
+                callback=callback,
+                append_references=append_references,
+                chat_mode=chat_mode,
+                iteration=iteration
+            )
 
         with self.chat_action(chat=chat, event=f"Processing AI request {chat.name}"):
-            logger.info("Processing chat '%s'. Current project: '%s' target project '%s'",
-              chat.name,
-              self.settings.project_name,
-              chat.project_id)
+            logger.info(
+                "Processing chat '%s'. Current project: '%s' target project '%s'",
+                chat.name,
+                self.settings.project_name,
+                chat.project_id
+            )
+
             chat_mode = chat_mode or chat.mode or "chat"
-            documents = []
-            
+            documents: List[Document] = []
 
             parent_chat = None
             if chat.parent_id:
                 chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
                 parent_chat = chat_manager.find_by_id(chat.parent_id)
-                # logger.info("[parent_chat] %s", parent_chat.nme)
 
             max_iterations = self.settings.get_agent_max_iterations()
             iterations_left = max_iterations - iteration
 
-            def new_chat_message(role, content = ""):
-                return Message(role=role,
-                                content=content,
-                                files=[],
-                                doc_id=str(uuid.uuid4()))
+            def new_chat_message(role: str, content: str = "") -> Message:
+                """Create a new Message with a generated doc_id."""
+                return Message(
+                    role=role,
+                    content=content,
+                    files=[],
+                    doc_id=str(uuid.uuid4())
+                )
 
             response_message = new_chat_message("assistant")
             response_message.meta_data = {
-              "start_time": timing_info["start_time"]
+                "start_time": timing_info["start_time"]
             }
-            
-            valid_messages = [message for message in chat.messages if not message.hide and not message.improvement]
-            all_messages_content_lines = "".join([m.content for m in valid_messages]).split("\n")
+
+            valid_messages = [
+                message for message in chat.messages
+                if not message.hide and not message.improvement
+            ]
+            all_messages_content_lines = "".join(
+                [m.content for m in valid_messages]
+            ).split("\n")
             all_messages_content_code_block_file_paths = {
-                                                                line.split()[-1] 
-                                                                for line in all_messages_content_lines 
-                                                                if line.startswith("```") and len(line.split()) >= 3
-                                                            }
+                line.split()[-1]
+                for line in all_messages_content_lines
+                if line.startswith("```") and len(line.split()) >= 3
+            }
 
             last_ai_messages = [m for m in valid_messages if m.role == "assistant"]
             last_ai_message = last_ai_messages[-1] if last_ai_messages else None
-                
+
             user_message = valid_messages[-1] if valid_messages else Message(content="")
             query = user_message.content
             task_item = user_message.task_item
 
-            query_mentions: QueryMentions = self.get_query_mentions(chat=chat, user_message=user_message)
+            query_mentions: QueryMentions = self.get_query_mentions(
+                chat=chat, user_message=user_message
+            )
 
-            all_profiles =  query_mentions.profiles
+            all_profiles = query_mentions.profiles
 
-            is_refine = chat_mode == "task"
-            is_agent = chat_mode  == "agent"
-            is_search = task_item == 'search'
-            
+            is_refine: bool = chat_mode == CHAT_MODE_TASK
+            is_agent: bool = chat_mode == CHAT_MODE_AGENT
+            is_vibe: bool = chat_mode == CHAT_MODE_VIBE
+            is_search: bool = task_item == TASK_ITEM_SEARCH
+
+            # For vibe and search modes we always need to gather context first
+            needs_pre_search: bool = is_vibe or is_search
+
             chat_profiles_content = ""
-            chat_profile_names = []
+            chat_profile_names: List[str] = []
             chat_model = chat.llm_model
             messages = []
 
-            def send_message_event(content, done):
-                if not response_message.is_thinking:
-                    if content and content.startswith("<think>") \
-                      and not response_message.content:
-                          response_message.is_thinking = True
+            def send_message_event(content: str, done: bool) -> None:
+                """
+                Emit a message event with the current response state.
 
-                elif response_message.is_thinking and \
-                    "</think>" in content:
-                        response_message.is_thinking = False
-                
-                content = content.replace("<think>", "").replace("</think>", "")
+                Handles think/content separation for models that emit
+                reasoning blocks.
+                """
+                if not response_message.is_thinking:
+                    if content and content.startswith("") \
+                            and not response_message.content:
+                        response_message.is_thinking = True
+                elif response_message.is_thinking and "" in content:
+                    response_message.is_thinking = False
+
+                content = content.replace("", "").replace("", "")
 
                 if not timing_info.get("first_response"):
                     timing_info["first_response"] = time.time() - timing_info["start_time"]
@@ -171,222 +297,341 @@ class ChatEngine:
                     response_message.think = content
                 else:
                     response_message.content = content
-                sources =  []
+
+                sources: List[str] = []
                 if documents:
-                    sources = list(set([d.metadata["source"].replace(self.settings.abs_project_path, "") for d in documents]))
-                response_message.files = response_message.files + sources
+                    sources = list({
+                        d.metadata["source"].replace(self.settings.abs_project_path, "")
+                        for d in documents
+                    })
+                response_message.files = list(set(response_message.files + sources))
                 response_message.task_item = task_item
                 response_message.done = done
                 self.event_manager.message_event(chat=chat, message=response_message)
 
-
-            # TODO: Rethink this:
-            # parent_content = None
-            # if chat.parent_id:
-            #     parent_content = self.get_chat_analysis_parents(chat=chat)
-            #     if parent_content:
-            #         # Use parent content only for the first user message, skip when conversation flows
-            #         if valid_messages and len(valid_messages) == 1 and valid_messages[0].role == 'user':
-            #             logger.info("[parent_content] Adding parent content to messages as no valid messages found")
-            #             messages.append(HumanMessage(content=parent_content))
-            #         else:
-            #             logger.info("[parent_content] discarded")
-            #     else:
-            #         logger.info("[parent_content] not found")
-            # Find projects for this
-            query_mention_projects: List[CODXJuniorSettings] = [p for p in query_mentions.projects if p and hasattr(p, "codx_path")]
-            search_projects: List[CODXJuniorSettings] = list(({
-                    settings.codx_path: settings for settings in query_mention_projects
-                }).values())
+            # Resolve projects to search within
+            query_mention_projects: List[CODXJuniorSettings] = [
+                p for p in query_mentions.projects
+                if p and hasattr(p, "codx_path")
+            ]
+            search_projects: List[CODXJuniorSettings] = list(
+                {settings.codx_path: settings for settings in query_mention_projects}.values()
+            )
 
             context = ""
             documents = []
-            chat_files = list(set((chat.file_list or []) + (user_message.files or []))) + query_mentions.files
+            chat_files = list(
+                set((chat.file_list or []) + (user_message.files or []))
+            ) + query_mentions.files
             if parent_chat and parent_chat.file_list:
                 chat_files = list(set(chat_files + parent_chat.file_list))
 
-            chat_tools = []
+            chat_tools: List[str] = []
             logger.info("Chat profiles: %s", [p.name for p in all_profiles])
+
             if all_profiles:
-                chat_profiles_content = chat_profiles_content + "\n".join([f"###PROFILE: {profile.name}\n{profile.parsed_content}" for profile in all_profiles])
+                chat_profiles_content = "\n".join([
+                    f"###PROFILE: {profile.name}\n{profile.parsed_content}"
+                    for profile in all_profiles
+                ])
                 chat_profile_names = [profile.name for profile in all_profiles]
                 for profile in all_profiles:
-                  chat_tools = chat_tools + profile.tools
+                    chat_tools = chat_tools + profile.tools
                 chat_tools = list(set(chat_tools))
-                logger.info("Profies tools. '%s'\n %s", chat_tools, all_profiles) 
+                logger.info("Profile tools: '%s'", chat_tools)
+
                 if not chat_model:
-                    profile_models = list([profile for profile in all_profiles if profile.llm_model])
+                    profile_models = [p for p in all_profiles if p.llm_model]
                     if profile_models:
                         profile_model = profile_models[0]
                         chat_model = profile_model.llm_model
-                        logger.info("chat_model '%s' from profile: '%s'", profile_model.llm_model, profile_model.name)
-                # None profile uses knowledge, disable knowledge
-                if next((p for p in all_profiles if p.chat_mode == 'task'), None):
+                        logger.info(
+                            "chat_model '%s' from profile: '%s'",
+                            profile_model.llm_model,
+                            profile_model.name
+                        )
+                if next((p for p in all_profiles if p.chat_mode == CHAT_MODE_TASK), None):
                     is_refine = True
             elif chat_files:
-                chat_profiles_content = "Focus on the changes required by the task and keep all other content as it is."
+                chat_profiles_content = (
+                    "Focus on the changes required by the task "
+                    "and keep all other content as it is."
+                )
 
+            # Evaluate knowledge disable conditions
             if not disable_knowledge:
-              if not search_projects:
-                  disable_knowledge = True
-                  self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: No search projects found")
-            else:    
-                self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: Disabled by invocation")
+                if not search_projects:
+                    disable_knowledge = True
+                    self.event_manager.chat_event(
+                        chat=chat,
+                        message="Knowledge search is disabled: No search projects found"
+                    )
+            else:
+                self.event_manager.chat_event(
+                    chat=chat,
+                    message="Knowledge search is disabled: Disabled by invocation"
+                )
             if not self.settings.use_knowledge:
                 disable_knowledge = True
-                self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: Project settings disabled")
+                self.event_manager.chat_event(
+                    chat=chat,
+                    message="Knowledge search is disabled: Project settings disabled"
+                )
             if user_message.disable_knowledge:
                 disable_knowledge = True
-                self.event_manager.chat_event(chat=chat, message="Knowledge search is disabled: Disabled by user message")
-    
+                self.event_manager.chat_event(
+                    chat=chat,
+                    message="Knowledge search is disabled: Disabled by user message"
+                )
+
             if is_refine:
-                task_item = "analysis"
-          
-            logger.info(f"chat_with_project {chat.name} settings ready")
+                task_item = TASK_ITEM_ANALYSIS
+
+            logger.info("chat_with_project %s settings ready", chat.name)
+
             for message in chat.messages[0:-1]:
                 if message.hide or message.improvement:
                     continue
                 msg = self.convert_message(message)
                 messages.append(msg)
 
-
             ignore_documents = chat_files.copy()
             if chat.name:
                 ignore_documents.append(f"/{chat.name}")
 
             if chat_profile_names:
-                self.event_manager.chat_event(chat=chat, message=f"Chat profiles: {chat_profile_names}")
+                self.event_manager.chat_event(
+                    chat=chat,
+                    message=f"Chat profiles: {chat_profile_names}"
+                )
 
-            
+            # --- Load explicitly attached chat files ---
             chat_files_content = ""
             for chat_file in chat_files:
                 if chat_file in all_messages_content_code_block_file_paths:
-                    # Already in the body of the messages, skip
+                    # Already present in message bodies — skip to avoid duplication
                     continue
                 logger.info("Loading chat_file '%s' for chat", chat_file)
                 chat_file_full_path = chat_file
                 if not chat_file.startswith(self.settings.abs_project_path) and \
-                    not os.path.isfile(chat_file):
-                    logger.info("Normalizing chat_file '%s' for project path: '%s'", chat_file, self.settings.abs_project_path)
-                    if chat_file[0] == '/':
+                        not os.path.isfile(chat_file):
+                    logger.info(
+                        "Normalizing chat_file '%s' for project path: '%s'",
+                        chat_file,
+                        self.settings.abs_project_path
+                    )
+                    if chat_file[0] == "/":
                         chat_file = chat_file[1:]
-                    chat_file_full_path = os.path.join(self.settings.abs_project_path, chat_file)
+                    chat_file_full_path = os.path.join(
+                        self.settings.abs_project_path, chat_file
+                    )
                 try:
-                  with open(chat_file_full_path, 'r') as f:
-                      source = chat_file_full_path.replace(self.settings.abs_project_path + "/", '')
-                      logger.info("Loading chat_file content from '%s' with source: '%s'", chat_file_full_path, source)
-                      doc_context = document_to_code_block(
-                        Document(page_content=f.read(),
-                          metadata={ "source": source }
+                    with open(chat_file_full_path, "r", encoding="utf-8") as f:
+                        source = chat_file_full_path.replace(
+                            self.settings.abs_project_path + "/", ""
                         )
-                      )
-                      chat_files_content += doc_context + "\n"
-                except Exception as ex:
-                    logger.error(f"Error adding context file to chat {ex}")
+                        logger.info(
+                            "Loading chat_file content from '%s' with source: '%s'",
+                            chat_file_full_path,
+                            source
+                        )
+                        doc_context = document_to_code_block(
+                            Document(
+                                page_content=f.read(),
+                                metadata={"source": source}
+                            )
+                        )
+                        chat_files_content += doc_context + "\n"
+                except OSError as ex:
+                    logger.error("Error adding context file to chat: %s", ex)
 
-            # Prepare AI
+            # --- Prepare AI instance ---
             ai_settings = self.settings.get_llm_settings()
             logger.info("[chat_model] %s", chat_model)
             if chat_model:
                 ai_settings.model = chat_model
             ai = self.get_ai(llm_model=ai_settings.model, system=system)
 
-            self.event_manager.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
+            self.event_manager.chat_event(
+                chat=chat, message=f"Chatting with {ai_settings.model}"
+            )
             response_message.meta_data["model"] = ai_settings.model
             send_message_event("* Processing request, please wait...\n", False)
 
-            tags  = [
-                      f"{chat.mode}"
-                    ] + [p.name for p in all_profiles]
+            tags = [f"{chat.mode}"] + [p.name for p in all_profiles]
             if is_agent:
                 tags.append("agent")
+            if is_vibe:
+                tags.append(CHAT_MODE_VIBE)
             ai_headers = {
-              "tags": ",".join(list(set(tags + chat_tools + chat_profile_names)))
+                "tags": ",".join(list(set(tags + chat_tools + chat_profile_names)))
             }
 
-            async def ai_chat(messages=[], prompt="", tags="", callback=None):
+            async def ai_chat(messages=None, prompt="", tags="", callback=None):
+                """Invoke the AI with the assembled messages and optional prompt."""
+                if messages is None:
+                    messages = []
                 headers = ai_headers
                 if tags:
-                    headers = { 
-                      **ai_headers, 
-                      "tags": ai_headers["tags"] + "," + tags
+                    headers = {
+                        **ai_headers,
+                        "tags": ai_headers["tags"] + "," + tags
                     }
-                return await ai.a_chat(messages=messages, prompt=prompt, callback=callback, headers=headers, tools=chat_tools)
+                return await ai.a_chat(
+                    messages=messages,
+                    prompt=prompt,
+                    callback=callback,
+                    headers=headers,
+                    tools=chat_tools
+                )
 
-            async def search_chat(messages=[], prompt="", tags="", callback=None):
-                send_message_event("* Seraching...", False)
-                query = "\n".join([m.content for m in messages]) + "\n" + prompt
-                ai_search_results = await KnowledgeAISearch(settings=self.settings).ai_search(user_query=query)
+            async def search_chat(messages=None, prompt="", tags="", callback=None):
+                """Perform a pure knowledge AI search and return a formatted message."""
+                if messages is None:
+                    messages = []
+                send_message_event("* Searching...", False)
+                combined_query = "\n".join([m.content for m in messages]) + "\n" + prompt
+                ai_search_results = await KnowledgeAISearch(
+                    settings=self.settings
+                ).ai_search(user_query=combined_query)
                 return build_search_message(ai_search_results)
 
-            if not disable_knowledge and search_projects:
-                chat.messages.append(new_chat_message("assistant", content=f"Searching in {[p.project_name for p in search_projects]}"))
-                logger.info(f"chat_with_project start project search {search_projects}")
+            # --- Pre-search for vibe and search modes ---
+            if needs_pre_search:
+                logger.info(
+                    "Pre-search triggered. is_vibe=%s, is_search=%s",
+                    is_vibe,
+                    is_search
+                )
+                # Build a rich query combining conversation history and current message
+                history_context = "\n".join([m.content for m in messages])
+                pre_search_query = f"{history_context}\n{query}".strip()
+
+                pre_docs, pre_file_list, pre_context = (
+                    await self.chat_knowledge.ai_search_for_context(
+                        chat=chat,
+                        query=pre_search_query,
+                        existing_chat_files=chat_files
+                    )
+                )
+
+                if pre_docs:
+                    documents.extend(pre_docs)
+                    context += pre_context
+                    # Merge discovered files into response tracking
+                    response_message.files = list(
+                        set(response_message.files + pre_file_list)
+                    )
+                    logger.info(
+                        "Pre-search added %d documents to context",
+                        len(pre_docs)
+                    )
+
+            # --- Standard RAG knowledge search (skipped for pure search mode) ---
+            if not disable_knowledge and search_projects and not is_search:
+                chat.messages.append(
+                    new_chat_message(
+                        "assistant",
+                        content=f"Searching in {[p.project_name for p in search_projects]}"
+                    )
+                )
+                logger.info("chat_with_project start project search %s", search_projects)
                 try:
                     doc_length = 0
                     if query:
-                        query_context = "\n".join([message.content for message in messages])
-                        search_query = self.create_knowledge_search_query(query=f"{query_context}\n{query}")
-          
-                        self.event_manager.chat_event(chat=chat, message=f"Knowledge searching for: {search_query}")
-                        
-                        documents, file_list = self.select_documents_from_knowledge(chat=chat,
-                                                                                    query=search_query,
-                                                                                    ignore_documents=ignore_documents,
-                                                                                    search_projects=search_projects)
-                        for doc in documents:
+                        query_context = "\n".join(
+                            [message.content for message in messages]
+                        )
+                        search_query = self.chat_knowledge.create_knowledge_search_query(
+                            query=f"{query_context}\n{query}"
+                        )
+
+                        self.event_manager.chat_event(
+                            chat=chat,
+                            message=f"Knowledge searching for: {search_query}"
+                        )
+
+                        rag_documents, file_list = (
+                            self.chat_knowledge.select_documents_from_knowledge(
+                                chat=chat,
+                                query=search_query,
+                                ignore_documents=ignore_documents,
+                                search_projects=search_projects
+                            )
+                        )
+                        for doc in rag_documents:
                             doc_context = document_to_code_block(doc)
                             context += f"{doc_context}\n"
-                    
-                        response_message.files = file_list
-                        doc_length = len(documents)
-                    self.event_manager.chat_event(chat=chat, message=f"Knowledge search found {doc_length} relevant documents")
-                except Exception as ex:
-                    self.event_manager.chat_event(chat=chat, message=f"!!Error searching in knowledge {ex}", event_type="error")
-                    logger.exception(f"!!Error searching in knowledge {ex}")
-                
+
+                        documents.extend(rag_documents)
+                        response_message.files = list(
+                            set(response_message.files + file_list)
+                        )
+                        doc_length = len(rag_documents)
+
+                    self.event_manager.chat_event(
+                        chat=chat,
+                        message=f"Knowledge search found {doc_length} relevant documents"
+                    )
+                except (OSError, ValueError, RuntimeError) as ex:
+                    self.event_manager.chat_event(
+                        chat=chat,
+                        message=f"!!Error searching in knowledge {ex}",
+                        event_type="error"
+                    )
+                    logger.exception("!!Error searching in knowledge: %s", ex)
+
             if context:
-                messages.append(self.convert_message(
-                    new_chat_message(role="user", content=f"""<project_files>{context}</project_files>""")))
+                messages.append(
+                    self.convert_message(
+                        new_chat_message(
+                            role="user",
+                            content=f"<project_files>{context}</project_files>"
+                        )
+                    )
+                )
 
             if is_refine:
-                
-                existing_document = last_ai_message.content if last_ai_message else "" 
+                existing_document = last_ai_message.content if last_ai_message else ""
                 parent_task = self.get_chat_analysis_parents(chat=chat)
                 task_content = ""
-                
-                
+
                 # Include "is_answer" messages in the task document header
-                answer_messages = [message.content for message in chat.messages if message.is_answer]
+                answer_messages = [
+                    message.content for message in chat.messages if message.is_answer
+                ]
                 if answer_messages:
                     task_content += "Task Document Header:\n"
                     task_content += "\n".join(answer_messages)
                     task_content += "\n\n"
 
                 if parent_task:
-                    task_content = f"""
-                    You are writing a child document.
-                    This information comes from the parent document for your information:
-                    <parent_document>
-                    {parent_task}
-                    </parent_document>
-                    """
-                
-                if existing_document:
-                    task_content += f"""
-                    <document>
-                    {existing_document}
-                    </document>
-                    
-                    <comments>
-                    {user_message.content}
-                    </comments>
+                    task_content = (
+                        f"\n                    You are writing a child document.\n"
+                        f"                    This information comes from the parent document"
+                        f" for your information:\n"
+                        f"                    <parent_document>\n"
+                        f"                    {parent_task}\n"
+                        f"                    </parent_document>\n"
+                        f"                    "
+                    )
 
-                    INSTRUCTIONS:
-                     * Read comments and update document content based on them  
-                     * Leave all parts of the document not affected by the comments untouched
-                     * Output the final document content
-                    """
+                if existing_document:
+                    task_content += (
+                        f"\n                    <document>\n"
+                        f"                    {existing_document}\n"
+                        f"                    </document>\n\n"
+                        f"                    <comments>\n"
+                        f"                    {user_message.content}\n"
+                        f"                    </comments>\n\n"
+                        f"                    INSTRUCTIONS:\n"
+                        f"                     * Read comments and update document content"
+                        f" based on them\n"
+                        f"                     * Leave all parts of the document not affected"
+                        f" by the comments untouched\n"
+                        f"                     * Output the final document content\n"
+                        f"                    "
+                    )
                 else:
                     task_content += user_message.content
 
@@ -394,119 +639,147 @@ class ChatEngine:
                 messages.append(self.convert_message(refine_message))
 
             elif is_agent:
-                refine_message = new_chat_message(role="user", content=f"""
-                You are responsible to end this task.
-                Follow instructions and try to solve it with the minimum iterations needed.
-                <task>
-                { chat.name }
-                </task>
-
-
-                <parent_context>
-                {self.get_chat_analysis_parents(chat=chat)}
-                </parent_context>
-
-
-                <user_request>
-                {user_message.content}
-                </user_request>
-                
-                You still have { iterations_left } attempts more to finish the task. 
-                Return { AGENT_DONE_WORD } when the task is done.
-                """)
+                refine_message = new_chat_message(
+                    role="user",
+                    content=(
+                        f"\n                You are responsible to end this task.\n"
+                        f"                Follow instructions and try to solve it with"
+                        f" the minimum iterations needed.\n"
+                        f"                <task>\n"
+                        f"                {chat.name}\n"
+                        f"                </task>\n\n"
+                        f"                <parent_context>\n"
+                        f"                {self.get_chat_analysis_parents(chat=chat)}\n"
+                        f"                </parent_context>\n\n"
+                        f"                <user_request>\n"
+                        f"                {user_message.content}\n"
+                        f"                </user_request>\n"
+                        f"                \n"
+                        f"                You still have {iterations_left} attempts more"
+                        f" to finish the task.\n"
+                        f"                Return {AGENT_DONE_WORD} when the task is done.\n"
+                        f"                "
+                    )
+                )
                 messages.append(self.convert_message(refine_message))
             else:
                 messages.append(self.convert_message(user_message))
 
-
             if chat_files_content:
-                messages[-1].content = f"""
-                ## Working Files:
-                {chat_files_content}
-                
-                ## User request
-                {messages[-1].content}"""
+                messages[-1].content = (
+                    f"\n                ## Working Files:\n"
+                    f"                {chat_files_content}\n"
+                    f"                \n"
+                    f"                ## User request\n"
+                    f"                {messages[-1].content}"
+                )
 
             if chat_profiles_content:
                 messages[-1].content += f"\nInstructions:\n{chat_profiles_content}"
-            
+
             if not callback:
-                callback = lambda content: send_message_event(content=content, done=False)
+                def callback(content: str) -> None:
+                    """Default streaming callback that emits partial response events."""
+                    send_message_event(content=content, done=False)
 
             try:
                 input_messages_count = len(messages)
                 message_parts = None
+
                 if is_search:
-                    self.event_manager.chat_event(chat=chat, message=f"Knowledge search for: {chat.name}")
+                    self.event_manager.chat_event(
+                        chat=chat,
+                        message=f"Knowledge search for: {chat.name}"
+                    )
                     search_message = await search_chat(messages=messages, callback=callback)
                     message_parts = [search_message.content]
-                    response_message.files = search_message.files
+                    response_message.files = list(
+                        set(response_message.files + (search_message.files or []))
+                    )
                 else:
                     response_messages = await ai_chat(messages=messages, callback=callback)
-                    
+
                     new_message_count = len(response_messages) - input_messages_count
-                    if new_message_count > 1: # Intermediate reasoning messages                
+                    if new_message_count > 1:
+                        # Intermediate reasoning messages from multi-step models
                         for reasoning_message in response_messages[input_messages_count + 1:-1]:
-                            msg = new_chat_message(role=reasoning_message.type, content=reasoning_message.content)
+                            msg = new_chat_message(
+                                role=reasoning_message.type,
+                                content=reasoning_message.content
+                            )
                             msg.hide = True
                             chat.messages.append(msg)
-                    
-                    # Resposne message
-                    message_parts = response_messages[-1].content.replace("<think>", "").split("</think>")
+
+                    message_parts = [response_messages[-1].content]
+
                 is_thinking = len(message_parts) == 2
                 response_message.think = message_parts[0] if is_thinking else None
                 response_message.content = message_parts[-1]
                 response_message.is_thinking = False
                 send_message_event(content=response_message.content, done=True)
-            except Exception as ex:
-                logger.exception(f"Ops, sorry!, Error chatting with project: {ex} {chat.id}")
-                response_message.content = f"Ops, sorry! There was an error with latest request: {ex}"
+
+            except (ValueError, RuntimeError, OSError) as ex:
+                logger.exception(
+                    "Ops, sorry! Error chatting with project: %s %s", ex, chat.id
+                )
+                response_message.content = (
+                    f"Ops, sorry! There was an error with latest request: {ex}"
+                )
                 response_message.error = str(ex)
-                
+
             response_message.meta_data = user_message.meta_data
-            response_message.meta_data["time_taken"] = time.time() - timing_info["start_time"]
+            response_message.meta_data["time_taken"] = (
+                time.time() - timing_info["start_time"]
+            )
             response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
             response_message.meta_data["model"] = ai_settings.model
             response_message.profiles = chat_profile_names
-            
-            chat.messages.append(response_message)
-            logger.info(f"Chat done, adding message to chat. {chat.messages[-1]}")
-            
 
-            # Chat description
+            chat.messages.append(response_message)
+            logger.info("Chat done, adding message to chat. %s", chat.messages[-1])
+
+            # Generate a short description of the conversation
             if not is_search:
                 try:
-                    messages = messages.copy()
+                    desc_messages = messages.copy()
                     if is_refine:
-                        messages=[messages[-1]]
-                    description_message = (await ai_chat(messages=messages,
-                                                prompt="Create a 5 lines summary of the conversation",
-                                                tags="chat-summary"))[-1]
+                        desc_messages = [desc_messages[-1]]
+                    description_message = (
+                        await ai_chat(
+                            messages=desc_messages,
+                            prompt="Create a 5 lines summary of the conversation",
+                            tags="chat-summary"
+                        )
+                    )[-1]
                     chat.description = description_message.content
-                except Exception as ex:
-                    logger.exception(f"Ops, sorry!, Error chatting with project: {ex} {chat.id}")
+                except (ValueError, RuntimeError) as ex:
+                    logger.exception(
+                        "Error generating chat description: %s %s", ex, chat.id
+                    )
 
-                if chat_mode == 'task':
+                if chat_mode == CHAT_MODE_TASK:
                     for message in chat.messages[:-1]:
                         if not message.is_answer:
                             message.hide = True
 
-
             is_agent_done = AGENT_DONE_WORD in response_message.content
             if is_agent and not is_agent_done and iterations_left:
-              self.event_manager.chat_event(chat=chat, message=f"Agent iteration {iteration + 1}")
-              return self.chat_with_project(chat=chat,
+                self.event_manager.chat_event(
+                    chat=chat, message=f"Agent iteration {iteration + 1}"
+                )
+                return self.chat_with_project(
+                    chat=chat,
                     disable_knowledge=disable_knowledge,
                     callback=callback,
                     append_references=append_references,
                     chat_mode=chat_mode,
-                    iteration=iteration + 1)
-            else:    
-              self.event_manager.chat_event(chat=chat, message="done")
+                    iteration=iteration + 1
+                )
+
+            self.event_manager.chat_event(chat=chat, message="done")
             return chat, documents
 
-
-    def switch_project(self, project_id: str) -> 'ChatEngine':
+    def switch_project(self, project_id: str) -> "ChatEngine":
         """
         Switch to another project based on the provided project ID.
 
@@ -514,30 +787,40 @@ class ChatEngine:
         :return: The ChatEngine instance after switching the project.
         """
         if not project_id or project_id == self.settings.project_id:
-            logger.debug(f"Already in project {project_id}")
+            logger.debug("Already in project %s", project_id)
             return self
-        
+
         settings = find_project_by_id(project_id=project_id)
         if settings:
             self.settings = settings
-            logger.info(f"Switched to project ID {project_id}")
+            # Re-initialize chat_knowledge with the new settings so all subsequent
+            # knowledge operations run against the switched project.
+            self.chat_knowledge = ChatKnowledge(
+                settings=self.settings,
+                event_manager=self.event_manager
+            )
+            logger.info("Switched to project ID %s", project_id)
         else:
-            logger.warning(f"No settings found for project ID {project_id}")
+            logger.warning("No settings found for project ID %s", project_id)
 
         return self
-
 
     def get_ai(self, llm_model: Optional[str] = None, system: str = None) -> AI:
         """
         Get an AI instance configured for a specific model.
 
         :param llm_model: The name of the large language model.
+        :param system: Optional system prompt override.
         :return: An AI instance.
         """
-        ai_instance = AI(settings=self.settings, llm_model=llm_model, user=self.user, system=system)
-        logger.debug(f"AI instance created with model {llm_model}")
+        ai_instance = AI(
+            settings=self.settings,
+            llm_model=llm_model,
+            user=self.user,
+            system=system
+        )
+        logger.debug("AI instance created with model %s", llm_model)
         return ai_instance
-
 
     def get_ai_code_generator_changes(self, response: str) -> AICodeGenerator:
         """
@@ -550,122 +833,92 @@ class ChatEngine:
         for change in code_generator.code_changes:
             file_path = change.file_path
             if not file_path.startswith(self.settings.abs_project_path):
-                change.file_path = os.path.join(self.settings.abs_project_path, file_path)
-        
-        logger.info(f"Code generator changes retrieved from response")
+                change.file_path = os.path.join(
+                    self.settings.abs_project_path, file_path
+                )
+
+        logger.info("Code generator changes retrieved from response")
         return code_generator
 
-
-    def select_documents_from_knowledge(self, chat: Chat, query: str, ignore_documents=None,
-                                                 search_projects=None) -> Tuple[List[Document], List[str]]:
-        """
-        Select documents from knowledge base that are affected by a given query.
-
-        :param chat: Current chat object.
-        :param query: Search query for selecting documents.
-        :param ignore_documents: List of documents to ignore during search.
-        :param search_projects: Projects to search within.
-        :return: Tuple of a list of documents and a list of file paths.
-        """
-        if search_projects is None:
-            search_projects = []
-        if ignore_documents is None:
-            ignore_documents = []
-
-        def process_rag_query(rag_query: str) -> Tuple[List[Document], List[str]]:
-            docs: List[Document] = []
-            file_list: Optional[List[str]] = None
-            logger.debug(f"Searching projects for query: {rag_query}")
-            for search_project in search_projects:
-                if chat:
-                    self.event_manager.chat_event(chat=chat, message=f"Searching knowledge in {search_project.project_name}")
-                knowledge_documents = self.knowledge(settings=settings).search(query)
-                
-                project_docs, project_file_list = find_relevant_documents(query=rag_query, settings=search_project,knowledge_documents=knowledge_documents, ignore_documents=ignore_documents)
-                project_file_list: list[str] = [os.path.join(search_project.abs_project_path, file_path) for file_path in project_file_list]
-                docs.extend(project_docs)
-                if file_list:
-                    file_list.extend(project_file_list)
-                else:
-                    file_list = project_file_list
-            logger.info(f"Documents selected from knowledge: {len(docs)}")
-            return docs, file_list
-
-        logger.debug(f"Starting document selection with query: {query}")
-        return process_rag_query(query)
-
-
-    def create_knowledge_search_query(self, query: str) -> str:
-        """
-        Create a search query string from the input for knowledge base searching.
-
-        :param query: The initial user query.
-        :return: A processed query string suitable for knowledge base search.
-        """
-        ai = self.get_ai()
-        enhanced_query = ai.chat(prompt=f"""
-        <text>
-        {query}
-        </text>
-
-        Extract keywords from the text to help searching in the knowledge base.
-        Return just the search string without further decoration or comments.
-        """)[-1].content.strip()
-        
-        logger.debug(f"Knowledge search query created: {enhanced_query}")
-        return enhanced_query
-
-
-    def get_query_mentions(self, chat, user_message) -> QueryMentions:
+    def get_query_mentions(self, chat: Chat, user_message: Message) -> QueryMentions:
         """
         Extract mentions of profiles and projects from the given query.
 
-        :param query: The user's query string.
-        :return: A dictionary containing lists of mentioned profiles and projects.
+        :param chat: The current chat object.
+        :param user_message: The latest user message.
+        :return: A QueryMentions object with resolved profiles, projects, and files.
         """
         profile_manager = self.get_profile_manager()
         content = user_message.content
-        profiles = (user_message.profiles if user_message.profiles else chat.profiles) or []
+        profiles = (
+            user_message.profiles if user_message.profiles else chat.profiles
+        ) or []
 
         chat_files = list(set(chat.file_list + user_message.files))
         for chat_file in chat_files:
-            file_profiles = [p.name \
-                              for p in profile_manager.get_file_profiles_by_file_path(file_path=chat_file)]
+            file_profiles = [
+                p.name
+                for p in profile_manager.get_file_profiles_by_file_path(file_path=chat_file)
+            ]
             profiles = profiles + file_profiles
-        
-        chat_profiles = [f"@{name}" for name in  profiles]
-        
+
+        chat_profiles = [f"@{name}" for name in profiles]
+
         chat_utils = ChatUtils(profile_manager=profile_manager)
 
         query = f"{content} {chat_profiles} @project"
         query_mentions: QueryMentions = chat_utils.get_query_mentions(query=query)
-        logger.debug("Query mentions extracted for '%s...': %s", query[0:10], query_mentions)
-
+        logger.debug(
+            "Query mentions extracted for '%s...': %s", query[0:10], query_mentions
+        )
 
         return query_mentions
 
+    def get_chat_analysis_parents(self, chat: Chat) -> str:
+        """
+        Traverse all parent chats and return concatenated non-hidden message content.
 
-    def get_chat_analysis_parents(self, chat: Chat):
-        """Given a chat, traverse all parents and return all analysis"""
-        parent_content = []
+        :param chat: The child chat whose parents to traverse.
+        :return: Concatenated content string from all ancestor chats.
+        """
+        parent_content: List[str] = []
         chat_manager = self.get_chat_manager(project_id=chat.owner_project_id)
         parent_chat = chat_manager.find_by_id(chat.parent_id)
-        if chat.parent_id and not parent_chat: 
-            logger.error("[parent_chat] parent_id: '%s' parent_project_id: '%s', Not found for chat: %s", chat.parent_id, chat.owner_project_id, chat.name)
+        if chat.parent_id and not parent_chat:
+            logger.error(
+                "[parent_chat] parent_id: '%s' parent_project_id: '%s', Not found for chat: %s",
+                chat.parent_id,
+                chat.owner_project_id,
+                chat.name
+            )
         while parent_chat:
-            messages = [message.content for message in parent_chat.messages if not message.hide]
+            messages = [
+                message.content
+                for message in parent_chat.messages
+                if not message.hide
+            ]
             if messages:
-              parent_content.append("\n".join(messages))
+                parent_content.append("\n".join(messages))
             parent_chat = chat_manager.find_by_id(parent_chat.parent_id)
         return "\n".join(parent_content)
-    
+
     @staticmethod
-    def convert_message(message):
-        def parse_image(image):
+    def convert_message(message: Message):
+        """
+        Convert a DB Message object into a LangChain message type.
+
+        Handles text-only messages, image messages, and role-based conversion.
+
+        :param message: The Message object to convert.
+        :return: A LangChain HumanMessage, AIMessage, or image dict.
+        """
+        def parse_image(image: str) -> dict:
+            """Parse an image string into a dict with src and alt fields."""
             try:
                 return json.loads(image)
-            except JSONDecodeError as _:
+            except JSONDecodeError:
                 return {"src": image, "alt": ""}
+
         if message.images:
             images = [parse_image(image) for image in message.images]
             text_content = {
@@ -675,37 +928,44 @@ class ChatEngine:
             content = [text_content] + [
                 {
                     "type": "image_url",
-                    "image_url": {
-                        "url": image["src"]
-                    }
-                } for image in images]
-
-            # self.log_info(f"ImageMessage content: {content}")
-            msg = { "type": "image", "content": json.dumps(content) }
+                    "image_url": {"url": image["src"]}
+                }
+                for image in images
+            ]
+            msg = {"type": "image", "content": json.dumps(content)}
         elif message.role == "user":
             msg = HumanMessage(content=message.content)
         else:
             msg = AIMessage(content=message.content)
-    
+
         return msg
-        
-    def get_all_search_projects(self):
-        project_child_projects, project_dependencies = get_project_dependencies(settings=self.settings)
+
+    def get_all_search_projects(self) -> List[CODXJuniorSettings]:
+        """
+        Return all projects including child projects and dependencies.
+
+        :return: List of CODXJuniorSettings for the current project and its relations.
+        """
+        project_child_projects, project_dependencies = get_project_dependencies(
+            settings=self.settings
+        )
         all_projects = [self.settings] + project_child_projects + project_dependencies
         return all_projects
 
-
-    def index_chat(self, chat: Chat):
+    def index_chat(self, chat: Chat) -> None:
         """
         Index the chat as a Document in the knowledge system.
+
         Converts valid chat messages into a single Document with appropriate metadata.
 
         :param chat: The chat to index.
         """
-        # Extract valid messages
-        valid_messages = [message.content for message in chat.messages if not message.hide and not message.improvement]
+        valid_messages = [
+            message.content
+            for message in chat.messages
+            if not message.hide and not message.improvement
+        ]
 
-        # Create Document from valid messages
         page_content = "\n".join(valid_messages)
         metadata = {
             "source": chat.file_path,
@@ -713,11 +973,10 @@ class ChatEngine:
             "loader_type": "chat"
         }
 
-        # Call the indexing function (assuming it exists)
         try:
             self.knowledge.index_document(page_content, metadata)
-            logger.info(f"Chat indexed successfully: {chat.file_path}")
-        except Exception as ex:
-            logger.exception(f"Failed to index chat: {chat.file_path}, error: {ex}")
+            logger.info("Chat indexed successfully: %s", chat.file_path)
+        except (OSError, ValueError, RuntimeError) as ex:
+            logger.exception("Failed to index chat: %s, error: %s", chat.file_path, ex)
 
-
+# Made with ❤️ by codx-junior

@@ -30,3 +30,5 @@ codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-default/confi
 codx-junior-installer/codx-junior-dind/images
 projects/
 codx-junior-installer/vllm/.cache
+# temp chats
+.codx/tasks/Quick chats
