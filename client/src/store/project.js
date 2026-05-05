@@ -478,7 +478,7 @@ export const actions = actionTree(
       state.activeChat = null
     },
     getChatProject({ state }, chat) {
-      return state.allProjectsById[chat.project_id] || state.activeProject
+      return state.allProjectsById[chat.project_id || chat.owner_project_id] || state.activeProject
     },
     async setAllProjects({ state }, allProjects) {
       state.allProjects = allProjects?.sort((a, b) => {

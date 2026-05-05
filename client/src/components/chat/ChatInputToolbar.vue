@@ -29,13 +29,6 @@ import ChatImageCarousel from './ChatImageCarousel.vue'
         @model-changed="$emit('model-changed', $event)"
       />
 
-      <div class="text-xs click tooltip" data-tip="Find" @click="$emit('toggle-search')">
-        <i class="fa-solid fa-magnifying-glass"></i> ctrl+f
-      </div>
-      <div class="text-xs click tooltip" data-tip="Hide all" @click="$emit('hide-all')">
-        <span class="text-warning"><i class="fa-solid fa-box-archive"></i></span> ctrl+shift+a
-      </div>
-
       <div class="grow"></div>
 
       <!-- Action buttons -->
@@ -53,6 +46,9 @@ import ChatImageCarousel from './ChatImageCarousel.vue'
 
         <!-- Normal mode buttons -->
         <template v-else>
+          <button class="btn btn-sm btn-circle tooltip" data-tip="Search" @click="$emit('search-message')">
+            <i class="fa-solid fa-magnifying-glass"></i>
+          </button>     
           <button class="btn btn-sm btn-circle tooltip" data-tip="Add message" @click="$emit('add-message')">
             <i class="fa-solid fa-plus"></i>
           </button>

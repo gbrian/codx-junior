@@ -1,7 +1,7 @@
 import Service from "./service";
 
 export class ChatService extends Service {
-  getUserMessage({ message, files, profiles, images, metadata, user, taskItem }) {
+  getUserMessage({ message, files, profiles, images, metadata, user, taskItem, task_item }) {
     return {
       role: "user",
       content: message,
@@ -12,6 +12,7 @@ export class ChatService extends Service {
       user: user || this.$user.username,
       meta_data: metadata,
       done: true,
+      task_item,
     };
   }
 

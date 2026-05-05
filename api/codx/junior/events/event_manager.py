@@ -28,11 +28,11 @@ class EventManager:
         self.channel.send_event('knowledge-event', self.event_data(kwargs))
 
     def chat_event(self, chat: Chat, message: str = None, event_type: str = None):
-        self.channel.send_event('chat-event', self.event_data({ 'chat': { 'id': chat.id }, 'text': message, 'type': event_type }))
+        self.channel.send_event('chat-event', self.event_data({ 'chat': { 'id': chat.id, 'owner_project_id': chat.owner_project_id }, 'text': message, 'type': event_type }))
         # self.log_info(f"SEND MESSAGE {message}- SENT!")
 
     def message_event(self, chat: Chat, message: Message):
-        self.channel.send_event('message-event', self.event_data({ 'chat': { 'id': chat.id }, 'message': message.model_dump() }))
+        self.channel.send_event('message-event', self.event_data({ 'chat': { 'id': chat.id, 'owner_project_id': chat.owner_project_id }, 'message': message.model_dump() }))
         # self.log_info(f"SEND MESSAGE {message.role} {message.doc_id}- SENT!")
 
     def wiki_event(self, message: str):

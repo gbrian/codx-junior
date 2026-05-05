@@ -7,18 +7,22 @@ export const namespaced = true
 
 export const state = () => ({
   chats: {},
-  chatsById: {},
 })
 
 // Helper to register a chat into chatsById
 function registerChatById(state, chat) {
   if (chat?.id) {
-    state.chatsById = { ...state.chatsById, [chat.id]: chat }
+    state.chats[chat.id] = chat
   }
 }
 
 function getChatWorkingProject({ owner_project_id, project_id }) {
   return $storex.projects.allProjectsById[project_id || owner_project_id] ||
+            $storex.projects.activeProject
+}
+
+function getChatProject({ owner_project_id }) {
+  return $storex.projects.allProjectsById[owner_project_id] ||
             $storex.projects.activeProject
 }
 
@@ -38,9 +42,10 @@ export const actions = actionTree(
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()
-      state.chats = chats.reduce((acc, chat) => ({ ...acc, [chat.id]: chat }), {})
-      // Register all loaded chats into chatsById
-      state.chatsById = { ...state.chatsById, ...state.chats }
+      state.chats = {
+        ...state.chats,
+        ...chats.reduce((acc, chat) => ({ ...acc, [chat.id]: chat }), {})
+      }
       await $storex.chats.setActiveChat(state.chats[state.activeChat?.id])
     },
     async saveChat({ state }, chat) {
@@ -67,7 +72,8 @@ export const actions = actionTree(
     },
     async loadChat({ state }, chat) {
       if (!state.chats[chat.id]) {
-        chat = await API.chats.loadChat(chat)
+        const project = getChatProject(chat)
+        chat = await project.$api.chats.loadChat(chat)
         state.chats[chat.id] = chat
       }
       registerChatById(state, state.chats[chat.id])
@@ -88,11 +94,6 @@ export const actions = actionTree(
       }
       if (state.chats[chat.id]) {
         delete state.chats[chat.id]
-      }
-      if (state.chatsById[chat.id]) {
-        const updatedChatsById = { ...state.chatsById }
-        delete updatedChatsById[chat.id]
-        state.chatsById = updatedChatsById
       }
     },
     async setActiveChat({ state }, { id, project_id } = {}) {
@@ -202,7 +203,8 @@ export const actions = actionTree(
     async onChatEvent({ state }, { event, data }) {
       const {
         chat: {
-          id: chatId
+          id: chatId,
+          owner_project_id
         },
         message,
         event_type,
@@ -215,9 +217,8 @@ export const actions = actionTree(
       }
 
       if (chatId) {
-        const { project_id } = $storex.projects.allProjects.find(p => p.codx_path === codx_path)
         if (type === 'changed' || !state.chats[chatId]) {
-          await $storex.chats.reloadChat({ id: chatId, project_id })
+          await $storex.chats.reloadChat({ id: chatId, owner_project_id })
         }
         const chat = state.chats[chatId]
         if (chat && message) {
@@ -240,7 +241,6 @@ export const actions = actionTree(
             chat.messages.push(message)
           }
         }
-        // Keep chatsById in sync after event processing
         registerChatById(state, chat)
       }
     },

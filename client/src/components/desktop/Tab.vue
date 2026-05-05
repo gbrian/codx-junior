@@ -20,16 +20,16 @@ export default {
   props: ['params'],
   data() {
     return {
-      project: null
+      project: null,
+      chat: null
     }
   },
-  created() {
+  async created() {
     this.project = this.$projects.allProjectsById[this.projectId]
+    if (this.params.params.chat)
+        this.chat = await this.$service.chat.findChat(this.params.params.chat)
   },
   computed: {
-    chat() {
-      return this.$chats.chats[this.params.params.chat?.id]
-    },
     tabName() {
       return this.chat?.name || this.params.params.tabName
     },

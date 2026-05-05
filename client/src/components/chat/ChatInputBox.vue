@@ -56,6 +56,7 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
       :images="images"
       :voiceLanguageLabel="voiceLanguageLabel"
       @send="$emit('send')"
+      @search-message="$emit('search-message')"
       @add-message="$emit('add-message')"
       @cancel-edit="$emit('cancel-edit')"
       @user-changed="$emit('user-changed', $event)"

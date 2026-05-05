@@ -190,7 +190,7 @@ export default {
         this.dockviewApi.fromJSON(data)
         this.dockviewApi.panels.forEach(panel => {
           if (panel.params.chat) {
-            this.$chats.findProjectChat(panel.params.chat)
+            this.$chats.reloadChat(panel.params.chat)
           }
           this.$ui.showApp(panel.params.app)
         })

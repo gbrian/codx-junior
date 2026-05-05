@@ -41,6 +41,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
               @user-changed="displayMessage.profiles = [$event.name]"
               v-if="editting"
             />
+            <i class="fa-solid fa-magnifying-glass" v-if="message.task_item === 'search'"></i>
             <div class="flex gap-2 grow">
               [{{ formatDate(displayMessage.updated_at) }}] 
               <span v-if="timeTaken">({{ timeTaken }})</span>

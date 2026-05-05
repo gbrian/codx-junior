@@ -109,7 +109,8 @@ import VerticalSplitter from '../layout/VerticalSplitter.vue'
         :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
         @close.knowledge="showDocumentSearchModal = false"
         @send="sendMessage"
-        @add-message="addNewMessage"
+        @add-message="addNewMessage()"
+        @search-message="addSearchMessage"
         @cancel-edit="onResetEdit"
         @paste="onContentPaste"
         @keydown="onEditMessageKeyDown"
@@ -121,7 +122,7 @@ import VerticalSplitter from '../layout/VerticalSplitter.vue'
         @model-changed="onLLMModelChanged"
         @toggle-search="toggleDocumentSearch"
         @hide-all="hideAll"
-        @attach-files="selectFile = true"
+        @attach-files="selectFile = true"chat
         @test-project="testProject"
         @toggle-voice="toggleVoiceSession"
         @remove-image="removeImage"
@@ -149,8 +150,6 @@ import VerticalSplitter from '../layout/VerticalSplitter.vue'
         @add-file="onAddFile"
         v-if="!inputOnly"
       />
-
-
     </div>
 
     <!-- Modals -->
@@ -279,7 +278,7 @@ export default {
       return this.chat?.mode === 'vibe'
     },
     chatProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.chat.project_id)
+      return this.$projects.allProjectsById[this.chat.project_id || this.chat.owner_project_id]
         || this.$project
     },
     mentionList() {
@@ -376,18 +375,19 @@ export default {
         .catch(ex => this.chatSvc.addMessage({ chat: this.chat, message: { role: 'assistant', content: ex.message } }))
         .finally(() => { this.waiting = false })
     },
-    getUserMessage(message) {
+    getUserMessage({ message, task_item }) {
       return this.chatSvc.getUserMessage({
         message,
         files: this.chatSvc.getMessageFiles({ messageMentions: this.messageMentions, files: this.files }),
         profiles: this.chatSvc.getMessageProfiles({ messageMentions: this.messageMentions, selectedUser: this.selectedUser, currentUser: this.$user }),
         images: this.images,
         metadata: this.metadata,
-        user: this.$user.username
+        user: this.$user.username,
+        task_item
       })
     },
-    postMyMessage(message) {
-      const userMessage = this.getUserMessage(message)
+    postMyMessage({ message, task_item }) {
+      const userMessage = this.getUserMessage({ message, task_item })
       this.chatSvc.addMessage({ chat: this.chat, message: userMessage })
       this.cleanUserInputAndWaitAnswer()
       return userMessage
@@ -399,7 +399,8 @@ export default {
       this.mentions = []
       this.metadata = null
     },
-    async addNewMessage() {
+    // Core method: post message and optionally save; task_item differentiates message types
+    async addNewMessage({ task_item } = {}) {
       if (this.isVoiceSession && !this.canPost) return false
       if (this.editMessage !== null) {
         this.updateMessage()
@@ -407,10 +408,14 @@ export default {
         return false
       }
       const message = this.editorText
-      if (message?.length && this.canPost && this.postMyMessage(message)) {
+      if (message?.length && this.canPost && this.postMyMessage({ message, task_item })) {
         await this.saveChat()
       }
       return true
+    },
+    // Search variant: delegates to addNewMessage with task_item "search"
+    async addSearchMessage() {
+      return this.addNewMessage({ task_item: 'search' })
     },
     async sendMessage() {
       if (await this.addNewMessage()) {
@@ -578,7 +583,7 @@ export default {
       const stop = () => { event.stopPropagation(); event.preventDefault(); return false }
       if (event.key === 'Escape') { this.onResetEdit(); return stop() }
       else if (event.key === 'Enter' && event.ctrlKey) { this.sendMessage(); return stop() }
-      else if (event.key === 'f' && event.ctrlKey) { this.toggleDocumentSearch(); return stop() }
+      else if (event.key === 'f' && event.ctrlKey) { this.addSearchMessage(); return stop() }
       else if (event.key === 'A' && event.ctrlKey && event.shiftKey) { this.hideAll(); return stop() }
       else if (event.key === 'b' && event.ctrlKey) { this.createBlock(); return stop() }
       else if (event.key === 'v' && event.ctrlKey) { this.pasteWithShift = false; return true }
@@ -681,7 +686,7 @@ export default {
     async addFileContentAsMessage(file) {
       const content = await this.$storex.chats.readFile({ chat: this.chat, file })
       const codeBlock = ["```" + file.split(".")[1] + " " + file, content, "```"].join("\n")
-      this.chatSvc.addMessage({ chat: this.chat, message: this.getUserMessage(codeBlock) })
+      this.chatSvc.addMessage({ chat: this.chat, message: this.getUserMessage({ message: codeBlock }) })
     },
     addMention(mention) {
       this.mentions.push({ ...mention, active: true })

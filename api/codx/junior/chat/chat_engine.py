@@ -29,6 +29,8 @@ from codx.junior.project.project_discover import (
 )
 
 from codx.junior.knowledge.knowledge_milvus import Knowledge
+from codx.junior.knowledge.knowledge_ai_search import KnowledgeAISearch
+from codx.junior.knowledge.knowledge_ai_search_message import build_search_message
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.settings import CODXJuniorSettings
@@ -100,7 +102,7 @@ class ChatEngine:
               chat.project_id)
             chat_mode = chat_mode or chat.mode or "chat"
             documents = []
-            task_item = ""
+            
 
             parent_chat = None
             if chat.parent_id:
@@ -114,6 +116,7 @@ class ChatEngine:
             def new_chat_message(role, content = ""):
                 return Message(role=role,
                                 content=content,
+                                files=[],
                                 doc_id=str(uuid.uuid4()))
 
             response_message = new_chat_message("assistant")
@@ -121,6 +124,34 @@ class ChatEngine:
               "start_time": timing_info["start_time"]
             }
             
+            valid_messages = [message for message in chat.messages if not message.hide and not message.improvement]
+            all_messages_content_lines = "".join([m.content for m in valid_messages]).split("\n")
+            all_messages_content_code_block_file_paths = {
+                                                                line.split()[-1] 
+                                                                for line in all_messages_content_lines 
+                                                                if line.startswith("```") and len(line.split()) >= 3
+                                                            }
+
+            last_ai_messages = [m for m in valid_messages if m.role == "assistant"]
+            last_ai_message = last_ai_messages[-1] if last_ai_messages else None
+                
+            user_message = valid_messages[-1] if valid_messages else Message(content="")
+            query = user_message.content
+            task_item = user_message.task_item
+
+            query_mentions: QueryMentions = self.get_query_mentions(chat=chat, user_message=user_message)
+
+            all_profiles =  query_mentions.profiles
+
+            is_refine = chat_mode == "task"
+            is_agent = chat_mode  == "agent"
+            is_search = task_item == 'search'
+            
+            chat_profiles_content = ""
+            chat_profile_names = []
+            chat_model = chat.llm_model
+            messages = []
+
             def send_message_event(content, done):
                 if not response_message.is_thinking:
                     if content and content.startswith("<think>") \
@@ -143,37 +174,11 @@ class ChatEngine:
                 sources =  []
                 if documents:
                     sources = list(set([d.metadata["source"].replace(self.settings.abs_project_path, "") for d in documents]))
-                response_message.files = sources
+                response_message.files = response_message.files + sources
                 response_message.task_item = task_item
                 response_message.done = done
                 self.event_manager.message_event(chat=chat, message=response_message)
 
-            valid_messages = [message for message in chat.messages if not message.hide and not message.improvement]
-            all_messages_content_lines = "".join([m.content for m in valid_messages]).split("\n")
-            all_messages_content_code_block_file_paths = {
-                                                                line.split()[-1] 
-                                                                for line in all_messages_content_lines 
-                                                                if line.startswith("```") and len(line.split()) >= 3
-                                                            }
-
-            last_ai_messages = [m for m in valid_messages if m.role == "assistant"]
-            last_ai_message = last_ai_messages[-1] if last_ai_messages else None
-                
-            user_message = valid_messages[-1] if valid_messages else Message(content="")
-            query = user_message.content
-            task_item = user_message.task_item
-
-            query_mentions: QueryMentions = self.get_query_mentions(chat=chat, user_message=user_message)
-
-            all_profiles =  query_mentions.profiles
-
-            is_refine = chat_mode == "task"
-            is_agent = chat_mode  == "agent"
-            
-            chat_profiles_content = ""
-            chat_profile_names = []
-            chat_model = chat.llm_model
-            messages = []
 
             # TODO: Rethink this:
             # parent_content = None
@@ -288,7 +293,7 @@ class ChatEngine:
 
             self.event_manager.chat_event(chat=chat, message=f"Chatting with {ai_settings.model}")
             response_message.meta_data["model"] = ai_settings.model
-            send_message_event("> Processing request, please wait...\n", False)
+            send_message_event("* Processing request, please wait...\n", False)
 
             tags  = [
                       f"{chat.mode}"
@@ -298,6 +303,7 @@ class ChatEngine:
             ai_headers = {
               "tags": ",".join(list(set(tags + chat_tools + chat_profile_names)))
             }
+
             async def ai_chat(messages=[], prompt="", tags="", callback=None):
                 headers = ai_headers
                 if tags:
@@ -306,6 +312,12 @@ class ChatEngine:
                       "tags": ai_headers["tags"] + "," + tags
                     }
                 return await ai.a_chat(messages=messages, prompt=prompt, callback=callback, headers=headers, tools=chat_tools)
+
+            async def search_chat(messages=[], prompt="", tags="", callback=None):
+                send_message_event("* Seraching...", False)
+                query = "\n".join([m.content for m in messages]) + "\n" + prompt
+                ai_search_results = await KnowledgeAISearch(settings=self.settings).ai_search(user_query=query)
+                return build_search_message(ai_search_results)
 
             if not disable_knowledge and search_projects:
                 chat.messages.append(new_chat_message("assistant", content=f"Searching in {[p.project_name for p in search_projects]}"))
@@ -423,17 +435,24 @@ class ChatEngine:
 
             try:
                 input_messages_count = len(messages)
-                response_messages = await ai_chat(messages=messages, callback=callback)
-                
-                new_message_count = len(response_messages) - input_messages_count
-                if new_message_count > 1: # Intermediate reasoning messages                
-                    for reasoning_message in response_messages[input_messages_count + 1:-1]:
-                        msg = new_chat_message(role=reasoning_message.type, content=reasoning_message.content)
-                        msg.hide = True
-                        chat.messages.append(msg)
-                
-                # Resposne message
-                message_parts = response_messages[-1].content.replace("<think>", "").split("</think>")
+                message_parts = None
+                if is_search:
+                    self.event_manager.chat_event(chat=chat, message=f"Knowledge search for: {chat.name}")
+                    search_message = await search_chat(messages=messages, callback=callback)
+                    message_parts = [search_message.content]
+                    response_message.files = search_message.files
+                else:
+                    response_messages = await ai_chat(messages=messages, callback=callback)
+                    
+                    new_message_count = len(response_messages) - input_messages_count
+                    if new_message_count > 1: # Intermediate reasoning messages                
+                        for reasoning_message in response_messages[input_messages_count + 1:-1]:
+                            msg = new_chat_message(role=reasoning_message.type, content=reasoning_message.content)
+                            msg.hide = True
+                            chat.messages.append(msg)
+                    
+                    # Resposne message
+                    message_parts = response_messages[-1].content.replace("<think>", "").split("</think>")
                 is_thinking = len(message_parts) == 2
                 response_message.think = message_parts[0] if is_thinking else None
                 response_message.content = message_parts[-1]
@@ -455,22 +474,22 @@ class ChatEngine:
             
 
             # Chat description
-            try:
-                messages = messages.copy()
-                if is_refine:
-                    messages=[messages[-1]]
-                description_message = (await ai_chat(messages=messages,
-                                            prompt="Create a 5 lines summary of the conversation",
-                                            tags="chat-summary"))[-1]
-                chat.description = description_message.content
-            except Exception as ex:
-                logger.exception(f"Ops, sorry!, Error chatting with project: {ex} {chat.id}")
+            if not is_search:
+                try:
+                    messages = messages.copy()
+                    if is_refine:
+                        messages=[messages[-1]]
+                    description_message = (await ai_chat(messages=messages,
+                                                prompt="Create a 5 lines summary of the conversation",
+                                                tags="chat-summary"))[-1]
+                    chat.description = description_message.content
+                except Exception as ex:
+                    logger.exception(f"Ops, sorry!, Error chatting with project: {ex} {chat.id}")
 
-
-            if chat_mode == 'task':
-                for message in chat.messages[:-1]:
-                    if not message.is_answer:
-                        message.hide = True
+                if chat_mode == 'task':
+                    for message in chat.messages[:-1]:
+                        if not message.is_answer:
+                            message.hide = True
 
 
             is_agent_done = AGENT_DONE_WORD in response_message.content

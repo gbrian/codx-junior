@@ -411,8 +411,7 @@ export default {
       // ownerProject: project where the chat was originally created (chat.owner_project_id)
       ownerProject: null,
       // targetProject: project the chat work targets (chat.project_id)
-      targetProject: null,
-      theChat: null
+      targetProject: null
     }
   },
   created() {
@@ -421,11 +420,11 @@ export default {
   async mounted() {
   },
   computed: {
+    theChat() {
+      return this.$chats.chats[this.chat?.id || this.params?.params.chat?.id] 
+    },
     isThread() {
       return !!this.theChat.message_id
-    },
-    branches() {
-      return this.$projects.project_branches || []
     },
     isPRView() {
       return this.workingChat?.mode === 'prview'
@@ -448,14 +447,6 @@ export default {
     },
     chatModes() {
       return this.$projects.chatModes
-    },
-    // All projects available: current + children + dependencies
-    allAvailableProjects() {
-      return [
-        this.$project,
-        ...this.$projects.childProjects || [],
-        ...this.$projects.projectDependencies || []
-      ]
     },
     hiddenCount() {
       return this.workingChat.messages?.filter(m => m.hide).length
@@ -497,7 +488,7 @@ export default {
         .filter(i => !!i)
     },
     workingChat() {
-      return this.$chats.chats[this.showChildChat?.id || this.theChat?.id]
+      return this.$chats.chats[this.showChildChat?.id] || this.theChat
     },
     computedChatName() {
       return this.theChat.name
@@ -526,7 +517,10 @@ export default {
   },
   methods: {
     async init() {
-      this.theChat = await this.$service.chat.findChat(this.chat || this.params?.params.chat)
+      const chat = await this.$service.chat.findChat(this.chat || this.params?.params.chat)
+      if (!this.theChat) {
+        throw new Error(`Chat not loaded: ${this.chat || this.params?.params.chat}`)
+      }
       // Resolve projects before loading children and context
       this.setTaskProject()
       this.setProjectContext()
