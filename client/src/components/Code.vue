@@ -4,7 +4,7 @@ import MarkdownViewer from './MarkdownViewer.vue';
 import CodeViewer from './CodeViewer.vue'
 </script>
 <template>
-  <div class="rounded-md p-2">
+  <div class="rounded-md py-2">
     <div class="flex gap-2 w-full justify-end rounded-t" 
       ref="toolbar" v-if="showMermaid">
       <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource">
@@ -26,6 +26,7 @@ import CodeViewer from './CodeViewer.vue'
       :files="files"
       :project="project"
       :finished="finished"
+      :chat="chat"
       v-if="showCode" /> 
     <MarkdownViewer :text="codeText" v-if="showMarkdown" />
     <div class="" v-html="codeText" v-if="htmlPreview"></div>
@@ -37,14 +38,14 @@ const languageMapping = {
   "markdown": "md"
 }
 export default {
-  props: ['code', 'text', 'text-language', 'file-name', 'files', 'project', 'finished'],
+  props: ['chat', 'finished', 'code', 'text', 'text-language', 'file-name', 'files', 'project', 'finished'],
   data () {
     return {
       codeText: null,
       languages: null,
       htmlPreview: false,
       showMermaidSource: false,
-      file: null
+      file: null,
     }
   },
   created () {
@@ -63,6 +64,9 @@ export default {
     }
   },
   computed: {
+    isVibeCoding() {
+      return this.chat?.mode === 'vibe'
+    },
     language() {
       const lang = this.textLanguage ||
         this.code?.attributes["class"].value.split("-").reverse()[0]         
@@ -72,7 +76,7 @@ export default {
       return this.language.includes("mermaid") ? "markdown" : this.language
     },
     showMermaid () {
-      return this.language === 'mermaid'
+      return this.language === 'mermaid' && !this.isVibeCoding
     },
     showCode () {
       return !this.showMarkdown && (!this.showMermaid || this.showMermaidSource) && !this.htmlPreview

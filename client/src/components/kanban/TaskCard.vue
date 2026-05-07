@@ -1,17 +1,18 @@
 <script setup>
 import moment from 'moment'
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
-import UserAvatar from '../user/UserAvatar.vue'
 import TaskSettings from './TaskSettings.vue';
 import CheckLists from '../chat/CheckLists.vue'
 import ChatIcon from '../chat/ChatIcon.vue'
 </script>
 
 <template>
-  <div :class="['p-2 shadow-lg rounded-lg', parentChat ? 'bg-base-100' : 'bg-base-300']">
+ <div tabindex="0" class="collapse collapse-arrow bg-base-100 border-base-300 border relative"
+    :class="collapsed ? 'collapse-closed' : 'collapse-open'"
+ >
     <div v-if="image" :style="`background-image: url(${image.src})`" class="bg-contain bg-no-repeat bg-center h-28 bg-base-300"></div>
-    <div class="h-full flex flex-col justify-between gap-2">
-      <div>
+    <div class="collapse-title font-semibold" @click.stop="collapsed = !collapsed">
+    <div>
         <div v-if="parentChat" class="text-xs text-primary/40 hover:text-primary text-nowrap overflow-hidden" @click.stop="$chats.setActiveChat(parentChat)">
           {{ parentChat.name }}
         </div>
@@ -26,7 +27,7 @@ import ChatIcon from '../chat/ChatIcon.vue'
                 <i class="text-warning fa-solid fa-bookmark" v-if="task.pinned" ></i>
                 <i class="fa-regular fa-bookmark" v-else></i>
               </span>
-              <div class="overflow-hidden h-10 overflow-auto" :title="task.name">
+              <div class="overflow-hidden h-10 overflow-auto max-w-28 truncate" :title="task.name">
                 {{ task.name }}
               </div>
             </div>
@@ -39,13 +40,20 @@ import ChatIcon from '../chat/ChatIcon.vue'
             {{ chatProject?.project_name }}
           </div>
         </div>
-         <div class="flex gap-2 items-center"> 
+         <div class="flex gap-2 items-center mr-1"> 
             <button class="btn btn-circle btn-sm" @click.stop="openSettingsModal">
               <i class="fas fa-cog"></i>
             </button>
           </div>
         </div>
       </div>
+
+    </div>
+    <!-- Task Body -->
+    <div class="collapse-content text-sm" v-if="!collapsed">
+  <div :class="['p-2 shadow-lg rounded-lg', parentChat ? 'bg-base-100' : 'bg-base-300']">
+    <div class="h-full flex flex-col justify-between gap-2">
+      
       <div class="text-xs overflow-auto max-h-20"
       >
         {{ task.description }}
@@ -92,6 +100,9 @@ import ChatIcon from '../chat/ChatIcon.vue'
     </modal>
     <progress class="progress w-full" v-if="updating"></progress>
   </div>
+
+    </div>
+  </div>
 </template>
 
 <script>
@@ -106,7 +117,13 @@ export default {
         chat: "accent"
       },
       taskData: {},
-      expandDescription: true
+      expandDescription: true,
+      collapsed: false
+    }
+  },
+  created() {
+    if (this.task.pinned) {
+        this.collapsed = true
     }
   },
   computed: {

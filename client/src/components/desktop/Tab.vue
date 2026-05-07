@@ -1,5 +1,6 @@
 <script setup>
 import ProjectDetailt from '../ProjectDetailt.vue';
+import AppIcon from '../apps/AppIcon.vue';
 </script>
 <template>
   <div class="flex gap-1 items-center pt-1">
@@ -9,6 +10,7 @@ import ProjectDetailt from '../ProjectDetailt.vue';
         @click.stop=""
         v-if="projectId"
     />
+    <AppIcon :app="app" v-if="app"/>
     {{ tabName }}
     <span class="click hover:text-warning" @click="onClose">
       <i class="fa-solid fa-xmark"></i>
@@ -30,6 +32,9 @@ export default {
         this.chat = await this.$service.chat.findChat(this.params.params.chat)
   },
   computed: {
+    app() {
+      return this.params.params.app
+    },
     tabName() {
       return this.chat?.name || this.params.params.tabName
     },

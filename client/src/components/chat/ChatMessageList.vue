@@ -5,48 +5,45 @@ import TaskCard from '../kanban/TaskCard.vue'
 
 <template>
   <div class="overflow-y-auto w-full h-full">
-    <div
-      class="flex flex-col overflow-y-auto overflow-x-hidden w-full"
+    <!-- Use doc_id as stable key to prevent remounts on content changes -->
+    <ChatEntry
       v-for="(message, ix) in messages"
-      :key="message.id"
-    >
-      <ChatEntry
-        :class="[
-          'max-w-full mb-4 rounded-md hover:bg-base-200 border border-slate-600/0 hover:border-slate-600/70 rounded-lg',
-          isChannel ? '' : 'py-2',
-          editMessage
-            ? editMessage === message
-              ? 'border border-warning'
-              : 'opacity-40'
-            : ''
-        ]"
-        :chat="chat"
-        :message="message"
-        :isTopic="isTopic && !ix"
-        :mentionList="mentionList"
-        :menu-less="readOnly"
-        :usersList="usersList"
-        @edited="$emit('edited', $event)"
-        @enhance="$emit('enhance', message)"
-        @remove="$emit('remove', message)"
-        @remove-file="$emit('remove-file', { message, file: $event })"
-        @hide="$emit('hide', message)"
-        @answer="$emit('answer', message)"
-        @run-edit="$emit('run-edit', $event)"
-        @copy="$emit('copy', message)"
-        @add-file-to-chat="$emit('add-file-to-chat', $event)"
-        @image="$emit('image', { ...$event, readonly: true })"
-        @generate-code="$emit('generate-code', $event)"
-        @reload-file="$emit('reload-file', $event)"
-        @open-file="$emit('open-file', $event)"
-        @save-file="$emit('save-file', $event)"
-        @add-file="$emit('add-file', $event)"
-        @edit-message="$emit('edit-message', { event: $event, message })"
-        @code-file-shown.stop="$emit('code-file-shown', $event)"
-        @thread="$emit('thread', $event)"
-        @sub-task="$emit('sub-task', $event)"
-      />
-    </div>
+      :key="message.doc_id || message.id"
+      :class="[
+        'max-w-full mb-4 rounded-md hover:bg-base-200 border border-slate-600/0 hover:border-slate-600/70 rounded-lg',
+        isChannel ? '' : 'py-2',
+        editMessage
+          ? editMessage === message
+            ? 'border border-warning'
+            : 'opacity-40'
+          : ''
+      ]"
+      :chat="chat"
+      :message="message"
+      :isTopic="isTopic && !ix"
+      :mentionList="mentionList"
+      :menu-less="readOnly"
+      :usersList="usersList"
+      @edited="$emit('edited', $event)"
+      @enhance="$emit('enhance', message)"
+      @remove="$emit('remove', message)"
+      @remove-file="$emit('remove-file', { message, file: $event })"
+      @hide="$emit('hide', message)"
+      @answer="$emit('answer', message)"
+      @run-edit="$emit('run-edit', $event)"
+      @copy="$emit('copy', message)"
+      @add-file-to-chat="$emit('add-file-to-chat', $event)"
+      @image="$emit('image', { ...$event, readonly: true })"
+      @generate-code="$emit('generate-code', $event)"
+      @reload-file="$emit('reload-file', $event)"
+      @open-file="$emit('open-file', $event)"
+      @save-file="$emit('save-file', $event)"
+      @add-file="$emit('add-file', $event)"
+      @edit-message="$emit('edit-message', { event: $event, message })"
+      @code-file-shown.stop="$emit('code-file-shown', $event)"
+      @thread="$emit('thread', $event)"
+      @sub-task="$emit('sub-task', $event)"
+    />
 
     <!-- Scroll anchor -->
     <div class="anchor" ref="anchor"></div>

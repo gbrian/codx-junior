@@ -29,126 +29,127 @@ import VerticalSplitter from '../layout/VerticalSplitter.vue'
         <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" v-if="!isVibe" />
       </div>
 
-      <!-- PR diff view -->
-       <div class="grow" v-if="isPRView">
-      <PRView
-        class="h-full overflow-auto"
-        :fromBranch="chat.pr_view?.from_branch"
-        :toBranch="chat.pr_view?.to_branch"
-        :chat="chat"
-        @select-branch="onPRViewBranchChanged"
-        @comment="onPRFileComment"
-        @change-column="$emit('change-column', $event)"
-        @new-chat="createChatSubTask"
-        @chat-message="onPRChatMessage"
-       
-      />
-    </div>      
-      <!-- Side by side layout when isBrowser is active -->
-      <div class="grow flex gap-2 min-h-0 overflow-hidden">
-        <!-- Messages + PR view column -->
-        <div :class="['flex flex-col min-h-0 w-full']">
+      <!-- PR diff view: rendered but hidden when inactive to avoid remount -->
+      <div class="grow" v-show="isPRView">
+        <PRView
+          class="h-full overflow-auto"
+          :fromBranch="chat.pr_view?.from_branch"
+          :toBranch="chat.pr_view?.to_branch"
+          :chat="chat"
+          @select-branch="onPRViewBranchChanged"
+          @comment="onPRFileComment"
+          @change-column="$emit('change-column', $event)"
+          @new-chat="createChatSubTask"
+          @chat-message="onPRChatMessage"
+        />
+      </div>
 
-          <VerticalSplitter class="grow h-full" 
-            :panels="{ left: { defaultSize: 30 }, right: { defaultSize: 70 }}"
-            v-if="!isPRView"
-            >
+      <!-- Messages + browser side-by-side layout, always mounted -->
+      <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
+        <div class="flex flex-col min-h-0 w-full">
+          <!-- VerticalSplitter always mounted; right panel hidden via CSS when not in browser mode -->
+          <VerticalSplitter
+            class="grow h-full"
+            :panels="{ left: { defaultSize: isBrowser ? 30 : 100 }, right: { defaultSize: isBrowser ? 70 : 0 } }"
+          >
             <template v-slot:left>
               <div class="h-full flex flex-col relative">
-
-                <!-- Messages list -->
+                <!-- Messages list: stable key prevents full rebuild -->
                 <ChatMessageList
-                    v-if="!isPRView"
-                    ref="messageList"
-                    class="w-full grow overflow-y-auto overflow-x-hidden"
-                    :chat="chat"
-                    :messages="messages"
-                    :edit-message="editMessage"
-                    :mention-list="mentionList"
-                    :read-only="readOnly"
-                    :users-list="usersList"
-                    :children-chats="childrenChats"
-                    :is-channel="isChannel"
-                    :is-topic="isTopic"
-                    @edited="onMessageEdited"
-                    @enhance="onEditMessage($event, true)"
-                    @remove="removeMessage"
-                    @remove-file="removeFileFromMessage($event.message, $event.file)"
-                    @hide="toggleHide"
-                    @answer="toggleAnswer"
-                    @run-edit="runEdit"
-                    @copy="onCopy"
-                    @add-file-to-chat="onAddFile"
-                    @image="imagePreview = $event"
-                    @generate-code="onGenerateCode"
-                    @reload-file="onReloadMessageFile"
-                    @open-file="onOpenFile"
-                    @save-file="onSaveFile"
-                    @add-file="onAddFile"
-                    @edit-message="onEditMessage($event.event, $event.message)"
-                    @thread="onNewThread"
-                    @sub-task="onChatEntryCreateSubtask"
-                    @set-active-chat="$chats.setActiveChat($event)"
+                  ref="messageList"
+                  class="w-full grow overflow-y-auto overflow-x-hidden"
+                  :chat="chat"
+                  :messages="stableMessages"
+                  :edit-message="editMessage"
+                  :mention-list="mentionList"
+                  :read-only="readOnly"
+                  :users-list="usersList"
+                  :children-chats="childrenChats"
+                  :is-channel="isChannel"
+                  :is-topic="isTopic"
+                  @edited="onMessageEdited"
+                  @enhance="onEditMessage($event, true)"
+                  @remove="removeMessage"
+                  @remove-file="removeFileFromMessage($event.message, $event.file)"
+                  @hide="toggleHide"
+                  @answer="toggleAnswer"
+                  @run-edit="runEdit"
+                  @copy="onCopy"
+                  @add-file-to-chat="onAddFile"
+                  @image="imagePreview = $event"
+                  @generate-code="onGenerateCode"
+                  @reload-file="onReloadMessageFile"
+                  @open-file="onOpenFile"
+                  @save-file="onSaveFile"
+                  @add-file="onAddFile"
+                  @edit-message="onEditMessage($event.event, $event.message)"
+                  @thread="onNewThread"
+                  @sub-task="onChatEntryCreateSubtask"
+                  @set-active-chat="$chats.setActiveChat($event)"
                 />
-                 <ChatInputBox
-        ref="inputBox"
-        :waiting="waiting"
-        :is-editing="!!editMessage"
-        :is-voice-session="isVoiceSession"
-        :searching="searchingInKnowledge"
-        :read-only="readOnly"
-        :has-test-script="!!API.activeProject.script_test"
-        :show-document-search="showDocumentSearchModal"
-        :chat-project="chatProject"
-        :selected-user="selectedUser"
-        :users-list="usersList"
-        :selected-model="chat.llm_model"
-        :ai-models="aiModels"
-        :images="images"
-        :cursor-word="cursorWord"
-        :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
-        @close.knowledge="showDocumentSearchModal = false"
-        @send="sendMessage"
-        @add-message="addNewMessage()"
-        @search-message="addSearchMessage"
-        @cancel-edit="onResetEdit"
-        @paste="onContentPaste"
-        @keydown="onEditMessageKeyDown"
-        @drop="onDrop"
-        @add-document="onAddDocument"
-        @close-search="closeDocumentSearch"
-        @replace-emoji="replaceEmoji"
-        @user-changed="selectedUser = $event"
-        @model-changed="onLLMModelChanged"
-        @toggle-search="toggleDocumentSearch"
-        @hide-all="hideAll"
-        @attach-files="selectFile = true"chat
-        @test-project="testProject"
-        @toggle-voice="toggleVoiceSession"
-        @remove-image="removeImage"
-        @preview-image="imagePreview = $event"
-        v-if="readOnly !== true"
-      />
-      </div>
+
+                <!-- Input box always inside the left panel column -->
+                <ChatInputBox
+                  v-if="readOnly !== true"
+                  ref="inputBox"
+                  :waiting="waiting"
+                  :is-editing="!!editMessage"
+                  :is-voice-session="isVoiceSession"
+                  :searching="searchingInKnowledge"
+                  :read-only="readOnly"
+                  :has-test-script="!!API.activeProject.script_test"
+                  :show-document-search="showDocumentSearchModal"
+                  :chat-project="chatProject"
+                  :selected-user="selectedUser"
+                  :users-list="usersList"
+                  :selected-model="chat.llm_model"
+                  :ai-models="aiModels"
+                  :images="images"
+                  :cursor-word="cursorWord"
+                  :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+                  @close.knowledge="showDocumentSearchModal = false"
+                  @send="sendMessage"
+                  @add-message="addNewMessage()"
+                  @search-message="addSearchMessage"
+                  @cancel-edit="onResetEdit"
+                  @paste="onContentPaste"
+                  @keydown="onEditMessageKeyDown"
+                  @drop="onDrop"
+                  @add-document="onAddDocument"
+                  @close-search="closeDocumentSearch"
+                  @replace-emoji="replaceEmoji"
+                  @user-changed="selectedUser = $event"
+                  @model-changed="onLLMModelChanged"
+                  @toggle-search="toggleDocumentSearch"
+                  @hide-all="hideAll"
+                  @attach-files="selectFile = true"
+                  @test-project="testProject"
+                  @toggle-voice="toggleVoiceSession"
+                  @remove-image="removeImage"
+                  @preview-image="imagePreview = $event"
+                />
+              </div>
             </template>
+
             <template v-slot:right v-if="isBrowser">
-              <!-- ChatBrowser panel: no scroll, fixed alongside messages -->
-              <ChatBrowser class="rounded-md m-2 bg-white" :chat="chat" />
+              <!-- ChatBrowser: always mounted when slot exists, shown/hidden by isBrowser -->
+              <div class="h-full">
+                <ChatBrowser class="rounded-md m-2 bg-white h-full" :chat="chat" />
+              </div>
             </template>
-        </VerticalSplitter>
+          </VerticalSplitter>
         </div>
       </div>
     </div>
 
-    <!-- Bottom sticky input area -->
-    <div class="sticky bottom-0 z-2" v-if="!isPRView">
+    <!-- Bottom sticky mention bar -->
+    <div class="sticky bottom-0 z-2" v-if="!isPRView && !inputOnly">
       <ChatMentionBar
         :suggestions="mentionSuggestions"
         :active-mentions="messageMentions"
         @add-mention="addMention"
         @remove-mention="removeMessageMention"
         @add-file="onAddFile"
-        v-if="!inputOnly"
       />
     </div>
 
@@ -205,16 +206,20 @@ export default {
       mentions: [],
       cursorWord: {},
       notebookStatus: null,
-      editorText: ""
+      editorText: "",
+      // Stable snapshot of messages to avoid triggering re-renders on every poll tick
+      stableMessages: []
     }
   },
   created() {
     this.selectedUser = this.$user
     this.metadata = this.message?.metadata
     this.editorText = this.message?.content
+    // Seed stable messages immediately
+    this.stableMessages = this.messages
   },
   mounted() {
-    // Poll editor text changes every 100ms
+    // Poll editor text at 100ms; messages sync at a slower rate to avoid blink
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
     this.editorText && this.setEditorText(this.editorText)
   },
@@ -234,7 +239,6 @@ export default {
     isPRView() {
       return this.chat.mode === 'prview'
     },
-    // Browser mode: show ChatBrowser panel alongside messages
     isBrowser() {
       return this.chat.mode === 'vibe'
     },
@@ -314,9 +318,30 @@ export default {
     editorText() {
       this.loadMentionSuggestions()
       this.updateCursorWord()
+    },
+    // Sync stableMessages only when the message count or last message id changes
+    // This avoids re-renders triggered by content mutations during streaming
+    messages(newMessages) {
+      this.syncStableMessages(newMessages)
     }
   },
   methods: {
+    // Only update stableMessages when structure changes (add/remove), not on content edits
+    syncStableMessages(newMessages) {
+      const newIds = newMessages.map(m => m.doc_id).join(',')
+      const oldIds = this.stableMessages.map(m => m.doc_id).join(',')
+      if (newIds !== oldIds) {
+        this.stableMessages = newMessages
+      } else {
+        // Update existing message objects in-place to preserve Vue's vnodes
+        newMessages.forEach((msg, i) => {
+          const stable = this.stableMessages[i]
+          if (stable && msg !== stable) {
+            Object.assign(stable, msg)
+          }
+        })
+      }
+    },
     onLLMModelChanged(modelName) {
       this.chat.llm_model = modelName
       this.saveChat()
@@ -399,7 +424,6 @@ export default {
       this.mentions = []
       this.metadata = null
     },
-    // Core method: post message and optionally save; task_item differentiates message types
     async addNewMessage({ task_item } = {}) {
       if (this.isVoiceSession && !this.canPost) return false
       if (this.editMessage !== null) {
@@ -413,7 +437,6 @@ export default {
       }
       return true
     },
-    // Search variant: delegates to addNewMessage with task_item "search"
     async addSearchMessage() {
       return this.addNewMessage({ task_item: 'search' })
     },
@@ -452,6 +475,7 @@ export default {
       this.chatSvc.removeMessage({ chat: this.chat, message })
       this.saveChat()
     },
+    // Polls the DOM editor for text changes; avoids heavy reactivity on the input
     onMessageChange() {
       if (this.editor && this.editor.innerText !== this.editorText) {
         this.editorText = this.editor.innerText
@@ -475,15 +499,12 @@ export default {
       const textContent = await this.chatSvc.parseTextFromPaste(e)
       if (!textContent) return
 
-      // Check for pasted <img> HTML
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
       if (imgUrl) { this.images.push(imgUrl); return stop() }
 
-      // Check for mention file
       const fileMention = this.mentionList.find(m => m.file === textContent)
       if (fileMention) { this.addFileToMessage(fileMention.file); return stop() }
 
-      // Check for project file path
       const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
       if (isProjectFile && !this.pasteWithShift) {
         this.addFileToMessage(textContent)

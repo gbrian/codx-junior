@@ -20,6 +20,7 @@ import HTMLViewer from '../HTMLViewer.vue';
         :files="files"
         :project="docProject"
         :finished="block.finished"
+        :chat="chat"
         @generate-code="$emit('generate-code', $event)"
         @reload-file="$emit('reload-file', { file: $event, message })"
         @open-file="$emit('open-file', $event)"
@@ -123,7 +124,7 @@ function parseContent(content) {
 }
 
 export default {
-  props: ['content', 'files', 'project'],
+  props: ['content', 'files', 'project', 'chat'],
   computed: {
     blocks() {
       return parseContent(this.content || '')

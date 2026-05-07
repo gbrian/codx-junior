@@ -149,6 +149,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
             :content="messageContent"
             :files="chatFiles"
             :project="chatProject"
+            :chat="chat"
             @generate-code="onGenerateCode" 
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"

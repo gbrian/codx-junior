@@ -1,3 +1,4 @@
+import moment from 'moment'
 import Service from "./service";
 
 export class ChatService extends Service {
@@ -296,5 +297,16 @@ export class ChatService extends Service {
     })
     file.chat = await this.$chats.createNewChat(payload)
     return file.chat
+  }
+
+  
+  async newQuickChat() {
+    const chat = {
+    name: "Quick chat",
+    board: "Quick chats",
+    column: moment().format("YYYYMMDD"),
+    mode: 'chat'
+    }
+    return this.$chats.createNewBoardChat({ chat })
   }
 }

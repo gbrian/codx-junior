@@ -11,7 +11,9 @@ RUN apt update && apt install -y \
     curl sudo locales git \
     wget nano \
     locales python3.11 python3.11-venv \
-    procps git
+    procps git \
+    texlive-xetex texlive-fonts-recommended
+
 # TODO: Clean after
 
 RUN echo "LC_ALL=en_US.UTF-8" >> /etc/environment

@@ -1,0 +1,106 @@
+{
+  "id": "df0ab8a3-fc75-4186-9427-220f83a427cb",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "VueDeveloper",
+    "daisyui_components",
+    "project"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "CodeViewer",
+  "pinned": false,
+  "description": "There is no conversation to summarize yet. The only content provided was a Vue.js component file (`CodeViewer.vue`). \n\nHere is a 5-line summary of the component instead:\n\n1. **`CodeViewer.vue`** is a Vue.js component that displays code blocks with syntax highlighting using `VueCodeHighlighter` and `highlight.js`.\n2. It supports **collapsible code views**, showing a file name, streaming indicator, and diff stats in the header.\n3. Features include **zoom in/out, copy, edit, save, and diff viewing** via an integrated toolbar.\n4. It integrates with a **`DiffViewer`** and **Monaco Editor** for advanced code editing and comparison.\n5. The component emits events like `save-file`, `open-file`, `add-file`, `sub-task`, and `edit-message` to communicate with its parent.",
+  "messages": [
+    {
+      "doc_id": "240d996f-c746-4f8b-b950-30db12db292f",
+      "role": "user",
+      "task_item": "",
+      "content": "```vue\n<div tabindex=\"0\" class=\"collapse collapse-arrow bg-base-100 border-base-300 border\">\n\u00a0 <div class=\"collapse-title font-semibold\">How do I create an account?</div>\n\u00a0 <div class=\"collapse-content text-sm\">\n\u00a0 \u00a0 Click the \"Sign Up\" button in the top right corner and follow the registration process.\n\u00a0 </div>\n</div>\n```\n\n\nUse a collapsible for the code viewer, intially collapsed and showing the file info and status. Remove the condition isVibeCoding always show the header with file status and the rest of the component if user click on expand",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-05 09:27:20.326153",
+      "updated_at": "2026-05-05 09:27:20.326180",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/CodeViewer.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/CodeViewer.vue"
+      ],
+      "meta_data": {
+        "time_taken": 31.19301438331604,
+        "first_chunk_time_taken": 0.1555633544921875,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "1516f064-e2fa-47b6-bac2-975370fd1db8",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "```vue src/components/CodeViewer.vue\n<script setup>\nimport { VueCodeHighlighter } from 'vue-code-highlighter'\nimport 'vue-code-highlighter/dist/style.css'\nimport hljs from 'highlight.js';\nimport DiffViewer from './DiffViewer.vue';\nimport Editor from './monaco/Editor.vue';\n</script>\n\n<template>\n    <div tabindex=\"0\" class=\"collapse collapse-arrow bg-base-100 border-base-300 border rounded-lg\">\n        <!-- Collapse Header: always visible -->\n        <input type=\"checkbox\" v-model=\"showCode\" />\n        <div class=\"collapse-title flex gap-2 items-center min-h-0 py-2 px-3\">\n            <i class=\"fa-solid fa-file-pen text-sm\"></i>\n            <span class=\"max-w-28 truncate text-sm font-medium\" dir=\"rtl\">{{ fileName || 'Code' }}</span>\n            <i class=\"fa-solid fa-check-double text-success\" v-if=\"finished\"></i>\n            <span class=\"loading loading-spinner loading-xs\" v-else-if=\"isStreaming\"></span>\n            <span class=\"grow\"></span>\n            <!-- Stats badge in header -->\n            <span class=\"text-xs text-info\" v-if=\"stats && !showCode\">\n                <i class=\"fa-solid fa-code-compare\"></i> {{ stats }}\n            </span>\n        </div>\n\n        <!-- Collapse Content -->\n        <div class=\"collapse-content px-2\">\n            <div class=\"flex flex-col gap-2 pt-1\">\n                <!-- Toolbar -->\n                <div class=\"flex gap-1 items-center\">\n                    <select class=\"hidden select select-sm select-bordered\"\n                        @change=\"$emit('link-file', $event.target.value)\" v-if=\"files\">\n                        <option>--</option>\n                        <option :value=\"file_path\" v-for=\"file_path in files\" :key=\"file_path\"\n                            :selected=\"file_path === file\">\n                            {{ file_path.split(\"/\").reverse()[0] }}\n                        </option>\n                    </select>\n\n                    <div class=\"underline text-link flex gap-2 items-center cursor-pointer\" v-if=\"fileName\">\n                        <div class=\"hover:text-info\" @click=\"$emit('add-file', file)\">\n                            <i class=\"fa-solid fa-file-arrow-up\"></i>\n                        </div>\n                        <div class=\"hover:text-info\" @click=\"$emit('open-file', file)\" :title=\"file\">\n                            {{ fileName }}\n                        </div>\n                    </div>\n\n                    <div class=\"flex gap-2\" v-if=\"finished\">\n                        <div class=\"hover:text-info cursor-pointer\" @click=\"zoomOut\">\n                            <i class=\"fa-solid fa-magnifying-glass-minus\"></i>\n                        </div>\n                        <div class=\"hover:text-info cursor-pointer\" @click=\"zoomIn\">\n                            <i class=\"fa-solid fa-magnifying-glass-plus\"></i>\n                        </div>\n                        <div class=\"hover:text-info cursor-pointer\" @click=\"onCopy\">\n                            <i class=\"fa-solid fa-copy\"></i>\n                        </div>\n                        <div class=\"hover:text-info cursor-pointer\" :class=\"edit && 'text-warning'\" @click=\"onEdit\">\n                            <i class=\"fa-solid fa-edit\"></i>\n                        </div>\n                        <div class=\"hover:text-info cursor-pointer\" @click=\"saveFile\" v-if=\"canSave\">\n                            <i class=\"fa-solid fa-floppy-disk\"></i>\n                        </div>\n                        <div class=\"hover:text-info cursor-pointer\" @click=\"createSubTask\">\n                            <i class=\"fa-brands fa-trello\"></i>\n                        </div>\n                        <div class=\"grow\"></div>\n                        <span class=\"text-xs text-info\">\n                            <span v-if=\"loadingStats\">Loading...</span>\n                            <span @click=\"onShowDiff\" class=\"cursor-pointer\" v-if=\"stats\">\n                                <i class=\"fa-solid fa-file-lines\" v-if=\"showDiff\"></i>\n                                <i class=\"fa-solid fa-code-compare\" v-else></i>\n                                {{ stats }}\n                            </span>\n                        </span>\n                    </div>\n                </div>\n\n                <!-- Run command button -->\n                <div @click=\"runCommand\" class=\"cursor-pointer\" v-if=\"isCommand\">\n                    <i class=\"fa-solid fa-terminal\"></i>\n                </div>\n\n                <!-- Code display area -->\n                <div class=\"view-code\" :style=\"{ zoom }\">\n                    <DiffViewer :file=\"file\" :orgContent=\"orgContent\" :newContent=\"code\" :language=\"language\"\n                        :diff=\"diff\" v-if=\"showDiff\" />\n                    <VueCodeHighlighter :code=\"code\" :lang=\"fileLanguage\" :title=\"fileName\"\n                        v-if=\"code && !edit && !showDiff\" />\n                    <Editor v-model=\"edit\" :language=\"fileLanguage\" v-if=\"edit\" />\n                </div>\n\n                <!-- Footer actions -->\n                <div class=\"flex justify-end gap-2\">\n                    <button class=\"btn btn-sm btn-warning\" @click=\"applyPatch\" v-if=\"isPatch\">\n                        Apply\n                    </button>\n                </div>\n            </div>\n        </div>\n    </div>\n</template>\n\n<script>\nexport default {\n    props: ['chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished'],\n    data() {\n        return {\n            showDiff: false,\n            orgContent: null,\n            diff: this.fileDiff,\n            zoom: 1,\n            edit: null,\n            loadingStats: false,\n            stats: null,\n            showCode: false // collapsed by default\n        }\n    },\n    computed: {\n        isStreaming() {\n            return !this.finished && this.code\n        },\n        isPatch() {\n            return this.language === 'diff'\n        },\n        fileName() {\n            return this.file?.split(\"/\").reverse()[0]\n        },\n        isCommand() {\n            return this.language === \"bash\"\n        },\n        fileLanguage() {\n            if (!hljs.getLanguage(this.language)) {\n                return \"markdown\"\n            }\n            return this.language\n        },\n        canSave() {\n            return this.edit || this.file\n        },\n        $api() {\n            return (this.project?.$api || this.$storex.api)\n        }\n    },\n    watch: {\n        async finished() {\n            if (this.finished) {\n                await this.loadDiffInfo()\n            }\n            if (this.chat?.mode === 'vibe') {\n                this.saveFile()\n            }\n        }\n    },\n    mounted() {\n        if (this.finished) {\n            this.loadDiffInfo()\n        }\n    },\n    methods: {\n        applyPatch() {\n            this.$projects.applyPatch({ patch: this.code })\n        },\n        async onShowDiff() {\n            if (!this.diff) {\n                await this.loadDiffInfo()\n            }\n            this.orgContent = await this.$api.files.read(this.file)\n            this.showDiff = !this.showDiff\n        },\n        async loadDiffInfo() {\n            try {\n                this.loadingStats = true\n                if (this.file) {\n                    const { diff, stats } = await this.$api.files.diff({ path: this.file, content: this.code })\n                    this.diff = diff\n                    this.stats = stats\n                    if (!stats && diff) {\n                        this.stats = 'File changes'\n                    }\n                }\n            } finally {\n                this.loadingStats = false\n            }\n        },\n        saveFile() {\n            if (this.edit) {\n                this.$emit('edit-message', { orgContent: this.code, newContent: this.edit })\n                this.edit = null\n            } else {\n                this.$emit('save-file', { file: this.file, content: this.code })\n            }\n        },\n        runCommand() {\n            this.$storex.api.apps.runScript(this.code)\n        },\n        zoomOut() {\n            this.zoom -= .1\n        },\n        zoomIn() {\n            this.zoom += .1\n        },\n        onCopy() {\n            this.$ui.copyTextToClipboard(this.code)\n        },\n        onEdit() {\n            this.edit = !this.edit ? this.code : null\n        },\n        createSubTask() {\n            const content = [\n                \"```\" + this.fileLanguage + \" \" + this.file,\n                this.code,\n                \"```\"\n            ].join(\"\\n\")\n            this.$emit('sub-task', { file: this.file, content })\n        }\n    }\n}\n</script>\n\n<style>\n.header-code-highlight {\n    display: none !important;\n}\n</style>\n```",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-05 09:27:20.326153",
+      "updated_at": "2026-05-05 09:27:20.326180",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "time_taken": 31.19301438331604,
+        "first_chunk_time_taken": 0.1555633544921875,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [
+        "VueDeveloper",
+        "project",
+        "daisyui_components"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-05-05 09:27:20.329035",
+  "updated_at": "2026-05-05T12:54:12.889164",
+  "mode": "task",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "UI - Components",
+  "column": "Document",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/UI - Components/Document/codeviewer.df0ab8a3-fc75-4186-9427-220f83a427cb.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}

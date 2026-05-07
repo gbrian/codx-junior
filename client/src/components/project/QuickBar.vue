@@ -4,6 +4,11 @@ import BarButton from './BarButton.vue'
 <template>
   <div class="flex items-center px-1 py-2 bg-base-100 gap-4">
 
+
+    <BarButton tab="home" @click="onNewQuickChat">
+      <i class="fa-solid fa-comments"></i>
+    </BarButton>
+
     <BarButton tab="home" @click="$ui.setActiveTab('home')">
       <i class="fa-solid fa-home"></i>
     </BarButton>
@@ -47,6 +52,12 @@ export default {
   data () {
     return {
       showMobileMenu: false
+    }
+  },
+  methods: {
+    async onNewQuickChat() {
+      const chat = await this.$service.chat.newQuickChat()
+      this.$ui.openChat(chat)
     }
   }
 }

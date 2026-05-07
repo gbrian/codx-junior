@@ -19,23 +19,27 @@ class ChatExport:
         self.export_format = export_format
 
     def convert_to_format(self, markdown: str) -> bytes:
-        """
-        Use pypandoc to convert the markdown document into the desired format.
-        """
         output_file = f"/tmp/chat_export.{self.export_format}"
+        
+        # Define extra arguments to handle Unicode/Emojis
+        extra_args = ['--pdf-engine=xelatex'] if self.export_format == 'pdf' else []
+        
         try:
-            pypandoc.convert_text(markdown, to=self.export_format, format='md', outputfile=output_file)
+            pypandoc.convert_text(
+                markdown, 
+                to=self.export_format, 
+                format='md', 
+                outputfile=output_file,
+                extra_args=extra_args  # Pass the engine flag here
+            )
             with open(output_file, 'rb') as f:
                 content = f.read()
         except Exception as e:
             logger.error(f"Error converting markdown to {self.export_format}: {e}")
             raise
         finally:
-            # Ensure the temporary file is removed after conversion
-            try:
+            if os.path.exists(output_file):
                 os.remove(output_file)
-            except Exception as e:
-                logger.error(f"Error removing temporary file {output_file}: {e}")
 
         return content
 
