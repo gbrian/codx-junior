@@ -20,7 +20,7 @@ services:
       - ./milvus_embedEtcd.yaml:/milvus/configs/embedEtcd.yaml
       - ./milvus_user.yaml:/milvus/configs/user.yaml
     restart: unless-stopped
-    command: milvus run standalone  1> /dev/null
+    command: milvus run standalone
     healthcheck:
       test: "curl -f http://localhost:9091/healthz"
       interval: 30s
@@ -80,15 +80,17 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       # Traefik
       - ./traefik:/traefik
-    # ports:
-    #   - 19980:19980
     labels:
       # Api
       - traefik.enable=true
       - traefik.http.routers.codx-junior-api.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.codx-junior-api.entrypoints=websecure
+      - traefik.http.routers.codx-junior-api.tls=true
+      - traefik.http.routers.codx-junior-api.tls.certresolver=sslresolver
       - traefik.http.routers.codx-junior-api.service=codx-junior-api-service
       - traefik.http.services.codx-junior-api-service.loadbalancer.server.port=19980
       - traefik.http.middlewares.codx-junior-auth.forwardAuth.address=http://codx-junior-api:19980/api/forward-auth
+      - traefik.http.middlewares.codx-junior-auth.forwardAuth.trustForwardHeader=true
 
 
   codx-junior-api-background:
@@ -132,12 +134,13 @@ services:
     volumes:
       # Custom overrides (DEBUG)
       - ../../.:/home/codx-junior/codx-junior
-    # ports:
-    #   - 19981:19981
     labels:
       # Web
       - traefik.enable=true
       - traefik.http.routers.codx-junior.rule=Host(`${CODX_JUNIOR_DOMAIN}`)
+      - traefik.http.routers.codx-junior.entrypoints=websecure
+      - traefik.http.routers.codx-junior.tls=true
+      - traefik.http.routers.codx-junior.tls.certresolver=sslresolver
       - traefik.http.routers.codx-junior.service=codx-junior-service
       - traefik.http.services.codx-junior-service.loadbalancer.server.port=19981
   
@@ -154,12 +157,14 @@ services:
       - .env # Load local .env file
     environment:
       - TRAEFIK_CERTIFICATESRESOLVERS_SSLRESOLVER_ACME_EMAIL=${ACME_EMAIL:-your-ssl@email.here}
+      - TRAEFIK_LOG_LEVEL=DEBUG
+      - TRAEFIK_ACCESSLOG=true
+      - TRAEFIK_ACCESSLOG_FORMAT=json
     command:
       - "--configFile=/config/traefik.yaml"
     ports:
       - "80:80"
       - "443:443"
-      - "8088:8080"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - ./traefik:/config
@@ -175,7 +180,6 @@ services:
     volumes:
       - ./initial-setup.sh:/initial-setup.sh
     command: bash /initial-setup.sh
-
 
 volumes:
   prometheus_demo_data:

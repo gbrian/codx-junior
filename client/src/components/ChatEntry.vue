@@ -6,6 +6,7 @@ import ChatIcon from './chat/ChatIcon.vue'
 import Document from './document/Document.vue'
 import UserSelector from './chat/UserSelector.vue'
 import ProfileAvatar from './profile/ProfileAvatar.vue'
+import Editor from './monaco/Editor.vue'
 </script>
 
 <template>
@@ -143,8 +144,11 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
             :class="['max-w-full border-slate-300/20', 
             (isCollapsed === undefined ? displayMessage.hide : isCollapsed) ? 'h-6 overflow-hidden': 'h-fit']">
           
-          <textarea v-if="editting" v-model="editting" class="h-96 bg-transparent input w-full p-2"/>                
-            <pre v-if="srcView">{{ displayMessage.content }}</pre>
+          <!--textarea v-if="editting" v-model="editting" class="h-96 bg-transparent input w-full p-2"/ -->
+          <Editor class="h-[1024px] overflow-auto" language="markdown" v-model="editting" v-if="editting" />                
+          
+          <pre v-if="srcView">{{ displayMessage.content }}</pre>
+          
           <Document 
             :content="messageContent"
             :files="chatFiles"

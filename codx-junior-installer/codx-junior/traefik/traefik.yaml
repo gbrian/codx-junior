@@ -2,13 +2,13 @@ entrypoints:
   web:
     address: :80
     observability:
-      accessLogs: false
+      accessLogs: true
       metrics: true
       tracing: true
   websecure:
     address: :443
     observability:
-      accessLogs: false
+      accessLogs: true
       metrics: true
       tracing: true
 
@@ -27,7 +27,6 @@ accessLog:
     headers:
       defaultMode: keep
 
-
 providers:
   file:
     directory: /config/routes
@@ -40,9 +39,3 @@ certificatesResolvers:
       storage: "/config/letsencrypt/acme.json"
       httpChallenge:
         entryPoint: web
-
-http:
-  middlewares:
-    codx-junior-auth:
-      forwardAuth:
-        address: "http://codx-junior-api:19980/forward-auth"

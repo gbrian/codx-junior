@@ -31,11 +31,11 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                 v-else>
                 <div class="flex gap-2 mb-2 shrink-0">
                   <div class="my-2 hover:underline cursor-pointer font-bold text-primary" @click="navigateToParent()">
+                    <i class="fa-brands fa-trello"></i>
                     {{ kanban?.title || theChat.board }}
                   </div>
                   <div class="my-2 hover:underline cursor-pointer font-bold text-secondary" @click="navigateToParent(parentChat)"
                     v-if="parentChat">
-                    <i class="fa-brands fa-trello"></i>
                     {{ parentChat.name }}
                   </div>
                 </div>
@@ -66,7 +66,12 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                       
                       <div class="flex flex-col" :class="showChildChat && 'opacity-80'">
                         <div>
-                          <span :class="showChildChat && 'opacity-70 hover:opacity-100'" @dblclick="onChatNameClick">{{ computedChatName }}</span>
+                          <span :class="showChildChat && 'opacity-70 hover:opacity-100'" 
+                            @dblclick="onChatNameClick"
+                            @click="showChildChat = null"
+                          >
+                            {{ computedChatName }}
+                          </span>
                           <span v-if="showChildChat"> / {{ showChildChat.name }}</span>
                         </div>
                         <div class="flex gap-1 text-xs gap-2">
@@ -472,7 +477,7 @@ export default {
       return this.$projects.allProjectsById[this.theChat.project_id] || this.$project
     },
     parentChat() {
-      return this.$projects.allChats.find(c => c.id === this.theChat?.parent_id)
+      return this.$chats.chats[this.theChat?.parent_id]
     },
     chatFiles() {
       return this.workingChat.file_list || []

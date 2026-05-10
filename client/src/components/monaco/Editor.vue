@@ -1,6 +1,6 @@
 <script setup>
 import { CodeEditor } from 'monaco-editor-vue3'
-import { DiffEditor } from 'monaco-editor-vue3';
+import { DiffEditor } from 'monaco-editor-vue3'
 </script>
 
 <template>
@@ -39,9 +39,9 @@ export default {
     return {
       editorOptions: {
         fontSize: 14,
-        minimap: { enabled: false },
+        minimap: { enabled: true },
         automaticLayout: true,
-        lineNumbers: "off"
+        lineNumbers: "on"
       }
     }
   }

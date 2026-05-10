@@ -27,6 +27,7 @@ acme.json
 # Default workspace
 ## webtop's /config folder in Desktop workspace 
 codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-default/config
+codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-kasmvnc-ubuntu/config
 codx-junior-installer/codx-junior-dind/images
 projects/
 codx-junior-installer/vllm/.cache

@@ -1,0 +1,7 @@
+http:
+  serversTransports:
+    # Named transport - use this selectively per service by referencing
+    # "insecure-skip-verify@file" in docker labels:
+    # traefik.http.services.<name>.loadbalancer.serverstransport=insecure-skip-verify@file
+    insecure-skip-verify:
+      insecureSkipVerify: true

@@ -1,21 +1,16 @@
 <script setup>
-import ChatViewVue from '../../views/ChatView.vue'
 import KanbanList from './KanbanList.vue'
-import ChatHistoryVue from './ChatHistory.vue'
 import Kanban from './Kanban.vue'
 import NewEditBoardModal from './NewEditBoardModal.vue'
 </script>
 
 <template>
   <div class="@container p-2 w-full h-full flex flex-col gap-1 overflow-auto">
-    <!-- Chat History -->
-    <ChatHistoryVue
-      :projects="[$project, ...$projects.childProjects]"
-      v-if="showHistory" />
 
     <!-- Kanban list -->
     <KanbanList
       :boards="boards"
+      :project="project"
       @select="selectBoard"
       @new-board="showNewBoardModal"
       @bookmark="toggleBookmark"
@@ -23,19 +18,9 @@ import NewEditBoardModal from './NewEditBoardModal.vue'
       v-if="showKanbanList"
     />
 
-    <!-- Active chat view -->
-    <ChatViewVue
-      class="h-full rounded-lg my-2"
-      @chats="onChatEditDone"
-      @chat="setActiveChat($event)"
-      @change-column="moveChatsToColumn"
-      :kanban="activeBoard"
-      :chat="$chats.activeChat"
-      v-if="showChatView"
-    />
-
     <!-- Kanban board view -->
     <Kanban
+      :project="project"
       @edit-board="onEditBoard"
       @select-board="selectBoard"
       v-if="showKanban"
@@ -54,9 +39,8 @@ import NewEditBoardModal from './NewEditBoardModal.vue'
 </template>
 
 <script>
-import { v4 as uuidv4 } from 'uuid'
-
 export default {
+  props: ['params'],
   data() {
     return {
       showHistory: false,
@@ -74,6 +58,9 @@ export default {
     }
   },
   computed: {
+    project() {
+      return this.$projects.allProjectsById[this.params.params.project_id]
+    },
     kanban() {
       return this.$projects.kanban || { boards: {} }
     },
@@ -91,14 +78,11 @@ export default {
         ? this.$projects.activeBoard
         : null
     },
-    showChatView() {
-      return !this.showHistory && !!this.$chats.activeChat
-    },
     showKanban() {
-      return !this.showHistory && !this.showChatView && !!this.activeBoard
+      return !this.showHistory && !!this.activeBoard
     },
     showKanbanList() {
-      return !this.showHistory && !this.showChatView && !this.showKanban
+      return !this.showHistory && !this.showKanban
     }
   },
   methods: {

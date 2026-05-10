@@ -146,6 +146,9 @@ export const mutations = mutationTree(state, {
   showNewProject(state, show) {
     state.newProject = show
   },
+  cloneApp(state, app) {
+    $storex.ui.showApp({ ...app, tabId: null })
+  },
   showApp(state, app) {
     app.tabId = app.tabId || `${app.key || app.name}-${(new Date().getTime())}`
     state.openApps = {
@@ -207,6 +210,7 @@ export const actions = actionTree(
         openApps: Object.keys(state.openApps),
         activeProject: $storex.projects.activeProject?.project_id,
         activeChat:  $storex.projects.activeChat?.id,
+        openApps: {} // Stored in layouts
       }
       localStorage.setItem('uiState', JSON.stringify(data))
     },
@@ -228,10 +232,6 @@ export const actions = actionTree(
       if (chatId && $storex.projects.activeProject) {
         $storex.projects.setActiveChat({ id: chatId })
       }
-      state.openApps = state.openApps.map(key => $storex.projects.projectApps.find(pa => pa.key === key)) 
-                          .filter(app => !!app)
-                          .reduce((acc, app) => ({ ...acc, [app.key]: app }), {})
-
       state.activeApp = Object.values(state.openApps)[0]
       
       $storex.ui.handleResize()
