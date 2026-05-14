@@ -27,6 +27,8 @@ services:
       start_period: 90s
       timeout: 20s
       retries: 3
+    labels:
+      - traefik.enable=false
 
   ###################################################################
   ## OLLAMA
@@ -48,6 +50,8 @@ services:
       - OLLAMA_NUM_THREADS=6
     volumes:
       - codx-junior-ollama:/root/.ollama
+    labels:
+      - traefik.enable=false
     
   codx-junior-api:
     depends_on:
@@ -81,13 +85,19 @@ services:
       # Traefik
       - ./traefik:/traefik
     labels:
-      # Api
       - traefik.enable=true
+      # HTTP Router (for behind other proxies)
       - traefik.http.routers.codx-junior-api.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/api`)
-      - traefik.http.routers.codx-junior-api.entrypoints=websecure
-      - traefik.http.routers.codx-junior-api.tls=true
-      - traefik.http.routers.codx-junior-api.tls.certresolver=sslresolver
+      - traefik.http.routers.codx-junior-api.entrypoints=web
+      
+      # HTTPS Router (for standalone with SSL)
+      - traefik.http.routers.codx-junior-api-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`) && PathPrefix(`/api`)
+      - traefik.http.routers.codx-junior-api-secure.entrypoints=websecure
+      - traefik.http.routers.codx-junior-api-secure.tls.certresolver=sslresolver
+      
+      # Shared Service and Middleware
       - traefik.http.routers.codx-junior-api.service=codx-junior-api-service
+      - traefik.http.routers.codx-junior-api-secure.service=codx-junior-api-service
       - traefik.http.services.codx-junior-api-service.loadbalancer.server.port=19980
       - traefik.http.middlewares.codx-junior-auth.forwardAuth.address=http://codx-junior-api:19980/api/forward-auth
       - traefik.http.middlewares.codx-junior-auth.forwardAuth.trustForwardHeader=true
@@ -122,6 +132,8 @@ services:
       - ../../.:/home/codx-junior/codx-junior
       # Docker
       - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      - traefik.enable=false
       
   codx-junior-client:
     container_name: codx-junior-client
@@ -135,13 +147,19 @@ services:
       # Custom overrides (DEBUG)
       - ../../.:/home/codx-junior/codx-junior
     labels:
-      # Web
       - traefik.enable=true
+      # HTTP Router
       - traefik.http.routers.codx-junior.rule=Host(`${CODX_JUNIOR_DOMAIN}`)
-      - traefik.http.routers.codx-junior.entrypoints=websecure
-      - traefik.http.routers.codx-junior.tls=true
-      - traefik.http.routers.codx-junior.tls.certresolver=sslresolver
+      - traefik.http.routers.codx-junior.entrypoints=web
+
+      # HTTPS Router
+      - traefik.http.routers.codx-junior-secure.rule=Host(`${CODX_JUNIOR_DOMAIN}`)
+      - traefik.http.routers.codx-junior-secure.entrypoints=websecure
+      - traefik.http.routers.codx-junior-secure.tls.certresolver=sslresolver
+
+      # Shared Service
       - traefik.http.routers.codx-junior.service=codx-junior-service
+      - traefik.http.routers.codx-junior-secure.service=codx-junior-service
       - traefik.http.services.codx-junior-service.loadbalancer.server.port=19981
   
   ###################################################################
@@ -171,7 +189,6 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.dashboard.rule=PathPrefix(`/traefik-dashboard`)"
-      - "traefik.http.routers.dashboard.entrypoints=web,websecure"
 
   codx-junior-init:
     depends_on:
@@ -180,6 +197,8 @@ services:
     volumes:
       - ./initial-setup.sh:/initial-setup.sh
     command: bash /initial-setup.sh
+    labels:
+      - traefik.enable=false
 
 volumes:
   prometheus_demo_data:
