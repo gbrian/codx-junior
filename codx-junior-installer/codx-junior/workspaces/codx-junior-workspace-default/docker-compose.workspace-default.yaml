@@ -23,7 +23,7 @@ services:
       # - /custom/project/path:/custom/project/path 
       # coder config
       - ./coder:/coder
-      - ./config:/config
+      - codx-junior-config:/config
       - ./coder/coder-init.sh:/custom-services.d/coder-init.sh
       # Access docker
       - /var/run/docker.sock:/var/run/docker.sock
@@ -54,6 +54,7 @@ services:
       - codx-junior
 
 volumes:
+  codx-junior-config:
   codx-junior-projects:
     external: true
 

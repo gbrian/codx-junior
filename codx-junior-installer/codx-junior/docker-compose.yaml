@@ -49,7 +49,7 @@ services:
       - OLLAMA_KV_CACHE_TYPE=q8_0
       - OLLAMA_NUM_THREADS=6
     volumes:
-      - codx-junior-ollama:/root/.ollama
+      - ../../ollama_models:/root/.ollama
     labels:
       - traefik.enable=false
     
@@ -211,5 +211,3 @@ volumes:
     name: codx-junior
   codx-junior-projects:
     name: codx-junior-projects
-  codx-junior-ollama:
-    name: codx-junior-ollama
