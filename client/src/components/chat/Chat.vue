@@ -297,7 +297,7 @@ export default {
       ]
     },
     profiles() {
-      return this.chatProject?.$state.profiles || []
+      return this.chatProject?.$state?.profiles || []
     },
     usersList() {
       return [this.$user, ...this.profiles]
