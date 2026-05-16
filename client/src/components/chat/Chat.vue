@@ -8,8 +8,6 @@ import ChatInputBox from './ChatInputBox.vue'
 import ChatImagePreviewModal from './ChatImagePreviewModal.vue'
 import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
 import ChatMessageList from './ChatMessageList.vue'
-import ChatBrowser from './ChatBrowser.vue'
-import VerticalSplitter from '../layout/VerticalSplitter.vue'
 </script>
 
 <template>
@@ -47,97 +45,82 @@ import VerticalSplitter from '../layout/VerticalSplitter.vue'
       <!-- Messages + browser side-by-side layout, always mounted -->
       <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
         <div class="flex flex-col min-h-0 w-full">
-          <!-- VerticalSplitter always mounted; right panel hidden via CSS when not in browser mode -->
-          <VerticalSplitter
-            class="grow h-full"
-            :panels="{ left: { defaultSize: isBrowser ? 30 : 100 }, right: { defaultSize: isBrowser ? 70 : 0 } }"
-          >
-            <template v-slot:left>
-              <div class="h-full flex flex-col relative">
-                <!-- Messages list: stable key prevents full rebuild -->
-                <ChatMessageList
-                  ref="messageList"
-                  class="w-full grow overflow-y-auto overflow-x-hidden"
-                  :chat="chat"
-                  :messages="stableMessages"
-                  :edit-message="editMessage"
-                  :mention-list="mentionList"
-                  :read-only="readOnly"
-                  :users-list="usersList"
-                  :children-chats="childrenChats"
-                  :is-channel="isChannel"
-                  :is-topic="isTopic"
-                  @edited="onMessageEdited"
-                  @enhance="onEditMessage($event, true)"
-                  @remove="removeMessage"
-                  @remove-file="removeFileFromMessage($event.message, $event.file)"
-                  @hide="toggleHide"
-                  @answer="toggleAnswer"
-                  @run-edit="runEdit"
-                  @copy="onCopy"
-                  @add-file-to-chat="onAddFile"
-                  @image="imagePreview = $event"
-                  @generate-code="onGenerateCode"
-                  @reload-file="onReloadMessageFile"
-                  @open-file="onOpenFile"
-                  @save-file="onSaveFile"
-                  @add-file="onAddFile"
-                  @edit-message="onEditMessage($event.event, $event.message)"
-                  @thread="onNewThread"
-                  @sub-task="onChatEntryCreateSubtask"
-                  @set-active-chat="$chats.setActiveChat($event)"
-                />
+          <div class="h-full flex flex-col relative">
+            <!-- Messages list: stable key prevents full rebuild -->
+            <ChatMessageList
+              ref="messageList"
+              class="w-full grow overflow-y-auto overflow-x-hidden"
+              :chat="chat"
+              :messages="stableMessages"
+              :edit-message="editMessage"
+              :mention-list="mentionList"
+              :read-only="readOnly"
+              :users-list="usersList"
+              :children-chats="childrenChats"
+              :is-channel="isChannel"
+              :is-topic="isTopic"
+              @edited="onMessageEdited"
+              @enhance="onEditMessage($event, true)"
+              @remove="removeMessage"
+              @remove-file="removeFileFromMessage($event.message, $event.file)"
+              @hide="toggleHide"
+              @answer="toggleAnswer"
+              @run-edit="runEdit"
+              @copy="onCopy"
+              @add-file-to-chat="onAddFile"
+              @image="imagePreview = $event"
+              @generate-code="onGenerateCode"
+              @reload-file="onReloadMessageFile"
+              @open-file="onOpenFile"
+              @save-file="onSaveFile"
+              @add-file="onAddFile"
+              @edit-message="onEditMessage($event.event, $event.message)"
+              @thread="onNewThread"
+              @sub-task="onChatEntryCreateSubtask"
+              @set-active-chat="$chats.setActiveChat($event)"
+            />
 
-                <!-- Input box always inside the left panel column -->
-                <ChatInputBox
-                  v-if="readOnly !== true"
-                  ref="inputBox"
-                  :waiting="waiting"
-                  :is-editing="!!editMessage"
-                  :is-voice-session="isVoiceSession"
-                  :searching="searchingInKnowledge"
-                  :read-only="readOnly"
-                  :has-test-script="!!API.activeProject.script_test"
-                  :show-document-search="showDocumentSearchModal"
-                  :chat-project="chatProject"
-                  :selected-user="selectedUser"
-                  :users-list="usersList"
-                  :selected-model="chat.llm_model"
-                  :ai-models="aiModels"
-                  :images="images"
-                  :cursor-word="cursorWord"
-                  :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
-                  @close.knowledge="showDocumentSearchModal = false"
-                  @send="sendMessage"
-                  @add-message="addNewMessage()"
-                  @search-message="addSearchMessage"
-                  @cancel-edit="onResetEdit"
-                  @paste="onContentPaste"
-                  @keydown="onEditMessageKeyDown"
-                  @drop="onDrop"
-                  @add-document="onAddDocument"
-                  @close-search="closeDocumentSearch"
-                  @replace-emoji="replaceEmoji"
-                  @user-changed="selectedUser = $event"
-                  @model-changed="onLLMModelChanged"
-                  @toggle-search="toggleDocumentSearch"
-                  @hide-all="hideAll"
-                  @attach-files="selectFile = true"
-                  @test-project="testProject"
-                  @toggle-voice="toggleVoiceSession"
-                  @remove-image="removeImage"
-                  @preview-image="imagePreview = $event"
-                />
-              </div>
-            </template>
-
-            <template v-slot:right v-if="isBrowser">
-              <!-- ChatBrowser: always mounted when slot exists, shown/hidden by isBrowser -->
-              <div class="h-full">
-                <ChatBrowser class="rounded-md m-2 bg-white h-full" :chat="chat" />
-              </div>
-            </template>
-          </VerticalSplitter>
+            <!-- Input box always inside the left panel column -->
+            <ChatInputBox
+              v-if="readOnly !== true"
+              ref="inputBox"
+              :waiting="waiting"
+              :is-editing="!!editMessage"
+              :is-voice-session="isVoiceSession"
+              :searching="searchingInKnowledge"
+              :read-only="readOnly"
+              :has-test-script="!!API.activeProject.script_test"
+              :show-document-search="showDocumentSearchModal"
+              :chat-project="chatProject"
+              :selected-user="selectedUser"
+              :users-list="usersList"
+              :selected-model="chat.llm_model"
+              :ai-models="aiModels"
+              :images="images"
+              :cursor-word="cursorWord"
+              :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+              @close.knowledge="showDocumentSearchModal = false"
+              @send="sendMessage"
+              @add-message="addNewMessage()"
+              @search-message="addSearchMessage"
+              @cancel-edit="onResetEdit"
+              @paste="onContentPaste"
+              @keydown="onEditMessageKeyDown"
+              @drop="onDrop"
+              @add-document="onAddDocument"
+              @close-search="closeDocumentSearch"
+              @replace-emoji="replaceEmoji"
+              @user-changed="selectedUser = $event"
+              @model-changed="onLLMModelChanged"
+              @toggle-search="toggleDocumentSearch"
+              @hide-all="hideAll"
+              @attach-files="selectFile = true"
+              @test-project="testProject"
+              @toggle-voice="toggleVoiceSession"
+              @remove-image="removeImage"
+              @preview-image="imagePreview = $event"
+            />
+          </div>
         </div>
       </div>
     </div>

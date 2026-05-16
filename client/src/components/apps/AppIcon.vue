@@ -64,9 +64,14 @@ export default {
   },
   watch: {
     project() {
-      this.app.params = {
-        ...app.params || {},
-        project_id: this.project.project_id
+      if (this.app.params.project_id != this.project.project_id) {
+        this.$ui.showApp({
+          ...this.app,
+          params: {
+            ...this.app.params,
+            project_id: this.project.project_id
+          }
+        })
       }
     }
   },

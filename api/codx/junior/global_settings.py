@@ -91,6 +91,7 @@ def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
     ai_settings = AISettings(
         **model.settings.__dict__,
         provider=provider.provider,
+        provider_type=provider.provider,
         api_url=provider.api_url,
         api_key=provider.api_key,
         model=model.ai_model or model.name,

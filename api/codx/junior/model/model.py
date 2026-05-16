@@ -208,7 +208,8 @@ class AIModel(BaseModel):
     prompt_template: Optional[str] = Field(description="Model info", default="{ MESSAGE }")
 
 class AISettings(BaseModel):
-    provider: Optional[str] = Field(default="") 
+    provider: Optional[str] = Field(default="")
+    provider_type: Optional[str] = Field(default="") 
     api_url: Optional[str] = Field(default="")
     api_key: Optional[str] = Field(default="")
     model: Optional[str] = Field(default="")

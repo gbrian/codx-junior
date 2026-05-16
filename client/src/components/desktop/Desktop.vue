@@ -142,7 +142,7 @@ export default {
     addPanel({ id, title, component = 'window', position, params, renderer }) {
       if (!this.dockviewApi) return
       if (!this.dockviewApi.panels.find(p => p.id === id)) {
-        this.dockviewApi.addPanel({ 
+        this.dockviewApi.addPanel({
             id, 
             title, 
             component, 

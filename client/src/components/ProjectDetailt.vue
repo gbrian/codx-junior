@@ -4,7 +4,7 @@ import { v4 as uuidv4 } from 'uuid'
 
 <template>
   <div v-if="project">
-    <button class="flex gap-1 click items-center"
+    <button class="flex gap-1 click items-center group"
       :popovertarget="`project-detail-popover-${uid}`" 
       :style="`anchor-name:--project-detail-anchor-${uid}`"
     >
@@ -14,6 +14,7 @@ import { v4 as uuidv4 } from 'uuid'
         </div>
       </div>
       <span class="" v-if="iconify !== true">{{ project.project_name }}</span>
+      <i class="fa-solid fa-arrow-right-arrow-left opacity-0 group-hover:opacity-100"></i>
     </button>
     <div class="dropdown menu w-52 border border-white/40 rounded-lg bg-base-100 shadow-sm"
       :class="[position]"

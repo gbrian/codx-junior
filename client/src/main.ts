@@ -1,6 +1,6 @@
 import './assets/main.css'
 
-import { createApp, onBeforeMount, onBeforeUnmount } from 'vue'
+import { createApp, onBeforeMount, onBeforeUnmount, watch } from 'vue'
 import store, { $storex } from "./store";
 import service from "./service"
 
@@ -62,8 +62,12 @@ const globalMixin = {
     $projects () {
       return $storex.projects
     },
+    $projectId() {
+      return this.$props.params?.params?.app?.params.project_id
+    },
     $project () {
-      return $storex.projects.activeProject
+      return this.$projects.allProjectsById[this.$projectId] ||
+        $storex.projects.activeProject
     },
     $session () {
       return $storex.session
@@ -84,8 +88,19 @@ const globalMixin = {
       return service
     },
     $app () {
-      const appId = this.$props.params?.api.id
-      return this.$ui.openApps[appId]
+      const tabId = this.$props.params?.params?.app?.tabId
+      return this.$ui.openApps[tabId]
+    }
+  },
+  watch: {
+    params: {
+      handler(newValue, oldValue) {
+        if (newValue) {
+          console.log("Component params changed", {newValue, oldValue})
+        }
+      },
+      // force eager callback execution
+      immediate: true
     }
   },
   methods: {

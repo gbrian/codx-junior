@@ -1,6 +1,8 @@
 import json
 import logging
 import hashlib
+import requests
+from urllib.parse import urlparse
 from typing import List, Optional, Union, Dict, Any, Callable
 
 from langchain.chat_models.base import BaseChatModel
@@ -80,7 +82,114 @@ class AI:
         """
         if self.settings.get_log_ai():
             self.ai_logger.info(message, *args)
-    
+
+    def _is_model_not_found_error(self, exc: Exception) -> bool:
+        """
+        Checks whether the exception indicates a model_not_found error.
+
+        Handles multiple error formats including:
+          - "model_not_found"
+          - "model not found"
+          - "model 'ollama/xxx' not found"
+          - API error type: 'not_found_error' with a model-related message
+
+        :param exc: The exception to inspect.
+        :return: True if the error is a model_not_found error, False otherwise.
+        """
+        error_str = str(exc).lower()
+
+        patterns = [
+            "model_not_found",
+            "model not found",
+            "not found_error",
+            "not_found_error",
+        ]
+        if any(p in error_str for p in patterns):
+            return True
+
+        # Handle the pattern: "model 'xxx' not found"
+        if "not found" in error_str and "model" in error_str:
+            return True
+
+        return False
+
+    def _pull_ollama_model(self) -> None:
+        """
+        Pulls the missing model from the Ollama API using the configured api_url.
+        Streams the response and logs progress.
+
+        The api_url may contain a path component (e.g. "http://localhost:11434/v1").
+        We strip any path so that we always POST to <scheme>://<host>:<port>/api/pull.
+        """
+        model_name = self.llm_model or getattr(self.llm_settings, "model", None)
+        api_url = getattr(self.llm_settings, "api_url", None)
+
+        if not api_url or not model_name:
+            logger.error(
+                "Cannot pull Ollama model: missing api_url (%s) or model_name (%s)",
+                api_url,
+                model_name,
+            )
+            return
+
+        # Strip the "ollama/" prefix if present, as Ollama API expects just the model name
+        ollama_model_name = model_name.removeprefix("ollama/")
+
+        # Strip any path from api_url (e.g. remove "/v1") so we build the correct
+        # Ollama endpoint: <scheme>://<netloc>/api/pull
+        parsed = urlparse(api_url)
+        ollama_base_url = f"{parsed.scheme}://{parsed.netloc}"
+        pull_url = f"{ollama_base_url}/api/pull"
+
+        logger.info("Pulling Ollama model '%s' from %s", ollama_model_name, pull_url)
+
+        try:
+            with requests.post(
+                pull_url,
+                json={"name": ollama_model_name, "stream": True},
+                stream=True,
+                timeout=600,
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if line:
+                        try:
+                            data = json.loads(line)
+                            status = data.get("status", "")
+                            logger.info("Ollama pull [%s]: %s", ollama_model_name, status)
+                        except json.JSONDecodeError:
+                            logger.debug("Ollama pull raw line: %s", line)
+            logger.info("Successfully pulled Ollama model '%s'", ollama_model_name)
+        except Exception as pull_exc:
+            logger.exception(
+                "Failed to pull Ollama model '%s' from %s: %s",
+                ollama_model_name,
+                pull_url,
+                pull_exc,
+            )
+            raise RuntimeError(
+                f"Failed to pull Ollama model '{ollama_model_name}': {pull_exc}"
+            ) from pull_exc
+
+    def _handle_model_not_found(self, exc: Exception) -> None:
+        """
+        Handles a model_not_found error. If the provider is Ollama, attempts to pull the model.
+
+        :param exc: The original exception.
+        :raises RuntimeError: If the provider is not Ollama or if the pull fails.
+        """
+        provider_type = getattr(self.llm_settings, "provider_type", None)
+        if provider_type == "ollama":
+            logger.warning(
+                "Model not found for Ollama provider. Attempting to pull model '%s'.",
+                self.llm_model,
+            )
+            self._pull_ollama_model()
+        else:
+            raise RuntimeError(
+                f"Model not found and provider is not Ollama (provider_type={provider_type}). {exc}"
+            ) from exc
+
     @profile_function
     def chat(
         self,
@@ -142,8 +251,34 @@ class AI:
                     config={"callbacks": callbacks, "headers": headers, "tools": tools}
                 )
             except Exception as exc:
-                logger.exception("Failed to process AI. Non-retryable error processing AI request: %s %s", exc, self.llm_model)
-                raise RuntimeError(f"Failed to process AI request after retries. {exc}") from exc
+                if self._is_model_not_found_error(exc):
+                    logger.warning(
+                        "model_not_found error detected for model '%s'. Attempting recovery.",
+                        self.llm_model,
+                    )
+                    self._handle_model_not_found(exc)
+                    # Retry after pulling the model
+                    try:
+                        response_messages = self.llm(
+                            messages=messages,
+                            config={"callbacks": callbacks, "headers": headers, "tools": tools}
+                        )
+                    except Exception as retry_exc:
+                        logger.exception(
+                            "Failed after pulling model. Non-retryable error: %s %s",
+                            retry_exc,
+                            self.llm_model,
+                        )
+                        raise RuntimeError(
+                            f"Failed to process AI request after model pull. {retry_exc}"
+                        ) from retry_exc
+                else:
+                    logger.exception(
+                        "Failed to process AI. Non-retryable error processing AI request: %s %s",
+                        exc,
+                        self.llm_model,
+                    )
+                    raise RuntimeError(f"Failed to process AI request after retries. {exc}") from exc
 
             if self.cache and isinstance(self.cache, dict):
                 self.cache[md5_key] = json.dumps(
@@ -216,8 +351,34 @@ class AI:
                     config={"callbacks": callbacks, "headers": headers, "tools": tools}
                 )
             except Exception as exc:
-                logger.exception("Failed to process AI. Non-retryable error processing AI request: %s %s", exc, self.llm_model)
-                raise RuntimeError(f"Failed to process AI request after retries. {exc}") from exc
+                if self._is_model_not_found_error(exc):
+                    logger.warning(
+                        "model_not_found error detected for model '%s'. Attempting recovery.",
+                        self.llm_model,
+                    )
+                    self._handle_model_not_found(exc)
+                    # Retry after pulling the model
+                    try:
+                        response_messages = await self.a_llm(
+                            messages=messages,
+                            config={"callbacks": callbacks, "headers": headers, "tools": tools}
+                        )
+                    except Exception as retry_exc:
+                        logger.exception(
+                            "Failed after pulling model. Non-retryable error: %s %s",
+                            retry_exc,
+                            self.llm_model,
+                        )
+                        raise RuntimeError(
+                            f"Failed to process AI request after model pull. {retry_exc}"
+                        ) from retry_exc
+                else:
+                    logger.exception(
+                        "Failed to process AI. Non-retryable error processing AI request: %s %s",
+                        exc,
+                        self.llm_model,
+                    )
+                    raise RuntimeError(f"Failed to process AI request after retries. {exc}") from exc
 
             if self.cache and isinstance(self.cache, dict):
                 self.cache[md5_key] = json.dumps(

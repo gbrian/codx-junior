@@ -1,13 +1,11 @@
 <script setup>
-import draggable from 'vuedraggable'
-import TaskCard from './TaskCard.vue'
-import TaskCardLite from './TaskCardLite.vue'
 import { v4 as uuidv4 } from 'uuid'
 import KanbanList from './KanbanList.vue'
-import ChatIcon from '../chat/ChatIcon.vue'
 import FileFinder from '../filebrowser/FileFinder.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
 import ChatPreview from '../wall/ChatPreview.vue'
+import KanbanGridView from './KanbanGridView.vue'
+import Collapsible from '../Collapsible.vue'
 </script>
 
 <template>
@@ -22,7 +20,7 @@ import ChatPreview from '../wall/ChatPreview.vue'
     </div>
 
     <div class="h-full absolute top-0 left-0 right-0 bottom-0 z-1">
-      <!--Activity -->
+      <!-- Activity panel -->
       <div class="overflow-auto relative" v-if="showActivity">
         <div class="flex gap-2 sticky top-0 bg-base-300 z-10 p-2 rounded-md">
           <button class="btn btn-warning btn-sm" @click="showActivity = false">
@@ -39,15 +37,14 @@ import ChatPreview from '../wall/ChatPreview.vue'
           <div class="my-2 click group"
             v-for="chat in lastMessages" :key="chat.doc_id"
             @click="setActiveChat(chat)">
-              <ChatPreview
-                :project="chat.project"
-                :chat="chat"
-                />
+            <ChatPreview :project="chat.project" :chat="chat" />
           </div>
         </div>
       </div>
-      <!-- Kanban board view -->
+
+      <!-- Main kanban layout -->
       <div class="flex flex-col h-full p-2">
+        <!-- Top toolbar -->
         <div class="flex gap-4 items-center">
           <div class="flex gap-2 items-center">
             <div tabindex="0" class="text-xl py-1 px-2 cursor-pointer flex items-center gap-2">
@@ -69,7 +66,8 @@ import ChatPreview from '../wall/ChatPreview.vue'
           </div>
           <div class="grow"></div>
           <div class="flex gap-2 items-center">
-            <div class="grow input input-sm input-bordered flex items-center gap-2 tooltip tooltip-bottom" 
+            <!-- Search input -->
+            <div class="grow input input-sm input-bordered flex items-center gap-2 tooltip tooltip-bottom"
               data-tip="Find in tasks"
             >
               <input type="text" :class="{ hidden: !searchVisible }" v-model="filter" class="grow" placeholder="Search..." />
@@ -80,12 +78,13 @@ import ChatPreview from '../wall/ChatPreview.vue'
                 <i class="fa-solid fa-filter click" @click="searchVisible = !searchVisible"></i>
               </span>
             </div>
-            <button class="btn btn-sm tooltip tooltip-bottom" data-tip="Show child boards" 
+
+            <button class="btn btn-sm tooltip tooltip-bottom" data-tip="Show child boards"
               :class="showChildrenBoards && 'text-warning'"
               @click="showChildrenBoards = !showChildrenBoards">
               <i class="fa-brands fa-trello"></i>
             </button>
-            <button class="btn btn-sm tooltip tooltip-bottom" 
+            <button class="btn btn-sm tooltip tooltip-bottom"
               data-tip="Add column" @click="showColumnModal = true">
               <i class="fa-solid fa-table-columns"></i>
             </button>
@@ -103,105 +102,39 @@ import ChatPreview from '../wall/ChatPreview.vue'
           </div>
         </div>
 
-        <KanbanList
-          :boards="childBoards"
-          @new-board="showNewBoardModal"
-          @toogle-history="showActivity = !showActivity"
-          @select="$emit('select-board', $event)"
+        <!-- Child boards collapsible -->
+        <Collapsible
           v-if="showChildrenBoards"
-        />
+          v-model="childBoardsOpen"
+          class="mt-2"
+        >
+          <template #icon>
+            <i class="fa-brands fa-trello text-xs opacity-60"></i>
+          </template>
+          <template #title>
+            Child boards
+            <span class="badge badge-sm ml-1">{{ childBoards.length }}</span>
+          </template>
+          <div class="p-2 overflow-auto">
+            <KanbanList
+              :boards="childBoards"
+              @new-board="showNewBoardModal"
+              @toogle-history="showActivity = !showActivity"
+              @select="$emit('select-board', $event)"
+            />
+          </div>
+        </Collapsible>
 
-        <div class="mt-3 grow relative flex flex-col gap-2">
-          <h1 class="px-2 text-2xl font-bold mb-4 flex justify-between border-b border-slate-700">
-            <div>Tasks</div>
-          </h1>
-
-          <!-- Column drag container — uses viewColumns (component-only data) -->
-          <draggable
-            v-model="viewColumns"
-            group="columns"
-            itemKey="id"
-            :disabled="$ui.isMobile"
-            @end="onColumnTaskListChanged"
-            class="min-h-60 grid grid-flow-col overflow-x-scroll relative gap-2 justify-start"
-          >
-            <template #item="{ element: column }">
-              <div
-                class="bg-info/20 rounded-lg px-3 py-3 w-80 rounded overflow-auto h-full flex flex-col"
-                :class="column.color && 'border-t-4'"
-                :style="{ borderColor: column.color }"
-              >
-                <div class="group font-semibold font-sans tracking-wide text-sm flex gap-2 items-center">
-                  <div
-                    class="cursor-pointer w-6 h-6 flex items-center justify-center rounded-md group shadow-lg bg-base-100"
-                    :style="{ backgroundColor: column.color }"
-                    @click="openColumnPropertiesModal(column)"
-                  >
-                    <span class="hidden group-hover:block"><i class="fa-solid fa-bars"></i></span>
-                    <span class="group-hover:hidden">{{ column.tasks.length }}</span>
-                  </div>
-                  <div class="flex gap-2 items-center grow" :class="!column.valid && 'border border-dashed'">
-                    <div class="flex flex-col">
-                      {{ column.title }}
-                      <div class="text-xs -mt-1" v-if="column.project">
-                        {{ column.project.project_name }}
-                      </div>
-                    </div>
-                  </div>
-                  <div class="flex gap-2 items-center">
-                    <div class="dropdown dropdown-end">
-                      <div tabindex="0" role="button" class="btn btn-sm m-1 flex items-center">
-                        <i class="mt-1 fa-solid fa-plus"></i>
-                      </div>
-                      <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
-                        <li class="flex gap-2" @click="newTask(column, 'chat')">
-                          <a><ChatIcon mode="chat" /> Chat</a>
-                        </li>
-                        <li class="flex gap-2" @click="newTask(column, 'task')">
-                          <a><ChatIcon mode="task" /> Document</a>
-                        </li>
-                        <li class="flex gap-2" @click="newTask(column, 'topic')">
-                          <a><ChatIcon mode="topic" /> Discussion</a>
-                        </li>
-                        <li class="flex gap-2" @click="newTask(column, 'prview')">
-                          <a><ChatIcon mode="prview" /> Changes review</a>
-                        </li>
-                        <li class="flex gap-2" @click="importTask(column)">
-                          <a>Import task</a>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="column-tasks grow overflow-y-auto">
-                  <draggable
-                    v-model="column.tasks"
-                    group="tasks"
-                    itemKey="id"
-                    :disabled="$ui.isMobile"
-                    @end="onColumnTaskListChanged(column)"
-                    class="mt-3 h-full"
-                  >
-                    <template #item="{ element: task }">
-                      <TaskCard
-                        v-if="taskMatchesFilter(task)"
-                        :task="task"
-                        :itemKey="'id'"
-                        class="cursor-pointer bg-base-100 overflow-hidden mt-2"
-                        :class="[
-                          task.pinned && 'border-warning',
-                          lastUpdatedTask.id == task.id ? 'border border-primary border-dashed' : '',
-                          (column.showSubTasks !== false) || !task.parent_id ? '' : 'hidden'
-                        ]"
-                        @click="openChat(task)"
-                      />
-                    </template>
-                  </draggable>
-                </div>
-              </div>
-            </template>
-          </draggable>
+        <div class="mt-3 grow relative flex flex-col gap-2 min-h-0">
+          
+          <!-- Grid view -->
+          <KanbanGridView
+            class="min-h-[50vw]"
+            :columns="viewColumns"
+            :lastUpdatedTaskId="lastUpdatedTask.id"
+            @open-task="openChat"
+            @new-task="({ mode }) => newTask(mode)"
+          />
         </div>
       </div>
 
@@ -218,7 +151,7 @@ import ChatPreview from '../wall/ChatPreview.vue'
             <input type="text" v-model="newBoardBackground" placeholder="Enter board background image" class="input input-bordered w-full mt-2" />
             <select v-model="newBoardParent" class="select select-bordered w-full mt-2">
               <option value="">-- none --</option>
-              <option v-for="board in boards" :key="board.id" :value="board.id">{{ board.title }}</option>
+              <option v-for="b in boards" :key="b.id" :value="b.id">{{ b.title }}</option>
             </select>
           </div>
         </div>
@@ -305,10 +238,10 @@ export default {
       isDropdownOpen: false,
       selectedColumn: null,
       editColumnError: null,
-      // viewColumns: component-only enriched column objects, never written back to store
       viewColumns: [],
       selectedTemplate: null,
       showChildrenBoards: false,
+      childBoardsOpen: true,
       editBoard: null,
       originalBoardName: null,
       confirmDeleteColumn: false,
@@ -349,7 +282,6 @@ export default {
     kanban() {
       return this.$projects.kanban || { boards: {} }
     },
-    // Raw store boards — plain config objects, no tasks or view data attached
     rawBoards() {
       const { boards = {} } = this.kanban
       return Object.keys(boards).reduce((acc, id) => {
@@ -357,7 +289,6 @@ export default {
         return acc
       }, {})
     },
-    // boards: enriched view-only map (adds tasks for KanbanList display)
     boards() {
       const raw = this.rawBoards
       return Object.keys(raw).reduce((acc, id) => {
@@ -370,7 +301,6 @@ export default {
         return acc
       }, {})
     },
-    // activeBoard: pure config from store (no tasks)
     activeBoard() {
       return this.rawBoards[this.$projects.activeBoard] || null
     },
@@ -384,8 +314,8 @@ export default {
         column: c.column || '--none--'
       }))
     },
-    lastMessages () {
-      return this.chats.sort((a, b) => a.last_update > b.last_update ? -1:1)
+    lastMessages() {
+      return this.chats.sort((a, b) => a.last_update > b.last_update ? -1 : 1)
     },
     boardChats() {
       return this.chats.filter(c => c.board === this.board)
@@ -434,8 +364,12 @@ export default {
     kanban() {
       this.buildViewColumns()
     },
+    // Auto-open collapsible when child boards appear
     childBoards(newVal, oldVal) {
-      if (newVal?.length && !oldVal?.length) this.showChildrenBoards = true
+      if (newVal?.length && !oldVal?.length) {
+        this.showChildrenBoards = true
+        this.childBoardsOpen = true
+      }
     }
   },
   methods: {
@@ -459,7 +393,6 @@ export default {
           await this.$projects.setActiveBoard(board)
         }
         this.isDropdownOpen = false
-        // Mark board active in store config without polluting with view data
         if (board && this.kanban.boards[board] && !this.kanban.boards[board].active) {
           Object.keys(this.kanban.boards)
             .filter(b => this.kanban.boards[b])
@@ -474,26 +407,27 @@ export default {
       }
     },
 
-    // Build component-only column view objects — never mutate store kanban boards
+    setView(view) {
+      if (!this.activeKanbanBoard) return
+      this.activeKanbanBoard.view = view
+      this.saveKanban()
+    },
+
     buildViewColumns() {
       if (!this.kanban) return
       const columnTitles = this.columnList
-      // chats order hints stored in kanban (read-only access)
       const columnChats = this.activeKanbanBoard?.columns?.chats || []
 
       const getChatIndex = (c) => columnChats.findIndex(kc => kc.id === c.id)
 
-      // Build plain view column objects from scratch — spread store column config shallowly
       const builtColumns = columnTitles.map((col, ix) => {
         const storeColumn = this.activeKanbanBoard?.columns?.find(bc => bc.title === col) || {}
         return {
-          // Spread only safe scalar store-config fields
           id: storeColumn.id || col,
           title: col,
           color: storeColumn.color || null,
           showSubTasks: storeColumn.showSubTasks,
           project_id: storeColumn.project_id || null,
-          // View-only enriched fields
           valid: !!storeColumn.id,
           position: ix,
           project: this.$projects.allProjectsById[storeColumn.project_id] || null,
@@ -509,7 +443,6 @@ export default {
         : []
     },
 
-    // Apply text filter to a columns array — returns new filtered array
     applyFilter(columns) {
       if (!this.filter) return columns
       const text = this.filter.toLowerCase()
@@ -523,23 +456,24 @@ export default {
       }))
     },
 
-    async onColumnTaskListChanged() {
+    onColumnOrderChanged(reorderedColumns) {
+      this.viewColumns = reorderedColumns
+      this.onColumnTaskListChanged()
+    },
+
+    async onColumnTaskListChanged(column) {
       if (this.$ui.isMobile) return
-      // Write back only safe config fields + chat order to store — no view-only fields
       const kboard = this.kanban.boards[this.board]
       kboard.columns = await Promise.all(
         this.viewColumns.map(async (viewCol) => {
-          // Find the original store column config by id/title
           const storeCol = this.activeKanbanBoard?.columns?.find(
             c => c.id === viewCol.id || c.title === viewCol.title
           ) || {}
-          // Move tasks between columns if dragged
           await Promise.all(
             viewCol.tasks
               .filter(t => t.column !== viewCol.title)
               .map(task => this.$projects.saveChatInfo({ ...task, column: viewCol.title }))
           )
-          // Return only store-safe column config with updated chat order
           return {
             id: storeCol.id || viewCol.id,
             title: viewCol.title,
@@ -554,13 +488,11 @@ export default {
       this.saveKanban()
     },
 
-    newTask(column, mode) {
+    newTask(mode) {
       this.createNewChat({
-        column: column.title,
         name: 'New Task',
         mode: mode || 'chat',
-        profiles: [],
-        project_id: column.project_id || null
+        profiles: []
       })
     },
 
@@ -572,10 +504,6 @@ export default {
       })
       if (activateChat !== false) this.setActiveChat(chat)
       return chat
-    },
-
-    addNewFile() {
-      this.showFileFinder = true
     },
 
     async importTask(column) {
@@ -650,7 +578,6 @@ export default {
       }
 
       if (this.selectedColumn) {
-        // Update only store-safe fields on the store column object
         const storeCol = this.activeKanbanBoard.columns.find(c => c.id === this.selectedColumn.id)
         if (storeCol) {
           storeCol.title = this.columnTitle
@@ -658,16 +585,16 @@ export default {
           storeCol.project_id = this.columnProject?.project_id || null
         }
       } else {
-        this.activeKanbanBoard.columns = 
-            [
-              ...this.activeKanbanBoard.columns ||[], 
-              {
-                id: uuidv4(),
-                title: this.columnTitle,
-                color: this.columnColor,
-                project_id: this.columnProject?.project_id || null,
-                chats: []
-              }]
+        this.activeKanbanBoard.columns = [
+          ...this.activeKanbanBoard.columns || [],
+          {
+            id: uuidv4(),
+            title: this.columnTitle,
+            color: this.columnColor,
+            project_id: this.columnProject?.project_id || null,
+            chats: []
+          }
+        ]
       }
 
       this.activeKanbanBoard.last_update = new Date().toISOString()
@@ -712,26 +639,22 @@ export default {
         throw new Error(`Board '${boardName}' already exists`)
       }
 
-      // Get or create a clean store board config object
       let board = this.editBoard
         ? { ...this.kanban.boards[oldName] }
         : { title: boardName, columns: [], id: boardName }
 
       if (this.editBoard && boardName !== oldName) {
-        // Update chats pointing to old board name
         await Promise.all(
           this.chats
             .filter(c => c.board === oldName)
             .map(c => this.$projects.saveChatInfo({ ...c, board: boardName }))
         )
         delete this.kanban.boards[oldName]
-        // Update child board parent references
         Object.values(this.kanban.boards)
           .filter(b => b.parent_id === oldName)
           .forEach(b => (b.parent_id = boardName))
       }
 
-      // Only write safe scalar config fields
       board.title = boardName
       board.description = this.newBoardDescription?.trim()
       board.background = this.newBoardBackground?.trim()
@@ -757,11 +680,9 @@ export default {
     },
 
     openColumnPropertiesModal(column) {
-      // selectedColumn references the store column config (safe scalar fields only)
       this.selectedColumn = this.activeKanbanBoard?.columns?.find(c => c.id === column.id) || null
       this.columnTitle = column.title
       this.columnColor = column.color || '#000000'
-      this.columnProject = this.$projects.allProjectsById[column.project_id] || this.$project
       this.confirmDeleteColumn = false
       this.columnProject = this.$project
       this.showColumnModal = true
@@ -781,7 +702,7 @@ export default {
       this.showBoardModal = true
     },
 
-    onEditBoard(board) {
+    onEditBoard() {
       const title = this.board
       this.$emit('edit-board', { title, ...this.kanban.boards[title] })
     },
@@ -807,15 +728,6 @@ export default {
         board.bookmark = !board.bookmark
         this.saveKanban()
       }
-    },
-
-    taskMatchesFilter(task) {
-      const text = this.filter?.toLowerCase() || ''
-      if (!text) return true
-      return (
-        task.name?.toLowerCase().includes(text) ||
-        task.messages?.some(m => m.content?.toLowerCase().includes(text))
-      )
     },
 
     async moveChatsToColumn({ chats, column }) {

@@ -3,7 +3,6 @@ import WikiSettingsVue from '@/components/wiki/WikiSettings.vue'
 import DataExplorerVue from '../components/data/DataExplorer.vue'
 import KnowledgeSearch from '../components/knowledge/settings/KnowledgeSearch.vue'
 import KnowledgeIndex from '../components/knowledge/settings/KnowledgeIndex.vue'
-import ProjectDetailt from '@/components/ProjectDetailt.vue'
 </script>
 
 <template>
@@ -11,8 +10,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
     <!-- Header with tabs -->
     <div class="font-medium flex flex-col gap-2">
       <div class="text-3xl flex justify-between items-center">
-        <ProjectDetailt v-model="project" />
-        Knowledge
+        {{ $project.project_name }} Knowledge {{ $projectId }}
         <div role="tablist" class="tabs tabs-box flex gap-2">
           <a
             role="tab"
@@ -60,14 +58,14 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
 
     <!-- Tab: Wiki -->
     <WikiSettingsVue 
-        :project="project"
+        :project="$project"
         class="mt-2" 
         v-if="selectedTab === 'Wiki'" />
 
     <!-- Tab: Search -->
     <KnowledgeSearch
       v-if="selectedTab === 'Search'"
-      :project="project"
+      :project="$project"
       :settings="settings"
       @toggle-watch="toggleWatch"
     />
@@ -78,7 +76,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
       :settings="settings"
       :indexStatus="indexStatus"
       :confirmDelete="resetKnowledge"
-      :project="project"
+      :project="$project"
       @reload-status="reloadStatus"
       @set-setting="setSettings"
       @index-files="reloadKnowledge"
@@ -94,7 +92,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
     <!-- Tab: Data -->
     <div v-if="selectedTab === 'Data'">
       <DataExplorerVue 
-        :project="project"
+        :project="$project"
         :status="indexStatus"
         @drop="dropSelectedFiles" />
     </div>
@@ -111,17 +109,15 @@ export default {
       indexStatus: null,
       settings: null,
       resetKnowledge: false,
-      refreshIx: null,
-      project: null
+      refreshIx: null
     }
   },
   async created() {
-    this.project = this.$projects.allProjectsById[this.params?.params?.project_id] || this.$project
-    await this.reloadStatus()
     if (this.$ui.activeTab === 'wiki_settings') {
       this.selectedTab = 'Wiki'
     }
     this.refreshIx = setInterval(() => this.reloadStatus(), 40000)
+    this.loadProject()
   },
   unmounted() {
     clearInterval(this.refreshIx)
@@ -133,10 +129,19 @@ export default {
       return Array.isArray(sub_projects) ? sub_projects : sub_projects.split(',')
     },
     api() {
-      return this.project.$api
+      return this.$project.$api
+    }
+  },
+  watch: {
+    $projectId() {
+      this.loadProject()
     }
   },
   methods: {
+    async loadProject() {
+      await this.reloadStatus()
+    },
+    
     async loadSettings() {
       this.settings = await this.api.settings.read()
     },

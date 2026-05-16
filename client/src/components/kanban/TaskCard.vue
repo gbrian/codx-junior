@@ -1,107 +1,96 @@
 <script setup>
 import moment from 'moment'
 import ProfileAvatar from '../profile/ProfileAvatar.vue'
-import TaskSettings from './TaskSettings.vue';
+import TaskSettings from './TaskSettings.vue'
 import CheckLists from '../chat/CheckLists.vue'
 import ChatIcon from '../chat/ChatIcon.vue'
 </script>
 
 <template>
- <div tabindex="0" class="collapse collapse-arrow bg-base-100 border-base-300 border relative"
-    :class="collapsed ? 'collapse-closed' : 'collapse-open'"
- >
-    <div v-if="image" :style="`background-image: url(${image.src})`" class="bg-contain bg-no-repeat bg-center h-28 bg-base-300"></div>
-    <div class="collapse-title font-semibold" @click.stop="collapsed = !collapsed">
-    <div>
-        <div v-if="parentChat" class="text-xs text-primary/40 hover:text-primary text-nowrap overflow-hidden" @click.stop="$chats.setActiveChat(parentChat)">
-          {{ parentChat.name }}
-        </div>
-        <div class="flex justify-between">
-          <div class="flex flex-col">
-            <div class="font-semibold tracking-wide text-sm flex gap-2 mt-1">
-              <ProfileAvatar :profile="profile" v-if="profile" @click.stop="" />
-              <ChatIcon :mode="task.mode" />
-              <span class="click tooltip" @click.stop="toggleChatPinned"
-                data-tip="Bookmark"
-              >
-                <i class="text-warning fa-solid fa-bookmark" v-if="task.pinned" ></i>
-                <i class="fa-regular fa-bookmark" v-else></i>
-              </span>
-              <div class="overflow-hidden h-10 overflow-auto max-w-28 truncate" :title="task.name">
-                {{ task.name }}
-              </div>
-            </div>
-            <div class="text-xs flex" v-if="chatProject?.project_id !== $project.project_id">
-            <div class="avatar mr-1">
-              <div class="w-4 h-4 rounded-full">
-                <img :src="chatProject?.project_icon"/>
-              </div>
-            </div>
-            {{ chatProject?.project_name }}
-          </div>
-        </div>
-         <div class="flex gap-2 items-center mr-1"> 
-            <button class="btn btn-circle btn-sm" @click.stop="openSettingsModal">
-              <i class="fas fa-cog"></i>
-            </button>
-          </div>
-        </div>
-      </div>
+  <div class="rounded-xl border border-base-300 bg-base-100 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden">
+    <!-- Top color accent bar -->
+    <div :class="['h-1 w-full', task.pinned ? 'bg-warning' : 'bg-primary/30']"></div>
 
+    <!-- Cover image -->
+    <div v-if="image" :style="`background-image: url(${image.src})`"
+      class="bg-cover bg-center h-24 w-full">
     </div>
-    <!-- Task Body -->
-    <div class="collapse-content text-sm" v-if="!collapsed">
-  <div :class="['p-2 shadow-lg rounded-lg', parentChat ? 'bg-base-100' : 'bg-base-300']">
-    <div class="h-full flex flex-col justify-between gap-2">
-      
-      <div class="text-xs overflow-auto max-h-20"
-      >
-        {{ task.description }}
+
+    <!-- Header Row -->
+    <div class="flex items-center gap-2 px-3 pt-3 pb-1">
+      <ProfileAvatar :profile="profile" v-if="profile" class="shrink-0" @click.stop="" />
+      <ChatIcon :mode="task.mode" class="shrink-0" />
+      <div class="flex-1 min-w-0">
+        <div v-if="parentChat" class="text-xs text-primary/50 hover:text-primary truncate cursor-pointer"
+          @click.stop="$chats.setActiveChat(parentChat)">
+          ↳ {{ parentChat.name }}
+        </div>
+        <div class="font-semibold text-sm truncate" :title="task.name">{{ task.name }}</div>
       </div>
-      <div class="text-xs text-info hover:underline click" 
-        v-if="task.description" 
+      <button class="btn btn-ghost btn-xs btn-circle shrink-0" @click.stop="openSettingsModal">
+        <i class="fas fa-ellipsis-v"></i>
+      </button>
+    </div>
+
+    <!-- Project badge (cross-project) -->
+    <div class="px-3 pb-1" v-if="chatProject?.project_id !== $project.project_id">
+      <div class="flex items-center gap-1 text-xs text-base-content/50">
+        <div class="avatar">
+          <div class="w-3 h-3 rounded-full">
+            <img :src="chatProject?.project_icon" />
+          </div>
+        </div>
+        {{ chatProject?.project_name }}
+      </div>
+    </div>
+
+    <!-- Description -->
+    <div class="px-3 pb-2" v-if="task.description">
+      <p :class="['text-xs text-base-content/70 leading-relaxed', expandDescription ? '' : 'line-clamp-2']">
+        {{ task.description }}
+      </p>
+      <span class="text-xs text-info cursor-pointer hover:underline"
         @click.stop="expandDescription = !expandDescription">
         {{ expandDescription ? 'less' : 'more' }}
-      </div>
+      </span>
+    </div>
 
-      <div class="flex justify-between items-center">
-        <span :class="['text-xs', isToday ? 'font-bold' : 'text-gray-600']">{{ formattedDate }}</span>
-        <div class="flex gap-1 justify-end">
-          <div v-for="tag in task.tags" :key="tag" class="font-bold text-xs text-info flex gap-2">
-            #{{ tag }}
-          </div>
+    <!-- Tags -->
+    <div class="px-3 pb-2 flex flex-wrap gap-1" v-if="task.tags?.length">
+      <span v-for="tag in task.tags" :key="tag"
+        class="badge badge-outline badge-xs text-info border-info/40">
+        #{{ tag }}
+      </span>
+    </div>
+
+    <!-- Files -->
+    <div class="px-3 pb-2 flex flex-col gap-1" v-if="task.file_list?.length">
+      <span v-for="file in task.file_list" :key="file"
+        class="text-xs text-base-content/60 flex items-center gap-1 tooltip" :data-tip="file">
+        <i class="fa-solid fa-paperclip text-xs"></i>
+        <span class="truncate max-w-full">{{ file.split('/').pop() }}</span>
+        <i class="fa-solid fa-copy cursor-pointer hover:text-info" @click.stop="$ui.copyTextToClipboard(file)"></i>
+      </span>
+    </div>
+
+    <!-- Footer -->
+    <div class="flex items-center justify-between px-3 py-2 border-t border-base-300/50 bg-base-200/30">
+      <span :class="['text-xs', isToday ? 'text-success font-bold' : 'text-base-content/40']">
+        <i class="fa-regular fa-clock mr-1"></i>{{ formattedDate }}
+      </span>
+      <div class="flex items-center gap-2">
+        <div v-if="subTasks.length" class="badge badge-warning badge-sm gap-1">
+          <i class="fa-regular fa-file-lines text-xs"></i>
+          {{ subTasks.length }}
         </div>
-      </div>
-      <div class="flex flex-col gap-1">
-          <span class="text-xs tooltip text-info"
-            :data-tip="file"
-            v-for="file in task.file_list" :key="file">
-            <i class="fa-solid fa-paperclip"></i> {{ file.split('/').pop() }}
-            <i class="click fa-solid fa-copy" @click.stop="$ui.copyTextToClipboard(file)"></i>
-          </span>
-      </div>
-      <div class="grow"></div>
-      <div class="flex justify-between items-center">
-        <div class="flex justify-between items-center badge badge-warning" v-if="subTasks.length">
-          <div class="text-xs font-bold tooltip tooltip-left" :data-tip="`${subTasks.length} sub tasks`">
-            {{ subTasks.length }}
-            <i class="fa-regular fa-file-lines"></i>
-          </div>
-          <div v-if="chatProject" class="badge badge-sm badge-warning">
-            {{ chatProject.project_name }}
-          </div>
-        </div>
+        <progress v-if="updating" class="progress progress-primary w-12 h-1"></progress>
       </div>
     </div>
-    <CheckLists class="mb-2" :chat="task" @change="saveTask" v-if="false" />
-      
+
+    <!-- Settings Modal -->
     <modal v-if="isSettingsModalOpen" @click.stop>
       <TaskSettings :taskData="taskData" @close="discardChanges" />
     </modal>
-    <progress class="progress w-full" v-if="updating"></progress>
-  </div>
-
-    </div>
   </div>
 </template>
 
@@ -110,44 +99,31 @@ export default {
   props: ['task'],
   data() {
     return {
-      showProfileSelector: false,
       isSettingsModalOpen: false,
-      badgeColor: {
-        task: "primary",
-        chat: "accent"
-      },
       taskData: {},
-      expandDescription: true,
-      collapsed: false
-    }
-  },
-  created() {
-    if (this.task.pinned) {
-        this.collapsed = true
+      expandDescription: false
     }
   },
   computed: {
-    taskUsers() {
-      return this.$storex.api.userNetwork.filter(({ username }) => this.task.users?.includes(username))
-    },
     image() {
       let image = this.task.messages?.find(m => m.images?.length)?.images[0]
       return image ? JSON.parse(image) : null
     },
     isToday() {
-      const updatedAt = this.task.updated_at
-      return moment(0, "HH").diff(updatedAt, "days") === 0
+      return moment(0, "HH").diff(this.task.updated_at, "days") === 0
     },
     formattedDate() {
-      const updatedAt = this.task.updated_at
-      return this.isToday ? moment(updatedAt).format('HH:mm:ss') : moment(updatedAt).format('YYYY-MM-DD hh:mm:ss')
+      return this.isToday
+        ? moment(this.task.updated_at).format('HH:mm')
+        : moment(this.task.updated_at).format('MMM DD')
     },
     subTasks() {
-      return this.$storex.projects.allChats.filter(c => c.parent_id === this.task.id)
+      return this.$storex.projects.allChats
+        .filter(c => c.parent_id === this.task.id)
         .sort((a, b) => (a.updated_at || a.created_at) > (b.updated_at || b.created_at) ? -1 : 1)
     },
     chatProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.task.project_id && p.project_id !== this.$project.project_id)
+      return this.$projects.allProjects.find(p => p.project_id === this.task.project_id)
     },
     parentChat() {
       return this.$chats.chats[this.task.parent_id]
@@ -158,10 +134,6 @@ export default {
     },
     profile() {
       return this.$projects.profiles?.find(p => p.name === this.task.profiles[0])
-    },
-    taskProject() {
-      return this.$projects.allProjects.find(p => p.project_id === this.task.project_id) ||
-                this.$project
     }
   },
   methods: {
@@ -169,18 +141,11 @@ export default {
       this.isSettingsModalOpen = true
       this.taskData = { ...this.task }
     },
-    closeSettingsModal() {
-      this.isSettingsModalOpen = false
-    },
     discardChanges() {
-      this.closeSettingsModal()
+      this.isSettingsModalOpen = false
     },
     saveTask() {
       this.$projects.saveChatInfo(this.task)
-    },
-    toggleChatPinned() {
-      this.task.pinned = !this.task.pinned
-      this.saveTask()  
     }
   }
 }

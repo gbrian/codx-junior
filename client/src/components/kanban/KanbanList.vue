@@ -4,7 +4,7 @@ import moment from 'moment'
 
 <template>
   <div class="w-full flex flex-col gap-2" v-if="boards">
-    <div class="sticky top-0 z-20 bg-base-300 flex flex-col gap-1">
+    <div class="sticky top-0 z-20 flex flex-col gap-1">
       <h1 class="text-2xl font-bold flex justify-between gap-2 py-1">
         <input type="text" v-model="boardFilter" class="input input-sm" placeholder="Search boards" />
         <div class="grow"></div>

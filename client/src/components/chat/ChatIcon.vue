@@ -1,5 +1,5 @@
 <template>
-  <span>
+  <span class="tooltip tooltip-left" :data-tip="mode">
     <span class="text-primary" v-if="mode === 'task'"><i class="fa-regular fa-file-lines"></i></span>
     <span class="text-secondary" v-if="!mode || mode === 'chat'"><i class="fa-regular fa-comment"></i></span>
     <span class="text-accent" v-if="mode === 'code'"><i class="fa-solid fa-code"></i></span>

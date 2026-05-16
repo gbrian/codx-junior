@@ -125,6 +125,11 @@ export const mutations = mutationTree(state, {
     $storex.ui.saveState()
   },
   addNotification(state, { text, type }) {
+    const existing = state.notifications?.find(n => n.text === text)
+    if (existing) {
+      existing.ts = moment().format("hh:mm:ss")
+      return
+    }
     const notif = {
       ts: moment().format("hh:mm:ss"),
       text,
@@ -151,6 +156,7 @@ export const mutations = mutationTree(state, {
   },
   showApp(state, app) {
     app.tabId = app.tabId || `${app.key || app.name}-${(new Date().getTime())}`
+    app.params = app.params || {}
     state.openApps = {
       ...state.openApps,
       [app.tabId]: app

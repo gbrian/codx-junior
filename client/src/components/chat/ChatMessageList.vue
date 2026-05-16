@@ -49,7 +49,7 @@ import TaskCard from '../kanban/TaskCard.vue'
     <div class="anchor" ref="anchor"></div>
 
     <!-- Child chats grid -->
-    <div class="grid grid-cols-3 gap-2 mb-2" v-if="childrenChats?.length">
+    <div class="grid grid-cols-3 gap-2 mb-2" v-if="!isVibe && childrenChats?.length">
       <div v-for="child in childrenChats" :key="child.id" class="relative">
         <TaskCard
           class="click p-2 bg-base-100 h-40"
@@ -96,6 +96,11 @@ export default {
     'sub-task',
     'set-active-chat'
   ],
+  computed: {
+    isVibe() {
+      return this.chat.mode === 'vibe'
+    }
+  },
   methods: {
     scrollToBottom() {
       setTimeout(() => this.$refs.anchor?.scrollIntoView(), 200)
