@@ -12,6 +12,7 @@
   "file_list": [],
   "check_lists": [],
   "profiles": [
+    "daisyui_components",
     "project",
     "py_senior",
     "VueDeveloper"
@@ -21,7 +22,7 @@
   ],
   "name": "ProfileCard redesign",
   "pinned": false,
-  "description": "# Conversation Summary\n\n1. The codebase contains a Vue-based **Profile management system** with three components: `ProfileView`, `EditProfile`, and `ProfileCard`\n2. A **codx-junior Profile** is an AI assistant configuration defining identity, behavior, tools, and API exposure\n3. Profiles have **categories** (`project`, `assistant`, `chat`, `file`, `agent`) and can be scoped, overridden, or composed by linking other profiles\n4. Key profile attributes include: system prompt `content`, `llm_model` override, `use_knowledge`, `tools`, `file_match` regex, and `api_settings`\n5. The user wants to **redesign ProfileCard** and requested a structured description of profiles before generating new card examples",
+  "description": "## Conversation Summary\n\n1. **Topic**: Detailed breakdown of the **codx-junior Profile** system and its configuration structure.\n2. **Profile Anatomy**: Covers identity (name, avatar, category), scope/activation (file_match, project_id), AI behavior (llm_model, tools, use_knowledge), and API exposure settings.\n3. **Profile States & Relationships**: Profiles can be *built-in*, *overridden*, or *inherited*, and support composition by linking multiple profiles together.\n4. **UI Design**: A `ProfileCard.vue` component was designed using **DaisyUI** \u2014 featuring a category color strip, blurred avatar background, stats row, hover-reveal description panel, and linked profile badges.\n5. **Purpose**: Profiles are the core AI persona configurations in codx-junior, defining *who* answers, *how* they think, and *what tools/knowledge* they can access within a project.",
   "messages": [
     {
       "doc_id": "fd879bed-d80f-4d92-91b9-779bdb016570",
@@ -63,7 +64,7 @@
       "task_item": "",
       "content": "# Details of a codx-junior Profile\n\n## What is a Profile?\n\nA **Profile** in codx-junior is a reusable AI assistant configuration that defines how an AI member behaves, what it knows, what tools it has access to, and how it interacts within a project. Profiles are the core building blocks for assembling AI-powered workflows and teams.\n\n---\n\n## Profile Anatomy\n\n### Identity\n- **name** \u2014 Unique identifier within the project\n- **avatar** \u2014 URL to an image representing the profile\n- **description** \u2014 Human-readable explanation of the profile's purpose\n- **category** \u2014 Classification of the profile's role:\n  - `project` \u2014 Built-in, project-wide profile (read-only)\n  - `assistant` \u2014 General-purpose AI helper\n  - `chat` \u2014 Conversational AI persona\n  - `file` \u2014 File-scoped profile, activated by filename pattern\n  - `agent` \u2014 Autonomous task-executing AI\n\n### Scope & Activation\n- **project_id** \u2014 Which project this profile belongs to\n- **path** \u2014 Filesystem path; if it starts with the active project's path, the profile is considered **overridden** (customized locally)\n- **file_match** \u2014 Regex pattern; when category is `file`, the profile activates for matching filenames\n- **profiles** \u2014 List of linked profile names (profile composition/inheritance)\n\n### Content & Instructions\n- **content** \u2014 The raw system prompt / instruction text authored in Markdown\n- **parsed_content** \u2014 The rendered/processed version of `content`, shown in preview mode\n\n### AI Behavior\n- **llm_model** \u2014 Optional override for the AI model (otherwise uses project default)\n- **use_knowledge** \u2014 Boolean; enables the profile to query the project's knowledge base (RAG)\n- **tools** \u2014 List of tool names the profile is allowed to use (e.g., file tools, search, code execution)\n\n### API Exposure\n- **api_settings**\n  - `active` \u2014 Whether this profile is exposed as an OpenAI-compatible API endpoint\n  - `modelName` \u2014 Custom API model name (defaults to `{project}/{profile_name}`)\n  - `modelDescription` \u2014 Description shown in the API model listing\n\n---\n\n## Profile States\n\n| State | Meaning |\n|---|---|\n| **Built-in** | `category === 'project'`, non-editable name/category |\n| **Overridden** | Path is inside the active project directory; can be deleted/reset |\n| **Inherited** | Comes from a parent or global project scope |\n\n---\n\n## Profile Relationships\n\n- A profile can **link other profiles** (via `profiles[]`), composing behaviors from multiple sources\n- Profiles can be **scoped to a project** or shared globally\n- Plugins that extend `\"profile\"` can add new toggleable capabilities to any profile\n\n---\n\n## Summary Description (for TaskCard generation)\n\n> A **codx-junior Profile** is an AI persona configuration card. It carries an identity (name, avatar, category), a system prompt (`content`), optional AI model selection, a set of tools and skills (knowledge base, API exposure), and can be linked to other profiles for behavior composition. Profiles are either built-in to a project, or locally overridden. They power every AI interaction in codx-junior by defining *who* is answering, *how* they think, and *what* they can do.",
       "think": null,
-      "hide": false,
+      "hide": true,
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-05-15 14:48:45.884539",
@@ -89,12 +90,12 @@
       "error": null
     },
     {
-      "doc_id": "bf600183-8b0e-450d-b044-eba4bfdacd7f",
+      "doc_id": "217f606c-60e2-4804-ad4f-80f9fd9264ec",
       "role": "user",
       "task_item": "",
       "content": "Add to this document 3 new example designs for the ProfileCard component (keep the same file name ProfileCard.vue)",
       "think": "",
-      "hide": false,
+      "hide": true,
       "is_answer": false,
       "improvement": false,
       "created_at": "2026-05-15 14:48:45.884539",
@@ -104,9 +105,104 @@
         "/home/codx-junior-projects/codx-junior/client/src/components/ProfileCard.vue",
         "/home/codx-junior-projects/codx-junior/client/src/components/ProfileCard.vue"
       ],
-      "meta_data": {},
+      "meta_data": {
+        "time_taken": 35.534486532211304,
+        "first_chunk_time_taken": 0.13487696647644043,
+        "model": "claude-sonnet-4-6"
+      },
       "profiles": [],
       "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "800636c1-2fdd-45f5-bc24-ed03e45808ca",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "# Details of a codx-junior Profile\n\n## What is a Profile?\n\nA **Profile** in codx-junior is a reusable AI assistant configuration that defines how an AI member behaves, what it knows, what tools it has access to, and how it interacts within a project. Profiles are the core building blocks for assembling AI-powered workflows and teams.\n\n---\n\n## Profile Anatomy\n\n### Identity\n- **name** \u2014 Unique identifier within the project\n- **avatar** \u2014 URL to an image representing the profile\n- **description** \u2014 Human-readable explanation of the profile's purpose\n- **category** \u2014 Classification of the profile's role:\n  - `project` \u2014 Built-in, project-wide profile (read-only)\n  - `assistant` \u2014 General-purpose AI helper\n  - `chat` \u2014 Conversational AI persona\n  - `file` \u2014 File-scoped profile, activated by filename pattern\n  - `agent` \u2014 Autonomous task-executing AI\n\n### Scope & Activation\n- **project_id** \u2014 Which project this profile belongs to\n- **path** \u2014 Filesystem path; if it starts with the active project's path, the profile is considered **overridden** (customized locally)\n- **file_match** \u2014 Regex pattern; when category is `file`, the profile activates for matching filenames\n- **profiles** \u2014 List of linked profile names (profile composition/inheritance)\n\n### Content & Instructions\n- **content** \u2014 The raw system prompt / instruction text authored in Markdown\n- **parsed_content** \u2014 The rendered/processed version of `content`, shown in preview mode\n\n### AI Behavior\n- **llm_model** \u2014 Optional override for the AI model (otherwise uses project default)\n- **use_knowledge** \u2014 Boolean; enables the profile to query the project's knowledge base (RAG)\n- **tools** \u2014 List of tool names the profile is allowed to use (e.g., file tools, search, code execution)\n\n### API Exposure\n- **api_settings**\n  - `active` \u2014 Whether this profile is exposed as an OpenAI-compatible API endpoint\n  - `modelName` \u2014 Custom API model name (defaults to `{project}/{profile_name}`)\n  - `modelDescription` \u2014 Description shown in the API model listing\n\n---\n\n## Profile States\n\n| State | Meaning |\n|---|---|\n| **Built-in** | `category === 'project'`, non-editable name/category |\n| **Overridden** | Path is inside the active project directory; can be deleted/reset |\n| **Inherited** | Comes from a parent or global project scope |\n\n---\n\n## Profile Relationships\n\n- A profile can **link other profiles** (via `profiles[]`), composing behaviors from multiple sources\n- Profiles can be **scoped to a project** or shared globally\n- Plugins that extend `\"profile\"` can add new toggleable capabilities to any profile\n\n---\n\n## Summary Description (for TaskCard generation)\n\n> A **codx-junior Profile** is an AI persona configuration card. It carries an identity (name, avatar, category), a system prompt (`content`), optional AI model selection, a set of tools and skills (knowledge base, API exposure), and can be linked to other profiles for behavior composition. Profiles are either built-in to a project, or locally overridden. They power every AI interaction in codx-junior by defining *who* is answering, *how* they think, and *what* they can do.\n\n---\n\n## Example Designs for ProfileCard.vue\n\n### Design 1 \u2014 Compact Horizontal Card\n\nA sleek, horizontal layout ideal for list views. Avatar on the left, info and skills inline to the right.\n\n```vue src/components/ProfileCard.vue\n<script setup>\nimport ChatIcon from './chat/ChatIcon.vue'\n</script>\n\n<template>\n  <!-- Design 1: Compact Horizontal Card -->\n  <div class=\"card card-side w-full border border-base-300 bg-base-100 shadow-sm hover:shadow-md transition-shadow\">\n    <figure class=\"pl-4 py-4\">\n      <div class=\"avatar\">\n        <div class=\"w-14 h-14 rounded-lg\">\n          <img :src=\"useAvatar\" :alt=\"profile.name\" />\n        </div>\n      </div>\n    </figure>\n    <div class=\"card-body py-3 px-4 gap-1\">\n      <div class=\"flex items-center justify-between\">\n        <h2 class=\"card-title text-sm font-bold truncate max-w-xs flex gap-2 items-center\">\n          <div class=\"avatar tooltip tooltip-bottom\" :data-tip=\"project?.project_name\" v-if=\"project.project_icon\">\n            <div class=\"w-5 rounded-full\">\n              <img :src=\"project.project_icon\" />\n            </div>\n          </div>\n          {{ profile.name }}\n        </h2>\n        <span class=\"badge badge-xs badge-success badge-outline shrink-0\">{{ profile.category }}</span>\n      </div>\n      <p class=\"text-xs text-base-content/60 line-clamp-2\">{{ profile.description }}</p>\n      <div class=\"flex items-center gap-3 mt-1\">\n        <!-- Linked profiles -->\n        <div class=\"flex gap-1 flex-wrap\">\n          <span v-for=\"p in profile.profiles\" :key=\"p\" class=\"badge badge-xs badge-secondary\">{{ p }}</span>\n        </div>\n        <!-- Skills icons -->\n        <div class=\"flex gap-2 ml-auto items-center\">\n          <i class=\"fa-solid fa-book text-xs\" :class=\"profile.use_knowledge ? 'text-info' : 'text-base-content/30'\"></i>\n          <i class=\"fa-solid fa-share-nodes text-xs\" :class=\"profile.api_settings?.active ? 'text-warning' : 'text-base-content/30'\"></i>\n          <span v-if=\"profile.llm_model\" class=\"text-xs text-warning flex items-center gap-1\">\n            <i class=\"fa-solid fa-brain\"></i> {{ profile.llm_model }}\n          </span>\n        </div>\n      </div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: ['profile'],\n  data() {\n    return {}\n  },\n  computed: {\n    project() {\n      return this.$projects.allProjectsById[this.profile.project_id] || this.$project\n    },\n    useAvatar() {\n      return this.profile.avatar ||\n        `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=${this.profile.name}`\n    }\n  },\n  watch: {},\n  methods: {}\n}\n</script>\n```\n\n---\n\n### Design 2 \u2014 Rich Overlay Card with Hover Reveal\n\nA visually rich card where the description and skills are revealed on hover using a subtle overlay effect. Great for grid/gallery views.\n\n```vue src/components/ProfileCard.vue\n<script setup>\nimport ChatIcon from './chat/ChatIcon.vue'\n</script>\n\n<template>\n  <!-- Design 2: Rich Overlay Card with Hover Reveal -->\n  <div class=\"relative group card w-full overflow-hidden border border-base-300 bg-base-100 shadow-md rounded-xl\">\n    <!-- Background avatar blur -->\n    <div class=\"absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity bg-cover bg-center blur-sm\"\n      :style=\"`background-image: url(${useAvatar})`\">\n    </div>\n\n    <div class=\"relative z-10 flex flex-col items-center p-5 gap-2\">\n      <!-- Avatar + category badge -->\n      <div class=\"indicator\">\n        <span class=\"indicator-item badge badge-xs badge-success badge-outline\">{{ profile.category }}</span>\n        <div class=\"avatar\">\n          <div class=\"w-20 h-20 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2\">\n            <img :src=\"useAvatar\" :alt=\"profile.name\" />\n          </div>\n        </div>\n      </div>\n\n      <!-- Name -->\n      <div class=\"flex items-center gap-2 mt-1\">\n        <div class=\"avatar tooltip\" :data-tip=\"project?.project_name\" v-if=\"project.project_icon\">\n          <div class=\"w-5 rounded-full\">\n            <img :src=\"project.project_icon\" />\n          </div>\n        </div>\n        <h2 class=\"font-bold text-base truncate max-w-[160px]\">{{ profile.name }}</h2>\n      </div>\n\n      <!-- file_match pill -->\n      <span v-if=\"profile.file_match\" class=\"badge badge-xs badge-outline badge-accent font-mono\">\n        {{ profile.file_match }}\n      </span>\n\n      <!-- Linked profiles -->\n      <div class=\"flex flex-wrap gap-1 justify-center\">\n        <span v-for=\"p in profile.profiles\" :key=\"p\" class=\"badge badge-xs badge-secondary\">{{ p }}</span>\n      </div>\n\n      <!-- Reveal panel on hover -->\n      <div class=\"w-full max-h-0 overflow-hidden group-hover:max-h-40 transition-all duration-300 ease-in-out\">\n        <p class=\"text-xs text-base-content/70 text-center mt-2 line-clamp-4\">{{ profile.description }}</p>\n        <div class=\"divider my-1 text-xs\">Skills</div>\n        <div class=\"flex justify-center gap-4\">\n          <div class=\"tooltip\" data-tip=\"Knowledge Base\">\n            <i class=\"fa-solid fa-book\" :class=\"profile.use_knowledge ? 'text-info' : 'text-base-content/30'\"></i>\n          </div>\n          <div class=\"tooltip\" data-tip=\"API Exposed\">\n            <i class=\"fa-solid fa-share-nodes\" :class=\"profile.api_settings?.active ? 'text-warning' : 'text-base-content/30'\"></i>\n          </div>\n          <div class=\"tooltip\" data-tip=\"Custom LLM\" v-if=\"profile.llm_model\">\n            <i class=\"fa-solid fa-brain text-warning\"></i>\n          </div>\n        </div>\n        <p v-if=\"profile.llm_model\" class=\"text-center text-xs text-warning mt-1\">{{ profile.llm_model }}</p>\n      </div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: ['profile'],\n  data() {\n    return {}\n  },\n  computed: {\n    project() {\n      return this.$projects.allProjectsById[this.profile.project_id] || this.$project\n    },\n    useAvatar() {\n      return this.profile.avatar ||\n        `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=${this.profile.name}`\n    }\n  },\n  watch: {},\n  methods: {}\n}\n</script>\n```\n\n---\n\n### Design 3 \u2014 Stats-Focused Dashboard Card\n\nA data-dense card inspired by dashboard UI patterns. Highlights skills and metadata with stat blocks using DaisyUI's `stats` component.\n\n```vue src/components/ProfileCard.vue\n<script setup>\nimport ChatIcon from './chat/ChatIcon.vue'\n</script>\n\n<template>\n  <!-- Design 3: Stats-Focused Dashboard Card -->\n  <div class=\"card w-full bg-base-100 border border-base-300 shadow rounded-xl\">\n    <!-- Header strip with category color -->\n    <div class=\"h-2 w-full rounded-t-xl\"\n      :class=\"{\n        'bg-primary': profile.category === 'assistant',\n        'bg-secondary': profile.category === 'chat',\n        'bg-accent': profile.category === 'agent',\n        'bg-info': profile.category === 'file',\n        'bg-neutral': profile.category === 'project'\n      }\">\n    </div>\n\n    <div class=\"card-body p-4 gap-3\">\n      <!-- Top row: avatar + identity -->\n      <div class=\"flex gap-3 items-start\">\n        <div class=\"avatar shrink-0\">\n          <div class=\"w-12 h-12 rounded-lg\">\n            <img :src=\"useAvatar\" :alt=\"profile.name\" />\n          </div>\n        </div>\n        <div class=\"flex flex-col gap-1 min-w-0\">\n          <div class=\"flex items-center gap-2\">\n            <div class=\"avatar tooltip\" :data-tip=\"project?.project_name\" v-if=\"project.project_icon\">\n              <div class=\"w-4 rounded-full\">\n                <img :src=\"project.project_icon\" />\n              </div>\n            </div>\n            <span class=\"font-bold text-sm truncate\">{{ profile.name }}</span>\n          </div>\n          <div class=\"flex gap-1 flex-wrap\">\n            <span class=\"badge badge-xs badge-success badge-outline\">{{ profile.category }}</span>\n            <span v-if=\"profile.file_match\" class=\"badge badge-xs badge-accent badge-outline font-mono\">{{ profile.file_match }}</span>\n          </div>\n        </div>\n      </div>\n\n      <!-- Description -->\n      <p class=\"text-xs text-base-content/60 line-clamp-3\">{{ profile.description }}</p>\n\n      <!-- Stats row -->\n      <div class=\"stats stats-horizontal shadow-none bg-base-200 rounded-lg text-xs w-full\">\n        <div class=\"stat p-2 text-center\">\n          <div class=\"stat-title text-xs\">Knowledge</div>\n          <div class=\"stat-value text-base\">\n            <i class=\"fa-solid fa-book\" :class=\"profile.use_knowledge ? 'text-info' : 'text-base-content/30'\"></i>\n          </div>\n        </div>\n        <div class=\"stat p-2 text-center\">\n          <div class=\"stat-title text-xs\">API</div>\n          <div class=\"stat-value text-base\">\n            <i class=\"fa-solid fa-share-nodes\" :class=\"profile.api_settings?.active ? 'text-warning' : 'text-base-content/30'\"></i>\n          </div>\n        </div>\n        <div class=\"stat p-2 text-center\">\n          <div class=\"stat-title text-xs\">Profiles</div>\n          <div class=\"stat-value text-base\">{{ profile.profiles?.length || 0 }}</div>\n        </div>\n        <div class=\"stat p-2 text-center\" v-if=\"profile.llm_model\">\n          <div class=\"stat-title text-xs\">Model</div>\n          <div class=\"stat-value text-xs text-warning truncate max-w-[60px]\">{{ profile.llm_model }}</div>\n        </div>\n      </div>\n\n      <!-- Linked profiles -->\n      <div class=\"flex flex-wrap gap-1\" v-if=\"profile.profiles?.length\">\n        <span v-for=\"p in profile.profiles\" :key=\"p\" class=\"badge badge-xs badge-secondary\">{{ p }}</span>\n      </div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: ['profile'],\n  data() {\n    return {}\n  },\n  computed: {\n    project() {\n      return this.$projects.allProjectsById[this.profile.project_id] || this.$project\n    },\n    useAvatar() {\n      return this.profile.avatar ||\n        `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=${this.profile.name}`\n    }\n  },\n  watch: {},\n  methods: {}\n}\n</script>\n```",
+      "think": null,
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-15 14:48:45.884539",
+      "updated_at": "2026-05-15 14:48:45.884567",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "time_taken": 35.534486532211304,
+        "first_chunk_time_taken": 0.13487696647644043,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [
+        "py_senior",
+        "VueDeveloper",
+        "project",
+        "daisyui_components"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "4c1a5c06-3cef-4efb-94c6-f1a3366d68ae",
+      "role": "user",
+      "task_item": "",
+      "content": "Great, create a version adding the stats from the version 3 to the version 2. discard version 1. Generate only final version in the document",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-15 14:48:45.884539",
+      "updated_at": "2026-05-15 14:48:45.884567",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "time_taken": 36.595136404037476,
+        "first_chunk_time_taken": 0.17613005638122559,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "cd82bac4-023d-46f6-89d8-0d628232635a",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "# Details of a codx-junior Profile\n\n## What is a Profile?\n\nA **Profile** in codx-junior is a reusable AI assistant configuration that defines how an AI member behaves, what it knows, what tools it has access to, and how it interacts within a project. Profiles are the core building blocks for assembling AI-powered workflows and teams.\n\n---\n\n## Profile Anatomy\n\n### Identity\n- **name** \u2014 Unique identifier within the project\n- **avatar** \u2014 URL to an image representing the profile\n- **description** \u2014 Human-readable explanation of the profile's purpose\n- **category** \u2014 Classification of the profile's role:\n  - `project` \u2014 Built-in, project-wide profile (read-only)\n  - `assistant` \u2014 General-purpose AI helper\n  - `chat` \u2014 Conversational AI persona\n  - `file` \u2014 File-scoped profile, activated by filename pattern\n  - `agent` \u2014 Autonomous task-executing AI\n\n### Scope & Activation\n- **project_id** \u2014 Which project this profile belongs to\n- **path** \u2014 Filesystem path; if it starts with the active project's path, the profile is considered **overridden** (customized locally)\n- **file_match** \u2014 Regex pattern; when category is `file`, the profile activates for matching filenames\n- **profiles** \u2014 List of linked profile names (profile composition/inheritance)\n\n### Content & Instructions\n- **content** \u2014 The raw system prompt / instruction text authored in Markdown\n- **parsed_content** \u2014 The rendered/processed version of `content`, shown in preview mode\n\n### AI Behavior\n- **llm_model** \u2014 Optional override for the AI model (otherwise uses project default)\n- **use_knowledge** \u2014 Boolean; enables the profile to query the project's knowledge base (RAG)\n- **tools** \u2014 List of tool names the profile is allowed to use (e.g., file tools, search, code execution)\n\n### API Exposure\n- **api_settings**\n  - `active` \u2014 Whether this profile is exposed as an OpenAI-compatible API endpoint\n  - `modelName` \u2014 Custom API model name (defaults to `{project}/{profile_name}`)\n  - `modelDescription` \u2014 Description shown in the API model listing\n\n---\n\n## Profile States\n\n| State | Meaning |\n|---|---|\n| **Built-in** | `category === 'project'`, non-editable name/category |\n| **Overridden** | Path is inside the active project directory; can be deleted/reset |\n| **Inherited** | Comes from a parent or global project scope |\n\n---\n\n## Profile Relationships\n\n- A profile can **link other profiles** (via `profiles[]`), composing behaviors from multiple sources\n- Profiles can be **scoped to a project** or shared globally\n- Plugins that extend `\"profile\"` can add new toggleable capabilities to any profile\n\n---\n\n## Summary Description (for TaskCard generation)\n\n> A **codx-junior Profile** is an AI persona configuration card. It carries an identity (name, avatar, category), a system prompt (`content`), optional AI model selection, a set of tools and skills (knowledge base, API exposure), and can be linked to other profiles for behavior composition. Profiles are either built-in to a project, or locally overridden. They power every AI interaction in codx-junior by defining *who* is answering, *how* they think, and *what* they can do.\n\n---\n\n## Example Design for ProfileCard.vue\n\n### Design \u2014 Rich Overlay Card with Stats\n\nA visually rich card combining the hover-reveal overlay effect with a stats dashboard row for at-a-glance skill indicators.\n\n```vue src/components/ProfileCard.vue\n<script setup>\nimport ChatIcon from './chat/ChatIcon.vue'\n</script>\n\n<template>\n  <!-- Rich Overlay Card with Stats -->\n  <div class=\"relative group card w-full overflow-hidden border border-base-300 bg-base-100 shadow-md rounded-xl\">\n    <!-- Header strip with category color -->\n    <div class=\"h-2 w-full rounded-t-xl\"\n      :class=\"{\n        'bg-primary': profile.category === 'assistant',\n        'bg-secondary': profile.category === 'chat',\n        'bg-accent': profile.category === 'agent',\n        'bg-info': profile.category === 'file',\n        'bg-neutral': profile.category === 'project'\n      }\">\n    </div>\n\n    <!-- Background avatar blur -->\n    <div class=\"absolute inset-0 opacity-10 group-hover:opacity-20 transition-opacity bg-cover bg-center blur-sm\"\n      :style=\"`background-image: url(${useAvatar})`\">\n    </div>\n\n    <div class=\"relative z-10 flex flex-col items-center p-5 gap-2\">\n      <!-- Avatar + category badge -->\n      <div class=\"indicator\">\n        <span class=\"indicator-item badge badge-xs badge-success badge-outline\">{{ profile.category }}</span>\n        <div class=\"avatar\">\n          <div class=\"w-20 h-20 rounded-full ring ring-primary ring-offset-base-100 ring-offset-2\">\n            <img :src=\"useAvatar\" :alt=\"profile.name\" />\n          </div>\n        </div>\n      </div>\n\n      <!-- Name -->\n      <div class=\"flex items-center gap-2 mt-1\">\n        <div class=\"avatar tooltip\" :data-tip=\"project?.project_name\" v-if=\"project.project_icon\">\n          <div class=\"w-5 rounded-full\">\n            <img :src=\"project.project_icon\" />\n          </div>\n        </div>\n        <h2 class=\"font-bold text-base truncate max-w-[160px]\">{{ profile.name }}</h2>\n      </div>\n\n      <!-- file_match pill -->\n      <span v-if=\"profile.file_match\" class=\"badge badge-xs badge-outline badge-accent font-mono\">\n        {{ profile.file_match }}\n      </span>\n\n      <!-- Linked profiles -->\n      <div class=\"flex flex-wrap gap-1 justify-center\">\n        <span v-for=\"p in profile.profiles\" :key=\"p\" class=\"badge badge-xs badge-secondary\">{{ p }}</span>\n      </div>\n\n      <!-- Stats row \u2014 always visible -->\n      <div class=\"stats stats-horizontal shadow-none bg-base-200 rounded-lg text-xs w-full mt-2\">\n        <div class=\"stat p-2 text-center\">\n          <div class=\"stat-title text-xs\">Knowledge</div>\n          <div class=\"stat-value text-base\">\n            <i class=\"fa-solid fa-book\" :class=\"profile.use_knowledge ? 'text-info' : 'text-base-content/30'\"></i>\n          </div>\n        </div>\n        <div class=\"stat p-2 text-center\">\n          <div class=\"stat-title text-xs\">API</div>\n          <div class=\"stat-value text-base\">\n            <i class=\"fa-solid fa-share-nodes\" :class=\"profile.api_settings?.active ? 'text-warning' : 'text-base-content/30'\"></i>\n          </div>\n        </div>\n        <div class=\"stat p-2 text-center\">\n          <div class=\"stat-title text-xs\">Profiles</div>\n          <div class=\"stat-value text-base\">{{ profile.profiles?.length || 0 }}</div>\n        </div>\n        <div class=\"stat p-2 text-center\" v-if=\"profile.llm_model\">\n          <div class=\"stat-title text-xs\">Model</div>\n          <div class=\"stat-value text-xs text-warning truncate max-w-[60px]\">{{ profile.llm_model }}</div>\n        </div>\n      </div>\n\n      <!-- Reveal panel on hover -->\n      <div class=\"w-full max-h-0 overflow-hidden group-hover:max-h-40 transition-all duration-300 ease-in-out\">\n        <p class=\"text-xs text-base-content/70 text-center mt-2 line-clamp-4\">{{ profile.description }}</p>\n        <p v-if=\"profile.llm_model\" class=\"text-center text-xs text-warning mt-1\">\n          <i class=\"fa-solid fa-brain mr-1\"></i>{{ profile.llm_model }}\n        </p>\n      </div>\n    </div>\n  </div>\n</template>\n\n<script>\nexport default {\n  props: ['profile'],\n  data() {\n    return {}\n  },\n  computed: {\n    project() {\n      return this.$projects.allProjectsById[this.profile.project_id] || this.$project\n    },\n    useAvatar() {\n      return this.profile.avatar ||\n        `https://gravatar.com/avatar/baa8db8ab2afb7ababc235269e762662?s=400&d=robohash&r=${this.profile.name}`\n    }\n  },\n  watch: {},\n  methods: {}\n}\n</script>\n```",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-15 14:48:45.884539",
+      "updated_at": "2026-05-15 14:48:45.884567",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "time_taken": 36.595136404037476,
+        "first_chunk_time_taken": 0.17613005638122559,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [
+        "py_senior",
+        "VueDeveloper",
+        "project",
+        "daisyui_components"
+      ],
+      "user": null,
       "knowledge_topics": [],
       "done": true,
       "is_thinking": false,
@@ -116,7 +212,7 @@
     }
   ],
   "created_at": "2026-05-15 14:48:45.887383",
-  "updated_at": "2026-05-16T15:20:39.895462",
+  "updated_at": "2026-05-16T15:24:16.123733",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
