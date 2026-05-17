@@ -1,0 +1,67 @@
+services:
+  codx-junior-selkies:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: codxjunior/codx-junior-selkies-workspace:latest
+    container_name: codx-junior-selkies-workspace
+    restart: unless-stopped
+    privileged: true # Required for systemctl-replacement and GPU access
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - SYS_ADMIN # Required for systemctl replacement
+    devices:
+      - /dev/ppp:/dev/ppp
+      - /dev/dri:/dev/dri # GPU Passthrough for low-latency encoding
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - /home/codx-junior/codx-junior:/home/codx-junior/codx-junior
+      - /home/codx-junior-projects:/home/codx-junior-projects
+      - ./coder:/coder
+      - codx-junior-config:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+    env_file:
+      - ./.workspace.env
+    environment:
+      - PUID=${USER_ID:-1001}
+      - PGID=${GROUP_ID:-1001}
+      - CODE_SERVER_PORT=${CODE_SERVER_PORT:-9080}
+      # SELKIES CONFIG
+      - SELKIES_ENABLE_BASIC_AUTH=false
+      - DISPLAY_SIZEW=1920
+      - DISPLAY_SIZEH=1080
+    labels:
+      - traefik.enable=true
+
+      # 1. Selkies Remote Desktop (WebRTC Stream) - Port 8080
+      - traefik.http.routers.codx-junior-selkies.rule=PathPrefix(`/workspace-selkies/desktop`)
+      - traefik.http.routers.codx-junior-selkies.service=codx-junior-selkies-service
+      - traefik.http.services.codx-junior-selkies-service.loadbalancer.server.port=8080
+      - traefik.http.middlewares.selkies-strip.stripprefix.prefixes=/workspace-selkies/desktop
+      - traefik.http.routers.codx-junior-selkies.middlewares=selkies-strip,codx-junior-auth
+
+      # 2. Selkies Preview Router (Port 3000)
+      - traefik.http.routers.codx-junior-selkies-workspace-selkies-router.rule=PathPrefix(`/workspace-selkies/preview`)
+      - traefik.http.routers.codx-junior-selkies-workspace-selkies-router.service=codx-junior-selkies-workspace-selkies-service
+      - traefik.http.services.codx-junior-selkies-workspace-selkies-service.loadbalancer.server.port=3000
+      - traefik.http.routers.codx-junior-selkies-workspace-selkies-router.middlewares=codx-junior-selkies-workspace-selkies-path,codx-junior-auth
+
+      # 3. Coder Router (Port 9080)
+      - traefik.http.routers.codx-junior-selkies-workspace-coder-router.rule=PathPrefix(`/workspace-selkies/coder`)
+      - traefik.http.routers.codx-junior-selkies-workspace-coder-router.service=codx-junior-selkies-workspace-coder-service
+      - traefik.http.services.codx-junior-selkies-workspace-coder-service.loadbalancer.server.port=${CODE_SERVER_PORT:-9080}
+      - traefik.http.routers.codx-junior-selkies-workspace-coder-router.middlewares=codx-junior-selkies-workspace-coder-path,codx-junior-auth
+    networks:
+      - codx-junior
+
+volumes:
+  codx-junior-config:
+  codx-junior-projects:
+    external: true
+
+networks:
+  codx-junior:
+    name: codx-junior_selkies
+    external: true

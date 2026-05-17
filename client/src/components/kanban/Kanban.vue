@@ -6,6 +6,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 import ChatPreview from '../wall/ChatPreview.vue'
 import KanbanGridView from './KanbanGridView.vue'
 import Collapsible from '../Collapsible.vue'
+import ChatHistory from './ChatHistory.vue'
 </script>
 
 <template>
@@ -21,7 +22,7 @@ import Collapsible from '../Collapsible.vue'
 
     <div class="h-full absolute top-0 left-0 right-0 bottom-0 z-1">
       <!-- Activity panel -->
-      <div class="overflow-auto relative" v-if="showActivity">
+      <div class="h-full overflow-auto relative" v-if="showActivity">
         <div class="flex gap-2 sticky top-0 bg-base-300 z-10 p-2 rounded-md">
           <button class="btn btn-warning btn-sm" @click="showActivity = false">
             <i class="fa-solid fa-clock-rotate-left"></i>
@@ -29,21 +30,12 @@ import Collapsible from '../Collapsible.vue'
           <div class="text-2xl">
             Recent activity <span v-if="project">: {{ project.project_name }}</span>
           </div>
-          <div class="alert" v-if="lastMessages.length === 0">
-            No recent activity
-          </div>
         </div>
-        <div class="h-96 grid grid-cols-1 @5xl:grid-cols-2 grid-flow-rows gap-2">
-          <div class="my-2 click group"
-            v-for="chat in lastMessages" :key="chat.doc_id"
-            @click="setActiveChat(chat)">
-            <ChatPreview :project="chat.project" :chat="chat" />
-          </div>
-        </div>
+        <ChatHistory :projects="historyProjects" />
       </div>
 
       <!-- Main kanban layout -->
-      <div class="flex flex-col h-full p-2">
+      <div class="flex flex-col h-full p-2" v-if="!showActivity">
         <!-- Top toolbar -->
         <div class="flex gap-4 items-center">
           <div class="flex gap-2 items-center">
@@ -342,6 +334,22 @@ export default {
         this.newBoardName &&
         this.newBoardName !== this.originalBoardName &&
         !!this.kanban.boards[this.newBoardName]
+      )
+    },
+    // Projects to show in history: active project + all projects that have chats on this board
+    historyProjects() {
+      const allProjects = this.$projects.allProjects || []
+      if (!allProjects.length) return []
+      // Include active project plus any project referenced by current board chats
+      const boardProjectIds = new Set(
+        this.boardChats
+          .map(c => c.project_id)
+          .filter(Boolean)
+      )
+      return allProjects.filter(p =>
+        p.$api &&
+        (boardProjectIds.has(p.project_id) ||
+          p.project_id === this.$projects.activeProject?.project_id)
       )
     }
   },
