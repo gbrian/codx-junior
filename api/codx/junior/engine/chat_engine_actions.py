@@ -373,7 +373,7 @@ class ChatEngineActions:
                 sub_task.board = chat.board
                 sub_task.column = chat.column
                 sub_task.project_id = chat.project_id
-                sub_task.mode = "task"
+                sub_task.mode = chat.mode
                 sub_task.messages = [
                     Message(
                         role="user",

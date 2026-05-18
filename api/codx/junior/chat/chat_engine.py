@@ -1272,7 +1272,7 @@ class ChatEngine:
                     ai_chat_fn=ai_chat_fn
                 )
 
-                if chat_mode == CHAT_MODE_TASK:
+                if chat_mode == CHAT_MODE_TASK or is_vibe:
                     self._hide_non_answer_messages(chat=chat)
 
             # ------------------------------------------------------------------

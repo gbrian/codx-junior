@@ -78,6 +78,7 @@ import ChatMessageList from './ChatMessageList.vue'
               @thread="onNewThread"
               @sub-task="onChatEntryCreateSubtask"
               @set-active-chat="$chats.setActiveChat($event)"
+              @message-changed="onMessageChanged"
             />
 
             <!-- Input box always inside the left panel column -->
@@ -303,7 +304,6 @@ export default {
       this.updateCursorWord()
     },
     // Sync stableMessages only when the message count or last message id changes
-    // This avoids re-renders triggered by content mutations during streaming
     messages(newMessages) {
       this.syncStableMessages(newMessages)
     }
@@ -630,6 +630,12 @@ export default {
       }
     },
     onMessageEdited({ doc_id, content }) {
+      this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
+      this.saveChat()
+    },
+    // Handles message-changed from ChatEntry (Markdown text-changed bubbled up)
+    // Updates message content in chat state and persists to server
+    onMessageChanged({ doc_id, content }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
       this.saveChat()
     },

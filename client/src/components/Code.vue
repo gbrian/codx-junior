@@ -1,45 +1,57 @@
 <script setup>
 import MermaidViewerVue from './MermaidViewer.vue'
-import MarkdownViewer from './MarkdownViewer.vue';
+import MarkdownViewer from './MarkdownViewer.vue'
 import CodeViewer from './CodeViewer.vue'
 </script>
+
 <template>
   <div class="rounded-md py-2">
-    <div class="flex gap-2 w-full justify-end rounded-t" 
-      ref="toolbar" v-if="showMermaid">
+    <div class="flex gap-2 w-full justify-end rounded-t" ref="toolbar" v-if="showMermaid">
       <button class="btn btn-xs" @click="showMermaidSource = !showMermaidSource">
         <span v-if="showMermaidSource">View diagram</span>
         <span v-else>View code</span>
       </button>
     </div>
-    <MermaidViewerVue :diagram="codeText" theme="dark" 
+
+    <MermaidViewerVue
+      :diagram="codeText"
+      theme="dark"
       @click="showMermaidSource = !showMermaidSource"
-      v-if="showMermaid && !showMermaidSource" />
-    <CodeViewer :code="codeText" 
-      @reload-file="$emit('reload-file', $event)"
-      @open-file="$emit('open-file', $event)"
-      @save-file="$emit('save-file', $event)" 
-      @add-file="$emit('add-file', $event)" 
-      @sub-task="$emit('sub-task', $event)" 
-      :language="language" 
-      :file="file" 
+      v-if="showMermaid && !showMermaidSource"
+    />
+
+    <CodeViewer
+      :code="codeText"
+      :language="language"
+      :file="file"
       :files="files"
       :project="project"
       :finished="finished"
       :chat="chat"
-      v-if="showCode" /> 
+      v-if="showCode"
+      @reload-file="$emit('reload-file', $event)"
+      @open-file="$emit('open-file', $event)"
+      @save-file="$emit('save-file', $event)"
+      @add-file="$emit('add-file', $event)"
+      @sub-task="$emit('sub-task', $event)"
+      @message-change="onMessageChange"
+    />
+
     <MarkdownViewer :text="codeText" v-if="showMarkdown" />
-    <div class="" v-html="codeText" v-if="htmlPreview"></div>
+    <div v-html="codeText" v-if="htmlPreview"></div>
   </div>
 </template>
+
 <script>
 const languageMapping = {
   "vue": "html",
   "markdown": "md"
 }
+
 export default {
-  props: ['chat', 'finished', 'code', 'text', 'text-language', 'file-name', 'files', 'project', 'finished'],
-  data () {
+  props: ['chat', 'finished', 'code', 'text', 'text-language', 'file-name', 'files', 'project'],
+  emits: ['reload-file', 'open-file', 'save-file', 'add-file', 'sub-task', 'edit-message', 'generate-code', 'text-changed'],
+  data() {
     return {
       codeText: null,
       languages: null,
@@ -48,18 +60,16 @@ export default {
       file: null,
     }
   },
-  created () {
+  created() {
     const language = languageMapping[this.codeLanguage] || this.codeLanguage
-    this.languages = [[ language, language.toUpperCase() ]]
+    this.languages = [[language, language.toUpperCase()]]
     this.codeText = this.text || this.code?.innerText
     this.file = this.fileName || this.code?.attributes["data-file"]?.value
-    console.log("Code block created", language)
   },
-  mounted () {
+  mounted() {
     if (this.code) {
       this.code?.parentNode.after(this.$el)
       this.code?.parentNode.remove()
-      // this.$el.querySelector('.header.border')?.append(this.$refs.toolbar)
       this.$bubble('code-file-shown', { somedata: true })
     }
   },
@@ -69,26 +79,20 @@ export default {
     },
     language() {
       const lang = this.textLanguage ||
-        this.code?.attributes["class"].value.split("-").reverse()[0]         
+        this.code?.attributes["class"]?.value.split("-").reverse()[0]
       return languageMapping[lang] || lang
     },
-    codeLanguage () {
-      return this.language.includes("mermaid") ? "markdown" : this.language
+    codeLanguage() {
+      return this.language?.includes("mermaid") ? "markdown" : this.language
     },
-    showMermaid () {
+    showMermaid() {
       return this.language === 'mermaid' && !this.isVibeCoding
     },
-    showCode () {
+    showCode() {
       return !this.showMarkdown && (!this.showMermaid || this.showMermaidSource) && !this.htmlPreview
     },
     showMarkdown() {
-      return this.language === 'md' 
-    },
-    markdownText () {
-      if (this.language === 'md' && false) {
-        return this.codeText
-      }
-      return null
+      return this.language === 'md'
     },
     codeBlockInfo() {
       return {
@@ -96,7 +100,37 @@ export default {
         language: this.language
       }
     }
+  },
+  methods: {
+    // Patch this block's content, then ask Markdown.vue to rebuild the full text
+    onMessageChange({ orgContent, newContent }) {
+      this.codeText = newContent
+      this.rebuildMarkdownText()
+    },
+
+    // Walk sibling Code blocks inside the same Markdown container and
+    // reconstruct the full markdown string, then bubble it up
+    rebuildMarkdownText() {
+      // Collect all Code component instances that share our $parent (Markdown.vue)
+      const siblings = this.$parent?.$children?.filter(c => c.$options?.name === undefined
+        ? false
+        : c.codeText !== undefined) || []
+
+      if (!siblings.length) {
+        // No siblings found; emit only our own updated fence
+        this.$emit('text-changed', this.buildFence(this.codeText))
+        return
+      }
+
+      // Ask the parent (Markdown.vue) to rebuild from all its code blocks
+      this.$emit('text-changed', { block: this, newContent: this.codeText })
+    },
+
+    buildFence(content) {
+      const lang = this.language || ''
+      const fileHint = this.file ? ` ${this.file}` : ''
+      return `\`\`\`${lang}${fileHint}\n${content}\n\`\`\``
+    }
   }
 }
 </script>
-

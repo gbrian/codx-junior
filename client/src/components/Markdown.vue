@@ -8,7 +8,10 @@ import highlight from 'markdown-it-highlightjs'
 
 <template>
   <div class="w-full h-full flex gap-2">
-    <div v-bind="$attrs" class="text-md text-wrap max-w-full w-full overflow-y-auto prose leading-tight">
+    <div
+      v-bind="$attrs"
+      class="text-md text-wrap max-w-full w-full overflow-y-auto prose leading-tight"
+    >
       <div v-html="html"></div>
       <YoutubeViewer
         v-for="(url, index) in youtubeLinks"
@@ -16,31 +19,36 @@ import highlight from 'markdown-it-highlightjs'
         :youtubeUrl="url"
       />
     </div>
+
     <Code
       v-for="code in codeBlocks"
       class="code-block"
-      :key="new Date()"
+      :key="code"
       :code="code"
       :files="files"
+      :chat="chat"
       @generate-code="$emit('generate-code', $event)"
       @reload-file="$emit('reload-file', $event)"
       @open-file="$emit('open-file', $event)"
       @save-file="$emit('save-file', $event)"
       @add-file="$emit('add-file', $event)"
       @edit-message="$emit('edit-message', $event)"
+      @text-changed="onBlockTextChanged"
     />
   </div>
 </template>
 
 <script>
 import hljs from 'highlight.js'
+
 const md = new MarkdownIt({
   html: true,
   linkify: true,
   typographer: true,
   highlight: function (str, lang, file) {
     lang = lang || "txt"
-    const render = body =>`<pre><code class="hljs language-${lang}" data-file="${file}">${body}</code></pre>`
+    const render = body =>
+      `<pre><code class="hljs language-${lang}" data-file="${file}">${body}</code></pre>`
     try {
       return render(hljs.highlight(str, { language: lang, ignoreIllegals: true }).value)
     } catch (ex) {
@@ -54,80 +62,55 @@ md.use(emoji)
 
 export default {
   inheritAttrs: false,
-  props: ['text', 'mentionList', 'files'],
+  props: ['chat', 'text', 'mentionList', 'files'],
+  emits: ['generate-code', 'reload-file', 'open-file', 'save-file', 'add-file', 'edit-message', 'text-changed'],
   data() {
     return {
+      // localText is the mutable working copy of the markdown source
+      localText: null,
       codeBlocks: [],
       showDoc: false,
       youtubeLinks: [],
     }
   },
   mounted() {
+    this.localText = this.text
     this.initializeComponent()
   },
   computed: {
     html() {
-      if (!this.showDoc) {
-        try {
-          let { sanitizedText } = this 
-          const avatarHtml = (mention) => {
-            const { user, profile } = mention  
-            const name = mention.name
-            const avatar = mention.avatar
-            return `
-              <div class="avatar flex gap-2">
-                <img src="${user.avatar}" class="w-10" />
-                ${user.username}
-              </div>
-            `
-          }
-          /*
-          this.mentionList?.filter(m => m.avatar)
-              .forEach(mention => {
-                const mentionPattern = new RegExp(`@${mention.name}`, 'g')
-                sanitizedText = sanitizedText.replace(mentionPattern, avatarHtml(mention))
-              })
-          */
-          return md.render(sanitizedText)
-        } catch (ex) {
-          console.error("Message can't be rendered", this.text)
-        }
+      if (this.showDoc) return this.showDocPreview
+      try {
+        return md.render(this.sanitizedText)
+      } catch (ex) {
+        console.error("Message can't be rendered", this.localText)
       }
-      return this.showDocPreview
+      return ''
     },
     showDocPreview() {
-      return md.render("```json\n" + JSON.stringify(this.text, null, 2) + "\n```")
+      return md.render("```json\n" + JSON.stringify(this.localText, null, 2) + "\n```")
     },
     sanitizedText() {
-      let text = this.text || ""
-      const lines = text.trim().split("\n")
+      let text = (this.localText || "").trim()
+      const lines = text.split("\n")
       const firstLine = lines[0]
-      const isMdFence = !![
-          "```",
-          "```md",
-          "```markdown",
-        ].find(pattern => firstLine.trim() === pattern)
+      const isMdFence = !!["```", "```md", "```markdown"].find(p => firstLine.trim() === p)
 
       if (isMdFence) {
         lines.splice(0, 1)
         const ix = lines.findLastIndex(l => l === '```')
-        if (ix !== -1) {
-          lines.splice(ix, 1)
-        }
+        if (ix !== -1) lines.splice(ix, 1)
         text = lines.join("\n")
       }
-      text = text
-        .replace("```thymeleaf", "```html")
-      return text
+      return text.replace("```thymeleaf", "```html")
     }
   },
   watch: {
-    text() {
+    text(val) {
+      this.localText = val
       this.codeBlocks = []
       this.youtubeLinks = []
-      requestAnimationFrame(() => {
-        this.initializeComponent()
-      })
+      requestAnimationFrame(() => this.initializeComponent())
     }
   },
   methods: {
@@ -149,12 +132,11 @@ export default {
         .filter(cb => cb.innerText.trim().length > 40 && !this.codeBlocks.includes(cb))
       if (codeBlocks.length) {
         this.codeBlocks = [...this.codeBlocks, ...codeBlocks]
-        console.log("Code blocks", codeBlocks)
       }
     },
     extractYoutubeLinks() {
       const youtubeRegex = /https?:\/\/(www\.)?youtube\.com\/watch\?v=[\w-]+/g
-      this.youtubeLinks = this.text?.match(youtubeRegex) || []
+      this.youtubeLinks = this.localText?.match(youtubeRegex) || []
     },
     captureFileLinks() {
       const fileLinks = [...this.$el.querySelectorAll('.file-link')]
@@ -168,6 +150,45 @@ export default {
     openFile(href) {
       this.$ui.copyTextToClipboard(href)
       this.$storex.api.coder.openFile(href)
+    },
+
+    // A Code block reported its content changed; patch localText and bubble up
+    onBlockTextChanged({ block, newContent }) {
+      this.localText = this.replaceBlockInText(this.localText, block, newContent)
+      this.$emit('text-changed', this.localText)
+    },
+
+    // Replace only the matching fenced block inside the full markdown source
+    replaceBlockInText(fullText, block, newContent) {
+      const lang = block.language || ''
+      const fileHint = block.file ? ` ${block.file}` : ''
+      const openFence = `\`\`\`${lang}${fileHint}`
+
+      const lines = fullText.split('\n')
+      let insideFence = false
+      let fenceStart = -1
+      const result = []
+
+      for (let i = 0; i < lines.length; i++) {
+        if (!insideFence && lines[i].startsWith(openFence)) {
+          insideFence = true
+          fenceStart = i
+          result.push(lines[i])
+          continue
+        }
+        if (insideFence && lines[i].startsWith('```') && lines[i].trim() === '```') {
+          // Replace everything between the fences with newContent
+          result.splice(fenceStart + 1)
+          newContent.split('\n').forEach(l => result.push(l))
+          result.push('```')
+          insideFence = false
+          fenceStart = -1
+          continue
+        }
+        if (!insideFence) result.push(lines[i])
+      }
+
+      return result.join('\n')
     }
   }
 }

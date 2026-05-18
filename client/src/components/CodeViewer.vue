@@ -1,10 +1,10 @@
 <script setup>
 import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
-import hljs from 'highlight.js';
-import DiffViewer from './DiffViewer.vue';
-import Editor from './monaco/Editor.vue';
-import Collapsible from './Collapsible.vue';
+import hljs from 'highlight.js'
+import DiffViewer from './DiffViewer.vue'
+import Editor from './monaco/Editor.vue'
+import Collapsible from './Collapsible.vue'
 </script>
 
 <template>
@@ -23,33 +23,54 @@ import Collapsible from './Collapsible.vue';
           <div class="hover:text-info" @click.stop="$emit('add-file', file)">
             <i class="fa-solid fa-file-arrow-up"></i>
           </div>
-          <div class="hover:text-info tooltip" :data-tip="file"
-            @click.stop="$emit('open-file', file)">
+          <div class="hover:text-info tooltip" :data-tip="file" @click.stop="$emit('open-file', file)">
             {{ fileName }}
           </div>
         </div>
         <span class="text-sm font-medium opacity-60" v-else>Code</span>
+
+        <!-- Zoom controls -->
         <div class="hover:text-info cursor-pointer" @click.stop="zoomOut">
           <i class="fa-solid fa-magnifying-glass-minus"></i>
         </div>
         <div class="hover:text-info cursor-pointer" @click.stop="zoomIn">
           <i class="fa-solid fa-magnifying-glass-plus"></i>
         </div>
+
+        <!-- Copy -->
         <div class="hover:text-info cursor-pointer" @click.stop="onCopy">
           <i class="fa-solid fa-copy"></i>
         </div>
-        <div class="hover:text-info cursor-pointer" :class="edit && 'text-warning'" @click.stop="onEdit">
+
+        <!-- Edit toggle: highlighted when active -->
+        <div
+          class="hover:text-info cursor-pointer"
+          :class="editMode && 'text-warning'"
+          @click.stop="onEdit"
+        >
           <i class="fa-solid fa-edit"></i>
         </div>
-        <div class="hover:text-info cursor-pointer" @click.stop="saveFile" v-if="canSave">
-          <i class="fa-solid fa-floppy-disk"></i>
+
+        <!-- Diff preview toggle (only while editing) -->
+        <div
+          class="hover:text-info cursor-pointer"
+          :class="showMonacoDiff && 'text-info'"
+          @click.stop="toggleMonacoDiff"
+          v-if="editMode"
+          title="Preview diff"
+        >
+          <i class="fa-solid fa-code-compare"></i>
         </div>
+        
+        <!-- Sub-task -->
         <div class="hover:text-info cursor-pointer" @click.stop="createSubTask">
           <i class="fa-brands fa-trello"></i>
         </div>
+
+        <!-- File diff stats -->
         <span class="text-xs text-info">
           <span v-if="loadingStats">Loading...</span>
-          <span @click.stop="onShowDiff" class="cursor-pointer" v-if="stats">
+          <span @click.stop="onShowDiff" class="cursor-pointer" v-if="stats && !editMode">
             <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
             <i class="fa-solid fa-code-compare" v-else></i>
             {{ stats }}
@@ -58,7 +79,11 @@ import Collapsible from './Collapsible.vue';
       </div>
     </template>
 
-    <!-- Default slot: only the code area collapses -->
+    <template #actions>
+
+    </template>
+
+    <!-- Default slot: collapsible code area -->
     <div class="flex flex-col gap-2 p-2">
       <!-- Run command button -->
       <div @click="runCommand" class="cursor-pointer" v-if="isCommand">
@@ -67,17 +92,69 @@ import Collapsible from './Collapsible.vue';
 
       <!-- Code display area -->
       <div class="view-code" :style="{ zoom }">
-        <DiffViewer :file="file" :orgContent="orgContent" :newContent="code" :language="language"
-          :diff="diff" v-if="showDiff" />
-        <VueCodeHighlighter :code="code" :lang="fileLanguage" :title="fileName"
-          v-if="code && !edit && !showDiff" />
-        <Editor v-model="edit" :language="fileLanguage" v-if="edit" />
+
+        <!-- Monaco Diff viewer: file diff from server -->
+        <DiffViewer
+          :file="file"
+          :orgContent="orgContent"
+          :newContent="code"
+          :language="language"
+          :diff="diff"
+          v-if="showDiff && !editMode"
+        />
+
+        <!-- Monaco Diff viewer: editing preview (original vs edited) -->
+        <Editor
+          :diff="true"
+          :originalCode="code"
+          v-model="editContent"
+          :language="fileLanguage"
+          @update:modelValue="onEditorChange"
+          v-if="editMode && showMonacoDiff"
+        />
+
+        <!-- Monaco editor: edit mode -->
+        <Editor
+          v-model="editContent"
+          :language="fileLanguage"
+          @update:modelValue="onEditorChange"
+          v-if="editMode && !showMonacoDiff"
+        />
+
+        <!-- Syntax highlighted read-only view -->
+        <VueCodeHighlighter
+          :code="code"
+          :lang="fileLanguage"
+          :title="fileName"
+          v-if="code && !editMode && !showDiff"
+        />
       </div>
 
       <!-- Footer actions -->
-      <div class="flex justify-end gap-2">
+      <div class="flex justify-end gap-2" v-if="editMode">
+        <button class="btn btn-sm btn-outline" @click="cancelEdit">
+          <i class="fa-solid fa-xmark"></i> Cancel
+        </button>
+        <!-- Apply to message: updates the chat message document -->
+        <button class="btn btn-sm btn-warning" @click="applyMessageChange">
+          <i class="fa-solid fa-pen-to-square"></i> Apply
+        </button>
+      </div>
+      <div class="flex justify-end gap-2" v-else>
+        
+        <!-- Save to file: only writes to disk, always visible when file is known -->
+        <button class="btn btn-sm btn-success btn-outline"
+          @click.stop="saveToFile"
+          v-if="file"
+          title="Save to file">
+          <i class="fa-solid fa-floppy-disk"></i> Save
+        </button>
+      </div>
+
+
+      <div class="flex justify-end gap-2" v-if="!editMode">
         <button class="btn btn-sm btn-warning" @click="applyPatch" v-if="isPatch">
-          Apply
+          Apply patch
         </button>
       </div>
     </div>
@@ -87,16 +164,23 @@ import Collapsible from './Collapsible.vue';
 <script>
 export default {
   props: ['chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished'],
+  emits: ['message-change', 'save-file', 'add-file', 'open-file', 'sub-task'],
   data() {
     return {
       showDiff: false,
       orgContent: null,
       diff: this.fileDiff,
       zoom: 1,
-      edit: null,
+      // editMode: user is editing the code block as a document
+      editMode: false,
+      // editContent: mutable copy while editing; code prop stays untouched
+      editContent: null,
+      // showMonacoDiff: toggle diff preview vs plain editor while in edit mode
+      showMonacoDiff: false,
+      // tracks whether editContent diverges from the last saved-to-file version
+      hasUnsavedFileChanges: false,
       loadingStats: false,
       stats: null,
-      // open by default, collapsed in vibe mode
       showCode: true,
       prevScrollTop: 0
     }
@@ -120,9 +204,6 @@ export default {
       }
       return this.language
     },
-    canSave() {
-      return this.edit || this.file
-    },
     $api() {
       return (this.project?.$api || this.$storex.api)
     }
@@ -133,7 +214,8 @@ export default {
         await this.loadDiffInfo()
       }
       if (this.chat?.mode === 'vibe') {
-        this.saveFile()
+        // In vibe mode auto-save to file when generation completes
+        this.saveToFile()
       }
     },
     code() {
@@ -144,7 +226,6 @@ export default {
     }
   },
   mounted() {
-    // collapse code by default in vibe mode
     if (this.chat?.mode === 'vibe') {
       this.showCode = false
     }
@@ -158,6 +239,7 @@ export default {
     applyPatch() {
       this.$projects.applyPatch({ patch: this.code })
     },
+
     async onShowDiff() {
       if (!this.diff) {
         await this.loadDiffInfo()
@@ -165,6 +247,7 @@ export default {
       this.orgContent = await this.$api.files.read(this.file)
       this.showDiff = !this.showDiff
     },
+
     async loadDiffInfo() {
       try {
         this.loadingStats = true
@@ -180,29 +263,68 @@ export default {
         this.loadingStats = false
       }
     },
-    saveFile() {
-      if (this.edit) {
-        this.$emit('edit-message', { orgContent: this.code, newContent: this.edit })
-        this.edit = null
-      } else {
-        this.$emit('save-file', { file: this.file, content: this.code })
+
+    toggleMonacoDiff() {
+      this.showMonacoDiff = !this.showMonacoDiff
+    },
+
+    onEdit() {
+      if (this.editMode) {
+        this.cancelEdit()
+        return
+      }
+      this.editContent = this.code
+      this.editMode = true
+      this.showDiff = false
+      this.hasUnsavedFileChanges = false
+    },
+
+    cancelEdit() {
+      this.editMode = false
+      this.editContent = null
+      this.showMonacoDiff = false
+    },
+
+    // Called on every editor keystroke; marks file as having unsaved changes
+    onEditorChange(value) {
+      this.editContent = value
+      this.hasUnsavedFileChanges = true
+    },
+
+    // Applies the edited content back to the chat message (document update)
+    // Does NOT touch the file on disk
+    applyMessageChange() {
+      this.$emit('message-change', { orgContent: this.code, newContent: this.editContent })
+      this.hasUnsavedFileChanges = true
+      this.cancelEdit()
+    },
+
+    // Writes the current code to disk; uses editContent if editing, otherwise code prop
+    saveToFile() {
+      const content = this.editMode ? this.editContent : this.code
+      this.$emit('save-file', { file: this.file, content })
+      this.hasUnsavedFileChanges = false
+      if (this.editMode) {
+        this.cancelEdit()
       }
     },
+
     runCommand() {
       this.$storex.api.apps.runScript(this.code)
     },
+
     zoomOut() {
-      this.zoom -= .1
+      this.zoom -= 0.1
     },
+
     zoomIn() {
-      this.zoom += .1
+      this.zoom += 0.1
     },
+
     onCopy() {
       this.$ui.copyTextToClipboard(this.code)
     },
-    onEdit() {
-      this.edit = !this.edit ? this.code : null
-    },
+
     createSubTask() {
       const content = [
         "```" + this.fileLanguage + " " + this.file,
@@ -211,6 +333,7 @@ export default {
       ].join("\n")
       this.$emit('sub-task', { file: this.file, content })
     },
+
     saveScrollPosition() {
       const viewCode = this.$el?.querySelector('.view-code')
       if (viewCode) this.prevScrollTop = viewCode.scrollTop
