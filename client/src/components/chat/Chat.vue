@@ -649,7 +649,7 @@ export default {
       if (chat) {
         chat.messages.push({ user: this.$user.username, role: "user", content: description })
         chat.profiles = profiles.map(p => p.name)
-        await this.$projects.saveChatInfo(chat)
+        await this.$chats.saveChatInfo(chat)
         await this.$storex.projects.chatWihProject(chat)
       } else {
         this.createSubTask({ title, description, files, profiles, mode, column })

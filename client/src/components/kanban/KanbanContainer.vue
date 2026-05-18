@@ -159,7 +159,7 @@ export default {
 
     async moveChatsToColumn({ chats, column }) {
       await Promise.all(
-        chats.map(chat => this.$projects.saveChatInfo({ ...chat, column }))
+        chats.map(chat => this.$chats.saveChatInfo({ ...chat, column }))
       )
     }
   }

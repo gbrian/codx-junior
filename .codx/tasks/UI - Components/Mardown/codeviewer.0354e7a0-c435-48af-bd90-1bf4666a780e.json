@@ -1,0 +1,114 @@
+{
+  "id": "0354e7a0-c435-48af-bd90-1bf4666a780e",
+  "doc_id": null,
+  "project_id": "7f19432b-5b9e-4f0d-b317-166f8c106650",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [
+    "/home/codx-junior-projects/codx-junior/client/src/components/Collapsible.vue",
+    "/home/codx-junior-projects/codx-junior/client/src/components/CodeViewer.vue"
+  ],
+  "check_lists": [],
+  "profiles": [
+    "daisyui_components",
+    "project",
+    "VueDeveloper"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "codeViewer",
+  "pinned": false,
+  "description": "## Summary\n\n1. The project contains a Vue-based UI with components like `CodeViewer`, `PRFile`, `PRView`, and a newly developed `Collapsible` component built with a controlled/uncontrolled open state pattern using `v-model` and `defaultOpen` prop.\n\n2. The `Collapsible` component exposes named slots (`#icon`, `#title`, `#summary`, `#actions`) for flexible header composition, and a default slot for the collapsible body content.\n\n3. The task was to replace the existing DaisyUI `collapse collapse-arrow` native HTML structure inside `CodeViewer` with the new reusable `Collapsible` component.\n\n4. The replacement involved importing `Collapsible`, mapping the old collapse header elements to the appropriate named slots, and passing `showCode` as `:default-open` to preserve the existing vibe-mode collapsed behavior.\n\n5. Minor defensive improvements were also applied, such as null-guarding `.querySelector('.view-code')` calls since the element is now rendered inside a child component's slot.",
+  "messages": [
+    {
+      "doc_id": "c74e5fb3-fbea-4008-896f-e5e887f6d913",
+      "role": "user",
+      "task_item": "",
+      "content": "The CodeViewer component has a collape option to show or hide the code and keep a header.\nWe have developed a new Collapsible component in components folder. replace existing collapsible in CodeViewer with the new one",
+      "think": "",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-15 14:48:45.884539",
+      "updated_at": "2026-05-15 14:48:45.884567",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "time_taken": 49.18971562385559,
+        "first_chunk_time_taken": 0.18519115447998047,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "ced69a5a-1f6e-406e-a60d-4b06b46a9201",
+      "role": "assistant",
+      "task_item": "",
+      "content": "Here's the updated `CodeViewer.vue` with the existing collapse replaced by the new `Collapsible` component:\n\n```vue src/components/CodeViewer.vue\n<script setup>\nimport { VueCodeHighlighter } from 'vue-code-highlighter'\nimport 'vue-code-highlighter/dist/style.css'\nimport hljs from 'highlight.js';\nimport DiffViewer from './DiffViewer.vue';\nimport Editor from './monaco/Editor.vue';\nimport Collapsible from './Collapsible.vue';\n</script>\n\n<template>\n  <Collapsible :default-open=\"showCode\">\n    <!-- Icon slot: streaming/done indicator -->\n    <template #icon>\n      <i class=\"fa-solid fa-check-double text-success\" v-if=\"finished\"></i>\n      <span class=\"loading loading-spinner loading-xs\" v-else-if=\"isStreaming\"></span>\n      <i class=\"fa-solid fa-code text-xs opacity-60\" v-else></i>\n    </template>\n\n    <!-- Title slot -->\n    <template #title>\n      <span class=\"max-w-28 truncate text-sm font-medium tooltip\" :data-tip=\"fileName\" dir=\"rtl\">\n        {{ fileName || 'Code' }}\n      </span>\n    </template>\n\n    <!-- Summary slot: shown when collapsed -->\n    <template #summary>\n      <span class=\"text-xs text-info\" v-if=\"stats && !showCode\">\n        <i class=\"fa-solid fa-code-compare\"></i> {{ stats }}\n      </span>\n    </template>\n\n    <!-- Default slot: collapsible body content -->\n    <div class=\"flex flex-col gap-2 p-2\">\n      <!-- Toolbar -->\n      <div class=\"flex gap-1 items-center\">\n        <select class=\"hidden select select-sm select-bordered\"\n          @change=\"$emit('link-file', $event.target.value)\" v-if=\"files\">\n          <option>--</option>\n          <option :value=\"file_path\" v-for=\"file_path in files\" :key=\"file_path\"\n            :selected=\"file_path === file\">\n            {{ file_path.split(\"/\").reverse()[0] }}\n          </option>\n        </select>\n\n        <div class=\"underline text-link flex gap-2 items-center cursor-pointer\" v-if=\"fileName\">\n          <div class=\"hover:text-info\" @click=\"$emit('add-file', file)\">\n            <i class=\"fa-solid fa-file-arrow-up\"></i>\n          </div>\n          <div class=\"hover:text-info\" @click=\"$emit('open-file', file)\" :title=\"file\">\n            {{ fileName }}\n          </div>\n        </div>\n\n        <div class=\"flex gap-2\" v-if=\"finished\">\n          <div class=\"hover:text-info cursor-pointer\" @click=\"zoomOut\">\n            <i class=\"fa-solid fa-magnifying-glass-minus\"></i>\n          </div>\n          <div class=\"hover:text-info cursor-pointer\" @click=\"zoomIn\">\n            <i class=\"fa-solid fa-magnifying-glass-plus\"></i>\n          </div>\n          <div class=\"hover:text-info cursor-pointer\" @click=\"onCopy\">\n            <i class=\"fa-solid fa-copy\"></i>\n          </div>\n          <div class=\"hover:text-info cursor-pointer\" :class=\"edit && 'text-warning'\" @click=\"onEdit\">\n            <i class=\"fa-solid fa-edit\"></i>\n          </div>\n          <div class=\"hover:text-info cursor-pointer\" @click=\"saveFile\" v-if=\"canSave\">\n            <i class=\"fa-solid fa-floppy-disk\"></i>\n          </div>\n          <div class=\"hover:text-info cursor-pointer\" @click=\"createSubTask\">\n            <i class=\"fa-brands fa-trello\"></i>\n          </div>\n          <div class=\"grow\"></div>\n          <span class=\"text-xs text-info\">\n            <span v-if=\"loadingStats\">Loading...</span>\n            <span @click=\"onShowDiff\" class=\"cursor-pointer\" v-if=\"stats\">\n              <i class=\"fa-solid fa-file-lines\" v-if=\"showDiff\"></i>\n              <i class=\"fa-solid fa-code-compare\" v-else></i>\n              {{ stats }}\n            </span>\n          </span>\n        </div>\n      </div>\n\n      <!-- Run command button -->\n      <div @click=\"runCommand\" class=\"cursor-pointer\" v-if=\"isCommand\">\n        <i class=\"fa-solid fa-terminal\"></i>\n      </div>\n\n      <!-- Code display area -->\n      <div class=\"view-code\" :style=\"{ zoom }\">\n        <DiffViewer :file=\"file\" :orgContent=\"orgContent\" :newContent=\"code\" :language=\"language\"\n          :diff=\"diff\" v-if=\"showDiff\" />\n        <VueCodeHighlighter :code=\"code\" :lang=\"fileLanguage\" :title=\"fileName\"\n          v-if=\"code && !edit && !showDiff\" />\n        <Editor v-model=\"edit\" :language=\"fileLanguage\" v-if=\"edit\" />\n      </div>\n\n      <!-- Footer actions -->\n      <div class=\"flex justify-end gap-2\">\n        <button class=\"btn btn-sm btn-warning\" @click=\"applyPatch\" v-if=\"isPatch\">\n          Apply\n        </button>\n      </div>\n    </div>\n  </Collapsible>\n</template>\n\n<script>\nexport default {\n  props: ['chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished'],\n  data() {\n    return {\n      showDiff: false,\n      orgContent: null,\n      diff: this.fileDiff,\n      zoom: 1,\n      edit: null,\n      loadingStats: false,\n      stats: null,\n      // Start collapsed in vibe mode, open otherwise\n      showCode: true,\n      prevScrollTop: 0\n    }\n  },\n  computed: {\n    isStreaming() {\n      return !this.finished && this.code\n    },\n    isPatch() {\n      return this.language === 'diff'\n    },\n    fileName() {\n      return this.file?.split(\"/\").reverse()[0]\n    },\n    isCommand() {\n      return this.language === \"bash\"\n    },\n    fileLanguage() {\n      if (!hljs.getLanguage(this.language)) {\n        return \"markdown\"\n      }\n      return this.language\n    },\n    canSave() {\n      return this.edit || this.file\n    },\n    $api() {\n      return (this.project?.$api || this.$storex.api)\n    }\n  },\n  watch: {\n    async finished() {\n      if (this.finished) {\n        await this.loadDiffInfo()\n      }\n      if (this.chat?.mode === 'vibe') {\n        this.saveFile()\n      }\n    },\n    code() {\n      this.$nextTick(() => {\n        const viewCode = this.$el.querySelector('.view-code')\n        if (viewCode) viewCode.scrollTop = this.prevScrollTop\n      })\n    }\n  },\n  mounted() {\n    // Collapse by default in vibe mode\n    if (this.chat?.mode === 'vibe') {\n      this.showCode = false\n    }\n    if (this.finished) {\n      this.loadDiffInfo()\n    }\n    const viewCode = this.$el.querySelector('.view-code')\n    if (viewCode) viewCode.addEventListener('scroll', this.saveScrollPosition)\n  },\n  methods: {\n    applyPatch() {\n      this.$projects.applyPatch({ patch: this.code })\n    },\n    async onShowDiff() {\n      if (!this.diff) {\n        await this.loadDiffInfo()\n      }\n      this.orgContent = await this.$api.files.read(this.file)\n      this.showDiff = !this.showDiff\n    },\n    async loadDiffInfo() {\n      try {\n        this.loadingStats = true\n        if (this.file) {\n          const { diff, stats } = await this.$api.files.diff({ path: this.file, content: this.code })\n          this.diff = diff\n          this.stats = stats\n          if (!stats && diff) {\n            this.stats = 'File changes'\n          }\n        }\n      } finally {\n        this.loadingStats = false\n      }\n    },\n    saveFile() {\n      if (this.edit) {\n        this.$emit('edit-message', { orgContent: this.code, newContent: this.edit })\n        this.edit = null\n      } else {\n        this.$emit('save-file', { file: this.file, content: this.code })\n      }\n    },\n    runCommand() {\n      this.$storex.api.apps.runScript(this.code)\n    },\n    zoomOut() {\n      this.zoom -= .1\n    },\n    zoomIn() {\n      this.zoom += .1\n    },\n    onCopy() {\n      this.$ui.copyTextToClipboard(this.code)\n    },\n    onEdit() {\n      this.edit = !this.edit ? this.code : null\n    },\n    createSubTask() {\n      const content = [\n        \"```\" + this.fileLanguage + \" \" + this.file,\n        this.code,\n        \"```\"\n      ].join(\"\\n\")\n      this.$emit('sub-task', { file: this.file, content })\n    },\n    saveScrollPosition() {\n      const viewCode = this.$el.querySelector('.view-code')\n      if (viewCode) this.prevScrollTop = viewCode.scrollTop\n    }\n  }\n}\n</script>\n\n<style>\n.header-code-highlight {\n  display: none !important;\n}\n</style>\n```\n\n### Key changes summary:\n\n1. **Imported `Collapsible`** in `<script setup>`\n2. **Replaced** the DaisyUI `collapse collapse-arrow` `<div>` wrapper with `<Collapsible>`\n3. **Mapped slots** from the old structure to the new `Collapsible` API:\n   - `#icon` \u2192 streaming spinner / check icon\n   - `#title` \u2192 file name with tooltip\n   - `#summary` \u2192 stats badge (visible when collapsed)\n   - **default slot** \u2192 the full toolbar + code viewer body\n4. **Passed `showCode`** as `:default-open` to `Collapsible` so vibe mode starts collapsed\n5. **Guarded** `.querySelector('.view-code')` with null checks since it's now nested deeper in the component tree",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-15 14:48:45.884539",
+      "updated_at": "2026-05-15 14:48:45.884567",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/github_issues.html",
+        "/home/codx-junior-projects/codx-junior/client/src/components/filebrowser/FileFinder.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/api/connection.js",
+        "/home/codx-junior-projects/codx-junior/client/src/components/kanban/NewEditBoardModal.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/repo/PRFile.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/layout/VerticalSplitter.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/components/repo/PRView.vue"
+      ],
+      "meta_data": {
+        "time_taken": 49.18971562385559,
+        "first_chunk_time_taken": 0.18519115447998047,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [
+        "VueDeveloper",
+        "project",
+        "daisyui_components"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-05-15 14:48:45.887383",
+  "updated_at": "2026-05-18T05:16:01.582380",
+  "mode": "vibe",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "UI - Components",
+  "column": "Mardown",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/UI - Components/Mardown/codeviewer.0354e7a0-c435-48af-bd90-1bf4666a780e.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}

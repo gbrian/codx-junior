@@ -158,7 +158,7 @@ export default {
       this.isSettingsModalOpen = false
     },
     saveTask() {
-      this.$projects.saveChatInfo(this.task)
+      this.$chats.saveChatInfo(this.task)
     }
   }
 }

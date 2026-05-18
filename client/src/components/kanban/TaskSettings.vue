@@ -134,7 +134,7 @@ export default {
   },
   methods: {
     saveChanges() {
-      this.$projects.saveChatInfo(this.taskData)
+      this.$chats.saveChatInfo(this.taskData)
       this.$emit('close')
     },
     deleteTask() {

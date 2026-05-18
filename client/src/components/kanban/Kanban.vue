@@ -77,7 +77,7 @@ import ChatHistory from './ChatHistory.vue'
               <i class="fa-brands fa-trello"></i>
             </button>
             <button class="btn btn-sm tooltip tooltip-bottom"
-              data-tip="Add column" @click="showColumnModal = true">
+              data-tip="Add column" @click="openAddColumnModal">
               <i class="fa-solid fa-table-columns"></i>
             </button>
             <div class="dropdown dropdown-left">
@@ -85,7 +85,7 @@ import ChatHistory from './ChatHistory.vue'
                 <i class="fa-solid fa-ellipsis-vertical"></i>
               </div>
               <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
-                <li @click="showColumnModal = true"><a><i class="fa-solid fa-plus"></i> Column</a></li>
+                <li @click="openAddColumnModal"><a><i class="fa-solid fa-plus"></i> Column</a></li>
                 <li @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> Board</a></li>
                 <li @click="showActivity = !showActivity"><a><i class="fa-solid fa-clock-rotate-left"></i> Activity</a></li>
                 <li @click="onEditBoard()"><a><i class="fas fa-cogs"></i> Settings</a></li>
@@ -126,6 +126,9 @@ import ChatHistory from './ChatHistory.vue'
             :lastUpdatedTaskId="lastUpdatedTask.id"
             @open-task="openChat"
             @new-task="({ mode }) => newTask(mode)"
+            @new-column="openAddColumnModal"
+            @edit-column="openEditColumnModal"
+            @move-task="onMoveTask"
           />
         </div>
       </div>
@@ -156,7 +159,7 @@ import ChatHistory from './ChatHistory.vue'
 
       <!-- Add/Edit Column modal -->
       <modal close="true" @close="showColumnModal = false" v-if="showColumnModal">
-        <h2 class="font-bold text-lg">Add/Edit Column</h2>
+        <h2 class="font-bold text-lg">{{ selectedColumn ? 'Edit Column' : 'Add Column' }}</h2>
         <div class="flex gap-1 items-center">
           <input type="text" v-model="columnTitle" placeholder="Enter column name" class="grow input input-bordered w-full" />
         </div>
@@ -167,7 +170,7 @@ import ChatHistory from './ChatHistory.vue'
         <span v-if="editColumnError" class="text-error">{{ editColumnError }}</span>
         <div class="modal-action flex flex-col">
           <div class="flex gap-2 w-full">
-            <button class="btn btn-error" @click="deleteColumn">
+            <button class="btn btn-error" @click="deleteColumn" v-if="selectedColumn">
               <span v-if="confirmDeleteColumn">Confirm delete?</span>
               <span v-else>Delete</span>
             </button>
@@ -336,15 +339,11 @@ export default {
         !!this.kanban.boards[this.newBoardName]
       )
     },
-    // Projects to show in history: active project + all projects that have chats on this board
     historyProjects() {
       const allProjects = this.$projects.allProjects || []
       if (!allProjects.length) return []
-      // Include active project plus any project referenced by current board chats
       const boardProjectIds = new Set(
-        this.boardChats
-          .map(c => c.project_id)
-          .filter(Boolean)
+        this.boardChats.map(c => c.project_id).filter(Boolean)
       )
       return allProjects.filter(p =>
         p.$api &&
@@ -372,7 +371,6 @@ export default {
     kanban() {
       this.buildViewColumns()
     },
-    // Auto-open collapsible when child boards appear
     childBoards(newVal, oldVal) {
       if (newVal?.length && !oldVal?.length) {
         this.showChildrenBoards = true
@@ -480,7 +478,7 @@ export default {
           await Promise.all(
             viewCol.tasks
               .filter(t => t.column !== viewCol.title)
-              .map(task => this.$projects.saveChatInfo({ ...task, column: viewCol.title }))
+              .map(task => this.$chats.saveChatInfo({ ...task, column: viewCol.title }))
           )
           return {
             id: storeCol.id || viewCol.id,
@@ -573,6 +571,29 @@ export default {
       this.$projects.createSubtasks(event)
     },
 
+    // Opens a blank add-column modal
+    openAddColumnModal() {
+      this.selectedColumn = null
+      this.columnTitle = ''
+      this.columnColor = '#000000'
+      this.columnProject = null
+      this.confirmDeleteColumn = false
+      this.editColumnError = null
+      this.showColumnModal = true
+    },
+
+    // Opens edit modal pre-filled with existing column data by title
+    openEditColumnModal(columnTitle) {
+      const storeCol = this.activeKanbanBoard?.columns?.find(c => c.title === columnTitle) || null
+      this.selectedColumn = storeCol
+      this.columnTitle = columnTitle
+      this.columnColor = storeCol?.color || '#000000'
+      this.columnProject = this.$projects.allProjectsById?.[storeCol?.project_id] || null
+      this.confirmDeleteColumn = false
+      this.editColumnError = null
+      this.showColumnModal = true
+    },
+
     async addOrUpdateColumn() {
       this.columnTitle = this.columnTitle.trim()
       if (!this.columnTitle) return this.resetColumnModal()
@@ -638,6 +659,14 @@ export default {
       this.columnProject = null
     },
 
+    // Moves a task to a new column via drag-and-drop
+    async onMoveTask({ taskId, toColumn }) {
+      const task = this.visibleTasks.find(t => t.id === taskId)
+      if (!task) return
+      await this.$chats.saveChatInfo({ ...task, column: toColumn })
+      this.buildViewColumns()
+    },
+
     async addOrUpdateBoard() {
       const oldName = this.originalBoardName
       const boardName = this.newBoardName.trim()
@@ -655,7 +684,7 @@ export default {
         await Promise.all(
           this.chats
             .filter(c => c.board === oldName)
-            .map(c => this.$projects.saveChatInfo({ ...c, board: boardName }))
+            .map(c => this.$chats.saveChatInfo({ ...c, board: boardName }))
         )
         delete this.kanban.boards[oldName]
         Object.values(this.kanban.boards)
@@ -687,13 +716,9 @@ export default {
       this.originalBoardName = null
     },
 
+    // Legacy: delegate to openEditColumnModal
     openColumnPropertiesModal(column) {
-      this.selectedColumn = this.activeKanbanBoard?.columns?.find(c => c.id === column.id) || null
-      this.columnTitle = column.title
-      this.columnColor = column.color || '#000000'
-      this.confirmDeleteColumn = false
-      this.columnProject = this.$project
-      this.showColumnModal = true
+      this.openEditColumnModal(column.title)
     },
 
     async saveKanban() {
@@ -740,7 +765,7 @@ export default {
 
     async moveChatsToColumn({ chats, column }) {
       await Promise.all(
-        chats.map(chat => this.$projects.saveChatInfo({ ...chat, column }))
+        chats.map(chat => this.$chats.saveChatInfo({ ...chat, column }))
       )
       this.buildViewColumns()
     }
