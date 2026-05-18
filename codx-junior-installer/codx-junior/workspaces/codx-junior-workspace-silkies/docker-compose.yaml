@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - USER_ID=${USER_ID:-1001}
+        - GROUP_ID=${GROUP_ID:-1001}
     image: codxjunior/codx-junior-selkies-workspace:latest
     container_name: codx-junior-selkies-workspace
     restart: unless-stopped
