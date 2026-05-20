@@ -2,6 +2,7 @@
 import moment from 'moment'
 import ChatEntry from '../ChatEntry.vue'
 import ProjectIcon from '../ProjectIcon.vue'
+import Document from '../document/Document.vue';
 </script>
 <template>
   <div class="border border-slate-700 hover:border-slate-400 rounded-lg my-2 click group">
@@ -31,7 +32,7 @@ import ProjectIcon from '../ProjectIcon.vue'
         v-if="chat.messages[0]"
         />
         <div v-else>
-          {{ chat.description }}
+          <Document :content="chat.description" />
         </div>
       <div class="absolute top-0 left-0 right-0 bottom-0 z-20"></div>
     </div>

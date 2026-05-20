@@ -35,7 +35,6 @@ export const state = () => ({
   notifications: [],
   noVNCSettings: {
     resize: 'remote',
-
   },
   theme: 'dark',
   activeTab: 'home',
@@ -136,7 +135,7 @@ export const mutations = mutationTree(state, {
       type
     }
     state.notifications.push(notif)
-    setTimeout(() => $storex.ui.removeNotification(notif) , 30000)
+    setTimeout(() => $storex.ui.removeNotification(notif), 30000)
   },
   removeNotification(state, notification) {
     state.notifications.splice(
@@ -162,7 +161,24 @@ export const mutations = mutationTree(state, {
       [app.tabId]: app
     }
   },
+  // Update params of an existing app without creating a new tab
+  updateAppParams(state, { tabId, params }) {
+    const app = state.openApps[tabId]
+    if (!app) return
+    // Replace entire openApps to trigger Vue reactivity
+    state.openApps = {
+      ...state.openApps,
+      [tabId]: {
+        ...app,
+        params: {
+          ...app.params,
+          ...params
+        }
+      }
+    }
+  },
   closeApp(state, app) {
+    if (!app) return
     delete state.openApps[app.tabId]
     if (state.activeApp?.tabId === app.tabId) {
       state.activeApp = state.openApps[Object.keys(state.openApps).reverse()[0]]
@@ -206,17 +222,13 @@ export const actions = actionTree(
     },
     saveState({ state }) {
       if (!state.uiReady) {
-        // Ignore this calls as they can come from initialization
         return
       }
       const data = { 
         ...state, 
         uiReady: false,
         activeApp: null,
-        openApps: Object.keys(state.openApps),
-        activeProject: $storex.projects.activeProject?.project_id,
-        activeChat:  $storex.projects.activeChat?.id,
-        openApps: {} // Stored in layouts
+        openApps: {}  // Stored in layouts
       }
       localStorage.setItem('uiState', JSON.stringify(data))
     },
@@ -277,7 +289,7 @@ export const actions = actionTree(
     },
     async readScreenResolutions ({ state }) {
       await API.screen.getScreenResolution()
-      state.resolution = API.screen.display?.resolution,
+      state.resolution = API.screen.display?.resolution
       state.resolutions = API.screen.display?.resolutions
     },
     copyTextToClipboard(_, text) {
@@ -293,8 +305,8 @@ export const actions = actionTree(
     async readClipboardText(_, itemType = "text/plain") {
       const items = await navigator.clipboard.read()
       const getText = async item => {
-        const blob = await item.getType(itemType);
-        return await blob.text();
+        const blob = await item.getType(itemType)
+        return await blob.text()
       }
       const allTexts = await Promise.all(
                         items.filter(i => i.types.includes(itemType))
@@ -302,15 +314,10 @@ export const actions = actionTree(
       return allTexts.reduce((a, b) => a + b, "")
     },
     async shareScreen() {
-      // Note: This requires a user gesture (like a button click)
       const stream = await navigator.mediaDevices.getDisplayMedia({
         preferCurrentTab: true,
-      });
-      // Crop the stream to a specific element using CropTarget (if supported)
-      const [track] = stream.getVideoTracks();
-      // const cropTarget = await CropTarget.fromElement(document.querySelector(`.app-${encodeURIComponent(app.name)}`));
-      // await track.cropTo(cropTarget);
-      // this.videoThumb = track;
+      })
+      const [track] = stream.getVideoTracks()
     },
     openNewWindowAppPanel(_, app) {
       const { origin } = window.location

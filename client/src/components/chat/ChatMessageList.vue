@@ -44,6 +44,7 @@ import TaskCard from '../kanban/TaskCard.vue'
       @thread="$emit('thread', $event)"
       @sub-task="$emit('sub-task', $event)"
       @message-changed="$emit('message-changed', $event)"
+      @run-agents="$emit('run-agents', $event)"
     />
 
     <!-- Scroll anchor -->
@@ -96,7 +97,8 @@ export default {
     'thread',
     'sub-task',
     'set-active-chat',
-    'message-changed'
+    'message-changed',
+    'run-agents'
   ],
   computed: {
     isVibe() {

@@ -173,8 +173,35 @@ import Collapsible from '../Collapsible.vue'
             <div class="badge badge-primary badge-outline">{{ groupKey }}</div>
             <div class="text-xs opacity-50">{{ group.length }} tasks</div>
             <div class="grow border-b border-base-300"></div>
-            <!-- Column actions: edit + new column -->
+
+            <!-- Column actions: new task + edit -->
             <template v-if="groupBy === 'column'">
+              <!-- New task dropdown for this column -->
+              <div class="dropdown dropdown-end" @click.stop>
+                <div
+                  tabindex="0"
+                  role="button"
+                  class="btn btn-xs btn-ghost opacity-60 hover:opacity-100 hover:text-primary"
+                  title="Add task to this column"
+                >
+                  <i class="fa-solid fa-plus text-xs"></i>
+                </div>
+                <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 w-44 p-2 shadow">
+                  <li @click="emitNewTaskForColumn(groupKey, 'chat')">
+                    <a><ChatIcon mode="chat" /> Chat</a>
+                  </li>
+                  <li @click="emitNewTaskForColumn(groupKey, 'task')">
+                    <a><ChatIcon mode="task" /> Document</a>
+                  </li>
+                  <li @click="emitNewTaskForColumn(groupKey, 'topic')">
+                    <a><ChatIcon mode="topic" /> Discussion</a>
+                  </li>
+                  <li @click="emitNewTaskForColumn(groupKey, 'prview')">
+                    <a><ChatIcon mode="prview" /> PR Review</a>
+                  </li>
+                </ul>
+              </div>
+
               <button
                 class="btn btn-xs btn-ghost opacity-60 hover:opacity-100"
                 @click.stop="$emit('edit-column', groupKey)"
@@ -349,12 +376,10 @@ export default {
           acc[key].push(task)
           return acc
         }, {})
-        // Sort keys by column order
         const ordered = {}
         columnOrder.forEach(title => {
           ordered[title] = grouped[title] || []
         })
-        // Append any extra keys not in columnOrder
         Object.keys(grouped).forEach(k => {
           if (!ordered[k]) ordered[k] = grouped[k]
         })
@@ -413,14 +438,18 @@ export default {
     sortTasks(tasks) {
       if (this.sortBy === 'none') return tasks
       return [...tasks].sort((a, b) => {
-        if (this
-        .sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '')
+        if (this.sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '')
         if (this.sortBy === 'name_desc') return (b.name || '').localeCompare(a.name || '')
         if (this.sortBy === 'date_asc') return new Date(a.updated_at || 0) - new Date(b.updated_at || 0)
         if (this.sortBy === 'date_desc') return new Date(b.updated_at || 0) - new Date(a.updated_at || 0)
         if (this.sortBy === 'pinned') return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
         return 0
       })
+    },
+
+    // Emit new-task with column context resolved from the column title
+    emitNewTaskForColumn(column, mode) {
+      this.$emit('new-task', { column, mode })
     },
 
     // --- Drag & Drop ---

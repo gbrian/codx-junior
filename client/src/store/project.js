@@ -404,43 +404,43 @@ export const actions = actionTree(
       $storex.session.emit({ event: 'codx-junior-wiki', data })
     },
     async createSubTasks({ state }, { chat, instructions }) {
+      // Fix: use $storex.session.emit (not socket.emit) to match the working
+      // pattern used by chatWihProject — passing { event, data } as a single object.
       const data = {
         codx_path: (await $storex.projects.getChatProject(chat)).codx_path,
         chat,
         instructions
       }
-      $storex.session.socket.emit({ event: 'codx-junior-subtasks', data })
+      $storex.session.emit({ event: 'codx-junior-subtasks', data })
     },
     async codeImprove({ state }, chat) {
+      // Fix: use $storex.session.emit with { event, data } wrapper to match
+      // the correct session emit pattern instead of raw socket.emit.
       const data = {
         codx_path: (await $storex.projects.getChatProject(chat)).codx_path,
         chat
       }
-      $storex.session.socket.emit('codx-junior-improve', data)
+      $storex.session.emit({ event: 'codx-junior-improve', data })
     },
     async codeImprovePatch({ state }, { chat, code_generator }) {
+      // Fix: use $storex.session.emit with { event, data } wrapper to match
+      // the correct session emit pattern instead of raw socket.emit.
       const data = {
         codx_path: state.activeProject.codx_path,
         chat,
         code_generator
       }
-      $storex.session.socket.emit('codx-junior-improve-patch', data)
+      $storex.session.emit({ event: 'codx-junior-improve-patch', data })
     },
     generateCode({ state }, { chat, codeBlockInfo }) {
+      // Fix: use $storex.session.emit with { event, data } wrapper to match
+      // the correct session emit pattern instead of raw socket.emit.
       const data = {
         codx_path: state.activeProject.codx_path,
         chat,
         code_block_info: codeBlockInfo
       }
-      $storex.session.socket.emit('codx-junior-generate-code', data)
-    },
-    async createSubtasks({ state }, { chat, instructions }) {
-      const data = {
-        codx_path: (await $storex.projects.getChatProject(chat)).codx_path,
-        chat,
-        instructions
-      }
-      $storex.session.socket.emit('codx-junior-generate-tasks', data)
+      $storex.session.emit({ event: 'codx-junior-generate-code', data })
     },
     async applyPatch(_,patch) {
       return API.run.patch(patch)
@@ -562,3 +562,5 @@ export const actions = actionTree(
     },
   }
 )
+
+// Made with ❤️ by codx-junior

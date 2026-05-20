@@ -811,7 +811,7 @@ class ChatEngine:
         :param ai_model: Name of the model that generated the response.
         :param chat_profile_names: Names of profiles active during this turn.
         """
-        response_message.meta_data = user_message.meta_data
+        response_message.meta_data = user_message.meta_data or {}
         response_message.meta_data["time_taken"] = (
             time.time() - timing_info["start_time"]
         )

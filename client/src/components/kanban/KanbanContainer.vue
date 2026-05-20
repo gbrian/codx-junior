@@ -59,7 +59,7 @@ export default {
   },
   computed: {
     project() {
-      return this.$projects.allProjectsById[this.params.params.project_id]
+      return this.$project
     },
     kanban() {
       return this.$projects.kanban || { boards: {} }

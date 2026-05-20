@@ -1,0 +1,101 @@
+{
+  "id": "289c06d7-a0f4-4f60-adb6-949fdbc0ca63",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "project"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "List branch and commits",
+  "pinned": false,
+  "description": "## Summary\n\nThe task involves modifying the `codx-api` Python FastAPI backend to enhance repository branch reading capabilities. The goal is to filter branches and their commits based on a configurable time window (defaulting to 90 days/3 months). A new `GitManager` class was created to encapsulate all Git operations, using `git log --since` for date filtering. The `CODXJuniorSession` was updated with new methods delegating to `GitManager`, and the existing API endpoints (`/api/projects/repo/branches`, `/api/projects/repo/branch/commits`, `/api/projects/repo/changes`) were enhanced to accept an optional `days` query parameter. The result is a clean, tree-structured response of branches with their commits, enabling comparison between branches or commits.",
+  "messages": [
+    {
+      "doc_id": "50eabb7c-c86d-402f-a302-ff553440076e",
+      "role": "user",
+      "task_item": "",
+      "content": "When reading repository branches we must read last 3 months (send by parameter) of commits and return a tree of branches with their commits, the goal is to be able to compare changes between branches or two commits of a branch.\nSearch where the branches are read and modify to return branches modified in the last X days with their commits. I think it's on the engine.py file",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-18 17:27:31.903641",
+      "updated_at": "2026-05-18 17:27:31.903667",
+      "images": [],
+      "files": [],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "2d9b4c05-f25b-4699-9dfa-d5e6a6824b3d",
+      "role": "assistant",
+      "task_item": "",
+      "content": "I'll search for the branch-related code in the engine package and modify it to support filtering by days.\n\nLet me trace the code path:\n1. `app.py` calls `codx_junior_session.get_project_branches()` and `get_project_branch_commits()`\n2. These are in `CODXJuniorSession` which is in `codx/junior/engine/session.py`\n\nLet me implement the changes:\n\n```py codx/junior/engine/git_manager.py\nimport logging\nfrom datetime import datetime, timedelta\nfrom codx.junior.utils.utils import exec_command\n\nlogger = logging.getLogger(__name__)\n\nclass GitManager:\n    \"\"\"\n    Manages Git operations for a project repository.\n    Provides methods to retrieve branches, commits, and diffs.\n    \"\"\"\n\n    def __init__(self, project_path: str):\n        self.project_path = project_path\n\n    def _run_git(self, command: str) -> str:\n        \"\"\"Run a git command in the project path and return stdout.\"\"\"\n        stdout, stderr = exec_command(command, cwd=self.project_path)\n        if stderr:\n            logger.debug(\"Git stderr [%s]: %s\", command, stderr)\n        return stdout\n\n    def get_branches(self, days: int = 90) -> list[dict]:\n        \"\"\"\n        Return all local and remote branches that have commits within the last X days,\n        together with their commits in that period.\n\n        Args:\n            days (int): Number of days to look back for commits. Defaults to 90 (3 months).\n\n        Returns:\n            list[dict]: List of branch objects with their recent commits.\n                Each branch object:\n                {\n                    \"name\": str,\n                    \"is_remote\": bool,\n                    \"last_commit_date\": str (ISO 8601),\n                    \"commits\": [\n                        {\n                            \"hash\": str,\n                            \"author\": str,\n                            \"date\": str (ISO 8601),\n                            \"message\": str\n                        },\n                        ...\n                    ]\n                }\n        \"\"\"\n        since_date = (datetime.now() - timedelta(days=days)).strftime(\"%Y-%m-%d\")\n\n        # Fetch remotes so remote branches are up to date\n        try:\n            self._run_git(\"git fetch --all --prune\")\n        except Exception as ex:\n            logger.warning(\"Could not fetch remotes: %s\", ex)\n\n        # Get all branches (local + remote), one per line\n        raw = self._run_git(\n            \"git branch -a --format=%(refname:short)\"\n        ).strip()\n\n        if not raw:\n            return []\n\n        all_branch_names = [b.strip() for b in raw.splitlines() if b.strip()]\n\n        # Deduplicate: remote/origin/main and main are the same branch\n        # Keep track of canonical name -> branch info\n        branches = []\n        seen_canonical = set()\n\n        for branch_name in all_branch_names:\n            is_remote = branch_name.startswith(\"remotes/\") or branch_name.startswith(\"origin/\")\n            # Build a canonical name for dedup\n            canonical = branch_name\n            for prefix in (\"remotes/origin/\", \"origin/\", \"remotes/\"):\n                if canonical.startswith(prefix):\n                    canonical = canonical[len(prefix):]\n                    break\n\n            if canonical in seen_canonical:\n                continue\n            seen_canonical.add(canonical)\n\n            commits = self.get_branch_commits(branch_name=branch_name, since_date=since_date)\n            if not commits:\n                # Skip branches with no activity in the period\n                continue\n\n            last_commit_date = commits[0][\"date\"] if commits else None\n\n            branches.append({\n                \"name\": canonical,\n                \"full_ref\": branch_name,\n                \"is_remote\": is_remote,\n                \"last_commit_date\": last_commit_date,\n                \"commits\": commits,\n            })\n\n        # Sort branches by most recent commit first\n        branches.sort(\n            key=lambda b: b[\"last_commit_date\"] or \"\",\n            reverse=True,\n        )\n\n        logger.info(\n            \"get_branches: found %d branches with activity in last %d days\",\n            len(branches),\n            days,\n        )\n        return branches\n\n    def get_branch_commits(self, branch_name: str, since_date: str = None, days: int = None) -> list[dict]:\n        \"\"\"\n        Return commits for a specific branch, optionally filtered by date.\n\n        Args:\n            branch_name (str): Branch name or ref.\n            since_date (str): ISO date string 'YYYY-MM-DD'. If provided, only commits\n                              on or after this date are returned.\n            days (int): Alternative to since_date \u2013 look back X days from today.\n                        Ignored when since_date is provided.\n\n        Returns:\n            list[dict]: List of commit dicts ordered newest first.\n        \"\"\"\n        if since_date is None and days is not None:\n            since_date = (datetime.now() - timedelta(days=days)).strftime(\"%Y-%m-%d\")\n\n        date_filter = f\"--since='{since_date}'\" if since_date else \"\"\n\n        log_command = (\n            f\"git log {date_filter} \"\n            f\"--format=%H|%an|%cI|%s \"\n            f\"{branch_name}\"\n        )\n\n        stdout = self._run_git(log_command).strip()\n        if not stdout:\n            return []\n\n        commits = []\n        for line in stdout.splitlines():\n            line = line.strip()\n            if not line:\n                continue\n            parts = line.split(\"|\", 3)\n            if len(parts) < 4:\n                logger.warning(\"Unexpected git log line: %s\", line)\n                continue\n            commit_hash, author, date, message = parts\n            commits.append({\n                \"hash\": commit_hash,\n                \"author\": author,\n                \"date\": date,\n                \"message\": message,\n            })\n\n        return commits\n\n    def get_repo_changes(self, from_branch: str, to_branch: str) -> dict:\n        \"\"\"\n        Return the diff summary between two branches or two commits.\n\n        Args:\n            from_branch (str): Base branch/commit.\n            to_branch (str): Target branch/commit.\n\n        Returns:\n            dict: {\n                \"diff\": str,          # raw unified diff\n                \"files\": list[str],   # list of changed file paths\n                \"stats\": str          # diffstat output\n            }\n        \"\"\"\n        diff = self._run_git(f\"git diff {from_branch}...{to_branch}\")\n        stats = self._run_git(f\"git diff --stat {from_branch}...{to_branch}\")\n        name_only = self._run_git(f\"git diff --name-only {from_branch}...{to_branch}\")\n        files = [f.strip() for f in name_only.splitlines() if f.strip()]\n\n        return {\n            \"diff\": diff,\n            \"files\": files,\n            \"stats\": stats,\n        }\n```\n\nNow update the session to use this manager and update the API endpoint to accept a `days` parameter:\n\n```py codx/junior/engine/session.py\n# ... existing imports ...\nfrom codx.junior.engine.git_manager import GitManager\n\n# Inside CODXJuniorSession class, replace / add these methods:\n\n    # ------------------------------------------------------------------ #\n    #  Git / Repository helpers                                            #\n    # ------------------------------------------------------------------ #\n\n    def _git_manager(self) -> \"GitManager\":\n        \"\"\"Return a GitManager bound to the current project path.\"\"\"\n        return GitManager(project_path=self.settings.abs_project_path)\n\n    def get_project_branches(self, days: int = 90) -> list:\n        \"\"\"\n        Return all branches that have had commits in the last `days` days,\n        together with those commits.\n\n        Args:\n            days (int): Look-back window in days. Defaults to 90 (\u2248 3 months).\n\n        Returns:\n            list[dict]: Branch objects with commits. See GitManager.get_branches().\n        \"\"\"\n        logger.info(\n            \"get_project_branches: project=%s days=%d\",\n            self.settings.project_name,\n            days,\n        )\n        return self._git_manager().get_branches(days=days)\n\n    def get_project_branch_commits(self, branch: str, days: int = 90) -> list:\n        \"\"\"\n        Return commits for a single branch within the last `days` days.\n\n        Args:\n            branch (str): Branch name.\n            days (int): Look-back window in days. Defaults to 90.\n\n        Returns:\n            list[dict]: Commit objects. See GitManager.get_branch_commits().\n        \"\"\"\n        logger.info(\n            \"get_project_branch_commits: project=%s branch=%s days=%d\",\n            self.settings.project_name,\n            branch,\n            days,\n        )\n        return self._git_manager().get_branch_commits(branch_name=branch, days=days)\n\n    def get_repo_changes(self, from_branch: str, to_branch: str) -> dict:\n        \"\"\"\n        Return the diff between two branches or commits.\n\n        Args:\n            from_branch (str): Base ref.\n            to_branch (str): Target ref.\n\n        Returns:\n            dict: diff, files, stats. See GitManager.get_repo_changes().\n        \"\"\"\n        logger.info(\n            \"get_repo_changes: project=%s %s...%s\",\n            self.settings.project_name,\n            from_branch,\n            to_branch,\n        )\n        return self._git_manager().get_repo_changes(\n            from_branch=from_branch, to_branch=to_branch\n        )\n```\n\nNow update the API endpoints in `app.py` to accept the `days` query parameter:\n\n```py codx/junior/app.py\n# Replace the three repo endpoints with the versions below.\n# Everything else in app.py stays unchanged.\n\n@app.get(\"/api/projects/repo/branches\")\ndef api_find_all_repo_branches(request: Request):\n    \"\"\"\n    Return all branches that have had commits in the last `days` days,\n    together with those commits (newest first).\n\n    Query params:\n        days (int, optional): Look-back window. Defaults to 90 (\u2248 3 months).\n        codx_path (str): Required \u2013 identifies the project.\n    \"\"\"\n    codx_junior_session = request.state.codx_junior_session\n    days_param = request.query_params.get(\"days\", \"90\")\n    try:\n        days = int(days_param)\n    except ValueError:\n        days = 90\n    return codx_junior_session.get_project_branches(days=days)\n\n\n@app.get(\"/api/projects/repo/branch/commits\")\ndef api_find_all_repo_branch_commits(request: Request):\n    \"\"\"\n    Return commits for a single branch within the last `days` days.\n\n    Query params:\n        branch (str): Branch name.\n        days (int, optional): Look-back window. Defaults to 90.\n        codx_path (str): Required \u2013 identifies the project.\n    \"\"\"\n    codx_junior_session = request.state.codx_junior_session\n    branch = request.query_params.get(\"branch\")\n    days_param = request.query_params.get(\"days\", \"90\")\n    try:\n        days = int(days_param)\n    except ValueError:\n        days = 90\n    return codx_junior_session.get_project_branch_commits(branch=branch, days=days)\n\n\n@app.get(\"/api/projects/repo/changes\")\ndef api_find_all_repo_changes(request: Request):\n    \"\"\"\n    Return the diff between two branches or commits.\n\n    Query params:\n        from_branch (str): Base ref.\n        to_branch (str): Target ref.\n        codx_path (str): Required \u2013 identifies the project.\n    \"\"\"\n    codx_junior_session = request.state.codx_junior_session\n    from_branch = request.query_params.get(\"from_branch\")\n    to_branch = request.query_params.get(\"to_branch\")\n    return codx_junior_session.get_repo_changes(from_branch=from_branch, to_branch=to_branch)\n```\n\n---\n\n### Summary of changes\n\n| File | What changed |\n|---|---|\n| `codx/junior/engine/git_manager.py` | **New file.** Encapsulates all `git` operations. `get_branches(days)` fetches every local+remote branch, filters to those with commits in the look-back window, and returns them with their commit list. `get_branch_commits()` runs `git log --since=...` with a `%H|%an|%cI|%s` format. `get_repo_changes()` produces a three-way diff. |\n| `codx/junior/engine/session.py` | Adds `_git_manager()` factory and three public methods (`get_project_branches`, `get_project_branch_commits`, `get_repo_changes`) that delegate to `GitManager`. `days` defaults to **90** everywhere. |\n| `codx/junior/app.py` | The three `/api/projects/repo/*` endpoints now read an optional `days` query-string parameter (default `90`) and forward it to the session methods. |\n\n**Usage examples:**\n```\n# All branches with commits in the last 3 months (default)\nGET /api/projects/repo/branches?codx_path=/my/project\n\n# All branches with commits in the last 30 days\nGET /api/projects/repo/branches?codx_path=/my/project&days=30\n\n# Commits of one branch in the last 60 days\nGET /api/projects/repo/branch/commits?codx_path=/my/project&branch=feature/xyz&days=60\n\n# Diff between two branches\nGET /api/projects/repo/changes?codx_path=/my/project&from_branch=main&to_branch=feature/xyz\n```",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-18 17:27:31.903641",
+      "updated_at": "2026-05-18 17:27:31.903667",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/app.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/engine.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/wiki/README.md",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/chat_manager.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/agents/git_issues_agent.py"
+      ],
+      "meta_data": {
+        "time_taken": 60.184818506240845,
+        "first_chunk_time_taken": 0.1746525764465332,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-05-18 17:27:31.906381",
+  "updated_at": "2026-05-19T06:29:44.441896",
+  "mode": "vibe",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Pull Requests",
+  "column": "tasks",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Pull Requests/tasks/list-branch-and-commits.289c06d7-a0f4-4f60-adb6-949fdbc0ca63.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}

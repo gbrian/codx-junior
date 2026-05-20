@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from 'uuid'
 import KanbanList from './KanbanList.vue'
 import FileFinder from '../filebrowser/FileFinder.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
-import ChatPreview from '../wall/ChatPreview.vue'
 import KanbanGridView from './KanbanGridView.vue'
 import Collapsible from '../Collapsible.vue'
 import ChatHistory from './ChatHistory.vue'
@@ -125,7 +124,7 @@ import ChatHistory from './ChatHistory.vue'
             :columns="viewColumns"
             :lastUpdatedTaskId="lastUpdatedTask.id"
             @open-task="openChat"
-            @new-task="({ mode }) => newTask(mode)"
+            @new-task="newTask"
             @new-column="openAddColumnModal"
             @edit-column="openEditColumnModal"
             @move-task="onMoveTask"
@@ -215,6 +214,7 @@ import ChatHistory from './ChatHistory.vue'
 const ALL_BOARD_TITLE_ID = '$ALL'
 
 export default {
+  props: ['project'],
   data() {
     return {
       boardFilter: '',
@@ -494,11 +494,12 @@ export default {
       this.saveKanban()
     },
 
-    newTask(mode) {
+    newTask({ mode, column }) {
       this.createNewChat({
         name: 'New Task',
         mode: mode || 'chat',
-        profiles: []
+        profiles: [],
+        column
       })
     },
 

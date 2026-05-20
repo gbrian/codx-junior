@@ -27,8 +27,7 @@ import Editor from './monaco/Editor.vue'
         <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
           <div class="flex gap-1 items-center" 
             :class="[
-              displayMessage.hide && 'text-slate-500',
-              isTask && 'opacity-10 group-hover:opacity-30 hover:opacity-100'
+              displayMessage.hide && 'text-slate-50'
             ]">
             <span class="text-warning" v-if="displayMessage.hide"><i class="fa-solid fa-box-archive"></i></span>
             <div class="tooltip tooltip-right" :data-tip="profile.name || profile.username" 
@@ -85,6 +84,17 @@ import Editor from './monaco/Editor.vue'
                     <i class="fa-regular fa-file-lines"></i>
                     <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
                   </button>
+
+                  <!-- Split into sub-tasks button -->
+                  <button 
+                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom hover:btn-warning" 
+                    data-tip="Run agents" 
+                    @click="runAgents"
+                    v-if="!editting"
+                  >
+                    <i class="fa-solid fa-people-group"></i>
+                  </button>
+
                   <button v-if="canEditMessage && !editting" class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="onEditMessage">
                     <i class="fa-solid fa-pencil"></i>
                   </button>
@@ -450,6 +460,9 @@ export default {
       if (this.threadChat) {
         this.$chats.reloadChat(this.threadChat)
       }
+    },
+    runAgents() {
+      this.$emit('run-agents', this.message)
     }
   },
   mounted() {

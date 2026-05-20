@@ -79,6 +79,7 @@ import ChatMessageList from './ChatMessageList.vue'
               @sub-task="onChatEntryCreateSubtask"
               @set-active-chat="$chats.setActiveChat($event)"
               @message-changed="onMessageChanged"
+              @run-agents="onMessageRunAgents"
             />
 
             <!-- Input box always inside the left panel column -->
@@ -707,6 +708,13 @@ export default {
       const left = text.slice(0, caretIndex - word.length)
       const right = text.slice(caretIndex)
       this.setEditorText(left + emoji + right)
+    },
+    async onMessageRunAgents(message) {
+      this.$projects.createSubTasks({
+        chat: this.chat,
+        message,
+        instructions: ""
+      })
     }
   }
 }

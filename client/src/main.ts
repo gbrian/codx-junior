@@ -1,7 +1,7 @@
 import './assets/main.css'
 
 import { createApp, onBeforeMount, onBeforeUnmount, watch } from 'vue'
-import store, { $storex } from "./store";
+import store, { $storex } from "./store"
 import service from "./service"
 
 import App from './App.vue'
@@ -16,33 +16,32 @@ import VueFinder from 'vuefinder/dist/vuefinder'
 import highlightjs from 'highlight.js'
 
 // Monaco editor
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
-import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker';
-import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker';
+import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
+import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker'
+import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker'
+import htmlWorker from 'monaco-editor/esm/vs/language/html/html.worker?worker'
+import tsWorker from 'monaco-editor/esm/vs/language/typescript/ts.worker?worker'
 
 self.MonacoEnvironment = {
   getWorker(_, label) {
     if (label === 'json') {
-      return new jsonWorker();
+      return new jsonWorker()
     }
     if (label === 'css' || label === 'scss' || label === 'less') {
-      return new cssWorker();
+      return new cssWorker()
     }
     if (label === 'html' || label === 'handlebars' || label === 'razor') {
-      return new htmlWorker();
+      return new htmlWorker()
     }
     if (label === 'typescript' || label === 'javascript') {
-      return new tsWorker();
+      return new tsWorker()
     }
-    return new editorWorker();
+    return new editorWorker()
   },
-};
+}
 
-function generateUID(length)
-{
-    return window.btoa(String.fromCharCode(...window.crypto.getRandomValues(new Uint8Array(length * 2)))).replace(/[+/=]/g, "").substring(0, length);
+function generateUID(length) {
+  return window.btoa(String.fromCharCode(...window.crypto.getRandomValues(new Uint8Array(length * 2)))).replace(/[+/=]/g, "").substring(0, length)
 }
 
 const globalMixin = {
@@ -62,12 +61,21 @@ const globalMixin = {
     $projects () {
       return $storex.projects
     },
-    $projectId() {
-      return this.$props.params?.params?.app?.params.project_id
+    // $app reads from live store so it reacts to updateAppParams
+    $app () {
+      const tabId = this.$props?.params?.params?.app?.tabId
+      if (!tabId) return null
+      return $storex.ui.openApps[tabId]
     },
+    // $projectId derived from live $app so it updates when params change
+    $projectId() {
+      return this.$app?.params?.project_id ||
+             this.$props?.params?.params?.app?.params?.project_id
+    },
+    // $project resolves from live projectId for full reactivity
     $project () {
-      return this.$projects.allProjectsById[this.$projectId] ||
-        $storex.projects.activeProject
+      return $storex.projects.allProjectsById[this.$projectId] ||
+             $storex.projects.activeProject
     },
     $session () {
       return $storex.session
@@ -87,10 +95,6 @@ const globalMixin = {
     $service () {
       return service
     },
-    $app () {
-      const tabId = this.$props.params?.params?.app?.tabId
-      return this.$ui.openApps[tabId]
-    }
   },
   watch: {
     params: {
@@ -99,7 +103,6 @@ const globalMixin = {
           console.log("Component params changed", {newValue, oldValue})
         }
       },
-      // force eager callback execution
       immediate: true
     }
   },
@@ -124,17 +127,15 @@ const app = createApp(App)
 $storex.app = app
 $storex.$router = router
 
-// eruda
+// eruda for mobile debugging
 window.setTimeout(() =>
   (function() {
     function isMobile() {
-      return /Mobi|Android/i.test(navigator.userAgent);
+      return /Mobi|Android/i.test(navigator.userAgent)
     }
-
     if (isMobile()) {
-      var script1 = document.createElement('script');
-      script1.src = "https://cdn.jsdelivr.net/npm/eruda";
-      document.body.appendChild(script1);
-
+      var script1 = document.createElement('script')
+      script1.src = "https://cdn.jsdelivr.net/npm/eruda"
+      document.body.appendChild(script1)
     }
   })(), 10)

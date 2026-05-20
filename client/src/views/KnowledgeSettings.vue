@@ -10,7 +10,7 @@ import KnowledgeIndex from '../components/knowledge/settings/KnowledgeIndex.vue'
     <!-- Header with tabs -->
     <div class="font-medium flex flex-col gap-2">
       <div class="text-3xl flex justify-between items-center">
-        {{ $project.project_name }} Knowledge {{ $projectId }}
+        [{{ $project.project_name }}] Knowledge
         <div role="tablist" class="tabs tabs-box flex gap-2">
           <a
             role="tab"

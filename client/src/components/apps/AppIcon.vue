@@ -1,33 +1,27 @@
 <script setup>
- import { 
+import { 
   MenubarRoot,
   MenubarMenu,
   MenubarTrigger,
   MenubarPortal,
   MenubarContent,
-
-  } from 'reka-ui'; 
-  import MenubarItem from '../main-menu/MenubarItem.vue';
-  import MenuDivider from '../main-menu/MenuDivider.vue';
-  import ProjectDetailt from '../ProjectDetailt.vue';
+} from 'reka-ui'
+import MenubarItem from '../main-menu/MenubarItem.vue'
+import MenuDivider from '../main-menu/MenuDivider.vue'
+import ProjectDetailt from '../ProjectDetailt.vue'
 </script>
-<template>
 
+<template>
   <MenubarRoot>
     <MenubarMenu>
-      <MenubarTrigger
-        class="MenubarTrigger click "
-      >
+      <MenubarTrigger class="MenubarTrigger click">
         <div class="flex items-center gap-2">
-          <img class="w-5 rounded-full" :src="project.project_icon"  v-if="project !== $project" />
+          <img
+            class="w-5 rounded-full"
+            :src="currentProject?.project_icon"
+            v-if="currentProject && currentProject !== $project"
+          />
           <i class="fa-solid fa-bars mx-1" v-else></i>
-          <!--
-          <i :class="awesomeIcon" v-if="awesomeIcon"></i>
-          
-          <img class="w-6 h-6 rounded-full" 
-            :class="!imageOk && 'hidden'"
-            @error="imageError = true" @load="imageOk = true" :src="imageUrl" v-if="imageUrl" />
-          -->
         </div>
       </MenubarTrigger>
       <MenubarPortal>
@@ -35,9 +29,10 @@
           class="outline-none bg-base-100 rounded-lg p-[5px] border border-white/30 shadow-sm [animation-duration:_400ms] [animation-timing-function:_cubic-bezier(0.16,_1,_0.3,_1)] will-change-[transform,opacity]"
         >
           <MenubarItem>
-            <ProjectDetailt @click.stop="" v-model="project" @change="" />
+            <!-- Stop click propagation so menu doesn't close on project change -->
+            <ProjectDetailt @click.stop="" v-model="currentProject" @change="" />
           </MenubarItem>
-          <MenuDivider/>
+          <MenuDivider />
           <MenubarItem @click.stop="$ui.cloneApp(app)">
             Duplicate
           </MenubarItem>
@@ -49,6 +44,7 @@
     </MenubarMenu>
   </MenubarRoot>
 </template>
+
 <script>
 export default {
   props: ['app', 'iconClass'],
@@ -56,28 +52,29 @@ export default {
     return {
       imageOk: false,
       imageError: false,
-      project: null
-    }
-  },
-  created() {
-    this.project = this.$projects.allProjectsById[this.app.params?.project_id] || this.$project
-  },
-  watch: {
-    project() {
-      if (this.app.params.project_id != this.project.project_id) {
-        this.$ui.showApp({
-          ...this.app,
-          params: {
-            ...this.app.params,
-            project_id: this.project.project_id
-          }
-        })
-      }
     }
   },
   computed: {
-    visible() {
-      return this.app.path
+    // Read project_id from the live store app, not from the prop
+    // This ensures reactivity when updateAppParams is called
+    liveApp() {
+      return this.$ui.openApps[this.app?.tabId] || this.app
+    },
+    currentProjectId() {
+      return this.liveApp?.params?.project_id
+    },
+    currentProject: {
+      get() {
+        return this.$projects.allProjectsById[this.currentProjectId] || this.$project
+      },
+      set(project) {
+        if (!project || project.project_id === this.currentProjectId) return
+        // Update the app params in the store so all components react
+        this.$ui.updateAppParams({
+          tabId: this.app.tabId,
+          params: { project_id: project.project_id }
+        })
+      }
     },
     awesomeIcon() {
       if (this.app.icon?.includes("fa"))
@@ -85,18 +82,14 @@ export default {
       return null
     },
     imageUrl() {
-      if (this.imageError) {
-        return null;
-      }
-      if (this.app.icon?.startsWith('http')) {
-        return this.app.icon
-      }
+      if (this.imageError) return null
+      if (this.app.icon?.startsWith('http')) return this.app.icon
       const path = this.app.path?.split("#")[0]
       if (path) {
-        const sep = this.app.path?.endsWith("/") ? "": "/"
+        const sep = this.app.path?.endsWith("/") ? "" : "/"
         return `${path}${sep}favicon.ico`
       }
-      return null;
+      return null
     }
   }
 }
