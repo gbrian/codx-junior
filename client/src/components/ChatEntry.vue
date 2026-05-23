@@ -7,6 +7,7 @@ import Document from './document/Document.vue'
 import UserSelector from './chat/UserSelector.vue'
 import ProfileAvatar from './profile/ProfileAvatar.vue'
 import Editor from './monaco/Editor.vue'
+import Word from './document/Word.vue'
 </script>
 
 <template>
@@ -158,7 +159,7 @@ import Editor from './monaco/Editor.vue'
           <Editor class="h-[1024px] overflow-auto" language="markdown" v-model="editting" v-if="editting" />                
           
           <pre v-if="srcView">{{ displayMessage.content }}</pre>
-          
+          <!-- Word v-model="displayMessage.content" v-if="isWord" /-->
           <Document 
             :content="messageContent"
             :files="chatFiles"
@@ -172,7 +173,7 @@ import Editor from './monaco/Editor.vue'
             @edit-message="$emit('edit-message', $event)"
             @sub-task="$emit('sub-task', $event)"
             :mentionList="mentionList"
-            v-if="!showDiff && !editting && !srcView && !code_patches" />
+            v-if="!showDiff && !editting && !srcView && !code_patches && !isWord" />
           <div class="alert alert-error text-xs" v-if="displayMessage.error">
             {{ displayMessage.error }}
           </div>
@@ -249,6 +250,9 @@ export default {
     this.loadThreadChat()
   },
   computed: {
+    isWord() {
+      return this.chat?.mode === 'word'
+    },
     isCollapsed() {
       return this.displayMessage.collapsed !== undefined ?
           this.displayMessage.collapsed :

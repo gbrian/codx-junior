@@ -170,7 +170,7 @@ import Collapsible from '../Collapsible.vue'
         <div v-for="(group, groupKey) in groupedTasks" :key="groupKey">
           <!-- Group header -->
           <div class="flex items-center gap-2 mb-2 sticky top-0 bg-base-100 z-10 py-1">
-            <div class="badge badge-primary badge-outline">{{ groupKey }}</div>
+            <div class="badge badge-primary badge-outline"> <i class="fa-solid fa-folder"></i> {{ groupKey }}</div>
             <div class="text-xs opacity-50">{{ group.length }} tasks</div>
             <div class="grow border-b border-base-300"></div>
 

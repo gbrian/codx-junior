@@ -37,11 +37,6 @@ import Collapsible from './Collapsible.vue'
           <i class="fa-solid fa-magnifying-glass-plus"></i>
         </div>
 
-        <!-- Copy -->
-        <div class="hover:text-info cursor-pointer" @click.stop="onCopy">
-          <i class="fa-solid fa-copy"></i>
-        </div>
-
         <!-- Edit toggle: highlighted when active -->
         <div
           class="hover:text-info cursor-pointer"
@@ -141,7 +136,11 @@ import Collapsible from './Collapsible.vue'
         </button>
       </div>
       <div class="flex justify-end gap-2" v-else>
-        
+        <button class="btn btn-sm btn-outline"
+          @click.stop="onCopy"
+          title="Copy">
+          <i class="fa-solid fa-copy"></i> Copy
+        </button>
         <!-- Save to file: only writes to disk, always visible when file is known -->
         <button class="btn btn-sm btn-success btn-outline"
           @click.stop="saveToFile"

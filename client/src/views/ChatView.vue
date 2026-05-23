@@ -114,8 +114,12 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                     <div class="flex items-center gap-2 tooltip"
                       data-tip="Archived messages" 
                       :class="showHidden ? 'text-warning':''">
-                      ({{ hiddenCount }}/{{ messageCount }})
-                      <i class="fa-solid fa-box-archive"></i>
+                      <i class="mt-1 fa-regular fa-message"></i>
+                      {{ messageCount - hiddenCount }}
+                      <span v-if="hiddenCount">
+                        <i class="mt-1 fa-regular fa-eye-slash"></i>
+                        {{ hiddenCount }}
+                      </span>
                     </div>
                   </button>
                   <div class="dropdown dropdown-end">
@@ -129,8 +133,8 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                       <li @click="setChatMode('task')">
                         <a><ChatIcon mode="task" /> Document</a>
                       </li>
-                      <li @click="setChatMode('slides')">
-                        <a><ChatIcon mode="slides" /> Slides</a>
+                      <li @click="setChatMode('word')">
+                        <a><ChatIcon mode="word" /> Rich Editor</a>
                       </li>
                       <li @click="setChatMode('vibe')">
                         <a><ChatIcon mode="vibe" /> Vibe</a>
