@@ -1,0 +1,103 @@
+{
+  "id": "75185b70-fd0c-4cbc-a8f9-adc8fbf2c694",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": null,
+  "parent_id": "e4a9fc8b-766e-4aa4-a95a-1cc814258a36",
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "py_senior",
+    "project",
+    "VueDeveloper"
+  ],
+  "users": [],
+  "name": "Task 1: Create useDevice.js composable",
+  "pinned": false,
+  "description": "# Summary\n\nThe task involves adding **mobile layout support** to `codx-junior-ui`, a Vue.js desktop docking panel app built on `dockview-vue`. The solution routes between `<MobileLayout />` and `<Desktop />` in `App.vue` based on `window.innerWidth < 768`, leaving `Desktop.vue` and all 19 panel components **untouched**. A `useDevice.js` composable was created at `client/src/composables/useDevice.js` to reactively track mobile/desktop state via a `resize` event listener, cleaned up with `onUnmounted`. The composable exposes a `readonly` `isMobile` ref to prevent external mutation. New mobile shell files (`MobileLayout.vue`, `BottomNavBar.vue`, `TopAppBar.vue`, `MoreDrawer.vue`, `useMobileLayout.js`) are planned but deferred.",
+  "messages": [
+    {
+      "doc_id": "41a89557-faea-480c-9937-0d4fc03e5e5d",
+      "role": "user",
+      "task_item": "",
+      "content": " \n                        ```xml\n                        <context>\n                        # Conversation Summary: codx-junior-ui Mobile Layout Design\n\n## Context\nDesign document (AS IS \u2192 TO BE) for adding mobile support to **codx-junior-ui**, a Vue.js desktop docking panel application.\n\n---\n\n## AS IS: Desktop Architecture\n\n- **Root component:** `Desktop.vue` using `dockview-vue` library\n- **19 registered dockable panels** (chat, tasks, files, wiki, kanban, knowledge, settings, etc.)\n- **Panel lifecycle:** `$ui.showTab(name)` \u2192 `addAppPanel()` \u2192 `dockviewApi.addPanel()`\n- **Persistence:** `dockviewApi.toJSON()` \u2192 `localStorage['dockview-layout']`\n- **Rendering:** `renderer: 'always'` \u2014 all panels stay mounted in DOM simultaneously\n- **Tab system:** Custom `Tab.vue` component per panel\n- **Store integrations:** `$ui` (open apps, tab management) + `$chats` (chat rehydration on restore)\n- **Auto-save triggers:** `onDidAddPanel`, `onDidRemovePanel`, `onDidLayoutChange`\n\n### Key Limitations\n- No mobile layout exists\n- `renderer: 'always'` causes high memory usage with 19 panels\n- `$ui` and `$chats` store contracts undocumented\n- No deep linking / URL navigation\n- No responsive breakpoints\n\n---\n\n## TO BE: Mobile Layout Design\n\n### Core Principle\n> Same stores + same panel components, different shell. `Desktop.vue` untouched.\n\n### Device Routing (`App.vue`)\n```\nisMobile (window.innerWidth < 768) \u2192 <MobileLayout />\nelse \u2192 <Desktop />\n```\n\n### Shell Structure (`MobileLayout.vue`)\n- **TopAppBar** \u2014 title + hamburger + notifications + avatar\n- **Main area** \u2014 `<keep-alive :include=\"recentViews\" :max=\"3\">` wrapping active component\n- **BottomNavBar** \u2014 4 tabs: Tasks | Chat | Files | More\n- **MoreDrawer** \u2014 bottom sheet grid with all 14 remaining panels\n\n### Panel Priority Tiers\n| Tier | Panels | Cache Behavior |\n|---|---|---|\n| Primary | `tasks`, `chat`, `files` | Always cached, eagerly loaded |\n| Secondary | `activity`, `projects`, `wiki`, `docs`, `profiles` | `defineAsyncComponent`, cached up to max=3 |\n| Tertiary | `metrics`, `log-viewer`, `knowledge`, `knowledge_settings`, `settings`, `global-settings`, `account`, `file-finder`, `home` | Lazy loaded, not cached |\n\n### Memory Strategy\n- Replaces `renderer: 'always'` with `<keep-alive :max=\"3\">`\n- FIFO eviction of non-primary panels from cache\n- `defineAsyncComponent` for secondary + tertiary panels\n\n### State Persistence (`useMobileLayout.js`)\n- Storage key: `mobile-layout`\n- Saves: `{ activeView, recentViews }` to `localStorage`\n- Restores on `onMounted`\n\n### New Files\n```\nclient/src/components/mobile/\n  MobileLayout.vue\n  BottomNavBar.vue\n  TopAppBar.vue\n  MoreDrawer.vue\nclient/src/composables/\n  useDevice.js\n  useMobileLayout.js\n```\n**Modified:** `App.vue` only  \n**Untouched:** `Desktop.vue`, all 19 panel components\n\n### Mobile UX Details\n- Default view: `KanbanContainer` (tasks)\n- `height: 100dvh` for dynamic viewport\n- `env(safe-area-inset-*)` for notch/home bar support\n- `-webkit-overflow-scrolling: touch` for iOS momentum scroll\n- MoreDrawer renders as 3-column icon grid bottom sheet\n\n### Deferred Items\n- Deep linking (Vue Router integration needed)\n- External wiki iframe/link strategy\n- Auth/session management\n- Full `$ui` / `$chats` store contracts for mobile chat hydration\n\n---\n\n## Keywords\n`vue3`, `composition-api`, `dockview-vue`, `mobile-layout`, `responsive`, `keep-alive`, `defineAsyncComponent`, `bottom-navigation`, `bottom-sheet`, `safe-area-inset`, `100dvh`, `localStorage`, `panel-management`, `lazy-loading`, `memory-optimization`, `MobileLayout.vue`, `BottomNavBar.vue`, `TopAppBar.vue`, `MoreDrawer.vue`, `useDevice.js`, `useMobileLayout.js`, `$ui-store`, `$chats-store`, `desktop-first`, `codx-junior-ui`, `panel-tiers`, `FIFO-cache`, `dockview-layout`, `KanbanContainer`, `ChatView`, `dockview-theme-abyss`\n                        </context>\n\n                        <task>\n                        Create the file `client/src/composables/useDevice.js`. This composable must:\n- Export a `useDevice` function using Vue 3 Composition API.\n- Detect if the current device is mobile by checking `window.innerWidth < 768`.\n- Expose a reactive `isMobile` ref that updates on window resize (use `addEventListener('resize', ...)` and clean up with `onUnmounted`).\n- Export `isMobile` as a readonly ref or computed.\n- This composable will be used in `App.vue` to conditionally render `<MobileLayout />` or `<Desktop />`.\n                        </task>\n                        ```\n                        \n                        Given the \"context\" improve the \"task\" description.\n                        Return a detailed task description\n                        Add all important information\n                        Generate a clear and easy readable description \n                        ",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-21 14:57:56.894151",
+      "updated_at": "2026-05-21 14:57:56.894178",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Desktop.vue"
+      ],
+      "meta_data": {},
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "99e8f056-3527-4fb2-9296-bad1a49608c9",
+      "role": "assistant",
+      "task_item": "",
+      "content": "# Task Description: Create `useDevice.js` Composable\n\n## Overview\n\nCreate a Vue 3 composable at `client/src/composables/useDevice.js` that detects whether the user is on a mobile device based on viewport width. This composable will be the cornerstone of the responsive layout system in `App.vue`, enabling conditional rendering between `<MobileLayout />` (mobile) and `<Desktop />` (dockview-based desktop shell).\n\n## Context\n\nAs per the mobile layout design (TO BE), `App.vue` will use this composable to route between two completely different shells:\n- **Mobile** (`window.innerWidth < 768`): renders `<MobileLayout />` with bottom nav, keep-alive, and touch UX\n- **Desktop** (`window.innerWidth >= 768`): renders existing `<Desktop />` (dockview-vue, untouched)\n\n`Desktop.vue` and all 19 panel components remain **untouched** \u2014 only `App.vue` is modified.\n\n---\n\n## Requirements\n\n### File Location\n```\nclient/src/composables/useDevice.js\n```\n\n### Implementation Details\n\n1. **Export a named function** `useDevice` using Vue 3 Composition API (`ref`, `onUnmounted` from `vue`)\n\n2. **Initial mobile detection** on composable mount:\n   ```js\n   const isMobile = ref(window.innerWidth < 768)\n   ```\n\n3. **Reactive resize listener** \u2014 update `isMobile` when viewport width changes:\n   ```js\n   const resizeListener = () => {\n     isMobile.value = window.innerWidth < 768\n   }\n   window.addEventListener('resize', resizeListener)\n   ```\n\n4. **Cleanup on unmount** \u2014 remove listener when the consuming component (e.g. `App.vue`) is destroyed:\n   ```js\n   onUnmounted(() => {\n     window.removeEventListener('resize', resizeListener)\n   })\n   ```\n\n5. **Return `isMobile` as readonly** to prevent external mutation:\n   ```js\n   return { isMobile: readonly(isMobile) }\n   ```\n\n6. **Breakpoint**: `768px` \u2014 consistent with the mobile layout design spec\n\n---\n\n## Expected Usage in `App.vue`\n\n```vue\n<script setup>\nimport { useDevice } from './composables/useDevice'\nconst { isMobile } = useDevice()\n</script>\n\n<template>\n  <MobileLayout v-if=\"isMobile\" />\n  <Desktop v-else />\n</template>\n```\n\n---\n\n## Checklist\n\n- [ ] Uses `ref` for reactive `isMobile`\n- [ ] Uses `readonly` on return value\n- [ ] Adds resize listener on composable setup\n- [ ] Removes resize listener on `onUnmounted`\n- [ ] Named listener function (not anonymous) for proper cleanup\n- [ ] Breakpoint strictly `< 768`\n- [ ] No CSS, no component template \u2014 pure composable logic only\n\n---\n\nNow create the file:\n\n```js client/src/composables/useDevice.js\nimport { ref, readonly, onUnmounted } from 'vue'\n\n/**\n * Detects if the current device is mobile based on viewport width.\n * Updates reactively on window resize.\n * Breakpoint: 768px (mobile = width < 768)\n */\nexport function useDevice() {\n  // Initialize based on current viewport width\n  const isMobile = ref(window.innerWidth < 768)\n\n  // Named function required for proper removeEventListener cleanup\n  const resizeListener = () => {\n    isMobile.value = window.innerWidth < 768\n  }\n\n  window.addEventListener('resize', resizeListener)\n\n  // Remove listener when the consuming component is unmounted\n  onUnmounted(() => {\n    window.removeEventListener('resize', resizeListener)\n  })\n\n  // Expose as readonly to prevent external mutation\n  return {\n    isMobile: readonly(isMobile)\n  }\n}\n```",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-21 14:57:56.894151",
+      "updated_at": "2026-05-21 14:57:56.894178",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/wiki/wiki_template/package-lock.json"
+      ],
+      "meta_data": {
+        "time_taken": 160.55937838554382,
+        "first_chunk_time_taken": 0.23956727981567383,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [
+        "VueDeveloper",
+        "py_senior",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-05-21 14:57:56.897448",
+  "updated_at": "2026-05-24T09:03:46.862264",
+  "mode": "vibe",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Mobile",
+  "column": "Design",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Mobile/Design/task-1-create-usedevice-js-composable.75185b70-fd0c-4cbc-a8f9-adc8fbf2c694.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}

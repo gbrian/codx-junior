@@ -31,6 +31,7 @@ from codx.junior.api.db_router import router as db_router
 from codx.junior.api.global_settings import router as global_settings_router
 from codx.junior.api.project_search import router as project_search
 from codx.junior.api.knowledge import router as knowledge_router
+from codx.junior.api.chat import router as chat_router
 
 from codx.junior.security.user_management import get_authenticated_user
 
@@ -142,6 +143,7 @@ app.include_router(db_router, prefix="/api")
 app.include_router(global_settings_router, prefix="/api")
 app.include_router(project_search, prefix="/api")
 app.include_router(knowledge_router, prefix="/api")
+app.include_router(chat_router, prefix="/api")
 
 
 APP_STOP_EVENT = asyncio.Event()
@@ -374,90 +376,6 @@ def api_project_unwatch(request: Request):
     codx_junior_session.watch_project(False)
     find_all_projects()
     return { "OK": 1 }
-
-@app.get("/api/chats")
-def api_list_chats(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    file_path = request.query_params.get("file_path")
-    chat_id = request.query_params.get("id")
-    export_format = request.query_params.get("export_format")
-    from_date = request.query_params.get("from_date")
-    
-    if export_format:
-        export = codx_junior_session.get_chat_manager().export_chat(chat_id=chat_id, export_format=export_format)
-        # Initiate a download action with the exported document
-        return Response(
-                  content=export.content,
-                  media_type=export.content_type, 
-                  headers={"Content-Disposition": f"attachment; filename={export.file_name}"}
-              )
-    
-    if chat_id:
-        chat = codx_junior_session.get_chat_manager().find_by_id(chat_id=chat_id)
-        if not chat:
-            logger.error('Chat not found. chat_id: %s, project: %s', chat_id, codx_junior_session.settings.project_name)
-        return chat
-
-    if file_path:
-        chat = codx_junior_session.get_chat_manager().load_chat_from_path(chat_file=file_path)
-        if not chat:
-            logger.error('Chat not found. file_path: %s, project: %s', file_path, codx_junior_session.settings.project_name)
-        return chat
-
-    return codx_junior_session.list_chats(from_date=from_date)
-
-@profile_function
-@app.post("/api/chats")
-async def api_chat(chat: Chat, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.chat_event(chat=chat, message="Chatting with project...")
-    await codx_junior_session.chat_with_project(chat=chat)
-    await codx_junior_session.save_chat(chat)
-    return chat
-
-@profile_function
-@app.post("/api/chats/from-url")
-async def api_chat_form_url(chat: Chat, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    codx_junior_session.chat_event(chat=chat, message="Loading chat...")
-    codx_junior_session.init_chat_from_url(chat=chat)
-    await codx_junior_session.save_chat(chat)
-    return chat
-
-@profile_function
-@app.post("/api/chats/sub-tasks")
-async def api_chat_subtasks(chat: Chat, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return await codx_junior_session.generate_tasks(chat=chat)
-
-@app.put("/api/chats")
-async def api_save_chat(chat: Chat, request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    chat_only = request.query_params.get("chatonly") == "1"
-    await codx_junior_session.save_chat(chat, chat_only=chat_only)
-
-@app.delete("/api/chats")
-def api_delete_chat(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    chat_id = request.query_params.get("chat_id")
-    codx_junior_session.delete_chat(chat_id)
-
-@app.get("/api/kanban")
-def api_kanban(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    return codx_junior_session.get_chat_manager().load_kanban()
-
-@app.post("/api/kanban")
-async def api_set_kanban(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    kanban = await request.json()
-    codx_junior_session.get_chat_manager().save_kanban(kanban)
-
-@app.delete("/api/kanban")
-def api_delete_kanban(request: Request):
-    codx_junior_session = request.state.codx_junior_session
-    kanban_title = request.query_params.get("kanban_title")
-    return codx_junior_session.get_chat_manager().delete_kanban(kanban_title=kanban_title)
 
 @app.post("/api/images")
 async def api_image_upload(file: UploadFile):

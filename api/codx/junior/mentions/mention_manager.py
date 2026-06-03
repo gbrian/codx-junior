@@ -52,6 +52,7 @@ class MentionFlags(BaseModel):
     chat_id: str = ''
     code: bool = False
     image: bool = False
+    vibe: bool = False
 
 
 class Mention(BaseModel):
@@ -320,6 +321,9 @@ class MentionManager:
         Uses the model flag from the first mention that specifies one (if any) to
         override the default LLM model for both the analysis and changes chats.
 
+        When any mention carries the --vibe flag the changes chat mode is set to
+        "vibe", enabling agentic / autonomous behaviour in the chat engine.
+
         Args:
             mentions: List of Mention objects extracted from the document.
             file_path: Absolute path to the file being processed.
@@ -348,11 +352,15 @@ class MentionManager:
 
         use_knowledge = any(m.flags.knowledge for m in mentions)
         using_chat = any(m.flags.chat_id for m in mentions)
+        use_vibe = any(m.flags.vibe for m in mentions)
 
         # Resolve model override from mention flags (first non-empty wins)
         mention_model = resolve_mention_model(mentions)
         if mention_model:
             logger.info("Mention model override: '%s'", mention_model)
+
+        if use_vibe:
+            logger.info("Vibe mode enabled for %s", file_path)
 
         save_mentions = self.settings.save_mentions
 
@@ -415,11 +423,15 @@ class MentionManager:
             if save_mentions:
                 analysis_chat = self.chat_manager.save_chat(analysis_chat)
 
+        # Determine chat mode: "vibe" when --vibe flag is present, otherwise "chat"
+        changes_chat_mode = "vibe" if use_vibe else "file"
+
         changes_chat = Chat(
             name=slugify(f"changes_at_{file_chat_name}-{datetime.now()}"),
             board="mentions",
             column="changes",
             parent_chat=analysis_chat.id if analysis_chat else None,
+            mode=changes_chat_mode,
             llm_model=mention_model,  # Apply model override from mention flags
             tags=["use_knowledge" if use_knowledge else "skip_knowledge"],
             profiles=[p.name for p in query_mentions.profiles],
@@ -445,7 +457,7 @@ class MentionManager:
             )
         )
 
-        logger.info("Mentions generate changes %s", file_path)
+        logger.info("Mentions generate changes %s (mode=%s)", file_path, changes_chat_mode)
 
         # Process mentions with the LLM
         await self.chat_engine.chat_with_project(

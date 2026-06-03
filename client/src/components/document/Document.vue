@@ -11,6 +11,7 @@ import HTMLViewer from '../HTMLViewer.vue';
         :files="files"
         v-if="block.renderer === 'md'"
         :text="block.content"
+        @add-file="$emit('add-file', $event)"
       />
       <Code
         :class="!block.finished && 'border border-dashed border-slate-400'"
@@ -53,7 +54,7 @@ function getRenderer(blockType) {
   return 'code'
 }
 
-function parseContent(content) {
+function parseContent(content, loading) {
   const blocks = []
   const lines = content.split('\n')
   let currentType = 'markdown'
@@ -118,16 +119,18 @@ function parseContent(content) {
   if (currentContent.length) {
     addBlock()
   }
-
-  setAllFinished()
+  if (!loading) {
+    setAllFinished()
+  }
   return blocks
 }
 
 export default {
-  props: ['content', 'files', 'project', 'chat'],
+  props: ['content', 'files', 'project', 'chat', 'loading'],
+  emits: ['generate-code', 'reload-file', 'open-file', 'save-file', 'add-file', 'edit-message', 'sub-task'],
   computed: {
     blocks() {
-      return parseContent(this.content || '')
+      return parseContent(this.content || '', this.loading)
     },
     docProject() {
       return this.project || this.$project

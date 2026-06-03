@@ -12,14 +12,14 @@
   "file_list": [],
   "check_lists": [],
   "profiles": [
-    "project",
     "VueDeveloper",
+    "project",
     "py_senior"
   ],
   "users": [
     "admin"
   ],
-  "name": "Desktop",
+  "name": "AppWindow",
   "pinned": false,
   "description": "Here is a 5-line summary of the conversation:\n\n1. The request was to create a `Desktop` and `Window` component using the **Dockview** library for a Vue.js project.\n2. A `Window.vue` component was created as a **generic panel wrapper** with a slot for any content and access to the Dockview panel API.\n3. A `Desktop.vue` component was built to **manage the Dockview lifecycle**, including panel registration, addition, and removal.\n4. A `DesktopView.vue` usage example was provided showing how to **register custom components** and control panels via `ref`.\n5. Key features include **dynamic component registration**, public `addPanel/removePanel` methods, and a `@ready` event to expose the raw Dockview API to parent components.",
   "messages": [
@@ -85,7 +85,7 @@
     }
   ],
   "created_at": "2026-04-15 08:45:51.019257",
-  "updated_at": "2026-04-15T18:22:57.469607",
+  "updated_at": "2026-05-28T09:09:17.353609",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
@@ -95,7 +95,7 @@
   "chat_index": 0,
   "url": "",
   "branch": "",
-  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/dock-view/Dock-View/desktop.f8749256-847e-4814-bba3-690257911f84.json",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/dock-view/Dock-View/appwindow.f8749256-847e-4814-bba3-690257911f84.json",
   "llm_model": "",
   "visibility": "",
   "remote_url": "",
@@ -104,5 +104,6 @@
   "pr_view": {
     "from_branch": "* v1.3-demo-site",
     "to_branch": "main"
-  }
+  },
+  "auto_initialize": false
 }

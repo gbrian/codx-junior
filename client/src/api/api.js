@@ -147,9 +147,10 @@ const initializeAPI = ({ project, user } = {}) => {
         const data = await API.get('/api/projects/readme');
         return data;
       },
-      watch(watching) {
-        API.activeProject.watching = watching
-        API.settings.save()
+      async watch(watching) {
+        const settings = await API.settings.read()
+        settings.watching = watching
+        API.settings.save(settings)
       },
       test() {
         return API.get('/api/project/script/test');
@@ -190,7 +191,7 @@ const initializeAPI = ({ project, user } = {}) => {
         return data;
       },
       async save(settings) {
-        await API.put('/api/settings?', settings || API.activeProject);
+        await API.put('/api/settings?', settings || { ...API.activeProject, $api: null, $state: null });
         return API.settings.read();
       },
       global: {
@@ -317,6 +318,10 @@ const initializeAPI = ({ project, user } = {}) => {
       },
       delete(chat) {
         return API.del(`/api/chats?chat_id=${chat.id}`);
+      },
+      // Cancel a running message via POST /api/chat/cancel with token_id in body
+      cancelMessage(cancellationTokenId) {
+        return API.post(`/api/chat/cancel`, { token_id: cancellationTokenId })
       },
       kanban: {
         async load() {

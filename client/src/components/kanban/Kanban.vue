@@ -496,7 +496,6 @@ export default {
 
     newTask({ mode, column }) {
       this.createNewChat({
-        name: 'New Task',
         mode: mode || 'chat',
         profiles: [],
         column

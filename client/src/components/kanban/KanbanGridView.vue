@@ -31,14 +31,6 @@ import Collapsible from '../Collapsible.vue'
           @click.stop="$emit('new-column')">
           <i class="fa-solid fa-plus"></i> New Column
         </button>
-        <div
-          tabindex="0"
-          role="button"
-          class="btn btn-xs btn-primary gap-1"
-          @click.stop="$emit('new-task', { mode: 'chat' })"
-        >
-          <i class="fa-solid fa-plus"></i> New Task
-        </div>
       </template>
 
       <!-- Collapsible filter body -->

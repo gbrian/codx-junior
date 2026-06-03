@@ -8,7 +8,8 @@ Made with ❤️ by codx-junior
 import logging
 import os
 import subprocess
-from typing import TYPE_CHECKING
+from datetime import datetime
+from typing import TYPE_CHECKING, Optional
 
 from codx.junior.db import Chat, Message
 from codx.junior.model.model import Profile
@@ -36,6 +37,7 @@ class FileEngine:
         FE --> apply_file_profile
         FE --> get_valid_project_file_path
         FE --> search_files
+        FE --> get_file_info
     ```
     """
 
@@ -48,6 +50,26 @@ class FileEngine:
         """Shortcut to session settings."""
         return self.session.settings
 
+    def get_file_info(self, file_path: str) -> dict:
+        """
+        Return metadata for a file: last_modification (ISO 8601) and size in bytes.
+
+        Args:
+            file_path: Absolute or relative (to project root) path to the file.
+
+        Returns:
+            Dict with 'last_modification' (str or None) and 'size' (int or None).
+        """
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(self.settings.abs_project_path, file_path)
+        if not os.path.isfile(file_path):
+            return {"last_modification": None, "size": None}
+        stat = os.stat(file_path)
+        return {
+            "last_modification": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+            "size": stat.st_size,
+        }
+
     def parse_file_line(self, file: str, base_path: str) -> dict:
         """
         Parse a file name into a structured dict for directory listings.
@@ -57,18 +79,24 @@ class FileEngine:
             base_path: Base directory path.
 
         Returns:
-            Dict with name, file_path, is_dir, and children.
+            Dict with name, file_path, is_dir, children, last_modification, and size.
         """
         file_path = os.path.join(base_path, file)
         if not file_path.startswith(self.settings.abs_project_path):
             file_path = f"{self.settings.abs_project_path}/{file_path}"
         is_dir = os.path.isdir(file_path)
-        return {
+        entry = {
             "name": file.split("/")[-1],
             "file_path": file_path,
             "is_dir": is_dir,
             "children": [] if is_dir else None,
         }
+        if not is_dir:
+            entry.update(self.get_file_info(file_path))
+        else:
+            entry["last_modification"] = None
+            entry["size"] = None
+        return entry
 
     def read_directory(self, path: str) -> dict:
         """
@@ -100,19 +128,24 @@ class FileEngine:
         abs_file_path, _ = self.get_valid_project_file_path(file_path=path)
         return abs_file_path
 
-    def read_file(self, path: str) -> str:
+    def read_file(self, path: str) -> dict:
         """
-        Read a project file and return its content.
+        Read a project file and return its content along with file metadata.
 
         Args:
             path: File path (relative or absolute).
 
         Returns:
-            File content as string.
+            Dict with 'content', 'last_modification', and 'size'.
         """
         path = self.get_project_file_path(path=path)
         with open(path, "r", encoding="utf-8", errors="ignore") as f:
-            return f.read()
+            content = f.read()
+        info = self.get_file_info(path)
+        return {
+            "content": content,
+            **info,
+        }
 
     def diff_file(self, path: str, content: str) -> dict:
         """
@@ -123,7 +156,7 @@ class FileEngine:
             content: New content to diff against.
 
         Returns:
-            Dict with 'diff' and 'stats'.
+            Dict with 'diff', 'stats', 'last_modification', and 'size'.
         """
         path = self.get_project_file_path(path=path)
 
@@ -138,9 +171,11 @@ class FileEngine:
         """
         diff_stats_out = os.popen(git_command).read()
 
+        info = self.get_file_info(path)
         return {
             "diff": diff_out.strip(),
             "stats": diff_stats_out.strip(),
+            **info,
         }
 
     def diff_file_comments(
@@ -266,7 +301,7 @@ class FileEngine:
             process: Whether to run file profiles before writing.
 
         Returns:
-            Dict with file and project metadata.
+            Dict with file and project metadata including last_modification and size.
 
         Raises:
             Exception: If writing fails.
@@ -281,12 +316,14 @@ class FileEngine:
                 )
 
             write_file(file_path=abs_file_path, content=content)
+            info = self.get_file_info(abs_file_path)
             return {
                 "file_project": file_project.project_name,
                 "file_project_path": file_project.abs_project_path,
                 "file_path": file_path,
                 "abs_file_path": abs_file_path,
                 "project_path": self.settings.abs_project_path,
+                **info,
             }
         except Exception as ex:
             raise Exception(f"Error processing file {abs_file_path}:\n{ex}") from ex
@@ -299,22 +336,22 @@ class FileEngine:
             search: Substring to search for.
 
         Returns:
-            List of matching file dicts.
+            List of matching file dicts including last_modification and size.
         """
         sources = self.session.get_knowledge().get_all_sources()
         matching = [s for s in sources if search in s]
         base_path = self.settings.abs_project_path
         return [self.parse_file_line(file, base_path) for file in sorted(matching)]
 
-    def get_wiki_file(self, file_path: str) -> str:
+    def get_wiki_file(self, file_path: str) -> dict:
         """
-        Read a wiki file and return its content.
+        Read a wiki file and return its content along with file metadata.
 
         Args:
             file_path: Relative path within the wiki directory.
 
         Returns:
-            File content string, or a 'not found' message.
+            Dict with 'content', 'last_modification', and 'size', or a 'not found' message dict.
         """
         project_wiki_path = self.settings.get_project_wiki_path()
         if project_wiki_path:
@@ -324,23 +361,27 @@ class FileEngine:
             try:
                 logger.info("Reading wiki file: %s", wiki_file)
                 with open(wiki_file, "r", encoding="utf-8", errors="ignore") as f:
-                    return f.read()
+                    content = f.read()
+                info = self.get_file_info(wiki_file)
+                return {"content": content, **info}
             except OSError:
                 pass
-        return f"> {file_path} not found"
+        return {"content": f"> {file_path} not found", "last_modification": None, "size": None}
 
-    def get_readme(self) -> str:
+    def get_readme(self) -> dict:
         """
-        Read the project README.md and return its content.
+        Read the project README.md and return its content along with file metadata.
 
         Returns:
-            README content string, or empty string if not found.
+            Dict with 'content', 'last_modification', and 'size'.
         """
         readme_file = os.path.join(self.settings.abs_project_path, "README.md")
         if os.path.isfile(readme_file):
             with open(readme_file, "r", encoding="utf-8", errors="ignore") as f:
-                return f.read()
-        return ""
+                content = f.read()
+            info = self.get_file_info(readme_file)
+            return {"content": content, **info}
+        return {"content": "", "last_modification": None, "size": None}
 
     def api_image_to_text(self, image_bytes: bytes) -> str:
         """

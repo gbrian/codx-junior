@@ -8,14 +8,61 @@ import UserSelector from './chat/UserSelector.vue'
 import ProfileAvatar from './profile/ProfileAvatar.vue'
 import Editor from './monaco/Editor.vue'
 import Word from './document/Word.vue'
+import ChatEntrySlack from './ChatEntrySlack.vue'
 </script>
 
 <template>
-  <div class="group chat-entry flex gap-1 items-start relative p-2"
+  <!-- Slack-style rendering for user messages in topic mode -->
+  <ChatEntrySlack
+    v-if="isSlackStyle"
+    :chat="chat"
+    :message="message"
+    :displayMessage="displayMessage"
+    :messageProfiles="messageProfiles"
+    :mentionList="mentionList"
+    :menuLess="menuLess"
+    :threadChat="threadChat"
+    :chatFiles="chatFiles"
+    :chatProject="chatProject"
+    :messageContent="messageContent"
+    :isDone="isDone"
+    :editting="editting"
+    :srcView="srcView"
+    :timeTaken="timeTaken"
+    :thinkText="thinkText"
+    :cancellationTokenId="cancellationTokenId"
+    :cancellationTime="cancellationTime"
+    :canEditMessage="canEditMessage"
+    v-model:editting="editting"
+    @thread="$emit('thread', $event)"
+    @hide="$emit('hide', $event)"
+    @remove="onRemove"
+    @confirm-remove="confirmRemove"
+    @toggle-src-view="toggleSrcView"
+    @cancel-message="cancelMessage"
+    @copy-message="copyMessageToClipboard"
+    @edit-message-click="onEditMessage"
+    @save-editting="saveEditting"
+    @cancel-editting="cancelEditting"
+    @generate-code="onGenerateCode"
+    @reload-file="$emit('reload-file', $event)"
+    @open-file="$emit('open-file', $event)"
+    @save-file="$emit('save-file', $event)"
+    @add-file="$emit('add-file', $event)"
+    @edit-message="$emit('edit-message', $event)"
+    @sub-task="$emit('sub-task', $event)"
+    @open-thread="openThread"
+    @add-file-to-chat="$emit('add-file-to-chat', $event)"
+    @remove-file="$emit('remove-file', $event)"
+    @message-copy="onMessageCopy"
+  />
+
+  <!-- Default rendering for non-topic or non-user messages -->
+  <div v-else class="group chat-entry flex gap-1 items-start relative p-2"
     :class="[
       displayMessage.hide ? 'hover:bg-base-100 opacity-50 hover:opacity-100': '',
       displayMessage.hide ? 'border-l-2 border-warning' : '',
-      !displayMessage.done && 'border border-dashed border-sky-800 p-1',
+      !isDone && 'border border-dashed border-sky-800 p-1',
       displayMessage.is_answer && 'border border-dashed p-2 bg-success/10 border-success',
       isTopic && 'border-l p-2 bg-info/5 border-info/50',
       editting && 'border border-dashed p-2 border-warning',
@@ -23,16 +70,20 @@ import Word from './document/Word.vue'
   >
     <div class="w-full">
       <div class="w-full flex flex-col gap-1 hover:rounded-md group">
-        <progress class="progress w-full" v-if="!displayMessage.done"></progress>
+        <progress class="progress w-full" v-if="!isDone"></progress>
     
         <div class="text-xs font-bold flex flex-col click" @dblclick.stop="toggleCollapse">
           <div class="flex gap-1 items-center" 
-            :class="[
-              displayMessage.hide && 'text-slate-50'
-            ]">
-            <span class="text-warning" v-if="displayMessage.hide"><i class="fa-solid fa-box-archive"></i></span>
-            <div class="tooltip tooltip-right" :data-tip="profile.name || profile.username" 
-                v-for="profile in messageProfiles" :key="profile.name">
+            :class="[displayMessage.hide && 'text-slate-50']">
+            <span class="text-warning" v-if="displayMessage.hide">
+              <i class="fa-solid fa-box-archive"></i>
+            </span>
+            <div 
+              class="tooltip tooltip-right" 
+              :data-tip="profile.name || profile.username" 
+              v-for="profile in messageProfiles" 
+              :key="profile.name"
+            >
               <ProfileAvatar :profile="profile" width="6" />
             </div>
             <UserSelector 
@@ -44,49 +95,73 @@ import Word from './document/Word.vue'
             />
             <i class="fa-solid fa-magnifying-glass" v-if="message.task_item === 'search'"></i>
             <div class="flex gap-2 grow">
+              <span class="badge bagde-xs badge-error" v-if="cancellationTime">Cancelled</span>
               [{{ formatDate(displayMessage.updated_at) }}] 
               <span v-if="timeTaken">({{ timeTaken }})</span>
-              
               <div class="badge badge-sm badge-success flex gap-1" v-if="displayMessage.is_answer">
                 <ChatIcon mode="answer" /> Knowledge 
               </div>
               <div class="badge badge-sm badge-info badge-outline flex gap-1" v-if="isTopic">
                 <ChatIcon mode="topic" /> Topic 
               </div>
-              <div class="badge badge-sm border-dashed badge-outline flex gap-1" 
+              <div 
+                class="badge badge-sm border-dashed badge-outline flex gap-1" 
                 @click="openThread"
-                v-if="threadChat">
+                v-if="threadChat"
+              >
                 <ChatIcon :mode="threadChat.mode" /> Thread 
               </div>
             </div>
-            <div class="group-hover:opacity-100 flex gap-2 items-center justify-end"
+
+            <!-- Action buttons -->
+            <div 
+              class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end"
               v-if="menuLess !== true"
             >
               <div class="px-2 flex flex-col">
                 <div class="gap-2 flex justify-end items-center">
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Thread" 
+                  <button
+                    class="btn btn-xs btn-error tooltip tooltip-bottom"
+                    data-tip="Stop generation"
+                    @click="cancelMessage"
+                    v-if="!isDone && cancellationTokenId"
+                  >
+                    <span class="loading loading-xs"></span>
+                    Cancel...
+                  </button>
+                  <button 
+                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
+                    data-tip="Thread" 
                     @click="$emit('thread', message)"
                     v-if="!editting"
                   >
                     <i class="fa-solid fa-comment-dots"></i>
                   </button>      
-
-                  <button class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" data-tip="Right answer!" @click="$emit('answer', message)"
+                  <button 
+                    class="btn btn-xs text-success hover:btn-outline tooltip tooltip-bottom" 
+                    data-tip="Right answer!" 
+                    @click="$emit('answer', message)"
                     v-if="!editting"
                   >
                     <i class="fa-solid fa-check-double"></i>
                   </button>      
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Copy message" @click="copyMessageToClipboard"
+                  <button 
+                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
+                    data-tip="Copy message" 
+                    @click="copyMessageToClipboard"
                     v-if="!editting"
                   >
                     <i class="fa-solid fa-copy"></i>
                   </button>      
-                  <button class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="View diff" @click="toggleShowDiff" v-if="displayMessage.diffMessage">
+                  <button 
+                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
+                    data-tip="View diff" 
+                    @click="toggleShowDiff" 
+                    v-if="displayMessage.diffMessage"
+                  >
                     <i class="fa-regular fa-file-lines"></i>
                     <i class="fa-regular fa-file-lines text-primary -ml-1"></i>
                   </button>
-
-                  <!-- Split into sub-tasks button -->
                   <button 
                     class="btn btn-xs hover:btn-outline tooltip tooltip-bottom hover:btn-warning" 
                     data-tip="Run agents" 
@@ -95,16 +170,16 @@ import Word from './document/Word.vue'
                   >
                     <i class="fa-solid fa-people-group"></i>
                   </button>
-
-                  <button v-if="canEditMessage && !editting" class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" data-tip="Edit message" @click="onEditMessage">
+                  <button 
+                    v-if="canEditMessage && !editting" 
+                    class="btn btn-xs hover:btn-outline tooltip tooltip-bottom" 
+                    data-tip="Edit message" 
+                    @click="onEditMessage"
+                  >
                     <i class="fa-solid fa-pencil"></i>
                   </button>
                   <button v-if="editting" class="btn btn-xs btn-success" @click="saveEditting">Save</button>
                   <button v-if="editting" class="btn btn-xs btn-error" @click="cancelEditting">Cancel</button>
-                  <button class="hidden btn btn-xs hover:btn-outline bg-secondary tooltip" data-tip="Enhance message" 
-                    @click="$emit('enhance', message)">
-                    <i class="fa-solid fa-wand-magic-sparkles"></i>
-                  </button>
                   <div class="dropdown dropdown-hover dropdown-end" v-if="!editting">
                     <button tabindex="0" class="btn hover:btn-error btn-xs" @click="onRemove">
                       <i class="fa-solid fa-bars"></i>
@@ -115,14 +190,18 @@ import Word from './document/Word.vue'
                           <i class="fa-solid fa-trash-can"></i> Delete
                         </a>
                       </li>
-                      <li class="text-warning" v-if="displayMessage.done">
-                        <a @click.stop="$emit('hide', message)" class="text-left tooltip tooltip-bottom click"
-                            :data-tip="displayMessage.hide ? 'Click to add message to conversation' : 
-                                              'Click to archive message from the conversation'">
+                      <li class="text-warning" v-if="isDone">
+                        <a 
+                          @click.stop="$emit('hide', message)" 
+                          class="text-left tooltip tooltip-bottom click"
+                          :data-tip="displayMessage.hide 
+                            ? 'Click to add message to conversation' 
+                            : 'Click to archive message from the conversation'"
+                        >
                           <i class="fa-solid fa-box-archive"></i> {{ displayMessage.hide ? 'Show' : 'Archive' }}
                         </a>                  
                       </li>
-                      <li @click="toggleSrcView"  v-if="displayMessage.done">
+                      <li @click="toggleSrcView" v-if="isDone">
                         <a><i class="fa-solid fa-code"></i> Source</a>
                       </li>
                     </ul>
@@ -132,8 +211,11 @@ import Word from './document/Word.vue'
             </div>
           </div>
         </div>
+
+        <!-- Skeleton loader when no content yet -->
         <div class="flex w-full flex-col gap-4 bg-base-100 p-2 mb-2 rounded-md" 
-              v-if="!displayMessage.content && !displayMessage.think">
+          v-if="!displayMessage.content && !displayMessage.think"
+        >
           <div class="flex items-center gap-4">
             <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
             <div class="flex flex-col gap-4">
@@ -143,28 +225,43 @@ import Word from './document/Word.vue'
           <div class="skeleton h-32 w-full"></div>
         </div>
         
+        <!-- Thinking block -->
         <div v-if="displayMessage.think">
-          <div class="alert click items-start"
+          <div 
+            class="alert click items-start"
             @click="displayMessage.full_think = !displayMessage.full_think"
           >
-              <i class="fa-solid fa-brain"></i>
-              {{ thinkText }}
+            <i class="fa-solid fa-brain"></i>
+            {{ thinkText }}
           </div>    
         </div>
-        <div @copy.stop="onMessageCopy" 
-            :class="['max-w-full border-slate-300/20', 
-            (isCollapsed === undefined ? displayMessage.hide : isCollapsed) ? 'h-6 overflow-hidden': 'h-fit']">
-          
-          <!--textarea v-if="editting" v-model="editting" class="h-96 bg-transparent input w-full p-2"/ -->
-          <Editor class="h-[1024px] overflow-auto" language="markdown" v-model="editting" v-if="editting" />                
+
+        <!-- Message content area -->
+        <div 
+          @copy.stop="onMessageCopy" 
+          :class="[
+            'max-w-full border-slate-300/20', 
+            (isCollapsed === undefined ? displayMessage.hide : isCollapsed) 
+              ? 'h-6 overflow-hidden' 
+              : 'h-fit'
+          ]"
+        >
+          <Editor 
+            class="h-[1024px] overflow-auto" 
+            language="markdown" 
+            v-model="editting" 
+            v-if="editting" 
+          />                
           
           <pre v-if="srcView">{{ displayMessage.content }}</pre>
-          <!-- Word v-model="displayMessage.content" v-if="isWord" /-->
+
+          <!-- Main document renderer — add-file bubbled from MarkdownViewer → Document → here -->
           <Document 
             :content="messageContent"
             :files="chatFiles"
             :project="chatProject"
             :chat="chat"
+            :loading="!message.done"
             @generate-code="onGenerateCode" 
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
@@ -173,25 +270,38 @@ import Word from './document/Word.vue'
             @edit-message="$emit('edit-message', $event)"
             @sub-task="$emit('sub-task', $event)"
             :mentionList="mentionList"
-            v-if="!showDiff && !editting && !srcView && !code_patches && !isWord" />
+            v-if="!showDiff && !editting && !srcView && !code_patches && !isWord" 
+          />
+
           <div class="alert alert-error text-xs" v-if="displayMessage.error">
             {{ displayMessage.error }}
           </div>
+
           <CodeDiff
             :new-string="displayMessage.diffMessage.content"
             :old-string="messageContent"
             theme="dark"
             v-if="showDiff"
           />
+
+          <!-- Code patches list -->
           <div v-if="code_patches">
-            <div class="mt-2 p-2 rounded-md flex flex-col gap-1 overflow-hidden" v-for="patch in code_patches" :key="patch.file_path">
+            <div 
+              class="mt-2 p-2 rounded-md flex flex-col gap-1 overflow-hidden" 
+              v-for="patch in code_patches" 
+              :key="patch.file_path"
+            >
               <div class="text-xs font-bold text-primary" :title="patch.file_path">
                 {{ patch.file_path.replace($project.abs_project_path, '') }}
               </div>
               <div class="">{{ patch.description }}</div>
               <Markdown :text="'```diff\n' + patch.patch + '\n```'"></Markdown>
               <div class="flex justify-end">
-                <button class="btn btn-sm btn-warning" :disabled="patch.working" @click="applyPatch(patch)">
+                <button 
+                  class="btn btn-sm btn-warning" 
+                  :disabled="patch.working" 
+                  @click="applyPatch(patch)"
+                >
                   <span class="loading loading-spinner" v-if="patch.working"></span>
                   Apply changes
                 </button>
@@ -202,21 +312,44 @@ import Word from './document/Word.vue'
               </div>
             </div>
           </div>
+
+          <!-- Image carousel -->
           <div v-if="images">
             <div class="carousel gap-2" v-if="images?.length">
-              <div class="carousel-item click mt-2" v-for="image in images" :key="image.src" @click="$emit('image', image)" :alt="image.alt" :title="image.alt">
+              <div 
+                class="carousel-item click mt-2" 
+                v-for="image in images" 
+                :key="image.src" 
+                @click="$emit('image', image)" 
+                :alt="image.alt" 
+                :title="image.alt"
+              >
                 <div class="flex flex-col">
-                  <div class="bg-contain bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" :style="`background-image: url(${image.src})`"></div>
+                  <div 
+                    class="bg-contain bg-no-repeat bg-center border rounded-md w-12 h-12 md:h-20 md:w-20" 
+                    :style="`background-image: url(${image.src})`"
+                  ></div>
                   <p class="badge badge-xs" v-if="image.alt">{{ image.alt.slice(0, 10) }}</p>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Linked files list -->
           <div class="font-bold text-xs flex flex-col gap-2 mt-2" v-if="displayMessage.files?.length">
             Linked files:
-            <div v-for="file in displayMessage.files" :key="file" :title="file" class="flex gap-2 items-center click">
+            <div 
+              v-for="file in displayMessage.files" 
+              :key="file" 
+              :title="file" 
+              class="flex gap-2 items-center click"
+            >
               <div class="flex gap-2 click hover:underline" @click="openFile(file)">
-                <div class="click tooltip tooltip-right" data-tip="Attach file" @click.stop="$emit('add-file-to-chat', file)">
+                <div 
+                  class="click tooltip tooltip-right" 
+                  data-tip="Attach file" 
+                  @click.stop="$emit('add-file-to-chat', file)"
+                >
                   <i class="fa-solid fa-file-arrow-up"></i>
                 </div>
                 <div class="overflow-hidden">
@@ -236,7 +369,13 @@ import Word from './document/Word.vue'
 
 <script>
 export default {
-  props: ['chat', 'message', 'isTopic', 'mentionList', 'menu-less', 'usersList'],
+  props: ['chat', 'message', 'mentionList', 'menu-less', 'usersList'],
+  emits: [
+    'generate-code', 'reload-file', 'open-file', 'save-file',
+    'add-file', 'edit-message', 'sub-task', 'thread', 'hide',
+    'remove', 'answer', 'enhance', 'copy', 'add-file-to-chat',
+    'remove-file', 'image', 'run-agents', 'edited'
+  ],
   data() {
     return {
       srcView: false,
@@ -250,13 +389,23 @@ export default {
     this.loadThreadChat()
   },
   computed: {
+    isDone() {
+      return this.displayMessage.done
+    },
     isWord() {
       return this.chat?.mode === 'word'
     },
+    isTopic() {
+      return this.chat?.mode === 'topic'
+    },
+    // Slack-style applies to all messages in topic mode
+    isSlackStyle() {
+      return this.chat?.mode === 'topic'
+    },
     isCollapsed() {
-      return this.displayMessage.collapsed !== undefined ?
-          this.displayMessage.collapsed :
-          this.displayMessage.is_answer ? true: false
+      return this.displayMessage.collapsed !== undefined
+        ? this.displayMessage.collapsed
+        : this.displayMessage.is_answer ? true : false
     },
     isMyMessage() {
       return this.displayMessage.user === this.$user.username
@@ -269,10 +418,11 @@ export default {
         this.isMyMessage ||
         this.message.role === 'assistant'
     },
-    thinkText () {
+    thinkText() {
       const { full_think, is_thinking, think } = this.message 
       return (full_think || is_thinking) 
-        ? think : `${think.slice(0, 50)}...`
+        ? think 
+        : `${think.slice(0, 50)}...`
     },
     displayMessage() {
       return this.threadChat?.messages
@@ -280,22 +430,11 @@ export default {
         .reverse()[0] || this.message
     },
     messageProfiles() {
-      let profiles = this.$projects.profiles?.filter(p => this.displayMessage.profiles?.includes(p.name)) || []
-      const user = this.$project.users.find(({ username }) => username === this.displayMessage.user)
+      let profiles = this.$projects.profiles
+        ?.filter(p => this.displayMessage.profiles?.includes(p.name)) || []
+      const user = this.$project.users
+        .find(({ username }) => username === this.displayMessage.user)
       return [user, ...profiles].filter(u => !!u)
-    },
-    html() {
-      if (!this.showDoc) {
-        try {
-          return this.md.render(this.displayMessage.content)
-        } catch (ex) {
-          console.error("Message can't be rendered", this.message)
-        }
-      }
-      return this.showDocPreview
-    },
-    showDocPreview() {
-      return this.md.render("```json\n" + JSON.stringify(this.message, null, 2) + "\n```")
     },
     images() {
       return this.message?.images?.map(i => {
@@ -307,27 +446,21 @@ export default {
       })
     },
     messageContent() {
-      const { content } = this.displayMessage
-      return content
+      return this.displayMessage.content
     },
-    selection () {
-      return document.getSelection().toString()
-    },
-    code_changes () {
+    code_changes() {
       return this.improvementData?.code_changes
     },
-    code_patches () {
+    code_patches() {
       return this.improvementData?.code_patches
     },
-    timeTaken () {
-      if (!this.displayMessage.meta_data) {
-        return null
-      }
+    timeTaken() {
+      if (!this.displayMessage.meta_data) return null
       let timeTaken = '--'
       if (this.displayMessage.meta_data?.time_taken) {
         const seconds = Math.floor(this.displayMessage.meta_data.time_taken)
-        const baseMoment = moment({h:0, m:0, s:0, ms:0})
-        timeTaken = baseMoment.add(seconds, 'seconds').format("mm:ss")
+        const baseMoment = moment({ h: 0, m: 0, s: 0, ms: 0 })
+        timeTaken = baseMoment.add(seconds, 'seconds').format('mm:ss')
       } else if (this.displayMessage.meta_data?.start_time) {
         timeTaken = moment(this.displayMessage.meta_data?.start_time).fromNow()
       }
@@ -339,21 +472,20 @@ export default {
       }
       return this.$project
     },
-    messageContentProjectFiles() {
-      return this.messageContent.split(" ")
-              .filter(word => word.startsWith(this.$project.abs_project_path))
-    },
-    allFiles() {
-      return [...new Set([...this.displayMessage.files, ...this.messageContentProjectFiles])]
-    },
     chatFiles() {
       return this.chat.file_list
     },
     threadChat() {
       return this.$projects.allChats.find(c => c.message_id === this.message.doc_id)
     },
-    isTask() {
-      return this.chat?.mode === 'task'
+    cancellationTokenId() {
+      return this.displayMessage.meta_data?.cancellation_token_id
+    },
+    cancellationTime() {
+      return this.displayMessage.meta_data?.cancelled_at
+    },
+    menuLess() {
+      return this.$attrs['menu-less']
     }
   },
   watch: {
@@ -367,13 +499,13 @@ export default {
     },
     extractImprovementData() {
       this.improvementData = null
-      if (this.displayMessage.content?.startsWith("```json")) {
+      if (this.displayMessage.content?.startsWith('```json')) {
         try {
-          const lines = this.displayMessage.content.split("\n")
-          const jsBlock = lines.slice(1, lines.length-1).join("\n")
+          const lines = this.displayMessage.content.split('\n')
+          const jsBlock = lines.slice(1, lines.length - 1).join('\n')
           this.improvementData = JSON.parse(jsBlock)
         } catch (ex) {
-          console.error("Failed to parse improvement data", ex)
+          console.error('Failed to parse improvement data', ex)
         }
       }
     },
@@ -417,9 +549,6 @@ export default {
       this.isRemove = true
       this.$emit('remove')
     },
-    cancelRemove() {
-      this.isRemove = false
-    },
     copyMessageToClipboard() {
       this.copyTextToClipboard(this.displayMessage.content)
     },
@@ -427,12 +556,13 @@ export default {
       patch.working = true 
       try {
         const code_changes = this.code_changes.filter(cc => cc.file_path === patch.file_path)
-        await this.$projects.codeImprovePatch({ chat: this.chat, code_generator: { code_changes, code_patches: [ patch ] } })
-        patch.res = {
-          info: "Patch sent, please check events for updates"
-        }
+        await this.$projects.codeImprovePatch({
+          chat: this.chat,
+          code_generator: { code_changes, code_patches: [patch] }
+        })
+        patch.res = { info: 'Patch sent, please check events for updates' }
       } catch {
-        patch.res = { info: "", error: "Error aplaying patch" }
+        patch.res = { info: '', error: 'Error applying patch' }
       }
       delete patch.working
     },
@@ -467,6 +597,15 @@ export default {
     },
     runAgents() {
       this.$emit('run-agents', this.message)
+    },
+    async cancelMessage() {
+      const tokenId = this.cancellationTokenId
+      if (!tokenId) return
+      try {
+        await this.$storex.api.chats.cancelMessage(tokenId)
+      } catch (ex) {
+        console.error('Failed to cancel message', ex)
+      }
     }
   },
   mounted() {

@@ -1,7 +1,7 @@
 {
   "id": "f8b58145-10aa-4dff-a929-b809539a4840",
   "doc_id": null,
-  "project_id": "7295db94-424d-46d0-aa25-92f2ba487389",
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
   "parent_id": null,
   "parent_owner_project_id": null,
@@ -12,20 +12,22 @@
   "file_list": [],
   "check_lists": [],
   "profiles": [
-    "project"
+    "VueDeveloper",
+    "project",
+    "py_senior"
   ],
   "users": [
     "admin"
   ],
   "name": "Team Chat Design",
   "pinned": false,
-  "description": "Here's a 5-line summary of this conversation:\n\n---\n\n1. **SP discussions** do not auto-invoke AI unless a specific profile is explicitly named/mentioned.\n2. This behavior is **by design**, giving users control over when AI participates in discussions.\n3. The user asked about **project-adam-vespucci**, a project managed within the codx-junior ecosystem.\n4. The project is located at `/home/codx-junior-projects/codx-junior-projects/project-adam-vespucci`.\n5. The conversation was brief and exploratory, touching on **AI invocation behavior** and **project details**.",
+  "description": "The conversation is very brief \u2014 here's the 5-line summary:\n\n1. \ud83d\udccc A topic chat was initiated, designed for free team interaction between members and profiles.\n2. \ud83d\udc4b A simple greeting exchange (\"Hi there \ud83d\ude04\" / \"Hi\") took place between users.\n3. \ud83e\udd16 Three profiles are available: **VueDeveloper**, **py_senior**, and **project**.\n4. \ud83d\udcac codx-junior introduced itself and explained the available profiles and their purposes.\n5. \ud83d\udd04 No actual technical work or tasks have been requested yet \u2014 the chat is just getting started!",
   "messages": [
     {
       "doc_id": "0ec8748b-6a67-41fa-a318-9fb8781f934d",
       "role": "user",
       "task_item": "",
-      "content": "Sp discussions are not auto-invoking ai unless a profile is named",
+      "content": "# TOPIC chats\nTopic chats are for free teams interaction between members and profiles.\n\nIn this mode, codx-junior is not participating unless a profile is invoked.",
       "think": "",
       "hide": false,
       "is_answer": false,
@@ -45,139 +47,79 @@
       "error": null
     },
     {
-      "doc_id": "57dfb38f-2e55-4a0d-b1cf-86da355ff745",
+      "doc_id": "a0d38cba-0920-4acb-8af6-afd6c7d30828",
       "role": "user",
       "task_item": "",
-      "content": "Right?",
+      "content": "Hi there \ud83d\ude04",
       "think": "",
       "hide": false,
       "is_answer": false,
       "improvement": false,
-      "created_at": "2026-04-26 12:23:02.692710",
-      "updated_at": "2026-04-26 12:23:02.692734",
-      "images": [],
-      "files": [],
-      "meta_data": {
-        "time_taken": 4.067312240600586,
-        "first_chunk_time_taken": 0.25002527236938477,
-        "model": "claude-sonnet-4-6"
-      },
-      "profiles": [
-        "project"
-      ],
-      "user": "admin",
-      "knowledge_topics": [],
-      "done": true,
-      "is_thinking": false,
-      "disable_knowledge": false,
-      "read_by": [],
-      "error": null
-    },
-    {
-      "doc_id": "905328a7-cfc6-4d5a-b5d8-48985e6051c2",
-      "role": "assistant",
-      "task_item": "",
-      "content": "Yes, that's correct! In **SP (Shared Project) discussions**, the AI will **only auto-invoke** if a specific **profile is named/mentioned** in the discussion.\n\nWithout naming a profile, the discussion just acts as a regular chat between users, and the AI won't automatically jump in to respond.\n\nThis is the expected behavior - it prevents unwanted AI responses in every discussion thread and gives users control over **when to engage the AI**.\n\nIs there something specific about this behavior in the **project-adam-vespucci** project you want to configure or change?",
-      "think": null,
-      "hide": false,
-      "is_answer": false,
-      "improvement": false,
-      "created_at": "2026-04-26 12:23:02.692710",
-      "updated_at": "2026-04-26 12:23:02.692734",
-      "images": [],
-      "files": [],
-      "meta_data": {
-        "time_taken": 4.067312240600586,
-        "first_chunk_time_taken": 0.25002527236938477,
-        "model": "claude-sonnet-4-6"
-      },
-      "profiles": [
-        "project"
-      ],
-      "user": null,
-      "knowledge_topics": [],
-      "done": true,
-      "is_thinking": false,
-      "disable_knowledge": false,
-      "read_by": [],
-      "error": null
-    },
-    {
-      "doc_id": "eb00df3c-57c3-45e5-965c-c287f5d9bede",
-      "role": "user",
-      "task_item": "",
-      "content": "Tell me about\u00a0project-adam-vespucci",
-      "think": "",
-      "hide": false,
-      "is_answer": false,
-      "improvement": false,
-      "created_at": "2026-04-26 12:23:02.692710",
-      "updated_at": "2026-04-26 12:23:02.692734",
-      "images": [],
-      "files": [],
-      "meta_data": {
-        "time_taken": 4.432716369628906,
-        "first_chunk_time_taken": 0.15841412544250488,
-        "model": "claude-sonnet-4-6"
-      },
-      "profiles": [
-        "project"
-      ],
-      "user": "admin",
-      "knowledge_topics": [],
-      "done": true,
-      "is_thinking": false,
-      "disable_knowledge": false,
-      "read_by": [],
-      "error": null
-    },
-    {
-      "doc_id": "1e308645-26e8-4271-8c4d-a258e8eb5893",
-      "role": "assistant",
-      "task_item": "",
-      "content": "Based on the instructions provided, here's what I know about **project-adam-vespucci**:\n\n---\n\n### \ud83d\udcc1 Project: `project-adam-vespucci`\n\n| Detail | Info |\n|--------|------|\n| **Project Name** | project-adam-vespucci |\n| **Project Path** | `/home/codx-junior-projects/codx-junior-projects/project-adam-vespucci` |\n\n---\n\nThat's the extent of the information I have from the current context. The project details are minimal right now.\n\nWould you like to:\n- \ud83d\udcc2 **Explore the project structure**?\n- \u2699\ufe0f **Configure project settings**?\n- \ud83d\udcac **Set up discussions or profiles** for this project?\n\nLet me know how you'd like to proceed! \ud83d\ude80",
-      "think": null,
-      "hide": false,
-      "is_answer": false,
-      "improvement": false,
-      "created_at": "2026-04-26 12:23:02.692710",
-      "updated_at": "2026-04-26 12:23:02.692734",
-      "images": [],
-      "files": [],
-      "meta_data": {
-        "time_taken": 4.432716369628906,
-        "first_chunk_time_taken": 0.15841412544250488,
-        "model": "claude-sonnet-4-6"
-      },
-      "profiles": [
-        "project"
-      ],
-      "user": null,
-      "knowledge_topics": [],
-      "done": true,
-      "is_thinking": false,
-      "disable_knowledge": false,
-      "read_by": [],
-      "error": null
-    },
-    {
-      "doc_id": "36c0d6fa-359c-405e-b840-1277799b7eb8",
-      "role": "user",
-      "task_item": "",
-      "content": "who are\u00a0",
-      "think": "",
-      "hide": false,
-      "is_answer": false,
-      "improvement": false,
-      "created_at": "2026-04-26 12:23:02.692710",
-      "updated_at": "2026-04-26 12:23:02.692734",
+      "created_at": "2026-05-27 16:11:05.938552",
+      "updated_at": "2026-05-27 16:11:05.938574",
       "images": [],
       "files": [],
       "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "fd6e3800-4701-43ce-8e34-841b8e481134",
+      "role": "user",
+      "task_item": "",
+      "content": "Hi\u00a0",
+      "think": "",
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-27 16:11:05.938552",
+      "updated_at": "2026-05-27 16:11:05.938574",
+      "images": [],
+      "files": [],
+      "meta_data": null,
       "profiles": [
-        "project"
+        "VueDeveloper"
       ],
       "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "1afc1bdd-67df-4f0d-9b36-7fa30517382f",
+      "role": "assistant",
+      "task_item": "",
+      "content": "# Welcome! \ud83d\udc4b\n\nIt looks like we have some great profiles available in this chat:\n\n- \ud83c\udfa8 **@VueDeveloper** - For Vue.js component help with TailwindCSS\n- \ud83d\udc0d **@py_senior** - For complex Python tasks\n- \ud83d\udcc1 **@project** - For codx-junior project specific help\n\nFeel free to chat freely here, and mention any of the profiles above if you need specialized help!\n\nWhat's on your mind? \ud83d\ude0a",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-27 16:11:05.938552",
+      "updated_at": "2026-05-27 16:11:05.938574",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1780301289.9533858,
+        "cancellation_token_id": "c6670057-735a-4426-8bd7-62b700ef5dfd",
+        "model": "claude-sonnet-4-6",
+        "time_taken": 3.75105881690979,
+        "first_chunk_time_taken": 0.16036391258239746
+      },
+      "profiles": [
+        "VueDeveloper",
+        "py_senior",
+        "project"
+      ],
+      "user": null,
       "knowledge_topics": [],
       "done": true,
       "is_thinking": false,
@@ -187,7 +129,7 @@
     }
   ],
   "created_at": "2026-04-16 06:40:50.083592",
-  "updated_at": "2026-04-28T07:22:20.311053",
+  "updated_at": "2026-06-01T12:39:24.168065",
   "mode": "topic",
   "kanban_id": "",
   "column_id": "",
@@ -203,5 +145,6 @@
   "remote_url": "",
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {},
+  "auto_initialize": false
 }

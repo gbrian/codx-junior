@@ -101,6 +101,13 @@ class Chat(BaseModel):
     knowledge_topics: List[str] = Field(description="This chat will be indexed for knowledge and tagged with this topics", default=[])
     chat_links: List[ChatId] = Field(default=[])
     pr_view: Optional[dict] = Field(default={}, description="Pull request view")
+    auto_initialize: Optional[bool] = Field(
+        default=False,
+        description=(
+            "Indicates this is a new chat that has not been initialized yet. "
+            "When True, AI will auto-fill board, column and name fields on first response."
+        )
+    )
     
 PROJECT_DATABASES = {}
 

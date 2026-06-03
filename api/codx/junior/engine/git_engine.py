@@ -8,6 +8,7 @@ Made with ❤️ by codx-junior
 import json
 import logging
 import os
+from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from codx.junior.project.project_discover import find_project_parents
@@ -42,6 +43,23 @@ class GitEngine:
     def settings(self):
         """Shortcut to session settings."""
         return self.session.settings
+
+    def _get_file_last_modification(self, file_path: str) -> Optional[str]:
+        """
+        Return the last modification datetime of a file as an ISO 8601 string.
+
+        Args:
+            file_path: Absolute or relative (to project root) path to the file.
+
+        Returns:
+            ISO 8601 datetime string, or None if the file does not exist.
+        """
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(self.settings.abs_project_path, file_path)
+        if not os.path.isfile(file_path):
+            return None
+        mtime = os.path.getmtime(file_path)
+        return datetime.fromtimestamp(mtime).isoformat()
 
     def get_repo_branches(self) -> list:
         """
@@ -102,6 +120,8 @@ class GitEngine:
     def get_repo_changes(self, from_branch: str, to_branch: str) -> dict:
         """
         Return file changes, diffs and PR details between two branches.
+        Each file entry includes a 'last_modification' datetime (ISO 8601) if the
+        file exists on disk.
 
         Args:
             from_branch: Source branch (may have '* ' prefix for current).
@@ -151,6 +171,7 @@ class GitEngine:
             file_path: {
                 "commits": git_commits,
                 "diff": get_git_file_diff(file_path),
+                "last_modification": self._get_file_last_modification(file_path),
             }
             for file_path in branch_files
         }
@@ -183,15 +204,21 @@ class GitEngine:
                         f"git diff {to_branch} {file}",
                         cwd=self.settings.abs_project_path,
                     )
-                    local_changes[file] = git_diff_local_out or (
-                        f"diff --git a/ b/{file}\nnew file mode"
-                    )
+                    local_changes[file] = {
+                        "diff": git_diff_local_out or (
+                            f"diff --git a/ b/{file}\nnew file mode"
+                        ),
+                        "last_modification": self._get_file_last_modification(file),
+                    }
 
-        for local_file, local_diff in local_changes.items():
+        for local_file, local_file_info in local_changes.items():
             if local_file in branch_file_and_commits:
-                branch_file_and_commits[local_file]["diff"] = local_diff
+                branch_file_and_commits[local_file]["diff"] = local_file_info["diff"]
+                branch_file_and_commits[local_file]["last_modification"] = (
+                    local_file_info["last_modification"]
+                )
             else:
-                branch_file_and_commits[local_file] = {"diff": local_diff}
+                branch_file_and_commits[local_file] = local_file_info
 
         pr_details = self.get_pr_review_details(from_branch, to_branch)
 
@@ -302,6 +329,18 @@ class GitEngine:
             )
             file_changes = stdout_files.strip().split("\n")
 
+            # Enrich each file entry with last_modification datetime
+            enriched_files = []
+            for f in file_changes[1:]:
+                if not f:
+                    continue
+                enriched_files.append(
+                    {
+                        "file_path": f,
+                        "last_modification": self._get_file_last_modification(f),
+                    }
+                )
+
             commits.append(
                 {
                     "entry_line": entry,
@@ -309,7 +348,7 @@ class GitEngine:
                     "author": author,
                     "date": date,
                     "message": message,
-                    "files": [f for f in file_changes if f][1:],
+                    "files": enriched_files,
                 }
             )
 
@@ -403,6 +442,8 @@ class GitEngine:
     def get_pr_review_details(self, from_branch: str, to_branch: str) -> list:
         """
         Return PR review details (file changes, diffs, commits) between two branches.
+        Each file entry includes a 'last_modification' datetime (ISO 8601) if the
+        file exists on disk.
 
         Args:
             from_branch: Source branch.
@@ -452,6 +493,7 @@ class GitEngine:
                     "status": file_status,
                     "diff": file_diff,
                     "commits": file_commits,
+                    "last_modification": self._get_file_last_modification(file_path),
                 }
             )
 

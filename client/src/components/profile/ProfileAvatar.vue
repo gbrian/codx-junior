@@ -5,7 +5,7 @@ import Document from '../document/Document.vue';
   <div class="dropdown click">
     <div tabindex="0" class="avatar" v-if="profile">
       <div class="rounded-full bg-base-300" :class="avatarWidth">
-        <img :src="profile.avatar" />
+        <img :src="avatarUrl" />
       </div>
     </div>
     <div
@@ -30,6 +30,9 @@ export default {
         width = 6
       }
       return `w-${width}`
+    },
+    avatarUrl() {
+      return this.profile.avatar_url || this.profile.avatar
     }
   }
 }

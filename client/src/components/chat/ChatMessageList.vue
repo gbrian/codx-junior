@@ -1,6 +1,5 @@
 <script setup>
 import ChatEntry from '@/components/ChatEntry.vue'
-import TaskCard from '../kanban/TaskCard.vue'
 </script>
 
 <template>
@@ -11,7 +10,6 @@ import TaskCard from '../kanban/TaskCard.vue'
       :key="message.doc_id || message.id"
       :class="[
         'max-w-full mb-4 rounded-md hover:bg-base-200 border border-slate-600/0 hover:border-slate-600/70 rounded-lg',
-        isChannel ? '' : 'py-2',
         editMessage
           ? editMessage === message
             ? 'border border-warning'
@@ -20,7 +18,6 @@ import TaskCard from '../kanban/TaskCard.vue'
       ]"
       :chat="chat"
       :message="message"
-      :isTopic="isTopic && !ix"
       :mentionList="mentionList"
       :menu-less="readOnly"
       :usersList="usersList"
@@ -50,16 +47,6 @@ import TaskCard from '../kanban/TaskCard.vue'
     <!-- Scroll anchor -->
     <div class="anchor" ref="anchor"></div>
 
-    <!-- Child chats grid -->
-    <div class="grid grid-cols-3 gap-2 mb-2" v-if="!isVibe && childrenChats?.length">
-      <div v-for="child in childrenChats" :key="child.id" class="relative">
-        <TaskCard
-          class="click p-2 bg-base-100 h-40"
-          :task="child"
-          @click="$emit('set-active-chat', child)"
-        />
-      </div>
-    </div>
   </div>
 </template>
 
@@ -73,8 +60,6 @@ export default {
     'readOnly',
     'usersList',
     'childrenChats',
-    'isChannel',
-    'isTopic'
   ],
   emits: [
     'edited',

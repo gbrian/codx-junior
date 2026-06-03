@@ -22,7 +22,6 @@ import MenuDivider from './MenuDivider.vue';
         <MenubarTrigger
           class="click py-2 px-3 text-xl select-none font-bold leading-none border border-white/30 rounded flex items-center justify-between gap-2 tooltip"
           :data-tip="$storex.session.connected ? '' : 'API is not connected!'"
-          v-if="$project"
         >
         <div class="avatar">
           <img class="w-6 rpounded-full" src="/only_icon.png" />

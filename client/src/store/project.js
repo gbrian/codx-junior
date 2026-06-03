@@ -57,6 +57,16 @@ function getProfiles(project) {
   return $state?.profiles || $storex.profiles.profilesByProject[project_id]
 }
 
+const promiseOrDefault = async (p, def) => {
+  let res = def
+  try {
+    res = await p()
+  } catch(ex) {
+    console.error(ex)
+  }
+  return res
+}
+
 const initProject = async project => {
       try {
           const [_, models ] = await Promise.all([
@@ -66,8 +76,8 @@ const initProject = async project => {
           project.$state.ai.models = models
           
           Object.assign(project.$state,  { 
-            profiles: await project.$api.profiles.list(), 
-            chats: await project.$api.chats.list(),
+            profiles: await promiseOrDefault(project.$api.profiles.list, []), 
+            chats: await promiseOrDefault(project.$api.chats.list, []),
             knowledge: {},
             _mentionList: null,
             get mentionList() {
@@ -105,7 +115,7 @@ function getProjectDependencies(project) {
   }
 
 function buildMentions(project) {
-  const { $state: {knowledge, profiles }, project_id, parent_id } = project
+  const { $state: { knowledge, profiles }, project_id, parent_id } = project
 
   return [
     ...$storex.api.userNetwork.map(user => ({ 
@@ -287,6 +297,8 @@ export const actions = actionTree(
           await $storex.projects.setAllProjects([ ...state.allProjects, API.activeProject ])
         }
         state.activeProject = state.allProjectsById[API.activeProject.project_id]
+                                || state.allProjects.fin(p => p.project_name === 'codx-junior')
+
         await $storex.chats.loadChats()
         if (state.activeChat?.project_id !== API.activeProject.project_id) {
           state.activeChat = null
@@ -296,6 +308,8 @@ export const actions = actionTree(
         $storex.projects.addRecentProject(state.activeProject) 
         state.workspaces = API.workspaces
         $storex.ui.saveState()
+      } catch(ex) {
+        console.error("Error setting active project", ex)
       } finally {
         state.projectLoading = false
       }

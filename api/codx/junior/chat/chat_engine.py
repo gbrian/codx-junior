@@ -4,6 +4,7 @@ import os
 import time
 import uuid
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from json import JSONDecodeError
 from typing import List, Tuple, Optional, Dict, Any
 
@@ -15,6 +16,7 @@ from langchain.messages import (
 from langchain_core.documents import Document
 
 from codx.junior.ai import AI
+from codx.junior.ai.cancellation import CancellationToken, CancelledError, CANCELLATION_REGISTRY
 from codx.junior.chat_manager import ChatManager
 from codx.junior.context import AICodeGenerator
 from codx.junior.db import Chat, Message
@@ -43,6 +45,18 @@ CHAT_MODE_AGENT = "agent"
 CHAT_MODE_VIBE = "vibe"
 TASK_ITEM_SEARCH = "search"
 TASK_ITEM_ANALYSIS = "analysis"
+
+# Prompt used to auto-initialize an auto_initialize chat's metadata
+CHAT_INIT_PROMPT = """
+Based on the conversation below, suggest values for the following chat metadata fields.
+Return a JSON object with these keys (omit a key if you cannot determine a good value):
+  - "name": a short, descriptive title for this chat (max 8 words)
+  - "board": the high-level board/category this chat belongs to (e.g. "Backend", "Frontend", "DevOps", "Design", "General")
+  - "column": the workflow column that best fits the current state (e.g. "To Do", "In Progress", "Done", "Backlog")
+
+Return ONLY a valid JSON object, no extra text.
+Example: {"name": "Fix login bug", "board": "Backend", "column": "In Progress"}
+"""
 
 
 class ChatEngine:
@@ -701,12 +715,13 @@ class ChatEngine:
         response_message: Message,
         task_item: Optional[str],
         callback,
-        send_message_event
+        send_message_event,
+        cancellation_token: Optional[CancellationToken] = None,
     ) -> Tuple[Optional[str], Optional[str], List[str]]:
         """
         Invoke the appropriate AI or search handler and extract the response parts.
 
-        Returns a tuple of (think_content, response_content, extra_files).
+        Returns a tuple of (think_content, response_content, extra_files, ai_chat_fn).
 
         flowchart TD
             A{is_search?} -->|Yes| B[KnowledgeAISearch]
@@ -726,7 +741,8 @@ class ChatEngine:
         :param task_item: The task item type of the current user message.
         :param callback: Streaming callback for partial content.
         :param send_message_event: Callable to emit partial response events.
-        :return: Tuple of (think_content, main_content, extra_file_list).
+        :param cancellation_token: Optional token to cancel the ongoing request.
+        :return: Tuple of (think_content, main_content, extra_file_list, ai_chat_fn).
         """
         think_content: Optional[str] = None
         main_content = ""
@@ -744,7 +760,8 @@ class ChatEngine:
                 prompt=prompt,
                 callback=callback,
                 headers=headers,
-                tools=chat_tools
+                tools=chat_tools,
+                cancellation_token=cancellation_token,
             )
 
         try:
@@ -805,18 +822,29 @@ class ChatEngine:
         """
         Stamp the response message with timing and model metadata.
 
+        Merges ``user_message.meta_data`` into the existing
+        ``response_message.meta_data`` so that fields already present on the
+        response message (e.g. ``cancellation_token_id`` stamped in step 6)
+        are **not** overwritten.
+
         :param response_message: The message to annotate.
         :param user_message: The originating user message (provides base meta_data).
         :param timing_info: Dict containing 'start_time' and 'first_response'.
         :param ai_model: Name of the model that generated the response.
         :param chat_profile_names: Names of profiles active during this turn.
         """
-        response_message.meta_data = user_message.meta_data or {}
-        response_message.meta_data["time_taken"] = (
-            time.time() - timing_info["start_time"]
-        )
-        response_message.meta_data["first_chunk_time_taken"] = timing_info["first_response"]
-        response_message.meta_data["model"] = ai_model
+        # Start from the user message's meta_data (may contain client-side fields),
+        # then overlay with whatever was already on the response message so that
+        # fields like ``cancellation_token_id`` that were stamped before the AI
+        # call are preserved.
+        base_meta: Dict[str, Any] = dict(user_message.meta_data or {})
+        base_meta.update(response_message.meta_data or {})
+
+        base_meta["time_taken"] = time.time() - timing_info["start_time"]
+        base_meta["first_chunk_time_taken"] = timing_info["first_response"]
+        base_meta["model"] = ai_model
+
+        response_message.meta_data = base_meta
         response_message.profiles = chat_profile_names
 
     # -------------------------------------------------------------------------
@@ -853,6 +881,95 @@ class ChatEngine:
             )
 
     # -------------------------------------------------------------------------
+    # Helper: auto-initialize auto_initialize chat metadata
+    # -------------------------------------------------------------------------
+    async def _auto_initialize_chat_metadata(
+        self,
+        chat: Chat,
+        messages: List,
+        ai_chat_fn
+    ) -> None:
+        """
+        Use AI to auto-fill missing chat metadata for auto_initialize chats.
+
+        When a chat is marked as ``auto_initialize``, this method asks the AI to
+        suggest values for ``name``, ``board``, and ``column`` based on the
+        conversation content.  Only fields that are currently empty/blank will
+        be overwritten.  On success the ``auto_initialize`` flag is cleared.
+
+        flowchart TD
+            A{chat.auto_initialize?} -->|No| Z[Skip]
+            A -->|Yes| B[Build init messages from history]
+            B --> C[Call AI with CHAT_INIT_PROMPT]
+            C --> D[Parse JSON response]
+            D --> E{name missing?}
+            E -->|Yes| F[Set chat.name]
+            E -->|No| G{board missing?}
+            F --> G
+            G -->|Yes| H[Set chat.board]
+            G -->|No| I{column missing?}
+            H --> I
+            I -->|Yes| J[Set chat.column]
+            J --> K[Clear auto_initialize flag]
+            I -->|No| K
+
+        :param chat: The chat whose metadata may be auto-filled.
+        :param messages: The assembled message list for the current turn.
+        :param ai_chat_fn: Async callable matching the ai_chat signature.
+        """
+        if not chat.auto_initialize:
+            return
+
+        logger.info(
+            "Chat '%s' is auto_initialize — attempting AI metadata auto-fill",
+            chat.doc_id
+        )
+
+        try:
+            init_messages = messages.copy()
+            init_response = await ai_chat_fn(
+                messages=init_messages,
+                prompt=CHAT_INIT_PROMPT,
+                tags="chat-init"
+            )
+            raw = init_response[-1].content.strip()
+
+            # Strip possible markdown code fences
+            if raw.startswith("```"):
+                raw = "\n".join(
+                    line for line in raw.splitlines()
+                    if not line.startswith("```")
+                ).strip()
+
+            suggestions: Dict[str, str] = json.loads(raw)
+            logger.info(
+                "Chat init suggestions for '%s': %s", chat.doc_id, suggestions
+            )
+
+            if not chat.name and suggestions.get("name"):
+                chat.name = suggestions["name"]
+                logger.info("Auto-set chat.name = '%s'", chat.name)
+
+            if not chat.board and suggestions.get("board"):
+                chat.board = suggestions["board"]
+                logger.info("Auto-set chat.board = '%s'", chat.board)
+
+            if not chat.column and suggestions.get("column"):
+                chat.column = suggestions["column"]
+                logger.info("Auto-set chat.column = '%s'", chat.column)
+
+            chat.auto_initialize = False
+            logger.info(
+                "Chat '%s' metadata initialized: name='%s' board='%s' column='%s'",
+                chat.doc_id, chat.name, chat.board, chat.column
+            )
+
+        except (ValueError, RuntimeError, json.JSONDecodeError) as ex:
+            logger.exception(
+                "Error auto-initializing chat metadata for '%s': %s", chat.doc_id, ex
+            )
+
+    # -------------------------------------------------------------------------
     # Helper: handle post-task mode cleanup
     # -------------------------------------------------------------------------
     @staticmethod
@@ -886,8 +1003,23 @@ class ChatEngine:
         Handles context gathering, knowledge search, AI response generation,
         and agent iteration logic.
 
+        A CancellationToken is registered in the global CANCELLATION_REGISTRY
+        for the duration of this call (keyed by ``chat.doc_id``).  Each token
+        also carries a unique ``token_id`` (UUID4) that is stamped into the
+        response message's ``meta_data`` immediately so clients receive it via
+        streaming events.
+
+        External callers can cancel the in-flight request via:
+          - ``CANCELLATION_REGISTRY.cancel(chat.doc_id)``          — by chat ID
+          - ``CANCELLATION_REGISTRY.cancel_by_token_id(token_id)`` — by token UUID
+
+        When cancellation occurs the response message's ``meta_data`` will
+        contain a ``"cancelled_at"`` key with an ISO-8601 UTC timestamp.
+
         flowchart TD
-            A[Start] --> B{Project match?}
+            A[Start] --> A1[Register CancellationToken]
+            A1 --> A2[Stamp token_id in response meta_data]
+            A2 --> B{Project match?}
             B -->|No| C[Switch project context]
             B -->|Yes| D[Resolve chat mode & profiles]
             D --> E{vibe or search?}
@@ -905,10 +1037,15 @@ class ChatEngine:
             L --> O[AI Chat]
             M --> O
             N --> O
-            O --> P[Parse response]
-            P --> Q{Agent done?}
-            Q -->|No, iterations left| R[Recurse]
-            Q -->|Yes| S[Return chat + docs]
+            O --> P{Cancelled?}
+            P -->|Yes| Q[Set cancelled_at in meta_data]
+            Q --> S[Return chat + docs]
+            P -->|No| R[Parse response]
+            R --> T{Agent done?}
+            T -->|No, iterations left| U[Recurse]
+            T -->|Yes| S
+            S --> S1[Unregister CancellationToken]
+            S1 --> V[Return chat + docs]
 
         :param chat: The Chat object containing messages and metadata.
         :param disable_knowledge: If True, skip knowledge base search.
@@ -936,6 +1073,62 @@ class ChatEngine:
                 iteration=iteration
             )
 
+        # ------------------------------------------------------------------
+        # Register a cancellation token for this chat turn.
+        # Only register at the outermost iteration to avoid replacing an
+        # already-registered (and potentially cancelled) token mid-flight.
+        # ------------------------------------------------------------------
+        cancellation_token: Optional[CancellationToken] = None
+        is_root_iteration = iteration == 0
+        if is_root_iteration:
+            cancellation_token = CANCELLATION_REGISTRY.register(chat.doc_id)
+            logger.info(
+                "CancellationToken registered for chat '%s' token_id='%s'",
+                chat.doc_id,
+                cancellation_token.token_id,
+            )
+        else:
+            # Re-use the token that was registered at iteration 0
+            cancellation_token = CANCELLATION_REGISTRY.get(chat.doc_id)
+
+        try:
+            return await self._chat_with_project_inner(
+                chat=chat,
+                disable_knowledge=disable_knowledge,
+                callback=callback,
+                append_references=append_references,
+                chat_mode=chat_mode,
+                iteration=iteration,
+                system=system,
+                cancellation_token=cancellation_token,
+            )
+        finally:
+            if is_root_iteration:
+                CANCELLATION_REGISTRY.unregister(chat.doc_id)
+                logger.info(
+                    "CancellationToken unregistered for chat '%s'", chat.doc_id
+                )
+
+    async def _chat_with_project_inner(
+        self,
+        chat: Chat,
+        disable_knowledge: bool = False,
+        callback=None,
+        append_references: bool = True,
+        chat_mode: str = None,
+        iteration: int = 0,
+        system: str = None,
+        cancellation_token: Optional[CancellationToken] = None,
+    ):
+        """
+        Internal implementation of chat_with_project.
+
+        Separated from the public entry-point so that the cancellation token
+        can be registered / unregistered exactly once around the full
+        (possibly recursive) call tree.
+
+        See ``chat_with_project`` for full parameter documentation.
+        """
         with self.chat_action(chat=chat, event=f"Processing AI request {chat.name}"):
             logger.info(
                 "Processing chat '%s'. Current project: '%s' target project '%s'",
@@ -1005,10 +1198,20 @@ class ChatEngine:
                 parent_chat = chat_manager.find_by_id(chat.parent_id)
 
             # ------------------------------------------------------------------
-            # 6. Initialise response message
+            # 6. Initialise response message and stamp cancellation token_id
+            #    immediately so clients receive it in the very first streaming
+            #    event and can use it to cancel the request.
             # ------------------------------------------------------------------
             response_message = self._new_chat_message("assistant")
             response_message.meta_data = {"start_time": timing_info["start_time"]}
+            if cancellation_token:
+                response_message.meta_data["cancellation_token_id"] = cancellation_token.token_id
+                logger.debug(
+                    "Stamped cancellation_token_id='%s' into response meta_data "
+                    "for chat '%s'",
+                    cancellation_token.token_id,
+                    chat.doc_id,
+                )
 
             # ------------------------------------------------------------------
             # 7. Resolve query mentions (profiles, files, projects)
@@ -1117,11 +1320,13 @@ class ChatEngine:
             # ------------------------------------------------------------------
             # 16. Define streaming event emitter
             # ------------------------------------------------------------------
-            def send_message_event(content: str, done: bool, documents = None) -> None:
+            def send_message_event(content: str, done: bool, documents=None) -> None:
                 """
                 Emit a message event with the current response state.
 
                 Handles think/content separation for models that emit reasoning blocks.
+                The ``cancellation_token_id`` present in ``response_message.meta_data``
+                is forwarded to the client in every event so they can cancel at any time.
                 """
                 if not response_message.is_thinking:
                     if content and content.startswith("") \
@@ -1223,20 +1428,47 @@ class ChatEngine:
             # ------------------------------------------------------------------
             # 21. Execute AI / search response
             # ------------------------------------------------------------------
-            think_content, main_content, extra_files, ai_chat_fn = (
-                await self._execute_ai_response(
-                    chat=chat,
-                    messages=messages,
-                    is_search=is_search,
-                    ai=ai,
-                    ai_headers=ai_headers,
-                    chat_tools=chat_tools,
-                    response_message=response_message,
-                    task_item=task_item,
-                    callback=callback,
-                    send_message_event=send_message_event
+            try:
+                think_content, main_content, extra_files, ai_chat_fn = (
+                    await self._execute_ai_response(
+                        chat=chat,
+                        messages=messages,
+                        is_search=is_search,
+                        ai=ai,
+                        ai_headers=ai_headers,
+                        chat_tools=chat_tools,
+                        response_message=response_message,
+                        task_item=task_item,
+                        callback=callback,
+                        send_message_event=send_message_event,
+                        cancellation_token=cancellation_token,
+                    )
                 )
-            )
+            except CancelledError as cancel_exc:
+                logger.info(
+                    "chat_with_project: CancelledError for chat '%s': %s",
+                    chat.doc_id, cancel_exc
+                )
+                cancelled_at = (
+                    cancellation_token.cancelled_at
+                    if cancellation_token and cancellation_token.cancelled_at
+                    else datetime.now(tz=timezone.utc)
+                )
+                response_message.meta_data = response_message.meta_data or {}
+                response_message.meta_data["cancelled_at"] = (
+                    cancelled_at.isoformat()
+                )
+                response_message.content = (
+                    response_message.content
+                    or "*(Request was cancelled)*"
+                )
+                response_message.done = True
+                chat.messages.append(response_message)
+                self.event_manager.message_event(
+                    chat=chat, message=response_message
+                )
+                self.event_manager.chat_event(chat=chat, message="cancelled")
+                return chat, documents
 
             response_message.think = think_content
             response_message.content = main_content
@@ -1262,13 +1494,20 @@ class ChatEngine:
             logger.info("Chat done, adding message to chat. %s", chat.messages[-1])
 
             # ------------------------------------------------------------------
-            # 23. Generate conversation summary (non-search modes)
+            # 23. Generate conversation summary and auto-initialize if needed
             # ------------------------------------------------------------------
             if not is_search:
                 await self._generate_chat_description(
                     chat=chat,
                     messages=messages,
                     is_refine=is_refine,
+                    ai_chat_fn=ai_chat_fn
+                )
+
+                # Auto-initialize auto_initialize chats on their first response
+                await self._auto_initialize_chat_metadata(
+                    chat=chat,
+                    messages=messages,
                     ai_chat_fn=ai_chat_fn
                 )
 
@@ -1283,17 +1522,57 @@ class ChatEngine:
                 self.event_manager.chat_event(
                     chat=chat, message=f"Agent iteration {iteration + 1}"
                 )
-                return self.chat_with_project(
+                return await self._chat_with_project_inner(
                     chat=chat,
                     disable_knowledge=disable_knowledge,
                     callback=callback,
                     append_references=append_references,
                     chat_mode=chat_mode,
-                    iteration=iteration + 1
+                    iteration=iteration + 1,
+                    system=system,
+                    cancellation_token=cancellation_token,
                 )
 
             self.event_manager.chat_event(chat=chat, message="done")
             return chat, documents
+
+    def cancel_chat(self, chat_doc_id: str) -> bool:
+        """
+        Cancel an in-flight chat request identified by *chat_doc_id*.
+
+        Delegates to ``CANCELLATION_REGISTRY.cancel``.
+
+        :param chat_doc_id: The ``doc_id`` of the chat to cancel.
+        :returns: True if a token was found and cancelled, False otherwise.
+        """
+        result = CANCELLATION_REGISTRY.cancel(chat_doc_id)
+        logger.info(
+            "cancel_chat called for chat_id='%s': token_found=%s",
+            chat_doc_id,
+            result,
+        )
+        return result
+
+    def cancel_chat_by_token_id(self, token_id: str) -> bool:
+        """
+        Cancel an in-flight chat request identified by the cancellation *token_id*.
+
+        This is the preferred method when the client received the ``token_id``
+        from the response message ``meta_data`` and wants to cancel without
+        knowing the chat ``doc_id``.
+
+        Delegates to ``CANCELLATION_REGISTRY.cancel_by_token_id``.
+
+        :param token_id: The UUID string of the CancellationToken to cancel.
+        :returns: True if a token was found and cancelled, False otherwise.
+        """
+        result = CANCELLATION_REGISTRY.cancel_by_token_id(token_id)
+        logger.info(
+            "cancel_chat_by_token_id called for token_id='%s': token_found=%s",
+            token_id,
+            result,
+        )
+        return result
 
     def switch_project(self, project_id: str) -> "ChatEngine":
         """

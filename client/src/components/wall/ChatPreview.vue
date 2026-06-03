@@ -5,7 +5,7 @@ import ProjectIcon from '../ProjectIcon.vue'
 import Document from '../document/Document.vue';
 </script>
 <template>
-  <div class="border border-slate-700 hover:border-slate-400 rounded-lg my-2 click group">
+  <div class="border border-slate-700 hover:border-slate-400 rounded-lg my-2 click group bg-base-300">
     <div class="flex gap-2 bg-slate-800 px-2 rounded-t-lg border-b border-slate-600">
       <div class="flex flex-col">
         <div class="flex gap-4 items-center">

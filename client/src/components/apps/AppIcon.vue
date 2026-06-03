@@ -16,12 +16,18 @@ import ProjectDetailt from '../ProjectDetailt.vue'
     <MenubarMenu>
       <MenubarTrigger class="MenubarTrigger click">
         <div class="flex items-center gap-2">
-          <img
-            class="w-5 rounded-full"
-            :src="currentProject?.project_icon"
-            v-if="currentProject && currentProject !== $project"
-          />
-          <i class="fa-solid fa-bars mx-1" v-else></i>
+          <!-- Show loading ring when loading prop is true -->
+          <div class="" v-if="loading" >
+            <span class="loading loading-ring loading-xs shrink-0 text-info"></span>
+          </div>
+          <template v-else>
+            <img
+              class="w-5 rounded-full"
+              :src="currentProject?.project_icon"
+              v-if="currentProject && currentProject !== $project"
+            />
+            <i class="fa-solid fa-bars mx-1" v-else></i>
+          </template>
         </div>
       </MenubarTrigger>
       <MenubarPortal>
@@ -47,7 +53,7 @@ import ProjectDetailt from '../ProjectDetailt.vue'
 
 <script>
 export default {
-  props: ['app', 'iconClass'],
+  props: ['app', 'iconClass', 'loading'],
   data() {
     return {
       imageOk: false,
@@ -56,7 +62,6 @@ export default {
   },
   computed: {
     // Read project_id from the live store app, not from the prop
-    // This ensures reactivity when updateAppParams is called
     liveApp() {
       return this.$ui.openApps[this.app?.tabId] || this.app
     },
@@ -69,7 +74,6 @@ export default {
       },
       set(project) {
         if (!project || project.project_id === this.currentProjectId) return
-        // Update the app params in the store so all components react
         this.$ui.updateAppParams({
           tabId: this.app.tabId,
           params: { project_id: project.project_id }

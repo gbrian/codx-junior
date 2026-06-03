@@ -10,8 +10,7 @@ export class ProjectService extends Service {
   }
   
   async watch(watching) {
-    this.project.$api.activeProject.watching = watching
-    this.$projects.saveSettings(this.project.$api.activeProject)
+    this.$project.$api.projects.watch(watching)
   }
 
   async openUserChat(user) {

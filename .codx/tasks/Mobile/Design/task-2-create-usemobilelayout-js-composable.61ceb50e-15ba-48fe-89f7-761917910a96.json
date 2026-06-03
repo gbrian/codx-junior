@@ -1,0 +1,103 @@
+{
+  "id": "61ceb50e-15ba-48fe-89f7-761917910a96",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": null,
+  "parent_id": "e4a9fc8b-766e-4aa4-a95a-1cc814258a36",
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "py_senior",
+    "project",
+    "VueDeveloper"
+  ],
+  "users": [],
+  "name": "Task 2: Create useMobileLayout.js composable",
+  "pinned": false,
+  "description": "# Conversation Summary\n\nThe task involves creating `useMobileLayout.js`, a Vue 3 Composition API composable for the `codx-junior-ui` project's mobile layout support. It manages two reactive state variables: `activeView` (default `'tasks'`) and `recentViews` (array), persisted via `localStorage['mobile-layout']`. Primary panels (`tasks`, `chat`, `files`) are always cached and never evicted, while non-primary panels follow a FIFO eviction strategy with a maximum of 3 entries. The `navigateTo(viewName)` function updates the active view, manages the cache, and persists state. The composable uses a module-level singleton pattern so state is shared across all consuming components like `MobileLayout.vue`, `BottomNavBar.vue`, and `MoreDrawer.vue`.",
+  "messages": [
+    {
+      "doc_id": "8cf65ac1-bb31-4adc-806a-5a208a4ad388",
+      "role": "user",
+      "task_item": "",
+      "content": " \n                        ```xml\n                        <context>\n                        # Conversation Summary: codx-junior-ui Mobile Layout Design\n\n## Context\nDesign document (AS IS \u2192 TO BE) for adding mobile support to **codx-junior-ui**, a Vue.js desktop docking panel application.\n\n---\n\n## AS IS: Desktop Architecture\n\n- **Root component:** `Desktop.vue` using `dockview-vue` library\n- **19 registered dockable panels** (chat, tasks, files, wiki, kanban, knowledge, settings, etc.)\n- **Panel lifecycle:** `$ui.showTab(name)` \u2192 `addAppPanel()` \u2192 `dockviewApi.addPanel()`\n- **Persistence:** `dockviewApi.toJSON()` \u2192 `localStorage['dockview-layout']`\n- **Rendering:** `renderer: 'always'` \u2014 all panels stay mounted in DOM simultaneously\n- **Tab system:** Custom `Tab.vue` component per panel\n- **Store integrations:** `$ui` (open apps, tab management) + `$chats` (chat rehydration on restore)\n- **Auto-save triggers:** `onDidAddPanel`, `onDidRemovePanel`, `onDidLayoutChange`\n\n### Key Limitations\n- No mobile layout exists\n- `renderer: 'always'` causes high memory usage with 19 panels\n- `$ui` and `$chats` store contracts undocumented\n- No deep linking / URL navigation\n- No responsive breakpoints\n\n---\n\n## TO BE: Mobile Layout Design\n\n### Core Principle\n> Same stores + same panel components, different shell. `Desktop.vue` untouched.\n\n### Device Routing (`App.vue`)\n```\nisMobile (window.innerWidth < 768) \u2192 <MobileLayout />\nelse \u2192 <Desktop />\n```\n\n### Shell Structure (`MobileLayout.vue`)\n- **TopAppBar** \u2014 title + hamburger + notifications + avatar\n- **Main area** \u2014 `<keep-alive :include=\"recentViews\" :max=\"3\">` wrapping active component\n- **BottomNavBar** \u2014 4 tabs: Tasks | Chat | Files | More\n- **MoreDrawer** \u2014 bottom sheet grid with all 14 remaining panels\n\n### Panel Priority Tiers\n| Tier | Panels | Cache Behavior |\n|---|---|---|\n| Primary | `tasks`, `chat`, `files` | Always cached, eagerly loaded |\n| Secondary | `activity`, `projects`, `wiki`, `docs`, `profiles` | `defineAsyncComponent`, cached up to max=3 |\n| Tertiary | `metrics`, `log-viewer`, `knowledge`, `knowledge_settings`, `settings`, `global-settings`, `account`, `file-finder`, `home` | Lazy loaded, not cached |\n\n### Memory Strategy\n- Replaces `renderer: 'always'` with `<keep-alive :max=\"3\">`\n- FIFO eviction of non-primary panels from cache\n- `defineAsyncComponent` for secondary + tertiary panels\n\n### State Persistence (`useMobileLayout.js`)\n- Storage key: `mobile-layout`\n- Saves: `{ activeView, recentViews }` to `localStorage`\n- Restores on `onMounted`\n\n### New Files\n```\nclient/src/components/mobile/\n  MobileLayout.vue\n  BottomNavBar.vue\n  TopAppBar.vue\n  MoreDrawer.vue\nclient/src/composables/\n  useDevice.js\n  useMobileLayout.js\n```\n**Modified:** `App.vue` only  \n**Untouched:** `Desktop.vue`, all 19 panel components\n\n### Mobile UX Details\n- Default view: `KanbanContainer` (tasks)\n- `height: 100dvh` for dynamic viewport\n- `env(safe-area-inset-*)` for notch/home bar support\n- `-webkit-overflow-scrolling: touch` for iOS momentum scroll\n- MoreDrawer renders as 3-column icon grid bottom sheet\n\n### Deferred Items\n- Deep linking (Vue Router integration needed)\n- External wiki iframe/link strategy\n- Auth/session management\n- Full `$ui` / `$chats` store contracts for mobile chat hydration\n\n---\n\n## Keywords\n`vue3`, `composition-api`, `dockview-vue`, `mobile-layout`, `responsive`, `keep-alive`, `defineAsyncComponent`, `bottom-navigation`, `bottom-sheet`, `safe-area-inset`, `100dvh`, `localStorage`, `panel-management`, `lazy-loading`, `memory-optimization`, `MobileLayout.vue`, `BottomNavBar.vue`, `TopAppBar.vue`, `MoreDrawer.vue`, `useDevice.js`, `useMobileLayout.js`, `$ui-store`, `$chats-store`, `desktop-first`, `codx-junior-ui`, `panel-tiers`, `FIFO-cache`, `dockview-layout`, `KanbanContainer`, `ChatView`, `dockview-theme-abyss`\n                        </context>\n\n                        <task>\n                        Create the file `client/src/composables/useMobileLayout.js`. This composable must:\n- Use Vue 3 Composition API.\n- Define a storage key `mobile-layout` for localStorage.\n- Manage reactive state: `activeView` (string, default `'tasks'`) and `recentViews` (array, default `[]`).\n- On `onMounted`, restore `{ activeView, recentViews }` from `localStorage['mobile-layout']` if present.\n- Provide a `navigateTo(viewName)` function that:\n  - Sets `activeView` to `viewName`.\n  - Adds `viewName` to `recentViews` if not already present, maintaining FIFO order with a max of 3 entries (non-primary panels only).\n  - Persists updated state to `localStorage['mobile-layout']`.\n- Export `activeView`, `recentViews`, and `navigateTo`.\n- Primary panels (`tasks`, `chat`, `files`) should always be considered cached and should always remain in `recentViews` or be handled separately so they are never evicted.\n                        </task>\n                        ```\n                        \n                        Given the \"context\" improve the \"task\" description.\n                        Return a detailed task description\n                        Add all important information\n                        Generate a clear and easy readable description \n                        ",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-21 14:57:56.894151",
+      "updated_at": "2026-05-21 14:57:56.894178",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Desktop.vue"
+      ],
+      "meta_data": {},
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "fe796146-52be-4820-8861-83c16ead9265",
+      "role": "assistant",
+      "task_item": "",
+      "content": "# Task Description: Implement `useMobileLayout.js` Composable\n\n## Overview\nCreate a Vue 3 Composition API composable at `client/src/composables/useMobileLayout.js` that manages mobile layout navigation state with localStorage persistence. This composable is a core part of the mobile layout system described in the design document, enabling seamless panel navigation and memory-efficient caching for the `codx-junior-ui` mobile experience.\n\n---\n\n## File Location\n```\nclient/src/composables/useMobileLayout.js\n```\n\n---\n\n## Technical Requirements\n\n### 1. Storage\n- Define a constant `STORAGE_KEY = 'mobile-layout'`\n- Read/write state to `localStorage[STORAGE_KEY]` as JSON\n\n### 2. Reactive State\n| Variable | Type | Default | Description |\n|---|---|---|---|\n| `activeView` | `string` | `'tasks'` | Currently displayed panel name |\n| `recentViews` | `array` | `[]` | List of recently visited panel names for `<keep-alive :include>` |\n\n### 3. Primary Panels (Always Cached)\nThese panels are **never evicted** from `recentViews`:\n```js\nconst PRIMARY_PANELS = ['tasks', 'chat', 'files']\n```\n- Primary panels should be pre-populated in `recentViews` on initialization\n- They must always be present in `recentViews` regardless of navigation history\n- They are excluded from FIFO eviction logic\n\n### 4. Lifecycle: `onMounted`\n- Attempt to parse `localStorage.getItem('mobile-layout')`\n- If valid JSON exists, restore `activeView` and `recentViews` from stored state\n- Ensure primary panels are always present in restored `recentViews` (merge if missing)\n\n### 5. `navigateTo(viewName)` Function\nNavigation logic must follow this sequence:\n\n```\n1. Set activeView = viewName\n2. If viewName already in recentViews \u2192 no change to recentViews\n3. If viewName is a PRIMARY panel \u2192 add to recentViews (already guaranteed present)\n4. If viewName is NOT a PRIMARY panel:\n   a. Add viewName to recentViews\n   b. Count non-primary entries in recentViews\n   c. If non-primary count > 3 \u2192 evict oldest non-primary entry (FIFO)\n5. Persist { activeView, recentViews } to localStorage['mobile-layout']\n```\n\n### 6. Exports\nThe composable must return:\n```js\nreturn { activeView, recentViews, navigateTo }\n```\n\n---\n\n## Implementation Notes\n\n- Use Vue 3 `ref()` for reactive state\n- Use `onMounted` lifecycle hook for state restoration\n- The `recentViews` array feeds directly into `<keep-alive :include=\"recentViews\">` in `MobileLayout.vue`\n- Keep the composable stateless between calls \u2014 state is module-level singleton (shared across components)\n- Max 3 **non-primary** panels in cache at any time; primary panels are additive and uncapped\n\n---\n\n## Expected Behavior Examples\n\n```js\n// Initial state\nactiveView = 'tasks'\nrecentViews = ['tasks', 'chat', 'files']\n\n// navigateTo('wiki')\nactiveView = 'wiki'\nrecentViews = ['tasks', 'chat', 'files', 'wiki']\n\n// navigateTo('docs')\nactiveView = 'docs'\nrecentViews = ['tasks', 'chat', 'files', 'wiki', 'docs']\n\n// navigateTo('metrics') \u2192 triggers FIFO eviction of 'wiki'\nactiveView = 'metrics'\nrecentViews = ['tasks', 'chat', 'files', 'docs', 'metrics']\n\n// navigateTo('chat') \u2192 already present, no change to recentViews\nactiveView = 'chat'\nrecentViews = ['tasks', 'chat', 'files', 'docs', 'metrics']\n```\n\n---\n\n## Implementation\n\n```js client/src/composables/useMobileLayout.js\nimport { ref, onMounted } from 'vue'\n\nconst STORAGE_KEY = 'mobile-layout'\nconst PRIMARY_PANELS = ['tasks', 'chat', 'files']\nconst MAX_NON_PRIMARY = 3\n\n// Module-level singleton state shared across all component instances\nconst activeView = ref('tasks')\nconst recentViews = ref([...PRIMARY_PANELS])\n\n// Persist current state to localStorage\nconst persistState = () => {\n  localStorage.setItem(STORAGE_KEY, JSON.stringify({\n    activeView: activeView.value,\n    recentViews: recentViews.value\n  }))\n}\n\n// Ensure primary panels are always present in recentViews\nconst ensurePrimaryPanels = () => {\n  PRIMARY_PANELS.forEach(panel => {\n    if (!recentViews.value.includes(panel)) {\n      recentViews.value.unshift(panel)\n    }\n  })\n}\n\n// Navigate to a view, updating cache and persisting state\nconst navigateTo = (viewName) => {\n  activeView.value = viewName\n\n  if (!recentViews.value.includes(viewName)) {\n    recentViews.value.push(viewName)\n\n    // Apply FIFO eviction only on non-primary panels\n    if (!PRIMARY_PANELS.includes(viewName)) {\n      const nonPrimary = recentViews.value.filter(v => !PRIMARY_PANELS.includes(v))\n      if (nonPrimary.length > MAX_NON_PRIMARY) {\n        // Remove the oldest non-primary entry\n        const oldest = nonPrimary[0]\n        recentViews.value = recentViews.value.filter(v => v !== oldest)\n      }\n    }\n  }\n\n  persistState()\n}\n\nexport const useMobileLayout = () => {\n  onMounted(() => {\n    try {\n      const stored = localStorage.getItem(STORAGE_KEY)\n      if (stored) {\n        const { activeView: storedView, recentViews: storedViews } = JSON.parse(stored)\n        if (storedView) activeView.value = storedView\n        if (Array.isArray(storedViews)) recentViews.value = storedViews\n        // Guarantee primary panels are never missing after restore\n        ensurePrimaryPanels()\n      } else {\n        // No stored state \u2014 initialize with primary panels\n        recentViews.value = [...PRIMARY_PANELS]\n      }\n    } catch (e) {\n      console.warn('[useMobileLayout] Failed to restore state:', e)\n      recentViews.value = [...PRIMARY_PANELS]\n    }\n  })\n\n  return { activeView, recentViews, navigateTo }\n}\n\nexport default useMobileLayout\n```\n\n---\n\n## Integration Reference\n\nThis composable will be consumed in `MobileLayout.vue` like:\n\n```js\nconst { activeView, recentViews, navigateTo } = useMobileLayout()\n```\n\nAnd used in the template as:\n```html\n<keep-alive :include=\"recentViews\" :max=\"3\">\n  <component :is=\"activeView\" />\n</keep-alive>\n```\n\nAnd in `BottomNavBar.vue`:\n```html\n<button @click=\"navigateTo('tasks')\">Tasks</button>\n<button @click=\"navigateTo('chat')\">Chat</button>\n<button @click=\"navigateTo('files')\">Files</button>\n```",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-21 14:57:56.894151",
+      "updated_at": "2026-05-21 14:57:56.894178",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/wiki/wiki_template/package-lock.json"
+      ],
+      "meta_data": {
+        "time_taken": 207.43986225128174,
+        "first_chunk_time_taken": 0.1386251449584961,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [
+        "VueDeveloper",
+        "py_senior",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-05-21 14:57:56.897448",
+  "updated_at": "2026-05-24T09:04:47.902646",
+  "mode": "vibe",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Mobile",
+  "column": "Design",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Mobile/Design/task-2-create-usemobilelayout-js-composable.61ceb50e-15ba-48fe-89f7-761917910a96.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}

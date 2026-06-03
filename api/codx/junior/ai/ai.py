@@ -16,6 +16,7 @@ from codx.junior.settings import CODXJuniorSettings
 from codx.junior.ai.openai_ai import OpenAI_AI
 # from codx.junior.ai.vllm_cpu_ai import VllmCPUAI
 from codx.junior.ai.ai_logger import AILogger
+from codx.junior.ai.cancellation import CancellationToken, CancelledError
 
 from codx.junior.profiling.profiler import profile_function
 from codx.junior.model.model import CodxUser
@@ -199,7 +200,8 @@ class AI:
         max_response_length: Optional[int] = None,
         callback: Optional[Callable] = None,
         tools: Optional[List[str]] = None,
-        headers: Optional[Dict[str, Any]] = None
+        headers: Optional[Dict[str, Any]] = None,
+        cancellation_token: Optional[CancellationToken] = None,
     ) -> List[Message]:
         """
         Synchronous chat functionality that processes user inputs and returns AI responses.
@@ -210,6 +212,7 @@ class AI:
         :param callback: An optional callback function.
         :param tools: A list of tools for function calling.
         :param headers: Custom headers dict for the LLM request.
+        :param cancellation_token: Optional token to cancel the ongoing completion.
         :return: A list of processed messages including the AI reply.
         """
         if messages is None:
@@ -245,11 +248,18 @@ class AI:
                     len("".join([str(m.content) for m in messages]))
                 )
                 
-                # Apply global instructions
                 response_messages = self.llm(
                     messages=messages, 
-                    config={"callbacks": callbacks, "headers": headers, "tools": tools}
+                    config={
+                        "callbacks": callbacks,
+                        "headers": headers,
+                        "tools": tools,
+                        "cancellation_token": cancellation_token,
+                    }
                 )
+            except CancelledError:
+                logger.info("chat: request was cancelled via CancellationToken")
+                raise
             except Exception as exc:
                 if self._is_model_not_found_error(exc):
                     logger.warning(
@@ -261,8 +271,16 @@ class AI:
                     try:
                         response_messages = self.llm(
                             messages=messages,
-                            config={"callbacks": callbacks, "headers": headers, "tools": tools}
+                            config={
+                                "callbacks": callbacks,
+                                "headers": headers,
+                                "tools": tools,
+                                "cancellation_token": cancellation_token,
+                            }
                         )
+                    except CancelledError:
+                        logger.info("chat (retry): request was cancelled via CancellationToken")
+                        raise
                     except Exception as retry_exc:
                         logger.exception(
                             "Failed after pulling model. Non-retryable error: %s %s",
@@ -299,7 +317,8 @@ class AI:
         max_response_length: Optional[int] = None,
         callback: Optional[Callable] = None,
         tools: Optional[List[str]] = None,
-        headers: Optional[Dict[str, Any]] = None
+        headers: Optional[Dict[str, Any]] = None,
+        cancellation_token: Optional[CancellationToken] = None,
     ) -> List[Message]:
         """
         Asynchronous chat functionality that processes user inputs and returns AI responses.
@@ -310,6 +329,7 @@ class AI:
         :param callback: An optional callback function.
         :param tools: A list of tools for function calling.
         :param headers: Custom headers dict for the LLM request.
+        :param cancellation_token: Optional token to cancel the ongoing completion.
         :return: A list of processed messages including the AI reply.
         """
         if messages is None:
@@ -345,11 +365,18 @@ class AI:
                     len("".join([str(m.content) for m in messages]))
                 )
                 
-                # Apply global instructions
                 response_messages = await self.a_llm(
                     messages=messages, 
-                    config={"callbacks": callbacks, "headers": headers, "tools": tools}
+                    config={
+                        "callbacks": callbacks,
+                        "headers": headers,
+                        "tools": tools,
+                        "cancellation_token": cancellation_token,
+                    }
                 )
+            except CancelledError:
+                logger.info("a_chat: request was cancelled via CancellationToken")
+                raise
             except Exception as exc:
                 if self._is_model_not_found_error(exc):
                     logger.warning(
@@ -361,8 +388,16 @@ class AI:
                     try:
                         response_messages = await self.a_llm(
                             messages=messages,
-                            config={"callbacks": callbacks, "headers": headers, "tools": tools}
+                            config={
+                                "callbacks": callbacks,
+                                "headers": headers,
+                                "tools": tools,
+                                "cancellation_token": cancellation_token,
+                            }
                         )
+                    except CancelledError:
+                        logger.info("a_chat (retry): request was cancelled via CancellationToken")
+                        raise
                     except Exception as retry_exc:
                         logger.exception(
                             "Failed after pulling model. Non-retryable error: %s %s",
@@ -414,14 +449,6 @@ class AI:
         Initialize the correct synchronous chat completions target based on configuration.
         """
         provider = self._get_provider()
-        #if provider == "vllm":
-        #    return VllmCPUAI(
-        #        settings=self.settings, 
-        #        llm_model=llm_model, 
-        #        user=self.user, 
-        #        system=self.system
-        #    ).chat_completions
-            
         return OpenAI_AI(
             settings=self.settings, 
             llm_model=llm_model, 
@@ -434,14 +461,6 @@ class AI:
         Initialize the correct asynchronous chat completions target based on configuration.
         """
         provider = self._get_provider()
-        #if provider == "vllm":
-        #    return VllmCPUAI(
-        #        settings=self.settings, 
-        #        llm_model=llm_model, 
-        #        user=self.user, 
-        #        system=self.system
-        #    ).a_chat_completions
-            
         return OpenAI_AI(
             settings=self.settings, 
             llm_model=llm_model, 

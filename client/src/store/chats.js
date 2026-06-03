@@ -7,6 +7,7 @@ export const namespaced = true
 
 export const state = () => ({
   chats: {},
+  chatEvents: {}, // { [chatId]: { updatingCount: number, updatingAt: string | null, timeoutId: number | null } }
 })
 
 // Helper to register a chat into chatsById
@@ -30,9 +31,51 @@ export const getters = getterTree(state, {
   allChats: state => Object.values(state.chats || {}),
   allTags: state => new Set(Object.values(state.chats || {})?.map(c => c.tags).reduce((a, b) => a.concat(b), []) || []),
   allPRs: state => Object.values(state.chats || {}).filter(c => c.pr_view?.from_branch),
+  isChatUpdating: state => (chatId) => {
+    return (state.chatEvents[chatId]?.updatingCount || 0) > 0
+  },
 })
 
 export const mutations = mutationTree(state, {
+  setChatUpdating(state, { chatId, updating }) {
+    const current = state.chatEvents[chatId]?.updatingCount || 0
+    const prevTimeoutId = state.chatEvents[chatId]?.timeoutId || null
+
+    // Clear any existing auto-reset timeout
+    if (prevTimeoutId) {
+      clearTimeout(prevTimeoutId)
+    }
+
+    if (!updating) {
+      // Done event: reset count to 0
+      state.chatEvents = {
+        ...state.chatEvents,
+        [chatId]: {
+          ...(state.chatEvents[chatId] || {}),
+          updatingCount: 0,
+          updatingAt: null,
+          timeoutId: null,
+        }
+      }
+    } else {
+      // Streaming chunk: increment count and schedule a 10s auto-reset fallback
+      // in case the "done" event is missed from the server.
+      // Using 10s to accommodate slow models that may have long pauses between chunks.
+      const timeoutId = setTimeout(() => {
+        $storex.chats.setChatUpdating({ chatId, updating: false })
+      }, 10000)
+
+      state.chatEvents = {
+        ...state.chatEvents,
+        [chatId]: {
+          ...(state.chatEvents[chatId] || {}),
+          updatingCount: current + 1,
+          updatingAt: new Date().toISOString(),
+          timeoutId,
+        }
+      }
+    }
+  }
 })
 
 export const actions = actionTree(
@@ -83,10 +126,16 @@ export const actions = actionTree(
       return chat
     },
     async reloadChat({ state }, chat) {
-      if (state.chats[chat.id]) {
-        delete state.chats[chat.id]
+      const project = getChatProject(chat)
+      const freshChat = await project.$api.chats.loadChat(chat)
+      if (freshChat && state.chats[chat.id]) {
+        // Merge fresh data into existing object to preserve Vue reactivity
+        // and avoid unmounting ChatView
+        Object.assign(state.chats[chat.id], freshChat)
+      } else {
+        state.chats[chat.id] = freshChat
       }
-      return $storex.chats.loadChat(chat)
+      return state.chats[chat.id]
     },
     async deleteChat({ state }, chat) {
       if (!chat.temp) {
@@ -113,6 +162,7 @@ export const actions = actionTree(
         profiles: [],
         chat_index: 0,
         messages: [],
+        auto_initialize: !chat.name,
         ...chat
       }
       state.chats[chat.id] = chat
@@ -222,9 +272,11 @@ export const actions = actionTree(
         }
         const chat = state.chats[chatId]
         if (chat && message) {
+          const isDone = event_type === 'done'
           const currentMessage = chat.messages.find(m => m.doc_id === message.doc_id)
+
           if (currentMessage) {
-            if (event_type === "done") {
+            if (isDone) {
               Object.assign(currentMessage, message)
             } else {
               currentMessage.is_thinking = message.is_thinking
@@ -239,6 +291,18 @@ export const actions = actionTree(
             }
           } else {
             chat.messages.push(message)
+          }
+
+          // Check if all messages in the chat are done — if so, reset the updating flag.
+          // This is the primary mechanism to detect completion, since the "done" event
+          // per message reliably sets message.done = true.
+          const allMessagesDone = chat.messages.every(m => m.done)
+          if (allMessagesDone) {
+            $storex.chats.setChatUpdating({ chatId, updating: false })
+          } else {
+            // Still streaming: keep the updating flag active with a 10s fallback timeout
+            // to accommodate slow models with long pauses between chunks.
+            $storex.chats.setChatUpdating({ chatId, updating: !isDone })
           }
         }
         registerChatById(state, chat)

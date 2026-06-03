@@ -1,4 +1,5 @@
 <script setup>
+import moment from 'moment'
 import { VueCodeHighlighter } from 'vue-code-highlighter'
 import 'vue-code-highlighter/dist/style.css'
 import hljs from 'highlight.js'
@@ -11,18 +12,16 @@ import Collapsible from './Collapsible.vue'
   <Collapsible :default-open="showCode">
     <!-- Icon slot: streaming/done indicator -->
     <template #icon>
-      <i class="fa-solid fa-check-double text-success" v-if="finished"></i>
-      <span class="loading loading-spinner loading-xs" v-else-if="isStreaming"></span>
-      <i class="fa-solid fa-code text-xs opacity-60" v-else></i>
+      <span class="loading loading-spinner loading-xs" v-if="isStreaming"></span>
+      <div class="hover:text-info" @click.stop="$emit('add-file', file)" v-else>
+        <i class="fa-solid fa-file-arrow-up"></i>
+      </div>
     </template>
 
     <!-- Title slot: file name always visible -->
     <template #title>
       <div class="flex gap-2 items-center">
         <div class="underline text-link flex gap-2 items-center cursor-pointer" v-if="fileName">
-          <div class="hover:text-info" @click.stop="$emit('add-file', file)">
-            <i class="fa-solid fa-file-arrow-up"></i>
-          </div>
           <div class="hover:text-info tooltip" :data-tip="file" @click.stop="$emit('open-file', file)">
             {{ fileName }}
           </div>
@@ -63,12 +62,18 @@ import Collapsible from './Collapsible.vue'
         </div>
 
         <!-- File diff stats -->
-        <span class="text-xs text-info">
+        <span class="text-xs text-info flex gap-2" @click.stop="">
           <span v-if="loadingStats">Loading...</span>
-          <span @click.stop="onShowDiff" class="cursor-pointer" v-if="stats && !editMode">
+          <span @click.stop="onShowDiff" class="cursor-pointer hover:underline" v-if="stats && !editMode">
             <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
             <i class="fa-solid fa-code-compare" v-else></i>
             {{ stats }}
+          </span>
+          <span v-if="last_modification">
+            {{ moment(last_modification).fromNow() }}
+          </span>
+          <span v-if="size">
+            {{ size > 1024 ? `${Math.round(size/1024)} KB` : `${size} B` }}
           </span>
         </span>
       </div>
@@ -144,7 +149,7 @@ import Collapsible from './Collapsible.vue'
         <!-- Save to file: only writes to disk, always visible when file is known -->
         <button class="btn btn-sm btn-success btn-outline"
           @click.stop="saveToFile"
-          v-if="file"
+          v-if="file && finished"
           title="Save to file">
           <i class="fa-solid fa-floppy-disk"></i> Save
         </button>
@@ -180,8 +185,12 @@ export default {
       hasUnsavedFileChanges: false,
       loadingStats: false,
       stats: null,
+      last_modification: null,
+      size: null,
       showCode: true,
-      prevScrollTop: 0
+      prevScrollTop: 0,
+      // true when the view-code container is scrolled to (or near) the bottom
+      isAtBottom: true
     }
   },
   computed: {
@@ -220,7 +229,13 @@ export default {
     code() {
       this.$nextTick(() => {
         const viewCode = this.$el?.querySelector('.view-code')
-        if (viewCode) viewCode.scrollTop = this.prevScrollTop
+        if (!viewCode) return
+        if (this.isAtBottom) {
+          // Keep scroll pinned to bottom as new content arrives
+          viewCode.scrollTop = viewCode.scrollHeight
+        } else {
+          viewCode.scrollTop = this.prevScrollTop
+        }
       })
     }
   },
@@ -234,6 +249,10 @@ export default {
     const viewCode = this.$el?.querySelector('.view-code')
     if (viewCode) viewCode.addEventListener('scroll', this.saveScrollPosition)
   },
+  beforeUnmount() {
+    const viewCode = this.$el?.querySelector('.view-code')
+    if (viewCode) viewCode.removeEventListener('scroll', this.saveScrollPosition)
+  },
   methods: {
     applyPatch() {
       this.$projects.applyPatch({ patch: this.code })
@@ -243,7 +262,8 @@ export default {
       if (!this.diff) {
         await this.loadDiffInfo()
       }
-      this.orgContent = await this.$api.files.read(this.file)
+      const { content } = await this.$api.files.read(this.file)
+      this.orgContent = content
       this.showDiff = !this.showDiff
     },
 
@@ -251,9 +271,11 @@ export default {
       try {
         this.loadingStats = true
         if (this.file) {
-          const { diff, stats } = await this.$api.files.diff({ path: this.file, content: this.code })
+          const { diff, stats, last_modification, size } = await this.$api.files.diff({ path: this.file, content: this.code })
           this.diff = diff
           this.stats = stats
+          this.last_modification = last_modification
+          this.size = size
           if (!stats && diff) {
             this.stats = 'File changes'
           }
@@ -333,9 +355,14 @@ export default {
       this.$emit('sub-task', { file: this.file, content })
     },
 
+    // Track scroll position and whether user is pinned to the bottom
     saveScrollPosition() {
       const viewCode = this.$el?.querySelector('.view-code')
-      if (viewCode) this.prevScrollTop = viewCode.scrollTop
+      if (!viewCode) return
+      this.prevScrollTop = viewCode.scrollTop
+      // Consider "at bottom" when within 40px of the scroll end
+      const distanceFromBottom = viewCode.scrollHeight - viewCode.scrollTop - viewCode.clientHeight
+      this.isAtBottom = distanceFromBottom <= 40
     }
   }
 }

@@ -1,10 +1,11 @@
 <script setup>
-import AppIcon from '../apps/AppIcon.vue';
+import AppIcon from '../apps/AppIcon.vue'
 </script>
 <template>
   <div class="flex gap-1 items-center justify-between px-3 py-1 bg-base-100 hover:bg-base-300 rounded-xl w-40 text-md">
     <div class="w-4/5 flex gap-1 items-center truncate overflow-hidden">
-      <AppIcon :app="app" />
+      <!-- Pass loading state to AppIcon so it shows the ring inside the icon area -->
+      <AppIcon :app="app" :loading="isUpdating" />
       <div class="grow truncate overflow-hidden">{{ tabName }}</div>
     </div>
     <div class="click hover:text-warning shrink-0" @click="onClose">
@@ -25,14 +26,16 @@ export default {
     console.log("Tab params", this.params)
     this.project = this.$projects.allProjectsById[this.projectId]
     if (this.params.params.chat)
-        this.chat = await this.$service.chat.findChat(this.params.params.chat)
+      this.chat = await this.$service.chat.findChat(this.params.params.chat)
   },
   computed: {
     app() {
       return this.params.params.app
     },
     tabName() {
-      return this.chat?.name || this.params.params.tabName
+      return this.chat?.name || 
+        this.app?.title ||
+        this.params.params.tabName
     },
     api() {
       return this.params.api
@@ -45,11 +48,14 @@ export default {
     },
     projectId() {
       return this.params.params.project_id
+    },
+    isUpdating() {
+        return this.chat?.id && this.$storex.chats.isChatUpdating(this.chat.id)
     }
   },
   watch: {
     chat(newVal, oldVal) {
-        console.log("Chat has changed", this.chat)
+      console.log("Chat has changed", this.chat)
     }
   },
   methods: {

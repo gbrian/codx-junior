@@ -27,6 +27,7 @@ import ChatImageCarousel from './ChatImageCarousel.vue'
         :selectedModel="selectedModel"
         :models="aiModels"
         @model-changed="$emit('model-changed', $event)"
+        v-if="aiModels?.length"
       />
 
       <div class="grow"></div>

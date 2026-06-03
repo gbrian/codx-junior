@@ -112,8 +112,7 @@ export default {
     async newChat() {
       if (!this.testChat) {
         this.testChat = await this.$chats.createNewChat({
-          test: true,
-          name: "test " + this.model.name
+          test: true
         })
       }
       this.tabIx = 1

@@ -7,6 +7,7 @@ from openai import OpenAI
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 from codx.junior.ai.ai_logger import AILogger
+from codx.junior.ai.cancellation import CancellationToken, CancelledError
 from codx.junior.settings import CODXJuniorSettings
 from langchain.messages import AIMessage, HumanMessage
 from codx.junior.profiling.profiler import profile_function
@@ -88,6 +89,9 @@ class OpenAI_AI:
         self.log(f"USER REQUEST:\n{json.dumps(openai_messages, indent=2)}")
         if self.settings.get_log_ai():
             self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
+
+        cancellation_token: CancellationToken = config.get("cancellation_token", None)
+
         try:
             request_headers = config.get("headers", {})
             tags = request_headers.get("tags", "")
@@ -128,6 +132,16 @@ class OpenAI_AI:
                             logger.exception(f"ERROR IN CALLBACKS: {ex}")
 
             for chunk in response_stream:
+                # Check for cancellation before processing each chunk
+                if cancellation_token and cancellation_token.is_cancelled:
+                    logger.info("chat_completions: cancellation requested, closing stream")
+                    try:
+                        response_stream.close()
+                    except Exception:
+                        pass
+                    send_callback("", flush=True)
+                    raise CancelledError("Chat completion was cancelled by the caller.")
+
                 choice = chunk.choices[0]
                 chunk_content = choice.delta.content
                 if not chunk_content:
@@ -138,6 +152,8 @@ class OpenAI_AI:
 
             # Last chunks...
             send_callback("", flush=True)
+        except CancelledError:
+            raise
         except Exception as ex:
             logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
             raise ex
@@ -171,6 +187,9 @@ class OpenAI_AI:
         if self.llm_settings.merge_messages:
             message = "\n".join([message['content'] for message in openai_messages])
             openai_messages = [{"role": "user", "content": message}]
+
+        cancellation_token: CancellationToken = config.get("cancellation_token", None)
+
         try:
             request_headers = config.get("headers", {})
             tags = request_headers.get("tags", "")
@@ -227,7 +246,16 @@ class OpenAI_AI:
                 self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
 
             for chunk in response_stream:
-                
+                # Check for cancellation before processing each chunk
+                if cancellation_token and cancellation_token.is_cancelled:
+                    logger.info("a_chat_completions: cancellation requested, closing stream")
+                    try:
+                        response_stream.close()
+                    except Exception:
+                        pass
+                    send_callback("", flush=True)
+                    raise CancelledError("Async chat completion was cancelled by the caller.")
+
                 # Check for tools
                 choice = chunk.choices[0]
                 tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None 
@@ -272,6 +300,8 @@ class OpenAI_AI:
 
             # Last chunks...
             send_callback("", flush=True)
+        except CancelledError:
+            raise
         except Exception as ex:
             logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
             raise ex

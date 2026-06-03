@@ -46,7 +46,6 @@ import ChatMessageList from './ChatMessageList.vue'
       <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
         <div class="flex flex-col min-h-0 w-full">
           <div class="h-full flex flex-col relative">
-            <!-- Messages list: stable key prevents full rebuild -->
             <ChatMessageList
               ref="messageList"
               class="w-full grow overflow-y-auto overflow-x-hidden"
@@ -57,8 +56,6 @@ import ChatMessageList from './ChatMessageList.vue'
               :read-only="readOnly"
               :users-list="usersList"
               :children-chats="childrenChats"
-              :is-channel="isChannel"
-              :is-topic="isTopic"
               @edited="onMessageEdited"
               @enhance="onEditMessage($event, true)"
               @remove="removeMessage"
@@ -82,7 +79,6 @@ import ChatMessageList from './ChatMessageList.vue'
               @run-agents="onMessageRunAgents"
             />
 
-            <!-- Input box always inside the left panel column -->
             <ChatInputBox
               v-if="readOnly !== true"
               ref="inputBox"
@@ -192,7 +188,6 @@ export default {
       cursorWord: {},
       notebookStatus: null,
       editorText: "",
-      // Stable snapshot of messages to avoid triggering re-renders on every poll tick
       stableMessages: []
     }
   },
@@ -200,11 +195,9 @@ export default {
     this.selectedUser = this.$user
     this.metadata = this.message?.metadata
     this.editorText = this.message?.content
-    // Seed stable messages immediately
     this.stableMessages = this.messages
   },
   mounted() {
-    // Poll editor text at 100ms; messages sync at a slower rate to avoid blink
     this.syncEditableTextInterval = setInterval(() => this.onMessageChange(), 100)
     this.editorText && this.setEditorText(this.editorText)
   },
@@ -216,7 +209,7 @@ export default {
       return this.$service.chat
     },
     aiModels() {
-      return this.$projects.ai.models || []
+      return this.isTopic ? [] : this.$projects.ai.models || []
     },
     chatFiles() {
       return this.chat.file_list || []
@@ -304,20 +297,17 @@ export default {
       this.loadMentionSuggestions()
       this.updateCursorWord()
     },
-    // Sync stableMessages only when the message count or last message id changes
     messages(newMessages) {
       this.syncStableMessages(newMessages)
     }
   },
   methods: {
-    // Only update stableMessages when structure changes (add/remove), not on content edits
     syncStableMessages(newMessages) {
       const newIds = newMessages.map(m => m.doc_id).join(',')
       const oldIds = this.stableMessages.map(m => m.doc_id).join(',')
       if (newIds !== oldIds) {
         this.stableMessages = newMessages
       } else {
-        // Update existing message objects in-place to preserve Vue's vnodes
         newMessages.forEach((msg, i) => {
           const stable = this.stableMessages[i]
           if (stable && msg !== stable) {
@@ -459,7 +449,6 @@ export default {
       this.chatSvc.removeMessage({ chat: this.chat, message })
       this.saveChat()
     },
-    // Polls the DOM editor for text changes; avoids heavy reactivity on the input
     onMessageChange() {
       if (this.editor && this.editor.innerText !== this.editorText) {
         this.editorText = this.editor.innerText
@@ -472,29 +461,70 @@ export default {
       if (!e.dataTransfer.files) return
       const file = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)[0]
       if (file) this.onInputImage(file)
+      const textContent = e.dataTransfer.getData('text/plain')
+      if (textContent) {
+        this.processInputTextContent(textContent)
+      }
+      this.processDropUrls(e.dataTransfer)
+    },
+    processDropUrls(dataTransfer) {
+      const urls = dataTransfer.getData("resourceurls")
+      if (urls) {
+        JSON.parse(urls).map(url => {
+          try {
+            const { pathname } = new URL(url)
+            this.processInputTextContent(pathname)
+          } catch (ex) {
+            console.error(ex)
+          }
+        })
+      }
     },
     async onContentPaste(e) {
       if (!e.clipboardData?.items) return
-      const stop = () => { e.preventDefault(); return false }
+      // Helper to cancel default browser paste behaviour
+      const stop = () => { e.preventDefault(); e.stopPropagation(); return false }
 
+      // 1. Image file pasted directly (e.g. screenshot)
       const imageFile = await this.chatSvc.parseImageFromPaste(e)
-      if (imageFile) { this.onInputImage(imageFile); return stop() }
+      if (imageFile) {
+        this.onInputImage(imageFile)
+        return stop()
+      }
 
+      // 2. Text/HTML content pasted
       const textContent = await this.chatSvc.parseTextFromPaste(e)
       if (!textContent) return
 
+      // Returns true when paste should be suppressed
+      const handled = this.processInputTextContent(textContent)
+      if (handled) return stop()
+    },
+    // Returns true if the content was fully handled (caller should suppress default paste)
+    processInputTextContent(textContent) {
+      // Check if pasted HTML contains an image URL
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
-      if (imgUrl) { this.images.push(imgUrl); return stop() }
+      if (imgUrl) {
+        this.images.push(imgUrl)
+        return true
+      }
 
+      // Check if pasted text matches a known mention/file
       const fileMention = this.mentionList.find(m => m.file === textContent)
-      if (fileMention) { this.addFileToMessage(fileMention.file); return stop() }
+      if (fileMention) {
+        this.addFileToMessage(fileMention.file)
+        return true
+      }
 
+      // Check if pasted text is an absolute project file path
       const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
       if (isProjectFile && !this.pasteWithShift) {
         this.addFileToMessage(textContent)
         this.setEditorText(this.editorText.replace(textContent, ""))
-        return stop()
+        return true
       }
+
+      return false
     },
     addFileToMessage(file) {
       if (!this.files.includes(file)) this.files.push(file)
@@ -634,8 +664,6 @@ export default {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
       this.saveChat()
     },
-    // Handles message-changed from ChatEntry (Markdown text-changed bubbled up)
-    // Updates message content in chat state and persists to server
     onMessageChanged({ doc_id, content }) {
       this.chatSvc.updateExistingMessage({ chat: this.chat, doc_id, update: { content } })
       this.saveChat()

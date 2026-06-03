@@ -33,6 +33,9 @@ from codx.junior.wiki.wiki_manager import WikiManager
 
 logger = logging.getLogger(__name__)
 
+SUMMARY_FILE_NAME = "project_summary.md"
+
+
 class Knowledge:
     db: KnowledgeDB
     ai: AI
@@ -46,6 +49,7 @@ class Knowledge:
         self.knowledge_keywords = KnowledgeKeywords(settings=settings)
         self.loader = KnowledgeLoader(settings=settings)
         self.wiki_manager = WikiManager(settings=settings)
+        self.summary_file_path = os.path.join(self.settings.codx_path, SUMMARY_FILE_NAME)
 
     def get_ai(self):
         if not self.ai:
@@ -213,7 +217,119 @@ class Knowledge:
         except Exception as ex:
             logger.exception("Error generating document wiki: %s - %s", source, ex)
             return None
-  
+
+    def get_project_summary(self) -> str:
+        """
+        Read and return the current project summary document.
+
+        Returns:
+            The summary content as a string, or an empty string if not yet generated.
+        """
+        if os.path.isfile(self.summary_file_path):
+            with open(self.summary_file_path, "r") as f:
+                return f.read()
+        return ""
+
+    def build_project_summary(self, added_sources: list = None, deleted_sources: list = None) -> str:
+        """
+        Generate or update the project summary document using AI.
+
+        The summary is a concise markdown document covering all indexed project
+        files. It serves LLM models as an overview of the project and as a guide
+        for building search terms or locating specific files.
+
+        The summary is updated incrementally: when sources are added or removed
+        the AI is given the current summary alongside the changes so it can
+        produce a revised version without re-reading every file.
+
+        Args:
+            added_sources:   List of file paths that were just indexed.
+            deleted_sources: List of file paths that were just removed.
+
+        Returns:
+            The updated summary string, or the previous one if the AI call fails.
+
+        Diagram:
+        flowchart TD
+            A[build_project_summary] --> B[Read current summary]
+            B --> C[Collect all indexed sources]
+            C --> D[Build AI prompt with changes]
+            D --> E[AI generates updated summary]
+            E --> F[Write summary to disk]
+            F --> G[Return summary]
+        """
+        current_summary = self.get_project_summary()
+        all_sources = self.get_all_sources()
+
+        # Strip the project root from paths to keep them relative and concise
+        project_root = self.settings.abs_project_path
+        relative_sources = sorted([
+            s.replace(project_root, "") for s in all_sources
+        ])
+
+        added_block = ""
+        if added_sources:
+            added_relative = sorted([s.replace(project_root, "") for s in added_sources])
+            added_block = f"""<added_files>
+{chr(10).join(added_relative)}
+</added_files>"""
+
+        deleted_block = ""
+        if deleted_sources:
+            deleted_relative = sorted([s.replace(project_root, "") for s in deleted_sources])
+            deleted_block = f"""<deleted_files>
+{chr(10).join(deleted_relative)}
+</deleted_files>"""
+
+        prompt = f"""
+<project_name>{self.settings.project_name}</project_name>
+<project_path>{project_root}</project_path>
+<all_project_files>
+{chr(10).join(relative_sources)}
+</all_project_files>
+{added_block}
+{deleted_block}
+<current_summary>
+{current_summary}
+</current_summary>
+
+You are maintaining a concise project summary document for the project "{self.settings.project_name}".
+
+The summary helps LLM models to:
+1. Get a high-level overview of the project structure and purpose.
+2. Identify which files are relevant for a given topic or task.
+3. Generate effective search terms to find specific information inside the project.
+
+Rules:
+- Use only the file paths and the existing summary as source of truth. Do not invent content.
+- Keep the document as short as possible while remaining useful.
+- Organise files by logical groups or folders.
+- If files were added, incorporate them into the right group.
+- If files were deleted, remove them from the summary.
+- Output only the raw markdown content, no extra wrapping or comments.
+- Include a short project description at the top if inferable from file names.
+- For each group list the key files with a one-line hint about their purpose.
+"""
+
+        try:
+            messages = self.get_ai().chat(prompt=prompt)
+            updated_summary = messages[-1].content.strip()
+
+            os.makedirs(os.path.dirname(self.summary_file_path), exist_ok=True)
+            with open(self.summary_file_path, "w") as f:
+                f.write(updated_summary)
+
+            logger.info(
+                "Project summary updated at %s (%d chars)",
+                self.summary_file_path,
+                len(updated_summary),
+            )
+            return updated_summary
+
+        except Exception as ex:
+            logger.exception("Error building project summary: %s", ex)
+            return current_summary
+
     def index_documents (self, documents, raiseIfError=False):
         
         index_date = datetime.now().strftime("%m/%d/%YT%H:%M:%S")
@@ -260,9 +376,21 @@ class Knowledge:
                 elif raiseIfError:
                     raise ex
 
+        # Update the project summary to reflect newly indexed files
+        try:
+            self.build_project_summary(added_sources=all_sources)
+        except Exception as ex:
+            logger.exception("Error updating project summary after indexing: %s", ex)
+
     def delete_documents (self, documents=None, sources=None):
-        sources = set(sources or [doc.metadata["source"] for doc in documents])
-        self.get_db().delete_documents(sources=sources)
+        deleted_sources = list(set(sources or [doc.metadata["source"] for doc in documents]))
+        self.get_db().delete_documents(sources=deleted_sources)
+
+        # Update the project summary to reflect removed files
+        try:
+            self.build_project_summary(deleted_sources=deleted_sources)
+        except Exception as ex:
+            logger.exception("Error updating project summary after deletion: %s", ex)
     
     def reset(self):
         logger.info('Reseting retriever')

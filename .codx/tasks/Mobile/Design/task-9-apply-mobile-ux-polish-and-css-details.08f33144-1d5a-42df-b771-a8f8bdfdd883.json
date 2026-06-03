@@ -1,0 +1,103 @@
+{
+  "id": "08f33144-1d5a-42df-b771-a8f8bdfdd883",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": null,
+  "parent_id": "e4a9fc8b-766e-4aa4-a95a-1cc814258a36",
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "py_senior",
+    "project",
+    "VueDeveloper"
+  ],
+  "users": [],
+  "name": "Task 9: Apply mobile UX polish and CSS details",
+  "pinned": false,
+  "description": "# Conversation Summary\n\nThe task involves enhancing the **codx-junior-ui** project's mobile UX by applying CSS improvements to four Vue components: `MobileLayout.vue`, `TopAppBar.vue`, `BottomNavBar.vue`, and `MoreDrawer.vue`. Key requirements include using `height: 100dvh` for dynamic viewport handling, `env(safe-area-inset-*)` for notch/home-indicator support on modern phones, and `-webkit-overflow-scrolling: touch` for smooth iOS scrolling. The `MoreDrawer` component needs a slide-up/slide-down CSS transition via `transform: translateY`, a 3-column CSS grid layout, and a semi-transparent backdrop overlay. All styles must be scoped to their respective components using `<style scoped>` blocks, with no horizontal overflow allowed on any mobile component.",
+  "messages": [
+    {
+      "doc_id": "cb0133f9-a0e9-4713-9663-829ce93b749f",
+      "role": "user",
+      "task_item": "",
+      "content": " \n                        ```xml\n                        <context>\n                        # Conversation Summary: codx-junior-ui Mobile Layout Design\n\n## Context\nDesign document (AS IS \u2192 TO BE) for adding mobile support to **codx-junior-ui**, a Vue.js desktop docking panel application.\n\n---\n\n## AS IS: Desktop Architecture\n\n- **Root component:** `Desktop.vue` using `dockview-vue` library\n- **19 registered dockable panels** (chat, tasks, files, wiki, kanban, knowledge, settings, etc.)\n- **Panel lifecycle:** `$ui.showTab(name)` \u2192 `addAppPanel()` \u2192 `dockviewApi.addPanel()`\n- **Persistence:** `dockviewApi.toJSON()` \u2192 `localStorage['dockview-layout']`\n- **Rendering:** `renderer: 'always'` \u2014 all panels stay mounted in DOM simultaneously\n- **Tab system:** Custom `Tab.vue` component per panel\n- **Store integrations:** `$ui` (open apps, tab management) + `$chats` (chat rehydration on restore)\n- **Auto-save triggers:** `onDidAddPanel`, `onDidRemovePanel`, `onDidLayoutChange`\n\n### Key Limitations\n- No mobile layout exists\n- `renderer: 'always'` causes high memory usage with 19 panels\n- `$ui` and `$chats` store contracts undocumented\n- No deep linking / URL navigation\n- No responsive breakpoints\n\n---\n\n## TO BE: Mobile Layout Design\n\n### Core Principle\n> Same stores + same panel components, different shell. `Desktop.vue` untouched.\n\n### Device Routing (`App.vue`)\n```\nisMobile (window.innerWidth < 768) \u2192 <MobileLayout />\nelse \u2192 <Desktop />\n```\n\n### Shell Structure (`MobileLayout.vue`)\n- **TopAppBar** \u2014 title + hamburger + notifications + avatar\n- **Main area** \u2014 `<keep-alive :include=\"recentViews\" :max=\"3\">` wrapping active component\n- **BottomNavBar** \u2014 4 tabs: Tasks | Chat | Files | More\n- **MoreDrawer** \u2014 bottom sheet grid with all 14 remaining panels\n\n### Panel Priority Tiers\n| Tier | Panels | Cache Behavior |\n|---|---|---|\n| Primary | `tasks`, `chat`, `files` | Always cached, eagerly loaded |\n| Secondary | `activity`, `projects`, `wiki`, `docs`, `profiles` | `defineAsyncComponent`, cached up to max=3 |\n| Tertiary | `metrics`, `log-viewer`, `knowledge`, `knowledge_settings`, `settings`, `global-settings`, `account`, `file-finder`, `home` | Lazy loaded, not cached |\n\n### Memory Strategy\n- Replaces `renderer: 'always'` with `<keep-alive :max=\"3\">`\n- FIFO eviction of non-primary panels from cache\n- `defineAsyncComponent` for secondary + tertiary panels\n\n### State Persistence (`useMobileLayout.js`)\n- Storage key: `mobile-layout`\n- Saves: `{ activeView, recentViews }` to `localStorage`\n- Restores on `onMounted`\n\n### New Files\n```\nclient/src/components/mobile/\n  MobileLayout.vue\n  BottomNavBar.vue\n  TopAppBar.vue\n  MoreDrawer.vue\nclient/src/composables/\n  useDevice.js\n  useMobileLayout.js\n```\n**Modified:** `App.vue` only  \n**Untouched:** `Desktop.vue`, all 19 panel components\n\n### Mobile UX Details\n- Default view: `KanbanContainer` (tasks)\n- `height: 100dvh` for dynamic viewport\n- `env(safe-area-inset-*)` for notch/home bar support\n- `-webkit-overflow-scrolling: touch` for iOS momentum scroll\n- MoreDrawer renders as 3-column icon grid bottom sheet\n\n### Deferred Items\n- Deep linking (Vue Router integration needed)\n- External wiki iframe/link strategy\n- Auth/session management\n- Full `$ui` / `$chats` store contracts for mobile chat hydration\n\n---\n\n## Keywords\n`vue3`, `composition-api`, `dockview-vue`, `mobile-layout`, `responsive`, `keep-alive`, `defineAsyncComponent`, `bottom-navigation`, `bottom-sheet`, `safe-area-inset`, `100dvh`, `localStorage`, `panel-management`, `lazy-loading`, `memory-optimization`, `MobileLayout.vue`, `BottomNavBar.vue`, `TopAppBar.vue`, `MoreDrawer.vue`, `useDevice.js`, `useMobileLayout.js`, `$ui-store`, `$chats-store`, `desktop-first`, `codx-junior-ui`, `panel-tiers`, `FIFO-cache`, `dockview-layout`, `KanbanContainer`, `ChatView`, `dockview-theme-abyss`\n                        </context>\n\n                        <task>\n                        Apply all required mobile UX CSS details across the mobile components. Specific requirements:\n- Root container in `MobileLayout.vue`: set `height: 100dvh` (not `100vh`) to handle dynamic viewport changes on mobile browsers.\n- All fixed bars (TopAppBar, BottomNavBar): use `env(safe-area-inset-top)` and `env(safe-area-inset-bottom)` respectively for padding to support notched phones and phones with home indicator bars (iPhone X+, modern Android).\n- Main content scrollable area: add `-webkit-overflow-scrolling: touch` for smooth iOS momentum scrolling.\n- MoreDrawer: ensure it uses `env(safe-area-inset-bottom)` for bottom padding within the sheet.\n- MoreDrawer grid: must render as a 3-column CSS grid layout.\n- MoreDrawer animation: slide-up transition on open, slide-down on close (CSS transition on `transform: translateY`).\n- Backdrop overlay for MoreDrawer: semi-transparent dark overlay covering the rest of the screen.\n- Ensure no horizontal overflow on any mobile component.\n- Test that layout does not break when browser address bar appears/disappears (100dvh handles this).\n- All styles must be scoped to their respective components.\n                        </task>\n                        ```\n                        \n                        Given the \"context\" improve the \"task\" description.\n                        Return a detailed task description\n                        Add all important information\n                        Generate a clear and easy readable description \n                        ",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-21 14:57:56.894151",
+      "updated_at": "2026-05-21 14:57:56.894178",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/components/desktop/Desktop.vue"
+      ],
+      "meta_data": {},
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "e9b52ad8-d3ae-4f1f-b33b-647486607917",
+      "role": "assistant",
+      "task_item": "",
+      "content": "# Task Description: Apply Mobile UX CSS Details to Mobile Components\n\n## Objective\nEnhance the mobile layout of **codx-junior-ui** by applying precise CSS details to the four mobile components. All styles must be scoped, use modern mobile CSS APIs, and deliver a smooth, notch-safe, animation-rich experience.\n\n---\n\n## Files to Modify\n\n```\nclient/src/components/mobile/MobileLayout.vue\nclient/src/components/mobile/TopAppBar.vue\nclient/src/components/mobile/BottomNavBar.vue\nclient/src/components/mobile/MoreDrawer.vue\n```\n\n---\n\n## Per-Component Requirements\n\n### 1. `MobileLayout.vue`\n\n**Root Container:**\n- Height must be `100dvh` (dynamic viewport height) \u2014 NOT `100vh`\n- This ensures the layout adapts when the browser address bar appears/disappears on mobile\n- Prevent horizontal overflow: add `overflow-x: hidden` to root container\n- Structure: vertical flex column (`flex flex-col`) to stack TopAppBar \u2192 main \u2192 BottomNavBar\n\n```\nRoot div:\n  height: 100dvh\n  overflow-x: hidden\n  display: flex\n  flex-direction: column\n\nMain content area:\n  flex: 1\n  overflow-y: auto\n  -webkit-overflow-scrolling: touch   \u2190 iOS momentum scrolling\n  overflow-x: hidden\n```\n\n---\n\n### 2. `TopAppBar.vue`\n\n**Safe Area Inset for Notched Devices:**\n- The top bar must account for the status bar / notch on iPhone X+ and modern Android devices\n- Use CSS `env()` function for dynamic padding\n\n```\nTop bar container:\n  padding-top: env(safe-area-inset-top)\n  position: fixed (or sticky)\n  top: 0\n  width: 100%\n  overflow: hidden  \u2190 prevent horizontal bleed\n```\n\n---\n\n### 3. `BottomNavBar.vue`\n\n**Safe Area Inset for Home Indicator:**\n- The bottom nav must pad above the home indicator bar on iPhone X+ and gesture-nav Android devices\n\n```\nBottom nav container:\n  padding-bottom: env(safe-area-inset-bottom)\n  position: fixed\n  bottom: 0\n  width: 100%\n  overflow: hidden  \u2190 prevent horizontal bleed\n```\n\n---\n\n### 4. `MoreDrawer.vue`\n\nThis is the most complex component. Requirements:\n\n#### A. Backdrop Overlay\n- A semi-transparent dark overlay (`rgba(0,0,0,0.5)`) covering the full screen behind the drawer\n- Must be rendered conditionally when drawer is open\n- Clicking the backdrop closes the drawer\n- Use `fixed inset-0` positioning with a z-index below the drawer\n\n```\nBackdrop:\n  position: fixed\n  inset: 0 (top/right/bottom/left: 0)\n  background: rgba(0, 0, 0, 0.5)\n  z-index: 40\n  visible only when drawer isOpen === true\n```\n\n#### B. Drawer Sheet\n- Slides up from the bottom of the screen when open\n- Slides back down when closed\n- Use CSS `transition` on `transform: translateY`\n\n```\nDrawer container:\n  position: fixed\n  bottom: 0\n  left: 0\n  right: 0\n  z-index: 50\n  padding-bottom: env(safe-area-inset-bottom)   \u2190 notch support\n  overflow: hidden\n  \n  transition: transform 0.3s ease\n  \n  When closed:  transform: translateY(100%)\n  When open:    transform: translateY(0)\n```\n\n#### C. Grid Layout\n- The icon grid inside the drawer must be a **3-column CSS grid**\n- Each cell: icon + label, centered\n\n```\nGrid container:\n  display: grid\n  grid-template-columns: repeat(3, 1fr)\n  gap: 16px\n  padding: 16px\n```\n\n#### D. Open/Close State\n- Controlled by a reactive boolean `isOpen`\n- Drawer visibility driven by CSS transform (not `v-if`) so transition plays correctly\n- Backdrop uses `v-show` or `v-if` tied to `isOpen`\n\n---\n\n## Component Structure (All Files)\n\nFollow the established Vue component pattern:\n\n```vue\n<script setup>\n// imports only\n</script>\n\n<template>\n  <!-- template markup with Tailwind classes -->\n</template>\n\n<script>\nexport default {\n  data() { return { isOpen: false } },\n  computed: {},\n  methods: {}\n}\n</script>\n```\n\n**Styling rules:**\n- Use TailwindCSS utility classes wherever possible\n- For properties not available in Tailwind (`env()`, `100dvh`, `-webkit-overflow-scrolling`, `transform: translateY`), use scoped `<style scoped>` blocks\n- All `<style>` blocks must have the `scoped` attribute\n\n---\n\n## Summary Checklist\n\n| Requirement | Component | CSS Property |\n|---|---|---|\n| `height: 100dvh` | MobileLayout | `height: 100dvh` |\n| No horizontal overflow | All | `overflow-x: hidden` |\n| iOS momentum scroll | MobileLayout (main) | `-webkit-overflow-scrolling: touch` |\n| Top safe area | TopAppBar | `padding-top: env(safe-area-inset-top)` |\n| Bottom safe area | BottomNavBar | `padding-bottom: env(safe-area-inset-bottom)` |\n| Bottom safe area | MoreDrawer | `padding-bottom: env(safe-area-inset-bottom)` |\n| 3-column grid | MoreDrawer | `grid-template-columns: repeat(3, 1fr)` |\n| Slide-up animation | MoreDrawer | `transform: translateY(0/100%)` + `transition` |\n| Backdrop overlay | MoreDrawer | `position: fixed; inset: 0; background: rgba(0,0,0,0.5)` |\n| Scoped styles | All | `<style scoped>` |\n\n---\n\n## Expected Output\n\nFour fully implemented Vue components (`MobileLayout.vue`, `TopAppBar.vue`, `BottomNavBar.vue`, `MoreDrawer.vue`) with all mobile UX CSS requirements applied, scoped styles, correct component structure (`script setup` \u2192 `template` \u2192 `script`), and no horizontal overflow.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-05-21 14:57:56.894151",
+      "updated_at": "2026-05-21 14:57:56.894178",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/github_issues.html"
+      ],
+      "meta_data": {
+        "time_taken": 411.8680737018585,
+        "first_chunk_time_taken": 0.13612580299377441,
+        "model": "claude-sonnet-4-6"
+      },
+      "profiles": [
+        "VueDeveloper",
+        "py_senior",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-05-21 14:57:56.897448",
+  "updated_at": "2026-05-24T09:09:50.815563",
+  "mode": "vibe",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Mobile",
+  "column": "Design",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Mobile/Design/task-9-apply-mobile-ux-polish-and-css-details.08f33144-1d5a-42df-b771-a8f8bdfdd883.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {}
+}
