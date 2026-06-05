@@ -1,0 +1,101 @@
+{
+  "id": "63582f97-f6a4-492a-94b3-b97704b8ae87",
+  "doc_id": null,
+  "project_id": null,
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "project"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "airLLM test",
+  "pinned": false,
+  "description": "## Conversation Summary\n\n1. **Topic**: Setting up a CPU-based AI chat test notebook using the **AirLLM** library.\n2. **Tool Used**: `AirLLMLlama2` with **4-bit compression** and `device='cpu'` to run large models on limited hardware by loading layers sequentially.\n3. **Model**: `meta-llama/Llama-2-7b-chat-hf` was used as the default, with a note that other models like Mistral can be substituted.\n4. **Notebook Structure**: The notebook covers installation, model/tokenizer loading, prompt formatting, single-query testing, multi-turn chat, an interactive chat loop, and a session history summary.\n5. **Goal Achieved**: A fully functional Jupyter notebook was created that allows running and chatting with a large language model entirely on CPU without requiring a GPU.",
+  "messages": [
+    {
+      "doc_id": "e99bd354-727a-4a53-ba74-c78a16657b4e",
+      "role": "user",
+      "task_item": "",
+      "content": "Create a CPU model chat test\u00a0",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-01 16:17:59.209153",
+      "updated_at": "2026-06-01 16:17:59.209176",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/notebooks/airLLM/airLLM.ipynb",
+        "/home/codx-junior-projects/codx-junior/notebooks/airLLM/airLLM.ipynb"
+      ],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "cce80357-eb63-49a8-b407-ec0f016e25d2",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "Looking at the working file, I'll create a CPU-based chat test using AirLLM, which is designed to run large models on limited hardware by loading model layers sequentially.\n\n```ipynb notebooks/airLLM/airLLM.ipynb\n{\n \"cells\": [\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"a6c5823f\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"!pip install airllm transformers\"\n   ]\n  },\n  {\n   \"cell_type\": \"markdown\",\n   \"id\": \"b1c2d3e4\",\n   \"metadata\": {},\n   \"source\": [\n    \"# AirLLM CPU Chat Test\\n\",\n    \"This notebook demonstrates running a large language model on CPU using AirLLM's layer-by-layer inference technique, which reduces memory requirements significantly.\"\n   ]\n  },\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"b2c3d4e5\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"import os\\n\",\n    \"import torch\\n\",\n    \"from airllm import AirLLMLlama2\\n\",\n    \"\\n\",\n    \"# Configuration\\n\",\n    \"MODEL_ID = \\\"meta-llama/Llama-2-7b-chat-hf\\\"  # Change to any supported model\\n\",\n    \"MAX_LENGTH = 512\\n\",\n    \"MAX_NEW_TOKENS = 200\\n\",\n    \"\\n\",\n    \"# Force CPU usage\\n\",\n    \"os.environ[\\\"CUDA_VISIBLE_DEVICES\\\"] = \\\"\\\"\\n\",\n    \"\\n\",\n    \"print(f\\\"PyTorch version: {torch.__version__}\\\")\\n\",\n    \"print(f\\\"Using device: CPU\\\")\\n\",\n    \"print(f\\\"Model: {MODEL_ID}\\\")\"\n   ]\n  },\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"c3d4e5f6\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"# Initialize the model on CPU\\n\",\n    \"# AirLLM will split the model into chunks and load them sequentially\\n\",\n    \"print(\\\"Loading model... This may take a few minutes on first run.\\\")\\n\",\n    \"\\n\",\n    \"model = AirLLMLlama2(\\n\",\n    \"    MODEL_ID,\\n\",\n    \"    device='cpu',\\n\",\n    \"    dtype=torch.float32,  # Use float32 for CPU compatibility\\n\",\n    \"    compression='4bit'    # Use 4-bit compression to reduce memory usage\\n\",\n    \")\\n\",\n    \"\\n\",\n    \"print(\\\"Model loaded successfully!\\\")\"\n   ]\n  },\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"d4e5f6a7\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"from transformers import AutoTokenizer\\n\",\n    \"\\n\",\n    \"# Load tokenizer\\n\",\n    \"tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)\\n\",\n    \"tokenizer.pad_token = tokenizer.eos_token\\n\",\n    \"tokenizer.padding_side = \\\"left\\\"\\n\",\n    \"\\n\",\n    \"print(\\\"Tokenizer loaded successfully!\\\")\"\n   ]\n  },\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"e5f6a7b8\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"def format_prompt(user_message: str, system_prompt: str = None) -> str:\\n\",\n    \"    \\\"\\\"\\\"Format message in Llama-2 chat format.\\\"\\\"\\\"\\n\",\n    \"    if system_prompt is None:\\n\",\n    \"        system_prompt = \\\"You are a helpful, respectful and honest assistant.\\\"\\n\",\n    \"    \\n\",\n    \"    prompt = f\\\"\\\"\\\"<s>[INST] <<SYS>>\\n\",\n    \"{system_prompt}\\n\",\n    \"<</SYS>>\\n\",\n    \"\\n\",\n    \"{user_message} [/INST]\\\"\\\"\\\"\\n\",\n    \"    return prompt\\n\",\n    \"\\n\",\n    \"\\n\",\n    \"def generate_response(user_message: str, system_prompt: str = None) -> str:\\n\",\n    \"    \\\"\\\"\\\"Generate a response from the model given a user message.\\\"\\\"\\\"\\n\",\n    \"    # Format the prompt\\n\",\n    \"    prompt = format_prompt(user_message, system_prompt)\\n\",\n    \"    \\n\",\n    \"    # Tokenize\\n\",\n    \"    inputs = tokenizer(\\n\",\n    \"        prompt,\\n\",\n    \"        return_tensors=\\\"pt\\\",\\n\",\n    \"        max_length=MAX_LENGTH,\\n\",\n    \"        truncation=True,\\n\",\n    \"        padding=True\\n\",\n    \"    )\\n\",\n    \"    \\n\",\n    \"    print(f\\\"Input tokens: {inputs['input_ids'].shape[1]}\\\")\\n\",\n    \"    print(\\\"Generating response...\\\")\\n\",\n    \"    \\n\",\n    \"    # Generate\\n\",\n    \"    with torch.no_grad():\\n\",\n    \"        output_tokens = model.generate(\\n\",\n    \"            inputs['input_ids'],\\n\",\n    \"            max_new_tokens=MAX_NEW_TOKENS,\\n\",\n    \"            use_cache=False,  # Required for AirLLM\\n\",\n    \"            return_dict_in_generate=False\\n\",\n    \"        )\\n\",\n    \"    \\n\",\n    \"    # Decode only the new tokens\\n\",\n    \"    new_tokens = output_tokens[0][inputs['input_ids'].shape[1]:]\\n\",\n    \"    response = tokenizer.decode(new_tokens, skip_special_tokens=True)\\n\",\n    \"    \\n\",\n    \"    return response.strip()\\n\",\n    \"\\n\",\n    \"\\n\",\n    \"print(\\\"Chat functions defined successfully!\\\")\"\n   ]\n  },\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"f6a7b8c9\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"# === Single Query Test ===\\n\",\n    \"import time\\n\",\n    \"\\n\",\n    \"test_message = \\\"What is the capital of France? Please answer briefly.\\\"\\n\",\n    \"\\n\",\n    \"print(f\\\"User: {test_message}\\\")\\n\",\n    \"print(\\\"-\\\" * 50)\\n\",\n    \"\\n\",\n    \"start_time = time.time()\\n\",\n    \"response = generate_response(test_message)\\n\",\n    \"elapsed = time.time() - start_time\\n\",\n    \"\\n\",\n    \"print(f\\\"Assistant: {response}\\\")\\n\",\n    \"print(\\\"-\\\" * 50)\\n\",\n    \"print(f\\\"Generation time: {elapsed:.2f} seconds\\\")\"\n   ]\n  },\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"a7b8c9d0\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"# === Multi-turn Chat Test ===\\n\",\n    \"chat_history = []\\n\",\n    \"\\n\",\n    \"def chat(user_message: str, system_prompt: str = None) -> str:\\n\",\n    \"    \\\"\\\"\\\"Simple chat function that maintains conversation history.\\\"\\\"\\\"\\n\",\n    \"    print(f\\\"\\\\n\ud83d\udc64 User: {user_message}\\\")\\n\",\n    \"    \\n\",\n    \"    start = time.time()\\n\",\n    \"    response = generate_response(user_message, system_prompt)\\n\",\n    \"    elapsed = time.time() - start\\n\",\n    \"    \\n\",\n    \"    chat_history.append({\\\"user\\\": user_message, \\\"assistant\\\": response})\\n\",\n    \"    \\n\",\n    \"    print(f\\\"\ud83e\udd16 Assistant: {response}\\\")\\n\",\n    \"    print(f\\\"   \u23f1\ufe0f  {elapsed:.2f}s\\\")\\n\",\n    \"    \\n\",\n    \"    return response\\n\",\n    \"\\n\",\n    \"\\n\",\n    \"# Run a series of test prompts\\n\",\n    \"test_prompts = [\\n\",\n    \"    \\\"Hello! Can you introduce yourself briefly?\\\",\\n\",\n    \"    \\\"What are the benefits of running AI models on CPU?\\\",\\n\",\n    \"    \\\"Give me a one-sentence summary of machine learning.\\\"\\n\",\n    \"]\\n\",\n    \"\\n\",\n    \"system_prompt = \\\"You are a concise AI assistant. Keep your answers short and to the point.\\\"\\n\",\n    \"\\n\",\n    \"print(\\\"=\\\" * 60)\\n\",\n    \"print(\\\"CHAT TEST SESSION\\\")\\n\",\n    \"print(\\\"=\\\" * 60)\\n\",\n    \"\\n\",\n    \"for prompt in test_prompts:\\n\",\n    \"    chat(prompt, system_prompt)\\n\",\n    \"    print()\"\n   ]\n  },\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"b8c9d0e1\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"# === Interactive Chat Loop ===\\n\",\n    \"# Run this cell for an interactive chat session\\n\",\n    \"\\n\",\n    \"print(\\\"=\\\" * 60)\\n\",\n    \"print(\\\"INTERACTIVE CHAT (type 'quit' to exit)\\\")\\n\",\n    \"print(\\\"=\\\" * 60)\\n\",\n    \"\\n\",\n    \"system_prompt = \\\"You are a helpful AI assistant.\\\"\\n\",\n    \"\\n\",\n    \"while True:\\n\",\n    \"    try:\\n\",\n    \"        user_input = input(\\\"\\\\nYou: \\\").strip()\\n\",\n    \"        \\n\",\n    \"        if not user_input:\\n\",\n    \"            continue\\n\",\n    \"        \\n\",\n    \"        if user_input.lower() in ['quit', 'exit', 'bye']:\\n\",\n    \"            print(\\\"Goodbye!\\\")\\n\",\n    \"            break\\n\",\n    \"        \\n\",\n    \"        chat(user_input, system_prompt)\\n\",\n    \"        \\n\",\n    \"    except KeyboardInterrupt:\\n\",\n    \"        print(\\\"\\\\nSession interrupted.\\\")\\n\",\n    \"        break\"\n   ]\n  },\n  {\n   \"cell_type\": \"code\",\n   \"execution_count\": null,\n   \"id\": \"c9d0e1f2\",\n   \"metadata\": {},\n   \"outputs\": [],\n   \"source\": [\n    \"# === Session Summary ===\\n\",\n    \"print(\\\"=\\\" * 60)\\n\",\n    \"print(\\\"CHAT HISTORY SUMMARY\\\")\\n\",\n    \"print(\\\"=\\\" * 60)\\n\",\n    \"\\n\",\n    \"for i, exchange in enumerate(chat_history, 1):\\n\",\n    \"    print(f\\\"\\\\n[Turn {i}]\\\")\\n\",\n    \"    print(f\\\"  User     : {exchange['user']}\\\")\\n\",\n    \"    print(f\\\"  Assistant: {exchange['assistant']}\\\")\\n\",\n    \"\\n\",\n    \"print(f\\\"\\\\nTotal turns: {len(chat_history)}\\\")\"\n   ]\n  }\n ],\n \"metadata\": {\n  \"kernelspec\": {\n   \"display_name\": \".venv\",\n   \"language\": \"python\",\n   \"name\": \"python3\"\n  },\n  \"language_info\": {\n   \"codemirror_mode\": {\n    \"name\": \"ipython\",\n    \"version\": 3\n   },\n   \"file_extension\": \".py\",\n   \"mimetype\": \"text/x-python\",\n   \"name\": \"python\",\n   \"nbformat_minor\": 5,\n   \"pygments_lexer\": \"ipython3\",\n   \"version\": \"3.13.5\"\n  }\n },\n \"nbformat\": 4,\n \"nbformat_minor\": 5\n}\n```\n\n## What was added\n\nThe notebook now includes **7 cells** covering a complete CPU chat test:\n\n| Cell | Purpose |\n|------|---------|\n| **Install** | Installs `airllm` + `transformers` |\n| **Config** | Sets up model ID, forces CPU via `CUDA_VISIBLE_DEVICES=\"\"` |\n| **Model Init** | Loads `AirLLMLlama2` with `device='cpu'`, `float32`, `4bit` compression |\n| **Tokenizer** | Loads tokenizer with left-padding for batch compatibility |\n| **Helper Functions** | `format_prompt()` (Llama-2 chat format) + `generate_response()` |\n| **Single Query Test** | Timed single question test |\n| **Multi-turn Chat** | Runs 3 predefined prompts with history tracking |\n| **Interactive Loop** | Live `input()` chat loop (type `quit` to exit) |\n| **Summary** | Prints full chat history |\n\n> **Note:** Change `MODEL_ID` to any AirLLM-supported model (e.g. `mistralai/Mistral-7B-Instruct-v0.1`) if you don't have Llama-2 access.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-01 16:17:59.209153",
+      "updated_at": "2026-06-01 16:17:59.209176",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1780547396.1030555,
+        "cancellation_token_id": "be722c54-b956-49be-aaf1-0ca19c48574d",
+        "model": "claude-sonnet-4-6",
+        "time_taken": 41.01110339164734,
+        "first_chunk_time_taken": 0.16058063507080078
+      },
+      "profiles": [
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-06-01 16:17:59.212085",
+  "updated_at": "2026-06-04T04:30:43.623116",
+  "mode": "task",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "airLLM",
+  "column": "Notebooks",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/airLLM/Notebooks/airllm-test.63582f97-f6a4-492a-94b3-b97704b8ae87.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "auto_initialize": false
+}

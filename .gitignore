@@ -33,3 +33,4 @@ projects/
 codx-junior-installer/vllm/.cache
 # temp chats
 .codx/tasks/Quick chats
+.codx/tasks/kanban.json

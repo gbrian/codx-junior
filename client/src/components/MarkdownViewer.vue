@@ -26,11 +26,11 @@ function addFileUploadIcons(html) {
   return html.replace(
     FILE_PATH_REGEX,
     (match) =>
-      `${match}<span
-        class="file-path-upload-btn ml-1 cursor-pointer text-accent hover:text-primary inline-flex items-center align-middle"
+      `<span
+        class="file-path-upload-btn underline ml-1 cursor-pointer inline-flex items-center align-middle"
         data-file-path="${match}"
         title="Add '${match}' to chat files"
-      ><i class="fa-solid fa-upload text-xs"></i></span>`
+      ><i class="fa-solid fa-file-arrow-up"></i>&nbsp;${match}</span>`
   )
 }
 

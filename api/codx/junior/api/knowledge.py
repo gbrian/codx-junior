@@ -3,7 +3,7 @@ import logging
 from typing import Optional
 
 from fastapi import APIRouter, Request, Response, Depends
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from codx.junior.model.model import (
     KnowledgeReloadPath,
@@ -180,6 +180,81 @@ def api_knowledge_metrics(request: Request):
         codx_junior_session.settings.project_name,
     )
     return knowledge_db.get_collection_metrics()
+
+
+@router.get("/summary")
+def api_knowledge_summary(request: Request):
+    """
+    Return the project summary as plain Markdown text.
+
+    The summary is retrieved from the knowledge base via
+    ``get_knowledge().get_project_summary()``.
+
+    Returns:
+        Plain-text Markdown content of the project summary,
+        or an empty string when no summary is available yet.
+
+    Diagram:
+    sequenceDiagram
+        participant Client
+        participant Router as KnowledgeRouter
+        participant Session as CODXJuniorSession
+        participant KB as Knowledge
+
+        Client->>Router: GET /api/knowledge/summary
+        Router->>Session: get session from request state
+        Session->>KB: get_knowledge()
+        KB-->>Session: Knowledge instance
+        Session->>KB: get_project_summary()
+        KB-->>Session: markdown string
+        Session-->>Router: markdown string
+        Router-->>Client: text/markdown response
+    """
+    codx_junior_session = request.state.codx_junior_session
+    logger.info(
+        "Fetching project summary for project '%s'",
+        codx_junior_session.settings.project_name,
+    )
+    knowledge = codx_junior_session.get_knowledge()
+    summary: str = knowledge.get_project_summary() or ""
+    return PlainTextResponse(content=summary, media_type="text/markdown")
+
+
+@router.get("/summary/json")
+def api_knowledge_summary_json(request: Request):
+    """
+    Return the project summary as a JSON object.
+
+    Useful for clients that prefer a structured response over plain text.
+
+    Returns:
+        JSON object with a single ``summary`` key containing the Markdown
+        content, e.g. ``{"summary": "# My Project\\n..."}``.
+
+    Diagram:
+    sequenceDiagram
+        participant Client
+        participant Router as KnowledgeRouter
+        participant Session as CODXJuniorSession
+        participant KB as Knowledge
+
+        Client->>Router: GET /api/knowledge/summary/json
+        Router->>Session: get session from request state
+        Session->>KB: get_knowledge()
+        KB-->>Session: Knowledge instance
+        Session->>KB: get_project_summary()
+        KB-->>Session: markdown string
+        Session-->>Router: { summary: markdown string }
+        Router-->>Client: JSON response
+    """
+    codx_junior_session = request.state.codx_junior_session
+    logger.info(
+        "Fetching project summary (JSON) for project '%s'",
+        codx_junior_session.settings.project_name,
+    )
+    knowledge = codx_junior_session.get_knowledge()
+    summary: str = knowledge.get_project_summary() or ""
+    return JSONResponse(content={"summary": summary})
 
 
 @router.get("/ai-search")

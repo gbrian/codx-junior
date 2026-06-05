@@ -306,8 +306,23 @@ def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authent
 
     user_role = user.role
 
+    def user_has_workspace_access(workspace) -> bool:
+        """
+        Check if the user has access to the workspace.
+        - Admins always have access.
+        - If workspace.user_ids is empty, all users have access.
+        - Otherwise, only users whose username is in user_ids have access.
+        """
+        if user_role == "admin":
+            return True
+        if not workspace.user_ids:
+            return True
+        return user and user.username in workspace.user_ids
+
     user_workspaces = [w for w in workspaces \
-        if "*" in w.project_ids or next((p for p in projects if p.project_id in w.project_ids), None)] 
+        if user_has_workspace_access(w) and \
+        ("*" in w.project_ids or next((p for p in projects if p.project_id in w.project_ids), None))] 
+
     if user_role != "admin":
         for workspace in user_workspaces:
             workspace.apps = [app for app in workspace.apps if not app.roles or user_role in app.roles]
@@ -316,7 +331,6 @@ def api_find_all_projects(request: Request, user: CodxUser = Depends(get_authent
         "projects": projects,
         "workspaces": user_workspaces
     }
-
 
 @app.get("/api/projects/metrics")
 async def api_chat_metrics(request: Request):

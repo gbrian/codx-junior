@@ -48,6 +48,10 @@ import MenuDivider from './MenuDivider.vue';
               <i class="fa-brands fa-trello"></i>
               Task manager
             </MenubarItem>
+            <MenubarItem @click="$ui.setActiveTab('file-finder')">
+              <i class="fa-regular fa-folder-open"></i>
+              File explorer
+            </MenubarItem>
             <MenubarItem @click="$ui.setActiveTab('profiles')"
               v-if="$users.isProjectAdmin">
               <i class="fa-solid fa-id-badge"></i>

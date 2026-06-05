@@ -66,6 +66,7 @@ const initializeAPI = ({ project, user } = {}) => {
     users: {
       async list() {
         API.userNetwork = await API.get('/api/users');
+        return API.userNetwork
       },
       async login(user) {
         if (!user) {
@@ -264,6 +265,9 @@ const initializeAPI = ({ project, user } = {}) => {
       },
       query(searchQuery) {
         return API.get(`/api/project/search?query=${searchQuery}`);
+      },
+      summary() {
+        return API.get(`/api/knowledge/summary`);
       }
     },
     chats: {

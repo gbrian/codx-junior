@@ -261,6 +261,7 @@ class Workspace(BaseModel):
     apps: Optional[List[WorkspaceApp]] = Field(default=[])
     updated_at: Optional[str] = Field(default=None)
     file_path: str = Field(default="")
+    user_ids: Optional[List[str]] = Field(default=[], description="Allowed user accounts (empty means all users)")
 
 class AgentSettings(BaseModel):
     max_agent_iteractions: int = 4
