@@ -11,6 +11,7 @@ import WorkspacesMenu from './WorkspacesMenu.vue';
 import SettingsMenu from  './SettingsMenu.vue';
 import ProjectDetailt from '../ProjectDetailt.vue';
 import MenuDivider from './MenuDivider.vue';
+import ViewsMenu from './ViewsMenu.vue';
 </script>
 
 <template>
@@ -62,6 +63,9 @@ import MenuDivider from './MenuDivider.vue';
               <i class="fa-solid fa-magnifying-glass"></i>
               Knowledge
             </MenubarItem>
+            <MenuDivider />
+            <!-- Views submenu -->
+            <ViewsMenu />
             <MenuDivider />
             <WorkspacesMenu />
             <MenuDivider />

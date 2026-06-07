@@ -283,7 +283,7 @@ import ChatEntryMobile from './ChatEntryMobile.vue'
         </div>
         
         <!-- Thinking block -->
-        <div v-if="displayMessage.think">
+        <div v-if="thinkText">
           <div 
             class="alert click items-start"
             @click="displayMessage.full_think = !displayMessage.full_think"
@@ -474,10 +474,9 @@ export default {
         this.message.role === 'assistant'
     },
     thinkText() {
+      // TODO: Remove the thinking text logic next time you make changes here
       const { full_think, is_thinking } = this.message 
-      return (full_think || is_thinking) 
-        ? full_think 
-        : `${full_think?.slice(0, 50)}...`
+      return null        
     },
     displayMessage() {
       return this.threadChat?.messages

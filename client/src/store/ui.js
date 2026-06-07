@@ -40,7 +40,11 @@ export const state = () => ({
   activeTab: 'home',
   newProject: false,
   activeApp: null,
-  appShowMode: null
+  appShowMode: null,
+  views: [],
+  lastView: null,
+  _desktopApi: null,
+  viewEditor: null
 })
 
 export const getters = getterTree(state, {
@@ -161,11 +165,9 @@ export const mutations = mutationTree(state, {
       [app.tabId]: app
     }
   },
-  // Update params of an existing app without creating a new tab
   updateAppParams(state, { tabId, params }) {
     const app = state.openApps[tabId]
     if (!app) return
-    // Replace entire openApps to trigger Vue reactivity
     state.openApps = {
       ...state.openApps,
       [tabId]: {
@@ -205,6 +207,18 @@ export const mutations = mutationTree(state, {
         }
       }
     })
+  },
+  setDesktopApi(state, api) {
+    state._desktopApi = api
+  },
+  setViews(state, views) {
+    state.views = views || []
+  },
+  openViewEditor(state, view = null) {
+    state.viewEditor = { view: view || null }
+  },
+  closeViewEditor(state) {
+    state.viewEditor = null
   }
 })
 
@@ -228,7 +242,10 @@ export const actions = actionTree(
         ...state, 
         uiReady: false,
         activeApp: null,
-        openApps: {}  // Stored in layouts
+        openApps: {},
+        _desktopApi: null,
+        views: [],
+        viewEditor: null
       }
       localStorage.setItem('uiState', JSON.stringify(data))
     },
@@ -323,6 +340,136 @@ export const actions = actionTree(
       const { origin } = window.location
       const url = `${origin}${app.path}`
       window.open(url, app.name)
+    },
+
+    // --- Views actions ---
+
+    async loadViews({ state }) {
+      try {
+        const projectApi = $storex.projects.activeProject?.$api
+        if (!projectApi) return
+        const views = await projectApi.views.list()
+        state.views = views || []
+      } catch (ex) {
+        console.error("Error loading views", ex)
+        state.views = []
+      }
+    },
+
+    async saveView({ state }, name) {
+      const project = $storex.projects.activeProject
+      if (!project) return
+      const projectApi = project.$api
+      if (!projectApi) return
+      const desktop = state._desktopApi ? state._desktopApi.toJSON() : {}
+      const view = {
+        name,
+        project_id: project.project_id,
+        desktop
+      }
+      await projectApi.views.save(view)
+      await $storex.ui.loadViews()
+      $storex.ui.persistLastView({ project_id: project.project_id, view })
+      $storex.ui.addNotification({ text: `View "${name}" saved` })
+      return view
+    },
+
+    // Clear all dockview panels so user starts with a blank desktop
+    resetDesktop({ state }) {
+      const api = state._desktopApi
+      if (!api) return
+      // Remove all panels safely by collecting ids first
+      const panelIds = api.panels.map(p => p.id)
+      panelIds.forEach(id => {
+        try {
+          const panel = api.getPanel(id)
+          if (panel) api.removePanel(panel)
+        } catch (ex) {
+          console.warn("Could not remove panel", id, ex)
+        }
+      })
+      // Clear openApps state so the store stays in sync
+      state.openApps = {}
+    },
+
+    async loadView({ state }, view) {
+      if (!state._desktopApi || !view?.desktop) return
+      try {
+        state._desktopApi.fromJSON(view.desktop)
+        state.lastView = view
+        const project = $storex.projects.activeProject
+        if (project) {
+          $storex.ui.persistLastView({ project_id: project.project_id, view })
+        }
+        $storex.ui.addNotification({ text: `View "${view.name}" loaded` })
+      } catch (ex) {
+        console.error("Error loading view", ex)
+      }
+    },
+
+    persistLastView(_, { project_id, view }) {
+      try {
+        const key = `lastView_${project_id}`
+        localStorage.setItem(key, JSON.stringify({ name: view.name }))
+      } catch (ex) {
+        console.error("Error persisting last view", ex)
+      }
+    },
+
+    async restoreLastView({ state }) {
+      const project = $storex.projects.activeProject
+      if (!project) return
+      try {
+        const key = `lastView_${project.project_id}`
+        const stored = localStorage.getItem(key)
+        if (!stored) return
+        const { name } = JSON.parse(stored)
+        const view = state.views.find(v => v.name === name)
+        if (view) {
+          await $storex.ui.loadView(view)
+        }
+      } catch (ex) {
+        console.error("Error restoring last view", ex)
+      }
+    },
+
+    async deleteView({ state }, name) {
+      const projectApi = $storex.projects.activeProject?.$api
+      if (!projectApi) return
+      await projectApi.views.delete(name)
+      await $storex.ui.loadViews()
+      const project = $storex.projects.activeProject
+      if (project) {
+        const key = `lastView_${project.project_id}`
+        const stored = localStorage.getItem(key)
+        if (stored) {
+          const { name: storedName } = JSON.parse(stored)
+          if (storedName === name) {
+            localStorage.removeItem(key)
+            state.lastView = null
+          }
+        }
+      }
+      $storex.ui.addNotification({ text: `View "${name}" deleted` })
+    },
+
+    async renameView({ state }, { oldName, newName }) {
+      const projectApi = $storex.projects.activeProject?.$api
+      if (!projectApi) return
+      await projectApi.views.rename(oldName, newName)
+      await $storex.ui.loadViews()
+      const project = $storex.projects.activeProject
+      if (project) {
+        const key = `lastView_${project.project_id}`
+        const stored = localStorage.getItem(key)
+        if (stored) {
+          const { name: storedName } = JSON.parse(stored)
+          if (storedName === oldName) {
+            localStorage.setItem(key, JSON.stringify({ name: newName }))
+          }
+        }
+      }
+      $storex.ui.addNotification({ text: `View renamed to "${newName}"` })
     }
   },
 )

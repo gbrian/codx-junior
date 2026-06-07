@@ -174,6 +174,24 @@ const initializeAPI = ({ project, user } = {}) => {
         return data
       }
     },
+    views: {
+      // List all views for the active project
+      list() {
+        return API.get('/api/views')
+      },
+      // Save (create or update) a view
+      save(view) {
+        return API.post('/api/views', view)
+      },
+      // Delete a view by name
+      delete(name) {
+        return API.delete(`/api/views/${encodeURIComponent(name)}`)
+      },
+      // Rename a view
+      rename(oldName, newName) {
+        return API.put(`/api/views/${encodeURIComponent(oldName)}`, { name: newName })
+      }
+    },
     repo: {
       branches() {
         return API.get('/api/projects/repo/branches');

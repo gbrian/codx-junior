@@ -21,13 +21,25 @@ import ProjectOverview from "../project/ProjectOverview.vue"
 import Wall from "../wall/Wall.vue"
 import ChatView from '@/views/ChatView.vue'
 import Tab from './Tab.vue'
+import ViewProperties from '../main-menu/ViewProperties.vue'
 </script>
 
 <template>
-  <dockview-vue
-    class="dockview-theme-abyss w-full h-full"
-    @ready="onReady"
-  />
+  <div class="w-full h-full relative">
+    <dockview-vue
+      class="dockview-theme-abyss w-full h-full"
+      @ready="onReady"
+    />
+
+    <!-- ViewProperties modal triggered by store viewEditor flag -->
+    <modal close="true" @close="closeViewEditor" v-if="viewEditor">
+      <ViewProperties
+        :view="viewEditor.view"
+        @close="closeViewEditor"
+        @confirm="closeViewEditor"
+      />
+  </modal>
+  </div>
 </template>
 
 <script>
@@ -56,10 +68,10 @@ export default {
     'projects': ProjectOverview,
     'activity': Wall,
     'chat': ChatView,
-    tabComponent: Tab
+    tabComponent: Tab,
+    ViewProperties
   },
   props: {
-    // localStorage key to persist layout
     storageKey: {
       type: String,
       default: STORAGE_KEY
@@ -85,6 +97,10 @@ export default {
     },
     uiReady() {
       return this.$ui.uiReady
+    },
+    // Reflects the store viewEditor flag to show/hide ViewProperties
+    viewEditor() {
+      return this.$storex.ui.viewEditor
     }
   },
   watch: {
@@ -102,6 +118,9 @@ export default {
     }
   },
   methods: {
+    closeViewEditor() {
+      this.$storex.ui.closeViewEditor()
+    },
     init() {
       if (!this.panelTabIds.length) {
         this.$ui.showTab('home')
@@ -122,11 +141,10 @@ export default {
         }
       })
     },
-    // Store dockview API, restore saved layout or add initial panels
     onReady(event) {
       this.dockviewApi = event.api
+      this.$ui.setDesktopApi(this.dockviewApi)
       this.restoreLayout()
-      // Auto-save layout when panels are added or removed
       this.dockviewApi.onDidAddPanel(this.onAddPanel.bind(this))
       this.dockviewApi.onDidRemovePanel(this.onRemovePanel.bind(this))
       this.dockviewApi.onDidLayoutChange(this.saveLayout.bind(this))
@@ -138,7 +156,6 @@ export default {
       this.$ui.closeApp(panel.params.app)
       this.saveLayout()
     },
-    // Add a new panel to the desktop
     addPanel({ id, title, component = 'window', position, params, renderer }) {
       if (!this.dockviewApi) return
       if (!this.dockviewApi.panels.find(p => p.id === id)) {
@@ -156,31 +173,23 @@ export default {
         })
       }
     },
-
-    // Remove a panel by id
     removePanel(id) {
       if (!this.dockviewApi) return
       const panel = this.dockviewApi.getPanel(id)
       panel && this.dockviewApi.removePanel(panel)
     },
-
-    // Register a new component so it can be used as a panel
     registerComponent(name, component) {
       this.registeredComponents = {
         ...this.registeredComponents,
         [name]: component
       }
     },
-
-    // Serialize current layout to JSON and save to localStorage
     saveLayout() {
       if (!this.dockviewApi) return null
       const layout = this.dockviewApi.toJSON()
       localStorage.setItem(this.storageKey, JSON.stringify(layout))
       return layout
     },
-
-    // Load layout JSON from localStorage and restore it
     restoreLayout(layout = null) {
       if (this.layoutRestored) return true
       if (!this.dockviewApi || !this.uiReady) return false
@@ -201,14 +210,10 @@ export default {
         return false
       }
     },
-
-    // Clear saved layout from localStorage
     clearSavedLayout() {
       localStorage.removeItem(this.storageKey)
       this.$emit('layout-cleared')
     },
-
-    // Get current layout as plain JSON object (without saving)
     getLayout() {
       return this.dockviewApi ? this.dockviewApi.toJSON() : null
     }
@@ -247,6 +252,4 @@ export default {
     background-color: inherit;
     color: inherit;
 }
-
-
 </style>

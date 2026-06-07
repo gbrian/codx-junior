@@ -9,7 +9,7 @@ import Collapsible from './Collapsible.vue'
 </script>
 
 <template>
-  <Collapsible :default-open="showCode">
+  <Collapsible v-model="showCode">
     <!-- Icon slot: streaming/done indicator -->
     <template #icon>
       <span class="loading loading-spinner loading-xs" v-if="isStreaming"></span>
@@ -80,6 +80,12 @@ import Collapsible from './Collapsible.vue'
     </template>
 
     <template #actions>
+        <button class="btn btn-sm btn-success btn-outline"
+          @click.stop="saveToFile"
+          v-if="file && finished && !showCode"
+          title="Save to file">
+          <i class="fa-solid fa-floppy-disk"></i> Save
+        </button>
 
     </template>
 
@@ -190,7 +196,7 @@ export default {
       showCode: true,
       prevScrollTop: 0,
       // true when the view-code container is scrolled to (or near) the bottom
-      isAtBottom: true
+      isAtBottom: true,
     }
   },
   computed: {

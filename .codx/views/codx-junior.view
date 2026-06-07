@@ -1,0 +1,98 @@
+{
+  "name": "codx-junior",
+  "project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "desktop": {
+    "grid": {
+      "root": {
+        "type": "branch",
+        "data": [
+          {
+            "type": "leaf",
+            "data": {
+              "views": [
+                "codx-junior-Coder-1780556273340"
+              ],
+              "activeView": "codx-junior-Coder-1780556273340",
+              "id": "1"
+            },
+            "size": 1286
+          },
+          {
+            "type": "leaf",
+            "data": {
+              "views": [
+                "Desktop-1780859526468"
+              ],
+              "activeView": "Desktop-1780859526468",
+              "id": "2"
+            },
+            "size": 1299.546875
+          }
+        ],
+        "size": 870.28125
+      },
+      "width": 2585.546875,
+      "height": 870.28125,
+      "orientation": "HORIZONTAL"
+    },
+    "panels": {
+      "codx-junior-Coder-1780556273340": {
+        "id": "codx-junior-Coder-1780556273340",
+        "contentComponent": "app-window",
+        "tabComponent": "tabComponent",
+        "params": {
+          "app": {
+            "id": "",
+            "name": "Coder",
+            "description": "Coder coding environment",
+            "icon": "fa-solid fa-code",
+            "path": "/workspace-default/coder/",
+            "port": "",
+            "is_vnc": false,
+            "container_name": "",
+            "roles": [
+              "admin"
+            ],
+            "workspaceName": "codx-junior",
+            "key": "codx-junior-Coder",
+            "left": true,
+            "ts": 1780556273340,
+            "tabId": "codx-junior-Coder-1780556273340",
+            "params": {}
+          },
+          "tabName": "Coder"
+        },
+        "title": "Coder",
+        "renderer": "always"
+      },
+      "Desktop-1780859526468": {
+        "id": "Desktop-1780859526468",
+        "contentComponent": "chat",
+        "tabComponent": "tabComponent",
+        "params": {
+          "chat": {
+            "id": "bc50cad4-dc74-4fc2-96a3-0f42fba21f8b",
+            "name": "Desktop",
+            "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+          },
+          "app": {
+            "name": "Desktop",
+            "component": "chat",
+            "params": {
+              "chat": {
+                "id": "bc50cad4-dc74-4fc2-96a3-0f42fba21f8b",
+                "name": "Desktop",
+                "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456"
+              }
+            },
+            "tabId": "Desktop-1780859526468"
+          },
+          "tabName": "Desktop"
+        },
+        "title": "Desktop",
+        "renderer": "always"
+      }
+    },
+    "activeGroup": "2"
+  }
+}
