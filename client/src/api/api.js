@@ -268,6 +268,12 @@ const initializeAPI = ({ project, user } = {}) => {
       },
       summary() {
         return API.get(`/api/knowledge/summary`);
+      },
+      rebuildSummary() {
+        return API.post(`/api/knowledge/summary/rebuild`, {});
+      },
+      deleteSummary() {
+        return API.delete(`/api/knowledge/summary`);
       }
     },
     chats: {

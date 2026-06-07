@@ -14,23 +14,16 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from codx.junior.global_settings import read_global_settings, write_global_settings
 from codx.junior.model.model import CodxUser, Workspace
 from codx.junior.security.user_management import get_authenticated_user
+from codx.junior.api import require_admin
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-def _require_admin(user: CodxUser = Depends(get_authenticated_user)) -> CodxUser:
-    """Dependency that raises 403 unless the authenticated user is an admin."""
-    if not user or user.role != "admin":
-        logger.error("Access denied for user: %s", user.username if user else "anonymous")
-        raise HTTPException(status_code=403, detail="Access denied. Admins only.")
-    return user
-
-
 def _user_has_workspace_access(user: CodxUser, workspace: Workspace) -> bool:
     """
     Return True when *user* is allowed to see *workspace*.
@@ -47,7 +40,6 @@ def _user_has_workspace_access(user: CodxUser, workspace: Workspace) -> bool:
     if not workspace.user_ids:
         return True
     return user is not None and user.username in workspace.user_ids
-
 
 def _get_and_save_workspaces(updated_workspaces: List[Workspace]) -> None:
     """Persist the supplied workspace list to global settings."""
@@ -85,7 +77,7 @@ def list_accessible_workspaces(
     global_settings = read_global_settings()
     accessible = [
         w for w in global_settings.workspaces
-        if _user_has_workspace_access(user, w)
+        if user_has_workspace_access(user, w)
     ]
 
     # For non-admin users strip apps they are not permitted to use.
@@ -112,7 +104,7 @@ def list_accessible_workspaces(
 
 @router.get("/workspaces", response_model=List[Workspace])
 def list_workspaces(
-    user: CodxUser = Depends(_require_admin),
+    user: CodxUser = Depends(require_admin),
 ) -> List[Workspace]:
     """Return all workspaces (admin only)."""
     global_settings = read_global_settings()
@@ -123,7 +115,7 @@ def list_workspaces(
 @router.post("/workspaces", response_model=Workspace)
 async def create_workspace(
     request: Request,
-    user: CodxUser = Depends(_require_admin),
+    user: CodxUser = Depends(require_admin),
 ) -> Workspace:
     """
     Create a new workspace (admin only).
@@ -148,7 +140,7 @@ async def create_workspace(
 async def update_workspace(
     workspace_id: str,
     request: Request,
-    user: CodxUser = Depends(_require_admin),
+    user: CodxUser = Depends(require_admin),
 ) -> Workspace:
     """
     Replace an existing workspace's data (admin only).
@@ -181,7 +173,7 @@ async def update_workspace(
 @router.delete("/workspaces/{workspace_id}")
 def delete_workspace(
     workspace_id: str,
-    user: CodxUser = Depends(_require_admin),
+    user: CodxUser = Depends(require_admin),
 ) -> dict:
     """Delete a workspace by its id (admin only)."""
     global_settings = read_global_settings()

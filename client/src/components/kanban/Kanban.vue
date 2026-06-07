@@ -76,6 +76,10 @@ import ChatHistory from './ChatHistory.vue'
               <i class="fa-brands fa-trello"></i>
             </button>
             <button class="btn btn-sm tooltip tooltip-bottom"
+              data-tip="Show activity" @click="showActivity = !showActivity">
+              <i class="fa-solid fa-clock-rotate-left"></i>
+            </button>
+            <button class="btn btn-sm tooltip tooltip-bottom"
               data-tip="Add column" @click="openAddColumnModal">
               <i class="fa-solid fa-table-columns"></i>
             </button>
@@ -86,7 +90,6 @@ import ChatHistory from './ChatHistory.vue'
               <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-50 w-52 p-2 shadow">
                 <li @click="openAddColumnModal"><a><i class="fa-solid fa-plus"></i> Column</a></li>
                 <li @click="showNewBoardModal"><a><i class="fa-solid fa-plus"></i> Board</a></li>
-                <li @click="showActivity = !showActivity"><a><i class="fa-solid fa-clock-rotate-left"></i> Activity</a></li>
                 <li @click="onEditBoard()"><a><i class="fas fa-cogs"></i> Settings</a></li>
               </ul>
             </div>

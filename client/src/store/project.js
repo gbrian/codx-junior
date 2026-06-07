@@ -87,8 +87,36 @@ const initProject = async project => {
               return this._mentionList
             },
             searchMentions(query, limit = 10) {
+              // Collect mention lists from current project + subprojects + linked projects
+              const relatedProjects = getRelatedProjects(project)
+              
+              // Build a deduplicated merged mention list across all related projects
+              const seenKeys = new Set()
+              const mergedMentions = []
+
+              const addMentions = (mentionList) => {
+                for (const mention of mentionList) {
+                  const key = mention.file || mention.name
+                  if (!seenKeys.has(key)) {
+                    seenKeys.add(key)
+                    mergedMentions.push(mention)
+                  }
+                }
+              }
+
+              // Current project mentions first (highest priority)
+              addMentions(this.mentionList)
+
+              // Then related projects
+              for (const relProject of relatedProjects) {
+                if (relProject.$state?.mentionList) {
+                  addMentions(relProject.$state.mentionList)
+                }
+              }
+
               const fuseOptions = {
-                includeScore: false,
+                includeScore: true,
+                minMatchCharLength: 3,
                 keys: [
                   "name",
                   "searchIndex",
@@ -96,7 +124,7 @@ const initProject = async project => {
                 ]
               };
 
-              const fuse = new Fuse(this.mentionList, fuseOptions);
+              const fuse = new Fuse(mergedMentions, fuseOptions);
               return fuse.search(query).map(r => r.item).slice(0, limit)
             }
           })
@@ -114,8 +142,81 @@ function getProjectDependencies(project) {
           .filter(f => !!f) || []
   }
 
+/**
+ * Returns all related projects for mention search:
+ * - subprojects (child projects)
+ * - dependency projects (linked projects)
+ * Excludes the project itself.
+ */
+function getRelatedProjects(project) {
+  const { project_id, abs_project_path } = project
+  const allProjects = $storex.projects.allProjects
+
+  const subProjects = allProjects.filter(p =>
+    p.project_id !== project_id &&
+    p.abs_project_path?.startsWith(abs_project_path)
+  )
+
+  const dependencies = getProjectDependencies(project)
+
+  // Deduplicate by project_id
+  const seen = new Set()
+  const result = []
+  for (const p of [...subProjects, ...dependencies]) {
+    if (!seen.has(p.project_id)) {
+      seen.add(p.project_id)
+      result.push(p)
+    }
+  }
+  return result
+}
+
+/**
+ * Ensures knowledge is loaded for the given project $state.
+ * Triggers async load if knowledge is null/empty and resets _mentionList cache afterwards.
+ */
+function ensureKnowledgeLoaded(project) {
+  const { $state, $api } = project
+  if (!$state || !$api) return
+  const knowledge = $state.knowledge
+  // Already loaded if files array exists (even if empty)
+  if (knowledge && Array.isArray(knowledge.files)) return
+  // Kick off async load without blocking
+  promiseOrDefault(() => $api.knowledge.status(), null).then(data => {
+    if (data) {
+      $state.knowledge = data
+      // Invalidate cached mention list so next access rebuilds with fresh knowledge
+      $state._mentionList = null
+    }
+  })
+}
+
+/**
+ * Ensures profiles are loaded for the given project $state.
+ * Triggers async load if profiles array is empty and resets _mentionList cache afterwards.
+ */
+function ensureProfilesLoaded(project) {
+  const { $state, $api } = project
+  if (!$state || !$api) return
+  // Already loaded if there are profiles
+  if ($state.profiles && $state.profiles.length > 0) return
+  // Kick off async load without blocking
+  promiseOrDefault(() => $api.profiles.list(), []).then(profiles => {
+    if (profiles && profiles.length > 0) {
+      $state.profiles = profiles
+      // Invalidate cached mention list so next access rebuilds with fresh profiles
+      $state._mentionList = null
+    }
+  })
+}
+
 function buildMentions(project) {
-  const { $state: { knowledge, profiles }, project_id, parent_id } = project
+  const { $state, project_id, parent_id } = project
+  const { knowledge, profiles } = $state
+
+  // Trigger background loading of knowledge and profiles if not yet available
+  ensureKnowledgeLoaded(project)
+  ensureProfilesLoaded(project)
 
   return [
     ...$storex.api.userNetwork.map(user => ({ 
@@ -123,7 +224,7 @@ function buildMentions(project) {
       user,
       tooltip: `User @${user.username}` 
     })),
-    ...profiles.map(profile => ({ 
+    ...(profiles || []).map(profile => ({ 
         name: profile.name,
         profile,
         tooltip: profile.description 
@@ -418,8 +519,6 @@ export const actions = actionTree(
       $storex.session.emit({ event: 'codx-junior-wiki', data })
     },
     async createSubTasks({ state }, { chat, instructions }) {
-      // Fix: use $storex.session.emit (not socket.emit) to match the working
-      // pattern used by chatWihProject — passing { event, data } as a single object.
       const data = {
         codx_path: (await $storex.projects.getChatProject(chat)).codx_path,
         chat,
@@ -428,8 +527,6 @@ export const actions = actionTree(
       $storex.session.emit({ event: 'codx-junior-subtasks', data })
     },
     async codeImprove({ state }, chat) {
-      // Fix: use $storex.session.emit with { event, data } wrapper to match
-      // the correct session emit pattern instead of raw socket.emit.
       const data = {
         codx_path: (await $storex.projects.getChatProject(chat)).codx_path,
         chat
@@ -437,8 +534,6 @@ export const actions = actionTree(
       $storex.session.emit({ event: 'codx-junior-improve', data })
     },
     async codeImprovePatch({ state }, { chat, code_generator }) {
-      // Fix: use $storex.session.emit with { event, data } wrapper to match
-      // the correct session emit pattern instead of raw socket.emit.
       const data = {
         codx_path: state.activeProject.codx_path,
         chat,
@@ -447,8 +542,6 @@ export const actions = actionTree(
       $storex.session.emit({ event: 'codx-junior-improve-patch', data })
     },
     generateCode({ state }, { chat, codeBlockInfo }) {
-      // Fix: use $storex.session.emit with { event, data } wrapper to match
-      // the correct session emit pattern instead of raw socket.emit.
       const data = {
         codx_path: state.activeProject.codx_path,
         chat,

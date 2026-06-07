@@ -8,11 +8,11 @@ import ChatInputBox from './ChatInputBox.vue'
 import ChatImagePreviewModal from './ChatImagePreviewModal.vue'
 import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
 import ChatMessageList from './ChatMessageList.vue'
+import ChatIntelliSense from './ChatIntelliSense.vue'
 </script>
 
 <template>
   <div class="h-full flex flex-col gap-1 overflow-auto">
-    <!-- Main content area -->
     <div class="grow relative flex flex-col gap-1 min-h-0" v-if="!inputOnly">
       <div class="flex gap-2 items-center justify-between">
         <div class="w-full" v-if="chatFiles.length">
@@ -27,7 +27,6 @@ import ChatMessageList from './ChatMessageList.vue'
         <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" v-if="!isVibe" />
       </div>
 
-      <!-- PR diff view: rendered but hidden when inactive to avoid remount -->
       <div class="grow" v-show="isPRView">
         <PRView
           class="h-full overflow-auto"
@@ -42,7 +41,6 @@ import ChatMessageList from './ChatMessageList.vue'
         />
       </div>
 
-      <!-- Messages + browser side-by-side layout, always mounted -->
       <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
         <div class="flex flex-col min-h-0 w-full">
           <div class="h-full flex flex-col relative">
@@ -79,51 +77,59 @@ import ChatMessageList from './ChatMessageList.vue'
               @run-agents="onMessageRunAgents"
             />
 
-            <ChatInputBox
-              v-if="readOnly !== true"
-              ref="inputBox"
-              :waiting="waiting"
-              :is-editing="!!editMessage"
-              :is-voice-session="isVoiceSession"
-              :searching="searchingInKnowledge"
-              :read-only="readOnly"
-              :has-test-script="!!API.activeProject.script_test"
-              :show-document-search="showDocumentSearchModal"
-              :chat-project="chatProject"
-              :selected-user="selectedUser"
-              :users-list="usersList"
-              :selected-model="chat.llm_model"
-              :ai-models="aiModels"
-              :images="images"
-              :cursor-word="cursorWord"
-              :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
-              @close.knowledge="showDocumentSearchModal = false"
-              @send="sendMessage"
-              @add-message="addNewMessage()"
-              @search-message="addSearchMessage"
-              @cancel-edit="onResetEdit"
-              @paste="onContentPaste"
-              @keydown="onEditMessageKeyDown"
-              @drop="onDrop"
-              @add-document="onAddDocument"
-              @close-search="closeDocumentSearch"
-              @replace-emoji="replaceEmoji"
-              @user-changed="selectedUser = $event"
-              @model-changed="onLLMModelChanged"
-              @toggle-search="toggleDocumentSearch"
-              @hide-all="hideAll"
-              @attach-files="selectFile = true"
-              @test-project="testProject"
-              @toggle-voice="toggleVoiceSession"
-              @remove-image="removeImage"
-              @preview-image="imagePreview = $event"
-            />
+            <!-- Input + IntelliSense wrapper -->
+            <div class="relative" v-if="readOnly !== true">
+              <ChatIntelliSense
+                :suggestions="intelliSenseSuggestions"
+                :active-index="intelliSenseIndex"
+                :query="intelliSenseQuery"
+                @select="onIntelliSenseSelect"
+                @hover="intelliSenseIndex = $event"
+              />
+              <ChatInputBox
+                ref="inputBox"
+                :waiting="waiting"
+                :is-editing="!!editMessage"
+                :is-voice-session="isVoiceSession"
+                :searching="searchingInKnowledge"
+                :read-only="readOnly"
+                :has-test-script="!!API.activeProject.script_test"
+                :show-document-search="showDocumentSearchModal"
+                :chat-project="chatProject"
+                :selected-user="selectedUser"
+                :users-list="usersList"
+                :selected-model="chat.llm_model"
+                :ai-models="aiModels"
+                :images="images"
+                :cursor-word="cursorWord"
+                :voice-language-label="$ui.voiceLanguages?.[$ui.voiceLanguage]"
+                @close.knowledge="showDocumentSearchModal = false"
+                @send="sendMessage"
+                @add-message="addNewMessage()"
+                @search-message="addSearchMessage"
+                @cancel-edit="onResetEdit"
+                @paste="onContentPaste"
+                @keydown="onChatInputKeyDown"
+                @drop="onDrop"
+                @add-document="onAddDocument"
+                @close-search="closeDocumentSearch"
+                @replace-emoji="replaceEmoji"
+                @user-changed="selectedUser = $event"
+                @model-changed="onLLMModelChanged"
+                @toggle-search="toggleDocumentSearch"
+                @hide-all="hideAll"
+                @attach-files="selectFile = true"
+                @test-project="testProject"
+                @toggle-voice="toggleVoiceSession"
+                @remove-image="removeImage"
+                @preview-image="imagePreview = $event"
+              />
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Bottom sticky mention bar -->
     <div class="sticky bottom-0 z-2" v-if="!isPRView && !inputOnly">
       <ChatMentionBar
         :suggestions="mentionSuggestions"
@@ -134,7 +140,6 @@ import ChatMessageList from './ChatMessageList.vue'
       />
     </div>
 
-    <!-- Modals -->
     <ChatImagePreviewModal
       :image-preview="imagePreview"
       @cancel="imagePreview = null"
@@ -151,7 +156,6 @@ import ChatMessageList from './ChatMessageList.vue'
       @file-change="handleFileChange"
     />
 
-    <!-- Notebook sync feedback toast -->
     <div v-if="notebookStatus" class="toast toast-top toast-center z-50">
       <div class="alert alert-info text-xs">
         <i class="fa-solid fa-book-open mr-1"></i>
@@ -188,7 +192,13 @@ export default {
       cursorWord: {},
       notebookStatus: null,
       editorText: "",
-      stableMessages: []
+      stableMessages: [],
+      // IntelliSense state
+      intelliSenseSuggestions: [],
+      intelliSenseIndex: 0,
+      intelliSenseQuery: '',
+      intelliSenseDebounce: null,
+      intelliSenseDismissed: false,
     }
   },
   created() {
@@ -296,12 +306,102 @@ export default {
     editorText() {
       this.loadMentionSuggestions()
       this.updateCursorWord()
+      this.scheduleIntelliSense()
     },
     messages(newMessages) {
       this.syncStableMessages(newMessages)
     }
   },
   methods: {
+    // ── IntelliSense ──────────────────────────────────────────
+
+    scheduleIntelliSense() {
+      if (this.intelliSenseDismissed) {
+        const prev = this.intelliSenseQuery
+        const { word } = this.cursorWord
+        if (word !== prev) this.intelliSenseDismissed = false
+      }
+      clearTimeout(this.intelliSenseDebounce)
+      this.intelliSenseDebounce = setTimeout(() => this.runIntelliSense(), 220)
+    },
+
+    runIntelliSense() {
+      if (this.intelliSenseDismissed) return
+
+      const { word } = this.cursorWord
+
+      // Require at least 3 characters (excluding leading @) to trigger intellisense
+      const rawQuery = word?.startsWith('@') ? word.slice(1) : word
+      if (!rawQuery || rawQuery.trim().length < 3) {
+        this.intelliSenseSuggestions = []
+        return
+      }
+
+      this.intelliSenseQuery = rawQuery
+      this.intelliSenseIndex = 0
+
+      const results = this.chatProject?.$state?.searchMentions(rawQuery, 10)
+                      || this.$projects.searchMentions?.(rawQuery, 10)
+                      || []
+      this.intelliSenseSuggestions = results
+    },
+
+    dismissIntelliSense() {
+      this.intelliSenseDismissed = true
+      this.intelliSenseSuggestions = []
+    },
+
+    acceptIntelliSense() {
+      const suggestion = this.intelliSenseSuggestions[this.intelliSenseIndex]
+      if (suggestion) this.onIntelliSenseSelect(suggestion)
+    },
+
+    onIntelliSenseSelect(suggestion) {
+      const { caretIndex, word } = this.cursorWord
+      const text = this.editor?.innerText || ''
+      const prefix = word.startsWith('@') ? '@' : ''
+      const left = text.slice(0, caretIndex - word.length)
+      const right = text.slice(caretIndex)
+      const insert = prefix + suggestion.name
+      this.setEditorText(left + insert + ' ' + right)
+      this.dismissIntelliSense()
+      this.$nextTick(() => this.editor?.focus())
+    },
+
+    onChatInputKeyDown(event) {
+      const hasSuggestions = this.intelliSenseSuggestions.length > 0
+
+      if (hasSuggestions) {
+        if (event.key === 'Tab') {
+          event.preventDefault()
+          event.stopPropagation()
+          this.acceptIntelliSense()
+          return
+        }
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          this.intelliSenseIndex = Math.min(
+            this.intelliSenseIndex + 1,
+            this.intelliSenseSuggestions.length - 1
+          )
+          return
+        }
+        if (event.key === 'ArrowUp') {
+          event.preventDefault()
+          this.intelliSenseIndex = Math.max(this.intelliSenseIndex - 1, 0)
+          return
+        }
+        if (event.key === 'Escape') {
+          this.dismissIntelliSense()
+          return
+        }
+      }
+
+      this.onEditMessageKeyDown(event)
+    },
+
+    // ── Existing methods ──────────────────────────────────────
+
     syncStableMessages(newMessages) {
       const newIds = newMessages.map(m => m.doc_id).join(',')
       const oldIds = this.stableMessages.map(m => m.doc_id).join(',')
@@ -327,9 +427,12 @@ export default {
       this.mentionSuggestions = []
       const { word } = this.cursorWord
       if (word?.startsWith("@")) {
+        const query = word.slice(1)
+        // Require at least 3 characters after the @ to trigger mention suggestions
+        if (query.length < 3) return
         this.mentionSuggestions = [
           ...this.mentions,
-          ...this.chatProject.$state.searchMentions(word.slice(1))
+          ...this.chatProject.$state.searchMentions(query)
         ]
       }
     },
@@ -462,9 +565,7 @@ export default {
       const file = [...e.dataTransfer.files].filter(f => f.type.indexOf("image") !== -1)[0]
       if (file) this.onInputImage(file)
       const textContent = e.dataTransfer.getData('text/plain')
-      if (textContent) {
-        this.processInputTextContent(textContent)
-      }
+      if (textContent) this.processInputTextContent(textContent)
       this.processDropUrls(e.dataTransfer)
     },
     processDropUrls(dataTransfer) {
@@ -482,48 +583,25 @@ export default {
     },
     async onContentPaste(e) {
       if (!e.clipboardData?.items) return
-      // Helper to cancel default browser paste behaviour
       const stop = () => { e.preventDefault(); e.stopPropagation(); return false }
-
-      // 1. Image file pasted directly (e.g. screenshot)
       const imageFile = await this.chatSvc.parseImageFromPaste(e)
-      if (imageFile) {
-        this.onInputImage(imageFile)
-        return stop()
-      }
-
-      // 2. Text/HTML content pasted
+      if (imageFile) { this.onInputImage(imageFile); return stop() }
       const textContent = await this.chatSvc.parseTextFromPaste(e)
       if (!textContent) return
-
-      // Returns true when paste should be suppressed
       const handled = this.processInputTextContent(textContent)
       if (handled) return stop()
     },
-    // Returns true if the content was fully handled (caller should suppress default paste)
     processInputTextContent(textContent) {
-      // Check if pasted HTML contains an image URL
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
-      if (imgUrl) {
-        this.images.push(imgUrl)
-        return true
-      }
-
-      // Check if pasted text matches a known mention/file
+      if (imgUrl) { this.images.push(imgUrl); return true }
       const fileMention = this.mentionList.find(m => m.file === textContent)
-      if (fileMention) {
-        this.addFileToMessage(fileMention.file)
-        return true
-      }
-
-      // Check if pasted text is an absolute project file path
+      if (fileMention) { this.addFileToMessage(fileMention.file); return true }
       const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
       if (isProjectFile && !this.pasteWithShift) {
         this.addFileToMessage(textContent)
         this.setEditorText(this.editorText.replace(textContent, ""))
         return true
       }
-
       return false
     },
     addFileToMessage(file) {
@@ -699,10 +777,7 @@ export default {
     },
     async createChatSubTask({ title, files, description, metadata, profiles, mode, column, project_id, parent_id }) {
       const payload = this.chatSvc.buildSubTaskPayload({
-        title,
-        description,
-        files,
-        profiles,
+        title, description, files, profiles,
         mode: mode || this.chat.mode,
         column: column || this.chat.column,
         board: this.chat.board,

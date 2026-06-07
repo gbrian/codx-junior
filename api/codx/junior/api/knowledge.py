@@ -2,10 +2,11 @@ import asyncio
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Request, Response, Depends
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from codx.junior.model.model import (
+    CodxUser,
     KnowledgeReloadPath,
     KnowledgeSearch,
     KnowledgeDeleteSources,
@@ -13,6 +14,7 @@ from codx.junior.model.model import (
 )
 
 from codx.junior.knowledge.knowledge_ai_search import KnowledgeAISearch, AISearchResult
+from codx.junior.api import require_admin
 
 logger = logging.getLogger(__name__)
 
@@ -255,6 +257,112 @@ def api_knowledge_summary_json(request: Request):
     knowledge = codx_junior_session.get_knowledge()
     summary: str = knowledge.get_project_summary() or ""
     return JSONResponse(content={"summary": summary})
+
+
+@router.post("/summary/rebuild")
+def api_knowledge_summary_rebuild(
+    request: Request,
+    user: CodxUser = Depends(require_admin),
+):
+    """
+    Trigger a full rebuild of the project summary (admin only).
+
+    Forces ``Knowledge.build_project_summary`` to regenerate the summary
+    document from scratch by reading all currently indexed sources.
+
+    Returns:
+        JSON object with:
+          - ``summary``: The newly generated Markdown summary string.
+          - ``project``: The project name for confirmation.
+
+    Diagram:
+    sequenceDiagram
+        participant Client
+        participant Router as KnowledgeRouter
+        participant Auth as require_admin
+        participant Session as CODXJuniorSession
+        participant KB as Knowledge
+
+        Client->>Router: POST /api/knowledge/summary/rebuild
+        Router->>Auth: validate admin role
+        Auth-->>Router: CodxUser (admin)
+        Router->>Session: get session from request state
+        Session->>KB: get_knowledge()
+        KB-->>Session: Knowledge instance
+        Session->>KB: build_project_summary()
+        KB-->>Session: updated summary string
+        Session-->>Router: updated summary string
+        Router-->>Client: { summary, project }
+    """
+    codx_junior_session = request.state.codx_junior_session
+    project_name = codx_junior_session.settings.project_name
+    logger.info(
+        "Admin '%s' triggered summary rebuild for project '%s'",
+        user.username,
+        project_name,
+    )
+    knowledge = codx_junior_session.get_knowledge()
+    updated_summary: str = knowledge.build_project_summary() or ""
+    return JSONResponse(content={"summary": updated_summary, "project": project_name})
+
+
+@router.delete("/summary")
+def api_knowledge_summary_delete(
+    request: Request,
+    user: CodxUser = Depends(require_admin),
+):
+    """
+    Delete the persisted project summary file (admin only).
+
+    Removes the on-disk summary so the next rebuild starts from a clean slate.
+
+    Returns:
+        JSON object with a confirmation ``message`` and the ``project`` name.
+
+    Diagram:
+    sequenceDiagram
+        participant Client
+        participant Router as KnowledgeRouter
+        participant Auth as require_admin
+        participant Session as CODXJuniorSession
+        participant KB as Knowledge
+
+        Client->>Router: DELETE /api/knowledge/summary
+        Router->>Auth: validate admin role
+        Auth-->>Router: CodxUser (admin)
+        Router->>Session: get session from request state
+        Session->>KB: get_knowledge()
+        KB-->>Session: Knowledge instance
+        Router->>KB: delete summary_file_path if exists
+        KB-->>Router: done
+        Router-->>Client: { message, project }
+    """
+    import os
+
+    codx_junior_session = request.state.codx_junior_session
+    project_name = codx_junior_session.settings.project_name
+    knowledge = codx_junior_session.get_knowledge()
+
+    summary_path = knowledge.summary_file_path
+    if os.path.isfile(summary_path):
+        os.remove(summary_path)
+        logger.info(
+            "Admin '%s' deleted summary file '%s' for project '%s'",
+            user.username,
+            summary_path,
+            project_name,
+        )
+        message = f"Summary file deleted: {summary_path}"
+    else:
+        logger.info(
+            "Admin '%s' requested summary deletion but no file found at '%s' for project '%s'",
+            user.username,
+            summary_path,
+            project_name,
+        )
+        message = "No summary file found; nothing to delete."
+
+    return JSONResponse(content={"message": message, "project": project_name})
 
 
 @router.get("/ai-search")
