@@ -8,6 +8,7 @@ import UserSelector from './chat/UserSelector.vue'
 import ProfileAvatar from './profile/ProfileAvatar.vue'
 import Editor from './monaco/Editor.vue'
 import ChatEntrySlack from './ChatEntrySlack.vue'
+import ChatEntryMobile from './ChatEntryMobile.vue'
 </script>
 
 <template>
@@ -56,7 +57,64 @@ import ChatEntrySlack from './ChatEntrySlack.vue'
     @message-copy="onMessageCopy"
   />
 
-  <!-- Default rendering for non-topic or non-user messages -->
+  <!-- Mobile rendering -->
+  <ChatEntryMobile
+    v-else-if="$ui.isMobile"
+    :chat="chat"
+    :message="message"
+    :mentionList="mentionList"
+    :usersList="usersList"
+    :displayMessage="displayMessage"
+    :messageProfiles="messageProfiles"
+    :chatFiles="chatFiles"
+    :chatProject="chatProject"
+    :messageContent="messageContent"
+    :isDone="isDone"
+    :editting="editting"
+    :srcView="srcView"
+    :showDiff="showDiff"
+    :timeTaken="timeTaken"
+    :thinkText="thinkText"
+    :cancellationTokenId="cancellationTokenId"
+    :cancellationTime="cancellationTime"
+    :canEditMessage="canEditMessage"
+    :threadChat="threadChat"
+    :isTopic="isTopic"
+    :isWord="isWord"
+    :isCollapsed="isCollapsed"
+    :images="images"
+    :code_patches="code_patches"
+    :menuLess="menuLess"
+    @thread="$emit('thread', $event)"
+    @hide="$emit('hide', $event)"
+    @remove="onRemove"
+    @confirm-remove="confirmRemove"
+    @toggle-src-view="toggleSrcView"
+    @toggle-show-diff="toggleShowDiff"
+    @cancel-message="cancelMessage"
+    @copy-message="copyMessageToClipboard"
+    @edit-message-click="onEditMessage"
+    @save-editting="saveEditting"
+    @cancel-editting="cancelEditting"
+    @generate-code="onGenerateCode"
+    @reload-file="$emit('reload-file', $event)"
+    @open-file="$emit('open-file', $event)"
+    @save-file="$emit('save-file', $event)"
+    @add-file="$emit('add-file', $event)"
+    @edit-message="$emit('edit-message', $event)"
+    @sub-task="$emit('sub-task', $event)"
+    @open-thread="openThread"
+    @add-file-to-chat="$emit('add-file-to-chat', $event)"
+    @remove-file="$emit('remove-file', $event)"
+    @message-copy="onMessageCopy"
+    @answer="$emit('answer', $event)"
+    @run-agents="runAgents"
+    @apply-patch="applyPatch"
+    @image="$emit('image', $event)"
+    @update:editting="editting = $event"
+  />
+
+  <!-- Default desktop rendering -->
   <div v-else class="group chat-entry flex gap-1 items-start relative p-2"
     :class="[
       displayMessage.hide ? 'hover:bg-base-100 opacity-50 hover:opacity-100': '',
@@ -254,7 +312,6 @@ import ChatEntrySlack from './ChatEntrySlack.vue'
           
           <pre v-if="srcView">{{ displayMessage.content }}</pre>
 
-          <!-- Main document renderer — add-file bubbled from MarkdownViewer → Document → here -->
           <Document 
             :content="messageContent"
             :files="chatFiles"
@@ -397,7 +454,6 @@ export default {
     isTopic() {
       return this.chat?.mode === 'topic'
     },
-    // Slack-style applies to all messages in topic mode
     isSlackStyle() {
       return this.chat?.mode === 'topic'
     },
@@ -418,10 +474,10 @@ export default {
         this.message.role === 'assistant'
     },
     thinkText() {
-      const { full_think, is_thinking, think } = this.message 
+      const { full_think, is_thinking } = this.message 
       return (full_think || is_thinking) 
-        ? think 
-        : `${think.slice(0, 50)}...`
+        ? full_think 
+        : `${full_think?.slice(0, 50)}...`
     },
     displayMessage() {
       return this.threadChat?.messages
@@ -482,9 +538,6 @@ export default {
     },
     cancellationTime() {
       return this.displayMessage.meta_data?.cancelled_at
-    },
-    menuLess() {
-      return this.$attrs['menu-less']
     }
   },
   watch: {
