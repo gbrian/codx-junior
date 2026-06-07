@@ -9,7 +9,6 @@ export const namespaced = true
 const createState = () => ({
   allProjects: [],
   allProjectsById: {},
-  activeChat: null,
   activeProject: null,
   recentProjects: [],
   logs: null,
@@ -340,7 +339,9 @@ export const getters = getterTree(state, {
           .sort((a, b) => a.updated_at > b.updated_at ? -11 : 1).slice(0, 6),
   userList: () => [$storex.users.user, ...$storex.projects.profiles?.map(p => ({ ...p, isProfile: true }))] || [],
   projectApps: state => state.workspaces?.reduce((a, w) => 
-                  a.concat(w.apps.map(a => ({ ...a, workspaceName: w.name, key: `${w.name}-${a.name}` }))), [])
+                  a.concat(w.apps.map(a => ({ ...a, workspaceName: w.name, key: `${w.name}-${a.name}` }))), []),
+  // Delegate activeChat to chats store
+  activeChat: () => $storex.chats.activeChat,
 })
 
 export const actions = actionTree(
@@ -349,7 +350,6 @@ export const actions = actionTree(
     async init ({ state }) {
       await $storex.projects.setAllProjects([])
       state.activeProject = null
-      state.activeChat = null
 
       await $storex.projects.loadAllProjects()
       $storex.ui.setUIready()      
@@ -374,7 +374,6 @@ export const actions = actionTree(
       } 
       $storex.projects.setAllProjects([])
       state.activeProject = null
-      state.activeChat = null
     },
     async setActiveProject ({ state }, project) {
       const { project_id, project_name, codx_path } = project
@@ -388,32 +387,31 @@ export const actions = actionTree(
       }
 
       if (project?.codx_path) {
-      state.projectLoading = true
-      try {
+        state.projectLoading = true
+        try {
+          API.setActiveProject(project)
+            
+          const existsProject = state.allProjects.find(p => p.project_id === API.activeProject.project_id)
+          if (!existsProject) {
+            await $storex.projects.setAllProjects([ ...state.allProjects, API.activeProject ])
+          }
+          state.activeProject = state.allProjectsById[API.activeProject.project_id]
+                                  || state.allProjects.find(p => p.project_name === 'codx-junior')
 
-        API.setActiveProject(project)
-          
-        const existsProject = state.allProjects.find(p => p.project_id === API.activeProject.project_id)
-        if (!existsProject) {
-          await $storex.projects.setAllProjects([ ...state.allProjects, API.activeProject ])
+          await $storex.chats.loadChats()
+          if ($storex.chats.activeChat?.project_id !== API.activeProject.project_id) {
+            $storex.chats.setActiveChat.call(null, {})
+          }
+          state.ai = state.activeProject.$state.ai
+
+          $storex.projects.addRecentProject(state.activeProject) 
+          state.workspaces = API.workspaces
+          $storex.ui.saveState()
+        } catch(ex) {
+          console.error("Error setting active project", ex)
+        } finally {
+          state.projectLoading = false
         }
-        state.activeProject = state.allProjectsById[API.activeProject.project_id]
-                                || state.allProjects.fin(p => p.project_name === 'codx-junior')
-
-        await $storex.chats.loadChats()
-        if (state.activeChat?.project_id !== API.activeProject.project_id) {
-          state.activeChat = null
-        }
-        state.ai = state.activeProject.$state.ai
-
-        $storex.projects.addRecentProject(state.activeProject) 
-        state.workspaces = API.workspaces
-        $storex.ui.saveState()
-      } catch(ex) {
-        console.error("Error setting active project", ex)
-      } finally {
-        state.projectLoading = false
-      }
       }
     },
     async loadProjectKnowledge({ state }) {
@@ -582,7 +580,7 @@ export const actions = actionTree(
         await $storex.projects.loadKanban()
       }
       state.activeBoard = boardName
-      state.activeChat = null
+      $storex.chats.setActiveChat({})
     },
     getChatProject({ state }, chat) {
       return state.allProjectsById[chat.project_id || chat.owner_project_id] || state.activeProject

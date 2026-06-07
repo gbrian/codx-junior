@@ -946,15 +946,15 @@ class ChatEngine:
                 "Chat init suggestions for '%s': %s", chat.doc_id, suggestions
             )
 
-            if not chat.name and suggestions.get("name"):
+            if suggestions.get("name"):
                 chat.name = suggestions["name"]
                 logger.info("Auto-set chat.name = '%s'", chat.name)
 
-            if not chat.board and suggestions.get("board"):
+            if suggestions.get("board"):
                 chat.board = suggestions["board"]
                 logger.info("Auto-set chat.board = '%s'", chat.board)
 
-            if not chat.column and suggestions.get("column"):
+            if suggestions.get("column"):
                 chat.column = suggestions["column"]
                 logger.info("Auto-set chat.column = '%s'", chat.column)
 

@@ -9,7 +9,7 @@ import ChatHistory from './ChatHistory.vue'
 </script>
 
 <template>
-  <div class="h-full relative" v-if="kanban">
+  <div class="kanban h-full relative" v-if="kanban">
     <div class="absolute top-0 left-0 right-0 bottom-0 bg-cover opacity-20 rounded-lg z-0"
       :style="{ backgroundImage: `url(${activeKanbanBoard?.background}` }"
       v-if="activeKanbanBoard?.background"
@@ -383,7 +383,7 @@ export default {
   },
   methods: {
     async setActiveChat(chat) {
-      chat && await this.$chats.reloadChat(chat)
+      chat && this.$chats.reloadChat(chat)
       this.$chats.setActiveChat(chat)
     },
 

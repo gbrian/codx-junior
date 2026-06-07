@@ -1,5 +1,6 @@
 import logging
 import json
+import os
 
 from datetime import datetime
 from typing import Union
@@ -17,8 +18,32 @@ from codx.junior.utils.utils import (
   create_file_logger
 )
 from codx.junior.model.model import CodxUser
+from codx.junior.analytics.token_counter import count_tokens, count_messages_tokens
+from codx.junior.globals import ANALYTICS_DATA_PATH
 
 logger = logging.getLogger(__name__)
+
+# Lazily imported to avoid circular dependencies at module load time
+_analytics_instance = None
+
+
+def _get_analytics():
+    """
+    Return a shared Analytics instance backed by the global analytics path,
+    creating it once per process.
+
+    The path is sourced from ``ANALYTICS_DATA_PATH`` (globals.py) which reads
+    the ``CODX_JUNIOR_API_ANALYTICS_DATA_PATH`` environment variable.
+
+    Returns:
+        Analytics instance.
+    """
+    global _analytics_instance
+    if _analytics_instance is None:
+        from codx.junior.analytics import Analytics
+        _analytics_instance = Analytics(analytics_path=ANALYTICS_DATA_PATH)
+    return _analytics_instance
+
 
 class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings, llm_model: str = None, user: CodxUser = None, system: str = None):
@@ -42,6 +67,49 @@ class OpenAI_AI:
         except Exception as ex:
             logger.error("Error creating OpenAI client: %s, %s*****", self.base_url, self.api_key[0:15])
         self.ai_logger = AILogger(settings=settings)
+
+    # ── Analytics helper ───────────────────────────────────────────────────────
+
+    def _record_usage(
+        self,
+        input_text: str,
+        output_text: str,
+        tags: str = "",
+        session_id: str = None,
+    ) -> None:
+        """
+        Estimate token counts and persist a ``TokenUsageEvent`` to the global
+        analytics store.
+
+        Called after every successful chat completion (streaming or not).
+        Failures are logged but never re-raised so they don't break the caller.
+
+        Args:
+            input_text:  Concatenated prompt text sent to the model.
+            output_text: Response text received from the model.
+            tags:        Comma-separated request tags.
+            session_id:  Optional session identifier from request headers.
+        """
+        try:
+            analytics = _get_analytics()
+            input_tokens = count_tokens(input_text, model=self.model)
+            output_tokens = count_tokens(output_text, model=self.model)
+
+            analytics.record_token_usage(
+                username=self.user.username if self.user else "anonymous",
+                project_name=self.settings.project_name or "",
+                project_id=getattr(self.settings, "project_id", "") or "",
+                model=self.model,
+                provider=self.llm_settings.provider or "",
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                session_id=session_id,
+                tags=tags,
+            )
+        except Exception as ex:
+            logger.warning("_record_usage failed (non-fatal): %s", ex)
+
+    # ── Existing methods ───────────────────────────────────────────────────────
 
     def log(self, msg):
         if self.settings.get_log_ai():
@@ -92,10 +160,13 @@ class OpenAI_AI:
 
         cancellation_token: CancellationToken = config.get("cancellation_token", None)
 
+        # Capture request metadata for analytics
+        request_headers = config.get("headers", {})
+        tags_str = request_headers.get("tags", "")
+        session_id = request_headers.get("session_id", None)
+
         try:
-            request_headers = config.get("headers", {})
-            tags = request_headers.get("tags", "")
-            tags = tags.split(",") + [
+            tags = tags_str.split(",") + [
                 f"temperature:{self.llm_settings.temperature}",
                 self.settings.project_name
             ]
@@ -161,6 +232,15 @@ class OpenAI_AI:
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
 
+        # ── Record token usage ────────────────────────────────────────────────
+        input_text = "\n".join(m.get("content", "") for m in openai_messages)
+        self._record_usage(
+            input_text=input_text,
+            output_text=response_content,
+            tags=",".join(tags) if isinstance(tags, list) else tags_str,
+            session_id=session_id,
+        )
+
         messages.append(AIMessage(content=response_content))
         return messages
 
@@ -190,10 +270,13 @@ class OpenAI_AI:
 
         cancellation_token: CancellationToken = config.get("cancellation_token", None)
 
+        # Capture request metadata for analytics
+        request_headers = config.get("headers", {})
+        tags_str = request_headers.get("tags", "")
+        session_id = request_headers.get("session_id", None)
+
         try:
-            request_headers = config.get("headers", {})
-            tags = request_headers.get("tags", "")
-            tags = tags.split(",") + [
+            tags = tags_str.split(",") + [
                 f"temperature:{self.llm_settings.temperature}",
                 self.settings.project_name
             ]
@@ -308,6 +391,16 @@ class OpenAI_AI:
 
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
+
+        # ── Record token usage ────────────────────────────────────────────────
+        input_text = "\n".join(m.get("content", "") for m in openai_messages
+                               if isinstance(m.get("content"), str))
+        self._record_usage(
+            input_text=input_text,
+            output_text=response_content,
+            tags=",".join(tags) if isinstance(tags, list) else tags_str,
+            session_id=session_id,
+        )
 
         messages.append(AIMessage(content=response_content))
         return messages

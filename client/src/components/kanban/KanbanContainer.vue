@@ -2,10 +2,15 @@
 import KanbanList from './KanbanList.vue'
 import Kanban from './Kanban.vue'
 import NewEditBoardModal from './NewEditBoardModal.vue'
+import ChatView from '@/views/ChatView.vue';
 </script>
 
 <template>
   <div class="@container p-2 w-full h-full flex flex-col gap-1 overflow-auto">
+    <!-- ChatView -->
+    <ChatView :chat="activeChat" 
+      @chats="$chats.setActiveChat(null)"
+      v-if="activeChat" />
 
     <!-- Kanban list -->
     <KanbanList
@@ -79,10 +84,13 @@ export default {
         : null
     },
     showKanban() {
-      return !this.showHistory && !!this.activeBoard
+      return !this.activeChat && !this.showHistory && !!this.activeBoard
     },
     showKanbanList() {
-      return !this.showHistory && !this.showKanban
+      return !this.activeChat && !this.showHistory && !this.showKanban
+    },
+    activeChat() {
+      return this.$ui.isMobile ? this.$chats.activeChat : null
     }
   },
   methods: {

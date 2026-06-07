@@ -36,3 +36,10 @@ LANGUAGE_PARSER_MAPPING = {
 }
 
 LOGS_FOLDER = os.environ.get("CODX_JUNIOR_API_LOGS", "/tmp/codx-junior-logs")
+
+# Global path for analytics data, shared across all projects.
+# Defaults to /home/codx-junior/analytics when the env var is not set.
+ANALYTICS_DATA_PATH = os.environ.get(
+    "CODX_JUNIOR_API_ANALYTICS_DATA_PATH",
+    "/home/codx-junior/analytics"
+)

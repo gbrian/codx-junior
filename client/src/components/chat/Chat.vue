@@ -359,7 +359,7 @@ export default {
     onIntelliSenseSelect(suggestion) {
       const { caretIndex, word } = this.cursorWord
       const text = this.editor?.innerText || ''
-      const prefix = word.startsWith('@') ? '@' : ''
+      const prefix = '@'
       const left = text.slice(0, caretIndex - word.length)
       const right = text.slice(caretIndex)
       const insert = prefix + suggestion.name

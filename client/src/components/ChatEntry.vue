@@ -7,7 +7,6 @@ import Document from './document/Document.vue'
 import UserSelector from './chat/UserSelector.vue'
 import ProfileAvatar from './profile/ProfileAvatar.vue'
 import Editor from './monaco/Editor.vue'
-import Word from './document/Word.vue'
 import ChatEntrySlack from './ChatEntrySlack.vue'
 </script>
 
@@ -115,7 +114,7 @@ import ChatEntrySlack from './ChatEntrySlack.vue'
 
             <!-- Action buttons -->
             <div 
-              class="opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end"
+              class="@lg:opacity-0 group-hover:opacity-100 flex gap-2 items-center justify-end"
               v-if="menuLess !== true"
             >
               <div class="px-2 flex flex-col">

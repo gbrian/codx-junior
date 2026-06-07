@@ -5,7 +5,7 @@ import Collapsible from '../Collapsible.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 h-full">
+  <div class="kanban-grid-view flex flex-col gap-3 h-full">
     <!-- Filter bar via Collapsible -->
     <Collapsible>
       <template #icon>

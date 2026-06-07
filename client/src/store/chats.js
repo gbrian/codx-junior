@@ -78,9 +78,6 @@ export const mutations = mutationTree(state, {
       }
     }
   },
-  setActiveChat(state, chat) {
-    state.activeChat = chat || null
-  },
 })
 
 export const actions = actionTree(
@@ -94,7 +91,10 @@ export const actions = actionTree(
         ...state.chats,
         ...chats.reduce((acc, chat) => ({ ...acc, [chat.id]: chat }), {})
       }
-      await $storex.chats.setActiveChat(state.chats[state.activeChat?.id])
+      // Refresh activeChat reference from updated chats map
+      if (state.activeChat?.id) {
+        state.activeChat = state.chats[state.activeChat.id] || state.activeChat
+      }
     },
     async saveChat({ state }, chat) {
       const savedChat = await API.chats.save(chat)
@@ -125,10 +125,11 @@ export const actions = actionTree(
         state.chats[chat.id] = chat
       }
       registerChatById(state, state.chats[chat.id])
+      // Keep activeChat reference in sync if this is the active chat
       if (state.activeChat?.id === chat.id) {
         state.activeChat = state.chats[chat.id]
       }
-      return chat
+      return state.chats[chat.id]
     },
     async reloadChat({ state }, chat) {
       const project = getChatProject(chat)
@@ -139,6 +140,10 @@ export const actions = actionTree(
         Object.assign(state.chats[chat.id], freshChat)
       } else {
         state.chats[chat.id] = freshChat
+      }
+      // Keep activeChat reference in sync if this is the active chat
+      if (state.activeChat?.id === chat.id) {
+        state.activeChat = state.chats[chat.id]
       }
       return state.chats[chat.id]
     },
@@ -154,17 +159,17 @@ export const actions = actionTree(
         state.activeChat = null
       }
     },
-    async setActiveChat({ state }, { id, project_id } = {}) {
+    async setActiveChat({ state }, activeChat) {
+      const { id, project_id } = activeChat || {}
       if (id) {
         await $storex.chats.reloadChat({ id, project_id })
       }
-      const chat = state.chats[id] || null
-      // Keep activeChat in sync
+      // Resolve chat from chats map — single source of truth
+      const chat = (id && state.chats[id]) || null
       state.activeChat = chat
 
-      if ($storex.ui.isMobile) {
-        $storex.projects.activeChat = chat
-      } else if (chat) {
+      // On desktop, notify the UI to open the chat panel
+      if (!$storex.ui.isMobile && chat) {
         $storex.ui.openChat(chat)
       }
     },
@@ -183,7 +188,7 @@ export const actions = actionTree(
       if (!chat.temp) {
         await $storex.chats.saveChat(chat)
       }
-      return chat
+      return state.chats[chat.id]
     },
     async createNewChatFromUrl({ state }, chat) {
       chat = {
@@ -225,15 +230,15 @@ export const actions = actionTree(
         $storex.projects.kanban.boards[boardTitle].columns.push(column)
       }
 
-      chat = await $storex.chats.createNewChat({
+      const newChat = await $storex.chats.createNewChat({
         board: boardTitle,
         column: columnTitle,
         ...chat
       })
-      $storex.chats.setActiveChat(chat)
-      column.chats = [...column?.chats || [], chat.id]
+      await $storex.chats.setActiveChat(newChat)
+      column.chats = [...column?.chats || [], newChat.id]
       $storex.projects.saveKanban($storex.projects.kanban)
-      return $storex.chats[chat.id]
+      return newChat
     },
     async createNewThread(_, { chat, mode, message }) {
       const { files, profiles, doc_id: subtaskMessageId } = message
@@ -260,7 +265,7 @@ export const actions = actionTree(
           }
         })
       } else {
-        $storex.chats.setActiveChat(findChild)
+        await $storex.chats.setActiveChat(findChild)
       }
     },
     async onChatEvent({ state }, { event, data }) {
