@@ -7,6 +7,7 @@ export const namespaced = true
 
 export const state = () => ({
   chats: {},
+  activeChat: null,
   chatEvents: {}, // { [chatId]: { updatingCount: number, updatingAt: string | null, timeoutId: number | null } }
 })
 
@@ -34,6 +35,7 @@ export const getters = getterTree(state, {
   isChatUpdating: state => (chatId) => {
     return (state.chatEvents[chatId]?.updatingCount || 0) > 0
   },
+  activeChat: state => state.activeChat,
 })
 
 export const mutations = mutationTree(state, {
@@ -75,7 +77,10 @@ export const mutations = mutationTree(state, {
         }
       }
     }
-  }
+  },
+  setActiveChat(state, chat) {
+    state.activeChat = chat || null
+  },
 })
 
 export const actions = actionTree(
@@ -144,15 +149,23 @@ export const actions = actionTree(
       if (state.chats[chat.id]) {
         delete state.chats[chat.id]
       }
+      // Clear activeChat if the deleted chat was active
+      if (state.activeChat?.id === chat.id) {
+        state.activeChat = null
+      }
     },
     async setActiveChat({ state }, { id, project_id } = {}) {
       if (id) {
         await $storex.chats.reloadChat({ id, project_id })
       }
+      const chat = state.chats[id] || null
+      // Keep activeChat in sync
+      state.activeChat = chat
+
       if ($storex.ui.isMobile) {
-        $storex.projects.activeChat = state.chats[id]
-      } else if (state.chats[id]) {
-        $storex.ui.openChat(state.chats[id])
+        $storex.projects.activeChat = chat
+      } else if (chat) {
+        $storex.ui.openChat(chat)
       }
     },
     async createNewChat({ state }, chat) {
@@ -183,7 +196,7 @@ export const actions = actionTree(
       state.chats[chat.id] = await API.chats.fromUrl(chat)
       registerChatById(state, state.chats[chat.id])
       if (!chat.temp) {
-        $storex.projects.activeChat = state.chats[chat.id]
+        state.activeChat = state.chats[chat.id]
       }
       return state.chats[chat.id]
     },

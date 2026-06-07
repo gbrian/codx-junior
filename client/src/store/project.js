@@ -180,7 +180,7 @@ function ensureKnowledgeLoaded(project) {
   if (!$state || !$api) return
   const knowledge = $state.knowledge
   // Already loaded if files array exists (even if empty)
-  if (knowledge && Array.isArray(knowledge.files)) return
+  if (knowledge) return
   // Kick off async load without blocking
   promiseOrDefault(() => $api.knowledge.status(), null).then(data => {
     if (data) {
