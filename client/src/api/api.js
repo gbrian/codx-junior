@@ -437,6 +437,112 @@ const initializeAPI = ({ project, user } = {}) => {
         return API.put('/api/wiki-engine', wikiSettings)
       }
     },
+    /**
+     * Token usage analytics.
+     *
+     * User-scoped methods return data for the currently authenticated user only.
+     * Admin-scoped methods (under `analytics.admin`) require the admin role and
+     * return data across all users.
+     */
+    analytics: {
+      /**
+       * List ISO dates (YYYY-MM-DD) that have recorded usage for the current user.
+       * @returns {Promise<string[]>}
+       */
+      dates() {
+        return API.get('/api/analytics/dates')
+      },
+
+      /**
+       * Get total token usage for the current user.
+       * @param {{ startDate?: string, endDate?: string, projectName?: string, model?: string }} filters
+       * @returns {Promise<{input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>}
+       */
+      total({ startDate, endDate, projectName, model } = {}) {
+        const qs = _buildAnalyticsQS({ startDate, endDate, projectName, model })
+        return API.get(`/api/analytics/total${qs}`)
+      },
+
+      /**
+       * Get daily token usage breakdown for the current user.
+       * @param {{ startDate?: string, endDate?: string, projectName?: string }} filters
+       * @returns {Promise<Array<{date: string, input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
+       */
+      daily({ startDate, endDate, projectName } = {}) {
+        const qs = _buildAnalyticsQS({ startDate, endDate, projectName })
+        return API.get(`/api/analytics/daily${qs}`)
+      },
+
+      /**
+       * Get token usage grouped by model for the current user.
+       * @param {{ startDate?: string, endDate?: string, projectName?: string }} filters
+       * @returns {Promise<Record<string, {input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
+       */
+      byModel({ startDate, endDate, projectName } = {}) {
+        const qs = _buildAnalyticsQS({ startDate, endDate, projectName })
+        return API.get(`/api/analytics/by-model${qs}`)
+      },
+
+      admin: {
+        /**
+         * [Admin] List all ISO dates with any recorded usage.
+         * @returns {Promise<string[]>}
+         */
+        dates() {
+          return API.get('/api/analytics/admin/dates')
+        },
+
+        /**
+         * [Admin] Get total token usage across all users.
+         * @param {{ startDate?: string, endDate?: string, username?: string, projectName?: string, projectId?: string, model?: string }} filters
+         * @returns {Promise<{input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>}
+         */
+        total({ startDate, endDate, username, projectName, projectId, model } = {}) {
+          const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName, projectId, model })
+          return API.get(`/api/analytics/admin/total${qs}`)
+        },
+
+        /**
+         * [Admin] Get daily token usage breakdown across all users.
+         * @param {{ startDate?: string, endDate?: string, username?: string, projectName?: string }} filters
+         * @returns {Promise<Array<{date: string, input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
+         */
+        daily({ startDate, endDate, username, projectName } = {}) {
+          const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName })
+          return API.get(`/api/analytics/admin/daily${qs}`)
+        },
+
+        /**
+         * [Admin] Get token usage grouped by username.
+         * @param {{ startDate?: string, endDate?: string, projectName?: string, projectId?: string }} filters
+         * @returns {Promise<Record<string, {input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
+         */
+        byUser({ startDate, endDate, projectName, projectId } = {}) {
+          const qs = _buildAnalyticsQS({ startDate, endDate, projectName, projectId })
+          return API.get(`/api/analytics/admin/by-user${qs}`)
+        },
+
+        /**
+         * [Admin] Get token usage grouped by project name.
+         * @param {{ startDate?: string, endDate?: string, username?: string }} filters
+         * @returns {Promise<Record<string, {input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
+         */
+        byProject({ startDate, endDate, username } = {}) {
+          const qs = _buildAnalyticsQS({ startDate, endDate, username })
+          return API.get(`/api/analytics/admin/by-project${qs}`)
+        },
+
+        /**
+         * [Admin] Get token usage grouped by model name.
+         * @param {{ startDate?: string, endDate?: string, username?: string, projectName?: string }} filters
+         * @returns {Promise<Record<string, {input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
+         */
+        byModel({ startDate, endDate, username, projectName } = {}) {
+          const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName })
+          return API.get(`/api/analytics/admin/by-model${qs}`)
+        }
+      }
+    },
     engine: {
       update() {
         return API.get('/api/update');
@@ -538,5 +644,28 @@ const initializeAPI = ({ project, user } = {}) => {
   API.initConnection()
   return API;
 };
+
+/**
+ * Build a query string from an object of analytics filter params.
+ * Undefined / null values are omitted.
+ * camelCase keys are converted to snake_case for the backend.
+ *
+ * @param {Record<string, string|undefined>} params
+ * @returns {string} e.g. "?start_date=2025-01-01&end_date=2025-01-31"
+ */
+function _buildAnalyticsQS(params) {
+  const keyMap = {
+    startDate: 'start_date',
+    endDate: 'end_date',
+    username: 'username',
+    projectName: 'project_name',
+    projectId: 'project_id',
+    model: 'model',
+  }
+  const parts = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${keyMap[k] || k}=${encodeURIComponent(v)}`)
+  return parts.length ? `?${parts.join('&')}` : ''
+}
 
 export const API = initializeAPI()

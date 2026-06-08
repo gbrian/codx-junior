@@ -5,7 +5,13 @@ import AppIcon from '../apps/AppIcon.vue';
 </script>
 <template>
   <MenubarSub title="Workspaces">
-    <div class="font-bold px-2 hover:bg-base-300">Workspaces</div>
+    <template v-slot:menubaritem>
+      <i class="fa-solid fa-server"></i>
+      Workspaces
+    </template>
+    <div class="font-bold px-2 hover:bg-base-300">
+      Workspaces
+    </div>
     <MenubarSub :title="workspaceName" v-for="apps, workspaceName in workspaces" :key="workspaceName">
       <div class="font-bold px-2">Apps</div>
         

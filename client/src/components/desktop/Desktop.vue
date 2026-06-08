@@ -22,6 +22,7 @@ import Wall from "../wall/Wall.vue"
 import ChatView from '@/views/ChatView.vue'
 import Tab from './Tab.vue'
 import ViewProperties from '../main-menu/ViewProperties.vue'
+import AnalyticsDashboard from '../analytics/index.vue'
 </script>
 
 <template>
@@ -38,7 +39,7 @@ import ViewProperties from '../main-menu/ViewProperties.vue'
         @close="closeViewEditor"
         @confirm="closeViewEditor"
       />
-  </modal>
+    </modal>
   </div>
 </template>
 
@@ -68,6 +69,7 @@ export default {
     'projects': ProjectOverview,
     'activity': Wall,
     'chat': ChatView,
+    'analytics': AnalyticsDashboard,
     tabComponent: Tab,
     ViewProperties
   },
@@ -98,7 +100,6 @@ export default {
     uiReady() {
       return this.$ui.uiReady
     },
-    // Reflects the store viewEditor flag to show/hide ViewProperties
     viewEditor() {
       return this.$storex.ui.viewEditor
     }
@@ -128,8 +129,8 @@ export default {
     },
     addAppPanel(app) {
       if (!app?.tabId) return
-      const component = app.component || 'app-window' 
-      const renderer = 'always' 
+      const component = app.component || 'app-window'
+      const renderer = 'always'
       this.addPanel({
         id: app.tabId,
         title: app.name,
@@ -160,16 +161,16 @@ export default {
       if (!this.dockviewApi) return
       if (!this.dockviewApi.panels.find(p => p.id === id)) {
         this.dockviewApi.addPanel({
-            id, 
-            title, 
-            component, 
-            position, 
-            renderer, 
-            params: {
-                ...params,
-                tabName: title,
-            },
-            tabComponent: 'tabComponent'
+          id,
+          title,
+          component,
+          position,
+          renderer,
+          params: {
+            ...params,
+            tabName: title,
+          },
+          tabComponent: 'tabComponent'
         })
       }
     },
@@ -204,7 +205,7 @@ export default {
           this.$ui.showApp(panel.params.app)
         })
         this.init()
-        this.layoutRestored = true        
+        this.layoutRestored = true
       } catch (e) {
         console.warn('Failed to restore dockview layout:', e)
         return false
@@ -229,6 +230,7 @@ export default {
   ]
 }
 </script>
+
 <style>
 .dv-tabs-and-actions-container {
     background-color: inherit;

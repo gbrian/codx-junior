@@ -63,6 +63,10 @@ import ViewsMenu from './ViewsMenu.vue';
               <i class="fa-solid fa-magnifying-glass"></i>
               Knowledge
             </MenubarItem>
+            <MenubarItem @click="$ui.setActiveTab('analytics')">
+              <i class="fa-solid fa-chart-area"></i>
+              Analytics
+            </MenubarItem>
             <MenuDivider />
             <!-- Views submenu -->
             <ViewsMenu />

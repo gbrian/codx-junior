@@ -1,6 +1,7 @@
 import logging
 import json
 import os
+import time
 
 from datetime import datetime
 from typing import Union
@@ -74,6 +75,7 @@ class OpenAI_AI:
         self,
         input_text: str,
         output_text: str,
+        duration_seconds: float = 0.0,
         tags: str = "",
         session_id: str = None,
     ) -> None:
@@ -85,10 +87,11 @@ class OpenAI_AI:
         Failures are logged but never re-raised so they don't break the caller.
 
         Args:
-            input_text:  Concatenated prompt text sent to the model.
-            output_text: Response text received from the model.
-            tags:        Comma-separated request tags.
-            session_id:  Optional session identifier from request headers.
+            input_text:        Concatenated prompt text sent to the model.
+            output_text:       Response text received from the model.
+            duration_seconds:  Wall-clock seconds for the full request/response cycle.
+            tags:              Comma-separated request tags.
+            session_id:        Optional session identifier from request headers.
         """
         try:
             analytics = _get_analytics()
@@ -103,6 +106,7 @@ class OpenAI_AI:
                 provider=self.llm_settings.provider or "",
                 input_tokens=input_tokens,
                 output_tokens=output_tokens,
+                duration_seconds=duration_seconds,
                 session_id=session_id,
                 tags=tags,
             )
@@ -164,6 +168,9 @@ class OpenAI_AI:
         request_headers = config.get("headers", {})
         tags_str = request_headers.get("tags", "")
         session_id = request_headers.get("session_id", None)
+
+        # Start wall-clock timer for the full request/response cycle
+        request_start = time.monotonic()
 
         try:
             tags = tags_str.split(",") + [
@@ -229,6 +236,7 @@ class OpenAI_AI:
             logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
             raise ex
 
+        duration_seconds = time.monotonic() - request_start
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
 
@@ -237,6 +245,7 @@ class OpenAI_AI:
         self._record_usage(
             input_text=input_text,
             output_text=response_content,
+            duration_seconds=duration_seconds,
             tags=",".join(tags) if isinstance(tags, list) else tags_str,
             session_id=session_id,
         )
@@ -274,6 +283,9 @@ class OpenAI_AI:
         request_headers = config.get("headers", {})
         tags_str = request_headers.get("tags", "")
         session_id = request_headers.get("session_id", None)
+
+        # Start wall-clock timer for the full request/response cycle
+        request_start = time.monotonic()
 
         try:
             tags = tags_str.split(",") + [
@@ -389,6 +401,7 @@ class OpenAI_AI:
             logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
             raise ex
 
+        duration_seconds = time.monotonic() - request_start
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
 
@@ -398,6 +411,7 @@ class OpenAI_AI:
         self._record_usage(
             input_text=input_text,
             output_text=response_content,
+            duration_seconds=duration_seconds,
             tags=",".join(tags) if isinstance(tags, list) else tags_str,
             session_id=session_id,
         )

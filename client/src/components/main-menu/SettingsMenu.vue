@@ -4,22 +4,26 @@ import MenubarItem from './MenubarItem.vue';
 </script>
 <template>
     <MenubarSub title="Settings">
+        <template v-slot:menubaritem>
+            <i class="fa-solid fa-gear"></i>
+            Settings
+        </template>
         <div class="font-bold px-2 hover:bg-base-300">
             Settings
         </div>
         <MenubarItem @click="$ui.setActiveTab('account')">
-            Account
+            User account
         </MenubarItem>
 
         <MenubarItem @click="$ui.setActiveTab('settings')" v-if="$users.isProjectAdmin">
-            Project
+            {{ $project.project_name }} settings
         </MenubarItem>
 
 
         <MenubarItem v-if="$project && $storex.api.permissions.isProjectAdmin">
             <a class="flex gap-1 tooltip tooltip-right click" data-tip="Knowledge settings"
                 @click.stop="$ui.setActiveTab('knowledge_settings')">
-                Knowledge settings
+                {{ $project.project_name }} knowledge
             </a>
         </MenubarItem>
 

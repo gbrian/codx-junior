@@ -19,7 +19,7 @@ class Analytics:
     classDiagram
         class Analytics {
             +AnalyticsStorage storage
-            +record_token_usage(username, project_name, project_id, model, provider, input_tokens, output_tokens, session_id, tags)
+            +record_token_usage(username, project_name, project_id, model, provider, input_tokens, output_tokens, duration_seconds, session_id, tags)
             +get_usage_by_user(start_date, end_date) Dict
             +get_usage_by_project(start_date, end_date) Dict
             +get_usage_by_model(start_date, end_date) Dict
@@ -49,6 +49,7 @@ class Analytics:
         provider: str,
         input_tokens: int,
         output_tokens: int,
+        duration_seconds: float = 0.0,
         session_id: Optional[str] = None,
         tags: str = "",
     ) -> TokenUsageEvent:
@@ -56,15 +57,16 @@ class Analytics:
         Record a single LLM call's token consumption.
 
         Args:
-            username:      User who triggered the call.
-            project_name:  Project context.
-            project_id:    Project identifier.
-            model:         LLM model name.
-            provider:      LLM provider identifier.
-            input_tokens:  Prompt token count.
-            output_tokens: Completion token count.
-            session_id:    Optional conversation/session id.
-            tags:          Comma-separated tag string from request headers.
+            username:          User who triggered the call.
+            project_name:      Project context.
+            project_id:        Project identifier.
+            model:             LLM model name.
+            provider:          LLM provider identifier.
+            input_tokens:      Prompt token count.
+            output_tokens:     Completion token count.
+            duration_seconds:  Wall-clock seconds for the full request/response cycle.
+            session_id:        Optional conversation/session id.
+            tags:              Comma-separated tag string from request headers.
 
         Returns:
             The persisted ``TokenUsageEvent``.
@@ -78,18 +80,20 @@ class Analytics:
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=input_tokens + output_tokens,
+            duration_seconds=duration_seconds,
             session_id=session_id,
             tags=tags,
         )
         self.storage.write(event)
         logger.info(
-            "Analytics recorded: user=%s project=%s model=%s in=%d out=%d total=%d",
+            "Analytics recorded: user=%s project=%s model=%s in=%d out=%d total=%d duration=%.2fs",
             username,
             project_name,
             model,
             input_tokens,
             output_tokens,
             event.total_tokens,
+            duration_seconds,
         )
         return event
 
@@ -99,7 +103,7 @@ class Analytics:
     def _aggregate(
         events: List[TokenUsageEvent],
         key_fn,
-    ) -> Dict[str, Dict[str, int]]:
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Aggregate token counts from events grouped by a key function.
 
@@ -108,9 +112,9 @@ class Analytics:
             key_fn: Callable that extracts the grouping key from an event.
 
         Returns:
-            Dict mapping key → {input_tokens, output_tokens, total_tokens, calls}.
+            Dict mapping key → {input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}.
         """
-        result: Dict[str, Dict[str, int]] = {}
+        result: Dict[str, Dict[str, Any]] = {}
         for event in events:
             key = key_fn(event)
             if key not in result:
@@ -119,12 +123,14 @@ class Analytics:
                     "output_tokens": 0,
                     "total_tokens": 0,
                     "calls": 0,
+                    "total_duration_seconds": 0.0,
                 }
             bucket = result[key]
             bucket["input_tokens"] += event.input_tokens
             bucket["output_tokens"] += event.output_tokens
             bucket["total_tokens"] += event.total_tokens
             bucket["calls"] += 1
+            bucket["total_duration_seconds"] += event.duration_seconds
         return result
 
     # ── Public query API ───────────────────────────────────────────────────────
@@ -135,7 +141,7 @@ class Analytics:
         end_date: Optional[str] = None,
         project_name: Optional[str] = None,
         project_id: Optional[str] = None,
-    ) -> Dict[str, Dict[str, int]]:
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Aggregate token usage grouped by username.
 
@@ -146,7 +152,7 @@ class Analytics:
             project_id:   Optional project id filter.
 
         Returns:
-            Dict[username, {input_tokens, output_tokens, total_tokens, calls}]
+            Dict[username, {input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}]
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -161,7 +167,7 @@ class Analytics:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         username: Optional[str] = None,
-    ) -> Dict[str, Dict[str, int]]:
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Aggregate token usage grouped by project name.
 
@@ -171,7 +177,7 @@ class Analytics:
             username:   Optional user filter.
 
         Returns:
-            Dict[project_name, {input_tokens, output_tokens, total_tokens, calls}]
+            Dict[project_name, {input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}]
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -186,7 +192,7 @@ class Analytics:
         end_date: Optional[str] = None,
         username: Optional[str] = None,
         project_name: Optional[str] = None,
-    ) -> Dict[str, Dict[str, int]]:
+    ) -> Dict[str, Dict[str, Any]]:
         """
         Aggregate token usage grouped by model name.
 
@@ -197,7 +203,7 @@ class Analytics:
             project_name: Optional project filter.
 
         Returns:
-            Dict[model, {input_tokens, output_tokens, total_tokens, calls}]
+            Dict[model, {input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}]
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -224,7 +230,7 @@ class Analytics:
             project_name: Optional project filter.
 
         Returns:
-            List of dicts [{date, input_tokens, output_tokens, total_tokens, calls}]
+            List of dicts [{date, input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}]
             ordered by date ascending.
         """
         events = self.storage.read_events(
@@ -247,7 +253,7 @@ class Analytics:
         project_name: Optional[str] = None,
         project_id: Optional[str] = None,
         model: Optional[str] = None,
-    ) -> Dict[str, int]:
+    ) -> Dict[str, Any]:
         """
         Return global token totals across all filtered events.
 
@@ -260,7 +266,7 @@ class Analytics:
             model:        Optional model filter.
 
         Returns:
-            Dict with keys: input_tokens, output_tokens, total_tokens, calls.
+            Dict with keys: input_tokens, output_tokens, total_tokens, calls, total_duration_seconds.
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -270,17 +276,19 @@ class Analytics:
             project_id=project_id,
             model=model,
         )
-        totals = {
+        totals: Dict[str, Any] = {
             "input_tokens": 0,
             "output_tokens": 0,
             "total_tokens": 0,
             "calls": 0,
+            "total_duration_seconds": 0.0,
         }
         for event in events:
             totals["input_tokens"] += event.input_tokens
             totals["output_tokens"] += event.output_tokens
             totals["total_tokens"] += event.total_tokens
             totals["calls"] += 1
+            totals["total_duration_seconds"] += event.duration_seconds
         return totals
 
     def list_available_dates(self) -> List[str]:
