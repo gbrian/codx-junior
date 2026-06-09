@@ -1,5 +1,6 @@
 <script setup>
 import DailyChart from './DailyChart.vue'
+import Collapsible from '@/components/Collapsible.vue'
 </script>
 
 <template>
@@ -29,81 +30,98 @@ import DailyChart from './DailyChart.vue'
 
     <!-- Filters -->
     <div class="card bg-base-100 shadow mb-6">
-      <div class="card-body py-3 px-4">
-        <div class="flex flex-wrap items-center gap-4">
-          <div class="flex items-center gap-2">
-            <i class="fa-regular fa-calendar-days text-base-content/60 text-sm"></i>
-            <span class="text-sm font-medium text-base-content/70">Date Range</span>
-          </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <div class="flex items-center gap-1">
-              <label class="text-xs text-base-content/60">From</label>
-              <input
-                type="date"
-                v-model="filters.startDate"
-                class="input input-bordered input-sm w-36"
-                @change="loadData"
-              />
+      <Collapsible>
+        <template #icon>
+          <i class="fa-solid fa-filter text-xs opacity-60"></i>
+        </template>
+        <template #title>Filters</template>
+        <template #summary>
+          <span
+            v-for="chip in activeFilterChips"
+            :key="chip.key"
+            class="badge badge-sm badge-primary gap-1"
+          >
+            {{ chip.label }}
+          </span>
+        </template>
+        <template #default>
+          <div class="card-body py-3 px-4">
+            <div class="flex flex-wrap items-center gap-4">
+              <div class="flex items-center gap-2">
+                <i class="fa-regular fa-calendar-days text-base-content/60 text-sm"></i>
+                <span class="text-sm font-medium text-base-content/70">Date Range</span>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center gap-1">
+                  <label class="text-xs text-base-content/60">From</label>
+                  <input
+                    type="date"
+                    v-model="filters.startDate"
+                    class="input input-bordered input-sm w-36"
+                    @change="loadData"
+                  />
+                </div>
+                <div class="flex items-center gap-1">
+                  <label class="text-xs text-base-content/60">To</label>
+                  <input
+                    type="date"
+                    v-model="filters.endDate"
+                    class="input input-bordered input-sm w-36"
+                    @change="loadData"
+                  />
+                </div>
+              </div>
+
+              <!-- Quick date presets -->
+              <div class="flex flex-wrap gap-1">
+                <button
+                  v-for="preset in datePresets"
+                  :key="preset.label"
+                  class="btn btn-xs"
+                  :class="activePreset === preset.label ? 'btn-primary' : 'btn-ghost'"
+                  @click="applyPreset(preset)"
+                >
+                  {{ preset.label }}
+                </button>
+              </div>
+
+              <!-- Admin filters -->
+              <template v-if="isAdminView">
+                <div class="flex items-center gap-1">
+                  <label class="text-xs text-base-content/60">User</label>
+                  <input
+                    type="text"
+                    v-model="filters.username"
+                    placeholder="All users"
+                    class="input input-bordered input-sm w-32"
+                    @change="loadData"
+                  />
+                </div>
+              </template>
+
+              <!-- Model filter -->
+              <div class="flex items-center gap-1">
+                <label class="text-xs text-base-content/60">Model</label>
+                <select
+                  v-model="filters.model"
+                  class="select select-bordered select-sm w-40"
+                  @change="loadData"
+                >
+                  <option value="">All models</option>
+                  <option v-for="model in availableModels" :key="model" :value="model">
+                    {{ model }}
+                  </option>
+                </select>
+              </div>
+
+              <button class="btn btn-xs btn-ghost" @click="clearFilters">
+                <i class="fa-solid fa-filter-circle-xmark text-xs"></i>
+                Clear
+              </button>
             </div>
-            <div class="flex items-center gap-1">
-              <label class="text-xs text-base-content/60">To</label>
-              <input
-                type="date"
-                v-model="filters.endDate"
-                class="input input-bordered input-sm w-36"
-                @change="loadData"
-              />
-            </div>
           </div>
-
-          <!-- Quick date presets -->
-          <div class="flex flex-wrap gap-1">
-            <button
-              v-for="preset in datePresets"
-              :key="preset.label"
-              class="btn btn-xs"
-              :class="activePreset === preset.label ? 'btn-primary' : 'btn-ghost'"
-              @click="applyPreset(preset)"
-            >
-              {{ preset.label }}
-            </button>
-          </div>
-
-          <!-- Admin filters -->
-          <template v-if="isAdminView">
-            <div class="flex items-center gap-1">
-              <label class="text-xs text-base-content/60">User</label>
-              <input
-                type="text"
-                v-model="filters.username"
-                placeholder="All users"
-                class="input input-bordered input-sm w-32"
-                @change="loadData"
-              />
-            </div>
-          </template>
-
-          <!-- Model filter -->
-          <div class="flex items-center gap-1">
-            <label class="text-xs text-base-content/60">Model</label>
-            <select
-              v-model="filters.model"
-              class="select select-bordered select-sm w-40"
-              @change="loadData"
-            >
-              <option value="">All models</option>
-              <option v-for="model in availableModels" :key="model" :value="model">
-                {{ model }}
-              </option>
-            </select>
-          </div>
-
-          <button class="btn btn-xs btn-ghost" @click="clearFilters">
-            <i class="fa-solid fa-filter-circle-xmark text-xs"></i>
-            Clear
-          </button>
-        </div>
-      </div>
+        </template>
+      </Collapsible>
     </div>
 
     <!-- Loading skeleton -->
@@ -350,7 +368,6 @@ import DailyChart from './DailyChart.vue'
                       </span>
                     </td>
                     <td class="min-w-28">
-                      <!-- Speed bar relative to fastest model -->
                       <div class="flex items-center gap-2">
                         <div class="flex-1 bg-base-200 rounded-full h-2">
                           <div
@@ -513,12 +530,14 @@ export default {
       return Array.from(models).sort()
     },
 
-    // Overall tokens/second across all calls
-    globalTokensPerSecond() {
-      const { total_tokens, total_duration_seconds, calls } = this.totalStats
-      if (!total_duration_seconds || total_duration_seconds <= 0 || !calls) return 0
-      // total_duration_seconds is per-call average, so total duration = avg * calls
-      return Math.round(total_tokens / (total_duration_seconds * calls) * calls / calls)
+    // Build chips for active filters to show in collapsible summary
+    activeFilterChips() {
+      const chips = []
+      chips.push({ key: 'date', label: `${this.filters.startDate} → ${this.filters.endDate}` })
+      if (this.filters.model) chips.push({ key: 'model', label: `Model: ${this.filters.model}` })
+      if (this.filters.username) chips.push({ key: 'user', label: `User: ${this.filters.username}` })
+      if (this.filters.projectName) chips.push({ key: 'project', label: `Project: ${this.filters.projectName}` })
+      return chips
     },
 
     kpiCards() {
@@ -529,10 +548,7 @@ export default {
         ? ((this.totalStats.output_tokens / this.totalStats.total_tokens) * 100).toFixed(1)
         : 0
       const avgDur = this.totalStats.total_duration_seconds || 0
-      // tokens/sec = total_tokens_per_call / total_duration_seconds (output focused - generation speed)
-      const tokPerSec = avgDur > 0
-        ? Math.round(avgTokensPerCall / avgDur)
-        : 0
+      const tokPerSec = avgDur > 0 ? Math.round(avgTokensPerCall / avgDur) : 0
 
       return [
         {
@@ -612,7 +628,6 @@ export default {
         const tokensPerSecond = avgDur > 0 ? Math.round(avgTokens / avgDur) : 0
         rows[model] = { ...stats, total_duration_seconds: avgDur, tokens_per_second: tokensPerSecond }
       }
-      // Sort by tokens/second descending
       return Object.fromEntries(
         Object.entries(rows).sort((a, b) => b[1].tokens_per_second - a[1].tokens_per_second)
       )
@@ -721,12 +736,10 @@ export default {
     getProjectPercentage(tokens) {
       return ((tokens / this.maxProjectTokens) * 100).toFixed(1)
     },
-    // Speed bar width relative to fastest model
     getSpeedPercentage(tokensPerSecond) {
       if (!tokensPerSecond || tokensPerSecond <= 0) return 0
       return Math.round((tokensPerSecond / this.maxTokensPerSecond) * 100)
     },
-    // Color coding: fast = green, medium = yellow, slow = red
     getTokensPerSecColor(tps) {
       if (!tps || tps <= 0) return 'text-base-content/40'
       const pct = tps / this.maxTokensPerSecond
