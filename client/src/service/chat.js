@@ -303,8 +303,6 @@ export class ChatService extends Service {
   async newQuickChat() {
     const chat = {
       name: "Quick chat",
-      board: "Quick chats",
-      column: moment().format("YYYYMMDD"),
       mode: 'chat',
       auto_initialize: true
     }
