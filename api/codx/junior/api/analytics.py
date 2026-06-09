@@ -75,14 +75,14 @@ def list_dates(
     return user_dates
 
 
-@router.get("/total", response_model=Dict[str, int], summary="Total token usage (own data)")
+@router.get("/total", response_model=Dict[str, Any], summary="Total token usage (own data)")
 def get_total(
     start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
     project_name: Optional[str] = Query(None, description="Filter by project name"),
     model: Optional[str] = Query(None, description="Filter by model name"),
     user: CodxUser = Depends(get_authenticated_user),
-) -> Dict[str, int]:
+) -> Dict[str, Any]:
     """
     Return total token consumption for the authenticated user.
 
@@ -122,13 +122,13 @@ def get_daily(
     )
 
 
-@router.get("/by-model", response_model=Dict[str, Dict[str, int]], summary="Usage by model (own data)")
+@router.get("/by-model", response_model=Dict[str, Dict[str, Any]], summary="Usage by model (own data)")
 def get_by_model(
     start_date: Optional[str] = Query(None, description="Inclusive start date YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
     project_name: Optional[str] = Query(None, description="Filter by project name"),
     user: CodxUser = Depends(get_authenticated_user),
-) -> Dict[str, Dict[str, int]]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Return token usage aggregated by model name for the authenticated user.
 
@@ -165,7 +165,7 @@ def admin_list_dates(
 
 @router.get(
     "/admin/total",
-    response_model=Dict[str, int],
+    response_model=Dict[str, Any],
     summary="[Admin] Total token usage across all users",
 )
 def admin_get_total(
@@ -176,7 +176,7 @@ def admin_get_total(
     project_id: Optional[str] = Query(None, description="Filter by project id"),
     model: Optional[str] = Query(None, description="Filter by model name"),
     _: CodxUser = Depends(require_admin),
-) -> Dict[str, int]:
+) -> Dict[str, Any]:
     """
     Return global total token consumption with optional filters.
 
@@ -228,7 +228,7 @@ def admin_get_daily(
 
 @router.get(
     "/admin/by-user",
-    response_model=Dict[str, Dict[str, int]],
+    response_model=Dict[str, Dict[str, Any]],
     summary="[Admin] Usage grouped by user",
 )
 def admin_get_by_user(
@@ -237,7 +237,7 @@ def admin_get_by_user(
     project_name: Optional[str] = Query(None, description="Filter by project name"),
     project_id: Optional[str] = Query(None, description="Filter by project id"),
     _: CodxUser = Depends(require_admin),
-) -> Dict[str, Dict[str, int]]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Return token usage aggregated by username across all users.
 
@@ -257,7 +257,7 @@ def admin_get_by_user(
 
 @router.get(
     "/admin/by-project",
-    response_model=Dict[str, Dict[str, int]],
+    response_model=Dict[str, Dict[str, Any]],
     summary="[Admin] Usage grouped by project",
 )
 def admin_get_by_project(
@@ -265,7 +265,7 @@ def admin_get_by_project(
     end_date: Optional[str] = Query(None, description="Inclusive end date YYYY-MM-DD"),
     username: Optional[str] = Query(None, description="Filter by username"),
     _: CodxUser = Depends(require_admin),
-) -> Dict[str, Dict[str, int]]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Return token usage aggregated by project name across all users.
 
@@ -284,7 +284,7 @@ def admin_get_by_project(
 
 @router.get(
     "/admin/by-model",
-    response_model=Dict[str, Dict[str, int]],
+    response_model=Dict[str, Dict[str, Any]],
     summary="[Admin] Usage grouped by model",
 )
 def admin_get_by_model(
@@ -293,7 +293,7 @@ def admin_get_by_model(
     username: Optional[str] = Query(None, description="Filter by username"),
     project_name: Optional[str] = Query(None, description="Filter by project name"),
     _: CodxUser = Depends(require_admin),
-) -> Dict[str, Dict[str, int]]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Return token usage aggregated by model name across all users.
 

@@ -3,7 +3,7 @@ import DailyChart from './DailyChart.vue'
 </script>
 
 <template>
-  <div class="metrics-dashboard bg-base-200 p-4 overflow-auto">
+  <div class="metrics-dashboard bg-base-200 p-4 h-full overflow-auto">
     <!-- Header -->
     <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
       <div class="flex items-center gap-3">
@@ -109,7 +109,7 @@ import DailyChart from './DailyChart.vue'
     <!-- Loading skeleton -->
     <div v-if="loading" class="space-y-4">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div v-for="i in 4" :key="i" class="card bg-base-100 shadow">
+        <div v-for="i in 6" :key="i" class="card bg-base-100 shadow">
           <div class="card-body p-4 animate-pulse">
             <div class="h-4 bg-base-300 rounded w-1/2 mb-3"></div>
             <div class="h-8 bg-base-300 rounded w-3/4"></div>
@@ -121,7 +121,7 @@ import DailyChart from './DailyChart.vue'
     <!-- Dashboard content -->
     <template v-else>
       <!-- KPI Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <div
           v-for="kpi in kpiCards"
           :key="kpi.label"
@@ -303,6 +303,73 @@ import DailyChart from './DailyChart.vue'
             </div>
           </div>
         </div>
+
+        <!-- Model Performance Table (Admin only) -->
+        <div class="card bg-base-100 shadow mb-6">
+          <div class="card-body p-4">
+            <h2 class="card-title text-base mb-4 flex items-center gap-2">
+              <i class="fa-solid fa-gauge-high text-warning"></i>
+              Model Performance
+            </h2>
+            <div v-if="Object.keys(byModelData).length === 0" class="text-center py-8 text-base-content/40">
+              <i class="fa-solid fa-robot text-5xl"></i>
+              <p class="mt-2 text-sm">No model performance data available</p>
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="table table-sm w-full">
+                <thead>
+                  <tr class="text-xs">
+                    <th>Model</th>
+                    <th class="text-right">Calls</th>
+                    <th class="text-right">Total Tokens</th>
+                    <th class="text-right">Avg Duration</th>
+                    <th class="text-right">Tokens / sec</th>
+                    <th>Speed Rating</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="(stats, model) in modelPerformanceRows"
+                    :key="model"
+                    class="hover text-sm"
+                  >
+                    <td class="font-medium text-xs truncate max-w-32" :title="model">{{ model }}</td>
+                    <td class="text-right text-base-content/60">{{ stats.calls }}</td>
+                    <td class="text-right">{{ formatNumber(stats.total_tokens) }}</td>
+                    <td class="text-right">
+                      <span class="font-mono text-xs">
+                        {{ stats.total_duration_seconds > 0 ? stats.total_duration_seconds.toFixed(2) + 's' : 'N/A' }}
+                      </span>
+                    </td>
+                    <td class="text-right">
+                      <span
+                        class="font-mono text-xs font-semibold"
+                        :class="getTokensPerSecColor(stats.tokens_per_second)"
+                      >
+                        {{ stats.tokens_per_second > 0 ? formatNumber(stats.tokens_per_second) + '/s' : 'N/A' }}
+                      </span>
+                    </td>
+                    <td class="min-w-28">
+                      <!-- Speed bar relative to fastest model -->
+                      <div class="flex items-center gap-2">
+                        <div class="flex-1 bg-base-200 rounded-full h-2">
+                          <div
+                            class="h-2 rounded-full transition-all duration-500"
+                            :class="getSpeedBarColor(stats.tokens_per_second)"
+                            :style="{ width: getSpeedPercentage(stats.tokens_per_second) + '%' }"
+                          ></div>
+                        </div>
+                        <span class="text-xs text-base-content/40 w-8 text-right">
+                          {{ getSpeedPercentage(stats.tokens_per_second) }}%
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </template>
 
       <!-- Daily Data Table -->
@@ -338,6 +405,7 @@ import DailyChart from './DailyChart.vue'
                   <th class="text-right">Output Tokens</th>
                   <th class="text-right">Total Tokens</th>
                   <th class="text-right">Calls</th>
+                  <th class="text-right">Avg Duration</th>
                   <th>Distribution</th>
                 </tr>
               </thead>
@@ -352,6 +420,9 @@ import DailyChart from './DailyChart.vue'
                   <td class="text-right text-warning">{{ formatNumber(row.output_tokens) }}</td>
                   <td class="text-right font-semibold">{{ formatNumber(row.total_tokens) }}</td>
                   <td class="text-right text-base-content/60">{{ row.calls }}</td>
+                  <td class="text-right text-base-content/60 font-mono text-xs">
+                    {{ row.total_duration_seconds > 0 ? row.total_duration_seconds.toFixed(2) + 's' : '-' }}
+                  </td>
                   <td class="min-w-24">
                     <div class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24">
                       <div
@@ -373,6 +444,9 @@ import DailyChart from './DailyChart.vue'
                   <td class="text-right text-warning">{{ formatNumber(totalStats.output_tokens) }}</td>
                   <td class="text-right">{{ formatNumber(totalStats.total_tokens) }}</td>
                   <td class="text-right text-base-content/60">{{ totalStats.calls }}</td>
+                  <td class="text-right text-base-content/60 font-mono text-xs">
+                    {{ totalStats.total_duration_seconds > 0 ? totalStats.total_duration_seconds.toFixed(2) + 's' : '-' }}
+                  </td>
                   <td></td>
                 </tr>
               </tfoot>
@@ -416,7 +490,8 @@ export default {
         input_tokens: 0,
         output_tokens: 0,
         total_tokens: 0,
-        calls: 0
+        calls: 0,
+        total_duration_seconds: 0
       },
       dailyData: [],
       byModelData: {},
@@ -437,12 +512,26 @@ export default {
       Object.keys(this.byModelData).forEach(m => models.add(m))
       return Array.from(models).sort()
     },
+
+    // Overall tokens/second across all calls
+    globalTokensPerSecond() {
+      const { total_tokens, total_duration_seconds, calls } = this.totalStats
+      if (!total_duration_seconds || total_duration_seconds <= 0 || !calls) return 0
+      // total_duration_seconds is per-call average, so total duration = avg * calls
+      return Math.round(total_tokens / (total_duration_seconds * calls) * calls / calls)
+    },
+
     kpiCards() {
       const avgTokensPerCall = this.totalStats.calls > 0
         ? Math.round(this.totalStats.total_tokens / this.totalStats.calls)
         : 0
       const ratio = this.totalStats.total_tokens > 0
         ? ((this.totalStats.output_tokens / this.totalStats.total_tokens) * 100).toFixed(1)
+        : 0
+      const avgDur = this.totalStats.total_duration_seconds || 0
+      // tokens/sec = total_tokens_per_call / total_duration_seconds (output focused - generation speed)
+      const tokPerSec = avgDur > 0
+        ? Math.round(avgTokensPerCall / avgDur)
         : 0
 
       return [
@@ -477,15 +566,33 @@ export default {
           faIcon: 'fa-solid fa-circle-arrow-down',
           color: 'text-warning',
           bgColor: 'bg-warning/10'
+        },
+        {
+          label: 'Avg Duration',
+          value: avgDur > 0 ? avgDur.toFixed(2) + 's' : 'N/A',
+          sub: 'per LLM call',
+          faIcon: 'fa-solid fa-stopwatch',
+          color: 'text-info',
+          bgColor: 'bg-info/10'
+        },
+        {
+          label: 'Tokens / sec',
+          value: tokPerSec > 0 ? this.formatNumber(tokPerSec) + '/s' : 'N/A',
+          sub: 'generation speed',
+          faIcon: 'fa-solid fa-bolt',
+          color: 'text-error',
+          bgColor: 'bg-error/10'
         }
       ]
     },
+
     sortedDailyData() {
       return [...this.dailyData].sort((a, b) => {
         if (this.sortOrder === 'desc') return b.date > a.date ? 1 : -1
         return a.date > b.date ? 1 : -1
       })
     },
+
     maxModelTokens() {
       return Math.max(...Object.values(this.byModelData).map(s => s.total_tokens), 1)
     },
@@ -494,6 +601,26 @@ export default {
     },
     maxProjectTokens() {
       return Math.max(...Object.values(this.byProjectData).map(s => s.total_tokens), 1)
+    },
+
+    // Enrich model data with performance metrics, sorted by tokens/sec desc
+    modelPerformanceRows() {
+      const rows = {}
+      for (const [model, stats] of Object.entries(this.byModelData)) {
+        const avgDur = stats.total_duration_seconds || 0
+        const avgTokens = stats.calls > 0 ? stats.total_tokens / stats.calls : 0
+        const tokensPerSecond = avgDur > 0 ? Math.round(avgTokens / avgDur) : 0
+        rows[model] = { ...stats, total_duration_seconds: avgDur, tokens_per_second: tokensPerSecond }
+      }
+      // Sort by tokens/second descending
+      return Object.fromEntries(
+        Object.entries(rows).sort((a, b) => b[1].tokens_per_second - a[1].tokens_per_second)
+      )
+    },
+
+    maxTokensPerSecond() {
+      const values = Object.values(this.modelPerformanceRows).map(s => s.tokens_per_second)
+      return Math.max(...values, 1)
     }
   },
   methods: {
@@ -560,7 +687,7 @@ export default {
           analytics.byModel(adminFilters)
         ])
 
-        this.totalStats = total || { input_tokens: 0, output_tokens: 0, total_tokens: 0, calls: 0 }
+        this.totalStats = total || { input_tokens: 0, output_tokens: 0, total_tokens: 0, calls: 0, total_duration_seconds: 0 }
         this.dailyData = Array.isArray(daily) ? daily : []
         this.byModelData = byModel || {}
 
@@ -593,6 +720,26 @@ export default {
     },
     getProjectPercentage(tokens) {
       return ((tokens / this.maxProjectTokens) * 100).toFixed(1)
+    },
+    // Speed bar width relative to fastest model
+    getSpeedPercentage(tokensPerSecond) {
+      if (!tokensPerSecond || tokensPerSecond <= 0) return 0
+      return Math.round((tokensPerSecond / this.maxTokensPerSecond) * 100)
+    },
+    // Color coding: fast = green, medium = yellow, slow = red
+    getTokensPerSecColor(tps) {
+      if (!tps || tps <= 0) return 'text-base-content/40'
+      const pct = tps / this.maxTokensPerSecond
+      if (pct >= 0.7) return 'text-success'
+      if (pct >= 0.35) return 'text-warning'
+      return 'text-error'
+    },
+    getSpeedBarColor(tps) {
+      if (!tps || tps <= 0) return 'bg-base-300'
+      const pct = tps / this.maxTokensPerSecond
+      if (pct >= 0.7) return 'bg-success'
+      if (pct >= 0.35) return 'bg-warning'
+      return 'bg-error'
     }
   },
   mounted() {
