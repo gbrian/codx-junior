@@ -1,3 +1,6 @@
+<script setup>
+</script>
+
 <template>
   <div class="daily-chart w-full h-full relative" ref="container">
     <svg
@@ -52,8 +55,7 @@
         </text>
       </g>
 
-      <!-- Area fills -->
-      <!-- Total tokens area -->
+      <!-- Gradient defs -->
       <defs>
         <linearGradient id="totalGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#6366f1" stop-opacity="0.3" />
@@ -69,6 +71,7 @@
         </linearGradient>
       </defs>
 
+      <!-- Area fills -->
       <path :d="areaPath('total_tokens')" fill="url(#totalGrad)" />
       <path :d="areaPath('input_tokens')" fill="url(#inputGrad)" />
       <path :d="areaPath('output_tokens')" fill="url(#outputGrad)" />
@@ -89,7 +92,6 @@
         stroke-width="1.5"
         stroke-linejoin="round"
         stroke-linecap="round"
-        stroke-dasharray="none"
       />
       <path
         :d="linePath('output_tokens')"
@@ -99,17 +101,6 @@
         stroke-linejoin="round"
         stroke-linecap="round"
       />
-
-      <!-- Data points -->
-      <g v-for="(point, i) in chartPoints" :key="'point-' + i">
-        <circle
-          :cx="xScale(i)"
-          :cy="yScale(point.total_tokens)"
-          r="3"
-          fill="#6366f1"
-          class="opacity-0 hover:opacity-100"
-        />
-      </g>
 
       <!-- Hover vertical line -->
       <line
@@ -159,6 +150,12 @@
           <span class="text-base-content/70">Calls:</span>
           <span class="font-semibold">{{ tooltip.point.calls }}</span>
         </div>
+        <!-- Cost row -->
+        <div v-if="tooltip.point.total_cxjcoins != null" class="flex items-center gap-2 border-t border-base-300 pt-0.5 mt-0.5">
+          <span class="w-2 h-2 rounded-full bg-[#e879f9] inline-block"></span>
+          <span class="text-base-content/70">Cost:</span>
+          <span class="font-semibold text-fuchsia-400">{{ formatCoins(tooltip.point.total_cxjcoins) }}</span>
+        </div>
       </div>
     </div>
 
@@ -175,6 +172,10 @@
       <div class="flex items-center gap-1">
         <span class="w-3 h-0.5 bg-[#f59e0b] inline-block"></span>
         <span class="text-base-content/60">Output</span>
+      </div>
+      <div class="flex items-center gap-1">
+        <span class="w-3 h-0.5 bg-[#e879f9] inline-block"></span>
+        <span class="text-base-content/60">Cost</span>
       </div>
     </div>
   </div>
@@ -231,12 +232,9 @@ export default {
       return ticks
     },
     tooltipStyle() {
-      const { x, y } = this.tooltip
-      const left = x > (this.width / 2) ? `${x - 140}px` : `${x + 12}px`
-      return {
-        top: `${this.padding.top}px`,
-        left
-      }
+      const { x } = this.tooltip
+      const left = x > (this.width / 2) ? `${x - 150}px` : `${x + 12}px`
+      return { top: `${this.padding.top}px`, left }
     }
   },
   methods: {
@@ -286,18 +284,22 @@ export default {
       if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
       return num.toString()
     },
+    // Format cxjcoins with coin symbol
+    formatCoins(coins) {
+      if (!coins && coins !== 0) return '-'
+      if (coins >= 1_000_000) return '🪙 ' + (coins / 1_000_000).toFixed(2) + 'M'
+      if (coins >= 1_000) return '🪙 ' + (coins / 1_000).toFixed(2) + 'K'
+      return '🪙 ' + Number(coins).toFixed(2)
+    },
     onMouseMove(event) {
       const rect = this.$el.getBoundingClientRect()
       const svgX = event.clientX - rect.left
       const innerWidth = this.width - this.padding.left - this.padding.right
       const n = this.chartPoints.length
-
       if (n === 0) return
-
       const relX = svgX - this.padding.left
       const idx = Math.round((relX / innerWidth) * (n - 1))
       const clampedIdx = Math.max(0, Math.min(n - 1, idx))
-
       this.tooltip.visible = true
       this.tooltip.x = this.xScale(clampedIdx)
       this.tooltip.y = event.clientY - rect.top
@@ -315,9 +317,7 @@ export default {
     this.resizeObserver.observe(this.$refs.container)
   },
   beforeUnmount() {
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect()
-    }
+    if (this.resizeObserver) this.resizeObserver.disconnect()
   }
 }
 </script>

@@ -80,6 +80,32 @@ def save_model(model: AIModel, global_settings = None) -> AIModel:
     global_settings.ai_models = [m for m in global_settings.ai_models if m.name != model.name] + [model]
     write_global_settings(global_settings=global_settings)
 
+def _resolve_model_price(model: AIModel, provider: AIProvider):
+    """
+    Resolve token prices with the following priority:
+    1. Provider's price_list entry matching the model's ai_model or name
+    2. Model-level price (input_k_tokens_cxjcoins / output_k_tokens_cxjcoins)
+    3. Provider-level price (input_k_tokens_cxjcoins / output_k_tokens_cxjcoins)
+    4. None
+    """
+    model_id = model.ai_model or model.name
+
+    # 1. Check provider price_list for a matching entry
+    price_list_entry = next(
+        (p for p in (provider.price_list or []) if p.model_name == model_id),
+        None
+    )
+    if price_list_entry:
+        return price_list_entry.input_price_per_1k_tokens, price_list_entry.output_price_per_1k_tokens
+    else:
+        logger.error("No price list entry found for: %s, %s", provider.name, model.name)
+
+    # 2. Fall back to provider-level prices
+    input_price = provider.input_k_tokens_cxjcoins
+    output_price = provider.output_k_tokens_cxjcoins
+
+    return input_price, output_price
+
 def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
     global_settings = global_settings or GLOBAL_SETTINGS
     model_settings = get_model(llm_model, global_settings)
@@ -88,6 +114,9 @@ def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
         raise Exception(f"LLM model not found: {llm_model}")
     model: AIModel = model_settings
     provider = get_provider_settings(model.ai_provider, global_settings=global_settings)
+
+    input_k_tokens_cxjcoins, output_k_tokens_cxjcoins = _resolve_model_price(model, provider)
+
     ai_settings = AISettings(
         **model.settings.__dict__,
         provider=provider.provider,
@@ -98,6 +127,8 @@ def get_model_settings(llm_model: str, global_settings = None) -> AISettings:
         model_type=model.model_type,
         system=model.system,
         prompt_template=model.prompt_template,
+        input_k_tokens_cxjcoins=input_k_tokens_cxjcoins,
+        output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
         url=model.url
     )
     return ai_settings

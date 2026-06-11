@@ -9,22 +9,24 @@ import HomeMobile from './views/HomeMobile.vue';
   <div class="w-full h-full relative bg-base-300 relative" :data-theme="$ui.theme" v-if="$ui.uiReady">
     <Login v-if="isLogin" />
     
-    <HomeMobile v-if="$ui.isMobile" />
-    <SplitViewVue v-else/>
+    <div class="h-full w-full" v-else>
+      <HomeMobile v-if="$ui.isMobile" />
+      <SplitViewVue />
 
-    <modal class="w-full h-full md:w-1/3 md:h-fit" 
-      close="true" @close="$ui.showNewProject(false)" v-if="$ui.newProject">
-      <NewProject  />
-    </modal>
-    <div class="hidden absolute top-0 right-0 p-2">
-      <div class="p-2 text-xs bg-error/30 hover:bg-error text-white rounded-md" v-if="errorNotifications.length">
-        <div class="click" v-for="notification in errorNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">
-          <pre><span class="click hover:underline">(X)</span>[{{ notification.ts }}] ERROR: {{ notification.text }}</pre>
+      <modal class="w-full h-full md:w-1/3 md:h-fit" 
+        close="true" @close="$ui.showNewProject(false)" v-if="$ui.newProject">
+        <NewProject  />
+      </modal>
+      <div class="hidden absolute top-0 right-0 p-2">
+        <div class="p-2 text-xs bg-error/30 hover:bg-error text-white rounded-md" v-if="errorNotifications.length">
+          <div class="click" v-for="notification in errorNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">
+            <pre><span class="click hover:underline">(X)</span>[{{ notification.ts }}] ERROR: {{ notification.text }}</pre>
+          </div>
         </div>
-      </div>
-      <div class="p-2 text-xs bg-info/30 hover:bg-sky-700 text-white rounded-md" v-if="infoNotifications.length">
-        <div class="click" v-for="notification in infoNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">
-          <pre><span class="click hover:underline">(X)</span>[{{ notification.ts }}] {{ notification.text }}</pre>
+        <div class="p-2 text-xs bg-info/30 hover:bg-sky-700 text-white rounded-md" v-if="infoNotifications.length">
+          <div class="click" v-for="notification in infoNotifications" :key="notification.ts" @click="$ui.removeNotification(notification)">
+            <pre><span class="click hover:underline">(X)</span>[{{ notification.ts }}] {{ notification.text }}</pre>
+          </div>
         </div>
       </div>
     </div>

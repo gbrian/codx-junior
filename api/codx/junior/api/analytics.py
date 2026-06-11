@@ -7,6 +7,7 @@ role (enforced via the ``require_admin`` dependency).
 
 Route layout
 ------------
+GET /api/analytics/me                      – today's and current month's usage (own data)
 GET /api/analytics/dates                   – list available dates (own data)
 GET /api/analytics/total                   – total usage (own data)
 GET /api/analytics/daily                   – daily breakdown (own data)
@@ -21,6 +22,7 @@ GET /api/analytics/admin/by-model          – usage grouped by model (admin)
 """
 
 import logging
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -34,6 +36,10 @@ from codx.junior.analytics import Analytics
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
+
+# ── Date format constant ───────────────────────────────────────────────────────
+
+DATE_FORMAT = "%Y-%m-%d"
 
 # ── Shared Analytics instance ──────────────────────────────────────────────────
 
@@ -51,6 +57,84 @@ def _get_analytics() -> Analytics:
 # ── User-scoped endpoints ──────────────────────────────────────────────────────
 
 
+@router.get(
+    "/me",
+    response_model=Dict[str, Any],
+    summary="Current user metrics for today and the current month",
+)
+def get_my_metrics(
+    user: CodxUser = Depends(get_authenticated_user),
+) -> Dict[str, Any]:
+    """
+    Return token usage metrics for the authenticated user scoped to:
+
+    * **today** – usage recorded on the current calendar day.
+    * **current_month** – usage recorded from the 1st of the current month
+      up to and including today.
+
+    Returns::
+
+        {
+            "username": "<username>",
+            "today": {
+                "date": "YYYY-MM-DD",
+                "input_tokens": <int>,
+                "output_tokens": <int>,
+                "total_tokens": <int>,
+                "calls": <int>
+            },
+            "current_month": {
+                "start_date": "YYYY-MM-01",
+                "end_date": "YYYY-MM-DD",
+                "input_tokens": <int>,
+                "output_tokens": <int>,
+                "total_tokens": <int>,
+                "calls": <int>
+            }
+        }
+    """
+    analytics = _get_analytics()
+
+    today: date = datetime.utcnow().date()
+    today_str: str = today.strftime(DATE_FORMAT)
+
+    # First day of the current month
+    month_start: date = today.replace(day=1)
+    month_start_str: str = month_start.strftime(DATE_FORMAT)
+
+    logger.debug(
+        "Fetching metrics for user %s: today=%s, month_start=%s",
+        user.username,
+        today_str,
+        month_start_str,
+    )
+
+    today_usage: Dict[str, Any] = analytics.get_total_usage(
+        start_date=today_str,
+        end_date=today_str,
+        username=user.username,
+    )
+
+    month_usage: Dict[str, Any] = analytics.get_total_usage(
+        start_date=month_start_str,
+        end_date=today_str,
+        username=user.username,
+    )
+
+    return {
+        "username": user.username,
+        "today": {
+            "date": today_str,
+            **today_usage,
+        },
+        "current_month": {
+            "start_date": month_start_str,
+            "end_date": today_str,
+            **month_usage,
+        },
+    }
+
+
 @router.get("/dates", response_model=List[str], summary="List dates with recorded usage (own data)")
 def list_dates(
     user: CodxUser = Depends(get_authenticated_user),
@@ -64,14 +148,14 @@ def list_dates(
     all_dates = analytics.list_available_dates()
     # Return dates where the user has at least one event
     user_dates = []
-    for date in all_dates:
+    for date_str in all_dates:
         events = analytics.storage.read_events(
-            start_date=date,
-            end_date=date,
+            start_date=date_str,
+            end_date=date_str,
             username=user.username,
         )
         if events:
-            user_dates.append(date)
+            user_dates.append(date_str)
     return user_dates
 
 

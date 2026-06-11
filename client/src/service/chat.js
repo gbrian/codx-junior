@@ -299,13 +299,67 @@ export class ChatService extends Service {
     return file.chat
   }
 
-  
   async newQuickChat() {
     const chat = {
       name: "Quick chat",
       mode: 'chat',
       auto_initialize: true
     }
-    return this.$chats.createNewBoardChat({ chat })
+    return this.$chats.createNewChat({ chat })
+  }
+
+  /**
+   * Create a new chat pre-loaded with the given list of file paths.
+   *
+   * @param {Object} options
+   * @param {string[]} options.files        - List of file paths to attach
+   * @param {string}   [options.name]       - Chat name (auto-generated from files if omitted)
+   * @param {string}   [options.mode]       - Chat mode: 'chat' | 'task' (default: 'chat')
+   * @param {string}   [options.message]    - Custom opening message (auto-generated if omitted)
+   * @param {string[]} [options.profiles]   - Profile names to attach
+   * @param {Object}   [options.metadata]   - Extra metadata
+   * @param {boolean}  [options.activate]   - Whether to set the chat as active after creation
+   * @returns {Promise<Object>} The newly created chat object
+   */
+  async createChat({
+    files,
+    name,
+    mode = 'chat',
+    message,
+    profiles = [],
+    metadata = {},
+    activate = false,
+  }) {
+    const fileNames = (files || []).map(f => f.split('/').pop())
+    const chatName = name ||
+      `Files: ${fileNames.slice(0, 2).join(', ')}${fileNames.length > 2 ? ` +${fileNames.length - 2}` : ''}`
+
+    const openingMessage = message ||
+      `Working with files:\n${(files || []).map(f => `- ${f}`).join('\n')}`
+
+    const payload = {
+      name: chatName,
+      mode,
+      file_list: files || [],
+      profiles,
+      metadata,
+      auto_initialize: false,
+      messages: [
+        this.getUserMessage({
+          message: openingMessage,
+          files: files || [],
+          profiles,
+          metadata,
+        })
+      ]
+    }
+
+    const chat = await this.$chats.createNewChat(payload)
+
+    if (activate) {
+      await this.$chats.setActiveChat(chat)
+    }
+
+    return chat
   }
 }

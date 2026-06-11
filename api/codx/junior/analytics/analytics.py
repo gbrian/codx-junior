@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 
 from codx.junior.analytics.model import TokenUsageEvent
 from codx.junior.analytics.storage import AnalyticsStorage
+from codx.junior.globals import ANALYTICS_DATA_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +20,7 @@ class Analytics:
     classDiagram
         class Analytics {
             +AnalyticsStorage storage
-            +record_token_usage(username, project_name, project_id, model, provider, input_tokens, output_tokens, duration_seconds, session_id, tags)
+            +record_token_usage(username, project_name, project_id, model, provider, input_tokens, output_tokens, duration_seconds, session_id, tags, k_tokens_cxjcoins)
             +get_usage_by_user(start_date, end_date) Dict
             +get_usage_by_project(start_date, end_date) Dict
             +get_usage_by_model(start_date, end_date) Dict
@@ -29,7 +30,7 @@ class Analytics:
         }
     """
 
-    def __init__(self, analytics_path: str):
+    def __init__(self, analytics_path: str = ANALYTICS_DATA_PATH):
         """
         Args:
             analytics_path: Global directory for analytics storage.  Pass
@@ -52,21 +53,25 @@ class Analytics:
         duration_seconds: float = 0.0,
         session_id: Optional[str] = None,
         tags: str = "",
+        input_k_tokens_cxjcoins: float = 0.0,
+        output_k_tokens_cxjcoins: float = 0.0,
     ) -> TokenUsageEvent:
         """
         Record a single LLM call's token consumption.
 
         Args:
-            username:          User who triggered the call.
-            project_name:      Project context.
-            project_id:        Project identifier.
-            model:             LLM model name.
-            provider:          LLM provider identifier.
-            input_tokens:      Prompt token count.
-            output_tokens:     Completion token count.
-            duration_seconds:  Wall-clock seconds for the full request/response cycle.
-            session_id:        Optional conversation/session id.
-            tags:              Comma-separated tag string from request headers.
+            username:           User who triggered the call.
+            project_name:       Project context.
+            project_id:         Project identifier.
+            model:              LLM model name.
+            provider:           LLM provider identifier.
+            input_tokens:       Prompt token count.
+            output_tokens:      Completion token count.
+            duration_seconds:   Wall-clock seconds for the full request/response cycle.
+            session_id:         Optional conversation/session id.
+            tags:               Comma-separated tag string from request headers.
+            input_k_tokens_cxjcoins:  Price per 1K tokens in CXJ coins (from AISettings).
+            output_k_tokens_cxjcoins:  Price per 1K tokens in CXJ coins (from AISettings).
 
         Returns:
             The persisted ``TokenUsageEvent``.
@@ -83,10 +88,14 @@ class Analytics:
             duration_seconds=duration_seconds,
             session_id=session_id,
             tags=tags,
+            input_k_tokens_cxjcoins=input_k_tokens_cxjcoins,
+            output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
+            # total_cxjcoins is computed automatically in __post_init__
         )
         self.storage.write(event)
         logger.info(
-            "Analytics recorded: user=%s project=%s model=%s in=%d out=%d total=%d duration=%.2fs",
+            "Analytics recorded: user=%s project=%s model=%s in=%d out=%d total=%d "
+            "duration=%.2fs cxjcoins=%.4f",
             username,
             project_name,
             model,
@@ -94,6 +103,7 @@ class Analytics:
             output_tokens,
             event.total_tokens,
             duration_seconds,
+            event.total_cxjcoins,
         )
         return event
 
@@ -112,7 +122,8 @@ class Analytics:
             key_fn: Callable that extracts the grouping key from an event.
 
         Returns:
-            Dict mapping key → {input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}.
+            Dict mapping key → {input_tokens, output_tokens, total_tokens, calls,
+                                total_duration_seconds, total_cxjcoins}.
         """
         result: Dict[str, Dict[str, Any]] = {}
         for event in events:
@@ -124,6 +135,7 @@ class Analytics:
                     "total_tokens": 0,
                     "calls": 0,
                     "total_duration_seconds": 0.0,
+                    "total_cxjcoins": 0.0,
                 }
             bucket = result[key]
             bucket["input_tokens"] += event.input_tokens
@@ -131,6 +143,7 @@ class Analytics:
             bucket["total_tokens"] += event.total_tokens
             bucket["calls"] += 1
             bucket["total_duration_seconds"] += event.duration_seconds
+            bucket["total_cxjcoins"] += event.total_cxjcoins
         return result
 
     # ── Public query API ───────────────────────────────────────────────────────
@@ -152,7 +165,8 @@ class Analytics:
             project_id:   Optional project id filter.
 
         Returns:
-            Dict[username, {input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}]
+            Dict[username, {input_tokens, output_tokens, total_tokens, calls,
+                            total_duration_seconds, total_cxjcoins}]
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -177,7 +191,8 @@ class Analytics:
             username:   Optional user filter.
 
         Returns:
-            Dict[project_name, {input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}]
+            Dict[project_name, {input_tokens, output_tokens, total_tokens, calls,
+                                total_duration_seconds, total_cxjcoins}]
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -203,7 +218,8 @@ class Analytics:
             project_name: Optional project filter.
 
         Returns:
-            Dict[model, {input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}]
+            Dict[model, {input_tokens, output_tokens, total_tokens, calls,
+                         total_duration_seconds, total_cxjcoins}]
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -230,7 +246,8 @@ class Analytics:
             project_name: Optional project filter.
 
         Returns:
-            List of dicts [{date, input_tokens, output_tokens, total_tokens, calls, total_duration_seconds}]
+            List of dicts [{date, input_tokens, output_tokens, total_tokens, calls,
+                            total_duration_seconds, total_cxjcoins}]
             ordered by date ascending.
         """
         events = self.storage.read_events(
@@ -266,7 +283,8 @@ class Analytics:
             model:        Optional model filter.
 
         Returns:
-            Dict with keys: input_tokens, output_tokens, total_tokens, calls, total_duration_seconds.
+            Dict with keys: input_tokens, output_tokens, total_tokens, calls,
+                            total_duration_seconds, total_cxjcoins.
         """
         events = self.storage.read_events(
             start_date=start_date,
@@ -282,6 +300,7 @@ class Analytics:
             "total_tokens": 0,
             "calls": 0,
             "total_duration_seconds": 0.0,
+            "total_cxjcoins": 0.0,
         }
         for event in events:
             totals["input_tokens"] += event.input_tokens
@@ -289,6 +308,7 @@ class Analytics:
             totals["total_tokens"] += event.total_tokens
             totals["calls"] += 1
             totals["total_duration_seconds"] += event.duration_seconds
+            totals["total_cxjcoins"] += event.total_cxjcoins
         return totals
 
     def list_available_dates(self) -> List[str]:

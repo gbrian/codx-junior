@@ -11,7 +11,9 @@ from codx.junior.security.user_management import UserSecurityManager, get_authen
 from codx.junior.model.model import CodxUser, CodxUserLogin, GlobalSettings
 from codx.junior.security.github_oauth import GitHubOAuth, GITHUB_CLIENTS
 
-from codx.junior.global_settings import get_oauth_provider
+from codx.junior.global_settings import get_oauth_provider, get_global_settings
+from codx.junior.analytics.analytics import Analytics
+from codx.junior.globals import ANALYTICS_DATA_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -103,3 +105,89 @@ async def user_update(request: Request, user: CodxUser = Depends(get_authenticat
 @router.get("/users")
 def list_update():
     return UserSecurityManager().list_user()
+
+
+@router.get("/users/me/refresh")
+async def refresh_user_info(request: Request, user: CodxUser = Depends(get_authenticated_user)):
+    """
+    Return the authenticated user's profile enriched with today's token
+    consumption and effective per-rule limits.
+
+    Response shape
+    --------------
+    {
+      ...user fields...,
+      "token_usage_today": {
+        "input_tokens":  <int>,
+        "output_tokens": <int>,
+        "total_tokens":  <int>,
+        "calls":         <int>,
+        "total_duration_seconds": <float>
+      },
+      "token_limits_today": [
+        {
+          "rule_index":       <int>,
+          "provider":         <str|null>,
+          "model":            <str|null>,
+          "limit_per_day":    <int>,
+          "effective_limit":  <int|null>,   # null → unlimited
+          "tokens_used":      <int>,
+          "tokens_remaining": <int|null>,   # null → unlimited
+          "extension":        <dict|null>
+        },
+        ...
+      ]
+    }
+    """
+    today = datetime.date.today().isoformat()
+
+    # ── Token usage for today ──────────────────────────────────────────────────
+    try:
+        analytics = Analytics(analytics_path=ANALYTICS_DATA_PATH)
+        usage_today = analytics.get_total_usage(
+            start_date=today,
+            end_date=today,
+            username=user.username,
+        )
+    except Exception as exc:
+        logger.warning("refresh_user_info: could not read analytics for %s: %s", user.username, exc)
+        usage_today = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "calls": 0,
+            "total_duration_seconds": 0.0,
+        }
+
+    total_tokens_used_today = usage_today.get("total_tokens", 0)
+
+    # ── Per-rule effective limits ──────────────────────────────────────────────
+    limits_today = []
+    for idx, rule in enumerate(user.token_limit_rules or []):
+        effective = rule.effective_limit(today)
+        remaining = None if effective is None else max(0, effective - total_tokens_used_today)
+        limits_today.append({
+            "rule_index": idx,
+            "provider": rule.provider,
+            "model": rule.model,
+            "limit_per_day": rule.limit_per_day,
+            "effective_limit": effective,
+            "tokens_used": total_tokens_used_today,
+            "tokens_remaining": remaining,
+            "extension": rule.extension.dict() if rule.extension else None,
+        })
+
+    # ── Build response ─────────────────────────────────────────────────────────
+    user_dict = user.dict()
+    user_dict["token_usage_today"] = usage_today
+    user_dict["token_limits_today"] = limits_today
+
+    logger.info(
+        "refresh_user_info: user=%s today=%s total_tokens=%d rules=%d",
+        user.username,
+        today,
+        total_tokens_used_today,
+        len(limits_today),
+    )
+
+    return user_dict

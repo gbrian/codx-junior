@@ -3,13 +3,15 @@ import json
 import os
 import time
 
-from datetime import datetime
+from datetime import datetime, date
 from typing import Union
 from openai import OpenAI
 from openai.types.chat.chat_completion_system_message_param import ChatCompletionSystemMessageParam
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
+
 from codx.junior.ai.ai_logger import AILogger
 from codx.junior.ai.cancellation import CancellationToken, CancelledError
+from codx.junior.ai.wallet_check import check_user_wallet
 from codx.junior.settings import CODXJuniorSettings
 from langchain.messages import AIMessage, HumanMessage
 from codx.junior.profiling.profiler import profile_function
@@ -19,30 +21,17 @@ from codx.junior.utils.utils import (
   create_file_logger
 )
 from codx.junior.model.model import CodxUser
+from codx.junior.analytics import Analytics        
 from codx.junior.analytics.token_counter import count_tokens, count_messages_tokens
-from codx.junior.globals import ANALYTICS_DATA_PATH
 
 logger = logging.getLogger(__name__)
 
-# Lazily imported to avoid circular dependencies at module load time
 _analytics_instance = None
 
-
 def _get_analytics():
-    """
-    Return a shared Analytics instance backed by the global analytics path,
-    creating it once per process.
-
-    The path is sourced from ``ANALYTICS_DATA_PATH`` (globals.py) which reads
-    the ``CODX_JUNIOR_API_ANALYTICS_DATA_PATH`` environment variable.
-
-    Returns:
-        Analytics instance.
-    """
     global _analytics_instance
     if _analytics_instance is None:
-        from codx.junior.analytics import Analytics
-        _analytics_instance = Analytics(analytics_path=ANALYTICS_DATA_PATH)
+        _analytics_instance = Analytics()
     return _analytics_instance
 
 
@@ -69,7 +58,12 @@ class OpenAI_AI:
             logger.error("Error creating OpenAI client: %s, %s*****", self.base_url, self.api_key[0:15])
         self.ai_logger = AILogger(settings=settings)
 
-    # ── Analytics helper ───────────────────────────────────────────────────────
+    def _preflight_limit_check(self) -> None:
+        """
+        Run pre-flight wallet check before executing an AI request.
+        Raises InsufficientFundsError when the user has exhausted their budget.
+        """
+        check_user_wallet(user=self.user)
 
     def _record_usage(
         self,
@@ -79,24 +73,13 @@ class OpenAI_AI:
         tags: str = "",
         session_id: str = None,
     ) -> None:
-        """
-        Estimate token counts and persist a ``TokenUsageEvent`` to the global
-        analytics store.
-
-        Called after every successful chat completion (streaming or not).
-        Failures are logged but never re-raised so they don't break the caller.
-
-        Args:
-            input_text:        Concatenated prompt text sent to the model.
-            output_text:       Response text received from the model.
-            duration_seconds:  Wall-clock seconds for the full request/response cycle.
-            tags:              Comma-separated request tags.
-            session_id:        Optional session identifier from request headers.
-        """
         try:
             analytics = _get_analytics()
             input_tokens = count_tokens(input_text, model=self.model)
             output_tokens = count_tokens(output_text, model=self.model)
+
+            input_k_tokens_cxjcoins: float = getattr(self.llm_settings, "input_k_tokens_cxjcoins", 0.0) or 0.0
+            output_k_tokens_cxjcoins: float = getattr(self.llm_settings, "output_k_tokens_cxjcoins", 0.0) or 0.0
 
             analytics.record_token_usage(
                 username=self.user.username if self.user else "anonymous",
@@ -109,11 +92,11 @@ class OpenAI_AI:
                 duration_seconds=duration_seconds,
                 session_id=session_id,
                 tags=tags,
+                input_k_tokens_cxjcoins=input_k_tokens_cxjcoins,
+                output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
             )
         except Exception as ex:
             logger.warning("_record_usage failed (non-fatal): %s", ex)
-
-    # ── Existing methods ───────────────────────────────────────────────────────
 
     def log(self, msg):
         if self.settings.get_log_ai():
@@ -143,6 +126,8 @@ class OpenAI_AI:
 
     @profile_function
     def chat_completions(self, messages, config: dict = {}):
+        self._preflight_limit_check()
+
         kwargs = {
             "model": self.model,
             "stream": True,
@@ -164,12 +149,10 @@ class OpenAI_AI:
 
         cancellation_token: CancellationToken = config.get("cancellation_token", None)
 
-        # Capture request metadata for analytics
         request_headers = config.get("headers", {})
         tags_str = request_headers.get("tags", "")
         session_id = request_headers.get("session_id", None)
 
-        # Start wall-clock timer for the full request/response cycle
         request_start = time.monotonic()
 
         try:
@@ -210,7 +193,6 @@ class OpenAI_AI:
                             logger.exception(f"ERROR IN CALLBACKS: {ex}")
 
             for chunk in response_stream:
-                # Check for cancellation before processing each chunk
                 if cancellation_token and cancellation_token.is_cancelled:
                     logger.info("chat_completions: cancellation requested, closing stream")
                     try:
@@ -228,7 +210,6 @@ class OpenAI_AI:
                 content_parts.append(chunk_content)
                 send_callback(chunk_content)
 
-            # Last chunks...
             send_callback("", flush=True)
         except CancelledError:
             raise
@@ -240,7 +221,6 @@ class OpenAI_AI:
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
 
-        # ── Record token usage ────────────────────────────────────────────────
         input_text = "\n".join(m.get("content", "") for m in openai_messages)
         self._record_usage(
             input_text=input_text,
@@ -255,16 +235,16 @@ class OpenAI_AI:
 
     @profile_function
     async def a_chat_completions(self, messages, config: dict = {}):
+        self._preflight_limit_check()
+
         kwargs = {
             "model": self.model,
             "stream": True,
         }
-        # tools
         selected_tools = config.get("tools", [])
         chat_tools = [t for t in self.tools if t["tool_json"]["function"]["name"] in selected_tools]
         if chat_tools:
             kwargs["tools"] = chat_tools
-        
 
         if self.llm_settings.temperature >= 0:
             kwargs["temperature"] = float(self.llm_settings.temperature)
@@ -279,12 +259,10 @@ class OpenAI_AI:
 
         cancellation_token: CancellationToken = config.get("cancellation_token", None)
 
-        # Capture request metadata for analytics
         request_headers = config.get("headers", {})
         tags_str = request_headers.get("tags", "")
         session_id = request_headers.get("session_id", None)
 
-        # Start wall-clock timer for the full request/response cycle
         request_start = time.monotonic()
 
         try:
@@ -341,7 +319,6 @@ class OpenAI_AI:
                 self.log(f"\nReceived AI response, start reading stream\n{self.llm_settings}")
 
             for chunk in response_stream:
-                # Check for cancellation before processing each chunk
                 if cancellation_token and cancellation_token.is_cancelled:
                     logger.info("a_chat_completions: cancellation requested, closing stream")
                     try:
@@ -351,7 +328,6 @@ class OpenAI_AI:
                     send_callback("", flush=True)
                     raise CancelledError("Async chat completion was cancelled by the caller.")
 
-                # Check for tools
                 choice = chunk.choices[0]
                 tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None 
                 
@@ -393,7 +369,6 @@ class OpenAI_AI:
                 content_parts.append(chunk_content)
                 send_callback(chunk_content)
 
-            # Last chunks...
             send_callback("", flush=True)
         except CancelledError:
             raise
@@ -405,7 +380,6 @@ class OpenAI_AI:
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
 
-        # ── Record token usage ────────────────────────────────────────────────
         input_text = "\n".join(m.get("content", "") for m in openai_messages
                                if isinstance(m.get("content"), str))
         self._record_usage(
@@ -426,7 +400,6 @@ class OpenAI_AI:
         func_name = tool_call_data["function"]
         params = json.loads(tool_call_data["arguments"])
         
-        # Find the tool and execute the tool_call
         tool = next((t for t in self.tools if t["tool_json"]["function"]["name"] == func_name), None)
         if tool:
             settings = tool.get("settings", {
@@ -443,7 +416,6 @@ class OpenAI_AI:
             
             tool_response = content
 
-        # Format the tool response as specified
         tool_output = {
             "type": "function_call_output",
             "call_id": tool_call_data["id"],

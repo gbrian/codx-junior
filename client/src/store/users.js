@@ -6,7 +6,8 @@ export const namespaced = true
 import { API } from '../api/api'
 export const state = () => ({
   onlineUsers: {},
-  users: []
+  users: [],
+  metrics: null
 })
 
 export const getters = getterTree(state, {
@@ -29,6 +30,9 @@ export const mutations = mutationTree(state, {
   },
   setUsers(state, users) {
     state.users = users
+  },
+  setMetrics(state, metrics) {
+    state.metrics = metrics
   }
 })
 
@@ -40,6 +44,10 @@ export const actions = actionTree(
     async loadUsers({ state }) {
       const users = await $storex.api.users.list()
       $storex.users.setUsers(users || [])
+    },
+    async loadMetrics() {
+      const metrics = await API.analytics.me()
+      $storex.users.setMetrics(metrics)
     },
     async login({ _ }, user) {
       try {

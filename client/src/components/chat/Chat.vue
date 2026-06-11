@@ -18,6 +18,7 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
         <div class="w-full" v-if="chatFiles.length">
           <ChatFileList
             :files="chatFiles"
+            :chat-project="chatProject"
             @remove="removeFileFromChat"
             @add-as-message="addFileContentAsMessage"
             @sync-notebook="syncNotebook"
@@ -376,19 +377,6 @@ export default {
           event.preventDefault()
           event.stopPropagation()
           this.acceptIntelliSense()
-          return
-        }
-        if (event.key === 'ArrowDown') {
-          event.preventDefault()
-          this.intelliSenseIndex = Math.min(
-            this.intelliSenseIndex + 1,
-            this.intelliSenseSuggestions.length - 1
-          )
-          return
-        }
-        if (event.key === 'ArrowUp') {
-          event.preventDefault()
-          this.intelliSenseIndex = Math.max(this.intelliSenseIndex - 1, 0)
           return
         }
         if (event.key === 'Escape') {
@@ -798,7 +786,7 @@ export default {
       this.$projects.createNewThread({ chat: this.chat, message })
     },
     async addFileContentAsMessage(file) {
-      const content = await this.$storex.chats.readFile({ chat: this.chat, file })
+      const { content } = await this.$storex.chats.readFile({ chat: this.chat, file })
       const codeBlock = ["```" + file.split(".")[1] + " " + file, content, "```"].join("\n")
       this.chatSvc.addMessage({ chat: this.chat, message: this.getUserMessage({ message: codeBlock }) })
     },

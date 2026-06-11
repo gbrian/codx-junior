@@ -149,7 +149,6 @@ app.include_router(chat_router, prefix="/api")
 app.include_router(views_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
 
-
 APP_STOP_EVENT = asyncio.Event()
     
 @app.on_event("startup")

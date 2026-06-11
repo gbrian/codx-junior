@@ -3,103 +3,180 @@ import AIModelSettings from './AIModelSettings.vue'
 </script>
 
 <template>
-  <div class="w-full h-full flex flex-col gap-2 p-4">
-    <h1 class="text-2xl font-bold mb-4">AI Models</h1>
-    <div class="grid grid-cols-1 @md:grid-cols-2 @xl:grid-cols-3 gap-4">
-      <div
-        v-for="model in aiModels"
-        :key="model.name"
-        class="click card border border-slate-300 bg-slate-800 text-white/80 p-4 shadow-sm flex flex-col justify-between"
-        @click="editModel(model)"
-      >
-        <div class="overflow-hidden">
-          <h2 class="font-bold text-lg text-primary flex justify-between">
-            <div>
-              <span>{{ model.name }}</span><span class="text-secondary" v-if="model.ai_model && model.name != model.ai_model"> / {{ model.ai_model }}</span>
-            </div>
-          </h2>
-          <span class="badge badge-xs badge-warning" v-if="model.model_type === 'llm'">
-            <i class="fa-solid fa-brain"></i> LLM
-          </span>
-          <span class="badge badge-xs badge-info" v-else>
-            <i class="fa-solid fa-file"></i> Embeddings
-          </span>
-          <table class="w-full">
-            <thead>
-              <tr>
-                <td>Provider:</td>
-                <td>{{ model.ai_provider }}</td>
-              </tr>
-              <tr v-if="model.model_type === 'llm'">
-                <td>Temperature:</td>
-                <td>{{ model.settings.temperature }}</td>
-              </tr>
-              <tr v-if="model.model_type === 'llm'">
-                <td>Context:</td>
-                <td>
-                  <span v-if="model.settings.context_length">
-                    {{ (model.settings.context_length || 0) }} KB
-                  </span>
-                </td>
-              </tr>
-              <tr v-if="model.model_type === 'llm' && model.settings.merge_messages">
-                <td>Merge messages:</td>
-                <td>{{ model.settings.merge_messages || '-' }}</td>
-              </tr>
-              <tr v-if="model.model_type === 'embeddings'">
-                <td>Vector Size:</td>
-                <td>{{ model.settings.vector_size || '-' }}</td>
-              </tr>
-              <tr v-if="model.model_type === 'embeddings'">
-                <td>Chunk Size:</td>
-                <td>{{ model.settings.chunk_size || '-' }}</td>
-              </tr>
-            </thead>
-          </table>
-        </div>
-        <div class="flex gap-2 mt-4">
-          <button class="btn btn-xs btn-circle btn-outline text-info" @click.stop="showModelInfo = model">            
-            <i class="fa-solid fa-circle-info"></i>
-          </button>
-          <button class="btn btn-xs btn-circle btn-outline" @click.stop="editModel(model)">
-            <i class="fa-solid fa-pen-to-square"></i>
-          </button>
-          <div class="grow"></div>
-          <button class="btn btn-xs btn-circle btn-info btn-outline tooltip" 
-            :class="model.loading && 'animate.pulse btn-warning'"
-            data-tip="Reload model (depends on provider)"
-            @click.stop="reloadModel(model)">
-            <i class="fa-solid fa-arrows-rotate"></i>
-          </button>
+  <div class="w-full h-full flex flex-col gap-4 p-4">
+    <!-- Page header -->
+    <div class="flex items-center gap-3 bg-gradient-to-r from-primary/20 to-transparent rounded-xl px-4 py-3">
+      <div class="avatar placeholder">
+        <div class="bg-primary text-primary-content rounded-full w-10 h-10 flex items-center justify-center">
+          <i class="fa-solid fa-brain text-lg"></i>
         </div>
       </div>
-      <div class="card border-2 border-dashed border-base-300 p-4 flex justify-center items-center cursor-pointer" @click="editModel(null)">
-        <span class="text-gray-500">Add New Model</span>
+      <div class="grow">
+        <div class="font-bold text-xl">AI Models</div>
+        <div class="text-xs text-base-content/50">{{ filteredModels.length }} of {{ aiModels.length }} model(s)</div>
       </div>
+      <button class="btn btn-primary btn-sm gap-2" @click="editModel(null)">
+        <i class="fa-solid fa-plus"></i> Add Model
+      </button>
     </div>
-    <modal class="w-2/3 h-2/3 overflow-auto" v-if="showDialog">
+
+    <!-- Filter bar -->
+    <div class="flex flex-wrap gap-2 items-center bg-base-200 rounded-xl p-3">
+      <div class="relative grow min-w-48">
+        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 text-xs"></i>
+        <input
+          v-model="filterText"
+          type="text"
+          placeholder="Search models..."
+          class="input input-sm input-bordered w-full pl-8 bg-base-100"
+        />
+      </div>
+      <select v-model="filterType" class="select select-sm select-bordered bg-base-100">
+        <option value="">All Types</option>
+        <option value="llm">LLM</option>
+        <option value="embeddings">Embeddings</option>
+      </select>
+      <select v-model="filterProvider" class="select select-sm select-bordered bg-base-100">
+        <option value="">All Providers</option>
+        <option v-for="p in uniqueProviders" :key="p" :value="p">{{ p }}</option>
+      </select>
+      <button v-if="hasFilters" class="btn btn-ghost btn-sm gap-1 text-error" @click="clearFilters">
+        <i class="fa-solid fa-xmark"></i> Clear
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto rounded-xl border border-base-300 bg-base-100">
+      <table class="table table-sm w-full">
+        <thead class="bg-base-200">
+          <tr>
+            <th
+              v-for="col in columns"
+              :key="col.key"
+              class="cursor-pointer hover:bg-base-300 transition-colors select-none"
+              :class="col.align === 'right' ? 'text-right' : ''"
+              @click="toggleSort(col.key)"
+            >
+              <div class="flex items-center gap-1" :class="col.align === 'right' ? 'justify-end' : ''">
+                <span>{{ col.label }}</span>
+                <span class="w-3 text-primary">
+                  <i v-if="sortKey === col.key" :class="sortAsc ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down'"></i>
+                  <i v-else class="fa-solid fa-sort text-base-content/20"></i>
+                </span>
+              </div>
+            </th>
+            <th class="text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="filteredModels.length === 0">
+            <td :colspan="columns.length + 1" class="text-center py-10 text-base-content/40">
+              <i class="fa-solid fa-ghost text-2xl mb-2 block"></i>
+              No models found
+            </td>
+          </tr>
+          <tr
+            v-for="model in filteredModels"
+            :key="model.name"
+            class="hover:bg-base-200 cursor-pointer transition-colors"
+            @click="editModel(model)"
+          >
+            <!-- Name -->
+            <td>
+              <div class="flex items-center gap-2">
+                <div :class="model.model_type === 'llm' ? 'bg-warning/20 text-warning' : 'bg-info/20 text-info'"
+                     class="rounded-full w-7 h-7 flex items-center justify-center text-xs shrink-0">
+                  <i :class="model.model_type === 'llm' ? 'fa-solid fa-brain' : 'fa-solid fa-file'"></i>
+                </div>
+                <div>
+                  <div class="font-semibold text-primary text-sm">{{ model.name }}</div>
+                  <div class="text-xs text-base-content/40" v-if="model.ai_model && model.name !== model.ai_model">{{ model.ai_model }}</div>
+                </div>
+              </div>
+            </td>
+            <!-- Type -->
+            <td>
+              <span :class="model.model_type === 'llm' ? 'badge-warning' : 'badge-info'" class="badge badge-xs">
+                {{ model.model_type === 'llm' ? 'LLM' : 'Embeddings' }}
+              </span>
+            </td>
+            <!-- Provider -->
+            <td class="text-sm text-base-content/70">{{ model.ai_provider || '-' }}</td>
+            <!-- Temperature / Vector -->
+            <td class="text-sm text-center">
+              <span v-if="model.model_type === 'llm'">{{ model.settings?.temperature ?? '-' }}</span>
+              <span v-else class="text-xs text-base-content/60">{{ model.settings?.vector_size || '-' }}</span>
+            </td>
+            <!-- Context / Chunk -->
+            <td class="text-sm text-center">
+              <span v-if="model.model_type === 'llm'">{{ model.settings?.context_length ? model.settings.context_length + ' KB' : '-' }}</span>
+              <span v-else class="text-xs text-base-content/60">{{ model.settings?.chunk_size || '-' }}</span>
+            </td>
+            <!-- Cost -->
+            <td class="text-right">
+              <div class="flex flex-col items-end gap-0.5 text-xs">
+                <span v-if="model.input_k_tokens_cxjcoins != null" class="text-green-500">↓ {{ model.input_k_tokens_cxjcoins }}</span>
+                <span v-if="model.output_k_tokens_cxjcoins != null" class="text-blue-500">↑ {{ model.output_k_tokens_cxjcoins }}</span>
+                <span v-if="model.k_tokens_cxjcoins != null && model.input_k_tokens_cxjcoins == null" class="text-yellow-500">{{ model.k_tokens_cxjcoins }} /1K</span>
+                <span v-if="model.k_tokens_cxjcoins == null && model.input_k_tokens_cxjcoins == null" class="text-base-content/30">-</span>
+              </div>
+            </td>
+            <!-- Actions -->
+            <td @click.stop>
+              <div class="flex justify-end gap-1">
+                <button class="btn btn-xs btn-circle btn-ghost text-info" @click="showModelInfo = model">
+                  <i class="fa-solid fa-circle-info"></i>
+                </button>
+                <button class="btn btn-xs btn-circle btn-ghost" @click="editModel(model)">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button
+                  class="btn btn-xs btn-circle btn-ghost text-secondary"
+                  :class="model.loading && 'animate-pulse text-warning'"
+                  @click="reloadModel(model)"
+                >
+                  <i class="fa-solid fa-arrows-rotate"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Edit modal -->
+    <modal class="w-2/3 h-5/6 overflow-auto" v-if="showDialog">
       <AIModelSettings
         :aiProviders="aiProviders"
-        :model="currentModel" 
+        :model="currentModel"
         @save="saveModel"
         @cancel="showDialog = false"
         @delete="confirmDelete"
-        />
+      />
     </modal>
 
+    <!-- Info modal -->
     <modal class="w-1/3 h-2/3" close="true" @close="showModelInfo = null" v-if="showModelInfo">
-      <div class="text-2xl">{{ showModelInfo.name }}</div>
-      <pre class="overflow-auto">{{ showModelInfo.metadata?.info }}</pre>
+      <div class="flex items-center gap-2 mb-3">
+        <i class="fa-solid fa-circle-info text-info"></i>
+        <div class="text-xl font-bold">{{ showModelInfo.name }}</div>
+      </div>
+      <pre class="overflow-auto text-xs bg-base-300 p-3 rounded-lg">{{ showModelInfo.metadata?.info }}</pre>
     </modal>
 
+    <!-- Delete confirm modal -->
     <modal v-if="showDeleteDialog">
-      <div>
-        <p>Are you sure you want to delete {{ modelToDelete.name }}?</p>
-        <div class="modal-action">
-          <button class="btn btn-error" @click="deleteModel">
-            Confirm
+      <div class="flex flex-col gap-4">
+        <div class="flex items-center gap-2 text-error">
+          <i class="fa-solid fa-triangle-exclamation text-xl"></i>
+          <span class="font-bold text-lg">Confirm Delete</span>
+        </div>
+        <p class="text-sm">Are you sure you want to delete <strong>{{ modelToDelete?.name }}</strong>?</p>
+        <div class="flex justify-end gap-2">
+          <button class="btn btn-ghost btn-sm" @click="showDeleteDialog = false">Cancel</button>
+          <button class="btn btn-error btn-sm" @click="deleteModel">
+            <i class="fa-solid fa-trash-can mr-1"></i> Delete
           </button>
-          <button class="btn" @click="showDeleteDialog = false">Cancel</button>
         </div>
       </div>
     </modal>
@@ -113,18 +190,22 @@ export default {
     return {
       showDialog: false,
       showDeleteDialog: false,
-      currentModel: {
-        name: '',
-        ai_provider: '',
-        model_type: 'llm',
-        settings: {
-          temperature: 1,
-          vector_size: 1536,
-          chunk_size: 8190,
-        },
-      },
+      currentModel: null,
       modelToDelete: null,
-      showModelInfo: null
+      showModelInfo: null,
+      filterText: '',
+      filterType: '',
+      filterProvider: '',
+      sortKey: 'name',
+      sortAsc: true,
+      columns: [
+        { key: 'name', label: 'Model' },
+        { key: 'model_type', label: 'Type' },
+        { key: 'ai_provider', label: 'Provider' },
+        { key: 'temperature', label: 'Temp / Vector', align: 'center' },
+        { key: 'context', label: 'Context / Chunk', align: 'center' },
+        { key: 'cost', label: 'Cost (cxj)', align: 'right' },
+      ]
     }
   },
   computed: {
@@ -134,14 +215,64 @@ export default {
     aiProviders() {
       return this.settings.ai_providers
     },
-    currentModelIsLLM() {
-      return this.currentModel?.model_type === 'llm'
+    uniqueProviders() {
+      return [...new Set(this.aiModels.map(m => m.ai_provider).filter(Boolean))]
     },
+    hasFilters() {
+      return this.filterText || this.filterType || this.filterProvider
+    },
+    filteredModels() {
+      let list = [...this.aiModels]
+      // text filter across name, ai_model, ai_provider
+      if (this.filterText) {
+        const q = this.filterText.toLowerCase()
+        list = list.filter(m =>
+          m.name?.toLowerCase().includes(q) ||
+          m.ai_model?.toLowerCase().includes(q) ||
+          m.ai_provider?.toLowerCase().includes(q)
+        )
+      }
+      if (this.filterType) list = list.filter(m => m.model_type === this.filterType)
+      if (this.filterProvider) list = list.filter(m => m.ai_provider === this.filterProvider)
+      // sorting
+      list.sort((a, b) => {
+        const av = this.getSortValue(a)
+        const bv = this.getSortValue(b)
+        if (av < bv) return this.sortAsc ? -1 : 1
+        if (av > bv) return this.sortAsc ? 1 : -1
+        return 0
+      })
+      return list
+    }
   },
   methods: {
+    getSortValue(model) {
+      const map = {
+        name: model.name?.toLowerCase() || '',
+        model_type: model.model_type || '',
+        ai_provider: model.ai_provider?.toLowerCase() || '',
+        temperature: model.settings?.temperature ?? 0,
+        context: model.settings?.context_length ?? model.settings?.vector_size ?? 0,
+        cost: model.k_tokens_cxjcoins ?? model.input_k_tokens_cxjcoins ?? 0
+      }
+      return map[this.sortKey] ?? ''
+    },
+    toggleSort(key) {
+      if (this.sortKey === key) {
+        this.sortAsc = !this.sortAsc
+      } else {
+        this.sortKey = key
+        this.sortAsc = true
+      }
+    },
+    clearFilters() {
+      this.filterText = ''
+      this.filterType = ''
+      this.filterProvider = ''
+    },
     editModel(model) {
       if (!model) {
-        model = { settings: {} }
+        model = { settings: {}, k_tokens_cxjcoins: null, input_k_tokens_cxjcoins: null, output_k_tokens_cxjcoins: null }
         this.aiModels.push(model)
       }
       this.currentModel = model
@@ -149,7 +280,6 @@ export default {
     },
     saveModel() {
       this.showDialog = false
-      // Add logic to save model
     },
     confirmDelete(model) {
       this.showDialog = false
@@ -158,24 +288,19 @@ export default {
     },
     deleteModel() {
       const index = this.aiModels.findIndex(m => m.name === this.modelToDelete.name)
-      if (index !== -1) {
-        this.aiModels.splice(index, 1)
-      }
+      if (index !== -1) this.aiModels.splice(index, 1)
       this.showDeleteDialog = false
     },
     async reloadModel(model) {
       model.loading = true
       try {
         const info = await this.$storex.api.projects.ai.models.reload(model)
-        model.metadata = {
-          ...model.metadata ||{},       
-          info
-        }
+        model.metadata = { ...model.metadata || {}, info }
         this.showModelInfo = model
       } finally {
         model.loading = false
       }
     }
-  },
+  }
 }
 </script>

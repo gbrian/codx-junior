@@ -4,6 +4,7 @@ import KanbanList from './KanbanList.vue'
 import FileFinder from '../filebrowser/FileFinder.vue'
 import ProjectDetailt from '../ProjectDetailt.vue'
 import KanbanGridView from './KanbanGridView.vue'
+import KanbanFilesView from './KanbanFilesView.vue'
 import Collapsible from '../Collapsible.vue'
 import ChatHistory from './ChatHistory.vue'
 </script>
@@ -70,6 +71,24 @@ import ChatHistory from './ChatHistory.vue'
               </span>
             </div>
 
+            <!-- View toggle: Board / Files -->
+            <div class="join tooltip tooltip-bottom" data-tip="Switch view">
+              <button
+                class="btn btn-sm join-item"
+                :class="activeView === 'board' && 'btn-active'"
+                @click="activeView = 'board'"
+              >
+                <i class="fa-solid fa-table-columns"></i>
+              </button>
+              <button
+                class="btn btn-sm join-item"
+                :class="activeView === 'files' && 'btn-active'"
+                @click="activeView = 'files'"
+              >
+                <i class="fa-solid fa-file-code"></i>
+              </button>
+            </div>
+
             <button class="btn btn-sm tooltip tooltip-bottom" data-tip="Show child boards"
               :class="showChildrenBoards && 'text-warning'"
               @click="showChildrenBoards = !showChildrenBoards">
@@ -120,9 +139,10 @@ import ChatHistory from './ChatHistory.vue'
         </Collapsible>
 
         <div class="mt-3 grow relative flex flex-col gap-2 min-h-0">
-          
-          <!-- Grid view -->
+
+          <!-- Board (grid) view -->
           <KanbanGridView
+            v-if="activeView === 'board'"
             class="min-h-[50vw]"
             :columns="viewColumns"
             :lastUpdatedTaskId="lastUpdatedTask.id"
@@ -131,6 +151,14 @@ import ChatHistory from './ChatHistory.vue'
             @new-column="openAddColumnModal"
             @edit-column="openEditColumnModal"
             @move-task="onMoveTask"
+          />
+
+          <!-- Files view -->
+          <KanbanFilesView
+            v-if="activeView === 'files'"
+            class="h-full bg-base-300/70"
+            :columns="viewColumns"
+            @open-task="openChat"
           />
         </div>
       </div>
@@ -252,7 +280,9 @@ export default {
       columnProject: null,
       loadingChats: false,
       showHistory: false,
-      showActivity: false
+      showActivity: false,
+      // 'board' | 'files'
+      activeView: 'board'
     }
   },
   created() {
@@ -574,7 +604,6 @@ export default {
       this.$projects.createSubtasks(event)
     },
 
-    // Opens a blank add-column modal
     openAddColumnModal() {
       this.selectedColumn = null
       this.columnTitle = ''
@@ -585,7 +614,6 @@ export default {
       this.showColumnModal = true
     },
 
-    // Opens edit modal pre-filled with existing column data by title
     openEditColumnModal(columnTitle) {
       const storeCol = this.activeKanbanBoard?.columns?.find(c => c.title === columnTitle) || null
       this.selectedColumn = storeCol
@@ -662,7 +690,6 @@ export default {
       this.columnProject = null
     },
 
-    // Moves a task to a new column via drag-and-drop
     async onMoveTask({ taskId, toColumn }) {
       const task = this.visibleTasks.find(t => t.id === taskId)
       if (!task) return
@@ -719,7 +746,6 @@ export default {
       this.originalBoardName = null
     },
 
-    // Legacy: delegate to openEditColumnModal
     openColumnPropertiesModal(column) {
       this.openEditColumnModal(column.title)
     },

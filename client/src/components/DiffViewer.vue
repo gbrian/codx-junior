@@ -36,7 +36,7 @@ export default {
       data: null,
       diffFile: null,
       diffWrap: false,
-      diffSplit: true
+      diffSplit: false
     }
   },
   async created() {

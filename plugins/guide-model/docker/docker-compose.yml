@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  guide-model:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: codx-junior-guide
+    env_file: ../.env
+    volumes:
+      - ../models:/app/models       # Persist model files and cached states
+      - ../guides:/app/guides       # Mount guide documents
+    restart: unless-stopped

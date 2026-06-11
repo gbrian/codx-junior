@@ -7,8 +7,31 @@ from datetime import datetime
 
 from typing import List, Dict, Union, Optional
 
-KNOWLEDGE_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_KNOWLEDGE_MODEL')
-EMBEDDINGS_MODEL = os.environ.get('CODX_JUNIOR_LLMFACTORY_EMBEDDINGS_MODEL')
+# ---------------------------------------------------------------------------
+# Import user models from dedicated module
+# ---------------------------------------------------------------------------
+from codx.junior.model.user import (
+    CodxUserLogin,
+    CodxUserProjectProfile,
+    CodxUser,
+)
+
+# ---------------------------------------------------------------------------
+# Import AI models from dedicated module
+# ---------------------------------------------------------------------------
+from codx.junior.model.ai_model import (
+    AIProvider,
+    AILLMModelSettings,
+    AIEmbeddingModelSettings,
+    AIModelType,
+    AIModel,
+    AISettings,
+    OLLAMA_PROVIDER,
+    OLLAMA_EMBEDDINGS_MODEL,
+    OLLAMA_KNOWLEDGE_MODEL,
+    KNOWLEDGE_MODEL,
+    EMBEDDINGS_MODEL,
+)
 
 class ImageUrl(BaseModel):
     url: str = Field(default="")
@@ -65,41 +88,10 @@ class CodxJuniorBaseTools(BaseModel):
 class CommandTool(Tool):
     command: Optional[str] = Field(description="Command", default=None)
 
-class ProjectPermission(BaseModel):
-    project_id: str
-    permissions: str = Field(description="User permissions for the project", default=[])
-    children: Optional[bool] = Field(description="Same access to children projects", default=True)
-    apps: Optional[List[str]] = Field(default=[])
-
 class PRView(BaseModel):
     from_branch: Optional[str] = Field(default="")
     to_branch: Optional[str] = Field(default="")
 
-class CodxUserLogin(BaseModel):
-    username: Optional[str] = Field(default="")
-    password: Optional[str] = Field(default="")
-    email: Optional[str] = Field(default="")
-    token: Optional[str] = Field(default="")
-
-class CodxUserProjectProfile(BaseModel):
-    name: Optional[str] = Field(default="")
-    coder: Optional[bool] = Field(description="Can access to coder and change project files", default=False)
-    admin: Optional[bool] = Field(description="Can access to project's admin", default=False)
-
-class CodxUser(BaseModel):
-    username: Optional[str] = Field(default="")
-    email: Optional[str] = Field(default="")
-    avatar: Optional[str] = Field(default="")
-    theme: Optional[str] = Field(default="dim")
-    projects: Optional[List[ProjectPermission]] = Field(default=[])
-    role: Optional[str] = Field(description="User role", default="user")
-    token: Optional[str] = Field(default="")
-    disabled: Optional[bool] = Field(default=False)
-    github: Optional[str] = Field(default="")
-    apps: Optional[List[str]] = Field(default=[])
-    api_key: Optional[str] = Field(default="")
-    env: Optional[dict] = Field(default={})
-    
 class ProfileApiSettings(BaseModel):
     active: bool = Field(description="Model is visible through API", default=False)
     model_name: Optional[str] = Field(description="Model's name", default=None)
@@ -174,73 +166,6 @@ class Bookmark(BaseModel):
     title: Optional[str] = Field(default="")
     url: Optional[str] = Field(default="")
     port: Optional[int] = Field(default=None)
-
-class AIProvider(BaseModel):
-    name: Optional[str] = Field(default="", description="Provider name") 
-    provider: Optional[str] = Field(default="llmfactory", description="OpenAI compatible LLM protocols like: OpenAI, Ollama") 
-    api_url: Optional[str] = Field(description="Optional url if provider is remote", default="http://0.0.0.0:11434/v1")
-    api_key: Optional[str] = Field(description="Optional api key", default="sk-llmfactory")
-    admin_url: Optional[str] = Field(description="Optional url if provider has an admin url", default="")
-
-class AILLMModelSettings(BaseModel):
-    temperature: Optional[float] = Field(default=1, description="Model temperature")
-    context_length: Optional[int] = Field(default=0)
-    merge_messages: Optional[bool] = Field(description="Flat conversation into a single message before sending to model", default=False)
-    
-class AIEmbeddingModelSettings(BaseModel):
-    vector_size: Optional[int] = Field(default=1536, description="Model vector size")
-    chunk_size: Optional[int] = Field(default=8190, description="Model chunk_size")
-
-class AIModelType(str, Enum):
-    llm = 'llm'
-    embeddings = 'embeddings'
-    image = 'image'
-
-class AIModel(BaseModel):
-    name: str = Field(description="Model name")    
-    model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
-    ai_provider: str = Field(description="AI Provider name")
-    ai_model: Optional[str] = Field(description="AI Provider's model name", default=None)
-    settings: Union[AILLMModelSettings, AIEmbeddingModelSettings] = Field(description="Model settings")
-    metadata: Optional[dict] = Field(description="Model's last update date", default={})
-    url: Optional[str] = Field(description="Model info", default="")
-    system: Optional[str] = Field(description="Model system instructions", default="")
-    prompt_template: Optional[str] = Field(description="Model info", default="{ MESSAGE }")
-
-class AISettings(BaseModel):
-    provider: Optional[str] = Field(default="")
-    provider_type: Optional[str] = Field(default="") 
-    api_url: Optional[str] = Field(default="")
-    api_key: Optional[str] = Field(default="")
-    model: Optional[str] = Field(default="")
-    system: Optional[str] = Field(description="Model system instructions", default="")
-    prompt_template: Optional[str] = Field(description="Model info", default="")
-    context_length: Optional[int] = Field(default=0)
-    temperature: Optional[float] = Field(default=0.8)
-    vector_size: Optional[int] = Field(default=1536)
-    chunk_size: Optional[int] = Field(default=8190)
-    merge_messages: Optional[bool] = Field(default=False)
-    model_type: AIModelType = Field(description="Model type", default=AIModelType.llm)
-    url: Optional[str] = Field(description="Model info", default="")
-    
-OLLAMA_PROVIDER = AIProvider(name="llmfactory",
-                            provider="llmfactory",
-                            api_url=os.environ.get('CODX_JUNIOR_LLMFACTORY_URL'),
-                            api_key=os.environ.get('CODX_JUNIOR_LLMFACTORY_KEY'))
-
-OLLAMA_EMBEDDINGS_MODEL = AIModel(name="embeddings",
-                                ai_model=EMBEDDINGS_MODEL, 
-                                model_type=AIModelType.embeddings,
-                                ai_provider="llmfactory",
-                                settings=AIEmbeddingModelSettings(chunk_size=2048, vector_size=768),
-                                url=f"https://llmfactory.com/library/{EMBEDDINGS_MODEL}")
-
-OLLAMA_KNOWLEDGE_MODEL = AIModel(name="knowledge",
-                            ai_model=KNOWLEDGE_MODEL,
-                            model_type=AIModelType.llm,
-                            ai_provider="llmfactory",
-                            settings=AILLMModelSettings(),
-                            url=f"https://llmfactory.com/library/{KNOWLEDGE_MODEL}")
 
 class WorkspaceApp(BaseModel):
     id: str = Field(default="")

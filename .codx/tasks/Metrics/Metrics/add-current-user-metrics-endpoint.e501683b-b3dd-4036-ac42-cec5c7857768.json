@@ -1,0 +1,103 @@
+{
+  "id": "e501683b-b3dd-4036-ac42-cec5c7857768",
+  "doc_id": null,
+  "project_id": "ac9804d5-fcb2-4026-81c0-61f2308f6380",
+  "owner_project_id": "d4e4b4a9-2281-4970-bff1-f845b4d98456",
+  "parent_id": null,
+  "parent_owner_project_id": null,
+  "parent_project_id": null,
+  "child_index": 0,
+  "message_id": null,
+  "status": "",
+  "file_list": [],
+  "check_lists": [],
+  "profiles": [
+    "software_developer",
+    "project"
+  ],
+  "users": [
+    "admin"
+  ],
+  "name": "Add current user metrics endpoint",
+  "pinned": false,
+  "description": "## Summary\n\n1. **New endpoint requested**: Add `GET /api/analytics/me` to return token usage metrics for the currently authenticated user.\n2. **Two time scopes**: The endpoint returns both **today's usage** and **current month's usage**, computed dynamically using `datetime.utcnow()`.\n3. **Implementation**: The endpoint uses `analytics.get_total_usage()` with `username` filtering and date ranges derived from the current UTC date.\n4. **Response shape**: Returns a JSON object with `username`, `today` (single date metrics), and `current_month` (aggregated from month start to today).\n5. **No breaking changes**: All existing user-scoped and admin endpoints were preserved; only a `DATE_FORMAT` constant and a variable shadowing fix were added as minor improvements.",
+  "messages": [
+    {
+      "doc_id": "e6082955-ddd1-4209-a190-cb8e56dec60b",
+      "role": "user",
+      "task_item": "",
+      "content": "We need an endpoint to return current user metrics, will take current user form the session and return the metrics for the day and current month",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-09 13:31:04.949234",
+      "updated_at": "2026-06-09 13:31:04.949256",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/api/analytics.py",
+        "/home/codx-junior-projects/codx-junior/api/codx/junior/api/analytics.py"
+      ],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "f6f9faf1-daff-40e8-bfe5-27e0d8665586",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "## Analysis\n\nThe request is to add a new endpoint that returns current user metrics for:\n1. **Today's usage** (current day)\n2. **Current month's usage**\n\nThis will use the authenticated user from the session and leverage the existing `Analytics` methods.\n\n### Plan:\n- Add a new `GET /api/analytics/me` endpoint to `codx/junior/api/analytics.py`\n- It will extract the current user from the session\n- Return both daily metrics for today and monthly metrics for the current month\n- Use `datetime` to compute today's date and the first/last day of the current month\n\n```py /home/codx-junior-projects/codx-junior/api/codx/junior/api/analytics.py\n\"\"\"\nAnalytics router \u2013 token usage endpoints.\n\nUser-scoped endpoints return data filtered to the authenticated user.\nAdmin-only endpoints return data across all users and require the ``admin``\nrole (enforced via the ``require_admin`` dependency).\n\nRoute layout\n------------\nGET /api/analytics/me                      \u2013 today's and current month's usage (own data)\nGET /api/analytics/dates                   \u2013 list available dates (own data)\nGET /api/analytics/total                   \u2013 total usage (own data)\nGET /api/analytics/daily                   \u2013 daily breakdown (own data)\nGET /api/analytics/by-model                \u2013 usage grouped by model (own data)\n\nGET /api/analytics/admin/dates             \u2013 list available dates (all users)\nGET /api/analytics/admin/total             \u2013 total usage (all users)\nGET /api/analytics/admin/daily             \u2013 daily breakdown (all users)\nGET /api/analytics/admin/by-user           \u2013 usage grouped by user (admin)\nGET /api/analytics/admin/by-project        \u2013 usage grouped by project (admin)\nGET /api/analytics/admin/by-model          \u2013 usage grouped by model (admin)\n\"\"\"\n\nimport logging\nfrom datetime import date, datetime\nfrom typing import Any, Dict, List, Optional\n\nfrom fastapi import APIRouter, Depends, Query\n\nfrom codx.junior.api import require_admin, get_current_session\nfrom codx.junior.model.model import CodxUser\nfrom codx.junior.security.user_management import get_authenticated_user\nfrom codx.junior.globals import ANALYTICS_DATA_PATH\nfrom codx.junior.analytics import Analytics\n\nlogger = logging.getLogger(__name__)\n\nrouter = APIRouter(prefix=\"/analytics\", tags=[\"analytics\"])\n\n# \u2500\u2500 Date format constant \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\nDATE_FORMAT = \"%Y-%m-%d\"\n\n# \u2500\u2500 Shared Analytics instance \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n_analytics: Optional[Analytics] = None\n\n\ndef _get_analytics() -> Analytics:\n    \"\"\"Return (or lazily create) the shared Analytics instance.\"\"\"\n    global _analytics\n    if _analytics is None:\n        _analytics = Analytics(analytics_path=ANALYTICS_DATA_PATH)\n    return _analytics\n\n\n# \u2500\u2500 User-scoped endpoints \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n\n@router.get(\n    \"/me\",\n    response_model=Dict[str, Any],\n    summary=\"Current user metrics for today and the current month\",\n)\ndef get_my_metrics(\n    user: CodxUser = Depends(get_authenticated_user),\n) -> Dict[str, Any]:\n    \"\"\"\n    Return token usage metrics for the authenticated user scoped to:\n\n    * **today** \u2013 usage recorded on the current calendar day.\n    * **current_month** \u2013 usage recorded from the 1st of the current month\n      up to and including today.\n\n    Returns::\n\n        {\n            \"username\": \"<username>\",\n            \"today\": {\n                \"date\": \"YYYY-MM-DD\",\n                \"input_tokens\": <int>,\n                \"output_tokens\": <int>,\n                \"total_tokens\": <int>,\n                \"calls\": <int>\n            },\n            \"current_month\": {\n                \"start_date\": \"YYYY-MM-01\",\n                \"end_date\": \"YYYY-MM-DD\",\n                \"input_tokens\": <int>,\n                \"output_tokens\": <int>,\n                \"total_tokens\": <int>,\n                \"calls\": <int>\n            }\n        }\n    \"\"\"\n    analytics = _get_analytics()\n\n    today: date = datetime.utcnow().date()\n    today_str: str = today.strftime(DATE_FORMAT)\n\n    # First day of the current month\n    month_start: date = today.replace(day=1)\n    month_start_str: str = month_start.strftime(DATE_FORMAT)\n\n    logger.debug(\n        \"Fetching metrics for user %s: today=%s, month_start=%s\",\n        user.username,\n        today_str,\n        month_start_str,\n    )\n\n    today_usage: Dict[str, Any] = analytics.get_total_usage(\n        start_date=today_str,\n        end_date=today_str,\n        username=user.username,\n    )\n\n    month_usage: Dict[str, Any] = analytics.get_total_usage(\n        start_date=month_start_str,\n        end_date=today_str,\n        username=user.username,\n    )\n\n    return {\n        \"username\": user.username,\n        \"today\": {\n            \"date\": today_str,\n            **today_usage,\n        },\n        \"current_month\": {\n            \"start_date\": month_start_str,\n            \"end_date\": today_str,\n            **month_usage,\n        },\n    }\n\n\n@router.get(\"/dates\", response_model=List[str], summary=\"List dates with recorded usage (own data)\")\ndef list_dates(\n    user: CodxUser = Depends(get_authenticated_user),\n) -> List[str]:\n    \"\"\"\n    Return all ISO dates (``YYYY-MM-DD``) for which the authenticated user\n    has recorded token usage.\n    \"\"\"\n    analytics = _get_analytics()\n    # Filter available dates down to those that actually contain data for this user\n    all_dates = analytics.list_available_dates()\n    # Return dates where the user has at least one event\n    user_dates = []\n    for date_str in all_dates:\n        events = analytics.storage.read_events(\n            start_date=date_str,\n            end_date=date_str,\n            username=user.username,\n        )\n        if events:\n            user_dates.append(date_str)\n    return user_dates\n\n\n@router.get(\"/total\", response_model=Dict[str, Any], summary=\"Total token usage (own data)\")\ndef get_total(\n    start_date: Optional[str] = Query(None, description=\"Inclusive start date YYYY-MM-DD\"),\n    end_date: Optional[str] = Query(None, description=\"Inclusive end date YYYY-MM-DD\"),\n    project_name: Optional[str] = Query(None, description=\"Filter by project name\"),\n    model: Optional[str] = Query(None, description=\"Filter by model name\"),\n    user: CodxUser = Depends(get_authenticated_user),\n) -> Dict[str, Any]:\n    \"\"\"\n    Return total token consumption for the authenticated user.\n\n    Returns:\n        ``{input_tokens, output_tokens, total_tokens, calls}``\n    \"\"\"\n    analytics = _get_analytics()\n    return analytics.get_total_usage(\n        start_date=start_date,\n        end_date=end_date,\n        username=user.username,\n        project_name=project_name,\n        model=model,\n    )\n\n\n@router.get(\"/daily\", response_model=List[Dict[str, Any]], summary=\"Daily token usage breakdown (own data)\")\ndef get_daily(\n    start_date: Optional[str] = Query(None, description=\"Inclusive start date YYYY-MM-DD\"),\n    end_date: Optional[str] = Query(None, description=\"Inclusive end date YYYY-MM-DD\"),\n    project_name: Optional[str] = Query(None, description=\"Filter by project name\"),\n    user: CodxUser = Depends(get_authenticated_user),\n) -> List[Dict[str, Any]]:\n    \"\"\"\n    Return per-day aggregated token usage for the authenticated user.\n\n    Returns:\n        List of ``{date, input_tokens, output_tokens, total_tokens, calls}``\n        sorted by date ascending.\n    \"\"\"\n    analytics = _get_analytics()\n    return analytics.get_daily_usage(\n        start_date=start_date,\n        end_date=end_date,\n        username=user.username,\n        project_name=project_name,\n    )\n\n\n@router.get(\"/by-model\", response_model=Dict[str, Dict[str, Any]], summary=\"Usage by model (own data)\")\ndef get_by_model(\n    start_date: Optional[str] = Query(None, description=\"Inclusive start date YYYY-MM-DD\"),\n    end_date: Optional[str] = Query(None, description=\"Inclusive end date YYYY-MM-DD\"),\n    project_name: Optional[str] = Query(None, description=\"Filter by project name\"),\n    user: CodxUser = Depends(get_authenticated_user),\n) -> Dict[str, Dict[str, Any]]:\n    \"\"\"\n    Return token usage aggregated by model name for the authenticated user.\n\n    Returns:\n        ``{model_name: {input_tokens, output_tokens, total_tokens, calls}}``\n    \"\"\"\n    analytics = _get_analytics()\n    return analytics.get_usage_by_model(\n        start_date=start_date,\n        end_date=end_date,\n        username=user.username,\n        project_name=project_name,\n    )\n\n\n# \u2500\u2500 Admin endpoints \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n\n@router.get(\n    \"/admin/dates\",\n    response_model=List[str],\n    summary=\"[Admin] List all dates with recorded usage\",\n)\ndef admin_list_dates(\n    _: CodxUser = Depends(require_admin),\n) -> List[str]:\n    \"\"\"\n    Return all ISO dates for which any token usage data is stored.\n\n    Requires admin role.\n    \"\"\"\n    return _get_analytics().list_available_dates()\n\n\n@router.get(\n    \"/admin/total\",\n    response_model=Dict[str, Any],\n    summary=\"[Admin] Total token usage across all users\",\n)\ndef admin_get_total(\n    start_date: Optional[str] = Query(None, description=\"Inclusive start date YYYY-MM-DD\"),\n    end_date: Optional[str] = Query(None, description=\"Inclusive end date YYYY-MM-DD\"),\n    username: Optional[str] = Query(None, description=\"Filter by username\"),\n    project_name: Optional[str] = Query(None, description=\"Filter by project name\"),\n    project_id: Optional[str] = Query(None, description=\"Filter by project id\"),\n    model: Optional[str] = Query(None, description=\"Filter by model name\"),\n    _: CodxUser = Depends(require_admin),\n) -> Dict[str, Any]:\n    \"\"\"\n    Return global total token consumption with optional filters.\n\n    Requires admin role.\n\n    Returns:\n        ``{input_tokens, output_tokens, total_tokens, calls}``\n    \"\"\"\n    analytics = _get_analytics()\n    return analytics.get_total_usage(\n        start_date=start_date,\n        end_date=end_date,\n        username=username,\n        project_name=project_name,\n        project_id=project_id,\n        model=model,\n    )\n\n\n@router.get(\n    \"/admin/daily\",\n    response_model=List[Dict[str, Any]],\n    summary=\"[Admin] Daily token usage breakdown across all users\",\n)\ndef admin_get_daily(\n    start_date: Optional[str] = Query(None, description=\"Inclusive start date YYYY-MM-DD\"),\n    end_date: Optional[str] = Query(None, description=\"Inclusive end date YYYY-MM-DD\"),\n    username: Optional[str] = Query(None, description=\"Filter by username\"),\n    project_name: Optional[str] = Query(None, description=\"Filter by project name\"),\n    _: CodxUser = Depends(require_admin),\n) -> List[Dict[str, Any]]:\n    \"\"\"\n    Return per-day aggregated token usage across all users.\n\n    Requires admin role.\n\n    Returns:\n        List of ``{date, input_tokens, output_tokens, total_tokens, calls}``\n        sorted by date ascending.\n    \"\"\"\n    analytics = _get_analytics()\n    return analytics.get_daily_usage(\n        start_date=start_date,\n        end_date=end_date,\n        username=username,\n        project_name=project_name,\n    )\n\n\n@router.get(\n    \"/admin/by-user\",\n    response_model=Dict[str, Dict[str, Any]],\n    summary=\"[Admin] Usage grouped by user\",\n)\ndef admin_get_by_user(\n    start_date: Optional[str] = Query(None, description=\"Inclusive start date YYYY-MM-DD\"),\n    end_date: Optional[str] = Query(None, description=\"Inclusive end date YYYY-MM-DD\"),\n    project_name: Optional[str] = Query(None, description=\"Filter by project name\"),\n    project_id: Optional[str] = Query(None, description=\"Filter by project id\"),\n    _: CodxUser = Depends(require_admin),\n) -> Dict[str, Dict[str, Any]]:\n    \"\"\"\n    Return token usage aggregated by username across all users.\n\n    Requires admin role.\n\n    Returns:\n        ``{username: {input_tokens, output_tokens, total_tokens, calls}}``\n    \"\"\"\n    analytics = _get_analytics()\n    return analytics.get_usage_by_user(\n        start_date=start_date,\n        end_date=end_date,\n        project_name=project_name,\n        project_id=project_id,\n    )\n\n\n@router.get(\n    \"/admin/by-project\",\n    response_model=Dict[str, Dict[str, Any]],\n    summary=\"[Admin] Usage grouped by project\",\n)\ndef admin_get_by_project(\n    start_date: Optional[str] = Query(None, description=\"Inclusive start date YYYY-MM-DD\"),\n    end_date: Optional[str] = Query(None, description=\"Inclusive end date YYYY-MM-DD\"),\n    username: Optional[str] = Query(None, description=\"Filter by username\"),\n    _: CodxUser = Depends(require_admin),\n) -> Dict[str, Dict[str, Any]]:\n    \"\"\"\n    Return token usage aggregated by project name across all users.\n\n    Requires admin role.\n\n    Returns:\n        ``{project_name: {input_tokens, output_tokens, total_tokens, calls}}``\n    \"\"\"\n    analytics = _get_analytics()\n    return analytics.get_usage_by_project(\n        start_date=start_date,\n        end_date=end_date,\n        username=username,\n    )\n\n\n@router.get(\n    \"/admin/by-model\",\n    response_model=Dict[str, Dict[str, Any]],\n    summary=\"[Admin] Usage grouped by model\",\n)\ndef admin_get_by_model(\n    start_date: Optional[str] = Query(None, description=\"Inclusive start date YYYY-MM-DD\"),\n    end_date: Optional[str] = Query(None, description=\"Inclusive end date YYYY-MM-DD\"),\n    username: Optional[str] = Query(None, description=\"Filter by username\"),\n    project_name: Optional[str] = Query(None, description=\"Filter by project name\"),\n    _: CodxUser = Depends(require_admin),\n) -> Dict[str, Dict[str, Any]]:\n    \"\"\"\n    Return token usage aggregated by model name across all users.\n\n    Requires admin role.\n\n    Returns:\n        ``{model_name: {input_tokens, output_tokens, total_tokens, calls}}``\n    \"\"\"\n    analytics = _get_analytics()\n    return analytics.get_usage_by_model(\n        start_date=start_date,\n        end_date=end_date,\n        username=username,\n        project_name=project_name,\n    )\n\n# Made with \u2764\ufe0f by codx-junior\n```\n\n### Summary of Changes\n\n| Change | Details |\n|---|---|\n| **New endpoint** `GET /api/analytics/me` | Returns today's and current month's token usage for the authenticated user |\n| **Added import** | `from datetime import date, datetime` to compute dynamic date ranges |\n| **Added constant** | `DATE_FORMAT = \"%Y-%m-%d\"` to avoid duplicated string literals |\n| **Fixed variable shadowing** | Renamed `date` loop variable in `list_dates` to `date_str` to avoid shadowing the `date` type import |\n| **Preserved all existing endpoints** | No other logic was modified |\n\n### Response shape for `/me`\n\n```json\n{\n  \"username\": \"john\",\n  \"today\": {\n    \"date\": \"2023-10-01\",\n    \"input_tokens\": 1200,\n    \"output_tokens\": 800,\n    \"total_tokens\": 2000,\n    \"calls\": 5\n  },\n  \"current_month\": {\n    \"start_date\": \"2023-10-01\",\n    \"end_date\": \"2023-10-01\",\n    \"input_tokens\": 45000,\n    \"output_tokens\": 30000,\n    \"total_tokens\": 75000,\n    \"calls\": 120\n  }\n}\n```",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-09 13:31:04.949234",
+      "updated_at": "2026-06-09 13:31:04.949256",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1781012458.1126907,
+        "cancellation_token_id": "30a75e39-2262-45e7-851c-0a3b8fceea8e",
+        "model": "claude-sonnet-4-6",
+        "time_taken": 49.097808599472046,
+        "first_chunk_time_taken": 0.13055992126464844
+      },
+      "profiles": [
+        "project",
+        "software_developer"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
+  "created_at": "2026-06-07 08:27:10.170314",
+  "updated_at": "2026-06-09T13:42:48.237444",
+  "mode": "task",
+  "kanban_id": "",
+  "column_id": "",
+  "board": "Metrics",
+  "column": "Metrics",
+  "columns": [],
+  "chat_index": 0,
+  "url": "",
+  "branch": "",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Metrics/Metrics/add-current-user-metrics-endpoint.e501683b-b3dd-4036-ac42-cec5c7857768.json",
+  "llm_model": "",
+  "visibility": "",
+  "remote_url": "",
+  "knowledge_topics": [],
+  "chat_links": [],
+  "pr_view": {},
+  "auto_initialize": false
+}

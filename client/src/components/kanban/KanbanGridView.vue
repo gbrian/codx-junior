@@ -335,9 +335,13 @@ export default {
         if (this.pinnedOnly && !task.pinned) return false
         if (this.textFilter) {
           const text = this.textFilter.toLowerCase()
-          const inName = task.name?.toLowerCase().includes(text)
-          const inMessages = task.messages?.some(m => m.content?.toLowerCase().includes(text))
-          if (!inName && !inMessages) return false
+          const inTask = [
+              task.name?.toLowerCase(),
+              ...task.messages?.map(m => m.content) || [],
+              ...task.files || []
+          ].join("").includes(text)
+          
+          if (!inTask) return false
         }
         if (this.dateFilter) {
           const updated = task.updated_at ? new Date(task.updated_at) : null

@@ -7,7 +7,7 @@ from fastapi import Request
 from typing import Optional
 
 from codx.junior.global_settings import read_global_settings, write_global_settings
-from codx.junior.model.model import (
+from codx.junior.model.user import (
   CodxUser,
   CodxUserLogin,
   ProjectPermission
@@ -21,13 +21,13 @@ class UserSecurityManager():
         self.global_settings = read_global_settings()
 
     def find_user(self, username: str = None) -> Optional[CodxUser]:
-        return next((user for user in self.global_settings.users
+        return next((CodxUser(**user.__dict__) for user in self.global_settings.users
                      if user.username == username), None)
 
     def find_github_user(self, account) -> Optional[CodxUser]:
-        return next((user for user in self.global_settings.users
+        return next((CodxUser(**user.__dict__) for user in self.global_settings.users
                      if user.github == account), None)
-    
+
     def find_user_login(self, username: str = None) -> Optional[CodxUserLogin]:
         return next((login for login in self.global_settings.user_logins
                      if login.username == username), None)
@@ -94,7 +94,7 @@ class UserSecurityManager():
             
         try:
             logged_user = do_login(user=user, token=token)
-            # logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
+            logger.info(f"do_login user: {user} token: {token} logged_user: {logged_user}")
             if logged_user:
                 user_login = self.find_user_login(username=logged_user.username)
                 

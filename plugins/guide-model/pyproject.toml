@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "codx-junior-guide-model"
+version = "0.1.0"
+description = "Lightweight project resource finder using small GGUF language models"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "codx-junior contributors" }
+]
+dependencies = [
+    "llama-cpp-python==0.2.90",
+    "python-dotenv==1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["codx*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

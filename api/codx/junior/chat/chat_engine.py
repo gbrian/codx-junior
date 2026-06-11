@@ -6,7 +6,7 @@ import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from json import JSONDecodeError
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Set
 
 from langchain.messages import (
     AIMessage,
@@ -223,6 +223,38 @@ class ChatEngine:
         return messages
 
     # -------------------------------------------------------------------------
+    # Helper: collect all files referenced across visible messages
+    # -------------------------------------------------------------------------
+    @staticmethod
+    def _collect_files_from_visible_messages(
+        valid_messages: List[Message],
+        chat_base_files: List[str]
+    ) -> List[str]:
+        """
+        Collect and deduplicate all file references from visible (non-hidden,
+        non-improvement) messages plus the chat-level base file list.
+
+        This ensures that files attached to *any* prior message are included in
+        the working context, not just those on the most recent user message.
+
+        flowchart TD
+            A[chat.file_list] --> D[Union]
+            B[Each visible message .files] --> D
+            C[Deduplicate] --> E[Sorted list]
+            D --> C
+
+        :param valid_messages: All non-hidden, non-improvement messages for the turn.
+        :param chat_base_files: Files already present on ``chat.file_list``.
+        :return: Deduplicated, sorted list of file paths.
+        """
+        all_files: Set[str] = set(chat_base_files)
+        for message in valid_messages:
+            if message.files:
+                all_files.update(message.files)
+        # Sort for deterministic ordering
+        return sorted(all_files)
+
+    # -------------------------------------------------------------------------
     # Helper: resolve profiles, model and tools
     # -------------------------------------------------------------------------
     def _resolve_profiles_and_model(
@@ -355,7 +387,7 @@ class ChatEngine:
     def _load_chat_files_content(
         self,
         chat_files: List[str],
-        already_in_messages: set
+        already_in_messages: Set[str]
     ) -> str:
         """
         Read and format the content of files explicitly attached to the chat.
@@ -1155,7 +1187,7 @@ class ChatEngine:
             all_messages_content_lines = "".join(
                 [m.content for m in valid_messages]
             ).split("\n")
-            all_messages_content_code_block_file_paths = {
+            all_messages_content_code_block_file_paths: Set[str] = {
                 line.split()[-1]
                 for line in all_messages_content_lines
                 if line.startswith("```") and len(line.split()) >= 3
@@ -1222,12 +1254,29 @@ class ChatEngine:
 
             # ------------------------------------------------------------------
             # 8. Resolve chat files list
+            #
+            #    Collect files from ALL visible messages (not just the current
+            #    user_message) to ensure context from earlier turns is included.
+            #    Files referenced in query_mentions and parent_chat are also
+            #    merged in. Duplicates are removed via set union in the helper.
             # ------------------------------------------------------------------
-            chat_files = list(
-                set((chat.file_list or []) + (user_message.files or []))
-            ) + query_mentions.files
+            chat_files: List[str] = self._collect_files_from_visible_messages(
+                valid_messages=valid_messages,
+                chat_base_files=chat.file_list or []
+            )
+            # Merge in files from query mentions (e.g. @file references)
+            if query_mentions.files:
+                chat_files = sorted(set(chat_files + query_mentions.files))
+            # Merge in parent chat file list if present
             if parent_chat and parent_chat.file_list:
-                chat_files = list(set(chat_files + parent_chat.file_list))
+                chat_files = sorted(set(chat_files + parent_chat.file_list))
+
+            logger.info(
+                "Resolved %d unique chat files for chat '%s': %s",
+                len(chat_files),
+                chat.doc_id,
+                chat_files,
+            )
 
             # ------------------------------------------------------------------
             # 9. Resolve profiles, model, and tools

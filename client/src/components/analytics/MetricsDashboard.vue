@@ -127,7 +127,7 @@ import Collapsible from '@/components/Collapsible.vue'
     <!-- Loading skeleton -->
     <div v-if="loading" class="space-y-4">
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div v-for="i in 6" :key="i" class="card bg-base-100 shadow">
+        <div v-for="i in 7" :key="i" class="card bg-base-100 shadow">
           <div class="card-body p-4 animate-pulse">
             <div class="h-4 bg-base-300 rounded w-1/2 mb-3"></div>
             <div class="h-8 bg-base-300 rounded w-3/4"></div>
@@ -139,7 +139,7 @@ import Collapsible from '@/components/Collapsible.vue'
     <!-- Dashboard content -->
     <template v-else>
       <!-- KPI Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4 mb-6">
         <div
           v-for="kpi in kpiCards"
           :key="kpi.label"
@@ -217,10 +217,14 @@ import Collapsible from '@/components/Collapsible.vue'
                       :style="{ width: getModelPercentage(stats.total_tokens) + '%' }"
                     ></div>
                   </div>
-                  <div class="flex gap-2 mt-1">
+                  <div class="flex gap-2 mt-1 flex-wrap">
                     <span class="text-xs text-success">↑ {{ formatNumber(stats.input_tokens) }} in</span>
                     <span class="text-xs text-warning">↓ {{ formatNumber(stats.output_tokens) }} out</span>
                     <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
+                    <!-- Cost per model -->
+                    <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
+                      🪙 {{ formatCoins(stats.total_cxjcoins) }}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -269,8 +273,12 @@ import Collapsible from '@/components/Collapsible.vue'
                         :style="{ width: getUserPercentage(stats.total_tokens) + '%' }"
                       ></div>
                     </div>
-                    <div class="flex gap-2 mt-1">
+                    <div class="flex gap-2 mt-1 flex-wrap">
                       <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
+                      <!-- Cost per user -->
+                      <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
+                        🪙 {{ formatCoins(stats.total_cxjcoins) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -312,8 +320,12 @@ import Collapsible from '@/components/Collapsible.vue'
                         :style="{ width: getProjectPercentage(stats.total_tokens) + '%' }"
                       ></div>
                     </div>
-                    <div class="flex gap-2 mt-1">
+                    <div class="flex gap-2 mt-1 flex-wrap">
                       <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
+                      <!-- Cost per project -->
+                      <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
+                        🪙 {{ formatCoins(stats.total_cxjcoins) }}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -342,6 +354,7 @@ import Collapsible from '@/components/Collapsible.vue'
                     <th class="text-right">Total Tokens</th>
                     <th class="text-right">Avg Duration</th>
                     <th class="text-right">Tokens / sec</th>
+                    <th class="text-right">Cost (🪙)</th>
                     <th>Speed Rating</th>
                   </tr>
                 </thead>
@@ -365,6 +378,12 @@ import Collapsible from '@/components/Collapsible.vue'
                         :class="getTokensPerSecColor(stats.tokens_per_second)"
                       >
                         {{ stats.tokens_per_second > 0 ? formatNumber(stats.tokens_per_second) + '/s' : 'N/A' }}
+                      </span>
+                    </td>
+                    <!-- Cost column -->
+                    <td class="text-right">
+                      <span class="text-xs font-semibold text-fuchsia-400">
+                        {{ stats.total_cxjcoins != null ? formatCoins(stats.total_cxjcoins) : '-' }}
                       </span>
                     </td>
                     <td class="min-w-28">
@@ -423,6 +442,7 @@ import Collapsible from '@/components/Collapsible.vue'
                   <th class="text-right">Total Tokens</th>
                   <th class="text-right">Calls</th>
                   <th class="text-right">Avg Duration</th>
+                  <th class="text-right">Cost (🪙)</th>
                   <th>Distribution</th>
                 </tr>
               </thead>
@@ -439,6 +459,10 @@ import Collapsible from '@/components/Collapsible.vue'
                   <td class="text-right text-base-content/60">{{ row.calls }}</td>
                   <td class="text-right text-base-content/60 font-mono text-xs">
                     {{ row.total_duration_seconds > 0 ? row.total_duration_seconds.toFixed(2) + 's' : '-' }}
+                  </td>
+                  <!-- Daily cost cell -->
+                  <td class="text-right text-xs font-semibold text-fuchsia-400">
+                    {{ row.total_cxjcoins != null ? formatCoins(row.total_cxjcoins) : '-' }}
                   </td>
                   <td class="min-w-24">
                     <div class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24">
@@ -463,6 +487,10 @@ import Collapsible from '@/components/Collapsible.vue'
                   <td class="text-right text-base-content/60">{{ totalStats.calls }}</td>
                   <td class="text-right text-base-content/60 font-mono text-xs">
                     {{ totalStats.total_duration_seconds > 0 ? totalStats.total_duration_seconds.toFixed(2) + 's' : '-' }}
+                  </td>
+                  <!-- Total cost footer -->
+                  <td class="text-right text-fuchsia-400">
+                    {{ totalStats.total_cxjcoins != null ? formatCoins(totalStats.total_cxjcoins) : '-' }}
                   </td>
                   <td></td>
                 </tr>
@@ -508,7 +536,8 @@ export default {
         output_tokens: 0,
         total_tokens: 0,
         calls: 0,
-        total_duration_seconds: 0
+        total_duration_seconds: 0,
+        total_cxjcoins: null
       },
       dailyData: [],
       byModelData: {},
@@ -530,7 +559,6 @@ export default {
       return Array.from(models).sort()
     },
 
-    // Build chips for active filters to show in collapsible summary
     activeFilterChips() {
       const chips = []
       chips.push({ key: 'date', label: `${this.filters.startDate} → ${this.filters.endDate}` })
@@ -598,6 +626,15 @@ export default {
           faIcon: 'fa-solid fa-bolt',
           color: 'text-error',
           bgColor: 'bg-error/10'
+        },
+        // New cost KPI card
+        {
+          label: 'Total Cost',
+          value: this.totalStats.total_cxjcoins != null ? this.formatCoins(this.totalStats.total_cxjcoins) : 'N/A',
+          sub: 'cxjcoins spent',
+          faIcon: 'fa-solid fa-coins',
+          color: 'text-fuchsia-400',
+          bgColor: 'bg-fuchsia-400/10'
         }
       ]
     },
@@ -619,14 +656,18 @@ export default {
       return Math.max(...Object.values(this.byProjectData).map(s => s.total_tokens), 1)
     },
 
-    // Enrich model data with performance metrics, sorted by tokens/sec desc
+    // Enrich model data with performance metrics + cost, sorted by tokens/sec desc
     modelPerformanceRows() {
       const rows = {}
       for (const [model, stats] of Object.entries(this.byModelData)) {
         const avgDur = stats.total_duration_seconds || 0
         const avgTokens = stats.calls > 0 ? stats.total_tokens / stats.calls : 0
         const tokensPerSecond = avgDur > 0 ? Math.round(avgTokens / avgDur) : 0
-        rows[model] = { ...stats, total_duration_seconds: avgDur, tokens_per_second: tokensPerSecond }
+        rows[model] = {
+          ...stats,
+          total_duration_seconds: avgDur,
+          tokens_per_second: tokensPerSecond
+        }
       }
       return Object.fromEntries(
         Object.entries(rows).sort((a, b) => b[1].tokens_per_second - a[1].tokens_per_second)
@@ -647,7 +688,6 @@ export default {
       this.activePreset = preset.label
       const today = new Date()
       const end = today.toISOString().split('T')[0]
-
       if (preset.type === 'allTime') {
         this.filters.startDate = '2024-01-01'
         this.filters.endDate = end
@@ -702,7 +742,14 @@ export default {
           analytics.byModel(adminFilters)
         ])
 
-        this.totalStats = total || { input_tokens: 0, output_tokens: 0, total_tokens: 0, calls: 0, total_duration_seconds: 0 }
+        this.totalStats = total || {
+          input_tokens: 0,
+          output_tokens: 0,
+          total_tokens: 0,
+          calls: 0,
+          total_duration_seconds: 0,
+          total_cxjcoins: null
+        }
         this.dailyData = Array.isArray(daily) ? daily : []
         this.byModelData = byModel || {}
 
@@ -726,6 +773,13 @@ export default {
       if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M'
       if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
       return num.toString()
+    },
+    // Format cxjcoins with coin emoji prefix
+    formatCoins(coins) {
+      if (!coins && coins !== 0) return '-'
+      if (coins >= 1_000_000) return '🪙 ' + (coins / 1_000_000).toFixed(2) + 'M'
+      if (coins >= 1_000) return '🪙 ' + (coins / 1_000).toFixed(2) + 'K'
+      return '🪙 ' + Number(coins).toFixed(2)
     },
     getModelPercentage(tokens) {
       return ((tokens / this.maxModelTokens) * 100).toFixed(1)

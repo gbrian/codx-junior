@@ -47,7 +47,7 @@ const initializeAPI = ({ project, user } = {}) => {
     oauth: {
       async getOAuthLoginUrl(provider) {
         const redirect_uri = encodeURIComponent(window.location.origin + `/auth/${provider}`)
-        return await API.get(`/api/users/oauth-login-url/${provider}?redirect_uri=${redirect_uri}`);
+        return await API.get(`/api/users/oauth-login-url/${provider}?redirect_uri=${redirect_uri}`)
       },
       async oauthLogin({ oauth_provider, code, state }) {
         const redirect_uri = encodeURIComponent(window.location.origin + `/auth/${oauth_provider}`)
@@ -56,16 +56,16 @@ const initializeAPI = ({ project, user } = {}) => {
           code,
           state,
           redirect_uri
-        });
-        API.user = data;
-        localStorage.setItem("CODX_USER", JSON.stringify(API.user));
-        await API.onUserLogin();
-        return data;
+        })
+        API.user = data
+        localStorage.setItem("CODX_USER", JSON.stringify(API.user))
+        await API.onUserLogin()
+        return data
       }
     },
     users: {
       async list() {
-        API.userNetwork = await API.get('/api/users');
+        API.userNetwork = await API.get('/api/users')
         return API.userNetwork
       },
       async login(user) {
@@ -73,46 +73,70 @@ const initializeAPI = ({ project, user } = {}) => {
           try {
             user = API.user = JSON.parse(localStorage.getItem("CODX_USER"))
             API.initConnection()
-          }catch{}
-          if (!user) {
-            return null
-          } 
+          } catch {}
+          if (!user) return null
         }
-        const data = await API.post('/api/users/login', user);
-        API.user = data;
+        const data = await API.post('/api/users/login', user)
+        API.user = data
         localStorage.setItem("CODX_USER", JSON.stringify(API.user))
         await API.onUserLogin()
-        return data;
+        return data
       },
       async save(user) {
-        const data = await API.put('/api/users', user);
-        API.user = data;
+        const data = await API.put('/api/users', user)
+        API.user = data
         localStorage.setItem("CODX_USER", JSON.stringify(API.user))
-        return data;
+        return data
       },
       async logout() {
-        API.user = null;
+        API.user = null
         API.activeProject = {}
         localStorage.removeItem("CODX_USER")
+      },
+      /**
+       * Refresh the current user's profile, enriched with today's token
+       * consumption and effective per-rule limits.
+       *
+       * Returns:
+       * {
+       *   ...userFields,
+       *   token_usage_today: { input_tokens, output_tokens, total_tokens, calls, total_duration_seconds },
+       *   token_limits_today: [{ rule_index, provider, model, limit_per_day, effective_limit, tokens_used, tokens_remaining, extension }]
+       * }
+       */
+      async refreshInfo() {
+        const data = await API.get('/api/users/me/refresh')
+        // Merge token usage/limits into the live user object without
+        // overwriting the stored credentials / token field.
+        if (data && API.user) {
+          API.user = {
+            ...API.user,
+            token_usage_today: data.token_usage_today,
+            token_limits_today: data.token_limits_today,
+            token_limit_rules: data.token_limit_rules,
+            token_limit_requests: data.token_limit_requests,
+          }
+        }
+        return data
       }
     },
     apps: {
       async list() {
-        const apps = await API.get('/api/apps');
-        return apps;
+        const apps = await API.get('/api/apps')
+        return apps
       },
       async run(appName) {
-        const data = await API.get(`/api/apps/run?app=${appName}`);
-        return data;
+        const data = await API.get(`/api/apps/run?app=${appName}`)
+        return data
       },
       async runScript(script) {
-        const data = await API.post('/api/run/script', { script });
-        return data;
+        const data = await API.post('/api/run/script', { script })
+        return data
       }
     },
     async project(projectOrId) {
       if (!projectOrId.codx_path) {
-        const existingProject = API.allProjects.find(p => p.id === projectOrId || p.project_name === projectOrId) 
+        const existingProject = API.allProjects.find(p => p.id === projectOrId || p.project_name === projectOrId)
         if (!existingProject) {
           throw new Error("Invalid projectOrId: " + JSON.stringify(projectOrId))
         }
@@ -125,28 +149,28 @@ const initializeAPI = ({ project, user } = {}) => {
     },
     projects: {
       async list(withMetrics) {
-        const { projects, workspaces } = await API.get(`/api/projects?with_metrics=${withMetrics ? 1 : 0}`);
+        const { projects, workspaces } = await API.get(`/api/projects?with_metrics=${withMetrics ? 1 : 0}`)
         API.allProjects = projects
         API.workspaces = workspaces
         API.allProjects.forEach(p => {
           const projectPath = p.abs_project_path
           p.parentProject = API.allProjects
-                              .filter(p => p.abs_project_path != projectPath && projectPath.startsWith(p.abs_project_path))
-                              .sort((a, b) => a.abs_project_path > b.abs_project_path ? -1 : 1)[0]
+            .filter(p => p.abs_project_path != projectPath && projectPath.startsWith(p.abs_project_path))
+            .sort((a, b) => a.abs_project_path > b.abs_project_path ? -1 : 1)[0]
         })
-        return API.allProjects;
+        return API.allProjects
       },
       create(projectPath) {
-        return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath), {});
+        return API.post('/api/projects?project_path=' + encodeURIComponent(projectPath), {})
       },
       delete() {
-        localStorage.setItem("API_SETTINGS", "");
-        API.del('/api/projects');
-        API.activeProject = null;
+        localStorage.setItem("API_SETTINGS", "")
+        API.del('/api/projects')
+        API.activeProject = null
       },
       async readme() {
-        const data = await API.get('/api/projects/readme');
-        return data;
+        const data = await API.get('/api/projects/readme')
+        return data
       },
       async watch(watching) {
         const settings = await API.settings.read()
@@ -154,10 +178,10 @@ const initializeAPI = ({ project, user } = {}) => {
         API.settings.save(settings)
       },
       test() {
-        return API.get('/api/project/script/test');
+        return API.get('/api/project/script/test')
       },
       loadIssue(url) {
-        return API.get('/api/github/issues/read?issue_url=' + encodeURIComponent(url)) 
+        return API.get('/api/github/issues/read?issue_url=' + encodeURIComponent(url))
       },
       ai: {
         models: {
@@ -175,79 +199,75 @@ const initializeAPI = ({ project, user } = {}) => {
       }
     },
     views: {
-      // List all views for the active project
       list() {
         return API.get('/api/views')
       },
-      // Save (create or update) a view
       save(view) {
         return API.post('/api/views', view)
       },
-      // Delete a view by name
       delete(name) {
         return API.delete(`/api/views/${encodeURIComponent(name)}`)
       },
-      // Rename a view
       rename(oldName, newName) {
         return API.put(`/api/views/${encodeURIComponent(oldName)}`, { name: newName })
       }
     },
     repo: {
       branches() {
-        return API.get('/api/projects/repo/branches');
+        return API.get('/api/projects/repo/branches')
       },
       changes({ from_branch, to_branch }) {
-        return API.get(`/api/projects/repo/changes?from_branch=${from_branch}&to_branch=${to_branch}`);
+        return API.get(`/api/projects/repo/changes?from_branch=${from_branch}&to_branch=${to_branch}`)
       },
     },
     settings: {
       async read() {
-        const data = await API.get('/api/settings');
-        API.activeProject = { ...API.activeProject || {}, ...data };
+        const data = await API.get('/api/settings')
+        API.activeProject = { ...API.activeProject || {}, ...data }
         if (API.activeProject) {
-          localStorage.setItem("API_SETTINGS", JSON.stringify(data));
+          localStorage.setItem("API_SETTINGS", JSON.stringify(data))
         }
-        return data;
+        return data
       },
       async save(settings) {
-        await API.put('/api/settings?', settings || { ...API.activeProject, $api: null, $state: null });
-        return API.settings.read();
+        await API.put('/api/settings?', settings || { ...API.activeProject, $api: null, $state: null })
+        return API.settings.read()
       },
       global: {
         async read() {
-          const data = await API.get('/api/global/settings');
-          API.globalSettings = data;
-          return data;
+          const data = await API.get('/api/global/settings')
+          API.globalSettings = data
+          return data
         },
         async write(settings) {
-          await API.post('/api/global/settings', settings);
-          return API.settings.global.read();
+          await API.post('/api/global/settings', settings)
+          return API.settings.global.read()
         },
         plugins: {
           async list() {
-            return await API.get('/api/plugins');
+            return await API.get('/api/plugins')
           },
           async add(plugin) {
-            return await API.post('/api/plugins', plugin);
+            return await API.post('/api/plugins', plugin)
           },
           async remove(pluginName) {
-            return await API.delete(`/api/plugins/${pluginName}`);
+            return await API.delete(`/api/plugins/${pluginName}`)
           },
           async loadFromFile(fileName) {
-            return await API.get(`/api/plugins/load_from_file?file_path=${encodeURIComponent(fileName)}`);
+            return await API.get(`/api/plugins/load_from_file?file_path=${encodeURIComponent(fileName)}`)
           }
         }
       }
     },
     knowledge: {
       status() {
-        return API.get('/api/knowledge/status');
+        return API.get('/api/knowledge/status')
       },
       reload() {
-        return API.get('/api/knowledge/reload');
+        return API.get('/api/knowledge/reload')
       },
       reloadFolder(path) {
-        return API.post(`/api/knowledge/reload-path`, { path });
+        return API.post(`/api/knowledge/reload-path`, { path })
       },
       search({
         searchTerm: search_term,
@@ -264,60 +284,60 @@ const initializeAPI = ({ project, user } = {}) => {
           document_cutoff_score,
           document_cutoff_rag,
           document_count
-        });
+        })
       },
       aiSearch(query) {
-        return API.get(`/api/knowledge/ai-search?query=${encodeURIComponent(query)}`);
+        return API.get(`/api/knowledge/ai-search?query=${encodeURIComponent(query)}`)
       },
       delete(sources) {
-        return API.post(`/api/knowledge/delete`, { sources });
+        return API.post(`/api/knowledge/delete`, { sources })
       },
       deleteIndex(index) {
-        return API.del(`/api/knowledge/delete?index=${index}`);
+        return API.del(`/api/knowledge/delete?index=${index}`)
       },
       keywords() {
-        return API.get(`/api/knowledge/keywords`);
+        return API.get(`/api/knowledge/keywords`)
       },
       searchKeywords(searchQuery) {
-        return API.get(`/api/knowledge/keywords?query=${searchQuery}`);
+        return API.get(`/api/knowledge/keywords?query=${searchQuery}`)
       },
       query(searchQuery) {
-        return API.get(`/api/project/search?query=${searchQuery}`);
+        return API.get(`/api/project/search?query=${searchQuery}`)
       },
       summary() {
-        return API.get(`/api/knowledge/summary`);
+        return API.get(`/api/knowledge/summary`)
       },
       rebuildSummary() {
-        return API.post(`/api/knowledge/summary/rebuild`, {});
+        return API.post(`/api/knowledge/summary/rebuild`, {})
       },
       deleteSummary() {
-        return API.delete(`/api/knowledge/summary`);
+        return API.delete(`/api/knowledge/summary`)
       }
     },
     chats: {
       stream() {
-        return API.get('/api/stream');
+        return API.get('/api/stream')
       },
       async list(filters) {
-        let qs = "";
+        let qs = ""
         if (filters) {
-            const params = Object.entries(filters)
-                .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
-                .join("&");
-            qs = `?${params}`;
+          const params = Object.entries(filters)
+            .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+            .join("&")
+          qs = `?${params}`
         }
-        const data = await API.get(`/api/chats${qs}`);
-        return data;
+        const data = await API.get(`/api/chats${qs}`)
+        return data
       },
       async loadChat({ id, file_path }) {
-        const data = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`);
-        return data;
+        const data = await API.get(`/api/chats?file_path=${file_path || ''}&id=${id || ''}`)
+        return data
       },
       async exportChat({ id, exportFormat, clipboard }) {
         const path = `/api/chats?export_format=${exportFormat}&id=${id}`
         if (clipboard) {
-          const data = await API.get(path);
-          return data;
+          const data = await API.get(path)
+          return data
         } else {
           const url = API.connection.prepareUrl(path)
           window.open(url)
@@ -327,91 +347,90 @@ const initializeAPI = ({ project, user } = {}) => {
         return {
           id: new Date().getTime(),
           name: "New chat"
-        };
+        }
       },
       async message(chat) {
-        return API.post('/api/chats?', chat);
+        return API.post('/api/chats?', chat)
       },
       async fromUrl(chat) {
-        return API.post('/api/chats/from-url?', chat);
+        return API.post('/api/chats/from-url?', chat)
       },
       async subTasks(chat) {
-        return API.post('/api/chats/sub-tasks?', chat);
+        return API.post('/api/chats/sub-tasks?', chat)
       },
       save(chat) {
-        return API.put(`/api/chats?chatonly=0`, chat);
+        return API.put(`/api/chats?chatonly=0`, chat)
       },
       saveChatInfo(chat) {
-        return API.put(`/api/chats?chatonly=1`, chat);
+        return API.put(`/api/chats?chatonly=1`, chat)
       },
       delete(chat) {
-        return API.del(`/api/chats?chat_id=${chat.id}`);
+        return API.del(`/api/chats?chat_id=${chat.id}`)
       },
-      // Cancel a running message via POST /api/chat/cancel with token_id in body
       cancelMessage(cancellationTokenId) {
         return API.post(`/api/chat/cancel`, { token_id: cancellationTokenId })
       },
       kanban: {
         async load() {
-          const kanban = await API.get('/api/kanban');
-          return kanban;
+          const kanban = await API.get('/api/kanban')
+          return kanban
         },
         async save(kanban) {
-          API.post('/api/kanban', kanban);
+          API.post('/api/kanban', kanban)
         },
         delete(kanban_title) {
-          API.delete('/api/kanban?kanban_title=' + kanban_title);
+          API.delete('/api/kanban?kanban_title=' + kanban_title)
         }
       }
     },
     run: {
       improve(chat) {
-        return API.post('/api/run/improve?', chat);
+        return API.post('/api/run/improve?', chat)
       },
       patch(patch) {
-        return API.post('/api/run/improve/patch?', patch).then(({ data }) => data);
+        return API.post('/api/run/improve/patch?', patch).then(({ data }) => data)
       },
       edit(chat) {
-        return API.post('/api/run/edit?', chat);
+        return API.post('/api/run/edit?', chat)
       },
       liveEdit({ chat, html, url, message }) {
-        return API.post('/api/run/live-edit?', { chat_name: chat.name, html, url, message });
+        return API.post('/api/run/live-edit?', { chat_name: chat.name, html, url, message })
       },
       changesSummary({ branch, rebuild }) {
-        return API.get(`/api/run/changes/summary?branch=${branch}&refresh=${rebuild}`).then(({ data }) => data);
+        return API.get(`/api/run/changes/summary?branch=${branch}&refresh=${rebuild}`).then(({ data }) => data)
       }
     },
     profiles: {
       list() {
-        return API.get('/api/profiles');
+        return API.get('/api/profiles')
       },
       load(name) {
-        return API.get(`/api/profiles/${name}`);
+        return API.get(`/api/profiles/${name}`)
       },
       save(profile) {
-        return API.post(`/api/profiles`, profile);
+        return API.post(`/api/profiles`, profile)
       },
       async delete(name) {
-        await API.del(`/api/profiles/${name}`);
+        await API.del(`/api/profiles/${name}`)
       },
       tools() {
-        return API.get('/api/profiles/tools');
+        return API.get('/api/profiles/tools')
       }
     },
     coder: {
       openFile(file) {
-        API.get(`/api/code-server/file/open?file_name=${encodeURIComponent(file)}`);
+        API.get(`/api/code-server/file/open?file_name=${encodeURIComponent(file)}`)
       }
     },
     images: {
       async uploadFile(file) {
-        let formData = new FormData();
-        formData.append("file", file);
-        const url = await API.post(`/api/images`, formData);
-        return window.location.origin + url;
+        let formData = new FormData()
+        formData.append("file", file)
+        const url = await API.post(`/api/images`, formData)
+        return window.location.origin + url
       },
       async upload(formData) {
-        return await API.post(`/api/images`, formData);
+        return await API.post(`/api/images`, formData)
       }
     },
     data: {
@@ -421,7 +440,7 @@ const initializeAPI = ({ project, user } = {}) => {
     },
     wiki: {
       read(path) {
-        return API.get(`/api/wiki?file_path=${path}`);
+        return API.get(`/api/wiki?file_path=${path}`)
       },
       rebuild() {
         return API.get('/api/wiki-engine/rebuild')
@@ -438,105 +457,91 @@ const initializeAPI = ({ project, user } = {}) => {
       }
     },
     /**
+     * Admin token-limit management.
+     * Maps to /admin/token-limits endpoints.
+     */
+    tokenLimits: {
+      /** List all users with configured token-limit rules */
+      list() {
+        return API.get('/admin/token-limits')
+      },
+      /** Get token limit summary for a specific user */
+      get(username) {
+        return API.get(`/admin/token-limits/${username}`)
+      },
+      /** Replace all token-limit rules for a user */
+      saveRules(username, rules) {
+        return API.put(`/admin/token-limits/${username}/rules`, rules)
+      },
+      /** Remove all token-limit rules for a user */
+      deleteRules(username) {
+        return API.delete(`/admin/token-limits/${username}/rules`)
+      },
+      /**
+       * Set or clear a temporary extension on a specific rule.
+       * Pass extension=null to clear.
+       */
+      setExtension(username, ruleIndex, extension) {
+        return API.post(
+          `/admin/token-limits/${username}/rules/${ruleIndex}/extension`,
+          { extension }
+        )
+      },
+      /** List token-limit requests for a user, optionally filtered by status */
+      listRequests(username, status) {
+        const qs = status ? `?status=${status}` : ''
+        return API.get(`/admin/token-limits/${username}/requests${qs}`)
+      },
+      /** Approve or deny a pending token-limit request */
+      resolveRequest(username, requestId, { status, admin_note }) {
+        return API.post(
+          `/admin/token-limits/${username}/requests/${requestId}`,
+          { status, admin_note }
+        )
+      }
+    },
+    /**
      * Token usage analytics.
-     *
-     * User-scoped methods return data for the currently authenticated user only.
-     * Admin-scoped methods (under `analytics.admin`) require the admin role and
-     * return data across all users.
      */
     analytics: {
-      /**
-       * List ISO dates (YYYY-MM-DD) that have recorded usage for the current user.
-       * @returns {Promise<string[]>}
-       */
+      me() {
+        return API.get('/api/analytics/me')
+      },
       dates() {
         return API.get('/api/analytics/dates')
       },
-
-      /**
-       * Get total token usage for the current user.
-       * @param {{ startDate?: string, endDate?: string, projectName?: string, model?: string }} filters
-       * @returns {Promise<{input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>}
-       */
       total({ startDate, endDate, projectName, model } = {}) {
         const qs = _buildAnalyticsQS({ startDate, endDate, projectName, model })
         return API.get(`/api/analytics/total${qs}`)
       },
-
-      /**
-       * Get daily token usage breakdown for the current user.
-       * @param {{ startDate?: string, endDate?: string, projectName?: string }} filters
-       * @returns {Promise<Array<{date: string, input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
-       */
       daily({ startDate, endDate, projectName } = {}) {
         const qs = _buildAnalyticsQS({ startDate, endDate, projectName })
         return API.get(`/api/analytics/daily${qs}`)
       },
-
-      /**
-       * Get token usage grouped by model for the current user.
-       * @param {{ startDate?: string, endDate?: string, projectName?: string }} filters
-       * @returns {Promise<Record<string, {input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
-       */
       byModel({ startDate, endDate, projectName } = {}) {
         const qs = _buildAnalyticsQS({ startDate, endDate, projectName })
         return API.get(`/api/analytics/by-model${qs}`)
       },
-
       admin: {
-        /**
-         * [Admin] List all ISO dates with any recorded usage.
-         * @returns {Promise<string[]>}
-         */
         dates() {
           return API.get('/api/analytics/admin/dates')
         },
-
-        /**
-         * [Admin] Get total token usage across all users.
-         * @param {{ startDate?: string, endDate?: string, username?: string, projectName?: string, projectId?: string, model?: string }} filters
-         * @returns {Promise<{input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>}
-         */
         total({ startDate, endDate, username, projectName, projectId, model } = {}) {
           const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName, projectId, model })
           return API.get(`/api/analytics/admin/total${qs}`)
         },
-
-        /**
-         * [Admin] Get daily token usage breakdown across all users.
-         * @param {{ startDate?: string, endDate?: string, username?: string, projectName?: string }} filters
-         * @returns {Promise<Array<{date: string, input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
-         */
         daily({ startDate, endDate, username, projectName } = {}) {
           const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName })
           return API.get(`/api/analytics/admin/daily${qs}`)
         },
-
-        /**
-         * [Admin] Get token usage grouped by username.
-         * @param {{ startDate?: string, endDate?: string, projectName?: string, projectId?: string }} filters
-         * @returns {Promise<Record<string, {input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
-         */
         byUser({ startDate, endDate, projectName, projectId } = {}) {
           const qs = _buildAnalyticsQS({ startDate, endDate, projectName, projectId })
           return API.get(`/api/analytics/admin/by-user${qs}`)
         },
-
-        /**
-         * [Admin] Get token usage grouped by project name.
-         * @param {{ startDate?: string, endDate?: string, username?: string }} filters
-         * @returns {Promise<Record<string, {input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
-         */
         byProject({ startDate, endDate, username } = {}) {
           const qs = _buildAnalyticsQS({ startDate, endDate, username })
           return API.get(`/api/analytics/admin/by-project${qs}`)
         },
-
-        /**
-         * [Admin] Get token usage grouped by model name.
-         * @param {{ startDate?: string, endDate?: string, username?: string, projectName?: string }} filters
-         * @returns {Promise<Record<string, {input_tokens: number, output_tokens: number, total_tokens: number, calls: number}>>}
-         */
         byModel({ startDate, endDate, username, projectName } = {}) {
           const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName })
           return API.get(`/api/analytics/admin/by-model${qs}`)
@@ -545,19 +550,19 @@ const initializeAPI = ({ project, user } = {}) => {
     },
     engine: {
       update() {
-        return API.get('/api/update');
+        return API.get('/api/update')
       }
     },
     browser: {
       message(chat) {
-        return API.post('/api/browser', chat);
+        return API.post('/api/browser', chat)
       },
     },
     tools: {
       async imageToText(file) {
-        const formData = new FormData();
-        formData.append("file", file);
-        return (await API.post(`/api/image-to-text`, formData)).data;
+        const formData = new FormData()
+        formData.append("file", file)
+        return (await API.post(`/api/image-to-text`, formData)).data
       }
     },
     async onUserLogin() {
@@ -578,60 +583,60 @@ const initializeAPI = ({ project, user } = {}) => {
     },
     logs: {
       async read(logName, size) {
-        return API.get(`/api/logs/${logName}?log_size=${size}`);
+        return API.get(`/api/logs/${logName}?log_size=${size}`)
       },
       async list() {
-        return API.get('/api/logs');
+        return API.get('/api/logs')
       }
     },
     files: {
       list(path) {
-        return API.get(`/api/files?path=${path}`);
+        return API.get(`/api/files?path=${path}`)
       },
       read(path) {
-        return API.get(`/api/files/read?path=${path}`);
+        return API.get(`/api/files/read?path=${path}`)
       },
       diff({ path, content }) {
-        return API.post(`/api/files/diff`, { path, content });
+        return API.post(`/api/files/diff`, { path, content })
       },
       search(search) {
-        return API.get(`/api/files/find?search=${search}`);
+        return API.get(`/api/files/find?search=${search}`)
       },
       write(source, page_content) {
-        return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } });
+        return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } })
       }
     },
     screen: {
       display: null,
       async setScreenResolution(resolution) {
-        await API.post('/api/screen', { resolution });
-        return API.screen.getScreenResolution();
+        await API.post('/api/screen', { resolution })
+        return API.screen.getScreenResolution()
       },
       async getScreenResolution() {
-        const display = await API.get('/api/screen');
-        API.screen.display = display;
-        return API.screen.display;
+        const display = await API.get('/api/screen')
+        API.screen.display = display
+        return API.screen.display
       }
     },
     async restart() {
-      await API.post("/api/restart");
-      let waitTime = 3;
+      await API.post("/api/restart")
+      let waitTime = 3
       return new Promise((ok, ko) => {
         const ix = setInterval(async () => {
           if (--waitTime) {
             try {
-              await API.init();
-              clearInterval(ix);
-              ok();
+              await API.init()
+              clearInterval(ix)
+              ok()
             } catch { }
           } else {
-            clearInterval(ix);
-            ko();
+            clearInterval(ix)
+            ko()
           }
-        }, 5000);
-      });
+        }, 5000)
+      })
     },
-    get permissions () {
+    get permissions() {
       const permissions = API.activeProject?.permissions || []
       const isAdmin = API.user?.role === 'admin'
       const isProjectAdmin = permissions.includes("admin")
@@ -640,18 +645,14 @@ const initializeAPI = ({ project, user } = {}) => {
         isProjectAdmin
       }
     }
-  };
+  }
   API.initConnection()
-  return API;
-};
+  return API
+}
 
 /**
- * Build a query string from an object of analytics filter params.
- * Undefined / null values are omitted.
- * camelCase keys are converted to snake_case for the backend.
- *
- * @param {Record<string, string|undefined>} params
- * @returns {string} e.g. "?start_date=2025-01-01&end_date=2025-01-31"
+ * Build a query string from analytics filter params.
+ * Omits undefined/null values and converts camelCase to snake_case.
  */
 function _buildAnalyticsQS(params) {
   const keyMap = {
