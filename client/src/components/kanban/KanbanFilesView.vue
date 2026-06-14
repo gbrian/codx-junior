@@ -18,6 +18,10 @@ import KanbanTreeNode from './KanbanTreeNode.vue'
         <div class="stat-title text-xs">Unique Files</div>
         <div class="stat-value text-lg">{{ uniqueFiles.length }}</div>
       </div>
+      <div class="stat bg-base-200 rounded-box p-3 flex-1 min-w-[120px]">
+        <div class="stat-title text-xs">Boards</div>
+        <div class="stat-value text-lg">{{ allBoardIds.length }}</div>
+      </div>
       <div class="grow"></div>
 
       <!-- Create chat from selection button -->
@@ -25,7 +29,7 @@ import KanbanTreeNode from './KanbanTreeNode.vue'
         v-if="selectedFiles.length"
         class="btn btn-sm btn-primary gap-2"
         :disabled="creatingChat"
-        @click="createChatFromFiles"
+        @click="openCreateChatModal"
       >
         <span v-if="creatingChat" class="loading loading-spinner loading-xs"></span>
         <i v-else class="fa-solid fa-comment-medical"></i>
@@ -97,6 +101,30 @@ import KanbanTreeNode from './KanbanTreeNode.vue'
           <i class="fa-solid fa-list"></i>
         </button>
       </div>
+
+      <!-- Include child boards toggle -->
+      <div class="form-control">
+        <label class="label cursor-pointer gap-2">
+          <span class="label-text text-xs">Child boards</span>
+          <input
+            type="checkbox"
+            class="toggle toggle-xs toggle-primary"
+            v-model="includeChildBoards"
+          />
+        </label>
+      </div>
+    </div>
+
+    <!-- Board breadcrumb info when including children -->
+    <div v-if="includeChildBoards && allBoardIds.length > 1" class="flex flex-wrap gap-1 items-center">
+      <span class="text-xs opacity-50">Showing files from:</span>
+      <div
+        v-for="bid in allBoardIds"
+        :key="bid"
+        class="badge badge-xs badge-outline"
+      >
+        {{ bid }}
+      </div>
     </div>
 
     <!-- Selection toolbar -->
@@ -139,7 +167,6 @@ import KanbanTreeNode from './KanbanTreeNode.vue'
           />
           <i class="fa-solid fa-file-code text-info text-xs"></i>
           <span class="font-mono text-xs truncate flex-1">{{ group.file }}</span>
-          <!-- Copy file path: stop propagation so collapse doesn't toggle -->
           <button
             class="btn btn-ghost btn-xs px-1 mr-1"
             :class="{ 'text-success': copiedFile === group.file }"
@@ -162,6 +189,7 @@ import KanbanTreeNode from './KanbanTreeNode.vue'
                 <div class="text-sm font-medium truncate">{{ entry.chat.name || 'Untitled' }}</div>
                 <div class="flex gap-2 items-center mt-1">
                   <div class="badge badge-xs badge-outline">{{ entry.chat.column }}</div>
+                  <div class="badge badge-xs badge-ghost">{{ entry.chat.board }}</div>
                   <span class="text-xs opacity-50">{{ sourceLabel(entry.source) }}</span>
                 </div>
               </div>
@@ -186,6 +214,7 @@ import KanbanTreeNode from './KanbanTreeNode.vue'
         <div class="collapse-title flex items-center gap-2 py-2 min-h-0">
           <i class="fa-solid fa-comment text-primary text-xs"></i>
           <span class="text-sm font-medium flex-1 truncate">{{ entry.chat.name || 'Untitled' }}</span>
+          <div class="badge badge-sm badge-ghost mr-1">{{ entry.chat.board }}</div>
           <div class="badge badge-sm badge-outline mr-2">{{ entry.chat.column }}</div>
           <div class="badge badge-sm badge-neutral mr-2">{{ entry.files.length }} files</div>
         </div>
@@ -235,6 +264,7 @@ import KanbanTreeNode from './KanbanTreeNode.vue'
         <div class="collapse-title flex items-center gap-2 py-2 min-h-0">
           <i class="fa-solid fa-table-columns text-secondary text-xs"></i>
           <span class="text-sm font-semibold flex-1">{{ col.column }}</span>
+          <div class="badge badge-sm badge-ghost mr-1" v-if="col.board">{{ col.board }}</div>
           <div class="badge badge-sm badge-neutral mr-2">{{ col.files.length }} files</div>
         </div>
         <div class="collapse-content">
@@ -343,6 +373,74 @@ import KanbanTreeNode from './KanbanTreeNode.vue'
         </div>
       </div>
     </div>
+
+    <!-- Create chat modal -->
+    <dialog ref="createChatModal" class="modal">
+      <div class="modal-box flex flex-col gap-4">
+        <h3 class="font-bold text-lg flex items-center gap-2">
+          <i class="fa-solid fa-comment-medical text-primary"></i>
+          New chat from files
+        </h3>
+
+        <!-- Chat name input -->
+        <label class="form-control w-full">
+          <div class="label">
+            <span class="label-text">Chat name</span>
+          </div>
+          <input
+            type="text"
+            v-model="newChatName"
+            placeholder="Leave empty for auto-name..."
+            class="input input-bordered input-sm w-full"
+          />
+        </label>
+
+        <!-- Mode selector -->
+        <label class="form-control w-full">
+          <div class="label">
+            <span class="label-text">Mode</span>
+          </div>
+          <select v-model="newChatMode" class="select select-bordered select-sm">
+            <option value="chat">Chat</option>
+            <option value="task">Task</option>
+          </select>
+        </label>
+
+        <!-- Selected files list -->
+        <div class="flex flex-col gap-1">
+          <div class="label-text mb-1">Files ({{ selectedFiles.length }})</div>
+          <div class="max-h-48 overflow-y-auto flex flex-col gap-1">
+            <div
+              v-for="file in selectedFiles"
+              :key="file"
+              class="flex items-center gap-2 bg-base-200 rounded px-2 py-1"
+            >
+              <i class="fa-solid fa-file-code text-info text-xs"></i>
+              <span class="font-mono text-xs flex-1 truncate">{{ file }}</span>
+              <button class="btn btn-ghost btn-xs" @click="toggleFileSelection(file)">
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-action mt-2">
+          <button class="btn btn-ghost btn-sm" @click="closeCreateChatModal">Cancel</button>
+          <button
+            class="btn btn-primary btn-sm gap-2"
+            :disabled="creatingChat || !selectedFiles.length"
+            @click="createChatFromFiles"
+          >
+            <span v-if="creatingChat" class="loading loading-spinner loading-xs"></span>
+            <i v-else class="fa-solid fa-comment-medical"></i>
+            Create chat
+          </button>
+        </div>
+      </div>
+      <form method="dialog" class="modal-backdrop">
+        <button>close</button>
+      </form>
+    </dialog>
   </div>
 </template>
 
@@ -367,25 +465,61 @@ export default {
       expandedNodes: {},
       selectionMode: false,
       selectedFiles: [],
+      newChatName: '',
+      newChatMode: 'chat',
       creatingChat: false,
-      copiedFile: null
+      copiedFile: null,
+      includeChildBoards: true
     }
   },
   computed: {
-    allTasks() {
-      return this.columns.reduce((acc, col) => acc.concat(col.tasks || []), [])
+    // Collect all board IDs: current + all descendants
+    allBoardIds() {
+      const kanban = this.$projects?.kanban || {}
+      const activeBoard = this.$projects?.activeBoard
+      if (!activeBoard || !this.includeChildBoards) return [activeBoard].filter(Boolean)
+      return this.collectDescendantBoardIds(activeBoard, kanban.boards || {})
     },
+
+    // All tasks from current board columns prop + child board tasks when enabled
+    allTasks() {
+      const fromColumns = this.columns.reduce((acc, col) => acc.concat(col.tasks || []), [])
+      if (!this.includeChildBoards) return fromColumns
+
+      // Gather tasks from child/descendant boards via allChats
+      const allChats = Object.values(this.$projects?.allChats || {})
+      const currentBoardId = this.$projects?.activeBoard
+      const childBoardIds = this.allBoardIds.filter(id => id !== currentBoardId)
+      const fromChildren = allChats
+        .filter(c => !c.message_id && childBoardIds.includes(c.board))
+        .map(c => ({ ...c, column: c.column || '--none--' }))
+
+      // Merge, deduplicating by id
+      const seen = new Set(fromColumns.map(t => t.id))
+      const merged = [...fromColumns]
+      fromChildren.forEach(t => {
+        if (!seen.has(t.id)) {
+          seen.add(t.id)
+          merged.push(t)
+        }
+      })
+      return merged
+    },
+
     tasksWithFiles() {
       return this.allTasks.filter(chat => this.getFilesForChat(chat).length > 0)
     },
+
     allFiles() {
       return this.tasksWithFiles.reduce((acc, chat) => {
         return acc.concat(this.getFilesForChat(chat))
       }, [])
     },
+
     uniqueFiles() {
       return [...new Set(this.allFiles.map(f => f.file))]
     },
+
     fileGroups() {
       const map = {}
       this.allFiles.forEach(({ file, chat, source }) => {
@@ -394,29 +528,31 @@ export default {
       })
       return Object.values(map).sort((a, b) => a.file.localeCompare(b.file))
     },
+
     taskGroups() {
       return this.tasksWithFiles.map(chat => ({
         chat,
         files: this.getFilesForChat(chat)
       }))
     },
+
+    // Group by column, also keying on board so same-named columns on different boards are distinct
     columnGroups() {
-      return this.columns
-        .map(col => {
-          const tasks = (col.tasks || [])
-            .map(chat => ({ chat, files: this.getFilesForChat(chat) }))
-            .filter(e => e.files.length > 0)
-          return {
-            column: col.title,
-            tasks,
-            files: tasks.reduce((a, e) => a.concat(e.files), [])
-          }
-        })
-        .filter(col => col.tasks.length > 0)
+      const map = {}
+      this.tasksWithFiles.forEach(chat => {
+        const key = `${chat.board}::${chat.column}`
+        if (!map[key]) map[key] = { column: chat.column, board: chat.board, tasks: [], files: [] }
+        const files = this.getFilesForChat(chat)
+        map[key].tasks.push({ chat, files })
+        map[key].files.push(...files)
+      })
+      return Object.values(map)
     },
+
     flatFileList() {
       return this.fileGroups.map(g => ({ path: g.file, tasks: g.tasks }))
     },
+
     filteredFlatFileList() {
       if (!this.fileFilter) return this.flatFileList
       const f = this.fileFilter.toLowerCase()
@@ -425,9 +561,11 @@ export default {
         fi.tasks.some(t => t.chat.name?.toLowerCase().includes(f))
       )
     },
+
     fileTree() {
       return this.buildTree(this.fileGroups)
     },
+
     filteredFileTree() {
       if (!this.fileFilter) return this.fileTree
       const f = this.fileFilter.toLowerCase()
@@ -437,6 +575,7 @@ export default {
       )
       return this.buildTree(filtered)
     },
+
     filteredFileGroups() {
       if (!this.fileFilter) return this.fileGroups
       const f = this.fileFilter.toLowerCase()
@@ -445,6 +584,7 @@ export default {
         g.tasks.some(t => t.chat.name?.toLowerCase().includes(f))
       )
     },
+
     filteredTaskGroups() {
       if (!this.fileFilter) return this.taskGroups
       const f = this.fileFilter.toLowerCase()
@@ -453,6 +593,7 @@ export default {
         e.files.some(fi => fi.file.toLowerCase().includes(f))
       )
     },
+
     filteredColumnGroups() {
       if (!this.fileFilter) return this.columnGroups
       const f = this.fileFilter.toLowerCase()
@@ -466,6 +607,17 @@ export default {
     }
   },
   methods: {
+    // Recursively collect board ID + all descendant board IDs
+    collectDescendantBoardIds(boardId, boards) {
+      const ids = [boardId]
+      Object.entries(boards).forEach(([id, board]) => {
+        if (board.parent_id === boardId) {
+          ids.push(...this.collectDescendantBoardIds(id, boards))
+        }
+      })
+      return ids
+    },
+
     getFilesForChat(chat) {
       const entries = []
       const seen = new Set()
@@ -533,10 +685,7 @@ export default {
     },
 
     toggleExpand(file) {
-      this.expandedFiles = {
-        ...this.expandedFiles,
-        [file]: !this.expandedFiles[file]
-      }
+      this.expandedFiles = { ...this.expandedFiles, [file]: !this.expandedFiles[file] }
     },
 
     toggleNodeExpand(path) {
@@ -567,11 +716,20 @@ export default {
       this.selectedFiles = [...this.uniqueFiles]
     },
 
-    // Copy file path with brief visual feedback
     async copyFileName(filePath) {
       this.$ui.copyTextToClipboard(filePath)
       this.copiedFile = filePath
       setTimeout(() => { this.copiedFile = null }, 1500)
+    },
+
+    openCreateChatModal() {
+      this.newChatName = ''
+      this.newChatMode = 'chat'
+      this.$refs.createChatModal.showModal()
+    },
+
+    closeCreateChatModal() {
+      this.$refs.createChatModal.close()
     },
 
     async createChatFromFiles() {
@@ -579,8 +737,11 @@ export default {
       this.creatingChat = true
       try {
         const chat = await this.$service.chat.createChatFromFiles({
-          files: this.selectedFiles
+          files: this.selectedFiles,
+          name: this.newChatName || undefined,
+          mode: this.newChatMode
         })
+        this.closeCreateChatModal()
         this.selectedFiles = []
         this.selectionMode = false
         this.$emit('chat-created', chat)

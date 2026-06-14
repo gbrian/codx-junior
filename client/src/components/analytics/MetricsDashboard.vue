@@ -45,6 +45,45 @@ import PriceEditor from './PriceEditor.vue'
             {{ chip.label }}
           </span>
         </template>
+
+        <!-- Quick presets + auto-refresh in header actions -->
+        <template #actions>
+          <div class="flex flex-wrap items-center gap-1 mr-1" @click.stop>
+            <!-- Quick date presets -->
+            <button
+              v-for="preset in datePresets"
+              :key="preset.label"
+              class="btn btn-xs"
+              :class="activePreset === preset.label ? 'btn-primary' : 'btn-ghost'"
+              @click="applyPreset(preset)"
+            >
+              {{ preset.label }}
+            </button>
+
+            <!-- Divider -->
+            <div class="w-px h-4 bg-base-300 mx-1"></div>
+
+            <!-- Auto-refresh selector -->
+            <div class="flex items-center gap-1">
+              <i
+                class="fa-solid fa-clock text-xs"
+                :class="autoRefreshInterval ? 'text-success animate-pulse' : 'text-base-content/40'"
+              ></i>
+              <select
+                v-model="autoRefreshInterval"
+                class="select select-bordered select-xs w-24"
+                @change="setupAutoRefresh"
+              >
+                <option :value="null">Off</option>
+                <option :value="30">30s</option>
+                <option :value="60">1 min</option>
+                <option :value="300">5 min</option>
+                <option :value="900">15 min</option>
+              </select>
+            </div>
+          </div>
+        </template>
+
         <template #default>
           <div class="card-body py-3 px-4">
             <div class="flex flex-wrap items-center gap-4">
@@ -71,19 +110,6 @@ import PriceEditor from './PriceEditor.vue'
                     @change="loadData"
                   />
                 </div>
-              </div>
-
-              <!-- Quick date presets -->
-              <div class="flex flex-wrap gap-1">
-                <button
-                  v-for="preset in datePresets"
-                  :key="preset.label"
-                  class="btn btn-xs"
-                  :class="activePreset === preset.label ? 'btn-primary' : 'btn-ghost'"
-                  @click="applyPreset(preset)"
-                >
-                  {{ preset.label }}
-                </button>
               </div>
 
               <!-- Admin filters -->
@@ -507,7 +533,7 @@ import PriceEditor from './PriceEditor.vue'
         </div>
       </div>
 
-      <!-- Price Management (admin only) - after Daily Breakdown -->
+      <!-- Price Management (admin only) -->
       <template v-if="isAdminView">
         <div
           class="collapse collapse-arrow bg-base-100 shadow border border-base-300 mb-6"
@@ -523,7 +549,6 @@ import PriceEditor from './PriceEditor.vue'
             </span>
           </div>
           <div class="collapse-content">
-            <!-- Listen to metrics-changed to reload data after price edits or recalculation -->
             <PriceEditor
               :initial-start-date="priceEditorDate"
               :initial-end-date="priceEditorDate"
@@ -559,6 +584,9 @@ export default {
       activePreset: '30d',
       priceEditorOpen: false,
       priceEditorDate: null,
+      // Auto-refresh: seconds interval, null = off
+      autoRefreshInterval: null,
+      autoRefreshTimer: null,
       filters: {
         startDate: thirtyDaysAgo.toISOString().split('T')[0],
         endDate: today.toISOString().split('T')[0],
@@ -579,6 +607,7 @@ export default {
       byUserData: {},
       byProjectData: {},
       datePresets: [
+        { label: 'Today', type: 'today' },
         { label: '7d', days: 7 },
         { label: '30d', days: 30 },
         { label: '90d', days: 90 },
@@ -713,25 +742,31 @@ export default {
       this.isAdminView = !this.isAdminView
       this.loadData()
     },
+
     applyPreset(preset) {
       this.activePreset = preset.label
       const today = new Date()
-      const end = today.toISOString().split('T')[0]
-      if (preset.type === 'allTime') {
+      const todayStr = today.toISOString().split('T')[0]
+
+      if (preset.type === 'today') {
+        this.filters.startDate = todayStr
+        this.filters.endDate = todayStr
+      } else if (preset.type === 'allTime') {
         this.filters.startDate = '2024-01-01'
-        this.filters.endDate = end
+        this.filters.endDate = todayStr
       } else if (preset.type === 'thisMonth') {
         const firstDay = new Date(today.getFullYear(), today.getMonth(), 1)
         this.filters.startDate = firstDay.toISOString().split('T')[0]
-        this.filters.endDate = end
+        this.filters.endDate = todayStr
       } else {
         const past = new Date()
         past.setDate(today.getDate() - preset.days)
         this.filters.startDate = past.toISOString().split('T')[0]
-        this.filters.endDate = end
+        this.filters.endDate = todayStr
       }
       this.loadData()
     },
+
     clearFilters() {
       const today = new Date()
       const thirtyDaysAgo = new Date()
@@ -746,6 +781,20 @@ export default {
       this.activePreset = '30d'
       this.loadData()
     },
+
+    // Set up or clear the auto-refresh timer
+    setupAutoRefresh() {
+      // Clear any existing timer
+      if (this.autoRefreshTimer) {
+        clearInterval(this.autoRefreshTimer)
+        this.autoRefreshTimer = null
+      }
+      if (!this.autoRefreshInterval) return
+      this.autoRefreshTimer = setInterval(() => {
+        this.loadData()
+      }, this.autoRefreshInterval * 1000)
+    },
+
     openPriceEditorForDate(date) {
       this.priceEditorDate = date
       this.priceEditorOpen = true
@@ -754,6 +803,7 @@ export default {
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     },
+
     async loadData() {
       this.loading = true
       this.error = null
@@ -805,18 +855,21 @@ export default {
         this.loading = false
       }
     },
+
     formatNumber(num) {
       if (!num) return '0'
       if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M'
       if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
       return num.toString()
     },
+
     formatCoins(coins) {
       if (!coins && coins !== 0) return '-'
       if (coins >= 1_000_000) return '🪙 ' + (coins / 1_000_000).toFixed(2) + 'M'
       if (coins >= 1_000) return '🪙 ' + (coins / 1_000).toFixed(2) + 'K'
       return '🪙 ' + Number(coins).toFixed(2)
     },
+
     getModelPercentage(tokens) {
       return ((tokens / this.maxModelTokens) * 100).toFixed(1)
     },
@@ -845,8 +898,16 @@ export default {
       return 'bg-error'
     }
   },
+
   mounted() {
     this.loadData()
+  },
+
+  // Clean up timer on component destroy
+  beforeUnmount() {
+    if (this.autoRefreshTimer) {
+      clearInterval(this.autoRefreshTimer)
+    }
   }
 }
 </script>

@@ -306,23 +306,41 @@ export const getters = getterTree(state, {
   allTags: () => $storex.chats.allTags,
   allPRs: () => $storex.chats.allPRs,
   projectDependencies: state => getProjectDependencies(state.activeProject),
-  childProjects: state => state.allProjects.filter(p => 
-      p.abs_project_path !== state.activeProject.abs_project_path && p.abs_project_path.startsWith(state.activeProject.abs_project_path))
-  ,
-  parentProject: state => state.allProjects.find(p =>
-    p.abs_project_path !== state.activeProject.abs_project_path && state.activeProject.abs_project_path.startsWith(p.abs_project_path)),
+  childProjects: state => {
+    const parentPath = state.activeProject.abs_project_path
+    const normalizedParentPath = parentPath.endsWith('/') ? parentPath : `${parentPath}/`
+    return state.allProjects.filter(p =>
+      p.abs_project_path !== parentPath &&
+      p.abs_project_path?.startsWith(normalizedParentPath)
+    )
+  },
+  parentProject: state => {
+    const childPath = state.activeProject.abs_project_path
+    return state.allProjects.find(p => {
+      if (p.abs_project_path === childPath) return false
+      const normalizedParentPath = p.abs_project_path.endsWith('/') ? p.abs_project_path : `${p.abs_project_path}/`
+      return childPath.startsWith(normalizedParentPath)
+    })
+  },
   projectHierarchy: (state) => {
     const hierarchy = state.allProjects.map(project => ({ ...project }))
     return hierarchy.map(project => {
       project.parent_project = hierarchy
-                        .filter(pp => project.abs_project_path != pp.abs_project_path) 
-                        .find(pp => project.abs_project_path.startsWith(pp.abs_project_path))
+        .filter(pp => project.abs_project_path !== pp.abs_project_path)
+        .find(pp => {
+          const normalizedPPPath = pp.abs_project_path.endsWith('/') ? pp.abs_project_path : `${pp.abs_project_path}/`
+          return project.abs_project_path.startsWith(normalizedPPPath)
+        })
       project.sub_projects = hierarchy
-                        .filter(pp => project.abs_project_path != pp.abs_project_path)
-                        .filter(pp => pp.abs_project_path.startsWith(project.abs_project_path))
+        .filter(pp => project.abs_project_path !== pp.abs_project_path)
+        .filter(pp => {
+          const normalizedProjectPath = project.abs_project_path.endsWith('/') ? project.abs_project_path : `${project.abs_project_path}/`
+          return pp.abs_project_path.startsWith(normalizedProjectPath)
+        })
       return project
     })
   },
+  // ... rest of getters unchanged
   embeddingsModel: state => state.activeProject?.embeddings_model || 
                                 $storex.api.globalSettings?.embeddings_model,
   aiModel: state => state.activeProject?.llm_model || 
@@ -335,7 +353,6 @@ export const getters = getterTree(state, {
   },
   branches: state => state.project_branches.branches,
   currentBranch: state => state.project_branches.current_branch,
-  // mentionList is now async; consumers should use activeProject.$state.searchMentions(query) directly
   mentionList: () => $storex.projects.activeProject?.$state?.mentionList || [],
   lastAssistantChats: () =>
         $storex.chats.allChats
@@ -344,7 +361,6 @@ export const getters = getterTree(state, {
   userList: () => [$storex.users.user, ...$storex.projects.profiles?.map(p => ({ ...p, isProfile: true }))] || [],
   projectApps: state => state.workspaces?.reduce((a, w) => 
                   a.concat(w.apps.map(a => ({ ...a, workspaceName: w.name, key: `${w.name}-${a.name}` }))), []),
-  // Delegate activeChat to chats store
   activeChat: () => $storex.chats.activeChat,
 })
 

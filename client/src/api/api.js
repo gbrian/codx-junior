@@ -1,4 +1,5 @@
 import { CodxJuniorConnection } from './connection'
+import { SocketManager } from './socket'
 
 /**
  * In-flight request deduplication map.
@@ -39,7 +40,10 @@ const initializeAPI = ({ project, user } = {}) => {
   const API = {
     sid: "",
     connection: null,
+    _socketManager: null,
+    _socketEventHandlers: [],
     _user: user,
+
     get user () {
       return API._user
     },
@@ -47,6 +51,7 @@ const initializeAPI = ({ project, user } = {}) => {
       API._user = user
       API.initConnection()
     },
+
     _activeProject: project,
     get activeProject() {
       return this._activeProject
@@ -55,15 +60,20 @@ const initializeAPI = ({ project, user } = {}) => {
       this._activeProject = value
       API.initConnection()
     },
+
     set interceptors(value) {
       Object.assign(this.connection.interceptors, value)
     },
+
     initConnection() {
       API.connection = new CodxJuniorConnection({
         settings: API.activeProject,
         user: API.user
       })
     },
+
+    // ─── HTTP helpers ────────────────────────────────────────────────────────
+
     get(url) {
       return _dedupedRequest('GET', API.connection.prepareUrl(url), undefined, () => API.connection.get(url))
     },
@@ -79,6 +89,57 @@ const initializeAPI = ({ project, user } = {}) => {
     delete(url) {
       return _dedupedRequest('DELETE', API.connection.prepareUrl(url), undefined, () => API.connection.delete(url))
     },
+
+    // ─── Socket management ───────────────────────────────────────────────────
+
+    /**
+     * Initialise and connect the SocketManager.
+     * Callbacks for connect / disconnect / any-event are wired here so that
+     * higher-level consumers (session store, etc.) can register their own
+     * handlers via API.socket.onConnect / API.socket.onEvent.
+     */
+    initSocket({ onConnect, onDisconnect, onEvent } = {}) {
+      if (API._socketManager) {
+        API._socketManager.disconnect()
+      }
+
+      API._socketManager = new SocketManager({
+        onConnect(socketId) {
+          API.sid = socketId
+          if (typeof onConnect === 'function') onConnect(socketId)
+        },
+        onDisconnect() {
+          API.sid = ''
+          if (typeof onDisconnect === 'function') onDisconnect()
+        },
+        onEvent(payload) {
+          if (typeof onEvent === 'function') onEvent(payload)
+        }
+      })
+
+      API._socketManager.connect()
+      return API._socketManager
+    },
+
+    /**
+     * Convenience accessor – returns the live SocketManager instance (or null).
+     */
+    get socket() {
+      return API._socketManager
+    },
+
+    /**
+     * Disconnect and tear down the socket.
+     */
+    disconnectSocket() {
+      if (API._socketManager) {
+        API._socketManager.disconnect()
+        API._socketManager = null
+      }
+    },
+
+    // ─── Domain helpers ──────────────────────────────────────────────────────
+
     oauth: {
       async getOAuthLoginUrl(provider) {
         const redirect_uri = encodeURIComponent(window.location.origin + `/auth/${provider}`)
@@ -128,21 +189,8 @@ const initializeAPI = ({ project, user } = {}) => {
         API.activeProject = {}
         localStorage.removeItem("CODX_USER")
       },
-      /**
-       * Refresh the current user's profile, enriched with today's token
-       * consumption and effective per-rule limits.
-       *
-       * Returns:
-       * {
-       *   ...userFields,
-       *   token_usage_today: { input_tokens, output_tokens, total_tokens, calls, total_duration_seconds },
-       *   token_limits_today: [{ rule_index, provider, model, limit_per_day, effective_limit, tokens_used, tokens_remaining, extension }]
-       * }
-       */
       async refreshInfo() {
         const data = await API.get('/api/users/me/refresh')
-        // Merge token usage/limits into the live user object without
-        // overwriting the stored credentials / token field.
         if (data && API.user) {
           API.user = {
             ...API.user,
@@ -494,43 +542,29 @@ const initializeAPI = ({ project, user } = {}) => {
         return API.put('/api/wiki-engine', wikiSettings)
       }
     },
-    /**
-     * Admin token-limit management.
-     * Maps to /admin/token-limits endpoints.
-     */
     tokenLimits: {
-      /** List all users with configured token-limit rules */
       list() {
         return API.get('/admin/token-limits')
       },
-      /** Get token limit summary for a specific user */
       get(username) {
         return API.get(`/admin/token-limits/${username}`)
       },
-      /** Replace all token-limit rules for a user */
       saveRules(username, rules) {
         return API.put(`/admin/token-limits/${username}/rules`, rules)
       },
-      /** Remove all token-limit rules for a user */
       deleteRules(username) {
         return API.delete(`/admin/token-limits/${username}/rules`)
       },
-      /**
-       * Set or clear a temporary extension on a specific rule.
-       * Pass extension=null to clear.
-       */
       setExtension(username, ruleIndex, extension) {
         return API.post(
           `/admin/token-limits/${username}/rules/${ruleIndex}/extension`,
           { extension }
         )
       },
-      /** List token-limit requests for a user, optionally filtered by status */
       listRequests(username, status) {
         const qs = status ? `?status=${status}` : ''
         return API.get(`/admin/token-limits/${username}/requests${qs}`)
       },
-      /** Approve or deny a pending token-limit request */
       resolveRequest(username, requestId, { status, admin_note }) {
         return API.post(
           `/admin/token-limits/${username}/requests/${requestId}`,
@@ -538,9 +572,6 @@ const initializeAPI = ({ project, user } = {}) => {
         )
       }
     },
-    /**
-     * Token usage analytics.
-     */
     analytics: {
       me() {
         return API.get('/api/analytics/me')
@@ -705,6 +736,7 @@ const initializeAPI = ({ project, user } = {}) => {
       }
     }
   }
+
   API.initConnection()
   return API
 }

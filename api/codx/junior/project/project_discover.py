@@ -36,6 +36,44 @@ def get_projects_root_path() -> str:
     )
 
 
+def is_path_child_of(child_path: str, parent_path: str) -> bool:
+    """
+    Return True only when ``child_path`` is a genuine subdirectory of ``parent_path``.
+
+    Uses ``os.path.commonpath`` to avoid false positives caused by shared string
+    prefixes (e.g. ``/home/foo-projects/bar`` vs ``/home/foo``).
+
+    Args:
+        child_path:  Absolute path that may be a child.
+        parent_path: Absolute path of the candidate parent directory.
+
+    Returns:
+        True if child_path is strictly inside parent_path, False otherwise.
+
+    Examples:
+        >>> is_path_child_of('/home/projects/foo/sub', '/home/projects/foo')
+        True
+        >>> is_path_child_of('/home/projects/foobar', '/home/projects/foo')
+        False
+        >>> is_path_child_of('/home/projects/foo', '/home/projects/foo')
+        False
+    """
+    # Normalise both paths to remove any trailing slashes / double separators
+    child_path = os.path.normpath(child_path)
+    parent_path = os.path.normpath(parent_path)
+
+    if child_path == parent_path:
+        return False
+
+    try:
+        common = os.path.commonpath([child_path, parent_path])
+    except ValueError:
+        # commonpath raises ValueError on mixed absolute/relative on Windows
+        return False
+
+    return common == parent_path
+
+
 def find_all_projects(force: bool = False) -> Dict[str, CODXJuniorSettings]:
     """
     Return a mapping of project_id → CODXJuniorSettings for all discovered projects.
@@ -80,8 +118,8 @@ def find_project_from_file_path(file_path: str) -> Optional[CODXJuniorSettings]:
     all_projects = find_all_projects().values()
     matches = [
         p for p in all_projects
-        if file_path.startswith(p.abs_project_path)
-        or file_path.startswith(p.codx_path)
+        if is_path_child_of(file_path, p.abs_project_path)
+        or is_path_child_of(file_path, p.codx_path)
     ]
     if matches:
         logger.info(
@@ -162,10 +200,9 @@ def find_all_user_projects(user: CodxUser) -> Generator[CODXJuniorProject, None,
         """Return the most-specific parent project for the given path."""
         all_parents = [
             p for p in all_projects
-            if project_path.startswith(p.abs_project_path)
-            and project_path != p.abs_project_path
+            if is_path_child_of(project_path, p.abs_project_path)
         ]
-        all_parents.sort(key=lambda p: p.abs_project_path)
+        all_parents.sort(key=lambda p: len(p.abs_project_path))
         return all_parents[-1] if all_parents else None
 
     for settings in all_projects:
@@ -273,7 +310,7 @@ def _update_all_projects() -> None:
             return False
         existing_project = all_projects.get(candidate.project_id)
         if existing_project:
-            if not candidate.abs_project_path.startswith(projects_root_path):
+            if not is_path_child_of(candidate.abs_project_path, projects_root_path):
                 # Prefer projects inside the configured root on duplicates
                 return False
         return True
@@ -336,8 +373,7 @@ def find_project_parents(
     project_path = project.abs_project_path
     all_parents = [
         p for p in all_candidates
-        if project_path.startswith(p.abs_project_path)
-        and project_path != p.abs_project_path
+        if is_path_child_of(project_path, p.abs_project_path)
     ]
     return sorted(all_parents, key=lambda p: len(p.abs_project_path))
 

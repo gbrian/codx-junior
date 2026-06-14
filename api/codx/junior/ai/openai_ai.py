@@ -63,7 +63,16 @@ class OpenAI_AI:
         Run pre-flight wallet check before executing an AI request.
         Raises InsufficientFundsError when the user has exhausted their budget.
         """
-        check_user_wallet(user=self.user)
+        input_k_tokens_cxjcoins, output_k_tokens_cxjcoins = self._get_model_cost()
+
+        # Check wallet if model has price
+        if input_k_tokens_cxjcoins or output_k_tokens_cxjcoins:
+            check_user_wallet(user=self.user)
+
+    def _get_model_cost(self):
+        input_k_tokens_cxjcoins: float = getattr(self.llm_settings, "input_k_tokens_cxjcoins", 0.0) or 0.0
+        output_k_tokens_cxjcoins: float = getattr(self.llm_settings, "output_k_tokens_cxjcoins", 0.0) or 0.0
+        return input_k_tokens_cxjcoins, output_k_tokens_cxjcoins
 
     def _record_usage(
         self,
@@ -78,8 +87,7 @@ class OpenAI_AI:
             input_tokens = count_tokens(input_text, model=self.model)
             output_tokens = count_tokens(output_text, model=self.model)
 
-            input_k_tokens_cxjcoins: float = getattr(self.llm_settings, "input_k_tokens_cxjcoins", 0.0) or 0.0
-            output_k_tokens_cxjcoins: float = getattr(self.llm_settings, "output_k_tokens_cxjcoins", 0.0) or 0.0
+            input_k_tokens_cxjcoins, output_k_tokens_cxjcoins = self._get_model_cost()
 
             analytics.record_token_usage(
                 username=self.user.username if self.user else "anonymous",

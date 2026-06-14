@@ -25,7 +25,7 @@
         />
       </g>
 
-      <!-- Y axis ticks -->
+      <!-- Y axis ticks (tokens) -->
       <g class="y-axis">
         <text
           v-for="(tick, i) in yTicks"
@@ -37,6 +37,21 @@
           font-size="10"
         >
           {{ formatTick(tick) }}
+        </text>
+      </g>
+
+      <!-- Y axis ticks (cost - right side) -->
+      <g class="y-axis-right">
+        <text
+          v-for="(tick, i) in yCostTicks"
+          :key="'ytickr-' + i"
+          :x="width - padding.right + 6"
+          :y="yCostScale(tick) + 4"
+          text-anchor="start"
+          class="fill-[#e879f9] opacity-50"
+          font-size="9"
+        >
+          {{ formatCoinsShort(tick) }}
         </text>
       </g>
 
@@ -69,12 +84,18 @@
           <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.2" />
           <stop offset="100%" stop-color="#f59e0b" stop-opacity="0.01" />
         </linearGradient>
+        <linearGradient id="costGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#e879f9" stop-opacity="0.25" />
+          <stop offset="100%" stop-color="#e879f9" stop-opacity="0.01" />
+        </linearGradient>
       </defs>
 
       <!-- Area fills -->
       <path :d="areaPath('total_tokens')" fill="url(#totalGrad)" />
       <path :d="areaPath('input_tokens')" fill="url(#inputGrad)" />
       <path :d="areaPath('output_tokens')" fill="url(#outputGrad)" />
+      <!-- Cost area uses its own scale -->
+      <path :d="costAreaPath()" fill="url(#costGrad)" />
 
       <!-- Lines -->
       <path
@@ -101,6 +122,16 @@
         stroke-linejoin="round"
         stroke-linecap="round"
       />
+      <!-- Cost line uses its own scale -->
+      <path
+        :d="costLinePath()"
+        fill="none"
+        stroke="#e879f9"
+        stroke-width="1.5"
+        stroke-linejoin="round"
+        stroke-linecap="round"
+        stroke-dasharray="5,3"
+      />
 
       <!-- Hover vertical line -->
       <line
@@ -120,6 +151,13 @@
         <circle :cx="tooltip.x" :cy="yScale(tooltip.point.total_tokens)" r="4" fill="#6366f1" />
         <circle :cx="tooltip.x" :cy="yScale(tooltip.point.input_tokens)" r="3.5" fill="#22c55e" />
         <circle :cx="tooltip.x" :cy="yScale(tooltip.point.output_tokens)" r="3.5" fill="#f59e0b" />
+        <circle
+          v-if="tooltip.point.total_cxjcoins != null"
+          :cx="tooltip.x"
+          :cy="yCostScale(tooltip.point.total_cxjcoins)"
+          r="3.5"
+          fill="#e879f9"
+        />
       </template>
     </svg>
 
@@ -174,7 +212,10 @@
         <span class="text-base-content/60">Output</span>
       </div>
       <div class="flex items-center gap-1">
-        <span class="w-3 h-0.5 bg-[#e879f9] inline-block"></span>
+        <!-- Dashed line indicator for cost -->
+        <svg width="12" height="6" class="inline-block">
+          <line x1="0" y1="3" x2="12" y2="3" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3,2" />
+        </svg>
         <span class="text-base-content/60">Cost</span>
       </div>
     </div>
@@ -194,7 +235,8 @@ export default {
     return {
       width: 0,
       height: 0,
-      padding: { top: 20, right: 20, bottom: 30, left: 55 },
+      // Extra right padding to fit cost axis labels
+      padding: { top: 20, right: 48, bottom: 30, left: 55 },
       tooltip: {
         visible: false,
         x: 0,
@@ -211,11 +253,21 @@ export default {
     maxValue() {
       return Math.max(...this.chartPoints.map(p => p.total_tokens), 1)
     },
+    maxCost() {
+      return Math.max(...this.chartPoints.map(p => p.total_cxjcoins || 0), 1)
+    },
     yTicks() {
       const max = this.maxValue
       const step = Math.pow(10, Math.floor(Math.log10(max)))
       const nice = Math.ceil(max / step) * step
       return [0, nice * 0.25, nice * 0.5, nice * 0.75, nice].map(Math.round)
+    },
+    // Independent cost axis ticks
+    yCostTicks() {
+      const max = this.maxCost
+      const step = Math.pow(10, Math.floor(Math.log10(max)))
+      const nice = Math.ceil(max / step) * step
+      return [0, nice * 0.25, nice * 0.5, nice * 0.75, nice]
     },
     xTickPoints() {
       const n = this.chartPoints.length
@@ -244,9 +296,16 @@ export default {
       const range = this.width - this.padding.left - this.padding.right
       return this.padding.left + (i / (n - 1)) * range
     },
+    // Token scale (left axis)
     yScale(value) {
       const range = this.height - this.padding.top - this.padding.bottom
       const max = this.yTicks[this.yTicks.length - 1] || 1
+      return this.height - this.padding.bottom - (value / max) * range
+    },
+    // Cost scale (right axis, independent)
+    yCostScale(value) {
+      const range = this.height - this.padding.top - this.padding.bottom
+      const max = this.yCostTicks[this.yCostTicks.length - 1] || 1
       return this.height - this.padding.bottom - (value / max) * range
     },
     linePath(key) {
@@ -254,6 +313,15 @@ export default {
       return this.chartPoints.map((p, i) => {
         const x = this.xScale(i)
         const y = this.yScale(p[key])
+        return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
+      }).join(' ')
+    },
+    // Cost line uses yCostScale
+    costLinePath() {
+      if (this.chartPoints.length === 0) return ''
+      return this.chartPoints.map((p, i) => {
+        const x = this.xScale(i)
+        const y = this.yCostScale(p.total_cxjcoins || 0)
         return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
       }).join(' ')
     },
@@ -268,10 +336,28 @@ export default {
       const close = `L ${points[points.length - 1].x.toFixed(2)} ${bottom} L ${points[0].x.toFixed(2)} ${bottom} Z`
       return `${line} ${close}`
     },
+    // Cost area uses yCostScale
+    costAreaPath() {
+      if (this.chartPoints.length === 0) return ''
+      const bottom = this.height - this.padding.bottom
+      const points = this.chartPoints.map((p, i) => ({
+        x: this.xScale(i),
+        y: this.yCostScale(p.total_cxjcoins || 0)
+      }))
+      const line = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(' ')
+      const close = `L ${points[points.length - 1].x.toFixed(2)} ${bottom} L ${points[0].x.toFixed(2)} ${bottom} Z`
+      return `${line} ${close}`
+    },
     formatTick(v) {
       if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M'
       if (v >= 1_000) return (v / 1_000).toFixed(0) + 'K'
       return v
+    },
+    // Short cost label for right axis
+    formatCoinsShort(v) {
+      if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M'
+      if (v >= 1_000) return (v / 1_000).toFixed(1) + 'K'
+      return Number(v).toFixed(1)
     },
     formatDate(dateStr) {
       if (!dateStr) return ''
@@ -284,7 +370,6 @@ export default {
       if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
       return num.toString()
     },
-    // Format cxjcoins with coin symbol
     formatCoins(coins) {
       if (!coins && coins !== 0) return '-'
       if (coins >= 1_000_000) return '🪙 ' + (coins / 1_000_000).toFixed(2) + 'M'

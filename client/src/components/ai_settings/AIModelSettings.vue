@@ -28,7 +28,11 @@ import Chat from '../chat/Chat.vue'
       <a role="tab" class="tab" :class="tabIx === 0 && 'tab-active'" @click="tabIx = 0">
         <i class="fa-solid fa-sliders mr-1"></i> Settings
       </a>
-      <a role="tab" class="tab" :class="tabIx === 1 && 'tab-active'" @click="newChat">
+      <a role="tab" class="tab" :class="[
+          tabIx === 1 && 'tab-active',
+          model.model_type !== 'llm' && 'tab-disabled opacity-40'
+        ]" 
+        @click="newChat">
         <i class="fa-solid fa-comment mr-1"></i> Test chat
       </a>
     </div>
@@ -279,7 +283,21 @@ import Chat from '../chat/Chat.vue'
     </div>
 
     <!-- Test chat tab -->
-    <Chat class="w-full min-h-full grow" :chat="testChat" v-if="tabIx === 1 && testChat" />
+    <div class="w-full grow flex flex-col min-h-0" v-if="tabIx === 1">
+      <div v-if="!currentModelIsLLM" class="flex items-center gap-2 p-4 bg-warning/10 rounded-lg text-warning text-sm">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        Test chat is only available for LLM models
+      </div>
+      <div v-else-if="testChatError" class="flex items-center gap-2 p-4 bg-error/10 rounded-lg text-error text-sm">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        {{ testChatError }}
+      </div>
+      <Chat v-else-if="testChat" class="w-full grow min-h-0" :chat="testChat" />
+      <div v-else class="flex items-center justify-center gap-2 p-8 text-base-content/40">
+        <span class="loading loading-spinner loading-sm"></span>
+        Creating test chat...
+      </div>
+    </div>
 
     <!-- Actions -->
     <div class="flex justify-between items-center pt-1">
@@ -305,6 +323,7 @@ export default {
     return {
       tabIx: 0,
       testChat: null,
+      testChatError: null,
       selectedPriceEntry: null,
       // Controls Identity section mode: true = pick from provider list, false = manual
       identityFromList: false,
@@ -328,14 +347,36 @@ export default {
       this.selectedPriceEntry = null
       this.selectedIdentityEntry = null
       this.identityFromList = false
+    },
+    // Re-assign model to test chat if model name changes while chat tab is open
+    'model.name'(newName) {
+      if (this.testChat && newName) {
+        this.testChat.llm_model = newName
+      }
     }
   },
   methods: {
     async newChat() {
-      if (!this.testChat) {
-        this.testChat = await this.$chats.createNewChat({ test: true })
-      }
+      // Only LLM models can be tested
+      if (!this.currentModelIsLLM) return
       this.tabIx = 1
+      if (this.testChat) return
+      this.testChatError = null
+      try {
+        // Create a temp chat pre-assigned to this model
+        this.testChat = await this.$chats.createNewChat({
+          name: `Test: ${this.model.name || 'model'}`,
+          llm_model: this.model.name,
+          temp: true,
+          test: true
+        })
+        // Ensure the model is assigned even after creation
+        if (this.testChat) {
+          this.testChat.llm_model = this.model.name
+        }
+      } catch (err) {
+        this.testChatError = `Failed to create test chat: ${err.message}`
+      }
     },
     onProviderChange() {
       this.selectedPriceEntry = null
