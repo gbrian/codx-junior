@@ -112,13 +112,36 @@ import AIModelSettings from './AIModelSettings.vue'
               <span v-if="model.model_type === 'llm'">{{ model.settings?.context_length ? model.settings.context_length + ' KB' : '-' }}</span>
               <span v-else class="text-xs text-base-content/60">{{ model.settings?.chunk_size || '-' }}</span>
             </td>
-            <!-- Cost -->
+            <!-- Cost: model override + provider price list -->
             <td class="text-right">
               <div class="flex flex-col items-end gap-0.5 text-xs">
-                <span v-if="model.input_k_tokens_cxjcoins != null" class="text-green-500">↓ {{ model.input_k_tokens_cxjcoins }}</span>
-                <span v-if="model.output_k_tokens_cxjcoins != null" class="text-blue-500">↑ {{ model.output_k_tokens_cxjcoins }}</span>
-                <span v-if="model.k_tokens_cxjcoins != null && model.input_k_tokens_cxjcoins == null" class="text-yellow-500">{{ model.k_tokens_cxjcoins }} /1K</span>
-                <span v-if="model.k_tokens_cxjcoins == null && model.input_k_tokens_cxjcoins == null" class="text-base-content/30">-</span>
+                <!-- Model-level overrides take priority -->
+                <template v-if="model.input_k_tokens_cxjcoins != null || model.output_k_tokens_cxjcoins != null">
+                  <span v-if="model.input_k_tokens_cxjcoins != null" class="text-green-500">
+                    ↓ {{ model.input_k_tokens_cxjcoins }}
+                  </span>
+                  <span v-if="model.output_k_tokens_cxjcoins != null" class="text-blue-500">
+                    ↑ {{ model.output_k_tokens_cxjcoins }}
+                  </span>
+                </template>
+                <!-- Flat k_tokens cost -->
+                <span v-else-if="model.k_tokens_cxjcoins != null" class="text-yellow-500">
+                  {{ model.k_tokens_cxjcoins }} /1K
+                </span>
+                <!-- Provider price_list lookup -->
+                <template v-else-if="getProviderPrice(model)">
+                  <span class="text-green-400 opacity-80">
+                    ↓ ${{ getProviderPrice(model).input_price_per_1k_tokens }}
+                  </span>
+                  <span class="text-blue-400 opacity-80">
+                    ↑ ${{ getProviderPrice(model).output_price_per_1k_tokens }}
+                  </span>
+                  <span class="text-base-content/30 text-[10px] flex items-center gap-0.5">
+                    <i class="fa-solid fa-list-ul"></i> provider
+                  </span>
+                </template>
+                <!-- No pricing at all -->
+                <span v-else class="text-base-content/30">-</span>
               </div>
             </td>
             <!-- Actions -->
@@ -223,7 +246,6 @@ export default {
     },
     filteredModels() {
       let list = [...this.aiModels]
-      // text filter across name, ai_model, ai_provider
       if (this.filterText) {
         const q = this.filterText.toLowerCase()
         list = list.filter(m =>
@@ -234,7 +256,6 @@ export default {
       }
       if (this.filterType) list = list.filter(m => m.model_type === this.filterType)
       if (this.filterProvider) list = list.filter(m => m.ai_provider === this.filterProvider)
-      // sorting
       list.sort((a, b) => {
         const av = this.getSortValue(a)
         const bv = this.getSortValue(b)
@@ -246,6 +267,15 @@ export default {
     }
   },
   methods: {
+    // Look up provider's price_list entry by model's ai_model or name
+    getProviderPrice(model) {
+      const provider = (this.aiProviders || []).find(p => p.name === model.ai_provider)
+      if (!provider?.price_list?.length) return null
+      const lookupName = model.ai_model || model.name
+      return provider.price_list.find(
+        entry => entry.model_name === lookupName
+      ) || null
+    },
     getSortValue(model) {
       const map = {
         name: model.name?.toLowerCase() || '',

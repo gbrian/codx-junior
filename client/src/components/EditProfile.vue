@@ -134,13 +134,15 @@ import Markdown from './Markdown.vue'
         <label class="label label-text text-xs pb-1">
           <i class="fa-solid fa-file-code mr-1"></i> File Match (regex)
         </label>
-        <input
-          v-model="editProfile.file_match"
-          type="text"
-          placeholder="e\.g\. \.vue$"
-          :class="!isValidFileMatch ? 'input-error' : ''"
-          class="bg-base-300 input input-xs input-bordered font-mono"
-        />
+        <div class="flex flex-wrap gap-1 items-center">
+          <input
+            v-model="editProfile.file_match"
+            type="text"
+            placeholder="e\.g\. \.vue$"
+            :class="!isValidFileMatch ? 'input-error' : ''"
+            class="bg-base-300 input input-xs input-bordered font-mono"
+          />
+        </div>
       </div>
       <div class="form-control flex-1 min-w-[220px]">
         <label class="label label-text text-xs pb-1">

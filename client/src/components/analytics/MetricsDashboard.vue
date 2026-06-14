@@ -1,6 +1,7 @@
 <script setup>
 import DailyChart from './DailyChart.vue'
 import Collapsible from '@/components/Collapsible.vue'
+import PriceEditor from './PriceEditor.vue'
 </script>
 
 <template>
@@ -221,7 +222,6 @@ import Collapsible from '@/components/Collapsible.vue'
                     <span class="text-xs text-success">↑ {{ formatNumber(stats.input_tokens) }} in</span>
                     <span class="text-xs text-warning">↓ {{ formatNumber(stats.output_tokens) }} out</span>
                     <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
-                    <!-- Cost per model -->
                     <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
                       🪙 {{ formatCoins(stats.total_cxjcoins) }}
                     </span>
@@ -275,7 +275,6 @@ import Collapsible from '@/components/Collapsible.vue'
                     </div>
                     <div class="flex gap-2 mt-1 flex-wrap">
                       <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
-                      <!-- Cost per user -->
                       <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
                         🪙 {{ formatCoins(stats.total_cxjcoins) }}
                       </span>
@@ -322,7 +321,6 @@ import Collapsible from '@/components/Collapsible.vue'
                     </div>
                     <div class="flex gap-2 mt-1 flex-wrap">
                       <span class="text-xs text-base-content/50">{{ stats.calls }} calls</span>
-                      <!-- Cost per project -->
                       <span v-if="stats.total_cxjcoins != null" class="text-xs text-fuchsia-400">
                         🪙 {{ formatCoins(stats.total_cxjcoins) }}
                       </span>
@@ -334,7 +332,7 @@ import Collapsible from '@/components/Collapsible.vue'
           </div>
         </div>
 
-        <!-- Model Performance Table (Admin only) -->
+        <!-- Model Performance Table -->
         <div class="card bg-base-100 shadow mb-6">
           <div class="card-body p-4">
             <h2 class="card-title text-base mb-4 flex items-center gap-2">
@@ -380,7 +378,6 @@ import Collapsible from '@/components/Collapsible.vue'
                         {{ stats.tokens_per_second > 0 ? formatNumber(stats.tokens_per_second) + '/s' : 'N/A' }}
                       </span>
                     </td>
-                    <!-- Cost column -->
                     <td class="text-right">
                       <span class="text-xs font-semibold text-fuchsia-400">
                         {{ stats.total_cxjcoins != null ? formatCoins(stats.total_cxjcoins) : '-' }}
@@ -409,7 +406,7 @@ import Collapsible from '@/components/Collapsible.vue'
       </template>
 
       <!-- Daily Data Table -->
-      <div class="card bg-base-100 shadow">
+      <div class="card bg-base-100 shadow mb-6">
         <div class="card-body p-4">
           <div class="flex items-center justify-between mb-4">
             <h2 class="card-title text-base flex items-center gap-2">
@@ -460,9 +457,20 @@ import Collapsible from '@/components/Collapsible.vue'
                   <td class="text-right text-base-content/60 font-mono text-xs">
                     {{ row.total_duration_seconds > 0 ? row.total_duration_seconds.toFixed(2) + 's' : '-' }}
                   </td>
-                  <!-- Daily cost cell -->
-                  <td class="text-right text-xs font-semibold text-fuchsia-400">
-                    {{ row.total_cxjcoins != null ? formatCoins(row.total_cxjcoins) : '-' }}
+                  <td class="text-right">
+                    <div class="flex items-center justify-end gap-1 group">
+                      <span class="text-xs font-semibold text-fuchsia-400">
+                        {{ row.total_cxjcoins != null ? formatCoins(row.total_cxjcoins) : '-' }}
+                      </span>
+                      <button
+                        v-if="isAdminView"
+                        class="btn btn-ghost btn-xs opacity-0 group-hover:opacity-100 transition-opacity p-0 min-h-0 h-auto"
+                        title="Edit prices for this date"
+                        @click="openPriceEditorForDate(row.date)"
+                      >
+                        <i class="fa-solid fa-pen-to-square text-fuchsia-400 text-xs"></i>
+                      </button>
+                    </div>
                   </td>
                   <td class="min-w-24">
                     <div class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24">
@@ -488,7 +496,6 @@ import Collapsible from '@/components/Collapsible.vue'
                   <td class="text-right text-base-content/60 font-mono text-xs">
                     {{ totalStats.total_duration_seconds > 0 ? totalStats.total_duration_seconds.toFixed(2) + 's' : '-' }}
                   </td>
-                  <!-- Total cost footer -->
                   <td class="text-right text-fuchsia-400">
                     {{ totalStats.total_cxjcoins != null ? formatCoins(totalStats.total_cxjcoins) : '-' }}
                   </td>
@@ -499,6 +506,32 @@ import Collapsible from '@/components/Collapsible.vue'
           </div>
         </div>
       </div>
+
+      <!-- Price Management (admin only) - after Daily Breakdown -->
+      <template v-if="isAdminView">
+        <div
+          class="collapse collapse-arrow bg-base-100 shadow border border-base-300 mb-6"
+          :class="{ 'collapse-open': priceEditorOpen }"
+        >
+          <input type="checkbox" v-model="priceEditorOpen" />
+          <div class="collapse-title font-bold text-base">
+            <i class="fa-solid fa-tags text-primary mr-2"></i>
+            Price Management
+            <span v-if="priceEditorDate" class="ml-2 badge badge-sm badge-fuchsia-400 text-fuchsia-400 border-fuchsia-400">
+              <i class="fa-solid fa-calendar-day mr-1 text-xs"></i>
+              {{ priceEditorDate }}
+            </span>
+          </div>
+          <div class="collapse-content">
+            <!-- Listen to metrics-changed to reload data after price edits or recalculation -->
+            <PriceEditor
+              :initial-start-date="priceEditorDate"
+              :initial-end-date="priceEditorDate"
+              @metrics-changed="loadData"
+            />
+          </div>
+        </div>
+      </template>
 
       <!-- Error state -->
       <div v-if="error" class="alert alert-error mt-4">
@@ -524,6 +557,8 @@ export default {
       isAdminView: false,
       sortOrder: 'desc',
       activePreset: '30d',
+      priceEditorOpen: false,
+      priceEditorDate: null,
       filters: {
         startDate: thirtyDaysAgo.toISOString().split('T')[0],
         endDate: today.toISOString().split('T')[0],
@@ -627,7 +662,6 @@ export default {
           color: 'text-error',
           bgColor: 'bg-error/10'
         },
-        // New cost KPI card
         {
           label: 'Total Cost',
           value: this.totalStats.total_cxjcoins != null ? this.formatCoins(this.totalStats.total_cxjcoins) : 'N/A',
@@ -656,18 +690,13 @@ export default {
       return Math.max(...Object.values(this.byProjectData).map(s => s.total_tokens), 1)
     },
 
-    // Enrich model data with performance metrics + cost, sorted by tokens/sec desc
     modelPerformanceRows() {
       const rows = {}
       for (const [model, stats] of Object.entries(this.byModelData)) {
         const avgDur = stats.total_duration_seconds || 0
         const avgTokens = stats.calls > 0 ? stats.total_tokens / stats.calls : 0
         const tokensPerSecond = avgDur > 0 ? Math.round(avgTokens / avgDur) : 0
-        rows[model] = {
-          ...stats,
-          total_duration_seconds: avgDur,
-          tokens_per_second: tokensPerSecond
-        }
+        rows[model] = { ...stats, total_duration_seconds: avgDur, tokens_per_second: tokensPerSecond }
       }
       return Object.fromEntries(
         Object.entries(rows).sort((a, b) => b[1].tokens_per_second - a[1].tokens_per_second)
@@ -716,6 +745,14 @@ export default {
       }
       this.activePreset = '30d'
       this.loadData()
+    },
+    openPriceEditorForDate(date) {
+      this.priceEditorDate = date
+      this.priceEditorOpen = true
+      this.$nextTick(() => {
+        const el = this.$el.querySelector('.collapse-open')
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
     },
     async loadData() {
       this.loading = true
@@ -774,7 +811,6 @@ export default {
       if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K'
       return num.toString()
     },
-    // Format cxjcoins with coin emoji prefix
     formatCoins(coins) {
       if (!coins && coins !== 0) return '-'
       if (coins >= 1_000_000) return '🪙 ' + (coins / 1_000_000).toFixed(2) + 'M'

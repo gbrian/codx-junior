@@ -55,14 +55,6 @@ class AIModel(BaseModel):
     url: Optional[str] = Field(description="Model info", default="")
     system: Optional[str] = Field(description="Model system instructions", default="")
     prompt_template: Optional[str] = Field(description="Model info", default="{ MESSAGE }")
-    input_k_tokens_cxjcoins: Optional[float] = Field(
-        description="Cost in cxjcoins per 1K tokens at model level. Overrides provider-level k_tokens_cxjcoins if set.",
-        default=None
-    )
-    output_k_tokens_cxjcoins: Optional[float] = Field(
-        description="Cost in cxjcoins per 1K tokens at model level. Overrides provider-level k_tokens_cxjcoins if set.",
-        default=None
-    )
 
 class AISettings(BaseModel):
     provider: Optional[str] = Field(default="")

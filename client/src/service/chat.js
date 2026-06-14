@@ -18,7 +18,7 @@ export class ChatService extends Service {
   }
 
   async sendMessage({ chat, message }) {
-    chat.messages.push(message);
+    this.addMessage({ chat, message });
     return this.$projects.chatWihProject(chat);
   }
 
@@ -49,8 +49,18 @@ export class ChatService extends Service {
     ];
   }
 
+  /**
+   * Add a message to a chat in a reactive way via the Vuex store mutation,
+   * so all Vue components observing the chat are notified of the change.
+   */
   addMessage({ chat, message }) {
-    chat.messages = [...(chat.messages || []), message];
+    if (chat?.id) {
+      // Route through the store mutation to guarantee Vue reactivity
+      this.$storex.chats.addMessageToChat({ chatId: chat.id, message })
+    } else {
+      // Fallback for temp/unsaved chats not yet in the store
+      chat.messages = [...(chat.messages || []), message];
+    }
   }
 
   removeMessage({ chat, message }) {

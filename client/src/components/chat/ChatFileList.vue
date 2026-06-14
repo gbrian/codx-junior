@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div class="my-2 text-xs" v-if="fileStatuses.length">
+  <div class="my-2 text-xs">
     <span><i class="fa-solid fa-paperclip"></i></span>
     <a
       v-for="file in fileStatuses"

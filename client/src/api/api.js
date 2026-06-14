@@ -1,5 +1,40 @@
 import { CodxJuniorConnection } from './connection'
 
+/**
+ * In-flight request deduplication map.
+ * Key: "METHOD:url:serialized_body"
+ * Value: Promise
+ */
+const _inflightRequests = new Map()
+
+/**
+ * Build a stable cache key for a request.
+ */
+function _requestKey(method, url, data) {
+  const body = data !== undefined ? JSON.stringify(data) : ''
+  return `${method.toUpperCase()}:${url}:${body}`
+}
+
+/**
+ * Wrap a request factory in deduplication logic.
+ * If an identical request is already in-flight, the new caller
+ * receives the same Promise (and therefore the same resolved value).
+ */
+function _dedupedRequest(method, url, data, requestFn) {
+  const key = _requestKey(method, url, data)
+
+  if (_inflightRequests.has(key)) {
+    return _inflightRequests.get(key)
+  }
+
+  const promise = requestFn().finally(() => {
+    _inflightRequests.delete(key)
+  })
+
+  _inflightRequests.set(key, promise)
+  return promise
+}
+
 const initializeAPI = ({ project, user } = {}) => {
   const API = {
     sid: "",
@@ -30,19 +65,19 @@ const initializeAPI = ({ project, user } = {}) => {
       })
     },
     get(url) {
-      return API.connection.get(url)
+      return _dedupedRequest('GET', API.connection.prepareUrl(url), undefined, () => API.connection.get(url))
     },
     del(url) {
-      return API.connection.del(url)
+      return _dedupedRequest('DEL', API.connection.prepareUrl(url), undefined, () => API.connection.del(url))
     },
     post(url, data) {
-      return API.connection.post(url, data)
+      return _dedupedRequest('POST', API.connection.prepareUrl(url), data, () => API.connection.post(url, data))
     },
     put(url, data) {
-      return API.connection.put(url, data)
+      return _dedupedRequest('PUT', API.connection.prepareUrl(url), data, () => API.connection.put(url, data))
     },
     delete(url) {
-      return API.connection.delete(url)
+      return _dedupedRequest('DELETE', API.connection.prepareUrl(url), undefined, () => API.connection.delete(url))
     },
     oauth: {
       async getOAuthLoginUrl(provider) {
@@ -262,6 +297,9 @@ const initializeAPI = ({ project, user } = {}) => {
     knowledge: {
       status() {
         return API.get('/api/knowledge/status')
+      },
+      files() {
+        return API.get('/api/knowledge/files')
       },
       reload() {
         return API.get('/api/knowledge/reload')
@@ -545,7 +583,28 @@ const initializeAPI = ({ project, user } = {}) => {
         byModel({ startDate, endDate, username, projectName } = {}) {
           const qs = _buildAnalyticsQS({ startDate, endDate, username, projectName })
           return API.get(`/api/analytics/admin/by-model${qs}`)
-        }
+        },
+        pricing: {
+          list() {
+            return API.get('/api/analytics/admin/pricing')
+          },
+          updateProvider(providerName, prices) {
+            return API.put(`/api/analytics/admin/pricing/provider/${providerName}`, prices)
+          },
+          updateModel(providerName, modelName, prices) {
+            return API.put(`/api/analytics/admin/pricing/model/${providerName}/${modelName}`, prices)
+          },
+          recalculate({ provider, model, startDate, endDate, inputPrice, outputPrice }) {
+            return API.post('/api/analytics/admin/pricing/recalculate', {
+              provider,
+              model,
+              start_date: startDate,
+              end_date: endDate,
+              input_k_tokens_cxjcoins: inputPrice,
+              output_k_tokens_cxjcoins: outputPrice,
+            })
+          },
+        },
       }
     },
     engine: {

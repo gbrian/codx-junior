@@ -450,7 +450,7 @@ export default {
     },
     childrenChats() {
       return this.$chats.allChats
-        .filter(c => c.parent_id === this.theChat.id && !c.message_id)
+        .filter(c => c.parent_id === this.theChat.id)
         .sort((a, b) => a.name > b.name ? 1 : -1)
     },
     chatProject() {

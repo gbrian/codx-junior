@@ -8,7 +8,7 @@ Made with ❤️ by codx-junior
 import logging
 import os
 import time
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, List
 
 from codx.junior.context import (
     find_relevant_documents,
@@ -216,6 +216,16 @@ class KnowledgeEngine:
         project_child_projects, project_dependencies = self.get_project_dependencies()
         return [self.settings] + project_child_projects + project_dependencies
 
+    def get_knowledge_files(self) -> List[str]:
+        """
+        Return detailed knowledge status including pending files and metrics.
+
+        Returns:
+            Dict with status information.
+        """
+        knowledge = self.session.get_knowledge()
+        return list(knowledge.get_db().get_all_sources().keys())
+        
     def check_knowledge_status(self) -> dict:
         """
         Return detailed knowledge status including pending files and metrics.
@@ -226,9 +236,14 @@ class KnowledgeEngine:
         knowledge = self.session.get_knowledge()
         status = knowledge.status()
         current_sources_and_updates = knowledge.get_db().get_all_sources()
-        pending_files, _ = knowledge.detect_changes(
-            current_sources_and_updates=current_sources_and_updates
-        )
+        pending_files = []
+        
+        if not ignore_pending:
+            pending , _ = knowledge.detect_changes(
+                current_sources_and_updates=current_sources_and_updates
+            )
+            pending_files = pending
+            
         total_pending = len(pending_files)
 
         # Cap the list for display

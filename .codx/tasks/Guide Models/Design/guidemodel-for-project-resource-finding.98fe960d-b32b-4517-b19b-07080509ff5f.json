@@ -9,9 +9,7 @@
   "child_index": 0,
   "message_id": null,
   "status": "",
-  "file_list": [
-    "/home/codx-junior-projects/codx-junior/plugins/guide-model/README.md"
-  ],
+  "file_list": [],
   "check_lists": [],
   "profiles": [
     "project"
@@ -156,7 +154,7 @@
     }
   ],
   "created_at": "2026-06-11 04:39:33.322658",
-  "updated_at": "2026-06-11T09:27:13.408216",
+  "updated_at": "2026-06-11T15:05:21.786903",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",

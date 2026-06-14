@@ -3,7 +3,6 @@ import { API } from '../../api/api'
 import CheckLists from './CheckLists.vue'
 import PRView from '@/components/repo/PRView.vue'
 import ChatFileList from './ChatFileList.vue'
-import ChatMentionBar from './ChatMentionBar.vue'
 import ChatInputBox from './ChatInputBox.vue'
 import ChatImagePreviewModal from './ChatImagePreviewModal.vue'
 import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
@@ -12,7 +11,11 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
 </script>
 
 <template>
-  <div class="h-full flex flex-col gap-1 overflow-auto">
+  <div class="h-full flex flex-col gap-1 overflow-auto"
+    @dragover.prevent="draggingOver = true"
+    @dragleave.prevent="draggingOver = false"
+    @drop.prevent="onDrop"
+  >
     <div class="grow relative flex flex-col gap-1 min-h-0" v-if="!inputOnly">
       <div class="flex gap-2 items-center justify-between">
         <div class="w-full" v-if="chatFiles.length">
@@ -23,6 +26,7 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
             @add-as-message="addFileContentAsMessage"
             @sync-notebook="syncNotebook"
             @export-notebook="exportNotebook"
+            v-if="chatFiles?.length"
           />
         </div>
         <CheckLists :chat="chat" :readOnly="readOnly" @change="saveChat" v-if="!isVibe" />
@@ -86,6 +90,7 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
                 :query="intelliSenseQuery"
                 @select="onIntelliSenseSelect"
                 @hover="intelliSenseIndex = $event"
+                @accept-multi="onIntelliSenseAcceptMulti"
               />
               <ChatInputBox
                 ref="inputBox"
@@ -125,22 +130,18 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
                 @remove-image="removeImage"
                 @preview-image="imagePreview = $event"
               />
+              <ChatFileList
+                :files="files"
+                :chat-project="chatProject"
+                @remove="removeFileFromFiles"
+                @add-as-message="addFileContentAsMessage"
+                v-if="files?.length"
+              />
             </div>
           </div>
         </div>
       </div>
     </div>
-
-    <div class="sticky bottom-0 z-2" v-if="!isPRView && !inputOnly">
-      <ChatMentionBar
-        :suggestions="mentionSuggestions"
-        :active-mentions="messageMentions"
-        @add-mention="addMention"
-        @remove-mention="removeMessageMention"
-        @add-file="onAddFile"
-      />
-    </div>
-
     <ChatImagePreviewModal
       :image-preview="imagePreview"
       @cancel="imagePreview = null"
@@ -188,7 +189,6 @@ export default {
       uploadProjectFile: null,
       metadata: null,
       pasteWithShift: false,
-      mentionSuggestions: [],
       mentions: [],
       cursorWord: {},
       notebookStatus: null,
@@ -296,6 +296,10 @@ export default {
     },
     editor() {
       return this.$refs.inputBox?.getEditor() || this.$el?.querySelector('.editor')
+    },
+    // True when intellisense popup is open with suggestions
+    hasIntelliSense() {
+      return this.intelliSenseSuggestions.length > 0
     }
   },
   watch: {
@@ -305,7 +309,6 @@ export default {
       }
     },
     editorText() {
-      this.loadMentionSuggestions()
       this.updateCursorWord()
       this.scheduleIntelliSense()
     },
@@ -326,25 +329,24 @@ export default {
       this.intelliSenseDebounce = setTimeout(() => this.runIntelliSense(), 220)
     },
 
-    runIntelliSense() {
+    async runIntelliSense() {
       if (this.intelliSenseDismissed) return
-
       const { word } = this.cursorWord
-
-      // Require at least 3 characters (excluding leading @) to trigger intellisense
-      const rawQuery = word?.startsWith('@') ? word.slice(1) : word
-      if (!rawQuery || rawQuery.trim().length < 3) {
+      if (word?.startsWith('@')) {
+        const rawQuery = word.slice(1)
+        if (!rawQuery || rawQuery.trim().length < 3) {
+          this.intelliSenseSuggestions = []
+          return
+        }
+        this.intelliSenseQuery = rawQuery
+        this.intelliSenseIndex = 0
+        const results = await (this.chatProject?.$state?.searchMentions(rawQuery, 10)
+                        || this.$projects.searchMentions?.(rawQuery, 10)
+                        || Promise.resolve([]))
+        this.intelliSenseSuggestions = results
+      } else {
         this.intelliSenseSuggestions = []
-        return
       }
-
-      this.intelliSenseQuery = rawQuery
-      this.intelliSenseIndex = 0
-
-      const results = this.chatProject?.$state?.searchMentions(rawQuery, 10)
-                      || this.$projects.searchMentions?.(rawQuery, 10)
-                      || []
-      this.intelliSenseSuggestions = results
     },
 
     dismissIntelliSense() {
@@ -357,14 +359,57 @@ export default {
       if (suggestion) this.onIntelliSenseSelect(suggestion)
     },
 
+    // Toggle selection of the currently focused suggestion (Space key)
+    toggleIntelliSenseSelection() {
+      const suggestion = this.intelliSenseSuggestions[this.intelliSenseIndex]
+      if (!suggestion) return
+      const intelliSenseEl = this.$el.querySelector('.chat-intellisense-ref')
+      // Delegate toggle to the component via emitted ref approach —
+      // instead we track a local multiSelect set here in Chat and pass it down
+      const key = (suggestion.file || '') + '|' + (suggestion.name || '')
+      if (this.intelliSenseSelected.has(key)) {
+        this.intelliSenseSelected.delete(key)
+        // trigger reactivity
+        this.intelliSenseSelected = new Set(this.intelliSenseSelected)
+      } else {
+        this.intelliSenseSelected = new Set([...this.intelliSenseSelected, key])
+      }
+    },
+
     onIntelliSenseSelect(suggestion) {
+      const { file, name } = suggestion
       const { caretIndex, word } = this.cursorWord
       const text = this.editor?.innerText || ''
-      const prefix = '@'
       const left = text.slice(0, caretIndex - word.length)
       const right = text.slice(caretIndex)
-      const insert = prefix + suggestion.name
+      let insert = '@' + name
+      if (file) {
+        this.addFileToMessage(file)
+        insert = ""
+      }
       this.setEditorText(left + insert + ' ' + right)
+      this.dismissIntelliSense()
+      this.$nextTick(() => this.editor?.focus())
+    },
+
+    // Accept all multi-selected suggestions at once
+    onIntelliSenseAcceptMulti(items) {
+      const { caretIndex, word } = this.cursorWord
+      const text = this.editor?.innerText || ''
+      const left = text.slice(0, caretIndex - word.length)
+      const right = text.slice(caretIndex)
+      let mentionInserts = []
+
+      items.forEach(({ file, name }) => {
+        if (file) {
+          this.addFileToMessage(file)
+        } else {
+          mentionInserts.push('@' + name)
+        }
+      })
+
+      const insert = mentionInserts.join(' ')
+      this.setEditorText(left + insert + (insert ? ' ' : '') + right)
       this.dismissIntelliSense()
       this.$nextTick(() => this.editor?.focus())
     },
@@ -381,6 +426,30 @@ export default {
         }
         if (event.key === 'Escape') {
           this.dismissIntelliSense()
+          return
+        }
+        // Space toggles multi-select on the focused suggestion
+        if (event.key === ' ' && event.ctrlKey) {
+          event.preventDefault()
+          event.stopPropagation()
+          // Trigger toggle via the child component ref
+          this.$refs.intelliSense?.toggleSelected(
+            this.intelliSenseSuggestions[this.intelliSenseIndex]
+          )
+          return
+        }
+        // ArrowUp/Down navigate suggestions
+        if (event.key === 'ArrowUp') {
+          event.preventDefault()
+          this.intelliSenseIndex = Math.max(0, this.intelliSenseIndex - 1)
+          return
+        }
+        if (event.key === 'ArrowDown') {
+          event.preventDefault()
+          this.intelliSenseIndex = Math.min(
+            this.intelliSenseSuggestions.length - 1,
+            this.intelliSenseIndex + 1
+          )
           return
         }
       }
@@ -410,19 +479,6 @@ export default {
     },
     updateCursorWord() {
       this.cursorWord = this.chatSvc.getCaretWordInfo(this.editor)
-    },
-    loadMentionSuggestions() {
-      this.mentionSuggestions = []
-      const { word } = this.cursorWord
-      if (word?.startsWith("@")) {
-        const query = word.slice(1)
-        // Require at least 3 characters after the @ to trigger mention suggestions
-        if (query.length < 3) return
-        this.mentionSuggestions = [
-          ...this.mentions,
-          ...this.chatProject.$state.searchMentions(query)
-        ]
-      }
     },
     setEditorText(text) {
       if (this.editor && this.editor.innerText !== undefined) {
@@ -582,8 +638,6 @@ export default {
     processInputTextContent(textContent) {
       const imgUrl = this.chatSvc.extractImageUrlFromHtml(textContent)
       if (imgUrl) { this.images.push(imgUrl); return true }
-      const fileMention = this.mentionList.find(m => m.file === textContent)
-      if (fileMention) { this.addFileToMessage(fileMention.file); return true }
       const isProjectFile = this.$projects.allProjects.find(p => textContent.startsWith(p.abs_project_path))
       if (isProjectFile && !this.pasteWithShift) {
         this.addFileToMessage(textContent)
@@ -593,7 +647,7 @@ export default {
       return false
     },
     addFileToMessage(file) {
-      if (!this.files.includes(file)) this.files.push(file)
+      if (!this.files.includes(file)) this.files = [...this.files, file]
     },
     onInputImage(file) {
       this.imagePreview = { file }
@@ -636,6 +690,9 @@ export default {
     removeFileFromChat(file) {
       this.chatSvc.removeFileFromChat({ chat: this.chat, file })
       this.saveChat()
+    },
+    removeFileFromFiles(file) {
+      this.files = this.files.filter(f => f !== file)
     },
     showNotebookStatus(msg) {
       this.notebookStatus = msg
@@ -783,7 +840,7 @@ export default {
       this.setEditorText(this.editorText + "```\n\n```")
     },
     onNewThread(message) {
-      this.$projects.createNewThread({ chat: this.chat, message })
+      this.$chats.createNewThread({ chat: this.chat, message })
     },
     async addFileContentAsMessage(file) {
       const { content } = await this.$storex.chats.readFile({ chat: this.chat, file })

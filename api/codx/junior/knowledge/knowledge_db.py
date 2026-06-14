@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 from contextlib import contextmanager
 from functools import reduce
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from slugify import slugify
 from pathlib import Path
@@ -43,6 +43,9 @@ FIELD_SCORE = "score"
 
 # Default search filter for non-empty sources
 NON_EMPTY_SOURCE_FILTER = 'source != ""'
+
+# Static file schema version — increment when the structure changes
+SOURCE_MAP_VERSION = 1
 
 
 def connect_milvus_client() -> Optional[MilvusClient]:
@@ -112,6 +115,108 @@ KNOWLEDGE_FIELDS: Dict[str, Any] = {
 }
 
 
+# ── Source-map helpers ────────────────────────────────────────────────────────
+
+def _build_empty_source_map(index_name: str) -> Dict[str, Any]:
+    """
+    Return a fresh, empty source-map skeleton.
+
+    Structure:
+    {
+        "version":    int,          # schema version for forward compat
+        "index_name": str,          # collection name this map belongs to
+        "updated_at": int,          # unix timestamp of last write
+        "sources": {
+            "<source_path>": {
+                "last_update": int,     # unix timestamp of last index op
+                "category":   str,
+                "keywords":   List[str]
+            },
+            ...
+        },
+        "categories": List[str]     # pre-aggregated, deduplicated
+    }
+
+    Args:
+        index_name: The Milvus collection name for this project.
+
+    Returns:
+        Empty source-map dict.
+    """
+    return {
+        "version": SOURCE_MAP_VERSION,
+        "index_name": index_name,
+        "updated_at": int(time.time()),
+        "sources": {},
+        "categories": [],
+    }
+
+
+def _read_source_map(path: str) -> Optional[Dict[str, Any]]:
+    """
+    Load and return the source-map JSON from *path*.
+
+    Returns None when the file does not exist or cannot be parsed.
+
+    Args:
+        path: Absolute path to the source-map JSON file.
+
+    Returns:
+        Parsed source-map dict, or None on any error.
+    """
+    if not os.path.isfile(path):
+        return None
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except Exception as ex:
+        logger.warning("Could not read source-map '%s': %s", path, ex)
+        return None
+
+
+def _write_source_map(path: str, source_map: Dict[str, Any]) -> None:
+    """
+    Persist *source_map* as formatted JSON to *path* atomically.
+
+    Uses a temporary sibling file + os.replace to avoid partial writes.
+
+    Args:
+        path:       Absolute path for the destination file.
+        source_map: Source-map dict to serialise.
+    """
+    source_map["updated_at"] = int(time.time())
+    tmp_path = path + ".tmp"
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as fh:
+            json.dump(source_map, fh, indent=2)
+        os.replace(tmp_path, path)
+        logger.debug("Source-map written to '%s'", path)
+    except Exception as ex:
+        logger.error("Could not write source-map '%s': %s", path, ex)
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass
+
+
+def _rebuild_categories(source_map: Dict[str, Any]) -> None:
+    """
+    Re-derive the ``categories`` list from the current ``sources`` entries in-place.
+
+    Args:
+        source_map: Source-map dict to update.
+    """
+    cats: Set[str] = set()
+    for entry in source_map["sources"].values():
+        cat = entry.get("category", "")
+        if cat:
+            cats.add(cat)
+    source_map["categories"] = sorted(cats)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
+
 class KnowledgeDB:
     """
     Manages a Milvus-backed full-text knowledge base for a project.
@@ -119,12 +224,21 @@ class KnowledgeDB:
     Uses BM25 sparse vectors for full-text retrieval. Each project gets its
     own named collection derived from the project path.
 
+    A lightweight JSON *source-map* file is kept alongside the Milvus DB file
+    and is the single source of truth for ``get_all_sources`` and
+    ``get_all_categoties``.  It is initialised from the DB on first use and
+    kept in sync on every index / delete operation, avoiding wildcard scans.
+
+    Source-map location:
+        ``<db_path>/<index_name>_file.json``
+
     Diagram:
     classDiagram
         class KnowledgeDB {
             +str db_path
             +str index_name
             +str index_fulltext_name
+            +str db_file_list
             +AI ai
             +connect_db()
             +create_db()
@@ -133,10 +247,15 @@ class KnowledgeDB:
             +delete_documents(sources)
             +search(query, limit) List[Document]
             +raw_search(filter, output_fields, limit)
-            +get_all_sources()
-            +get_all_categories()
+            +get_all_sources() Dict[str, Document]
+            +get_all_categoties() List[str]
             +get_db_info()
             +get_collection_metrics()
+            -_load_source_map() Dict
+            -_save_source_map(source_map)
+            -_upsert_source_map_entries(documents)
+            -_remove_source_map_entries(sources)
+            -_init_source_map_from_db() Dict
         }
 
     Note: Documents returned by search() include a ``score`` key in their
@@ -168,6 +287,7 @@ class KnowledgeDB:
         os.makedirs(self.db_path, exist_ok=True)
 
         self.db_file = f"{self.db_path}/milvus.db"
+        # Static source-map file lives next to the Milvus DB file
         self.db_file_list = f"{self.db_path}/{self.index_name}_file.json"
         self.embedding = None
 
@@ -266,10 +386,170 @@ class KnowledgeDB:
         self.db.drop_collection(collection_name=self.index_fulltext_name)
         self.create_db()
 
+    # ── Source-map internal helpers ───────────────────────────────────────────
+
+    def _load_source_map(self) -> Dict[str, Any]:
+        """
+        Return the source-map, initialising from the DB if the file is absent.
+
+        Diagram:
+        flowchart TD
+            A[_load_source_map] --> B{File exists?}
+            B -- Yes --> C[_read_source_map]
+            C --> D{version OK?}
+            D -- Yes --> E[return map]
+            D -- No  --> F[_init_source_map_from_db]
+            B -- No  --> F
+            F --> G[_save_source_map]
+            G --> E
+
+        Returns:
+            Valid source-map dict (never None).
+        """
+        source_map = _read_source_map(self.db_file_list)
+
+        if source_map is None or source_map.get("version") != SOURCE_MAP_VERSION:
+            logger.info(
+                "Source-map missing or outdated for '%s', initialising from DB.",
+                self.index_fulltext_name,
+            )
+            source_map = self._init_source_map_from_db()
+            self._save_source_map(source_map)
+
+        return source_map
+
+    def _save_source_map(self, source_map: Dict[str, Any]) -> None:
+        """
+        Persist *source_map* and refresh the cached last-update timestamp.
+
+        Args:
+            source_map: Source-map dict to write.
+        """
+        _write_source_map(self.db_file_list, source_map)
+        self.refresh_last_update()
+
+    def _init_source_map_from_db(self) -> Dict[str, Any]:
+        """
+        Bootstrap a source-map by scanning all records in the Milvus collection.
+
+        This is the *one-time* expensive DB scan — subsequent calls use the file.
+
+        Returns:
+            Fully-populated source-map dict.
+        """
+        logger.info(
+            "Bootstrapping source-map from DB for collection '%s'",
+            self.index_fulltext_name,
+        )
+        source_map = _build_empty_source_map(self.index_fulltext_name)
+
+        try:
+            results = self.db.query(
+                collection_name=self.index_fulltext_name,
+                filter=NON_EMPTY_SOURCE_FILTER,
+                output_fields=[FIELD_SOURCE, FIELD_LAST_UPDATE, FIELD_CATEGORY, FIELD_KEYWORDS],
+            )
+            for entry in results:
+                source = entry.get(FIELD_SOURCE, "")
+                if not source:
+                    continue
+                last_update = int(entry.get(FIELD_LAST_UPDATE) or 0)
+                category = entry.get(FIELD_CATEGORY, "")
+                raw_keywords = entry.get(FIELD_KEYWORDS, "")
+                keywords = [k.strip() for k in raw_keywords.split(",") if k.strip()] \
+                    if raw_keywords else []
+
+                existing = source_map["sources"].get(source)
+                if existing is None or existing["last_update"] < last_update:
+                    source_map["sources"][source] = {
+                        "last_update": last_update,
+                        "category": category,
+                        "keywords": keywords,
+                    }
+
+            _rebuild_categories(source_map)
+            logger.info(
+                "Source-map bootstrapped: %d sources, %d categories",
+                len(source_map["sources"]),
+                len(source_map["categories"]),
+            )
+        except Exception as ex:
+            logger.error("Error bootstrapping source-map from DB: %s", ex)
+
+        return source_map
+
+    def _upsert_source_map_entries(self, documents: List[Document]) -> None:
+        """
+        Add or update source-map entries for the given documents, then persist.
+
+        Called after a successful ``index_documents`` operation so the static
+        file stays in sync without any extra DB round-trips.
+
+        Args:
+            documents: Documents that were just indexed.
+        """
+        source_map = self._load_source_map()
+        now = int(time.time())
+
+        for doc in documents:
+            source = doc.metadata.get(FIELD_SOURCE, "")
+            if not source:
+                continue
+            raw_keywords = doc.metadata.get(FIELD_KEYWORDS, [])
+            if isinstance(raw_keywords, str):
+                keywords = [k.strip() for k in raw_keywords.split(",") if k.strip()]
+            else:
+                keywords = list(raw_keywords)
+
+            source_map["sources"][source] = {
+                "last_update": now,
+                "category": doc.metadata.get(FIELD_CATEGORY, ""),
+                "keywords": keywords,
+            }
+
+        _rebuild_categories(source_map)
+        self._save_source_map(source_map)
+        logger.debug(
+            "Source-map upserted %d entries, total sources: %d",
+            len(documents),
+            len(source_map["sources"]),
+        )
+
+    def _remove_source_map_entries(self, sources: List[str]) -> None:
+        """
+        Remove source-map entries for the given source paths, then persist.
+
+        Called after a successful ``delete_documents`` operation.
+
+        Args:
+            sources: Source paths that were deleted from the DB.
+        """
+        source_map = self._load_source_map()
+
+        removed = 0
+        for source in sources:
+            if source in source_map["sources"]:
+                del source_map["sources"][source]
+                removed += 1
+
+        if removed:
+            _rebuild_categories(source_map)
+            self._save_source_map(source_map)
+            logger.debug(
+                "Source-map removed %d entries, total sources: %d",
+                removed,
+                len(source_map["sources"]),
+            )
+
+    # ─────────────────────────────────────────────────────────────────────────
+
     @profile_function
     def index_documents(self, documents: List[Document]) -> None:
         """
         Insert or upsert a list of documents into the full-text collection.
+
+        Also updates the static source-map file so ``get_all_sources`` does not
+        need to hit the DB.
 
         Args:
             documents: LangChain Document objects to index.
@@ -317,6 +597,8 @@ class KnowledgeDB:
                 data=data_search,
             )
             logger.debug("Inserted %d documents, response: %s", len(data_search), res)
+            # Keep the static source-map in sync — no extra DB round-trip needed
+            self._upsert_source_map_entries(documents)
         except MilvusException as ex:
             if "float_vector" in str(ex):
                 logger.error(
@@ -335,6 +617,8 @@ class KnowledgeDB:
         """
         Remove all documents whose source field matches any of the given paths.
 
+        Also removes the corresponding entries from the static source-map file.
+
         Args:
             sources: List of source paths to delete.
         """
@@ -345,6 +629,8 @@ class KnowledgeDB:
                 collection_name=self.index_fulltext_name,
                 filter=source_filter,
             )
+            # Keep the static source-map in sync
+            self._remove_source_map_entries(sources)
         except MilvusException as ex:
             logger.error("Error deleting sources %s: %s", sources, ex)
 
@@ -434,14 +720,12 @@ class KnowledgeDB:
                 collection_name=collection_name,
                 timeout=5,
             )
-            # MilvusClient returns {"row_count": N} as a string value
             row_count = int(stats.get("row_count", 0))
             logger.debug(
                 "Collection '%s' row_count: %d", collection_name, row_count
             )
 
             # ── 2. Load state ─────────────────────────────────────────────────
-            # get_load_state returns {"state": <LoadState>} in pymilvus v2.x
             load_state_response = self.db.get_load_state(
                 collection_name=collection_name
             )
@@ -457,7 +741,6 @@ class KnowledgeDB:
             fields_info: List[Dict[str, Any]] = collection_description.get("fields", [])
             field_names = [f.get("name", "") for f in fields_info]
 
-            # Identify the primary key field
             primary_key_name = next(
                 (f.get("name", "") for f in fields_info if f.get("is_primary")),
                 "unknown",
@@ -581,12 +864,10 @@ class KnowledgeDB:
             limit=_limit,
             search_params=search_params,
         )
-        # Flatten the list-of-lists returned by MilvusClient.search
         flat_results = reduce(lambda x, y: x + y, results)
         logger.info(
             "[Full text search] '%s' returned %d results", query, len(flat_results)
         )
-        # Pass include_score=True so the BM25 distance is surfaced in metadata
         return self.db_results_to_documents(flat_results, include_score=True)
 
     def db_results_to_documents(
@@ -625,7 +906,6 @@ class KnowledgeDB:
             for entry in list(results):
                 _id = entry.get("id", 0)
                 entity = entry.get("entity") or entry
-                # BM25 distance — higher value means more relevant
                 distance = float(entry.get("distance", "0"))
 
                 metadata = entity.get("metadata", {})
@@ -635,7 +915,6 @@ class KnowledgeDB:
                         metadata[prop] = value
 
                 if include_score:
-                    # Expose the BM25 relevance score so callers can surface it
                     metadata[FIELD_SCORE] = distance
                     logger.debug(
                         "Document id=%s source=%s score=%.4f",
@@ -645,7 +924,7 @@ class KnowledgeDB:
                     )
                 metadata["project_id"] = self.settings.project_id
                 metadata["project_name"] = self.settings.project_name,
-                
+
                 documents.append(
                     Document(
                         id=_id,
@@ -662,27 +941,43 @@ class KnowledgeDB:
 
     def get_all_sources(self) -> Dict[str, Document]:
         """
-        Return a mapping of source path → most-recently-indexed Document.
+        Return a mapping of source path → lightweight Document built from the
+        static source-map file.
+
+        No DB query is performed unless the source-map file does not yet exist,
+        in which case it is bootstrapped from the DB once and then cached.
+
+        Diagram:
+        flowchart TD
+            A[get_all_sources] --> B[_load_source_map]
+            B --> C{file existed?}
+            C -- No --> D[_init_source_map_from_db]
+            D --> E[_save_source_map]
+            C -- Yes --> F[iterate sources]
+            E --> F
+            F --> G[build Document per source]
+            G --> H[return Dict source→Document]
 
         Returns:
-            Dict keyed by source path, value is the freshest Document for that source.
+            Dict keyed by source path, value is a Document whose metadata
+            contains ``source``, ``last_update``, ``category``, ``keywords``.
         """
         try:
-            documents = self.raw_search(
-                search_filter=NON_EMPTY_SOURCE_FILTER,
-                output_fields=[FIELD_SOURCE, FIELD_LAST_UPDATE],
-            )
+            source_map = self._load_source_map()
             result: Dict[str, Document] = {}
 
-            for doc in documents:
-                source = doc.metadata[FIELD_SOURCE]
-                last_update = doc.metadata[FIELD_LAST_UPDATE]
-
-                if source in result:
-                    if result[source].metadata[FIELD_LAST_UPDATE] >= last_update:
-                        continue
-
-                result[source] = doc
+            for source, entry in source_map["sources"].items():
+                result[source] = Document(
+                    page_content="",
+                    metadata={
+                        FIELD_SOURCE: source,
+                        FIELD_LAST_UPDATE: entry.get("last_update", 0),
+                        FIELD_CATEGORY: entry.get("category", ""),
+                        FIELD_KEYWORDS: entry.get("keywords", []),
+                        "project_id": self.settings.project_id,
+                        "project_name": self.settings.project_name,
+                    },
+                )
 
             return result
 
@@ -692,24 +987,26 @@ class KnowledgeDB:
                 self.settings.project_name,
                 ex,
             )
-            error = str(ex)
-            if "field source not exist" in error or "field last_update not exist" in error:
-                # Corrupted index — rebuild from scratch
-                self.reset()
-
         return {}
 
     def get_all_categoties(self) -> List[str]:
         """
-        Return a deduplicated list of all category values in the collection.
+        Return a deduplicated list of all category values.
+
+        Reads from the static source-map file — no DB query required.
 
         Returns:
-            List of unique category strings.
+            Sorted list of unique category strings.
         """
-        documents = self.raw_search(
-            search_filter=NON_EMPTY_SOURCE_FILTER,
-            output_fields=[FIELD_CATEGORY],
-        )
-        return list({doc.metadata.get("category", "Unknown") for doc in documents})
+        try:
+            source_map = self._load_source_map()
+            return source_map.get("categories", [])
+        except Exception as ex:
+            logger.error(
+                "Error reading categories for project '%s': %s",
+                self.settings.project_name,
+                ex,
+            )
+            return []
 
 # Made with ❤️ by codx-junior

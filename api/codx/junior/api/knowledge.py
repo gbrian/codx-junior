@@ -115,6 +115,17 @@ def api_knowledge_status(request: Request):
     codx_junior_session = request.state.codx_junior_session
     return codx_junior_session.check_knowledge_status()
 
+@router.get("/files")
+def api_knowledge_files(request: Request):
+    """
+    Return the current knowledge base status for the project.
+
+    Returns:
+        Knowledge status dict.
+    """
+    codx_junior_session = request.state.codx_junior_session
+    return codx_junior_session.get_knowledge_files()
+
 
 @router.get("/keywords")
 def api_get_keywords(request: Request):

@@ -5,9 +5,9 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 h-full px-4">
+  <div class="flex flex-col gap-2 h-full px-4 overflow-hidden">
     <!-- Header -->
-    <div class="font-medium flex flex-col gap-2">
+    <div class="font-medium flex flex-col gap-2 shrink-0">
       <div class="text-3xl flex gap-2 items-center">
         <ProjectDetailt v-model="project" />
         Knowledge
@@ -17,34 +17,62 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
         <input
           v-model="searchQuery"
           type="text"
-          placeholder="Search..."
+          placeholder="Ask a question about the project..."
           @keydown.enter="search"
           class="input input-bordered w-full"
+          :disabled="loading"
         />
-        <i @click="search" class="fas fa-search text-xl cursor-pointer"></i>
-        <i @click="clearSearch" class="fas fa-times text-xl cursor-pointer"></i>
+        <button
+          @click="search"
+          class="btn btn-primary"
+          :disabled="loading || !searchQuery.trim()"
+        >
+          <span v-if="loading" class="loading loading-spinner loading-sm"></span>
+          <i v-else class="fas fa-search"></i>
+        </button>
+        <button
+          @click="clearSearch"
+          class="btn btn-ghost"
+          :disabled="loading"
+        >
+          <i class="fas fa-times"></i>
+        </button>
       </div>
     </div>
 
     <!-- Loading indicator -->
-    <div v-if="loading" class="flex items-center gap-2 py-4 text-base-content/70">
-      <span class="loading loading-spinner loading-md"></span>
-      <span class="text-sm font-medium">Searching...</span>
+    <div v-if="loading" class="flex flex-col items-center gap-3 py-10 text-base-content/70">
+      <span class="loading loading-spinner loading-lg"></span>
+      <span class="text-sm font-medium">AI is searching the knowledge base...</span>
+      <span class="text-xs text-base-content/50">This may take a few seconds</span>
     </div>
 
+    <!-- Results area -->
     <template v-if="searchResult && !loading">
       <!-- AI Answer card -->
-      <div class="card bg-base-200 shadow-md">
+      <div class="card bg-base-200 shadow-md shrink-0">
         <div class="card-body gap-3 p-4">
           <!-- Stats row -->
           <div class="flex flex-wrap gap-2 items-center">
+            <div class="badge badge-primary gap-1">
+              <i class="fas fa-robot text-xs"></i>
+              AI Search
+            </div>
             <div class="badge badge-neutral gap-1">
               <i class="fas fa-rotate text-xs"></i>
               {{ searchResult.total_iterations }}/{{ searchResult.max_iterations }} iterations
             </div>
             <div class="badge badge-neutral gap-1">
               <i class="fas fa-file text-xs"></i>
-              {{ resultList.length }} document{{ resultList.length !== 1 ? 's' : '' }}
+              {{ resultList.length }} doc{{ resultList.length !== 1 ? 's' : '' }}
+            </div>
+            <div
+              v-for="proj in searchResult.projects_searched"
+              :key="proj"
+              class="badge badge-ghost gap-1"
+            >
+              <i class="fas fa-folder text-xs"></i>
+              {{ proj }}
             </div>
           </div>
 
@@ -53,13 +81,16 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
             <div class="text-sm font-semibold text-primary flex items-center gap-2">
               <i class="fas fa-robot"></i> AI Answer
             </div>
-            <div class="text-sm text-base-content whitespace-pre-wrap bg-base-300 rounded-box p-3 max-h-64 overflow-y-auto">
+            <div class="text-sm text-base-content whitespace-pre-wrap bg-base-300 rounded-box p-3 max-h-48 overflow-y-auto">
               {{ searchResult.answer }}
             </div>
           </div>
 
           <!-- Queries used -->
-          <div v-if="searchResult.queries_used && searchResult.queries_used.length" class="collapse collapse-arrow bg-base-300 rounded-box">
+          <div
+            v-if="searchResult.queries_used && searchResult.queries_used.length"
+            class="collapse collapse-arrow bg-base-300 rounded-box"
+          >
             <input type="checkbox" />
             <div class="collapse-title text-sm font-medium py-2 min-h-0">
               <i class="fas fa-magnifying-glass-chart mr-1"></i>
@@ -82,8 +113,8 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
       </div>
 
       <!-- Results count -->
-      <div class="text-sm text-base-content/60 font-medium">
-        {{ resultList.length }} result{{ resultList.length !== 1 ? 's' : '' }} found
+      <div class="text-sm text-base-content/60 font-medium shrink-0">
+        {{ resultList.length }} supporting document{{ resultList.length !== 1 ? 's' : '' }}
       </div>
 
       <!-- Results List -->
@@ -102,24 +133,29 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
                   {{ shortSource(result.metadata.source) }}
                 </span>
               </div>
-              <!-- Score badge -->
-              <div v-if="result.metadata.score != null" class="badge badge-primary badge-lg font-bold shrink-0">
-                <i class="fas fa-star text-xs mr-1"></i>
-                {{ formatScore(result.metadata.score) }}
-              </div>
-              <!-- Project icon from the document's project_id -->
-              <ProjectIcon
+              <div class="flex items-center gap-2 shrink-0">
+                <!-- Score badge -->
+                <div
+                  v-if="result.metadata.score != null"
+                  class="badge badge-primary badge-lg font-bold"
+                >
+                  <i class="fas fa-star text-xs mr-1"></i>
+                  {{ formatScore(result.metadata.score) }}
+                </div>
+                <!-- Project icon -->
+                <ProjectIcon
                   v-if="docProject(result)"
                   :project="docProject(result)"
-                  class="w-4 h-4 shrink-0"
-              />
+                  class="w-4 h-4"
+                />
+              </div>
             </div>
 
             <!-- Project name badge -->
             <div v-if="result.metadata.project_name" class="flex items-center gap-1">
               <span class="badge badge-ghost badge-sm gap-1">
                 <i class="fas fa-folder text-xs"></i>
-                {{ Array.isArray(result.metadata.project_name) ? result.metadata.project_name[0] : result.metadata.project_name }}
+                {{ normalizeProjectName(result.metadata.project_name) }}
               </span>
             </div>
 
@@ -181,14 +217,26 @@ import ProjectIcon from '@/components/ProjectIcon.vue'
       <!-- Empty results -->
       <div v-else class="flex flex-col items-center gap-2 py-10 text-base-content/50">
         <i class="fas fa-search text-4xl"></i>
-        <span class="text-lg">No documents found</span>
+        <span class="text-lg">No supporting documents found</span>
+        <span class="text-sm">Try rephrasing your question</span>
       </div>
     </template>
 
+    <!-- Error state -->
+    <div v-if="error && !loading" class="alert alert-error shrink-0">
+      <i class="fas fa-circle-exclamation"></i>
+      <span>{{ error }}</span>
+      <button class="btn btn-sm btn-ghost" @click="error = null">Dismiss</button>
+    </div>
+
     <!-- Initial empty state -->
-    <div v-else-if="!loading && !searchResult" class="flex flex-col items-center gap-2 py-10 text-base-content/50">
-      <i class="fas fa-database text-4xl"></i>
-      <span class="text-lg">Enter a query to search the knowledge base</span>
+    <div
+      v-if="!loading && !searchResult && !error"
+      class="flex flex-col items-center gap-3 py-10 text-base-content/50"
+    >
+      <i class="fas fa-database text-5xl"></i>
+      <span class="text-lg">Ask anything about this project</span>
+      <span class="text-sm">The AI will search the knowledge base and provide an answer</span>
     </div>
   </div>
 </template>
@@ -200,7 +248,8 @@ export default {
       searchQuery: '',
       project: null,
       searchResult: null,
-      loading: false
+      loading: false,
+      error: null
     }
   },
   computed: {
@@ -224,13 +273,16 @@ export default {
     formatScore(score) {
       return score != null ? Number(score).toFixed(2) : 'N/A'
     },
+    // Normalise project_name which may arrive as array or string
+    normalizeProjectName(projectName) {
+      return Array.isArray(projectName) ? projectName[0] : projectName
+    },
     // Resolve the project object for a document using its project_id metadata
     docProject(result) {
       const projectId = result?.metadata?.project_id
       if (!projectId) return null
-      return this.$projects.allProjectsById[projectId] || null
+      return this.$projects?.allProjectsById?.[projectId] || null
     },
-    // Pretty-print metadata as JSON, excluding page_content
     formatMetadata(metadata) {
       return JSON.stringify(metadata, null, 2)
     },
@@ -238,12 +290,13 @@ export default {
       if (!this.searchQuery.trim()) return
       this.loading = true
       this.searchResult = null
+      this.error = null
       try {
         const res = await this.project.$api.knowledge.aiSearch(this.searchQuery.trim())
         this.searchResult = res || null
       } catch (e) {
-        console.error('Knowledge search error:', e)
-        this.searchResult = null
+        console.error('Knowledge AI search error:', e)
+        this.error = 'Search failed. Please try again.'
       } finally {
         this.loading = false
       }
@@ -251,6 +304,7 @@ export default {
     clearSearch() {
       this.searchQuery = ''
       this.searchResult = null
+      this.error = null
     }
   }
 }

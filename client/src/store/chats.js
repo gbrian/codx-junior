@@ -78,6 +78,16 @@ export const mutations = mutationTree(state, {
       }
     }
   },
+  addMessageToChat(state, { chatId, message }) {
+    const chat = state.chats[chatId]
+    if (!chat) return
+    // Replace array reference to trigger Vue reactivity
+    chat.messages = [...(chat.messages || []), message]
+    // Keep activeChat in sync
+    if (state.activeChat?.id === chatId) {
+      state.activeChat = state.chats[chatId]
+    }
+  },
 })
 
 export const actions = actionTree(
@@ -308,7 +318,8 @@ export const actions = actionTree(
               currentMessage.updated_at = new Date().toISOString()
             }
           } else {
-            chat.messages.push(message)
+            // Use mutation to ensure reactivity when adding new messages
+            $storex.chats.addMessageToChat({ chatId, message })
           }
 
           // Check if all messages in the chat are done — if so, reset the updating flag.

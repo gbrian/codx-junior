@@ -36,8 +36,8 @@ export default {
     },
   },
 
-  mounted() {
-    const search = this.onSearch.bind(this)
+  async mounted() {
+    const search = await this.onSearch.bind(this)
     const onSelect = this.onSelect.bind(this)
     this.editor = new Editor({
       extensions: [

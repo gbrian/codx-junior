@@ -10,7 +10,7 @@ import os
 import shutil
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 import requests
 
@@ -321,6 +321,10 @@ class CODXJuniorSession:
     def check_knowledge_status(self) -> dict:
         """Return current knowledge status."""
         return self._knowledge_engine.check_knowledge_status()
+
+    def get_knowledge_files(self) -> List[str]:
+        """Return current knowledge status."""
+        return self._knowledge_engine.get_knowledge_files()
 
     @profile_function
     def find_project_documents(self, query: str) -> list:

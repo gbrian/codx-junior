@@ -66,6 +66,38 @@ const promiseOrDefault = async (p, def) => {
   return res
 }
 
+/**
+ * Ensures knowledge is loaded for the given project.
+ * Returns a promise that resolves when knowledge is available.
+ */
+async function ensureFilesLoaded(project) {
+  const { $state, $api } = project
+  if (!$state || !$api) return
+  if ($state.files) return
+  const data = await promiseOrDefault(() => $api.knowledge.files(), null)
+  if (data) {
+    $state.files = data
+    // Invalidate cached mention list so next access rebuilds with fresh knowledge
+    $state._mentionList = null
+  }
+}
+
+/**
+ * Ensures profiles are loaded for the given project.
+ * Returns a promise that resolves when profiles are available.
+ */
+async function ensureProfilesLoaded(project) {
+  const { $state, $api } = project
+  if (!$state || !$api) return
+  if ($state.profiles && $state.profiles.length > 0) return
+  const profiles = await promiseOrDefault(() => $api.profiles.list(), [])
+  if (profiles && profiles.length > 0) {
+    $state.profiles = profiles
+    // Invalidate cached mention list so next access rebuilds with fresh profiles
+    $state._mentionList = null
+  }
+}
+
 const initProject = async project => {
       try {
           const [_, models ] = await Promise.all([
@@ -77,18 +109,28 @@ const initProject = async project => {
           Object.assign(project.$state,  { 
             profiles: await promiseOrDefault(project.$api.profiles.list, []), 
             chats: await promiseOrDefault(project.$api.chats.list, []),
-            knowledge: {},
+            knowledge: null,
             _mentionList: null,
             get mentionList() {
-              if (!this._mentionList) {
-                this._mentionList = buildMentions(project)
-              }
               return this._mentionList
             },
-            searchMentions(query, limit = 10) {
+            async searchMentions(query, limit = 10) {
               // Collect mention lists from current project + subprojects + linked projects
               const relatedProjects = getRelatedProjects(project)
-              
+
+              // Ensure all related projects have their knowledge and profiles loaded
+              await Promise.all([
+                ensureFilesLoaded(project),
+                ensureProfilesLoaded(project),
+                ...relatedProjects.map(rp => Promise.all([
+                  ensureFilesLoaded(rp),
+                  ensureProfilesLoaded(rp),
+                ]))
+              ])
+
+              // Build mention list for current project (fresh, post-load)
+              const currentMentions = await buildMentions(project)
+
               // Build a deduplicated merged mention list across all related projects
               const seenKeys = new Set()
               const mergedMentions = []
@@ -104,13 +146,12 @@ const initProject = async project => {
               }
 
               // Current project mentions first (highest priority)
-              addMentions(this.mentionList)
+              addMentions(currentMentions)
 
               // Then related projects
               for (const relProject of relatedProjects) {
-                if (relProject.$state?.mentionList) {
-                  addMentions(relProject.$state.mentionList)
-                }
+                const relMentions = await buildMentions(relProject)
+                addMentions(relMentions)
               }
 
               const fuseOptions = {
@@ -124,7 +165,9 @@ const initProject = async project => {
               };
 
               const fuse = new Fuse(mergedMentions, fuseOptions);
-              return fuse.search(query).map(r => r.item).slice(0, limit)
+              return fuse.search(query)
+                .filter(({ score }) => score < 0.25) // 0 perfect match
+                .map(r => r.item).slice(0, limit)
             }
           })
       } catch (ex) {
@@ -171,51 +214,14 @@ function getRelatedProjects(project) {
 }
 
 /**
- * Ensures knowledge is loaded for the given project $state.
- * Triggers async load if knowledge is null/empty and resets _mentionList cache afterwards.
+ * Builds the mention list for a project.
+ * Knowledge and profiles must be loaded before calling this.
  */
-function ensureKnowledgeLoaded(project) {
-  const { $state, $api } = project
-  if (!$state || !$api) return
-  const knowledge = $state.knowledge
-  // Already loaded if files array exists (even if empty)
-  if (knowledge) return
-  // Kick off async load without blocking
-  promiseOrDefault(() => $api.knowledge.status(), null).then(data => {
-    if (data) {
-      $state.knowledge = data
-      // Invalidate cached mention list so next access rebuilds with fresh knowledge
-      $state._mentionList = null
-    }
-  })
-}
-
-/**
- * Ensures profiles are loaded for the given project $state.
- * Triggers async load if profiles array is empty and resets _mentionList cache afterwards.
- */
-function ensureProfilesLoaded(project) {
-  const { $state, $api } = project
-  if (!$state || !$api) return
-  // Already loaded if there are profiles
-  if ($state.profiles && $state.profiles.length > 0) return
-  // Kick off async load without blocking
-  promiseOrDefault(() => $api.profiles.list(), []).then(profiles => {
-    if (profiles && profiles.length > 0) {
-      $state.profiles = profiles
-      // Invalidate cached mention list so next access rebuilds with fresh profiles
-      $state._mentionList = null
-    }
-  })
-}
-
-function buildMentions(project) {
+async function buildMentions(project) {
   const { $state, project_id, parent_id } = project
-  const { knowledge, profiles } = $state
+  if (!$state) return []
 
-  // Trigger background loading of knowledge and profiles if not yet available
-  ensureKnowledgeLoaded(project)
-  ensureProfilesLoaded(project)
+  const { files, profiles } = $state
 
   return [
     ...$storex.api.userNetwork.map(user => ({ 
@@ -236,20 +242,17 @@ function buildMentions(project) {
     ]
       .filter(project => project)
       .map(project => ({ name: project.project_name, project, tooltip: `Search in project ${project.project_name}` })),
-    ...[
-      ...knowledge?.files || [],
-      ...knowledge?.pending_files || []
-    ]
-    .map(file => ({ file,
+    ...(files || [])
+        .map(file => ({ file,
                     name: file.split('/').reverse()[0],
                     filePath: file.split('/').reverse().slice(0, 3).reverse().join('/')
                   }))
-    .map(({ file, name, filePath }) => ({ 
-                    name, 
-                    file, 
-                    searchIndex: filePath,
-                    tooltip: `Use file ${filePath}`
-                  })),
+        .map(({ file, name, filePath }) => ({ 
+                        name, 
+                        file, 
+                        searchIndex: filePath,
+                        tooltip: `Use file ${filePath}`
+                      })),
   ].map(m => ({ 
     ...m,
     avatar: m.user?.avatar || m.profile?.avatar || m.project?.project_icon,
@@ -332,7 +335,8 @@ export const getters = getterTree(state, {
   },
   branches: state => state.project_branches.branches,
   currentBranch: state => state.project_branches.current_branch,
-  mentionList: () => buildMentions($storex.projects.activeProject),
+  // mentionList is now async; consumers should use activeProject.$state.searchMentions(query) directly
+  mentionList: () => $storex.projects.activeProject?.$state?.mentionList || [],
   lastAssistantChats: () =>
         $storex.chats.allChats
           .filter(c => c.board === 'codx-junior')
@@ -664,6 +668,15 @@ export const actions = actionTree(
       // Delete board chats
       await $storex.api.chats.kanban.delete(title)
       $storex.projects.saveKanban()
+    },
+    /**
+     * Search mentions across the active project and all related projects.
+     * Ensures knowledge and profiles are loaded before searching.
+     */
+    async searchMentions({ state }, { query, limit = 10 }) {
+      const project = state.activeProject
+      if (!project?.$state) return []
+      return project.$state.searchMentions(query, limit)
     },
   }
 )
