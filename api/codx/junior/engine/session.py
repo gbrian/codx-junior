@@ -57,6 +57,9 @@ Example:
 ```
 
 Use valid file path based on the project and conversation context.
+New file changes must follow original file formating and identation.
+Avoid unnecessary changes, format changes, or cleanup unless explicitely been asked for it.
+Keep changes simple and easy to review by the user.
 """
 
 

@@ -34,6 +34,8 @@ from codx.junior.api.knowledge import router as knowledge_router
 from codx.junior.api.chat import router as chat_router
 from codx.junior.api.views import router as views_router
 from codx.junior.api.analytics import router as analytics_router
+from codx.junior.api.logs import router as logs_router
+
 
 from codx.junior.security.user_management import get_authenticated_user
 
@@ -148,6 +150,7 @@ app.include_router(knowledge_router, prefix="/api")
 app.include_router(chat_router, prefix="/api")
 app.include_router(views_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
+app.include_router(logs_router, prefix="/api")
 
 APP_STOP_EVENT = asyncio.Event()
     

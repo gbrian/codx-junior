@@ -92,12 +92,6 @@ const initializeAPI = ({ project, user } = {}) => {
 
     // ─── Socket management ───────────────────────────────────────────────────
 
-    /**
-     * Initialise and connect the SocketManager.
-     * Callbacks for connect / disconnect / any-event are wired here so that
-     * higher-level consumers (session store, etc.) can register their own
-     * handlers via API.socket.onConnect / API.socket.onEvent.
-     */
     initSocket({ onConnect, onDisconnect, onEvent } = {}) {
       if (API._socketManager) {
         API._socketManager.disconnect()
@@ -121,16 +115,10 @@ const initializeAPI = ({ project, user } = {}) => {
       return API._socketManager
     },
 
-    /**
-     * Convenience accessor – returns the live SocketManager instance (or null).
-     */
     get socket() {
       return API._socketManager
     },
 
-    /**
-     * Disconnect and tear down the socket.
-     */
     disconnectSocket() {
       if (API._socketManager) {
         API._socketManager.disconnect()
@@ -671,14 +659,114 @@ const initializeAPI = ({ project, user } = {}) => {
       }
       return API
     },
+
+    // ─── Logs (system + AI request/response) ────────────────────────────────
     logs: {
+      // System/server logs (legacy)
       async read(logName, size) {
         return API.get(`/api/logs/${logName}?log_size=${size}`)
       },
       async list() {
         return API.get('/api/logs')
+      },
+
+      // AI request/response logs
+      ai: {
+        /**
+         * Recent logs for the current authenticated user.
+         * @param {number} limit - Max number of entries (1–100, default 10)
+         */
+        me(limit = 10) {
+          return API.get(`/api/logs/me?limit=${limit}`)
+        },
+
+        /**
+         * Paginated log list for the current user.
+         * @param {object} opts
+         * @param {string}  [opts.startDate]  - Inclusive start date YYYY-MM-DD
+         * @param {string}  [opts.endDate]    - Inclusive end date YYYY-MM-DD
+         * @param {string}  [opts.project]    - Filter by project name
+         * @param {string}  [opts.model]      - Filter by model name
+         * @param {string}  [opts.provider]   - Filter by provider name
+         * @param {string}  [opts.direction]  - Filter by direction: request | response
+         * @param {string}  [opts.sessionId]  - Filter by session id
+         * @param {number}  [opts.page]       - Page number (default 1)
+         * @param {number}  [opts.pageSize]   - Items per page (default 50, max 500)
+         */
+        list({ startDate, endDate, project, model, provider, direction, sessionId, page = 1, pageSize = 50 } = {}) {
+          const qs = _buildLogsQS({ startDate, endDate, project, model, provider, direction, sessionId, page, pageSize })
+          return API.get(`/api/logs/list${qs}`)
+        },
+
+        /**
+         * Full log entry detail for the current user.
+         * @param {string} logId - Synthetic log id (<YYYY-MM-DD>:<line_index>)
+         */
+        get(logId) {
+          return API.get(`/api/logs/${encodeURIComponent(logId)}`)
+        },
+
+        admin: {
+          /**
+           * Paginated log list across all users (admin only).
+           * @param {object} opts
+           * @param {string}  [opts.startDate]  - Inclusive start date YYYY-MM-DD
+           * @param {string}  [opts.endDate]    - Inclusive end date YYYY-MM-DD
+           * @param {string}  [opts.username]   - Filter by username
+           * @param {string}  [opts.project]    - Filter by project name
+           * @param {string}  [opts.model]      - Filter by model name
+           * @param {string}  [opts.provider]   - Filter by provider name
+           * @param {string}  [opts.direction]  - Filter by direction: request | response
+           * @param {string}  [opts.sessionId]  - Filter by session id
+           * @param {number}  [opts.page]       - Page number (default 1)
+           * @param {number}  [opts.pageSize]   - Items per page (default 50, max 500)
+           */
+          list({ startDate, endDate, username, project, model, provider, direction, sessionId, page = 1, pageSize = 50 } = {}) {
+            const qs = _buildLogsQS({ startDate, endDate, username, project, model, provider, direction, sessionId, page, pageSize })
+            return API.get(`/api/logs/admin/list${qs}`)
+          },
+
+          /**
+           * Full log entry detail for any user (admin only).
+           * @param {string} logId - Synthetic log id (<YYYY-MM-DD>:<line_index>)
+           */
+          get(logId) {
+            return API.get(`/api/logs/admin/${encodeURIComponent(logId)}`)
+          },
+
+          /**
+           * Delete a single log entry (admin only).
+           * @param {string} logId - Synthetic log id (<YYYY-MM-DD>:<line_index>)
+           */
+          delete(logId) {
+            return API.delete(`/api/logs/admin/${encodeURIComponent(logId)}`)
+          },
+
+          /**
+           * Bulk delete logs matching filters (admin only).
+           * At least one filter must be provided.
+           * @param {object} opts
+           * @param {string}  [opts.startDate]  - Inclusive start date YYYY-MM-DD
+           * @param {string}  [opts.endDate]    - Inclusive end date YYYY-MM-DD
+           * @param {string}  [opts.username]   - Filter by username
+           * @param {string}  [opts.project]    - Filter by project name
+           * @param {string}  [opts.model]      - Filter by model name
+           * @param {string}  [opts.provider]   - Filter by provider name
+           */
+          purge({ startDate, endDate, username, project, model, provider } = {}) {
+            return API.post('/api/logs/admin/purge', {
+              start_date: startDate  || null,
+              end_date:   endDate    || null,
+              username:   username   || null,
+              project:    project    || null,
+              model:      model      || null,
+              provider:   provider   || null,
+            })
+          }
+        }
       }
     },
+
     files: {
       list(path) {
         return API.get(`/api/files?path=${path}`)
@@ -753,6 +841,42 @@ function _buildAnalyticsQS(params) {
     projectName: 'project_name',
     projectId: 'project_id',
     model: 'model',
+  }
+  const parts = Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== '')
+    .map(([k, v]) => `${keyMap[k] || k}=${encodeURIComponent(v)}`)
+  return parts.length ? `?${parts.join('&')}` : ''
+}
+
+/**
+ * Build a query string for AI log filter params.
+ * Handles pagination and all available filter fields.
+ * Maps camelCase JS params to the snake_case query params expected by the backend.
+ *
+ * Supported params:
+ *   startDate  → start_date
+ *   endDate    → end_date
+ *   username   → username
+ *   project    → project
+ *   model      → model
+ *   provider   → provider
+ *   direction  → direction
+ *   sessionId  → session_id
+ *   page       → page
+ *   pageSize   → page_size
+ */
+function _buildLogsQS(params) {
+  const keyMap = {
+    startDate: 'start_date',
+    endDate:   'end_date',
+    username:  'username',
+    project:   'project',
+    model:     'model',
+    provider:  'provider',
+    direction: 'direction',
+    sessionId: 'session_id',
+    page:      'page',
+    pageSize:  'page_size',
   }
   const parts = Object.entries(params)
     .filter(([, v]) => v !== undefined && v !== null && v !== '')

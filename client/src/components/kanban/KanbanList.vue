@@ -9,7 +9,7 @@ import moment from 'moment'
         <input type="text" v-model="boardFilter" class="input input-sm" placeholder="Search boards" />
         <div class="grow"></div>
         <button class="btn btn-sm btn-warning btn-outline" @click="$emit('new-board')">
-          <i class="fa-solid fa-plus"></i>
+          <i class="fa-solid fa-plus"></i> Board
           <span class="hidden @md:block">New kanban</span>
         </button>
         <button class="btn btn-sm" @click="$emit('toogle-history')">

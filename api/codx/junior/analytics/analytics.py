@@ -55,6 +55,7 @@ class Analytics:
         tags: str = "",
         input_k_tokens_cxjcoins: float = 0.0,
         output_k_tokens_cxjcoins: float = 0.0,
+        request_id: str = None
     ) -> TokenUsageEvent:
         """
         Record a single LLM call's token consumption.
@@ -90,6 +91,7 @@ class Analytics:
             tags=tags,
             input_k_tokens_cxjcoins=input_k_tokens_cxjcoins,
             output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
+            request_id=request_id
             # total_cxjcoins is computed automatically in __post_init__
         )
         self.storage.write(event)

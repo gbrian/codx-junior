@@ -96,6 +96,13 @@ export const mutations = mutationTree(state, {
       component: 'log-viewer'
     })
   },
+  openChatLogs(state) {
+    state.showLogs = !state.showLogs
+    $storex.ui.showApp({
+      name: 'Chat logs',
+      component: 'chat-logs'
+    })
+  },
   setVoiceLanguage(state, voiceLanguage) {
     state.voiceLanguage = voiceLanguage
     $storex.ui.saveState()

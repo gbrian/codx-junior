@@ -43,3 +43,8 @@ ANALYTICS_DATA_PATH = os.environ.get(
     "CODX_JUNIOR_API_ANALYTICS_DATA_PATH",
     "/home/codx-junior/analytics"
 )
+
+CODX_JUNIOR_AI_RAW_LOG_PATH = os.environ.get(
+    "CODX_JUNIOR_AI_RAW_LOG_PATH",
+    "/home/codx-junior/analytics/chats"
+)

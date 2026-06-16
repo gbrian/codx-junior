@@ -236,13 +236,10 @@ class KnowledgeEngine:
         knowledge = self.session.get_knowledge()
         status = knowledge.status()
         current_sources_and_updates = knowledge.get_db().get_all_sources()
-        pending_files = []
         
-        if not ignore_pending:
-            pending , _ = knowledge.detect_changes(
-                current_sources_and_updates=current_sources_and_updates
-            )
-            pending_files = pending
+        pending_files , _ = knowledge.detect_changes(
+            current_sources_and_updates=current_sources_and_updates
+        )
             
         total_pending = len(pending_files)
 

@@ -90,74 +90,102 @@
         </linearGradient>
       </defs>
 
-      <!-- Area fills -->
-      <path :d="areaPath('total_tokens')" fill="url(#totalGrad)" />
-      <path :d="areaPath('input_tokens')" fill="url(#inputGrad)" />
-      <path :d="areaPath('output_tokens')" fill="url(#outputGrad)" />
-      <!-- Cost area uses its own scale -->
-      <path :d="costAreaPath()" fill="url(#costGrad)" />
+      <!-- ===== SINGLE DAY: BAR MODE ===== -->
+      <template v-if="isSingleDay">
+        <!-- Bars for total, input, output, cost grouped -->
+        <g v-for="(bar, i) in singleDayBars" :key="'bar-' + i">
+          <rect
+            :x="bar.x"
+            :y="bar.y"
+            :width="bar.w"
+            :height="bar.barHeight"
+            :fill="bar.color"
+            :fill-opacity="bar.opacity"
+            rx="3"
+          />
+          <!-- Bar label at top -->
+          <text
+            :x="bar.x + bar.w / 2"
+            :y="bar.y - 4"
+            text-anchor="middle"
+            :fill="bar.color"
+            font-size="9"
+            opacity="0.8"
+          >
+            {{ bar.label }}
+          </text>
+        </g>
+      </template>
 
-      <!-- Lines -->
-      <path
-        :d="linePath('total_tokens')"
-        fill="none"
-        stroke="#6366f1"
-        stroke-width="2"
-        stroke-linejoin="round"
-        stroke-linecap="round"
-      />
-      <path
-        :d="linePath('input_tokens')"
-        fill="none"
-        stroke="#22c55e"
-        stroke-width="1.5"
-        stroke-linejoin="round"
-        stroke-linecap="round"
-      />
-      <path
-        :d="linePath('output_tokens')"
-        fill="none"
-        stroke="#f59e0b"
-        stroke-width="1.5"
-        stroke-linejoin="round"
-        stroke-linecap="round"
-      />
-      <!-- Cost line uses its own scale -->
-      <path
-        :d="costLinePath()"
-        fill="none"
-        stroke="#e879f9"
-        stroke-width="1.5"
-        stroke-linejoin="round"
-        stroke-linecap="round"
-        stroke-dasharray="5,3"
-      />
+      <!-- ===== MULTI DAY: LINE MODE ===== -->
+      <template v-else>
+        <!-- Area fills -->
+        <path :d="areaPath('total_tokens')" fill="url(#totalGrad)" />
+        <path :d="areaPath('input_tokens')" fill="url(#inputGrad)" />
+        <path :d="areaPath('output_tokens')" fill="url(#outputGrad)" />
+        <path :d="costAreaPath()" fill="url(#costGrad)" />
 
-      <!-- Hover vertical line -->
-      <line
-        v-if="tooltip.visible"
-        :x1="tooltip.x"
-        :y1="padding.top"
-        :x2="tooltip.x"
-        :y2="height - padding.bottom"
-        stroke="currentColor"
-        stroke-opacity="0.3"
-        stroke-width="1"
-        stroke-dasharray="4,4"
-      />
-
-      <!-- Hover dots -->
-      <template v-if="tooltip.visible && tooltip.point">
-        <circle :cx="tooltip.x" :cy="yScale(tooltip.point.total_tokens)" r="4" fill="#6366f1" />
-        <circle :cx="tooltip.x" :cy="yScale(tooltip.point.input_tokens)" r="3.5" fill="#22c55e" />
-        <circle :cx="tooltip.x" :cy="yScale(tooltip.point.output_tokens)" r="3.5" fill="#f59e0b" />
-        <circle
-          v-if="tooltip.point.total_cxjcoins != null"
-          :cx="tooltip.x"
-          :cy="yCostScale(tooltip.point.total_cxjcoins)"
-          r="3.5"
-          fill="#e879f9"
+        <!-- Lines -->
+        <path
+          :d="linePath('total_tokens')"
+          fill="none"
+          stroke="#6366f1"
+          stroke-width="2"
+          stroke-linejoin="round"
+          stroke-linecap="round"
         />
+        <path
+          :d="linePath('input_tokens')"
+          fill="none"
+          stroke="#22c55e"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        <path
+          :d="linePath('output_tokens')"
+          fill="none"
+          stroke="#f59e0b"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+        />
+        <path
+          :d="costLinePath()"
+          fill="none"
+          stroke="#e879f9"
+          stroke-width="1.5"
+          stroke-linejoin="round"
+          stroke-linecap="round"
+          stroke-dasharray="5,3"
+        />
+
+        <!-- Hover vertical line -->
+        <line
+          v-if="tooltip.visible"
+          :x1="tooltip.x"
+          :y1="padding.top"
+          :x2="tooltip.x"
+          :y2="height - padding.bottom"
+          stroke="currentColor"
+          stroke-opacity="0.3"
+          stroke-width="1"
+          stroke-dasharray="4,4"
+        />
+
+        <!-- Hover dots -->
+        <template v-if="tooltip.visible && tooltip.point">
+          <circle :cx="tooltip.x" :cy="yScale(tooltip.point.total_tokens)" r="4" fill="#6366f1" />
+          <circle :cx="tooltip.x" :cy="yScale(tooltip.point.input_tokens)" r="3.5" fill="#22c55e" />
+          <circle :cx="tooltip.x" :cy="yScale(tooltip.point.output_tokens)" r="3.5" fill="#f59e0b" />
+          <circle
+            v-if="tooltip.point.total_cxjcoins != null"
+            :cx="tooltip.x"
+            :cy="yCostScale(tooltip.point.total_cxjcoins)"
+            r="3.5"
+            fill="#e879f9"
+          />
+        </template>
       </template>
     </svg>
 
@@ -188,7 +216,6 @@
           <span class="text-base-content/70">Calls:</span>
           <span class="font-semibold">{{ tooltip.point.calls }}</span>
         </div>
-        <!-- Cost row -->
         <div v-if="tooltip.point.total_cxjcoins != null" class="flex items-center gap-2 border-t border-base-300 pt-0.5 mt-0.5">
           <span class="w-2 h-2 rounded-full bg-[#e879f9] inline-block"></span>
           <span class="text-base-content/70">Cost:</span>
@@ -212,7 +239,6 @@
         <span class="text-base-content/60">Output</span>
       </div>
       <div class="flex items-center gap-1">
-        <!-- Dashed line indicator for cost -->
         <svg width="12" height="6" class="inline-block">
           <line x1="0" y1="3" x2="12" y2="3" stroke="#e879f9" stroke-width="1.5" stroke-dasharray="3,2" />
         </svg>
@@ -235,7 +261,6 @@ export default {
     return {
       width: 0,
       height: 0,
-      // Extra right padding to fit cost axis labels
       padding: { top: 20, right: 48, bottom: 30, left: 55 },
       tooltip: {
         visible: false,
@@ -250,6 +275,9 @@ export default {
     chartPoints() {
       return [...this.data].sort((a, b) => a.date > b.date ? 1 : -1)
     },
+    isSingleDay() {
+      return this.chartPoints.length === 1
+    },
     maxValue() {
       return Math.max(...this.chartPoints.map(p => p.total_tokens), 1)
     },
@@ -262,7 +290,6 @@ export default {
       const nice = Math.ceil(max / step) * step
       return [0, nice * 0.25, nice * 0.5, nice * 0.75, nice].map(Math.round)
     },
-    // Independent cost axis ticks
     yCostTicks() {
       const max = this.maxCost
       const step = Math.pow(10, Math.floor(Math.log10(max)))
@@ -287,6 +314,41 @@ export default {
       const { x } = this.tooltip
       const left = x > (this.width / 2) ? `${x - 150}px` : `${x + 12}px`
       return { top: `${this.padding.top}px`, left }
+    },
+    // Build bar data for single-day mode
+    singleDayBars() {
+      if (!this.isSingleDay) return []
+      const p = this.chartPoints[0]
+      const bottom = this.height - this.padding.bottom
+      const innerW = this.width - this.padding.left - this.padding.right
+      // 3 token bars + 1 cost bar, with a gap
+      const barDefs = [
+        { key: 'total_tokens',  color: '#6366f1', label: this.formatNumber(p.total_tokens),  value: p.total_tokens,  scale: 'token' },
+        { key: 'input_tokens',  color: '#22c55e', label: this.formatNumber(p.input_tokens),   value: p.input_tokens,  scale: 'token' },
+        { key: 'output_tokens', color: '#f59e0b', label: this.formatNumber(p.output_tokens),  value: p.output_tokens, scale: 'token' },
+        { key: 'total_cxjcoins',color: '#e879f9', label: this.formatCoins(p.total_cxjcoins), value: p.total_cxjcoins || 0, scale: 'cost' }
+      ]
+      const count = barDefs.length
+      const gap = 12
+      const barW = Math.max(20, (innerW - gap * (count + 1)) / count)
+      const totalBarsW = barW * count + gap * (count - 1)
+      const startX = this.padding.left + (innerW - totalBarsW) / 2
+
+      return barDefs.map((def, i) => {
+        const x = startX + i * (barW + gap)
+        const yVal = def.scale === 'cost'
+          ? this.yCostScale(def.value)
+          : this.yScale(def.value)
+        return {
+          x,
+          y: yVal,
+          w: barW,
+          barHeight: bottom - yVal,
+          color: def.color,
+          opacity: 0.75,
+          label: def.label
+        }
+      })
     }
   },
   methods: {
@@ -296,13 +358,11 @@ export default {
       const range = this.width - this.padding.left - this.padding.right
       return this.padding.left + (i / (n - 1)) * range
     },
-    // Token scale (left axis)
     yScale(value) {
       const range = this.height - this.padding.top - this.padding.bottom
       const max = this.yTicks[this.yTicks.length - 1] || 1
       return this.height - this.padding.bottom - (value / max) * range
     },
-    // Cost scale (right axis, independent)
     yCostScale(value) {
       const range = this.height - this.padding.top - this.padding.bottom
       const max = this.yCostTicks[this.yCostTicks.length - 1] || 1
@@ -316,7 +376,6 @@ export default {
         return `${i === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
       }).join(' ')
     },
-    // Cost line uses yCostScale
     costLinePath() {
       if (this.chartPoints.length === 0) return ''
       return this.chartPoints.map((p, i) => {
@@ -336,7 +395,6 @@ export default {
       const close = `L ${points[points.length - 1].x.toFixed(2)} ${bottom} L ${points[0].x.toFixed(2)} ${bottom} Z`
       return `${line} ${close}`
     },
-    // Cost area uses yCostScale
     costAreaPath() {
       if (this.chartPoints.length === 0) return ''
       const bottom = this.height - this.padding.bottom
@@ -353,7 +411,6 @@ export default {
       if (v >= 1_000) return (v / 1_000).toFixed(0) + 'K'
       return v
     },
-    // Short cost label for right axis
     formatCoinsShort(v) {
       if (v >= 1_000_000) return (v / 1_000_000).toFixed(1) + 'M'
       if (v >= 1_000) return (v / 1_000).toFixed(1) + 'K'
@@ -377,6 +434,14 @@ export default {
       return '🪙 ' + Number(coins).toFixed(2)
     },
     onMouseMove(event) {
+      // In single-day bar mode always show the only data point
+      if (this.isSingleDay) {
+        const cx = this.width / 2
+        this.tooltip.visible = true
+        this.tooltip.x = cx
+        this.tooltip.point = this.chartPoints[0]
+        return
+      }
       const rect = this.$el.getBoundingClientRect()
       const svgX = event.clientX - rect.left
       const innerWidth = this.width - this.padding.left - this.padding.right

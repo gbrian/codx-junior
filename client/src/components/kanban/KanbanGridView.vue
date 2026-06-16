@@ -176,7 +176,7 @@ import Collapsible from '../Collapsible.vue'
                   class="btn btn-xs btn-ghost opacity-60 hover:opacity-100 hover:text-primary"
                   title="Add task to this column"
                 >
-                  <i class="fa-solid fa-plus text-xs"></i>
+                  <i class="fa-solid fa-plus text-xs"></i> Task
                 </div>
                 <ul tabindex="0" class="dropdown-content menu bg-base-100 rounded-box z-20 w-44 p-2 shadow">
                   <li @click="emitNewTaskForColumn(groupKey, 'chat')">

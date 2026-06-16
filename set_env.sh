@@ -49,6 +49,9 @@ export CODX_JUNIOR_WORKSPACES_FOLDER=${CODX_JUNIOR_CONFIG_FOLDER}/workspaces
 # Analytics
 export CODX_JUNIOR_API_ANALYTICS_DATA_PATH=${CODX_JUNIOR_API_ANALYTICS_DATA_PATH:-/home/codx-junior/analytics}
 
+# Chat logs
+export CODX_JUNIOR_AI_RAW_LOG_PATH=${CODX_JUNIOR_AI_RAW_LOG_PATH:-/home/codx-junior/analytics/chats}
+
 # Miscellaneous
 export DEBIAN_FRONTEND=noninteractive
 # Locales

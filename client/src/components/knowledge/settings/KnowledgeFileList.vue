@@ -19,8 +19,8 @@
         </button>
       </label>
       <button class="btn btn-xs btn-ghost gap-1 text-base-content/60" @click="toggleAllNoneSelection">
-        <i class="fa-solid fa-check-double text-xs"></i>
-        <span class="hidden sm:inline">{{ selectedFileCount ? 'None' : 'All' }}</span>
+        <i class="fa-solid fa-check-double text-xs"></i> Select
+        <span class="">{{ selectedFileCount ? 'None' : 'All' }}</span>
       </button>
     </div>
 

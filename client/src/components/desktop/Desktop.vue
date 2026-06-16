@@ -23,6 +23,7 @@ import ChatView from '@/views/ChatView.vue'
 import Tab from './Tab.vue'
 import ViewProperties from '../main-menu/ViewProperties.vue'
 import AnalyticsDashboard from '../analytics/index.vue'
+import LogsAnalyzerDashboard from '../logs/LogsAnalyzerDashboard.vue'
 </script>
 
 <template>
@@ -70,6 +71,7 @@ export default {
     'activity': Wall,
     'chat': ChatView,
     'analytics': AnalyticsDashboard,
+    'chat-logs': LogsAnalyzerDashboard,
     tabComponent: Tab,
     ViewProperties
   },

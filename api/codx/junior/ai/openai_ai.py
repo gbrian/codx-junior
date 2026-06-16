@@ -2,6 +2,7 @@ import logging
 import json
 import os
 import time
+import uuid
 
 from datetime import datetime, date
 from typing import Union
@@ -10,6 +11,7 @@ from openai.types.chat.chat_completion_system_message_param import ChatCompletio
 from openai.types.chat.chat_completion_user_message_param import ChatCompletionUserMessageParam
 
 from codx.junior.ai.ai_logger import AILogger
+from codx.junior.ai.raw_logger import RawAILogger, STATUS_SUCCESS, STATUS_CANCELLED, STATUS_ERROR
 from codx.junior.ai.cancellation import CancellationToken, CancelledError
 from codx.junior.ai.wallet_check import check_user_wallet
 from codx.junior.settings import CODXJuniorSettings
@@ -35,6 +37,11 @@ def _get_analytics():
     return _analytics_instance
 
 
+def _new_request_id() -> str:
+    """Generate a new unique request id."""
+    return str(uuid.uuid4())
+
+
 class OpenAI_AI:
     def __init__(self, settings: CODXJuniorSettings, llm_model: str = None, user: CodxUser = None, system: str = None):
         from codx.junior.tools import TOOLS
@@ -57,6 +64,95 @@ class OpenAI_AI:
         except Exception as ex:
             logger.error("Error creating OpenAI client: %s, %s*****", self.base_url, self.api_key[0:15])
         self.ai_logger = AILogger(settings=settings)
+
+        # Raw request/response logger — enabled when a log path is configured
+        self.raw_logger: RawAILogger = RawAILogger()
+
+    # ── Raw logging helpers ────────────────────────────────────────────────────
+
+    def _raw_log_ctx(self, session_id, tags_joined, request_id, parent_request_id):
+        """Return the common kwargs shared by all raw-log calls."""
+        return dict(
+            provider=self.llm_settings.provider or "",
+            model=self.model,
+            base_url=self.base_url,
+            username=self.user.username if self.user else "anonymous",
+            project=self.settings.project_name or "",
+            session_id=session_id,
+            tags=tags_joined,
+            request_id=request_id,
+            parent_request_id=parent_request_id,
+        )
+
+    def _raw_log_request(
+        self,
+        openai_messages,
+        kwargs,
+        request_id: str,
+        session_id=None,
+        tags="",
+        parent_request_id=None,
+    ):
+        if not self.raw_logger:
+            return
+        try:
+            self.raw_logger.log_request(
+                **self._raw_log_ctx(session_id, tags, request_id, parent_request_id),
+                messages=openai_messages,
+                kwargs=kwargs,
+            )
+        except Exception as ex:
+            logger.warning("_raw_log_request failed (non-fatal): %s", ex)
+
+    def _raw_log_response(
+        self,
+        content_parts,
+        duration_seconds,
+        request_id: str,
+        session_id=None,
+        tags="",
+        finish_reason=None,
+        tool_calls=None,
+        parent_request_id=None,
+        status=STATUS_SUCCESS,
+    ):
+        if not self.raw_logger:
+            return
+        try:
+            self.raw_logger.log_response(
+                **self._raw_log_ctx(session_id, tags, request_id, parent_request_id),
+                content_parts=content_parts,
+                finish_reason=finish_reason,
+                tool_calls=tool_calls,
+                duration_seconds=duration_seconds,
+                status=status,
+            )
+        except Exception as ex:
+            logger.warning("_raw_log_response failed (non-fatal): %s", ex)
+
+    def _raw_log_error(
+        self,
+        error: Exception,
+        duration_seconds: float,
+        request_id: str,
+        session_id=None,
+        tags="",
+        parent_request_id=None,
+        status=STATUS_ERROR,
+    ):
+        if not self.raw_logger:
+            return
+        try:
+            self.raw_logger.log_error(
+                **self._raw_log_ctx(session_id, tags, request_id, parent_request_id),
+                error=error,
+                duration_seconds=duration_seconds,
+                status=status,
+            )
+        except Exception as ex:
+            logger.warning("_raw_log_error failed (non-fatal): %s", ex)
+
+    # ── Existing helpers (unchanged) ───────────────────────────────────────────
 
     def _preflight_limit_check(self) -> None:
         """
@@ -81,6 +177,7 @@ class OpenAI_AI:
         duration_seconds: float = 0.0,
         tags: str = "",
         session_id: str = None,
+        request_id: str = None,
     ) -> None:
         try:
             analytics = _get_analytics()
@@ -102,6 +199,7 @@ class OpenAI_AI:
                 tags=tags,
                 input_k_tokens_cxjcoins=input_k_tokens_cxjcoins,
                 output_k_tokens_cxjcoins=output_k_tokens_cxjcoins,
+                request_id=request_id,
             )
         except Exception as ex:
             logger.warning("_record_usage failed (non-fatal): %s", ex)
@@ -136,6 +234,12 @@ class OpenAI_AI:
     def chat_completions(self, messages, config: dict = {}):
         self._preflight_limit_check()
 
+        # Each call gets a fresh unique request_id.
+        # A parent_request_id is passed via config when this call was spawned
+        # from a tool-call response in a_chat_completions.
+        request_id: str = _new_request_id()
+        parent_request_id: str = config.get("parent_request_id", None)
+
         kwargs = {
             "model": self.model,
             "stream": True,
@@ -162,6 +266,7 @@ class OpenAI_AI:
         session_id = request_headers.get("session_id", None)
 
         request_start = time.monotonic()
+        tags_joined = ""
 
         try:
             tags = tags_str.split(",") + [
@@ -172,6 +277,18 @@ class OpenAI_AI:
                 tags.append(f"user:{self.user.username}")
             request_headers["x-litellm-tags"] = ",".join(tags)
 
+            tags_joined = ",".join(tags)
+
+            # ── Raw-log the outgoing request ───────────────────────────────────
+            self._raw_log_request(
+                openai_messages=openai_messages,
+                kwargs=kwargs,
+                request_id=request_id,
+                session_id=session_id,
+                tags=tags_joined,
+                parent_request_id=parent_request_id,
+            )
+
             response_stream = self.client.chat.completions.create(
                 **kwargs,
                 messages=openai_messages,
@@ -179,6 +296,7 @@ class OpenAI_AI:
             )
             callbacks = config.get("callbacks", None)
             content_parts = []
+            last_finish_reason = None
 
             callback_data = {
                 "buffer": [],
@@ -211,6 +329,8 @@ class OpenAI_AI:
                     raise CancelledError("Chat completion was cancelled by the caller.")
 
                 choice = chunk.choices[0]
+                if choice.finish_reason:
+                    last_finish_reason = choice.finish_reason
                 chunk_content = choice.delta.content
                 if not chunk_content:
                     continue
@@ -219,23 +339,58 @@ class OpenAI_AI:
                 send_callback(chunk_content)
 
             send_callback("", flush=True)
-        except CancelledError:
+
+        except CancelledError as ex:
+            duration_seconds = time.monotonic() - request_start
+            self._raw_log_error(
+                error=ex,
+                duration_seconds=duration_seconds,
+                request_id=request_id,
+                session_id=session_id,
+                tags=tags_joined,
+                parent_request_id=parent_request_id,
+                status=STATUS_CANCELLED,
+            )
             raise
+
         except Exception as ex:
+            duration_seconds = time.monotonic() - request_start
             logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
+            self._raw_log_error(
+                error=ex,
+                duration_seconds=duration_seconds,
+                request_id=request_id,
+                session_id=session_id,
+                tags=tags_joined,
+                parent_request_id=parent_request_id,
+                status=STATUS_ERROR,
+            )
             raise ex
 
         duration_seconds = time.monotonic() - request_start
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
 
+        # ── Raw-log the completed response ─────────────────────────────────────
+        self._raw_log_response(
+            content_parts=content_parts,
+            duration_seconds=duration_seconds,
+            request_id=request_id,
+            session_id=session_id,
+            tags=tags_joined,
+            finish_reason=last_finish_reason,
+            parent_request_id=parent_request_id,
+            status=STATUS_SUCCESS,
+        )
+
         input_text = "\n".join(m.get("content", "") for m in openai_messages)
         self._record_usage(
             input_text=input_text,
             output_text=response_content,
             duration_seconds=duration_seconds,
-            tags=",".join(tags) if isinstance(tags, list) else tags_str,
+            tags=tags_joined,
             session_id=session_id,
+            request_id=request_id,
         )
 
         messages.append(AIMessage(content=response_content))
@@ -244,6 +399,11 @@ class OpenAI_AI:
     @profile_function
     async def a_chat_completions(self, messages, config: dict = {}):
         self._preflight_limit_check()
+
+        # Each top-level async call gets a fresh unique request_id.
+        # A parent_request_id may be passed from an outer tool-call chain.
+        request_id: str = _new_request_id()
+        parent_request_id: str = config.get("parent_request_id", None)
 
         kwargs = {
             "model": self.model,
@@ -272,6 +432,7 @@ class OpenAI_AI:
         session_id = request_headers.get("session_id", None)
 
         request_start = time.monotonic()
+        tags_joined = ""
 
         try:
             tags = tags_str.split(",") + [
@@ -282,18 +443,31 @@ class OpenAI_AI:
                 tags.append(f"user:{self.user.username}")
             request_headers["x-litellm-tags"] = ",".join(tags)
 
+            tags_joined = ",".join(tags)
+
             request_params = {
                 **kwargs,
                 "messages": openai_messages,
                 "extra_headers": request_headers
             }
             self.log(f"USER REQUEST:\n{json.dumps(request_params, indent=2)}")
+
+            # ── Raw-log the outgoing request ───────────────────────────────────
+            self._raw_log_request(
+                openai_messages=openai_messages,
+                kwargs=kwargs,
+                request_id=request_id,
+                session_id=session_id,
+                tags=tags_joined,
+                parent_request_id=parent_request_id,
+            )
         
             response_stream = self.client.chat.completions.create(
               **request_params
             )
             callbacks = config.get("callbacks", None)
             content_parts = []
+            last_finish_reason = None
 
             callback_data = {
                 "buffer": [],
@@ -337,6 +511,8 @@ class OpenAI_AI:
                     raise CancelledError("Async chat completion was cancelled by the caller.")
 
                 choice = chunk.choices[0]
+                if choice.finish_reason:
+                    last_finish_reason = choice.finish_reason
                 tool_calls = choice.delta.tool_calls if hasattr(choice, 'delta') else None 
                 
                 if tool_calls:
@@ -354,6 +530,20 @@ class OpenAI_AI:
                     all_tool_calls[last_tool_id]["arguments"] += tool_call.function.arguments
                 
                 if choice.finish_reason == 'tool_calls':
+                    # ── Raw-log the tool-call response before delegating ────────
+                    duration_so_far = time.monotonic() - request_start
+                    self._raw_log_response(
+                        content_parts=content_parts,
+                        duration_seconds=duration_so_far,
+                        request_id=request_id,
+                        session_id=session_id,
+                        tags=tags_joined,
+                        finish_reason="tool_calls",
+                        tool_calls=all_tool_calls,
+                        parent_request_id=parent_request_id,
+                        status=STATUS_SUCCESS,
+                    )
+
                     ai_tool_response = None
                     for tool_call_data in all_tool_calls.values():
                         func_name = tool_call_data["function"]
@@ -368,7 +558,9 @@ class OpenAI_AI:
 
                         messages.append(ai_tool_response)
 
-                    return self.chat_completions(messages=messages, config=config)
+                    # ── Propagate current request_id as parent for the child call ──
+                    child_config = {**config, "parent_request_id": request_id}
+                    return self.chat_completions(messages=messages, config=child_config)
                 
                 chunk_content = choice.delta.content
                 if not chunk_content:
@@ -378,15 +570,50 @@ class OpenAI_AI:
                 send_callback(chunk_content)
 
             send_callback("", flush=True)
-        except CancelledError:
+
+        except CancelledError as ex:
+            duration_seconds = time.monotonic() - request_start
+            self._raw_log_error(
+                error=ex,
+                duration_seconds=duration_seconds,
+                request_id=request_id,
+                session_id=session_id,
+                tags=tags_joined,
+                parent_request_id=parent_request_id,
+                status=STATUS_CANCELLED,
+            )
             raise
+
         except Exception as ex:
+            duration_seconds = time.monotonic() - request_start
             logger.error("Error reading AI response: %s, %s, %s\n%s", self.base_url, self.api_key[0:5], self.llm_settings, ex)
+            self._raw_log_error(
+                error=ex,
+                duration_seconds=duration_seconds,
+                request_id=request_id,
+                session_id=session_id,
+                tags=tags_joined,
+                parent_request_id=parent_request_id,
+                status=STATUS_ERROR,
+            )
             raise ex
 
         duration_seconds = time.monotonic() - request_start
         response_content = "".join(content_parts)
         self.log(f"AI RESPONSE:\n{response_content}")
+
+        # ── Raw-log the completed response ─────────────────────────────────────
+        self._raw_log_response(
+            content_parts=content_parts,
+            duration_seconds=duration_seconds,
+            request_id=request_id,
+            session_id=session_id,
+            tags=tags_joined,
+            finish_reason=last_finish_reason,
+            tool_calls=all_tool_calls if all_tool_calls else None,
+            parent_request_id=parent_request_id,
+            status=STATUS_SUCCESS,
+        )
 
         input_text = "\n".join(m.get("content", "") for m in openai_messages
                                if isinstance(m.get("content"), str))
@@ -394,8 +621,9 @@ class OpenAI_AI:
             input_text=input_text,
             output_text=response_content,
             duration_seconds=duration_seconds,
-            tags=",".join(tags) if isinstance(tags, list) else tags_str,
+            tags=tags_joined,
             session_id=session_id,
+            request_id=request_id,
         )
 
         messages.append(AIMessage(content=response_content))

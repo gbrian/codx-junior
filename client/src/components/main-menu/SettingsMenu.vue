@@ -16,14 +16,14 @@ import MenubarItem from './MenubarItem.vue';
         </MenubarItem>
 
         <MenubarItem @click="$ui.setActiveTab('settings')" v-if="$users.isProjectAdmin">
-            {{ $project.project_name }} settings
+            Project settings
         </MenubarItem>
 
 
         <MenubarItem v-if="$project && $storex.api.permissions.isProjectAdmin">
             <a class="flex gap-1 tooltip tooltip-right click" data-tip="Knowledge settings"
                 @click.stop="$ui.setActiveTab('knowledge_settings')">
-                {{ $project.project_name }} knowledge
+                Knowledge settings
             </a>
         </MenubarItem>
 
@@ -40,6 +40,11 @@ import MenubarItem from './MenubarItem.vue';
             <MenubarItem v-if="$storex.api.permissions.isAdmin">
                 <a class="flex gap-1 tooltip tooltip-right click" data-tip="Logs" @click="$ui.toggleLogs()">
                     View logs
+                </a>
+            </MenubarItem>
+            <MenubarItem v-if="$storex.api.permissions.isAdmin">
+                <a class="flex gap-1 tooltip tooltip-right click" data-tip="Logs" @click="$ui.openChatLogs()">
+                    Chat logs
                 </a>
             </MenubarItem>
             <MenubarItem class="flex gap-2 hover:bg-base-300" v-if="$ui.isMobile" @click="showEruda">

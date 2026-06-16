@@ -12,7 +12,6 @@ core
 static
 pids
 ollama_models
-logs
 .codx/logs/ai.md
 **/.vitepress/cache
 **/dist
@@ -34,3 +33,4 @@ codx-junior-installer/vllm/.cache
 # temp chats
 .codx/tasks/Quick chats
 .codx/tasks/kanban.json
+.codx/logs
