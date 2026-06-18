@@ -1,7 +1,6 @@
 <script setup>
-import MarkdownViewer from '../MarkdownViewer.vue';
-import Code from '../Code.vue';
-import HTMLViewer from '../HTMLViewer.vue';
+import MarkdownViewer from '../MarkdownViewer.vue'
+import Code from '../Code.vue'
 </script>
 
 <template>
@@ -9,6 +8,7 @@ import HTMLViewer from '../HTMLViewer.vue';
     <div v-for="block in blocks" :key="block.hash">
       <MarkdownViewer
         :files="files"
+        :documentId="documentId"
         v-if="block.renderer === 'md'"
         :text="block.content"
         @add-file="$emit('add-file', $event)"
@@ -60,7 +60,6 @@ function parseContent(content, loading) {
   let currentType = 'markdown'
   let currentContent = []
   let currentFileName = ''
-  // Track nesting depth: 0 = markdown level, 1+ = inside typed block(s)
   let nestingDepth = 0
 
   function setAllFinished() {
@@ -79,7 +78,6 @@ function parseContent(content, loading) {
       renderer: getRenderer(currentType),
       finished: false
     })
-    // Reset state
     currentType = 'markdown'
     currentContent = []
     currentFileName = ''
@@ -90,51 +88,43 @@ function parseContent(content, loading) {
     const closeMatch = line === '```'
 
     if (nestingDepth === 0 && openMatch) {
-      // At top level: opening a new typed block — flush any markdown content first
-      if (currentContent.length) {
-        addBlock()
-      }
+      if (currentContent.length) addBlock()
       nestingDepth = 1
       currentType = openMatch[1]
       currentFileName = openMatch[2] || ''
     } else if (nestingDepth === 1 && closeMatch) {
-      // Closing the top-level typed block
       addBlock()
       nestingDepth = 0
     } else if (nestingDepth >= 1 && openMatch) {
-      // Nested opening inside a typed block — treat as content, increase depth
       nestingDepth++
       currentContent.push(line)
     } else if (nestingDepth > 1 && closeMatch) {
-      // Closing a nested block — treat as content, decrease depth
       nestingDepth--
       currentContent.push(line)
     } else {
-      // Regular content line at any level
       currentContent.push(line)
     }
   }
 
-  // Flush any remaining content
-  if (currentContent.length) {
-    addBlock()
-  }
-  if (!loading) {
-    setAllFinished()
-  }
+  if (currentContent.length) addBlock()
+  if (!loading) setAllFinished()
   return blocks
 }
 
 export default {
-  props: ['content', 'files', 'project', 'chat', 'loading'],
+  props: ['content', 'files', 'project', 'chat', 'loading', 'documentId'],
   emits: ['generate-code', 'reload-file', 'open-file', 'save-file', 'add-file', 'edit-message', 'sub-task'],
+  data() {
+    return {
+    }
+  },
   computed: {
     blocks() {
       return parseContent(this.content || '', this.loading)
     },
     docProject() {
       return this.project || this.$project
-    },
-  },
+    }
+  }
 }
 </script>

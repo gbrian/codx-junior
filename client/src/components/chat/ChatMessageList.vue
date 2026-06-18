@@ -42,6 +42,7 @@ import ChatEntry from '@/components/ChatEntry.vue'
       @sub-task="$emit('sub-task', $event)"
       @message-changed="$emit('message-changed', $event)"
       @run-agents="$emit('run-agents', $event)"
+      @preview-file="$emit('preview-file', $event)"
     />
 
     <!-- Scroll anchor -->

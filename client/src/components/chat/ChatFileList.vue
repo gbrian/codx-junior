@@ -11,12 +11,12 @@
       class="group text-nowrap ml-2 hover:underline hover:bg-base-300 cursor-pointer"
       :class="file.exists === false ? 'text-error' : 'text-accent'"
       :title="file.exists === false ? 'File not found: ' + file.path : file.path"
-      @click="$ui.openFile(file.path)"
     >
       <span class="click mr-1" @click.stop="$ui.copyTextToClipboard(file.path)">
         <i class="fa-solid fa-copy"></i>
       </span>
-      <span>{{ file.label }}</span>
+      <!-- Clicking the label opens the preview panel -->
+      <span @click.stop="$emit('preview-file', file.path)">{{ file.label }}</span>
       <span
         v-if="file.exists !== false"
         class="ml-2 cursor-pointer"
@@ -55,7 +55,7 @@ export default {
     files: { type: Array, default: () => [] },
     chatProject: { type: Object, default: null }
   },
-  emits: ['remove', 'add-as-message', 'sync-notebook', 'export-notebook'],
+  emits: ['remove', 'add-as-message', 'sync-notebook', 'export-notebook', 'preview-file'],
   data() {
     return {
       // Each entry: { path, label, exists: null|true|false }

@@ -12,7 +12,6 @@
           <span class="badge badge-sm badge-ghost">{{ total }}</span>
         </h2>
         <div class="flex items-center gap-2">
-          <!-- Group by request_id toggle -->
           <label class="flex items-center gap-1 cursor-pointer">
             <input type="checkbox" v-model="groupByRequest" class="toggle toggle-xs toggle-primary" />
             <span class="text-xs text-base-content/60">Group pairs</span>
@@ -60,10 +59,13 @@
             </tr>
 
             <template v-for="row in displayedRows" :key="row.key">
-              <!-- Main row -->
+              <!-- Main row — highlighted red if any error present -->
               <tr
                 class="hover cursor-pointer text-sm"
-                :class="{ 'bg-base-200/50': row.isPaired && row.expanded }"
+                :class="[
+                  row.isPaired && row.expanded ? 'bg-base-200/50' : '',
+                  rowHasError(row) ? 'bg-error/10 hover:bg-error/20' : ''
+                ]"
                 @click="$emit('select', row.log)"
               >
                 <td class="font-mono text-xs text-base-content/60 whitespace-nowrap">
@@ -72,16 +74,26 @@
 
                 <!-- Direction badge -->
                 <td>
-                  <span
-                    class="badge badge-xs"
-                    :class="row.log.direction === 'request' ? 'badge-success' : row.log.direction === 'response' ? 'badge-warning' : 'badge-ghost'"
-                  >
-                    <i
-                      class="text-xs mr-0.5"
-                      :class="row.log.direction === 'request' ? 'fa-solid fa-arrow-up' : 'fa-solid fa-arrow-down'"
-                    ></i>
-                    {{ row.log.direction || '?' }}
-                  </span>
+                  <div class="flex items-center gap-1">
+                    <span
+                      class="badge badge-xs"
+                      :class="row.log.direction === 'request' ? 'badge-success' : row.log.direction === 'response' ? 'badge-warning' : 'badge-ghost'"
+                    >
+                      <i
+                        class="text-xs mr-0.5"
+                        :class="row.log.direction === 'request' ? 'fa-solid fa-arrow-up' : 'fa-solid fa-arrow-down'"
+                      ></i>
+                      {{ row.log.direction || '?' }}
+                    </span>
+                    <!-- Error icon with tooltip for primary row error -->
+                    <div v-if="row.log.error_type" class="tooltip tooltip-right" :data-tip="`${row.log.error_type}: ${row.log.error_message}`">
+                      <i class="fa-solid fa-circle-exclamation text-error text-xs animate-pulse"></i>
+                    </div>
+                    <!-- Error icon for sibling (paired) error -->
+                    <div v-else-if="row.sibling && row.sibling.error_type" class="tooltip tooltip-right" :data-tip="`${row.sibling.error_type}: ${row.sibling.error_message}`">
+                      <i class="fa-solid fa-circle-exclamation text-error text-xs animate-pulse"></i>
+                    </div>
+                  </div>
                 </td>
 
                 <!-- User -->
@@ -117,7 +129,6 @@
                       class="truncate max-w-20 text-base-content/50"
                       :title="row.log.request_id"
                     >{{ row.log.request_id ? row.log.request_id.slice(0, 8) + '…' : '—' }}</span>
-                    <!-- Pair expand toggle -->
                     <button
                       v-if="row.isPaired && groupByRequest"
                       class="btn btn-xs btn-ghost btn-circle"
@@ -126,7 +137,6 @@
                     >
                       <i class="fa-solid text-info text-xs" :class="row.expanded ? 'fa-chevron-up' : 'fa-link'"></i>
                     </button>
-                    <!-- Parent indicator -->
                     <button
                       v-if="row.log.parent_request_id"
                       class="btn btn-xs btn-ghost btn-circle"
@@ -150,8 +160,16 @@
                   {{ row.log.duration_seconds != null ? row.log.duration_seconds.toFixed(2) + 's' : '—' }}
                 </td>
 
-                <td class="text-xs text-base-content/40 truncate max-w-40" :title="row.log.payload_preview">
-                  {{ row.log.payload_preview || '—' }}
+                <!-- Preview + inline error message if present -->
+                <td class="text-xs max-w-40">
+                  <div v-if="rowHasError(row)" class="flex flex-col gap-0.5">
+                    <span class="text-error font-semibold truncate" :title="errorSummary(row)">
+                      <i class="fa-solid fa-triangle-exclamation text-xs mr-0.5"></i>{{ errorSummary(row) }}
+                    </span>
+                  </div>
+                  <span v-else class="text-base-content/40 truncate block" :title="row.log.payload_preview">
+                    {{ row.log.payload_preview || '—' }}
+                  </span>
                 </td>
 
                 <td>
@@ -161,27 +179,38 @@
                 </td>
               </tr>
 
-              <!-- Inline paired sibling row (same request_id, opposite direction) -->
+              <!-- Inline paired sibling row -->
               <tr
                 v-if="row.isPaired && row.expanded && groupByRequest && row.sibling"
                 :key="row.key + '_sibling'"
-                class="bg-info/5 border-l-4 border-info/40 cursor-pointer text-sm hover:bg-info/10"
+                class="border-l-4 cursor-pointer text-sm"
+                :class="row.sibling.error_type ? 'bg-error/10 hover:bg-error/20 border-error/50' : 'bg-info/5 border-info/40 hover:bg-info/10'"
                 @click="$emit('select', row.sibling)"
               >
                 <td class="font-mono text-xs text-base-content/40 whitespace-nowrap pl-6">
                   ↳ {{ formatTs(row.sibling.timestamp) }}
                 </td>
                 <td>
-                  <span
-                    class="badge badge-xs"
-                    :class="row.sibling.direction === 'request' ? 'badge-success' : 'badge-warning'"
-                  >
-                    <i class="text-xs mr-0.5" :class="row.sibling.direction === 'request' ? 'fa-solid fa-arrow-up' : 'fa-solid fa-arrow-down'"></i>
-                    {{ row.sibling.direction }}
-                  </span>
+                  <div class="flex items-center gap-1">
+                    <span
+                      class="badge badge-xs"
+                      :class="row.sibling.direction === 'request' ? 'badge-success' : 'badge-warning'"
+                    >
+                      <i class="text-xs mr-0.5" :class="row.sibling.direction === 'request' ? 'fa-solid fa-arrow-up' : 'fa-solid fa-arrow-down'"></i>
+                      {{ row.sibling.direction }}
+                    </span>
+                    <!-- Sibling error icon tooltip -->
+                    <div v-if="row.sibling.error_type" class="tooltip tooltip-right" :data-tip="`${row.sibling.error_type}: ${row.sibling.error_message}`">
+                      <i class="fa-solid fa-circle-exclamation text-error text-xs animate-pulse"></i>
+                    </div>
+                  </div>
                 </td>
-                <td colspan="7" class="text-xs text-base-content/50 truncate">
-                  {{ row.sibling.payload_preview || '—' }}
+                <td colspan="7" class="text-xs truncate">
+                  <span v-if="row.sibling.error_type" class="text-error font-semibold">
+                    <i class="fa-solid fa-triangle-exclamation text-xs mr-0.5"></i>
+                    {{ row.sibling.error_type }}: {{ row.sibling.error_message }}
+                  </span>
+                  <span v-else class="text-base-content/50">{{ row.sibling.payload_preview || '—' }}</span>
                 </td>
                 <td class="text-right text-xs font-mono text-base-content/60">
                   {{ row.sibling.duration_seconds != null ? row.sibling.duration_seconds.toFixed(2) + 's' : '—' }}
@@ -239,7 +268,6 @@ export default {
     return {
       localPageSize: this.pageSize,
       groupByRequest: true,
-      // Track which request_ids have their pair expanded
       expandedPairs: {}
     }
   },
@@ -251,7 +279,6 @@ export default {
       return pages
     },
 
-    /** Build a map of request_id -> [request, response] for pairing */
     pairMap() {
       const map = {}
       for (const log of this.logs) {
@@ -262,7 +289,6 @@ export default {
       return map
     },
 
-    /** Build display rows, grouping siblings under primary row when groupByRequest is on */
     displayedRows() {
       if (!this.groupByRequest) {
         return this.logs.map(log => ({
@@ -279,12 +305,10 @@ export default {
 
       for (const log of this.logs) {
         const rid = log.request_id
-        // No request_id: show as standalone
         if (!rid) {
           rows.push({ key: log.log_id, log, isPaired: false, expanded: false, sibling: null })
           continue
         }
-        // Already handled as sibling
         if (seen.has(log.log_id)) continue
 
         const siblings = this.pairMap[rid] || []
@@ -293,7 +317,6 @@ export default {
         seen.add(log.log_id)
         if (sibling) seen.add(sibling.log_id)
 
-        // Prefer showing request first, then response
         const primary = log.direction === 'request' || !sibling ? log : (sibling.direction === 'request' ? sibling : log)
         const sec = sibling?.log_id === primary.log_id ? log : sibling
 
@@ -325,6 +348,16 @@ export default {
         ...this.expandedPairs,
         [requestId]: !this.expandedPairs[requestId]
       }
+    },
+    // True if primary log or its sibling has an error
+    rowHasError(row) {
+      return !!(row.log.error_type || (row.sibling && row.sibling.error_type))
+    },
+    // Short error summary for preview cell — prefer response error over request
+    errorSummary(row) {
+      const err = (row.sibling?.error_type ? row.sibling : null) || (row.log.error_type ? row.log : null)
+      if (!err) return ''
+      return `${err.error_type}: ${err.error_message}`
     }
   }
 }

@@ -292,9 +292,7 @@ export const mutations = mutationTree(state, {
 function createProjectChat(project, chat) {
   return {
     ...chat,
-    get chatLink() {
-      return `/project/${project.project_id}/chat/${chat.id}`
-    }
+    chatLink:`/project/${project.project_id}/chat/${chat.id}`
   }
 }
 

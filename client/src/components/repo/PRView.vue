@@ -2,6 +2,7 @@
 import "@git-diff-view/vue/styles/diff-view.css"
 import { DiffParser } from "@git-diff-view/vue"
 import PRBranchSelectoor from './PRBranchSelectoor.vue'
+import PRCommitSelector from './PRCommitSelector.vue'
 import CodxMenu from "../CodxMenu.vue"
 import PRReport from "./PRReport.vue"
 import { SplitterGroup, SplitterPanel, SplitterResizeHandle } from 'radix-vue'
@@ -17,16 +18,41 @@ import ChatEntryVue from '../ChatEntry.vue'
           <span class="text-xs">Loading</span>
           <progress class="progress grow"></progress>
         </div>
-        <div class="flex gap-2">
-          <PRBranchSelectoor :fromBranch="fromBranchSelected" :toBranch="toBranchSelected" @select="onBranchChanged" :branches="repoBranches?.branches" />
-          <button class="btn btn-xs" @click="refreshSummary">
+
+        <!-- Compare controls -->
+        <div class="flex gap-2 flex-wrap items-end">
+          <PRCommitSelector
+            :branches="repoBranches?.branches"
+            :api="$api"
+            @mode-change="onCompareModeChange"
+            @commit-compare="onCommitCompare"
+          >
+            <!-- Branch selectors rendered inside commit selector slot -->
+            <PRBranchSelectoor 
+              :fromBranch="fromBranchSelected" 
+              :toBranch="toBranchSelected" 
+              @select="onBranchChanged" 
+              :branches="repoBranches?.branches" 
+            />
+          </PRCommitSelector>
+
+          <button class="btn btn-xs" @click="refreshSummary" :disabled="loading">
             <i class="fa-solid fa-arrows-rotate"></i>
           </button>
           <div class="grow"></div>
           <PRFileViewModeSelector :messageCount="messages.length" @select="onSelectFileOption" />
         </div>
+
+        <!-- Active comparison badge -->
+        <div class="flex gap-2 items-center text-xs text-slate-400" v-if="compareMode === 'commit' && activeCommitCompare">
+          <i class="fa-solid fa-code-commit"></i>
+          <span class="font-mono">{{ activeCommitCompare.fromCommit.slice(0,8) }}</span>
+          <i class="fa-solid fa-arrow-right"></i>
+          <span class="font-mono">{{ activeCommitCompare.toCommit.slice(0,8) }}</span>
+        </div>
       </div>
     </header>
+
     <div v-if="prShowOption === 'diff'">
       <div class="flex gap-2 py-2 items-center" v-if="files?.length">
         <div class="flex gap-2 items-center" v-if="reportFiles.length">
@@ -189,7 +215,10 @@ export default {
       prShowOption: 'diff',
       chatColumn: null,
       projectContext: null,
-      repoBranches: {}     
+      repoBranches: {},
+      // commit compare state
+      compareMode: 'branch',    // 'branch' | 'commit'
+      activeCommitCompare: null // { fromCommit, toCommit }
     }
   },
   created() {
@@ -329,16 +358,40 @@ export default {
     copyText() {
       copyTextToClipboard(this.changesSummary)
     },
+
+    onCompareModeChange(mode) {
+      this.compareMode = mode
+      // Clear files when switching mode until a new compare is triggered
+      if (mode === 'commit') {
+        this.activeCommitCompare = null
+        this.files = null
+      }
+    },
+
+    async onCommitCompare({ fromCommit, toCommit }) {
+      this.activeCommitCompare = { fromCommit, toCommit }
+      await this.refreshSummary()
+    },
+
     async refreshSummary() {
       this.loading = true
       try {
-        const { fromBranch, toBranch } = this
-        this.repoChanges = await this.$api.repo.changes({ from_branch: fromBranch, to_branch: toBranch })        
-        this.buildFiles()  
+        if (this.compareMode === 'commit' && this.activeCommitCompare) {
+          const { fromCommit, toCommit } = this.activeCommitCompare
+          this.repoChanges = await this.$api.repo.commitChanges({
+            from_commit: fromCommit,
+            to_commit: toCommit
+          })
+        } else {
+          const { fromBranch, toBranch } = this
+          this.repoChanges = await this.$api.repo.changes({ from_branch: fromBranch, to_branch: toBranch })
+        }
+        this.buildFiles()
       } finally {
         this.loading = false
       }
     },
+
     buildFiles() {
       if (!this.repoChanges) {
         this.files = null
@@ -356,8 +409,8 @@ export default {
                       .sort((a, b) => a.title < b.title ? 1 : -1)
                       .reduce((acc, f) => ({ ...acc, [f.fileFullName]: f }), {}) 
       this.files = Object.values(files)
-
     },
+
     toggleBranchInput() {
       this.isInputVisible = !this.isInputVisible
     },

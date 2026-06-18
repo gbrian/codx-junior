@@ -5,10 +5,11 @@ import 'vue-code-highlighter/dist/style.css'
 import hljs from 'highlight.js'
 import Editor from './monaco/Editor.vue'
 import Collapsible from './Collapsible.vue'
+import { EXTENSION_LANGUAGE_MAP } from '../store'
 </script>
 
 <template>
-  <Collapsible v-model="showCode">
+  <Collapsible v-model="showCode" class="h-full">
     <template #icon>
       <span class="loading loading-spinner loading-xs" v-if="isStreaming"></span>
       <div class="hover:text-info" @click.stop="$emit('add-file', file)" v-else>
@@ -46,7 +47,7 @@ import Collapsible from './Collapsible.vue'
 
         <span class="text-xs text-info flex gap-2 items-center" @click.stop="">
           <span v-if="loadingStats">Loading...</span>
-          <span @click.stop="onShowDiff" class="cursor-pointer hover:underline" v-if="stats && !editMode">
+          <span @click.stop="onShowDiff" class="cursor-pointer hover:underline" v-if="stats && !editMode && !isNoChange">
             <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
             <i class="fa-solid fa-code-compare" v-else></i>
             {{ stats }}
@@ -69,38 +70,53 @@ import Collapsible from './Collapsible.vue'
         title="Save to file">
         <i class="fa-solid fa-floppy-disk"></i> Save
       </button>
+      <button class="btn btn-sm btn-error btn-outline"
+        @click.stop="$emit('close')"
+        v-if="close"
+        title="Close">
+        <i class="fa-solid fa-rectangle-xmark"></i>
+      </button>
     </template>
 
-    <div class="flex flex-col gap-2 p-2">
+    <div class="p-2 flex flex-col gap-2">
+
       <div @click="runCommand" class="cursor-pointer" v-if="isCommand">
         <i class="fa-solid fa-terminal"></i>
       </div>
 
-      <div class="view-code" :style="{ zoom }">
-        <!-- File diff view: original on disk vs generated code (editable) -->
-        <Editor
-          :diff="true"
-          :originalCode="orgContent"
-          v-model="diffEditContent"
-          :fileName="file"
-          v-if="showDiff && !editMode && orgContent"
-        />
+      <!-- view-code grows to fill all available vertical space -->
+      <div class="view-code grow overflow-auto">
+        <!-- Fixed height container for Monaco editors so they render correctly -->
+        <div :style="{ zoom, height: `${editorHeight}px` }">
+          <!-- File diff view: original on disk vs generated code (editable) -->
+          <Editor
+            :diff="true"
+            :originalCode="orgContent"
+            v-model="diffEditContent"
+            :fileName="file"
+            class="h-full"
+            v-if="showDiff && !editMode && orgContent"
+          />
 
-        <!-- Monaco editor: plain edit mode -->
-        <Editor
-          v-model="editContent"
-          :fileName="file"
-          @update:modelValue="onEditorChange"
-          v-if="editMode"
-        />
+          <!-- Monaco editor: plain edit mode, needs explicit height to render -->
+          <Editor
+            v-model="editContent"
+            :fileName="file"
+            class="h-full"
+            @update:modelValue="onEditorChange"
+            v-if="editMode"
+          />
+        
 
-        <!-- Syntax highlighted read-only view -->
-        <VueCodeHighlighter
-          :code="code"
-          :lang="fileLanguage"
-          :title="fileName"
-          v-if="code && !editMode && !showDiff"
-        />
+          <!-- Syntax highlighted read-only view -->
+          <VueCodeHighlighter
+            class="h-full"
+            :code="code"
+            :lang="fileLanguage"
+            :title="fileName"
+            v-if="code && !editMode && !showDiff"
+          />
+        </div>
       </div>
 
       <div class="flex justify-end gap-2" v-if="editMode">
@@ -111,7 +127,7 @@ import Collapsible from './Collapsible.vue'
           <i class="fa-solid fa-pen-to-square"></i> Apply
         </button>
       </div>
-      <div class="flex justify-end gap-2" v-else-if="showDiff">
+      <div class="flex justify-end gap-2" v-else-if="showDiff && !isNoChange">
         <button class="btn btn-sm btn-outline" @click="onShowDiff">
           <i class="fa-solid fa-xmark"></i> Close diff
         </button>
@@ -142,7 +158,7 @@ import Collapsible from './Collapsible.vue'
 
 <script>
 export default {
-  props: ['chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished'],
+  props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished'],
   emits: ['message-change', 'save-file', 'add-file', 'open-file', 'sub-task'],
   data() {
     return {
@@ -164,6 +180,12 @@ export default {
     }
   },
   computed: {
+    // Estimate editor height from line count, capped at 600px, min 200px
+    editorHeight() {
+      const lineCount = this.code?.split("\n").length || 10
+      const estimated = Math.max(lineCount * 20, 200)
+      return Math.min(estimated, 600)
+    },
     isStreaming() {
       return !this.finished && this.code
     },
@@ -176,12 +198,25 @@ export default {
     isCommand() {
       return this.language === 'bash'
     },
-    // Used only for VueCodeHighlighter which relies on hljs language names
+    // Parse stats string to check if insertions === deletions (no net change)
+    isNoChange() {
+      if (!this.stats) return false
+      const insertMatch = this.stats.match(/(\d+) insertion/)
+      const deleteMatch = this.stats.match(/(\d+) deletion/)
+      if (!insertMatch || !deleteMatch) return false
+      return parseInt(insertMatch[1]) === parseInt(deleteMatch[1])
+    },
     fileLanguage() {
-      if (!hljs.getLanguage(this.language)) {
-        return 'markdown'
+      if (this.language) {
+        if (hljs.getLanguage(this.language)) {
+          return this.language
+        }
       }
-      return this.language
+      const ext = this.file?.split('.').reverse()[0]
+      if (ext) {
+        return EXTENSION_LANGUAGE_MAP[ext] || ext
+      }
+      return 'markdown'
     },
     $api() {
       return (this.project?.$api || this.$storex.api)
@@ -228,6 +263,7 @@ export default {
     },
 
     async onShowDiff() {
+      if (this.isNoChange) return
       if (!this.showDiff) {
         await this.loadDiffInfo()
         const { content } = await this.$api.files.read(this.file)
@@ -336,5 +372,8 @@ export default {
 <style>
 .header-code-highlight {
   display: none !important;
+}
+.wrapper-code-highlight {
+  height: 100%;
 }
 </style>

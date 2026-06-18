@@ -8,6 +8,7 @@ import ChatImagePreviewModal from './ChatImagePreviewModal.vue'
 import ChatFileSelectorModal from './ChatFileSelectorModal.vue'
 import ChatMessageList from './ChatMessageList.vue'
 import ChatIntelliSense from './ChatIntelliSense.vue'
+import ChatFilePreview from './ChatFilePreview.vue'
 </script>
 
 <template>
@@ -26,6 +27,7 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
             @add-as-message="addFileContentAsMessage"
             @sync-notebook="syncNotebook"
             @export-notebook="exportNotebook"
+            @preview-file="openFilePreview"
             v-if="chatFiles?.length"
           />
         </div>
@@ -46,8 +48,11 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
         />
       </div>
 
+      <!-- Main chat area + optional file preview side panel -->
       <div class="grow flex gap-2 min-h-0 overflow-hidden" v-show="!isPRView">
-        <div class="flex flex-col min-h-0 w-full">
+
+        <!-- Chat messages + input -->
+        <div class="flex flex-col min-h-0 min-w-0" :class="previewFile ? 'w-1/2' : 'w-full'">
           <div class="h-full flex flex-col relative">
             <ChatMessageList
               ref="messageList"
@@ -80,6 +85,7 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
               @set-active-chat="$chats.setActiveChat($event)"
               @message-changed="onMessageChanged"
               @run-agents="onMessageRunAgents"
+              @preview-file="openFilePreview"
             />
 
             <!-- Input + IntelliSense wrapper -->
@@ -135,13 +141,27 @@ import ChatIntelliSense from './ChatIntelliSense.vue'
                 :chat-project="chatProject"
                 @remove="removeFileFromFiles"
                 @add-as-message="addFileContentAsMessage"
+                @preview-file="openFilePreview"
                 v-if="files?.length"
               />
             </div>
           </div>
         </div>
+
+        <!-- File preview side panel -->
+        <div class="w-1/2 min-h-0 flex flex-col" v-if="previewFile">
+          <ChatFilePreview
+            class="h-full"
+            :file-path="previewFile"
+            :chat-project="chatProject"
+            @close="closeFilePreview"
+            @saved="onPreviewFileSaved"
+          />
+        </div>
+
       </div>
     </div>
+
     <ChatImagePreviewModal
       :image-preview="imagePreview"
       @cancel="imagePreview = null"
@@ -194,6 +214,8 @@ export default {
       notebookStatus: null,
       editorText: "",
       stableMessages: [],
+      // File preview panel
+      previewFile: null,
       // IntelliSense state
       intelliSenseSuggestions: [],
       intelliSenseIndex: 0,
@@ -297,7 +319,6 @@ export default {
     editor() {
       return this.$refs.inputBox?.getEditor() || this.$el?.querySelector('.editor')
     },
-    // True when intellisense popup is open with suggestions
     hasIntelliSense() {
       return this.intelliSenseSuggestions.length > 0
     }
@@ -317,6 +338,21 @@ export default {
     }
   },
   methods: {
+    // ── File preview ──────────────────────────────────────────
+
+    openFilePreview(filePath) {
+      // Toggle off if same file clicked again
+      this.previewFile = this.previewFile === filePath ? null : filePath
+    },
+
+    closeFilePreview() {
+      this.previewFile = null
+    },
+
+    onPreviewFileSaved({ file, content }) {
+      this.$ui?.addNotification?.({ text: `Saved: ${file.split('/').reverse()[0]}` })
+    },
+
     // ── IntelliSense ──────────────────────────────────────────
 
     scheduleIntelliSense() {
@@ -359,17 +395,12 @@ export default {
       if (suggestion) this.onIntelliSenseSelect(suggestion)
     },
 
-    // Toggle selection of the currently focused suggestion (Space key)
     toggleIntelliSenseSelection() {
       const suggestion = this.intelliSenseSuggestions[this.intelliSenseIndex]
       if (!suggestion) return
-      const intelliSenseEl = this.$el.querySelector('.chat-intellisense-ref')
-      // Delegate toggle to the component via emitted ref approach —
-      // instead we track a local multiSelect set here in Chat and pass it down
       const key = (suggestion.file || '') + '|' + (suggestion.name || '')
       if (this.intelliSenseSelected.has(key)) {
         this.intelliSenseSelected.delete(key)
-        // trigger reactivity
         this.intelliSenseSelected = new Set(this.intelliSenseSelected)
       } else {
         this.intelliSenseSelected = new Set([...this.intelliSenseSelected, key])
@@ -392,14 +423,12 @@ export default {
       this.$nextTick(() => this.editor?.focus())
     },
 
-    // Accept all multi-selected suggestions at once
     onIntelliSenseAcceptMulti(items) {
       const { caretIndex, word } = this.cursorWord
       const text = this.editor?.innerText || ''
       const left = text.slice(0, caretIndex - word.length)
       const right = text.slice(caretIndex)
       let mentionInserts = []
-
       items.forEach(({ file, name }) => {
         if (file) {
           this.addFileToMessage(file)
@@ -407,7 +436,6 @@ export default {
           mentionInserts.push('@' + name)
         }
       })
-
       const insert = mentionInserts.join(' ')
       this.setEditorText(left + insert + (insert ? ' ' : '') + right)
       this.dismissIntelliSense()
@@ -428,17 +456,14 @@ export default {
           this.dismissIntelliSense()
           return
         }
-        // Space toggles multi-select on the focused suggestion
         if (event.key === ' ' && event.ctrlKey) {
           event.preventDefault()
           event.stopPropagation()
-          // Trigger toggle via the child component ref
           this.$refs.intelliSense?.toggleSelected(
             this.intelliSenseSuggestions[this.intelliSenseIndex]
           )
           return
         }
-        // ArrowUp/Down navigate suggestions
         if (event.key === 'ArrowUp') {
           event.preventDefault()
           this.intelliSenseIndex = Math.max(0, this.intelliSenseIndex - 1)

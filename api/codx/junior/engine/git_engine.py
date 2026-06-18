@@ -32,6 +32,8 @@ class GitEngine:
         GE --> get_pr_review_details
         GE --> get_branch_details
         GE --> find_git_root_path
+        GE --> get_commit_list
+        GE --> get_commit_changes
     ```
     """
 
@@ -47,12 +49,6 @@ class GitEngine:
     def _get_file_last_modification(self, file_path: str) -> Optional[str]:
         """
         Return the last modification datetime of a file as an ISO 8601 string.
-
-        Args:
-            file_path: Absolute or relative (to project root) path to the file.
-
-        Returns:
-            ISO 8601 datetime string, or None if the file does not exist.
         """
         if not os.path.isabs(file_path):
             file_path = os.path.join(self.settings.abs_project_path, file_path)
@@ -64,9 +60,6 @@ class GitEngine:
     def get_repo_branches(self) -> list:
         """
         Return all git branches (local and remote) for the project.
-
-        Returns:
-            Sorted list of branch name strings.
         """
         def get_branches(cmd: str) -> list:
             stdout, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
@@ -79,9 +72,6 @@ class GitEngine:
     def get_project_branches(self) -> dict:
         """
         Return branches and full repo tree.
-
-        Returns:
-            Dict with 'branches' and 'repo_tree'.
         """
         return {
             "branches": self.get_repo_branches(),
@@ -91,12 +81,6 @@ class GitEngine:
     def get_project_branch_commits(self, branch: str) -> dict:
         """
         Return commits for a given branch.
-
-        Args:
-            branch: Branch name.
-
-        Returns:
-            Dict with 'commits' string.
         """
         commits, _ = exec_command(
             f"git log {branch}", cwd=self.settings.abs_project_path
@@ -106,9 +90,6 @@ class GitEngine:
     def find_git_root_path(self) -> str:
         """
         Find the root path of the git repository by checking parents.
-
-        Returns:
-            Absolute path to git root, or empty string.
         """
         if self.settings.is_git_root:
             return self.settings.abs_project_path
@@ -117,18 +98,157 @@ class GitEngine:
                 return parent.abs_project_path
         return ""
 
+    def get_commit_list(self, branch: str = None, limit: int = 50) -> list:
+        """
+        Return a structured list of commits for a branch or HEAD.
+
+        Args:
+            branch: Branch name. Defaults to current HEAD.
+            limit:  Maximum number of commits to return.
+
+        Returns:
+            List of commit dicts with hash, author, date, message.
+        """
+        ref = branch or "HEAD"
+        pretty = "%H|%an|%ae|%ad|%s"
+        cmd = f"git log --pretty=format:{pretty} --date=iso -n {limit} {ref}"
+        stdout, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
+
+        commits = []
+        for line in stdout.strip().split("\n"):
+            if not line.strip():
+                continue
+            try:
+                commit_hash, author_name, author_email, date, message = line.split("|", 4)
+                commits.append({
+                    "commit": commit_hash,
+                    "short_commit": commit_hash[:8],
+                    "author": {"name": author_name, "email": author_email},
+                    "date": date.strip(),
+                    "message": message.strip(),
+                    "label": f"{commit_hash[:8]} - {message.strip()[:60]}"
+                })
+            except ValueError:
+                logger.warning("Could not parse commit line: %s", line)
+        return commits
+
+    def get_commit_changes(self, from_commit: str, to_commit: str) -> dict:
+        """
+        Return file changes and diffs between two commits.
+
+        Args:
+            from_commit: Source commit hash (newer).
+            to_commit:   Target commit hash (older / base).
+
+        Returns:
+            Dict matching the shape of get_repo_changes output.
+        """
+        diff_name_cmd = f"git diff --name-only {to_commit}...{from_commit}"
+        branch_files_raw, _ = exec_command(diff_name_cmd, cwd=self.settings.abs_project_path)
+        branch_files = [f for f in branch_files_raw.strip().split("\n") if f]
+
+        def get_file_diff(file_path: str) -> str:
+            cmd = f"git diff {to_commit}...{from_commit} -- {file_path}"
+            out, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
+            return out.strip()
+
+        def get_file_commits(file_path: str) -> list:
+            pretty = '{ "commit": "%H", "author": "%an", "date": "%as", "message": "%f" }'
+            cmd = f"git log --pretty=format:'{pretty}' {to_commit}..{from_commit} -- {file_path}"
+            out, _ = exec_command(cmd, cwd=self.settings.abs_project_path)
+            results = []
+            for line in out.strip().split("\n"):
+                try:
+                    results.append(json.loads(line))
+                except Exception:
+                    pass
+            return results
+
+        branch_file_and_commits = {
+            file_path: {
+                "commits": get_file_commits(file_path),
+                "diff": get_file_diff(file_path),
+                "last_modification": self._get_file_last_modification(file_path),
+            }
+            for file_path in branch_files
+        }
+
+        git_diff_cmd = f"git diff {to_commit} {from_commit}"
+        git_diff_out, _ = exec_command(git_diff_cmd, cwd=self.settings.abs_project_path)
+        git_diff_stat_out, _ = exec_command(
+            f"git diff --shortstat {to_commit} {from_commit}",
+            cwd=self.settings.abs_project_path
+        )
+
+        pr_details = self.get_pr_review_details_by_commits(from_commit, to_commit)
+
+        return {
+            "diff": git_diff_out,
+            "stat": git_diff_stat_out,
+            "git_diff_cmd": git_diff_cmd,
+            "local_changes": {},
+            "repo_path": self.find_git_root_path(),
+            "pr_details": pr_details,
+            "commits": [],
+            "branch_file_and_commits": branch_file_and_commits,
+            "compare_type": "commit",
+            "from_commit": from_commit,
+            "to_commit": to_commit,
+        }
+
+    def get_pr_review_details_by_commits(self, from_commit: str, to_commit: str) -> list:
+        """
+        Return PR review details between two commits.
+
+        Args:
+            from_commit: Source commit hash.
+            to_commit:   Target / base commit hash.
+
+        Returns:
+            List of change dicts per file.
+        """
+        diff_command = f"git diff --name-status {to_commit}..{from_commit}"
+        stdout, _ = exec_command(diff_command, cwd=self.settings.abs_project_path)
+
+        STATUS_MAP = {"A": "new", "D": "deleted"}
+        changes = []
+
+        for line in stdout.strip().split("\n"):
+            # Guard: skip empty lines or lines without a tab separator
+            if not line or "\t" not in line:
+                continue
+            parts = line.split("\t", 1)
+            if len(parts) < 2:
+                continue
+            status, file_path = parts
+            file_path = file_path.strip()
+            if not file_path:
+                continue
+
+            file_status = STATUS_MAP.get(status.strip(), "modified")
+
+            file_diff, _ = exec_command(
+                f"git diff {to_commit}..{from_commit} -- {file_path}",
+                cwd=self.settings.abs_project_path
+            )
+            file_commits_raw, _ = exec_command(
+                f"git log --oneline {to_commit}..{from_commit} -- {file_path}",
+                cwd=self.settings.abs_project_path
+            )
+            changes.append({
+                "file_name": file_path,
+                "status": file_status,
+                "diff": file_diff,
+                "commits": [c for c in file_commits_raw.strip().split("\n") if c],
+                "last_modification": self._get_file_last_modification(file_path),
+            })
+
+        return changes
+
     def get_repo_changes(self, from_branch: str, to_branch: str) -> dict:
         """
         Return file changes, diffs and PR details between two branches.
-        Each file entry includes a 'last_modification' datetime (ISO 8601) if the
-        file exists on disk.
-
-        Args:
-            from_branch: Source branch (may have '* ' prefix for current).
-            to_branch: Target branch.
-
-        Returns:
-            Dict with diff, stat, local_changes, pr_details, etc.
+        Each file entry includes a 'last_modification' datetime (ISO 8601).
         """
         is_current_branch = from_branch.startswith("* ")
         if from_branch and is_current_branch:
@@ -162,7 +282,6 @@ class GitEngine:
 
         git_commits = []
         try:
-            # Use last file in list for commit log (matches original behaviour)
             git_commits = get_git_file_commits(branch_files[-1] if branch_files else "")
         except Exception as ex:
             logger.error("Error reading branch commits: %s", ex)
@@ -231,18 +350,12 @@ class GitEngine:
             "pr_details": pr_details,
             "commits": [],
             "branch_file_and_commits": branch_file_and_commits,
+            "compare_type": "branch",
         }
 
     def get_branch_commits(self, from_branch: str, repo_path: str) -> list:
         """
         Return structured commit list for a branch.
-
-        Args:
-            from_branch: Branch name.
-            repo_path: Path to the git repository.
-
-        Returns:
-            List of commit dicts.
         """
         git_log_command = (
             f"git log --pretty=format:%H|%an|%ae|%ad|%s {from_branch}"
@@ -268,9 +381,6 @@ class GitEngine:
     def get_repo_tree(self) -> list:
         """
         Build a full repo tree with branches and commits.
-
-        Returns:
-            List of branch info dicts.
         """
         branches = self.get_repo_branches()
         repo_tree = []
@@ -300,12 +410,6 @@ class GitEngine:
     def get_branch_details(self, branch_name: str) -> dict:
         """
         Extract commit details from a branch without checking it out.
-
-        Args:
-            branch_name: Branch to inspect.
-
-        Returns:
-            Dict with 'commits' list and 'parent_branch'.
         """
         log_command = f"git log -g --format=%H|%an|%cI|%s {branch_name}"
         stdout, _ = exec_command(log_command, cwd=self.settings.abs_project_path)
@@ -329,7 +433,6 @@ class GitEngine:
             )
             file_changes = stdout_files.strip().split("\n")
 
-            # Enrich each file entry with last_modification datetime
             enriched_files = []
             for f in file_changes[1:]:
                 if not f:
@@ -358,22 +461,12 @@ class GitEngine:
         }
 
     def get_project_current_branch(self) -> str:
-        """
-        Return the current git branch name.
-
-        Returns:
-            Branch name string.
-        """
+        """Return the current git branch name."""
         stdout, _ = exec_command("git branch --show-current")
         return stdout
 
     def get_project_parent_branch(self) -> str:
-        """
-        Determine the parent branch of the current branch via reflog.
-
-        Returns:
-            Parent branch name string.
-        """
+        """Determine the parent branch of the current branch via reflog."""
         current_branch = self.get_project_current_branch()
         stdout, _ = exec_command(
             f"git reflog {current_branch}",
@@ -399,15 +492,7 @@ class GitEngine:
         return ref_branch
 
     def get_project_changes(self, parent_branch: str = None) -> dict:
-        """
-        Return diff between current working tree and a parent branch.
-
-        Args:
-            parent_branch: Branch to diff against. Defaults to HEAD@{1}.
-
-        Returns:
-            Dict with 'diff' and 'stats'.
-        """
+        """Return diff between current working tree and a parent branch."""
         if not parent_branch:
             parent_branch = "HEAD@{1}"
             self.session.log_info(
@@ -424,15 +509,7 @@ class GitEngine:
         return {"diff": diff_out, "stats": diff_stat_out}
 
     def build_code_changes_summary(self, force: bool = False) -> object:
-        """
-        Build a code changes summary from git diff.
-
-        Args:
-            force: Force rebuild even if cached.
-
-        Returns:
-            Summary object from Knowledge.
-        """
+        """Build a code changes summary from git diff."""
         project_branches = self.get_project_branches()
         diff = project_branches.get("git_diff", "")
         return self.session.get_knowledge().build_code_changes_summary(
@@ -442,15 +519,7 @@ class GitEngine:
     def get_pr_review_details(self, from_branch: str, to_branch: str) -> list:
         """
         Return PR review details (file changes, diffs, commits) between two branches.
-        Each file entry includes a 'last_modification' datetime (ISO 8601) if the
-        file exists on disk.
-
-        Args:
-            from_branch: Source branch.
-            to_branch: Target branch.
-
-        Returns:
-            List of change dicts per file.
+        Each file entry includes a 'last_modification' datetime (ISO 8601).
         """
         exec_command(
             f"git fetch origin {to_branch}:{to_branch}",
@@ -463,16 +532,23 @@ class GitEngine:
 
         diff_command = f"git diff --name-status {to_branch}..{from_branch}"
         stdout, _ = exec_command(diff_command, cwd=self.settings.abs_project_path)
-        file_changes = stdout.strip().split("\n")
 
         STATUS_MAP = {"A": "new", "D": "deleted"}
         changes = []
 
-        for line in file_changes:
-            if not line:
+        for line in stdout.strip().split("\n"):
+            # Guard: skip empty or tab-less lines to avoid unpack errors
+            if not line or "\t" not in line:
                 continue
-            status, file_path = line.split("\t", 1)
-            file_status = STATUS_MAP.get(status, "modified")
+            parts = line.split("\t", 1)
+            if len(parts) < 2:
+                continue
+            status, file_path = parts
+            file_path = file_path.strip()
+            if not file_path:
+                continue
+
+            file_status = STATUS_MAP.get(status.strip(), "modified")
 
             file_diff_command = f"git diff {to_branch}..{from_branch} -- {file_path}"
             file_diff, _ = exec_command(
@@ -485,7 +561,7 @@ class GitEngine:
             file_commits_stdout, _ = exec_command(
                 file_commits_command, cwd=self.settings.abs_project_path
             )
-            file_commits = file_commits_stdout.strip().split("\n")
+            file_commits = [c for c in file_commits_stdout.strip().split("\n") if c]
 
             changes.append(
                 {

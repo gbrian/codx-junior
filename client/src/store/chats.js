@@ -11,11 +11,12 @@ export const state = () => ({
   chatEvents: {}, // { [chatId]: { updatingCount: number, updatingAt: string | null, timeoutId: number | null } }
 })
 
-// Helper to register a chat into chatsById
-function registerChatById(state, chat) {
-  if (chat?.id) {
-    state.chats[chat.id] = chat
+function registerChat(state, chat) {
+  if (!chat?.id) {
+    console.error('[chats store] Attempted to store a null/invalid chat:', chat)
+    return
   }
+  state.chats[chat.id] = chat
 }
 
 function getChatWorkingProject({ owner_project_id, project_id }) {
@@ -97,10 +98,7 @@ export const actions = actionTree(
     },
     async loadChats({ state }) {
       const chats = await API.chats.list()
-      state.chats = {
-        ...state.chats,
-        ...chats.reduce((acc, chat) => ({ ...acc, [chat.id]: chat }), {})
-      }
+      chats.forEach(chat => registerChat(state, chat))
       // Refresh activeChat reference from updated chats map
       if (state.activeChat?.id) {
         state.activeChat = state.chats[state.activeChat.id] || state.activeChat
@@ -108,7 +106,7 @@ export const actions = actionTree(
     },
     async saveChat({ state }, chat) {
       const savedChat = await API.chats.save(chat)
-      registerChatById(state, savedChat)
+      registerChat(state, savedChat)
     },
     async saveChatInfo(_, chat) {
       await API.chats.saveChatInfo({ ...chat, messages: [] })
@@ -118,23 +116,18 @@ export const actions = actionTree(
       const project = $storex.projects.allProjectsById[owner_project_id]
       const chat = state.chats[id]
       if (chat) {
-        registerChatById(state, chat)
         return chat
       }
       const loadedChat = await project.$api.chats.loadChat({ id, owner_project_id })
-      if (loadedChat) {
-        registerChatById(state, loadedChat)
-        return loadedChat
-      }
-      return null
+      registerChat(state, loadedChat)
+      return state.chats[id] || null
     },
     async loadChat({ state }, chat) {
       if (!state.chats[chat.id]) {
         const project = getChatProject(chat)
-        chat = await project.$api.chats.loadChat(chat)
-        state.chats[chat.id] = chat
+        const loadedChat = await project.$api.chats.loadChat(chat)
+        registerChat(state, loadedChat)
       }
-      registerChatById(state, state.chats[chat.id])
       // Keep activeChat reference in sync if this is the active chat
       if (state.activeChat?.id === chat.id) {
         state.activeChat = state.chats[chat.id]
@@ -149,7 +142,7 @@ export const actions = actionTree(
         // and avoid unmounting ChatView
         Object.assign(state.chats[chat.id], freshChat)
       } else {
-        state.chats[chat.id] = freshChat
+        registerChat(state, freshChat)
       }
       // Keep activeChat reference in sync if this is the active chat
       if (state.activeChat?.id === chat.id) {
@@ -193,8 +186,7 @@ export const actions = actionTree(
         auto_initialize: !chat.name,
         ...chat
       }
-      state.chats[chat.id] = chat
-      registerChatById(state, chat)
+      registerChat(state, chat)
       if (!chat.temp) {
         await $storex.chats.saveChat(chat)
       }
@@ -208,12 +200,12 @@ export const actions = actionTree(
         chat_index: 0,
         ...chat
       }
-      state.chats[chat.id] = await API.chats.fromUrl(chat)
-      registerChatById(state, state.chats[chat.id])
+      const savedChat = await API.chats.fromUrl(chat)
+      registerChat(state, savedChat)
       if (!chat.temp) {
-        state.activeChat = state.chats[chat.id]
+        state.activeChat = state.chats[savedChat?.id]
       }
-      return state.chats[chat.id]
+      return state.chats[savedChat?.id]
     },
     async createNewBoardChat({ state }, { boardTitle, columnTitle, chat }) {
       boardTitle = boardTitle || chat.board
@@ -334,7 +326,6 @@ export const actions = actionTree(
             $storex.chats.setChatUpdating({ chatId, updating: !isDone })
           }
         }
-        registerChatById(state, chat)
       }
     },
     async readFile({ state }, { chat, file }) {

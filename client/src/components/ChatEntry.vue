@@ -9,6 +9,7 @@ import ProfileAvatar from './profile/ProfileAvatar.vue'
 import Editor from './monaco/Editor.vue'
 import ChatEntrySlack from './ChatEntrySlack.vue'
 import ChatEntryMobile from './ChatEntryMobile.vue'
+import DocumentSummary from './document/DocumentSummary.vue'
 </script>
 
 <template>
@@ -267,6 +268,16 @@ import ChatEntryMobile from './ChatEntryMobile.vue'
               </div>
             </div>
           </div>
+
+          <!-- Document summary TOC — documentId scopes anchors to this document instance -->
+          <DocumentSummary
+            v-if="isDone && messageContent && !editting"
+            :content="messageContent"
+            :minHeadings="3"
+            :documentId="documentId"
+            :scrollContainer="$refs.contentArea"
+            class="mt-1"
+          />
         </div>
 
         <!-- Skeleton loader when no content yet -->
@@ -293,8 +304,9 @@ import ChatEntryMobile from './ChatEntryMobile.vue'
           </div>    
         </div>
 
-        <!-- Message content area -->
+        <!-- Message content area — ref used by DocumentSummary to scroll within -->
         <div 
+          ref="contentArea"
           @copy.stop="onMessageCopy" 
           :class="[
             'max-w-full border-slate-300/20', 
@@ -312,12 +324,14 @@ import ChatEntryMobile from './ChatEntryMobile.vue'
           
           <pre v-if="srcView">{{ displayMessage.content }}</pre>
 
+          <!-- Pass documentId so heading anchors are scoped to this message -->
           <Document 
             :content="messageContent"
             :files="chatFiles"
             :project="chatProject"
             :chat="chat"
             :loading="!message.done"
+            :documentId="documentId"
             @generate-code="onGenerateCode" 
             @reload-file="$emit('reload-file', { file: $event, message })"
             @open-file="$emit('open-file', $event)"
@@ -438,7 +452,9 @@ export default {
       isRemove: false,
       improvementData: null,
       showDiff: false,
-      editting: false
+      editting: false,
+      // Unique id scopes heading anchors — stable for the lifetime of this entry
+      documentId: 'doc-' + Math.random().toString(36).slice(2, 8)
     }
   },
   created() {
@@ -474,7 +490,6 @@ export default {
         this.message.role === 'assistant'
     },
     thinkText() {
-      // TODO: Remove the thinking text logic next time you make changes here
       const { full_think, is_thinking } = this.message 
       return null        
     },
@@ -621,7 +636,7 @@ export default {
       this.$emit('generate-code', codeBlockInfo)
     },
     openFile(file) {
-      this.$ui.openFile(file)
+      this.$emit('preview-file', file)
     },
     saveEditting() {
       this.displayMessage.content = this.editting

@@ -192,14 +192,14 @@ import Collapsible from '../components/Collapsible.vue'
                     <img class="w-3 h-3 rounded-full ml-auto"
                       :src="($projects.allProjectsById[childChat.project_id] || $project).project_icon" />
                   </div>
-                  <div class="text-xs truncate text-base-content/80 font-medium leading-tight" :title="childChat.name">
+                  <div class="font-bold text-xs truncate text-base-content/80 font-medium leading-tight" :title="childChat.name">
                     {{ childChat.name }}
                   </div>
                   <div class="flex items-center justify-between">
                     <span class="text-xs text-base-content/40">
                       {{ (childChat.messages || []).length }} msgs
                     </span>
-                    <span class="badge badge-xs"
+                    <span class="badge badge-xs truncate"
                       :class="childChat.column === 'Done' ? 'badge-success' : childChat.column === 'In Progress' ? 'badge-warning' : 'badge-ghost'">
                       {{ childChat.column || '?' }}
                     </span>
@@ -551,7 +551,7 @@ export default {
         parent_id: this.subtaskParentId, message_id: this.subtaskMessageId,
         file_list: this.subtaskFiles, profiles: this.subtaskProfiles,
         mode: this.subtaskMode, board: this.theChat.board,
-        column: this.subtaskColumn, activateChat: true, child_index: this.childrenChats?.length
+        column: this.subtaskColumn, activateChat: true, child_index: this.childrenChats.length
       })
       this.resetSubtaskModal()
     },

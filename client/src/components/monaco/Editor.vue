@@ -1,10 +1,10 @@
 <script setup>
-import { CodeEditor } from 'monaco-editor-vue3'
-import { DiffEditor } from 'monaco-editor-vue3'
+import { CodeEditor, DiffEditor } from 'monaco-editor-vue3'
+import { EXTENSION_LANGUAGE_MAP } from '../../store'
 </script>
 
 <template>
-  <div class="flex flex-col h-96">
+  <div class="h-full">
     <!-- Diff settings header -->
     <div class="flex gap-2 items-center p-1 bg-base-300 rounded-t" v-if="diff">
       <div class="tooltip" data-tip="Side by side">
@@ -65,7 +65,6 @@ import { DiffEditor } from 'monaco-editor-vue3'
 
     <!-- Diff editor: re-rendered via key when options change -->
     <DiffEditor
-      class="flex-1"
       :key="diffEditorKey"
       :original="originalCode"
       :value="modelValue"
@@ -73,105 +72,29 @@ import { DiffEditor } from 'monaco-editor-vue3'
       theme="vs-dark"
       :options="diffEditorOptions"
       @update:value="onDiffChange"
-      v-if="diff"
+      v-if="diff && isReady"
     />
     <CodeEditor
-      class="flex-1"
       v-model:value="code"
       :language="resolvedLanguage"
       theme="vs-dark"
       :options="editorOptions"
-      v-else
+      v-else-if="!diff && isReady"
     />
+    <!-- Loading placeholder while Monaco initializes -->
+    <div class="flex-1 min-h-64 flex items-center justify-center bg-base-200" v-else>
+      <span class="loading loading-spinner loading-sm"></span>
+    </div>
   </div>
 </template>
 
 <script>
-// Map of file extensions to Monaco language identifiers
-const EXTENSION_LANGUAGE_MAP = {
-  js: 'javascript',
-  jsx: 'javascript',
-  mjs: 'javascript',
-  cjs: 'javascript',
-  ts: 'typescript',
-  tsx: 'typescript',
-  py: 'python',
-  rb: 'ruby',
-  java: 'java',
-  kt: 'kotlin',
-  kts: 'kotlin',
-  cs: 'csharp',
-  cpp: 'cpp',
-  cc: 'cpp',
-  cxx: 'cpp',
-  c: 'c',
-  h: 'c',
-  hpp: 'cpp',
-  go: 'go',
-  rs: 'rust',
-  php: 'php',
-  swift: 'swift',
-  scala: 'scala',
-  r: 'r',
-  dart: 'dart',
-  lua: 'lua',
-  pl: 'perl',
-  pm: 'perl',
-  sh: 'shell',
-  bash: 'shell',
-  zsh: 'shell',
-  ps1: 'powershell',
-  psm1: 'powershell',
-  html: 'html',
-  htm: 'html',
-  xml: 'xml',
-  svg: 'xml',
-  css: 'css',
-  scss: 'scss',
-  sass: 'scss',
-  less: 'less',
-  json: 'json',
-  jsonc: 'json',
-  yaml: 'yaml',
-  yml: 'yaml',
-  toml: 'ini',
-  ini: 'ini',
-  env: 'ini',
-  md: 'markdown',
-  mdx: 'markdown',
-  sql: 'sql',
-  graphql: 'graphql',
-  gql: 'graphql',
-  proto: 'proto',
-  tf: 'hcl',
-  hcl: 'hcl',
-  vue: 'html',
-  svelte: 'html',
-  dockerfile: 'dockerfile',
-  makefile: 'makefile',
-  gradle: 'groovy',
-  groovy: 'groovy',
-  ex: 'elixir',
-  exs: 'elixir',
-  erl: 'erlang',
-  hrl: 'erlang',
-  clj: 'clojure',
-  cljs: 'clojure',
-  fs: 'fsharp',
-  fsx: 'fsharp',
-  vb: 'vb',
-  asm: 'asm',
-  s: 'asm',
-}
-
 export default {
   props: {
     diff: { type: Boolean, default: false },
     modelValue: { type: String, default: null },
     originalCode: { type: String, default: null },
-    // Explicit Monaco language id (takes priority over fileName detection)
     language: { type: String, default: null },
-    // File name or path used to auto-detect language from extension
     fileName: { type: String, default: null },
     renderSideBySide: { type: Boolean, default: true },
     hideUnchanged: { type: Boolean, default: false },
@@ -182,6 +105,7 @@ export default {
   emits: ['update:modelValue'],
   data() {
     return {
+      isReady: false,
       localRenderSideBySide: this.renderSideBySide,
       localHideUnchanged: this.hideUnchanged,
       localIgnoreTrimWhitespace: this.ignoreTrimWhitespace,
@@ -196,6 +120,11 @@ export default {
       }
     }
   },
+  mounted() {
+    this.$nextTick(() => {
+      this.isReady = true
+    })
+  },
   computed: {
     code: {
       get() {
@@ -206,7 +135,6 @@ export default {
       }
     },
 
-    // Resolve language: explicit prop > detected from fileName extension > plaintext
     resolvedLanguage() {
       if (this.language) return this.language
       if (this.fileName) {
@@ -236,7 +164,6 @@ export default {
     }
   },
   methods: {
-    // Force re-render of DiffEditor by bumping its key
     refreshDiffEditor() {
       this.diffEditorKey++
     },

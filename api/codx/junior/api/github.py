@@ -36,4 +36,5 @@ def read_github_issue(request: Request, user: CodxUser = Depends(get_authenticat
 @router.get("/github/issues/ai/process")
 async def process_github_issue(request: Request, user: CodxUser = Depends(get_authenticated_user)):  
     codx_junior_session = request.state.codx_junior_session
+    issue_url = request.query_params.get("issue_url")
     return await GitIssuesAgent(session=codx_junior_session).run(issue_url=issue_url)

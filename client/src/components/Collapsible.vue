@@ -2,7 +2,7 @@
 </script>
 
 <template>
-  <div class="bg-base-200 rounded-lg border border-slate-400 bg-base-200 drop-shadow">
+  <div class="bg-base-200 rounded-lg border border-slate-400 bg-base-200 drop-shadow flex flex-col">
     <!-- Header toggle -->
     <div
       class="flex items-center gap-2 p-2 cursor-pointer select-none"
@@ -36,7 +36,7 @@
     <!-- Collapsible body -->
     <div
       v-show="isOpen"
-      class="border-t border-base-300"
+      class="border-t border-base-300 grow"
     >
       <slot></slot>
     </div>

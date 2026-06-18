@@ -6,8 +6,10 @@
     <div class="bg-base-100 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col border border-base-300">
 
       <!-- Header -->
-      <div class="flex items-center gap-3 px-4 py-3 bg-base-300 rounded-t-2xl border-b border-base-content/10 shrink-0">
-        <!-- Traffic lights -->
+      <div
+        class="flex items-center gap-3 px-4 py-3 rounded-t-2xl border-b shrink-0"
+        :class="hasError ? 'bg-error/20 border-error/30' : 'bg-base-300 border-base-content/10'"
+      >
         <div class="flex items-center gap-1.5 shrink-0">
           <div class="w-3 h-3 rounded-full bg-error/70 cursor-pointer" @click="$emit('close')"></div>
           <div class="w-3 h-3 rounded-full bg-warning/70"></div>
@@ -18,11 +20,7 @@
 
         <!-- Direction indicator -->
         <div class="flex items-center gap-2 shrink-0">
-          <div
-            class="relative flex items-center justify-center w-8 h-8 rounded-lg"
-            :class="directionColor.bg"
-          >
-            <!-- Full: stacked up+down arrows in info/blue -->
+          <div class="relative flex items-center justify-center w-8 h-8 rounded-lg" :class="directionColor.bg">
             <span v-if="isFull" class="flex flex-col items-center leading-[0] gap-[2px]">
               <i class="fa-solid fa-arrow-up text-[10px]" :class="directionColor.text"></i>
               <i class="fa-solid fa-arrow-down text-[10px]" :class="directionColor.text"></i>
@@ -60,9 +58,12 @@
           <div v-if="displayEntry?.session_id" class="badge badge-ghost badge-sm font-mono gap-1 shrink-0">
             <i class="fa-solid fa-comments text-xs"></i>{{ displayEntry?.session_id.slice(0, 8) }}…
           </div>
-          <!-- Full trace badge: blue/info -->
           <div v-if="isFull" class="badge badge-info badge-sm gap-1 shrink-0">
             <i class="fa-solid fa-arrows-up-down text-xs"></i> full
+          </div>
+          <!-- Error badge in header — shown prominently when errors exist -->
+          <div v-if="hasError" class="badge badge-error badge-sm gap-1 shrink-0 animate-pulse">
+            <i class="fa-solid fa-circle-exclamation text-xs"></i> error
           </div>
         </div>
 
@@ -85,16 +86,52 @@
           <span class="truncate">{{ displayEntry.base_url }}</span>
         </div>
 
+        <!-- Error banner — shown when any entry has error info -->
+        <div v-if="hasError" class="flex flex-col gap-2 px-4 py-3 bg-error/10 border-b border-error/30 shrink-0">
+          <div class="flex items-center gap-2 text-error text-sm font-bold">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>ERROR DETECTED</span>
+          </div>
+          <!-- Request error block -->
+          <div v-if="requestError" class="flex items-start gap-3 rounded-lg bg-base-100 border border-error/40 px-3 py-2.5">
+            <div class="flex items-center gap-1.5 shrink-0 mt-0.5">
+              <i class="fa-solid fa-arrow-up text-success text-xs"></i>
+              <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">Request</span>
+            </div>
+            <div class="w-px self-stretch bg-error/20 mx-1"></div>
+            <div class="flex flex-col gap-0.5 min-w-0">
+              <span class="text-xs font-bold text-error font-mono">{{ requestError.error_type }}</span>
+              <span class="text-sm text-base-content/80 break-words">{{ requestError.error_message }}</span>
+            </div>
+          </div>
+          <!-- Response error block -->
+          <div v-if="responseError" class="flex items-start gap-3 rounded-lg bg-base-100 border border-error/40 px-3 py-2.5">
+            <div class="flex items-center gap-1.5 shrink-0 mt-0.5">
+              <i class="fa-solid fa-arrow-down text-warning text-xs"></i>
+              <span class="text-xs font-semibold text-base-content/50 uppercase tracking-wider">Response</span>
+            </div>
+            <div class="w-px self-stretch bg-error/20 mx-1"></div>
+            <div class="flex flex-col gap-0.5 min-w-0">
+              <span class="text-xs font-bold text-error font-mono">{{ responseError.error_type }}</span>
+              <span class="text-sm text-base-content/80 break-words">{{ responseError.error_message }}</span>
+            </div>
+          </div>
+        </div>
+
         <div class="p-4 space-y-4 flex-1">
 
           <!-- REQUEST messages -->
           <div
             class="rounded-xl overflow-hidden border flex flex-col"
-            :class="requestEntry ? 'border-success/40' : 'border-base-300'"
+            :class="requestError ? 'border-error/50' : requestEntry ? 'border-success/40' : 'border-base-300'"
           >
             <div
               class="flex items-center gap-2 px-4 py-2 border-b text-xs font-semibold shrink-0"
-              :class="requestEntry ? 'bg-success/10 border-success/20 text-success' : 'bg-base-200 border-base-300 text-base-content/40'"
+              :class="requestError
+                ? 'bg-error/10 border-error/20 text-error'
+                : requestEntry
+                  ? 'bg-success/10 border-success/20 text-success'
+                  : 'bg-base-200 border-base-300 text-base-content/40'"
             >
               <i class="fa-solid fa-arrow-up-from-bracket"></i>
               <span>REQUEST MESSAGES</span>
@@ -102,9 +139,24 @@
                 {{ requestMessages.length }} msg{{ requestMessages.length !== 1 ? 's' : '' }}
               </span>
               <span v-if="!requestEntry" class="ml-2 opacity-40 italic font-normal">(not available)</span>
+              <!-- Request error inline badge with tooltip -->
+              <div v-if="requestError" class="tooltip" :data-tip="requestError.error_message">
+                <div class="badge badge-error badge-xs gap-1 ml-1 cursor-help">
+                  <i class="fa-solid fa-circle-exclamation text-xs"></i>{{ requestError.error_type }}
+                </div>
+              </div>
               <button class="btn btn-xs btn-ghost ml-auto opacity-50" @click="messagesExpanded = !messagesExpanded">
                 <i :class="messagesExpanded ? 'fa-solid fa-compress' : 'fa-solid fa-expand'" class="text-xs"></i>
               </button>
+            </div>
+
+            <!-- Request error inline detail -->
+            <div v-if="requestError" class="flex items-start gap-2 px-4 py-3 bg-error/5 border-b border-error/20">
+              <i class="fa-solid fa-triangle-exclamation text-error text-sm mt-0.5 shrink-0"></i>
+              <div class="flex flex-col gap-1">
+                <span class="text-xs font-bold text-error font-mono">{{ requestError.error_type }}</span>
+                <span class="text-sm text-base-content/80">{{ requestError.error_message }}</span>
+              </div>
             </div>
 
             <div
@@ -146,7 +198,7 @@
                 <pre class="whitespace-pre-wrap font-sans text-sm text-base-content leading-relaxed">{{ msgContent(msg) }}</pre>
               </div>
 
-              <div v-if="!requestMessages.length" class="px-4 py-8 text-center text-xs text-base-content/25 italic">
+              <div v-if="!requestMessages.length && !requestError" class="px-4 py-8 text-center text-xs text-base-content/25 italic">
                 — No messages in request payload —
               </div>
             </div>
@@ -155,11 +207,15 @@
           <!-- RESPONSE content -->
           <div
             class="rounded-xl overflow-hidden border flex flex-col"
-            :class="responseEntry ? 'border-warning/40' : 'border-base-300'"
+            :class="responseError ? 'border-error/50' : responseEntry ? 'border-warning/40' : 'border-base-300'"
           >
             <div
               class="flex items-center gap-2 px-4 py-2 border-b text-xs font-semibold shrink-0"
-              :class="responseEntry ? 'bg-warning/10 border-warning/20 text-warning' : 'bg-base-200 border-base-300 text-base-content/40'"
+              :class="responseError
+                ? 'bg-error/10 border-error/20 text-error'
+                : responseEntry
+                  ? 'bg-warning/10 border-warning/20 text-warning'
+                  : 'bg-base-200 border-base-300 text-base-content/40'"
             >
               <i class="fa-solid fa-arrow-down-to-bracket"></i>
               <span>RESPONSE CONTENT</span>
@@ -167,17 +223,36 @@
                 {{ responseEntry.duration_seconds.toFixed(2) }}s
               </span>
               <span v-if="!responseEntry" class="ml-2 opacity-40 italic font-normal">(not available)</span>
+              <!-- Response error inline badge with tooltip -->
+              <div v-if="responseError" class="tooltip" :data-tip="responseError.error_message">
+                <div class="badge badge-error badge-xs gap-1 ml-1 cursor-help">
+                  <i class="fa-solid fa-circle-exclamation text-xs"></i>{{ responseError.error_type }}
+                </div>
+              </div>
               <button v-if="responseEntry" class="btn btn-xs btn-ghost ml-auto opacity-50" @click="responseExpanded = !responseExpanded">
                 <i :class="responseExpanded ? 'fa-solid fa-compress' : 'fa-solid fa-expand'" class="text-xs"></i>
               </button>
             </div>
 
+            <!-- Response error detail block -->
+            <div v-if="responseError" class="flex items-start gap-2 px-4 py-3 bg-error/5 border-b border-error/20">
+              <i class="fa-solid fa-triangle-exclamation text-error text-sm mt-0.5 shrink-0"></i>
+              <div class="flex flex-col gap-1">
+                <span class="text-xs font-bold text-error font-mono">{{ responseError.error_type }}</span>
+                <span class="text-sm text-base-content/80">{{ responseError.error_message }}</span>
+              </div>
+            </div>
+
             <div
-              v-if="responseEntry"
+              v-if="responseEntry && responseContent"
               class="px-4 py-3 overflow-y-auto transition-all duration-200"
               :class="responseExpanded ? 'max-h-[60vh]' : 'max-h-48'"
             >
-              <pre class="whitespace-pre-wrap font-sans text-sm text-base-content leading-relaxed">{{ responseContent || '— No content —' }}</pre>
+              <pre class="whitespace-pre-wrap font-sans text-sm text-base-content leading-relaxed">{{ responseContent }}</pre>
+            </div>
+
+            <div v-if="responseEntry && !responseContent && !responseError" class="px-4 py-8 text-center text-xs text-base-content/25 italic">
+              — No content —
             </div>
 
             <div v-if="!responseEntry" class="px-4 py-8 text-center text-xs text-base-content/25 italic">
@@ -246,7 +321,6 @@ export default {
   name: 'LogEntryDetail',
   emits: ['close', 'navigate-parent', 'find-pair', 'open-entry'],
   props: {
-    // Explicit request and response entries — resolved by parent
     requestEntry: { type: Object, default: null },
     responseEntry: { type: Object, default: null },
     loading: { type: Boolean, default: false },
@@ -258,19 +332,36 @@ export default {
     }
   },
   computed: {
-    // Both present = "full" trace
     isFull() {
       return !!(this.requestEntry && this.responseEntry)
     },
-    // Best entry to pull shared metadata from (prefer request)
     displayEntry() {
       return this.requestEntry || this.responseEntry
     },
-    // Header color: info/blue when full, success for req-only, warning for res-only
     directionColor() {
+      if (this.hasError) return { bg: 'bg-error/20', text: 'text-error' }
       if (this.isFull) return { bg: 'bg-info/20', text: 'text-info' }
       if (this.requestEntry) return { bg: 'bg-success/20', text: 'text-success' }
       return { bg: 'bg-warning/20', text: 'text-warning' }
+    },
+    // Extract error fields from request entry
+    requestError() {
+      if (!this.requestEntry?.error_type) return null
+      return {
+        error_type: this.requestEntry.error_type,
+        error_message: this.requestEntry.error_message
+      }
+    },
+    // Extract error fields from response entry
+    responseError() {
+      if (!this.responseEntry?.error_type) return null
+      return {
+        error_type: this.responseEntry.error_type,
+        error_message: this.responseEntry.error_message
+      }
+    },
+    hasError() {
+      return !!(this.requestError || this.responseError)
     },
     requestMessages() {
       return this.requestEntry?.payload?.messages || []
