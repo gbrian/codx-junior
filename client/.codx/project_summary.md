@@ -1,36 +1,39 @@
 # Codx Junior UI Project Summary
 
-**Description:** A sophisticated frontend Single Page Application (SPA) designed as an AI-powered digital workspace ("Codx Junior"). It unifies structured chat APIs, live code environments, advanced file management, version control views, system settings, and collaborative modules into a single professional user interface.
+**Description:** A comprehensive AI-powered digital workspace Single Page Application (SPA) providing advanced tools—including code editing, multi-window desktop simulation, real-time chat with LLMs, version control visualization, and sophisticated project management workflows—all within a unified interface.
 
-### 🌐 Core Infrastructure & Architecture
-Defines the application state, routing strategy, and service layer for cross-module communication.
-*   `src/main.ts`: Application entry point and overall bootstrap logic.
-*   `/src/store/*`: Global centralized state management systems (`chats.js`, `users.js`, etc.).
-*   `/src/router/*`, `/src/service/*`: Handles navigation routes and abstracts external data services (Chat, Project APIs).
+### ⚙️ Core Infrastructure & State Management
+Manages application state, routing, and abstracting external service communication.
+*   `src/store/*`: Centralized persistent data systems (`chats.js`, `users.js`, `profiles.js`).
+*   `src/router/*`, `/src/service/*`: Defines global navigation flows and business logic services (e.g., `chat.js`, `project.js`).
+*   `src/api/socket.js`: Handles real-time WebSocket connections for live data updates.
 
 ### 🖥️ Main Workspaces & Views
-High-level container components representing major operational sections of the workspace.
-*   **Desktop View:** `/src/views/HomeView.vue`, `/src/views/DesktopView.vue` (Simulates multi-window desktop interaction).
-*   **Chat Interface:** `/src/views/ChatView.vue` (The primary dedicated layout for all chat features).
-*   **System Configuration:** `/src/views/GlobalSettings.vue`, `/src/views/KnowledgeSettings.vue` (Manages system settings, plugins, and knowledge base setup).
+Container components representing the primary operational environments or dedicated system modules.
+*   **Chat Hub:** `/src/views/ChatView.vue`, `src/components/chat/*`: Core chat logic (messages, input, file selectors).
+*   **Workspace Simulation:** `/src/views/DesktopView.vue`, `/src/components/windowManager/*`: Simulates a multi-window desktop environment.
+*   **Settings Hubs:** 
+    *   `/src/viewsv/GlobalSettings.vue`: General application and system configuration.
+    *   `/src/views/KnowledgeSettings.vue` & `/src/views/DocsView.vue`: Dedicated modules for Knowledge Base indexing (RAG) setup.
 
-### ✨ Modular Systems & Tooling Components
-Reusable components implementing specialized business logic, workflow management, or complex data presentation.
-*   **AI Chat Flow:** `/src/components/chat/*`: Handles message lists, input processing, model selection, and message interaction details.
-*   **Code Environment (Monaco):** `/src/components/monaco/*`, `/src/components/code-editor/CodeEditor.jsx`: Provides wrappers for advanced code editing, diffing comparisons, and viewing.
-*   **Version Control (VCS):** `/src/components/repo/*`: Tools dedicated to visualizing Git history, managing commits, and reviewing PRs.
-*   **Project Context:** `/src/components/project/*`: Components defining project identification, metadata selection, and structural listing.
-*   **Collaboration & Workflow:** `/src/components/kanban/*`: Full module for task board visualization and customizable workflow management.
+### ✨ AI, Code, and Collaboration Workflow Components
+Specialized components handling complex interactions like coding, version control, and project management.
+*   **Code Editor & VCS:** 
+    *   `src/components/monaco/*`, `src/components/code-editor/CodeEditor.*`: Professional code editing environment wrappers.
+    *   `src/components/repo/*`: Modules for visualizing Git history, commits, and Pull Requests (`PRView.vue`).
+    *   `src/components/diffviewer/*`: Tools for comparing file versions (Monaco, general).
+*   **Project Management:** `/src/components/project/*`: Components managing project grouping, metadata display, and navigation bar elements.
+*   **Kanban Board:** `src/components/kanban/*`: Full task board implementation for visual workflow management.
 
-### ⚙️ Specialized Configuration & Data Handling
-Modules dedicated to advanced settings, external data integration, and system resources.
-*   **AI Settings:** `/src/components/ai_settings/*`: Dedicated modules controlling LLM connections (providers, models, agents) and API configuration.
-*   **Data Management:** `/src/components/data/*`: Components for displaying structured records, search results, and data-intensive lists.
-*   **Knowledge Base:** `/src/components/knowledge/settings/*`, `src/views/KnowledgeView.vue`: Logic for indexing external knowledge sources and managing retrieval patterns.
-*   **User & Auth:** `/src/components/user/*`, `/src/components/security/*`: Handles user login, profile visualization, authorization details, and role management.
+### 📊 Settings & Identity Modules (Configuration Areas)
+Dedicated components controlling external integrations, user data, or complex settings like LLMs.
+*   **AI Configuration:** `/src/components/ai_settings/*`: Controls connection parameters, model selection, and agent behaviors for the underlying LLM.
+*   **User & Security:** `/src/components/user/*`, `/src/components/security/*`: Handles identity management, user selection, and authentication details.
+*   **Data Modeling:** `src/components/data/*`: Components designed for displaying structured search results or data exploration records.
 
-### 🏗️ Utilities and Layout Components
-Reusable building blocks providing universal structure, navigation, and viewing utility across all modules.
-*   **Layout:** `/src/components/*Modal*.vue`, `/src/components/*Splitter*.vue`: Dialog boxes, context menus, and flexible layout dividers.
-*   **Navigation/Menu:** `/src/components/main-menu/*`, `/src/components/sidebar/*`: Manages global application navigation structures (sidebars, tabs, main menus).
-*   **File System:** `/src/views/FileBrowserView.vue`, `/src/components/filebrowser/FileFinder.vue`: Core view for traversing and selecting files within a structured directory system.
+### 🧱 Utility & Layout Toolkit (Reusability)
+Atomic, highly reusable building blocks providing structure, navigation, and flexible layout within views.
+*   **Layout & Dividers:** `src/components/*Splitter*.vue`, `Modal.vue`, `TabBar.vue`.
+*   **Navigation & Menus:** `/src/components/main-menu/*`: Sidebars, main menu items, and workspace selectors.
+*   **View Helpers:** `/src/views/FileBrowserView.vue`, `src/components/filebrowser/FileFinder.vue`: Core structure for file system navigation.
+*   **Generic Components:** `src/components/utils/*.vue` group (Includes general helpers like `README.md`, icons, etc.).

@@ -1,0 +1,23 @@
+[
+  {
+    "name": "Database and Data Storage",
+    "slug": "database-and-data-storage",
+    "description": "This domain covers the management, organization, and persistence of data within the application. It encompasses database configurations, data models, storage strategies, and data access patterns. The domain provides the foundational layer for storing, retrieving, and manipulating application data efficiently.",
+    "files": [
+      "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
+      "domains/database-data-storage.md",
+      "domains/database-and-data-storage.md",
+      "domains/database-data-management.md",
+      "domains/database-and-data-management.md"
+    ],
+    "depends_on_domains": [],
+    "entry_points": [
+      "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
+      "domains/database-data-storage.md",
+      "domains/database-and-data-storage.md",
+      "domains/database-data-management.md",
+      "domains/database-and-data-management.md"
+    ],
+    "keywords": []
+  }
+]

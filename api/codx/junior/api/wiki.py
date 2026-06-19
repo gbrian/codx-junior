@@ -68,7 +68,15 @@ async def io_chat(sid, data: dict, codxjunior_session: CODXJuniorSession):
         await return_data(wiki_manager.create_wiki_document(file_path))
     if step == "rebuild_wiki":
         await return_data(wiki_manager.rebuild_wiki())
-        
+    if step == "build_dependency_graph":
+        await return_data(wiki_manager.build_dependency_graph())
+    if step == "build_domains":
+        await return_data(wiki_manager.build_domains())
+    if step == "build_wiki_index":
+        await return_data(wiki_manager.build_wiki_index())
+    if step == "build_module_page":
+        await return_data(wiki_manager.build_module_page(file_path))
+
 @router.get("/wiki-engine/build")
 async def wiki_engine_build(request: Request):
     codx_junior_session = request.state.codx_junior_session
@@ -90,7 +98,15 @@ async def wiki_engine_build(request: Request):
         return wiki_manager.create_wiki_document(file_path)
     if step == "rebuild_wiki":
         return wiki_manager.rebuild_wiki()
-        
+    if step == "build_dependency_graph":
+        return wiki_manager.build_dependency_graph()
+    if step == "build_domains":
+        return wiki_manager.build_domains()
+    if step == "build_wiki_index":
+        return wiki_manager.build_wiki_index()
+    if step == "build_module_page":
+        return wiki_manager.build_module_page(file_path)
+
     return wiki_manager.build_wiki()
 
 @router.get("/wiki-engine/rebuild")
@@ -103,6 +119,15 @@ async def wiki_engine_config(request: Request):
     codx_junior_session = request.state.codx_junior_session
     wiki_manager = codx_junior_session.get_wiki()
     return wiki_manager.load_wiki_settings(with_files=True)
+
+@router.get("/wiki-engine/index")
+async def wiki_engine_index(request: Request):
+    """Return the cached wiki_index.json without triggering a rebuild."""
+    codx_junior_session = request.state.codx_junior_session
+    wiki_manager = codx_junior_session.get_wiki()
+    from codx.junior.wiki.wiki_index import WikiIndex
+    wiki_index = WikiIndex(settings=wiki_manager.settings, db=wiki_manager.db)
+    return wiki_index._load_index()
 
 
 @router.put('/wiki-engine')

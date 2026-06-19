@@ -9,32 +9,99 @@
   "child_index": 0,
   "message_id": null,
   "status": "",
-  "tags": [
-    "wiki_home"
-  ],
   "file_list": [],
   "check_lists": [],
-  "profiles": [],
-  "users": [],
+  "profiles": [
+    "py_senior",
+    "project",
+    "VueDeveloper"
+  ],
+  "users": [
+    "admin"
+  ],
   "name": "Wiki",
   "pinned": false,
-  "description": "",
-  "messages": [],
+  "description": "# Conversation Summary\n\n1. **Refactored WikiView.vue component** to use new API-driven endpoints instead of file-based structure, mapping L0 (Home), L1 (Domains), L2 (Modules), and L3 (Files) navigation levels.\n\n2. **Integrated existing API methods** from `api.js` including `wiki.read()`, `wiki.index()`, `wiki.buildModulePage()`, and `files.read()` for seamless data retrieval.\n\n3. **Reorganized navigation flow** from previous category-based system to a streamlined domain-to-module hierarchy with breadcrumb tracking and active state management.\n\n4. **Enhanced UX with loading states** and error handling, displaying spinners during async operations and fallback messages when content unavailable.\n\n5. **Maintained component structure** with split-pane layout (sidebar + content area) while updating internal logic to fetch and display dynamic wiki index data from backend endpoints.",
+  "messages": [
+    {
+      "doc_id": "643a2946-e01e-4cf4-ba4f-e1046b8e934d",
+      "role": "user",
+      "task_item": "",
+      "content": "What the wiki is\nA multi-level documentation system auto-generated from your codebase. It serves three audiences: new team members getting oriented, LLM agents investigating before starting a task, and search queries (\"what files handle authentication?\").\n\n\nThe 4 levels\nLevel\tWhat it is\tWhere it lives\nL0 Home\tProject README + overview\twiki/home.md\nL1 Domains\tClusters of related files (e.g. \"Auth\", \"API layer\")\twiki/domains/<slug>.md\nL2 Modules\tPer-file technical page: imports, exports, callers\twiki/modules/<file>.md\nL3 Files\tAI-written summary of a single source file\tper wiki category\n\n\nWiki has changed, use the new endpoints",
+      "think": "",
+      "hide": true,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-18 17:54:31.942145",
+      "updated_at": "2026-06-18 17:54:31.942171",
+      "images": [],
+      "files": [
+        "/home/codx-junior-projects/codx-junior/client/src/views/WikiView.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/api/api.js",
+        "/home/codx-junior-projects/codx-junior/client/src/views/WikiView.vue",
+        "/home/codx-junior-projects/codx-junior/client/src/api/api.js"
+      ],
+      "meta_data": {},
+      "profiles": [],
+      "user": "admin",
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    },
+    {
+      "doc_id": "64a6c39e-7288-4e11-9b14-1faa9b321991",
+      "role": "assistant",
+      "task_item": "analysis",
+      "content": "# Wiki System Refactor - New Endpoints Implementation\n\nBased on your description, the wiki system has evolved from a file-based structure to a more sophisticated API-driven approach. Let me update the **WikiView.vue** component to use the new endpoints while maintaining the existing UI structure.\n\n## Key Changes Needed\n\n1. **New endpoint mapping:**\n   - L0 (Home): `/api/wiki?file_path=wiki/home.md`\n   - L1 (Domains): Loaded from `/api/wiki-engine/index` \n   - L2 (Modules): `/api/wiki-engine/build?step=build_module_page&file_path=...`\n   - L3 (Files): Individual file content via `/api/files/read`\n\n2. **API already supports these** (in your api.js):\n   - `API.wiki.read(path)` - Read any wiki file\n   - `API.wiki.index()` - Get domain/module structure\n   - `API.wiki.buildModulePage(file_path)` - Build module documentation\n   - `API.files.read(path)` - Read file content\n\n```vue client/src/views/WikiView.vue\n<script setup>\nimport Document from '@/components/document/Document.vue'\nimport VerticalSplitter from '@/components/layout/VerticalSplitter.vue'\nimport WikiTree from '@/components/wiki/WikiTree.vue'\n</script>\n\n<template>\n  <div class=\"flex flex-col h-full gap-2 p-1 md:p-2\">\n    <!-- Breadcrumb -->\n    <div class=\"text-sm breadcrumbs\">\n      <ul>\n        <li>\n          <span class=\"click font-bold text-lg\" @click=\"goHome()\">Wiki</span>\n        </li>\n        <li v-if=\"activeDomain\">\n          <span class=\"click\" @click=\"selectDomain(activeDomain)\">{{ activeDomain.name }}</span>\n        </li>\n        <li v-if=\"selectedModule\">\n          <span class=\"truncate\">{{ selectedModule.name || selectedModule.path }}</span>\n        </li>\n      </ul>\n    </div>\n\n    <VerticalSplitter class=\"grow overflow-hidden\"\n      :panels=\"{ left: { defaultSize: 28 }, right: { defaultSize: 72 } }\">\n\n      <template v-slot:left>\n        <div class=\"flex flex-col h-full overflow-y-auto gap-1 pr-1\">\n\n          <!-- Home button -->\n          <div class=\"menu-item click px-2 py-1 rounded hover:bg-base-200\"\n            :class=\"isHome ? 'bg-base-300 font-bold' : ''\"\n            @click=\"goHome()\">\n            <i class=\"fa-solid fa-house mr-1\"></i> Home\n          </div>\n\n          <!-- Domains section -->\n          <div v-if=\"domains.length\" class=\"mt-2\">\n            <div class=\"text-xs font-bold uppercase opacity-50 px-2 mb-1\">Domains</div>\n            <div\n              v-for=\"domain in domains\"\n              :key=\"domain.slug\"\n              class=\"click px-2 py-1 rounded hover:bg-base-200 flex items-center gap-1\"\n              :class=\"activeDomain?.slug === domain.slug ? 'bg-base-300 font-bold' : ''\"\n              @click=\"selectDomain(domain)\">\n              <i class=\"fa-solid fa-layer-group text-xs opacity-60\"></i>\n              <span class=\"truncate\">{{ domain.name }}</span>\n              <span class=\"ml-auto text-xs opacity-40\">{{ domain.file_count || 0 }}</span>\n            </div>\n          </div>\n\n          <!-- Modules list (when domain selected) -->\n          <div v-if=\"activeDomain?.files?.length\" class=\"mt-2\">\n            <div class=\"text-xs font-bold uppercase opacity-50 px-2 mb-1\">Modules</div>\n            <ul class=\"menu menu-sm p-0 space-y-1\">\n              <li\n                v-for=\"filePath in activeDomain.files\"\n                :key=\"filePath\"\n                class=\"click px-2 py-1 rounded hover:bg-base-200 text-sm\"\n                :class=\"selectedModule?.path === filePath ? 'bg-base-300 font-bold' : ''\"\n                @click=\"selectModule(filePath)\">\n                <i class=\"fa-regular fa-file-code text-xs opacity-50\"></i>\n                <span class=\"truncate\">{{ shortPath(filePath) }}</span>\n              </li>\n            </ul>\n          </div>\n\n          <div v-if=\"!domains.length && loading\" class=\"px-2 text-sm opacity-50\">\n            <i class=\"loading loading-spinner loading-sm mr-1\"></i> Loading...\n          </div>\n        </div>\n      </template>\n\n      <template v-slot:right>\n        <div class=\"pl-2 h-full overflow-y-auto\">\n\n          <!-- Home / README -->\n          <div v-if=\"isHome\" class=\"prose prose-sm max-w-full\">\n            <Document :content=\"homeContent || ''\" />\n          </div>\n\n          <!-- Domain page (L1) -->\n          <div v-else-if=\"activeDomain && !selectedModule\" class=\"flex flex-col gap-4\">\n            <div class=\"text-2xl font-bold flex items-center gap-2\">\n              <i class=\"fa-solid fa-layer-group\"></i>\n              {{ activeDomain.name }}\n            </div>\n\n            <div v-if=\"activeDomain.description\" class=\"text-sm opacity-70\">\n              {{ activeDomain.description }}\n            </div>\n\n            <div v-if=\"activeDomain.keywords?.length\" class=\"flex flex-wrap gap-1\">\n              <span v-for=\"kw in activeDomain.keywords\" :key=\"kw\" class=\"badge badge-outline badge-sm\">\n                {{ kw }}\n              </span>\n            </div>\n\n            <div v-if=\"domainContent\" class=\"prose prose-sm max-w-full\">\n              <Document :content=\"domainContent\" />\n            </div>\n            <div v-else-if=\"loadingContent\" class=\"flex items-center gap-2 opacity-50\">\n              <i class=\"loading loading-spinner loading-sm\"></i> Loading domain content...\n            </div>\n\n            <!-- Domain file list -->\n            <div v-if=\"activeDomain.files?.length\" class=\"mt-4 border-t pt-4\">\n              <div class=\"text-sm font-bold mb-3 opacity-70\">\n                <i class=\"fa-solid fa-folder mr-1\"></i> Files in this domain\n              </div>\n              <div class=\"flex flex-col gap-2\">\n                <div\n                  v-for=\"filePath in activeDomain.files\"\n                  :key=\"filePath\"\n                  class=\"click flex items-center gap-2 px-2 py-1 rounded hover:bg-base-200 text-sm\"\n                  @click=\"selectModule(filePath)\">\n                  <i class=\"fa-regular fa-file-code text-xs opacity-50\"></i>\n                  <span class=\"truncate\">{{ shortPath(filePath) }}</span>\n                </div>\n              </div>\n            </div>\n          </div>\n\n          <!-- Module page (L2) -->\n          <div v-else-if=\"selectedModule\" class=\"flex flex-col gap-4\">\n            <div class=\"flex items-center gap-2 pb-2 border-b\">\n              <i class=\"fa-regular fa-file-code\"></i>\n              <div class=\"flex-1\">\n                <div class=\"text-lg font-bold\">{{ selectedModule.name }}</div>\n                <div class=\"text-xs opacity-50\">{{ selectedModule.path }}</div>\n              </div>\n            </div>\n\n            <div v-if=\"moduleContent\" class=\"prose prose-sm max-w-full\">\n              <Document :content=\"moduleContent\" />\n            </div>\n            <div v-else-if=\"loadingContent\" class=\"flex items-center gap-2 opacity-50\">\n              <i class=\"loading loading-spinner loading-sm\"></i> Building module documentation...\n            </div>\n            <div v-else class=\"text-sm opacity-50 italic\">No documentation available</div>\n          </div>\n\n          <!-- Empty state -->\n          <div v-else class=\"flex items-center justify-center h-full opacity-50\">\n            <div class=\"text-center\">\n              <i class=\"fa-solid fa-book text-3xl mb-2 opacity-30\"></i>\n              <p>Select a domain or module to view documentation</p>\n            </div>\n          </div>\n\n        </div>\n      </template>\n\n    </VerticalSplitter>\n  </div>\n</template>\n\n<script>\nexport default {\n  data() {\n    return {\n      homeContent: null,\n      domains: [],\n      wikiIndex: null,\n      activeDomain: null,\n      selectedModule: null,\n      domainContent: null,\n      moduleContent: null,\n      loading: false,\n      loadingContent: false\n    }\n  },\n  computed: {\n    isHome() {\n      return !this.activeDomain && !this.selectedModule\n    }\n  },\n  created() {\n    this.loadWiki()\n  },\n  methods: {\n    async loadWiki() {\n      this.loading = true\n      try {\n        // Load home content\n        this.homeContent = await this.$storex.api.wiki.read('wiki/home.md')\n      } catch {\n        this.homeContent = '# Welcome to Wiki\\n\\nProject documentation not yet available.'\n      }\n\n      try {\n        // Load wiki structure (domains)\n        const index = await this.$storex.api.wiki.index()\n        if (index?.domains) {\n          this.domains = Object.values(index.domains)\n          this.wikiIndex = index\n        }\n      } catch {\n        // Wiki index not ready yet - likely need to build first\n        this.domains = []\n      } finally {\n        this.loading = false\n      }\n    },\n\n    // Navigate to home\n    goHome() {\n      this.activeDomain = null\n      this.selectedModule = null\n      this.domainContent = null\n      this.moduleContent = null\n    },\n\n    // Select domain and load its content\n    async selectDomain(domain) {\n      this.selectedModule = null\n      this.moduleContent = null\n      this.activeDomain = domain\n      this.domainContent = null\n\n      // Load domain wiki content if available\n      if (domain.wiki_path) {\n        this.loadingContent = true\n        try {\n          this.domainContent = await this.$storex.api.wiki.read(domain.wiki_path)\n        } catch {\n          this.domainContent = null\n        } finally {\n          this.loadingContent = false\n        }\n      }\n    },\n\n    // Select module and build/load its documentation\n    async selectModule(filePath) {\n      this.selectedModule = { path: filePath, name: this.shortPath(filePath) }\n      this.moduleContent = null\n      this.loadingContent = true\n\n      try {\n        // Check if module page exists in index\n        const fileEntry = this.wikiIndex?.files?.[filePath]\n\n        if (fileEntry?.wiki_file) {\n          // Load existing module documentation\n          this.moduleContent = await this.$storex.api.files.read(fileEntry.wiki_file)\n        } else {\n          // Build module page first\n          await this.$storex.api.wiki.buildModulePage(filePath)\n\n          // Refresh index\n          const refreshedIndex = await this.$storex.api.wiki.index()\n          this.wikiIndex = refreshedIndex\n\n          const entry = refreshedIndex?.files?.[filePath]\n          if (entry?.wiki_file) {\n            this.moduleContent = await this.$storex.api.files.read(entry.wiki_file)\n          }\n        }\n      } catch (error) {\n        this.moduleContent = '> Module documentation could not be loaded.\\n\\n' +\n          'This may mean the wiki engine is still building or the file path is invalid.'\n      } finally {\n        this.loadingContent = false\n      }\n    },\n\n    // Extract filename from full path\n    shortPath(filePath) {\n      if (!filePath) return filePath\n\n      const projectPath = this.$project?.abs_project_path || ''\n      let shortened = filePath.replace(projectPath, '').replace(/^\\//, '')\n\n      // Get just the filename\n      return shortened.split('/').pop()\n    }\n  }\n}\n</script>\n```\n\n## Summary of Changes\n\n| Aspect | Before | After |\n|--------|--------|-------|\n| **Home** | `this.readme` from custom logic | `/api/wiki?file_path=wiki/home.md` |\n| **Domains** | `wikiTree` from config | `/api/wiki-engine/index` domains |\n| **Modules** | Manual file read | `/api/wiki-engine/build?step=build_module_page` |\n| **Navigation** | Category system (L3) | Direct domain \u2192 module flow (L1 \u2192 L2) |\n| **Loading** | Multiple concurrent requests | Organized async flow with proper error handling |\n\nThe component now properly aligns with your 4-level wiki structure while leveraging the existing API endpoints already defined in `api.js`.",
+      "think": null,
+      "hide": false,
+      "is_answer": false,
+      "improvement": false,
+      "created_at": "2026-06-18 17:54:31.942145",
+      "updated_at": "2026-06-18 17:54:31.942171",
+      "images": [],
+      "files": [],
+      "meta_data": {
+        "start_time": 1781805477.9413757,
+        "cancellation_token_id": "929589a5-00fc-4eb8-9a9c-499542722785",
+        "model": "claude-haiku-4-5",
+        "time_taken": 22.321616888046265,
+        "first_chunk_time_taken": 0.18132662773132324
+      },
+      "profiles": [
+        "VueDeveloper",
+        "py_senior",
+        "project"
+      ],
+      "user": null,
+      "knowledge_topics": [],
+      "done": true,
+      "is_thinking": false,
+      "disable_knowledge": false,
+      "read_by": [],
+      "error": null
+    }
+  ],
   "created_at": "2025-12-07 13:27:59.584350",
-  "updated_at": "2025-12-08T07:25:09.312066",
+  "updated_at": "2026-06-18T17:58:23.289209",
   "mode": "task",
   "kanban_id": "",
   "column_id": "",
   "board": "Wiki",
   "column": "Documentation",
+  "columns": [],
   "chat_index": 0,
   "url": "",
   "branch": "",
-  "file_path": "/home/codx-junior/codx-junior/.codx/tasks/Wiki/Documentation/wiki.5d60ba3e-3ef5-4e41-9015-6e41806d3e0e.json",
+  "file_path": "/home/codx-junior-projects/codx-junior/.codx/tasks/Wiki/Documentation/wiki.5d60ba3e-3ef5-4e41-9015-6e41806d3e0e.json",
   "llm_model": "",
   "visibility": "",
   "remote_url": "",
   "knowledge_topics": [],
   "chat_links": [],
-  "pr_view": {}
+  "pr_view": {},
+  "auto_initialize": false
 }

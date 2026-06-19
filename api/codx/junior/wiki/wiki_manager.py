@@ -37,6 +37,9 @@ from ..events.event_manager import EventManager
 from codx.junior.profiles.profile_manager import ProfileManager
 from codx.junior.knowledge.knowledge_db import KnowledgeDB
 from codx.junior.knowledge.knowledge_loader import KnowledgeLoader
+from codx.junior.knowledge.knowledge_graph import DependencyGraph
+from codx.junior.wiki.wiki_domains import WikiDomains
+from codx.junior.wiki.wiki_index import WikiIndex
 
 from codx.junior.utils.utils import write_file
 
@@ -131,10 +134,20 @@ class WikiManager:
                     return False
             return True
         repository_files = [f.replace(self.settings.abs_project_path, '') for f in repository_files if is_valid_file(f)]
-        repository_files = "\n".join(sorted(repository_files))
 
-        logger.info("Valid wiki files:\n%s", repository_files)
-        
+        # Load domain map to seed categories with graph-based groupings
+        wiki_domains = WikiDomains(settings=self.settings, db=self.db, ai=self._get_ai())
+        domain_map = wiki_domains.load_domain_map()
+        domain_hints = ""
+        if domain_map:
+            domain_hints = "<domain_hints>\n"
+            for d in domain_map:
+                domain_hints += f"  Domain '{d['name']}' contains: {', '.join(d.get('files', [])[:10])}\n"
+            domain_hints += "</domain_hints>\n"
+
+        repository_files_str = "\n".join(sorted(repository_files))
+        logger.info("Valid wiki files:\n%s", repository_files_str)
+
         wiki_settings = self.load_wiki_settings()
         user_language = wiki_settings.get("language", "English")
         user_instructions = wiki_settings.get("prompt", "")
@@ -144,8 +157,9 @@ class WikiManager:
             { self.profile_manager.read_profile("project").content}
             </project_info>
             <project_files>
-            { repository_files }
+            { repository_files_str }
             </project_files>
+            {domain_hints}
             <wiki_settings>
             { json.dumps(wiki_settings, indent=2) }
             </wiki_settings>
@@ -158,11 +172,12 @@ class WikiManager:
 
             We are defining the project's documentation wiki to help new users understand and manage the project.
             Update the wiki structure based on the project's information that can assist users with onboarding, learning and (if apply) executing the project.
+            Use domain_hints (if provided) to group files into coherent categories that reflect actual code dependencies.
             Detect which kind of project is and choose and structure it wisely into categories and subcategories.
             Update wiki tree definition from given updated information about the project and its folders.
             A wiki tree will split the project into 6 top-level categories for the main project's sections/functionalities.
             Top-level categories can have "children" categories.
-            A category entry is defined in a json with fields:  
+            A category entry is defined in a json with fields:
                 * "title": Unique category title. Can't be repeated in by any other category or subcategory.
                 * "description": An 8 lines category description
                 * "keywords": List of keyword to check if a file belongs to the category
@@ -179,7 +194,7 @@ class WikiManager:
             messages = self._ai_chat(prompt=summary_prompt, clean=False)
             wiki_settings = next(extract_json_blocks(messages[-1].content))
             self._fix_wiki_categories(wiki_settings)
-                        
+
             return wiki_settings
 
         except Exception as ex:
@@ -187,7 +202,7 @@ class WikiManager:
             return {
                 **wiki_settings,
                 "error": ex
-            }    
+            }
         
     def update_category_home(self, documents: List[Document]):
         pass
@@ -213,6 +228,14 @@ class WikiManager:
 
         messages = self._ai_chat(prompt=summary_prompt)
         page_content = messages[-1].content
+
+        # Append dependency info from graph
+        graph = DependencyGraph(settings=self.settings)
+        if graph.load():
+            deps = graph.get_file_deps(source)
+            dep_section = self._build_dependency_section(deps, source)
+            if dep_section:
+                page_content = page_content + "\n\n" + dep_section
 
         logger.info("Creating wiki document at %s", wiki_file_path)
         os.makedirs(os.path.dirname(wiki_file_path), exist_ok=True)
@@ -329,12 +352,124 @@ class WikiManager:
         if wiki_settings.get("mode") == "mkdocs":
             self._update_mkdocs()
 
+    def build_file(self, file_path: str) -> None:
+        """Called by ChangeManager when a single file changes."""
+        self.create_wiki_document(source=file_path)
+
     def rebuild_wiki(self):
         wiki_settings = self.load_wiki_settings()
         categories = self._get_all_categories(wiki_settings["categories"])
         
         for category in categories:
             self.build_wiki_category(category["path"])          
+
+    def build_dependency_graph(self) -> DependencyGraph:
+        graph = DependencyGraph(settings=self.settings)
+        file_paths = self.loader.list_repository_files()
+        ignore_patterns = [self.wiki_path, MKDOCS_YAML_FILE_NAME]
+        file_paths = [f for f in file_paths if not any(p in f for p in ignore_patterns)]
+        graph.build(file_paths)
+        graph.save()
+        return graph
+
+    def build_domains(self, graph: DependencyGraph = None) -> List[Dict]:
+        if graph is None:
+            graph = DependencyGraph(settings=self.settings)
+            if not graph.load():
+                graph = self.build_dependency_graph()
+        source_map = self.db.get_all_sources()
+        wiki_domains = WikiDomains(settings=self.settings, db=self.db, ai=self._get_ai())
+        domains = wiki_domains.detect_domains(graph=graph, source_map=source_map)
+
+        domains_dir = os.path.join(self.wiki_path, "domains")
+        os.makedirs(domains_dir, exist_ok=True)
+
+        with ThreadPoolExecutor() as executor:
+            def _build_page(domain):
+                try:
+                    content = wiki_domains.build_domain_page(domain=domain, graph=graph)
+                    page_path = os.path.join(domains_dir, f"{domain['slug']}.md")
+                    write_file(page_path, content)
+                except Exception as ex:
+                    logger.exception("Error building domain page for %s: %s", domain.get("name"), ex)
+
+            futures = [executor.submit(_build_page, d) for d in domains]
+            for f in futures:
+                try:
+                    f.result()
+                except Exception as ex:
+                    logger.exception("build_domains future error: %s", ex)
+
+        wiki_domains.save_domain_map(domains)
+        return domains
+
+    def build_wiki_index(self, graph: DependencyGraph = None, domains: List[Dict] = None) -> Dict:
+        if graph is None:
+            graph = DependencyGraph(settings=self.settings)
+            if not graph.load():
+                graph = self.build_dependency_graph()
+        if domains is None:
+            wiki_domains = WikiDomains(settings=self.settings, db=self.db, ai=self._get_ai())
+            domains = wiki_domains.load_domain_map()
+        wiki_settings = self.load_wiki_settings()
+        wiki_index = WikiIndex(settings=self.settings, db=self.db)
+        index = wiki_index.build(wiki_settings=wiki_settings, domain_map=domains, graph=graph)
+        wiki_index.save(index)
+        wiki_index.index_to_milvus(index)
+        return index
+
+    def build_module_page(self, file_path: str, graph: DependencyGraph = None) -> str:
+        if graph is None:
+            graph = DependencyGraph(settings=self.settings)
+            if not graph.load():
+                graph = self.build_dependency_graph()
+
+        deps = graph.get_file_deps(file_path)
+        file_content = self._read_file(file_path)
+        rel_path = file_path.replace(self.settings.abs_project_path, "")
+
+        imports_str = "\n".join(deps.get("imports", [])) or "none"
+        imported_by_str = "\n".join(deps.get("imported_by", [])) or "none"
+        external_str = ", ".join(deps.get("external_deps", [])) or "none"
+
+        prompt = f"""
+<file_path>{rel_path}</file_path>
+<file_content>
+{file_content}
+</file_content>
+<imports>
+{imports_str}
+</imports>
+<imported_by>
+{imported_by_str}
+</imported_by>
+<external_deps>{external_str}</external_deps>
+
+Generate a markdown L2 module page for this file.
+Include these sections:
+# Module: {rel_path}
+## Overview
+## Exported Symbols
+## Dependencies
+**Imports from:** (list internal imports)
+**Imported by:** (list files that import this)
+**External dependencies:** (list external packages)
+## Usage Examples
+
+Do not add code fences around the entire document.
+"""
+        try:
+            messages = self._ai_chat(prompt=prompt)
+            page_content = messages[-1].content
+            slug = slugify(rel_path)
+            module_dir = os.path.join(self.wiki_path, "modules")
+            os.makedirs(module_dir, exist_ok=True)
+            page_path = os.path.join(module_dir, f"{slug}.md")
+            write_file(page_path, page_content)
+            return page_content
+        except Exception as ex:
+            logger.exception("Error building module page for %s: %s", file_path, ex)
+            return ""
 
     def _update_wiki_conf(self):
         wiki_settings = self.load_wiki_settings()
@@ -528,6 +663,18 @@ class WikiManager:
         {changes}
         </wiki_changes>
         """
+
+    def _build_dependency_section(self, deps: Dict, source: str) -> str:
+        imports = deps.get("imports", [])
+        imported_by = deps.get("imported_by", [])
+        if not imports and not imported_by:
+            return ""
+        lines = ["## Dependencies"]
+        if imports:
+            lines.append(f"**Imports from:** {', '.join(imports)}")
+        if imported_by:
+            lines.append(f"**Imported by:** {', '.join(imported_by)}")
+        return "\n".join(lines)
 
     def _get_settings_path(self):
         return self.wiki_settings_path

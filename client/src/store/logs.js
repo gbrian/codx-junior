@@ -57,7 +57,7 @@ export const actions = actionTree(
   {
     async fetchLogNames() {
       try {
-        const logNames = await API.logs.list()
+        const logNames = await API.logs.system.list()
         $storex.logs.setLogNames(logNames)
         if (logNames.length) {
           $storex.logs.setSelectedLog(logNames[0])
@@ -68,7 +68,7 @@ export const actions = actionTree(
       }
     },
     async fetchLogs({ state }, tailSize) {
-      const data = await API.logs.read(state.selectedLog, tailSize)
+      const data = await API.logs.system.read(state.selectedLog, tailSize)
       if (state.autoRefresh) {
         const newLogs = data.filter(l => !state.rawLogs.includes(l))
         $storex.logs.setRawLogs([...state.rawLogs, ...newLogs])

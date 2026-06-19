@@ -79,7 +79,7 @@ import KnowledgeIndex from '../components/knowledge/settings/KnowledgeIndex.vue'
       :project="$project"
       @reload-status="reloadStatus"
       @set-setting="setSettings"
-      @index-files="reloadKnowledge"
+      @index-files="handleIndexFiles"
       @ignore-files="ignoreFiles"
       @unignore-files="unignoreFiles"
       @drop-files="dropSelectedFiles"
@@ -118,6 +118,7 @@ export default {
     }
     this.refreshIx = setInterval(() => this.reloadStatus(), 40000)
     this.loadProject()
+    this.setupSocketListeners()
   },
   unmounted() {
     clearInterval(this.refreshIx)
@@ -138,6 +139,20 @@ export default {
     }
   },
   methods: {
+    setupSocketListeners() {
+      const api = this.api
+      if (!api?.socket) return
+
+      api.socket.on('codx-junior-index-knowledge-complete', (data) => {
+        console.log('Indexing complete:', data)
+        this.reloadStatus()
+      })
+
+      api.socket.on('codx-junior-index-knowledge-error', (data) => {
+        console.error('Indexing error:', data)
+        this.$notification.error(`Indexing failed: ${data.message}`)
+      })
+    },
     async loadProject() {
       await this.reloadStatus()
     },
@@ -149,16 +164,16 @@ export default {
       this.indexStatus = await this.api.knowledge.status()
       await this.loadSettings()
     },
-    async reloadKnowledge(filePaths) {
-      for (const filePath of filePaths) {
-        try {
-          await this.api.knowledge.reloadFolder(filePath)
-        } catch { }
+    async handleIndexFiles(filePaths) {
+      // Socket-based indexing (async, non-blocking)
+      try {
+        await this.api.knowledge.indexFilesBackground(filePaths)
+        this.$notification.success(`Indexing ${filePaths.length} file(s) in background...`)
+      } catch (error) {
+        this.$notification.error(`Failed to start indexing: ${error.message}`)
       }
-      await this.reloadStatus()
     },
     async ignoreFiles({ paths, asFolder }) {
-      // Map file paths relative to project, optionally extract parent folder
       const projectPath = this.settings?.abs_project_path
       const relativePaths = paths.map(f => f.replace(projectPath, ''))
       const entries = asFolder

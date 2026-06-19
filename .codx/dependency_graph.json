@@ -1,0 +1,846 @@
+{
+  "version": 1,
+  "updated_at": 1781857801,
+  "files": {
+    ".dockerignore": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    ".github/workflows/docker-publish.yaml.wip": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    ".vscode/settings.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "LICENSE.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "README.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "build-docker.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "code-server/User/settings.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/README.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior-dind/.dockerignore": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior-dind/Dockerfile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior-dind/build.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior-dind/codx-junior-dind-init.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior-dind/entrypoint-wrapper.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/.env.example": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/Dockerfile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/build.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/debian/.dockerignore": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/debian/Dockerfile.debian": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/docker-compose.build.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/docker-compose.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/initial-setup.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/litellm/config.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/litellm/model-test.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/milvus_embedEtcd.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/milvus_user.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/prometheus.yml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/push-images.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/traefik/routes/transports.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/traefik/traefik.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-default/.workspace.env": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-default/Dockerfile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-default/coder/coder-init.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-default/docker-compose.workspace-default.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-kasmvnc-ubuntu/.workspace.env": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-kasmvnc-ubuntu/Dockerfile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-kasmvnc-ubuntu/coder/coder-init.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-kasmvnc-ubuntu/docker-compose.workspace-default.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-kasmvnc-ubuntu/kasmvnc.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-silkies/.workspace.env": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-silkies/Dockerfile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/codx-junior-workspace-silkies/docker-compose.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/codx-junior/workspaces/setup_workspace.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/package.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-installer/vllm/run_model.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior-python.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior.code-workspace": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx-junior.installed": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "config.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docker-init/install-codx-junior.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/.vitepress/config.mts": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/.vitepress/theme/RegisterForm.vue": {
+      "imports": [],
+      "imported_by": [
+        "docs/.vitepress/theme/index.js"
+      ],
+      "external_deps": []
+    },
+    "docs/.vitepress/theme/components/ProductHunt.vue": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/.vitepress/theme/custom.css": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "tailwindcss"
+      ]
+    },
+    "docs/.vitepress/theme/index.js": {
+      "imports": [
+        "docs/.vitepress/theme/RegisterForm.vue"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "vitepress"
+      ]
+    },
+    "docs/collaboration.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/demo.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/docker-compose.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/code-generation-and-review.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/collaboration-and-communication.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/collaboration.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/deployment-and-operations.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/development-tools.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/knowledge-sharing.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/project-dashboard.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/project-management.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/settings.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/features/tasks.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/getting-started.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/hello-codx-junior.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/index.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/initial-setup.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/knowledge-sharing.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/package-lock.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/package.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/postcss.config.mjs": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/custom.css": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-ai-backgroound.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-ai-models.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-avatar-1.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-avatar-3.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-avatar.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-banner.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-desktop.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-kanban.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-profiles.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-pull-request.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-rag-knowledge.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/NOV2025/codx-junior-task-manager.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/codx-junior-editor.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/codx-junior-kanban.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/codx-junior-mentions.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/codx-junior-preview.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/codx-junior-profiles.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/codx-junior-tasks.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/codx-junior-wiki.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/images/welcome-codx-junior.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/only_icon.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/public/spelling-mistake.png": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/tailwind.config.js": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "docs/team.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "entrypoint.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "installer.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "milvus/milvus.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "aws",
+        "gcp",
+        "aliyun",
+        "gcpnative"
+      ]
+    },
+    "notebooks/ai-flow/smolagents/smolagents.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "notebooks/graphjrag.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "notebooks/huggingface/inference.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "notebooks/litegpt.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "notebooks/milvusdb.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "notebooks/raglite.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/azuredevops/az-pull-requests-plugin.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/azuredevops/azure_devops_pull_requests_plugin.py": {
+      "imports": [],
+      "imported_by": [
+        "plugins/azuredevops/plugin.py"
+      ],
+      "external_deps": [
+        "logging",
+        "re",
+        "json",
+        "os",
+        "azure",
+        "msrest",
+        "dotenv",
+        "pydantic",
+        "typing"
+      ]
+    },
+    "plugins/azuredevops/plugin.py": {
+      "imports": [
+        "plugins/azuredevops/azure_devops_pull_requests_plugin.py"
+      ],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/azuredevops/pull-requests.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/azuredevops/pyproject.toml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/azuredevops/test_azure_devops_pull_requests_plugin.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "pytest",
+        "unittest",
+        "azure_devops_pull_requests_plugin"
+      ]
+    },
+    "plugins/guide-model/.env.example": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/guide-model/README.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/guide-model/codx/junior/ai/guide_model/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "codx"
+      ]
+    },
+    "plugins/guide-model/codx/junior/ai/guide_model/guide_model.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "os",
+        "pickle",
+        "multiprocessing",
+        "llama_cpp",
+        "codx"
+      ]
+    },
+    "plugins/guide-model/codx/junior/ai/guide_model/guide_model_manager.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "os",
+        "typing",
+        "codx"
+      ]
+    },
+    "plugins/guide-model/codx/junior/globals/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "os"
+      ]
+    },
+    "plugins/guide-model/docker/.dockerignore": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/guide-model/docker/Dockerfile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/guide-model/docker/docker-compose.yml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/guide-model/pyproject.toml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/guide-model/scripts/build.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/guide-model/scripts/run.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/guide-model/scripts/stop.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/guide-model/tests/test_guide_model.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "os",
+        "pytest",
+        "unittest",
+        "codx"
+      ]
+    },
+    "pytest.ini": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "restar_api.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/Desktop/Firefox ESR.desktop": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/docker-compose.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/entrypoint.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/install.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/install_api.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/install_base.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/install_client.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/logo.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/run_api.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/run_client.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/run_docker.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/run_llmFactory.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/tools/vnc_app.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "scripts/traefik/traefik.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "set_env.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "tests/chatGPTApi/endpoint.tests.http": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "tests/docker/test_dind.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "websockify-token.cfg": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "models/Qwen3.5-0.8B-Q8_0.gguf": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "models/gemma-4-12B-it-qat-assistant-MTP-Q8_0.gguf": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "notebooks/airLLM/airLLM.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "notebooks/guided-model/guide_context_generator.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "notebooks/guided-model/guidemodel.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "notebooks/llama.cpp/llamacpp.ipynb": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "patches/wiki_all_changes.zip": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    }
+  }
+}

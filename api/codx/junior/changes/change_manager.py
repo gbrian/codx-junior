@@ -119,7 +119,8 @@ class ChangeManager:
         
         if self.settings.project_wiki:
             try:
-                await self.wiki_manager.build_file(file_path=file_path)
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, self.wiki_manager.build_file, file_path)
             except Exception as ex:
                 logger.exception(f"Error processing wiki changes for file {file_path}", ex)
 

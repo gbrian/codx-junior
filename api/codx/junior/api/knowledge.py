@@ -15,6 +15,10 @@ from codx.junior.model.model import (
 
 from codx.junior.knowledge.knowledge_ai_search import KnowledgeAISearch, AISearchResult
 from codx.junior.api import require_admin
+from codx.junior.engine.session import CODXJuniorSession
+from codx.junior.sio.session_channel import SessionChannel
+from codx.junior.sio.sio import sio
+from codx.junior.sio.sio import sio_api_endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -452,5 +456,60 @@ async def api_knowledge_ai_search(
     )
 
     return JSONResponse(content=result.to_dict())
+
+
+@sio.on("codx-junior-index-knowledge")
+@sio_api_endpoint
+async def sio_index_knowledge(
+    sid, 
+    data: dict, 
+    codxjunior_session: CODXJuniorSession
+):
+    """
+    Index knowledge files in the background via socket event.
+
+    Expected data:
+        - file_paths: List[str] - Absolute paths to files/folders to index
+        - codx_path: str - Project path
+
+    Returns:
+        Result of the indexing operation.
+    """
+    file_paths = data.get("file_paths", [])
+    logger.info(
+        "Socket: index_knowledge | files=%d | project=%s",
+        len(file_paths),
+        codxjunior_session.settings.project_name,
+    )
+
+    try:
+        # Index files in background
+        result = codxjunior_session.index_knowledge_source(
+            sources=file_paths
+        )
+
+        # Notify client of completion
+        channel = SessionChannel(sio=sio, sid=sid)
+        channel.send_event("codx-junior-index-knowledge-complete", {
+            "status": "success",
+            "files_indexed": len(file_paths),
+            "message": f"Successfully indexed {len(file_paths)} file(s)",
+        })
+
+        logger.info(
+            "Socket: index_knowledge complete | files=%d",
+            len(file_paths),
+        )
+        return result
+
+    except Exception as ex:
+        logger.exception("Error indexing knowledge via socket")
+        channel = SessionChannel(sio=sio, sid=sid)
+        channel.send_event("codx-junior-index-knowledge-error", {
+            "status": "error",
+            "message": str(ex),
+        })
+        return {"error": str(ex)}
+
 
 # Made with ❤️ by codx-junior

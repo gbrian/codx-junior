@@ -226,8 +226,8 @@ export default {
   data() {
     return {
       activeTab: 0,
-      // Track files currently being sent for indexing
-      indexingFiles: []
+      indexingFiles: [],
+      indexingError: null
     }
   },
   computed: {
@@ -273,10 +273,10 @@ export default {
     }
   },
   watch: {
-    // Clear indexing state when pending files list updates (indexing completed)
     'indexStatus.pending_files'(newFiles) {
       if (!newFiles?.length) {
         this.indexingFiles = []
+        this.indexingError = null
       }
     }
   },
@@ -288,10 +288,26 @@ export default {
     onIgnoreFiles({ paths, asFolder }) {
       this.$emit('ignore-files', { paths, asFolder })
     },
-    // Track files being indexed before emitting to parent
-    onIndexFiles(filePaths) {
+    // Index files using socket in background
+    async onIndexFiles(filePaths) {
       this.indexingFiles = [...filePaths]
-      this.$emit('index-files', filePaths)
+      this.indexingError = null
+      
+      try {
+        const api = this.$project?.$api
+        if (!api) {
+          throw new Error('API not initialized')
+        }
+        
+        // Send via socket for background indexing
+        await api.knowledge.indexFilesBackground(filePaths)
+        
+      } catch (error) {
+        this.indexingError = error.message
+        console.error('Indexing error:', error)
+        // Still emit for parent to handle, but show error
+        this.$emit('index-files', filePaths)
+      }
     }
   }
 }

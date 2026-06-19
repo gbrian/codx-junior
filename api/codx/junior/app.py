@@ -506,7 +506,7 @@ def run_script(data: dict, request: Request):
     std, _ = exec_command(data["script"], cwd=codx_junior_session.settings.abs_project_path)
     return std
 
-@app.get("/api/logs")
+@app.get("/api/system/logs")
 def api_logs_list():
     stdout, _ = exec_command("sudo docker ps --format {{.Names}}")
     containers = [f"🐋:{log}" for log in [log.strip().replace(".log", "") for log in stdout.split("\n")] if log]
@@ -516,7 +516,7 @@ def api_logs_list():
    
     return sorted(containers + files)
 
-@app.get("/api/logs/{log_name}")
+@app.get("/api/system/logs/{log_name}")
 def api_logs_tail(log_name: str, request: Request):
     log_size = request.query_params.get("log_size")
     if not str(log_size).isnumeric():
@@ -538,7 +538,7 @@ def api_logs_tail(log_name: str, request: Request):
 
             def is_valid_log(line: str) -> bool:
                 """Filter out log lines related to the logs endpoint itself."""
-                return "/api/logs" not in line
+                return "/api/system/logs" not in line
 
             return [line for line in logs.split("\n") if is_valid_log(line)]
         except OSError as ex:

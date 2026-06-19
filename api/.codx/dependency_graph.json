@@ -1,0 +1,2538 @@
+{
+  "version": 1,
+  "updated_at": 1781857828,
+  "files": {
+    "README.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "build/lib/codx/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/README.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/__init__.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/knowledge/knowledge_code_to_dcouments.py",
+        "codx/junior/settings.py"
+      ],
+      "external_deps": []
+    },
+    "codx/junior/agents/base_agent.py": {
+      "imports": [
+        "codx/junior/engine.py",
+        "codx/junior/utils/utils.py"
+      ],
+      "imported_by": [
+        "codx/junior/agents/devops_agent.py",
+        "codx/junior/agents/git_issues_agent.py"
+      ],
+      "external_deps": [
+        "logging",
+        "re"
+      ]
+    },
+    "codx/junior/agents/devops_agent.py": {
+      "imports": [
+        "codx/junior/agents/base_agent.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "logging"
+      ]
+    },
+    "codx/junior/agents/git_issues_agent.py": {
+      "imports": [
+        "codx/junior/agents/base_agent.py",
+        "codx/junior/engine.py",
+        "codx/junior/misc/github.py",
+        "codx/junior/db.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/github.py"
+      ],
+      "external_deps": [
+        "logging",
+        "typing"
+      ]
+    },
+    "codx/junior/ai/__init__.py": {
+      "imports": [
+        "codx/junior/ai/ai.py",
+        "codx/junior/model/model.py",
+        "codx/junior/model/ai_model.py",
+        "codx/junior/ai/llmfactory.py",
+        "codx/junior/global_settings.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py",
+        "codx/junior/background.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat/chat_knowledge.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/knowledge/knowledge_code_to_dcouments.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/sio/sio.py",
+        "codx/junior/tools/project_tools.py",
+        "codx/junior/wiki/wiki_manager.py",
+        "codx/junior/wiki/wiki_domains.py"
+      ],
+      "external_deps": [
+        "logging",
+        "requests",
+        "json",
+        "langchain"
+      ]
+    },
+    "codx/junior/ai/ai.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/ai/openai_ai.py",
+        "codx/junior/ai/ai_logger.py",
+        "codx/junior/ai/cancellation.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/model/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/context.py"
+      ],
+      "external_deps": [
+        "json",
+        "logging",
+        "hashlib",
+        "requests",
+        "urllib",
+        "typing",
+        "langchain"
+      ]
+    },
+    "codx/junior/ai/ai_logger.py": {
+      "imports": [
+        "codx/junior/utils/utils.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/ai.py",
+        "codx/junior/ai/llmfactory.py",
+        "codx/junior/ai/openai_ai.py",
+        "codx/junior/ai/vllm_cpu_ai.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "datetime"
+      ]
+    },
+    "codx/junior/ai/anthropic.py.disabled": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/ai/cancellation.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/ai/ai.py",
+        "codx/junior/ai/openai_ai.py",
+        "codx/junior/api/chat.py",
+        "codx/junior/chat/chat_engine.py"
+      ],
+      "external_deps": [
+        "asyncio",
+        "logging",
+        "uuid",
+        "datetime",
+        "typing"
+      ]
+    },
+    "codx/junior/ai/llmfactory.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/ai/ai_logger.py",
+        "codx/junior/model/model.py",
+        "codx/junior/profiling/profiler.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/__init__.py"
+      ],
+      "external_deps": [
+        "logging"
+      ]
+    },
+    "codx/junior/ai/mistral_ai.py.disabled": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/ai/ollama.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/ai/openai_ai.py": {
+      "imports": [
+        "codx/junior/ai/ai_logger.py",
+        "codx/junior/ai/raw_logger.py",
+        "codx/junior/ai/cancellation.py",
+        "codx/junior/ai/wallet_check.py",
+        "codx/junior/settings.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/model/model.py",
+        "codx/junior/analytics/__init__.py",
+        "codx/junior/analytics/token_counter.py",
+        "codx/junior/tools/__init__.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/ai.py"
+      ],
+      "external_deps": [
+        "logging",
+        "json",
+        "os",
+        "time",
+        "uuid",
+        "datetime",
+        "typing",
+        "openai",
+        "langchain"
+      ]
+    },
+    "codx/junior/ai/raw_log_reader.py": {
+      "imports": [
+        "codx/junior/globals.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/logs.py"
+      ],
+      "external_deps": [
+        "json",
+        "logging",
+        "os",
+        "threading",
+        "datetime",
+        "pathlib",
+        "typing"
+      ]
+    },
+    "codx/junior/ai/raw_logger.py": {
+      "imports": [
+        "codx/junior/globals.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/openai_ai.py"
+      ],
+      "external_deps": [
+        "json",
+        "logging",
+        "os",
+        "threading",
+        "datetime",
+        "typing"
+      ]
+    },
+    "codx/junior/ai/utils.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "inspect",
+        "pathlib"
+      ]
+    },
+    "codx/junior/ai/vllm_cpu_ai.py": {
+      "imports": [
+        "codx/junior/ai/ai_logger.py",
+        "codx/junior/settings.py",
+        "codx/junior/model/model.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "os",
+        "logging",
+        "typing",
+        "vllm",
+        "langchain"
+      ]
+    },
+    "codx/junior/ai/wallet_check.py": {
+      "imports": [
+        "codx/junior/model/model.py",
+        "codx/junior/analytics/analytics.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/openai_ai.py"
+      ],
+      "external_deps": [
+        "logging",
+        "datetime"
+      ]
+    },
+    "codx/junior/analytics/__init__.py": {
+      "imports": [
+        "codx/junior/analytics/analytics.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/openai_ai.py",
+        "codx/junior/api/analytics.py"
+      ],
+      "external_deps": []
+    },
+    "codx/junior/analytics/analytics.py": {
+      "imports": [
+        "codx/junior/analytics/model.py",
+        "codx/junior/analytics/storage.py",
+        "codx/junior/globals.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/wallet_check.py",
+        "codx/junior/analytics/__init__.py",
+        "codx/junior/api/users.py"
+      ],
+      "external_deps": [
+        "logging",
+        "typing"
+      ]
+    },
+    "codx/junior/analytics/model.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/analytics/analytics.py",
+        "codx/junior/analytics/storage.py"
+      ],
+      "external_deps": [
+        "dataclasses",
+        "datetime",
+        "typing",
+        "time"
+      ]
+    },
+    "codx/junior/analytics/storage.py": {
+      "imports": [
+        "codx/junior/analytics/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/analytics/analytics.py"
+      ],
+      "external_deps": [
+        "os",
+        "json",
+        "logging",
+        "threading",
+        "datetime",
+        "typing"
+      ]
+    },
+    "codx/junior/analytics/token_counter.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/ai/openai_ai.py"
+      ],
+      "external_deps": [
+        "logging",
+        "typing",
+        "tiktoken"
+      ]
+    },
+    "codx/junior/api/__init__.py": {
+      "imports": [
+        "codx/junior/model/model.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/engine.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/analytics.py",
+        "codx/junior/api/knowledge.py",
+        "codx/junior/api/logs.py",
+        "codx/junior/api/views.py",
+        "codx/junior/api/workspaces.py"
+      ],
+      "external_deps": [
+        "logging",
+        "fastapi"
+      ]
+    },
+    "codx/junior/api/analytics.py": {
+      "imports": [
+        "codx/junior/api/__init__.py",
+        "codx/junior/model/model.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/globals.py",
+        "codx/junior/analytics/__init__.py",
+        "codx/junior/global_settings.py",
+        "codx/junior/model/ai_model.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "datetime",
+        "typing",
+        "fastapi",
+        "pydantic"
+      ]
+    },
+    "codx/junior/api/chat.py": {
+      "imports": [
+        "codx/junior/ai/cancellation.py",
+        "codx/junior/db.py",
+        "codx/junior/profiling/profiler.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "fastapi",
+        "logging"
+      ]
+    },
+    "codx/junior/api/chatGPTLikeApi.py": {
+      "imports": [
+        "codx/junior/engine.py",
+        "codx/junior/profiles/profile_manager.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "datetime",
+        "fastapi"
+      ]
+    },
+    "codx/junior/api/db_router.py": {
+      "imports": [
+        "codx/junior/engine.py",
+        "codx/junior/knowledge/knowledge_db.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "fastapi",
+        "typing"
+      ]
+    },
+    "codx/junior/api/file_finder.py": {
+      "imports": [
+        "codx/junior/engine.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/file_manager/__init__.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "asyncio",
+        "typing",
+        "fastapi"
+      ]
+    },
+    "codx/junior/api/github.py": {
+      "imports": [
+        "codx/junior/engine.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/misc/github.py",
+        "codx/junior/model/model.py",
+        "codx/junior/agents/git_issues_agent.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "fastapi"
+      ]
+    },
+    "codx/junior/api/global_settings.py": {
+      "imports": [
+        "codx/junior/security/user_management.py",
+        "codx/junior/model/model.py",
+        "codx/junior/plugins/plugin_manager.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "fastapi"
+      ]
+    },
+    "codx/junior/api/knowledge.py": {
+      "imports": [
+        "codx/junior/model/model.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/api/__init__.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/sio/session_channel.py",
+        "codx/junior/sio/sio.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "asyncio",
+        "logging",
+        "typing",
+        "fastapi",
+        "os"
+      ]
+    },
+    "codx/junior/api/logs.py": {
+      "imports": [
+        "codx/junior/api/__init__.py",
+        "codx/junior/model/model.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/ai/raw_log_reader.py",
+        "codx/junior/model/logs.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "typing",
+        "fastapi",
+        "pydantic"
+      ]
+    },
+    "codx/junior/api/project_search.py": {
+      "imports": [
+        "codx/junior/engine.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "fastapi",
+        "typing"
+      ]
+    },
+    "codx/junior/api/projects.py": {
+      "imports": [
+        "codx/junior/engine.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/model/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "fastapi"
+      ]
+    },
+    "codx/junior/api/users.py": {
+      "imports": [
+        "codx/junior/engine.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/model/model.py",
+        "codx/junior/security/github_oauth.py",
+        "codx/junior/global_settings.py",
+        "codx/junior/analytics/analytics.py",
+        "codx/junior/globals.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "datetime",
+        "fastapi",
+        "httpx"
+      ]
+    },
+    "codx/junior/api/views.py": {
+      "imports": [
+        "codx/junior/api/__init__.py",
+        "codx/junior/views/model.py",
+        "codx/junior/model/model.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/engine.py",
+        "codx/junior/views/view_manager.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "typing",
+        "fastapi"
+      ]
+    },
+    "codx/junior/api/wiki.py": {
+      "imports": [
+        "codx/junior/engine.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/model/model.py",
+        "codx/junior/wiki/wiki_manager.py",
+        "codx/junior/sio/sio.py",
+        "codx/junior/wiki/wiki_index.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "datetime",
+        "fastapi",
+        "typing"
+      ]
+    },
+    "codx/junior/api/workspaces.py": {
+      "imports": [
+        "codx/junior/global_settings.py",
+        "codx/junior/model/model.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/api/__init__.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "logging",
+        "typing",
+        "uuid",
+        "fastapi"
+      ]
+    },
+    "codx/junior/app.py": {
+      "imports": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/sio/sio.py",
+        "codx/junior/sio/session_channel.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/api/chatGPTLikeApi.py",
+        "codx/junior/api/users.py",
+        "codx/junior/api/wiki.py",
+        "codx/junior/api/github.py",
+        "codx/junior/api/file_finder.py",
+        "codx/junior/api/db_router.py",
+        "codx/junior/api/global_settings.py",
+        "codx/junior/api/project_search.py",
+        "codx/junior/api/knowledge.py",
+        "codx/junior/api/chat.py",
+        "codx/junior/api/views.py",
+        "codx/junior/api/analytics.py",
+        "codx/junior/api/logs.py",
+        "codx/junior/api/projects.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/chat/chat_export.py",
+        "codx/junior/globals.py",
+        "codx/junior/db.py",
+        "codx/junior/model/model.py",
+        "codx/junior/settings.py",
+        "codx/junior/global_settings.py",
+        "codx/junior/engine.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/project/project_manager.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/background.py",
+        "codx/junior/tools/__init__.py"
+      ],
+      "imported_by": [
+        "codx/junior/main.py"
+      ],
+      "external_deps": [
+        "asyncio",
+        "faulthandler",
+        "logging",
+        "hashlib",
+        "os",
+        "shutil",
+        "time",
+        "traceback",
+        "uuid",
+        "socketio",
+        "flask",
+        "concurrent",
+        "fastapi",
+        "starlette",
+        "contextlib"
+      ]
+    },
+    "codx/junior/background.py": {
+      "imports": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/changes/change_manager.py",
+        "codx/junior/globals.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/global_settings.py",
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "asyncio",
+        "logging",
+        "time",
+        "concurrent",
+        "datetime",
+        "threading",
+        "typing"
+      ]
+    },
+    "codx/junior/changes/change_manager.py": {
+      "imports": [
+        "codx/junior/events/event_manager.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/globals.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/wiki/wiki_manager.py",
+        "codx/junior/whisper/audio_manager.py",
+        "codx/junior/metrics/codx_junior_metrics.py"
+      ],
+      "imported_by": [
+        "codx/junior/background.py",
+        "tests/test_change_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "time",
+        "logging",
+        "asyncio",
+        "datetime",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/changes/watch_project_file_changes.py": {
+      "imports": [
+        "codx/junior/project/project_discover.py"
+      ],
+      "imported_by": [
+        "tests/changes/watch_project_file_changes.test.py"
+      ],
+      "external_deps": [
+        "os",
+        "time",
+        "asyncio",
+        "logging",
+        "watchdog"
+      ]
+    },
+    "codx/junior/chat/chat_engine.py": {
+      "imports": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/ai/cancellation.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/globals.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/knowledge/knowledge_ai_search_message.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/settings.py",
+        "codx/junior/utils/chat_utils.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/model/model.py",
+        "codx/junior/chat/chat_knowledge.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/chat_engine_actions.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/tools/code_writer.py",
+        "tests/chat/test_chat_manager.py"
+      ],
+      "external_deps": [
+        "json",
+        "logging",
+        "os",
+        "time",
+        "uuid",
+        "contextlib",
+        "datetime",
+        "typing",
+        "langchain",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/chat/chat_export.py": {
+      "imports": [
+        "codx/junior/db.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py",
+        "codx/junior/chat_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "typing",
+        "pypandoc"
+      ]
+    },
+    "codx/junior/chat/chat_knowledge.py": {
+      "imports": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/knowledge/knowledge_ai_search_message.py",
+        "codx/junior/settings.py",
+        "codx/junior/utils/utils.py"
+      ],
+      "imported_by": [
+        "codx/junior/chat/chat_engine.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "typing",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/chat_manager.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/db.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/chat/chat_export.py",
+        "codx/junior/events/event_manager.py",
+        "codx/junior/project/project_discover.py"
+      ],
+      "imported_by": [
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/metrics/codx_junior_metrics.py"
+      ],
+      "external_deps": [
+        "logging",
+        "pathlib",
+        "os",
+        "json",
+        "uuid",
+        "shutil",
+        "yaml",
+        "slugify",
+        "collections",
+        "typing",
+        "datetime"
+      ]
+    },
+    "codx/junior/context.py": {
+      "imports": [
+        "codx/junior/utils/utils.py",
+        "codx/junior/model/model.py",
+        "codx/junior/ai/ai.py",
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/profiling/profiler.py"
+      ],
+      "imported_by": [
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat/chat_knowledge.py",
+        "codx/junior/engine/code_engine.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/engine/wiki_engine.py",
+        "codx/junior/sio/sio.py"
+      ],
+      "external_deps": [
+        "logging",
+        "re",
+        "os",
+        "pathlib",
+        "typing",
+        "concurrent",
+        "langchain",
+        "langchain_core",
+        "pydantic"
+      ]
+    },
+    "codx/junior/db.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/model/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/agents/git_issues_agent.py",
+        "codx/junior/api/chat.py",
+        "codx/junior/app.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat/chat_export.py",
+        "codx/junior/chat/chat_knowledge.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/engine/chat_engine_actions.py",
+        "codx/junior/engine/code_engine.py",
+        "codx/junior/engine/file_engine.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/engine/wiki_engine.py",
+        "codx/junior/events/event_manager.py",
+        "codx/junior/knowledge/knowledge_ai_search_message.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/sio/model.py",
+        "codx/junior/tools/code_writer.py",
+        "tests/db/test_db.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "re",
+        "uuid",
+        "slugify",
+        "pydantic",
+        "typing",
+        "datetime",
+        "enum"
+      ]
+    },
+    "codx/junior/engine.py": {
+      "imports": [
+        "codx/junior/engine/session.py"
+      ],
+      "imported_by": [
+        "codx/junior/agents/base_agent.py",
+        "codx/junior/agents/git_issues_agent.py",
+        "codx/junior/api/__init__.py",
+        "codx/junior/api/chatGPTLikeApi.py",
+        "codx/junior/api/db_router.py",
+        "codx/junior/api/file_finder.py",
+        "codx/junior/api/github.py",
+        "codx/junior/api/project_search.py",
+        "codx/junior/api/projects.py",
+        "codx/junior/api/users.py",
+        "codx/junior/api/views.py",
+        "codx/junior/api/wiki.py",
+        "codx/junior/app.py",
+        "codx/junior/project/project_manager.py",
+        "codx/junior/sio/sio.py",
+        "codx/junior/task_manager.py",
+        "codx/junior/tools/project_tools.py",
+        "codx/junior/workspace/workspace_manager.py"
+      ],
+      "external_deps": []
+    },
+    "codx/junior/engine/__init__.py": {
+      "imports": [
+        "codx/junior/engine/session.py"
+      ],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/engine/chat_engine_actions.py": {
+      "imports": [
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/db.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/engine/session.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/session.py"
+      ],
+      "external_deps": [
+        "asyncio",
+        "json",
+        "logging",
+        "time",
+        "uuid",
+        "dataclasses",
+        "typing",
+        "requests",
+        "langchain",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/engine/code_engine.py": {
+      "imports": [
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_milvus.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/session.py"
+      ],
+      "external_deps": [
+        "json",
+        "logging",
+        "os",
+        "re",
+        "subprocess",
+        "datetime",
+        "typing"
+      ]
+    },
+    "codx/junior/engine/file_engine.py": {
+      "imports": [
+        "codx/junior/db.py",
+        "codx/junior/model/model.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/engine/session.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/session.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "subprocess",
+        "datetime",
+        "typing",
+        "PIL",
+        "pytesseract",
+        "io"
+      ]
+    },
+    "codx/junior/engine/git_engine.py": {
+      "imports": [
+        "codx/junior/project/project_discover.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/engine/session.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/session.py"
+      ],
+      "external_deps": [
+        "json",
+        "logging",
+        "os",
+        "datetime",
+        "typing"
+      ]
+    },
+    "codx/junior/engine/knowledge_engine.py": {
+      "imports": [
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/globals.py",
+        "codx/junior/knowledge/knowledge_keywords.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/model/model.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/ai/__init__.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/session.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "time",
+        "typing"
+      ]
+    },
+    "codx/junior/engine/session.py": {
+      "imports": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/events/event_manager.py",
+        "codx/junior/knowledge/knowledge_keywords.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/model/model.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/settings.py",
+        "codx/junior/sio/session_channel.py",
+        "codx/junior/utils/chat_utils.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/whisper/audio_manager.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/code_engine.py",
+        "codx/junior/engine/git_engine.py",
+        "codx/junior/engine/file_engine.py",
+        "codx/junior/engine/chat_engine_actions.py",
+        "codx/junior/engine/wiki_engine.py",
+        "codx/junior/wiki/wiki_manager.py",
+        "codx/junior/knowledge/knowledge_loader.py",
+        "codx/junior/globals.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/knowledge.py",
+        "codx/junior/engine.py",
+        "codx/junior/engine/__init__.py",
+        "codx/junior/engine/chat_engine_actions.py",
+        "codx/junior/engine/code_engine.py",
+        "codx/junior/engine/file_engine.py",
+        "codx/junior/engine/git_engine.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/wiki_engine.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "shutil",
+        "contextlib",
+        "datetime",
+        "typing",
+        "requests",
+        "codx"
+      ]
+    },
+    "codx/junior/engine/wiki_engine.py": {
+      "imports": [
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/engine/session.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/session.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "pathlib",
+        "typing"
+      ]
+    },
+    "codx/junior/events/event_manager.py": {
+      "imports": [
+        "codx/junior/sio/session_channel.py",
+        "codx/junior/db.py",
+        "codx/junior/sio/sio.py"
+      ],
+      "imported_by": [
+        "codx/junior/changes/change_manager.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": []
+    },
+    "codx/junior/file_manager/__init__.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/api/file_finder.py"
+      ],
+      "external_deps": [
+        "logging",
+        "pathlib",
+        "typing",
+        "os"
+      ]
+    },
+    "codx/junior/global_settings.py": {
+      "imports": [
+        "codx/junior/utils/utils.py",
+        "codx/junior/model/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/api/analytics.py",
+        "codx/junior/api/users.py",
+        "codx/junior/api/workspaces.py",
+        "codx/junior/app.py",
+        "codx/junior/background.py",
+        "codx/junior/plugins/plugin_manager.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/settings.py",
+        "codx/junior/workspace/workspace_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "json",
+        "logging",
+        "pathlib",
+        "uuid",
+        "traceback",
+        "pydantic",
+        "typing",
+        "datetime"
+      ]
+    },
+    "codx/junior/globals.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/ai/raw_log_reader.py",
+        "codx/junior/ai/raw_logger.py",
+        "codx/junior/analytics/analytics.py",
+        "codx/junior/api/analytics.py",
+        "codx/junior/api/users.py",
+        "codx/junior/app.py",
+        "codx/junior/background.py",
+        "codx/junior/changes/change_manager.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_code_splitter.py",
+        "codx/junior/utils/utils.py"
+      ],
+      "external_deps": [
+        "os",
+        "subprocess",
+        "logging",
+        "langchain_text_splitters"
+      ]
+    },
+    "codx/junior/knowledge/README.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/knowledge/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/knowledge/knowledge_ai_search.py": {
+      "imports": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/model/model.py",
+        "codx/junior/settings.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/project/project_discover.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/knowledge.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat/chat_knowledge.py",
+        "codx/junior/knowledge/knowledge_ai_search_message.py"
+      ],
+      "external_deps": [
+        "asyncio",
+        "logging",
+        "typing",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_ai_search_message.py": {
+      "imports": [
+        "codx/junior/db.py",
+        "codx/junior/knowledge/knowledge_ai_search.py"
+      ],
+      "imported_by": [
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat/chat_knowledge.py"
+      ],
+      "external_deps": [
+        "logging",
+        "uuid",
+        "datetime",
+        "typing"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_code_splitter.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/settings.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/globals.py"
+      ],
+      "imported_by": [
+        "codx/junior/knowledge/knowledge_loader.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "langchain_core",
+        "langchain_community",
+        "langchain_text_splitters",
+        "llama_index",
+        "docling"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_code_to_dcouments.py": {
+      "imports": [
+        "codx/junior/utils/utils.py",
+        "codx/junior/ai/__init__.py",
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/knowledge_prompts.py",
+        "codx/junior/prompts/__init__.py",
+        "codx/junior/knowledge/settings.py",
+        "codx/junior/__init__.py"
+      ],
+      "imported_by": [
+        "codx/junior/knowledge/knowledge_loader.py"
+      ],
+      "external_deps": [
+        "logging",
+        "json",
+        "langchain",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_db.py": {
+      "imports": [
+        "codx/junior/model/model.py",
+        "codx/junior/ai/__init__.py",
+        "codx/junior/settings.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/profiling/profiler.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/db_router.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/knowledge/knowledge_wiki.py",
+        "codx/junior/wiki/wiki_manager.py",
+        "codx/junior/wiki/wiki_domains.py",
+        "codx/junior/wiki/wiki_index.py"
+      ],
+      "external_deps": [
+        "os",
+        "re",
+        "logging",
+        "shutil",
+        "json",
+        "time",
+        "datetime",
+        "contextlib",
+        "functools",
+        "typing",
+        "slugify",
+        "pathlib",
+        "pymilvus",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_keywords.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/utils/utils.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_milvus.py"
+      ],
+      "external_deps": [
+        "json",
+        "logging",
+        "sqlite3",
+        "slugify"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_loader.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/knowledge_code_splitter.py",
+        "codx/junior/knowledge/knowledge_code_to_dcouments.py",
+        "codx/junior/utils/utils.py"
+      ],
+      "imported_by": [
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "time",
+        "subprocess",
+        "pathlib",
+        "datetime",
+        "langchain_community"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_milvus.py": {
+      "imports": [
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/model/model.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/ai/__init__.py",
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/knowledge_loader.py",
+        "codx/junior/knowledge/knowledge_prompts.py",
+        "codx/junior/knowledge/knowledge_keywords.py",
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "imported_by": [
+        "codx/junior/changes/change_manager.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat/chat_knowledge.py",
+        "codx/junior/context.py",
+        "codx/junior/engine/code_engine.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/search/project_search_manager.py",
+        "codx/junior/tools/project_tools.py",
+        "tests/changes/project_file_watcher/project_file_watcher.py",
+        "tests/test_change_manager.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "json",
+        "datetime",
+        "functools",
+        "pathlib",
+        "concurrent",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_prompts.py": {
+      "imports": [
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [
+        "codx/junior/knowledge/knowledge_code_to_dcouments.py",
+        "codx/junior/knowledge/knowledge_milvus.py"
+      ],
+      "external_deps": [
+        "os"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_qa_splitter.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "os",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_splitter.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "logging",
+        "langchain_text_splitters"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_training.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/knowledge/knowledge_wiki.py": {
+      "imports": [
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "logging",
+        "json",
+        "datetime",
+        "concurrent"
+      ]
+    },
+    "codx/junior/knowledge/prepromts/code_to_chunks.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/knowledge/prepromts/enrich_document.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/knowledge/prepromts/extract_document_tags.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/knowledge/prepromts/extract_query_tags.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/knowledge/settings.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/knowledge/knowledge_code_splitter.py",
+        "codx/junior/knowledge/knowledge_code_to_dcouments.py"
+      ],
+      "external_deps": []
+    },
+    "codx/junior/log_parser.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "re",
+        "json",
+        "typing"
+      ]
+    },
+    "codx/junior/main.py": {
+      "imports": [
+        "codx/junior/app.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "logging",
+        "sys",
+        "re"
+      ]
+    },
+    "codx/junior/mentions/mention_manager.py": {
+      "imports": [
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/events/event_manager.py",
+        "codx/junior/model/model.py",
+        "codx/junior/db.py",
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/utils/chat_utils.py"
+      ],
+      "imported_by": [
+        "codx/junior/changes/change_manager.py",
+        "codx/junior/engine/session.py",
+        "tests/mention_manager/test_mention_manager.py",
+        "tests/test_change_manager.py"
+      ],
+      "external_deps": [
+        "re",
+        "json",
+        "logging",
+        "anyio",
+        "slugify",
+        "datetime",
+        "typing",
+        "pydantic"
+      ]
+    },
+    "codx/junior/metrics/chat_heatmap.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/metrics/codx_junior_metrics.py"
+      ],
+      "external_deps": [
+        "collections",
+        "datetime",
+        "logging"
+      ]
+    },
+    "codx/junior/metrics/chat_wall.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/metrics/codx_junior_metrics.py"
+      ],
+      "external_deps": [
+        "logging",
+        "datetime"
+      ]
+    },
+    "codx/junior/metrics/codx_junior_metrics.py": {
+      "imports": [
+        "codx/junior/chat_manager.py",
+        "codx/junior/metrics/chat_heatmap.py",
+        "codx/junior/metrics/chat_wall.py"
+      ],
+      "imported_by": [
+        "codx/junior/changes/change_manager.py"
+      ],
+      "external_deps": [
+        "logging",
+        "datetime"
+      ]
+    },
+    "codx/junior/misc/github.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/agents/git_issues_agent.py",
+        "codx/junior/api/github.py"
+      ],
+      "external_deps": [
+        "requests",
+        "json",
+        "os",
+        "time",
+        "tempfile",
+        "logging",
+        "urllib",
+        "typing"
+      ]
+    },
+    "codx/junior/model/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/model/ai_model.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/api/analytics.py",
+        "codx/junior/model/model.py"
+      ],
+      "external_deps": [
+        "os",
+        "pydantic",
+        "enum",
+        "typing"
+      ]
+    },
+    "codx/junior/model/logs.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/api/logs.py"
+      ],
+      "external_deps": [
+        "typing",
+        "pydantic"
+      ]
+    },
+    "codx/junior/model/model.py": {
+      "imports": [
+        "codx/junior/model/user.py",
+        "codx/junior/model/ai_model.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/__init__.py",
+        "codx/junior/ai/ai.py",
+        "codx/junior/ai/llmfactory.py",
+        "codx/junior/ai/openai_ai.py",
+        "codx/junior/ai/vllm_cpu_ai.py",
+        "codx/junior/ai/wallet_check.py",
+        "codx/junior/api/__init__.py",
+        "codx/junior/api/analytics.py",
+        "codx/junior/api/github.py",
+        "codx/junior/api/global_settings.py",
+        "codx/junior/api/knowledge.py",
+        "codx/junior/api/logs.py",
+        "codx/junior/api/projects.py",
+        "codx/junior/api/users.py",
+        "codx/junior/api/views.py",
+        "codx/junior/api/wiki.py",
+        "codx/junior/api/workspaces.py",
+        "codx/junior/app.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/engine/file_engine.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/global_settings.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/plugins/plugin_manager.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/project/project_manager.py",
+        "codx/junior/settings.py",
+        "codx/junior/tools/project_tools.py",
+        "codx/junior/utils/chat_utils.py",
+        "codx/junior/wiki/wiki_manager.py",
+        "codx/junior/workspace/workspace_manager.py",
+        "codx/junior/wiki/wiki_domains.py"
+      ],
+      "external_deps": [
+        "os",
+        "regex",
+        "pydantic",
+        "enum",
+        "datetime",
+        "typing"
+      ]
+    },
+    "codx/junior/model/user.py": {
+      "imports": [
+        "codx/junior/model/wallet.py"
+      ],
+      "imported_by": [
+        "codx/junior/model/model.py",
+        "codx/junior/security/user_management.py"
+      ],
+      "external_deps": [
+        "typing",
+        "pydantic",
+        "datetime",
+        "uuid"
+      ]
+    },
+    "codx/junior/model/wallet.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/model/user.py"
+      ],
+      "external_deps": [
+        "typing",
+        "pydantic",
+        "datetime",
+        "enum",
+        "uuid"
+      ]
+    },
+    "codx/junior/plugins/plugin_manager.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/global_settings.py",
+        "codx/junior/model/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/global_settings.py"
+      ],
+      "external_deps": [
+        "pydantic",
+        "typing",
+        "yaml",
+        "os",
+        "json",
+        "jinja2"
+      ]
+    },
+    "codx/junior/profiles/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiles/agent-coding-task.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiles/analyst.profile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiles/analyst.profile.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiles/browser.profile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiles/coding_profiles.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiles/profile_manager.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/model/model.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/project/project_discover.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/chatGPTLikeApi.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/engine/code_engine.py",
+        "codx/junior/engine/file_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "json",
+        "pathlib",
+        "logging",
+        "re",
+        "typing"
+      ]
+    },
+    "codx/junior/profiles/project.profile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiles/software_developer.profile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiles/wiki.profile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiles/wiki.profile.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/profiling/profiler.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/ai/ai.py",
+        "codx/junior/ai/llmfactory.py",
+        "codx/junior/ai/openai_ai.py",
+        "codx/junior/api/chat.py",
+        "codx/junior/app.py",
+        "codx/junior/changes/change_manager.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/context.py",
+        "codx/junior/engine/chat_engine_actions.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/project/project_discover.py"
+      ],
+      "external_deps": [
+        "time",
+        "logging",
+        "json",
+        "asyncio",
+        "functools",
+        "contextlib",
+        "pstats"
+      ]
+    },
+    "codx/junior/project/project_discover.py": {
+      "imports": [
+        "codx/junior/profiling/profiler.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/settings.py",
+        "codx/junior/model/model.py",
+        "codx/junior/global_settings.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/wiki.py",
+        "codx/junior/app.py",
+        "codx/junior/background.py",
+        "codx/junior/changes/watch_project_file_changes.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/engine/file_engine.py",
+        "codx/junior/engine/git_engine.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/project/project_manager.py",
+        "codx/junior/utils/chat_utils.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "subprocess",
+        "datetime",
+        "threading",
+        "typing"
+      ]
+    },
+    "codx/junior/project/project_manager.py": {
+      "imports": [
+        "codx/junior/security/user_management.py",
+        "codx/junior/settings.py",
+        "codx/junior/engine.py",
+        "codx/junior/model/model.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/project/project_discover.py"
+      ],
+      "imported_by": [
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "os",
+        "multiprocessing"
+      ]
+    },
+    "codx/junior/prompts/__init__.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/knowledge/knowledge_code_to_dcouments.py"
+      ],
+      "external_deps": [
+        "inspect",
+        "langchain_core",
+        "pydantic",
+        "typing"
+      ]
+    },
+    "codx/junior/search/project_search_manager.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/knowledge_milvus.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "logging"
+      ]
+    },
+    "codx/junior/security/github_oauth.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/api/users.py"
+      ],
+      "external_deps": [
+        "logging",
+        "requests",
+        "secrets",
+        "hashlib"
+      ]
+    },
+    "codx/junior/security/user_management.py": {
+      "imports": [
+        "codx/junior/global_settings.py",
+        "codx/junior/model/user.py",
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/__init__.py",
+        "codx/junior/api/analytics.py",
+        "codx/junior/api/github.py",
+        "codx/junior/api/global_settings.py",
+        "codx/junior/api/logs.py",
+        "codx/junior/api/projects.py",
+        "codx/junior/api/users.py",
+        "codx/junior/api/views.py",
+        "codx/junior/api/wiki.py",
+        "codx/junior/api/workspaces.py",
+        "codx/junior/app.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/project/project_manager.py",
+        "codx/junior/sio/sio.py"
+      ],
+      "external_deps": [
+        "logging",
+        "jwt",
+        "bcrypt",
+        "fastapi",
+        "typing"
+      ]
+    },
+    "codx/junior/session/session_manager.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/settings.py": {
+      "imports": [
+        "codx/junior/global_settings.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/model/model.py",
+        "codx/junior/__init__.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/ai.py",
+        "codx/junior/ai/llmfactory.py",
+        "codx/junior/ai/openai_ai.py",
+        "codx/junior/ai/vllm_cpu_ai.py",
+        "codx/junior/app.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat/chat_knowledge.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/context.py",
+        "codx/junior/db.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/knowledge/knowledge_code_splitter.py",
+        "codx/junior/knowledge/knowledge_code_to_dcouments.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_keywords.py",
+        "codx/junior/knowledge/knowledge_loader.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/knowledge/knowledge_prompts.py",
+        "codx/junior/knowledge/knowledge_wiki.py",
+        "codx/junior/plugins/plugin_manager.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/project/project_discover.py",
+        "codx/junior/project/project_manager.py",
+        "codx/junior/search/project_search_manager.py",
+        "codx/junior/security/user_management.py",
+        "codx/junior/tools/code_writer.py",
+        "codx/junior/tools/project_tools.py",
+        "codx/junior/utils/chat_utils.py",
+        "codx/junior/views/view_manager.py",
+        "codx/junior/wiki/wiki_manager.py",
+        "tests/db/test_db.py",
+        "tests/mention_manager/test_mention_manager.py",
+        "tests/wiki_manager/test_wiki_manager.py",
+        "codx/junior/knowledge/knowledge_graph.py",
+        "codx/junior/wiki/wiki_domains.py",
+        "codx/junior/wiki/wiki_index.py"
+      ],
+      "external_deps": [
+        "os",
+        "json",
+        "logging",
+        "pathlib",
+        "uuid",
+        "traceback",
+        "pydantic",
+        "typing",
+        "datetime"
+      ]
+    },
+    "codx/junior/sio/model.py": {
+      "imports": [
+        "codx/junior/db.py"
+      ],
+      "imported_by": [
+        "codx/junior/sio/sio.py"
+      ],
+      "external_deps": [
+        "pydantic"
+      ]
+    },
+    "codx/junior/sio/session_channel.py": {
+      "imports": [
+        "codx/junior/sio/sio.py",
+        "codx/junior/sio/sio_background.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/knowledge.py",
+        "codx/junior/app.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/events/event_manager.py",
+        "codx/junior/sio/sio.py"
+      ],
+      "external_deps": [
+        "os",
+        "time",
+        "asyncio",
+        "logging",
+        "threading",
+        "typing",
+        "pydantic",
+        "concurrent"
+      ]
+    },
+    "codx/junior/sio/sio.py": {
+      "imports": [
+        "codx/junior/sio/session_channel.py",
+        "codx/junior/engine.py",
+        "codx/junior/context.py",
+        "codx/junior/sio/model.py",
+        "codx/junior/ai/__init__.py",
+        "codx/junior/security/user_management.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/knowledge.py",
+        "codx/junior/api/wiki.py",
+        "codx/junior/app.py",
+        "codx/junior/events/event_manager.py",
+        "codx/junior/sio/session_channel.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "socketio",
+        "functools",
+        "asyncio",
+        "concurrent"
+      ]
+    },
+    "codx/junior/sio/sio_background.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/sio/session_channel.py"
+      ],
+      "external_deps": [
+        "os",
+        "time",
+        "logging",
+        "socketio",
+        "typing"
+      ]
+    },
+    "codx/junior/task_manager.py": {
+      "imports": [
+        "codx/junior/engine.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "json",
+        "codx"
+      ]
+    },
+    "codx/junior/tools/__init__.py": {
+      "imports": [
+        "codx/junior/tools/fetch_webpage.py",
+        "codx/junior/tools/project_tools.py",
+        "codx/junior/tools/code_writer.py"
+      ],
+      "imported_by": [
+        "codx/junior/ai/openai_ai.py",
+        "codx/junior/app.py"
+      ],
+      "external_deps": [
+        "logging",
+        "typing"
+      ]
+    },
+    "codx/junior/tools/code_writer.py": {
+      "imports": [
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/db.py",
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [
+        "codx/junior/tools/__init__.py"
+      ],
+      "external_deps": [
+        "logging",
+        "langchain"
+      ]
+    },
+    "codx/junior/tools/fetch_webpage.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/tools/__init__.py"
+      ],
+      "external_deps": [
+        "logging",
+        "typing",
+        "urllib",
+        "requests",
+        "bs4",
+        "html2text"
+      ]
+    },
+    "codx/junior/tools/project_tools.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/engine.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/ai/__init__.py",
+        "codx/junior/model/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/tools/__init__.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "glob"
+      ]
+    },
+    "codx/junior/utils/chat_utils.py": {
+      "imports": [
+        "codx/junior/project/project_discover.py",
+        "codx/junior/model/model.py",
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/mentions/mention_manager.py"
+      ],
+      "external_deps": [
+        "re",
+        "logging",
+        "typing",
+        "pydantic"
+      ]
+    },
+    "codx/junior/utils/utils.py": {
+      "imports": [
+        "codx/junior/globals.py"
+      ],
+      "imported_by": [
+        "codx/junior/agents/base_agent.py",
+        "codx/junior/ai/ai_logger.py",
+        "codx/junior/ai/openai_ai.py",
+        "codx/junior/api/file_finder.py",
+        "codx/junior/app.py",
+        "codx/junior/chat/chat_engine.py",
+        "codx/junior/chat/chat_knowledge.py",
+        "codx/junior/chat_manager.py",
+        "codx/junior/context.py",
+        "codx/junior/engine/chat_engine_actions.py",
+        "codx/junior/engine/code_engine.py",
+        "codx/junior/engine/file_engine.py",
+        "codx/junior/engine/git_engine.py",
+        "codx/junior/engine/knowledge_engine.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/engine/wiki_engine.py",
+        "codx/junior/global_settings.py",
+        "codx/junior/knowledge/knowledge_ai_search.py",
+        "codx/junior/knowledge/knowledge_code_splitter.py",
+        "codx/junior/knowledge/knowledge_code_to_dcouments.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_keywords.py",
+        "codx/junior/knowledge/knowledge_loader.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/project/project_manager.py",
+        "codx/junior/settings.py",
+        "codx/junior/tools/project_tools.py",
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "logging",
+        "subprocess",
+        "string",
+        "inspect",
+        "pathlib",
+        "json",
+        "hashlib",
+        "pydantic",
+        "typing"
+      ]
+    },
+    "codx/junior/views/__init__.py": {
+      "imports": [
+        "codx/junior/views/model.py",
+        "codx/junior/views/view_manager.py"
+      ],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/views/model.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/api/views.py",
+        "codx/junior/views/__init__.py",
+        "codx/junior/views/view_manager.py"
+      ],
+      "external_deps": [
+        "typing",
+        "pydantic"
+      ]
+    },
+    "codx/junior/views/view_manager.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/views/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/views.py",
+        "codx/junior/views/__init__.py"
+      ],
+      "external_deps": [
+        "os",
+        "json",
+        "logging",
+        "pathlib",
+        "typing"
+      ]
+    },
+    "codx/junior/whisper/audio_manager.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/changes/change_manager.py",
+        "codx/junior/engine/session.py"
+      ],
+      "external_deps": [
+        "logging",
+        "time",
+        "typing",
+        "requests",
+        "tempfile",
+        "ffmpeg",
+        "os",
+        "json",
+        "faster_whisper"
+      ]
+    },
+    "codx/junior/wiki/README.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/wiki/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/wiki/model.py": {
+      "imports": [],
+      "imported_by": [
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": [
+        "pydantic",
+        "typing",
+        "langchain_core",
+        "logging"
+      ]
+    },
+    "codx/junior/wiki/wiki_manager.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/utils/utils.py",
+        "codx/junior/wiki/model.py",
+        "codx/junior/ai/__init__.py",
+        "codx/junior/events/event_manager.py",
+        "codx/junior/profiles/profile_manager.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_loader.py",
+        "codx/junior/knowledge/knowledge_graph.py",
+        "codx/junior/wiki/wiki_domains.py",
+        "codx/junior/wiki/wiki_index.py",
+        "codx/junior/model/model.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/wiki.py",
+        "codx/junior/background.py",
+        "codx/junior/changes/change_manager.py",
+        "codx/junior/engine/session.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "tests/wiki_manager/test_wiki_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "shutil",
+        "json",
+        "logging",
+        "datetime",
+        "yaml",
+        "pathlib",
+        "slugify",
+        "enum",
+        "typing",
+        "pydantic",
+        "concurrent",
+        "aiofiles",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/wiki/wiki_template/.gitignore": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/wiki/wiki_template/.vitepress/config.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/wiki/wiki_template/.vitepress/config.mts": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/wiki/wiki_template/index.md": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/wiki/wiki_template/package-lock.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/wiki/wiki_template/package.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/wiki/wiki_template/wiki-manager.sh": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "codx/junior/workspace/workspace_manager.py": {
+      "imports": [
+        "codx/junior/model/model.py",
+        "codx/junior/global_settings.py",
+        "codx/junior/engine.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "logging",
+        "subprocess",
+        "typing"
+      ]
+    },
+    "pyproject.toml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "shared/codx-junior/scripts/docker-compose.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "shared/codx-junior/scripts/traefik/traefik.yaml": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "tests/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "tests/changes/__init__.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "tests/changes/project_file_watcher/project_file_watcher.py": {
+      "imports": [
+        "codx/junior/knowledge/knowledge_milvus.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "asyncio",
+        "watchfiles",
+        "concurrent"
+      ]
+    },
+    "tests/changes/project_file_watcher/test_project_file_watcher.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": [
+        "pytest",
+        "unittest",
+        "project_file_watcher"
+      ]
+    },
+    "tests/changes/test_change_manager.test.py": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "tests/changes/watch_project_file_changes.test.py": {
+      "imports": [
+        "codx/junior/changes/watch_project_file_changes.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "unittest"
+      ]
+    },
+    "tests/chat/test_chat_manager.py": {
+      "imports": [
+        "codx/junior/chat/chat_engine.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "unittest"
+      ]
+    },
+    "tests/db/sharedcodxjuniorapitestsdb.db.json": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "tests/db/test_db.py": {
+      "imports": [
+        "codx/junior/db.py",
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "pytest",
+        "os",
+        "datetime"
+      ]
+    },
+    "tests/mention_manager/test_mention_manager.py": {
+      "imports": [
+        "codx/junior/mentions/mention_manager.py",
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "unittest",
+        "logging",
+        "typing"
+      ]
+    },
+    "tests/test_change_manager.py": {
+      "imports": [
+        "codx/junior/changes/change_manager.py",
+        "codx/junior/knowledge/knowledge_milvus.py",
+        "codx/junior/mentions/mention_manager.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "time",
+        "unittest",
+        "asyncio"
+      ]
+    },
+    "tests/wiki_manager/test_wiki_manager.py": {
+      "imports": [
+        "codx/junior/wiki/wiki_manager.py",
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [],
+      "external_deps": [
+        "unittest",
+        "os"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_graph.py": {
+      "imports": [
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [
+        "codx/junior/wiki/wiki_manager.py",
+        "codx/junior/wiki/wiki_domains.py",
+        "codx/junior/wiki/wiki_index.py"
+      ],
+      "external_deps": [
+        "os",
+        "ast",
+        "re",
+        "json",
+        "logging",
+        "time",
+        "typing"
+      ]
+    },
+    "codx/junior/wiki/wiki_domains.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_graph.py",
+        "codx/junior/model/model.py",
+        "codx/junior/ai/__init__.py"
+      ],
+      "imported_by": [
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "json",
+        "logging",
+        "typing",
+        "slugify",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/wiki/wiki_index.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_graph.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/wiki.py",
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "json",
+        "logging",
+        "time",
+        "typing",
+        "langchain_core"
+      ]
+    }
+  }
+}

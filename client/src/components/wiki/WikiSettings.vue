@@ -128,7 +128,7 @@ import WikiTree from './WikiTree.vue'
               class="textarea textarea-bordered h-96"></textarea>
           </div>
           <div class="text-xl">Tools</div>
-          <div class="flex justify-end gap-2">
+          <div class="flex flex-wrap justify-end gap-2">
             <button class="btn btn-xs ml-2 text-white bg-purple-600 hover:animate-pulse tooltip"
               data-tip="Automagically wiki tree"
               @click.stop="buildTree()">
@@ -145,6 +145,34 @@ import WikiTree from './WikiTree.vue'
               Rebuild
             </button>
           </div>
+          <div class="divider text-sm opacity-60">AI pipeline</div>
+          <div class="flex flex-wrap gap-2">
+            <button class="btn btn-xs tooltip"
+              :class="pipelineRunning === 'graph' ? 'loading' : ''"
+              data-tip="Analyse imports and build dependency graph"
+              @click.stop="runPipelineStep('graph')">
+              <i class="fa-solid fa-diagram-project"></i> Dependency graph
+            </button>
+            <button class="btn btn-xs tooltip"
+              :class="pipelineRunning === 'domains' ? 'loading' : ''"
+              data-tip="Cluster files into domains and generate L1 pages"
+              @click.stop="runPipelineStep('domains')">
+              <i class="fa-solid fa-layer-group"></i> Domains
+            </button>
+            <button class="btn btn-xs tooltip"
+              :class="pipelineRunning === 'index' ? 'loading' : ''"
+              data-tip="Build machine-readable wiki index and index to Milvus"
+              @click.stop="runPipelineStep('index')">
+              <i class="fa-solid fa-magnifying-glass"></i> Wiki index
+            </button>
+            <button class="btn btn-xs btn-primary tooltip"
+              :class="pipelineRunning === 'full' ? 'loading' : ''"
+              data-tip="Run full pipeline: graph → domains → index"
+              @click.stop="runFullPipeline()">
+              <i class="fa-solid fa-play"></i> Full pipeline
+            </button>
+          </div>
+          <div v-if="pipelineStatus" class="text-xs opacity-70 mt-1">{{ pipelineStatus }}</div>
         </div>
       </div>
     </div>
@@ -159,7 +187,9 @@ export default {
       selectedItem: null,
       wikiTree: null,
       languages: ['English', 'Spanish', 'French', 'German'],
-      viewOnly: false // default
+      viewOnly: false,
+      pipelineRunning: null,
+      pipelineStatus: null
     }
   },
   created() {
@@ -239,6 +269,47 @@ export default {
       if (index > -1) {
         this.selectedItem.files.splice(index, 1)
         this.saveSettings()
+      }
+    },
+    async runPipelineStep(step) {
+      this.pipelineRunning = step
+      this.pipelineStatus = null
+      try {
+        if (step === 'graph') {
+          this.pipelineStatus = 'Building dependency graph...'
+          await this.project.$api.wiki.buildDependencyGraph()
+          this.pipelineStatus = 'Dependency graph built.'
+        } else if (step === 'domains') {
+          this.pipelineStatus = 'Detecting domains...'
+          await this.project.$api.wiki.buildDomains()
+          this.pipelineStatus = 'Domains built.'
+        } else if (step === 'index') {
+          this.pipelineStatus = 'Building wiki index...'
+          await this.project.$api.wiki.index()
+          this.pipelineStatus = 'Wiki index built.'
+        }
+      } catch (e) {
+        this.pipelineStatus = `Error: ${e.message || e}`
+      } finally {
+        this.pipelineRunning = null
+      }
+    },
+    async runFullPipeline() {
+      this.pipelineRunning = 'full'
+      this.pipelineStatus = null
+      try {
+        this.pipelineStatus = 'Step 1/3: Building dependency graph...'
+        await this.project.$api.wiki.buildDependencyGraph()
+        this.pipelineStatus = 'Step 2/3: Detecting domains...'
+        await this.project.$api.wiki.buildDomains()
+        this.pipelineStatus = 'Step 3/3: Building wiki index...'
+        await this.project.$api.wiki.index()
+        this.pipelineStatus = 'Full pipeline complete.'
+        this.wikiTree = await this.project.$api.wiki.config()
+      } catch (e) {
+        this.pipelineStatus = `Pipeline failed: ${e.message || e}`
+      } finally {
+        this.pipelineRunning = null
       }
     }
   }

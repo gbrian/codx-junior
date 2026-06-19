@@ -23,7 +23,7 @@ import ChatEntryVue from '../ChatEntry.vue'
         <div class="flex gap-2 flex-wrap items-end">
           <PRCommitSelector
             :branches="repoBranches?.branches"
-            :api="$api"
+            :api="api"
             @mode-change="onCompareModeChange"
             @commit-compare="onCommitCompare"
           >
@@ -216,16 +216,13 @@ export default {
       chatColumn: null,
       projectContext: null,
       repoBranches: {},
-      // commit compare state
-      compareMode: 'branch',    // 'branch' | 'commit'
-      activeCommitCompare: null // { fromCommit, toCommit }
+      compareMode: 'branch',
+      activeCommitCompare: null,
+      api: null
     }
   },
   created() {
-    if (this.fromBranch && this.toBranch) {
-      this.refreshSummary()
-    }
-    this.setProjectContext()
+    this.initializeProjectContext()
   },
   computed: {
     childrenChats() {
@@ -329,10 +326,6 @@ export default {
         .reduce((a, b) => [...a, ...b])
         .reduce((acc, profile) => ({ ...acc, [profile.name]: profile }), {})
     },
-    $api() {
-      const { $api } = this.chat.project_id ? this.$projects.allProjectsById[this.chat.project_id] : this.$project
-      return $api
-    },
     messages() {
       return this.chat.messages.filter(m => !m.hide)
     },
@@ -342,7 +335,7 @@ export default {
   },
   watch: {
     chat() {
-      this.setProjectContext()
+      this.initializeProjectContext()
     },
     filter() {
       this.resetSelect()
@@ -352,16 +345,35 @@ export default {
     }
   },
   methods: {
-    async setProjectContext() {
-      this.repoBranches = await this.$api.repo.branches() 
+    async initializeProjectContext() {
+      try {
+        // Get the correct API instance for this project
+        const projectId = this.chat.project_id
+        const project = projectId 
+          ? this.$storex.projects.allProjectsById[projectId]
+          : this.$storex.projects.activeProject
+
+        this.api = project?.$api || this.$storex.api
+
+        // Load branches for the project
+        await this.setProjectContext()
+      } catch (error) {
+        console.error('Error initializing project context:', error)
+      }
     },
-    copyText() {
-      copyTextToClipboard(this.changesSummary)
+
+    async setProjectContext() {
+      if (!this.api) return
+      try {
+        this.repoBranches = await this.api.repo.branches()
+      } catch (error) {
+        console.error('Error loading project branches:', error)
+        this.repoBranches = {}
+      }
     },
 
     onCompareModeChange(mode) {
       this.compareMode = mode
-      // Clear files when switching mode until a new compare is triggered
       if (mode === 'commit') {
         this.activeCommitCompare = null
         this.files = null
@@ -378,13 +390,13 @@ export default {
       try {
         if (this.compareMode === 'commit' && this.activeCommitCompare) {
           const { fromCommit, toCommit } = this.activeCommitCompare
-          this.repoChanges = await this.$api.repo.commitChanges({
+          this.repoChanges = await this.api.repo.commitChanges({
             from_commit: fromCommit,
             to_commit: toCommit
           })
         } else {
           const { fromBranch, toBranch } = this
-          this.repoChanges = await this.$api.repo.changes({ from_branch: fromBranch, to_branch: toBranch })
+          this.repoChanges = await this.api.repo.changes({ from_branch: fromBranch, to_branch: toBranch })
         }
         this.buildFiles()
       } finally {
@@ -414,9 +426,11 @@ export default {
     toggleBranchInput() {
       this.isInputVisible = !this.isInputVisible
     },
+
     onBranchChanged({ fromBranch, toBranch }) {
       this.$emit('select-branch', { fromBranch, toBranch })
     },
+
     onAddComment(comment, file, lineNumber, side, onClose) {
       const metadata = {
         file: file.fileName,
@@ -432,16 +446,20 @@ export default {
       this.extendData[_side][lineNumber] = { data: "comment" }
       onClose()
     },
+
     copyDiff(file) {
       const diffBlock = ["```diff", file.hunks[0], "```"].join("\n")
       this.$ui.copyTextToClipboard(diffBlock)
     },
+
     openFile(fileName) {
       this.$ui.openProjectFile(fileName)
     },
+
     getFileProfiles(fileName) {
       return this.$projects.profiles.filter(p => p.file_match && fileName.match(p.file_match))
     },
+
     buildDiffFile(diff, repoPath) {
       try {
         const lines = diff.replace("diff --git ", "").split("\n")
@@ -513,6 +531,7 @@ export default {
       }
       return null
     },
+
     getChatInfo(chat) {
       if (!chat) {
         return {}
@@ -526,20 +545,25 @@ export default {
         messageCount
       }
     },
+
     toggleFileDiff(file) {
       file.showDiff = !file.showDiff
     },
+
     toggleSelectAll() {
       const setSelected = !this.selectedFiles.length
       this.visibleFiles.map(f => { f.selected = setSelected })
     },
+
     resetSelect() {
       this.files.map(f => { f.selected = false })
     },
+
     onBulkAction() {
       this.bulkAction = null
       this.showBulkAction = true
     },
+
     sendBulkAction() {
       this.showBulkAction = false
       const files = [...this.selectedFiles]
@@ -549,20 +573,24 @@ export default {
         )
       )
     },
+
     toggleAllNoneSelected() {
       const setVal = this.selectedFiles.length === 0
       this.visibleFiles.map(file => { file.selected = setVal })
     },
+
     onFileComment({ file, message }) {
       const { chat, fileFullName, fileShortName } = file
       const profiles = file.profiles
       const description = message || ["```diff", file.hunks[0], "```"].join("\n")
       this.$emit('comment', { chat, title: fileShortName, files: [fileFullName], description, profiles, mode: 'task' })
     },
+
     onValidateSelected() {
       const files = this.selectedFiles 
       this.$emit('validate-files', files)
     },
+
     onFileChat({ file, column, message: description, metadata }) {
       column = column || this.chat.column
       const { fileFullName, fileShortName, profiles } = file
@@ -578,6 +606,7 @@ export default {
         parent_id: this.chat.id
       })
     },
+
     onDataItemSelected(item) {
       if (item.hasChildren) {
         item.value.children.forEach(child => {
@@ -585,24 +614,30 @@ export default {
         })
       }
     },
+
     onDataItemClick(item) {
       if (!item.hasChildren) {
         this.$refs.prReport.scrollToFile(item.value.fileFullName)
       }
     },
+
     selectAll() {
       this.visibleFiles.map(f => { f.selected = true })
     },
+
     selectNone() {
       this.files.map(f => { f.selected = false })
     },
+
     onSelectFileOption(showOption) {
       this.prShowOption = showOption
     },
+
     async createFilesChat(files, column) {
       files.forEach(file => this.onFileChat({ file, column }))
       return new Promise(ok => setTimeout(ok, 2000))
     },
+
     async setFilesColumn() {
       const { chatColumn: column } = this
       if (!column) {
@@ -615,6 +650,7 @@ export default {
       const chats = this.selectedFiles.map(f => f.chat)
       this.$emit('change-column', { chats, column })
     },
+
     async onSetChatColumn({ file, column }) {
       if (!file.chat) {
         await this.createFilesChat([file], column)

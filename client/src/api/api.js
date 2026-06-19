@@ -18,6 +18,8 @@ function _requestKey(method, url, data) {
 
 /**
  * Wrap a request factory in deduplication logic.
+ * If an identical request is already in-flight, the new caller
+ * receives the same Promise (and therefore the same resolved value).
  */
 function _dedupedRequest(method, url, data, requestFn) {
   const key = _requestKey(method, url, data)
@@ -288,25 +290,6 @@ const initializeAPI = ({ project, user } = {}) => {
       changes({ from_branch, to_branch }) {
         return API.get(`/api/projects/repo/changes?from_branch=${from_branch}&to_branch=${to_branch}`)
       },
-      /**
-       * Fetch commits for a branch (default: HEAD).
-       * @param {string} [branch] - Branch name
-       * @param {number} [limit]  - Max commit count (default 50)
-       */
-      commits({ branch, limit = 50 } = {}) {
-        const qs = branch ? `?branch=${encodeURIComponent(branch)}&limit=${limit}` : `?limit=${limit}`
-        return API.get(`/api/projects/repo/commits${qs}`)
-      },
-      /**
-       * Diff between two commits.
-       * @param {string} from_commit - Newer commit hash
-       * @param {string} to_commit   - Older / base commit hash
-       */
-      commitChanges({ from_commit, to_commit }) {
-        return API.get(
-          `/api/projects/repo/commit-changes?from_commit=${encodeURIComponent(from_commit)}&to_commit=${encodeURIComponent(to_commit)}`
-        )
-      }
     },
     settings: {
       async read() {
@@ -359,6 +342,28 @@ const initializeAPI = ({ project, user } = {}) => {
       },
       reloadFolder(path) {
         return API.post(`/api/knowledge/reload-path`, { path })
+      },
+      indexFilesBackground(filePaths) {
+        if (!API.socket) {
+          throw new Error('Socket not connected')
+        }
+        return new Promise((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Index operation timed out'))
+          }, 30000)
+          
+          API.socket.emit('codx-junior-index-knowledge', {
+            file_paths: filePaths,
+            codx_path: API.activeProject?.codx_path
+          }, (response) => {
+            clearTimeout(timeoutId)
+            if (response?.error) {
+              reject(new Error(response.error))
+            } else {
+              resolve(response)
+            }
+          })
+        })
       },
       search({
         searchTerm: search_term,
@@ -543,6 +548,18 @@ const initializeAPI = ({ project, user } = {}) => {
       config() {
         return API.get('/api/wiki-engine/config')
       },
+      index() {
+        return API.get('/api/wiki-engine/index')
+      },
+      buildDependencyGraph() {
+        return API.get('/api/wiki-engine/build?step=build_dependency_graph')
+      },
+      buildDomains() {
+        return API.get('/api/wiki-engine/build?step=build_domains')
+      },
+      buildModulePage(file_path) {
+        return API.get(`/api/wiki-engine/build?step=build_module_page&file_path=${encodeURIComponent(file_path)}`)
+      },
       save(wikiSettings) {
         return API.put('/api/wiki-engine', wikiSettings)
       }
@@ -640,7 +657,7 @@ const initializeAPI = ({ project, user } = {}) => {
               output_k_tokens_cxjcoins: outputPrice,
             })
           },
-        },
+        }
       }
     },
     engine: {
@@ -679,34 +696,105 @@ const initializeAPI = ({ project, user } = {}) => {
 
     // ─── Logs (system + AI request/response) ────────────────────────────────
     logs: {
+      // System/server logs (legacy)
       async read(logName, size) {
         return API.get(`/api/logs/${logName}?log_size=${size}`)
       },
       async list() {
         return API.get('/api/logs')
       },
+
+      system: {
+        // System logs
+        async read(logName, size) {
+          return API.get(`/api/system/logs/${logName}?log_size=${size}`)
+        },
+        async list() {
+          return API.get('/api/system/logs')
+        },
+      },
+      // AI request/response logs
       ai: {
+        /**
+         * Recent logs for the current authenticated user.
+         * @param {number} limit - Max number of entries (1–100, default 10)
+         */
         me(limit = 10) {
           return API.get(`/api/logs/me?limit=${limit}`)
         },
+
+        /**
+         * Paginated log list for the current user.
+         * @param {object} opts
+         * @param {string}  [opts.startDate]  - Inclusive start date YYYY-MM-DD
+         * @param {string}  [opts.endDate]    - Inclusive end date YYYY-MM-DD
+         * @param {string}  [opts.project]    - Filter by project name
+         * @param {string}  [opts.model]      - Filter by model name
+         * @param {string}  [opts.provider]   - Filter by provider name
+         * @param {string}  [opts.direction]  - Filter by direction: request | response
+         * @param {string}  [opts.sessionId]  - Filter by session id
+         * @param {number}  [opts.page]       - Page number (default 1)
+         * @param {number}  [opts.pageSize]   - Items per page (default 50, max 500)
+         */
         list({ startDate, endDate, project, model, provider, direction, sessionId, page = 1, pageSize = 50 } = {}) {
           const qs = _buildLogsQS({ startDate, endDate, project, model, provider, direction, sessionId, page, pageSize })
           return API.get(`/api/logs/list${qs}`)
         },
+
+        /**
+         * Full log entry detail for the current user.
+         * @param {string} logId - Synthetic log id (<YYYY-MM-DD>:<line_index>)
+         */
         get(logId) {
           return API.get(`/api/logs/${encodeURIComponent(logId)}`)
         },
         admin: {
+          /**
+           * Paginated log list across all users (admin only).
+           * @param {object} opts
+           * @param {string}  [opts.startDate]  - Inclusive start date YYYY-MM-DD
+           * @param {string}  [opts.endDate]    - Inclusive end date YYYY-MM-DD
+           * @param {string}  [opts.username]   - Filter by username
+           * @param {string}  [opts.project]    - Filter by project name
+           * @param {string}  [opts.model]      - Filter by model name
+           * @param {string}  [opts.provider]   - Filter by provider name
+           * @param {string}  [opts.direction]  - Filter by direction: request | response
+           * @param {string}  [opts.sessionId]  - Filter by session id
+           * @param {number}  [opts.page]       - Page number (default 1)
+           * @param {number}  [opts.pageSize]   - Items per page (default 50, max 500)
+           */
           list({ startDate, endDate, username, project, model, provider, direction, sessionId, page = 1, pageSize = 50 } = {}) {
             const qs = _buildLogsQS({ startDate, endDate, username, project, model, provider, direction, sessionId, page, pageSize })
             return API.get(`/api/logs/admin/list${qs}`)
           },
+
+          /**
+           * Full log entry detail for any user (admin only).
+           * @param {string} logId - Synthetic log id (<YYYY-MM-DD>:<line_index>)
+           */
           get(logId) {
             return API.get(`/api/logs/admin/${encodeURIComponent(logId)}`)
           },
+
+          /**
+           * Delete a single log entry (admin only).
+           * @param {string} logId - Synthetic log id (<YYYY-MM-DD>:<line_index>)
+           */
           delete(logId) {
             return API.delete(`/api/logs/admin/${encodeURIComponent(logId)}`)
           },
+
+          /**
+           * Bulk delete logs matching filters (admin only).
+           * At least one filter must be provided.
+           * @param {object} opts
+           * @param {string}  [opts.startDate]  - Inclusive start date YYYY-MM-DD
+           * @param {string}  [opts.endDate]    - Inclusive end date YYYY-MM-DD
+           * @param {string}  [opts.username]   - Filter by username
+           * @param {string}  [opts.project]    - Filter by project name
+           * @param {string}  [opts.model]      - Filter by model name
+           * @param {string}  [opts.provider]   - Filter by provider name
+           */
           purge({ startDate, endDate, username, project, model, provider } = {}) {
             return API.post('/api/logs/admin/purge', {
               start_date: startDate  || null,
@@ -783,6 +871,10 @@ const initializeAPI = ({ project, user } = {}) => {
   return API
 }
 
+/**
+ * Build a query string from analytics filter params.
+ * Omits undefined/null values and converts camelCase to snake_case.
+ */
 function _buildAnalyticsQS(params) {
   const keyMap = {
     startDate: 'start_date',
@@ -798,6 +890,23 @@ function _buildAnalyticsQS(params) {
   return parts.length ? `?${parts.join('&')}` : ''
 }
 
+/**
+ * Build a query string for AI log filter params.
+ * Handles pagination and all available filter fields.
+ * Maps camelCase JS params to the snake_case query params expected by the backend.
+ *
+ * Supported params:
+ *   startDate  → start_date
+ *   endDate    → end_date
+ *   username   → username
+ *   project    → project
+ *   model      → model
+ *   provider   → provider
+ *   direction  → direction
+ *   sessionId  → session_id
+ *   page       → page
+ *   pageSize   → page_size
+ */
 function _buildLogsQS(params) {
   const keyMap = {
     startDate: 'start_date',
