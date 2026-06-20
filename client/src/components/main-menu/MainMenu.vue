@@ -9,7 +9,6 @@ import {
 import MenubarItem from './MenubarItem.vue'
 import WorkspacesMenu from './WorkspacesMenu.vue'
 import SettingsMenu from './SettingsMenu.vue'
-import ProjectDetailt from '../ProjectDetailt.vue'
 import MenuDivider from './MenuDivider.vue'
 import ViewsMenu from './ViewsMenu.vue'
 </script>
@@ -17,15 +16,15 @@ import ViewsMenu from './ViewsMenu.vue'
 <template>
   <div class="flex gap-2 items-center">
     <MenubarRoot
-      class="flex p-[3px] rounded-lg shadow-sm"
+      class="flex p-[3px]"
     >
       <MenubarMenu class="MenubarMenu">
         <MenubarTrigger
-          class="click py-2 px-3 text-xl select-none font-bold leading-none border border-white/30 rounded flex items-center justify-between gap-2 tooltip"
+          class="click py-2 px-3 text-xl select-none font-bold leading-none flex items-center justify-between gap-2 tooltip"
           :data-tip="$storex.session.connected ? '' : 'API is not connected!'"
         >
           <div class="avatar">
-            <img class="w-6 rpounded-full" src="/only_icon.png" />
+            <img class="w-10 rpounded-full" src="/only_icon.png" />
           </div>
         </MenubarTrigger>
         <MenubarPortal>
@@ -92,17 +91,6 @@ import ViewsMenu from './ViewsMenu.vue'
         </MenubarPortal>
       </MenubarMenu>
     </MenubarRoot>
-
-    <div class="click py-2 px-3 text-xl select-none font-bold leading-none border border-white/30 rounded flex items-center justify-between gap-2 indicator">
-      <span class="text-error animate-pulse"
-        v-if="!$storex.session.connected">
-        <i class="fa-solid fa-circle-exclamation"></i>
-      </span>
-      <ProjectDetailt @click.stop=""
-        :options="{ folders: true, showIcon: true }"
-        @select="$projects.setActiveProject($event)"
-      />
-    </div>
   </div>
 </template>
 

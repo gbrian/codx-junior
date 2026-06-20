@@ -3,6 +3,7 @@ import SplitViewVue from '@/views/SplitView.vue'
 import Login from './components/user/Login.vue';
 import NewProject from './components/project/NewProject.vue';
 import HomeMobile from './views/HomeMobile.vue';
+import TeamView from './views/TeamView.vue';
 </script>
 
 <template>
@@ -11,7 +12,7 @@ import HomeMobile from './views/HomeMobile.vue';
     
     <div class="h-full w-full" v-else>
       <HomeMobile v-if="$ui.isMobile" />
-      <SplitViewVue />
+      <TeamView />
 
       <modal class="w-full h-full md:w-1/3 md:h-fit" 
         close="true" @close="$ui.showNewProject(false)" v-if="$ui.newProject">

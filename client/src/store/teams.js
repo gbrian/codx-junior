@@ -16,6 +16,7 @@ export const createTeam = (overrides = {}) => ({
   updatedAt: new Date().toISOString(),
   categories: [],
   members: [],
+  directMessages: {},
   ...overrides
 })
 
@@ -31,7 +32,7 @@ export const createChannel = (overrides = {}) => ({
   id: crypto.randomUUID(),
   name: '',
   description: '',
-  mode: 'topic', // topic | chat | task
+  mode: 'topic',
   chatId: null,
   categoryId: null,
   unread: 0,
@@ -43,8 +44,8 @@ export const createChannel = (overrides = {}) => ({
 export const createMember = (overrides = {}) => ({
   id: crypto.randomUUID(),
   username: '',
-  role: 'member', // admin | moderator | member | guest
-  status: 'online', // online | away | busy | offline
+  role: 'member',
+  status: 'online',
   joinedAt: new Date().toISOString(),
   ...overrides
 })
@@ -56,7 +57,8 @@ function persist(state) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       teams: state.teams,
       activeTeamId: state.activeTeamId,
-      activeChannelId: state.activeChannelId
+      activeChannelId: state.activeChannelId,
+      activeDmMemberId: state.activeDmMemberId
     }))
   } catch (e) {
     console.warn('[teams] persist error', e)
@@ -76,7 +78,8 @@ function load() {
 export const state = () => ({
   teams: [],
   activeTeamId: null,
-  activeChannelId: null
+  activeChannelId: null,
+  activeDmMemberId: null
 })
 
 export const getters = getterTree(state, {
@@ -89,6 +92,11 @@ export const getters = getterTree(state, {
       if (ch) return ch
     }
     return null
+  },
+  activeDmMember: state => {
+    const team = state.teams.find(t => t.id === state.activeTeamId)
+    if (!team || !state.activeDmMemberId) return null
+    return team.members.find(m => m.id === state.activeDmMemberId) || null
   },
   teamById: state => id => state.teams.find(t => t.id === id) || null,
   channelById: state => (teamId, channelId) => {
@@ -111,6 +119,11 @@ export const mutations = mutationTree(state, {
   },
   setActiveChannelId(state, id) {
     state.activeChannelId = id
+    state.activeDmMemberId = null
+  },
+  setActiveDmMemberId(state, id) {
+    state.activeDmMemberId = id
+    state.activeChannelId = null
   },
   upsertTeam(state, team) {
     const idx = state.teams.findIndex(t => t.id === team.id)
@@ -126,6 +139,7 @@ export const mutations = mutationTree(state, {
     if (state.activeTeamId === teamId) {
       state.activeTeamId = state.teams[0]?.id || null
       state.activeChannelId = null
+      state.activeDmMemberId = null
     }
     persist(state)
   },
@@ -192,6 +206,14 @@ export const mutations = mutationTree(state, {
     })
     persist(state)
   },
+  setDmChatId(state, { teamId, memberId, chatId }) {
+    state.teams = state.teams.map(t => {
+      if (t.id !== teamId) return t
+      const directMessages = { ...(t.directMessages || {}), [memberId]: chatId }
+      return { ...t, directMessages }
+    })
+    persist(state)
+  },
   markChannelRead(state, { teamId, channelId }) {
     state.teams = state.teams.map(t => {
       if (t.id !== teamId) return t
@@ -226,6 +248,7 @@ export const actions = actionTree(
         state.teams = saved.teams
         state.activeTeamId = saved.activeTeamId || null
         state.activeChannelId = saved.activeChannelId || null
+        state.activeDmMemberId = saved.activeDmMemberId || null
       }
     },
 
@@ -238,11 +261,13 @@ export const actions = actionTree(
           createCategory({ name: 'Topics', channels: [] })
         ],
         members: [],
+        directMessages: {},
         ...overrides
       })
       state.teams = [...state.teams, team]
       state.activeTeamId = team.id
       state.activeChannelId = null
+      state.activeDmMemberId = null
       persist(state)
       return team
     },
@@ -258,6 +283,7 @@ export const actions = actionTree(
     selectTeam({ state }, teamId) {
       state.activeTeamId = teamId
       state.activeChannelId = null
+      state.activeDmMemberId = null
       persist(state)
     },
 
@@ -283,7 +309,6 @@ export const actions = actionTree(
         ...channelData,
         categoryId
       })
-      // Create backing chat via chats store
       const chat = await $storex.chats.createNewChat({
         name: `team:${teamId}/${channel.name}`,
         mode: channel.mode,
@@ -307,8 +332,37 @@ export const actions = actionTree(
     async selectChannel({ state, commit }, { teamId, channelId }) {
       state.activeTeamId = teamId
       state.activeChannelId = channelId
+      state.activeDmMemberId = null
       commit('markChannelRead', { teamId, channelId })
       persist(state)
+    },
+
+    // ── Direct Messages ───────────────────────────────────────────────────────
+    async openDirectMessage({ state, commit }, { teamId, member }) {
+      const team = state.teams.find(t => t.id === teamId)
+      if (!team) return null
+
+      // Return existing DM chat if available
+      const existingChatId = (team.directMessages || {})[member.id]
+      if (existingChatId) {
+        commit('setActiveDmMemberId', member.id)
+        state.activeTeamId = teamId
+        persist(state)
+        return existingChatId
+      }
+
+      // Create a new DM chat
+      const chat = await $storex.chats.createNewChat({
+        name: `dm:${teamId}/${member.username}`,
+        mode: 'chat',
+        board: `team:${teamId}`,
+        messages: []
+      })
+      commit('setDmChatId', { teamId, memberId: member.id, chatId: chat.id })
+      commit('setActiveDmMemberId', member.id)
+      state.activeTeamId = teamId
+      persist(state)
+      return chat.id
     },
 
     // ── Members ───────────────────────────────────────────────────────────────

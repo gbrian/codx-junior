@@ -1,13 +1,17 @@
 <script setup>
-import Chat from '@/components/chat/Chat.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
 import TeamSettings from '@/components/teams/TeamSettings.vue'
 import ChannelSettings from '@/components/teams/ChannelSettings.vue'
 import CategorySettings from '@/components/teams/CategorySettings.vue'
 import MemberSettings from '@/components/teams/MemberSettings.vue'
+import MemberAvatar from '@/components/teams/MemberAvatar.vue'
 import CreateChannelDialog from '@/components/teams/CreateChannelDialog.vue'
 import CreateTeamDialog from '@/components/teams/CreateTeamDialog.vue'
-import MediaManager from '@/components/media/MediaManager.vue'
+import AddMemberDialog from '@/components/teams/AddMemberDialog.vue'
+import MainMenu from '@/components/main-menu/MainMenu.vue'
+import Desktop from '@/components/desktop/Desktop.vue'
+import StatuBar from '@/components/StatuBar.vue'
+import UserInfo from '@/components/UserInfo.vue'
 </script>
 
 <template>
@@ -36,17 +40,14 @@ import MediaManager from '@/components/media/MediaManager.vue'
 
       <div class="divider my-0 w-8 mx-auto"></div>
 
-      <!-- Media manager toggle -->
+      <!-- Media manager toggle — opens as Desktop panel -->
       <div
         class="tooltip tooltip-right cursor-pointer shrink-0"
-        data-tip="Media Manager"
-        @click="showMediaManager = !showMediaManager"
+        data-tip="Media Library"
+        @click="openMediaLibrary"
       >
         <div
-          class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl"
-          :class="showMediaManager
-            ? 'bg-primary text-primary-content'
-            : 'bg-base-300 text-base-content hover:bg-base-content/10'"
+          class="w-10 h-10 rounded-2xl flex items-center justify-center text-lg transition-all duration-200 hover:rounded-xl bg-base-300 text-base-content hover:bg-base-content/10"
         >
           <i class="fa-solid fa-image"></i>
         </div>
@@ -62,21 +63,9 @@ import MediaManager from '@/components/media/MediaManager.vue'
           <i class="fa-solid fa-plus"></i>
         </div>
       </div>
-    </div>
 
-    <!-- ── Media Manager Panel ───────────────────────────────────────────── -->
-    <div
-      v-if="showMediaManager"
-      class="w-96 border-r border-base-content/10 bg-base-200 shrink-0 flex flex-col overflow-hidden"
-    >
-      <MediaManager
-        v-if="activeTeam"
-        :resource-type="'team'"
-        :resource-id="activeTeam.id"
-      />
-      <div v-else class="flex-1 flex items-center justify-center text-base-content/50">
-        <p class="text-sm">Select a team to manage media</p>
-      </div>
+      <div class="grow"></div>
+      <MainMenu />
     </div>
 
     <!-- ── Channels sidebar ───────────────────────────────────────────────── -->
@@ -101,12 +90,12 @@ import MediaManager from '@/components/media/MediaManager.vue'
 
       <!-- Categories + channels -->
       <div class="flex-1 overflow-y-auto px-1">
+
+        <!-- Channel categories -->
         <div v-for="category in filteredCategories" :key="category.id" class="mb-2">
 
           <!-- Category row -->
-          <div
-            class="flex items-center gap-1 px-1 py-1 cursor-pointer text-xs font-semibold text-base-content/50 hover:text-base-content uppercase tracking-wide group"
-          >
+          <div class="flex items-center gap-1 px-1 py-1 cursor-pointer text-xs font-semibold text-base-content/50 hover:text-base-content uppercase tracking-wide group">
             <span @click="toggleCategory(category.id)" class="flex items-center gap-1 flex-1 min-w-0">
               <i
                 class="fa-solid fa-chevron-down text-xs transition-transform shrink-0"
@@ -137,11 +126,8 @@ import MediaManager from '@/components/media/MediaManager.vue'
             <div
               v-for="channel in category.channels"
               :key="channel.id"
-              class="flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-sm group"
-              :class="activeChannel?.id === channel.id
-                ? 'bg-base-content/15 text-base-content'
-                : 'text-base-content/60 hover:bg-base-content/10 hover:text-base-content'"
-              @click="selectChannel(channel, category)"
+              class="flex items-center gap-2 px-2 py-1 rounded cursor-pointer text-sm group text-base-content/60 hover:bg-base-content/10 hover:text-base-content"
+              @click="openChannel(channel)"
             >
               <ChatIcon :mode="channel.mode" class="text-xs w-4 shrink-0" />
               <span class="truncate flex-1 text-xs">{{ channel.name }}</span>
@@ -166,25 +152,83 @@ import MediaManager from '@/components/media/MediaManager.vue'
           <i class="fa-solid fa-plus text-xs"></i>
           Add category
         </button>
+
+        <!-- ── Direct Messages section ──────────────────────────────────── -->
+        <div class="mt-3">
+          <div class="flex items-center gap-1 px-1 py-1 text-xs font-semibold text-base-content/50 uppercase tracking-wide group">
+            <span
+              class="flex items-center gap-1 flex-1 cursor-pointer"
+              @click="dmCollapsed = !dmCollapsed"
+            >
+              <i
+                class="fa-solid fa-chevron-down text-xs transition-transform shrink-0"
+                :class="dmCollapsed ? '-rotate-90' : ''"
+              ></i>
+              Direct Messages
+            </span>
+            <button
+              class="btn btn-xs btn-ghost p-0 w-4 h-4 min-h-0 opacity-0 group-hover:opacity-100"
+              @click.stop="showAddMember = true"
+              title="Add member"
+            >
+              <i class="fa-solid fa-plus text-xs"></i>
+            </button>
+          </div>
+
+          <!-- Member DM list -->
+          <div v-if="!dmCollapsed">
+            <div
+              v-for="member in activeTeam.members"
+              :key="member.id"
+              class="flex items-center gap-2 px-2 py-1 rounded cursor-pointer group text-base-content/60 hover:bg-base-content/10 hover:text-base-content"
+              @click="openDm(member)"
+            >
+              <MemberAvatar :member="member" size="xs" :show-status="true" class="shrink-0" />
+              <div class="flex-1 min-w-0">
+                <div class="text-xs truncate font-medium">{{ member.username }}</div>
+              </div>
+              <button
+                class="btn btn-ghost btn-xs p-0 w-4 h-4 min-h-0 opacity-0 group-hover:opacity-100 shrink-0"
+                @click.stop="selectedMember = member"
+                title="Member settings"
+              >
+                <i class="fa-solid fa-gear text-xs"></i>
+              </button>
+            </div>
+
+            <div
+              v-if="!activeTeam.members.length"
+              class="px-3 py-2 text-xs text-base-content/30 italic"
+            >
+              No members yet
+            </div>
+
+            <button
+              class="flex items-center gap-1 px-2 py-1 text-xs text-base-content/40 hover:text-primary cursor-pointer w-full"
+              @click="showAddMember = true"
+            >
+              <i class="fa-solid fa-user-plus text-xs"></i>
+              Add member
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- User status bar -->
       <div class="flex items-center gap-2 px-3 py-2 border-t border-base-content/10 bg-base-300/50 shrink-0">
-        <div
-          class="w-7 h-7 rounded-full bg-primary text-primary-content flex items-center justify-center text-xs font-bold shrink-0"
-        >
-          {{ userInitial }}
-        </div>
-        <div class="flex-1 min-w-0">
-          <div class="text-xs font-semibold truncate">{{ $users.user?.username }}</div>
-          <div class="text-xs text-success flex items-center gap-1">
-            <span class="w-1.5 h-1.5 rounded-full bg-success inline-block"></span>
-            Online
+        <div class="flex justify-between">
+          <div class="w-7 h-7 rounded-full bg-primary text-primary-content flex items-center justify-center text-xs font-bold shrink-0">
+            {{ userInitial }}
           </div>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-semibold truncate">{{ $users.user?.username }}</div>
+            <div class="text-xs text-success flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-success inline-block"></span>
+              Online
+            </div>
+          </div>
+          <UserInfo />
         </div>
-        <button class="btn btn-xs btn-ghost" @click="showMembers = !showMembers">
-          <i class="fa-solid fa-users text-xs"></i>
-        </button>
       </div>
     </div>
 
@@ -197,114 +241,26 @@ import MediaManager from '@/components/media/MediaManager.vue'
       <span class="text-xs text-center px-4">Select or create a team</span>
     </div>
 
-    <!-- ── Main content ───────────────────────────────────────────────────── -->
-    <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
-
-      <!-- Channel selected -->
-      <template v-if="activeChannel && activeChannelChat">
-
-        <!-- Channel header -->
-        <div class="flex items-center gap-3 px-4 py-2 border-b border-base-content/10 bg-base-200/50 shrink-0">
-          <ChatIcon :mode="activeChannel.mode" class="text-base-content/60" />
-          <span class="font-bold text-sm">{{ activeChannel.name }}</span>
-          <span
-            v-if="activeChannel.description"
-            class="text-xs text-base-content/50 border-l border-base-content/20 pl-2 truncate"
-          >
-            {{ activeChannel.description }}
-          </span>
-          <div class="flex items-center gap-1 ml-auto shrink-0">
-            <button
-              class="btn btn-xs btn-ghost tooltip"
-              :data-tip="showChannelSearch ? 'Close search' : 'Search'"
-              @click="showChannelSearch = !showChannelSearch; messageSearch = ''"
-            >
-              <i class="fa-solid fa-magnifying-glass text-xs"></i>
-            </button>
-            <button
-              class="btn btn-xs btn-ghost tooltip"
-              data-tip="Members"
-              :class="showMembers ? 'btn-active' : ''"
-              @click="showMembers = !showMembers"
-            >
-              <i class="fa-solid fa-users text-xs"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Search bar -->
-        <div class="px-4 py-2 border-b border-base-content/10 shrink-0" v-if="showChannelSearch">
-          <div class="flex items-center gap-2 input input-sm input-bordered w-full">
-            <i class="fa-solid fa-magnifying-glass text-xs"></i>
-            <input v-model="messageSearch" class="bg-transparent flex-1 min-w-0 text-sm" placeholder="Search messages..." />
-            <button @click="showChannelSearch = false; messageSearch = ''" class="text-base-content/50 hover:text-base-content">
-              <i class="fa-solid fa-xmark text-xs"></i>
-            </button>
-          </div>
-        </div>
-
-        <!-- Chat + members panel -->
-        <div class="flex-1 min-h-0 flex overflow-hidden">
-          <Chat
-            class="flex-1 min-w-0 p-2"
-            :chat="activeChannelChat"
-            :filter="messageSearch"
-          />
-
-          <!-- Members panel -->
-          <div
-            class="w-52 border-l border-base-content/10 bg-base-200/50 flex flex-col shrink-0"
-            v-if="showMembers"
-          >
-            <div class="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-base-content/50 border-b border-base-content/10 flex items-center justify-between">
-              <span>Members — {{ activeTeam.members.length }}</span>
-              <button class="btn btn-xs btn-ghost" @click="showAddMember = true">
-                <i class="fa-solid fa-plus text-xs"></i>
-              </button>
-            </div>
-            <div class="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-1">
-              <div
-                v-for="member in activeTeam.members"
-                :key="member.id"
-                class="flex items-center gap-2 px-2 py-1 rounded hover:bg-base-content/10 cursor-pointer group"
-                @click="selectedMember = member"
-              >
-                <div
-                  class="w-6 h-6 rounded-full bg-secondary text-secondary-content flex items-center justify-center text-xs font-bold shrink-0"
-                >
-                  {{ member.username?.[0]?.toUpperCase() }}
-                </div>
-                <div class="flex-1 min-w-0">
-                  <div class="text-xs font-medium truncate">{{ member.username }}</div>
-                  <div class="text-xs text-base-content/40 truncate capitalize">{{ member.role }}</div>
-                </div>
-                <span class="w-2 h-2 rounded-full shrink-0" :class="statusColor(member.status)"></span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- No channel selected but team exists -->
-      <div
-        v-else-if="activeTeam"
-        class="flex-1 flex flex-col items-center justify-center gap-4 text-base-content/40"
-      >
+    <!-- ── Main content placeholder (channels open in Desktop panels) ──── -->
+    <div class="flex flex-col flex-1 min-w-0 overflow-hidden items-center justify-center text-base-content/40">
+      <Desktop />
+      <StatuBar class="w-full" />
+      <!-- template v-if="activeTeam">
         <i class="fa-solid fa-hashtag text-5xl"></i>
         <div class="text-center">
-          <div class="font-bold text-lg text-base-content/60">Welcome to {{ activeTeam.name }}</div>
-          <div class="text-sm mt-1">Select a channel or create one to start chatting</div>
+          <div class="font-bold text-lg text-base-content/60">{{ activeTeam.name }}</div>
+          <div class="text-sm mt-1">Select a channel or DM to open it as a panel</div>
         </div>
-        <button class="btn btn-sm btn-primary" @click="showCreateChannel = true">
-          <i class="fa-solid fa-plus mr-1"></i> Create Channel
-        </button>
-      </div>
-
-      <!-- No team -->
-      <div
-        v-else
-        class="flex-1 flex flex-col items-center justify-center gap-4 text-base-content/40"
-      >
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-primary" @click="openCreateChannel(null)">
+            <i class="fa-solid fa-plus mr-1"></i> Create Channel
+          </button>
+          <button class="btn btn-sm btn-outline" @click="showAddMember = true">
+            <i class="fa-solid fa-user-plus mr-1"></i> Add Member
+          </button>
+        </div>
+      </template>
+      <template v-else>
         <i class="fa-solid fa-people-group text-5xl"></i>
         <div class="text-center">
           <div class="font-bold text-lg text-base-content/60">Team Collaboration</div>
@@ -313,20 +269,15 @@ import MediaManager from '@/components/media/MediaManager.vue'
         <button class="btn btn-sm btn-primary" @click="showCreateTeam = true">
           <i class="fa-solid fa-plus mr-1"></i> Create Team
         </button>
-      </div>
+      </template -->
     </div>
 
     <!-- ── Modals ─────────────────────────────────────────────────────────── -->
 
-    <!-- Create team -->
     <modal v-if="showCreateTeam">
-      <CreateTeamDialog
-        @created="onTeamCreated"
-        @close="showCreateTeam = false"
-      />
+      <CreateTeamDialog @created="onTeamCreated" @close="showCreateTeam = false" />
     </modal>
 
-    <!-- Create channel -->
     <modal v-if="showCreateChannel && activeTeam">
       <CreateChannelDialog
         :team="activeTeam"
@@ -336,7 +287,6 @@ import MediaManager from '@/components/media/MediaManager.vue'
       />
     </modal>
 
-    <!-- Team settings -->
     <modal close="true" @close="showTeamSettings = false" v-if="showTeamSettings && activeTeam">
       <TeamSettings
         :team="activeTeam"
@@ -346,7 +296,6 @@ import MediaManager from '@/components/media/MediaManager.vue'
       />
     </modal>
 
-    <!-- Channel settings -->
     <modal close="true" @close="editingChannel = null" v-if="editingChannel">
       <ChannelSettings
         :channel="editingChannel"
@@ -356,7 +305,6 @@ import MediaManager from '@/components/media/MediaManager.vue'
       />
     </modal>
 
-    <!-- Category settings -->
     <modal close="true" @close="editingCategory = null" v-if="editingCategory">
       <CategorySettings
         :category="editingCategory"
@@ -366,7 +314,6 @@ import MediaManager from '@/components/media/MediaManager.vue'
       />
     </modal>
 
-    <!-- Member settings -->
     <modal close="true" @close="selectedMember = null" v-if="selectedMember">
       <MemberSettings
         :member="selectedMember"
@@ -376,36 +323,12 @@ import MediaManager from '@/components/media/MediaManager.vue'
       />
     </modal>
 
-    <!-- Add member -->
-    <modal v-if="showAddMember">
-      <div class="flex flex-col gap-4 p-2 w-80">
-        <h3 class="font-bold text-lg">Add Member</h3>
-        <div class="form-control gap-1">
-          <label class="label label-text text-xs font-semibold">Username</label>
-          <input
-            v-model="newMemberUsername"
-            type="text"
-            class="input input-bordered input-sm"
-            placeholder="username"
-            @keydown.enter="addMember"
-          />
-        </div>
-        <div class="form-control gap-1">
-          <label class="label label-text text-xs font-semibold">Role</label>
-          <select class="select select-bordered select-sm" v-model="newMemberRole">
-            <option value="admin">Admin</option>
-            <option value="moderator">Moderator</option>
-            <option value="member">Member</option>
-            <option value="guest">Guest</option>
-          </select>
-        </div>
-        <div class="flex gap-2 justify-end">
-          <button class="btn btn-sm" @click="showAddMember = false">Cancel</button>
-          <button class="btn btn-sm btn-primary" :disabled="!newMemberUsername.trim()" @click="addMember">
-            Add
-          </button>
-        </div>
-      </div>
+    <modal v-if="showAddMember && activeTeam">
+      <AddMemberDialog
+        :team="activeTeam"
+        @added="onMemberAdded"
+        @close="showAddMember = false"
+      />
     </modal>
   </div>
 </template>
@@ -416,36 +339,23 @@ export default {
   props: ['params'],
   data() {
     return {
-      // UI state
       channelSearch: '',
-      messageSearch: '',
-      showChannelSearch: false,
-      showMembers: false,
-      showMediaManager: false,
+      dmCollapsed: false,
       // Modals
       showCreateTeam: false,
       showCreateChannel: false,
       showTeamSettings: false,
+      showAddMember: false,
       createChannelCategoryId: null,
       editingChannel: null,
       editingChannelCategory: null,
       editingCategory: null,
-      selectedMember: null,
-      showAddMember: false,
-      newMemberUsername: '',
-      newMemberRole: 'member',
-      // Active chat backing the selected channel
-      activeChannelChat: null
+      selectedMember: null
     }
   },
   created() {
-    // Initialize store from localStorage
     this.$storex.teams.init()
     this.$storex.media.init()
-    // Restore active channel chat if one was saved
-    if (this.activeChannel?.chatId) {
-      this.loadChannelChat(this.activeChannel)
-    }
   },
   computed: {
     teams() {
@@ -453,9 +363,6 @@ export default {
     },
     activeTeam() {
       return this.$storex.teams.activeTeam
-    },
-    activeChannel() {
-      return this.$storex.teams.activeChannel
     },
     userInitial() {
       return this.$users.user?.username?.[0]?.toUpperCase() || '?'
@@ -471,24 +378,13 @@ export default {
       })).filter(cat => cat.channels.length)
     }
   },
-  watch: {
-    // Reload chat when active channel changes (e.g. team switch)
-    activeChannel(ch) {
-      if (ch?.chatId) {
-        this.loadChannelChat(ch)
-      } else {
-        this.activeChannelChat = null
-      }
-    }
-  },
   methods: {
-    // ── Team actions ────────────────────────────────────────────────────────
+    // ── Team actions ──────────────────────────────────────────────────────────
     selectTeam(teamId) {
       this.$storex.teams.selectTeam(teamId)
-      this.activeChannelChat = null
     },
 
-    onTeamCreated(team) {
+    onTeamCreated() {
       this.showCreateTeam = false
     },
 
@@ -502,13 +398,10 @@ export default {
       this.showTeamSettings = false
     },
 
-    // ── Category actions ────────────────────────────────────────────────────
+    // ── Category actions ──────────────────────────────────────────────────────
     addCategory() {
       if (!this.activeTeam) return
-      this.$storex.teams.createCategory({
-        teamId: this.activeTeam.id,
-        name: 'New Category'
-      })
+      this.$storex.teams.createCategory({ teamId: this.activeTeam.id, name: 'New Category' })
     },
 
     editCategory(category) {
@@ -517,63 +410,35 @@ export default {
 
     toggleCategory(categoryId) {
       if (!this.activeTeam) return
-      this.$storex.teams.toggleCategoryCollapsed({
-        teamId: this.activeTeam.id,
-        categoryId
-      })
+      this.$storex.teams.toggleCategoryCollapsed({ teamId: this.activeTeam.id, categoryId })
     },
 
     onSaveCategory(updated) {
-      this.$storex.teams.updateCategory({
-        teamId: this.activeTeam.id,
-        category: updated
-      })
+      this.$storex.teams.updateCategory({ teamId: this.activeTeam.id, category: updated })
       this.editingCategory = null
     },
 
     onDeleteCategory() {
       if (!this.editingCategory) return
-      this.$storex.teams.deleteCategory({
-        teamId: this.activeTeam.id,
-        categoryId: this.editingCategory.id
-      })
+      this.$storex.teams.deleteCategory({ teamId: this.activeTeam.id, categoryId: this.editingCategory.id })
       this.editingCategory = null
     },
 
-    // ── Channel actions ─────────────────────────────────────────────────────
+    // ── Channel actions ───────────────────────────────────────────────────────
     openCreateChannel(categoryId = null) {
       this.createChannelCategoryId = categoryId || this.activeTeam?.categories[0]?.id || null
       this.showCreateChannel = true
     },
 
+    // Open channel as a Desktop panel via ui store
+    openChannel(channel) {
+      this.$storex.teams.markChannelRead({ teamId: this.activeTeam.id, channelId: channel.id })
+      this.$storex.ui.openTeamChannel({ team: this.activeTeam, channel })
+    },
+
     async onChannelCreated(channel) {
       this.showCreateChannel = false
-      // Auto-select newly created channel
-      await this.selectChannel(channel, this.findCategoryForChannel(channel.id))
-    },
-
-    async selectChannel(channel, category) {
-      const catId = category?.id || channel.categoryId
-      await this.$storex.teams.selectChannel({
-        teamId: this.activeTeam.id,
-        channelId: channel.id
-      })
-      await this.loadChannelChat(channel)
-    },
-
-    async loadChannelChat(channel) {
-      if (!channel?.chatId) {
-        this.activeChannelChat = null
-        return
-      }
-      // Load from chats store if not already cached
-      const cached = this.$chats.chats[channel.chatId]
-      if (cached) {
-        this.activeChannelChat = cached
-      } else {
-        const loaded = await this.$chats.loadChat({ id: channel.chatId })
-        this.activeChannelChat = this.$chats.chats[channel.chatId] || loaded
-      }
+      this.openChannel(channel)
     },
 
     editChannel(channel, category) {
@@ -598,56 +463,33 @@ export default {
         channelId: this.editingChannel.id
       })
       this.editingChannel = null
-      this.activeChannelChat = null
     },
 
-    findCategoryForChannel(channelId) {
-      return this.activeTeam?.categories.find(cat =>
-        cat.channels.some(ch => ch.id === channelId)
-      ) || null
+    // ── DM actions — open as Desktop panel ───────────────────────────────────
+    openDm(member) {
+      this.$storex.ui.openTeamDM({ team: this.activeTeam, member })
     },
 
-    // ── Member actions ──────────────────────────────────────────────────────
-    addMember() {
-      if (!this.newMemberUsername.trim() || !this.activeTeam) return
-      this.$storex.teams.addMember({
-        teamId: this.activeTeam.id,
-        memberData: {
-          username: this.newMemberUsername.trim(),
-          role: this.newMemberRole,
-          status: 'offline'
-        }
-      })
-      this.newMemberUsername = ''
-      this.newMemberRole = 'member'
+    // ── Media library — open as Desktop panel ────────────────────────────────
+    openMediaLibrary() {
+      if (!this.activeTeam) return
+      this.$storex.ui.openTeamMediaLibrary({ team: this.activeTeam })
+    },
+
+    // ── Member actions ────────────────────────────────────────────────────────
+    onMemberAdded() {
       this.showAddMember = false
     },
 
     onSaveMember(updated) {
-      this.$storex.teams.updateMember({
-        teamId: this.activeTeam.id,
-        member: updated
-      })
+      this.$storex.teams.updateMember({ teamId: this.activeTeam.id, member: updated })
       this.selectedMember = null
     },
 
     onRemoveMember() {
       if (!this.selectedMember || !this.activeTeam) return
-      this.$storex.teams.removeMember({
-        teamId: this.activeTeam.id,
-        memberId: this.selectedMember.id
-      })
+      this.$storex.teams.removeMember({ teamId: this.activeTeam.id, memberId: this.selectedMember.id })
       this.selectedMember = null
-    },
-
-    // ── UI helpers ──────────────────────────────────────────────────────────
-    statusColor(status) {
-      return {
-        online: 'bg-success',
-        away: 'bg-warning',
-        busy: 'bg-error',
-        offline: 'bg-base-content/30'
-      }[status] || 'bg-base-content/30'
     }
   }
 }

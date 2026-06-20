@@ -349,6 +349,39 @@ export const actions = actionTree(
       window.open(url, app.name)
     },
 
+    // ── Team panel openers ────────────────────────────────────────────────────
+
+    // Open a team channel as a Desktop panel
+    openTeamChannel(_, { team, channel }) {
+      $storex.ui.showApp({
+        key: `team-channel-${channel.id}`,
+        name: `# ${channel.name}`,
+        component: 'team-channel',
+        params: { team, channel }
+      })
+    },
+
+    // Open a DM as a Desktop panel, resolving the chat first
+    async openTeamDM(_, { team, member }) {
+      const chatId = await $storex.teams.openDirectMessage({ teamId: team.id, member })
+      $storex.ui.showApp({
+        key: `team-dm-${team.id}-${member.id}`,
+        name: `@ ${member.username}`,
+        component: 'team-dm',
+        params: { team, member, chatId }
+      })
+    },
+
+    // Open the media library for a team as a Desktop panel
+    openTeamMediaLibrary(_, { team }) {
+      $storex.ui.showApp({
+        key: `team-media-${team.id}`,
+        name: `🖼 ${team.name} Media`,
+        component: 'team-media-library',
+        params: { team }
+      })
+    },
+
     // --- Views actions ---
 
     async loadViews({ state }) {
@@ -385,7 +418,6 @@ export const actions = actionTree(
     resetDesktop({ state }) {
       const api = state._desktopApi
       if (!api) return
-      // Remove all panels safely by collecting ids first
       const panelIds = api.panels.map(p => p.id)
       panelIds.forEach(id => {
         try {
@@ -395,7 +427,6 @@ export const actions = actionTree(
           console.warn("Could not remove panel", id, ex)
         }
       })
-      // Clear openApps state so the store stays in sync
       state.openApps = {}
     },
 

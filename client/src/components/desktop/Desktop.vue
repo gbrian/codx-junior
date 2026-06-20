@@ -20,11 +20,13 @@ import FileFinderVue from '../filebrowser/FileFinder.vue'
 import ProjectOverview from "../project/ProjectOverview.vue"
 import Wall from "../wall/Wall.vue"
 import ChatView from '@/views/ChatView.vue'
-import TeamView from '@/views/TeamView.vue'
 import Tab from './Tab.vue'
 import ViewProperties from '../main-menu/ViewProperties.vue'
 import AnalyticsDashboard from '../analytics/index.vue'
 import LogsAnalyzerDashboard from '../logs/LogsAnalyzerDashboard.vue'
+import TeamChannel from '../teams/TeamChannel.vue'
+import TeamDM from '../teams/TeamDM.vue'
+import TeamMediaLibrary from '../teams/TeamMediaLibrary.vue'
 </script>
 
 <template>
@@ -71,9 +73,12 @@ export default {
     'projects': ProjectOverview,
     'activity': Wall,
     'chat': ChatView,
-    'team': TeamView,
     'analytics': AnalyticsDashboard,
     'chat-logs': LogsAnalyzerDashboard,
+    // Team sub-components
+    'team-channel': TeamChannel,
+    'team-dm': TeamDM,
+    'team-media-library': TeamMediaLibrary,
     tabComponent: Tab,
     ViewProperties
   },

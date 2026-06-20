@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1781948649,
+  "updated_at": 1781974572,
   "files": {
     "/shared/codx-junior/api/README.md": {
       "path": "/shared/codx-junior/api/README.md",
@@ -259,7 +259,7 @@
     "database-data-management": {
       "name": "Database Data Management",
       "slug": "database-data-management",
-      "description": "This module provides a centralized repository and framework for organizing database architecture and data storage policies. It facilitates the management, documentation, and operational standards for handling data persistence across the system.",
+      "description": "This domain encompasses the architecture and protocols for persistent data storage and retrieval within the system. It manages the lifecycle, organization, and structural integrity of data across various storage engines and database clusters.",
       "files": [
         "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
         "domains/database-data-storage.md",

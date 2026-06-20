@@ -67,35 +67,44 @@ const promiseOrDefault = async (p, def) => {
 }
 
 /**
- * Ensures knowledge is loaded for the given project.
- * Returns a promise that resolves when knowledge is available.
+ * Ensures knowledge/files are loaded for the given project.
+ * Forces a reload if forceReload is true.
  */
-async function ensureFilesLoaded(project) {
+async function ensureFilesLoaded(project, forceReload = false) {
   const { $state, $api } = project
   if (!$state || !$api) return
-  if ($state.files) return
+  if ($state.files && !forceReload) return
   const data = await promiseOrDefault(() => $api.knowledge.files(), null)
   if (data) {
     $state.files = data
-    // Invalidate cached mention list so next access rebuilds with fresh knowledge
     $state._mentionList = null
   }
 }
 
 /**
  * Ensures profiles are loaded for the given project.
- * Returns a promise that resolves when profiles are available.
+ * Forces a reload if forceReload is true.
  */
-async function ensureProfilesLoaded(project) {
+async function ensureProfilesLoaded(project, forceReload = false) {
   const { $state, $api } = project
   if (!$state || !$api) return
-  if ($state.profiles && $state.profiles.length > 0) return
+  if ($state.profiles && $state.profiles.length > 0 && !forceReload) return
   const profiles = await promiseOrDefault(() => $api.profiles.list(), [])
   if (profiles && profiles.length > 0) {
     $state.profiles = profiles
-    // Invalidate cached mention list so next access rebuilds with fresh profiles
     $state._mentionList = null
   }
+}
+
+/**
+ * Clears all cached mention data for a project and its related projects.
+ */
+function clearMentionCache(project) {
+  if (!project?.$state) return
+  project.$state._mentionList = null
+  project.$state.files = null
+  // Keep profiles in state but mark for reload by nulling list
+  project.$state.profiles = null
 }
 
 const initProject = async project => {
@@ -338,7 +347,6 @@ export const getters = getterTree(state, {
       return project
     })
   },
-  // ... rest of getters unchanged
   embeddingsModel: state => state.activeProject?.embeddings_model || 
                                 $storex.api.globalSettings?.embeddings_model,
   aiModel: state => state.activeProject?.llm_model || 
@@ -691,6 +699,28 @@ export const actions = actionTree(
       const project = state.activeProject
       if (!project?.$state) return []
       return project.$state.searchMentions(query, limit)
+    },
+    /**
+     * Clears all mention caches for the active project and related projects,
+     * then forces a reload of files and profiles from the API.
+     */
+    async reloadMentions({ state }) {
+      const project = state.activeProject
+      if (!project?.$state) return
+
+      const relatedProjects = getRelatedProjects(project)
+      const allToReload = [project, ...relatedProjects]
+
+      // Clear caches for all related projects
+      allToReload.forEach(clearMentionCache)
+
+      // Force reload files + profiles for all
+      await Promise.all(
+        allToReload.map(p => Promise.all([
+          ensureFilesLoaded(p, true),
+          ensureProfilesLoaded(p, true),
+        ]))
+      )
     },
   }
 )

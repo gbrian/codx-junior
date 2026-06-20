@@ -4,56 +4,58 @@ import MetricRow from './MetricRow.vue'
 
 <template>
   <div class="relative">
-    <!-- Compact status bar view -->
-    <div
-      class="flex items-center gap-1 cursor-pointer hover:bg-base-200 rounded px-1 py-0.5"
-      @click="togglePanel"
-    >
-      <!-- Avatar with warning indicator -->
-      <div class="avatar placeholder relative">
-        <div
-          class="w-6 h-6 rounded-full text-neutral-content overflow-hidden"
-          :class="dailyLimitStatus === 'exceeded' ? 'bg-error ring-2 ring-error ring-offset-1' : dailyLimitStatus === 'warning' ? 'bg-warning ring-2 ring-warning ring-offset-1' : 'bg-neutral'"
-        >
-          <img v-if="user?.avatar" :src="user.avatar" :alt="user?.userName" class="w-full h-full object-cover" />
-          <span v-else class="text-xs">{{ userInitial }}</span>
-        </div>
-        <!-- Warning badge on avatar -->
-        <span
-          v-if="dailyLimitStatus"
-          class="absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center text-white z-10"
-          :class="dailyLimitStatus === 'exceeded' ? 'bg-error' : 'bg-warning'"
-          :title="dailyLimitStatus === 'exceeded' ? 'Daily limit exceeded!' : 'Approaching daily limit'"
-        >
-          <i class="fa-solid fa-exclamation text-[6px]"></i>
-        </span>
-      </div>
-
-      <!-- Compact: today's coins + wallet balance -->
+    <!-- Slot for custom trigger (default: compact status bar) -->
+    <slot name="trigger" :toggle-panel="togglePanel" :daily-limit-status="dailyLimitStatus" :today-coins="todayCoins" :user="user" :wallet="wallet">
       <div
-        v-if="todayCoins != null"
-        class="text-xs font-mono hidden sm:flex items-center gap-0.5"
-        :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-warning'"
+        class="flex items-center gap-1 cursor-pointer hover:bg-base-200 rounded px-1 py-0.5"
+        @click="togglePanel"
       >
-        <i
-          class="fa-solid fa-coins"
-          :class="dailyLimitStatus === 'exceeded' ? 'text-error animate-bounce' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-yellow-500'"
-        ></i>
-        <span>{{ formatCoins(todayCoins) }}</span>
-        <span class="opacity-60">cxj</span>
-        <!-- Inline exceeded label -->
-        <span v-if="dailyLimitStatus === 'exceeded'" class="text-error font-bold ml-1 animate-pulse">LIMIT!</span>
+        <!-- Avatar with warning indicator -->
+        <div class="avatar placeholder relative">
+          <div
+            class="w-6 h-6 rounded-full text-neutral-content overflow-hidden"
+            :class="dailyLimitStatus === 'exceeded' ? 'bg-error ring-2 ring-error ring-offset-1' : dailyLimitStatus === 'warning' ? 'bg-warning ring-2 ring-warning ring-offset-1' : 'bg-neutral'"
+          >
+            <img v-if="user?.avatar" :src="user.avatar" :alt="user?.userName" class="w-full h-full object-cover" />
+            <span v-else class="text-xs">{{ userInitial }}</span>
+          </div>
+          <!-- Warning badge on avatar -->
+          <span
+            v-if="dailyLimitStatus"
+            class="absolute -top-1 -right-1 w-3 h-3 rounded-full flex items-center justify-center text-white z-10"
+            :class="dailyLimitStatus === 'exceeded' ? 'bg-error' : 'bg-warning'"
+            :title="dailyLimitStatus === 'exceeded' ? 'Daily limit exceeded!' : 'Approaching daily limit'"
+          >
+            <i class="fa-solid fa-exclamation text-[6px]"></i>
+          </span>
+        </div>
+
+        <!-- Compact: today's coins + wallet balance -->
+        <div
+          v-if="todayCoins != null"
+          class="text-xs font-mono hidden sm:flex items-center gap-0.5"
+          :class="dailyLimitStatus === 'exceeded' ? 'text-error' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-warning'"
+        >
+          <i
+            class="fa-solid fa-coins"
+            :class="dailyLimitStatus === 'exceeded' ? 'text-error animate-bounce' : dailyLimitStatus === 'warning' ? 'text-warning' : 'text-yellow-500'"
+          ></i>
+          <span>{{ formatCoins(todayCoins) }}</span>
+          <span class="opacity-60">cxj</span>
+          <!-- Inline exceeded label -->
+          <span v-if="dailyLimitStatus === 'exceeded'" class="text-error font-bold ml-1 animate-pulse">LIMIT!</span>
+        </div>
+        <div v-if="wallet" class="text-xs text-success font-mono hidden sm:flex items-center gap-0.5 ml-1">
+          <i class="fa-solid fa-wallet text-success"></i>
+          <span>{{ formatCoins(wallet.balance_cxjcoins) }}</span>
+        </div>
       </div>
-      <div v-if="wallet" class="text-xs text-success font-mono hidden sm:flex items-center gap-0.5 ml-1">
-        <i class="fa-solid fa-wallet text-success"></i>
-        <span>{{ formatCoins(wallet.balance_cxjcoins) }}</span>
-      </div>
-    </div>
+    </slot>
 
     <!-- Detailed panel overlay -->
     <div
       v-if="showPanel"
-      class="absolute right-0 bottom-8 z-50 w-96 bg-base-200 border border-base-300 rounded-lg shadow-xl p-4 flex flex-col gap-3"
+      class="absolute left-0 bottom-8 z-50 w-96 bg-base-200 border border-base-300 rounded-lg shadow-xl p-4 flex flex-col gap-3"
     >
       <!-- Header: user info -->
       <div class="flex items-center gap-3">
@@ -286,19 +288,16 @@ export default {
     userInitial() {
       return (this.user?.userName || '?')[0].toUpperCase()
     },
-    // Find the daily spending limit config if set
     dailyLimitConfig() {
       return this.wallet?.spending_limits?.find(l => l.period === 'daily') ?? null
     },
     dailyLimit() {
       return this.dailyLimitConfig?.limit_cxjcoins ?? null
     },
-    // Ratio of today's spend vs daily limit (0–1+)
     dailySpendRatio() {
       if (!this.dailyLimit || this.todayCoins == null) return 0
       return this.todayCoins / this.dailyLimit
     },
-    // null | 'warning' (>=80%) | 'exceeded' (>=100%)
     dailyLimitStatus() {
       if (!this.dailyLimit || this.todayCoins == null) return null
       if (this.dailySpendRatio >= 1) return 'exceeded'
@@ -330,7 +329,6 @@ export default {
         this.loading = false
       }
     },
-    // Use metrics data for daily/monthly limits, fallback to wallet's current_spent
     getLimitSpent(limit) {
       if (limit.period === 'daily' && this.todayCoins != null) return this.todayCoins
       if (limit.period === 'monthly' && this.monthCoins != null) return this.monthCoins

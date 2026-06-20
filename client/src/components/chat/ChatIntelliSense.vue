@@ -7,7 +7,7 @@
     class="absolute bottom-full left-0 right-0 z-50"
   >
     <div class="flex flex-wrap gap-1 p-2 bg-base-200 border rounded-lg shadow-lg">
-      <!-- Keyboard hint -->
+      <!-- Keyboard hint + reload -->
       <div class="w-full flex items-center gap-2 text-base-content/80 pb-1 border-b border-base-300">
         <kbd class="kbd kbd-xs">Tab</kbd> accept
         <kbd class="kbd kbd-xs">Space</kbd> select
@@ -19,6 +19,16 @@
           </button>
         </span>
         <span class="ml-auto opacity-60">{{ suggestions.length }} suggestion{{ suggestions.length > 1 ? 's' : '' }}</span>
+        <!-- Reload button -->
+        <button
+          class="btn btn-xs btn-ghost gap-1 opacity-70 hover:opacity-100"
+          :class="{ 'loading loading-spinner': reloading }"
+          @mousedown.prevent="onReload"
+          title="Reload mentions"
+        >
+          <i v-if="!reloading" class="fa-solid fa-rotate text-[10px]" />
+          <span class="text-[10px]">Reload</span>
+        </button>
       </div>
 
       <!-- Project filter pills -->
@@ -47,7 +57,7 @@
           v-for="(s, i) in filteredSuggestions"
           :key="i"
           :ref="el => { if (i === activeIndex) activeEl = el }"
-          class="w-full flex items-center gap-1.5 px-2 h-6 rounded cursor-pointer transition-colors ring-1 ring-transparent flex-none"
+          class="w-full flex items-center gap-1.5 px-2 h-7 rounded cursor-pointer transition-colors ring-1 ring-transparent flex-none"
           :class="itemClass(s, i)"
           @mousedown.prevent="onItemClick($event, s, i)"
           @mouseover="hoveredIndex = i; $emit('hover', i)"
@@ -72,7 +82,20 @@
           </span>
 
           <!-- Name with fuzzy highlight -->
-          <span class="flex-1 truncate text-xs" v-html="highlightMatch(s.name, query)" />
+          <span
+            class="flex-none text-xs font-semibold"
+            :class="hasDuplicateName(s) ? 'text-warning' : ''"
+            v-html="highlightMatch(s.name, query)"
+          />
+
+          <!-- Duplicate path hint — shown inline when name collides -->
+          <span
+            v-if="hasDuplicateName(s) && s.file"
+            class="flex-1 truncate text-[10px] font-mono opacity-80"
+            :class="hasDuplicateName(s) ? 'text-warning/80' : 'text-base-content/40'"
+            :title="s.file"
+          >{{ shortPath(s.file, 4) }}</span>
+          <span v-else class="flex-1" />
 
           <!-- Project badge -->
           <span
@@ -86,8 +109,11 @@
             {{ s.project.project_name }}
           </span>
 
-          <!-- File path hint -->
-          <span v-if="s.file" class="flex-none opacity-40 truncate max-w-24 text-[10px]">{{ shortPath(s.file) }}</span>
+          <!-- File path hint (non-duplicate) -->
+          <span
+            v-if="s.file && !hasDuplicateName(s)"
+            class="flex-none truncate max-w-24 text-[10px]"
+          >{{ shortPath(s.file) }}</span>
 
           <!-- Tab hint -->
           <span class="flex-none w-10 text-right opacity-50 text-[10px]">
@@ -112,21 +138,24 @@ export default {
     query: { type: String, default: '' },
     maxVisible: { type: Number, default: 8 }
   },
-  emits: ['select', 'hover', 'accept-multi'],
+  emits: ['select', 'hover', 'accept-multi', 'reload'],
   data() {
     return {
       activeProject: null,
       hoveredIndex: null,
       selectedItems: [],
-      activeEl: null
+      activeEl: null,
+      reloading: false,
+      // Cache of names that appear more than once in suggestions
+      duplicateNames: new Set()
     }
   },
   watch: {
-    suggestions() {
+    suggestions(val) {
       this.selectedItems = []
       this.hoveredIndex = null
+      this.buildDuplicateNames(val)
     },
-    // Scroll active item into view when navigating with keyboard
     activeIndex() {
       this.$nextTick(() => {
         if (this.activeEl) {
@@ -148,8 +177,19 @@ export default {
     }
   },
   methods: {
-    shortPath(file) {
-      return file?.split('/').slice(-2).join('/')
+    /** Build a set of names that appear more than once (for path disambiguation) */
+    buildDuplicateNames(suggestions) {
+      const counts = {}
+      for (const s of suggestions) {
+        counts[s.name] = (counts[s.name] || 0) + 1
+      }
+      this.duplicateNames = new Set(Object.keys(counts).filter(k => counts[k] > 1))
+    },
+    hasDuplicateName(s) {
+      return this.duplicateNames.has(s.name)
+    },
+    shortPath(file, segments = 2) {
+      return file?.split('/').slice(-segments).join('/')
     },
     itemKey(s) {
       return (s.file || '') + '|' + (s.name || '')
@@ -175,10 +215,14 @@ export default {
       const isActive = i === this.activeIndex
       const isHovered = i === this.hoveredIndex
       const selected = this.isSelected(s)
+      const isDupe = this.hasDuplicateName(s)
 
       if (selected) return 'bg-info/15 ring-info/60 text-base-content'
+      if (isActive && isDupe) return 'bg-warning/30 ring-warning/50 text-base-content font-medium'
       if (isActive) return 'bg-info/30 ring-info/40 text-base-content font-medium'
+      if (isHovered && isDupe) return 'bg-warning/15 ring-warning/20 text-base-content'
       if (isHovered) return 'bg-base-300/60 ring-base-content/10 text-base-content'
+      if (isDupe) return 'bg-warning/5 ring-warning/10 text-base-content/90'
       return 'bg-base-300/30 text-base-content/80'
     },
     highlightMatch(name, query) {
@@ -196,6 +240,17 @@ export default {
         }
       }
       return result
+    },
+    /** Reload mentions: clears cache then notifies parent to re-fetch */
+    async onReload() {
+      if (this.reloading) return
+      this.reloading = true
+      try {
+        await $storex.projects.reloadMentions()
+        this.$emit('reload')
+      } finally {
+        this.reloading = false
+      }
     }
   }
 }
