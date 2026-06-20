@@ -1,9 +1,9 @@
 <script setup>
 import BarButton from './BarButton.vue'
 </script>
+
 <template>
   <div class="flex items-center px-1 py-2 bg-base-100 gap-4">
-
 
     <BarButton tab="home" @click="onNewQuickChat">
       <i class="fa-solid fa-comments"></i>
@@ -13,7 +13,7 @@ import BarButton from './BarButton.vue'
       <i class="fa-solid fa-home"></i>
     </BarButton>
 
-    <BarButton 
+    <BarButton
       @click="$ui.showNewProject(true)">
       <i class="fa-solid fa-plus"></i>
     </BarButton>
@@ -25,6 +25,13 @@ import BarButton from './BarButton.vue'
     <BarButton tab="tasks"
       @click="$ui.setActiveTab('tasks')">
       <i class="fa-brands fa-trello"></i>
+    </BarButton>
+
+    <BarButton tab="team"
+      @click="$ui.setActiveTab('team')"
+      class="tooltip tooltip-right"
+      data-tip="Team">
+      <i class="fa-solid fa-people-group"></i>
     </BarButton>
 
     <BarButton tab="profiles"
@@ -44,12 +51,13 @@ import BarButton from './BarButton.vue'
     <BarButton tab="file-finder"
       @click="$ui.setActiveTab('file-finder')" v-if="false">
       <i class="fa-solid fa-folder"></i>
-    </BarButton>      
+    </BarButton>
   </div>
 </template>
+
 <script>
 export default {
-  data () {
+  data() {
     return {
       showMobileMenu: false
     }

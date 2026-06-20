@@ -19,47 +19,76 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
     <template #title>
       <div class="flex gap-2 items-center">
-        <div class="underline text-link flex gap-2 items-center cursor-pointer" v-if="fileName">
-          <div class="hover:text-info tooltip" :data-tip="file" @click.stop="$emit('open-file', file)">
-            {{ fileName }}
+        <div class="flex gap-2 items-center flex-1">
+          <div class="underline text-link flex gap-2 items-center cursor-pointer" v-if="fileName">
+            <div class="hover:text-info tooltip" :data-tip="file" @click.stop="$emit('open-file', file)">
+              {{ fileName }}
+            </div>
+          </div>
+          <span class="text-sm font-medium opacity-60" v-else>Code</span>
+
+          <div class="hover:text-info cursor-pointer" @click.stop="zoomOut">
+            <i class="fa-solid fa-magnifying-glass-minus"></i>
+          </div>
+          <div class="hover:text-info cursor-pointer" @click.stop="zoomIn">
+            <i class="fa-solid fa-magnifying-glass-plus"></i>
+          </div>
+
+          <div
+            class="hover:text-info cursor-pointer"
+            :class="editMode && 'text-warning'"
+            @click.stop="onEdit"
+          >
+            <i class="fa-solid fa-edit"></i>
+          </div>
+
+          <div class="hover:text-info cursor-pointer" @click.stop="createSubTask">
+            <i class="fa-brands fa-trello"></i>
+          </div>
+
+          <span class="text-xs text-info flex gap-2 items-center" @click.stop="">
+            <span v-if="loadingStats">Loading...</span>
+            <span @click.stop="onShowDiff" class="cursor-pointer hover:underline" v-if="stats && !editMode && !isNoChange">
+              <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
+              <i class="fa-solid fa-code-compare" v-else></i>
+              {{ stats }}
+            </span>
+
+            <span v-if="last_modification" class="text-xs opacity-75">
+              {{ moment(last_modification).fromNow() }}
+            </span>
+            <span v-if="size">
+              {{ size > 1024 ? `${Math.round(size/1024)} KB` : `${size} B` }}
+            </span>
+          </span>
+        </div>
+
+        <!-- Diff percentage bar with danger indicator -->
+        <div v-if="stats && !editMode && !isNoChange" class="flex items-center gap-2 ml-2">
+          <div 
+            class="flex h-2 rounded-full overflow-hidden bg-base-200 w-24 relative transition-all duration-300"
+            :class="isDangerousChange && 'ring-2 ring-error ring-opacity-70'"
+          >
+            <!-- Red bar: proportion of deletions relative to total changes -->
+            <div
+              class="bg-error transition-all duration-500"
+              :style="{ width: deletionPercentage + '%' }"
+              :title="`Deletions: ${deletionCount} lines`"
+            ></div>
+            <!-- Green bar: proportion of additions relative to total changes -->
+            <div
+              class="bg-success transition-all duration-500"
+              :style="{ width: additionPercentage + '%' }"
+              :title="`Additions: ${additionCount} lines`"
+            ></div>
+          </div>
+          <span class="text-xs font-medium text-base-content/60 w-20 text-right">
+            {{ deletionCount }} / {{ additionCount }}
+          </span>
+          <div v-if="isDangerousChange" class="tooltip tooltip-left" data-tip="Heavy modification detected! Review carefully.">
+            <i class="fa-solid fa-triangle-exclamation text-error animate-pulse"></i>
           </div>
         </div>
-        <span class="text-sm font-medium opacity-60" v-else>Code</span>
-
-        <div class="hover:text-info cursor-pointer" @click.stop="zoomOut">
-          <i class="fa-solid fa-magnifying-glass-minus"></i>
-        </div>
-        <div class="hover:text-info cursor-pointer" @click.stop="zoomIn">
-          <i class="fa-solid fa-magnifying-glass-plus"></i>
-        </div>
-
-        <div
-          class="hover:text-info cursor-pointer"
-          :class="editMode && 'text-warning'"
-          @click.stop="onEdit"
-        >
-          <i class="fa-solid fa-edit"></i>
-        </div>
-
-        <div class="hover:text-info cursor-pointer" @click.stop="createSubTask">
-          <i class="fa-brands fa-trello"></i>
-        </div>
-
-        <span class="text-xs text-info flex gap-2 items-center" @click.stop="">
-          <span v-if="loadingStats">Loading...</span>
-          <span @click.stop="onShowDiff" class="cursor-pointer hover:underline" v-if="stats && !editMode && !isNoChange">
-            <i class="fa-solid fa-file-lines" v-if="showDiff"></i>
-            <i class="fa-solid fa-code-compare" v-else></i>
-            {{ stats }}
-          </span>
-
-          <span v-if="last_modification">
-            {{ moment(last_modification).fromNow() }}
-          </span>
-          <span v-if="size">
-            {{ size > 1024 ? `${Math.round(size/1024)} KB` : `${size} B` }}
-          </span>
-        </span>
       </div>
     </template>
 
@@ -67,6 +96,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
       <button class="btn btn-sm btn-success btn-outline"
         @click.stop="saveToFile"
         v-if="file && finished && !showCode"
+        :class="{ 'blink-save': isSaving }"
         title="Save to file">
         <i class="fa-solid fa-floppy-disk"></i> Save
       </button>
@@ -82,6 +112,14 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
       <div @click="runCommand" class="cursor-pointer" v-if="isCommand">
         <i class="fa-solid fa-terminal"></i>
+      </div>
+
+      <!-- Danger alert for heavy modifications -->
+      <div v-if="isDangerousChange && !editMode && !showDiff" class="alert alert-warning">
+        <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 0a9 9 0 1 1 0-18 9 9 0 0 1 0 18z" /></svg>
+        <span class="text-sm">
+          <strong>Heavy modification detected:</strong> {{ changeRiskMessage }}
+        </span>
       </div>
 
       <!-- view-code grows to fill all available vertical space -->
@@ -131,7 +169,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         <button class="btn btn-sm btn-outline" @click="onShowDiff">
           <i class="fa-solid fa-xmark"></i> Close diff
         </button>
-        <button class="btn btn-sm btn-success btn-outline" @click="saveDiffEdit" v-if="file">
+        <button class="btn btn-sm btn-success btn-outline" @click="saveDiffEdit" v-if="file" :class="{ 'blink-save': isSaving }">
           <i class="fa-solid fa-floppy-disk"></i> Save changes
         </button>
       </div>
@@ -142,6 +180,7 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
         <button class="btn btn-sm btn-success btn-outline"
           @click.stop="saveToFile"
           v-if="file && finished"
+          :class="{ 'blink-save': isSaving }"
           title="Save to file">
           <i class="fa-solid fa-floppy-disk"></i> Save
         </button>
@@ -158,8 +197,8 @@ import { EXTENSION_LANGUAGE_MAP } from '../store'
 
 <script>
 export default {
-  props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished'],
-  emits: ['message-change', 'save-file', 'add-file', 'open-file', 'sub-task'],
+  props: ['close', 'chat', 'code', 'language', 'file', 'diff-option', 'file-diff', 'files', 'project', 'finished', 'showCodeOpened'],
+  emits: ['message-change', 'save-file', 'add-file', 'open-file', 'close', 'sub-task'],
   data() {
     return {
       showDiff: false,
@@ -174,13 +213,19 @@ export default {
       stats: null,
       last_modification: null,
       size: null,
-      showCode: true,
+      showCode: this.$props.showCodeOpened,
       prevScrollTop: 0,
       isAtBottom: true,
+      isSaving: false,
+      deletionPercentage: 0,
+      additionPercentage: 0,
+      deletionCount: 0,
+      additionCount: 0,
+      isDangerousChange: false,
+      changeRiskMessage: ''
     }
   },
   computed: {
-    // Estimate editor height from line count, capped at 600px, min 200px
     editorHeight() {
       const lineCount = this.code?.split("\n").length || 10
       const estimated = Math.max(lineCount * 20, 200)
@@ -198,7 +243,6 @@ export default {
     isCommand() {
       return this.language === 'bash'
     },
-    // Parse stats string to check if insertions === deletions (no net change)
     isNoChange() {
       if (!this.stats) return false
       const insertMatch = this.stats.match(/(\d+) insertion/)
@@ -258,6 +302,79 @@ export default {
     if (viewCode) viewCode.removeEventListener('scroll', this.saveScrollPosition)
   },
   methods: {
+    parseStatsString() {
+      if (!this.stats) return { deletions: 0, insertions: 0 }
+      
+      const deleteMatch = this.stats.match(/(\d+) deletion/)
+      const insertMatch = this.stats.match(/(\d+) insertion/)
+      
+      return {
+        deletions: deleteMatch ? parseInt(deleteMatch[1]) : 0,
+        insertions: insertMatch ? parseInt(insertMatch[1]) : 0
+      }
+    },
+
+    calculateDiffPercentages() {
+      if (!this.stats || !this.orgContent) return
+      
+      const { deletions, insertions } = this.parseStatsString()
+      const total = deletions + insertions
+      
+      // Store absolute counts for display
+      this.deletionCount = deletions
+      this.additionCount = insertions
+      
+      if (total === 0) {
+        this.deletionPercentage = 0
+        this.additionPercentage = 0
+        return
+      }
+      
+      // Calculate proportions of total changes
+      this.deletionPercentage = (deletions / total) * 100
+      this.additionPercentage = (insertions / total) * 100
+      
+      this.evaluateChangeRisk()
+    },
+
+    evaluateChangeRisk() {
+      const { deletions, insertions } = this.parseStatsString()
+      const originalLines = this.orgContent?.split('\n').length || 1
+      const newLines = this.code?.split('\n').length || 1
+      
+      // Risk metrics
+      const deletionRatio = deletions / originalLines
+      const lineChangeRatio = Math.abs(newLines - originalLines) / originalLines
+      const totalChanges = deletions + insertions
+      const changeIntensity = totalChanges / originalLines
+      
+      // Risk thresholds
+      const DANGEROUS_DELETION_RATIO = 0.4 // 40% of lines deleted
+      const DANGEROUS_INTENSITY = 0.5 // 50% of file changed
+      const DANGEROUS_LINE_LOSS = 0.3 // 30% of lines removed
+      
+      const isDeletion = deletionRatio > DANGEROUS_DELETION_RATIO
+      const isHighIntensity = changeIntensity > DANGEROUS_INTENSITY
+      const isLineLoss = lineChangeRatio > DANGEROUS_LINE_LOSS && deletions > insertions
+      
+      this.isDangerousChange = isDeletion || isHighIntensity || isLineLoss
+      this.changeRiskMessage = this.generateRiskMessage(deletionRatio, changeIntensity, lineChangeRatio, deletions, insertions)
+    },
+
+    generateRiskMessage(delRatio, intensity, lineRatio, deletions, insertions) {
+      // Contextual warning based on risk type
+      if (delRatio > 0.4) {
+        return `${(delRatio * 100).toFixed(0)}% of original content deleted. Critical review recommended.`
+      }
+      if (lineRatio > 0.3 && deletions > insertions) {
+        return `File lost ~${Math.round(lineRatio * 100)}% of its content. Check if changes are intentional.`
+      }
+      if (intensity > 0.5) {
+        return `Over 50% of file modified. This may indicate significant structural changes.`
+      }
+      return 'High modification level detected.'
+    },
+
     applyPatch() {
       this.$projects.applyPatch({ patch: this.code })
     },
@@ -285,6 +402,13 @@ export default {
           if (!stats && diff) {
             this.stats = 'File changes'
           }
+          
+          if (!this.orgContent) {
+            const { content } = await this.$api.files.read(this.file)
+            this.orgContent = content
+          }
+          
+          this.calculateDiffPercentages()
         }
       } finally {
         this.loadingStats = false
@@ -318,19 +442,30 @@ export default {
       this.cancelEdit()
     },
 
-    saveDiffEdit() {
+    async saveDiffEdit() {
+      this.triggerSaveAnimation()
       this.$emit('save-file', { file: this.file, content: this.diffEditContent })
       this.hasUnsavedFileChanges = false
       this.showDiff = false
+      await this.loadDiffInfo()
     },
 
-    saveToFile() {
+    async saveToFile() {
+      this.triggerSaveAnimation()
       const content = this.editMode ? this.editContent : this.code
       this.$emit('save-file', { file: this.file, content })
       this.hasUnsavedFileChanges = false
       if (this.editMode) {
         this.cancelEdit()
       }
+      await this.loadDiffInfo()
+    },
+
+    triggerSaveAnimation() {
+      this.isSaving = true
+      setTimeout(() => {
+        this.isSaving = false
+      }, 800)
     },
 
     runCommand() {
@@ -375,5 +510,18 @@ export default {
 }
 .wrapper-code-highlight {
   height: 100%;
+}
+
+@keyframes blink-animation {
+  0%, 49% {
+    opacity: 1;
+  }
+  50%, 100% {
+    opacity: 0.4;
+  }
+}
+
+.blink-save {
+  animation: blink-animation 0.8s ease-in-out;
 }
 </style>

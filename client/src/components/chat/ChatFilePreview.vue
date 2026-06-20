@@ -26,6 +26,7 @@ import CodeViewer from '../CodeViewer.vue';
           :file="filePath"
           :diffOption="false"
           :finished="loaded"
+          :showCodeOpened="true"
           @close="$emit('close')"
        />
     </div>

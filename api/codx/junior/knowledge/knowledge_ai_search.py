@@ -121,6 +121,103 @@ Provide a thorough and helpful answer based solely on the documents above.
 If the documents do not contain enough information, state that clearly.
 """
 
+# ── Agent-oriented prompt templates ──────────────────────────────────────────
+
+AGENT_SUFFICIENCY_CHECK_PROMPT = """
+You are a senior software engineer acting as a planning assistant.
+An agent received the following user request:
+
+<user_request>
+{user_query}
+</user_request>
+
+Based on the project documents retrieved so far, determine whether we have enough
+context to identify ALL the files and components that need to be read or modified
+in order to fulfil the request.
+
+<project_summary>
+{project_summary}
+</project_summary>
+
+<retrieved_documents>
+{documents_text}
+</retrieved_documents>
+
+Respond with a JSON object:
+{{
+  "is_sufficient": true or false,
+  "reasoning": "Brief explanation of why the current context is or is not sufficient",
+  "refined_queries": [
+    "First targeted search query to find still-missing files or components (omit if sufficient)",
+    "Second alternative search query (omit if sufficient)",
+    "Third alternative search query (omit if sufficient)"
+  ]
+}}
+
+Notes:
+- Set "is_sufficient" to true only when you are confident you have identified the
+  key files/modules the agent would need to touch or read.
+- When not sufficient, provide between 1 and {max_refined_queries} queries — each
+  targeting a different missing aspect (e.g. configuration, routing, service layer).
+- Leave "refined_queries" as an empty list when sufficient.
+"""
+
+AGENT_RESOURCE_PLAN_PROMPT = """
+You are a senior software engineer acting as a planning assistant.
+An agent received the following user request and has retrieved the project documents
+listed below.
+
+<user_request>
+{user_query}
+</user_request>
+
+<project_summary>
+{project_summary}
+</project_summary>
+
+<retrieved_documents>
+{documents_text}
+</retrieved_documents>
+
+Your task is to produce an **agent resource plan** — a structured guide that tells
+the agent exactly which project resources are relevant and what to do with each one.
+
+Return a JSON object with the following structure:
+{{
+  "overview": "One-paragraph summary of what needs to be done to fulfil the request",
+  "files_to_read": [
+    {{
+      "source": "/absolute/path/to/file",
+      "project_name": "project the file belongs to",
+      "reason": "Why the agent must read this file (what information it provides)"
+    }}
+  ],
+  "files_to_modify": [
+    {{
+      "source": "/absolute/path/to/file",
+      "project_name": "project the file belongs to",
+      "reason": "What change is needed and why",
+      "suggested_action": "Brief description of the edit (e.g. add route, update config key)"
+    }}
+  ],
+  "files_to_create": [
+    {{
+      "source": "/suggested/path/for/new/file",
+      "project_name": "project it should belong to",
+      "reason": "Why a new file is needed"
+    }}
+  ],
+  "additional_context": "Any caveats, dependencies, or follow-up steps the agent should be aware of"
+}}
+
+Rules:
+- Base all suggestions strictly on the retrieved documents and project summary.
+- Do not invent files that are not referenced in the documents or summary.
+- If a category has no entries, return an empty list for it.
+- Keep "suggested_action" short (one sentence).
+- Be specific about file paths — use the exact ``source`` values from the documents.
+"""
+
 
 def _dedup_key(doc: Document) -> str:
     """
@@ -361,6 +458,91 @@ class AISearchResult:
         }
 
 
+class AgentResourcePlan:
+    """
+    Structured result returned by the agent_search method.
+
+    Encapsulates the full planning output produced for an agent that needs
+    to fulfil a user request: which files to read, modify, or create, plus
+    a narrative overview and any additional caveats.
+
+    Attributes:
+        user_query:        The original user request.
+        overview:          One-paragraph summary of what needs to be done.
+        files_to_read:     Files the agent must read to understand context.
+        files_to_modify:   Files the agent must edit, with suggested actions.
+        files_to_create:   New files the agent should create.
+        additional_context: Caveats, dependencies, or follow-up notes.
+        documents:         Raw documents used to build the plan.
+        queries_used:      All search queries executed.
+        projects_searched: Names of all projects that were searched.
+        total_iterations:  Number of search+check cycles performed.
+    """
+
+    def __init__(
+        self,
+        user_query: str,
+        overview: str,
+        files_to_read: List[Dict[str, str]],
+        files_to_modify: List[Dict[str, str]],
+        files_to_create: List[Dict[str, str]],
+        additional_context: str,
+        documents: List[Document],
+        queries_used: Optional[List[str]] = None,
+        projects_searched: Optional[List[str]] = None,
+        total_iterations: int = 0,
+    ) -> None:
+        self.user_query = user_query
+        self.overview = overview
+        self.files_to_read = files_to_read
+        self.files_to_modify = files_to_modify
+        self.files_to_create = files_to_create
+        self.additional_context = additional_context
+        self.documents = documents
+        self.queries_used: List[str] = queries_used or []
+        self.projects_searched: List[str] = projects_searched or []
+        self.total_iterations = total_iterations
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Serialise this plan to a JSON-compatible dictionary.
+
+        Returns:
+            Dictionary representation of the agent resource plan.
+        """
+        return {
+            "user_query": self.user_query,
+            "overview": self.overview,
+            "files_to_read": self.files_to_read,
+            "files_to_modify": self.files_to_modify,
+            "files_to_create": self.files_to_create,
+            "additional_context": self.additional_context,
+            "queries_used": self.queries_used,
+            "projects_searched": self.projects_searched,
+            "total_iterations": self.total_iterations,
+            "documents": [_document_to_dict(doc) for doc in self.documents],
+        }
+
+    @property
+    def all_relevant_sources(self) -> List[str]:
+        """
+        Return a flat, deduplicated list of all file paths referenced in the plan.
+
+        Combines files_to_read, files_to_modify, and files_to_create.
+
+        Returns:
+            Sorted list of unique source path strings.
+        """
+        seen = set()
+        sources = []
+        for entry in self.files_to_read + self.files_to_modify + self.files_to_create:
+            src = entry.get("source", "")
+            if src and src not in seen:
+                seen.add(src)
+                sources.append(src)
+        return sorted(sources)
+
+
 class KnowledgeAISearch:
     """
     Performs iterative AI-driven search over the project knowledge base,
@@ -371,8 +553,9 @@ class KnowledgeAISearch:
     to provide cross-project context in its final answer.
 
     Only documents with a BM25 score above ``MINIMUM_SCORE_THRESHOLD`` are
-    considered; from those, only the top ``TOP_DOCUMENTS_LIMIT`` by score
-    are passed to the AI sufficiency check and final answer generation.
+    considered at each iteration; from those only the top
+    ``TOP_DOCUMENTS_LIMIT`` by score are passed to the AI sufficiency check
+    and final answer generation.
 
     The search loop works as follows:
       1. Resolve current project + all dependency projects via
@@ -396,11 +579,14 @@ class KnowledgeAISearch:
             +List~Knowledge~ child_knowledges
             +AI ai
             +ai_search(user_query, max_iterations) AISearchResult
+            +agent_search(user_request, max_iterations) AgentResourcePlan
             -_build_child_knowledges() List~Knowledge~
             -_search_queries(queries) List[Document]
             -_search_single_knowledge(knowledge, query) List[Document]
             -_check_sufficiency(user_query, documents) Dict
+            -_check_agent_sufficiency(user_request, documents, project_summary) Dict
             -_generate_final_answer(user_query, documents) str
+            -_generate_agent_resource_plan(user_request, documents, project_summary) AgentResourcePlan
         }
     """
 
@@ -694,6 +880,63 @@ class KnowledgeAISearch:
             "refined_queries": [],
         }
 
+    async def _check_agent_sufficiency(
+        self,
+        user_request: str,
+        documents: List[Document],
+        project_summary: str,
+    ) -> Dict[str, Any]:
+        """
+        Ask the AI whether the retrieved documents provide enough context for an
+        agent to fulfil the user request (find all files to read / modify / create).
+
+        Uses the agent-oriented sufficiency prompt that focuses on identifying
+        actionable project resources rather than answering a question.
+
+        Args:
+            user_request:    The original user request (e.g. "Add contacts section").
+            documents:       Documents retrieved so far, tagged with project_name.
+            project_summary: Current project summary text for broader context.
+
+        Returns:
+            Dictionary with keys:
+              - ``is_sufficient`` (bool)
+              - ``reasoning`` (str)
+              - ``refined_queries`` (List[str])
+        """
+        documents_text = _format_documents_for_prompt(documents)
+        prompt = AGENT_SUFFICIENCY_CHECK_PROMPT.format(
+            user_query=user_request,
+            documents_text=documents_text,
+            project_summary=project_summary,
+            max_refined_queries=MAX_REFINED_QUERIES,
+        )
+
+        logger.info("Checking agent sufficiency for request: %s", user_request)
+        messages = await self._get_ai().a_chat(prompt=prompt)
+        response_content = messages[-1].content.strip()
+
+        json_blocks = list(extract_json_blocks(response_content))
+        if json_blocks:
+            result = json_blocks[0]
+            refined = result.get("refined_queries", [])
+            if isinstance(refined, str):
+                refined = [refined] if refined.strip() else []
+            result["refined_queries"] = [q for q in refined if q and q.strip()]
+            logger.debug("Agent sufficiency check result: %s", result)
+            return result
+
+        logger.warning(
+            "Could not parse agent sufficiency JSON from AI response; "
+            "treating as sufficient. Response: %s",
+            response_content,
+        )
+        return {
+            "is_sufficient": True,
+            "reasoning": "Could not parse AI response; defaulting to sufficient.",
+            "refined_queries": [],
+        }
+
     async def _generate_final_answer(
         self,
         user_query: str,
@@ -723,6 +966,79 @@ class KnowledgeAISearch:
         logger.info("Generating final answer for query: %s", user_query)
         messages = await self._get_ai().a_chat(prompt=prompt)
         return messages[-1].content.strip()
+
+    async def _generate_agent_resource_plan(
+        self,
+        user_request: str,
+        documents: List[Document],
+        project_summary: str,
+        queries_used: List[str],
+        projects_searched: List[str],
+        total_iterations: int,
+    ) -> "AgentResourcePlan":
+        """
+        Ask the AI to produce a structured resource plan for the agent.
+
+        The plan specifies exactly which files the agent should read, modify,
+        or create in order to fulfil the user request, based solely on the
+        retrieved documents and the project summary.
+
+        Args:
+            user_request:      The original user request.
+            documents:         All documents gathered across search iterations.
+            project_summary:   Current project summary for broader context.
+            queries_used:      All search queries executed.
+            projects_searched: All project names searched.
+            total_iterations:  Number of search cycles performed.
+
+        Returns:
+            An AgentResourcePlan instance.
+        """
+        documents_text = _format_documents_for_prompt(documents)
+        prompt = AGENT_RESOURCE_PLAN_PROMPT.format(
+            user_query=user_request,
+            documents_text=documents_text,
+            project_summary=project_summary,
+        )
+
+        logger.info("Generating agent resource plan for request: %s", user_request)
+        messages = await self._get_ai().a_chat(prompt=prompt)
+        response_content = messages[-1].content.strip()
+
+        json_blocks = list(extract_json_blocks(response_content))
+        if json_blocks:
+            plan_data = json_blocks[0]
+            return AgentResourcePlan(
+                user_query=user_request,
+                overview=plan_data.get("overview", ""),
+                files_to_read=plan_data.get("files_to_read", []),
+                files_to_modify=plan_data.get("files_to_modify", []),
+                files_to_create=plan_data.get("files_to_create", []),
+                additional_context=plan_data.get("additional_context", ""),
+                documents=documents,
+                queries_used=queries_used,
+                projects_searched=projects_searched,
+                total_iterations=total_iterations,
+            )
+
+        # Fallback: return a minimal plan so callers always get a valid object
+        logger.warning(
+            "Could not parse agent resource plan JSON; returning minimal plan. "
+            "Response: %s",
+            response_content,
+        )
+        return AgentResourcePlan(
+            user_query=user_request,
+            overview=response_content,
+            files_to_read=[],
+            files_to_modify=[],
+            files_to_create=[],
+            additional_context="Could not parse structured plan from AI response.",
+            documents=documents,
+            queries_used=queries_used,
+            projects_searched=projects_searched,
+            total_iterations=total_iterations,
+        )
 
     async def ai_search(
         self,
@@ -910,5 +1226,193 @@ class KnowledgeAISearch:
         )
 
         return result
+
+    async def agent_search(
+        self,
+        user_request: str,
+        max_iterations: int = DEFAULT_MAX_ITERATIONS,
+    ) -> "AgentResourcePlan":
+        """
+        Perform an iterative AI-assisted search optimised for agent task planning.
+
+        Unlike ``ai_search`` — which answers a question — this method produces a
+        structured **resource plan** that tells an agent exactly which project
+        files it needs to read, modify, or create in order to fulfil the user
+        request (e.g. "Add a contacts section", "Fix the email form", "How do I
+        change X?").
+
+        The search loop is identical to ``ai_search`` but uses agent-oriented
+        prompts for the sufficiency check and replaces the free-text final answer
+        with a structured ``AgentResourcePlan``.
+
+        The project summary from ``Knowledge.get_project_summary`` is injected
+        into every AI prompt to give the model broad structural context even
+        before any documents are retrieved.
+
+        Diagram:
+        flowchart TD
+            A[Start: user_request] --> B[Load project summary]
+            B --> C[Resolve child knowledges]
+            C --> D[Search current + dependency projects with current queries]
+            D --> E[Tag docs with project_name]
+            E --> F[Filter and rank documents]
+            F --> G[Accumulate and deduplicate across iterations]
+            G --> H{Any documents?}
+            H -- No --> I[Generate resource plan with empty docs]
+            H -- Yes --> J[AI: sufficient context for agent?]
+            J -- Yes --> I
+            J -- No and iterations left --> K[AI: Generate refined queries]
+            K --> D
+            J -- No and max iterations --> I
+            I --> L[Return AgentResourcePlan]
+
+        Args:
+            user_request:   The user's natural-language request describing the task.
+            max_iterations: Maximum number of search+check cycles (default 3).
+
+        Returns:
+            An ``AgentResourcePlan`` containing:
+              - ``overview``: narrative description of what needs doing
+              - ``files_to_read``: files the agent should inspect for context
+              - ``files_to_modify``: files the agent should edit, with hints
+              - ``files_to_create``: suggested new files
+              - ``additional_context``: caveats and follow-up notes
+              - ``documents``: raw supporting documents
+              - ``queries_used``, ``projects_searched``, ``total_iterations``
+        """
+        effective_max_iterations = max_iterations or DEFAULT_MAX_ITERATIONS
+        logger.info(
+            "agent_search started | request=%s | max_iterations=%d",
+            user_request,
+            effective_max_iterations,
+        )
+
+        # ── Load project summary for richer AI context ────────────────────────
+        loop = asyncio.get_event_loop()
+        project_summary: str = await loop.run_in_executor(
+            None, self.knowledge.get_project_summary
+        )
+        logger.info(
+            "agent_search: project summary loaded (%d chars).",
+            len(project_summary),
+        )
+
+        # ── Resolve all projects to search ───────────────────────────────────
+        child_knowledges = self._build_child_knowledges()
+        all_project_names: List[str] = [self.settings.project_name] + [
+            getattr(kb.settings, "project_name", "unknown")
+            for kb in child_knowledges
+        ]
+        logger.info(
+            "agent_search will span %d project(s): %s",
+            len(all_project_names),
+            all_project_names,
+        )
+
+        queries_used: List[str] = [user_request]
+        current_queries: List[str] = [user_request]
+        all_documents: List[Document] = []
+        total_iterations = 0
+
+        for iteration in range(1, effective_max_iterations + 1):
+            total_iterations = iteration
+            logger.info(
+                "agent_search iteration %d/%d | queries=%s",
+                iteration,
+                effective_max_iterations,
+                current_queries,
+            )
+
+            # ── Parallel search across all projects and queries ───────────────
+            retrieved = await self._search_queries(current_queries)
+            logger.info(
+                "agent_search iteration %d: %d documents retrieved.",
+                iteration,
+                len(retrieved),
+            )
+
+            all_documents = _deduplicate_documents(all_documents + retrieved)
+            logger.debug(
+                "agent_search: %d unique chunks accumulated after iteration %d.",
+                len(all_documents),
+                iteration,
+            )
+
+            if not all_documents:
+                logger.warning(
+                    "agent_search: no qualifying documents found for queries %s; "
+                    "stopping early.",
+                    current_queries,
+                )
+                break
+
+            # ── Agent-oriented sufficiency check ──────────────────────────────
+            sufficiency = await self._check_agent_sufficiency(
+                user_request=user_request,
+                documents=all_documents,
+                project_summary=project_summary,
+            )
+
+            is_sufficient: bool = sufficiency.get("is_sufficient", True)
+            refined_queries: List[str] = sufficiency.get("refined_queries", [])
+
+            logger.info(
+                "agent_search sufficiency check iteration %d: "
+                "is_sufficient=%s, reasoning=%s",
+                iteration,
+                is_sufficient,
+                sufficiency.get("reasoning", ""),
+            )
+
+            if is_sufficient or iteration == effective_max_iterations:
+                logger.info(
+                    "agent_search: stopping after iteration %d "
+                    "(sufficient=%s, max_reached=%s).",
+                    iteration,
+                    is_sufficient,
+                    iteration == effective_max_iterations,
+                )
+                break
+
+            if refined_queries:
+                capped_queries = refined_queries[:MAX_REFINED_QUERIES]
+                logger.info(
+                    "agent_search: using %d refined queries for next iteration: %s",
+                    len(capped_queries),
+                    capped_queries,
+                )
+                queries_used.extend(capped_queries)
+                current_queries = capped_queries
+            else:
+                logger.info(
+                    "agent_search: no refined queries; stopping after iteration %d.",
+                    iteration,
+                )
+                break
+
+        # ── Generate the structured agent resource plan ───────────────────────
+        plan = await self._generate_agent_resource_plan(
+            user_request=user_request,
+            documents=all_documents,
+            project_summary=project_summary,
+            queries_used=queries_used,
+            projects_searched=all_project_names,
+            total_iterations=total_iterations,
+        )
+
+        logger.info(
+            "agent_search complete | total_iterations=%d | documents=%d | "
+            "queries=%d | projects=%d | files_to_read=%d | files_to_modify=%d | "
+            "files_to_create=%d",
+            total_iterations,
+            len(all_documents),
+            len(queries_used),
+            len(all_project_names),
+            len(plan.files_to_read),
+            len(plan.files_to_modify),
+            len(plan.files_to_create),
+        )
+
+        return plan
 
 # Made with ❤️ by codx-junior

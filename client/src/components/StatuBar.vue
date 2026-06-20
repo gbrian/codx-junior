@@ -11,7 +11,7 @@ import UserInfo from './UserInfo.vue'
       <QuickBar></QuickBar>
     </div>
     <EventBar />
-    <UserInfo />
+    <UserInfo class="ml-4" />
   </div>
 </template>
 <script>

@@ -226,8 +226,9 @@ import PriceEditor from './PriceEditor.vue'
               </div>
             </div>
             <div v-else class="space-y-3 overflow-y-auto max-h-48">
+              <!-- byModelData ordered by total_tokens desc -->
               <div
-                v-for="(stats, model) in byModelData"
+                v-for="[model, stats] in byModelDataSorted"
                 :key="model"
                 class="flex items-center gap-3"
               >
@@ -719,6 +720,11 @@ export default {
       return Math.max(...Object.values(this.byProjectData).map(s => s.total_tokens), 1)
     },
 
+    // Sort byModelData entries by total_tokens descending
+    byModelDataSorted() {
+      return Object.entries(this.byModelData).sort((a, b) => b[1].total_tokens - a[1].total_tokens)
+    },
+
     modelPerformanceRows() {
       const rows = {}
       for (const [model, stats] of Object.entries(this.byModelData)) {
@@ -784,7 +790,6 @@ export default {
 
     // Set up or clear the auto-refresh timer
     setupAutoRefresh() {
-      // Clear any existing timer
       if (this.autoRefreshTimer) {
         clearInterval(this.autoRefreshTimer)
         this.autoRefreshTimer = null

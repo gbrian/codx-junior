@@ -317,6 +317,7 @@ import DocumentSummary from './document/DocumentSummary.vue'
         >
           <Editor 
             class="h-[1024px] overflow-auto" 
+            style="height: 400px;"
             language="markdown" 
             v-model="editting" 
             v-if="editting" 

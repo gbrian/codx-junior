@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1781857801,
+  "updated_at": 1781948642,
   "files": {
     ".dockerignore": {
       "imports": [],
@@ -618,6 +618,11 @@
         "azure_devops_pull_requests_plugin"
       ]
     },
+    "plugins/claude/Dockerfile": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
     "plugins/guide-model/.env.example": {
       "imports": [],
       "imported_by": [],
@@ -838,6 +843,11 @@
       "external_deps": []
     },
     "patches/wiki_all_changes.zip": {
+      "imports": [],
+      "imported_by": [],
+      "external_deps": []
+    },
+    "plugins/claude/docker-compose.yml": {
       "imports": [],
       "imported_by": [],
       "external_deps": []

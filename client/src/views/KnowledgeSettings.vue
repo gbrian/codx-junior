@@ -79,14 +79,6 @@ import KnowledgeIndex from '../components/knowledge/settings/KnowledgeIndex.vue'
       :project="$project"
       @reload-status="reloadStatus"
       @set-setting="setSettings"
-      @index-files="handleIndexFiles"
-      @ignore-files="ignoreFiles"
-      @unignore-files="unignoreFiles"
-      @drop-files="dropSelectedFiles"
-      @add-ignore="addEntriesToIgnore"
-      @remove-ignore="removeEntriesFromIgnore"
-      @delete-index="deleteKnowledge('')"
-      @cancel-delete="resetKnowledge = false"
     />
 
     <!-- Tab: Data -->
@@ -108,20 +100,15 @@ export default {
       selectedTab: 'Search',
       indexStatus: null,
       settings: null,
-      resetKnowledge: false,
-      refreshIx: null
+      resetKnowledge: false
     }
   },
   async created() {
     if (this.$ui.activeTab === 'wiki_settings') {
       this.selectedTab = 'Wiki'
     }
-    this.refreshIx = setInterval(() => this.reloadStatus(), 40000)
     this.loadProject()
     this.setupSocketListeners()
-  },
-  unmounted() {
-    clearInterval(this.refreshIx)
   },
   computed: {
     subProjects() {
@@ -150,74 +137,36 @@ export default {
 
       api.socket.on('codx-junior-index-knowledge-error', (data) => {
         console.error('Indexing error:', data)
-        this.$notification.error(`Indexing failed: ${data.message}`)
+        this.$session.onError(`Indexing failed: ${data.message}`)
       })
     },
+
     async loadProject() {
       await this.reloadStatus()
     },
-    
+
     async loadSettings() {
       this.settings = await this.api.settings.read()
     },
+
     async reloadStatus() {
       this.indexStatus = await this.api.knowledge.status()
       await this.loadSettings()
     },
-    async handleIndexFiles(filePaths) {
-      // Socket-based indexing (async, non-blocking)
-      try {
-        await this.api.knowledge.indexFilesBackground(filePaths)
-        this.$notification.success(`Indexing ${filePaths.length} file(s) in background...`)
-      } catch (error) {
-        this.$notification.error(`Failed to start indexing: ${error.message}`)
-      }
-    },
-    async ignoreFiles({ paths, asFolder }) {
-      const projectPath = this.settings?.abs_project_path
-      const relativePaths = paths.map(f => f.replace(projectPath, ''))
-      const entries = asFolder
-        ? relativePaths.map(f => f.split('/').reverse()[1])
-        : relativePaths
-      await this.addEntriesToIgnore(entries)
-    },
-    async unignoreFiles(paths) {
-      await this.removeEntriesFromIgnore(paths)
-    },
-    async addEntriesToIgnore(entries) {
-      const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
-      const newIgnore = [...new Set([...currIgnore, ...entries])]
-      this.settings.knowledge_file_ignore = newIgnore.join(',')
-      await this.api.settings.save(this.settings)
-      await this.reloadStatus()
-    },
-    async removeEntriesFromIgnore(entries) {
-      const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
-      const newIgnore = currIgnore.filter(e => !entries.includes(e))
-      this.settings.knowledge_file_ignore = newIgnore.join(',')
-      await this.api.settings.save(this.settings)
-      await this.reloadStatus()
-    },
+
     async dropSelectedFiles(filePaths) {
       await this.api.knowledge.delete(filePaths)
       await this.reloadStatus()
     },
+
     async toggleWatch() {
       await this.$service.project.watch(!this.settings.watching)
       await this.reloadStatus()
     },
+
     async setSettings(newSettings) {
       await this.api.settings.read()
       await this.$projects.saveSettings({ ...this.settings, ...newSettings })
-    },
-    async deleteKnowledge(index) {
-      if (this.resetKnowledge) {
-        await this.api.knowledge.deleteIndex(index)
-        await this.reloadStatus()
-        this.resetKnowledge = false
-      } else {
-        this.resetKnowledge = true
-      }
     }
   }
 }

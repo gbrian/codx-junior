@@ -2,241 +2,269 @@
 import ProjectDetailt from '@/components/ProjectDetailt.vue'
 import Code from '@/components/Code.vue'
 import ProjectIcon from '@/components/ProjectIcon.vue'
+import AgentPlanView from '@/views/AgentPlanView.vue'
 </script>
 
 <template>
-  <div class="flex flex-col gap-2 h-full px-4 overflow-hidden">
-    <!-- Header -->
-    <div class="font-medium flex flex-col gap-2 shrink-0">
-      <div class="text-3xl flex gap-2 items-center">
-        <ProjectDetailt v-model="project" />
-        Knowledge
-      </div>
-      <!-- Search Form -->
-      <div class="flex gap-2 items-center">
-        <input
-          v-model="searchQuery"
-          type="text"
-          placeholder="Ask a question about the project..."
-          @keydown.enter="search"
-          class="input input-bordered w-full"
-          :disabled="loading"
-        />
-        <button
-          @click="search"
-          class="btn btn-primary"
-          :disabled="loading || !searchQuery.trim()"
-        >
-          <span v-if="loading" class="loading loading-spinner loading-sm"></span>
-          <i v-else class="fas fa-search"></i>
-        </button>
-        <button
-          @click="clearSearch"
-          class="btn btn-ghost"
-          :disabled="loading"
-        >
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-    </div>
-
-    <!-- Loading indicator -->
-    <div v-if="loading" class="flex flex-col items-center gap-3 py-10 text-base-content/70">
-      <span class="loading loading-spinner loading-lg"></span>
-      <span class="text-sm font-medium">AI is searching the knowledge base...</span>
-      <span class="text-xs text-base-content/50">This may take a few seconds</span>
-    </div>
-
-    <!-- Results area -->
-    <template v-if="searchResult && !loading">
-      <!-- AI Answer card -->
-      <div class="card bg-base-200 shadow-md shrink-0">
-        <div class="card-body gap-3 p-4">
-          <!-- Stats row -->
-          <div class="flex flex-wrap gap-2 items-center">
-            <div class="badge badge-primary gap-1">
-              <i class="fas fa-robot text-xs"></i>
-              AI Search
-            </div>
-            <div class="badge badge-neutral gap-1">
-              <i class="fas fa-rotate text-xs"></i>
-              {{ searchResult.total_iterations }}/{{ searchResult.max_iterations }} iterations
-            </div>
-            <div class="badge badge-neutral gap-1">
-              <i class="fas fa-file text-xs"></i>
-              {{ resultList.length }} doc{{ resultList.length !== 1 ? 's' : '' }}
-            </div>
-            <div
-              v-for="proj in searchResult.projects_searched"
-              :key="proj"
-              class="badge badge-ghost gap-1"
+  <div class="flex flex-col gap-2 h-full px-4 overflow-auto">
+    <!-- Tabs Navigation -->
+    <div class="tabs tabs-bordered shrink-0">
+      <input
+        type="radio"
+        name="knowledge-tabs"
+        role="tab"
+        class="tab"
+        aria-label="Search"
+        checked
+        @change="activeTab = 'search'"
+      />
+      <div role="tabpanel" class="tab-content p-0 flex flex-col gap-2 h-full overflow-hidden">
+        <!-- Search Tab Content -->
+        <div class="font-medium flex flex-col gap-2 shrink-0">
+          <div class="text-3xl flex gap-2 items-center">
+            <ProjectDetailt v-model="project" />
+            Knowledge Search
+          </div>
+          <!-- Search Form -->
+          <div class="flex gap-2 items-center">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Ask a question about the project..."
+              @keydown.enter="search"
+              class="input input-bordered w-full"
+              :disabled="loading"
+            />
+            <button
+              @click="search"
+              class="btn btn-primary"
+              :disabled="loading || !searchQuery.trim()"
             >
-              <i class="fas fa-folder text-xs"></i>
-              {{ proj }}
-            </div>
-          </div>
-
-          <!-- AI Answer -->
-          <div class="flex flex-col gap-1">
-            <div class="text-sm font-semibold text-primary flex items-center gap-2">
-              <i class="fas fa-robot"></i> AI Answer
-            </div>
-            <div class="text-sm text-base-content whitespace-pre-wrap bg-base-300 rounded-box p-3 max-h-48 overflow-y-auto">
-              {{ searchResult.answer }}
-            </div>
-          </div>
-
-          <!-- Queries used -->
-          <div
-            v-if="searchResult.queries_used && searchResult.queries_used.length"
-            class="collapse collapse-arrow bg-base-300 rounded-box"
-          >
-            <input type="checkbox" />
-            <div class="collapse-title text-sm font-medium py-2 min-h-0">
-              <i class="fas fa-magnifying-glass-chart mr-1"></i>
-              Queries used ({{ searchResult.queries_used.length }})
-            </div>
-            <div class="collapse-content">
-              <ul class="flex flex-col gap-1 pt-1">
-                <li
-                  v-for="(q, i) in searchResult.queries_used"
-                  :key="i"
-                  class="text-xs text-base-content/70 flex items-start gap-2"
-                >
-                  <span class="badge badge-xs badge-outline mt-0.5">{{ i + 1 }}</span>
-                  {{ q }}
-                </li>
-              </ul>
-            </div>
+              <span v-if="loading" class="loading loading-spinner loading-sm"></span>
+              <i v-else class="fas fa-search"></i>
+            </button>
+            <button
+              @click="clearSearch"
+              class="btn btn-ghost"
+              :disabled="loading"
+            >
+              <i class="fas fa-times"></i>
+            </button>
           </div>
         </div>
-      </div>
 
-      <!-- Results count -->
-      <div class="text-sm text-base-content/60 font-medium shrink-0">
-        {{ resultList.length }} supporting document{{ resultList.length !== 1 ? 's' : '' }}
-      </div>
+        <!-- Loading indicator -->
+        <div v-if="loading" class="flex flex-col items-center gap-3 py-10 text-base-content/70">
+          <span class="loading loading-spinner loading-lg"></span>
+          <span class="text-sm font-medium">AI is searching the knowledge base...</span>
+          <span class="text-xs text-base-content/50">This may take a few seconds</span>
+        </div>
 
-      <!-- Results List -->
-      <div v-if="resultList.length" class="flex flex-col gap-3 overflow-y-auto">
-        <div
-          v-for="(result, idx) in resultList"
-          :key="result.metadata.source + idx"
-          class="card bg-base-200 shadow-sm"
-        >
-          <div class="card-body p-4 gap-2">
-            <!-- File source header -->
-            <div class="flex items-center justify-between gap-2">
-              <div class="flex items-center gap-2 text-sm text-primary font-semibold truncate">
-                <i class="fas fa-file-code"></i>
-                <span class="truncate" :title="result.metadata.source">
-                  {{ shortSource(result.metadata.source) }}
-                </span>
-              </div>
-              <div class="flex items-center gap-2 shrink-0">
-                <!-- Score badge -->
-                <div
-                  v-if="result.metadata.score != null"
-                  class="badge badge-primary badge-lg font-bold"
-                >
-                  <i class="fas fa-star text-xs mr-1"></i>
-                  {{ formatScore(result.metadata.score) }}
+        <!-- Results area -->
+        <template v-if="searchResult && !loading">
+          <!-- AI Answer card -->
+          <div class="card bg-base-200 shadow-md shrink-0">
+            <div class="card-body gap-3 p-4">
+              <!-- Stats row -->
+              <div class="flex flex-wrap gap-2 items-center">
+                <div class="badge badge-primary gap-1">
+                  <i class="fas fa-robot text-xs"></i>
+                  AI Search
                 </div>
-                <!-- Project icon -->
-                <ProjectIcon
-                  v-if="docProject(result)"
-                  :project="docProject(result)"
-                  class="w-4 h-4"
-                />
+                <div class="badge badge-neutral gap-1">
+                  <i class="fas fa-rotate text-xs"></i>
+                  {{ searchResult.total_iterations }}/{{ searchResult.max_iterations }} iterations
+                </div>
+                <div class="badge badge-neutral gap-1">
+                  <i class="fas fa-file text-xs"></i>
+                  {{ resultList.length }} doc{{ resultList.length !== 1 ? 's' : '' }}
+                </div>
+                <div
+                  v-for="proj in searchResult.projects_searched"
+                  :key="proj"
+                  class="badge badge-ghost gap-1"
+                >
+                  <i class="fas fa-folder text-xs"></i>
+                  {{ proj }}
+                </div>
+              </div>
+
+              <!-- AI Answer -->
+              <div class="flex flex-col gap-1">
+                <div class="text-sm font-semibold text-primary flex items-center gap-2">
+                  <i class="fas fa-robot"></i> AI Answer
+                </div>
+                <div class="text-sm text-base-content whitespace-pre-wrap bg-base-300 rounded-box p-3 max-h-48 overflow-y-auto">
+                  {{ searchResult.answer }}
+                </div>
+              </div>
+
+              <!-- Queries used -->
+              <div
+                v-if="searchResult.queries_used && searchResult.queries_used.length"
+                class="collapse collapse-arrow bg-base-300 rounded-box"
+              >
+                <input type="checkbox" />
+                <div class="collapse-title text-sm font-medium py-2 min-h-0">
+                  <i class="fas fa-magnifying-glass-chart mr-1"></i>
+                  Queries used ({{ searchResult.queries_used.length }})
+                </div>
+                <div class="collapse-content">
+                  <ul class="flex flex-col gap-1 pt-1">
+                    <li
+                      v-for="(q, i) in searchResult.queries_used"
+                      :key="i"
+                      class="text-xs text-base-content/70 flex items-start gap-2"
+                    >
+                      <span class="badge badge-xs badge-outline mt-0.5">{{ i + 1 }}</span>
+                      {{ q }}
+                    </li>
+                  </ul>
+                </div>
               </div>
             </div>
+          </div>
 
-            <!-- Project name badge -->
-            <div v-if="result.metadata.project_name" class="flex items-center gap-1">
-              <span class="badge badge-ghost badge-sm gap-1">
-                <i class="fas fa-folder text-xs"></i>
-                {{ normalizeProjectName(result.metadata.project_name) }}
-              </span>
-            </div>
+          <!-- Results count -->
+          <div class="text-sm text-base-content/60 font-medium shrink-0">
+            {{ resultList.length }} supporting document{{ resultList.length !== 1 ? 's' : '' }}
+          </div>
 
-            <!-- Metadata badges -->
-            <div class="flex flex-wrap gap-2 text-xs">
-              <div v-if="result.metadata.language" class="badge badge-outline">{{ result.metadata.language }}</div>
-              <div v-if="result.metadata.loader_type" class="badge badge-outline">{{ result.metadata.loader_type }}</div>
-              <div v-if="result.metadata.index != null" class="badge badge-outline">
-                chunk {{ result.metadata.index + 1 }}/{{ result.metadata.total_docs }}
-              </div>
-              <div v-if="result.metadata.length" class="badge badge-outline">{{ result.metadata.length }} chars</div>
-              <div v-if="result.metadata.index_date" class="badge badge-outline">{{ result.metadata.index_date }}</div>
-            </div>
-
-            <!-- Tabs: content preview + raw metadata -->
-            <div role="tablist" class="tabs tabs-bordered tabs-sm mt-1">
-              <input
-                type="radio"
-                :name="`doc-tabs-${idx}`"
-                role="tab"
-                class="tab"
-                aria-label="Preview"
-                checked
-              />
-              <div role="tabpanel" class="tab-content pt-2">
-                <div class="collapse collapse-arrow bg-base-300 rounded-box">
-                  <input type="checkbox" />
-                  <div class="collapse-title text-sm font-medium">
-                    Preview content
+          <!-- Results List -->
+          <div v-if="resultList.length" class="flex flex-col gap-3 overflow-y-auto">
+            <div
+              v-for="(result, idx) in resultList"
+              :key="result.metadata.source + idx"
+              class="card bg-base-200 shadow-sm"
+            >
+              <div class="card-body p-4 gap-2">
+                <!-- File source header -->
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex items-center gap-2 text-sm text-primary font-semibold truncate">
+                    <i class="fas fa-file-code"></i>
+                    <span class="truncate" :title="result.metadata.source">
+                      {{ shortSource(result.metadata.source) }}
+                    </span>
                   </div>
-                  <div class="collapse-content overflow-auto max-h-64">
-                    <Code
-                      :text="result.page_content"
-                      :text-language="result.metadata.language || 'text'"
-                      :file-name="result.metadata.source"
-                      :project="project"
+                  <div class="flex items-center gap-2 shrink-0">
+                    <!-- Score badge -->
+                    <div
+                      v-if="result.metadata.score != null"
+                      class="badge badge-primary badge-lg font-bold"
+                    >
+                      <i class="fas fa-star text-xs mr-1"></i>
+                      {{ formatScore(result.metadata.score) }}
+                    </div>
+                    <!-- Project icon -->
+                    <ProjectIcon
+                      v-if="docProject(result)"
+                      :project="docProject(result)"
+                      class="w-4 h-4"
                     />
                   </div>
                 </div>
-              </div>
 
-              <input
-                type="radio"
-                :name="`doc-tabs-${idx}`"
-                role="tab"
-                class="tab"
-                aria-label="Metadata"
-              />
-              <div role="tabpanel" class="tab-content pt-2">
-                <div class="bg-base-300 rounded-box p-3 overflow-auto max-h-64">
-                  <pre class="text-xs text-base-content/80 whitespace-pre-wrap break-all">{{ formatMetadata(result.metadata) }}</pre>
+                <!-- Project name badge -->
+                <div v-if="result.metadata.project_name" class="flex items-center gap-1">
+                  <span class="badge badge-ghost badge-sm gap-1">
+                    <i class="fas fa-folder text-xs"></i>
+                    {{ normalizeProjectName(result.metadata.project_name) }}
+                  </span>
+                </div>
+
+                <!-- Metadata badges -->
+                <div class="flex flex-wrap gap-2 text-xs">
+                  <div v-if="result.metadata.language" class="badge badge-outline">{{ result.metadata.language }}</div>
+                  <div v-if="result.metadata.loader_type" class="badge badge-outline">{{ result.metadata.loader_type }}</div>
+                  <div v-if="result.metadata.index != null" class="badge badge-outline">
+                    chunk {{ result.metadata.index + 1 }}/{{ result.metadata.total_docs }}
+                  </div>
+                  <div v-if="result.metadata.length" class="badge badge-outline">{{ result.metadata.length }} chars</div>
+                  <div v-if="result.metadata.index_date" class="badge badge-outline">{{ result.metadata.index_date }}</div>
+                </div>
+
+                <!-- Tabs: content preview + raw metadata -->
+                <div role="tablist" class="tabs tabs-bordered tabs-sm mt-1">
+                  <input
+                    type="radio"
+                    :name="`doc-tabs-${idx}`"
+                    role="tab"
+                    class="tab"
+                    aria-label="Preview"
+                    checked
+                  />
+                  <div role="tabpanel" class="tab-content pt-2">
+                    <div class="collapse collapse-arrow bg-base-300 rounded-box">
+                      <input type="checkbox" />
+                      <div class="collapse-title text-sm font-medium">
+                        Preview content
+                      </div>
+                      <div class="collapse-content overflow-auto max-h-64">
+                        <Code
+                          :text="result.page_content"
+                          :text-language="result.metadata.language || 'text'"
+                          :file-name="result.metadata.source"
+                          :project="project"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <input
+                    type="radio"
+                    :name="`doc-tabs-${idx}`"
+                    role="tab"
+                    class="tab"
+                    aria-label="Metadata"
+                  />
+                  <div role="tabpanel" class="tab-content pt-2">
+                    <div class="bg-base-300 rounded-box p-3 overflow-auto max-h-64">
+                      <pre class="text-xs text-base-content/80 whitespace-pre-wrap break-all">{{ formatMetadata(result.metadata) }}</pre>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Empty results -->
+          <div v-else class="flex flex-col items-center gap-2 py-10 text-base-content/50">
+            <i class="fas fa-search text-4xl"></i>
+            <span class="text-lg">No supporting documents found</span>
+            <span class="text-sm">Try rephrasing your question</span>
+          </div>
+        </template>
+
+        <!-- Error state -->
+        <div v-if="error && !loading" class="alert alert-error shrink-0">
+          <i class="fas fa-circle-exclamation"></i>
+          <span>{{ error }}</span>
+          <button class="btn btn-sm btn-ghost" @click="error = null">Dismiss</button>
+        </div>
+
+        <!-- Initial empty state -->
+        <div
+          v-if="!loading && !searchResult && !error"
+          class="flex flex-col items-center gap-3 py-10 text-base-content/50"
+        >
+          <i class="fas fa-database text-5xl"></i>
+          <span class="text-lg">Ask anything about this project</span>
+          <span class="text-sm">The AI will search the knowledge base and provide an answer</span>
         </div>
       </div>
 
-      <!-- Empty results -->
-      <div v-else class="flex flex-col items-center gap-2 py-10 text-base-content/50">
-        <i class="fas fa-search text-4xl"></i>
-        <span class="text-lg">No supporting documents found</span>
-        <span class="text-sm">Try rephrasing your question</span>
+      <!-- Agent Plan Tab -->
+      <input
+        type="radio"
+        name="knowledge-tabs"
+        role="tab"
+        class="tab"
+        aria-label="Agent Plan"
+        @change="activeTab = 'agent'"
+      />
+      <div role="tabpanel" class="tab-content p-0 h-full overflow-hidden">
+        <AgentPlanView :project="project" />
       </div>
-    </template>
-
-    <!-- Error state -->
-    <div v-if="error && !loading" class="alert alert-error shrink-0">
-      <i class="fas fa-circle-exclamation"></i>
-      <span>{{ error }}</span>
-      <button class="btn btn-sm btn-ghost" @click="error = null">Dismiss</button>
-    </div>
-
-    <!-- Initial empty state -->
-    <div
-      v-if="!loading && !searchResult && !error"
-      class="flex flex-col items-center gap-3 py-10 text-base-content/50"
-    >
-      <i class="fas fa-database text-5xl"></i>
-      <span class="text-lg">Ask anything about this project</span>
-      <span class="text-sm">The AI will search the knowledge base and provide an answer</span>
     </div>
   </div>
 </template>
@@ -249,7 +277,8 @@ export default {
       project: null,
       searchResult: null,
       loading: false,
-      error: null
+      error: null,
+      activeTab: 'search'
     }
   },
   computed: {
@@ -273,11 +302,9 @@ export default {
     formatScore(score) {
       return score != null ? Number(score).toFixed(2) : 'N/A'
     },
-    // Normalise project_name which may arrive as array or string
     normalizeProjectName(projectName) {
       return Array.isArray(projectName) ? projectName[0] : projectName
     },
-    // Resolve the project object for a document using its project_id metadata
     docProject(result) {
       const projectId = result?.metadata?.project_id
       if (!projectId) return null

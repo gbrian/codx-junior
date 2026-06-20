@@ -89,6 +89,12 @@ const globalMixin = {
     $chats () {
       return $storex.chats
     },
+    $teams () {
+      return $storex.teams
+    },
+    $media () {
+      return $storex.media
+    },
     $globalSettings() {
       return $storex.api.globalSettings
     },

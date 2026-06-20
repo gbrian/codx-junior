@@ -31,9 +31,6 @@ import Code from '../Code.vue'
         @sub-task="$emit('sub-task', $event)"
         v-else
       />
-      <div class="chat-footer opacity-50 text-xs font-bold" v-if="!block.finished">
-        loading <span class="loading loading-spinner"></span>
-      </div>
     </div>
   </div>
 </template>

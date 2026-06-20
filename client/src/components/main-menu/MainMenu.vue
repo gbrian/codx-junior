@@ -7,11 +7,11 @@ import {
   MenubarTrigger,
 } from 'reka-ui'
 import MenubarItem from './MenubarItem.vue'
-import WorkspacesMenu from './WorkspacesMenu.vue';
-import SettingsMenu from  './SettingsMenu.vue';
-import ProjectDetailt from '../ProjectDetailt.vue';
-import MenuDivider from './MenuDivider.vue';
-import ViewsMenu from './ViewsMenu.vue';
+import WorkspacesMenu from './WorkspacesMenu.vue'
+import SettingsMenu from './SettingsMenu.vue'
+import ProjectDetailt from '../ProjectDetailt.vue'
+import MenuDivider from './MenuDivider.vue'
+import ViewsMenu from './ViewsMenu.vue'
 </script>
 
 <template>
@@ -24,9 +24,9 @@ import ViewsMenu from './ViewsMenu.vue';
           class="click py-2 px-3 text-xl select-none font-bold leading-none border border-white/30 rounded flex items-center justify-between gap-2 tooltip"
           :data-tip="$storex.session.connected ? '' : 'API is not connected!'"
         >
-        <div class="avatar">
-          <img class="w-6 rpounded-full" src="/only_icon.png" />
-        </div>
+          <div class="avatar">
+            <img class="w-6 rpounded-full" src="/only_icon.png" />
+          </div>
         </MenubarTrigger>
         <MenubarPortal>
           <MenubarContent
@@ -48,6 +48,10 @@ import ViewsMenu from './ViewsMenu.vue';
             <MenubarItem @click="$ui.setActiveTab('tasks')">
               <i class="fa-brands fa-trello"></i>
               Task manager
+            </MenubarItem>
+            <MenubarItem @click="$ui.setActiveTab('team')">
+              <i class="fa-solid fa-people-group"></i>
+              Team
             </MenubarItem>
             <MenubarItem @click="$ui.setActiveTab('file-finder')">
               <i class="fa-regular fa-folder-open"></i>
@@ -76,13 +80,13 @@ import ViewsMenu from './ViewsMenu.vue';
             <SettingsMenu />
             <MenuDivider />
             <MenubarItem>
-                <a
-                        class="flex gap-1 tooltip text-error"
-                        data-tip="Log out"
-                        @click.stop="$users.logout()">
-                        <i class="fa-solid fa-right-from-bracket"></i>
-                        Log out
-                    </a>
+              <a
+                class="flex gap-1 tooltip text-error"
+                data-tip="Log out"
+                @click.stop="$users.logout()">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                Log out
+              </a>
             </MenubarItem>
           </MenubarContent>
         </MenubarPortal>
@@ -95,12 +99,13 @@ import ViewsMenu from './ViewsMenu.vue';
         <i class="fa-solid fa-circle-exclamation"></i>
       </span>
       <ProjectDetailt @click.stop=""
-          :options="{ folders: true, showIcon: true }"
-          @select="$projects.setActiveProject($event)"
-        />
+        :options="{ folders: true, showIcon: true }"
+        @select="$projects.setActiveProject($event)"
+      />
     </div>
   </div>
 </template>
+
 <script>
 export default {
 }

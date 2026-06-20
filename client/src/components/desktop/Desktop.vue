@@ -20,6 +20,7 @@ import FileFinderVue from '../filebrowser/FileFinder.vue'
 import ProjectOverview from "../project/ProjectOverview.vue"
 import Wall from "../wall/Wall.vue"
 import ChatView from '@/views/ChatView.vue'
+import TeamView from '@/views/TeamView.vue'
 import Tab from './Tab.vue'
 import ViewProperties from '../main-menu/ViewProperties.vue'
 import AnalyticsDashboard from '../analytics/index.vue'
@@ -70,6 +71,7 @@ export default {
     'projects': ProjectOverview,
     'activity': Wall,
     'chat': ChatView,
+    'team': TeamView,
     'analytics': AnalyticsDashboard,
     'chat-logs': LogsAnalyzerDashboard,
     tabComponent: Tab,

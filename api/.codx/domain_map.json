@@ -1,8 +1,8 @@
 [
   {
-    "name": "Database and Data Storage",
-    "slug": "database-and-data-storage",
-    "description": "This domain covers the management, organization, and persistence of data within the application. It encompasses database configurations, data models, storage strategies, and data access patterns. The domain provides the foundational layer for storing, retrieving, and manipulating application data efficiently.",
+    "name": "Database Data Management",
+    "slug": "database-data-management",
+    "description": "This module provides a centralized repository and framework for organizing database architecture and data storage policies. It facilitates the management, documentation, and operational standards for handling data persistence across the system.",
     "files": [
       "/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md",
       "domains/database-data-storage.md",

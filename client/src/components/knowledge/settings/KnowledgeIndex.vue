@@ -39,13 +39,13 @@ import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
         class="btn btn-xs ml-auto gap-1 flex-shrink-0"
         :class="settings?.use_knowledge ? 'btn-success' : 'btn-error'"
         :disabled="isIndexing"
-        @click="$emit('reload-status')"
+        @click="reloadStatus"
       >
         <i class="fa-solid fa-rotate-right" :class="{ 'animate-spin': isIndexing }"></i> Refresh
       </button>
     </div>
 
-    <!-- Indexing progress bar (full width, shown during indexing) -->
+    <!-- Indexing progress bar -->
     <div v-if="isIndexing" class="w-full">
       <div class="flex items-center justify-between text-xs mb-1">
         <span class="text-warning font-medium flex items-center gap-1">
@@ -144,7 +144,6 @@ import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
           <i :class="tabIcon" class="text-warning"></i>
           <span>{{ tabLabel }}</span>
           <span class="badge badge-sm badge-warning">{{ showFiles.length }}</span>
-          <!-- Spinning indicator on Pending tab while indexing -->
           <span v-if="activeTab === 0 && isIndexing" class="loading loading-spinner loading-xs text-warning"></span>
         </div>
         <div class="flex gap-2" v-if="activeTab < 2">
@@ -161,16 +160,16 @@ import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
           :projectPath="settings?.abs_project_path"
           :activeTab="activeTab"
           :indexingFiles="indexingFiles"
-          @index-files="onIndexFiles"
-          @ignore-files="onIgnoreFiles"
-          @unignore-files="$emit('unignore-files', $event)"
-          @drop-files="$emit('drop-files', $event)"
+          @index-files="handleIndexFiles"
+          @ignore-files="handleIgnoreFiles"
+          @unignore-files="handleUnignoreFiles"
+          @drop-files="handleDropFiles"
         />
         <KnowledgeIgnorePatterns
           v-else
           :ignoredFolders="ignoredFolders"
-          @add="$emit('add-ignore', $event)"
-          @remove="$emit('remove-ignore', $event)"
+          @add="handleAddIgnore"
+          @remove="handleRemoveIgnore"
         />
       </div>
     </div>
@@ -191,14 +190,14 @@ import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
             </div>
           </div>
           <div v-if="!confirmDelete">
-            <button class="btn btn-sm btn-error gap-2" @click="$emit('delete-index')">
+            <button class="btn btn-sm btn-error gap-2" @click="handleDeleteIndex">
               <i class="fa-solid fa-trash"></i> Delete
             </button>
           </div>
           <div v-else class="flex gap-2 items-center">
             <span class="text-sm text-error font-semibold">Are you sure?</span>
-            <button class="btn btn-sm btn-error" @click="$emit('delete-index')">Yes, Delete</button>
-            <button class="btn btn-sm btn-ghost" @click="$emit('cancel-delete')">Cancel</button>
+            <button class="btn btn-sm btn-error" @click="confirmAndDeleteIndex">Yes, Delete</button>
+            <button class="btn btn-sm btn-ghost" @click="cancelDelete">Cancel</button>
           </div>
         </div>
       </div>
@@ -211,12 +210,7 @@ import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
 import moment from 'moment'
 
 export default {
-  emits: [
-    'reload-status', 'set-setting', 'set-tab',
-    'index-files', 'ignore-files', 'unignore-files',
-    'drop-files', 'add-ignore', 'remove-ignore',
-    'delete-index', 'cancel-delete'
-  ],
+  emits: ['reload-status', 'set-setting'],
   props: {
     settings: Object,
     indexStatus: Object,
@@ -227,7 +221,8 @@ export default {
     return {
       activeTab: 0,
       indexingFiles: [],
-      indexingError: null
+      indexingError: null,
+      confirmDelete: false
     }
   },
   computed: {
@@ -281,33 +276,127 @@ export default {
     }
   },
   methods: {
+    // Tab management
     setTab(ix) {
       this.activeTab = ix
       this.$refs.fileList?.clearSelection()
     },
-    onIgnoreFiles({ paths, asFolder }) {
-      this.$emit('ignore-files', { paths, asFolder })
-    },
-    // Index files using socket in background
-    async onIndexFiles(filePaths) {
+
+    // File indexing handler
+    async handleIndexFiles(filePaths) {
       this.indexingFiles = [...filePaths]
       this.indexingError = null
-      
+
       try {
-        const api = this.$project?.$api
+        const api = this.project?.$api
         if (!api) {
           throw new Error('API not initialized')
         }
-        
-        // Send via socket for background indexing
+
         await api.knowledge.indexFilesBackground(filePaths)
-        
+        this.$session.onInfo(`Indexing ${filePaths.length} file(s) in background...`)
       } catch (error) {
         this.indexingError = error.message
-        console.error('Indexing error:', error)
-        // Still emit for parent to handle, but show error
-        this.$emit('index-files', filePaths)
+        this.$session.onError(`Failed to start indexing: ${error.message}`)
       }
+    },
+
+    // File ignore handler
+    async handleIgnoreFiles({ paths, asFolder }) {
+      const projectPath = this.settings?.abs_project_path
+      const relativePaths = paths.map(f => f.replace(projectPath, ''))
+      const entries = asFolder
+        ? relativePaths.map(f => f.split('/').reverse()[1])
+        : relativePaths
+      await this.addEntriesToIgnore(entries)
+    },
+
+    // File unignore handler
+    async handleUnignoreFiles(paths) {
+      await this.removeEntriesFromIgnore(paths)
+    },
+
+    // File drop handler
+    async handleDropFiles(filePaths) {
+      try {
+        const api = this.project?.$api
+        if (!api) throw new Error('API not initialized')
+
+        await api.knowledge.delete(filePaths)
+        await this.reloadStatus()
+      } catch (error) {
+        this.$session.onError(`Failed to delete files: ${error.message}`)
+      }
+    },
+
+    // Ignore pattern handlers
+    async handleAddIgnore(entries) {
+      await this.addEntriesToIgnore(entries)
+    },
+
+    async handleRemoveIgnore(entries) {
+      await this.removeEntriesFromIgnore(entries)
+    },
+
+    // Add entries to ignore list
+    async addEntriesToIgnore(entries) {
+      try {
+        const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
+        const newIgnore = [...new Set([...currIgnore, ...entries])]
+        this.settings.knowledge_file_ignore = newIgnore.join(',')
+
+        const api = this.project?.$api
+        if (!api) throw new Error('API not initialized')
+
+        await api.settings.save(this.settings)
+        await this.reloadStatus()
+      } catch (error) {
+        this.$session.onError(`Failed to add ignore patterns: ${error.message}`)
+      }
+    },
+
+    // Remove entries from ignore list
+    async removeEntriesFromIgnore(entries) {
+      try {
+        const currIgnore = this.settings?.knowledge_file_ignore?.split(',') || []
+        const newIgnore = currIgnore.filter(e => !entries.includes(e))
+        this.settings.knowledge_file_ignore = newIgnore.join(',')
+
+        const api = this.project?.$api
+        if (!api) throw new Error('API not initialized')
+
+        await api.settings.save(this.settings)
+        await this.reloadStatus()
+      } catch (error) {
+        this.$session.onError(`Failed to remove ignore patterns: ${error.message}`)
+      }
+    },
+
+    // Reload status
+    async reloadStatus() {
+      this.$emit('reload-status')
+    },
+
+    // Delete index handlers
+    handleDeleteIndex() {
+      this.confirmDelete = true
+    },
+
+    async confirmAndDeleteIndex() {
+      try {
+        const api = this.project?.$api
+        if (!api) throw new Error('API not initialized')
+
+        await api.knowledge.deleteIndex('')
+        await this.reloadStatus()
+        this.confirmDelete = false
+      } catch (error) {
+        this.$session.onError(`Failed to delete index: ${error.message}`)
+      }
+    },
+
+    cancelDelete() {
+      this.confirmDelete = false
     }
   }
 }

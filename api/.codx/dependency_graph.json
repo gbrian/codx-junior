@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": 1781857828,
+  "updated_at": 1781948646,
   "files": {
     "README.md": {
       "imports": [],
@@ -89,8 +89,8 @@
         "codx/junior/knowledge/knowledge_milvus.py",
         "codx/junior/sio/sio.py",
         "codx/junior/tools/project_tools.py",
-        "codx/junior/wiki/wiki_manager.py",
-        "codx/junior/wiki/wiki_domains.py"
+        "codx/junior/wiki/wiki_domains.py",
+        "codx/junior/wiki/wiki_manager.py"
       ],
       "external_deps": [
         "logging",
@@ -761,6 +761,7 @@
         "json",
         "logging",
         "os",
+        "re",
         "time",
         "uuid",
         "contextlib",
@@ -1296,9 +1297,9 @@
         "codx/junior/api/db_router.py",
         "codx/junior/knowledge/knowledge_milvus.py",
         "codx/junior/knowledge/knowledge_wiki.py",
-        "codx/junior/wiki/wiki_manager.py",
         "codx/junior/wiki/wiki_domains.py",
-        "codx/junior/wiki/wiki_index.py"
+        "codx/junior/wiki/wiki_index.py",
+        "codx/junior/wiki/wiki_manager.py"
       ],
       "external_deps": [
         "os",
@@ -1315,6 +1316,25 @@
         "pathlib",
         "pymilvus",
         "langchain_core"
+      ]
+    },
+    "codx/junior/knowledge/knowledge_graph.py": {
+      "imports": [
+        "codx/junior/settings.py"
+      ],
+      "imported_by": [
+        "codx/junior/wiki/wiki_domains.py",
+        "codx/junior/wiki/wiki_index.py",
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "ast",
+        "re",
+        "json",
+        "logging",
+        "time",
+        "typing"
       ]
     },
     "codx/junior/knowledge/knowledge_keywords.py": {
@@ -1639,9 +1659,9 @@
         "codx/junior/settings.py",
         "codx/junior/tools/project_tools.py",
         "codx/junior/utils/chat_utils.py",
+        "codx/junior/wiki/wiki_domains.py",
         "codx/junior/wiki/wiki_manager.py",
-        "codx/junior/workspace/workspace_manager.py",
-        "codx/junior/wiki/wiki_domains.py"
+        "codx/junior/workspace/workspace_manager.py"
       ],
       "external_deps": [
         "os",
@@ -1945,6 +1965,7 @@
         "codx/junior/knowledge/knowledge_code_splitter.py",
         "codx/junior/knowledge/knowledge_code_to_dcouments.py",
         "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_graph.py",
         "codx/junior/knowledge/knowledge_keywords.py",
         "codx/junior/knowledge/knowledge_loader.py",
         "codx/junior/knowledge/knowledge_milvus.py",
@@ -1960,13 +1981,12 @@
         "codx/junior/tools/project_tools.py",
         "codx/junior/utils/chat_utils.py",
         "codx/junior/views/view_manager.py",
+        "codx/junior/wiki/wiki_domains.py",
+        "codx/junior/wiki/wiki_index.py",
         "codx/junior/wiki/wiki_manager.py",
         "tests/db/test_db.py",
         "tests/mention_manager/test_mention_manager.py",
-        "tests/wiki_manager/test_wiki_manager.py",
-        "codx/junior/knowledge/knowledge_graph.py",
-        "codx/junior/wiki/wiki_domains.py",
-        "codx/junior/wiki/wiki_index.py"
+        "tests/wiki_manager/test_wiki_manager.py"
       ],
       "external_deps": [
         "os",
@@ -2267,6 +2287,45 @@
         "logging"
       ]
     },
+    "codx/junior/wiki/wiki_domains.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_graph.py",
+        "codx/junior/model/model.py",
+        "codx/junior/ai/__init__.py"
+      ],
+      "imported_by": [
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "json",
+        "logging",
+        "typing",
+        "slugify",
+        "langchain_core"
+      ]
+    },
+    "codx/junior/wiki/wiki_index.py": {
+      "imports": [
+        "codx/junior/settings.py",
+        "codx/junior/knowledge/knowledge_db.py",
+        "codx/junior/knowledge/knowledge_graph.py"
+      ],
+      "imported_by": [
+        "codx/junior/api/wiki.py",
+        "codx/junior/wiki/wiki_manager.py"
+      ],
+      "external_deps": [
+        "os",
+        "json",
+        "logging",
+        "time",
+        "typing",
+        "langchain_core"
+      ]
+    },
     "codx/junior/wiki/wiki_manager.py": {
       "imports": [
         "codx/junior/settings.py",
@@ -2474,64 +2533,6 @@
       "external_deps": [
         "unittest",
         "os"
-      ]
-    },
-    "codx/junior/knowledge/knowledge_graph.py": {
-      "imports": [
-        "codx/junior/settings.py"
-      ],
-      "imported_by": [
-        "codx/junior/wiki/wiki_manager.py",
-        "codx/junior/wiki/wiki_domains.py",
-        "codx/junior/wiki/wiki_index.py"
-      ],
-      "external_deps": [
-        "os",
-        "ast",
-        "re",
-        "json",
-        "logging",
-        "time",
-        "typing"
-      ]
-    },
-    "codx/junior/wiki/wiki_domains.py": {
-      "imports": [
-        "codx/junior/settings.py",
-        "codx/junior/knowledge/knowledge_db.py",
-        "codx/junior/knowledge/knowledge_graph.py",
-        "codx/junior/model/model.py",
-        "codx/junior/ai/__init__.py"
-      ],
-      "imported_by": [
-        "codx/junior/wiki/wiki_manager.py"
-      ],
-      "external_deps": [
-        "os",
-        "json",
-        "logging",
-        "typing",
-        "slugify",
-        "langchain_core"
-      ]
-    },
-    "codx/junior/wiki/wiki_index.py": {
-      "imports": [
-        "codx/junior/settings.py",
-        "codx/junior/knowledge/knowledge_db.py",
-        "codx/junior/knowledge/knowledge_graph.py"
-      ],
-      "imported_by": [
-        "codx/junior/api/wiki.py",
-        "codx/junior/wiki/wiki_manager.py"
-      ],
-      "external_deps": [
-        "os",
-        "json",
-        "logging",
-        "time",
-        "typing",
-        "langchain_core"
       ]
     }
   }

@@ -11,8 +11,10 @@ import * as users from './users'
 import * as profiles from './profiles'
 import * as logs from './logs'
 import * as chats from './chats'
+import * as teams from './teams'
+import * as media from './media'
 
-const modules = { session, projects, ui, users, profiles, logs, chats }
+const modules = { session, projects, ui, users, profiles, logs, chats, teams, media }
 const storePattern = {
   state () {
     return {

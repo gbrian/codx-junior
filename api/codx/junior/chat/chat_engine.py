@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import time
 import uuid
 from contextlib import contextmanager
@@ -734,6 +735,69 @@ class ChatEngine:
         return messages
 
     # -------------------------------------------------------------------------
+    # Helper: extract code blocks with filenames from response content
+    # -------------------------------------------------------------------------
+    def _extract_files_from_response(self, content: str) -> List[Dict[str, str]]:
+        """
+        Extract code blocks with filenames from the AI response content.
+
+        Parses markdown code blocks in the format:
+        ```language filename
+        code content here
+        ```
+
+        Returns a list of dicts with keys: language, file_path, content
+
+        :param content: The response content string to parse.
+        :return: List of file dicts extracted from code blocks.
+        """
+        files: List[Dict[str, str]] = []
+        lines = content.split('\n')
+        i = 0
+
+        while i < len(lines):
+            line = lines[i]
+            # Match opening code fence with language and filename
+            open_match = re.match(r'^```(\w+)\s+(.+)$', line)
+
+            if open_match:
+                language = open_match.group(1)
+                file_path = open_match.group(2).strip()
+                code_lines: List[str] = []
+                i += 1
+                nesting_depth = 1
+
+                # Collect code content until closing fence
+                while i < len(lines) and nesting_depth > 0:
+                    current_line = lines[i]
+
+                    # Check for nested code fences
+                    if re.match(r'^```(\w+)', current_line):
+                        nesting_depth += 1
+                        code_lines.append(current_line)
+                    elif current_line == '```':
+                        nesting_depth -= 1
+                        if nesting_depth > 0:
+                            code_lines.append(current_line)
+                    else:
+                        code_lines.append(current_line)
+
+                    i += 1
+
+                # Only add if we have a filename
+                if file_path:
+                    files.append({
+                        "language": language,
+                        "file_path": file_path,
+                        "content": '\n'.join(code_lines)
+                    })
+            else:
+                i += 1
+
+        logger.info("Extracted %d files from response content", len(files))
+        return files
+
+    # -------------------------------------------------------------------------
     # Helper: execute AI response
     # -------------------------------------------------------------------------
     async def _execute_ai_response(
@@ -849,10 +913,11 @@ class ChatEngine:
         user_message: Message,
         timing_info: Dict[str, Any],
         ai_model: str,
-        chat_profile_names: List[str]
+        chat_profile_names: List[str],
+        extracted_files: List[Dict[str, str]] = None
     ) -> None:
         """
-        Stamp the response message with timing and model metadata.
+        Stamp the response message with timing, model metadata, and extracted files.
 
         Merges ``user_message.meta_data`` into the existing
         ``response_message.meta_data`` so that fields already present on the
@@ -864,6 +929,7 @@ class ChatEngine:
         :param timing_info: Dict containing 'start_time' and 'first_response'.
         :param ai_model: Name of the model that generated the response.
         :param chat_profile_names: Names of profiles active during this turn.
+        :param extracted_files: List of file dicts extracted from code blocks.
         """
         # Start from the user message's meta_data (may contain client-side fields),
         # then overlay with whatever was already on the response message so that
@@ -875,6 +941,11 @@ class ChatEngine:
         base_meta["time_taken"] = time.time() - timing_info["start_time"]
         base_meta["first_chunk_time_taken"] = timing_info["first_response"]
         base_meta["model"] = ai_model
+
+        # Add extracted files to metadata
+        if extracted_files:
+            base_meta["files"] = extracted_files
+            logger.info("Added %d extracted files to response metadata", len(extracted_files))
 
         response_message.meta_data = base_meta
         response_message.profiles = chat_profile_names
@@ -1529,14 +1600,19 @@ class ChatEngine:
             send_message_event(content=response_message.content, done=True)
 
             # ------------------------------------------------------------------
-            # 22. Finalize response metadata
+            # 22. Extract files from response and finalize response metadata
             # ------------------------------------------------------------------
+            extracted_files = self._extract_files_from_response(
+                content=response_message.content
+            )
+
             self._finalize_response_metadata(
                 response_message=response_message,
                 user_message=user_message,
                 timing_info=timing_info,
                 ai_model=ai_settings.model,
-                chat_profile_names=chat_profile_names
+                chat_profile_names=chat_profile_names,
+                extracted_files=extracted_files
             )
 
             chat.messages.append(response_message)

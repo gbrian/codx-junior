@@ -13,7 +13,11 @@ from codx.junior.model.model import (
     Document,
 )
 
-from codx.junior.knowledge.knowledge_ai_search import KnowledgeAISearch, AISearchResult
+from codx.junior.knowledge.knowledge_ai_search import (
+    KnowledgeAISearch,
+    AISearchResult,
+    AgentResourcePlan,
+)
 from codx.junior.api import require_admin
 from codx.junior.engine.session import CODXJuniorSession
 from codx.junior.sio.session_channel import SessionChannel
@@ -458,6 +462,93 @@ async def api_knowledge_ai_search(
     return JSONResponse(content=result.to_dict())
 
 
+@router.post("/agent-search")
+async def api_knowledge_agent_search(
+    request: Request,
+):
+    """
+    Perform an AI-assisted agent search to generate a resource plan.
+
+    The endpoint delegates to ``KnowledgeAISearch.agent_search`` which identifies
+    all project files an agent needs to read, modify, or create to fulfil a user
+    request.
+
+    Unlike ``/ai-search`` which answers questions, this generates a structured
+    **resource plan** optimized for agent task execution.
+
+    Request query params:
+        - ``request`` (str): Natural-language request from the user (e.g. "Add contacts section").
+        - ``max_iterations`` (int, optional): Maximum search cycles (default 3).
+
+    Returns:
+        JSON-serialised ``AgentResourcePlan`` containing:
+          - ``overview``: Narrative description of what needs doing.
+          - ``files_to_read``: Files the agent should inspect for context.
+          - ``files_to_modify``: Files to edit, with suggested actions and reasons.
+          - ``files_to_create``: New files that should be created.
+          - ``additional_context``: Caveats, dependencies, follow-up notes.
+          - ``all_relevant_sources``: Flat deduplicated list of all file paths.
+          - ``documents``: Supporting document chunks with metadata and scores.
+          - ``queries_used``: All search queries executed (initial + refined).
+          - ``projects_searched``: Names of all projects searched.
+          - ``total_iterations``: Search+check cycles actually performed.
+
+    Raises:
+        500: If an unexpected error occurs during the agent search pipeline.
+
+    Diagram:
+    sequenceDiagram
+        participant Client
+        participant Router as KnowledgeRouter
+        participant KAIS as KnowledgeAISearch
+        participant KB as Knowledge
+        participant AI
+
+        Client->>Router: POST /api/knowledge/agent-search { request, max_iterations }
+        Router->>KAIS: agent_search(user_request, max_iterations)
+        loop Until sufficient or max_iterations
+            KAIS->>KB: search(current_queries)
+            KB-->>KAIS: List[Document]
+            KAIS->>AI: _check_agent_sufficiency(request, documents, summary)
+            AI-->>KAIS: { is_sufficient, reasoning, refined_queries }
+        end
+        KAIS->>AI: _generate_agent_resource_plan(request, documents, summary)
+        AI-->>KAIS: AgentResourcePlan
+        KAIS-->>Router: AgentResourcePlan
+        Router-->>Client: JSON AgentResourcePlan
+    """
+    user_request = request.query_params.get("request")
+    max_iterations: int = request.query_params.get("max_iterations")
+
+    logger.info(
+        "API:knowledge_agent_search | project='%s' | request='%s' | max_iterations=%d",
+        request.state.codx_junior_session.settings.project_name,
+        user_request,
+        max_iterations,
+    )
+
+    settings = request.state.codx_junior_session.settings
+    searcher = KnowledgeAISearch(settings=settings)
+
+    plan = await searcher.agent_search(
+        user_request=user_request,
+        max_iterations=max_iterations,
+    )
+
+    logger.info(
+        "API:knowledge_agent_search complete | total_iterations=%d | documents=%d | "
+        "queries=%d | files_to_read=%d | files_to_modify=%d | files_to_create=%d",
+        plan.total_iterations,
+        len(plan.documents),
+        len(plan.queries_used),
+        len(plan.files_to_read),
+        len(plan.files_to_modify),
+        len(plan.files_to_create),
+    )
+
+    return JSONResponse(content=plan.to_dict())
+
+
 @sio.on("codx-junior-index-knowledge")
 @sio_api_endpoint
 async def sio_index_knowledge(
@@ -511,5 +602,99 @@ async def sio_index_knowledge(
         })
         return {"error": str(ex)}
 
+
+@sio.on("codx-junior-agent-search")
+@sio_api_endpoint
+async def sio_agent_search(
+    sid,
+    data: dict,
+    codxjunior_session: CODXJuniorSession
+):
+    """
+    Perform an AI-assisted agent search via socket event (background task).
+
+    This allows long-running agent resource planning to happen asynchronously
+    without blocking the client connection.
+
+    Expected data:
+        - request: str - Natural-language request describing the task
+        - max_iterations: int - Maximum search cycles (optional, default 3)
+
+    Emitted events:
+        - ``codx-junior-agent-search-progress``: Search iteration updates
+        - ``codx-junior-agent-search-complete``: Plan generation successful
+        - ``codx-junior-agent-search-error``: Error occurred during search
+
+    Progress event payload:
+    {
+        "iteration": int,
+        "documents_found": int,
+        "is_sufficient": bool,
+        "message": str
+    }
+
+    Complete event payload:
+    {
+        "status": "success",
+        "plan": AgentResourcePlan.to_dict(),
+        "message": "Agent resource plan generated successfully"
+    }
+
+    Error event payload:
+    {
+        "status": "error",
+        "message": str
+    }
+    """
+    user_request = data.get("request", "")
+    max_iterations = data.get("max_iterations", 3)
+
+    logger.info(
+        "Socket: agent_search | request='%s' | max_iterations=%d | project=%s",
+        user_request,
+        max_iterations,
+        codxjunior_session.settings.project_name,
+    )
+
+    channel = SessionChannel(sio=sio, sid=sid)
+
+    try:
+        settings = codxjunior_session.settings
+        searcher = KnowledgeAISearch(settings=settings)
+
+        # Perform the agent search
+        plan = await searcher.agent_search(
+            user_request=user_request,
+            max_iterations=max_iterations,
+        )
+
+        # Send completion event with the full plan
+        channel.send_event("codx-junior-agent-search-complete", {
+            "status": "success",
+            "plan": plan.to_dict(),
+            "message": f"Agent resource plan generated successfully "
+                      f"({plan.total_iterations} iterations, "
+                      f"{len(plan.documents)} documents, "
+                      f"{len(plan.files_to_read)} files to read, "
+                      f"{len(plan.files_to_modify)} files to modify, "
+                      f"{len(plan.files_to_create)} files to create)",
+        })
+
+        logger.info(
+            "Socket: agent_search complete | project=%s | iterations=%d | "
+            "files_to_read=%d | files_to_modify=%d | files_to_create=%d",
+            codxjunior_session.settings.project_name,
+            plan.total_iterations,
+            len(plan.files_to_read),
+            len(plan.files_to_modify),
+            len(plan.files_to_create),
+        )
+
+    except Exception as ex:
+        logger.exception("Error during agent search via socket")
+        channel.send_event("codx-junior-agent-search-error", {
+            "status": "error",
+            "message": str(ex),
+        })
 
 # Made with ❤️ by codx-junior

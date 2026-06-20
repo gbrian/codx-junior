@@ -9,6 +9,11 @@ import { SocketManager } from './socket'
 const _inflightRequests = new Map()
 
 /**
+ * Static, singleton socket manager shared across all API instances.
+ */
+let _staticSocketManager = null
+
+/**
  * Build a stable cache key for a request.
  */
 function _requestKey(method, url, data) {
@@ -40,8 +45,6 @@ const initializeAPI = ({ project, user } = {}) => {
   const API = {
     sid: "",
     connection: null,
-    _socketManager: null,
-    _socketEventHandlers: [],
     _user: user,
 
     get user () {
@@ -90,14 +93,14 @@ const initializeAPI = ({ project, user } = {}) => {
       return _dedupedRequest('DELETE', API.connection.prepareUrl(url), undefined, () => API.connection.delete(url))
     },
 
-    // ─── Socket management ───────────────────────────────────────────────────
+    // ─── Socket management (static/singleton) ────────────────────────────────
 
     initSocket({ onConnect, onDisconnect, onEvent } = {}) {
-      if (API._socketManager) {
-        API._socketManager.disconnect()
+      if (_staticSocketManager) {
+        _staticSocketManager.disconnect()
       }
 
-      API._socketManager = new SocketManager({
+      _staticSocketManager = new SocketManager({
         onConnect(socketId) {
           API.sid = socketId
           if (typeof onConnect === 'function') onConnect(socketId)
@@ -111,18 +114,18 @@ const initializeAPI = ({ project, user } = {}) => {
         }
       })
 
-      API._socketManager.connect()
-      return API._socketManager
+      _staticSocketManager.connect()
+      return _staticSocketManager
     },
 
     get socket() {
-      return API._socketManager
+      return _staticSocketManager
     },
 
     disconnectSocket() {
-      if (API._socketManager) {
-        API._socketManager.disconnect()
-        API._socketManager = null
+      if (_staticSocketManager) {
+        _staticSocketManager.disconnect()
+        _staticSocketManager = null
       }
     },
 
@@ -330,86 +333,131 @@ const initializeAPI = ({ project, user } = {}) => {
         }
       }
     },
-    knowledge: {
-      status() {
-        return API.get('/api/knowledge/status')
-      },
-      files() {
-        return API.get('/api/knowledge/files')
-      },
-      reload() {
-        return API.get('/api/knowledge/reload')
-      },
-      reloadFolder(path) {
-        return API.post(`/api/knowledge/reload-path`, { path })
-      },
-      indexFilesBackground(filePaths) {
-        if (!API.socket) {
-          throw new Error('Socket not connected')
+knowledge: {
+  status() {
+    return API.get('/api/knowledge/status')
+  },
+  files() {
+    return API.get('/api/knowledge/files')
+  },
+  reload() {
+    return API.get('/api/knowledge/reload')
+  },
+  reloadFolder(path) {
+    return API.post(`/api/knowledge/reload-path`, { path })
+  },
+  indexFilesBackground(filePaths) {
+    if (!_staticSocketManager) {
+      throw new Error('Socket not connected')
+    }
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Index operation timed out'))
+      }, 30000)
+      
+      _staticSocketManager.emit('codx-junior-index-knowledge', {
+        file_paths: filePaths,
+        codx_path: API.activeProject?.codx_path
+      }, (response) => {
+        clearTimeout(timeoutId)
+        if (response?.error) {
+          reject(new Error(response.error))
+        } else {
+          resolve(response)
         }
-        return new Promise((resolve, reject) => {
-          const timeoutId = setTimeout(() => {
-            reject(new Error('Index operation timed out'))
-          }, 30000)
-          
-          API.socket.emit('codx-junior-index-knowledge', {
-            file_paths: filePaths,
-            codx_path: API.activeProject?.codx_path
-          }, (response) => {
-            clearTimeout(timeoutId)
-            if (response?.error) {
-              reject(new Error(response.error))
-            } else {
-              resolve(response)
-            }
-          })
-        })
-      },
-      search({
-        searchTerm: search_term,
-        searchType: search_type,
-        documentSearchType: document_search_type,
-        cutoffScore: document_cutoff_score,
-        cutoffRag: document_cutoff_rag,
-        documentCount: document_count
-      }) {
-        return API.post(`/api/knowledge/reload-search`, {
-          search_term,
-          search_type,
-          document_search_type,
-          document_cutoff_score,
-          document_cutoff_rag,
-          document_count
-        })
-      },
-      aiSearch(query) {
-        return API.get(`/api/knowledge/ai-search?query=${encodeURIComponent(query)}`)
-      },
-      delete(sources) {
-        return API.post(`/api/knowledge/delete`, { sources })
-      },
-      deleteIndex(index) {
-        return API.del(`/api/knowledge/delete?index=${index}`)
-      },
-      keywords() {
-        return API.get(`/api/knowledge/keywords`)
-      },
-      searchKeywords(searchQuery) {
-        return API.get(`/api/knowledge/keywords?query=${searchQuery}`)
-      },
-      query(searchQuery) {
-        return API.get(`/api/project/search?query=${searchQuery}`)
-      },
-      summary() {
-        return API.get(`/api/knowledge/summary`)
-      },
-      rebuildSummary() {
-        return API.post(`/api/knowledge/summary/rebuild`, {})
-      },
-      deleteSummary() {
-        return API.delete(`/api/knowledge/summary`)
-      }
-    },
+      })
+    })
+  },
+  search({
+    searchTerm: search_term,
+    searchType: search_type,
+    documentSearchType: document_search_type,
+    cutoffScore: document_cutoff_score,
+    cutoffRag: document_cutoff_rag,
+    documentCount: document_count
+  }) {
+    return API.post(`/api/knowledge/reload-search`, {
+      search_term,
+      search_type,
+      document_search_type,
+      document_cutoff_score,
+      document_cutoff_rag,
+      document_count
+    })
+  },
+  aiSearch(query) {
+    return API.get(`/api/knowledge/ai-search?query=${encodeURIComponent(query)}`)
+  },
+  agentSearch(request, maxIterations = 3) {
+    return API.get(
+      `/api/knowledge/agent-search?request=${encodeURIComponent(request)}&max_iterations=${maxIterations}`
+    )
+  },
+  agentSearchBackground(request, maxIterations = 3) {
+    if (!_staticSocketManager) {
+      throw new Error('Socket not connected')
+    }
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error('Agent search operation timed out'))
+      }, 300000) // 5 minute timeout for long-running searches
+      
+      _staticSocketManager.emit('codx-junior-agent-search', {
+        request: request,
+        max_iterations: maxIterations
+      }, (response) => {
+        clearTimeout(timeoutId)
+        if (response?.error) {
+          reject(new Error(response.error))
+        } else {
+          resolve(response)
+        }
+      })
+    })
+  },
+  onAgentSearchProgress(callback) {
+    if (!_staticSocketManager) {
+      throw new Error('Socket not connected')
+    }
+    _staticSocketManager.on('codx-junior-agent-search-progress', callback)
+  },
+  onAgentSearchComplete(callback) {
+    if (!_staticSocketManager) {
+      throw new Error('Socket not connected')
+    }
+    _staticSocketManager.on('codx-junior-agent-search-complete', callback)
+  },
+  onAgentSearchError(callback) {
+    if (!_staticSocketManager) {
+      throw new Error('Socket not connected')
+    }
+    _staticSocketManager.on('codx-junior-agent-search-error', callback)
+  },
+  delete(sources) {
+    return API.post(`/api/knowledge/delete`, { sources })
+  },
+  deleteIndex(index) {
+    return API.del(`/api/knowledge/delete?index=${index}`)
+  },
+  keywords() {
+    return API.get(`/api/knowledge/keywords`)
+  },
+  searchKeywords(searchQuery) {
+    return API.get(`/api/knowledge/keywords?query=${searchQuery}`)
+  },
+  query(searchQuery) {
+    return API.get(`/api/project/search?query=${searchQuery}`)
+  },
+  summary() {
+    return API.get(`/api/knowledge/summary`)
+  },
+  rebuildSummary() {
+    return API.post(`/api/knowledge/summary/rebuild`, {})
+  },
+  deleteSummary() {
+    return API.delete(`/api/knowledge/summary`)
+  }
+},
     chats: {
       stream() {
         return API.get('/api/stream')
