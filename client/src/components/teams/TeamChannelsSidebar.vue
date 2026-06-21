@@ -89,7 +89,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
 
       <!-- Add category button -->
       <button
-        class="flex items-center gap-1 px-2 py-1 text-xs text-base-content/40 hover:text-primary cursor-pointer w-full mb-3"
+        class="flex items-center gap-1 px-2 py-1 text-xs text-base-content-ERROR-40 hover:text-primary cursor-pointer w-full mb-3"
         @click="addCategory"
       >
         <i class="fa-solid fa-plus text-xs"></i>
@@ -147,7 +147,7 @@ import ProjectDetailt from '@/components/ProjectDetailt.vue'
           </div>
 
           <button
-            class="flex items-center gap-1 px-2 py-1 text-xs text-base-content/40 hover:text-primary cursor-pointer w-full mt-1"
+            class="flex items-center gap-1 px-2 py-1 text-xs text-base-content-ERROR-40 hover:text-primary cursor-pointer w-full mt-1"
             @click="$emit('add-member')"
           >
             <i class="fa-solid fa-user-plus text-xs"></i>

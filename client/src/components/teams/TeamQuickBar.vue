@@ -3,7 +3,7 @@ import MainMenu from '@/components/main-menu/MainMenu.vue'
 </script>
 
 <template>
-  <div class="flex flex-col items-center gap-2 px-2 py-3 bg-base-200 border-r border-base-content/10 w-16 shrink-0 overflow-y-auto">
+  <div class="flex flex-col items-center gap-2 px-2 py-3 bg-base-200 border-r border-base-content/10 shrink-0 overflow-y-auto overflow-x-hidden">
     
     <!-- QuickBar Icons -->
     <div class="tooltip tooltip-right cursor-pointer shrink-0" data-tip="New Chat" @click="$emit('new-quick-chat')">

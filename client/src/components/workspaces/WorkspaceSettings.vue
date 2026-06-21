@@ -105,7 +105,7 @@ import AppIcon from '../apps/AppIcon.vue'
           </div>
 
           <div class="flex flex-col gap-1 mb-3 max-h-48 overflow-y-auto">
-            <div v-if="!workspace.project_ids?.length" class="text-xs text-base-content/40 py-2 text-center">
+            <div v-if="!workspace.project_ids?.length" class="text-xs text-base-content-ERROR-40 py-2 text-center">
               No projects linked
             </div>
             <div
@@ -151,10 +151,10 @@ import AppIcon from '../apps/AppIcon.vue'
               {{ workspaceUserIds.length ? 'restricted' : 'all users' }}
             </div>
           </div>
-          <p class="text-xs text-base-content/40 mb-3">Empty list = all users allowed</p>
+          <p class="text-xs text-base-content-ERROR-40 mb-3">Empty list = all users allowed</p>
 
           <div class="flex flex-col gap-1 mb-3 max-h-48 overflow-y-auto">
-            <div v-if="!workspaceUserIds.length" class="text-xs text-base-content/40 py-4 text-center">
+            <div v-if="!workspaceUserIds.length" class="text-xs text-base-content-ERROR-40 py-4 text-center">
               <i class="fa-solid fa-circle-check text-success text-lg block mb-1"></i>
               Open to all users
             </div>

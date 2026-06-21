@@ -13,7 +13,7 @@ import UserSecuritySettings from './UserSecuritySettings.vue'
           </div>
           <div>
             <h1 class="text-lg font-bold">Security Users</h1>
-            <p class="text-xs text-base-content/40">Manage user access and wallets</p>
+            <p class="text-xs text-base-content-ERROR-40">Manage user access and wallets</p>
           </div>
         </div>
         <button class="btn btn-primary btn-sm gap-1" @click="addNewUser">
@@ -83,7 +83,7 @@ import UserSecuritySettings from './UserSecuritySettings.vue'
               <span v-if="user.wallet" class="flex items-center gap-1">
                 <i class="fa-solid fa-wallet text-success"></i>
                 <span class="text-success font-semibold">{{ user.wallet.balance_cxjcoins?.toFixed(4) ?? '0.0000' }}</span>
-                <span class="text-base-content/40">cxj</span>
+                <span class="text-base-content-ERROR-40">cxj</span>
               </span>
               <span v-else class="flex items-center gap-1 text-base-content/30">
                 <i class="fa-solid fa-wallet"></i> No wallet
@@ -96,7 +96,7 @@ import UserSecuritySettings from './UserSecuritySettings.vue'
             </div>
 
             <!-- Spending limit preview -->
-            <div v-if="user.wallet?.spending_limits?.length" class="flex items-center gap-1 text-xs text-base-content/40">
+            <div v-if="user.wallet?.spending_limits?.length" class="flex items-center gap-1 text-xs text-base-content-ERROR-40">
               <i class="fa-solid fa-gauge-high text-warning"></i>
               <span>{{ user.wallet.spending_limits.length }} spending limit(s)</span>
               <span class="ml-auto text-warning">

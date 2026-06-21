@@ -34,6 +34,7 @@ class GitEngine:
         GE --> find_git_root_path
         GE --> get_commit_list
         GE --> get_commit_changes
+        GE --> reset_project_file
     ```
     """
 
@@ -574,3 +575,9 @@ class GitEngine:
             )
 
         return changes
+
+    def reset_project_file(self, file_path: str) -> None:
+        """Reset file's last change."""
+        cmd = f"git reset {file_path}"
+        exec_command(cmd, cwd=self.settings.abs_project_path)
+        logger.info("Reset file: %s", file_path)

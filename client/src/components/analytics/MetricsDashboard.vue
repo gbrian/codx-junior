@@ -67,7 +67,7 @@ import PriceEditor from './PriceEditor.vue'
             <div class="flex items-center gap-1">
               <i
                 class="fa-solid fa-clock text-xs"
-                :class="autoRefreshInterval ? 'text-success animate-pulse' : 'text-base-content/40'"
+                :class="autoRefreshInterval ? 'text-success animate-pulse' : 'text-base-content-ERROR-40'"
               ></i>
               <select
                 v-model="autoRefreshInterval"
@@ -200,7 +200,7 @@ import PriceEditor from './PriceEditor.vue'
               <i class="fa-solid fa-chart-line text-primary"></i>
               Daily Token Usage
             </h2>
-            <div v-if="dailyData.length === 0" class="flex items-center justify-center h-48 text-base-content/40">
+            <div v-if="dailyData.length === 0" class="flex items-center justify-center h-48 text-base-content-ERROR-40">
               <div class="text-center">
                 <i class="fa-solid fa-chart-line text-5xl"></i>
                 <p class="mt-2 text-sm">No daily data available</p>
@@ -219,7 +219,7 @@ import PriceEditor from './PriceEditor.vue'
               <i class="fa-solid fa-microchip text-secondary"></i>
               Usage by Model
             </h2>
-            <div v-if="Object.keys(byModelData).length === 0" class="flex items-center justify-center h-48 text-base-content/40">
+            <div v-if="Object.keys(byModelData).length === 0" class="flex items-center justify-center h-48 text-base-content-ERROR-40">
               <div class="text-center">
                 <i class="fa-solid fa-robot text-5xl"></i>
                 <p class="mt-2 text-sm">No model data available</p>
@@ -270,7 +270,7 @@ import PriceEditor from './PriceEditor.vue'
                 <i class="fa-solid fa-users text-accent"></i>
                 Usage by User
               </h2>
-              <div v-if="Object.keys(byUserData).length === 0" class="flex items-center justify-center h-48 text-base-content/40">
+              <div v-if="Object.keys(byUserData).length === 0" class="flex items-center justify-center h-48 text-base-content-ERROR-40">
                 <div class="text-center">
                   <i class="fa-regular fa-user text-5xl"></i>
                   <p class="mt-2 text-sm">No user data available</p>
@@ -319,7 +319,7 @@ import PriceEditor from './PriceEditor.vue'
                 <i class="fa-solid fa-folder-open text-info"></i>
                 Usage by Project
               </h2>
-              <div v-if="Object.keys(byProjectData).length === 0" class="flex items-center justify-center h-48 text-base-content/40">
+              <div v-if="Object.keys(byProjectData).length === 0" class="flex items-center justify-center h-48 text-base-content-ERROR-40">
                 <div class="text-center">
                   <i class="fa-regular fa-folder text-5xl"></i>
                   <p class="mt-2 text-sm">No project data available</p>
@@ -366,7 +366,7 @@ import PriceEditor from './PriceEditor.vue'
               <i class="fa-solid fa-gauge-high text-warning"></i>
               Model Performance
             </h2>
-            <div v-if="Object.keys(byModelData).length === 0" class="text-center py-8 text-base-content/40">
+            <div v-if="Object.keys(byModelData).length === 0" class="text-center py-8 text-base-content-ERROR-40">
               <i class="fa-solid fa-robot text-5xl"></i>
               <p class="mt-2 text-sm">No model performance data available</p>
             </div>
@@ -419,7 +419,7 @@ import PriceEditor from './PriceEditor.vue'
                             :style="{ width: getSpeedPercentage(stats.tokens_per_second) + '%' }"
                           ></div>
                         </div>
-                        <span class="text-xs text-base-content/40 w-8 text-right">
+                        <span class="text-xs text-base-content-ERROR-40 w-8 text-right">
                           {{ getSpeedPercentage(stats.tokens_per_second) }}%
                         </span>
                       </div>
@@ -451,7 +451,7 @@ import PriceEditor from './PriceEditor.vue'
             </div>
           </div>
 
-          <div v-if="sortedDailyData.length === 0" class="text-center py-8 text-base-content/40">
+          <div v-if="sortedDailyData.length === 0" class="text-center py-8 text-base-content-ERROR-40">
             <i class="fa-solid fa-database text-5xl"></i>
             <p class="mt-2 text-sm">No data available for the selected period</p>
           </div>
@@ -889,7 +889,7 @@ export default {
       return Math.round((tokensPerSecond / this.maxTokensPerSecond) * 100)
     },
     getTokensPerSecColor(tps) {
-      if (!tps || tps <= 0) return 'text-base-content/40'
+      if (!tps || tps <= 0) return 'text-base-content-ERROR-40'
       const pct = tps / this.maxTokensPerSecond
       if (pct >= 0.7) return 'text-success'
       if (pct >= 0.35) return 'text-warning'

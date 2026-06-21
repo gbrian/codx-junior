@@ -33,7 +33,7 @@ import Collapsible from '@/components/Collapsible.vue'
           <div class="flex items-center gap-1">
             <i
               class="fa-solid fa-clock text-xs"
-              :class="modelValue.autoRefresh ? 'text-success animate-pulse' : 'text-base-content/40'"
+              :class="modelValue.autoRefresh ? 'text-success animate-pulse' : 'text-base-content-ERROR-40'"
             ></i>
             <select
               :value="modelValue.autoRefresh"

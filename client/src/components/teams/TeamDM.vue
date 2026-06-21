@@ -26,7 +26,7 @@ import MemberAvatar from '@/components/teams/MemberAvatar.vue'
         class="flex-1 min-w-0 p-2 h-full"
         :chat="chat"
       />
-      <div v-else class="flex-1 flex items-center justify-center text-base-content/40 h-full">
+      <div v-else class="flex-1 flex items-center justify-center text-base-content-ERROR-40 h-full">
         <span class="loading loading-spinner"></span>
       </div>
     </div>

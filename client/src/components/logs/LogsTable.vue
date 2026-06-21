@@ -26,7 +26,7 @@
       </div>
 
       <!-- Empty state -->
-      <div v-if="!loading && logs.length === 0" class="flex flex-col items-center py-12 text-base-content/40">
+      <div v-if="!loading && logs.length === 0" class="flex flex-col items-center py-12 text-base-content-ERROR-40">
         <i class="fa-solid fa-inbox text-6xl"></i>
         <p class="mt-3 text-sm">No log entries found</p>
         <p class="text-xs mt-1">Try adjusting your filters</p>
@@ -167,7 +167,7 @@
                       <i class="fa-solid fa-triangle-exclamation text-xs mr-0.5"></i>{{ errorSummary(row) }}
                     </span>
                   </div>
-                  <span v-else class="text-base-content/40 truncate block" :title="row.log.payload_preview">
+                  <span v-else class="text-base-content-ERROR-40 truncate block" :title="row.log.payload_preview">
                     {{ row.log.payload_preview || '—' }}
                   </span>
                 </td>
@@ -187,7 +187,7 @@
                 :class="row.sibling.error_type ? 'bg-error/10 hover:bg-error/20 border-error/50' : 'bg-info/5 border-info/40 hover:bg-info/10'"
                 @click="$emit('select', row.sibling)"
               >
-                <td class="font-mono text-xs text-base-content/40 whitespace-nowrap pl-6">
+                <td class="font-mono text-xs text-base-content-ERROR-40 whitespace-nowrap pl-6">
                   ↳ {{ formatTs(row.sibling.timestamp) }}
                 </td>
                 <td>

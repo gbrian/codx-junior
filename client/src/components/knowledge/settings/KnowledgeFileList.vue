@@ -6,15 +6,15 @@
     <!-- Header: Search + Actions -->
     <div class="flex items-center gap-2 mb-3">
       <label class="input input-sm input-bordered flex-1 flex items-center gap-2">
-        <i class="fa-solid fa-magnifying-glass text-base-content/40 text-xs"></i>
+        <i class="fa-solid fa-magnifying-glass text-base-content-ERROR-40 text-xs"></i>
         <input
           type="text"
           class="grow text-xs"
           placeholder="Search files..."
           v-model="fileFilter"
         />
-        <span class="text-xs text-base-content/40" v-if="fileFilter">({{ filteredFiles.length }})</span>
-        <button v-if="fileFilter" @click="fileFilter = ''" class="text-base-content/40 hover:text-base-content">
+        <span class="text-xs text-base-content-ERROR-40" v-if="fileFilter">({{ filteredFiles.length }})</span>
+        <button v-if="fileFilter" @click="fileFilter = ''" class="text-base-content-ERROR-40 hover:text-base-content">
           <i class="fa-solid fa-xmark text-xs"></i>
         </button>
       </label>

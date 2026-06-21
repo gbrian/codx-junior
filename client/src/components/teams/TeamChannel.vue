@@ -58,7 +58,7 @@ import MemberAvatar from '@/components/teams/MemberAvatar.vue'
         :chat="chat"
         :filter="messageSearch"
       />
-      <div v-else class="flex-1 flex items-center justify-center text-base-content/40">
+      <div v-else class="flex-1 flex items-center justify-center text-base-content-ERROR-40">
         <span class="loading loading-spinner"></span>
       </div>
 
@@ -80,7 +80,7 @@ import MemberAvatar from '@/components/teams/MemberAvatar.vue'
             <MemberAvatar :member="member" size="xs" :show-status="true" />
             <div class="flex-1 min-w-0">
               <div class="text-xs font-medium truncate">{{ member.username }}</div>
-              <div class="text-xs text-base-content/40 capitalize">{{ member.role }}</div>
+              <div class="text-xs text-base-content-ERROR-40 capitalize">{{ member.role }}</div>
             </div>
           </div>
         </div>

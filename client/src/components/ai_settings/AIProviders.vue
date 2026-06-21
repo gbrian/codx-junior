@@ -24,7 +24,7 @@ import AIProviderSettings from './AIProviderSettings.vue'
     <!-- Filter bar -->
     <div class="flex flex-wrap gap-2 items-center bg-base-200 rounded-xl p-3">
       <div class="relative grow min-w-48">
-        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40 text-xs"></i>
+        <i class="fa-solid fa-search absolute left-3 top-1/2 -translate-y-1/2 text-base-content-ERROR-40 text-xs"></i>
         <input
           v-model="filterText"
           type="text"
@@ -66,7 +66,7 @@ import AIProviderSettings from './AIProviderSettings.vue'
         </thead>
         <tbody>
           <tr v-if="filteredProviders.length === 0">
-            <td :colspan="columns.length + 1" class="text-center py-10 text-base-content/40">
+            <td :colspan="columns.length + 1" class="text-center py-10 text-base-content-ERROR-40">
               <i class="fa-solid fa-ghost text-2xl mb-2 block"></i>
               No providers found
             </td>

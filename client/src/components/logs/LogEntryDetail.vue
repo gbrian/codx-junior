@@ -81,7 +81,7 @@
       <div v-else-if="displayEntry" class="overflow-y-auto flex-1 min-h-0 flex flex-col">
 
         <!-- Base URL banner -->
-        <div v-if="displayEntry.base_url" class="flex items-center gap-2 px-4 py-2 bg-base-200/50 border-b border-base-300 text-xs font-mono text-base-content/40 shrink-0">
+        <div v-if="displayEntry.base_url" class="flex items-center gap-2 px-4 py-2 bg-base-200/50 border-b border-base-300 text-xs font-mono text-base-content-ERROR-40 shrink-0">
           <i class="fa-solid fa-globe shrink-0"></i>
           <span class="truncate">{{ displayEntry.base_url }}</span>
         </div>
@@ -131,7 +131,7 @@
                 ? 'bg-error/10 border-error/20 text-error'
                 : requestEntry
                   ? 'bg-success/10 border-success/20 text-success'
-                  : 'bg-base-200 border-base-300 text-base-content/40'"
+                  : 'bg-base-200 border-base-300 text-base-content-ERROR-40'"
             >
               <i class="fa-solid fa-arrow-up-from-bracket"></i>
               <span>REQUEST MESSAGES</span>
@@ -215,7 +215,7 @@
                 ? 'bg-error/10 border-error/20 text-error'
                 : responseEntry
                   ? 'bg-warning/10 border-warning/20 text-warning'
-                  : 'bg-base-200 border-base-300 text-base-content/40'"
+                  : 'bg-base-200 border-base-300 text-base-content-ERROR-40'"
             >
               <i class="fa-solid fa-arrow-down-to-bracket"></i>
               <span>RESPONSE CONTENT</span>
@@ -273,7 +273,7 @@
           <!-- Raw payloads collapsible -->
           <div class="collapse collapse-arrow rounded-xl border border-base-300 bg-base-200">
             <input type="checkbox" />
-            <div class="collapse-title text-xs font-mono font-semibold text-base-content/40 py-2.5 min-h-0 flex items-center gap-2">
+            <div class="collapse-title text-xs font-mono font-semibold text-base-content-ERROR-40 py-2.5 min-h-0 flex items-center gap-2">
               <i class="fa-solid fa-code"></i> raw payloads
             </div>
             <div class="collapse-content bg-base-300/30 space-y-3">

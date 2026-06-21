@@ -27,7 +27,7 @@ import Collapsible from '../components/Collapsible.vue'
                 {{ kanban?.title || theChat.board }}
               </span>
               <template v-if="parentChat">
-                <span class="text-base-content/40">/</span>
+                <span class="text-base-content-ERROR-40">/</span>
                 <span class="hover:underline cursor-pointer font-bold text-secondary truncate max-w-[120px]"
                   :title="parentChat.name" @click="navigateToParent(parentChat)">
                   {{ parentChat.name }}
@@ -171,7 +171,7 @@ import Collapsible from '../components/Collapsible.vue'
                     <i class="fa-solid fa-house text-xs text-base-content/30"></i>
                   </div>
                   <div class="text-xs truncate text-base-content/70 leading-tight">{{ computedChatName }}</div>
-                  <div class="text-xs text-base-content/40">
+                  <div class="text-xs text-base-content-ERROR-40">
                     {{ (theChat.messages || []).length }} msgs
                   </div>
                 </div>
@@ -187,7 +187,7 @@ import Collapsible from '../components/Collapsible.vue'
                   @click="selectChildChat(childChat)"
                 >
                   <div class="flex items-center gap-1">
-                    <span class="text-xs text-base-content/40 font-mono w-4">{{ idx + 1 }}</span>
+                    <span class="text-xs text-base-content-ERROR-40 font-mono w-4">{{ idx + 1 }}</span>
                     <ChatIcon :mode="childChat.mode" class="text-xs opacity-70" />
                     <img class="w-3 h-3 rounded-full ml-auto"
                       :src="($projects.allProjectsById[childChat.project_id] || $project).project_icon" />
@@ -196,7 +196,7 @@ import Collapsible from '../components/Collapsible.vue'
                     {{ childChat.name }}
                   </div>
                   <div class="flex items-center justify-between">
-                    <span class="text-xs text-base-content/40">
+                    <span class="text-xs text-base-content-ERROR-40">
                       {{ (childChat.messages || []).length }} msgs
                     </span>
                     <span class="badge badge-xs truncate"
@@ -208,7 +208,7 @@ import Collapsible from '../components/Collapsible.vue'
 
                 <!-- Add card -->
                 <div
-                  class="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 border-dashed border-base-content/20 cursor-pointer shrink-0 w-20 hover:border-primary hover:text-primary transition-all text-base-content/40"
+                  class="flex flex-col items-center justify-center gap-1 p-2 rounded-lg border-2 border-dashed border-base-content/20 cursor-pointer shrink-0 w-20 hover:border-primary hover:text-primary transition-all text-base-content-ERROR-40"
                   @click="newSubChat()"
                 >
                   <i class="fa-solid fa-plus text-lg"></i>
@@ -220,7 +220,7 @@ import Collapsible from '../components/Collapsible.vue'
 
           <!-- No children: simple add button -->
           <div v-else class="flex">
-            <button class="btn btn-xs btn-ghost gap-1 text-base-content/40 hover:text-primary" @click="newSubChat()">
+            <button class="btn btn-xs btn-ghost gap-1 text-base-content-ERROR-40 hover:text-primary" @click="newSubChat()">
               <i class="fa-solid fa-plus text-xs"></i>
               <span class="text-xs">Add subtask</span>
             </button>

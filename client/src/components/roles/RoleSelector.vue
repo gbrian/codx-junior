@@ -24,7 +24,7 @@ import MenuDivider from '@/components/main-menu/MenuDivider.vue'
         class="py-2 min-w-56 outline-none bg-base-100 rounded-lg px-2 border border-white/30 shadow-lg z-50"
         :side-offset="5"
       >
-        <div class="px-2 py-1 text-xs font-bold text-base-content/40 uppercase tracking-wider mb-1">
+        <div class="px-2 py-1 text-xs font-bold text-base-content-ERROR-40 uppercase tracking-wider mb-1">
           Role Presets
         </div>
 

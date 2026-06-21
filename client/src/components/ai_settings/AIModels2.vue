@@ -20,9 +20,9 @@ import AIModelSettings from './AIModelSettings.vue'
     <div class="flex flex-wrap gap-2 items-center">
       <!-- Search -->
       <label class="input input-sm input-bordered flex items-center gap-2 grow min-w-40 bg-base-200">
-        <i class="fa-solid fa-magnifying-glass text-xs text-base-content/40"></i>
+        <i class="fa-solid fa-magnifying-glass text-xs text-base-content-ERROR-40"></i>
         <input v-model="filterText" type="text" placeholder="Filter..." class="grow bg-transparent outline-none" />
-        <button v-if="filterText" class="text-base-content/40 hover:text-error" @click="filterText = ''">
+        <button v-if="filterText" class="text-base-content-ERROR-40 hover:text-error" @click="filterText = ''">
           <i class="fa-solid fa-xmark text-xs"></i>
         </button>
       </label>
@@ -48,7 +48,7 @@ import AIModelSettings from './AIModelSettings.vue'
       </div>
       <!-- Sort selector -->
       <div class="flex items-center gap-1 ml-auto">
-        <span class="text-xs text-base-content/40">Sort:</span>
+        <span class="text-xs text-base-content-ERROR-40">Sort:</span>
         <select v-model="sortKey" class="select select-xs select-bordered bg-base-200">
           <option v-for="col in sortableColumns" :key="col.key" :value="col.key">{{ col.label }}</option>
         </select>
@@ -103,7 +103,7 @@ import AIModelSettings from './AIModelSettings.vue'
             <!-- Name -->
             <td>
               <div class="font-bold text-primary">{{ model.name }}</div>
-              <div v-if="model.ai_model && model.name !== model.ai_model" class="text-xs text-base-content/40 truncate max-w-48">{{ model.ai_model }}</div>
+              <div v-if="model.ai_model && model.name !== model.ai_model" class="text-xs text-base-content-ERROR-40 truncate max-w-48">{{ model.ai_model }}</div>
             </td>
             <!-- Type -->
             <td class="text-center">
@@ -169,7 +169,7 @@ import AIModelSettings from './AIModelSettings.vue'
         <!-- Summary footer -->
         <tfoot class="bg-base-300 sticky bottom-0">
           <tr>
-            <td :colspan="columns.length + 1" class="text-xs text-base-content/40 px-4 py-2">
+            <td :colspan="columns.length + 1" class="text-xs text-base-content-ERROR-40 px-4 py-2">
               <span class="mr-4">
                 <i class="fa-solid fa-filter mr-1"></i>
                 {{ filteredModels.length }} results

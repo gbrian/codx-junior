@@ -6,7 +6,7 @@ import ChatInputToolbar from './ChatInputToolbar.vue'
 
 <template>
   <div
-    class="border border-primary rounded-md bg-base-100 my-2 pb-2 flex shadow indicator w-full flex-col"
+    class="p-1 border border-primary rounded-md bg-base-100 flex shadow indicator w-full flex-col"
     :class="{
       'border-warning': isEditing,
       'bg-warning/10': draggingOver

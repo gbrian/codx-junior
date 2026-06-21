@@ -5,7 +5,7 @@ import moment from 'moment'
 <template>
   <!-- Icon mode - shows chat count badges -->
   <div v-if="collapsed" class="flex flex-col gap-3 w-full items-center">
-    <div v-if="recentChats.length > 0" class="text-[9px] font-extrabold tracking-wider text-base-content/40 uppercase mb-1 text-center">
+    <div v-if="recentChats.length > 0" class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase mb-1 text-center">
       Chats
     </div>
     
@@ -39,7 +39,7 @@ import moment from 'moment'
       </div>
 
       <!-- Show more indicator if chats exceed limit -->
-      <div v-if="recentChats.length > 5" class="text-[9px] text-base-content/40 mt-2">
+      <div v-if="recentChats.length > 5" class="text-[9px] text-base-content-ERROR-40 mt-2">
         +{{ recentChats.length - 5 }}
       </div>
     </div>
@@ -50,7 +50,7 @@ import moment from 'moment'
     <div v-if="recentChats.length > 0" class="divider my-1 w-8 mx-auto opacity-40"></div>
     
     <!-- Header helper -->
-    <div v-if="recentChats.length > 0" class="text-[9px] font-extrabold tracking-wider text-base-content/40 uppercase mb-2 px-2">
+    <div v-if="recentChats.length > 0" class="text-[9px] font-extrabold tracking-wider text-base-content-ERROR-40 uppercase mb-2 px-2">
       Recent Chats & Tasks
     </div>
 
@@ -117,7 +117,7 @@ import moment from 'moment'
             <div class="text-xs font-bold truncate text-base-content" :title="chat.name">
               {{ chat.name || 'Unnamed Chat' }}
             </div>
-            <div class="text-[10px] text-base-content/40 font-medium">
+            <div class="text-[10px] text-base-content-ERROR-40 font-medium">
               {{ getFormattedDate(chat) }}
             </div>
           </div>

@@ -67,7 +67,7 @@
           <i class="fa-solid fa-plus"></i> Add
         </button>
       </div>
-      <div v-if="!wallet.spending_limits?.length" class="text-xs text-base-content/40 italic text-center py-2">
+      <div v-if="!wallet.spending_limits?.length" class="text-xs text-base-content-ERROR-40 italic text-center py-2">
         No spending limits configured
       </div>
       <!-- SpendingLimit fields: period, limit_cxjcoins, current_spent, period_start -->
@@ -123,7 +123,7 @@
         <i class="fa-solid fa-arrow-right-arrow-left mr-1"></i> Transactions
         <span class="badge badge-info badge-xs ml-1">{{ wallet.transactions?.length || 0 }}</span>
       </div>
-      <div v-if="!wallet.transactions?.length" class="text-xs text-base-content/40 italic text-center py-4">
+      <div v-if="!wallet.transactions?.length" class="text-xs text-base-content-ERROR-40 italic text-center py-4">
         No transactions yet
       </div>
       <div v-else class="flex flex-col gap-1 max-h-48 overflow-y-auto">
@@ -146,9 +146,9 @@
             <span :class="tx.amount_cxjcoins >= 0 ? 'text-success font-bold' : 'text-error font-bold'">
               {{ tx.amount_cxjcoins >= 0 ? '+' : '' }}{{ tx.amount_cxjcoins?.toFixed(4) }} cxj
             </span>
-            <span class="text-base-content/40 text-xs">bal: {{ tx.balance_after?.toFixed(4) }}</span>
+            <span class="text-base-content-ERROR-40 text-xs">bal: {{ tx.balance_after?.toFixed(4) }}</span>
             <!-- Backend field: timestamp (not created_at) -->
-            <span class="text-base-content/40">{{ formatDate(tx.timestamp) }}</span>
+            <span class="text-base-content-ERROR-40">{{ formatDate(tx.timestamp) }}</span>
           </div>
         </div>
       </div>

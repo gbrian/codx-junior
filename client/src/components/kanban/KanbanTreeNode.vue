@@ -11,7 +11,7 @@
         @click="$emit('toggle-expand', displayNode.path)"
       >
         <i
-          class="fa-solid text-xs w-3 text-base-content/40"
+          class="fa-solid text-xs w-3 text-base-content-ERROR-40"
           :class="isExpanded ? 'fa-chevron-down' : 'fa-chevron-right'"
         ></i>
 

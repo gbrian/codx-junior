@@ -92,7 +92,7 @@
           <span
             v-if="hasDuplicateName(s) && s.file"
             class="flex-1 truncate text-[10px] font-mono opacity-80"
-            :class="hasDuplicateName(s) ? 'text-warning/80' : 'text-base-content/40'"
+            :class="hasDuplicateName(s) ? 'text-warning/80' : 'text-base-content-ERROR-40'"
             :title="s.file"
           >{{ shortPath(s.file, 4) }}</span>
           <span v-else class="flex-1" />
@@ -123,7 +123,7 @@
       </div>
 
       <!-- Result count footer -->
-      <div class="w-full text-base-content/40 text-xs text-right pt-1 border-t border-base-300">
+      <div class="w-full text-base-content-ERROR-40 text-xs text-right pt-1 border-t border-base-300">
         {{ filteredSuggestions.length }} result{{ filteredSuggestions.length !== 1 ? 's' : '' }}
       </div>
     </div>

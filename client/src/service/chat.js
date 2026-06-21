@@ -1,5 +1,5 @@
 import moment from 'moment'
-import Service from "./service";
+import Service from "./service"
 
 export class ChatService extends Service {
   getUserMessage({ message, files, profiles, images, metadata, user, taskItem, task_item }) {
@@ -14,155 +14,139 @@ export class ChatService extends Service {
       meta_data: metadata,
       done: true,
       task_item,
-    };
+    }
   }
 
   async sendMessage({ chat, message }) {
-    this.addMessage({ chat, message });
-    return this.$projects.chatWihProject(chat);
+    this.addMessage({ chat, message })
+    return this.$projects.chatWihProject(chat)
   }
 
   async findChat({ id, owner_project_id } = {}) {
     return id
       ? await this.$chats.findProjectChat({ id, owner_project_id })
-      : null;
+      : null
   }
 
-  // Build profiles list from mentions and selected user
   getMessageProfiles({ messageMentions, selectedUser, currentUser }) {
     const profiles = messageMentions
       .filter((m) => m.profile)
-      .map((m) => m.profile.name);
+      .map((m) => m.profile.name)
     if (selectedUser?.name && selectedUser !== currentUser) {
-      profiles.push(selectedUser.name);
+      profiles.push(selectedUser.name)
     }
     return profiles.filter(
       (v, ix, arr) => arr.findIndex((vv) => vv === v) === ix
-    );
+    )
   }
 
-  // Build files list combining mentions and explicit files
   getMessageFiles({ messageMentions, files }) {
     return [
       ...messageMentions.filter((m) => m.file).map((m) => m.file),
       ...(files || []),
-    ];
+    ]
   }
 
-  /**
-   * Add a message to a chat in a reactive way via the Vuex store mutation,
-   * so all Vue components observing the chat are notified of the change.
-   */
   addMessage({ chat, message }) {
     if (chat?.id) {
-      // Route through the store mutation to guarantee Vue reactivity
       this.$storex.chats.addMessageToChat({ chatId: chat.id, message })
     } else {
-      // Fallback for temp/unsaved chats not yet in the store
-      chat.messages = [...(chat.messages || []), message];
+      chat.messages = [...(chat.messages || []), message]
     }
   }
 
   removeMessage({ chat, message }) {
-    const ix = chat.messages.findIndex((m) => m.doc_id === message.doc_id);
-    // Restore visibility of previous messages for task chats
+    const ix = chat.messages.findIndex((m) => m.doc_id === message.doc_id)
     if (chat.mode === "task" && message.role === "assistant" && ix > 1) {
-      chat.messages[ix - 1].hide = false;
-      if (chat.messages[ix - 2]) chat.messages[ix - 2].hide = false;
+      chat.messages[ix - 1].hide = false
+      if (chat.messages[ix - 2]) chat.messages[ix - 2].hide = false
     }
-    chat.messages = chat.messages.filter((_, i) => i !== ix);
+    chat.messages = chat.messages.filter((_, i) => i !== ix)
   }
 
   toggleHide({ chat, doc_id }) {
-    const msg = chat.messages.find((m) => m.doc_id === doc_id);
-    if (msg) msg.hide = !msg.hide;
+    const msg = chat.messages.find((m) => m.doc_id === doc_id)
+    if (msg) msg.hide = !msg.hide
   }
 
   toggleAnswer({ chat, doc_id }) {
-    const msg = chat.messages.find((m) => m.doc_id === doc_id);
-    if (msg) msg.is_answer = !msg.is_answer;
+    const msg = chat.messages.find((m) => m.doc_id === doc_id)
+    if (msg) msg.is_answer = !msg.is_answer
   }
 
   hideAll({ chat }) {
     chat.messages.forEach((m) => {
-      m.hide = true;
-    });
+      m.hide = true
+    })
   }
 
   updateExistingMessage({ chat, doc_id, update }) {
-    const existing = chat.messages.find((m) => m.doc_id === doc_id);
-    if (existing) Object.assign(existing, update);
+    const existing = chat.messages.find((m) => m.doc_id === doc_id)
+    if (existing) Object.assign(existing, update)
   }
 
   removeFileFromMessage({ message, file }) {
-    message.files = message.files.filter((f) => f !== file);
+    message.files = message.files.filter((f) => f !== file)
   }
 
   removeFileFromChat({ chat, file }) {
-    chat.file_list = chat.file_list?.filter((f) => f !== file);
+    chat.file_list = chat.file_list?.filter((f) => f !== file)
   }
 
   addFileToChat({ chat, file }) {
-    if (chat.file_list?.includes(file)) return false;
-    chat.file_list = [...(chat.file_list || []), file];
-    return true;
+    if (chat.file_list?.includes(file)) return false
+    chat.file_list = [...(chat.file_list || []), file]
+    return true
   }
 
-  // Parse image from paste event
   async parseImageFromPaste(e) {
-    if (!e.clipboardData?.items) return null;
+    if (!e.clipboardData?.items) return null
     return (
       [...e.clipboardData.items]
         .find((f) => f.type.indexOf("image") !== -1)
         ?.getAsFile() || null
-    );
+    )
   }
 
-  // Parse text content from paste event
   async parseTextFromPaste(e) {
-    if (!e.clipboardData?.items) return null;
+    if (!e.clipboardData?.items) return null
     const textItem = [...e.clipboardData.items].find(
       (f) => f.type.indexOf("text") !== -1
-    );
-    if (!textItem) return null;
-    return new Promise((ok) => textItem.getAsString(ok));
+    )
+    if (!textItem) return null
+    return new Promise((ok) => textItem.getAsString(ok))
   }
 
-  // Extract image URL from pasted <img> HTML string
   extractImageUrlFromHtml(html) {
-    if (!html.startsWith("<img")) return null;
-    const match = /src="([^"]+)/.exec(html);
-    return match ? match[1] : null;
+    if (!html.startsWith("<img")) return null
+    const match = /src="([^"]+)/.exec(html)
+    return match ? match[1] : null
   }
 
-  // Upload an image file and return its server path
   async uploadImage({ file }) {
-    const formData = new FormData();
-    formData.append("file", file);
-    const response = await this.$storex.api.images.upload(formData);
-    return response.path;
+    const formData = new FormData()
+    formData.append("file", file)
+    const response = await this.$storex.api.images.upload(formData)
+    return response.path
   }
 
-  // Convert a file to a markdown code block message
   async fileToMessage({ file }) {
-    const content = await this.$storex.api.files.read(file);
-    const ext = file.split(".").reverse()[0];
-    return ["```" + `${ext} ${file}`, content, "```"].join("\n");
+    const content = await this.$storex.api.files.read(file)
+    const ext = file.split(".").reverse()[0]
+    return ["```" + `${ext} ${file}`, content, "```"].join("\n")
   }
 
-  // Extract text from an image using OCR API
   async extractTextFromImage(image) {
-    const byteString = atob(image.src.split(",")[1]);
-    const mimeString = image.src.split(",")[0].split(":")[1].split(";")[0];
-    const byteArray = new Uint8Array(byteString.length);
+    const byteString = atob(image.src.split(",")[1])
+    const mimeString = image.src.split(",")[0].split(":")[1].split(";")[0]
+    const byteArray = new Uint8Array(byteString.length)
     for (let i = 0; i < byteString.length; i++)
-      byteArray[i] = byteString.charCodeAt(i);
-    const blob = new Blob([byteArray], { type: mimeString });
-    const file = new File([blob], "image", { type: mimeString });
-    return this.$api.tools.imageToText(file);
+      byteArray[i] = byteString.charCodeAt(i)
+    const blob = new Blob([byteArray], { type: mimeString })
+    const file = new File([blob], "image", { type: mimeString })
+    return this.$api.tools.imageToText(file)
   }
 
-  // Build a sub-task creation payload
   buildSubTaskPayload({
     title,
     description,
@@ -198,70 +182,68 @@ export class ChatService extends Service {
       board: board,
       metadata: metadata || {},
       activateChat: false,
-    };
+    }
   }
 
-  // Compute caret word info from editor element
   getCaretWordInfo(editor) {
-    if (!editor?.innerText) return {};
-    const caretIndex = this._getEditorCaretCharOffset(editor);
-    const text = editor.innerText;
-    const lastWorkIndex = text.slice(0, caretIndex).split(/\s/g).length - 1;
-    const word = text.split(/\s/g)[lastWorkIndex];
-    return { caretIndex, lastWorkIndex, word };
+    if (!editor?.innerText) return {}
+    const caretIndex = this._getEditorCaretCharOffset(editor)
+    const text = editor.innerText
+    const lastWorkIndex = text.slice(0, caretIndex).split(/\s/g).length - 1
+    const word = text.split(/\s/g)[lastWorkIndex]
+    return { caretIndex, lastWorkIndex, word }
   }
 
   _getEditorCaretCharOffset(element) {
-    let caretOffset = 0;
+    let caretOffset = 0
     if (window.getSelection) {
-      const range = window.getSelection().getRangeAt(0);
-      const preCaretRange = range.cloneRange();
-      preCaretRange.selectNodeContents(element);
-      preCaretRange.setEnd(range.endContainer, range.endOffset);
-      caretOffset = preCaretRange.toString().length;
+      const range = window.getSelection().getRangeAt(0)
+      const preCaretRange = range.cloneRange()
+      preCaretRange.selectNodeContents(element)
+      preCaretRange.setEnd(range.endContainer, range.endOffset)
+      caretOffset = preCaretRange.toString().length
     }
-    return caretOffset;
+    return caretOffset
   }
 
-  // Start speech recognition session
   startVoiceRecognition({ lang, onResult, onEnd }) {
     const recognition = new (window.SpeechRecognition ||
-      window.webkitSpeechRecognition)();
-    recognition.lang = lang;
-    recognition.interimResults = false;
-    recognition.onresult = onResult;
-    recognition.onend = onEnd;
-    recognition.start();
-    return recognition;
+      window.webkitSpeechRecognition)()
+    recognition.lang = lang
+    recognition.interimResults = false
+    recognition.onresult = onResult
+    recognition.onend = onEnd
+    recognition.start()
+    return recognition
   }
 
   async syncNotebook({ project, chat }) {
-    return this.$storex.chat.syncNotebookToChat({ project, chat });
+    return this.$storex.chat.syncNotebookToChat({ project, chat })
   }
 
   async exportNotebook({ project, chat, file }) {
-    return this.$storex.chat.exportChatToNotebook({ project, chat, file });
+    return this.$storex.chat.exportChatToNotebook({ project, chat, file })
   }
 
   async saveChat(chat) {
     if (!chat.temp) {
-      return await this.$chats.saveChat(chat);
+      return await this.$chats.saveChat(chat)
     }
   }
 
   async sendChatMessage({ chat, storex }) {
-    return await storex.projects.chatWihProject(chat);
+    return await storex.projects.chatWihProject(chat)
   }
 
   async validateFile({ file, parentChat }) {
-    const fileChat = file.chat || await this.createFileChat({ file, parentChat });
+    const fileChat = file.chat || await this.createFileChat({ file, parentChat })
 
     if (fileChat.messages.some(m => !m.hide)) {
       fileChat.messages.forEach(m => { m.hide = true })
       await this.saveChat(fileChat)
     }
 
-    const message = this.getUserMessage({ 
+    const message = this.getUserMessage({
       taskItem: 'review',
       message:
         [
@@ -269,11 +251,10 @@ export class ChatService extends Service {
           "If no profiles are present, create a summary of best practices of the file with example and suggestions of how to improve file quality",
           file.diff ? 'Focus on the last changes from the diff:\n' + file.diff : ''
         ].join("\n"),
-        files: [file.fileFullName] 
-      })
+      files: [file.fileFullName]
+    })
 
-
-    return this.sendMessage({ chat: fileChat, message });
+    return this.sendMessage({ chat: fileChat, message })
   }
 
   async validateAllFiles({ prReviewChat, files }) {
@@ -284,18 +265,18 @@ export class ChatService extends Service {
           parentChat: prReviewChat,
         })
       )
-    );
+    )
   }
 
   async createFileChat({ parentChat, file, project_id, column, message, metadata }) {
     column = column || parentChat.column
     const { fileFullName, fileShortName, profiles } = file
     const payload = this.buildSubTaskPayload({
-      title: fileShortName, 
+      title: fileShortName,
       description: message,
-      files: [fileFullName], 
-      profiles: profiles.map(p => p.name), 
-      mode: 'task', 
+      files: [fileFullName],
+      profiles: profiles.map(p => p.name),
+      mode: 'task',
       column,
       metadata,
       project_id: parentChat.project_id,
@@ -318,19 +299,6 @@ export class ChatService extends Service {
     return this.$chats.createNewChat({ chat })
   }
 
-  /**
-   * Create a new chat pre-loaded with the given list of file paths.
-   *
-   * @param {Object} options
-   * @param {string[]} options.files        - List of file paths to attach
-   * @param {string}   [options.name]       - Chat name (auto-generated from files if omitted)
-   * @param {string}   [options.mode]       - Chat mode: 'chat' | 'task' (default: 'chat')
-   * @param {string}   [options.message]    - Custom opening message (auto-generated if omitted)
-   * @param {string[]} [options.profiles]   - Profile names to attach
-   * @param {Object}   [options.metadata]   - Extra metadata
-   * @param {boolean}  [options.activate]   - Whether to set the chat as active after creation
-   * @returns {Promise<Object>} The newly created chat object
-   */
   async createChat({
     files,
     name,
@@ -371,5 +339,24 @@ export class ChatService extends Service {
     }
 
     return chat
+  }
+
+  // Get chat project from chat object or fallback to current project
+  getChatProject(chat) {
+    const projectId = chat?.project_id || chat?.owner_project_id
+    if (projectId) {
+      return this.$projects.allProjectsById[projectId] || this.$project
+    }
+    return this.$project
+  }
+
+  // Update chat branch metadata
+  updateChatBranches({ chat, currentBranch, compareBranch }) {
+    if (!chat) return
+    chat.meta_data = {
+      ...(chat.meta_data || {}),
+      current_branch: currentBranch,
+      compare_branch: compareBranch
+    }
   }
 }

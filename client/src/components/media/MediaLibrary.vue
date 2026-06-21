@@ -90,7 +90,7 @@ import MediaUploadDialog from './MediaUploadDialog.vue'
       </div>
 
       <!-- Empty state -->
-      <div v-else class="h-full flex flex-col items-center justify-center text-base-content/40 gap-4">
+      <div v-else class="h-full flex flex-col items-center justify-center text-base-content-ERROR-40 gap-4">
         <i class="fa-solid fa-image text-5xl"></i>
         <div class="text-center">
           <p class="font-semibold">No media found</p>

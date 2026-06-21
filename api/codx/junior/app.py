@@ -468,6 +468,12 @@ async def api_post_file(doc: Document, request: Request):
     file_path = request.query_params.get("path")
     return await codx_junior_session.write_project_file(file_path=file_path, content=doc.page_content, process=False)
 
+@app.get("/api/files/reset")
+async def api_reset_file(request: Request):
+    codx_junior_session = request.state.codx_junior_session
+    file_path = request.query_params.get("path")
+    return await codx_junior_session.reset_project_file(file_path=file_path)
+
 @app.get("/api/files/find")
 def api_find_files(request: Request):
     codx_junior_session = request.state.codx_junior_session

@@ -157,7 +157,7 @@ import UserWalletSettings from './UserWalletSettings.vue'
               <i class="fa-solid fa-minus"></i>
             </button>
           </div>
-          <div v-if="!user.projects?.length" class="text-xs text-base-content/40 italic text-center py-3">
+          <div v-if="!user.projects?.length" class="text-xs text-base-content-ERROR-40 italic text-center py-3">
             No projects assigned
           </div>
         </div>
@@ -189,7 +189,7 @@ import UserWalletSettings from './UserWalletSettings.vue'
                 <i class="fa-solid fa-times"></i>
               </button>
             </span>
-            <span v-if="!user.apps?.length" class="text-xs text-base-content/40 italic">No apps assigned</span>
+            <span v-if="!user.apps?.length" class="text-xs text-base-content-ERROR-40 italic">No apps assigned</span>
           </div>
         </div>
       </div>
@@ -197,7 +197,7 @@ import UserWalletSettings from './UserWalletSettings.vue'
 
     <!-- Wallet Tab: delegate entirely to UserWalletSettings -->
     <div v-if="activeTab === 'wallet'" class="w-full grow flex flex-col gap-3">
-      <div v-if="!user.wallet" class="flex flex-col items-center justify-center h-full gap-3 text-base-content/40">
+      <div v-if="!user.wallet" class="flex flex-col items-center justify-center h-full gap-3 text-base-content-ERROR-40">
         <i class="fa-solid fa-wallet text-4xl"></i>
         <span class="text-sm italic">No wallet associated with this user</span>
         <button class="btn btn-sm btn-secondary" @click="createWallet">

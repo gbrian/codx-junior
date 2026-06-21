@@ -11,7 +11,7 @@
           <h3 class="font-bold text-sm flex items-center gap-2 mb-3">
             <i class="fa-solid fa-microchip text-primary"></i>Top Models
           </h3>
-          <div v-if="topModels.length === 0" class="text-center py-6 text-base-content/40 text-xs">No data</div>
+          <div v-if="topModels.length === 0" class="text-center py-6 text-base-content-ERROR-40 text-xs">No data</div>
           <div v-else class="space-y-2">
             <div v-for="m in topModels" :key="m.name" class="flex items-center gap-2">
               <span class="text-xs truncate flex-1 font-mono" :title="m.name">{{ m.name }}</span>
@@ -30,7 +30,7 @@
           <h3 class="font-bold text-sm flex items-center gap-2 mb-3">
             <i class="fa-solid fa-plug text-secondary"></i>Top Providers
           </h3>
-          <div v-if="topProviders.length === 0" class="text-center py-6 text-base-content/40 text-xs">No data</div>
+          <div v-if="topProviders.length === 0" class="text-center py-6 text-base-content-ERROR-40 text-xs">No data</div>
           <div v-else class="space-y-2">
             <div v-for="p in topProviders" :key="p.name" class="flex items-center gap-2">
               <span class="text-xs truncate flex-1" :title="p.name">{{ p.name }}</span>
@@ -49,7 +49,7 @@
           <h3 class="font-bold text-sm flex items-center gap-2 mb-3">
             <i class="fa-solid fa-folder text-accent"></i>Top Projects
           </h3>
-          <div v-if="topProjects.length === 0" class="text-center py-6 text-base-content/40 text-xs">No data</div>
+          <div v-if="topProjects.length === 0" class="text-center py-6 text-base-content-ERROR-40 text-xs">No data</div>
           <div v-else class="space-y-2">
             <div v-for="p in topProjects" :key="p.name" class="flex items-center gap-2">
               <span class="text-xs truncate flex-1" :title="p.name">{{ p.name || '(no project)' }}</span>
@@ -99,7 +99,7 @@
           <h3 class="font-bold text-sm flex items-center gap-2 mb-3">
             <i class="fa-solid fa-stopwatch text-warning"></i>Avg Duration / Model
           </h3>
-          <div v-if="durationByModel.length === 0" class="text-center py-6 text-base-content/40 text-xs">No data</div>
+          <div v-if="durationByModel.length === 0" class="text-center py-6 text-base-content-ERROR-40 text-xs">No data</div>
           <div v-else class="space-y-2">
             <div v-for="m in durationByModel" :key="m.name" class="flex items-center gap-2">
               <span class="text-xs truncate flex-1 font-mono" :title="m.name">{{ m.name }}</span>
@@ -118,7 +118,7 @@
           <h3 class="font-bold text-sm flex items-center gap-2 mb-3">
             <i class="fa-solid fa-tags text-fuchsia-400"></i>Top Tags
           </h3>
-          <div v-if="topTags.length === 0" class="text-center py-6 text-base-content/40 text-xs">No tags</div>
+          <div v-if="topTags.length === 0" class="text-center py-6 text-base-content-ERROR-40 text-xs">No tags</div>
           <div v-else class="flex flex-wrap gap-1">
             <span
               v-for="tag in topTags"

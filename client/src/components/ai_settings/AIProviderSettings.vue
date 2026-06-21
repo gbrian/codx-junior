@@ -99,7 +99,7 @@
               v-model="provider.api_key"
               placeholder="sk-..."
             />
-            <button class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-base-content/40 hover:text-base-content" @click="showKey = !showKey">
+            <button class="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-base-content-ERROR-40 hover:text-base-content" @click="showKey = !showKey">
               <i :class="showKey ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'"></i>
             </button>
           </div>
@@ -209,7 +209,7 @@
                 class="hover"
                 :class="hasNullPrices(entry) ? 'bg-warning/10' : ''"
               >
-                <td class="text-xs text-base-content/40">{{ idx + 1 }}</td>
+                <td class="text-xs text-base-content-ERROR-40">{{ idx + 1 }}</td>
                 <td class="font-mono text-xs">{{ entry.model_name }}</td>
                 <td class="text-xs" :class="entry.input_price_per_1k_tokens == null ? 'text-warning' : 'text-green-500'">
                   <span v-if="entry.input_price_per_1k_tokens != null">${{ entry.input_price_per_1k_tokens }}</span>
@@ -238,7 +238,7 @@
         </div>
       </div>
 
-      <div v-else class="text-center text-base-content/40 text-xs py-6">
+      <div v-else class="text-center text-base-content-ERROR-40 text-xs py-6">
         <i class="fa-solid fa-table-list text-2xl mb-2 block"></i>
         No price entries yet. Paste JSON above and click Apply.
       </div>

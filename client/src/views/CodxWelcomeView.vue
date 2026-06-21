@@ -12,8 +12,8 @@ import Wall from '../components/wall/Wall.vue'
       <!-- Search / Command Palette trigger -->
       <div class="flex items-center gap-2 bg-base-200 rounded-lg px-3 py-1.5 cursor-pointer hover:bg-base-300 transition-colors min-w-48"
         @click="showSearch = true">
-        <i class="fa-solid fa-magnifying-glass text-base-content/40 text-sm"></i>
-        <span class="text-sm text-base-content/40">Search or jump to...</span>
+        <i class="fa-solid fa-magnifying-glass text-base-content-ERROR-40 text-sm"></i>
+        <span class="text-sm text-base-content-ERROR-40">Search or jump to...</span>
         <kbd class="kbd kbd-sm ml-auto">⌘K</kbd>
       </div>
       <div class="flex gap-1">
@@ -47,7 +47,7 @@ import Wall from '../components/wall/Wall.vue'
               <a class="flex gap-3" @click="result.fn(); showSearch = false">
                 <i :class="result.icon" class="text-primary w-4 text-center"></i>
                 <span>{{ result.label }}</span>
-                <span class="text-xs text-base-content/40 ml-auto">{{ result.type }}</span>
+                <span class="text-xs text-base-content-ERROR-40 ml-auto">{{ result.type }}</span>
               </a>
             </li>
           </ul>
@@ -96,7 +96,7 @@ import Wall from '../components/wall/Wall.vue'
             <i class="fa-solid fa-message text-xs text-accent w-4 text-center"></i>
             <div class="flex-1 min-w-0">
               <div class="text-sm truncate">{{ chat.name || 'Untitled' }}</div>
-              <div class="text-xs text-base-content/40 truncate">{{ chat.updated_at }}</div>
+              <div class="text-xs text-base-content-ERROR-40 truncate">{{ chat.updated_at }}</div>
             </div>
           </div>
         </div>
@@ -106,7 +106,7 @@ import Wall from '../components/wall/Wall.vue'
           <button class="btn btn-primary btn-sm w-full gap-2" @click="$ui.setActiveTab('tasks')">
             <i class="fa-brands fa-trello"></i> Open Task Manager
           </button>
-          <div class="text-xs text-base-content/40 text-center mt-2">View boards and manage tasks</div>
+          <div class="text-xs text-base-content-ERROR-40 text-center mt-2">View boards and manage tasks</div>
         </div>
       </div>
 

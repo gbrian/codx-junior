@@ -76,7 +76,7 @@ import KnowledgeIgnorePatterns from './KnowledgeIgnorePatterns.vue'
           </div>
           <div
             class="w-10 h-10 rounded-full flex items-center justify-center"
-            :class="pendingCount > 0 ? 'bg-warning/20 text-warning' : 'bg-base-300 text-base-content/40'"
+            :class="pendingCount > 0 ? 'bg-warning/20 text-warning' : 'bg-base-300 text-base-content-ERROR-40'"
           >
             <i class="fa-solid fa-hourglass-half"></i>
           </div>

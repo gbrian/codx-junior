@@ -41,14 +41,14 @@ import VibeCodingView from '@/views/VibeCodingView.vue'
     <!-- Empty sidebar when no team -->
     <div
       v-else
-      class="flex flex-col items-center justify-center w-64 bg-base-200 border-r border-base-content/10 gap-3 text-base-content/40"
+      class="flex flex-col items-center justify-center w-64 bg-base-200 border-r border-base-content/10 gap-3 text-base-content-ERROR-40"
     >
       <i class="fa-solid fa-people-group text-4xl"></i>
       <span class="text-xs text-center px-4">Select or create a team</span>
     </div>
 
     <!-- ── Main content placeholder (channels open in Desktop panels) ──── -->
-    <div class="flex flex-col flex-1 min-w-0 overflow-hidden items-center justify-center text-base-content/40"
+    <div class="flex flex-col flex-1 min-w-0 overflow-hidden items-center justify-center text-base-content-ERROR-40"
       v-if="isExpertMode"
     >
       <Desktop />

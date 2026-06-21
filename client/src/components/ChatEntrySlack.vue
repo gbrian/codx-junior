@@ -31,7 +31,7 @@ import Editor from './monaco/Editor.vue'
         <span class="text-base-content/50 text-[10px]">
           {{ formatDate(displayMessage.updated_at) }}
         </span>
-        <span v-if="timeTaken" class="text-base-content/40 text-[10px]">({{ timeTaken }})</span>
+        <span v-if="timeTaken" class="text-base-content-ERROR-40 text-[10px]">({{ timeTaken }})</span>
         <span class="badge badge-xs badge-error" v-if="cancellationTime">Cancelled</span>
 
         <!-- Action buttons, visible on hover -->

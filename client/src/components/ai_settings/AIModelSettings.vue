@@ -141,7 +141,7 @@ import Chat from '../chat/Chat.vue'
                 <i class="fa-solid fa-tags mr-1 text-primary"></i>Pick from provider price list
               </span>
               <span class="label-text-alt">
-                <button class="btn btn-ghost btn-xs text-base-content/40" @click="selectedPriceEntry = null" title="Clear selection">
+                <button class="btn btn-ghost btn-xs text-base-content-ERROR-40" @click="selectedPriceEntry = null" title="Clear selection">
                   <i class="fa-solid fa-xmark"></i>
                 </button>
               </span>
@@ -293,7 +293,7 @@ import Chat from '../chat/Chat.vue'
         {{ testChatError }}
       </div>
       <Chat v-else-if="testChat" class="w-full grow min-h-0" :chat="testChat" />
-      <div v-else class="flex items-center justify-center gap-2 p-8 text-base-content/40">
+      <div v-else class="flex items-center justify-center gap-2 p-8 text-base-content-ERROR-40">
         <span class="loading loading-spinner loading-sm"></span>
         Creating test chat...
       </div>

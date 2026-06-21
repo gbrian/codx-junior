@@ -591,6 +591,14 @@ class CODXJuniorSession:
             file_path=file_path, content=content, process=process
         )
 
+    def reset_project_file(
+        self, file_path: str
+    ) -> None:
+        """Reset file's last change."""
+        self._git_engine.reset_project_file(
+            file_path=file_path
+        )
+
     def search_files(self, search: str) -> list:
         """Search for files whose paths contain the search string."""
         return self._file_engine.search_files(search=search)

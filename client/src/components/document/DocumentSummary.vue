@@ -9,7 +9,7 @@
     >
       <span class="text-base">📋</span>
       <span>{{ open ? 'Hide' : 'Show' }} Contents</span>
-      <span class="text-base-content/40">({{ headings.length }})</span>
+      <span class="text-base-content-ERROR-40">({{ headings.length }})</span>
       <svg
         class="w-3 h-3 transition-transform"
         :class="open && 'rotate-180'"

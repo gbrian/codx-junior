@@ -45,7 +45,7 @@ import MediaPreview from './MediaPreview.vue'
           @change="onFilesSelected"
           accept="image/*,video/*,audio/*,.pdf,.doc,.docx"
         />
-        <i class="fa-solid fa-cloud-arrow-up text-3xl text-base-content/40 mb-2"></i>
+        <i class="fa-solid fa-cloud-arrow-up text-3xl text-base-content-ERROR-40 mb-2"></i>
         <div class="text-sm font-semibold">Drag files here or click to browse</div>
         <div class="text-xs text-base-content/50 mt-1">
           Supported: Images, Videos, Audio, Documents (Max 50MB each)

@@ -22,7 +22,7 @@
 
     <!-- Audio -->
     <div v-else-if="media.type === 'audio'" class="flex flex-col items-center justify-center w-full h-full gap-2 p-3">
-      <i class="fa-solid fa-music text-3xl text-base-content/40"></i>
+      <i class="fa-solid fa-music text-3xl text-base-content-ERROR-40"></i>
       <audio :src="media.url" controls class="w-full"></audio>
     </div>
 

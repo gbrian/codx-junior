@@ -1,17 +1,15 @@
 # Database Data Management
 
 ## Overview
-The **Database Data Management** domain serves as the foundational architectural framework and centralized knowledge base for all data storage, retrieval, and lifecycle management within the system. This domain is dedicated to maintaining consistent database infrastructure, enforcing operational data standards, and providing technical documentation for database administrators and software engineers.
+The **Database Data Management** domain serves as the foundational architectural authority for how information is persisted, structured, and maintained throughout the software ecosystem. This domain is responsible for defining the standards, protocols, and strategies for storage systems, ensuring data integrity, availability, and optimal access patterns.
 
-By centralizing these guidelines, this domain ensures:
-* **Data Integrity:** Consistent schemas and validation rules across all services.
-* **Operational Efficiency:** Standardized procedures for database backups, migrations, and performance tuning.
-* **Architectural Alignment:** Clear documentation on technology choices (SQL vs. NoSQL) and storage strategies.
-* **Knowledge Sharing:** A single source of truth for developers interacting with the persistence layer.
+Key responsibilities include:
+* **Architecture Governance:** Establishing guidelines for database schema design and selection of storage engines.
+* **Documentation Repository:** Maintaining a central knowledge base for data management workflows and best practices.
+* **Lifecycle Management:** Outlining strategies for data persistence, migration, and maintenance within the ecosystem.
 
 ## Files in Domain
-The following files constitute the current documentation and architectural configuration for this domain:
-
+The following files are managed within this domain:
 * `/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md`
 * `domains/database-data-storage.md`
 * `domains/database-and-data-storage.md`
@@ -20,26 +18,15 @@ The following files constitute the current documentation and architectural confi
 * `domains/wiki.md`
 
 ## Dependencies
-This domain currently operates as a core foundational pillar and does not have explicit hard dependencies on other software domains within the repository at this time.
+This domain currently has no hard dependencies on external domains or specific configuration files at this time.
 
 ## Used By
-As a foundational documentation and standards domain, this information is utilized by:
-* Backend Engineering Teams (for schema design and database integration).
-* DevOps/Infrastructure Teams (for storage provisioning and maintenance).
-* System Architects (for long-term data strategy planning).
+This domain acts as a foundational service for the broader software ecosystem; however, there are no explicitly registered reverse-dependencies at this time. It is intended to provide guidance for any service or module that interacts with the persistence layer.
 
 ## Entry Points
-To begin exploring the documentation, please refer to the following primary entry points:
-
-* [README: Database and Data Storage](/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md)
-* [Domain: Database Data Storage](domains/database-data-storage.md)
-* [Domain: Database and Data Storage](domains/database-and-data-storage.md)
-* [Domain: Database Data Management](domains/database-data-management.md)
-* [Domain: Database and Data Management](domains/database-and-data-management.md)
-
-***
-
-### Links Preview
-* [Database Best Practices (Oracle)](https://www.oracle.com/database/what-is-database-management/)
-* [Data Management Fundamentals (DAMA International)](https://dama.org/)
-* [Database Systems Concepts (Silberschatz et al.)](https://www.db-book.com/)
+The primary entry points for accessing documentation and architectural guidelines related to this domain are:
+* `/home/codx-junior/codx-junior/api/wiki/database-and-data-storage/readme-md.md`
+* `domains/database-data-storage.md`
+* `domains/database-and-data-storage.md`
+* `domains/database-data-management.md`
+* `domains/database-and-data-management.md`

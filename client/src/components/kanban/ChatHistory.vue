@@ -13,7 +13,7 @@ import ChatPreviewVue from '../wall/ChatPreview.vue'
       <div v-if="loading" class="flex flex-col gap-2 p-2">
         <div v-for="i in 5" :key="i" class="h-16 rounded-lg bg-base-200 animate-pulse"></div>
       </div>
-      <div v-else-if="!allChats?.length" class="flex flex-col items-center justify-center h-32 text-base-content/40 text-sm gap-2">
+      <div v-else-if="!allChats?.length" class="flex flex-col items-center justify-center h-32 text-base-content-ERROR-40 text-sm gap-2">
         <i class="fa-solid fa-inbox text-2xl"></i>
         <span>No recent activity</span>
       </div>

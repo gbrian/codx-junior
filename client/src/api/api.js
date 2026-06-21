@@ -872,6 +872,9 @@ knowledge: {
       },
       write(source, page_content) {
         return API.post(`/api/files/write?path=${source}`, { page_content, metadata: { source } })
+      },
+      reset(source) {
+        return API.get(`/api/files/reset?path=${path}`)
       }
     },
     screen: {

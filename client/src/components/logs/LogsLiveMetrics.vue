@@ -15,7 +15,7 @@
               {{ kpi.label }}
             </p>
             <p class="text-xl font-bold mt-0.5 truncate" :class="kpi.color">{{ kpi.value }}</p>
-            <p v-if="kpi.sub" class="text-xs text-base-content/40 mt-0.5 truncate">{{ kpi.sub }}</p>
+            <p v-if="kpi.sub" class="text-xs text-base-content-ERROR-40 mt-0.5 truncate">{{ kpi.sub }}</p>
           </div>
           <div class="p-1.5 rounded-lg shrink-0" :class="kpi.bgColor">
             <i :class="[kpi.icon, kpi.color, 'text-sm']"></i>

@@ -49,7 +49,7 @@ import moment from 'moment'
               </div>
               <div class="text-sm break-words">{{ notification.text }}</div>
             </div>
-            <span class="text-sm text-base-content/40 group-hover:text-error whitespace-nowrap">
+            <span class="text-sm text-base-content-ERROR-40 group-hover:text-error whitespace-nowrap">
               (×)
             </span>
           </div>

@@ -24,7 +24,7 @@ import ViewsMenu from './ViewsMenu.vue'
           :data-tip="$storex.session.connected ? '' : 'API is not connected!'"
         >
           <div class="avatar">
-            <img class="w-10 rpounded-full" src="/only_icon.png" />
+            <img class="w-8 rpounded-full" src="/only_icon.png" />
           </div>
         </MenubarTrigger>
         <MenubarPortal>

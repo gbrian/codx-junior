@@ -1,46 +1,36 @@
 <script setup>
 import Chat from '@/components/chat/Chat.vue'
 import AppWindow from '@/components/windowManager/AppWindow.vue'
-import Collapsible from '@/components/Collapsible.vue'
 import ChatIcon from '@/components/chat/ChatIcon.vue'
-import ProjectDetailt from '@/components/ProjectDetailt.vue'
-import Markdown from '@/components/Markdown.vue'
+import PRView from '@/components/repo/PRView.vue'
+import VibeCodingHeader from '@/components/vibe/VibeCodingHeader.vue'
+import KanbanContainer from '@/components/kanban/KanbanContainer.vue'
 </script>
 
 <template>
   <div class="flex flex-col h-full w-full bg-base-300 overflow-hidden">
-    <!-- Status bar -->
-    <div class="flex items-center gap-2 px-3 py-1.5 bg-base-200 border-b border-base-content/10 text-xs shrink-0">
-      <span class="flex items-center gap-1 text-success font-mono">
-        <i class="fa-solid fa-circle text-[8px] animate-pulse"></i>
-        vibe
-      </span>
-      <span class="text-base-content/40">|</span>
-      <span class="font-mono text-base-content/60">{{ $project?.project_name }}</span>
-      <span class="text-base-content/40">|</span>
-      <span class="font-mono text-info">{{ currentBranch }}</span>
-      <div class="grow"></div>
-      <!-- Layout toggles -->
-      <div class="join">
-        <button class="join-item btn btn-xs" :class="showChat ? 'btn-primary' : 'btn-ghost'" @click="showChat = !showChat">
-          <i class="fa-solid fa-comments"></i>
-        </button>
-        <button class="join-item btn btn-xs" :class="showDiff ? 'btn-warning' : 'btn-ghost'" @click="showDiff = !showDiff">
-          <i class="fa-solid fa-code-compare"></i>
-        </button>
-        <button class="join-item btn btn-xs" :class="showPreview ? 'btn-success' : 'btn-ghost'" @click="showPreview = !showPreview">
-          <i class="fa-solid fa-display"></i>
-        </button>
-      </div>
-      <button class="btn btn-xs btn-ghost" @click="reloadWorkspace">
-        <i class="fa-solid fa-rotate-right"></i>
-      </button>
-    </div>
+
+    <!-- Status bar with git controls -->
+    <VibeCodingHeader
+      ref="vibeHeader"
+      :chat="vibeChat"
+      :project-name="$project?.project_name"
+      :available-branches="branches"
+      :show-chat="showChat"
+      :show-changes="showChanges"
+      :show-preview="showPreview"
+      @toggle-view="toggleView"
+      @reload="reloadWorkspace"
+      @create-branch="showCreateBranchModal = true"
+      @branch-changed="onCurrentBranchChanged"
+      @compare-branch-changed="onCompareBranchChanged"
+      @update:chat="onChatMetaUpdated"
+    />
 
     <!-- Main content -->
     <div class="flex grow overflow-hidden min-h-0">
 
-      <!-- LEFT: Chat panel -->
+      <!-- LEFT: Chat panel or Kanban selector -->
       <div v-if="showChat"
         class="flex flex-col h-full border-r border-base-content/10 transition-all"
         :style="{ width: chatWidth }">
@@ -49,7 +39,7 @@ import Markdown from '@/components/Markdown.vue'
         <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
           <ChatIcon mode="vibe" class="text-sm" />
           <span class="text-sm font-bold truncate grow">{{ vibeChat?.name || 'Vibe session' }}</span>
-          <button class="btn btn-xs btn-ghost" @click="newVibeChat" title="New session">
+          <button class="btn btn-xs btn-ghost" @click="showKanbanSelector = !showKanbanSelector" title="New session">
             <i class="fa-solid fa-plus"></i>
           </button>
           <button class="btn btn-xs btn-ghost" @click="showChatPicker = !showChatPicker" title="Switch session">
@@ -57,8 +47,24 @@ import Markdown from '@/components/Markdown.vue'
           </button>
         </div>
 
+        <!-- Kanban selector for new chat -->
+        <div v-if="showKanbanSelector" class="flex flex-col h-full overflow-hidden bg-base-100">
+          <div class="flex items-center gap-2 px-2 py-2 border-b border-base-content/10 shrink-0">
+            <span class="text-xs font-semibold">Select task or create new</span>
+            <button class="btn btn-xs btn-ghost ml-auto" @click="showKanbanSelector = false">
+              <i class="fa-solid fa-times"></i>
+            </button>
+          </div>
+          <div class="grow overflow-hidden">
+            <KanbanContainer
+              :params="kanbanParams"
+              @select-board="onKanbanBoardSelected"
+            />
+          </div>
+        </div>
+
         <!-- Chat session picker dropdown -->
-        <div v-if="showChatPicker" class="bg-base-100 border-b border-base-content/10 max-h-40 overflow-y-auto z-10">
+        <div v-else-if="showChatPicker" class="bg-base-100 border-b border-base-content/10 max-h-40 overflow-y-auto z-10">
           <div v-for="c in vibeSessions" :key="c.id"
             class="flex items-center gap-2 px-2 py-1.5 text-xs cursor-pointer hover:bg-base-200"
             :class="vibeChat?.id === c.id ? 'bg-primary/10 text-primary' : ''"
@@ -67,16 +73,16 @@ import Markdown from '@/components/Markdown.vue'
             <span class="truncate grow">{{ c.name }}</span>
             <span class="text-base-content/30 shrink-0">{{ formatDate(c.updated_at) }}</span>
           </div>
-          <div v-if="!vibeSessions.length" class="px-2 py-2 text-xs text-base-content/40 text-center">
+          <div v-if="!vibeSessions.length" class="px-2 py-2 text-xs text-base-content-ERROR-40 text-center">
             No vibe sessions yet
           </div>
         </div>
 
         <!-- Chat component -->
-        <div class="grow min-h-0 overflow-hidden" v-if="vibeChat">
+        <div class="grow min-h-0 overflow-hidden" v-else-if="vibeChat">
           <Chat :chat="vibeChat" class="h-full" @refresh-chat="reloadVibeChat" />
         </div>
-        <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content/40">
+        <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content-ERROR-40">
           <i class="fa-solid fa-wand-magic-sparkles text-4xl"></i>
           <span class="text-sm">Start a vibe coding session</span>
           <button class="btn btn-sm btn-primary" @click="newVibeChat">
@@ -85,63 +91,38 @@ import Markdown from '@/components/Markdown.vue'
         </div>
       </div>
 
-      <!-- CENTER: Diff / changes panel -->
-      <div v-if="showDiff"
-        class="flex flex-col h-full border-r border-base-content/10 transition-all overflow-hidden"
-        :style="{ width: diffWidth }">
+      <!-- MIDDLE: Changes/PR View panel -->
+      <div v-if="showChanges"
+        class="flex flex-col h-full border-r border-base-content/10 transition-all"
+        :style="{ width: changesWidth }">
 
-        <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 border-b border-base-content/10 shrink-0">
+        <!-- Changes header -->
+        <div class="flex items-center gap-2 px-2 py-1.5 bg-base-200/60 shrink-0 border-b border-base-content/10">
           <i class="fa-solid fa-code-compare text-warning text-sm"></i>
-          <span class="text-sm font-bold grow">Changes</span>
-          <span class="badge badge-xs badge-warning" v-if="changedFiles.length">{{ changedFiles.length }}</span>
-          <button class="btn btn-xs btn-ghost" @click="refreshChanges" :class="loadingChanges ? 'loading' : ''">
-            <i class="fa-solid fa-rotate-right" v-if="!loadingChanges"></i>
+          <span class="text-sm font-bold truncate grow">Changes</span>
+          <button class="btn btn-xs btn-ghost" @click="refreshChanges" title="Refresh changes">
+            <i class="fa-solid fa-rotate-right"></i>
           </button>
         </div>
 
-        <!-- File list -->
-        <div class="overflow-y-auto grow min-h-0">
-          <div v-if="loadingChanges" class="flex items-center justify-center h-20">
-            <span class="loading loading-spinner loading-sm"></span>
-          </div>
-
-          <div v-else-if="!changedFiles.length"
-            class="flex flex-col items-center justify-center gap-2 h-32 text-base-content/30 text-sm">
-            <i class="fa-solid fa-check-circle text-2xl text-success/50"></i>
-            No pending changes
-          </div>
-
-          <div v-else>
-            <!-- Summary stat pills -->
-            <div class="flex gap-2 px-2 py-1.5 text-xs border-b border-base-content/10">
-              <span class="badge badge-xs badge-success">+{{ totalAdded }}</span>
-              <span class="badge badge-xs badge-error">-{{ totalRemoved }}</span>
-            </div>
-
-            <!-- File entries -->
-            <div v-for="file in changedFiles" :key="file.path"
-              class="border-b border-base-content/5">
-              <div
-                class="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-base-200 text-xs"
-                :class="selectedDiffFile?.path === file.path ? 'bg-base-200' : ''"
-                @click="selectDiffFile(file)">
-                <i class="fa-solid fa-circle text-[7px]"
-                  :class="file.status === 'added' ? 'text-success' : file.status === 'deleted' ? 'text-error' : 'text-warning'"></i>
-                <span class="font-mono truncate grow" :title="file.path">{{ file.shortPath }}</span>
-                <span class="text-success shrink-0">+{{ file.added }}</span>
-                <span class="text-error shrink-0">-{{ file.removed }}</span>
-              </div>
-
-              <!-- Inline diff for selected file -->
-              <div v-if="selectedDiffFile?.path === file.path && file.diff"
-                class="bg-base-300 border-t border-base-content/10 overflow-x-auto max-h-64 overflow-y-auto">
-                <pre class="text-[10px] font-mono p-2 leading-relaxed"><span
-                  v-for="(line, li) in parsedDiffLines(file.diff)" :key="li"
-                  :class="line.type === '+' ? 'text-success block' : line.type === '-' ? 'text-error block' : 'text-base-content/50 block'"
-                >{{ line.content }}</span></pre>
-              </div>
-            </div>
-          </div>
+        <!-- PRView component -->
+        <div class="grow min-h-0 overflow-hidden" v-if="vibeChat">
+          <PRView
+            ref="prView"
+            :chat="vibeChat"
+            :fromBranch="currentBranchFromMeta"
+            :toBranch="compareBranchFromMeta"
+            class="h-full"
+            @select-branch="onPRBranchSelected"
+            @comment="onPRComment"
+            @change-column="onChangeColumnFromPR"
+            @new-chat="onNewChatFromChanges"
+            @chat-message="onPRChatMessage"
+          />
+        </div>
+        <div v-else class="grow flex flex-col items-center justify-center gap-3 p-4 text-base-content-ERROR-40">
+          <i class="fa-solid fa-inbox text-4xl"></i>
+          <span class="text-sm">No active session</span>
         </div>
       </div>
 
@@ -185,12 +166,40 @@ import Markdown from '@/components/Markdown.vue'
           <i class="fa-solid fa-display text-5xl"></i>
           <span class="text-sm">Select a workspace app to preview</span>
           <div class="text-xs max-w-xs text-center leading-relaxed" v-if="!projectApps?.length">
-            No workspace apps configured for this project. Add a VNC app in workspace settings.
+            No workspace apps configured for this project.
           </div>
         </div>
       </div>
-
     </div>
+
+    <!-- Create branch modal -->
+    <modal v-if="showCreateBranchModal">
+      <div class="flex flex-col gap-4 p-4 min-w-96">
+        <h3 class="font-bold text-lg">Create New Branch</h3>
+        <div class="form-control">
+          <label class="label"><span class="label-text">From branch</span></label>
+          <select class="select select-bordered select-sm" v-model="createBranchFrom">
+            <option v-for="b in branches" :key="b" :value="b">{{ b }}</option>
+          </select>
+        </div>
+        <input
+          v-model="newBranchName"
+          type="text"
+          class="input input-bordered input-sm"
+          placeholder="Branch name (e.g., feature/my-feature)"
+          @keydown.enter="onCreateBranch"
+        />
+        <div class="flex gap-2 justify-end">
+          <button class="btn btn-sm" @click="showCreateBranchModal = false">Cancel</button>
+          <button
+            class="btn btn-sm btn-primary"
+            @click="onCreateBranch"
+            :disabled="!newBranchName.trim()">
+            Create
+          </button>
+        </div>
+      </div>
+    </modal>
   </div>
 </template>
 
@@ -199,29 +208,28 @@ import moment from 'moment'
 import { v4 as uuidv4 } from 'uuid'
 
 export default {
-  props: ['chatMode', 'chat', 'kanban', 'params'],
+  props: ['chat', 'kanban', 'params'],
   data() {
     return {
       showChat: true,
-      showDiff: true,
       showPreview: true,
+      showChanges: false,
       showChatPicker: false,
+      showKanbanSelector: false,
       vibeChat: null,
-      changedFiles: [],
-      selectedDiffFile: null,
-      loadingChanges: false,
       selectedAppKey: '',
       selectedApp: null,
       previewKey: 0,
+      branches: [],
+      showCreateBranchModal: false,
+      createBranchFrom: 'main',
+      newBranchName: ''
     }
   },
   created() {
     this.init()
   },
   computed: {
-    currentBranch() {
-      return this.$projects.currentBranch || 'main'
-    },
     projectApps() {
       return this.$projects.projectApps || []
     },
@@ -230,47 +238,59 @@ export default {
         .filter(c => c.mode === 'vibe')
         .sort((a, b) => (a.updated_at > b.updated_at ? -1 : 1))
     },
-    totalAdded() {
-      return this.changedFiles.reduce((s, f) => s + (f.added || 0), 0)
-    },
-    totalRemoved() {
-      return this.changedFiles.reduce((s, f) => s + (f.removed || 0), 0)
-    },
-    // Dynamic widths based on visible panels
     chatWidth() {
-      if (this.showDiff && this.showPreview) return '30%'
-      if (this.showDiff || this.showPreview) return '50%'
+      if (this.showChat && this.showChanges && this.showPreview) return '33%'
+      if (this.showChat && this.showChanges) return '50%'
+      if (this.showChat && this.showPreview) return '50%'
       return '100%'
     },
-    diffWidth() {
-      if (this.showChat && this.showPreview) return '25%'
-      if (this.showChat || this.showPreview) return '40%'
+    changesWidth() {
+      if (this.showChat && this.showChanges && this.showPreview) return '33%'
+      if (this.showChat && this.showChanges) return '50%'
+      if (this.showChanges && this.showPreview) return '50%'
       return '100%'
     },
+    currentBranchFromMeta() {
+      return this.vibeChat?.meta_data?.current_branch || 'main'
+    },
+    compareBranchFromMeta() {
+      return this.vibeChat?.meta_data?.compare_branch || 'local'
+    },
+    kanbanParams() {
+      return this.params || {}
+    }
   },
   watch: {
     '$projects.activeProject'() {
       this.init()
     },
     vibeSessions(sessions) {
-      // Auto-select first session if none selected
       if (!this.vibeChat && sessions.length) {
-        this.vibeChat = sessions[0]
+        this.selectSession(sessions[0])
       }
     }
   },
   methods: {
     async init() {
-      await this.$projects.loadBranches()
-      // Pick last vibe session or set null
-      this.vibeChat = this.vibeSessions[0] || null
-      // Auto-select first VNC app
+      await this.loadProjectBranches()
+      this.createBranchFrom = this.branches[0] || 'main'
+      const firstSession = this.vibeSessions[0] || null
+      if (firstSession) this.selectSession(firstSession)
       this.autoSelectApp()
-      await this.refreshChanges()
+    },
+
+    async loadProjectBranches() {
+      try {
+        const chatProject = this.$service.chat.getChatProject(this.vibeChat)
+        const projectApi = chatProject?.$api || this.$api
+        this.branches = await projectApi.repo.branches()
+      } catch (error) {
+        console.error('Error loading branches:', error)
+        this.branches = ['main']
+      }
     },
 
     autoSelectApp() {
-      // Prefer VNC apps
       const vncApp = this.projectApps.find(a =>
         a.name?.toLowerCase().includes('vnc') ||
         a.type?.toLowerCase().includes('vnc')
@@ -284,15 +304,63 @@ export default {
     onAppSelected() {
       const app = this.projectApps.find(a => a.key === this.selectedAppKey)
       if (!app) { this.selectedApp = null; return }
-      // Split back workspace/app from the flat app list
       const workspaces = this.$storex.projects.workspaces || []
       const workspace = workspaces.find(w => w.name === app.workspaceName)
       this.selectedApp = workspace ? { workspace, app } : null
       this.previewKey++
     },
 
+    toggleView(view) {
+      if (view === 'chat') this.showChat = !this.showChat
+      else if (view === 'changes') this.showChanges = !this.showChanges
+      else if (view === 'preview') this.showPreview = !this.showPreview
+    },
+
+    onCurrentBranchChanged(branch) {
+      // Branch state is now managed by header via meta_data
+    },
+
+    onCompareBranchChanged(branch) {
+      // Branch state is now managed by header via meta_data
+    },
+
+    async onChatMetaUpdated(updatedChat) {
+      if (!updatedChat?.id) return
+      Object.assign(this.vibeChat, updatedChat)
+      await this.$chats.saveChat(this.vibeChat)
+    },
+
+    onPRBranchSelected({ fromBranch, toBranch }) {
+      this.$service.chat.updateChatBranches({
+        chat: this.vibeChat,
+        currentBranch: toBranch,
+        compareBranch: fromBranch
+      })
+      this.$refs.vibeHeader?.onBranchCreated?.(toBranch)
+    },
+
+    async onCreateBranch() {
+      if (!this.newBranchName.trim()) return
+      try {
+        const chatProject = this.$service.chat.getChatProject(this.vibeChat)
+        const projectApi = chatProject?.$api || this.$api
+        await projectApi.git.createBranch({
+          name: this.newBranchName,
+          from: this.createBranchFrom
+        })
+        await this.loadProjectBranches()
+        this.showCreateBranchModal = false
+        this.$refs.vibeHeader?.onBranchCreated(this.newBranchName)
+        this.newBranchName = ''
+        this.$ui.addNotification({ text: `Branch created: ${this.newBranchName}`, type: 'success' })
+      } catch (error) {
+        this.$ui.addNotification({ text: `Error creating branch: ${error.message}`, type: 'error' })
+      }
+    },
+
     async newVibeChat() {
       this.showChatPicker = false
+      const currentBranch = this.branches[0] || 'main'
       const chat = await this.$chats.createNewChat({
         id: uuidv4(),
         name: `Vibe ${moment().format('MMM D HH:mm')}`,
@@ -300,6 +368,10 @@ export default {
         board: 'codx-junior',
         project_id: this.$project.project_id,
         messages: [],
+        meta_data: {
+          current_branch: currentBranch,
+          compare_branch: 'local'
+        }
       })
       await this.$chats.saveChat(chat)
       this.vibeChat = chat
@@ -308,48 +380,23 @@ export default {
     selectSession(chat) {
       this.vibeChat = chat
       this.showChatPicker = false
+      this.loadProjectBranches()
+    },
+
+    // Called when user selects a task from kanban
+    onKanbanBoardSelected(board) {
+      this.showKanbanSelector = false
+      if (board) {
+        this.$chats.setActiveChat(board)
+      }
     },
 
     reloadVibeChat() {
       if (this.vibeChat) this.$chats.reloadChat(this.vibeChat)
     },
 
-    async refreshChanges() {
-      if (!this.$project) return
-      this.loadingChanges = true
-      try {
-        const summary = await this.$storex.api.run.changesSummary({ branch: this.currentBranch })
-        this.changedFiles = this.parseChangesSummary(summary)
-      } catch (ex) {
-        console.error('Error loading changes', ex)
-      } finally {
-        this.loadingChanges = false
-      }
-    },
-
-    parseChangesSummary(summary) {
-      if (!summary?.files) return []
-      return summary.files.map(f => ({
-        ...f,
-        shortPath: f.path?.split('/').slice(-2).join('/'),
-        added: f.insertions || 0,
-        removed: f.deletions || 0,
-        status: f.insertions > 0 && f.deletions === 0 ? 'added'
-              : f.deletions > 0 && f.insertions === 0 ? 'deleted'
-              : 'modified'
-      }))
-    },
-
-    selectDiffFile(file) {
-      this.selectedDiffFile = this.selectedDiffFile?.path === file.path ? null : file
-    },
-
-    parsedDiffLines(diff) {
-      if (!diff) return []
-      return diff.split('\n').map(line => ({
-        content: line,
-        type: line.startsWith('+') ? '+' : line.startsWith('-') ? '-' : ' '
-      }))
+    refreshChanges() {
+      this.$refs.prView?.refreshSummary?.()
     },
 
     reloadPreview() {
@@ -363,13 +410,29 @@ export default {
     },
 
     reloadWorkspace() {
-      this.refreshChanges()
       this.reloadPreview()
+      if (this.vibeChat) this.reloadVibeChat()
+    },
+
+    onPRComment({ chat, title, files, description, profiles, mode, column }) {
+      this.$emit('comment', { chat, title, files, description, profiles, mode, column })
+    },
+
+    onChangeColumnFromPR({ chats, column }) {
+      this.$emit('change-column', { chats, column })
+    },
+
+    onNewChatFromChanges(payload) {
+      this.$emit('new-chat', payload)
+    },
+
+    onPRChatMessage({ file }) {
+      if (file.chat?.messages) file.chat.messages.push({})
     },
 
     formatDate(date) {
       return moment(date).fromNow()
-    },
+    }
   }
 }
 </script>
